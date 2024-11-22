@@ -1,4 +1,4 @@
-use commands::{effect, gamemode::GameMode, kill, teleport, PlayerCommands, TargetFilter};
+use commands::{clear, effect, gamemode::GameMode, kill, teleport, PlayerCommands, TargetFilter};
 use selector::TargetSelector;
 
 pub mod advancements;
@@ -6,6 +6,7 @@ pub mod status_effects;
 pub mod commands;
 pub mod entities;
 pub mod selector;
+pub mod items;
 
 fn main() {
     let creative_command = PlayerCommands::Gamemode(
@@ -45,4 +46,12 @@ fn main() {
         0,
     ));
     println!("{}", effect_command.to_string());
+    let clear_command = PlayerCommands::Clear(clear::Clear(Some(TargetSelector {
+        selector: selector::EntityTargets::AllPlayers,
+        filter: TargetFilter {
+            name: Some("TheOneTrueToast".to_string()),
+            ..Default::default()
+        },
+    })));
+    println!("{}", clear_command.to_string());
 }

@@ -1,6 +1,10 @@
 pub mod gamemode;
 pub mod teleport;
 pub mod utils;
+pub mod kill;
+pub mod effect;
+
+use std::fmt::format;
 
 use crate::selector::TargetSelector;
 use gamemode::GameMode;
@@ -12,6 +16,8 @@ pub use utils::{Distance, EntityName, TargetFilter};
 pub enum PlayerCommands {
     Gamemode(GameMode, Option<TargetSelector>),
     Teleport(teleport::Teleport),
+    Kill(kill::Kill),
+    Effect(effect::Effect)
 }
 
 impl ToString for PlayerCommands {
@@ -33,6 +39,12 @@ impl ToString for PlayerCommands {
             PlayerCommands::Teleport(target) => {
                 format!("/{}", target.to_string())
             }
+            PlayerCommands::Kill(selector) => {
+                format!("{}", selector.to_string())
+            }
+            PlayerCommands::Effect(condition) => {
+                format!("{}", condition.to_string())
+            }
         }
-    }
+    }   
 }

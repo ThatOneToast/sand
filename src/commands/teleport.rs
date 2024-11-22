@@ -10,6 +10,7 @@ pub type Z = f32;
 pub enum Teleport {
     SelfTo(X, Y, Z),
     PlayerTo(EntityName, X, Y, Z),
+    PlayerToPlayer(EntityName, EntityName),
     EntityTo(MinecraftEntity, X, Y, Z),
     AllPlayersTo(X, Y, Z, Option<TargetFilter>),
     AllEntitiesTo(X, Y, Z, Option<TargetFilter>),
@@ -22,6 +23,9 @@ impl ToString for Teleport {
         match self {
             Teleport::SelfTo(x, y, z) => format!("tp {} {} {}", x, y, z),
             Teleport::PlayerTo(name, x, y, z) => format!("tp {} {} {} {}", name, x, y, z),
+            Teleport::PlayerToPlayer(runner, target) => {
+                format!("tp {} {}", runner, target)
+            }
             Teleport::EntityTo(entity, x, y, z) => {
                 format!("tp @e[type={}] {} {} {}", entity.to_string(), x, y, z)
             }

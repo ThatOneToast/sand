@@ -1,5 +1,5 @@
 
-
+#[derive(Debug, Clone)]
 pub enum Advancements {
     Minecraft,
     StoneAge,

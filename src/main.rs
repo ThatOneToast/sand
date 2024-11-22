@@ -1,16 +1,12 @@
-use commands::{EntityTargets, GamemodeMode, PlayerCommands};
+use commands::{gamemode::GameMode, PlayerCommands};
 
+
+pub mod advancements;
 pub mod commands;
 pub mod entities;
-pub mod advancements;
+pub mod selector;
 
 fn main() {
-    let creative_command = PlayerCommands::Gamemode(
-        GamemodeMode::Creative,
-        Some(EntityTargets::Entity(
-            None,
-            Some("ThatOneToast".to_string()),
-        )),
-    );
+    let creative_command = PlayerCommands::Gamemode(GameMode::Creative, None);
     println!("{}", creative_command.to_string());
 }

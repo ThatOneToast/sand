@@ -2,7 +2,7 @@ pub mod gamemode;
 pub mod teleport;
 pub mod utils;
 
-use crate::{entities::MinecraftEntity, selector::TargetSelector};
+use crate::selector::TargetSelector;
 use gamemode::GameMode;
 pub use utils::{Distance, EntityName, TargetFilter};
 
@@ -11,6 +11,7 @@ pub use utils::{Distance, EntityName, TargetFilter};
 #[derive(Debug, Clone)]
 pub enum PlayerCommands {
     Gamemode(GameMode, Option<TargetSelector>),
+    Teleport(teleport::Teleport),
 }
 
 impl ToString for PlayerCommands {
@@ -28,6 +29,9 @@ impl ToString for PlayerCommands {
                 }
 
                 command
+            },
+            PlayerCommands::Teleport(target) => {
+                format!("/{}", target.to_string())
             }
         }
     }

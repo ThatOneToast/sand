@@ -1,4 +1,4 @@
-use commands::{clear, effect, gamemode::GameMode, kill, teleport, PlayerCommands, TargetFilter};
+use commands::{clear, effect, gamemode::GameMode, kill, teleport, Distance, PlayerCommands, TargetFilter};
 use selector::TargetSelector;
 
 pub mod advancements;
@@ -7,6 +7,8 @@ pub mod commands;
 pub mod entities;
 pub mod selector;
 pub mod items;
+pub mod tests;
+
 
 fn main() {
     let creative_command = PlayerCommands::Gamemode(
@@ -54,4 +56,13 @@ fn main() {
         },
     })));
     println!("{}", clear_command.to_string());
+    
+    let command = PlayerCommands::Teleport(
+        teleport::Teleport::AllPlayersTo(33.0, 100.5, 55.67, Some(TargetFilter {
+            distance: Some(Distance::Max(50.0)),
+            ..Default::default()
+        }))
+    );
+    
+    println!("{}", format!("{}", command.to_string()));
 }

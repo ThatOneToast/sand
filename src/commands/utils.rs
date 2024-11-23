@@ -1,6 +1,6 @@
 use crate::advancements::Advancements;
 
-use super::gamemode::GameMode;
+use super::gamemode::GamemodeType;
 
 pub type EntityName = String;
 
@@ -30,7 +30,7 @@ pub struct TargetFilter {
     pub dx: Option<f32>,
     pub dy: Option<f32>,
     pub dz: Option<f32>,
-    pub gamemode: Option<GameMode>,
+    pub gamemode: Option<GamemodeType>,
     pub level: Option<u32>,
     pub limit: Option<u32>,
     pub name: Option<String>,

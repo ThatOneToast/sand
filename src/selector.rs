@@ -1,4 +1,4 @@
-use crate::{commands::{EntityName, TargetFilter}, entities::MinecraftEntity};
+use crate::commands::TargetFilter;
 
 #[derive(Debug, Clone)]
 pub struct TargetSelector {
@@ -14,6 +14,7 @@ impl Default for TargetSelector {
         }
     }
 }
+
 
 impl ToString for TargetSelector {
     fn to_string(&self) -> String {
@@ -31,7 +32,7 @@ pub enum EntityTargets {
     Current,                                             // @s
     Random,                                              // @r
     Nearest,                                             // @p
-    Entity(Option<MinecraftEntity>, Option<EntityName>), // @e[type=type,name=name]
+    Entity,                                              // @e
     Other(String),
 }
 
@@ -43,24 +44,7 @@ impl ToString for EntityTargets {
             EntityTargets::Current => "@s".to_string(),
             EntityTargets::Nearest => "@p".to_string(),
             EntityTargets::Random => "@r".to_string(),
-            EntityTargets::Entity(entity, name) => {
-                let etype = entity.as_ref();
-                let name = name.as_ref();
-
-                if etype.is_none() && name.is_none() {
-                    return "@e".to_string();
-                } else if etype.is_some() && name.is_none() {
-                    return format!("@e[type={}]", etype.unwrap().to_string());
-                } else if etype.is_none() && name.is_some() {
-                    return format!("@e[name={}]", name.unwrap().to_string());
-                } else {
-                    return format!(
-                        "@e[type={}, name={}]",
-                        etype.unwrap().to_string(),
-                        name.unwrap().to_string()
-                    );
-                }
-            }
+            EntityTargets::Entity => "@e".to_string(),
             EntityTargets::Other(name) => format!("{name}"),
         }
     }

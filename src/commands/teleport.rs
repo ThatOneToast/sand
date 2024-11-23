@@ -24,19 +24,19 @@ impl ToString for Teleport {
             Teleport::SelfTo(x, y, z) => format!("tp {} {} {}", x, y, z),
             Teleport::PlayerTo(name, x, y, z) => format!("tp {} {} {} {}", name, x, y, z),
             Teleport::PlayerToPlayer(runner, target) => {
-                format!("tp {} {}", runner, target)
+                format!("/tp {} {}", runner, target)
             }
             Teleport::EntityTo(entity, x, y, z) => {
-                format!("tp @e[type={}] {} {} {}", entity.to_string(), x, y, z)
+                format!("/tp @e[type={}] {} {} {}", entity.to_string(), x, y, z)
             }
             Teleport::AllPlayersTo(x, y, z, filter) => {
                 let filter = filter.to_owned().unwrap_or(TargetFilter::default());
-                format!("tp @a[{}] {} {} {}", filter.to_string(), x, y, z)
+                format!("/tp @a[{}] {} {} {}", filter.to_string(), x, y, z)
             }
             Teleport::AllEntitiesTo(x, y, z, filter) => {
                 let filter = filter.to_owned().unwrap_or(TargetFilter::default());
                 format!(
-                    "tp @e[{}] {} {} {}",
+                    "/tp @e[{}] {} {} {}",
                     filter.to_string(),
                     x,
                     y,
@@ -46,14 +46,14 @@ impl ToString for Teleport {
             Teleport::NearestTo(x, y, z, filter) => {
                 let filter = filter.to_owned().unwrap_or(TargetFilter::default());
                 format!(
-                    "tp @p[{}] {} {} {}",
+                    "/tp @p[{}] {} {} {}",
                     filter.to_string(),
                     x,
                     y,
                     z
                 )
             }
-            Teleport::Other(other) => format!("{other}"),
+            Teleport::Other(other) => format!("/tp {other}"),
         }
     }
 }

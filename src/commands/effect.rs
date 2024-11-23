@@ -1,22 +1,12 @@
 use crate::{selector::TargetSelector, status_effects::StatusEffects};
 
-
-
-#[derive(Debug, Clone)]
-pub enum EffectCondition {
-    Clear,
-    Give
-}
-
-// /effect give TheOneTrueToast minecraft:absorption 30 0
-
 pub type Duration = i32;
 pub type Amplifier = i32;
 
 #[derive(Debug, Clone)]
 pub enum Effect {
     Give(TargetSelector, StatusEffects, Duration, Amplifier),
-    Clear(TargetSelector)
+    Clear(TargetSelector),
 }
 
 impl ToString for Effect {

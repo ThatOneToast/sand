@@ -109,10 +109,10 @@ impl ToString for TargetFilter {
         if let Some(nbt) = &self.nbt {
             filters.push(format!("nbt={}", nbt));
         }
-        if let Some(predicate) = &self.predicate {
+        if let Some(_predicate) = &self.predicate {
             unimplemented!("I'm not sure how to handle these yet.")
         }
-        if let Some(scores) = &self.scores {
+        if let Some(_scores) = &self.scores {
             unimplemented!("I'm not sure how to handle these yet.")
         }
         if let Some(sort) = &self.sort {

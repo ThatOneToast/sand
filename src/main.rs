@@ -7,6 +7,7 @@ pub mod advancements;
 pub mod commands;
 pub mod entities;
 pub mod items;
+pub mod components;
 pub mod selector;
 pub mod status_effects;
 pub mod tests;

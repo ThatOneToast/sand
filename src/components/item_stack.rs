@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 
+use sand_derive::DataComponent;
+use super::DataComponent;
 use serde::{Deserialize, Serialize};
 
-use super::DataComponent;
 
 
 #[derive(DataComponent, Debug, Clone, Serialize, Deserialize)]

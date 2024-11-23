@@ -42,8 +42,17 @@ checksum = "f3cb5ba0dc43242ce17de99c180e96db90b235b8a9fdc9543c96d2209116bd9f"
 name = "sand"
 version = "0.1.0"
 dependencies = [
+ "sand_derive",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "sand_derive"
+version = "0.1.0"
+dependencies = [
+ "quote",
+ "syn",
 ]
 
 [[package]]

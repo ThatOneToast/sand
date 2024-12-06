@@ -1,3 +1,16 @@
+#[derive(Debug, Clone)]
+pub enum ItemIDs {
+    DIRT
+}
+
+impl ToString for ItemIDs {
+    fn to_string(&self) -> String {
+        match self {
+            ItemIDs::DIRT => "minecraft:dirt".to_string()
+        }
+    }
+}
+
 
 #[derive(Debug, Clone)]
 pub struct ItemMeta {

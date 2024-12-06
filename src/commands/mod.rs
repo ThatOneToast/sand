@@ -4,6 +4,7 @@ pub mod kill;
 pub mod teleport;
 pub mod utils;
 pub mod clear;
+pub mod give;
 
 pub use utils::{Distance, EntityName, TargetFilter};
 
@@ -14,6 +15,7 @@ pub enum PlayerCommands {
     Kill(kill::Kill),
     Effect(effect::Effect),
     Clear(clear::Clear),
+    Give(give::Give)
 }
 
 impl ToString for PlayerCommands {
@@ -33,6 +35,9 @@ impl ToString for PlayerCommands {
             }
             PlayerCommands::Clear(selector) => {
                 format!("{}", selector.to_string())
+            }
+            PlayerCommands::Give(give) => {
+                format!("{}", give.to_string())
             }
         }
     }

@@ -52,6 +52,8 @@ name = "sand_derive"
 version = "0.1.0"
 dependencies = [
  "quote",
+ "serde",
+ "serde_json",
  "syn",
 ]
 

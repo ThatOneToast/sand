@@ -1,6 +1,7 @@
 use commands::{
-    clear, effect, gamemode::GameMode, kill, teleport, Distance, PlayerCommands, TargetFilter,
+    clear, effect, gamemode::GameMode, give, kill, teleport, Distance, PlayerCommands, TargetFilter
 };
+use components::{ComponentBundle, MinecraftEnchantment, MinecraftEnchantments};
 use selector::TargetSelector;
 
 pub mod advancements;
@@ -68,4 +69,31 @@ fn main() {
     ));
 
     println!("{}", format!("{}", command.to_string()));
+    
+    
+    let command = PlayerCommands::Give(give::Give::new(
+        TargetSelector::default(),
+        1,
+        "minecraft:iron_sword".to_string(),
+        Some(ComponentBundle {
+            minecraft_unbreakable: Some(true),
+            minecraft_keep_on_death: Some(true),
+            minecraft_enchantments: Some(MinecraftEnchantments {
+                enchantments: Some(vec![
+                    MinecraftEnchantment {
+                        id: Some("minecraft:unbreaking".to_string()),
+                        level: Some(1),
+                    },
+                    MinecraftEnchantment {
+                        id: Some("minecraft:mending".to_string()),
+                        level: Some(1),
+                    }
+                ])
+            }),
+            ..Default::default()
+        })
+    ));
+    
+    println!("{}", command.to_string());
+    
 }

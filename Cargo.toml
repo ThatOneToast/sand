@@ -1,0 +1,13 @@
+[package]
+name = "sand"
+version = "0.1.0"
+edition = "2021"
+build = "src/build.rs"
+
+[dependencies]
+cc = "1.2.2"
+clap = { version = "4.5.23", features = ["derive"] }
+serde = { version = "1.0.215", features = ["derive"] }
+tlogger = "0.1.4"
+toml = "0.8.19"
+tree-sitter = "0.24.4"

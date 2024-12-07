@@ -1,0 +1,10 @@
+fn midnight {
+    time set midnight;
+    say set it to midnight;
+}
+
+fn make_mobs_float {
+    effect @e[type=minecraft:zombie] minecraft:levitation 25 13;
+    effect @e[type=minecraft:creeper] minecraft:levitation 25 13;
+    effect @e[type=minecraft:skeleton] minecraft:levitation 25 13;
+}

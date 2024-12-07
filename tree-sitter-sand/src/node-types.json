@@ -1,0 +1,548 @@
+[
+  {
+    "type": "block",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "effect_command",
+          "named": true
+        },
+        {
+          "type": "say_command",
+          "named": true
+        },
+        {
+          "type": "tellraw_command",
+          "named": true
+        },
+        {
+          "type": "time_command",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "custom_effect",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "effect_command",
+    "named": true,
+    "fields": {
+      "amplifier": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "number",
+            "named": true
+          }
+        ]
+      },
+      "duration": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "number",
+            "named": true
+          }
+        ]
+      },
+      "effect_type": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "custom_effect",
+            "named": true
+          },
+          {
+            "type": "vanilla_effect",
+            "named": true
+          }
+        ]
+      },
+      "target": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "target_selector",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "function_definition",
+    "named": true,
+    "fields": {
+      "body": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "block",
+            "named": true
+          }
+        ]
+      },
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "quoted_string",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "range_value",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "number",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "say_command",
+    "named": true,
+    "fields": {
+      "message": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "text",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "selector_argument",
+    "named": true,
+    "fields": {
+      "key": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "value": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          },
+          {
+            "type": "number",
+            "named": true
+          },
+          {
+            "type": "quoted_string",
+            "named": true
+          },
+          {
+            "type": "range_value",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "selector_arguments",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "selector_argument",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "selector_type",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "source_file",
+    "named": true,
+    "root": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "function_definition",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "target_selector",
+    "named": true,
+    "fields": {
+      "selector": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "selector_type",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": false,
+      "required": false,
+      "types": [
+        {
+          "type": "selector_arguments",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "tellraw_command",
+    "named": true,
+    "fields": {
+      "message": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "text",
+            "named": true
+          }
+        ]
+      },
+      "target": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "target_selector",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "time_command",
+    "named": true,
+    "fields": {
+      "query_type": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "value": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "number",
+            "named": true
+          },
+          {
+            "type": "time_unit",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "time_unit",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "vanilla_effect",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": ",",
+    "named": false
+  },
+  {
+    "type": "..",
+    "named": false
+  },
+  {
+    "type": ";",
+    "named": false
+  },
+  {
+    "type": "=",
+    "named": false
+  },
+  {
+    "type": "@a",
+    "named": false
+  },
+  {
+    "type": "@e",
+    "named": false
+  },
+  {
+    "type": "@p",
+    "named": false
+  },
+  {
+    "type": "@r",
+    "named": false
+  },
+  {
+    "type": "@s",
+    "named": false
+  },
+  {
+    "type": "[",
+    "named": false
+  },
+  {
+    "type": "]",
+    "named": false
+  },
+  {
+    "type": "day",
+    "named": false
+  },
+  {
+    "type": "effect",
+    "named": false
+  },
+  {
+    "type": "fn",
+    "named": false
+  },
+  {
+    "type": "identifier",
+    "named": true
+  },
+  {
+    "type": "midnight",
+    "named": false
+  },
+  {
+    "type": "minecraft:absorption",
+    "named": false
+  },
+  {
+    "type": "minecraft:bad_omen",
+    "named": false
+  },
+  {
+    "type": "minecraft:blindness",
+    "named": false
+  },
+  {
+    "type": "minecraft:conduit_power",
+    "named": false
+  },
+  {
+    "type": "minecraft:dolphins_grace",
+    "named": false
+  },
+  {
+    "type": "minecraft:fire_resistance",
+    "named": false
+  },
+  {
+    "type": "minecraft:glowing",
+    "named": false
+  },
+  {
+    "type": "minecraft:haste",
+    "named": false
+  },
+  {
+    "type": "minecraft:health_boost",
+    "named": false
+  },
+  {
+    "type": "minecraft:hero_of_the_village",
+    "named": false
+  },
+  {
+    "type": "minecraft:hunger",
+    "named": false
+  },
+  {
+    "type": "minecraft:instant_damage",
+    "named": false
+  },
+  {
+    "type": "minecraft:instant_health",
+    "named": false
+  },
+  {
+    "type": "minecraft:invisibility",
+    "named": false
+  },
+  {
+    "type": "minecraft:jump_boost",
+    "named": false
+  },
+  {
+    "type": "minecraft:levitation",
+    "named": false
+  },
+  {
+    "type": "minecraft:luck",
+    "named": false
+  },
+  {
+    "type": "minecraft:mining_fatigue",
+    "named": false
+  },
+  {
+    "type": "minecraft:nausea",
+    "named": false
+  },
+  {
+    "type": "minecraft:night_vision",
+    "named": false
+  },
+  {
+    "type": "minecraft:poison",
+    "named": false
+  },
+  {
+    "type": "minecraft:regeneration",
+    "named": false
+  },
+  {
+    "type": "minecraft:resistance",
+    "named": false
+  },
+  {
+    "type": "minecraft:saturation",
+    "named": false
+  },
+  {
+    "type": "minecraft:slow_falling",
+    "named": false
+  },
+  {
+    "type": "minecraft:slowness",
+    "named": false
+  },
+  {
+    "type": "minecraft:speed",
+    "named": false
+  },
+  {
+    "type": "minecraft:strength",
+    "named": false
+  },
+  {
+    "type": "minecraft:unluck",
+    "named": false
+  },
+  {
+    "type": "minecraft:water_breathing",
+    "named": false
+  },
+  {
+    "type": "minecraft:weakness",
+    "named": false
+  },
+  {
+    "type": "minecraft:wither",
+    "named": false
+  },
+  {
+    "type": "night",
+    "named": false
+  },
+  {
+    "type": "noon",
+    "named": false
+  },
+  {
+    "type": "number",
+    "named": true
+  },
+  {
+    "type": "query",
+    "named": false
+  },
+  {
+    "type": "say",
+    "named": false
+  },
+  {
+    "type": "set",
+    "named": false
+  },
+  {
+    "type": "tellraw",
+    "named": false
+  },
+  {
+    "type": "text",
+    "named": true
+  },
+  {
+    "type": "time",
+    "named": false
+  },
+  {
+    "type": "{",
+    "named": false
+  },
+  {
+    "type": "}",
+    "named": false
+  }
+]

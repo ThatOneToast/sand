@@ -1,0 +1,648 @@
+{
+  "$schema": "https://tree-sitter.github.io/tree-sitter/assets/schemas/grammar.schema.json",
+  "name": "sand",
+  "rules": {
+    "source_file": {
+      "type": "REPEAT",
+      "content": {
+        "type": "SYMBOL",
+        "name": "_definition"
+      }
+    },
+    "_definition": {
+      "type": "SYMBOL",
+      "name": "function_definition"
+    },
+    "function_definition": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "fn"
+        },
+        {
+          "type": "FIELD",
+          "name": "name",
+          "content": {
+            "type": "SYMBOL",
+            "name": "identifier"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "body",
+          "content": {
+            "type": "SYMBOL",
+            "name": "block"
+          }
+        }
+      ]
+    },
+    "block": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "{"
+        },
+        {
+          "type": "REPEAT",
+          "content": {
+            "type": "SEQ",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "_command"
+              },
+              {
+                "type": "STRING",
+                "value": ";"
+              },
+              {
+                "type": "CHOICE",
+                "members": [
+                  {
+                    "type": "PATTERN",
+                    "value": "\\s+"
+                  },
+                  {
+                    "type": "BLANK"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "type": "STRING",
+          "value": "}"
+        }
+      ]
+    },
+    "_command": {
+      "type": "PREC_LEFT",
+      "value": 0,
+      "content": {
+        "type": "SEQ",
+        "members": [
+          {
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "PATTERN",
+                "value": "\\s+"
+              },
+              {
+                "type": "BLANK"
+              }
+            ]
+          },
+          {
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "say_command"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "time_command"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "tellraw_command"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "effect_command"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "target_selector": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "FIELD",
+          "name": "selector",
+          "content": {
+            "type": "SYMBOL",
+            "name": "selector_type"
+          }
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SYMBOL",
+              "name": "selector_arguments"
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
+        }
+      ]
+    },
+    "selector_type": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "@s"
+        },
+        {
+          "type": "STRING",
+          "value": "@a"
+        },
+        {
+          "type": "STRING",
+          "value": "@p"
+        },
+        {
+          "type": "STRING",
+          "value": "@r"
+        },
+        {
+          "type": "STRING",
+          "value": "@e"
+        }
+      ]
+    },
+    "selector_arguments": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "["
+        },
+        {
+          "type": "REPEAT",
+          "content": {
+            "type": "SEQ",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "selector_argument"
+              },
+              {
+                "type": "CHOICE",
+                "members": [
+                  {
+                    "type": "STRING",
+                    "value": ","
+                  },
+                  {
+                    "type": "BLANK"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "type": "STRING",
+          "value": "]"
+        }
+      ]
+    },
+    "selector_argument": {
+      "type": "PREC",
+      "value": 1,
+      "content": {
+        "type": "SEQ",
+        "members": [
+          {
+            "type": "FIELD",
+            "name": "key",
+            "content": {
+              "type": "SYMBOL",
+              "name": "identifier"
+            }
+          },
+          {
+            "type": "STRING",
+            "value": "="
+          },
+          {
+            "type": "FIELD",
+            "name": "value",
+            "content": {
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "SYMBOL",
+                  "name": "range_value"
+                },
+                {
+                  "type": "SYMBOL",
+                  "name": "number"
+                },
+                {
+                  "type": "SYMBOL",
+                  "name": "identifier"
+                },
+                {
+                  "type": "SYMBOL",
+                  "name": "quoted_string"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "range_value": {
+      "type": "PREC_LEFT",
+      "value": 2,
+      "content": {
+        "type": "CHOICE",
+        "members": [
+          {
+            "type": "SEQ",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "number"
+              },
+              {
+                "type": "STRING",
+                "value": ".."
+              },
+              {
+                "type": "SYMBOL",
+                "name": "number"
+              }
+            ]
+          },
+          {
+            "type": "SEQ",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "number"
+              },
+              {
+                "type": "STRING",
+                "value": ".."
+              }
+            ]
+          },
+          {
+            "type": "SEQ",
+            "members": [
+              {
+                "type": "STRING",
+                "value": ".."
+              },
+              {
+                "type": "SYMBOL",
+                "name": "number"
+              }
+            ]
+          },
+          {
+            "type": "SYMBOL",
+            "name": "number"
+          }
+        ]
+      }
+    },
+    "quoted_string": {
+      "type": "PATTERN",
+      "value": "\"[^\"]*\""
+    },
+    "say_command": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "say"
+        },
+        {
+          "type": "FIELD",
+          "name": "message",
+          "content": {
+            "type": "SYMBOL",
+            "name": "text"
+          }
+        }
+      ]
+    },
+    "tellraw_command": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "tellraw"
+        },
+        {
+          "type": "FIELD",
+          "name": "target",
+          "content": {
+            "type": "SYMBOL",
+            "name": "target_selector"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "message",
+          "content": {
+            "type": "SYMBOL",
+            "name": "text"
+          }
+        }
+      ]
+    },
+    "effect_command": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "effect"
+        },
+        {
+          "type": "FIELD",
+          "name": "target",
+          "content": {
+            "type": "SYMBOL",
+            "name": "target_selector"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "effect_type",
+          "content": {
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "vanilla_effect"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "custom_effect"
+              }
+            ]
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "duration",
+          "content": {
+            "type": "SYMBOL",
+            "name": "number"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "amplifier",
+          "content": {
+            "type": "SYMBOL",
+            "name": "number"
+          }
+        }
+      ]
+    },
+    "vanilla_effect": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "minecraft:speed"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:slowness"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:haste"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:mining_fatigue"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:strength"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:instant_health"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:instant_damage"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:jump_boost"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:nausea"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:regeneration"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:resistance"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:fire_resistance"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:water_breathing"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:invisibility"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:blindness"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:night_vision"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:hunger"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:weakness"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:poison"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:wither"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:health_boost"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:absorption"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:saturation"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:glowing"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:levitation"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:luck"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:unluck"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:slow_falling"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:conduit_power"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:dolphins_grace"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:bad_omen"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:hero_of_the_village"
+        }
+      ]
+    },
+    "custom_effect": {
+      "type": "PATTERN",
+      "value": "\"[^\"]*\""
+    },
+    "text": {
+      "type": "PATTERN",
+      "value": "[^;]*"
+    },
+    "time_command": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "time"
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SEQ",
+              "members": [
+                {
+                  "type": "STRING",
+                  "value": "set"
+                },
+                {
+                  "type": "FIELD",
+                  "name": "value",
+                  "content": {
+                    "type": "CHOICE",
+                    "members": [
+                      {
+                        "type": "SYMBOL",
+                        "name": "number"
+                      },
+                      {
+                        "type": "SYMBOL",
+                        "name": "time_unit"
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "type": "SEQ",
+              "members": [
+                {
+                  "type": "STRING",
+                  "value": "query"
+                },
+                {
+                  "type": "FIELD",
+                  "name": "query_type",
+                  "content": {
+                    "type": "SYMBOL",
+                    "name": "identifier"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "time_unit": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "day"
+        },
+        {
+          "type": "STRING",
+          "value": "night"
+        },
+        {
+          "type": "STRING",
+          "value": "noon"
+        },
+        {
+          "type": "STRING",
+          "value": "midnight"
+        }
+      ]
+    },
+    "identifier": {
+      "type": "PATTERN",
+      "value": "[a-zA-Z_][a-zA-Z0-9_]*"
+    },
+    "number": {
+      "type": "PATTERN",
+      "value": "\\d+"
+    }
+  },
+  "extras": [
+    {
+      "type": "PATTERN",
+      "value": "\\s"
+    }
+  ],
+  "conflicts": [],
+  "precedences": [],
+  "externals": [],
+  "inline": [],
+  "supertypes": []
+}

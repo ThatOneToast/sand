@@ -1,2 +1,7 @@
 /target
 .DS_Store
+parser.o
+libsand_parser.a
+*.sand
+Sand.toml
+/output

@@ -28,7 +28,9 @@ module.exports = grammar({
                 $.say_command,
                 $.time_command,
                 $.tellraw_command,
-                $.effect_command
+                $.effect_command,
+                $.inv_clear_command,
+                $.effect_clear_command,
             )
         )),
 
@@ -77,6 +79,16 @@ module.exports = grammar({
         say_command: $ => seq(
             'say',
             field('message', $.text)
+        ),
+        
+        inv_clear_command: $ => seq(
+            'clear',
+            field('target', $.target_selector)
+        ),
+        
+        effect_clear_command: $ => seq(
+            'eclear',
+            field('target', $.target_selector),
         ),
 
         tellraw_command: $ => seq(

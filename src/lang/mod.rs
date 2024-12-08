@@ -18,13 +18,35 @@ pub enum NodeType<'a> {
     Unknown,
 }
 
+pub type Selector = String;
+pub type Effect = String;
+pub type Duration = String;
+pub type Amplifier = String;
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ClearType {
+    Inventory,
+    Effect,
+}
+
+impl ToString for ClearType {
+    fn to_string(&self) -> String {
+        match self {
+            ClearType::Inventory => "inventory".to_string(),
+            ClearType::Effect => "effect".to_string(),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum Statement {
     Say(String),
     TimeSet(String),
     TimeQuery(String),
     Tellraw(String),
-    Effect(String, String, String, String),
+    Effect(Selector, Effect, Duration, Amplifier),
+    Clear(ClearType, Selector),
+    
 }
 
 impl ToString for Statement {
@@ -34,7 +56,16 @@ impl ToString for Statement {
             Statement::TimeSet(value) => format!("time set {}", value),
             Statement::TimeQuery(query_type) => format!("time query {}", query_type),
             Statement::Tellraw(text) => format!("tellraw @s \"{}\"", text),
-            Statement::Effect(selector, effect, duration, amplifier) => format!("effect {} {} {} {}", selector, effect, duration, amplifier),
+            Statement::Effect(selector, effect, duration, amplifier) => {
+                format!(
+                    "effect give {} {} {} {}",
+                    selector, effect, duration, amplifier
+                )
+            }
+            Statement::Clear(clear_type, selector) => match clear_type {
+                ClearType::Inventory => format!("clear {}", selector),
+                ClearType::Effect => format!("effect clear {}", selector),
+            },
         }
     }
 }
@@ -102,6 +133,26 @@ impl<'a> AstBuilder<'a> {
                         }
                     }
                 }
+                "inv_clear_command" => {
+                    let mut cmd_cursor = command.walk();
+                    let children: Vec<Node> = command.children(&mut cmd_cursor).collect();
+
+                    if children.len() >= 2 {
+                        if let Ok(selector) = children[1].utf8_text(self.source.as_bytes()) {
+                            body_statements.push(Statement::Clear(ClearType::Inventory, selector.to_string()));
+                        }
+                    }
+                }
+                "effect_clear_command" => {
+                    let mut cmd_cursor = command.walk();
+                    let children: Vec<Node> = command.children(&mut cmd_cursor).collect();
+                    
+                    if children.len() >= 2 {
+                        if let Ok(selector) = children[1].utf8_text(self.source.as_bytes()) {
+                            body_statements.push(Statement::Clear(ClearType::Effect, selector.to_string()));
+                        }
+                    }
+                }
                 "tellraw_command" => {
                     let mut cmd_cursor = command.walk();
                     for child in command.children(&mut cmd_cursor) {
@@ -119,24 +170,24 @@ impl<'a> AstBuilder<'a> {
                     let children: Vec<Node> = command.children(&mut cmd_cursor).collect();
 
                     debug!("Effect Command Children:", "{:?}", children);
-                    if children.len() >= 3 {
-                        match children[1].kind() {
-                            "target" => {
-                                if let Some(target_node) = children.get(2) {
-                                    if let Ok(target_text) =
-                                        target_node.utf8_text(self.source.as_bytes())
-                                    {
-                                        debug!("Found effect command target:", "{}", target_text);
-                                        body_statements.push(Statement::Effect(
-                                            target_text.to_string(),
-                                            children[3].utf8_text(self.source.as_bytes()).unwrap().to_string(),
-                                            children[4].utf8_text(self.source.as_bytes()).unwrap().to_string(),
-                                            children[5].utf8_text(self.source.as_bytes()).unwrap().to_string(),
-                                        ));
-                                    }
+                    if children.len() >= 5 {
+                        // Get the target selector
+                        if let Ok(selector) = children[1].utf8_text(self.source.as_bytes()) {
+                            // Get the effect name
+                            if let Ok(effect) = children[2].utf8_text(self.source.as_bytes()) {
+                                // Get duration and amplifier
+                                if let (Ok(duration), Ok(amplifier)) = (
+                                    children[3].utf8_text(self.source.as_bytes()),
+                                    children[4].utf8_text(self.source.as_bytes()),
+                                ) {
+                                    body_statements.push(Statement::Effect(
+                                        selector.to_string(),
+                                        effect.to_string(),
+                                        duration.to_string(),
+                                        amplifier.to_string(),
+                                    ));
                                 }
                             }
-                            _ => {}
                         }
                     }
                 }

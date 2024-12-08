@@ -115,6 +115,14 @@
               {
                 "type": "SYMBOL",
                 "name": "effect_command"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "inv_clear_command"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "effect_clear_command"
               }
             ]
           }
@@ -327,6 +335,40 @@
           "content": {
             "type": "SYMBOL",
             "name": "text"
+          }
+        }
+      ]
+    },
+    "inv_clear_command": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "clear"
+        },
+        {
+          "type": "FIELD",
+          "name": "target",
+          "content": {
+            "type": "SYMBOL",
+            "name": "target_selector"
+          }
+        }
+      ]
+    },
+    "effect_clear_command": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "eclear"
+        },
+        {
+          "type": "FIELD",
+          "name": "target",
+          "content": {
+            "type": "SYMBOL",
+            "name": "target_selector"
           }
         }
       ]

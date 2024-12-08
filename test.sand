@@ -8,3 +8,14 @@ fn make_mobs_float {
     effect @e[type=minecraft:creeper] minecraft:levitation 25 13;
     effect @e[type=minecraft:skeleton] minecraft:levitation 25 13;
 }
+
+
+fn clear_everyone {
+
+    tellraw @s Clearing inventories;
+    clear @a;
+    tellraw @s Cleared inventories;
+    tellraw @s Clearing effects;
+    eclear @a;
+    tellraw @s Cleared effects;
+}

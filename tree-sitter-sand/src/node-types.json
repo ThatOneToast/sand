@@ -8,7 +8,15 @@
       "required": false,
       "types": [
         {
+          "type": "effect_clear_command",
+          "named": true
+        },
+        {
           "type": "effect_command",
+          "named": true
+        },
+        {
+          "type": "inv_clear_command",
           "named": true
         },
         {
@@ -30,6 +38,22 @@
     "type": "custom_effect",
     "named": true,
     "fields": {}
+  },
+  {
+    "type": "effect_clear_command",
+    "named": true,
+    "fields": {
+      "target": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "target_selector",
+            "named": true
+          }
+        ]
+      }
+    }
   },
   {
     "type": "effect_command",
@@ -101,6 +125,22 @@
         "types": [
           {
             "type": "identifier",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "inv_clear_command",
+    "named": true,
+    "fields": {
+      "target": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "target_selector",
             "named": true
           }
         ]
@@ -354,7 +394,15 @@
     "named": false
   },
   {
+    "type": "clear",
+    "named": false
+  },
+  {
     "type": "day",
+    "named": false
+  },
+  {
+    "type": "eclear",
     "named": false
   },
   {

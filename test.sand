@@ -19,3 +19,13 @@ fn clear_everyone {
     eclear @a;
     tellraw @s Cleared effects;
 }
+
+
+fn hundred_levels {
+    xpadd 100 @a levels;
+    tellraw @s Added 100 levels;
+    xpset 101 @a levels;
+    tellraw @s Set 101 levels;
+    xpadd 80 @a points;
+    tellraw @s Added 80 points;
+}

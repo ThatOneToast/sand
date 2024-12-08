@@ -25,12 +25,26 @@ module.exports = grammar({
         _command: $ => prec.left(seq(
             optional(/\s+/),
             choice(
-                $.say_command,
                 $.time_command,
+
+                $.say_command,
                 $.tellraw_command,
+
                 $.effect_command,
+
                 $.inv_clear_command,
                 $.effect_clear_command,
+
+                $.gm_creative_command,
+                $.gm_spectator_command,
+                $.gm_survival_command,
+                $.gm_adventure_command,
+
+                $.xp_add_command,
+                $.xp_set_command,
+                $.xp_query_command,
+
+
             )
         )),
 
@@ -66,6 +80,11 @@ module.exports = grammar({
                 $.quoted_string
             ))
         )),
+        
+        xp_type: $ => choice(
+            'levels',
+            'points'
+        ),
 
         range_value: $ => prec.left(2, choice(
             seq($.number, '..', $.number),  // 1..10
@@ -74,18 +93,38 @@ module.exports = grammar({
             $.number                        // exact value
         )),
 
+        xp_add_command: $ => seq(
+            'xpadd',
+            field('amount', $.number),
+            field('target', $.target_selector),
+            field('etype', $.xp_type)
+        ),
+
+        xp_set_command: $ => seq(
+            'xpset',
+            field('amount', $.number),
+            field('target', $.target_selector),
+            field('etype', $.xp_type)
+        ),
+
+        xp_query_command: $ => seq(
+            'xpquery',
+            field('target', $.target_selector),
+            field('etype', $.xp_type)
+        ),
+
         quoted_string: $ => /"[^"]*"/,
 
         say_command: $ => seq(
             'say',
             field('message', $.text)
         ),
-        
+
         inv_clear_command: $ => seq(
             'clear',
             field('target', $.target_selector)
         ),
-        
+
         effect_clear_command: $ => seq(
             'eclear',
             field('target', $.target_selector),
@@ -153,6 +192,26 @@ module.exports = grammar({
                 seq('set', field('value', choice($.number, $.time_unit))),
                 seq('query', field('query_type', $.identifier))
             )
+        ),
+
+        gm_survival_command: $ => seq(
+            'gms',
+            field('target', $.target_selector)
+        ),
+
+        gm_adventure_command: $ => seq(
+            'gma',
+            field('target', $.target_selector)
+        ),
+
+        gm_spectator_command: $ => seq(
+            'gmsp',
+            field('target', $.target_selector)
+        ),
+
+        gm_creative_command: $ => seq(
+            'gmc',
+            field('target', $.target_selector)
         ),
 
         time_unit: $ => choice('day', 'night', 'noon', 'midnight'),

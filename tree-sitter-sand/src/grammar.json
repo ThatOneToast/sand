@@ -102,11 +102,11 @@
             "members": [
               {
                 "type": "SYMBOL",
-                "name": "say_command"
+                "name": "time_command"
               },
               {
                 "type": "SYMBOL",
-                "name": "time_command"
+                "name": "say_command"
               },
               {
                 "type": "SYMBOL",
@@ -123,6 +123,34 @@
               {
                 "type": "SYMBOL",
                 "name": "effect_clear_command"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "gm_creative_command"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "gm_spectator_command"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "gm_survival_command"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "gm_adventure_command"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "xp_add_command"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "xp_set_command"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "xp_query_command"
               }
             ]
           }
@@ -262,6 +290,19 @@
         ]
       }
     },
+    "xp_type": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "levels"
+        },
+        {
+          "type": "STRING",
+          "value": "points"
+        }
+      ]
+    },
     "range_value": {
       "type": "PREC_LEFT",
       "value": 2,
@@ -317,6 +358,97 @@
           }
         ]
       }
+    },
+    "xp_add_command": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "xpadd"
+        },
+        {
+          "type": "FIELD",
+          "name": "amount",
+          "content": {
+            "type": "SYMBOL",
+            "name": "number"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "target",
+          "content": {
+            "type": "SYMBOL",
+            "name": "target_selector"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "etype",
+          "content": {
+            "type": "SYMBOL",
+            "name": "xp_type"
+          }
+        }
+      ]
+    },
+    "xp_set_command": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "xpset"
+        },
+        {
+          "type": "FIELD",
+          "name": "amount",
+          "content": {
+            "type": "SYMBOL",
+            "name": "number"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "target",
+          "content": {
+            "type": "SYMBOL",
+            "name": "target_selector"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "etype",
+          "content": {
+            "type": "SYMBOL",
+            "name": "xp_type"
+          }
+        }
+      ]
+    },
+    "xp_query_command": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "xpquery"
+        },
+        {
+          "type": "FIELD",
+          "name": "target",
+          "content": {
+            "type": "SYMBOL",
+            "name": "target_selector"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "etype",
+          "content": {
+            "type": "SYMBOL",
+            "name": "xp_type"
+          }
+        }
+      ]
     },
     "quoted_string": {
       "type": "PATTERN",
@@ -643,6 +775,74 @@
               ]
             }
           ]
+        }
+      ]
+    },
+    "gm_survival_command": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "gms"
+        },
+        {
+          "type": "FIELD",
+          "name": "target",
+          "content": {
+            "type": "SYMBOL",
+            "name": "target_selector"
+          }
+        }
+      ]
+    },
+    "gm_adventure_command": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "gma"
+        },
+        {
+          "type": "FIELD",
+          "name": "target",
+          "content": {
+            "type": "SYMBOL",
+            "name": "target_selector"
+          }
+        }
+      ]
+    },
+    "gm_spectator_command": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "gmsp"
+        },
+        {
+          "type": "FIELD",
+          "name": "target",
+          "content": {
+            "type": "SYMBOL",
+            "name": "target_selector"
+          }
+        }
+      ]
+    },
+    "gm_creative_command": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "gmc"
+        },
+        {
+          "type": "FIELD",
+          "name": "target",
+          "content": {
+            "type": "SYMBOL",
+            "name": "target_selector"
+          }
         }
       ]
     },

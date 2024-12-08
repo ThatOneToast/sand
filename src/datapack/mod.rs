@@ -1,7 +1,6 @@
 use advancements::Advancements;
 
 pub mod builder;
-pub mod command_builder;
 pub mod advancements;
 pub mod mc_entities;
 

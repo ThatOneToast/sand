@@ -16,6 +16,22 @@
           "named": true
         },
         {
+          "type": "gm_adventure_command",
+          "named": true
+        },
+        {
+          "type": "gm_creative_command",
+          "named": true
+        },
+        {
+          "type": "gm_spectator_command",
+          "named": true
+        },
+        {
+          "type": "gm_survival_command",
+          "named": true
+        },
+        {
           "type": "inv_clear_command",
           "named": true
         },
@@ -29,6 +45,18 @@
         },
         {
           "type": "time_command",
+          "named": true
+        },
+        {
+          "type": "xp_add_command",
+          "named": true
+        },
+        {
+          "type": "xp_query_command",
+          "named": true
+        },
+        {
+          "type": "xp_set_command",
           "named": true
         }
       ]
@@ -125,6 +153,70 @@
         "types": [
           {
             "type": "identifier",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "gm_adventure_command",
+    "named": true,
+    "fields": {
+      "target": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "target_selector",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "gm_creative_command",
+    "named": true,
+    "fields": {
+      "target": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "target_selector",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "gm_spectator_command",
+    "named": true,
+    "fields": {
+      "target": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "target_selector",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "gm_survival_command",
+    "named": true,
+    "fields": {
+      "target": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "target_selector",
             "named": true
           }
         ]
@@ -350,6 +442,109 @@
     "fields": {}
   },
   {
+    "type": "xp_add_command",
+    "named": true,
+    "fields": {
+      "amount": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "number",
+            "named": true
+          }
+        ]
+      },
+      "etype": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "xp_type",
+            "named": true
+          }
+        ]
+      },
+      "target": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "target_selector",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "xp_query_command",
+    "named": true,
+    "fields": {
+      "etype": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "xp_type",
+            "named": true
+          }
+        ]
+      },
+      "target": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "target_selector",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "xp_set_command",
+    "named": true,
+    "fields": {
+      "amount": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "number",
+            "named": true
+          }
+        ]
+      },
+      "etype": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "xp_type",
+            "named": true
+          }
+        ]
+      },
+      "target": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "target_selector",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "xp_type",
+    "named": true,
+    "fields": {}
+  },
+  {
     "type": ",",
     "named": false
   },
@@ -414,8 +609,28 @@
     "named": false
   },
   {
+    "type": "gma",
+    "named": false
+  },
+  {
+    "type": "gmc",
+    "named": false
+  },
+  {
+    "type": "gms",
+    "named": false
+  },
+  {
+    "type": "gmsp",
+    "named": false
+  },
+  {
     "type": "identifier",
     "named": true
+  },
+  {
+    "type": "levels",
+    "named": false
   },
   {
     "type": "midnight",
@@ -562,6 +777,10 @@
     "named": true
   },
   {
+    "type": "points",
+    "named": false
+  },
+  {
     "type": "query",
     "named": false
   },
@@ -583,6 +802,18 @@
   },
   {
     "type": "time",
+    "named": false
+  },
+  {
+    "type": "xpadd",
+    "named": false
+  },
+  {
+    "type": "xpquery",
+    "named": false
+  },
+  {
+    "type": "xpset",
     "named": false
   },
   {

@@ -1,3 +1,9 @@
+
+fn survival_mode {
+    tellraw @a Survival mode is active;
+    gms @a;
+}
+
 fn buff_players {
     effect @a[gamemode=survival] minecraft:strength 300 2;
     effect @a[gamemode=survival] minecraft:resistance 300 2;

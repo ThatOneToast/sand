@@ -44,6 +44,7 @@ pub struct Datapack {
     description: String,
     version: String,
     functions: HashMap<String, Function>,
+    tick_functions: HashMap<String, Function>,
 
     output_to: PathBuf,
 }
@@ -57,6 +58,7 @@ impl Datapack {
             description: description.to_string(),
             version: version.to_string(),
             functions: HashMap::new(),
+            tick_functions: HashMap::new(),
             output_to: output_to.to_path_buf(),
         }
     }
@@ -67,6 +69,11 @@ impl Datapack {
 
     pub fn add_function(&mut self, name: &str, statements: Vec<Statement>) {
         self.functions.insert(name.to_string(), statements);
+    }
+    
+    pub fn add_tick_function(&mut self, name: &str, statements: Vec<Statement>) {
+        self.tick_functions.insert(name.to_string(), statements.clone());
+        self.add_function(name, statements);
     }
 
     pub fn prepare_directories(&self) -> io::Result<()> {
@@ -82,6 +89,7 @@ impl Datapack {
             ns_path.join("function"),
             ns_path.join("structure"),
             ns_path.join("tags"),
+            ns_path.join("tags/function"),
             ns_path.join("advancement"),
             ns_path.join("banner_pattern"),
             ns_path.join("chat_type"),
@@ -149,6 +157,8 @@ impl Datapack {
 
         Ok(())
     }
+    
+    
 
     pub fn build(&mut self) -> io::Result<()> {
         info!("Datapack Builder", "Building datapack");

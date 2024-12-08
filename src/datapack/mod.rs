@@ -3,6 +3,7 @@ use advancements::Advancements;
 pub mod builder;
 pub mod advancements;
 pub mod mc_entities;
+pub mod enchantments;
 
 
 #[derive(Debug, Clone)]

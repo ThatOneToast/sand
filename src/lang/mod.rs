@@ -1,6 +1,8 @@
 use tlogger::prelude::*;
 use tree_sitter::{Language, Node, Parser, Tree};
 
+use crate::datapack::enchantments::Enchantment;
+
 pub mod structure;
 
 // Enum to represent different node types in your language
@@ -91,6 +93,8 @@ pub enum EXPCType {
     },
 }
 
+
+
 #[derive(Debug, Clone)]
 pub enum Statement {
     Say(String),
@@ -101,6 +105,7 @@ pub enum Statement {
     Clear(ClearType, Selector),
     Gamemode(GamemodeType, Selector),
     XP(EXPCType),
+    Enchant(Enchantment, Selector, u32),
 }
 
 impl ToString for Statement {
@@ -131,6 +136,7 @@ impl ToString for Statement {
                 EXPCType::Set { amount, selector, etype } => format!("xp set {} {} {}", selector, amount, etype.to_string()),
                 EXPCType::Query { selector, etype } => format!("xp query {} {}", selector, etype.to_string()),
             }
+            Statement::Enchant(enchantment, selector, level ) => format!("enchant {} {} {}", selector, enchantment.as_str(), level),
         }
     }
 }
@@ -194,6 +200,24 @@ impl<'a> AstBuilder<'a> {
                                 let text = text.trim();
                                 debug!("Found say command text:", "{}", text);
                                 body_statements.push(Statement::Say(text.to_string()));
+                            }
+                        }
+                    }
+                }
+                "enchant_command" => {
+                    let mut cmd_cursor = command.walk();
+                    let children: Vec<Node> = command.children(&mut cmd_cursor).collect();
+
+                    if children.len() >= 3 {
+                        if let Ok(selector) = children[1].utf8_text(self.source.as_bytes()) {
+                            if let Ok(enchantment) = children[2].utf8_text(self.source.as_bytes()) {
+                                if let Ok(level) = children[3].utf8_text(self.source.as_bytes()) {
+                                    body_statements.push(Statement::Enchant(
+                                        Enchantment::from_str(enchantment).unwrap(),
+                                        selector.to_string(),
+                                        level.parse::<u32>().unwrap(),
+                                    ));
+                                }
                             }
                         }
                     }

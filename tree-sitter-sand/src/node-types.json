@@ -16,6 +16,10 @@
           "named": true
         },
         {
+          "type": "enchant_command",
+          "named": true
+        },
+        {
           "type": "gm_adventure_command",
           "named": true
         },
@@ -64,6 +68,11 @@
   },
   {
     "type": "custom_effect",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "custom_enchant",
     "named": true,
     "fields": {}
   },
@@ -117,6 +126,46 @@
           },
           {
             "type": "vanilla_effect",
+            "named": true
+          }
+        ]
+      },
+      "target": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "target_selector",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "enchant_command",
+    "named": true,
+    "fields": {
+      "enchantment": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "custom_enchant",
+            "named": true
+          },
+          {
+            "type": "vanilla_enchant",
+            "named": true
+          }
+        ]
+      },
+      "level": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "number",
             "named": true
           }
         ]
@@ -442,6 +491,11 @@
     "fields": {}
   },
   {
+    "type": "vanilla_enchant",
+    "named": true,
+    "fields": {}
+  },
+  {
     "type": "xp_add_command",
     "named": true,
     "fields": {
@@ -605,6 +659,10 @@
     "named": false
   },
   {
+    "type": "enchant",
+    "named": false
+  },
+  {
     "type": "fn",
     "named": false
   },
@@ -641,7 +699,23 @@
     "named": false
   },
   {
+    "type": "minecraft:aqua_affinity",
+    "named": false
+  },
+  {
     "type": "minecraft:bad_omen",
+    "named": false
+  },
+  {
+    "type": "minecraft:bane_of_arthropods",
+    "named": false
+  },
+  {
+    "type": "minecraft:binding_curse",
+    "named": false
+  },
+  {
+    "type": "minecraft:blast_protection",
     "named": false
   },
   {
@@ -653,11 +727,43 @@
     "named": false
   },
   {
+    "type": "minecraft:depth_strider",
+    "named": false
+  },
+  {
     "type": "minecraft:dolphins_grace",
     "named": false
   },
   {
+    "type": "minecraft:efficiency",
+    "named": false
+  },
+  {
+    "type": "minecraft:feather_falling",
+    "named": false
+  },
+  {
+    "type": "minecraft:fire_aspect",
+    "named": false
+  },
+  {
+    "type": "minecraft:fire_protection",
+    "named": false
+  },
+  {
     "type": "minecraft:fire_resistance",
+    "named": false
+  },
+  {
+    "type": "minecraft:flame",
+    "named": false
+  },
+  {
+    "type": "minecraft:fortune",
+    "named": false
+  },
+  {
+    "type": "minecraft:frost_walker",
     "named": false
   },
   {
@@ -681,6 +787,10 @@
     "named": false
   },
   {
+    "type": "minecraft:infinity",
+    "named": false
+  },
+  {
     "type": "minecraft:instant_damage",
     "named": false
   },
@@ -697,11 +807,31 @@
     "named": false
   },
   {
+    "type": "minecraft:knockback",
+    "named": false
+  },
+  {
     "type": "minecraft:levitation",
     "named": false
   },
   {
+    "type": "minecraft:looting",
+    "named": false
+  },
+  {
     "type": "minecraft:luck",
+    "named": false
+  },
+  {
+    "type": "minecraft:luck_of_the_sea",
+    "named": false
+  },
+  {
+    "type": "minecraft:lure",
+    "named": false
+  },
+  {
+    "type": "minecraft:mending",
     "named": false
   },
   {
@@ -721,6 +851,22 @@
     "named": false
   },
   {
+    "type": "minecraft:power",
+    "named": false
+  },
+  {
+    "type": "minecraft:projectile_protection",
+    "named": false
+  },
+  {
+    "type": "minecraft:protection",
+    "named": false
+  },
+  {
+    "type": "minecraft:punch",
+    "named": false
+  },
+  {
     "type": "minecraft:regeneration",
     "named": false
   },
@@ -729,7 +875,19 @@
     "named": false
   },
   {
+    "type": "minecraft:respiration",
+    "named": false
+  },
+  {
     "type": "minecraft:saturation",
+    "named": false
+  },
+  {
+    "type": "minecraft:sharpness",
+    "named": false
+  },
+  {
+    "type": "minecraft:silk_touch",
     "named": false
   },
   {
@@ -741,6 +899,14 @@
     "named": false
   },
   {
+    "type": "minecraft:smite",
+    "named": false
+  },
+  {
+    "type": "minecraft:soul_speed",
+    "named": false
+  },
+  {
     "type": "minecraft:speed",
     "named": false
   },
@@ -749,7 +915,27 @@
     "named": false
   },
   {
+    "type": "minecraft:sweeping",
+    "named": false
+  },
+  {
+    "type": "minecraft:swift_sneak",
+    "named": false
+  },
+  {
+    "type": "minecraft:thorns",
+    "named": false
+  },
+  {
+    "type": "minecraft:unbreaking",
+    "named": false
+  },
+  {
     "type": "minecraft:unluck",
+    "named": false
+  },
+  {
+    "type": "minecraft:vanishing_curse",
     "named": false
   },
   {

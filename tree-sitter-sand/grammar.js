@@ -44,7 +44,7 @@ module.exports = grammar({
                 $.xp_set_command,
                 $.xp_query_command,
 
-
+                $.enchant_command,
             )
         )),
 
@@ -146,6 +146,16 @@ module.exports = grammar({
             field('duration', $.number),
             field('amplifier', $.number)
         ),
+        
+        enchant_command: $ => seq(
+            'enchant',
+            field('target', $.target_selector),
+            field('enchantment', choice(
+                $.vanilla_enchant,
+                $.custom_enchant
+            )),
+            field('level', $.number)
+        ),
 
         vanilla_effect: $ => choice(
             'minecraft:speed',
@@ -181,8 +191,44 @@ module.exports = grammar({
             'minecraft:bad_omen',
             'minecraft:hero_of_the_village'
         ),
+        
+        vanilla_enchant: $ => choice(
+            'minecraft:protection',
+            'minecraft:fire_protection',
+            'minecraft:feather_falling',
+            'minecraft:blast_protection',
+            'minecraft:projectile_protection',
+            'minecraft:respiration',
+            'minecraft:aqua_affinity',
+            'minecraft:thorns',
+            'minecraft:depth_strider',
+            'minecraft:frost_walker',
+            'minecraft:binding_curse',
+            'minecraft:sharpness',
+            'minecraft:smite',
+            'minecraft:bane_of_arthropods',
+            'minecraft:knockback',
+            'minecraft:fire_aspect',
+            'minecraft:looting',
+            'minecraft:sweeping',
+            'minecraft:efficiency',
+            'minecraft:silk_touch',
+            'minecraft:unbreaking',
+            'minecraft:fortune',
+            'minecraft:power',
+            'minecraft:punch',
+            'minecraft:flame',
+            'minecraft:infinity',
+            'minecraft:luck_of_the_sea',
+            'minecraft:lure',
+            'minecraft:mending',
+            'minecraft:vanishing_curse',
+            'minecraft:soul_speed',
+            'minecraft:swift_sneak'
+        ),
 
         custom_effect: $ => /"[^"]*"/,
+        custom_enchant: $ => /"[^"]*"/,
 
         text: $ => /[^;]*/,
 

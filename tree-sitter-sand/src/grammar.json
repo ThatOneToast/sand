@@ -151,6 +151,10 @@
               {
                 "type": "SYMBOL",
                 "name": "xp_query_command"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "enchant_command"
               }
             ]
           }
@@ -580,6 +584,48 @@
         }
       ]
     },
+    "enchant_command": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "enchant"
+        },
+        {
+          "type": "FIELD",
+          "name": "target",
+          "content": {
+            "type": "SYMBOL",
+            "name": "target_selector"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "enchantment",
+          "content": {
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "vanilla_enchant"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "custom_enchant"
+              }
+            ]
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "level",
+          "content": {
+            "type": "SYMBOL",
+            "name": "number"
+          }
+        }
+      ]
+    },
     "vanilla_effect": {
       "type": "CHOICE",
       "members": [
@@ -713,7 +759,144 @@
         }
       ]
     },
+    "vanilla_enchant": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "minecraft:protection"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:fire_protection"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:feather_falling"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:blast_protection"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:projectile_protection"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:respiration"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:aqua_affinity"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:thorns"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:depth_strider"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:frost_walker"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:binding_curse"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:sharpness"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:smite"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:bane_of_arthropods"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:knockback"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:fire_aspect"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:looting"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:sweeping"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:efficiency"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:silk_touch"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:unbreaking"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:fortune"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:power"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:punch"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:flame"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:infinity"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:luck_of_the_sea"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:lure"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:mending"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:vanishing_curse"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:soul_speed"
+        },
+        {
+          "type": "STRING",
+          "value": "minecraft:swift_sneak"
+        }
+      ]
+    },
     "custom_effect": {
+      "type": "PATTERN",
+      "value": "\"[^\"]*\""
+    },
+    "custom_enchant": {
       "type": "PATTERN",
       "value": "\"[^\"]*\""
     },

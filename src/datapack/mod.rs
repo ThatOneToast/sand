@@ -1,10 +1,152 @@
 use advancements::Advancements;
 
-pub mod builder;
-pub mod advancements;
-pub mod mc_entities;
-pub mod enchantments;
+use crate::lang::{Location, Statement};
 
+pub mod advancements;
+pub mod builder;
+pub mod enchantments;
+pub mod mc_entities;
+
+impl ToString for Condition {
+    fn to_string(&self) -> String {
+        match self {
+            Self::Block(pos, block) => format!("block {} {}", pos.to_string(), block),
+            Self::Blocks(start, end, dest) => format!(
+                "blocks {} {} {}",
+                start.to_string(),
+                end.to_string(),
+                dest.to_string()
+            ),
+            Self::Data(source) => format!("data {}", source.to_string()),
+            Self::Entity(selector) => format!("entity {}", selector),
+            Self::Predicate(id) => format!("predicate {}", id),
+            Self::Score(condition) => format!("score {}", condition.to_string()),
+        }
+    }
+}
+
+impl ToString for DataSource {
+    fn to_string(&self) -> String {
+        match self {
+            Self::Block(pos, path) => format!("block {} {}", pos.to_string(), path),
+            Self::Entity(selector, path) => format!("entity {} {}", selector, path),
+            Self::Storage(source, path) => format!("storage {} {}", source, path),
+        }
+    }
+}
+
+impl ToString for StoreType {
+    fn to_string(&self) -> String {
+        match self {
+            Self::Result(target, path, type_, scale) => {
+                format!("result {} {} {} {}", target.to_string(), path, type_, scale)
+            }
+            Self::Success(target, path) => format!("success {} {}", target.to_string(), path),
+        }
+    }
+}
+
+impl ToString for DataDestination {
+    fn to_string(&self) -> String {
+        match self {
+            Self::Block(pos) => format!("block {}", pos.to_string()),
+            Self::Entity(selector) => format!("entity {}", selector),
+            Self::Storage(source) => format!("storage {}", source),
+        }
+    }
+}
+
+impl ToString for ScoreCondition {
+    fn to_string(&self) -> String {
+        match self {
+            Self::Matches(target, objective, range) => {
+                format!("{} {} matches {}", target, objective, range)
+            }
+            Self::Compared(target, target_obj, operator, source, source_obj) => {
+                format!(
+                    "{} {} {} {} {}",
+                    target, target_obj, operator, source, source_obj
+                )
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum ExecuteSubcommand {
+    As(String),           // as <selector>
+    At(String),           // at <selector>
+    Align(String),        // align <axes>
+    Anchored(String),     // anchored <anchor>
+    Facing(Location),     // facing <pos>
+    FacingEntity(String), // facing entity <selector>
+    In(String),           // in <dimension>
+    Positioned(Location), // positioned <pos>
+    PositionedAs(String), // positioned as <selector>
+    Rotated(Location),    // rotated <rot>
+    RotatedAs(String),    // rotated as <selector>
+    If(Condition),        // if <condition>
+    Unless(Condition),    // unless <condition>
+    Store(StoreType),     // store result/success
+    Run(Box<Statement>),  // run <command>
+}
+impl ToString for ExecuteSubcommand {
+    fn to_string(&self) -> String {
+        match self {
+            Self::As(selector) => format!("as {}", selector),
+            Self::At(selector) => format!("at {}", selector),
+            Self::Align(axes) => format!("align {}", axes),
+            Self::Anchored(anchor) => format!("anchored {}", anchor),
+            Self::Facing(pos) => format!("facing {}", pos.to_string()),
+            Self::FacingEntity(selector) => format!("facing entity {}", selector),
+            Self::In(dimension) => format!("in {}", dimension),
+            Self::Positioned(pos) => format!("positioned {}", pos.to_string()),
+            Self::PositionedAs(selector) => format!("positioned as {}", selector),
+            Self::Rotated(rot) => format!("rotated {}", rot.to_string()),
+            Self::RotatedAs(selector) => format!("rotated as {}", selector),
+            Self::If(condition) => format!("if {}", condition.to_string()),
+            Self::Unless(condition) => format!("unless {}", condition.to_string()),
+            Self::Store(store_type) => format!("store {}", store_type.to_string()),
+            Self::Run(command) => format!("run {}", command.to_string()),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum Condition {
+    Block(Location, String),              // block <pos> <block>
+    Blocks(Location, Location, Location), // blocks <start> <end> <destination>
+    Data(DataSource),                     // data block/entity/storage
+    Entity(String),                       // entity <selector>
+    Predicate(String),                    // predicate <id>
+    Score(ScoreCondition), // score <target> <targetObjective> <operator> <source> <sourceObjective>
+}
+
+#[derive(Debug, Clone)]
+pub enum DataSource {
+    Block(Location, String), // block <pos> <path>
+    Entity(String, String),  // entity <selector> <path>
+    Storage(String, String), // storage <source> <path>
+}
+
+#[derive(Debug, Clone)]
+pub enum StoreType {
+    Result(DataDestination, String, String, f32), // store result <target> <path> <type> <scale>
+    Success(DataDestination, String),             // store success <target> <path>
+}
+
+#[derive(Debug, Clone)]
+pub enum DataDestination {
+    Block(Location),
+    Entity(String),
+    Storage(String),
+}
+
+#[derive(Debug, Clone)]
+pub enum ScoreCondition {
+    Matches(String, String, String), // <target> <targetObjective> matches <range>
+    Compared(String, String, String, String, String), // <target> <targetObjective> <operator> <source> <sourceObjective>
+}
 
 #[derive(Debug, Clone)]
 pub enum Distance {
@@ -44,15 +186,14 @@ impl ToString for Distance {
     }
 }
 
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum EntitySelector {
-    AllPlayers,                                          // @a
-    AllEntities,                                         // @e
-    Current,                                             // @s
-    Random,                                              // @r
-    Nearest,                                             // @p
-    Entity,                                              // @e
+    AllPlayers,  // @a
+    AllEntities, // @e
+    Current,     // @s
+    Random,      // @r
+    Nearest,     // @p
+    Entity,      // @e
     Other(String),
 }
 
@@ -121,13 +262,15 @@ impl Default for EntityTargetFilter {
     }
 }
 
-
 impl ToString for EntityTargetFilter {
     fn to_string(&self) -> String {
         let mut filters = Vec::new();
 
         if let Some(advancements) = &self.advancements {
-            let advancements = advancements.iter().map(|a| a.to_string()).collect::<Vec<String>>();
+            let advancements = advancements
+                .iter()
+                .map(|a| a.to_string())
+                .collect::<Vec<String>>();
             filters.push(format!("advancements={{{}}}", advancements.join(",")));
         }
         if let Some(distance) = &self.distance {

@@ -1,9 +1,10 @@
 use tlogger::prelude::*;
 use tree_sitter::{Language, Node, Parser, Tree};
 
-use crate::datapack::enchantments::Enchantment;
+use crate::datapack::{enchantments::Enchantment, ExecuteSubcommand};
 
 pub mod structure;
+pub mod handles;
 
 // Enum to represent different node types in your language
 #[derive(Debug)]
@@ -51,7 +52,7 @@ pub enum GamemodeType {
 #[derive(Debug, Clone, PartialEq)]
 pub enum EXPType {
     Levels,
-    Points
+    Points,
 }
 
 impl EXPType {
@@ -73,8 +74,6 @@ impl ToString for EXPType {
     }
 }
 
-
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum EXPCType {
     Add {
@@ -93,7 +92,18 @@ pub enum EXPCType {
     },
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct Location {
+    pub x: f32,
+    pub y: f32,
+    pub z: f32,
+}
 
+impl ToString for Location {
+    fn to_string(&self) -> String {
+        format!("{} {} {}", self.x, self.y, self.z)
+    }
+}
 
 #[derive(Debug, Clone)]
 pub enum Statement {
@@ -106,6 +116,7 @@ pub enum Statement {
     Gamemode(GamemodeType, Selector),
     XP(EXPCType),
     Enchant(Enchantment, Selector, u32),
+    Execute(Vec<ExecuteSubcommand>),
 }
 
 impl ToString for Statement {
@@ -130,13 +141,33 @@ impl ToString for Statement {
                 GamemodeType::Creative => format!("gamemode creative {}", selector),
                 GamemodeType::Spectator => format!("gamemode spectator {}", selector),
                 GamemodeType::Adventure => format!("gamemode adventure {}", selector),
-            }
+            },
             Statement::XP(xptype) => match xptype {
-                EXPCType::Add { amount, selector, etype } => format!("xp add {} {} {}", selector, amount, etype.to_string()),
-                EXPCType::Set { amount, selector, etype } => format!("xp set {} {} {}", selector, amount, etype.to_string()),
-                EXPCType::Query { selector, etype } => format!("xp query {} {}", selector, etype.to_string()),
+                EXPCType::Add {
+                    amount,
+                    selector,
+                    etype,
+                } => format!("xp add {} {} {}", selector, amount, etype.to_string()),
+                EXPCType::Set {
+                    amount,
+                    selector,
+                    etype,
+                } => format!("xp set {} {} {}", selector, amount, etype.to_string()),
+                EXPCType::Query { selector, etype } => {
+                    format!("xp query {} {}", selector, etype.to_string())
+                }
+            },
+            Statement::Enchant(enchantment, selector, level) => {
+                format!("enchant {} {} {}", selector, enchantment.as_str(), level)
             }
-            Statement::Enchant(enchantment, selector, level ) => format!("enchant {} {} {}", selector, enchantment.as_str(), level),
+            Statement::Execute(commands) => {
+                let subcommands = commands
+                    .iter()
+                    .map(|cmd| cmd.to_string())
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                format!("execute {}", subcommands)
+            }
         }
     }
 }
@@ -240,7 +271,7 @@ impl<'a> AstBuilder<'a> {
                         }
                     }
                 }
-                
+
                 "xp_set_command" => {
                     let mut cmd_cursor = command.walk();
                     let children: Vec<Node> = command.children(&mut cmd_cursor).collect();
@@ -275,14 +306,17 @@ impl<'a> AstBuilder<'a> {
                         }
                     }
                 }
-                
+
                 "gm_creative_command" => {
                     let mut cmd_cursor = command.walk();
                     let children: Vec<Node> = command.children(&mut cmd_cursor).collect();
-                    
+
                     if children.len() >= 2 {
                         if let Ok(selector) = children[1].utf8_text(self.source.as_bytes()) {
-                            body_statements.push(Statement::Gamemode(GamemodeType::Creative, selector.to_string()));
+                            body_statements.push(Statement::Gamemode(
+                                GamemodeType::Creative,
+                                selector.to_string(),
+                            ));
                         }
                     }
                 }
@@ -292,7 +326,10 @@ impl<'a> AstBuilder<'a> {
 
                     if children.len() >= 2 {
                         if let Ok(selector) = children[1].utf8_text(self.source.as_bytes()) {
-                            body_statements.push(Statement::Gamemode(GamemodeType::Spectator, selector.to_string()));
+                            body_statements.push(Statement::Gamemode(
+                                GamemodeType::Spectator,
+                                selector.to_string(),
+                            ));
                         }
                     }
                 }
@@ -302,7 +339,10 @@ impl<'a> AstBuilder<'a> {
 
                     if children.len() >= 2 {
                         if let Ok(selector) = children[1].utf8_text(self.source.as_bytes()) {
-                            body_statements.push(Statement::Gamemode(GamemodeType::Survival, selector.to_string()));
+                            body_statements.push(Statement::Gamemode(
+                                GamemodeType::Survival,
+                                selector.to_string(),
+                            ));
                         }
                     }
                 }
@@ -312,7 +352,10 @@ impl<'a> AstBuilder<'a> {
 
                     if children.len() >= 2 {
                         if let Ok(selector) = children[1].utf8_text(self.source.as_bytes()) {
-                            body_statements.push(Statement::Gamemode(GamemodeType::Adventure, selector.to_string()));
+                            body_statements.push(Statement::Gamemode(
+                                GamemodeType::Adventure,
+                                selector.to_string(),
+                            ));
                         }
                     }
                 }
@@ -322,17 +365,19 @@ impl<'a> AstBuilder<'a> {
 
                     if children.len() >= 2 {
                         if let Ok(selector) = children[1].utf8_text(self.source.as_bytes()) {
-                            body_statements.push(Statement::Clear(ClearType::Inventory, selector.to_string()));
+                            body_statements
+                                .push(Statement::Clear(ClearType::Inventory, selector.to_string()));
                         }
                     }
                 }
                 "effect_clear_command" => {
                     let mut cmd_cursor = command.walk();
                     let children: Vec<Node> = command.children(&mut cmd_cursor).collect();
-                    
+
                     if children.len() >= 2 {
                         if let Ok(selector) = children[1].utf8_text(self.source.as_bytes()) {
-                            body_statements.push(Statement::Clear(ClearType::Effect, selector.to_string()));
+                            body_statements
+                                .push(Statement::Clear(ClearType::Effect, selector.to_string()));
                         }
                     }
                 }
@@ -407,6 +452,10 @@ impl<'a> AstBuilder<'a> {
                         }
                     }
                 }
+                "execute_command" => {
+                    handles::execute_h::handle_execute_command(command, self.source, &mut body_statements);
+                }
+
                 other => {
                     debug!("Unhandled command type:", "{}", other);
                 }
@@ -424,3 +473,4 @@ impl<'a> AstBuilder<'a> {
         })
     }
 }
+

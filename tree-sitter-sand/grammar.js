@@ -45,8 +45,283 @@ module.exports = grammar({
                 $.xp_query_command,
 
                 $.enchant_command,
+
+                $.execute_command,
             )
         )),
+
+        execute_command: $ => prec.left(seq(
+            'execute',
+            repeat1($.execute_subcommand)
+        )),
+
+        execute_subcommand: $ => choice(
+            $.execute_as,
+            $.execute_at,
+            $.execute_align,
+            $.execute_anchored,
+            $.execute_facing,
+            $.execute_facing_entity,
+            $.execute_in,
+            $.execute_positioned,
+            $.execute_positioned_as,
+            $.execute_rotated,
+            $.execute_rotated_as,
+            $.execute_if,
+            $.execute_unless,
+            $.execute_store,
+            $.execute_run
+        ),
+
+        execute_as: $ => seq(
+            'as',
+            field('target', $.target_selector)
+        ),
+
+        execute_at: $ => seq(
+            'at',
+            field('target', $.target_selector)
+        ),
+
+        execute_align: $ => seq(
+            'align',
+            field('axes', $.align_axes)
+        ),
+
+        execute_anchored: $ => seq(
+            'anchored',
+            field('anchor', choice('eyes', 'feet'))
+        ),
+
+        execute_facing: $ => seq(
+            'facing',
+            field('pos', $.position)
+        ),
+
+        execute_facing_entity: $ => seq(
+            'facing',
+            'entity',
+            field('target', $.target_selector),
+            optional(field('anchor', choice('eyes', 'feet')))
+        ),
+
+        execute_in: $ => seq(
+            'in',
+            field('dimension', $.dimension)
+        ),
+
+        execute_positioned: $ => seq(
+            'positioned',
+            field('pos', $.position)
+        ),
+
+        execute_positioned_as: $ => seq(
+            'positioned',
+            'as',
+            field('target', $.target_selector)
+        ),
+
+        execute_rotated: $ => seq(
+            'rotated',
+            field('rot', $.rotation)
+        ),
+
+        execute_rotated_as: $ => seq(
+            'rotated',
+            'as',
+            field('target', $.target_selector)
+        ),
+
+        execute_if: $ => seq(
+            'if',
+            field('condition', $.execute_condition)
+        ),
+
+        execute_unless: $ => seq(
+            'unless',
+            field('condition', $.execute_condition)
+        ),
+
+        execute_store: $ => seq(
+            'store',
+            field('mode', choice('result', 'success')),
+            field('target', $.store_target),
+            optional(seq(
+                field('type', choice('byte', 'short', 'int', 'long', 'float', 'double')),
+                field('scale', $.number)
+            ))
+        ),
+
+        execute_run: $ => seq(
+            'run',
+            field('command', $._command)
+        ),
+
+
+        _coordinate: $ => choice(
+            $.number,  // Changed from $.absolute_coordinate
+            $.relative_coordinate,
+            $.local_coordinate
+        ),
+
+        relative_coordinate: $ => prec.left(1, choice(
+            $.relative_coordinate_plain,
+            $.relative_coordinate_offset
+        )),
+
+        relative_coordinate_plain: $ => '~',
+
+        relative_coordinate_offset: $ => prec.right(2, seq(
+            '~',
+            optional('-'),
+            $.number
+        )),
+
+        local_coordinate: $ => prec.left(1, choice(
+            $.local_coordinate_plain,
+            $.local_coordinate_offset
+        )),
+
+        local_coordinate_plain: $ => '^',
+
+        local_coordinate_offset: $ => prec.right(2, seq(
+            '^',
+            optional('-'),
+            $.number
+        )),
+
+        position: $ => seq(
+            field('x', $._coordinate),
+            field('y', $._coordinate),
+            field('z', $._coordinate)
+        ),
+
+
+        rotation: $ => seq(
+            field('yaw', $._coordinate),
+            field('pitch', $._coordinate)
+        ),
+
+        align_axes: $ => /[xyz]+/,
+
+        dimension: $ => choice(
+            'minecraft:overworld',
+            'minecraft:the_nether',
+            'minecraft:the_end',
+            $.identifier
+        ),
+
+        execute_condition: $ => choice(
+            $.condition_block,
+            $.condition_blocks,
+            $.condition_data,
+            $.condition_entity,
+            $.condition_predicate,
+            $.condition_score
+        ),
+
+        condition_block: $ => seq(
+            'block',
+            field('pos', $.position),
+            field('block', seq(
+                optional('minecraft:'),
+                $.identifier,
+                optional(seq(
+                    '[',
+                    repeat(seq($.block_state, optional(','))),
+                    ']'
+                ))
+            ))
+        ),
+
+        condition_blocks: $ => seq(
+            'blocks',
+            field('start', $.position),
+            field('end', $.position),
+            field('destination', $.position),
+            optional('masked')
+        ),
+
+        condition_data: $ => seq(
+            'data',
+            choice(
+                seq('block', field('pos', $.position)),
+                seq('entity', field('target', $.target_selector)),
+                seq('storage', field('source', $.identifier))
+            ),
+            field('path', $.nbt_path)
+        ),
+
+        condition_entity: $ => seq(
+            'entity',
+            field('target', $.target_selector)
+        ),
+
+        condition_predicate: $ => seq(
+            'predicate',
+            field('id', $.identifier)
+        ),
+
+        condition_score: $ => seq(
+            'score',
+            field('target', $.target_selector),
+            field('objective', $.identifier),
+            choice(
+                seq(
+                    field('operator', choice('matches', '<', '<=', '=', '>=', '>')),
+                    choice(
+                        field('range', $.range_value),
+                        seq(
+                            field('source', $.target_selector),
+                            field('source_objective', $.identifier)
+                        )
+                    )
+                )
+            )
+        ),
+
+        store_target: $ => choice(
+            seq('score', field('target', $.target_selector), field('objective', $.identifier)),
+            seq('block', field('pos', $.position), field('path', $.nbt_path)),
+            seq('entity', field('target', $.target_selector), field('path', $.nbt_path)),
+            seq('storage', field('source', $.identifier), field('path', $.nbt_path)),
+            seq('bossbar', field('id', $.identifier), choice('value', 'max'))
+        ),
+
+        block_predicate: $ => seq(
+            optional('minecraft:'),
+            $.identifier,
+            optional(seq(
+                '[',
+                repeat(seq($.block_state, optional(','))),
+                ']'
+            )),
+            optional(seq(
+                '{',
+                repeat(seq($.nbt_tag, optional(','))),
+                '}'
+            ))
+        ),
+
+        nbt_path: $ => /[a-zA-Z0-9._{}\\[\\]]+/,
+
+        block_state: $ => seq(
+            field('key', $.identifier),
+            '=',
+            field('value', choice($.number, $.identifier, $.quoted_string))
+        ),
+
+        nbt_tag: $ => seq(
+            field('key', $.identifier),
+            ':',
+            field('value', choice($.number, $.identifier, $.quoted_string, $.compound_tag))
+        ),
+
+        compound_tag: $ => seq(
+            '{',
+            repeat($.nbt_tag),
+            '}'
+        ),
 
         target_selector: $ => seq(
             field('selector', $.selector_type),
@@ -80,18 +355,18 @@ module.exports = grammar({
                 $.quoted_string
             ))
         )),
-        
+
         xp_type: $ => choice(
             'levels',
             'points'
         ),
 
-        range_value: $ => prec.left(2, choice(
+        range_value: $ => choice(
             seq($.number, '..', $.number),  // 1..10
             seq($.number, '..'),            // 1..
             seq('..', $.number),            // ..10
             $.number                        // exact value
-        )),
+        ),
 
         xp_add_command: $ => seq(
             'xpadd',
@@ -138,15 +413,16 @@ module.exports = grammar({
 
         effect_command: $ => seq(
             'effect',
+            optional('give'), // Make 'give' optional to support both forms
             field('target', $.target_selector),
             field('effect_type', choice(
-                $.vanilla_effect,
+                seq(optional('minecraft:'), $.vanilla_effect),
                 $.custom_effect
             )),
             field('duration', $.number),
             field('amplifier', $.number)
         ),
-        
+
         enchant_command: $ => seq(
             'enchant',
             field('target', $.target_selector),
@@ -191,7 +467,7 @@ module.exports = grammar({
             'minecraft:bad_omen',
             'minecraft:hero_of_the_village'
         ),
-        
+
         vanilla_enchant: $ => choice(
             'minecraft:protection',
             'minecraft:fire_protection',

@@ -8,6 +8,8 @@ use tree_sitter::Language;
 pub mod lang;
 pub mod datapack;
 
+pub mod tests;
+
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
@@ -15,6 +17,7 @@ struct Cli {
     compile: bool,
 }
 fn main() {
+    
     let cli = Cli::parse();
 
     if !cli.compile {

@@ -5,3 +5,4 @@ libsand_parser.a
 *.sand
 Sand.toml
 /output
+/tree-sitter-sand/src/

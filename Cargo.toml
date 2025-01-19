@@ -5,9 +5,16 @@ edition = "2021"
 build = "src/build.rs"
 
 [dependencies]
+ctor = "0.2.9"
+reqwest = { version = "0.12.12", features = ["blocking", "json"] }
+serde = { version = "1.0.217", features = ["derive"] }
+serde_json = "1.0.135"
+tokio = { version = "1.43.0", features = ["full"] }
+tokio-macros = "2.5.0"
+zip = "2.2.2"
+
 cc = "1.2.2"
 clap = { version = "4.5.23", features = ["derive"] }
-serde = { version = "1.0.215", features = ["derive"] }
-tlogger = "0.1.4"
 toml = "0.8.19"
 tree-sitter = "0.24.4"
+sand_commands = { path = "../sand_commands"}

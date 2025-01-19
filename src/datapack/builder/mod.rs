@@ -5,11 +5,9 @@ use std::{
     path::PathBuf,
 };
 
-use tlogger::prelude::*;
+use sand_commands::prelude::MinecraftCommand;
 
-use crate::lang::Statement;
-
-pub type Function = Vec<Statement>;
+pub type Function = Vec<Box<dyn MinecraftCommand>>;
 
 fn get_pack_format(version: &str) -> u32 {
     match version {
@@ -51,7 +49,6 @@ pub struct Datapack {
 
 impl Datapack {
     pub fn new(name: &str, description: &str, version: &str, output_to: &PathBuf) -> Self {
-        info!("Datapack Builder", "Outputting to {:?}", output_to);
         Self {
             name: name.to_string(),
             namespace: None,
@@ -67,13 +64,13 @@ impl Datapack {
         self.namespace = Some(namespace.to_string().to_lowercase());
     }
 
-    pub fn add_function(&mut self, name: &str, statements: Vec<Statement>) {
+    pub fn add_function(&mut self, name: &str, statements: Vec<Box<dyn MinecraftCommand>>) {
         self.functions.insert(name.to_string(), statements);
     }
-    
-    pub fn add_tick_function(&mut self, name: &str, statements: Vec<Statement>) {
-        self.tick_functions.insert(name.to_string(), statements.clone());
-        self.add_function(name, statements);
+
+    pub fn add_tick_function(&mut self, name: &str, statements: Vec<Box<dyn MinecraftCommand>>) {
+        self.tick_functions
+            .insert(name.to_string(), statements);
     }
 
     pub fn prepare_directories(&self) -> io::Result<()> {
@@ -132,9 +129,9 @@ impl Datapack {
     }
 
     fn new_function_file(
-        &mut self,
+        &self,
         name: &str,
-        statements: Vec<Statement>,
+        statements: &Vec<Box<dyn MinecraftCommand>>,
     ) -> Result<(), std::io::Error> {
         let functions_dir = self.functions_dir();
         let func_file_path = functions_dir.join(format!("{}.mcfunction", name));
@@ -151,18 +148,14 @@ impl Datapack {
             .map(|s| s.to_string())
             .collect::<Vec<String>>()
             .join("\n");
-        
+
         // Write content and ensure there's a trailing newline
         writeln!(func_file, "{}", func_content)?;
 
         Ok(())
     }
-    
-    
 
     pub fn build(&mut self) -> io::Result<()> {
-        info!("Datapack Builder", "Building datapack");
-        info!("Datapack Builder", "Preparing directories");
         self.prepare_directories().unwrap();
 
         let pack_meta = format!(
@@ -173,7 +166,6 @@ impl Datapack {
             get_pack_format(&self.version),
             self.description
         );
-        info!("Datapack Builder", "Writing pack.mcmeta");
         let pack_path = self.output_to.join(&self.name).join("pack.mcmeta");
         if !pack_path.exists() {
             fs::create_dir_all(pack_path.parent().unwrap())
@@ -186,16 +178,14 @@ impl Datapack {
             .expect("Failed to write to pack.mcmeta");
 
         if !self.functions.is_empty() {
-            info!("Datapack Builder", "Writing functions");
-            for function in self.functions.clone() {
+            for function in self.functions.iter() {
                 let func_name = function.0;
-                let func_statements = function.1;
+                let func_statements= function.1;
                 self.new_function_file(func_name.as_str(), func_statements)
                     .unwrap();
             }
         }
 
-        success!("Datapack Builder", "Datapack built successfully");
         Ok(())
     }
 

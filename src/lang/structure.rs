@@ -1,5 +1,4 @@
 use serde::Deserialize;
-use tlogger::prelude::*;
 
 #[derive(Deserialize, Debug)]
 pub struct SandConfig {
@@ -23,8 +22,6 @@ impl SandStructure {
         let mut files = Vec::new();
         let cwd = std::env::current_dir()?;
 
-        debug!("Current Working Directory:", "{:?}", cwd);
-
         // Read .sand files
         for entry in std::fs::read_dir(&cwd).expect("failed to read dir") {
             let entry = entry.expect("failed to read entry");
@@ -42,10 +39,6 @@ impl SandStructure {
         let config_path = cwd.join("Sand.toml");
 
         if !config_path.exists() {
-            error!(
-                "Config file not found",
-                "Please create a Sand.toml file in the root directory of your project."
-            );
             return Err(Box::new(std::io::Error::new(
                 std::io::ErrorKind::NotFound,
                 "Config file not found",
@@ -65,7 +58,6 @@ impl SandStructure {
 
     pub fn sand_to_grains(&self) -> String {
         let mut grains = String::new();
-        info!("Sand Structure", "Combining Sand Files");
         for file in &self.sand_files {
             let mut content = String::new();
             let mut file_clone = file.try_clone().expect("Failed to clone file handle");
@@ -75,7 +67,6 @@ impl SandStructure {
             grains.push_str(&content);
             grains.push('\n'); // Add newline between files
         }
-        success!("Sand Structure", "Combined Sand Files");
         grains.trim().to_string()
     }
 

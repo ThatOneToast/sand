@@ -2,11 +2,10 @@ use clap::Parser;
 use datapack::builder::Datapack;
 use lang::{structure::SandStructure, AstBuilder, NodeType};
 use std::{env, path::PathBuf};
-use tlogger::prelude::*;
 use tree_sitter::Language;
 
-pub mod lang;
 pub mod datapack;
+pub mod lang;
 
 pub mod tests;
 
@@ -17,7 +16,6 @@ struct Cli {
     compile: bool,
 }
 fn main() {
-    
     let cli = Cli::parse();
 
     if !cli.compile {
@@ -35,10 +33,12 @@ fn main() {
 
     let ast_builder = AstBuilder::new(grains.as_str());
     let cwd = env::current_dir().unwrap();
-    let mut datapack = Datapack::new("Toaster", "A test datapack", "1.21.4", &PathBuf::from(format!("{}/output", cwd.display())));
-
-    #[cfg(not(debug_assertions))]
-    set_debug(false);
+    let mut datapack = Datapack::new(
+        "Toaster",
+        "A test datapack",
+        "1.21.4",
+        &PathBuf::from(format!("{}/output", cwd.display())),
+    );
 
     match ast_builder.parse_tree(&language) {
         Ok(tree) => {
@@ -49,15 +49,14 @@ fn main() {
                     NodeType::Function { name, body } => {
                         datapack.add_function(name, body);
                     }
-                    NodeType::FunctionCall { name: _, arguments: _ } => {
-
-                    }
+                    NodeType::FunctionCall {
+                        name: _,
+                        arguments: _,
+                    } => {}
                     NodeType::StringLiteral(_text) => {
                         // is a comment do nothing.
                     }
-                    NodeType::Unknown => {
-                        warn!("Unknown Node", "Got an unknown Node");
-                    }
+                    NodeType::Unknown => {}
                 }
             }
         }

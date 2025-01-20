@@ -41,6 +41,7 @@ fn main() {
                     damage_per_block: 10,
                     rules: vec![]
                 }),
+                damage: Some(50),
                 ..Default::default()
             }),
             count: Some(1),
@@ -57,7 +58,7 @@ fn main() {
             ExecuteScoreCommand::MATCHES {
                 target: TargetSelector::Current(None),
                 objective: "message".to_string(),
-                range: 10.to_string()
+                range: 20.to_string()
             }
         ) => run Title {
             action: ct::TitleAction::Title("You have been given a toast!".to_string()),
@@ -71,7 +72,7 @@ fn main() {
             ExecuteScoreCommand::MATCHES {
                 target: TargetSelector::Current(None),
                 objective: "message".to_string(),
-                range: 10.to_string()
+                range: 20.to_string()
             }
         ) => run Scoreboard::new(
             ct::ScoreboardAction::Players(
@@ -98,7 +99,12 @@ fn main() {
     );
 
     let tick_send_message = dp_func!("hello", if_score_10_send_message, if_score_10_set_score_to_0, add_one_to_score);
-
+    let load_function = dp_func!("load", Title {
+        action: ct::TitleAction::Title("Loaded!".to_string()),
+        target: TargetSelector::All(None),
+    });
+    
+    datapack.add_load_function(load_function);
     datapack.add_function(give_function);
     datapack.add_tick_function(tick_send_message);
     datapack.build().expect("Failed to build datapack");

@@ -1,0 +1,30 @@
+WHITESPACE = _{ " " | "\t" | "\n" }
+file = { SOI ~ (object)* ~ EOI }
+COMMENT = _{ "//" ~ (!NEWLINE ~ ANY)* }
+
+object = { "@" ~ super_constructor ~ identifier ~ field_list ~ object_block }
+
+super_constructor = { "ItemStack" | "Entities" | "LootTables" }
+
+identifier = @{ ASCII_ALPHANUMERIC+ }
+
+// Separate field_list for objects and function_params for functions
+field_list = { "(" ~ field ~ ("," ~ field)* ~ ")" }
+
+field = { identifier ~ ":" ~ type }
+
+type = { "String" | "Int" | "Float" | "Boolean" }
+object_block = {
+    "{" ~
+    property_assignment* ~
+    "}"
+}
+property_assignment = {
+    "@." ~ identifier ~ "=" ~ value
+}
+
+value = { string_literal | number | boolean | identifier}
+string_literal = ${ "\"" ~ inner_str ~ "\"" }
+inner_str = @{ (!("\"") ~ ANY)* }
+number = @{ ASCII_DIGIT+ }
+boolean = { "true" | "false" }

@@ -1,74 +1,73 @@
+use parser::object::parse_object;
 use sand_commands::prelude::*;
-use tree_sitter::{Language, Node, Parser, Tree};
 pub mod structure;
 
-// Enum to represent different node types in your language
-#[derive(Debug)]
-pub enum NodeType<'a> {
-    Function {
-        name: &'a str,
-        body: Vec<Box<dyn MinecraftCommand>>,
-    },
-    FunctionCall {
-        name: &'a str,
-        arguments: Vec<&'a str>,
-    },
-    StringLiteral(&'a str),
-    Unknown,
-}
+use pest::{iterators::Pair, Parser};
+use pest_derive::Parser;
+use structure::Object;
 
-pub struct AstBuilder<'a> {
-    source: &'a str,
-}
+pub mod parser;
 
-impl<'a> AstBuilder<'a> {
-    pub fn new(source: &'a str) -> Self {
-        Self { source }
-    }
+// Define the parser using the grammar file
+#[derive(Debug, Parser)]
+#[grammar = "grammar/parser.pest"] // Path to the grammar file
+pub struct SandParser;
 
-    pub fn parse_tree(&self, language: &Language) -> Result<Tree, &'static str> {
-        let mut parser = Parser::new();
-        parser
-            .set_language(language)
-            .map_err(|_| "Failed to set language")?;
-        parser
-            .parse(self.source, None)
-            .ok_or("Failed to parse source")
-    }
+pub fn parse(input: &str) -> Result<SandTree, pest::error::Error<Rule>> {
+    let mut tree = SandTree::new();
 
-    pub fn traverse_tree(&self, tree: &Tree) -> Vec<NodeType<'a>> {
-        let mut nodes = Vec::new();
-        let root = tree.root_node();
+    let pairs = SandParser::parse(Rule::file, input)?;
 
-        // Directly iterate through source_file's children
-        let mut cursor = root.walk();
-        for child in root.children(&mut cursor) {
-            if child.kind() == "function_definition" {
-                if let Some(func_node) = self.process_function(child) {
-                    nodes.push(func_node);
-                }
+    for pair in pairs {
+        match pair.as_rule() {
+            Rule::object => {
+                tree.add_object(parse_object(pair));
             }
+            _ => {}
+        }
+    }
+
+    Ok(tree)
+}
+
+#[cfg(test)]
+#[test]
+fn test() {
+    let input = r#"@ItemStack SuperPickaxe(name: String) {
+            // This is a comment
+            @.TYPE = "minecraft:diamond_pickaxe"
+            @.name = name
         }
 
-        nodes
+        
+
+
+    "#
+    .trim();
+
+    match parse(input) {
+        Ok(tree) => {
+            println!("{:#?}", tree);
+        }
+        Err(e) => {
+            println!("{}", e);
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct SandTree {
+    objects: Vec<structure::Object>,
+}
+
+impl SandTree {
+    pub fn new() -> Self {
+        SandTree {
+            objects: Vec::new(),
+        }
     }
 
-    pub fn process_function(&self, node: Node) -> Option<NodeType<'a>> {
-        let name_node = node
-            .children(&mut node.walk())
-            .find(|child| child.kind() == "identifier")?;
-        let name = name_node.utf8_text(self.source.as_bytes()).ok()?;
-
-        let mut body_statements = Vec::new();
-        let block_node = node
-            .children(&mut node.walk())
-            .find(|child| child.kind() == "block")?;
-
-        for command in block_node.named_children(&mut block_node.walk()) {}
-
-        Some(NodeType::Function {
-            name,
-            body: body_statements,
-        })
+    pub fn add_object(&mut self, object: Object) {
+        self.objects.push(object);
     }
 }

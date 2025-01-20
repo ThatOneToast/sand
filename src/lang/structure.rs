@@ -11,67 +11,44 @@ use std::io::Read;
 use std::path::PathBuf;
 use toml;
 
-pub struct SandStructure {
-    sand_files: Vec<File>,
-    project_root: PathBuf,
-    config: SandConfig,
+#[derive(Debug, Clone)]
+pub struct Object {
+    pub constructor: SuperConstructor,
+    pub name: String,
+    pub fields: Vec<Field>,
+    pub properties: Vec<Property>,
 }
 
-impl SandStructure {
-    pub fn new(project_root: PathBuf) -> Result<Self, Box<dyn std::error::Error>> {
-        let mut files = Vec::new();
-        let cwd = std::env::current_dir()?;
+#[derive(Debug, Clone)]
+pub struct Property {
+    pub name: String,
+    pub value: PropertyValue,
+}
 
-        // Read .sand files
-        for entry in std::fs::read_dir(&cwd).expect("failed to read dir") {
-            let entry = entry.expect("failed to read entry");
-            let path = entry.path();
-            if path.is_file() {
-                if let Some(extension) = path.extension() {
-                    if extension == "sand" {
-                        files.push(File::open(path).expect("Failed to open file"));
-                    }
-                }
-            }
-        }
+#[derive(Debug, Clone)]
+pub enum PropertyValue {
+    String(String),
+    Number(i64),
+    Boolean(bool),
+}
 
-        // Read and parse TOML config
-        let config_path = cwd.join("Sand.toml");
+#[derive(Debug, Clone)]
+pub struct Field {
+    pub name: String,
+    pub field_type: FieldType,
+}
 
-        if !config_path.exists() {
-            return Err(Box::new(std::io::Error::new(
-                std::io::ErrorKind::NotFound,
-                "Config file not found",
-            )));
-        }
+#[derive(Debug, Clone)]
+pub enum SuperConstructor {
+    ItemStack,
+    Entities,
+    LootTables,
+}
 
-        let mut config_content = String::new();
-        File::open(config_path)?.read_to_string(&mut config_content)?;
-        let config: SandConfig = toml::from_str(&config_content)?;
-
-        Ok(Self {
-            sand_files: files,
-            project_root,
-            config,
-        })
-    }
-
-    pub fn sand_to_grains(&self) -> String {
-        let mut grains = String::new();
-        for file in &self.sand_files {
-            let mut content = String::new();
-            let mut file_clone = file.try_clone().expect("Failed to clone file handle");
-            file_clone
-                .read_to_string(&mut content)
-                .expect("Failed to read file");
-            grains.push_str(&content);
-            grains.push('\n'); // Add newline between files
-        }
-        grains.trim().to_string()
-    }
-
-    // Getter for config
-    pub fn config(&self) -> &SandConfig {
-        &self.config
-    }
+#[derive(Debug, Clone)]
+pub enum FieldType {
+    String,
+    Int,
+    Float,
+    Boolean,
 }

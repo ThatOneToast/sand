@@ -1,10 +1,7 @@
 use std::{
-    collections::HashMap,
     fs::{self, File},
     io::{self, Write},
-    ops::Deref,
     path::{Path, PathBuf},
-    sync::Arc,
 };
 
 use sand_commands::prelude::MinecraftCommand;
@@ -42,6 +39,35 @@ struct TickFunctions {
     values: Vec<DatapackFunction>,
 }
 
+#[derive(Debug)]
+struct LoadFunctions {
+    namespace: String,
+    values: Vec<DatapackFunction>,
+}
+
+impl Serialize for LoadFunctions {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+
+        // Start serializing a struct with 1 field named "values"
+        let mut state = serializer.serialize_struct("LoadFunctions", 1)?;
+
+        // Create the array of formatted strings
+        let formatted_values: Vec<String> = self
+            .values
+            .iter()
+            .map(|func| format!("{}:{}", self.namespace, func.name))
+            .collect();
+
+        // Add the "values" field with the array
+        state.serialize_field("values", &formatted_values)?;
+
+        state.end()
+    }
+}
 
 impl Serialize for TickFunctions {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -99,8 +125,10 @@ pub struct Datapack {
     namespace: Option<String>,
     description: String,
     version: String,
+    
     functions: Vec<DatapackFunction>,
     tick_functions: TickFunctions,
+    load_functions: LoadFunctions,
 
     output_to: PathBuf,
 }
@@ -117,6 +145,10 @@ impl Datapack {
                 namespace: name.to_lowercase().to_string(),
                 values: Vec::new(),
             },
+            load_functions: LoadFunctions {
+                namespace: name.to_lowercase().to_string(),
+                values: Vec::new(),
+            },
             output_to: output_to.to_path_buf(),
         }
     }
@@ -124,6 +156,7 @@ impl Datapack {
     pub fn set_namespace(&mut self, namespace: &str) {
         self.namespace = Some(namespace.to_string().to_lowercase());
         self.tick_functions.namespace = namespace.to_string();
+        self.load_functions.namespace = namespace.to_string();
     }
 
     pub fn add_function(&mut self, func: DatapackFunction) {
@@ -132,6 +165,10 @@ impl Datapack {
 
     pub fn add_tick_function(&mut self, func: DatapackFunction) {
         self.tick_functions.values.push(func);
+    }
+    
+    pub fn add_load_function(&mut self, func: DatapackFunction) {
+        self.load_functions.values.push(func);
     }
 
     pub fn get_function(&self, name: &str) -> Option<&DatapackFunction> {
@@ -143,11 +180,28 @@ impl Datapack {
     }
 
     pub fn get_tick_function(&self, name: &str) -> Option<&DatapackFunction> {
-        self.tick_functions.values.iter().find(|func| func.name == name)
+        self.tick_functions
+            .values
+            .iter()
+            .find(|func| func.name == name)
     }
 
     pub fn get_tick_function_mut(&mut self, name: &str) -> Option<&mut DatapackFunction> {
         self.tick_functions
+            .values
+            .iter_mut()
+            .find(|func| func.name == name)
+    }
+    
+    pub fn get_load_function(&self, name: &str) -> Option<&DatapackFunction> {
+        self.load_functions
+            .values
+            .iter()
+            .find(|func| func.name == name)
+    }
+    
+    pub fn get_load_function_mut(&mut self, name: &str) -> Option<&mut DatapackFunction> {
+        self.load_functions
             .values
             .iter_mut()
             .find(|func| func.name == name)
@@ -233,10 +287,22 @@ impl Datapack {
     }
 
     fn deposit_tick_functions(&self) -> Result<(), std::io::Error> {
-        let tick_json_path = self.tags_dir().join("function").join("tick.json");
-        let mut tick_json_file = fs::File::create(tick_json_path)?;
+        let tick_json_path = self.tags_dir().join("function");
+        fs::create_dir_all(tick_json_path.clone()).unwrap();
+        let mut tick_json_file =
+            fs::File::create(tick_json_path.join("tick.json")).expect("failed to create tick json");
         let serialized_tick_functions = serde_json::to_string(&self.tick_functions)?;
         tick_json_file.write_all(serialized_tick_functions.as_bytes())?;
+        Ok(())
+    }
+    
+    fn deposit_load_functions(&self) -> Result<(), std::io::Error> {
+        let load_json_path = self.tags_dir().join("function");
+        fs::create_dir_all(load_json_path.clone()).unwrap();
+        let mut load_json_file =
+            fs::File::create(load_json_path.join("load.json")).expect("failed to create load json");
+        let serialized_load_functions = serde_json::to_string(&self.load_functions)?;
+        load_json_file.write_all(serialized_load_functions.as_bytes())?;
         Ok(())
     }
 
@@ -265,19 +331,26 @@ impl Datapack {
         if !self.functions.is_empty() {
             for function in self.functions.iter() {
                 self.new_function_file(function)
-                    .expect(format!("Failed to create {} function file", function.name).as_str());
+                    .expect(format!("Failed to create {} function file [FUNCTION]", function.name).as_str());
             }
             
+            if !self.load_functions.values.is_empty() {
+                for function in self.load_functions.values.iter() {
+                    self.new_function_file(&function).expect(
+                        format!("Failed to create {} function file [LOAD]", function.name).as_str(),
+                    );
+                }
+                self.deposit_load_functions().unwrap();
+            }
+
             if !self.tick_functions.values.is_empty() {
                 for function in self.tick_functions.values.iter() {
-                    self.new_function_file(&function)
-                        .expect(format!("Failed to create {} function file", function.name).as_str());
+                    self.new_function_file(&function).expect(
+                        format!("Failed to create {} function file [TICK]", function.name).as_str(),
+                    );
                 }
+                self.deposit_tick_functions().unwrap();
             }
-        }
-
-        if !self.tick_functions.values.is_empty() {
-            self.deposit_tick_functions().unwrap();
         }
 
         Ok(())
@@ -295,17 +368,12 @@ impl Datapack {
             )
             .join("function")
     }
-    
+
     fn tags_dir(&self) -> PathBuf {
         self.output_to
             .join(&self.name)
             .join("data")
-            .join(
-                &self
-                    .namespace
-                    .clone()
-                    .unwrap_or(self.name.to_lowercase().to_string()),
-            )
+            .join("minecraft")
             .join("tags")
     }
 }

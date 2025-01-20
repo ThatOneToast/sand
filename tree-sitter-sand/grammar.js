@@ -5,8 +5,14 @@ module.exports = grammar({
         source_file: $ => repeat($._definition),
 
         identifier: $ => /[a-zA-Z_][a-zA-Z0-9_]*/,
-        number: $ => /\d+/,
-        
-        
+        number: $ => /[-]?\d+(\.\d+)?/,
+
+        comment: $ => token(seq(
+            '//',           // Comment start
+            /[^\\]*/,       // Any characters except backslash
+            '\\\\'          // Comment end with double backslash
+        )),
+
+
     }
 });

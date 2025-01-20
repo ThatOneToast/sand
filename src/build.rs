@@ -14,10 +14,13 @@ fn main() {
         .args(&[
             "-c",
             &parser_src_dir.join("parser.c").to_string_lossy(),
-            "-o", "parser.o",
-            "-I", &parser_src_dir.to_string_lossy(),
+            "-o",
+            "parser.o",
+            "-I",
+            &parser_src_dir.to_string_lossy(),
             "-fPIC",
-            "-arch", "arm64"
+            "-arch",
+            "arm64",
         ])
         .status()
         .expect("Failed to compile parser.c");
@@ -33,10 +36,13 @@ fn main() {
             .args(&[
                 "-c",
                 &scanner_path.to_string_lossy(),
-                "-o", "scanner.o",
-                "-I", &parser_src_dir.to_string_lossy(),
+                "-o",
+                "scanner.o",
+                "-I",
+                &parser_src_dir.to_string_lossy(),
                 "-fPIC",
-                "-arch", "arm64"
+                "-arch",
+                "arm64",
             ])
             .status()
             .expect("Failed to compile scanner.c");
@@ -48,11 +54,7 @@ fn main() {
 
     // Create static library
     let ar_output = Command::new("ar")
-        .args(&[
-            "crs",
-            "libsand_parser.a",
-            "parser.o"
-        ])
+        .args(&["crs", "libsand_parser.a", "parser.o"])
         .status()
         .expect("Failed to create static library");
 
@@ -62,11 +64,7 @@ fn main() {
 
     if scanner_path.exists() {
         let ar_add_output = Command::new("ar")
-            .args(&[
-                "rs",
-                "libsand_parser.a",
-                "scanner.o"
-            ])
+            .args(&["rs", "libsand_parser.a", "scanner.o"])
             .status()
             .expect("Failed to add scanner to static library");
 

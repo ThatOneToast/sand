@@ -1,13 +1,71 @@
 use std::{
     collections::HashMap,
-    fs,
+    fs::{self, File},
     io::{self, Write},
-    path::PathBuf,
+    ops::Deref,
+    path::{Path, PathBuf},
+    sync::Arc,
 };
 
 use sand_commands::prelude::MinecraftCommand;
+use serde::Serialize;
 
-pub type Function = Vec<Box<dyn MinecraftCommand>>;
+#[derive(Debug)]
+pub struct DatapackFunction {
+    pub name: String,
+    pub commands: Vec<Box<dyn MinecraftCommand>>,
+}
+
+impl DatapackFunction {
+    pub fn to_file<T: AsRef<Path>>(&self, path: T) -> Result<(), std::io::Error> {
+        let mut file = File::create(path)?;
+        file.write_all(self.to_string().as_bytes())?;
+        Ok(())
+    }
+}
+
+impl ToString for DatapackFunction {
+    fn to_string(&self) -> String {
+        let mut string = String::new();
+        string.push_str("#Exported Function {name}\n");
+        for command in &self.commands {
+            string.push_str(&command.to_string());
+            string.push_str("\n");
+        }
+        string
+    }
+}
+
+#[derive(Debug)]
+struct TickFunctions {
+    namespace: String,
+    values: Vec<DatapackFunction>,
+}
+
+
+impl Serialize for TickFunctions {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+
+        // Start serializing a struct with 1 field named "values"
+        let mut state = serializer.serialize_struct("TickFunctions", 1)?;
+
+        // Create the array of formatted strings
+        let formatted_values: Vec<String> = self
+            .values
+            .iter()
+            .map(|func| format!("{}:{}", self.namespace, func.name))
+            .collect();
+
+        // Add the "values" field with the array
+        state.serialize_field("values", &formatted_values)?;
+
+        state.end()
+    }
+}
 
 fn get_pack_format(version: &str) -> u32 {
     match version {
@@ -41,8 +99,8 @@ pub struct Datapack {
     namespace: Option<String>,
     description: String,
     version: String,
-    functions: HashMap<String, Function>,
-    tick_functions: HashMap<String, Function>,
+    functions: Vec<DatapackFunction>,
+    tick_functions: TickFunctions,
 
     output_to: PathBuf,
 }
@@ -54,26 +112,48 @@ impl Datapack {
             namespace: None,
             description: description.to_string(),
             version: version.to_string(),
-            functions: HashMap::new(),
-            tick_functions: HashMap::new(),
+            functions: Vec::new(),
+            tick_functions: TickFunctions {
+                namespace: name.to_lowercase().to_string(),
+                values: Vec::new(),
+            },
             output_to: output_to.to_path_buf(),
         }
     }
 
     pub fn set_namespace(&mut self, namespace: &str) {
         self.namespace = Some(namespace.to_string().to_lowercase());
+        self.tick_functions.namespace = namespace.to_string();
     }
 
-    pub fn add_function(&mut self, name: &str, statements: Vec<Box<dyn MinecraftCommand>>) {
-        self.functions.insert(name.to_string(), statements);
+    pub fn add_function(&mut self, func: DatapackFunction) {
+        self.functions.push(func);
     }
 
-    pub fn add_tick_function(&mut self, name: &str, statements: Vec<Box<dyn MinecraftCommand>>) {
+    pub fn add_tick_function(&mut self, func: DatapackFunction) {
+        self.tick_functions.values.push(func);
+    }
+
+    pub fn get_function(&self, name: &str) -> Option<&DatapackFunction> {
+        self.functions.iter().find(|func| func.name == name)
+    }
+
+    pub fn get_function_mut(&mut self, name: &str) -> Option<&mut DatapackFunction> {
+        self.functions.iter_mut().find(|func| func.name == name)
+    }
+
+    pub fn get_tick_function(&self, name: &str) -> Option<&DatapackFunction> {
+        self.tick_functions.values.iter().find(|func| func.name == name)
+    }
+
+    pub fn get_tick_function_mut(&mut self, name: &str) -> Option<&mut DatapackFunction> {
         self.tick_functions
-            .insert(name.to_string(), statements);
+            .values
+            .iter_mut()
+            .find(|func| func.name == name)
     }
 
-    pub fn prepare_directories(&self) -> io::Result<()> {
+    fn prepare_directories(&self) -> io::Result<()> {
         let root_path = self.output_to.join(&self.name);
         let data_path = root_path.join("data");
         let ns_path = data_path.join(self.namespace.as_ref().unwrap_or(&self.name.to_lowercase()));
@@ -128,13 +208,9 @@ impl Datapack {
         Ok(())
     }
 
-    fn new_function_file(
-        &self,
-        name: &str,
-        statements: &Vec<Box<dyn MinecraftCommand>>,
-    ) -> Result<(), std::io::Error> {
+    fn new_function_file(&self, func: &DatapackFunction) -> Result<(), std::io::Error> {
         let functions_dir = self.functions_dir();
-        let func_file_path = functions_dir.join(format!("{}.mcfunction", name));
+        let func_file_path = functions_dir.join(format!("{}.mcfunction", func.name));
 
         if !func_file_path.exists() {
             fs::create_dir_all(func_file_path.parent().unwrap())?;
@@ -143,7 +219,8 @@ impl Datapack {
         let mut func_file = fs::File::create(func_file_path)?;
 
         // Convert all statements to strings and join with newlines
-        let func_content = statements
+        let func_content = func
+            .commands
             .iter()
             .map(|s| s.to_string())
             .collect::<Vec<String>>()
@@ -155,7 +232,15 @@ impl Datapack {
         Ok(())
     }
 
-    pub fn build(&mut self) -> io::Result<()> {
+    fn deposit_tick_functions(&self) -> Result<(), std::io::Error> {
+        let tick_json_path = self.tags_dir().join("function").join("tick.json");
+        let mut tick_json_file = fs::File::create(tick_json_path)?;
+        let serialized_tick_functions = serde_json::to_string(&self.tick_functions)?;
+        tick_json_file.write_all(serialized_tick_functions.as_bytes())?;
+        Ok(())
+    }
+
+    pub fn build(self) -> io::Result<()> {
         self.prepare_directories().unwrap();
 
         let pack_meta = format!(
@@ -179,11 +264,20 @@ impl Datapack {
 
         if !self.functions.is_empty() {
             for function in self.functions.iter() {
-                let func_name = function.0;
-                let func_statements= function.1;
-                self.new_function_file(func_name.as_str(), func_statements)
-                    .unwrap();
+                self.new_function_file(function)
+                    .expect(format!("Failed to create {} function file", function.name).as_str());
             }
+            
+            if !self.tick_functions.values.is_empty() {
+                for function in self.tick_functions.values.iter() {
+                    self.new_function_file(&function)
+                        .expect(format!("Failed to create {} function file", function.name).as_str());
+                }
+            }
+        }
+
+        if !self.tick_functions.values.is_empty() {
+            self.deposit_tick_functions().unwrap();
         }
 
         Ok(())
@@ -200,5 +294,18 @@ impl Datapack {
                     .unwrap_or(self.name.to_lowercase().to_string()),
             )
             .join("function")
+    }
+    
+    fn tags_dir(&self) -> PathBuf {
+        self.output_to
+            .join(&self.name)
+            .join("data")
+            .join(
+                &self
+                    .namespace
+                    .clone()
+                    .unwrap_or(self.name.to_lowercase().to_string()),
+            )
+            .join("tags")
     }
 }

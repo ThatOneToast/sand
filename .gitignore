@@ -3,6 +3,7 @@
 parser.o
 libsand_parser.a
 *.sand
+!main.sand
 Sand.toml
 /output
 /tree-sitter-sand/src/

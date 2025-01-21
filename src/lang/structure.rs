@@ -1,4 +1,8 @@
+use std::mem;
+
 use serde::Deserialize;
+
+use crate::grammar;
 
 #[derive(Deserialize, Debug)]
 pub struct SandConfig {
@@ -6,49 +10,56 @@ pub struct SandConfig {
     pub version: String,
 }
 
-use std::fs::File;
-use std::io::Read;
-use std::path::PathBuf;
-use toml;
-
-#[derive(Debug, Clone)]
-pub struct Object {
-    pub constructor: SuperConstructor,
-    pub name: String,
-    pub fields: Vec<Field>,
-    pub properties: Vec<Property>,
+#[derive(Debug)]
+pub struct SandTree {
+    files: Vec<grammar::File>,
+    pub variables: Vec<grammar::var::Variable>,
+    pub functions: Vec<grammar::function::Function>,
+    pub function_calls: Vec<grammar::function_call::FunctionCall>,
 }
 
-#[derive(Debug, Clone)]
-pub struct Property {
-    pub name: String,
-    pub value: PropertyValue,
-}
+impl SandTree {
+    pub fn new() -> Self {
+        SandTree {
+            files: Vec::new(),
+            variables: Vec::new(),
+            functions: Vec::new(),
+            function_calls: Vec::new(),
+        }
+    }
 
-#[derive(Debug, Clone)]
-pub enum PropertyValue {
-    String(String),
-    Number(i64),
-    Boolean(bool),
-}
+    pub fn add_file(&mut self, file: grammar::File) {
+        self.files.push(file);
+    }
 
-#[derive(Debug, Clone)]
-pub struct Field {
-    pub name: String,
-    pub field_type: FieldType,
-}
+    pub fn sort(mut self) -> Result<SandTree, String> {
+        let files = mem::take(&mut self.files);
+        println!("Files len {}", files.len());
+        for file in files {
+            self.variables.extend(file.variables);
+            self.functions.extend(file.functions);
+            self.function_calls.extend(file.function_calls);
+        }
+        Ok(self)
+    }
 
-#[derive(Debug, Clone)]
-pub enum SuperConstructor {
-    ItemStack,
-    Entities,
-    LootTables,
-}
+    pub fn validate_function_calls(&self) -> Result<bool, String> {
+        println!(
+            "Validating {} function calls against {} functions",
+            self.function_calls.len(),
+            self.functions.len()
+        );
 
-#[derive(Debug, Clone)]
-pub enum FieldType {
-    String,
-    Int,
-    Float,
-    Boolean,
+        for call in &self.function_calls {
+            println!("Validating call to function: {}", call.function_name);
+            let function = self
+                .functions
+                .iter()
+                .find(|f| f.name == call.function_name)
+                .ok_or_else(|| format!("Function '{}' not found", call.function_name))?;
+
+            call.validate_types(function)?;
+        }
+        Ok(true)
+    }
 }

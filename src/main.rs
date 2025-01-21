@@ -2,7 +2,7 @@ use clap::Parser;
 use datapack::builder::Datapack;
 use sand_commands::{
     prelude::*,
-    types::{ItemState, MiningRule, TargetSelector, ToolProperties},
+    types::{ItemState, TargetSelector, ToolProperties},
 };
 use std::path::PathBuf;
 
@@ -10,6 +10,7 @@ use std::path::PathBuf;
 extern crate sand_commands;
 
 pub mod datapack;
+pub mod grammar;
 pub mod lang;
 pub mod macros;
 
@@ -76,15 +77,15 @@ fn main() {
             }
         ) => run Scoreboard::new(
             ct::ScoreboardAction::Players(
-                ct::PlayerAction::Set { 
-                    target: TargetSelector::Current(None), 
-                    objective: "message".to_string(), 
-                    score: 0 
+                ct::PlayerAction::Set {
+                    target: TargetSelector::Current(None),
+                    objective: "message".to_string(),
+                    score: 0
                 }
             )
         )
     );
-    
+
     let add_one_to_score = execute!(
         as TargetSelector::All(None) =>
         run Scoreboard::new(
@@ -98,12 +99,20 @@ fn main() {
         )
     );
 
-    let tick_send_message = dp_func!("hello", if_score_10_send_message, if_score_10_set_score_to_0, add_one_to_score);
-    let load_function = dp_func!("load", Title {
-        action: ct::TitleAction::Title("Loaded!".to_string()),
-        target: TargetSelector::All(None),
-    });
-    
+    let tick_send_message = dp_func!(
+        "hello",
+        if_score_10_send_message,
+        if_score_10_set_score_to_0,
+        add_one_to_score
+    );
+    let load_function = dp_func!(
+        "load",
+        Title {
+            action: ct::TitleAction::Title("Loaded!".to_string()),
+            target: TargetSelector::All(None),
+        }
+    );
+
     datapack.add_load_function(load_function);
     datapack.add_function(give_function);
     datapack.add_tick_function(tick_send_message);

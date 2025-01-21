@@ -1,4 +1,3 @@
-use sand_commands::prelude::MinecraftCommand;
 
 /// Creates a Datapack Function from a list of minecraft commands.
 #[macro_export]

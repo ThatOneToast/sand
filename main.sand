@@ -1,0 +1,15 @@
+let test2 = 'test'
+let CanGiveCommandsRun = false
+
+fn AdventurePickaxe(name: String) {
+    let count = 5
+}
+
+let global = true
+let canihave = 'super text here'
+
+fn TestPickaxe(name: String) {
+    let count = 5
+}
+
+let test = 'test'

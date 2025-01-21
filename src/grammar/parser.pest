@@ -1,30 +1,57 @@
+// -----------------------------------------------------------------------------
+// File Structure
+// -----------------------------------------------------------------------------
+file                =  { SOI ~ (statements)* ~ EOI }
+statements          = _{ function | variable | function_call | collection }
+function_statements = _{ variable | function_call | if_statement | collection }
+if_block_statements =  { if_statement | variable | function_call | collection }
+
+// -----------------------------------------------------------------------------
+// Basic Elements
+// -----------------------------------------------------------------------------
 WHITESPACE = _{ " " | "\t" | "\n" }
-file = { SOI ~ (object)* ~ EOI }
-COMMENT = _{ "//" ~ (!NEWLINE ~ ANY)* }
+COMMENT    = _{ "//" ~ (!NEWLINE ~ ANY)* }
 
-object = { "@" ~ super_constructor ~ identifier ~ field_list ~ object_block }
+// -----------------------------------------------------------------------------
+// Identifiers & Generic Types & Condtionals
+// -----------------------------------------------------------------------------
+identifier    = @{ ASCII_ALPHANUMERIC+ }
+type_notation = @{ "String" | "Number" | "Boolean" }
+value         =  { string_type | number_type | boolean_type | null_type }
 
-super_constructor = { "ItemStack" | "Entities" | "LootTables" }
+string_type  = @{ ("`" ~ (!"`" ~ ANY)* ~ "`") | ("'" ~ (!"'" ~ ANY)* ~ "'") }
+number_type  = @{ ("-")? ~ ASCII_DIGIT+ ~ ("." ~ ASCII_DIGIT+)? }
+boolean_type = @{ "true" | "false" }
+null_type    = @{ "null" }
 
-identifier = @{ ASCII_ALPHANUMERIC+ }
+variable = { "let" ~ identifier ~ "=" ~ value }
 
-// Separate field_list for objects and function_params for functions
-field_list = { "(" ~ field ~ ("," ~ field)* ~ ")" }
+comparison_operator =  { ">" | "<" | "==" | "!=" | ">=" | "<=" }
+comparison          =  { (value | identifier) ~ comparison_operator ~ (value | identifier) }
+condition           = _{ comparison | boolean_type | identifier }
 
-field = { identifier ~ ":" ~ type }
+if_statement = { "if" ~ condition ~ if_block }
+if_block     = { "{" ~ (if_block_statements)* ~ "}" }
 
-type = { "String" | "Int" | "Float" | "Boolean" }
-object_block = {
-    "{" ~
-    property_assignment* ~
-    "}"
-}
-property_assignment = {
-    "@." ~ identifier ~ "=" ~ value
-}
+// ------------------------------------------------------------------------------
+// Functions & General Block Type Structure
+// ------------------------------------------------------------------------------
+function = { "fn" ~ identifier ~ "(" ~ params? ~ ")" ~ func_block }
+params   = { param ~ ("," ~ param)* }
+param    = { identifier ~ ":" ~ type_notation }
 
-value = { string_literal | number | boolean | identifier}
-string_literal = ${ "\"" ~ inner_str ~ "\"" }
-inner_str = @{ (!("\"") ~ ANY)* }
-number = @{ ASCII_DIGIT+ }
-boolean = { "true" | "false" }
+func_block = { "{" ~ (function_statements)* ~ "}" }
+
+// ------------------------------------------------------------------------------
+// Function Assignments & Values
+// ------------------------------------------------------------------------------
+function_call  = { "#" ~ identifier ~ "(" ~ passing_params? ~ ")" }
+passing_params = { passing_param ~ ("," ~ passing_param)* }
+passing_param  = { value }
+
+// -----------------------------------------------------------------------------
+// Collections
+// -----------------------------------------------------------------------------
+collection      = { "@#" ~ collection_id ~ ("." ~ collection_prop ~ ("=" ~ value)*)* }
+collection_id   = { "entities" | ("advancements" | "achievements") }
+collection_prop = { "null" }

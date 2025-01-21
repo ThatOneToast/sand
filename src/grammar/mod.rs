@@ -10,6 +10,7 @@ pub mod if_stmt;
 pub mod function;
 pub mod function_call;
 pub mod collection;
+pub mod math;
 
 pub mod tests;
 

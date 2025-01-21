@@ -166,4 +166,98 @@ mod tests {
             _ => panic!("Expected comparison condition"),
         }
     }
+
+    #[test]
+    fn test_math_in_variable() {
+        let input = "let x = |2 + 3 * 4|";
+        let pairs = SandParser::parse(Rule::variable, input).unwrap();
+        let var = Variable::from_pest(pairs.peek().unwrap());
+
+        let variables = std::collections::HashMap::new();
+        if let Type::Math(expr) = &var.value {
+            println!("Math expression: {:?}", expr);
+            let result = expr.evaluate(&variables).unwrap();
+            assert_eq!(result, 14.0); // 2 + (3 * 4) = 14
+        } else {
+            panic!("Expected math expression");
+        }
+    }
+
+    #[test]
+    fn test_math_in_conditional() {
+        let input = r#"
+            fn test(x: Number) {
+                if |5 * 2 + 1| > x {
+                    let y = 42
+                }
+            }
+        "#;
+
+        let mut result = parse(input).unwrap();
+        result = result.sort().unwrap();
+
+        let test_func = result.functions.first().unwrap();
+        let if_stmt = &test_func.if_statements[0];
+
+        match &if_stmt.condition {
+            Condition::Comparison {
+                left,
+                operator,
+                right,
+            } => {
+                // Verify the math expression evaluates correctly
+                match left.as_ref() {
+                    ConditionValue::Literal(Type::Math(expr)) => {
+                        let variables = std::collections::HashMap::new();
+                        let result = expr.evaluate(&variables).unwrap();
+                        assert_eq!(result, 11.0); // 5 * 2 + 1 = 11
+                    }
+                    _ => panic!("Expected math expression"),
+                }
+                assert!(matches!(operator, ComparisonOperator::GreaterThan));
+                match right.as_ref() {
+                    ConditionValue::Identifier(name) => assert_eq!(name, "x"),
+                    _ => panic!("Expected identifier 'x'"),
+                }
+            }
+            _ => panic!("Expected comparison condition"),
+        }
+    }
+
+    #[test]
+    fn test_complex_math_expression() {
+        // Test a more complex expression with multiple operators and precedence
+        let input = "let complex = |2 * 3 + 4 * 5 - 6|";
+        let pairs = SandParser::parse(Rule::variable, input).unwrap();
+        let var = Variable::from_pest(pairs.peek().unwrap());
+
+        let variables = std::collections::HashMap::new();
+        if let Type::Math(expr) = &var.value {
+            println!("Complex math expression: {:?}", expr);
+            let result = expr.evaluate(&variables).unwrap();
+            assert_eq!(result, 20.0); // (2 * 3) + (4 * 5) - 6 = 6 + 20 - 6 = 20
+        } else {
+            panic!("Expected math expression");
+        }
+
+        // Test using a variable in the expression
+        let input = r#"
+            let base = 10
+            let calculated = |base * 2 + 5|
+        "#;
+        let mut result = parse(input).unwrap();
+        result = result.sort().unwrap();
+
+        let last_var = result.variables.last().unwrap();
+        if let Type::Math(expr) = &last_var.value {
+            let mut variables = std::collections::HashMap::new();
+            variables.insert("base".to_string(), 10.0);
+
+            println!("Variable-based math expression: {:?}", expr);
+            let result = expr.evaluate(&variables).unwrap();
+            assert_eq!(result, 25.0); // 10 * 2 + 5 = 25
+        } else {
+            panic!("Expected math expression");
+        }
+    }
 }

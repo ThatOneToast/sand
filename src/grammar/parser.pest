@@ -16,7 +16,7 @@ COMMENT    = _{ "//" ~ (!NEWLINE ~ ANY)* }
 // Identifiers & Generic Types & Condtionals
 // -----------------------------------------------------------------------------
 identifier    = @{ ASCII_ALPHANUMERIC+ }
-type_notation = @{ "String" | "Number" | "Boolean" }
+type_notation = @{ "String" | "Number" | "Boolean" | "MathExpr" }
 value         =  { string_type | number_type | boolean_type | null_type }
 
 string_type  = @{ ("`" ~ (!"`" ~ ANY)* ~ "`") | ("'" ~ (!"'" ~ ANY)* ~ "'") }
@@ -24,14 +24,21 @@ number_type  = @{ ("-")? ~ ASCII_DIGIT+ ~ ("." ~ ASCII_DIGIT+)? }
 boolean_type = @{ "true" | "false" }
 null_type    = @{ "null" }
 
-variable = { "let" ~ identifier ~ "=" ~ value }
+variable = { "let" ~ identifier ~ "=" ~ (back_tick_mexpr | value) }
 
 comparison_operator =  { ">" | "<" | "==" | "!=" | ">=" | "<=" }
-comparison          =  { (value | identifier) ~ comparison_operator ~ (value | identifier) }
-condition           = _{ comparison | boolean_type | identifier }
+comparison          =  { (back_tick_mexpr | value | identifier) ~ comparison_operator ~ (back_tick_mexpr | value | identifier) }
+condition           = _{ comparison | back_tick_mexpr | boolean_type | identifier }
 
 if_statement = { "if" ~ condition ~ if_block }
 if_block     = { "{" ~ (if_block_statements)* ~ "}" }
+
+back_tick_mexpr = { "|" ~ math_expression ~ "|" }
+math_expression = { 
+    term ~ (math_operator ~ term)*
+}
+term = { number_type | identifier }
+math_operator = { "+" | "-" | "*" | "/" | "^" }
 
 // ------------------------------------------------------------------------------
 // Functions & General Block Type Structure

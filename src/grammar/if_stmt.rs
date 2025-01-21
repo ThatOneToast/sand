@@ -1,7 +1,9 @@
-use crate::{grammar::var::Type, lang::Rule};
+use crate::{
+    grammar::{math::MathExpression, var::Type},
+    lang::Rule,
+};
 
 use super::{var::Variable, Statement};
-
 
 #[derive(Debug, Clone)]
 pub enum ComparisonOperator {
@@ -37,6 +39,7 @@ pub enum Condition {
     },
     Boolean(bool),
     Identifier(String),
+    Math(MathExpression),
 }
 
 impl Condition {
@@ -47,31 +50,33 @@ impl Condition {
             pair.as_rule()
         );
 
-        if pair.as_rule() == Rule::comparison {
-            println!("Direct comparison");
-            let mut comp_inner = pair.into_inner();
-            let left = comp_inner.next().unwrap();
-            let operator = comp_inner.next().unwrap();
-            let right = comp_inner.next().unwrap();
-
-            println!("Comparison parts:");
-            println!("  Left: {} (Rule: {:?})", left.as_str(), left.as_rule());
-            println!(
-                "  Operator: {} (Rule: {:?})",
-                operator.as_str(),
-                operator.as_rule()
-            );
-            println!("  Right: {} (Rule: {:?})", right.as_str(), right.as_rule());
-
-            return Condition::Comparison {
-                left: Box::new(ConditionValue::from_pest(left)),
-                operator: ComparisonOperator::from_pest(operator),
-                right: Box::new(ConditionValue::from_pest(right)),
-            };
-        }
-
-        // For other cases (boolean and identifier)
         match pair.as_rule() {
+            Rule::comparison => {
+                println!("Direct comparison");
+                let mut comp_inner = pair.into_inner();
+                let left = comp_inner.next().unwrap();
+                let operator = comp_inner.next().unwrap();
+                let right = comp_inner.next().unwrap();
+
+                println!("Comparison parts:");
+                println!("  Left: {} (Rule: {:?})", left.as_str(), left.as_rule());
+                println!(
+                    "  Operator: {} (Rule: {:?})",
+                    operator.as_str(),
+                    operator.as_rule()
+                );
+                println!("  Right: {} (Rule: {:?})", right.as_str(), right.as_rule());
+
+                Condition::Comparison {
+                    left: Box::new(ConditionValue::from_pest(left)),
+                    operator: ComparisonOperator::from_pest(operator),
+                    right: Box::new(ConditionValue::from_pest(right)),
+                }
+            }
+            Rule::back_tick_mexpr => {
+                let math_expr = pair.into_inner().next().unwrap();
+                Condition::Math(MathExpression::from_pest(math_expr))
+            }
             Rule::boolean_type => {
                 println!("Parsing boolean");
                 Condition::Boolean(pair.as_str().parse().unwrap())
@@ -111,10 +116,22 @@ impl ConditionValue {
                 println!("Direct number");
                 ConditionValue::Literal(Type::Number(pair.as_str().parse().unwrap()))
             }
-            _ => {
-                println!("Trying inner value");
-                // Clone the pair before getting inner to avoid the move
+            Rule::back_tick_mexpr => {
+                println!("Math expression");
+                // Clone the pair before moving it
                 let inner_pairs: Vec<_> = pair.clone().into_inner().collect();
+                if let Some(math_expr) = inner_pairs.first() {
+                    ConditionValue::Literal(Type::Math(MathExpression::from_pest(
+                        math_expr.clone(),
+                    )))
+                } else {
+                    panic!("No math expression found in back_tick_mexpr");
+                }
+            }
+            _ => {
+                // Clone the pair before moving it
+                let inner_pairs: Vec<_> = pair.clone().into_inner().collect();
+                println!("Trying inner value");
                 if let Some(inner) = inner_pairs.first() {
                     println!("Inner: {} (Rule: {:?})", inner.as_str(), inner.as_rule());
                     match inner.as_rule() {
@@ -122,17 +139,23 @@ impl ConditionValue {
                             ConditionValue::Literal(Type::Number(inner.as_str().parse().unwrap()))
                         }
                         Rule::identifier => ConditionValue::Identifier(inner.as_str().to_string()),
-                        _ => unreachable!("Unexpected condition value rule: {:?}", inner.as_rule()),
+                        Rule::back_tick_mexpr => {
+                            let math_inner: Vec<_> = inner.clone().into_inner().collect();
+                            if let Some(math_expr) = math_inner.first() {
+                                ConditionValue::Literal(Type::Math(MathExpression::from_pest(
+                                    math_expr.clone(),
+                                )))
+                            } else {
+                                panic!("No math expression found in inner back_tick_mexpr");
+                            }
+                        }
+                        _ => panic!(
+                            "Unexpected inner condition value rule: {:?}",
+                            inner.as_rule()
+                        ),
                     }
                 } else {
-                    // If there's no inner value, use the original pair
-                    match pair.as_rule() {
-                        Rule::number_type => {
-                            ConditionValue::Literal(Type::Number(pair.as_str().parse().unwrap()))
-                        }
-                        Rule::identifier => ConditionValue::Identifier(pair.as_str().to_string()),
-                        _ => unreachable!("Unexpected condition value rule: {:?}", pair.as_rule()),
-                    }
+                    panic!("Unexpected condition value rule: {:?}", pair.as_rule())
                 }
             }
         }
@@ -159,9 +182,9 @@ impl IfStatement {
                     block.push(Statement::Variable(Variable::from_pest(statement)));
                 }
                 Rule::function_call => {
-                    block.push(Statement::FunctionCall(
-                        super::FunctionCall::from_pest(statement),
-                    ));
+                    block.push(Statement::FunctionCall(super::FunctionCall::from_pest(
+                        statement,
+                    )));
                 }
                 _ => {}
             }

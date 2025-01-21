@@ -1,18 +1,19 @@
+
 use crate::lang::Rule;
+
+use super::math::MathExpression;
 
 #[derive(Debug, Clone)]
 pub enum Scope {
     Global,
-    Function(String)
+    Function(String),
 }
-
-
 
 #[derive(Debug, Clone)]
 pub struct Variable {
     pub identifier: String,
     pub value: Type,
-    pub scope: Option<Scope>
+    pub scope: Option<Scope>,
 }
 
 impl Variable {
@@ -27,9 +28,13 @@ impl Variable {
         let value = Type::from_pest(inner.next().expect("Failed retrieving variable value"));
 
         println!("Created variable: {} = {:?}", identifier, value);
-        Variable { identifier, value, scope: None }
+        Variable {
+            identifier,
+            value,
+            scope: None,
+        }
     }
-    
+
     pub fn from_pest_scoped(pair: pest::iterators::Pair<Rule>, scope: Scope) -> Self {
         let mut var = Variable::from_pest(pair);
         println!("Applying Scope to variable {}", var.identifier);
@@ -43,6 +48,7 @@ pub enum Type {
     String(String),
     Number(f64),
     Boolean(bool),
+    Math(MathExpression),
 }
 
 impl Type {
@@ -74,6 +80,11 @@ impl Type {
             }
             Rule::boolean_type => {
                 Type::Boolean(pair.as_str().parse().expect("Failed parsing boolean"))
+            }
+            Rule::back_tick_mexpr => {
+                let math_expr = pair.into_inner().next().expect("Expected math expression");
+                println!("Processing math expression: {}", math_expr.as_str());
+                Type::Math(MathExpression::from_pest(math_expr))
             }
             rule => {
                 println!("Unexpected rule: {:?}", rule);

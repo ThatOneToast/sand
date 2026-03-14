@@ -1,0 +1,29 @@
+[package]
+name = "sand-build"
+description = "Build pipeline for Sand: downloads Minecraft server jars, runs data generators, and produces Rust codegen for registries, block states, and commands"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+keywords = ["minecraft", "datapack", "codegen", "build"]
+categories = ["development-tools::build-utils", "game-development"]
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+reqwest = { version = "0.12", features = ["blocking", "json"] }
+indicatif = "0.17"
+sha1 = "0.10"
+hex = "0.4"
+heck = "0.5"
+thiserror = "2"
+dirs = "5"
+
+[features]
+integration-tests = []
+
+[dev-dependencies]
+tempfile = "3"

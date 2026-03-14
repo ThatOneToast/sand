@@ -1,0 +1,5 @@
+error: #[component] functions must take no parameters
+ --> tests/cases/fail_component_with_params.rs:4:10
+  |
+4 | fn greet(name: &str) -> sand_core::McFunction {
+  |          ^^^^^^^^^^

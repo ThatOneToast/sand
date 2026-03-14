@@ -1,0 +1,6 @@
+[pack]
+namespace   = "hello_world"
+description = "A minimal example datapack built with Sand"
+mc_version  = "1.21.4"
+# pack_format is derived automatically from mc_version; uncomment to override:
+# pack_format = 61

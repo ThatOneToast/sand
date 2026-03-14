@@ -1,0 +1,12 @@
+[workspace]
+resolver = "3"
+members = ["sand-core", "sand", "sand-macros", "sand-build", "sand-example"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/ThatOneToast/sand"
+homepage = "https://github.com/ThatOneToast/sand"
+authors = ["Toast <ThatOneToast@proton.me>"]
+rust-version = "1.93"

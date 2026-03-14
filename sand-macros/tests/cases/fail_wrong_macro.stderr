@@ -1,0 +1,16 @@
+error[E0277]: `&str` is not an iterator
+ --> tests/cases/fail_wrong_macro.rs:6:5
+  |
+4 | #[function]
+  | ----------- required by a bound introduced by this call
+5 | fn my_func() {
+6 |     "not a vec"
+  |     ^^^^^^^^^^^ `&str` is not an iterator; try calling `.chars()` or `.bytes()`
+  |
+  = help: the trait `Iterator` is not implemented for `&str`
+  = note: required for `&str` to implement `IntoIterator`
+note: required by a bound in `extend`
+ --> $RUST/core/src/iter/traits/collect.rs
+  |
+  |     fn extend<T: IntoIterator<Item = A>>(&mut self, iter: T);
+  |                  ^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `Extend::extend`

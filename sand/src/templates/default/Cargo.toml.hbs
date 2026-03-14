@@ -1,0 +1,20 @@
+[package]
+name = "{{name}}"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "{{name_snake}}"
+path = "src/lib.rs"
+
+[[bin]]
+name = "sand_export"
+path = "src/bin/sand_export.rs"
+
+[dependencies]
+sand-core  = { path = "{{sand_core_path}}" }
+sand-macros = { path = "{{sand_macros_path}}" }
+serde_json = "1"
+
+[build-dependencies]
+sand-build = { path = "{{sand_build_path}}" }

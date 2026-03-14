@@ -1,0 +1,26 @@
+[package]
+name = "sand-macros"
+description = "Procedural macros for the Sand Minecraft datapack toolkit: #[function], #[component], and run_fn!"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+keywords = ["minecraft", "datapack", "proc-macro", "macros"]
+categories = ["game-development", "development-tools::procedural-macro-helpers"]
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1"
+quote = "1"
+syn = { version = "2", features = ["full"] }
+
+[dev-dependencies]
+trybuild = { version = "1", features = ["diff"] }
+sand-core = { path = "../sand-core" }
+sand-macros = { path = "." }
+inventory = "0.3"

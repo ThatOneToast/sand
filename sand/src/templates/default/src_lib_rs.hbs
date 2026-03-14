@@ -1,0 +1,49 @@
+//! # {{name}}
+//!
+//! A Minecraft {{mc_version}} datapack built with [Sand](https://crates.io/crates/sand).
+
+use sand_core::mcfunction;
+use sand_macros::{component, function};
+
+// ── Functions ─────────────────────────────────────────────────────────────────
+
+/// Broadcasts a welcome message to all players.
+///
+/// Automatically written to `data/{{namespace}}/function/hello_world.mcfunction`
+/// by `sand build`.
+#[function]
+pub fn hello_world() {
+    mcfunction! {
+        r#"tellraw @a {"text":"Welcome to {{name}}!","color":"gold","bold":true}"#;
+        "playsound minecraft:ui.toast.challenge_complete master @a ~ ~ ~ 1 1";
+    }
+}
+
+// ── Components ────────────────────────────────────────────────────────────────
+
+/// Fires `{{namespace}}:hello_world` the first tick after a player joins.
+///
+/// Automatically written to `data/{{namespace}}/advancement/player_join.json`
+/// by `sand build`.
+#[component]
+pub fn player_join() -> sand_core::Advancement {
+    use sand_core::{Advancement, AdvancementRewards, AdvancementTrigger, Criterion};
+    Advancement::new("{{namespace}}:player_join".parse().unwrap())
+        .criterion("tick", Criterion::new(AdvancementTrigger::Tick))
+        .rewards(AdvancementRewards::new().function("{{namespace}}:hello_world"))
+}
+
+// ── Export hook — required by `sand build`, do not remove ────────────────────
+
+/// Invoked by the generated `sand_export` binary.
+///
+/// Calling this function from the binary forces the linker to include this
+/// library's object file, which is required for `inventory::submit!`
+/// constructor functions to run before `main`.
+///
+/// If you add components in separate modules, re-export them here with
+/// `pub use my_module::*;` to ensure they are also linked.
+#[doc(hidden)]
+pub fn __sand_export(namespace: &str) {
+    println!("{}", sand_core::export_components_json(namespace));
+}

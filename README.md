@@ -223,6 +223,33 @@ mc_version  = "1.21.4"
 - **Java** 21+ (used at build time to run Minecraft's data generator)
 - **Internet access** on first build (to download the Minecraft server jar; cached afterwards in `~/.sand/cache/`)
 
+
+## AI Usage
+
+This project was developed with the assistance of AI tools throug various parts of the codebase — including
+implementation, documentation, and design exploration.
+
+All AI-generated output was reviewed, tested, and integrated by the project
+maintainer(s). As with any software, you are encouraged to audit the code
+yourself rather than taking correctness for granted. 
+
+That said, not everything may have been caught during review. Every effort was
+made to audit AI-generated contributions thoroughly, but subtle bugs, incorrect
+assumptions, or unidiomatic patterns may still exist. If you spot something
+that looks wrong, misleading, or unsafe — please open an issue. Community
+feedback is genuinely appreciated and helps improve the quality and
+trustworthiness of the project for everyone.
+
+Minecraft is a large and complex game — spanning hundreds of components,
+commands, data formats, and version-specific behaviors. AI tooling can
+meaningfully accelerate development across that surface area, but it also
+introduces a higher chance of subtle oversights: things like incorrect component
+structure, outdated or invalid command syntax, wrong argument ordering, or
+assumptions that don't hold across versions. If something doesn't behave as
+expected in-game, there's a reasonable chance an AI-assisted part of the
+implementation is to blame. Opening an issue with details goes a long way.
+
+
 ## License
 
 MIT

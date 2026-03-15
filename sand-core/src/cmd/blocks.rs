@@ -23,7 +23,6 @@
 ///     .build();
 /// // → "fill 0 64 0 10 68 10 minecraft:glass hollow"
 /// ```
-
 use std::collections::BTreeMap;
 use std::fmt;
 
@@ -43,7 +42,10 @@ pub struct BlockState {
 impl BlockState {
     /// Start building a block state for `block` (e.g. `"minecraft:stone"`).
     pub fn of(block: impl Into<String>) -> Self {
-        Self { block: block.into(), props: BTreeMap::new() }
+        Self {
+            block: block.into(),
+            props: BTreeMap::new(),
+        }
     }
 
     /// Add a block state property.
@@ -54,7 +56,9 @@ impl BlockState {
 
     /// Add multiple properties at once from an iterator of `(key, value)` pairs.
     pub fn props<K, V>(mut self, iter: impl IntoIterator<Item = (K, V)>) -> Self
-    where K: Into<String>, V: Into<String>
+    where
+        K: Into<String>,
+        V: Into<String>,
     {
         for (k, v) in iter {
             self.props.insert(k.into(), v.into());
@@ -70,7 +74,9 @@ impl fmt::Display for BlockState {
             write!(f, "[")?;
             let mut first = true;
             for (k, v) in &self.props {
-                if !first { write!(f, ",")?; }
+                if !first {
+                    write!(f, ",")?;
+                }
                 write!(f, "{}={}", k, v)?;
                 first = false;
             }
@@ -82,11 +88,15 @@ impl fmt::Display for BlockState {
 
 /// Convert a plain `&str` or `String` into a `BlockState` (no properties).
 impl From<&str> for BlockState {
-    fn from(s: &str) -> Self { BlockState::of(s) }
+    fn from(s: &str) -> Self {
+        BlockState::of(s)
+    }
 }
 
 impl From<String> for BlockState {
-    fn from(s: String) -> Self { BlockState::of(s) }
+    fn from(s: String) -> Self {
+        BlockState::of(s)
+    }
 }
 
 // ── SetBlockMode ──────────────────────────────────────────────────────────────
@@ -104,7 +114,7 @@ impl fmt::Display for SetBlockMode {
         let s = match self {
             SetBlockMode::Replace => "replace",
             SetBlockMode::Destroy => "destroy",
-            SetBlockMode::Keep    => "keep",
+            SetBlockMode::Keep => "keep",
         };
         f.write_str(s)
     }
@@ -120,7 +130,11 @@ pub struct SetBlock {
 
 impl SetBlock {
     pub fn new(pos: BlockPos, block: impl Into<BlockState>) -> Self {
-        Self { pos, block: block.into(), mode: SetBlockMode::Replace }
+        Self {
+            pos,
+            block: block.into(),
+            mode: SetBlockMode::Replace,
+        }
     }
 
     pub fn mode(mut self, mode: SetBlockMode) -> Self {
@@ -153,11 +167,11 @@ pub enum FillMode {
 impl fmt::Display for FillMode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            FillMode::Replace              => write!(f, "replace"),
-            FillMode::Destroy              => write!(f, "destroy"),
-            FillMode::Hollow               => write!(f, "hollow"),
-            FillMode::Outline              => write!(f, "outline"),
-            FillMode::Keep                 => write!(f, "keep"),
+            FillMode::Replace => write!(f, "replace"),
+            FillMode::Destroy => write!(f, "destroy"),
+            FillMode::Hollow => write!(f, "hollow"),
+            FillMode::Outline => write!(f, "outline"),
+            FillMode::Keep => write!(f, "keep"),
             FillMode::ReplaceFilter(filter) => write!(f, "replace {}", filter),
         }
     }
@@ -174,7 +188,12 @@ pub struct Fill {
 
 impl Fill {
     pub fn new(from: BlockPos, to: BlockPos, block: impl Into<BlockState>) -> Self {
-        Self { from, to, block: block.into(), mode: FillMode::Replace }
+        Self {
+            from,
+            to,
+            block: block.into(),
+            mode: FillMode::Replace,
+        }
     }
 
     pub fn mode(mut self, mode: FillMode) -> Self {
@@ -221,8 +240,8 @@ pub enum CloneMode {
 impl fmt::Display for CloneMaskMode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CloneMaskMode::Replace  => write!(f, "replace"),
-            CloneMaskMode::Masked   => write!(f, "masked"),
+            CloneMaskMode::Replace => write!(f, "replace"),
+            CloneMaskMode::Masked => write!(f, "masked"),
             CloneMaskMode::Filtered => write!(f, "filtered"),
         }
     }
@@ -232,8 +251,8 @@ impl fmt::Display for CloneMode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             CloneMode::Normal => write!(f, "normal"),
-            CloneMode::Force  => write!(f, "force"),
-            CloneMode::Move   => write!(f, "move"),
+            CloneMode::Force => write!(f, "force"),
+            CloneMode::Move => write!(f, "move"),
         }
     }
 }
@@ -241,7 +260,9 @@ impl fmt::Display for CloneMode {
 impl CloneBlocks {
     pub fn new(from: BlockPos, to: BlockPos, dest: BlockPos) -> Self {
         Self {
-            from, to, dest,
+            from,
+            to,
+            dest,
             mask_mode: CloneMaskMode::Replace,
             clone_mode: CloneMode::Normal,
             filter: None,
@@ -301,7 +322,10 @@ mod tests {
             .prop("facing", "east")
             .prop("half", "bottom");
         // BTreeMap sorts alphabetically: facing < half
-        assert_eq!(bs.to_string(), "minecraft:oak_stairs[facing=east,half=bottom]");
+        assert_eq!(
+            bs.to_string(),
+            "minecraft:oak_stairs[facing=east,half=bottom]"
+        );
     }
 
     #[test]
@@ -324,7 +348,8 @@ mod tests {
             BlockPos::absolute(0, 64, 0),
             BlockPos::absolute(10, 68, 10),
             "minecraft:glass",
-        ).build();
+        )
+        .build();
         assert_eq!(cmd, "fill 0 64 0 10 68 10 minecraft:glass");
     }
 
@@ -334,7 +359,9 @@ mod tests {
             BlockPos::absolute(0, 64, 0),
             BlockPos::absolute(5, 68, 5),
             "minecraft:stone",
-        ).mode(FillMode::Hollow).build();
+        )
+        .mode(FillMode::Hollow)
+        .build();
         assert_eq!(cmd, "fill 0 64 0 5 68 5 minecraft:stone hollow");
     }
 
@@ -344,8 +371,13 @@ mod tests {
             BlockPos::absolute(0, 64, 0),
             BlockPos::absolute(5, 68, 5),
             "minecraft:air",
-        ).mode(FillMode::ReplaceFilter("minecraft:grass_block".into())).build();
-        assert_eq!(cmd, "fill 0 64 0 5 68 5 minecraft:air replace minecraft:grass_block");
+        )
+        .mode(FillMode::ReplaceFilter("minecraft:grass_block".into()))
+        .build();
+        assert_eq!(
+            cmd,
+            "fill 0 64 0 5 68 5 minecraft:air replace minecraft:grass_block"
+        );
     }
 
     #[test]
@@ -354,7 +386,8 @@ mod tests {
             BlockPos::absolute(0, 64, 0),
             BlockPos::absolute(5, 68, 5),
             BlockPos::absolute(10, 64, 0),
-        ).build();
+        )
+        .build();
         assert_eq!(cmd, "clone 0 64 0 5 68 5 10 64 0 replace normal");
     }
 }

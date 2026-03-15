@@ -68,11 +68,7 @@ pub fn ensure_server_jar(version_id: &str, version_json_url: &str) -> Result<Pat
     Ok(jar_path)
 }
 
-fn download_with_progress(
-    url: &str,
-    version_id: &str,
-    known_size: Option<u64>,
-) -> Result<Vec<u8>> {
+fn download_with_progress(url: &str, version_id: &str, known_size: Option<u64>) -> Result<Vec<u8>> {
     let response = reqwest::blocking::get(url)?;
     let total = known_size
         .or_else(|| response.content_length())
@@ -80,14 +76,12 @@ fn download_with_progress(
 
     let pb = ProgressBar::new(total);
     pb.set_style(
-        ProgressStyle::with_template(
-            "  {msg} [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta})",
-        )
-        .unwrap_or_else(|_| ProgressStyle::default_bar())
-        .with_key("eta", |state: &ProgressState, w: &mut dyn FmtWrite| {
-            let _ = write!(w, "{:.1}s", state.eta().as_secs_f64());
-        })
-        .progress_chars("█▓░"),
+        ProgressStyle::with_template("  {msg} [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta})")
+            .unwrap_or_else(|_| ProgressStyle::default_bar())
+            .with_key("eta", |state: &ProgressState, w: &mut dyn FmtWrite| {
+                let _ = write!(w, "{:.1}s", state.eta().as_secs_f64());
+            })
+            .progress_chars("█▓░"),
     );
     pb.set_message(format!("Downloading server.jar (Minecraft {version_id})"));
 

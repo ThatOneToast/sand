@@ -97,13 +97,13 @@ impl InventorySlot {
 impl fmt::Display for InventorySlot {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            InventorySlot::Mainhand    => write!(f, "weapon.mainhand"),
-            InventorySlot::Offhand     => write!(f, "weapon.offhand"),
-            InventorySlot::ArmorHead   => write!(f, "armor.head"),
-            InventorySlot::ArmorChest  => write!(f, "armor.chest"),
-            InventorySlot::ArmorLegs   => write!(f, "armor.legs"),
-            InventorySlot::ArmorFeet   => write!(f, "armor.feet"),
-            InventorySlot::Hotbar(n)   => write!(f, "hotbar.{n}"),
+            InventorySlot::Mainhand => write!(f, "weapon.mainhand"),
+            InventorySlot::Offhand => write!(f, "weapon.offhand"),
+            InventorySlot::ArmorHead => write!(f, "armor.head"),
+            InventorySlot::ArmorChest => write!(f, "armor.chest"),
+            InventorySlot::ArmorLegs => write!(f, "armor.legs"),
+            InventorySlot::ArmorFeet => write!(f, "armor.feet"),
+            InventorySlot::Hotbar(n) => write!(f, "hotbar.{n}"),
             InventorySlot::Container(n) => write!(f, "container.{n}"),
         }
     }
@@ -140,18 +140,20 @@ pub enum SlotPattern {
 impl fmt::Display for SlotPattern {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            SlotPattern::Slot(s)    => write!(f, "{s}"),
-            SlotPattern::AnyHotbar  => write!(f, "hotbar.*"),
+            SlotPattern::Slot(s) => write!(f, "{s}"),
+            SlotPattern::AnyHotbar => write!(f, "hotbar.*"),
             SlotPattern::AnyContainer => write!(f, "container.*"),
-            SlotPattern::AnyArmor   => write!(f, "armor.*"),
-            SlotPattern::AnyWeapon  => write!(f, "weapon.*"),
-            SlotPattern::Any        => write!(f, "*"),
+            SlotPattern::AnyArmor => write!(f, "armor.*"),
+            SlotPattern::AnyWeapon => write!(f, "weapon.*"),
+            SlotPattern::Any => write!(f, "*"),
         }
     }
 }
 
 impl From<InventorySlot> for SlotPattern {
-    fn from(slot: InventorySlot) -> Self { SlotPattern::Slot(slot) }
+    fn from(slot: InventorySlot) -> Self {
+        SlotPattern::Slot(slot)
+    }
 }
 
 // ── Inventory ─────────────────────────────────────────────────────────────────
@@ -180,6 +182,22 @@ pub struct Inventory {
 }
 
 impl Inventory {
+    pub(crate) fn ensure_slot(slot: &InventorySlot) {
+        match &slot {
+            InventorySlot::Container(n) => {
+                if *n >= 27 {
+                    panic!("InventorySlot **Container** has to be within range 0-26");
+                }
+            }
+            InventorySlot::Hotbar(n) => {
+                if *n >= 9 {
+                    panic!("InventorySlot **Hotbar** has to be within range 0-8");
+                }
+            }
+            _ => {}
+        }
+    }
+
     /// Create an inventory handle for the given entity selector.
     pub fn of(selector: Selector) -> Self {
         Self { selector }
@@ -205,19 +223,26 @@ impl Inventory {
     /// Unlike `give`, this targets a specific slot and replaces whatever is
     /// already there.
     pub fn set(&self, slot: InventorySlot, item: impl fmt::Display) -> String {
+        Self::ensure_slot(&slot);
         format!("item replace entity {} {slot} with {item}", self.selector)
     }
 
     /// `item replace entity <selector> <slot> with <item> <count>` — overwrite
     /// a slot with a specific stack size.
     pub fn set_count(&self, slot: InventorySlot, item: impl fmt::Display, count: u32) -> String {
-        format!("item replace entity {} {slot} with {item} {count}", self.selector)
+        Self::ensure_slot(&slot);
+        format!(
+            "item replace entity {} {slot} with {item} {count}",
+            self.selector
+        )
     }
 
     // ── Clear ─────────────────────────────────────────────────────────────
 
     /// `item replace entity <selector> <slot> with air` — empty a specific slot.
     pub fn clear_slot(&self, slot: InventorySlot) -> String {
+        Self::ensure_slot(&slot);
+
         format!("item replace entity {} {slot} with air", self.selector)
     }
 
@@ -247,6 +272,8 @@ impl Inventory {
         source: Selector,
         source_slot: InventorySlot,
     ) -> String {
+        Self::ensure_slot(&slot);
+
         format!(
             "item replace entity {} {slot} from entity {source} {source_slot}",
             self.selector
@@ -258,9 +285,12 @@ impl Inventory {
     /// `item modify entity <selector> <slot> <modifier>` — apply an item modifier
     /// (loot function) to a slot in-place.
     pub fn modify(&self, slot: InventorySlot, modifier: impl Into<String>) -> String {
+        Self::ensure_slot(&slot);
+
         format!(
             "item modify entity {} {slot} {}",
-            self.selector, modifier.into()
+            self.selector,
+            modifier.into()
         )
     }
 }
@@ -274,25 +304,30 @@ mod tests {
     use super::*;
     use crate::cmd::{Execute, Selector};
 
-    fn inv() -> Inventory { Inventory::of(Selector::self_()) }
+    fn inv() -> Inventory {
+        Inventory::of(Selector::self_())
+    }
 
     #[test]
     fn slot_display() {
-        assert_eq!(InventorySlot::Mainhand.to_string(),    "weapon.mainhand");
-        assert_eq!(InventorySlot::Offhand.to_string(),     "weapon.offhand");
-        assert_eq!(InventorySlot::ArmorHead.to_string(),   "armor.head");
-        assert_eq!(InventorySlot::ArmorFeet.to_string(),   "armor.feet");
-        assert_eq!(InventorySlot::Hotbar(0).to_string(),   "hotbar.0");
-        assert_eq!(InventorySlot::Hotbar(8).to_string(),   "hotbar.8");
+        assert_eq!(InventorySlot::Mainhand.to_string(), "weapon.mainhand");
+        assert_eq!(InventorySlot::Offhand.to_string(), "weapon.offhand");
+        assert_eq!(InventorySlot::ArmorHead.to_string(), "armor.head");
+        assert_eq!(InventorySlot::ArmorFeet.to_string(), "armor.feet");
+        assert_eq!(InventorySlot::Hotbar(0).to_string(), "hotbar.0");
+        assert_eq!(InventorySlot::Hotbar(8).to_string(), "hotbar.8");
         assert_eq!(InventorySlot::Container(3).to_string(), "container.3");
     }
 
     #[test]
     fn slot_pattern_display() {
-        assert_eq!(SlotPattern::AnyHotbar.to_string(),    "hotbar.*");
+        assert_eq!(SlotPattern::AnyHotbar.to_string(), "hotbar.*");
         assert_eq!(SlotPattern::AnyContainer.to_string(), "container.*");
-        assert_eq!(SlotPattern::Any.to_string(),          "*");
-        assert_eq!(SlotPattern::Slot(InventorySlot::Mainhand).to_string(), "weapon.mainhand");
+        assert_eq!(SlotPattern::Any.to_string(), "*");
+        assert_eq!(
+            SlotPattern::Slot(InventorySlot::Mainhand).to_string(),
+            "weapon.mainhand"
+        );
     }
 
     #[test]
@@ -311,7 +346,10 @@ mod tests {
     #[test]
     fn give() {
         assert_eq!(inv().give("minecraft:diamond"), "give @s minecraft:diamond");
-        assert_eq!(inv().give_count("minecraft:torch", 16), "give @s minecraft:torch 16");
+        assert_eq!(
+            inv().give_count("minecraft:torch", 16),
+            "give @s minecraft:torch 16"
+        );
     }
 
     #[test]
@@ -357,7 +395,11 @@ mod tests {
     #[test]
     fn execute_if_items() {
         let cmd = Execute::new()
-            .if_items(Selector::self_(), InventorySlot::Mainhand, "minecraft:diamond_sword")
+            .if_items(
+                Selector::self_(),
+                InventorySlot::Mainhand,
+                "minecraft:diamond_sword",
+            )
             .run_raw("say holding sword");
         assert_eq!(
             cmd,

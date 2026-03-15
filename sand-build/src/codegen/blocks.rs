@@ -102,11 +102,7 @@ fn classify_prop(name: &str, values: &[String], multi: bool, idx: usize) -> Prop
     }
     // Enum: derive a type name from the property name.
     let base = name.to_pascal_case();
-    let enum_name = if multi {
-        format!("{base}{idx}")
-    } else {
-        base
-    };
+    let enum_name = if multi { format!("{base}{idx}") } else { base };
     PropKind::Enum(enum_name)
 }
 
@@ -185,9 +181,9 @@ fn value_to_variant(v: &str) -> String {
 /// Wrap reserved Rust keywords in a raw identifier.
 fn escape_keyword(name: &str) -> String {
     match name {
-        "type" | "in" | "ref" | "mod" | "use" | "fn" | "let" | "for" | "if" | "as"
-        | "loop" | "match" | "move" | "mut" | "pub" | "return" | "self" | "static"
-        | "struct" | "trait" | "where" | "while" => format!("r#{name}"),
+        "type" | "in" | "ref" | "mod" | "use" | "fn" | "let" | "for" | "if" | "as" | "loop"
+        | "match" | "move" | "mut" | "pub" | "return" | "self" | "static" | "struct" | "trait"
+        | "where" | "while" => format!("r#{name}"),
         _ => name.to_string(),
     }
 }
@@ -198,12 +194,7 @@ mod tests {
 
     #[test]
     fn classify_bool() {
-        let kind = classify_prop(
-            "open",
-            &["false".to_string(), "true".to_string()],
-            false,
-            0,
-        );
+        let kind = classify_prop("open", &["false".to_string(), "true".to_string()], false, 0);
         assert!(matches!(kind, PropKind::Bool));
     }
 

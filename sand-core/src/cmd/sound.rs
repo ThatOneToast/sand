@@ -13,7 +13,6 @@
 /// let cmd = Sound::stop_all(Selector::all_players());
 /// // → "stopsound @a"
 /// ```
-
 use std::fmt::Display;
 
 use super::coord::Vec3;
@@ -39,16 +38,16 @@ pub enum SoundSource {
 impl Display for SoundSource {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let s = match self {
-            SoundSource::Master  => "master",
-            SoundSource::Music   => "music",
-            SoundSource::Record  => "record",
+            SoundSource::Master => "master",
+            SoundSource::Music => "music",
+            SoundSource::Record => "record",
             SoundSource::Weather => "weather",
-            SoundSource::Block   => "block",
+            SoundSource::Block => "block",
             SoundSource::Hostile => "hostile",
             SoundSource::Neutral => "neutral",
-            SoundSource::Player  => "player",
+            SoundSource::Player => "player",
             SoundSource::Ambient => "ambient",
-            SoundSource::Voice   => "voice",
+            SoundSource::Voice => "voice",
         };
         f.write_str(s)
     }
@@ -207,7 +206,11 @@ mod tests {
             "stopsound @a music"
         );
         assert_eq!(
-            Sound::stop(Selector::all_players(), SoundSource::Block, "minecraft:block.stone.hit"),
+            Sound::stop(
+                Selector::all_players(),
+                SoundSource::Block,
+                "minecraft:block.stone.hit"
+            ),
             "stopsound @a block minecraft:block.stone.hit"
         );
     }

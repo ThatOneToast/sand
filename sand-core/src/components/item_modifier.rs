@@ -14,7 +14,10 @@ pub struct ItemModifier {
 impl ItemModifier {
     /// Creates a new ItemModifier with the given resource location.
     pub fn new(location: ResourceLocation) -> Self {
-        Self { location, functions: Vec::new() }
+        Self {
+            location,
+            functions: Vec::new(),
+        }
     }
 
     /// Adds a loot function to this item modifier.
@@ -37,5 +40,7 @@ impl DatapackComponent for ItemModifier {
         }
     }
 
-    fn component_dir(&self) -> &'static str { "item_modifier" }
+    fn component_dir(&self) -> &'static str {
+        "item_modifier"
+    }
 }

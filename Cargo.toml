@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["sand-core", "sand", "sand-macros", "sand-build", "sand-example"]
+members = ["sand-core", "sand", "sand-macros", "sand-build", "sand-example", "sand-resourcepack"]
 
 [workspace.package]
 version = "0.1.0"

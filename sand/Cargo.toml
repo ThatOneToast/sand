@@ -13,6 +13,7 @@ categories = ["command-line-utilities", "game-development"]
 
 [dependencies]
 sand-build = { path = "../sand-build" }
+sand-resourcepack = { path = "../sand-resourcepack" }
 clap = { version = "4", features = ["derive"] }
 handlebars = "6"
 anyhow = "1"
@@ -22,6 +23,7 @@ toml = "0.8"
 zip = "2"
 walkdir = "2"
 colored = "2"
+base64 = "0.22"
 
 [dev-dependencies]
 tempfile = "3"

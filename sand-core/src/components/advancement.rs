@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use serde::ser::{SerializeMap, Serializer};
 use serde::Serialize;
+use serde::ser::{SerializeMap, Serializer};
 use serde_json::Value;
 
 use crate::component::DatapackComponent;
@@ -39,7 +39,10 @@ pub struct AdvancementIcon {
 impl AdvancementIcon {
     /// Creates a new advancement icon with the specified item ID.
     pub fn new(id: impl std::fmt::Display) -> Self {
-        Self { id: id.to_string(), components: None }
+        Self {
+            id: id.to_string(),
+            components: None,
+        }
     }
 
     /// Sets the item components (e.g., enchantments, name) for this icon.
@@ -267,8 +270,14 @@ impl Serialize for AdvancementTrigger {
         match self {
             AdvancementTrigger::Tick | AdvancementTrigger::Impossible => {}
 
-            AdvancementTrigger::PlayerKilledEntity { entity, killing_blow }
-            | AdvancementTrigger::EntityKilledPlayer { entity, killing_blow } => {
+            AdvancementTrigger::PlayerKilledEntity {
+                entity,
+                killing_blow,
+            }
+            | AdvancementTrigger::EntityKilledPlayer {
+                entity,
+                killing_blow,
+            } => {
                 if entity.is_some() || killing_blow.is_some() {
                     let mut cond = serde_json::Map::new();
                     if let Some(e) = entity {
@@ -295,10 +304,7 @@ impl Serialize for AdvancementTrigger {
             }
 
             AdvancementTrigger::RecipeUnlocked { recipe } => {
-                map.serialize_entry(
-                    "conditions",
-                    &serde_json::json!({ "recipe": recipe }),
-                )?;
+                map.serialize_entry("conditions", &serde_json::json!({ "recipe": recipe }))?;
             }
 
             AdvancementTrigger::UsedItem { item }
@@ -309,7 +315,12 @@ impl Serialize for AdvancementTrigger {
                 }
             }
 
-            AdvancementTrigger::PlacedBlock { block, item, location, state } => {
+            AdvancementTrigger::PlacedBlock {
+                block,
+                item,
+                location,
+                state,
+            } => {
                 let mut cond = serde_json::Map::new();
                 if let Some(b) = block {
                     cond.insert("block".into(), Value::String(b.clone()));
@@ -328,7 +339,11 @@ impl Serialize for AdvancementTrigger {
                 }
             }
 
-            AdvancementTrigger::BredAnimals { parent, partner, child } => {
+            AdvancementTrigger::BredAnimals {
+                parent,
+                partner,
+                child,
+            } => {
                 let mut cond = serde_json::Map::new();
                 if let Some(p) = parent {
                     cond.insert("parent".into(), p.clone());
@@ -383,7 +398,11 @@ impl Serialize for AdvancementTrigger {
                 }
             }
 
-            AdvancementTrigger::NetherTravel { entered, exited, distance } => {
+            AdvancementTrigger::NetherTravel {
+                entered,
+                exited,
+                distance,
+            } => {
                 let mut cond = serde_json::Map::new();
                 if let Some(e) = entered {
                     cond.insert("entered".into(), e.clone());
@@ -615,5 +634,7 @@ impl DatapackComponent for Advancement {
         Value::Object(map)
     }
 
-    fn component_dir(&self) -> &'static str { "advancement" }
+    fn component_dir(&self) -> &'static str {
+        "advancement"
+    }
 }

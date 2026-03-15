@@ -11,6 +11,11 @@ pub use advancement::{
     Advancement, AdvancementDisplay, AdvancementFrame, AdvancementIcon, AdvancementRewards,
     AdvancementTrigger, Criterion,
 };
+pub use custom_item::{
+    AttributeModifier, AttributeOperation, AttributeType, ConsumableAnimation,
+    ConsumableProperties, CustomItem, DyedColor, EquipmentSlot, EquipmentSlotGroup,
+    EquippableProperties, FoodProperties, ItemRarity, ToolProperties, ToolRule,
+};
 pub use item_modifier::ItemModifier;
 pub use loot_table::{
     LootCondition, LootEntry, LootFunction, LootPool, LootTable, LootTableType, NumberProvider,
@@ -20,10 +25,5 @@ pub use predicate::Predicate;
 pub use recipe::{
     CookingRecipe, CookingType, Ingredient, RecipeResult, ShapedRecipe, ShapelessRecipe,
     SmithingTransformRecipe, SmithingTrimRecipe, StonecuttingRecipe,
-};
-pub use custom_item::{
-    AttributeModifier, AttributeOperation, AttributeType, ConsumableAnimation,
-    ConsumableProperties, CustomItem, DyedColor, EquipmentSlot, EquipmentSlotGroup,
-    EquippableProperties, FoodProperties, ItemRarity, ToolProperties, ToolRule,
 };
 pub use tag::Tag;

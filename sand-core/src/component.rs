@@ -60,9 +60,9 @@ pub struct ComponentRecord {
 /// Collect all inventory-registered components and return them as a JSON string
 /// for consumption by `sand build`. Called by the generated `sand_export` binary.
 pub fn export_components_json(namespace: &str) -> String {
-    use std::collections::BTreeMap;
     use crate::function::{ComponentFactory, FunctionDescriptor, FunctionTagDescriptor};
     use crate::inventory;
+    use std::collections::BTreeMap;
 
     let mut records: Vec<ComponentRecord> = Vec::new();
 
@@ -104,7 +104,10 @@ pub fn export_components_json(namespace: &str) -> String {
     let mut tag_map: BTreeMap<String, Vec<String>> = BTreeMap::new();
     for desc in inventory::iter::<FunctionTagDescriptor>() {
         let fn_ref = format!("{}:{}", namespace, desc.function_path);
-        tag_map.entry(desc.tag.to_string()).or_default().push(fn_ref);
+        tag_map
+            .entry(desc.tag.to_string())
+            .or_default()
+            .push(fn_ref);
     }
     for (tag_rl, values) in tag_map {
         // Split "ns:path" into namespace and path components.

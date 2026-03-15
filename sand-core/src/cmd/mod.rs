@@ -19,8 +19,8 @@
 //! ```
 
 mod blocks;
-mod coord;
 mod cooldown;
+mod coord;
 mod data;
 mod display;
 mod execute;
@@ -32,10 +32,12 @@ mod selector;
 mod sound;
 mod types;
 
-pub use blocks::{BlockState, CloneBlocks, CloneMode, CloneMaskMode, Fill, FillMode, SetBlock, SetBlockMode};
-pub use coord::{BlockPos, Coord, Rotation, Vec2, Vec3};
+pub use blocks::{
+    BlockState, CloneBlocks, CloneMaskMode, CloneMode, Fill, FillMode, SetBlock, SetBlockMode,
+};
 pub use cooldown::Cooldown;
-pub use data::{data_modify, DataModify, DataTarget, NbtValue, Storage, StorageKind};
+pub use coord::{BlockPos, Coord, Rotation, Vec2, Vec3};
+pub use data::{DataModify, DataTarget, NbtValue, Storage, StorageKind, data_modify};
 pub use display::{Actionbar, Bossbar, BossbarColor, BossbarStyle, Title};
 pub use execute::Execute;
 pub use inventory::{Inventory, InventorySlot, SlotPattern};

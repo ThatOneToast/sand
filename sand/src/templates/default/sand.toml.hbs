@@ -4,3 +4,12 @@ description = "{{description}}"
 mc_version  = "{{mc_version}}"
 # pack_format is derived automatically from mc_version; uncomment to override:
 # pack_format = {{pack_format}}
+
+{{#if resourcepack}}
+[resourcepack]
+description = "{{description}}"
+# namespace defaults to [pack].namespace; uncomment to override:
+# namespace = "{{namespace}}"
+# resource_pack_format is derived automatically; uncomment to override:
+# resource_pack_format = {{resource_pack_format}}
+{{/if}}

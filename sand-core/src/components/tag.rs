@@ -51,5 +51,7 @@ impl DatapackComponent for Tag {
         })
     }
 
-    fn component_dir(&self) -> &'static str { "tags" }
+    fn component_dir(&self) -> &'static str {
+        "tags"
+    }
 }

@@ -89,79 +89,95 @@ impl Execute {
 
     /// `as <selector>` — change the executing entity.
     pub fn as_(mut self, selector: Selector) -> Self {
-        self.parts.push(format!("as {selector}")); self
+        self.parts.push(format!("as {selector}"));
+        self
     }
 
     /// `at <selector>` — change position/rotation to match entity.
     pub fn at(mut self, selector: Selector) -> Self {
-        self.parts.push(format!("at {selector}")); self
+        self.parts.push(format!("at {selector}"));
+        self
     }
 
     /// `positioned <pos>` — change position.
     pub fn positioned(mut self, pos: Vec3) -> Self {
-        self.parts.push(format!("positioned {pos}")); self
+        self.parts.push(format!("positioned {pos}"));
+        self
     }
 
     /// `positioned as <selector>` — change position to match entity.
     pub fn positioned_as(mut self, selector: Selector) -> Self {
-        self.parts.push(format!("positioned as {selector}")); self
+        self.parts.push(format!("positioned as {selector}"));
+        self
     }
 
     /// `rotated <yaw> <pitch>` — change rotation.
     pub fn rotated(mut self, rotation: Rotation) -> Self {
-        self.parts.push(format!("rotated {rotation}")); self
+        self.parts.push(format!("rotated {rotation}"));
+        self
     }
 
     /// `rotated as <selector>` — change rotation to match entity.
     pub fn rotated_as(mut self, selector: Selector) -> Self {
-        self.parts.push(format!("rotated as {selector}")); self
+        self.parts.push(format!("rotated as {selector}"));
+        self
     }
 
     /// `facing <pos>` — rotate to face a position.
     pub fn facing(mut self, pos: Vec3) -> Self {
-        self.parts.push(format!("facing {pos}")); self
+        self.parts.push(format!("facing {pos}"));
+        self
     }
 
     /// `facing entity <selector> <anchor>` — rotate to face an entity.
     pub fn facing_entity(mut self, selector: Selector, anchor: Anchor) -> Self {
-        self.parts.push(format!("facing entity {selector} {anchor}")); self
+        self.parts
+            .push(format!("facing entity {selector} {anchor}"));
+        self
     }
 
     /// `in <dimension>` — change dimension.
     pub fn in_(mut self, dimension: impl Into<String>) -> Self {
-        self.parts.push(format!("in {}", dimension.into())); self
+        self.parts.push(format!("in {}", dimension.into()));
+        self
     }
 
     /// `align <axes>` — floor coordinates to block grid (e.g. `"xy"`).
     pub fn align(mut self, axes: Swizzle) -> Self {
-        self.parts.push(format!("align {axes}")); self
+        self.parts.push(format!("align {axes}"));
+        self
     }
 
     /// `anchored <anchor>` — change anchor point.
     pub fn anchored(mut self, anchor: Anchor) -> Self {
-        self.parts.push(format!("anchored {anchor}")); self
+        self.parts.push(format!("anchored {anchor}"));
+        self
     }
 
     /// `on <relation>` — follow an entity relationship (attacker, vehicle, etc.).
     pub fn on(mut self, relation: impl Into<String>) -> Self {
-        self.parts.push(format!("on {}", relation.into())); self
+        self.parts.push(format!("on {}", relation.into()));
+        self
     }
 
     /// `summon <entity_type>` — summon an entity and execute as it.
     pub fn summon(mut self, entity_type: impl Into<String>) -> Self {
-        self.parts.push(format!("summon {}", entity_type.into())); self
+        self.parts.push(format!("summon {}", entity_type.into()));
+        self
     }
 
     // ── Condition sub-commands ────────────────────────────────────────────────
 
     /// `if entity <selector>` — execute only if the selector matches.
     pub fn if_entity(mut self, selector: Selector) -> Self {
-        self.parts.push(format!("if entity {selector}")); self
+        self.parts.push(format!("if entity {selector}"));
+        self
     }
 
     /// `unless entity <selector>` — execute only if NO entity matches.
     pub fn unless_entity(mut self, selector: Selector) -> Self {
-        self.parts.push(format!("unless entity {selector}")); self
+        self.parts.push(format!("unless entity {selector}"));
+        self
     }
 
     /// `if entity @s[team=<team>]` — continue only if the current executing entity
@@ -170,7 +186,9 @@ impl Execute {
     /// After `execute as @e[...]`, `@s` is each iterated entity, so this checks
     /// **the target entity's** team — not the original executor's team.
     pub fn if_on_team(mut self, team: impl Into<String>) -> Self {
-        self.parts.push(format!("if entity @s[team={}]", team.into())); self
+        self.parts
+            .push(format!("if entity @s[team={}]", team.into()));
+        self
     }
 
     /// `unless entity @s[team=<team>]` — skip if the current executing entity is
@@ -178,23 +196,37 @@ impl Execute {
     ///
     /// See [`if_on_team`](Execute::if_on_team) for the semantics of `@s`.
     pub fn unless_on_team(mut self, team: impl Into<String>) -> Self {
-        self.parts.push(format!("unless entity @s[team={}]", team.into())); self
+        self.parts
+            .push(format!("unless entity @s[team={}]", team.into()));
+        self
     }
 
-    pub fn unless_score(mut self, primary_selector: Selector, primary: impl Into<String>, secondary_selector: Selector, secondary: impl Into<String>) -> Self {
+    pub fn unless_score(
+        mut self,
+        primary_selector: Selector,
+        primary: impl Into<String>,
+        secondary_selector: Selector,
+        secondary: impl Into<String>,
+    ) -> Self {
         let primary = primary.into();
         let secondary = secondary.into();
-        self.parts.push(format!("unless score {primary_selector} {primary} = {secondary_selector} {secondary}")); self
+        self.parts.push(format!(
+            "unless score {primary_selector} {primary} = {secondary_selector} {secondary}"
+        ));
+        self
     }
 
     /// `if block <pos> <block>` — execute only if block at pos matches.
     pub fn if_block(mut self, pos: BlockPos, block: impl Into<String>) -> Self {
-        self.parts.push(format!("if block {pos} {}", block.into())); self
+        self.parts.push(format!("if block {pos} {}", block.into()));
+        self
     }
 
     /// `unless block <pos> <block>`.
     pub fn unless_block(mut self, pos: BlockPos, block: impl Into<String>) -> Self {
-        self.parts.push(format!("unless block {pos} {}", block.into())); self
+        self.parts
+            .push(format!("unless block {pos} {}", block.into()));
+        self
     }
 
     /// `if score <holder> <obj> matches <range>` — check score against a range.
@@ -206,7 +238,9 @@ impl Execute {
     ) -> Self {
         self.parts.push(format!(
             "if score {} {} matches {}",
-            holder.into(), objective.into(), range.into()
+            holder.into(),
+            objective.into(),
+            range.into()
         ));
         self
     }
@@ -220,7 +254,9 @@ impl Execute {
     ) -> Self {
         self.parts.push(format!(
             "unless score {} {} matches {}",
-            holder.into(), objective.into(), range.into()
+            holder.into(),
+            objective.into(),
+            range.into()
         ));
         self
     }
@@ -236,7 +272,10 @@ impl Execute {
     ) -> Self {
         self.parts.push(format!(
             "if score {} {} {op} {} {}",
-            a.into(), a_obj.into(), b.into(), b_obj.into()
+            a.into(),
+            a_obj.into(),
+            b.into(),
+            b_obj.into()
         ));
         self
     }
@@ -252,14 +291,19 @@ impl Execute {
     ) -> Self {
         self.parts.push(format!(
             "unless score {} {} {op} {} {}",
-            a.into(), a_obj.into(), b.into(), b_obj.into()
+            a.into(),
+            a_obj.into(),
+            b.into(),
+            b_obj.into()
         ));
         self
     }
 
     /// `if predicate <predicate>` — check a loot predicate.
     pub fn if_predicate(mut self, predicate: impl Into<String>) -> Self {
-        self.parts.push(format!("if predicate {}", predicate.into())); self
+        self.parts
+            .push(format!("if predicate {}", predicate.into()));
+        self
     }
 
     /// Append a raw condition fragment (e.g. from [`Objective::if_matches`]).
@@ -273,7 +317,8 @@ impl Execute {
     ///     .run(cmd::say("ready!"))
     /// ```
     pub fn if_(mut self, condition: impl Into<String>) -> Self {
-        self.parts.push(condition.into()); self
+        self.parts.push(condition.into());
+        self
     }
 
     // ── Items conditions (1.20.5+) ────────────────────────────────────────────
@@ -286,7 +331,9 @@ impl Execute {
         slot: super::inventory::InventorySlot,
         item: impl Into<String>,
     ) -> Self {
-        self.parts.push(format!("if items entity {selector} {slot} {}", item.into())); self
+        self.parts
+            .push(format!("if items entity {selector} {slot} {}", item.into()));
+        self
     }
 
     /// `unless items entity <selector> <slot> <item>` (1.20.5+).
@@ -296,7 +343,11 @@ impl Execute {
         slot: super::inventory::InventorySlot,
         item: impl Into<String>,
     ) -> Self {
-        self.parts.push(format!("unless items entity {selector} {slot} {}", item.into())); self
+        self.parts.push(format!(
+            "unless items entity {selector} {slot} {}",
+            item.into()
+        ));
+        self
     }
 
     /// `if items entity <selector> <slot_pattern> <item>` with a wildcard pattern (1.20.5+).
@@ -312,7 +363,11 @@ impl Execute {
         pattern: super::inventory::SlotPattern,
         item: impl Into<String>,
     ) -> Self {
-        self.parts.push(format!("if items entity {selector} {pattern} {}", item.into())); self
+        self.parts.push(format!(
+            "if items entity {selector} {pattern} {}",
+            item.into()
+        ));
+        self
     }
 
     /// `unless items entity <selector> <slot_pattern> <item>` with a wildcard pattern (1.20.5+).
@@ -322,18 +377,20 @@ impl Execute {
         pattern: super::inventory::SlotPattern,
         item: impl Into<String>,
     ) -> Self {
-        self.parts.push(format!("unless items entity {selector} {pattern} {}", item.into())); self
+        self.parts.push(format!(
+            "unless items entity {selector} {pattern} {}",
+            item.into()
+        ));
+        self
     }
 
     // ── Store sub-commands ────────────────────────────────────────────────────
 
     /// `store result score <holder> <objective>` — store result of `run` into a score.
-    pub fn store_result_score(
-        mut self,
-        holder: ScoreHolder,
-        objective: impl Into<String>,
-    ) -> Self {
-        self.parts.push(format!("store result score {holder} {}", objective.into())); self
+    pub fn store_result_score(mut self, holder: ScoreHolder, objective: impl Into<String>) -> Self {
+        self.parts
+            .push(format!("store result score {holder} {}", objective.into()));
+        self
     }
 
     /// `store success score <holder> <objective>`.
@@ -342,7 +399,9 @@ impl Execute {
         holder: ScoreHolder,
         objective: impl Into<String>,
     ) -> Self {
-        self.parts.push(format!("store success score {holder} {}", objective.into())); self
+        self.parts
+            .push(format!("store success score {holder} {}", objective.into()));
+        self
     }
 
     // ── Terminal ──────────────────────────────────────────────────────────────
@@ -392,7 +451,10 @@ mod tests {
             .at(Selector::self_())
             .if_score_matches("@s", "playtime", "100..")
             .run_raw("say milestone!");
-        assert_eq!(s, "execute as @a at @s if score @s playtime matches 100.. run say milestone!");
+        assert_eq!(
+            s,
+            "execute as @a at @s if score @s playtime matches 100.. run say milestone!"
+        );
     }
 
     #[test]
@@ -400,6 +462,9 @@ mod tests {
         let s = Execute::new()
             .store_result_score(ScoreHolder::entity(Selector::self_()), "my_score")
             .run_raw("data get entity @s Health");
-        assert_eq!(s, "execute store result score @s my_score run data get entity @s Health");
+        assert_eq!(
+            s,
+            "execute store result score @s my_score run data get entity @s Health"
+        );
     }
 }

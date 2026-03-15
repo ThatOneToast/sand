@@ -94,28 +94,66 @@ impl NbtValue {
 impl fmt::Display for NbtValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            NbtValue::Bool(b)   => write!(f, "{}", if *b { "1b" } else { "0b" }),
-            NbtValue::Byte(n)   => write!(f, "{n}b"),
-            NbtValue::Short(n)  => write!(f, "{n}s"),
-            NbtValue::Int(n)    => write!(f, "{n}"),
-            NbtValue::Long(n)   => write!(f, "{n}L"),
-            NbtValue::Float(n)  => write!(f, "{n}f"),
+            NbtValue::Bool(b) => write!(f, "{}", if *b { "1b" } else { "0b" }),
+            NbtValue::Byte(n) => write!(f, "{n}b"),
+            NbtValue::Short(n) => write!(f, "{n}s"),
+            NbtValue::Int(n) => write!(f, "{n}"),
+            NbtValue::Long(n) => write!(f, "{n}L"),
+            NbtValue::Float(n) => write!(f, "{n}f"),
             NbtValue::Double(n) => write!(f, "{n}d"),
-            NbtValue::String(s) => write!(f, "\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\"")),
-            NbtValue::Raw(s)    => write!(f, "{s}"),
+            NbtValue::String(s) => {
+                write!(f, "\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\""))
+            }
+            NbtValue::Raw(s) => write!(f, "{s}"),
         }
     }
 }
 
-impl From<bool>  for NbtValue { fn from(v: bool)  -> Self { NbtValue::Bool(v) } }
-impl From<i8>    for NbtValue { fn from(v: i8)    -> Self { NbtValue::Byte(v) } }
-impl From<i16>   for NbtValue { fn from(v: i16)   -> Self { NbtValue::Short(v) } }
-impl From<i32>   for NbtValue { fn from(v: i32)   -> Self { NbtValue::Int(v) } }
-impl From<i64>   for NbtValue { fn from(v: i64)   -> Self { NbtValue::Long(v) } }
-impl From<f32>   for NbtValue { fn from(v: f32)   -> Self { NbtValue::Float(v) } }
-impl From<f64>   for NbtValue { fn from(v: f64)   -> Self { NbtValue::Double(v) } }
-impl From<&str>  for NbtValue { fn from(v: &str)  -> Self { NbtValue::String(v.to_owned()) } }
-impl From<String> for NbtValue { fn from(v: String) -> Self { NbtValue::String(v) } }
+impl From<bool> for NbtValue {
+    fn from(v: bool) -> Self {
+        NbtValue::Bool(v)
+    }
+}
+impl From<i8> for NbtValue {
+    fn from(v: i8) -> Self {
+        NbtValue::Byte(v)
+    }
+}
+impl From<i16> for NbtValue {
+    fn from(v: i16) -> Self {
+        NbtValue::Short(v)
+    }
+}
+impl From<i32> for NbtValue {
+    fn from(v: i32) -> Self {
+        NbtValue::Int(v)
+    }
+}
+impl From<i64> for NbtValue {
+    fn from(v: i64) -> Self {
+        NbtValue::Long(v)
+    }
+}
+impl From<f32> for NbtValue {
+    fn from(v: f32) -> Self {
+        NbtValue::Float(v)
+    }
+}
+impl From<f64> for NbtValue {
+    fn from(v: f64) -> Self {
+        NbtValue::Double(v)
+    }
+}
+impl From<&str> for NbtValue {
+    fn from(v: &str) -> Self {
+        NbtValue::String(v.to_owned())
+    }
+}
+impl From<String> for NbtValue {
+    fn from(v: String) -> Self {
+        NbtValue::String(v)
+    }
+}
 
 // ── DataTarget ────────────────────────────────────────────────────────────────
 
@@ -129,16 +167,22 @@ pub enum DataTarget {
 }
 
 impl DataTarget {
-    pub fn entity(selector: Selector) -> Self { DataTarget::Entity(selector) }
-    pub fn block(pos: BlockPos) -> Self { DataTarget::Block(pos) }
-    pub fn storage(id: impl Into<String>) -> Self { DataTarget::Storage(id.into()) }
+    pub fn entity(selector: Selector) -> Self {
+        DataTarget::Entity(selector)
+    }
+    pub fn block(pos: BlockPos) -> Self {
+        DataTarget::Block(pos)
+    }
+    pub fn storage(id: impl Into<String>) -> Self {
+        DataTarget::Storage(id.into())
+    }
 }
 
 impl fmt::Display for DataTarget {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             DataTarget::Entity(sel) => write!(f, "entity {sel}"),
-            DataTarget::Block(pos)  => write!(f, "block {pos}"),
+            DataTarget::Block(pos) => write!(f, "block {pos}"),
             DataTarget::Storage(id) => write!(f, "storage {id}"),
         }
     }
@@ -168,48 +212,83 @@ pub struct DataModify {
 
 impl DataModify {
     pub(crate) fn new(target: DataTarget, path: impl Into<String>) -> Self {
-        Self { target, path: path.into() }
+        Self {
+            target,
+            path: path.into(),
+        }
     }
 
     /// `set value <nbt>` — overwrite the path with a typed value.
     pub fn set(self, value: impl Into<NbtValue>) -> String {
-        format!("data modify {} {} set value {}", self.target, self.path, value.into())
+        format!(
+            "data modify {} {} set value {}",
+            self.target,
+            self.path,
+            value.into()
+        )
     }
 
     /// `set from <source> <source_path>` — copy a value from another location.
     pub fn set_from(self, source: DataTarget, source_path: impl Into<String>) -> String {
         format!(
             "data modify {} {} set from {} {}",
-            self.target, self.path, source, source_path.into()
+            self.target,
+            self.path,
+            source,
+            source_path.into()
         )
     }
 
     /// `append value <nbt>` — push to the end of a list.
     pub fn append(self, value: impl Into<NbtValue>) -> String {
-        format!("data modify {} {} append value {}", self.target, self.path, value.into())
+        format!(
+            "data modify {} {} append value {}",
+            self.target,
+            self.path,
+            value.into()
+        )
     }
 
     /// `prepend value <nbt>` — push to the front of a list.
     pub fn prepend(self, value: impl Into<NbtValue>) -> String {
-        format!("data modify {} {} prepend value {}", self.target, self.path, value.into())
+        format!(
+            "data modify {} {} prepend value {}",
+            self.target,
+            self.path,
+            value.into()
+        )
     }
 
     /// `append from <source> <source_path>` — copy-append from another location.
     pub fn append_from(self, source: DataTarget, source_path: impl Into<String>) -> String {
         format!(
             "data modify {} {} append from {} {}",
-            self.target, self.path, source, source_path.into()
+            self.target,
+            self.path,
+            source,
+            source_path.into()
         )
     }
 
     /// `insert <index> value <nbt>` — insert into a list at the given index.
     pub fn insert(self, index: i32, value: impl Into<NbtValue>) -> String {
-        format!("data modify {} {} insert {} value {}", self.target, self.path, index, value.into())
+        format!(
+            "data modify {} {} insert {} value {}",
+            self.target,
+            self.path,
+            index,
+            value.into()
+        )
     }
 
     /// `merge value <nbt>` — merge a compound value into the path.
     pub fn merge(self, value: impl Into<NbtValue>) -> String {
-        format!("data modify {} {} merge value {}", self.target, self.path, value.into())
+        format!(
+            "data modify {} {} merge value {}",
+            self.target,
+            self.path,
+            value.into()
+        )
     }
 }
 
@@ -305,7 +384,10 @@ impl Storage {
     /// static WORLD: Storage = Storage::global("my_pack:world");
     /// ```
     pub const fn global(id: &'static str) -> Self {
-        Self { id: Cow::Borrowed(id), kind: StorageKind::Global }
+        Self {
+            id: Cow::Borrowed(id),
+            kind: StorageKind::Global,
+        }
     }
 
     /// Const-compatible per-player storage constructor.
@@ -314,19 +396,29 @@ impl Storage {
     /// static PLAYERS: Storage = Storage::per_player("my_pack:players");
     /// ```
     pub const fn per_player(id: &'static str) -> Self {
-        Self { id: Cow::Borrowed(id), kind: StorageKind::PerPlayer }
+        Self {
+            id: Cow::Borrowed(id),
+            kind: StorageKind::PerPlayer,
+        }
     }
 
     /// Dynamic constructor for runtime-determined IDs.
     pub fn new(id: impl Into<String>, kind: StorageKind) -> Self {
-        Self { id: Cow::Owned(id.into()), kind }
+        Self {
+            id: Cow::Owned(id.into()),
+            kind,
+        }
     }
 
     /// The resource-location string for this storage namespace.
-    pub fn id(&self) -> &str { &self.id }
+    pub fn id(&self) -> &str {
+        &self.id
+    }
 
     /// The declared scope of this storage namespace.
-    pub fn kind(&self) -> StorageKind { self.kind }
+    pub fn kind(&self) -> StorageKind {
+        self.kind
+    }
 
     fn target(&self) -> DataTarget {
         DataTarget::Storage(self.id.as_ref().to_owned())
@@ -455,8 +547,7 @@ impl Storage {
         entity: Selector,
         src_path: impl Into<String>,
     ) -> String {
-        DataModify::new(self.target(), key)
-            .set_from(DataTarget::Entity(entity), src_path)
+        DataModify::new(self.target(), key).set_from(DataTarget::Entity(entity), src_path)
     }
 
     /// Copy a value from another storage namespace.
@@ -466,8 +557,7 @@ impl Storage {
         src_id: impl Into<String>,
         src_path: impl Into<String>,
     ) -> String {
-        DataModify::new(self.target(), key)
-            .set_from(DataTarget::Storage(src_id.into()), src_path)
+        DataModify::new(self.target(), key).set_from(DataTarget::Storage(src_id.into()), src_path)
     }
 }
 
@@ -485,12 +575,12 @@ mod tests {
 
     #[test]
     fn nbt_value_display() {
-        assert_eq!(NbtValue::Bool(true).to_string(),    "1b");
-        assert_eq!(NbtValue::Bool(false).to_string(),   "0b");
-        assert_eq!(NbtValue::Byte(42_i8).to_string(),   "42b");
+        assert_eq!(NbtValue::Bool(true).to_string(), "1b");
+        assert_eq!(NbtValue::Bool(false).to_string(), "0b");
+        assert_eq!(NbtValue::Byte(42_i8).to_string(), "42b");
         assert_eq!(NbtValue::Short(100_i16).to_string(), "100s");
-        assert_eq!(NbtValue::Int(42_i32).to_string(),   "42");
-        assert_eq!(NbtValue::Long(99_i64).to_string(),  "99L");
+        assert_eq!(NbtValue::Int(42_i32).to_string(), "42");
+        assert_eq!(NbtValue::Long(99_i64).to_string(), "99L");
         assert_eq!(NbtValue::String("hi".into()).to_string(), "\"hi\"");
         assert_eq!(NbtValue::Raw("{x:0}".into()).to_string(), "{x:0}");
     }
@@ -503,9 +593,9 @@ mod tests {
 
     #[test]
     fn nbt_value_from_primitives() {
-        assert_eq!(NbtValue::from(true).to_string(),  "1b");
+        assert_eq!(NbtValue::from(true).to_string(), "1b");
         assert_eq!(NbtValue::from(2_i32).to_string(), "2");
-        assert_eq!(NbtValue::from("hi").to_string(),  "\"hi\"");
+        assert_eq!(NbtValue::from("hi").to_string(), "\"hi\"");
         assert_eq!(NbtValue::from(1.5_f64).to_string(), "1.5d");
     }
 
@@ -513,15 +603,13 @@ mod tests {
 
     #[test]
     fn data_modify_set() {
-        let cmd = data_modify(DataTarget::entity(Selector::self_()), "Custom.Phase")
-            .set(2_i32);
+        let cmd = data_modify(DataTarget::entity(Selector::self_()), "Custom.Phase").set(2_i32);
         assert_eq!(cmd, "data modify entity @s Custom.Phase set value 2");
     }
 
     #[test]
     fn data_modify_set_bool() {
-        let cmd = data_modify(DataTarget::entity(Selector::self_()), "Custom.Active")
-            .set(true);
+        let cmd = data_modify(DataTarget::entity(Selector::self_()), "Custom.Active").set(true);
         assert_eq!(cmd, "data modify entity @s Custom.Active set value 1b");
     }
 
@@ -529,14 +617,20 @@ mod tests {
     fn data_modify_append() {
         let cmd = data_modify(DataTarget::storage("my_pack:log"), "kills")
             .append(NbtValue::raw(r#"{type:"zombie"}"#));
-        assert_eq!(cmd, r#"data modify storage my_pack:log kills append value {type:"zombie"}"#);
+        assert_eq!(
+            cmd,
+            r#"data modify storage my_pack:log kills append value {type:"zombie"}"#
+        );
     }
 
     #[test]
     fn data_modify_set_from_entity() {
         let cmd = data_modify(DataTarget::storage("my_pack:debug"), "health")
             .set_from(DataTarget::entity(Selector::self_()), "Health");
-        assert_eq!(cmd, "data modify storage my_pack:debug health set from entity @s Health");
+        assert_eq!(
+            cmd,
+            "data modify storage my_pack:debug health set from entity @s Health"
+        );
     }
 
     // ── Storage static / const ─────────────────────────────────────────────
@@ -634,7 +728,10 @@ mod tests {
 
     #[test]
     fn data_target_display() {
-        assert_eq!(DataTarget::entity(Selector::self_()).to_string(), "entity @s");
+        assert_eq!(
+            DataTarget::entity(Selector::self_()).to_string(),
+            "entity @s"
+        );
         assert_eq!(DataTarget::storage("ns:key").to_string(), "storage ns:key");
     }
 }

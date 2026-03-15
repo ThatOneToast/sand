@@ -1,9 +1,7 @@
 fn main() {
-    let version =
-        std::env::var("SAND_MC_VERSION").unwrap_or_else(|_| "1.21.11".to_string());
+    let version = std::env::var("SAND_MC_VERSION").unwrap_or_else(|_| "1.21.11".to_string());
 
-    let out_dir =
-        std::path::PathBuf::from(std::env::var("OUT_DIR").expect("OUT_DIR not set"));
+    let out_dir = std::path::PathBuf::from(std::env::var("OUT_DIR").expect("OUT_DIR not set"));
 
     println!("cargo:rerun-if-env-changed=SAND_MC_VERSION");
 

@@ -148,18 +148,21 @@ mod tests {
     use crate::cmd::{Selector, Storage};
 
     static PLAYERS: Storage = Storage::per_player("my_pack:players");
-    static TEMP:    Storage = Storage::global("my_pack:temp");
+    static TEMP: Storage = Storage::global("my_pack:temp");
 
     #[test]
     fn macro_var_format() {
         assert_eq!(macro_var("player"), "$(player)");
-        assert_eq!(macro_var("uuid"),   "$(uuid)");
+        assert_eq!(macro_var("uuid"), "$(uuid)");
     }
 
     #[test]
     fn macro_line_prepends_dollar() {
         assert_eq!(macro_line("say hello"), "$say hello");
-        assert_eq!(macro_line(format!("say {}", macro_var("player"))), "$say $(player)");
+        assert_eq!(
+            macro_line(format!("say {}", macro_var("player"))),
+            "$say $(player)"
+        );
     }
 
     #[test]
@@ -184,8 +187,15 @@ mod tests {
 
     #[test]
     fn function_with_storage() {
-        let cmd = function_with("my_pack:init_player", DataTarget::storage(TEMP.id()), "vars");
-        assert_eq!(cmd, "function my_pack:init_player with storage my_pack:temp vars");
+        let cmd = function_with(
+            "my_pack:init_player",
+            DataTarget::storage(TEMP.id()),
+            "vars",
+        );
+        assert_eq!(
+            cmd,
+            "function my_pack:init_player with storage my_pack:temp vars"
+        );
     }
 
     #[test]
@@ -195,6 +205,9 @@ mod tests {
             DataTarget::entity(Selector::self_()),
             "Custom.macro_args",
         );
-        assert_eq!(cmd, "function my_pack:on_hit with entity @s Custom.macro_args");
+        assert_eq!(
+            cmd,
+            "function my_pack:on_hit with entity @s Custom.macro_args"
+        );
     }
 }

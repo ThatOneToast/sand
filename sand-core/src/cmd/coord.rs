@@ -21,21 +21,47 @@ pub enum Coord {
 
 impl Coord {
     /// Absolute coordinate at the given position.
-    pub fn abs(v: impl Into<f64>) -> Self { Coord::Absolute(v.into()) }
+    pub fn abs(v: impl Into<f64>) -> Self {
+        Coord::Absolute(v.into())
+    }
     /// Relative to the executor's position. `~` when offset is 0.
-    pub fn rel() -> Self { Coord::Relative(0.0) }
+    pub fn rel() -> Self {
+        Coord::Relative(0.0)
+    }
     /// Relative with an offset. `~N`.
-    pub fn rel_n(v: impl Into<f64>) -> Self { Coord::Relative(v.into()) }
+    pub fn rel_n(v: impl Into<f64>) -> Self {
+        Coord::Relative(v.into())
+    }
     /// Local (along facing direction). `^` when offset is 0.
-    pub fn local() -> Self { Coord::Local(0.0) }
+    pub fn local() -> Self {
+        Coord::Local(0.0)
+    }
     /// Local with an offset. `^N`.
-    pub fn local_n(v: impl Into<f64>) -> Self { Coord::Local(v.into()) }
+    pub fn local_n(v: impl Into<f64>) -> Self {
+        Coord::Local(v.into())
+    }
 }
 
-impl From<f64> for Coord { fn from(v: f64) -> Self { Coord::Absolute(v) } }
-impl From<f32> for Coord { fn from(v: f32) -> Self { Coord::Absolute(v as f64) } }
-impl From<i64> for Coord { fn from(v: i64) -> Self { Coord::Absolute(v as f64) } }
-impl From<i32> for Coord { fn from(v: i32) -> Self { Coord::Absolute(v as f64) } }
+impl From<f64> for Coord {
+    fn from(v: f64) -> Self {
+        Coord::Absolute(v)
+    }
+}
+impl From<f32> for Coord {
+    fn from(v: f32) -> Self {
+        Coord::Absolute(v as f64)
+    }
+}
+impl From<i64> for Coord {
+    fn from(v: i64) -> Self {
+        Coord::Absolute(v as f64)
+    }
+}
+impl From<i32> for Coord {
+    fn from(v: i32) -> Self {
+        Coord::Absolute(v as f64)
+    }
+}
 
 fn fmt_coord(v: f64) -> String {
     if v == v.trunc() && v.abs() < 1e12 {
@@ -79,7 +105,11 @@ pub struct BlockPos {
 
 impl BlockPos {
     pub fn new(x: impl Into<Coord>, y: impl Into<Coord>, z: impl Into<Coord>) -> Self {
-        Self { x: x.into(), y: y.into(), z: z.into() }
+        Self {
+            x: x.into(),
+            y: y.into(),
+            z: z.into(),
+        }
     }
 
     /// `~ ~ ~` — current position.
@@ -121,7 +151,11 @@ pub struct Vec3 {
 
 impl Vec3 {
     pub fn new(x: impl Into<Coord>, y: impl Into<Coord>, z: impl Into<Coord>) -> Self {
-        Self { x: x.into(), y: y.into(), z: z.into() }
+        Self {
+            x: x.into(),
+            y: y.into(),
+            z: z.into(),
+        }
     }
 
     /// `~ ~ ~` — current position.
@@ -152,7 +186,10 @@ pub struct Vec2 {
 
 impl Vec2 {
     pub fn new(x: impl Into<Coord>, z: impl Into<Coord>) -> Self {
-        Self { x: x.into(), z: z.into() }
+        Self {
+            x: x.into(),
+            z: z.into(),
+        }
     }
 }
 
@@ -173,7 +210,10 @@ pub struct Rotation {
 
 impl Rotation {
     pub fn new(yaw: impl Into<Coord>, pitch: impl Into<Coord>) -> Self {
-        Self { yaw: yaw.into(), pitch: pitch.into() }
+        Self {
+            yaw: yaw.into(),
+            pitch: pitch.into(),
+        }
     }
 
     /// Current rotation (`~ ~`).

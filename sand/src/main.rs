@@ -1,3 +1,4 @@
+mod add_cmd;
 mod build_cmd;
 mod config;
 mod pack_format;
@@ -6,11 +7,11 @@ mod scaffold;
 
 use std::path::PathBuf;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use clap::{Parser, Subcommand};
 use colored::Colorize;
 
-use scaffold::{name_to_namespace, validate_name, ScaffoldOptions};
+use scaffold::{ScaffoldOptions, name_to_namespace, validate_name};
 
 // ── CLI definition ────────────────────────────────────────────────────────────
 
@@ -36,6 +37,13 @@ enum Commands {
         /// Package the output as a zip file for distribution
         #[arg(long)]
         release: bool,
+        /// Also build the resource pack and write output to dist/<namespace>-resources/
+        ///
+        /// Requires a [resourcepack] section in sand.toml and a
+        /// src/bin/sand_resource_export.rs binary in your project.
+        /// Run `sand add resourcepack` to add these automatically.
+        #[arg(long)]
+        resourcepack: bool,
     },
     /// Build the datapack, download the server jar, and start a local server
     Run {
@@ -55,6 +63,8 @@ enum Commands {
         #[arg(long)]
         cargo: bool,
     },
+    /// Add features to an existing Sand project
+    Add(AddArgs),
     /// Print the Sand version
     Version,
 }
@@ -71,6 +81,14 @@ struct NewArgs {
     /// Short description of the datapack
     #[arg(long, default_value = "A Minecraft datapack built with Sand")]
     description: String,
+
+    /// Scaffold with resource pack support enabled from the start
+    ///
+    /// Adds sand-resourcepack dependency, a sand_resource_export binary,
+    /// a [resourcepack] section in sand.toml, and the __sand_resource_export
+    /// hook in src/lib.rs.
+    #[arg(long)]
+    resourcepack: bool,
 }
 
 #[derive(clap::Args)]
@@ -82,6 +100,34 @@ struct InitArgs {
     /// Short description of the datapack
     #[arg(long, default_value = "A Minecraft datapack built with Sand")]
     description: String,
+
+    /// Scaffold with resource pack support enabled from the start
+    ///
+    /// Adds sand-resourcepack dependency, a sand_resource_export binary,
+    /// a [resourcepack] section in sand.toml, and the __sand_resource_export
+    /// hook in src/lib.rs.
+    #[arg(long)]
+    resourcepack: bool,
+}
+
+#[derive(clap::Args)]
+struct AddArgs {
+    #[command(subcommand)]
+    feature: AddFeature,
+}
+
+#[derive(Subcommand)]
+enum AddFeature {
+    /// Add resource pack support to an existing Sand project
+    ///
+    /// Modifies the project in-place:
+    ///   - Cargo.toml: adds sand-resourcepack dep, resourcepack feature on
+    ///     sand-macros, and a [[bin]] sand_resource_export target
+    ///   - sand.toml: adds a [resourcepack] section
+    ///   - src/bin/sand_resource_export.rs: created if absent
+    ///   - src/lib.rs: appends __sand_resource_export hook if absent
+    ///   - src/assets/: created if absent
+    Resourcepack,
 }
 
 // ── Entry point ───────────────────────────────────────────────────────────────
@@ -98,11 +144,23 @@ fn run() -> Result<()> {
     match cli.command {
         Commands::New(args) => cmd_new(args),
         Commands::Init(args) => cmd_init(args),
-        Commands::Build { release } => build_cmd::run(release),
-        Commands::Run { ram, offline, no_build } => run_cmd::run(run_cmd::RunArgs {
-            ram, offline, no_build,
+        Commands::Build {
+            release,
+            resourcepack,
+        } => build_cmd::run(release, resourcepack),
+        Commands::Run {
+            ram,
+            offline,
+            no_build,
+        } => run_cmd::run(run_cmd::RunArgs {
+            ram,
+            offline,
+            no_build,
         }),
         Commands::Clean { cargo } => cmd_clean(cargo),
+        Commands::Add(args) => match args.feature {
+            AddFeature::Resourcepack => add_cmd::run_resourcepack(),
+        },
         Commands::Version => {
             println!("sand {}", env!("CARGO_PKG_VERSION"));
             Ok(())
@@ -123,10 +181,15 @@ fn cmd_new(args: NewArgs) -> Result<()> {
     }
 
     println!(
-        "{} {} (Minecraft {})...",
+        "{} {} (Minecraft {}{})...",
         "Creating".cyan().bold(),
         args.name.white().bold(),
-        mc_version.yellow()
+        mc_version.yellow(),
+        if args.resourcepack {
+            " + resourcepack".cyan().to_string()
+        } else {
+            String::new()
+        }
     );
 
     scaffold::scaffold(&ScaffoldOptions {
@@ -135,13 +198,21 @@ fn cmd_new(args: NewArgs) -> Result<()> {
         description: args.description,
         mc_version,
         dir,
+        resourcepack: args.resourcepack,
     })?;
 
     println!();
     println!("{} Your datapack project is ready.", "Done!".green().bold());
     println!();
     println!("  cd {}", args.name.white().bold());
-    println!("  {} edit src/lib.rs, then run `sand build`", "#".dimmed());
+    if args.resourcepack {
+        println!(
+            "  {} edit src/lib.rs, add assets to src/assets/, then run `sand build --resourcepack`",
+            "#".dimmed()
+        );
+    } else {
+        println!("  {} edit src/lib.rs, then run `sand build`", "#".dimmed());
+    }
     Ok(())
 }
 
@@ -171,10 +242,15 @@ fn cmd_init(args: InitArgs) -> Result<()> {
     let mc_version = resolve_mc_version(args.mc_version)?;
 
     println!(
-        "{} {} (Minecraft {})...",
+        "{} {} (Minecraft {}{})...",
         "Initializing".cyan().bold(),
         name.white().bold(),
-        mc_version.yellow()
+        mc_version.yellow(),
+        if args.resourcepack {
+            " + resourcepack".cyan().to_string()
+        } else {
+            String::new()
+        }
     );
 
     scaffold::scaffold(&ScaffoldOptions {
@@ -183,10 +259,14 @@ fn cmd_init(args: InitArgs) -> Result<()> {
         description: args.description,
         mc_version,
         dir,
+        resourcepack: args.resourcepack,
     })?;
 
     println!();
-    println!("{} Your datapack project is initialized.", "Done!".green().bold());
+    println!(
+        "{} Your datapack project is initialized.",
+        "Done!".green().bold()
+    );
     Ok(())
 }
 
@@ -197,9 +277,16 @@ fn cmd_clean(also_cargo: bool) -> Result<()> {
     if dist.exists() {
         std::fs::remove_dir_all(&dist)
             .with_context(|| format!("failed to remove '{}'", dist.display()))?;
-        println!("{} {}", "Removed".cyan().bold(), dist.display().to_string().white().bold());
+        println!(
+            "{} {}",
+            "Removed".cyan().bold(),
+            dist.display().to_string().white().bold()
+        );
     } else {
-        println!("{} dist/ does not exist, nothing to remove", "Note:".dimmed());
+        println!(
+            "{} dist/ does not exist, nothing to remove",
+            "Note:".dimmed()
+        );
     }
 
     if also_cargo {
@@ -223,7 +310,10 @@ fn resolve_mc_version(supplied: Option<String>) -> Result<String> {
     match supplied {
         Some(v) => Ok(v),
         None => {
-            println!("{}", "Fetching latest Minecraft version from Mojang...".dimmed());
+            println!(
+                "{}",
+                "Fetching latest Minecraft version from Mojang...".dimmed()
+            );
             Ok(sand_build::latest_release_version())
         }
     }

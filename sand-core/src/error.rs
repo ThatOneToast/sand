@@ -5,7 +5,9 @@ pub enum SandError {
     #[error("Invalid namespace '{0}': must only contain [a-z0-9_.-] and be non-empty")]
     InvalidNamespace(String),
 
-    #[error("Invalid resource location path '{0}': must only contain [a-z0-9_./-] and be non-empty")]
+    #[error(
+        "Invalid resource location path '{0}': must only contain [a-z0-9_./-] and be non-empty"
+    )]
     InvalidPath(String),
 
     #[error("Serialization error: {0}")]

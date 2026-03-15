@@ -14,7 +14,10 @@ pub struct Predicate {
 impl Predicate {
     /// Creates a new Predicate with the given resource location and condition.
     pub fn new(location: ResourceLocation, condition: LootCondition) -> Self {
-        Self { location, condition }
+        Self {
+            location,
+            condition,
+        }
     }
 }
 
@@ -27,5 +30,7 @@ impl DatapackComponent for Predicate {
         serde_json::to_value(&self.condition).unwrap()
     }
 
-    fn component_dir(&self) -> &'static str { "predicate" }
+    fn component_dir(&self) -> &'static str {
+        "predicate"
+    }
 }

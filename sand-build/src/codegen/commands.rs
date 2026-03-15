@@ -21,7 +21,9 @@ fn node_type(node: &Value) -> &str {
 }
 
 fn is_executable(node: &Value) -> bool {
-    node.get("executable").and_then(|v| v.as_bool()).unwrap_or(false)
+    node.get("executable")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false)
 }
 
 fn has_redirect(node: &Value) -> bool {
@@ -60,8 +62,12 @@ fn map_parser(parser: &str) -> (&'static str, &'static str, bool) {
         "minecraft:rotation" => ("Rotation", "Rotation", false),
         "minecraft:color" => ("ChatColor", "ChatColor", false),
         "minecraft:component" | "minecraft:style" => ("TextComponent", "TextComponent", false),
-        "minecraft:resource_location" | "minecraft:dimension" | "minecraft:function"
-        | "minecraft:loot_table" | "minecraft:loot_predicate" | "minecraft:loot_modifier" => {
+        "minecraft:resource_location"
+        | "minecraft:dimension"
+        | "minecraft:function"
+        | "minecraft:loot_table"
+        | "minecraft:loot_predicate"
+        | "minecraft:loot_modifier" => {
             ("crate::ResourceLocation", "crate::ResourceLocation", false)
         }
         "minecraft:gamemode" => ("GameMode", "GameMode", false),
@@ -127,7 +133,11 @@ impl CommandVariant {
         self.full_path
             .iter()
             .filter_map(|s| {
-                if let PathSegment::Literal(s) = s { Some(s.as_str()) } else { None }
+                if let PathSegment::Literal(s) = s {
+                    Some(s.as_str())
+                } else {
+                    None
+                }
             })
             .collect()
     }
@@ -136,7 +146,11 @@ impl CommandVariant {
         self.full_path
             .iter()
             .filter_map(|s| {
-                if let PathSegment::Arg(a) = s { Some(a) } else { None }
+                if let PathSegment::Arg(a) = s {
+                    Some(a)
+                } else {
+                    None
+                }
             })
             .collect()
     }
@@ -295,7 +309,9 @@ fn emit_variant(code: &mut String, variant: &CommandVariant) {
     // Build doc comment showing full usage with args in their correct positions.
     let mut usage = String::new();
     for (i, seg) in variant.full_path.iter().enumerate() {
-        if i > 0 { usage.push(' '); }
+        if i > 0 {
+            usage.push(' ');
+        }
         match seg {
             PathSegment::Literal(s) => usage.push_str(s),
             PathSegment::Arg(a) => write!(usage, "<{}>", a.name).unwrap(),
@@ -360,9 +376,15 @@ fn emit_variant(code: &mut String, variant: &CommandVariant) {
             code,
             "    pub fn {name}(mut self, {name}: {param_ty}) -> Self {{",
             name = arg.name
-        ).unwrap();
+        )
+        .unwrap();
         if needs_into {
-            writeln!(code, "        self.{name} = Some({name}.into());", name = arg.name).unwrap();
+            writeln!(
+                code,
+                "        self.{name} = Some({name}.into());",
+                name = arg.name
+            )
+            .unwrap();
         } else {
             writeln!(code, "        self.{name} = Some({name});", name = arg.name).unwrap();
         }
@@ -378,7 +400,8 @@ fn emit_variant(code: &mut String, variant: &CommandVariant) {
     writeln!(
         code,
         "    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {{"
-    ).unwrap();
+    )
+    .unwrap();
 
     if !has_required && !has_optional {
         writeln!(code, "        write!(f, \"{cmd_str}\")").unwrap();
@@ -387,7 +410,9 @@ fn emit_variant(code: &mut String, variant: &CommandVariant) {
         let mut fmt_str = String::new();
         let mut fmt_args = Vec::new();
         for (i, seg) in variant.full_path.iter().enumerate() {
-            if i > 0 { fmt_str.push(' '); }
+            if i > 0 {
+                fmt_str.push(' ');
+            }
             match seg {
                 PathSegment::Literal(s) => fmt_str.push_str(s),
                 PathSegment::Arg(a) => {
@@ -407,7 +432,8 @@ fn emit_variant(code: &mut String, variant: &CommandVariant) {
                 code,
                 "        if let Some(v) = &self.{name} {{ write!(f, \" {{v}}\")?; }}",
                 name = arg.name
-            ).unwrap();
+            )
+            .unwrap();
         }
         writeln!(code, "        Ok(())").unwrap();
     }
@@ -482,7 +508,8 @@ pub fn generate(reports_dir: &Path, out_dir: &Path) -> Result<()> {
     }
 
     // Deduplicate by struct name and fn name using indexed suffixes.
-    let mut seen_structs: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    let mut seen_structs: std::collections::HashMap<String, usize> =
+        std::collections::HashMap::new();
     let mut seen_fns: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
     for variant in &mut all_variants {
         let literals = variant.literal_segments();

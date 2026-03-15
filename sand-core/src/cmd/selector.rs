@@ -70,16 +70,20 @@ enum SelectorArg {
     NotType(String),
     Limit(i32),
     Sort(SortOrder),
-    Distance(String),    // raw range string e.g. "0..10"
+    Distance(String), // raw range string e.g. "0..10"
     Level(String),
     XRotation(String),
     YRotation(String),
     Gamemode(String),
-    Scores(String),      // raw scores block e.g. "playtime=100.."
+    Scores(String), // raw scores block e.g. "playtime=100.."
     Nbt(String),
     Predicate(String),
-    X(f64), Y(f64), Z(f64),
-    Dx(f64), Dy(f64), Dz(f64),
+    X(f64),
+    Y(f64),
+    Z(f64),
+    Dx(f64),
+    Dy(f64),
+    Dz(f64),
 }
 
 impl fmt::Display for SelectorArg {
@@ -118,32 +122,50 @@ impl fmt::Display for SelectorArg {
 impl Selector {
     /// `@a` — all players.
     pub fn all_players() -> Self {
-        Self { base: TargetBase::AllPlayers, args: vec![] }
+        Self {
+            base: TargetBase::AllPlayers,
+            args: vec![],
+        }
     }
 
     /// `@e` — all entities (including players).
     pub fn all_entities() -> Self {
-        Self { base: TargetBase::AllEntities, args: vec![] }
+        Self {
+            base: TargetBase::AllEntities,
+            args: vec![],
+        }
     }
 
     /// `@p` — nearest player.
     pub fn nearest_player() -> Self {
-        Self { base: TargetBase::NearestPlayer, args: vec![] }
+        Self {
+            base: TargetBase::NearestPlayer,
+            args: vec![],
+        }
     }
 
     /// `@s` — the entity executing the command.
     pub fn self_() -> Self {
-        Self { base: TargetBase::Self_, args: vec![] }
+        Self {
+            base: TargetBase::Self_,
+            args: vec![],
+        }
     }
 
     /// `@r` — a random player.
     pub fn random_player() -> Self {
-        Self { base: TargetBase::RandomPlayer, args: vec![] }
+        Self {
+            base: TargetBase::RandomPlayer,
+            args: vec![],
+        }
     }
 
     /// A specific player by name.
     pub fn player(name: impl Into<String>) -> Self {
-        Self { base: TargetBase::Player(name.into()), args: vec![] }
+        Self {
+            base: TargetBase::Player(name.into()),
+            args: vec![],
+        }
     }
 }
 
@@ -152,106 +174,128 @@ impl Selector {
 impl Selector {
     /// `tag=<tag>` — only entities with this tag.
     pub fn tag(mut self, tag: impl Into<String>) -> Self {
-        self.args.push(SelectorArg::Tag(tag.into())); self
+        self.args.push(SelectorArg::Tag(tag.into()));
+        self
     }
 
     /// `tag=!<tag>` — only entities WITHOUT this tag.
     pub fn not_tag(mut self, tag: impl Into<String>) -> Self {
-        self.args.push(SelectorArg::NotTag(tag.into())); self
+        self.args.push(SelectorArg::NotTag(tag.into()));
+        self
     }
 
     /// `team=<team>` — only entities on this team.
     pub fn team(mut self, team: impl Into<String>) -> Self {
-        self.args.push(SelectorArg::Team(team.into())); self
+        self.args.push(SelectorArg::Team(team.into()));
+        self
     }
 
     /// `team=!<team>` — only entities NOT on this team.
     pub fn not_team(mut self, team: impl Into<String>) -> Self {
-        self.args.push(SelectorArg::NotTeam(team.into())); self
+        self.args.push(SelectorArg::NotTeam(team.into()));
+        self
     }
 
     /// `name=<name>` — only entities with this display name.
     pub fn name(mut self, name: impl Into<String>) -> Self {
-        self.args.push(SelectorArg::Name(name.into())); self
+        self.args.push(SelectorArg::Name(name.into()));
+        self
     }
 
     /// `name=!<name>` — only entities WITHOUT this display name.
     pub fn not_name(mut self, name: impl Into<String>) -> Self {
-        self.args.push(SelectorArg::NotName(name.into())); self
+        self.args.push(SelectorArg::NotName(name.into()));
+        self
     }
 
     /// `type=<entity_type>` — only entities of this type (e.g. `"minecraft:zombie"`).
     pub fn entity_type(mut self, ty: impl Into<String>) -> Self {
-        self.args.push(SelectorArg::Type(ty.into())); self
+        self.args.push(SelectorArg::Type(ty.into()));
+        self
     }
 
     /// `type=!<entity_type>` — only entities NOT of this type.
     pub fn not_type(mut self, ty: impl Into<String>) -> Self {
-        self.args.push(SelectorArg::NotType(ty.into())); self
+        self.args.push(SelectorArg::NotType(ty.into()));
+        self
     }
 
     /// `limit=<n>` — at most `n` entities.
     pub fn limit(mut self, n: i32) -> Self {
-        self.args.push(SelectorArg::Limit(n)); self
+        self.args.push(SelectorArg::Limit(n));
+        self
     }
 
     /// `sort=<order>` — sort order before applying `limit`.
     pub fn sort(mut self, order: SortOrder) -> Self {
-        self.args.push(SelectorArg::Sort(order)); self
+        self.args.push(SelectorArg::Sort(order));
+        self
     }
 
     /// `distance=<range>` — only entities within the given distance range (e.g. `"0..10"`).
     pub fn distance(mut self, range: impl Into<String>) -> Self {
-        self.args.push(SelectorArg::Distance(range.into())); self
+        self.args.push(SelectorArg::Distance(range.into()));
+        self
     }
 
     /// `distance=..<max>` — only entities at most `max` blocks away.
     ///
     /// Equivalent to `.distance(format!("..{max}"))` but typed.
     pub fn distance_max(mut self, max: f64) -> Self {
-        self.args.push(SelectorArg::Distance(format!("..{max}"))); self
+        self.args.push(SelectorArg::Distance(format!("..{max}")));
+        self
     }
 
     /// `distance=<min>..` — only entities at least `min` blocks away.
     pub fn distance_min(mut self, min: f64) -> Self {
-        self.args.push(SelectorArg::Distance(format!("{min}.."))); self
+        self.args.push(SelectorArg::Distance(format!("{min}..")));
+        self
     }
 
     /// `distance=<min>..<max>` — only entities between `min` and `max` blocks away.
     pub fn distance_range(mut self, min: f64, max: f64) -> Self {
-        self.args.push(SelectorArg::Distance(format!("{min}..{max}"))); self
+        self.args
+            .push(SelectorArg::Distance(format!("{min}..{max}")));
+        self
     }
 
     /// `type=!minecraft:player` — exclude players from the selection.
     ///
     /// Useful with `@e` to select only non-player entities.
     pub fn not_player(mut self) -> Self {
-        self.args.push(SelectorArg::NotType("minecraft:player".into())); self
+        self.args
+            .push(SelectorArg::NotType("minecraft:player".into()));
+        self
     }
 
     /// `level=<range>` — only players with XP level in range (e.g. `"0..10"`).
     pub fn level(mut self, range: impl Into<String>) -> Self {
-        self.args.push(SelectorArg::Level(range.into())); self
+        self.args.push(SelectorArg::Level(range.into()));
+        self
     }
 
     /// `gamemode=<mode>` — only players in the given gamemode.
     pub fn gamemode(mut self, mode: impl Into<String>) -> Self {
-        self.args.push(SelectorArg::Gamemode(mode.into())); self
+        self.args.push(SelectorArg::Gamemode(mode.into()));
+        self
     }
 
     /// `scores=<objective>=<range>` — only entities with matching score (e.g. `"playtime=100.."`).
     pub fn scores(mut self, scores: impl Into<String>) -> Self {
-        self.args.push(SelectorArg::Scores(scores.into())); self
+        self.args.push(SelectorArg::Scores(scores.into()));
+        self
     }
 
     /// `nbt=<nbt>` — only entities matching this NBT compound.
     pub fn nbt(mut self, nbt: impl Into<String>) -> Self {
-        self.args.push(SelectorArg::Nbt(nbt.into())); self
+        self.args.push(SelectorArg::Nbt(nbt.into()));
+        self
     }
 
     /// `predicate=<predicate>` — only entities matching this loot predicate.
     pub fn predicate(mut self, predicate: impl Into<String>) -> Self {
-        self.args.push(SelectorArg::Predicate(predicate.into())); self
+        self.args.push(SelectorArg::Predicate(predicate.into()));
+        self
     }
 
     /// `dx/dy/dz` bounding box filter. All three must be set for it to work.
@@ -286,7 +330,12 @@ impl fmt::Display for Selector {
         if self.args.is_empty() {
             write!(f, "{base}")
         } else {
-            let args = self.args.iter().map(|a| a.to_string()).collect::<Vec<_>>().join(",");
+            let args = self
+                .args
+                .iter()
+                .map(|a| a.to_string())
+                .collect::<Vec<_>>()
+                .join(",");
             write!(f, "{base}[{args}]")
         }
     }
@@ -320,7 +369,10 @@ mod tests {
             .entity_type("minecraft:zombie")
             .not_tag("killed")
             .limit(5);
-        assert_eq!(s.to_string(), "@e[type=minecraft:zombie,tag=!killed,limit=5]");
+        assert_eq!(
+            s.to_string(),
+            "@e[type=minecraft:zombie,tag=!killed,limit=5]"
+        );
     }
 
     #[test]

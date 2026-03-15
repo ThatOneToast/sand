@@ -44,7 +44,7 @@ pub use error::{Error, Result};
 /// on every call; it is only re-downloaded when the checksum does not match.
 pub fn ensure_server_jar(mc_version: &str) -> Result<std::path::PathBuf> {
     let manifest = manifest::VersionManifest::fetch_or_cached(mc_version)?;
-    let entry    = manifest.resolve(mc_version)?;
+    let entry = manifest.resolve(mc_version)?;
     download::ensure_server_jar(&entry.id, &entry.url)
 }
 

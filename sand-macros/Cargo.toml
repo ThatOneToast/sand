@@ -11,6 +11,11 @@ rust-version.workspace = true
 keywords = ["minecraft", "datapack", "proc-macro", "macros"]
 categories = ["game-development", "development-tools::procedural-macro-helpers"]
 
+[features]
+# Enables the hud_bar!, hud_element!, and texture! resource pack macros.
+# The user's crate must also depend on sand-resourcepack directly.
+resourcepack = []
+
 [lib]
 proc-macro = true
 

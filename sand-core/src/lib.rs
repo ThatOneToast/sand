@@ -40,23 +40,22 @@ pub mod mc_version;
 pub mod resource_location;
 
 pub use cmd::{
-    Actionbar, BlockState, Bossbar, BossbarColor, BossbarStyle,
-    CloneBlocks, CloneMode, CloneMaskMode,
-    Command, Cooldown, Fill, FillMode,
-    NbtValue, Objective, ParticleEffect, ParticleSpread,
-    SetBlock, SetBlockMode, Sound, SoundSource, Storage, Title,
+    Actionbar, BlockState, Bossbar, BossbarColor, BossbarStyle, CloneBlocks, CloneMaskMode,
+    CloneMode, Command, Cooldown, Fill, FillMode, NbtValue, Objective, ParticleEffect,
+    ParticleSpread, SetBlock, SetBlockMode, Sound, SoundSource, Storage, Title,
 };
-pub use component::{ComponentContent, ComponentRecord, DatapackComponent, IntoDatapack};
 pub use component::export_components_json;
+pub use component::{ComponentContent, ComponentRecord, DatapackComponent, IntoDatapack};
+pub use components::mc_function::IntoCommands;
 pub use components::{
     Advancement, AdvancementDisplay, AdvancementFrame, AdvancementIcon, AdvancementRewards,
-    AdvancementTrigger, Criterion, CookingRecipe, CookingType, Ingredient, ItemModifier,
-    LootCondition, LootEntry, LootFunction, LootPool, LootTable, LootTableType, McFunction,
-    NumberProvider, Predicate, RecipeResult, ShapedRecipe, ShapelessRecipe,
-    SmithingTransformRecipe, SmithingTrimRecipe, StonecuttingRecipe, Tag,
-    AttributeModifier, AttributeOperation, AttributeType, ConsumableAnimation,
-    ConsumableProperties, CustomItem, DyedColor, EquipmentSlot, EquipmentSlotGroup,
-    EquippableProperties, FoodProperties, ItemRarity, ToolProperties, ToolRule,
+    AdvancementTrigger, AttributeModifier, AttributeOperation, AttributeType, ConsumableAnimation,
+    ConsumableProperties, CookingRecipe, CookingType, Criterion, CustomItem, DyedColor,
+    EquipmentSlot, EquipmentSlotGroup, EquippableProperties, FoodProperties, Ingredient,
+    ItemModifier, ItemRarity, LootCondition, LootEntry, LootFunction, LootPool, LootTable,
+    LootTableType, McFunction, NumberProvider, Predicate, RecipeResult, ShapedRecipe,
+    ShapelessRecipe, SmithingTransformRecipe, SmithingTrimRecipe, StonecuttingRecipe, Tag,
+    ToolProperties, ToolRule,
 };
 pub use error::{Result, SandError};
 pub use function::{ComponentFactory, FunctionDescriptor, FunctionTagDescriptor};
@@ -92,9 +91,13 @@ pub use inventory;
 /// ```
 #[macro_export]
 macro_rules! mcfunction {
-    ($($cmd:expr);* $(;)?) => {
-        vec![$($cmd.to_string()),*]
-    };
+    ($($cmd:expr);* $(;)?) => {{
+        let mut _commands: Vec<String> = Vec::new();
+        $(
+            _commands.extend($crate::components::mc_function::IntoCommands::into_commands($cmd));
+        )*
+        _commands
+    }};
 }
 
 /// Generated Minecraft registry enums (`Item`, `Block`, `EntityType`, etc.).

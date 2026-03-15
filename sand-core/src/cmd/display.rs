@@ -16,7 +16,6 @@
 /// cmds.push(Bossbar::set_max("my_pack:hp", 100));
 /// cmds.push(Bossbar::set_players("my_pack:hp", Selector::all_players()));
 /// ```
-
 use std::fmt::Display;
 
 use super::selector::Selector;
@@ -146,12 +145,12 @@ pub enum BossbarColor {
 impl Display for BossbarColor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let s = match self {
-            BossbarColor::Blue   => "blue",
-            BossbarColor::Green  => "green",
-            BossbarColor::Pink   => "pink",
+            BossbarColor::Blue => "blue",
+            BossbarColor::Green => "green",
+            BossbarColor::Pink => "pink",
             BossbarColor::Purple => "purple",
-            BossbarColor::Red    => "red",
-            BossbarColor::White  => "white",
+            BossbarColor::Red => "red",
+            BossbarColor::White => "white",
             BossbarColor::Yellow => "yellow",
         };
         f.write_str(s)
@@ -172,8 +171,8 @@ pub enum BossbarStyle {
 impl Display for BossbarStyle {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let s = match self {
-            BossbarStyle::Progress  => "progress",
-            BossbarStyle::Notched6  => "notched_6",
+            BossbarStyle::Progress => "progress",
+            BossbarStyle::Notched6 => "notched_6",
             BossbarStyle::Notched10 => "notched_10",
             BossbarStyle::Notched12 => "notched_12",
             BossbarStyle::Notched20 => "notched_20",
@@ -280,8 +279,14 @@ mod tests {
 
     #[test]
     fn bossbar_commands() {
-        assert_eq!(Bossbar::set_value("foo:bar", 50), "bossbar set foo:bar value 50");
-        assert_eq!(Bossbar::set_max("foo:bar", 100), "bossbar set foo:bar max 100");
+        assert_eq!(
+            Bossbar::set_value("foo:bar", 50),
+            "bossbar set foo:bar value 50"
+        );
+        assert_eq!(
+            Bossbar::set_max("foo:bar", 100),
+            "bossbar set foo:bar max 100"
+        );
         assert_eq!(Bossbar::remove("foo:bar"), "bossbar remove foo:bar");
         assert_eq!(
             Bossbar::set_color("foo:bar", BossbarColor::Red),

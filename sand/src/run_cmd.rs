@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use colored::Colorize;
 
 use crate::config::SandConfig;
@@ -20,9 +20,8 @@ pub fn run(args: RunArgs) -> Result<()> {
     if !config_path.exists() {
         bail!("sand.toml not found — run `sand run` from your project root");
     }
-    let config: SandConfig =
-        toml::from_str(&std::fs::read_to_string(&config_path)?)
-            .context("failed to parse sand.toml")?;
+    let config: SandConfig = toml::from_str(&std::fs::read_to_string(&config_path)?)
+        .context("failed to parse sand.toml")?;
 
     let mc_version = resolve_mc_version(&config.pack.mc_version);
 
@@ -30,7 +29,7 @@ pub fn run(args: RunArgs) -> Result<()> {
     if args.no_build {
         println!("{}", "Skipping build (--no-build)".dimmed());
     } else {
-        crate::build_cmd::run(false)?;
+        crate::build_cmd::run(false, false)?;
     }
 
     // ── 3. Download / verify server jar ─────────────────────────────────────
@@ -41,12 +40,15 @@ pub fn run(args: RunArgs) -> Result<()> {
     );
     let jar_path = sand_build::ensure_server_jar(&mc_version)
         .with_context(|| format!("failed to get server jar for Minecraft {mc_version}"))?;
-    println!("  {} {}", "jar:".dimmed(), jar_path.display().to_string().white());
+    println!(
+        "  {} {}",
+        "jar:".dimmed(),
+        jar_path.display().to_string().white()
+    );
 
     // ── 4. Set up dist/server/ ───────────────────────────────────────────────
     let server_dir = PathBuf::from("dist").join("server");
-    std::fs::create_dir_all(&server_dir)
-        .context("failed to create dist/server/")?;
+    std::fs::create_dir_all(&server_dir).context("failed to create dist/server/")?;
 
     // ── 5. Accept EULA ───────────────────────────────────────────────────────
     let eula_path = server_dir.join("eula.txt");
@@ -83,7 +85,7 @@ pub fn run(args: RunArgs) -> Result<()> {
 
     // ── 7. Sync datapack into world/datapacks/ ───────────────────────────────
     let namespace = &config.pack.namespace;
-    let src  = PathBuf::from("dist").join(namespace);
+    let src = PathBuf::from("dist").join(namespace);
     let dest = server_dir.join("world").join("datapacks").join(namespace);
 
     if !src.exists() {
@@ -118,9 +120,7 @@ pub fn run(args: RunArgs) -> Result<()> {
         .arg("nogui")
         .current_dir(&server_dir)
         .status()
-        .context(
-            "failed to start Java — make sure Java 21+ is on your PATH (`java -version`)",
-        )?;
+        .context("failed to start Java — make sure Java 21+ is on your PATH (`java -version`)")?;
 
     if !status.success() {
         bail!("server exited with status {status}");

@@ -71,9 +71,9 @@ pub fn __sand_export(namespace: &str) {
 
 #[cfg(test)]
 mod tests {
-    use sand_core::{DatapackComponent, FunctionDescriptor, McVersion, PackNamespace};
-    use sand_core::inventory;
     use super::*;
+    use sand_core::inventory;
+    use sand_core::{DatapackComponent, FunctionDescriptor, McVersion, PackNamespace};
 
     // ── mcfunction! macro ─────────────────────────────────────────────────────
 
@@ -236,9 +236,11 @@ mod tests {
     #[test]
     fn generated_sound_event_exists() {
         use sand_core::generated::SoundEvent;
-        assert!(SoundEvent::EntityPlayerDeath
-            .resource_location()
-            .starts_with("minecraft:"));
+        assert!(
+            SoundEvent::EntityPlayerDeath
+                .resource_location()
+                .starts_with("minecraft:")
+        );
     }
 
     // ── Block state property types ────────────────────────────────────────────
@@ -269,17 +271,29 @@ mod tests {
     #[test]
     fn player_join_advancement_component() {
         let adv = player_join_advancement();
-        assert_eq!(adv.resource_location().to_string(), "hello_world:player_join");
+        assert_eq!(
+            adv.resource_location().to_string(),
+            "hello_world:player_join"
+        );
         let json = adv.to_json();
-        assert_eq!(json["rewards"]["function"].as_str().unwrap(), "hello_world:hello_world");
-        assert_eq!(json["criteria"]["tick"]["trigger"].as_str().unwrap(), "minecraft:tick");
+        assert_eq!(
+            json["rewards"]["function"].as_str().unwrap(),
+            "hello_world:hello_world"
+        );
+        assert_eq!(
+            json["criteria"]["tick"]["trigger"].as_str().unwrap(),
+            "minecraft:tick"
+        );
     }
 
     #[test]
     fn component_macro_inventory_registration() {
         use sand_core::ComponentFactory;
         let count = sand_core::inventory::iter::<ComponentFactory>().count();
-        assert!(count >= 1, "expected at least 1 #[component] registration, got {count}");
+        assert!(
+            count >= 1,
+            "expected at least 1 #[component] registration, got {count}"
+        );
     }
 
     // ── Tag component ─────────────────────────────────────────────────────────
@@ -331,8 +345,14 @@ mod tests {
         let json = recipe.to_json();
         assert_eq!(json["type"].as_str().unwrap(), "minecraft:crafting_shaped");
         assert_eq!(json["category"].as_str().unwrap(), "equipment");
-        assert_eq!(json["key"]["D"]["item"].as_str().unwrap(), "minecraft:diamond");
-        assert_eq!(json["result"]["id"].as_str().unwrap(), "minecraft:diamond_sword");
+        assert_eq!(
+            json["key"]["D"]["item"].as_str().unwrap(),
+            "minecraft:diamond"
+        );
+        assert_eq!(
+            json["result"]["id"].as_str().unwrap(),
+            "minecraft:diamond_sword"
+        );
     }
 
     // ── Advancement component ─────────────────────────────────────────────────
@@ -340,8 +360,8 @@ mod tests {
     #[test]
     fn advancement_json_output() {
         use sand_core::{
-            Advancement, AdvancementDisplay, AdvancementFrame, AdvancementIcon,
-            AdvancementRewards, AdvancementTrigger, Criterion,
+            Advancement, AdvancementDisplay, AdvancementFrame, AdvancementIcon, AdvancementRewards,
+            AdvancementTrigger, Criterion,
         };
         let adv = Advancement::new("hello_world:kill_zombie".parse().unwrap())
             .display(
@@ -362,7 +382,10 @@ mod tests {
             .rewards(AdvancementRewards::new().experience(100));
         let json = adv.to_json();
         assert_eq!(json["display"]["frame"].as_str().unwrap(), "challenge");
-        assert_eq!(json["criteria"]["kill"]["trigger"].as_str().unwrap(), "minecraft:player_killed_entity");
+        assert_eq!(
+            json["criteria"]["kill"]["trigger"].as_str().unwrap(),
+            "minecraft:player_killed_entity"
+        );
         assert_eq!(json["rewards"]["experience"].as_i64().unwrap(), 100);
     }
 
@@ -383,7 +406,10 @@ mod tests {
         assert_eq!(json["type"].as_str().unwrap(), "minecraft:chest");
         let pools = json["pools"].as_array().unwrap();
         assert_eq!(pools.len(), 1);
-        assert_eq!(pools[0]["rolls"]["type"].as_str().unwrap(), "minecraft:uniform");
+        assert_eq!(
+            pools[0]["rolls"]["type"].as_str().unwrap(),
+            "minecraft:uniform"
+        );
         let entries = pools[0]["entries"].as_array().unwrap();
         assert_eq!(entries.len(), 2);
         assert_eq!(entries[0]["name"].as_str().unwrap(), "minecraft:diamond");
@@ -399,7 +425,10 @@ mod tests {
             LootCondition::RandomChance { chance: 0.1 },
         );
         let json = pred.to_json();
-        assert_eq!(json["condition"].as_str().unwrap(), "minecraft:random_chance");
+        assert_eq!(
+            json["condition"].as_str().unwrap(),
+            "minecraft:random_chance"
+        );
         assert!((json["chance"].as_f64().unwrap() - 0.1).abs() < f64::EPSILON);
     }
 
@@ -408,11 +437,12 @@ mod tests {
     #[test]
     fn item_modifier_single_function() {
         use sand_core::{ItemModifier, LootFunction, NumberProvider};
-        let modifier = ItemModifier::new("hello_world:double_count".parse().unwrap())
-            .function(LootFunction::SetCount {
+        let modifier = ItemModifier::new("hello_world:double_count".parse().unwrap()).function(
+            LootFunction::SetCount {
                 count: NumberProvider::Constant(2.0),
                 add: false,
-            });
+            },
+        );
         let json = modifier.to_json();
         // Single function serializes as an object, not an array.
         assert_eq!(json["function"].as_str().unwrap(), "minecraft:set_count");
@@ -432,7 +462,9 @@ mod tests {
                 add: false,
             });
         let json = modifier.to_json();
-        let arr = json.as_array().expect("multiple functions should be an array");
+        let arr = json
+            .as_array()
+            .expect("multiple functions should be an array");
         assert_eq!(arr.len(), 2);
         assert_eq!(arr[0]["function"].as_str().unwrap(), "minecraft:set_count");
         assert_eq!(arr[1]["function"].as_str().unwrap(), "minecraft:set_damage");
@@ -456,7 +488,10 @@ mod tests {
         let tag = Tag {
             location: "hello_world:manual".parse().unwrap(),
             replace: false,
-            values: vec!["minecraft:oak_log".to_string(), "#minecraft:logs".to_string()],
+            values: vec![
+                "minecraft:oak_log".to_string(),
+                "#minecraft:logs".to_string(),
+            ],
         };
         let json = tag.to_json();
         assert_eq!(json["values"].as_array().unwrap().len(), 2);
@@ -468,8 +503,11 @@ mod tests {
     #[test]
     fn mc_function_bulk_commands() {
         use sand_core::McFunction;
-        let func = McFunction::new("hello_world:bulk".parse().unwrap())
-            .commands(["say one", "say two", "say three"]);
+        let func = McFunction::new("hello_world:bulk".parse().unwrap()).commands([
+            "say one",
+            "say two",
+            "say three",
+        ]);
         let json = func.to_json();
         let arr = json.as_array().expect("to_json should be an array");
         assert_eq!(arr.len(), 3);
@@ -500,7 +538,10 @@ mod tests {
             .ingredient(Ingredient::item("minecraft:gunpowder"))
             .result(RecipeResult::new("minecraft:fire_charge", 3));
         let json = recipe.to_json();
-        assert_eq!(json["type"].as_str().unwrap(), "minecraft:crafting_shapeless");
+        assert_eq!(
+            json["type"].as_str().unwrap(),
+            "minecraft:crafting_shapeless"
+        );
         let ings = json["ingredients"].as_array().unwrap();
         assert_eq!(ings.len(), 3);
         assert_eq!(ings[0]["item"].as_str().unwrap(), "minecraft:blaze_powder");
@@ -520,7 +561,10 @@ mod tests {
         .cooking_time(200);
         let json = recipe.to_json();
         assert_eq!(json["type"].as_str().unwrap(), "minecraft:smelting");
-        assert_eq!(json["ingredient"]["item"].as_str().unwrap(), "minecraft:iron_ore");
+        assert_eq!(
+            json["ingredient"]["item"].as_str().unwrap(),
+            "minecraft:iron_ore"
+        );
         assert!((json["experience"].as_f64().unwrap() - 0.7).abs() < 0.001);
         assert_eq!(json["cookingtime"].as_u64().unwrap(), 200);
     }
@@ -537,7 +581,10 @@ mod tests {
         let json = recipe.to_json();
         assert_eq!(json["type"].as_str().unwrap(), "minecraft:blasting");
         // tag ingredient serializes as {"tag": "..."}
-        assert_eq!(json["ingredient"]["tag"].as_str().unwrap(), "minecraft:gold_ores");
+        assert_eq!(
+            json["ingredient"]["tag"].as_str().unwrap(),
+            "minecraft:gold_ores"
+        );
     }
 
     #[test]
@@ -550,21 +597,35 @@ mod tests {
         let json = recipe.to_json();
         assert_eq!(json["type"].as_str().unwrap(), "minecraft:stonecutting");
         assert_eq!(json["count"].as_u64().unwrap(), 2);
-        assert_eq!(json["ingredient"]["item"].as_str().unwrap(), "minecraft:stone");
+        assert_eq!(
+            json["ingredient"]["item"].as_str().unwrap(),
+            "minecraft:stone"
+        );
     }
 
     #[test]
     fn smithing_transform_recipe_json_output() {
         use sand_core::{Ingredient, RecipeResult, SmithingTransformRecipe};
         let recipe = SmithingTransformRecipe::new("hello_world:netherite_sword".parse().unwrap())
-            .template(Ingredient::item("minecraft:netherite_upgrade_smithing_template"))
+            .template(Ingredient::item(
+                "minecraft:netherite_upgrade_smithing_template",
+            ))
             .base(Ingredient::item("minecraft:diamond_sword"))
             .addition(Ingredient::item("minecraft:netherite_ingot"))
             .result(RecipeResult::new("minecraft:netherite_sword", 1));
         let json = recipe.to_json();
-        assert_eq!(json["type"].as_str().unwrap(), "minecraft:smithing_transform");
-        assert_eq!(json["base"]["item"].as_str().unwrap(), "minecraft:diamond_sword");
-        assert_eq!(json["result"]["id"].as_str().unwrap(), "minecraft:netherite_sword");
+        assert_eq!(
+            json["type"].as_str().unwrap(),
+            "minecraft:smithing_transform"
+        );
+        assert_eq!(
+            json["base"]["item"].as_str().unwrap(),
+            "minecraft:diamond_sword"
+        );
+        assert_eq!(
+            json["result"]["id"].as_str().unwrap(),
+            "minecraft:netherite_sword"
+        );
     }
 
     #[test]
@@ -576,7 +637,10 @@ mod tests {
             .addition(Ingredient::tag("minecraft:trim_materials"));
         let json = recipe.to_json();
         assert_eq!(json["type"].as_str().unwrap(), "minecraft:smithing_trim");
-        assert_eq!(json["template"]["tag"].as_str().unwrap(), "minecraft:trim_templates");
+        assert_eq!(
+            json["template"]["tag"].as_str().unwrap(),
+            "minecraft:trim_templates"
+        );
     }
 
     // ── Advancement — additional triggers and fields ───────────────────────────
@@ -587,7 +651,10 @@ mod tests {
         let adv = Advancement::new("hello_world:tick_test".parse().unwrap())
             .criterion("tick", Criterion::new(AdvancementTrigger::Tick));
         let json = adv.to_json();
-        assert_eq!(json["criteria"]["tick"]["trigger"].as_str().unwrap(), "minecraft:tick");
+        assert_eq!(
+            json["criteria"]["tick"]["trigger"].as_str().unwrap(),
+            "minecraft:tick"
+        );
         // Tick has no conditions key.
         assert!(json["criteria"]["tick"]["conditions"].is_null());
     }
@@ -620,9 +687,18 @@ mod tests {
             );
         let json = adv.to_json();
         assert_eq!(json["rewards"]["experience"].as_i64().unwrap(), 500);
-        assert_eq!(json["rewards"]["function"].as_str().unwrap(), "hello_world:on_complete");
-        assert_eq!(json["rewards"]["recipes"][0].as_str().unwrap(), "hello_world:special_recipe");
-        assert_eq!(json["rewards"]["loot"][0].as_str().unwrap(), "hello_world:bonus_chest");
+        assert_eq!(
+            json["rewards"]["function"].as_str().unwrap(),
+            "hello_world:on_complete"
+        );
+        assert_eq!(
+            json["rewards"]["recipes"][0].as_str().unwrap(),
+            "hello_world:special_recipe"
+        );
+        assert_eq!(
+            json["rewards"]["loot"][0].as_str().unwrap(),
+            "hello_world:bonus_chest"
+        );
     }
 
     #[test]
@@ -650,7 +726,9 @@ mod tests {
             "minecraft:recipe_unlocked"
         );
         assert_eq!(
-            json["criteria"]["unlocked"]["conditions"]["recipe"].as_str().unwrap(),
+            json["criteria"]["unlocked"]["conditions"]["recipe"]
+                .as_str()
+                .unwrap(),
             "hello_world:diamond_sword"
         );
     }
@@ -671,7 +749,9 @@ mod tests {
             "mymod:do_thing"
         );
         assert_eq!(
-            json["criteria"]["mod_thing"]["conditions"]["count"].as_i64().unwrap(),
+            json["criteria"]["mod_thing"]["conditions"]["count"]
+                .as_i64()
+                .unwrap(),
             5
         );
     }
@@ -689,15 +769,26 @@ mod tests {
         );
         let json = table.to_json();
         let pool = &json["pools"][0];
-        assert_eq!(pool["bonus_rolls"]["type"].as_str().unwrap(), "minecraft:uniform");
+        assert_eq!(
+            pool["bonus_rolls"]["type"].as_str().unwrap(),
+            "minecraft:uniform"
+        );
     }
 
     #[test]
     fn loot_table_multiple_pools() {
         use sand_core::{LootEntry, LootPool, LootTable};
         let table = LootTable::new("hello_world:two_pools".parse().unwrap())
-            .pool(LootPool::new().rolls(1).entry(LootEntry::item("minecraft:diamond")))
-            .pool(LootPool::new().rolls(2).entry(LootEntry::item("minecraft:gold_ingot")));
+            .pool(
+                LootPool::new()
+                    .rolls(1)
+                    .entry(LootEntry::item("minecraft:diamond")),
+            )
+            .pool(
+                LootPool::new()
+                    .rolls(2)
+                    .entry(LootEntry::item("minecraft:gold_ingot")),
+            );
         let json = table.to_json();
         assert_eq!(json["pools"].as_array().unwrap().len(), 2);
     }
@@ -722,7 +813,7 @@ mod tests {
 
     #[test]
     fn loot_condition_composed() {
-        use sand_core::{LootCondition, LootPool, LootTable, LootEntry};
+        use sand_core::{LootCondition, LootEntry, LootPool, LootTable};
         let table = LootTable::new("hello_world:conditional".parse().unwrap()).pool(
             LootPool::new()
                 .rolls(1)
@@ -739,7 +830,10 @@ mod tests {
         assert_eq!(cond["condition"].as_str().unwrap(), "minecraft:all_of");
         let terms = cond["terms"].as_array().unwrap();
         assert_eq!(terms.len(), 2);
-        assert_eq!(terms[0]["condition"].as_str().unwrap(), "minecraft:killed_by_player");
+        assert_eq!(
+            terms[0]["condition"].as_str().unwrap(),
+            "minecraft:killed_by_player"
+        );
     }
 
     #[test]
@@ -756,7 +850,10 @@ mod tests {
         );
         let json = pred.to_json();
         assert_eq!(json["condition"].as_str().unwrap(), "minecraft:inverted");
-        assert_eq!(json["term"]["condition"].as_str().unwrap(), "minecraft:weather_check");
+        assert_eq!(
+            json["term"]["condition"].as_str().unwrap(),
+            "minecraft:weather_check"
+        );
         assert!(json["term"]["raining"].as_bool().unwrap_or(false));
     }
 
@@ -771,7 +868,10 @@ mod tests {
             },
         );
         let json = pred.to_json();
-        assert_eq!(json["condition"].as_str().unwrap(), "mymod:special_condition");
+        assert_eq!(
+            json["condition"].as_str().unwrap(),
+            "mymod:special_condition"
+        );
         assert_eq!(json["level"].as_i64().unwrap(), 10);
     }
 
@@ -842,17 +942,25 @@ mod tests {
         assert_eq!(json["condition"].as_str().unwrap(), "minecraft:any_of");
         let terms = json["terms"].as_array().unwrap();
         assert_eq!(terms.len(), 2);
-        assert_eq!(terms[1]["condition"].as_str().unwrap(), "minecraft:weather_check");
+        assert_eq!(
+            terms[1]["condition"].as_str().unwrap(),
+            "minecraft:weather_check"
+        );
     }
 
     // ── Struct literal construction ───────────────────────────────────────────
 
     #[test]
     fn advancement_struct_literal() {
-        use std::collections::HashMap;
         use sand_core::{Advancement, AdvancementTrigger, Criterion, DatapackComponent};
+        use std::collections::HashMap;
         let mut criteria = HashMap::new();
-        criteria.insert("t".to_string(), Criterion { trigger: AdvancementTrigger::Tick });
+        criteria.insert(
+            "t".to_string(),
+            Criterion {
+                trigger: AdvancementTrigger::Tick,
+            },
+        );
         let adv = Advancement {
             location: "hello_world:manual_adv".parse().unwrap(),
             parent: None,
@@ -863,8 +971,14 @@ mod tests {
             sends_telemetry_data: false,
         };
         let json = adv.to_json();
-        assert_eq!(adv.resource_location().to_string(), "hello_world:manual_adv");
-        assert_eq!(json["criteria"]["t"]["trigger"].as_str().unwrap(), "minecraft:tick");
+        assert_eq!(
+            adv.resource_location().to_string(),
+            "hello_world:manual_adv"
+        );
+        assert_eq!(
+            json["criteria"]["t"]["trigger"].as_str().unwrap(),
+            "minecraft:tick"
+        );
     }
 
     #[test]
@@ -878,7 +992,10 @@ mod tests {
             functions: vec![],
             conditions: vec![],
         };
-        assert_eq!(table.resource_location().to_string(), "hello_world:manual_table");
+        assert_eq!(
+            table.resource_location().to_string(),
+            "hello_world:manual_table"
+        );
         assert!(table.to_json().as_object().unwrap().is_empty());
     }
 }

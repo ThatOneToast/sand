@@ -22,6 +22,8 @@ Sand is a toolkit that lets you define Minecraft datapack functions, advancement
 
 ### Install the CLI
 
+> [!warning]
+Currently not available via `cargo install`.
 ```sh
 cargo install sand
 ```

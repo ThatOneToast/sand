@@ -29,22 +29,43 @@ impl fmt::Display for GameMode {
 /// Minecraft chat/text color.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ChatColor {
-    Black, DarkBlue, DarkGreen, DarkAqua, DarkRed, DarkPurple,
-    Gold, Gray, DarkGray, Blue, Green, Aqua, Red, LightPurple,
-    Yellow, White,
+    Black,
+    DarkBlue,
+    DarkGreen,
+    DarkAqua,
+    DarkRed,
+    DarkPurple,
+    Gold,
+    Gray,
+    DarkGray,
+    Blue,
+    Green,
+    Aqua,
+    Red,
+    LightPurple,
+    Yellow,
+    White,
 }
 
 impl fmt::Display for ChatColor {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
-            ChatColor::Black => "black", ChatColor::DarkBlue => "dark_blue",
-            ChatColor::DarkGreen => "dark_green", ChatColor::DarkAqua => "dark_aqua",
-            ChatColor::DarkRed => "dark_red", ChatColor::DarkPurple => "dark_purple",
-            ChatColor::Gold => "gold", ChatColor::Gray => "gray",
-            ChatColor::DarkGray => "dark_gray", ChatColor::Blue => "blue",
-            ChatColor::Green => "green", ChatColor::Aqua => "aqua",
-            ChatColor::Red => "red", ChatColor::LightPurple => "light_purple",
-            ChatColor::Yellow => "yellow", ChatColor::White => "white",
+            ChatColor::Black => "black",
+            ChatColor::DarkBlue => "dark_blue",
+            ChatColor::DarkGreen => "dark_green",
+            ChatColor::DarkAqua => "dark_aqua",
+            ChatColor::DarkRed => "dark_red",
+            ChatColor::DarkPurple => "dark_purple",
+            ChatColor::Gold => "gold",
+            ChatColor::Gray => "gray",
+            ChatColor::DarkGray => "dark_gray",
+            ChatColor::Blue => "blue",
+            ChatColor::Green => "green",
+            ChatColor::Aqua => "aqua",
+            ChatColor::Red => "red",
+            ChatColor::LightPurple => "light_purple",
+            ChatColor::Yellow => "yellow",
+            ChatColor::White => "white",
         };
         write!(f, "{s}")
     }
@@ -64,7 +85,10 @@ enum TextContent {
     /// `{"selector": "..."}` — renders the matched entity's display name(s).
     Selector(String),
     /// `{"translate": "...", "with": [...]}` — localisation key.
-    Translate { key: String, with: Vec<TextComponent> },
+    Translate {
+        key: String,
+        with: Vec<TextComponent>,
+    },
     /// `{"keybind": "..."}` — shows the key bound to an action (e.g. `"key.jump"`).
     Keybind(String),
 }
@@ -147,12 +171,18 @@ impl TextComponent {
     /// Use [`TextComponent::translate_with`] when the translation includes
     /// positional arguments.
     pub fn translate(key: impl Into<String>) -> Self {
-        Self::new(TextContent::Translate { key: key.into(), with: vec![] })
+        Self::new(TextContent::Translate {
+            key: key.into(),
+            with: vec![],
+        })
     }
 
     /// `{"translate": "...", "with": [...]}` — a localisation key with arguments.
     pub fn translate_with(key: impl Into<String>, with: Vec<TextComponent>) -> Self {
-        Self::new(TextContent::Translate { key: key.into(), with })
+        Self::new(TextContent::Translate {
+            key: key.into(),
+            with,
+        })
     }
 
     /// `{"keybind": "..."}` — shows the key bound to an action.
@@ -166,8 +196,12 @@ impl TextComponent {
     fn new(content: TextContent) -> Self {
         Self {
             content,
-            color: None, bold: None, italic: None,
-            underlined: None, strikethrough: None, obfuscated: None,
+            color: None,
+            bold: None,
+            italic: None,
+            underlined: None,
+            strikethrough: None,
+            obfuscated: None,
             extra: vec![],
         }
     }
@@ -175,19 +209,36 @@ impl TextComponent {
     // ── Formatting ────────────────────────────────────────────────────────────
 
     pub fn color(mut self, color: ChatColor) -> Self {
-        self.color = Some(color.to_string()); self
+        self.color = Some(color.to_string());
+        self
     }
 
     /// Hex color, e.g. `"#FF5733"`. Requires Minecraft 1.16+.
     pub fn color_hex(mut self, hex: impl Into<String>) -> Self {
-        self.color = Some(hex.into()); self
+        self.color = Some(hex.into());
+        self
     }
 
-    pub fn bold(mut self, v: bool) -> Self { self.bold = Some(v); self }
-    pub fn italic(mut self, v: bool) -> Self { self.italic = Some(v); self }
-    pub fn underlined(mut self, v: bool) -> Self { self.underlined = Some(v); self }
-    pub fn strikethrough(mut self, v: bool) -> Self { self.strikethrough = Some(v); self }
-    pub fn obfuscated(mut self, v: bool) -> Self { self.obfuscated = Some(v); self }
+    pub fn bold(mut self, v: bool) -> Self {
+        self.bold = Some(v);
+        self
+    }
+    pub fn italic(mut self, v: bool) -> Self {
+        self.italic = Some(v);
+        self
+    }
+    pub fn underlined(mut self, v: bool) -> Self {
+        self.underlined = Some(v);
+        self
+    }
+    pub fn strikethrough(mut self, v: bool) -> Self {
+        self.strikethrough = Some(v);
+        self
+    }
+    pub fn obfuscated(mut self, v: bool) -> Self {
+        self.obfuscated = Some(v);
+        self
+    }
 
     /// Append another component in the `extra` array.
     ///
@@ -199,7 +250,8 @@ impl TextComponent {
     /// assert!(msg.to_string().contains("\"extra\""));
     /// ```
     pub fn then(mut self, next: TextComponent) -> Self {
-        self.extra.push(next); self
+        self.extra.push(next);
+        self
     }
 
     // ── Serialisation ─────────────────────────────────────────────────────────
@@ -221,12 +273,24 @@ impl TextComponent {
             }
             TextContent::Keybind(key) => serde_json::json!({ "keybind": key }),
         };
-        if let Some(c) = &self.color       { obj["color"]         = serde_json::json!(c); }
-        if let Some(v) = self.bold         { obj["bold"]           = serde_json::json!(v); }
-        if let Some(v) = self.italic       { obj["italic"]         = serde_json::json!(v); }
-        if let Some(v) = self.underlined   { obj["underlined"]     = serde_json::json!(v); }
-        if let Some(v) = self.strikethrough{ obj["strikethrough"]  = serde_json::json!(v); }
-        if let Some(v) = self.obfuscated   { obj["obfuscated"]     = serde_json::json!(v); }
+        if let Some(c) = &self.color {
+            obj["color"] = serde_json::json!(c);
+        }
+        if let Some(v) = self.bold {
+            obj["bold"] = serde_json::json!(v);
+        }
+        if let Some(v) = self.italic {
+            obj["italic"] = serde_json::json!(v);
+        }
+        if let Some(v) = self.underlined {
+            obj["underlined"] = serde_json::json!(v);
+        }
+        if let Some(v) = self.strikethrough {
+            obj["strikethrough"] = serde_json::json!(v);
+        }
+        if let Some(v) = self.obfuscated {
+            obj["obfuscated"] = serde_json::json!(v);
+        }
         if !self.extra.is_empty() {
             let extras: Vec<_> = self.extra.iter().map(|e| e.to_json_value()).collect();
             obj["extra"] = serde_json::json!(extras);
@@ -252,7 +316,10 @@ pub enum Anchor {
 
 impl fmt::Display for Anchor {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self { Anchor::Eyes => write!(f, "eyes"), Anchor::Feet => write!(f, "feet") }
+        match self {
+            Anchor::Eyes => write!(f, "eyes"),
+            Anchor::Feet => write!(f, "feet"),
+        }
     }
 }
 
@@ -263,17 +330,33 @@ impl fmt::Display for Anchor {
 pub struct Swizzle(String);
 
 impl Swizzle {
-    pub fn x() -> Self { Swizzle("x".into()) }
-    pub fn y() -> Self { Swizzle("y".into()) }
-    pub fn z() -> Self { Swizzle("z".into()) }
-    pub fn xy() -> Self { Swizzle("xy".into()) }
-    pub fn xz() -> Self { Swizzle("xz".into()) }
-    pub fn yz() -> Self { Swizzle("yz".into()) }
-    pub fn xyz() -> Self { Swizzle("xyz".into()) }
+    pub fn x() -> Self {
+        Swizzle("x".into())
+    }
+    pub fn y() -> Self {
+        Swizzle("y".into())
+    }
+    pub fn z() -> Self {
+        Swizzle("z".into())
+    }
+    pub fn xy() -> Self {
+        Swizzle("xy".into())
+    }
+    pub fn xz() -> Self {
+        Swizzle("xz".into())
+    }
+    pub fn yz() -> Self {
+        Swizzle("yz".into())
+    }
+    pub fn xyz() -> Self {
+        Swizzle("xyz".into())
+    }
 }
 
 impl fmt::Display for Swizzle {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "{}", self.0) }
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
 }
 
 // ── ScoreHolder ───────────────────────────────────────────────────────────────
@@ -290,11 +373,15 @@ impl ScoreHolder {
         ScoreHolder(name.into())
     }
     /// `*` — all score holders with at least one score.
-    pub fn all() -> Self { ScoreHolder("*".into()) }
+    pub fn all() -> Self {
+        ScoreHolder("*".into())
+    }
 }
 
 impl fmt::Display for ScoreHolder {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "{}", self.0) }
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
 }
 
 // ── ScoreOp ───────────────────────────────────────────────────────────────────
@@ -302,16 +389,28 @@ impl fmt::Display for ScoreHolder {
 /// Scoreboard arithmetic operation (`+=`, `-=`, `*=`, `/=`, `%=`, `=`, `<`, `>`, `><`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScoreOp {
-    Add, Sub, Mul, Div, Mod, Set, Min, Max, Swap,
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Mod,
+    Set,
+    Min,
+    Max,
+    Swap,
 }
 
 impl fmt::Display for ScoreOp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
-            ScoreOp::Add => "+=", ScoreOp::Sub => "-=",
-            ScoreOp::Mul => "*=", ScoreOp::Div => "/=",
-            ScoreOp::Mod => "%=", ScoreOp::Set => "=",
-            ScoreOp::Min => "<",  ScoreOp::Max => ">",
+            ScoreOp::Add => "+=",
+            ScoreOp::Sub => "-=",
+            ScoreOp::Mul => "*=",
+            ScoreOp::Div => "/=",
+            ScoreOp::Mod => "%=",
+            ScoreOp::Set => "=",
+            ScoreOp::Min => "<",
+            ScoreOp::Max => ">",
             ScoreOp::Swap => "><",
         };
         write!(f, "{s}")
@@ -338,7 +437,9 @@ mod tests {
 
     #[test]
     fn text_component_json() {
-        let t = TextComponent::literal("Hi!").color(ChatColor::Gold).bold(true);
+        let t = TextComponent::literal("Hi!")
+            .color(ChatColor::Gold)
+            .bold(true);
         let s = t.to_string();
         assert!(s.contains("\"text\":\"Hi!\""));
         assert!(s.contains("\"color\":\"gold\""));

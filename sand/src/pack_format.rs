@@ -20,7 +20,7 @@ pub fn pack_format_for(mc_version: &str) -> u32 {
         (1, 19, 0..=3) => 10,
         (1, 18, 0..=2) => 9,
         _ if major > 1 || (major == 1 && minor > 21) => 61, // future versions
-        _ => 61,                                             // unknown, use latest
+        _ => 61,                                            // unknown, use latest
     }
 }
 

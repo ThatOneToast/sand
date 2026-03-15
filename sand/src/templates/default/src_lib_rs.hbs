@@ -3,7 +3,11 @@
 //! A Minecraft {{mc_version}} datapack built with [Sand](https://crates.io/crates/sand).
 
 use sand_core::mcfunction;
+{{#if resourcepack}}
+use sand_macros::{component, function, hud_bar, hud_element, texture};
+{{else}}
 use sand_macros::{component, function};
+{{/if}}
 
 // ── Functions ─────────────────────────────────────────────────────────────────
 
@@ -33,7 +37,7 @@ pub fn player_join() -> sand_core::Advancement {
         .rewards(AdvancementRewards::new().function("{{namespace}}:hello_world"))
 }
 
-// ── Export hook — required by `sand build`, do not remove ────────────────────
+// ── Datapack export hook — required by `sand build`, do not remove ────────────
 
 /// Invoked by the generated `sand_export` binary.
 ///
@@ -47,3 +51,96 @@ pub fn player_join() -> sand_core::Advancement {
 pub fn __sand_export(namespace: &str) {
     println!("{}", sand_core::export_components_json(namespace));
 }
+
+{{#if resourcepack}}
+// ── Resource pack export hook — required by `sand build --resourcepack` ───────
+
+/// Invoked by `src/bin/sand_resource_export.rs` to collect all registered
+/// resource pack components (`hud_bar!`, `hud_element!`, `texture!`).
+///
+/// If you add resource pack components in separate modules, re-export them
+/// here with `pub use my_module::*;` to ensure they are linked.
+#[doc(hidden)]
+pub fn __sand_resource_export(namespace: &str) {
+    println!("{}", sand_resourcepack::export_resourcepack_json(namespace));
+}
+
+// ── Resource pack components ──────────────────────────────────────────────────
+//
+// Register HUD elements and textures here. Each macro call is automatically
+// collected by `sand build --resourcepack` via the inventory registration.
+//
+// Example — health bar from a PNG (unicode is auto-assigned):
+//
+//   hud_bar!(
+//       name: "health",
+//       texture: "src/assets/health_bar.png",
+//       steps: 10,
+//       height: 9,
+//       ascent: 9,
+//   );
+//
+// Example — health bar with programmatic sprite strip:
+//
+//   hud_bar!(
+//       name: "health",
+//       texture: gen!(fill: 0xFF4444FF, empty: 0x333333FF),
+//       steps: 10,
+//       height: 9,
+//       ascent: 9,
+//   );
+//
+// Example — static overlay (unicode is auto-assigned):
+//
+//   hud_element!(
+//       name: "hotbar_bg",
+//       texture: "src/assets/hotbar.png",
+//       height: 22,
+//       ascent: -10,
+//   );
+//
+// Example — static overlay with programmatic solid-color texture:
+//
+//   hud_element!(
+//       name: "dark_overlay",
+//       texture: gen!(color: 0x00000080),
+//       height: 22,
+//       ascent: -10,
+//   );
+//
+// Example — raw texture:
+//
+//   texture!(
+//       id: "{{namespace}}:item/my_item",
+//       path: "src/assets/my_item.png",
+//   );
+
+{{else}}
+// ── Resource pack export hook (opt-in) ───────────────────────────────────────
+//
+// Run `sand add resourcepack` to enable `sand build --resourcepack`, or follow
+// the manual steps below:
+//
+// 1. Add to Cargo.toml [dependencies]:
+//      sand-resourcepack = { path = "..." }
+//      sand-macros       = { path = "...", features = ["resourcepack"] }
+//
+// 2. Add a new binary target to Cargo.toml:
+//      [[bin]]
+//      name = "sand_resource_export"
+//      path = "src/bin/sand_resource_export.rs"
+//
+//    Create src/bin/sand_resource_export.rs containing:
+//      fn main() { {{name_snake}}::__sand_resource_export("{{namespace}}"); }
+//
+// 3. Add a [resourcepack] section to sand.toml:
+//      [resourcepack]
+//      description = "{{name}} resource pack"
+//
+// 4. Uncomment the function below and register HUD/texture components above it:
+//
+// #[doc(hidden)]
+// pub fn __sand_resource_export(namespace: &str) {
+//     println!("{}", sand_resourcepack::export_resourcepack_json(namespace));
+// }
+{{/if}}

@@ -74,16 +74,22 @@ impl Objective {
     /// static INFERNO_DMG: Objective = Objective::new("inferno_dmg");
     /// ```
     pub const fn new(name: &'static str) -> Self {
-        Self { name: Cow::Borrowed(name) }
+        Self {
+            name: Cow::Borrowed(name),
+        }
     }
 
     /// Dynamic constructor for runtime-determined names.
     pub fn dynamic(name: impl Into<String>) -> Self {
-        Self { name: Cow::Owned(name.into()) }
+        Self {
+            name: Cow::Owned(name.into()),
+        }
     }
 
     /// The objective name string.
-    pub fn name(&self) -> &str { &self.name }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 
     // ── Load from storage ──────────────────────────────────────────────────
 
@@ -105,7 +111,9 @@ impl Objective {
     ) -> String {
         format!(
             "execute store result score {} {} run {}",
-            holder, self.name, storage.get(key)
+            holder,
+            self.name,
+            storage.get(key)
         )
     }
 
@@ -137,7 +145,9 @@ impl Objective {
     ) -> String {
         format!(
             "execute store result score {} {} run {}",
-            holder, self.name, storage.get_scaled(key, scale)
+            holder,
+            self.name,
+            storage.get_scaled(key, scale)
         )
     }
 
@@ -162,7 +172,10 @@ impl Objective {
 
     /// `scoreboard players remove <holder> <obj> <amount>`
     pub fn subtract(&self, holder: ScoreHolder, amount: i32) -> String {
-        format!("scoreboard players remove {} {} {}", holder, self.name, amount)
+        format!(
+            "scoreboard players remove {} {} {}",
+            holder, self.name, amount
+        )
     }
 
     /// `scoreboard players reset <holder> <obj>`
@@ -210,7 +223,12 @@ impl Objective {
 
     /// `execute unless score <holder> <obj> matches <range>`
     pub fn unless_matches(&self, holder: ScoreHolder, range: impl Into<String>) -> String {
-        format!("unless score {} {} matches {}", holder, self.name, range.into())
+        format!(
+            "unless score {} {} matches {}",
+            holder,
+            self.name,
+            range.into()
+        )
     }
 
     // ── Display ───────────────────────────────────────────────────────────
@@ -252,8 +270,8 @@ mod tests {
     use super::*;
     use crate::cmd::Storage;
 
-    static DMG:     Objective = Objective::new("inferno_dmg");
-    static PLAYERS: Storage   = Storage::per_player("my_pack:players");
+    static DMG: Objective = Objective::new("inferno_dmg");
+    static PLAYERS: Storage = Storage::per_player("my_pack:players");
 
     #[test]
     fn objective_const() {
@@ -278,18 +296,41 @@ mod tests {
 
     #[test]
     fn set_get_add_subtract() {
-        assert_eq!(DMG.set(ScoreHolder::self_(), 0),    "scoreboard players set @s inferno_dmg 0");
-        assert_eq!(DMG.get(ScoreHolder::self_()),        "scoreboard players get @s inferno_dmg");
-        assert_eq!(DMG.add(ScoreHolder::self_(), 5),    "scoreboard players add @s inferno_dmg 5");
-        assert_eq!(DMG.subtract(ScoreHolder::self_(), 2), "scoreboard players remove @s inferno_dmg 2");
-        assert_eq!(DMG.reset(ScoreHolder::self_()),      "scoreboard players reset @s inferno_dmg");
+        assert_eq!(
+            DMG.set(ScoreHolder::self_(), 0),
+            "scoreboard players set @s inferno_dmg 0"
+        );
+        assert_eq!(
+            DMG.get(ScoreHolder::self_()),
+            "scoreboard players get @s inferno_dmg"
+        );
+        assert_eq!(
+            DMG.add(ScoreHolder::self_(), 5),
+            "scoreboard players add @s inferno_dmg 5"
+        );
+        assert_eq!(
+            DMG.subtract(ScoreHolder::self_(), 2),
+            "scoreboard players remove @s inferno_dmg 2"
+        );
+        assert_eq!(
+            DMG.reset(ScoreHolder::self_()),
+            "scoreboard players reset @s inferno_dmg"
+        );
     }
 
     #[test]
     fn operation() {
         static OTHER: Objective = Objective::new("other_dmg");
-        let cmd = DMG.operation(ScoreHolder::self_(), ScoreOp::Add, ScoreHolder::self_(), &OTHER);
-        assert_eq!(cmd, "scoreboard players operation @s inferno_dmg += @s other_dmg");
+        let cmd = DMG.operation(
+            ScoreHolder::self_(),
+            ScoreOp::Add,
+            ScoreHolder::self_(),
+            &OTHER,
+        );
+        assert_eq!(
+            cmd,
+            "scoreboard players operation @s inferno_dmg += @s other_dmg"
+        );
     }
 
     #[test]

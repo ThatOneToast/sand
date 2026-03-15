@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use std::fmt::Display;
 
-use serde::ser::{SerializeMap, Serializer};
 use serde::Serialize;
+use serde::ser::{SerializeMap, Serializer};
 use serde_json::Value;
 
 use crate::component::DatapackComponent;
@@ -66,9 +66,19 @@ impl LootTableType {
 /// Variants include constant values, uniform random ranges, binomial distributions, and score-based values.
 pub enum NumberProvider {
     Constant(f64),
-    Uniform { min: f64, max: f64 },
-    Binomial { n: i32, p: f64 },
-    Score { target: Value, score: String, scale: Option<f64> },
+    Uniform {
+        min: f64,
+        max: f64,
+    },
+    Binomial {
+        n: i32,
+        p: f64,
+    },
+    Score {
+        target: Value,
+        score: String,
+        scale: Option<f64>,
+    },
 }
 
 impl From<i32> for NumberProvider {
@@ -101,7 +111,11 @@ impl Serialize for NumberProvider {
                 map.serialize_entry("p", p)?;
                 map.end()
             }
-            NumberProvider::Score { target, score, scale } => {
+            NumberProvider::Score {
+                target,
+                score,
+                scale,
+            } => {
                 let count = 3 + scale.is_some() as usize;
                 let mut map = serializer.serialize_map(Some(count))?;
                 map.serialize_entry("type", "minecraft:score")?;
@@ -123,21 +137,54 @@ impl Serialize for NumberProvider {
 /// Includes boolean composition (AllOf, AnyOf, Inverted), entity/block checks, probability,
 /// and custom conditions for fine-grained control over loot generation.
 pub enum LootCondition {
-    AllOf { terms: Vec<LootCondition> },
-    AnyOf { terms: Vec<LootCondition> },
-    Inverted { term: Box<LootCondition> },
-    RandomChance { chance: f64 },
+    AllOf {
+        terms: Vec<LootCondition>,
+    },
+    AnyOf {
+        terms: Vec<LootCondition>,
+    },
+    Inverted {
+        term: Box<LootCondition>,
+    },
+    RandomChance {
+        chance: f64,
+    },
     KilledByPlayer,
-    EntityProperties { entity: String, predicate: Value },
-    EntityScores { entity: String, scores: HashMap<String, Value> },
-    MatchTool { predicate: Value },
+    EntityProperties {
+        entity: String,
+        predicate: Value,
+    },
+    EntityScores {
+        entity: String,
+        scores: HashMap<String, Value>,
+    },
+    MatchTool {
+        predicate: Value,
+    },
     SurvivesExplosion,
-    TableBonus { enchantment: String, chances: Vec<f64> },
-    TimeCheck { value: Value, period: Option<i64> },
-    WeatherCheck { raining: Option<bool>, thundering: Option<bool> },
-    BlockStateProperty { block: String, properties: HashMap<String, String> },
-    Reference { name: String },
-    Custom { condition: String, data: Value },
+    TableBonus {
+        enchantment: String,
+        chances: Vec<f64>,
+    },
+    TimeCheck {
+        value: Value,
+        period: Option<i64>,
+    },
+    WeatherCheck {
+        raining: Option<bool>,
+        thundering: Option<bool>,
+    },
+    BlockStateProperty {
+        block: String,
+        properties: HashMap<String, String>,
+    },
+    Reference {
+        name: String,
+    },
+    Custom {
+        condition: String,
+        data: Value,
+    },
 }
 
 impl Serialize for LootCondition {
@@ -197,7 +244,10 @@ impl Serialize for LootCondition {
                 map.serialize_entry("condition", "minecraft:survives_explosion")?;
                 map.end()
             }
-            LootCondition::TableBonus { enchantment, chances } => {
+            LootCondition::TableBonus {
+                enchantment,
+                chances,
+            } => {
                 let mut map = serializer.serialize_map(Some(3))?;
                 map.serialize_entry("condition", "minecraft:table_bonus")?;
                 map.serialize_entry("enchantment", enchantment)?;
@@ -214,7 +264,10 @@ impl Serialize for LootCondition {
                 }
                 map.end()
             }
-            LootCondition::WeatherCheck { raining, thundering } => {
+            LootCondition::WeatherCheck {
+                raining,
+                thundering,
+            } => {
                 let count = 1 + raining.is_some() as usize + thundering.is_some() as usize;
                 let mut map = serializer.serialize_map(Some(count))?;
                 map.serialize_entry("condition", "minecraft:weather_check")?;
@@ -260,19 +313,51 @@ impl Serialize for LootCondition {
 ///
 /// Functions transform items with effects like SetCount, SetName, EnchantWithLevels, or custom operations.
 pub enum LootFunction {
-    SetCount { count: NumberProvider, add: bool },
-    SetDamage { damage: NumberProvider, add: bool },
-    EnchantWithLevels { levels: NumberProvider, options: Option<String> },
-    EnchantRandomly { options: Option<Vec<String>>, only_compatible: bool },
-    SetName { name: Value, entity: Option<String> },
-    SetLore { lore: Vec<Value>, entity: Option<String> },
-    LootingEnchant { count: NumberProvider, limit: Option<i32> },
+    SetCount {
+        count: NumberProvider,
+        add: bool,
+    },
+    SetDamage {
+        damage: NumberProvider,
+        add: bool,
+    },
+    EnchantWithLevels {
+        levels: NumberProvider,
+        options: Option<String>,
+    },
+    EnchantRandomly {
+        options: Option<Vec<String>>,
+        only_compatible: bool,
+    },
+    SetName {
+        name: Value,
+        entity: Option<String>,
+    },
+    SetLore {
+        lore: Vec<Value>,
+        entity: Option<String>,
+    },
+    LootingEnchant {
+        count: NumberProvider,
+        limit: Option<i32>,
+    },
     ExplosionDecay,
     FurnaceSmelt,
-    FillPlayerHead { entity: String },
-    CopyComponents { source: String, include: Vec<String>, exclude: Vec<String> },
-    Reference { name: String },
-    Custom { function: String, data: Value },
+    FillPlayerHead {
+        entity: String,
+    },
+    CopyComponents {
+        source: String,
+        include: Vec<String>,
+        exclude: Vec<String>,
+    },
+    Reference {
+        name: String,
+    },
+    Custom {
+        function: String,
+        data: Value,
+    },
 }
 
 impl Serialize for LootFunction {
@@ -301,7 +386,10 @@ impl Serialize for LootFunction {
                 }
                 map.end()
             }
-            LootFunction::EnchantRandomly { options, only_compatible } => {
+            LootFunction::EnchantRandomly {
+                options,
+                only_compatible,
+            } => {
                 let mut map = serializer.serialize_map(None)?;
                 map.serialize_entry("function", "minecraft:enchant_randomly")?;
                 if let Some(opts) = options {
@@ -353,7 +441,11 @@ impl Serialize for LootFunction {
                 map.serialize_entry("entity", entity)?;
                 map.end()
             }
-            LootFunction::CopyComponents { source, include, exclude } => {
+            LootFunction::CopyComponents {
+                source,
+                include,
+                exclude,
+            } => {
                 let mut map = serializer.serialize_map(None)?;
                 map.serialize_entry("function", "minecraft:copy_components")?;
                 map.serialize_entry("source", source)?;
@@ -513,7 +605,13 @@ impl LootEntry {
 impl Serialize for LootEntry {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         match self {
-            LootEntry::Item { name, weight, quality, functions, conditions } => {
+            LootEntry::Item {
+                name,
+                weight,
+                quality,
+                functions,
+                conditions,
+            } => {
                 let mut map = serializer.serialize_map(None)?;
                 map.serialize_entry("type", "minecraft:item")?;
                 map.serialize_entry("name", name)?;
@@ -531,7 +629,13 @@ impl Serialize for LootEntry {
                 }
                 map.end()
             }
-            LootEntry::Tag { name, expand, weight, quality, conditions } => {
+            LootEntry::Tag {
+                name,
+                expand,
+                weight,
+                quality,
+                conditions,
+            } => {
                 let mut map = serializer.serialize_map(None)?;
                 map.serialize_entry("type", "minecraft:tag")?;
                 map.serialize_entry("name", name)?;
@@ -549,7 +653,12 @@ impl Serialize for LootEntry {
                 }
                 map.end()
             }
-            LootEntry::LootTable { value, weight, quality, conditions } => {
+            LootEntry::LootTable {
+                value,
+                weight,
+                quality,
+                conditions,
+            } => {
                 let mut map = serializer.serialize_map(None)?;
                 map.serialize_entry("type", "minecraft:loot_table")?;
                 map.serialize_entry("value", value)?;
@@ -564,7 +673,10 @@ impl Serialize for LootEntry {
                 }
                 map.end()
             }
-            LootEntry::Group { children, conditions } => {
+            LootEntry::Group {
+                children,
+                conditions,
+            } => {
                 let mut map = serializer.serialize_map(None)?;
                 map.serialize_entry("type", "minecraft:group")?;
                 map.serialize_entry("children", children)?;
@@ -573,7 +685,10 @@ impl Serialize for LootEntry {
                 }
                 map.end()
             }
-            LootEntry::Alternatives { children, conditions } => {
+            LootEntry::Alternatives {
+                children,
+                conditions,
+            } => {
                 let mut map = serializer.serialize_map(None)?;
                 map.serialize_entry("type", "minecraft:alternatives")?;
                 map.serialize_entry("children", children)?;
@@ -582,7 +697,10 @@ impl Serialize for LootEntry {
                 }
                 map.end()
             }
-            LootEntry::Sequence { children, conditions } => {
+            LootEntry::Sequence {
+                children,
+                conditions,
+            } => {
                 let mut map = serializer.serialize_map(None)?;
                 map.serialize_entry("type", "minecraft:sequence")?;
                 map.serialize_entry("children", children)?;
@@ -600,7 +718,11 @@ impl Serialize for LootEntry {
                 }
                 map.end()
             }
-            LootEntry::Empty { weight, quality, conditions } => {
+            LootEntry::Empty {
+                weight,
+                quality,
+                conditions,
+            } => {
                 let mut map = serializer.serialize_map(None)?;
                 map.serialize_entry("type", "minecraft:empty")?;
                 if let Some(w) = weight {
@@ -767,25 +889,37 @@ impl LootTable {
     /// ```rust,ignore
     /// LootTable::simple_block_drop(loc, "minecraft:oak_log", 1)
     /// ```
-    pub fn simple_block_drop(
-        location: ResourceLocation,
-        item: impl Display,
-        count: i32,
-    ) -> Self {
+    pub fn simple_block_drop(location: ResourceLocation, item: impl Display, count: i32) -> Self {
         let entry = LootEntry::item(item.to_string());
-        let entry = if let LootEntry::Item { name, weight, quality, mut functions, conditions } = entry {
-            functions.push(LootFunction::SetCount { count: NumberProvider::Constant(count as f64), add: false });
-            LootEntry::Item { name, weight, quality, functions, conditions }
-        } else { unreachable!() };
+        let entry = if let LootEntry::Item {
+            name,
+            weight,
+            quality,
+            mut functions,
+            conditions,
+        } = entry
+        {
+            functions.push(LootFunction::SetCount {
+                count: NumberProvider::Constant(count as f64),
+                add: false,
+            });
+            LootEntry::Item {
+                name,
+                weight,
+                quality,
+                functions,
+                conditions,
+            }
+        } else {
+            unreachable!()
+        };
 
-        Self::new(location)
-            .loot_type(LootTableType::Block)
-            .pool(
-                LootPool::new()
-                    .rolls(1)
-                    .entry(entry)
-                    .condition(LootCondition::SurvivesExplosion),
-            )
+        Self::new(location).loot_type(LootTableType::Block).pool(
+            LootPool::new()
+                .rolls(1)
+                .entry(entry)
+                .condition(LootCondition::SurvivesExplosion),
+        )
     }
 
     /// A block loot table with fortune-sensitive drop counts.
@@ -805,23 +939,39 @@ impl LootTable {
         chances: &[f64],
     ) -> Self {
         let entry = LootEntry::item(item.to_string());
-        let entry = if let LootEntry::Item { name, weight, quality, mut functions, mut conditions } = entry {
-            functions.push(LootFunction::SetCount { count: NumberProvider::Constant(1.0), add: false });
+        let entry = if let LootEntry::Item {
+            name,
+            weight,
+            quality,
+            mut functions,
+            mut conditions,
+        } = entry
+        {
+            functions.push(LootFunction::SetCount {
+                count: NumberProvider::Constant(1.0),
+                add: false,
+            });
             conditions.push(LootCondition::TableBonus {
                 enchantment: enchantment.to_string(),
                 chances: chances.to_vec(),
             });
-            LootEntry::Item { name, weight, quality, functions, conditions }
-        } else { unreachable!() };
+            LootEntry::Item {
+                name,
+                weight,
+                quality,
+                functions,
+                conditions,
+            }
+        } else {
+            unreachable!()
+        };
 
-        Self::new(location)
-            .loot_type(LootTableType::Block)
-            .pool(
-                LootPool::new()
-                    .rolls(1)
-                    .entry(entry)
-                    .condition(LootCondition::SurvivesExplosion),
-            )
+        Self::new(location).loot_type(LootTableType::Block).pool(
+            LootPool::new()
+                .rolls(1)
+                .entry(entry)
+                .condition(LootCondition::SurvivesExplosion),
+        )
     }
 
     /// An entity loot table that drops `item` only when killed by a player,
@@ -841,29 +991,51 @@ impl LootTable {
         let count_provider = if min_count == max_count {
             NumberProvider::Constant(min_count as f64)
         } else {
-            NumberProvider::Uniform { min: min_count as f64, max: max_count as f64 }
+            NumberProvider::Uniform {
+                min: min_count as f64,
+                max: max_count as f64,
+            }
         };
 
         let entry = LootEntry::item(item.to_string());
-        let entry = if let LootEntry::Item { name, weight, quality, mut functions, conditions } = entry {
-            functions.push(LootFunction::SetCount { count: count_provider, add: false });
+        let entry = if let LootEntry::Item {
+            name,
+            weight,
+            quality,
+            mut functions,
+            conditions,
+        } = entry
+        {
+            functions.push(LootFunction::SetCount {
+                count: count_provider,
+                add: false,
+            });
             if let Some(bonus) = looting_bonus {
                 functions.push(LootFunction::LootingEnchant {
-                    count: NumberProvider::Uniform { min: 0.0, max: bonus as f64 },
+                    count: NumberProvider::Uniform {
+                        min: 0.0,
+                        max: bonus as f64,
+                    },
                     limit: None,
                 });
             }
-            LootEntry::Item { name, weight, quality, functions, conditions }
-        } else { unreachable!() };
+            LootEntry::Item {
+                name,
+                weight,
+                quality,
+                functions,
+                conditions,
+            }
+        } else {
+            unreachable!()
+        };
 
-        Self::new(location)
-            .loot_type(LootTableType::Entity)
-            .pool(
-                LootPool::new()
-                    .rolls(1)
-                    .entry(entry)
-                    .condition(LootCondition::KilledByPlayer),
-            )
+        Self::new(location).loot_type(LootTableType::Entity).pool(
+            LootPool::new()
+                .rolls(1)
+                .entry(entry)
+                .condition(LootCondition::KilledByPlayer),
+        )
     }
 
     /// Creates a chest loot table with multiple weighted item entries.
@@ -886,14 +1058,35 @@ impl LootTable {
             let count_provider = if min_count == max_count {
                 NumberProvider::Constant(min_count as f64)
             } else {
-                NumberProvider::Uniform { min: min_count as f64, max: max_count as f64 }
+                NumberProvider::Uniform {
+                    min: min_count as f64,
+                    max: max_count as f64,
+                }
             };
 
             let entry = LootEntry::item(item.to_string());
-            let entry = if let LootEntry::Item { name, quality, mut functions, conditions, .. } = entry {
-                functions.push(LootFunction::SetCount { count: count_provider, add: false });
-                LootEntry::Item { name, weight: Some(weight), quality, functions, conditions }
-            } else { unreachable!() };
+            let entry = if let LootEntry::Item {
+                name,
+                quality,
+                mut functions,
+                conditions,
+                ..
+            } = entry
+            {
+                functions.push(LootFunction::SetCount {
+                    count: count_provider,
+                    add: false,
+                });
+                LootEntry::Item {
+                    name,
+                    weight: Some(weight),
+                    quality,
+                    functions,
+                    conditions,
+                }
+            } else {
+                unreachable!()
+            };
 
             pool = pool.entry(entry);
         }
@@ -919,17 +1112,28 @@ impl DatapackComponent for LootTable {
             map.insert("random_sequence".to_string(), Value::String(rs.clone()));
         }
         if !self.pools.is_empty() {
-            map.insert("pools".to_string(), serde_json::to_value(&self.pools).unwrap());
+            map.insert(
+                "pools".to_string(),
+                serde_json::to_value(&self.pools).unwrap(),
+            );
         }
         if !self.functions.is_empty() {
-            map.insert("functions".to_string(), serde_json::to_value(&self.functions).unwrap());
+            map.insert(
+                "functions".to_string(),
+                serde_json::to_value(&self.functions).unwrap(),
+            );
         }
         if !self.conditions.is_empty() {
-            map.insert("conditions".to_string(), serde_json::to_value(&self.conditions).unwrap());
+            map.insert(
+                "conditions".to_string(),
+                serde_json::to_value(&self.conditions).unwrap(),
+            );
         }
 
         Value::Object(map)
     }
 
-    fn component_dir(&self) -> &'static str { "loot_table" }
+    fn component_dir(&self) -> &'static str {
+        "loot_table"
+    }
 }

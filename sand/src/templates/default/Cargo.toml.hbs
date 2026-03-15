@@ -11,9 +11,20 @@ path = "src/lib.rs"
 name = "sand_export"
 path = "src/bin/sand_export.rs"
 
+{{#if resourcepack}}
+[[bin]]
+name = "sand_resource_export"
+path = "src/bin/sand_resource_export.rs"
+
+{{/if}}
 [dependencies]
-sand-core  = { path = "{{sand_core_path}}" }
+sand-core   = { path = "{{sand_core_path}}" }
+{{#if resourcepack}}
+sand-macros = { path = "{{sand_macros_path}}", features = ["resourcepack"] }
+sand-resourcepack = { path = "{{sand_resourcepack_path}}" }
+{{else}}
 sand-macros = { path = "{{sand_macros_path}}" }
+{{/if}}
 serde_json = "1"
 
 [build-dependencies]

@@ -9,8 +9,7 @@ use crate::{
     error::{Error, Result},
 };
 
-const MANIFEST_URL: &str =
-    "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
+const MANIFEST_URL: &str = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
 
 #[derive(Debug, Deserialize)]
 pub struct VersionManifest {

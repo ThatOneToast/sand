@@ -34,7 +34,6 @@
 /// "scoreboard objectives add fireball_cd dummy"
 /// ```
 /// The `Cooldown::register()` helper generates that command for you.
-
 use super::objective::Objective;
 use super::types::ScoreHolder;
 
@@ -159,7 +158,10 @@ mod tests {
     #[test]
     fn guard() {
         let cmd = CD.guard(ScoreHolder::self_());
-        assert_eq!(cmd, "execute if score @s fireball_cd matches 1.. run return 0");
+        assert_eq!(
+            cmd,
+            "execute if score @s fireball_cd matches 1.. run return 0"
+        );
     }
 
     #[test]
@@ -185,7 +187,13 @@ mod tests {
 
     #[test]
     fn is_active_ready() {
-        assert_eq!(CD.is_active(ScoreHolder::self_()), "if score @s fireball_cd matches 1..");
-        assert_eq!(CD.is_ready(ScoreHolder::self_()), "if score @s fireball_cd matches 0");
+        assert_eq!(
+            CD.is_active(ScoreHolder::self_()),
+            "if score @s fireball_cd matches 1.."
+        );
+        assert_eq!(
+            CD.is_ready(ScoreHolder::self_()),
+            "if score @s fireball_cd matches 0"
+        );
     }
 }

@@ -1,17 +1,20 @@
-error[E0277]: `i32` is not an iterator
+error[E0277]: the trait bound `i32: IntoCommands` is not satisfied
  --> tests/cases/fail_empty_body.rs:6:5
   |
 4 | #[function]
   | ----------- required by a bound introduced by this call
 5 | fn wrong_return_type() {
 6 |     42i32
-  |     ^^^^^ `i32` is not an iterator
+  |     ^^^^^ the trait `sand_core::Command` is not implemented for `i32`
   |
-  = help: the trait `Iterator` is not implemented for `i32`
-  = note: if you want to iterate between `start` until a value `end`, use the exclusive range syntax `start..end` or the inclusive range syntax `start..=end`
-  = note: required for `i32` to implement `IntoIterator`
-note: required by a bound in `extend`
- --> $RUST/core/src/iter/traits/collect.rs
-  |
-  |     fn extend<T: IntoIterator<Item = A>>(&mut self, iter: T);
-  |                  ^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `Extend::extend`
+  = help: the following other types implement trait `sand_core::Command`:
+            AdvancementGrantEverything
+            AdvancementGrantFrom
+            AdvancementGrantOnly
+            AdvancementGrantThrough
+            AdvancementGrantUntil
+            AdvancementRevokeEverything
+            AdvancementRevokeFrom
+            AdvancementRevokeOnly
+          and $N others
+  = note: required for `i32` to implement `IntoCommands`

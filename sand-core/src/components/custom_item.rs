@@ -211,7 +211,13 @@ impl AttributeModifier {
         operation: AttributeOperation,
         slot: EquipmentSlotGroup,
     ) -> Self {
-        Self { attribute, amount, operation, slot, id: None }
+        Self {
+            attribute,
+            amount,
+            operation,
+            slot,
+            id: None,
+        }
     }
 
     /// Set the resource-location identifier for this modifier.
@@ -223,7 +229,10 @@ impl AttributeModifier {
     fn to_snbt(&self) -> String {
         // Minecraft 1.21+ requires an `id` field on every attribute modifier.
         // Fall back to the attribute type's resource location when none is set.
-        let id = self.id.as_deref().unwrap_or_else(|| self.attribute.as_str());
+        let id = self
+            .id
+            .as_deref()
+            .unwrap_or_else(|| self.attribute.as_str());
         format!(
             "{{id:\"{}\",type:\"{}\",amount:{}d,operation:\"{}\",slot:\"{}\"}}",
             id,
@@ -248,7 +257,11 @@ pub struct FoodProperties {
 impl FoodProperties {
     /// Create food properties with the given nutrition and saturation values.
     pub fn new(nutrition: i32, saturation: f32) -> Self {
-        Self { nutrition, saturation, can_always_eat: false }
+        Self {
+            nutrition,
+            saturation,
+            can_always_eat: false,
+        }
     }
 
     /// Allow the food to be eaten even when the hunger bar is full.
@@ -415,22 +428,34 @@ impl EquippableProperties {
     }
 
     /// Control whether dispensers can equip this item.
-    pub fn dispensable(mut self, v: bool) -> Self { self.dispensable = v; self }
+    pub fn dispensable(mut self, v: bool) -> Self {
+        self.dispensable = v;
+        self
+    }
     /// Control whether players can swap this item with existing equipment.
-    pub fn swappable(mut self, v: bool) -> Self { self.swappable = v; self }
+    pub fn swappable(mut self, v: bool) -> Self {
+        self.swappable = v;
+        self
+    }
     /// Control whether the item takes damage when the wearer is hurt.
-    pub fn damage_on_hurt(mut self, v: bool) -> Self { self.damage_on_hurt = v; self }
+    pub fn damage_on_hurt(mut self, v: bool) -> Self {
+        self.damage_on_hurt = v;
+        self
+    }
     /// Set a sound to play when equipping this item.
     pub fn equip_sound(mut self, sound: impl Into<String>) -> Self {
-        self.equip_sound = Some(sound.into()); self
+        self.equip_sound = Some(sound.into());
+        self
     }
     /// Set a custom model for this equipped item.
     pub fn model(mut self, model: impl Into<String>) -> Self {
-        self.model = Some(model.into()); self
+        self.model = Some(model.into());
+        self
     }
     /// Restrict equipment to entities matching a tag.
     pub fn allowed_entities(mut self, tag: impl Into<String>) -> Self {
-        self.allowed_entities = Some(tag.into()); self
+        self.allowed_entities = Some(tag.into());
+        self
     }
 
     fn to_snbt(&self) -> String {
@@ -440,8 +465,12 @@ impl EquippableProperties {
             format!("swappable:{}", self.swappable),
             format!("damage_on_hurt:{}", self.damage_on_hurt),
         ];
-        if let Some(ref s) = self.equip_sound { parts.push(format!("equip_sound:\"{}\"", s)); }
-        if let Some(ref m) = self.model { parts.push(format!("model:\"{}\"", m)); }
+        if let Some(ref s) = self.equip_sound {
+            parts.push(format!("equip_sound:\"{}\"", s));
+        }
+        if let Some(ref m) = self.model {
+            parts.push(format!("model:\"{}\"", m));
+        }
         if let Some(ref e) = self.allowed_entities {
             parts.push(format!("allowed_entities:\"{}\"", e));
         }
@@ -463,18 +492,32 @@ pub struct ToolRule {
 impl ToolRule {
     /// Create a new tool rule for the given block or block tag.
     pub fn new(blocks: impl Into<String>) -> Self {
-        Self { blocks: blocks.into(), speed: None, correct_for_drops: None }
+        Self {
+            blocks: blocks.into(),
+            speed: None,
+            correct_for_drops: None,
+        }
     }
 
     /// Set the mining speed multiplier for this rule.
-    pub fn speed(mut self, speed: f32) -> Self { self.speed = Some(speed); self }
+    pub fn speed(mut self, speed: f32) -> Self {
+        self.speed = Some(speed);
+        self
+    }
     /// Control whether this tool drops blocks correctly.
-    pub fn correct_for_drops(mut self, v: bool) -> Self { self.correct_for_drops = Some(v); self }
+    pub fn correct_for_drops(mut self, v: bool) -> Self {
+        self.correct_for_drops = Some(v);
+        self
+    }
 
     fn to_snbt(&self) -> String {
         let mut parts = vec![format!("blocks:\"{}\"", self.blocks)];
-        if let Some(s) = self.speed { parts.push(format!("speed:{}f", s)); }
-        if let Some(c) = self.correct_for_drops { parts.push(format!("correct_for_drops:{}", c)); }
+        if let Some(s) = self.speed {
+            parts.push(format!("speed:{}f", s));
+        }
+        if let Some(c) = self.correct_for_drops {
+            parts.push(format!("correct_for_drops:{}", c));
+        }
         format!("{{{}}}", parts.join(","))
     }
 }
@@ -492,18 +535,27 @@ pub struct ToolProperties {
 impl ToolProperties {
     /// Create a new tool with default properties.
     pub fn new() -> Self {
-        Self { rules: Vec::new(), default_mining_speed: 1.0, damage_per_block: 1 }
+        Self {
+            rules: Vec::new(),
+            default_mining_speed: 1.0,
+            damage_per_block: 1,
+        }
     }
 
     /// Add a tool rule for specific block types.
-    pub fn rule(mut self, rule: ToolRule) -> Self { self.rules.push(rule); self }
+    pub fn rule(mut self, rule: ToolRule) -> Self {
+        self.rules.push(rule);
+        self
+    }
     /// Set the default mining speed for unspecified blocks.
     pub fn default_mining_speed(mut self, speed: f32) -> Self {
-        self.default_mining_speed = speed; self
+        self.default_mining_speed = speed;
+        self
     }
     /// Set how much durability damage this tool takes per broken block.
     pub fn damage_per_block(mut self, damage: i32) -> Self {
-        self.damage_per_block = damage; self
+        self.damage_per_block = damage;
+        self
     }
 
     fn to_snbt(&self) -> String {
@@ -518,7 +570,9 @@ impl ToolProperties {
 }
 
 impl Default for ToolProperties {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 // ── DyedColor ─────────────────────────────────────────────────────────────────
@@ -533,7 +587,9 @@ pub struct DyedColor {
 
 impl DyedColor {
     /// Create a color from individual red, green, and blue values (0-255).
-    pub fn new(r: u8, g: u8, b: u8) -> Self { Self { r, g, b } }
+    pub fn new(r: u8, g: u8, b: u8) -> Self {
+        Self { r, g, b }
+    }
 
     /// Construct from a 24-bit hex integer (e.g. `0xFF5733`).
     pub fn hex(rgb: u32) -> Self {
@@ -776,7 +832,8 @@ impl CustomItem {
         operation: AttributeOperation,
         slot: EquipmentSlotGroup,
     ) -> Self {
-        self.attribute_modifiers.push(AttributeModifier::new(attr, amount, operation, slot));
+        self.attribute_modifiers
+            .push(AttributeModifier::new(attr, amount, operation, slot));
         self
     }
 
@@ -973,8 +1030,11 @@ impl CustomItem {
 
         // Enchantments
         if !self.enchantments.is_empty() {
-            let levels: Vec<String> =
-                self.enchantments.iter().map(|(id, lvl)| format!("\"{id}\":{lvl}")).collect();
+            let levels: Vec<String> = self
+                .enchantments
+                .iter()
+                .map(|(id, lvl)| format!("\"{id}\":{lvl}"))
+                .collect();
             parts.push(format!("enchantments={{levels:{{{}}}}}", levels.join(",")));
         }
         if !self.stored_enchantments.is_empty() {
@@ -983,13 +1043,19 @@ impl CustomItem {
                 .iter()
                 .map(|(id, lvl)| format!("\"{id}\":{lvl}"))
                 .collect();
-            parts.push(format!("stored_enchantments={{levels:{{{}}}}}", levels.join(",")));
+            parts.push(format!(
+                "stored_enchantments={{levels:{{{}}}}}",
+                levels.join(",")
+            ));
         }
 
         // Attributes
         if !self.attribute_modifiers.is_empty() {
-            let mods: Vec<String> =
-                self.attribute_modifiers.iter().map(|m| m.to_snbt()).collect();
+            let mods: Vec<String> = self
+                .attribute_modifiers
+                .iter()
+                .map(|m| m.to_snbt())
+                .collect();
             parts.push(format!("attribute_modifiers=[{}]", mods.join(",")));
         }
 
@@ -1016,7 +1082,10 @@ impl CustomItem {
             parts.push("fire_resistant={}".to_string());
         }
         if let Some(color) = self.dyed_color {
-            parts.push(format!("dyed_color={{rgb:{},show_in_tooltip:true}}", color.to_decimal()));
+            parts.push(format!(
+                "dyed_color={{rgb:{},show_in_tooltip:true}}",
+                color.to_decimal()
+            ));
         }
 
         // Raw extras
@@ -1043,8 +1112,10 @@ fn text_to_snbt(json_str: &str) -> String {
 fn json_val_to_snbt(v: &Value) -> String {
     match v {
         Value::Object(map) => {
-            let parts: Vec<String> =
-                map.iter().map(|(k, v)| format!("{}:{}", k, json_val_to_snbt(v))).collect();
+            let parts: Vec<String> = map
+                .iter()
+                .map(|(k, v)| format!("{}:{}", k, json_val_to_snbt(v)))
+                .collect();
             format!("{{{}}}", parts.join(","))
         }
         Value::Array(arr) => {
@@ -1099,7 +1170,10 @@ mod tests {
     #[test]
     fn custom_model_data() {
         let item = CustomItem::new("minecraft:diamond_sword").custom_model_data(1001);
-        assert!(item.to_string().contains("custom_model_data={floats:[1001.0f]}"));
+        assert!(
+            item.to_string()
+                .contains("custom_model_data={floats:[1001.0f]}")
+        );
     }
 
     #[test]
@@ -1152,7 +1226,10 @@ mod tests {
     #[test]
     fn unbreakable() {
         let item = CustomItem::new("minecraft:diamond_sword").unbreakable(false);
-        assert!(item.to_string().contains("unbreakable={show_in_tooltip:false}"));
+        assert!(
+            item.to_string()
+                .contains("unbreakable={show_in_tooltip:false}")
+        );
     }
 
     #[test]
@@ -1168,7 +1245,11 @@ mod tests {
         let item = CustomItem::new("minecraft:diamond_sword").custom_data("inferno_blade");
         let pred = item.item_predicate();
         assert_eq!(pred["items"][0], "minecraft:diamond_sword");
-        assert!(pred["components"]["minecraft:custom_data"]["inferno_blade"].as_bool().unwrap());
+        assert!(
+            pred["components"]["minecraft:custom_data"]["inferno_blade"]
+                .as_bool()
+                .unwrap()
+        );
     }
 
     #[test]
@@ -1181,8 +1262,7 @@ mod tests {
 
     #[test]
     fn raw_component_escape_hatch() {
-        let item = CustomItem::new("minecraft:bow")
-            .raw_component("bundle_contents", "{items:[]}");
+        let item = CustomItem::new("minecraft:bow").raw_component("bundle_contents", "{items:[]}");
         assert!(item.to_string().contains("bundle_contents={items:[]}"));
     }
 

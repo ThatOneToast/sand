@@ -21,10 +21,22 @@ pub struct ParticleSpread {
 }
 
 impl ParticleSpread {
-    pub const POINT: Self = Self { dx: 0.0, dy: 0.0, dz: 0.0 };
+    pub const POINT: Self = Self {
+        dx: 0.0,
+        dy: 0.0,
+        dz: 0.0,
+    };
 
-    pub fn uniform(v: f64) -> Self { Self { dx: v, dy: v, dz: v } }
-    pub fn new(dx: f64, dy: f64, dz: f64) -> Self { Self { dx, dy, dz } }
+    pub fn uniform(v: f64) -> Self {
+        Self {
+            dx: v,
+            dy: v,
+            dz: v,
+        }
+    }
+    pub fn new(dx: f64, dy: f64, dz: f64) -> Self {
+        Self { dx, dy, dz }
+    }
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -139,12 +151,18 @@ impl ParticleEffect {
     /// relative to the executor.
     pub fn line(
         particle: &str,
-        x1: f64, y1: f64, z1: f64,
-        x2: f64, y2: f64, z2: f64,
+        x1: f64,
+        y1: f64,
+        z1: f64,
+        x2: f64,
+        y2: f64,
+        z2: f64,
         count: usize,
         spread: &ParticleSpread,
     ) -> Vec<String> {
-        if count == 0 { return vec![]; }
+        if count == 0 {
+            return vec![];
+        }
         if count == 1 {
             return vec![particle_cmd(particle, x1, y1, z1, spread)];
         }
@@ -241,19 +259,37 @@ mod tests {
 
     #[test]
     fn sphere_count() {
-        let cmds = ParticleEffect::sphere("minecraft:end_rod", 3.0, 0.0, 20, &ParticleSpread::POINT);
+        let cmds =
+            ParticleEffect::sphere("minecraft:end_rod", 3.0, 0.0, 20, &ParticleSpread::POINT);
         assert_eq!(cmds.len(), 20);
     }
 
     #[test]
     fn helix_count() {
-        let cmds = ParticleEffect::helix("minecraft:soul_fire_flame", 1.0, 5.0, 2.0, 30, &ParticleSpread::POINT);
+        let cmds = ParticleEffect::helix(
+            "minecraft:soul_fire_flame",
+            1.0,
+            5.0,
+            2.0,
+            30,
+            &ParticleSpread::POINT,
+        );
         assert_eq!(cmds.len(), 30);
     }
 
     #[test]
     fn line_endpoints() {
-        let cmds = ParticleEffect::line("minecraft:crit", 0.0, 0.0, 0.0, 3.0, 0.0, 0.0, 4, &ParticleSpread::POINT);
+        let cmds = ParticleEffect::line(
+            "minecraft:crit",
+            0.0,
+            0.0,
+            0.0,
+            3.0,
+            0.0,
+            0.0,
+            4,
+            &ParticleSpread::POINT,
+        );
         assert_eq!(cmds.len(), 4);
         assert!(cmds[0].contains("~0 ~0 ~0"), "start: {}", cmds[0]);
         assert!(cmds[3].contains("~3 ~0 ~0"), "end: {}", cmds[3]);
@@ -261,7 +297,8 @@ mod tests {
 
     #[test]
     fn burst_has_spread() {
-        let cmds = ParticleEffect::burst("minecraft:explosion", 2.0, 1.0, 10, &ParticleSpread::POINT);
+        let cmds =
+            ParticleEffect::burst("minecraft:explosion", 2.0, 1.0, 10, &ParticleSpread::POINT);
         assert_eq!(cmds.len(), 10);
     }
 

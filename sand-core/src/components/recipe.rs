@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use std::fmt::Display;
 
-use serde::ser::{SerializeMap, Serializer};
 use serde::Serialize;
+use serde::ser::{SerializeMap, Serializer};
 use serde_json::Value;
 
 use crate::component::DatapackComponent;
@@ -171,7 +171,10 @@ impl DatapackComponent for ShapedRecipe {
 
     fn to_json(&self) -> Value {
         let mut map = serde_json::Map::new();
-        map.insert("type".to_string(), Value::String("minecraft:crafting_shaped".to_string()));
+        map.insert(
+            "type".to_string(),
+            Value::String("minecraft:crafting_shaped".to_string()),
+        );
 
         if let Some(ref category) = self.category {
             map.insert("category".to_string(), Value::String(category.clone()));
@@ -182,28 +185,36 @@ impl DatapackComponent for ShapedRecipe {
 
         map.insert(
             "pattern".to_string(),
-            Value::Array(self.pattern.iter().map(|r| Value::String(r.clone())).collect()),
+            Value::Array(
+                self.pattern
+                    .iter()
+                    .map(|r| Value::String(r.clone()))
+                    .collect(),
+            ),
         );
 
         let key_map: serde_json::Map<String, Value> = self
             .key
             .iter()
-            .map(|(ch, ing)| {
-                (
-                    ch.to_string(),
-                    serde_json::to_value(ing).unwrap(),
-                )
-            })
+            .map(|(ch, ing)| (ch.to_string(), serde_json::to_value(ing).unwrap()))
             .collect();
         map.insert("key".to_string(), Value::Object(key_map));
 
-        map.insert("result".to_string(), serde_json::to_value(&self.result).unwrap());
-        map.insert("show_notification".to_string(), Value::Bool(self.show_notification));
+        map.insert(
+            "result".to_string(),
+            serde_json::to_value(&self.result).unwrap(),
+        );
+        map.insert(
+            "show_notification".to_string(),
+            Value::Bool(self.show_notification),
+        );
 
         Value::Object(map)
     }
 
-    fn component_dir(&self) -> &'static str { "recipe" }
+    fn component_dir(&self) -> &'static str {
+        "recipe"
+    }
 }
 
 // ── CookingRecipe ────────────────────────────────────────────────────────────
@@ -285,7 +296,10 @@ impl DatapackComponent for CookingRecipe {
 
     fn to_json(&self) -> Value {
         let mut map = serde_json::Map::new();
-        map.insert("type".to_string(), Value::String(self.recipe_type.type_str().to_string()));
+        map.insert(
+            "type".to_string(),
+            Value::String(self.recipe_type.type_str().to_string()),
+        );
 
         if let Some(ref category) = self.category {
             map.insert("category".to_string(), Value::String(category.clone()));
@@ -294,15 +308,29 @@ impl DatapackComponent for CookingRecipe {
             map.insert("group".to_string(), Value::String(group.clone()));
         }
 
-        map.insert("ingredient".to_string(), serde_json::to_value(&self.ingredient).unwrap());
-        map.insert("result".to_string(), serde_json::to_value(&self.result).unwrap());
-        map.insert("experience".to_string(), serde_json::to_value(self.experience).unwrap());
-        map.insert("cookingtime".to_string(), serde_json::to_value(self.cooking_time).unwrap());
+        map.insert(
+            "ingredient".to_string(),
+            serde_json::to_value(&self.ingredient).unwrap(),
+        );
+        map.insert(
+            "result".to_string(),
+            serde_json::to_value(&self.result).unwrap(),
+        );
+        map.insert(
+            "experience".to_string(),
+            serde_json::to_value(self.experience).unwrap(),
+        );
+        map.insert(
+            "cookingtime".to_string(),
+            serde_json::to_value(self.cooking_time).unwrap(),
+        );
 
         Value::Object(map)
     }
 
-    fn component_dir(&self) -> &'static str { "recipe" }
+    fn component_dir(&self) -> &'static str {
+        "recipe"
+    }
 }
 
 // ── ShapelessRecipe ──────────────────────────────────────────────────────────
@@ -363,7 +391,10 @@ impl DatapackComponent for ShapelessRecipe {
 
     fn to_json(&self) -> Value {
         let mut map = serde_json::Map::new();
-        map.insert("type".to_string(), Value::String("minecraft:crafting_shapeless".to_string()));
+        map.insert(
+            "type".to_string(),
+            Value::String("minecraft:crafting_shapeless".to_string()),
+        );
 
         if let Some(ref category) = self.category {
             map.insert("category".to_string(), Value::String(category.clone()));
@@ -378,12 +409,17 @@ impl DatapackComponent for ShapelessRecipe {
             .map(|i| serde_json::to_value(i).unwrap())
             .collect();
         map.insert("ingredients".to_string(), Value::Array(ingredients));
-        map.insert("result".to_string(), serde_json::to_value(&self.result).unwrap());
+        map.insert(
+            "result".to_string(),
+            serde_json::to_value(&self.result).unwrap(),
+        );
 
         Value::Object(map)
     }
 
-    fn component_dir(&self) -> &'static str { "recipe" }
+    fn component_dir(&self) -> &'static str {
+        "recipe"
+    }
 }
 
 // ── StonecuttingRecipe ───────────────────────────────────────────────────────
@@ -447,20 +483,34 @@ impl DatapackComponent for StonecuttingRecipe {
 
     fn to_json(&self) -> Value {
         let mut map = serde_json::Map::new();
-        map.insert("type".to_string(), Value::String("minecraft:stonecutting".to_string()));
+        map.insert(
+            "type".to_string(),
+            Value::String("minecraft:stonecutting".to_string()),
+        );
 
         if let Some(ref group) = self.group {
             map.insert("group".to_string(), Value::String(group.clone()));
         }
 
-        map.insert("ingredient".to_string(), serde_json::to_value(&self.ingredient).unwrap());
-        map.insert("result".to_string(), serde_json::to_value(&self.result).unwrap());
-        map.insert("count".to_string(), serde_json::to_value(self.count).unwrap());
+        map.insert(
+            "ingredient".to_string(),
+            serde_json::to_value(&self.ingredient).unwrap(),
+        );
+        map.insert(
+            "result".to_string(),
+            serde_json::to_value(&self.result).unwrap(),
+        );
+        map.insert(
+            "count".to_string(),
+            serde_json::to_value(self.count).unwrap(),
+        );
 
         Value::Object(map)
     }
 
-    fn component_dir(&self) -> &'static str { "recipe" }
+    fn component_dir(&self) -> &'static str {
+        "recipe"
+    }
 }
 
 // ── SmithingTransformRecipe ──────────────────────────────────────────────────
@@ -481,10 +531,22 @@ impl SmithingTransformRecipe {
         Self {
             location,
             group: None,
-            template: Ingredient { item: None, tag: None },
-            base: Ingredient { item: None, tag: None },
-            addition: Ingredient { item: None, tag: None },
-            result: RecipeResult { id: String::new(), count: 1 },
+            template: Ingredient {
+                item: None,
+                tag: None,
+            },
+            base: Ingredient {
+                item: None,
+                tag: None,
+            },
+            addition: Ingredient {
+                item: None,
+                tag: None,
+            },
+            result: RecipeResult {
+                id: String::new(),
+                count: 1,
+            },
         }
     }
 
@@ -526,21 +588,38 @@ impl DatapackComponent for SmithingTransformRecipe {
 
     fn to_json(&self) -> Value {
         let mut map = serde_json::Map::new();
-        map.insert("type".to_string(), Value::String("minecraft:smithing_transform".to_string()));
+        map.insert(
+            "type".to_string(),
+            Value::String("minecraft:smithing_transform".to_string()),
+        );
 
         if let Some(ref group) = self.group {
             map.insert("group".to_string(), Value::String(group.clone()));
         }
 
-        map.insert("template".to_string(), serde_json::to_value(&self.template).unwrap());
-        map.insert("base".to_string(), serde_json::to_value(&self.base).unwrap());
-        map.insert("addition".to_string(), serde_json::to_value(&self.addition).unwrap());
-        map.insert("result".to_string(), serde_json::to_value(&self.result).unwrap());
+        map.insert(
+            "template".to_string(),
+            serde_json::to_value(&self.template).unwrap(),
+        );
+        map.insert(
+            "base".to_string(),
+            serde_json::to_value(&self.base).unwrap(),
+        );
+        map.insert(
+            "addition".to_string(),
+            serde_json::to_value(&self.addition).unwrap(),
+        );
+        map.insert(
+            "result".to_string(),
+            serde_json::to_value(&self.result).unwrap(),
+        );
 
         Value::Object(map)
     }
 
-    fn component_dir(&self) -> &'static str { "recipe" }
+    fn component_dir(&self) -> &'static str {
+        "recipe"
+    }
 }
 
 // ── SmithingTrimRecipe ───────────────────────────────────────────────────────
@@ -560,9 +639,18 @@ impl SmithingTrimRecipe {
         Self {
             location,
             group: None,
-            template: Ingredient { item: None, tag: None },
-            base: Ingredient { item: None, tag: None },
-            addition: Ingredient { item: None, tag: None },
+            template: Ingredient {
+                item: None,
+                tag: None,
+            },
+            base: Ingredient {
+                item: None,
+                tag: None,
+            },
+            addition: Ingredient {
+                item: None,
+                tag: None,
+            },
         }
     }
 
@@ -598,18 +686,32 @@ impl DatapackComponent for SmithingTrimRecipe {
 
     fn to_json(&self) -> Value {
         let mut map = serde_json::Map::new();
-        map.insert("type".to_string(), Value::String("minecraft:smithing_trim".to_string()));
+        map.insert(
+            "type".to_string(),
+            Value::String("minecraft:smithing_trim".to_string()),
+        );
 
         if let Some(ref group) = self.group {
             map.insert("group".to_string(), Value::String(group.clone()));
         }
 
-        map.insert("template".to_string(), serde_json::to_value(&self.template).unwrap());
-        map.insert("base".to_string(), serde_json::to_value(&self.base).unwrap());
-        map.insert("addition".to_string(), serde_json::to_value(&self.addition).unwrap());
+        map.insert(
+            "template".to_string(),
+            serde_json::to_value(&self.template).unwrap(),
+        );
+        map.insert(
+            "base".to_string(),
+            serde_json::to_value(&self.base).unwrap(),
+        );
+        map.insert(
+            "addition".to_string(),
+            serde_json::to_value(&self.addition).unwrap(),
+        );
 
         Value::Object(map)
     }
 
-    fn component_dir(&self) -> &'static str { "recipe" }
+    fn component_dir(&self) -> &'static str {
+        "recipe"
+    }
 }

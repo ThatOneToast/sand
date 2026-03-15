@@ -1,0 +1,20 @@
+[package]
+name = "sand-resourcepack"
+description = "Resource pack support for the Sand Minecraft datapack toolkit — fonts, HUD elements, and textures"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+keywords = ["minecraft", "resourcepack", "hud", "fonts", "gamedev"]
+categories = ["game-development"]
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+inventory = "0.3"
+png = "0.17"
+base64 = "0.22"

@@ -51,14 +51,17 @@ pub use components::{
     Advancement, AdvancementDisplay, AdvancementFrame, AdvancementIcon, AdvancementRewards,
     AdvancementTrigger, AttributeModifier, AttributeOperation, AttributeType, ConsumableAnimation,
     ConsumableProperties, CookingRecipe, CookingType, Criterion, CustomItem, DyedColor,
-    EquipmentSlot, EquipmentSlotGroup, EquippableProperties, FoodProperties, Ingredient,
-    ItemModifier, ItemRarity, LootCondition, LootEntry, LootFunction, LootPool, LootTable,
-    LootTableType, McFunction, NumberProvider, Predicate, RecipeResult, ShapedRecipe,
-    ShapelessRecipe, SmithingTransformRecipe, SmithingTrimRecipe, StonecuttingRecipe, Tag,
-    ToolProperties, ToolRule,
+    EntityPredicate, EquipmentSlot, EquipmentSlotGroup, EquippableProperties, FoodProperties,
+    Ingredient, InventorySlots, ItemModifier, ItemPredicate, ItemRarity, LootCondition, LootEntry,
+    LootFunction, LootPool, LootTable, LootTableType, McFunction, NumberProvider, Predicate,
+    RecipeResult, ShapedRecipe, ShapelessRecipe, SmithingTransformRecipe, SmithingTrimRecipe,
+    StonecuttingRecipe, Tag, ToolProperties, ToolRule,
 };
 pub use error::{Result, SandError};
-pub use function::{ComponentFactory, FunctionDescriptor, FunctionTagDescriptor};
+pub use function::{
+    ArmorEventDescriptor, ArmorEventKind, ArmorSlot, ComponentFactory, EventDescriptor,
+    FunctionDescriptor, FunctionTagDescriptor,
+};
 pub use mc_version::McVersion;
 pub use resource_location::{Identifier, PackNamespace, ResourceLocation};
 
@@ -66,6 +69,11 @@ pub use resource_location::{Identifier, PackNamespace, ResourceLocation};
 /// without requiring users to add `inventory` as a direct dependency.
 #[doc(hidden)]
 pub use inventory;
+
+/// Re-exported so proc-macro generated code can use `::sand_core::serde_json::json!`
+/// without requiring users to add `serde_json` as a direct dependency.
+#[doc(hidden)]
+pub use serde_json;
 
 /// Build a `Vec<String>` of Minecraft commands.
 ///

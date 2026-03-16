@@ -1,0 +1,2172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Arcane Arsenal — Built with Sand</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/rust.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/toml.min.js"></script>
+<style>
+  :root {
+    --bg:        #0d0d14;
+    --surface:   #14141f;
+    --surface2:  #1c1c2e;
+    --border:    #2a2a42;
+    --purple:    #9b59ff;
+    --purple-lo: #6c3bcc;
+    --blue:      #4fc3f7;
+    --teal:      #26c6a0;
+    --gold:      #ffd54f;
+    --red:       #ef5350;
+    --text:      #e2e2f0;
+    --muted:     #8888aa;
+    --nav-w:     270px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    display: flex;
+  }
+
+  /* ── NAV ── */
+  nav {
+    width: var(--nav-w);
+    min-height: 100vh;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 28px 0 60px;
+    flex-shrink: 0;
+  }
+  .nav-logo {
+    padding: 0 22px 24px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+  .nav-logo .badge {
+    display: inline-block;
+    background: var(--purple-lo);
+    color: #ddd;
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    margin-bottom: 6px;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+  }
+  .nav-logo h2 { font-size: 18px; color: var(--gold); }
+  .nav-logo p  { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  nav a {
+    display: block;
+    padding: 6px 22px;
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 13px;
+    border-left: 2px solid transparent;
+    transition: all .15s;
+  }
+  nav a:hover { color: var(--text); border-left-color: var(--purple); background: var(--surface2); }
+  nav .nav-section {
+    padding: 14px 22px 4px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--purple);
+    font-weight: 700;
+  }
+
+  /* ── MAIN ── */
+  main {
+    flex: 1;
+    min-width: 0;
+    padding: 0 48px 100px;
+    max-width: 960px;
+  }
+
+  /* ── HERO ── */
+  .hero {
+    padding: 72px 0 56px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 60px;
+  }
+  .hero .kicker {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    color: var(--purple);
+    margin-bottom: 12px;
+  }
+  .hero h1 {
+    font-size: 52px;
+    font-weight: 800;
+    line-height: 1.1;
+    background: linear-gradient(135deg, #fff 0%, var(--gold) 60%, var(--purple) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .hero .tagline {
+    font-size: 20px;
+    color: var(--muted);
+    margin: 16px 0 32px;
+    max-width: 560px;
+  }
+  .badges { display: flex; gap: 10px; flex-wrap: wrap; }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid;
+  }
+  .badge-purple { border-color: var(--purple); color: var(--purple); background: #9b59ff14; }
+  .badge-teal   { border-color: var(--teal);   color: var(--teal);   background: #26c6a014; }
+  .badge-gold   { border-color: var(--gold);   color: var(--gold);   background: #ffd54f14; }
+  .badge-blue   { border-color: var(--blue);   color: var(--blue);   background: #4fc3f714; }
+
+  /* ── SECTIONS ── */
+  section { margin-bottom: 72px; }
+  section:target h2::before { content: ''; display: block; height: 80px; margin-top: -80px; }
+  h2 {
+    font-size: 30px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    padding-top: 10px;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  h2 .icon { font-size: 26px; }
+  h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--purple);
+    margin: 32px 0 10px;
+  }
+  h4 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--gold);
+    margin: 20px 0 6px;
+  }
+  p { color: var(--muted); margin-bottom: 14px; max-width: 720px; }
+  p strong { color: var(--text); }
+  .section-divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 56px 0;
+  }
+
+  /* ── CODE ── */
+  .code-block {
+    position: relative;
+    margin: 18px 0;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  .code-header {
+    background: var(--surface2);
+    padding: 8px 16px;
+    font-size: 12px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .code-header .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .code-header .dot-r { background: #ff5f57; }
+  .code-header .dot-y { background: #febc2e; }
+  .code-header .dot-g { background: #28c840; }
+  .code-header .filename { margin-left: 6px; font-family: monospace; font-size: 12px; color: var(--text); }
+  .code-block pre {
+    margin: 0 !important;
+    border-radius: 0 !important;
+    border: none !important;
+    font-size: 13px !important;
+    line-height: 1.6 !important;
+    max-height: 600px;
+    overflow-y: auto;
+  }
+  .code-block pre code { border-radius: 0 !important; }
+  .hljs { background: #0f1117 !important; padding: 20px 22px !important; }
+
+  /* ── CALLOUTS ── */
+  .callout {
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin: 18px 0;
+    font-size: 14px;
+    border-left: 3px solid;
+    display: flex;
+    gap: 12px;
+  }
+  .callout-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+  .callout p { margin: 0; }
+  .callout-tip    { background: #26c6a010; border-color: var(--teal);   color: #b2f5e4; }
+  .callout-info   { background: #4fc3f710; border-color: var(--blue);   color: #b3e5fc; }
+  .callout-gold   { background: #ffd54f10; border-color: var(--gold);   color: #fff8e1; }
+  .callout-purple { background: #9b59ff10; border-color: var(--purple); color: #e1d5ff; }
+
+  /* ── FEATURE GRID ── */
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 14px;
+    margin: 20px 0;
+  }
+  .feature-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .feature-card .fc-icon { font-size: 22px; margin-bottom: 8px; }
+  .feature-card h4 { font-size: 13px; color: var(--text); margin: 0 0 4px; }
+  .feature-card p  { font-size: 12px; margin: 0; }
+
+  /* ── DATAPACK TREE ── */
+  .tree {
+    background: #0f1117;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px 22px;
+    font-family: monospace;
+    font-size: 13px;
+    line-height: 1.9;
+    color: var(--muted);
+    margin: 14px 0;
+  }
+  .tree .dir  { color: var(--blue); }
+  .tree .file { color: var(--text); }
+  .tree .gen  { color: var(--purple); font-style: italic; }
+
+  /* ── TABLE ── */
+  table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 13px; }
+  th { text-align: left; padding: 8px 12px; background: var(--surface2); color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border); }
+  td { padding: 8px 12px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: top; }
+  td code, th code { background: var(--surface2); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+  tr:last-child td { border-bottom: none; }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════ NAV ═══════════════════════════ -->
+<nav>
+  <div class="nav-logo">
+    <div class="badge">Built with Sand</div>
+    <h2>⚔️ Arcane Arsenal</h2>
+    <p>Minecraft 1.21.4 · v0.1.0</p>
+  </div>
+
+  <div class="nav-section">Overview</div>
+  <a href="#overview">Project overview</a>
+  <a href="#config">sand.toml config</a>
+  <a href="#structure">Output structure</a>
+
+  <div class="nav-section">Datapack</div>
+  <a href="#init">Initialization (Load)</a>
+  <a href="#mana">Mana system</a>
+  <a href="#weapons">Custom weapons</a>
+  <a href="#armor">Custom armor</a>
+  <a href="#spells">Spells &amp; abilities</a>
+  <a href="#cooldowns">Cooldowns</a>
+  <a href="#advancements">Advancements</a>
+  <a href="#recipes">Recipes</a>
+  <a href="#loot">Loot tables</a>
+  <a href="#tags">Tags</a>
+  <a href="#modifiers">Item modifiers</a>
+  <a href="#predicates">Predicates</a>
+  <a href="#storage">NBT storage</a>
+  <a href="#display">Text &amp; display</a>
+  <a href="#execute">Execute chains</a>
+
+  <div class="nav-section">Resource Pack</div>
+  <a href="#resourcepack">Setup &amp; config</a>
+  <a href="#hudbars">HUD bars</a>
+  <a href="#hudelements">HUD elements</a>
+  <a href="#textures">Textures</a>
+
+  <div class="nav-section">Reference</div>
+  <a href="#api">Public API surface</a>
+</nav>
+
+<!-- ═══════════════════════════ MAIN ═══════════════════════════ -->
+<main>
+
+<!-- ── HERO ── -->
+<div class="hero">
+  <div class="kicker">Sand Showcase · Full Feature Demonstration</div>
+  <h1>Arcane Arsenal</h1>
+  <p class="tagline">A complete magic RPG datapack written in Rust — custom weapons, mana HUD, spells, loot, recipes, advancements, and a full resource pack.</p>
+  <div class="badges">
+    <span class="badge badge-purple">⚗️ Mana System</span>
+    <span class="badge badge-gold">⚔️ Custom Weapons</span>
+    <span class="badge badge-teal">✨ Spell System</span>
+    <span class="badge badge-blue">🎨 Resource Pack</span>
+    <span class="badge badge-purple">📜 Advancements</span>
+    <span class="badge badge-gold">🧪 Loot Tables</span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- OVERVIEW                                                       -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section id="overview">
+  <h2><span class="icon">🗺️</span> Project overview</h2>
+  <p>Arcane Arsenal turns vanilla Minecraft into a magic RPG. Players discover and craft powerful weapons, spend mana on abilities, and progress through a spell unlock system. Every piece is defined in Rust using Sand's typed API — the compiler catches mistakes before they ever reach the game.</p>
+
+  <div class="feature-grid">
+    <div class="feature-card"><div class="fc-icon">⚗️</div><h4>Mana System</h4><p>Per-player scoreboard mana with tick-based regeneration and a pixel-perfect HUD bar.</p></div>
+    <div class="feature-card"><div class="fc-icon">⚔️</div><h4>Custom Weapons</h4><p>Void Blade, Thunder Staff, and Inferno Wand with typed attributes and model data.</p></div>
+    <div class="feature-card"><div class="fc-icon">🧙</div><h4>Spell System</h4><p>Five unique spells with execute chains, particles, sounds, titles, and cooldowns.</p></div>
+    <div class="feature-card"><div class="fc-icon">🛡️</div><h4>Armor Events</h4><p>Equip/unequip detection for Arcane Robes with automatic buff application.</p></div>
+    <div class="feature-card"><div class="fc-icon">📜</div><h4>Advancements</h4><p>Progressive spell unlock tree with display tabs, criteria, and reward functions.</p></div>
+    <div class="feature-card"><div class="fc-icon">🧪</div><h4>Loot Tables</h4><p>Mob drops with custom items, weighted pools, conditions, and loot functions.</p></div>
+    <div class="feature-card"><div class="fc-icon">⚒️</div><h4>Recipes</h4><p>Shaped crafting for consumables and smithing upgrades for weapons and armor.</p></div>
+    <div class="feature-card"><div class="fc-icon">🎨</div><h4>Resource Pack</h4><p>Mana, health, and XP HUD bars plus overlay textures — all programmatic.</p></div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- CONFIG                                                         -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section id="config">
+  <h2><span class="icon">⚙️</span> sand.toml config</h2>
+  <p>A single <code>sand.toml</code> controls the datapack namespace, description, target version, and resource pack settings. The <code>pack_format</code> is derived automatically from the version but can be overridden.</p>
+
+  <div class="code-block">
+    <div class="code-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="filename">sand.toml</span></div>
+    <pre><code class="language-toml">[pack]
+namespace   = "arcane_arsenal"
+description = "Arcane Arsenal — A magic RPG datapack for Minecraft 1.21.4"
+mc_version  = "1.21.4"
+# pack_format is derived automatically (61 for 1.21.4); uncomment to override:
+# pack_format = 61
+
+[resourcepack]
+description          = "Arcane Arsenal — HUD bars, spell overlays, and custom item textures"
+# resource_pack_format derived automatically (46 for 1.21.4); uncomment to override:
+# resource_pack_format = 46</code></pre>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="filename">Cargo.toml (generated by sand new)</span></div>
+    <pre><code class="language-toml">[package]
+name    = "arcane_arsenal"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "sand_export"
+path = "src/bin/sand_export.rs"
+
+[[bin]]
+name = "sand_resource_export"
+path = "src/bin/sand_resource_export.rs"
+
+[dependencies]
+sand-core        = { path = "…/sand/sand-core" }
+sand-macros      = { path = "…/sand/sand-macros", features = ["resourcepack"] }
+sand-resourcepack = { path = "…/sand/sand-resourcepack" }
+inventory        = "0.3"
+serde_json       = "1"
+
+[build-dependencies]
+sand-build = { path = "…/sand/sand-build" }</code></pre>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="filename">build.rs</span></div>
+    <pre><code class="language-rust">fn main() {
+    let mc_version = std::env::var("SAND_MC_VERSION")
+        .unwrap_or_else(|_| "1.21.4".to_string());
+    sand_build::generate(&mc_version).expect("sand-build codegen failed");
+}</code></pre>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- OUTPUT STRUCTURE                                               -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section id="structure">
+  <h2><span class="icon">📁</span> Output structure</h2>
+  <p>After <code>sand build</code>, the <code>dist/</code> directory contains a complete, valid Minecraft datapack and resource pack. <code>sand build --release</code> also produces zip archives for distribution.</p>
+
+  <div class="tree">
+<span class="dir">dist/</span>
+├── <span class="dir">arcane_arsenal/</span>                     <span style="color:#555">← drop this into world/datapacks/</span>
+│   ├── <span class="file">pack.mcmeta</span>
+│   └── <span class="dir">data/</span>
+│       ├── <span class="dir">minecraft/tags/function/</span>
+│       │   ├── <span class="gen">tick.json</span>                   <span style="color:#555">← auto-generated by #[component(Tick)]</span>
+│       │   └── <span class="gen">load.json</span>                   <span style="color:#555">← auto-generated by #[component(Load)]</span>
+│       └── <span class="dir">arcane_arsenal/</span>
+│           ├── <span class="dir">function/</span>
+│           │   ├── <span class="gen">on_load.mcfunction</span>
+│           │   ├── <span class="gen">tick.mcfunction</span>
+│           │   ├── <span class="gen">mana_regen.mcfunction</span>
+│           │   ├── <span class="gen">init_player.mcfunction</span>
+│           │   ├── <span class="gen">spell_void_strike.mcfunction</span>
+│           │   ├── <span class="gen">spell_thunder_bolt.mcfunction</span>
+│           │   ├── <span class="gen">spell_inferno_wave.mcfunction</span>
+│           │   ├── <span class="gen">spell_frost_nova.mcfunction</span>
+│           │   ├── <span class="gen">spell_arcane_shield.mcfunction</span>
+│           │   ├── <span class="gen">on_player_join.mcfunction</span>
+│           │   ├── <span class="gen">equip_arcane_robes.mcfunction</span>
+│           │   └── <span class="gen">unequip_arcane_robes.mcfunction</span>
+│           ├── <span class="dir">advancement/</span>
+│           │   ├── <span class="gen">arcane_initiate.json</span>
+│           │   ├── <span class="gen">void_adept.json</span>
+│           │   ├── <span class="gen">thunder_caller.json</span>
+│           │   ├── <span class="gen">inferno_mage.json</span>
+│           │   └── <span class="gen">arcane_master.json</span>
+│           ├── <span class="dir">recipe/</span>
+│           │   ├── <span class="gen">mana_crystal.json</span>
+│           │   ├── <span class="gen">mana_potion.json</span>
+│           │   ├── <span class="gen">void_blade_upgrade.json</span>
+│           │   └── <span class="gen">thunder_staff_recipe.json</span>
+│           ├── <span class="dir">loot_table/</span>
+│           │   ├── <span class="gen">ender_dragon_drop.json</span>
+│           │   ├── <span class="gen">wither_drop.json</span>
+│           │   └── <span class="gen">arcane_chest.json</span>
+│           ├── <span class="dir">item_modifier/</span>
+│           │   └── <span class="gen">on_kill_mana_restore.json</span>
+│           ├── <span class="dir">predicate/</span>
+│           │   ├── <span class="gen">has_void_blade.json</span>
+│           │   └── <span class="gen">has_mana.json</span>
+│           └── <span class="dir">tags/function/</span>
+│               ├── <span class="gen">spells.json</span>
+│               └── <span class="gen">elemental_spells.json</span>
+└── <span class="dir">arcane_arsenal-resources/</span>              <span style="color:#555">← drop this into world/resources/</span>
+    ├── <span class="file">pack.mcmeta</span>
+    └── <span class="dir">assets/arcane_arsenal/</span>
+        ├── <span class="dir">font/</span>
+        │   └── <span class="gen">default.json</span>             <span style="color:#555">← merged bitmap font providers</span>
+        └── <span class="dir">textures/font/</span>
+            ├── <span class="gen">mana_bar.png</span>             <span style="color:#555">← programmatically generated</span>
+            ├── <span class="gen">health_bar.png</span>
+            ├── <span class="gen">xp_bar.png</span>
+            └── <span class="gen">arcane_overlay.png</span>
+  </div>
+</section>
+
+<hr class="section-divider">
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- INITIALIZATION                                                 -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section id="init">
+  <h2><span class="icon">🚀</span> Initialization</h2>
+  <p>The <strong><code>#[component(Load)]</code></strong> macro registers a function into <code>minecraft:load</code> — it runs once every time the datapack is (re)loaded. This is where all scoreboards, storage defaults, and server-side state are created.</p>
+
+  <div class="callout callout-tip">
+    <span class="callout-icon">💡</span>
+    <p><code>scoreboard objectives add</code> is idempotent in Minecraft — calling it on an already-existing objective is a no-op, so it's safe to run every reload without resetting player data.</p>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="filename">src/lib.rs — on_load</span></div>
+    <pre><code class="language-rust">use sand_core::{cmd::*, mcfunction};
+use sand_macros::{component, function};
+
+/// Runs once every time the datapack is (re)loaded.
+///
+/// Creates all scoreboards, initializes NBT storage defaults, and applies
+/// initial state to every online player via [`init_player`].
+#[component(Load)]
+pub fn on_load() {
+    mcfunction! {
+        // ── Mana system ──────────────────────────────────────────────────────
+        "scoreboard objectives add arcane_mana dummy";
+        "scoreboard objectives add arcane_max_mana dummy";
+        "scoreboard objectives add arcane_regen_timer dummy";
+
+        // ── Cooldown objectives (one per spell) ──────────────────────────────
+        "scoreboard objectives add cd_void_strike dummy";
+        "scoreboard objectives add cd_thunder_bolt dummy";
+        "scoreboard objectives add cd_inferno_wave dummy";
+        "scoreboard objectives add cd_frost_nova dummy";
+        "scoreboard objectives add cd_arcane_shield dummy";
+
+        // ── Stat tracking ────────────────────────────────────────────────────
+        "scoreboard objectives add arcane_kills dummy";
+        "scoreboard objectives add arcane_spells_cast dummy";
+
+        // ── Regen timer (counts server ticks, resets at 20) ──────────────────
+        "scoreboard objectives add regen_tick dummy";
+
+        // ── Apply initial values to all currently online players ─────────────
+        "execute as @a run function arcane_arsenal:init_player";
+
+        // ── Announce reload ──────────────────────────────────────────────────
+        r#"tellraw @a {"text":"[Arcane Arsenal] ","color":"dark_purple","extra":[{"text":"Datapack loaded.","color":"gray"}]}"#;
+    }
+}
+
+/// Initializes a single player's mana, max mana, and regen timer.
+///
+/// Called by [`on_load`] for all online players and by the join advancement
+/// for new players. Uses `if score` to skip already-initialized players.
+#[function]
+pub fn init_player() {
+    mcfunction! {
+        // Set max mana to 100 if not already set (0 means uninitialized)
+        Execute::new()
+            .if_score_matches("@s", "arcane_max_mana", "0")
+            .run("scoreboard players set @s arcane_max_mana 100");
+
+        // Set current mana to max if uninitialized
+        Execute::new()
+            .if_score_matches("@s", "arcane_mana", "0")
+            .run(Execute::new()
+                .store_result_score("@s", "arcane_mana")
+                .run("scoreboard players get @s arcane_max_mana"));
+
+        // Reset regen timer
+        Execute::new()
+            .if_score_matches("@s", "regen_tick", "0")
+            .run("scoreboard players set @s regen_tick 20");
+    }
+}</code></pre>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- MANA SYSTEM                                                    -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section id="mana">
+  <h2><span class="icon">⚗️</span> Mana system</h2>
+  <p>The mana system uses three scoreboards and a tick-based regen loop. Every 20 ticks (1 second) each player with less-than-max mana regenerates 5 mana. The current mana value is shown in the HUD via the resource pack.</p>
+
+  <div class="code-block">
+    <div class="code-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="filename">src/lib.rs — tick &amp; mana regen</span></div>
+    <pre><code class="language-rust">/// Main tick function — runs every server tick for every player.
+///
+/// Delegates to mana regen, cooldown ticking, and HUD updates.
+/// Registered into `minecraft:tick` via `#[component(Tick)]`.
+#[component(Tick)]
+pub fn tick() {
+    mcfunction! {
+        // Tick all cooldown scores down toward 0 for every player
+        Execute::new()
+            .as_(Selector::all_players())
+            .if_score_matches("@s", "cd_void_strike", "1..")
+            .run("scoreboard players remove @s cd_void_strike 1");
+
+        Execute::new()
+            .as_(Selector::all_players())
+            .if_score_matches("@s", "cd_thunder_bolt", "1..")
+            .run("scoreboard players remove @s cd_thunder_bolt 1");
+
+        Execute::new()
+            .as_(Selector::all_players())
+            .if_score_matches("@s", "cd_inferno_wave", "1..")
+            .run("scoreboard players remove @s cd_inferno_wave 1");
+
+        Execute::new()
+            .as_(Selector::all_players())
+            .if_score_matches("@s", "cd_frost_nova", "1..")
+            .run("scoreboard players remove @s cd_frost_nova 1");
+
+        Execute::new()
+            .as_(Selector::all_players())
+            .if_score_matches("@s", "cd_arcane_shield", "1..")
+            .run("scoreboard players remove @s cd_arcane_shield 1");
+
+        // Advance the regen timer for all players
+        "scoreboard players add @a regen_tick -1";
+
+        // Trigger mana regen for any player whose timer hit 0
+        Execute::new()
+            .as_(Selector::all_players().tag("arcane_initialized"))
+            .if_score_matches("@s", "regen_tick", "..0")
+            .run("function arcane_arsenal:mana_regen");
+
+        // Update HUD for all arcane players
+        Execute::new()
+            .as_(Selector::all_players().tag("arcane_initialized"))
+            .run("function arcane_arsenal:update_hud");
+    }
+}
+
+/// Regenerates 5 mana for the executing player (run as @s).
+///
+/// Clamps mana at max mana and resets the regen timer to 20 ticks.
+/// Only runs for players with `regen_tick` ≤ 0.
+#[function]
+pub fn mana_regen() {
+    let regen_amount = 5_i32;
+
+    mcfunction! {
+        // Add regen_amount mana
+        format!("scoreboard players add @s arcane_mana {regen_amount}");
+
+        // Clamp to max: if current > max, set current = max
+        Execute::new()
+            .store_result_score("@s", "arcane_mana")
+            .if_score_compare("@s", "arcane_mana", ">", "@s", "arcane_max_mana")
+            .run(Execute::new()
+                .store_result_score("@s", "arcane_mana")
+                .run("scoreboard players get @s arcane_max_mana"));
+
+        // Reset regen timer
+        "scoreboard players set @s regen_tick 20";
+    }
+}
+
+/// Attempts to consume `cost` mana from the executing player.
+///
+/// Returns true (sets `arcane_result 1`) if enough mana was available.
+/// Returns false (sets `arcane_result 0`) and plays a failure sound if not.
+/// Callers check `arcane_result` after calling this function.
+#[function]
+pub fn try_spend_mana_40() {
+    let cost = 40_i32;
+    mcfunction! {
+        // Default: failure
+        "scoreboard players set #result arcane_result 0";
+
+        Execute::new()
+            .if_score_matches("@s", "arcane_mana", format!("{cost}.."))
+            .run(format!("scoreboard players remove @s arcane_mana {cost}"));
+
+        Execute::new()
+            .if_score_matches("@s", "arcane_mana", format!("{}..999", 0))
+            .run("scoreboard players set #result arcane_result 1");
+
+        // Play failure sound if not enough mana
+        Execute::new()
+            .if_score_matches("#result", "arcane_result", "0")
+            .run(Sound::play("minecraft:block.glass.break")
+                .to(Selector::self_())
+                .source(SoundSource::Player)
+                .volume(0.8)
+                .pitch(0.5)
+                .build());
+    }
+}</code></pre>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- CUSTOM WEAPONS                                                 -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section id="weapons">
+  <h2><span class="icon">⚔️</span> Custom weapons</h2>
+  <p><strong><code>#[component]</code></strong> returning a <code>CustomItem</code> produces a JSON file under <code>data/arcane_arsenal/custom_items/</code>. The <code>custom_model_data</code> links the item to a custom resource pack model. Attributes set attack damage, speed, and slot restrictions.</p>
+
+  <div class="code-block">
+    <div class="code-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="filename">src/weapons.rs</span></div>
+    <pre><code class="language-rust">use sand_core::{
+    components::custom_item::{
+        AttributeModifier, AttributeOperation, AttributeType,
+        CustomItem, EquipmentSlotGroup, ItemRarity, ToolProperties, ToolRule,
+    },
+    cmd::generated::Item,
+};
+use sand_macros::component;
+
+// ── Void Blade ────────────────────────────────────────────────────────────────
+
+/// The **Void Blade** — a high-damage mainhand weapon that channels void energy.
+///
+/// - Base item: `wooden_sword` (overridden visually via custom_model_data 1001)
+/// - Damage: +12 attack damage, -2.8 attack speed (slow but powerful)
+/// - Passive: +5 max mana while held (applied via equip event)
+/// - Active: right-click triggers `spell_void_strike` (30 mana cost, 3s cooldown)
+/// - Lore: flavour text rendered in-game on the item tooltip
+#[component]
+pub fn void_blade() -> CustomItem {
+    CustomItem::new("arcane_arsenal:void_blade".parse().unwrap(), Item::WoodenSword)
+        .rarity(ItemRarity::Epic)
+        .custom_name(
+            r#"{"text":"Void Blade","color":"dark_purple","italic":false,"bold":true}"#,
+        )
+        .lore_line(
+            r#"{"text":"Forged in the space between worlds.","color":"dark_gray","italic":true}"#,
+        )
+        .lore_line(r#"{"text":"","italic":false}"#)
+        .lore_line(
+            r#"{"text":"Active: ","color":"gray","italic":false,"extra":[{"text":"Void Strike","color":"dark_purple"},{"text":" (30 mana, 3s cd)","color":"dark_gray"}]}"#,
+        )
+        .lore_line(
+            r#"{"text":"Passive: ","color":"gray","italic":false,"extra":[{"text":"+5 Max Mana","color":"aqua"}]}"#,
+        )
+        .attribute_modifier(
+            AttributeModifier::new(AttributeType::AttackDamage, AttributeOperation::AddValue)
+                .id("arcane_arsenal:void_blade_damage")
+                .amount(12.0)
+                .slot(EquipmentSlotGroup::Mainhand),
+        )
+        .attribute_modifier(
+            AttributeModifier::new(AttributeType::AttackSpeed, AttributeOperation::AddValue)
+                .id("arcane_arsenal:void_blade_speed")
+                .amount(-2.8)
+                .slot(EquipmentSlotGroup::Mainhand),
+        )
+        .custom_model_data(1001)
+        .enchantment_glint_override(true)
+        .max_damage(500)
+        .unbreakable(false)
+}
+
+// ── Thunder Staff ─────────────────────────────────────────────────────────────
+
+/// The **Thunder Staff** — a ranged AoE weapon that calls down lightning.
+///
+/// - Base item: `blaze_rod` (custom_model_data 1002)
+/// - Damage: +6 ranged damage, slower attack speed
+/// - Active: right-click triggers `spell_thunder_bolt` (50 mana, 5s cooldown)
+/// - Has `use_cooldown` set to prevent rapid fire even if mana is available
+#[component]
+pub fn thunder_staff() -> CustomItem {
+    CustomItem::new("arcane_arsenal:thunder_staff".parse().unwrap(), Item::BlazeRod)
+        .rarity(ItemRarity::Rare)
+        .custom_name(
+            r#"{"text":"Thunder Staff","color":"yellow","italic":false,"bold":true}"#,
+        )
+        .lore_line(
+            r#"{"text":"The sky obeys your command.","color":"dark_gray","italic":true}"#,
+        )
+        .lore_line(r#"{"text":"","italic":false}"#)
+        .lore_line(
+            r#"{"text":"Active: ","color":"gray","italic":false,"extra":[{"text":"Thunder Bolt","color":"yellow"},{"text":" (50 mana, 5s cd)","color":"dark_gray"}]}"#,
+        )
+        .attribute_modifier(
+            AttributeModifier::new(AttributeType::AttackDamage, AttributeOperation::AddValue)
+                .id("arcane_arsenal:thunder_staff_dmg")
+                .amount(6.0)
+                .slot(EquipmentSlotGroup::Mainhand),
+        )
+        .attribute_modifier(
+            AttributeModifier::new(AttributeType::AttackSpeed, AttributeOperation::AddValue)
+                .id("arcane_arsenal:thunder_staff_spd")
+                .amount(-3.0)
+                .slot(EquipmentSlotGroup::Mainhand),
+        )
+        .custom_model_data(1002)
+        .enchantment_glint_override(true)
+        .use_cooldown(0.5)   // 10-tick item use cooldown (UI feedback)
+        .max_damage(300)
+}
+
+// ── Inferno Wand ──────────────────────────────────────────────────────────────
+
+/// The **Inferno Wand** — a fire-damage wand that leaves burning terrain.
+///
+/// - Base item: `fire_charge` (non-damageable, custom_model_data 1003)
+/// - Active: `spell_inferno_wave` (35 mana, 4s cooldown, ignites nearby entities)
+/// - The wand itself applies fire aspect via attribute (AddValue hack for 1.21)
+#[component]
+pub fn inferno_wand() -> CustomItem {
+    CustomItem::new("arcane_arsenal:inferno_wand".parse().unwrap(), Item::FireCharge)
+        .rarity(ItemRarity::Rare)
+        .custom_name(
+            r#"{"text":"Inferno Wand","color":"red","italic":false,"bold":true}"#,
+        )
+        .lore_line(
+            r#"{"text":"Born in the heart of a volcano.","color":"dark_gray","italic":true}"#,
+        )
+        .lore_line(r#"{"text":"","italic":false}"#)
+        .lore_line(
+            r#"{"text":"Active: ","color":"gray","italic":false,"extra":[{"text":"Inferno Wave","color":"red"},{"text":" (35 mana, 4s cd)","color":"dark_gray"}]}"#,
+        )
+        .attribute_modifier(
+            AttributeModifier::new(AttributeType::AttackDamage, AttributeOperation::AddValue)
+                .id("arcane_arsenal:inferno_wand_dmg")
+                .amount(8.0)
+                .slot(EquipmentSlotGroup::Mainhand),
+        )
+        .custom_model_data(1003)
+        .enchantment_glint_override(true)
+        .max_stack_size(1)
+}
+
+// ── Mana Potion ───────────────────────────────────────────────────────────────
+
+/// A **Mana Potion** — consumable that restores 40 mana instantly.
+///
+/// - Base item: `honey_bottle`
+/// - Consumable with custom animation and sound
+/// - Restored via advancement reward function on consume trigger
+#[component]
+pub fn mana_potion() -> CustomItem {
+    use sand_core::components::custom_item::{
+        ConsumableAnimation, ConsumableProperties, FoodProperties,
+    };
+    CustomItem::new("arcane_arsenal:mana_potion".parse().unwrap(), Item::HoneyBottle)
+        .rarity(ItemRarity::Uncommon)
+        .custom_name(
+            r#"{"text":"Mana Potion","color":"blue","italic":false}"#,
+        )
+        .lore_line(
+            r#"{"text":"Restores 40 mana.","color":"dark_gray","italic":true}"#,
+        )
+        .food(FoodProperties::new(0, 0.0).can_always_eat(true))
+        .consumable(
+            ConsumableProperties::new(1.2)
+                .animation(ConsumableAnimation::Drink)
+                .sound("minecraft:entity.generic.drink")
+                .has_consume_particles(false),
+        )
+        .custom_model_data(2001)
+}</code></pre>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- CUSTOM ARMOR & EVENTS                                          -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section id="armor">
+  <h2><span class="icon">🛡️</span> Custom armor &amp; equip events</h2>
+  <p>Sand's <strong>armor event system</strong> auto-generates a tick-based detection function that fires when a player equips or unequips a specific item. No manual tick polling needed — just annotate a function with <code>#[component(ArmorEquip(...))]</code> or <code>#[component(ArmorUnequip(...))]</code>.</p>
+
+  <div class="callout callout-purple">
+    <span class="callout-icon">🧙</span>
+    <p>Under the hood, Sand generates an <code>execute if items entity @s armor.chest …</code> check injected into <code>minecraft:tick</code>. The detection uses a tag to track equipped state — no scoreboard overhead needed.</p>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="filename">src/armor.rs</span></div>
+    <pre><code class="language-rust">use sand_core::{cmd::*, mcfunction};
+use sand_macros::{component, function};
+
+/// The **Arcane Robes** — chest armor that boosts max mana and mana regen.
+///
+/// - Base item: `leather_chestplate` (dyed dark purple, custom_model_data 3001)
+/// - Equipping grants: +50 max mana, +10 regen per second
+/// - Unequipping reverts the bonuses automatically
+#[component]
+pub fn arcane_robes() -> sand_core::components::custom_item::CustomItem {
+    use sand_core::components::custom_item::{
+        AttributeModifier, AttributeOperation, AttributeType, CustomItem,
+        DyedColor, EquipmentSlotGroup, EquippableProperties, EquipmentSlot,
+        ItemRarity,
+    };
+    use sand_core::cmd::generated::Item;
+
+    CustomItem::new("arcane_arsenal:arcane_robes".parse().unwrap(), Item::LeatherChestplate)
+        .rarity(ItemRarity::Epic)
+        .custom_name(
+            r#"{"text":"Arcane Robes","color":"dark_purple","italic":false,"bold":true}"#,
+        )
+        .lore_line(
+            r#"{"text":"Woven from compressed mana crystals.","color":"dark_gray","italic":true}"#,
+        )
+        .lore_line(
+            r#"{"text":"+50 Max Mana  +10 Mana/s","color":"aqua","italic":false}"#,
+        )
+        .attribute_modifier(
+            AttributeModifier::new(AttributeType::Armor, AttributeOperation::AddValue)
+                .id("arcane_arsenal:robes_armor")
+                .amount(6.0)
+                .slot(EquipmentSlotGroup::Chest),
+        )
+        .attribute_modifier(
+            AttributeModifier::new(AttributeType::ArmorToughness, AttributeOperation::AddValue)
+                .id("arcane_arsenal:robes_toughness")
+                .amount(1.0)
+                .slot(EquipmentSlotGroup::Chest),
+        )
+        .equippable(
+            EquippableProperties::new(EquipmentSlot::Chest)
+                .equip_sound("minecraft:item.armor.equip_leather")
+                .dispensable(true)
+                .swappable(true)
+                .damage_on_hurt(true),
+        )
+        .dyed_color(DyedColor::new().hex("#2E0A5B"))
+        .custom_model_data(3001)
+}
+
+// ── Equip / Unequip event handlers ───────────────────────────────────────────
+
+/// Runs when the player equips Arcane Robes in their chest slot.
+///
+/// Grants +50 to `arcane_max_mana` and sets the `wearing_robes` tag.
+/// Sand auto-generates the detection mechanism — no manual tick check needed.
+#[component(ArmorEquip(slot = "chest", item = "arcane_arsenal:arcane_robes"))]
+pub fn equip_arcane_robes() {
+    mcfunction! {
+        // Grant the mana bonus
+        "scoreboard players add @s arcane_max_mana 50";
+        // Mark the player as wearing robes (used by spell checks)
+        "tag @s add wearing_robes";
+        // Play an equip sound
+        Sound::play("minecraft:item.armor.equip_leather")
+            .to(Selector::self_())
+            .source(SoundSource::Player)
+            .volume(1.0)
+            .pitch(1.2)
+            .build();
+        // Display a subtitle
+        Title::of(Selector::self_())
+            .subtitle(TextComponent::literal("Arcane Robes equipped — +50 Max Mana")
+                .color(ChatColor::DarkPurple))
+            .times(0, 30, 10)
+            .build();
+    }
+}
+
+/// Runs when the player unequips Arcane Robes from their chest slot.
+///
+/// Reverts the +50 max mana bonus and removes the `wearing_robes` tag.
+/// Also clamps current mana to the new lower maximum.
+#[component(ArmorUnequip(slot = "chest", item = "arcane_arsenal:arcane_robes"))]
+pub fn unequip_arcane_robes() {
+    mcfunction! {
+        "scoreboard players remove @s arcane_max_mana 50";
+        "tag @s remove wearing_robes";
+        // Clamp current mana to new max
+        Execute::new()
+            .store_result_score("@s", "arcane_mana")
+            .if_score_compare("@s", "arcane_mana", ">", "@s", "arcane_max_mana")
+            .run("scoreboard players get @s arcane_max_mana");
+    }
+}</code></pre>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- SPELLS & ABILITIES                                             -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section id="spells">
+  <h2><span class="icon">✨</span> Spells &amp; abilities</h2>
+  <p>Each spell is a <code>#[function]</code> that chains together mana cost checks, cooldown guards, <strong><code>Execute</code></strong> builders for targeting, particle effects, sounds, titles, and damage effects. The typed API makes it impossible to produce malformed command strings.</p>
+
+  <div class="code-block">
+    <div class="code-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="filename">src/spells.rs</span></div>
+    <pre><code class="language-rust">use sand_core::{
+    cmd::{
+        generated::Item, Actionbar, ChatColor, Coord, Execute,
+        ParticleEffect, ParticleSpread, Selector, Sound, SoundSource,
+        TextComponent, Title, Vec3,
+    },
+    mcfunction,
+};
+use sand_macros::function;
+
+// ── Void Strike ───────────────────────────────────────────────────────────────
+
+/// **Void Strike** — instant single-target damage with void visual effects.
+///
+/// Cost: 30 mana | Cooldown: 3 seconds (60 ticks)
+///
+/// Effect: deals 8 hearts of damage to the nearest enemy within 10 blocks,
+/// applies a 3-second levitation effect, spawns void particle burst,
+/// plays a sinister sound, and shows a brief title.
+#[function]
+pub fn spell_void_strike() {
+    mcfunction! {
+        // ── Guard: check cooldown ─────────────────────────────────────────────
+        Execute::new()
+            .unless_score_matches("@s", "cd_void_strike", "0")
+            .run(Actionbar::show(
+                TextComponent::literal("Void Strike on cooldown!")
+                    .color(ChatColor::DarkPurple)
+            ));
+        Execute::new()
+            .unless_score_matches("@s", "cd_void_strike", "0")
+            .run("return 0");
+
+        // ── Guard: check mana ─────────────────────────────────────────────────
+        "function arcane_arsenal:try_spend_mana_30";
+        Execute::new()
+            .if_score_matches("#result", "arcane_result", "0")
+            .run("return 0");
+
+        // ── Effect: start cooldown ────────────────────────────────────────────
+        "scoreboard players set @s cd_void_strike 60";
+        "scoreboard players add @s arcane_spells_cast 1";
+
+        // ── Effect: damage nearest hostile within 10 blocks ───────────────────
+        Execute::new()
+            .as_(Selector::all_entities()
+                .not_player()
+                .distance_max(10.0)
+                .limit(1)
+                .sort(sand_core::cmd::SortOrder::Nearest))
+            .run("damage @s 16 minecraft:magic");  // 16 hp = 8 hearts
+
+        // ── Effect: levitation on target ──────────────────────────────────────
+        Execute::new()
+            .as_(Selector::all_entities()
+                .not_player()
+                .distance_max(10.0)
+                .limit(1)
+                .sort(sand_core::cmd::SortOrder::Nearest))
+            .run("effect give @s minecraft:levitation 3 3 true");
+
+        // ── Effect: particle burst at target location ─────────────────────────
+        Execute::new()
+            .as_(Selector::all_entities()
+                .not_player()
+                .distance_max(10.0)
+                .limit(1)
+                .sort(sand_core::cmd::SortOrder::Nearest))
+            .at(Selector::self_())
+            .run_raw(ParticleEffect::sphere(
+                "minecraft:portal",
+                Vec3::rel(0.0, 1.0, 0.0),
+                1.5,
+                ParticleSpread::uniform(0.3),
+                40,
+            ));
+
+        // ── Effect: sound ─────────────────────────────────────────────────────
+        Sound::play("minecraft:entity.enderman.hurt")
+            .to(Selector::self_())
+            .source(SoundSource::Player)
+            .volume(1.0)
+            .pitch(0.7)
+            .build();
+
+        // ── Effect: title flash ───────────────────────────────────────────────
+        Title::of(Selector::self_())
+            .title(TextComponent::literal("VOID STRIKE")
+                .color(ChatColor::DarkPurple)
+                .bold(true))
+            .times(0, 15, 5)
+            .build();
+    }
+}
+
+// ── Thunder Bolt ──────────────────────────────────────────────────────────────
+
+/// **Thunder Bolt** — summons a lightning strike at the player's cursor target.
+///
+/// Cost: 50 mana | Cooldown: 5 seconds (100 ticks)
+///
+/// Effect: summons a lightning bolt at the nearest entity within 20 blocks,
+/// chain-damages entities within 5 blocks of the strike, plays thunder sound,
+/// and shows a dramatic yellow title. Unlocked by the Thunder Caller advancement.
+#[function]
+pub fn spell_thunder_bolt() {
+    mcfunction! {
+        Execute::new()
+            .unless_score_matches("@s", "cd_thunder_bolt", "0")
+            .run(Actionbar::show(
+                TextComponent::literal("Thunder Bolt on cooldown!")
+                    .color(ChatColor::Yellow)
+            ));
+        Execute::new()
+            .unless_score_matches("@s", "cd_thunder_bolt", "0")
+            .run("return 0");
+
+        "function arcane_arsenal:try_spend_mana_50";
+        Execute::new()
+            .if_score_matches("#result", "arcane_result", "0")
+            .run("return 0");
+
+        "scoreboard players set @s cd_thunder_bolt 100";
+        "scoreboard players add @s arcane_spells_cast 1";
+
+        // Summon lightning at nearest entity ≤ 20 blocks
+        Execute::new()
+            .as_(Selector::all_entities()
+                .not_player()
+                .distance_max(20.0)
+                .limit(1)
+                .sort(sand_core::cmd::SortOrder::Nearest))
+            .at(Selector::self_())
+            .run("summon minecraft:lightning_bolt ~ ~ ~");
+
+        // Chain damage to nearby entities (5-block radius from strike)
+        Execute::new()
+            .as_(Selector::all_entities()
+                .not_player()
+                .distance_max(5.0))
+            .run("damage @s 10 minecraft:lightning");
+
+        Sound::play("minecraft:entity.lightning_bolt.thunder")
+            .to(Selector::all_players().distance_max(64.0))
+            .source(SoundSource::Weather)
+            .volume(1.0)
+            .pitch(0.9)
+            .build();
+
+        Title::of(Selector::self_())
+            .title(TextComponent::literal("⚡ THUNDER BOLT")
+                .color(ChatColor::Yellow)
+                .bold(true))
+            .times(0, 20, 8)
+            .build();
+    }
+}
+
+// ── Frost Nova ────────────────────────────────────────────────────────────────
+
+/// **Frost Nova** — freezes all enemies in a 6-block radius.
+///
+/// Cost: 25 mana | Cooldown: 8 seconds (160 ticks)
+///
+/// Applies Slowness V + Mining Fatigue III to all non-player entities within
+/// 6 blocks. Spawns snowflake particles in a sphere. Makes a satisfying freeze sound.
+#[function]
+pub fn spell_frost_nova() {
+    mcfunction! {
+        Execute::new()
+            .unless_score_matches("@s", "cd_frost_nova", "0")
+            .run(Actionbar::show(
+                TextComponent::literal("Frost Nova on cooldown!")
+                    .color(ChatColor::Aqua)
+            ));
+        Execute::new()
+            .unless_score_matches("@s", "cd_frost_nova", "0")
+            .run("return 0");
+
+        "function arcane_arsenal:try_spend_mana_25";
+        Execute::new()
+            .if_score_matches("#result", "arcane_result", "0")
+            .run("return 0");
+
+        "scoreboard players set @s cd_frost_nova 160";
+        "scoreboard players add @s arcane_spells_cast 1";
+
+        // Freeze nearby enemies
+        Execute::new()
+            .as_(Selector::all_entities()
+                .not_player()
+                .distance_max(6.0))
+            .run("effect give @s minecraft:slowness 4 4 true");
+        Execute::new()
+            .as_(Selector::all_entities()
+                .not_player()
+                .distance_max(6.0))
+            .run("effect give @s minecraft:mining_fatigue 4 2 true");
+        Execute::new()
+            .as_(Selector::all_entities()
+                .not_player()
+                .distance_max(6.0))
+            .run("damage @s 4 minecraft:freeze");
+
+        // Particle sphere at caster
+        run_raw(ParticleEffect::sphere(
+            "minecraft:snowflake",
+            Vec3::rel(0.0, 1.0, 0.0),
+            3.0,
+            ParticleSpread::uniform(0.1),
+            80,
+        ));
+
+        Sound::play("minecraft:block.powder_snow.step")
+            .to(Selector::all_players().distance_max(32.0))
+            .source(SoundSource::Block)
+            .volume(2.0)
+            .pitch(0.4)
+            .build();
+
+        Title::of(Selector::self_())
+            .title(TextComponent::literal("❄ FROST NOVA")
+                .color(ChatColor::Aqua)
+                .bold(true))
+            .times(0, 18, 6)
+            .build();
+    }
+}</code></pre>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- COOLDOWNS                                                      -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section id="cooldowns">
+  <h2><span class="icon">⏱️</span> Cooldown system</h2>
+  <p>Sand's <strong><code>Cooldown</code></strong> builder produces idiomatic scoreboard-based cooldown logic. You define the objective name and cooldown length in ticks; it generates the guard, start, tick-down, and ready-check commands.</p>
+
+  <div class="code-block">
+    <div class="code-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="filename">src/lib.rs — using the Cooldown builder</span></div>
+    <pre><code class="language-rust">use sand_core::cmd::Cooldown;
+
+// Create a cooldown descriptor: 60-tick (3s) cooldown on objective "cd_void_strike"
+let cd = Cooldown::new("cd_void_strike", 60);
+
+// In on_load — register the objective:
+// Outputs: scoreboard objectives add cd_void_strike dummy
+cd.register();
+
+// In tick — tick all player cooldowns down:
+// Outputs: execute as @a if score @s cd_void_strike matches 1.. run scoreboard players remove @s cd_void_strike 1
+cd.tick(Selector::all_players());
+
+// In a spell — guard entry:
+// Outputs: execute if score @s cd_void_strike matches 1.. run return fail
+cd.guard();
+
+// In a spell — start the cooldown after successful cast:
+// Outputs: scoreboard players set @s cd_void_strike 60
+cd.start();
+
+// Check if ready (for UI):
+// Outputs: execute if score @s cd_void_strike matches 0
+cd.is_ready();</code></pre>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- ADVANCEMENTS                                                   -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section id="advancements">
+  <h2><span class="icon">📜</span> Advancements</h2>
+  <p>Advancements serve two roles in Arcane Arsenal: they form the <strong>spell unlock tree</strong> shown in the Advancements screen, and they fire reward functions that grant players new spell abilities.</p>
+
+  <div class="code-block">
+    <div class="code-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="filename">src/advancements.rs</span></div>
+    <pre><code class="language-rust">use sand_core::{
+    components::advancement::{
+        Advancement, AdvancementDisplay, AdvancementFrame, AdvancementIcon,
+        AdvancementRewards, AdvancementTrigger, Criterion,
+    },
+    cmd::generated::Item,
+};
+use sand_macros::component;
+
+// ── Root: Arcane Initiate ─────────────────────────────────────────────────────
+
+/// Root advancement — granted automatically on first join via the tick trigger.
+///
+/// This advancement is the root of the Arcane Arsenal tab in the Advancements
+/// screen. It is revoked and re-granted periodically; it is used as a display
+/// anchor, not as a progression gate.
+#[component]
+pub fn arcane_initiate() -> Advancement {
+    Advancement::new("arcane_arsenal:arcane_initiate".parse().unwrap())
+        .display(
+            AdvancementDisplay::new(
+                AdvancementIcon::new(Item::EnderPearl),
+                "Arcane Initiate",
+                "Your journey into the arcane begins...",
+            )
+            .background("minecraft:textures/block/purple_concrete.png")
+            .frame(AdvancementFrame::Task)
+            .show_toast(true)
+            .announce_to_chat(true),
+        )
+        .criterion("joined", Criterion::new(AdvancementTrigger::Tick))
+        .rewards(AdvancementRewards::new().function("arcane_arsenal:on_player_join"))
+}
+
+// ── Void Adept ───────────────────────────────────────────────────────────────
+
+/// Granted when the player picks up a Void Blade for the first time.
+///
+/// Reward: tags the player with `spell_void_strike_unlocked` and sends an
+/// unlock message. Parent: `arcane_arsenal:arcane_initiate`.
+#[component]
+pub fn void_adept() -> Advancement {
+    Advancement::new("arcane_arsenal:void_adept".parse().unwrap())
+        .display(
+            AdvancementDisplay::new(
+                AdvancementIcon::new(Item::WoodenSword)
+                    .components(r#"{"minecraft:custom_model_data":{"floats":[1001.0]}}"#),
+                "Void Adept",
+                "Obtain the Void Blade and unlock Void Strike.",
+            )
+            .frame(AdvancementFrame::Goal)
+            .show_toast(true)
+            .announce_to_chat(true),
+        )
+        .parent("arcane_arsenal:arcane_initiate")
+        .criterion(
+            "has_void_blade",
+            Criterion::new(AdvancementTrigger::inventory_changed(
+                vec![Item::WoodenSword],
+            )),
+        )
+        .rewards(
+            AdvancementRewards::new().function("arcane_arsenal:unlock_void_strike"),
+        )
+}
+
+// ── Thunder Caller ────────────────────────────────────────────────────────────
+
+/// Granted when the player kills 10 enemies with the Thunder Staff.
+///
+/// Uses a custom trigger backed by a scoreboard check in the kill-event
+/// function. Reward: unlock Thunder Bolt spell.
+#[component]
+pub fn thunder_caller() -> Advancement {
+    Advancement::new("arcane_arsenal:thunder_caller".parse().unwrap())
+        .display(
+            AdvancementDisplay::new(
+                AdvancementIcon::new(Item::BlazeRod),
+                "Thunder Caller",
+                "Strike down 10 enemies with the Thunder Staff.",
+            )
+            .frame(AdvancementFrame::Challenge)
+            .show_toast(true)
+            .announce_to_chat(true),
+        )
+        .parent("arcane_arsenal:void_adept")
+        .criterion(
+            "thunder_kills",
+            Criterion::new(AdvancementTrigger::Custom {
+                trigger: "minecraft:player_killed_entity".to_string(),
+                conditions: serde_json::json!({
+                    "killing_blow": { "tags": [{"id": "arcane_arsenal:elemental_spells", "expected": true}] }
+                }),
+            }),
+        )
+        .sends_telemetry_data(false)
+        .rewards(
+            AdvancementRewards::new()
+                .function("arcane_arsenal:unlock_thunder_bolt")
+                .experience(50),
+        )
+}
+
+// ── Arcane Master ─────────────────────────────────────────────────────────────
+
+/// Hidden ultimate advancement — requires all five spells to be unlocked.
+///
+/// Uses `minecraft:impossible` trigger so it can only be granted by command.
+/// The tick function checks all unlock tags and grants this when all five
+/// are present. Reward: exclusive cosmetic title + 200 XP.
+#[component]
+pub fn arcane_master() -> Advancement {
+    Advancement::new("arcane_arsenal:arcane_master".parse().unwrap())
+        .display(
+            AdvancementDisplay::new(
+                AdvancementIcon::new(Item::NetherStar),
+                "Arcane Master",
+                "Unlock all five spells of the Arcane Arsenal.",
+            )
+            .frame(AdvancementFrame::Challenge)
+            .show_toast(true)
+            .announce_to_chat(true)
+            .hidden(true),
+        )
+        .parent("arcane_arsenal:thunder_caller")
+        .criterion(
+            "impossible",
+            Criterion::new(AdvancementTrigger::Impossible),
+        )
+        .rewards(
+            AdvancementRewards::new()
+                .function("arcane_arsenal:grant_master_title")
+                .experience(200),
+        )
+}</code></pre>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- RECIPES                                                        -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section id="recipes">
+  <h2><span class="icon">⚒️</span> Recipes</h2>
+  <p>Sand supports every vanilla recipe type. Arcane Arsenal uses shaped crafting for potions, shapeless for mana crystals, and smithing table upgrades for weapons.</p>
+
+  <div class="code-block">
+    <div class="code-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="filename">src/recipes.rs</span></div>
+    <pre><code class="language-rust">use sand_core::components::recipe::{
+    Ingredient, RecipeResult, ShapedRecipe, ShapelessRecipe,
+    SmithingTransformRecipe, StonecuttingRecipe,
+};
+use sand_core::cmd::generated::Item;
+use sand_macros::component;
+
+// ── Mana Potion (shaped) ──────────────────────────────────────────────────────
+
+/// Crafting recipe for a stack of 4 Mana Potions.
+///
+/// Pattern (3×3 grid):
+/// ```
+/// [ ]  [B]  [ ]
+/// [B]  [H]  [B]
+/// [ ]  [B]  [ ]
+/// ```
+/// Where B = Blaze Powder, H = Honey Bottle.
+#[component]
+pub fn recipe_mana_potion() -> ShapedRecipe {
+    ShapedRecipe::new("arcane_arsenal:mana_potion".parse().unwrap())
+        .pattern(vec!["  B  ", "BHB", "  B  "])
+        .key('B', Ingredient::item(Item::BlazePowder))
+        .key('H', Ingredient::item(Item::HoneyBottle))
+        .result(RecipeResult::new(Item::HoneyBottle).count(4))
+        .group("arcane_arsenal:consumables")
+        .show_notification(true)
+}
+
+// ── Mana Crystal (shapeless) ──────────────────────────────────────────────────
+
+/// Shapeless recipe: combine 4 Amethyst Shards + 1 Nether Star = Mana Crystal.
+///
+/// Used as a crafting ingredient for weapon upgrades.
+#[component]
+pub fn recipe_mana_crystal() -> ShapelessRecipe {
+    ShapelessRecipe::new("arcane_arsenal:mana_crystal".parse().unwrap())
+        .ingredient(Ingredient::item(Item::AmethystShard))
+        .ingredient(Ingredient::item(Item::AmethystShard))
+        .ingredient(Ingredient::item(Item::AmethystShard))
+        .ingredient(Ingredient::item(Item::AmethystShard))
+        .ingredient(Ingredient::item(Item::NetherStar))
+        .result(RecipeResult::new(Item::NetherStar).count(1))
+        .group("arcane_arsenal:materials")
+}
+
+// ── Thunder Staff (smithing upgrade) ─────────────────────────────────────────
+
+/// Smithing table recipe: upgrade a Blaze Rod with a Mana Crystal + Netherite Upgrade.
+///
+/// Template: Netherite Upgrade Smithing Template
+/// Base:     Blaze Rod (representing a pre-cursed staff)
+/// Addition: Nether Star (representing a Mana Crystal)
+/// Result:   Thunder Staff custom item
+#[component]
+pub fn recipe_thunder_staff_upgrade() -> SmithingTransformRecipe {
+    SmithingTransformRecipe::new("arcane_arsenal:thunder_staff_upgrade".parse().unwrap())
+        .template(Ingredient::item(Item::NetheriteUpgradeSmithingTemplate))
+        .base(Ingredient::item(Item::BlazeRod))
+        .addition(Ingredient::item(Item::NetherStar))
+        .result(RecipeResult::new(Item::BlazeRod).count(1))
+}
+
+// ── Void Blade (stonecutter shortcut) ────────────────────────────────────────
+
+/// Stonecutter shortcut to produce a single Void Crystal from an Amethyst Block.
+///
+/// Provides an alternative crafting path for players who find Amethyst Blocks
+/// in the world but lack the Nether Star ingredient for the crystal recipe.
+#[component]
+pub fn recipe_void_crystal_stonecutter() -> StonecuttingRecipe {
+    StonecuttingRecipe::new("arcane_arsenal:void_crystal_stonecutter".parse().unwrap())
+        .ingredient(Ingredient::item(Item::AmethystBlock))
+        .result(RecipeResult::new(Item::AmethystShard))
+        .count(4)
+        .group("arcane_arsenal:materials")
+}</code></pre>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- LOOT TABLES                                                    -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section id="loot">
+  <h2><span class="icon">🧪</span> Loot tables</h2>
+  <p>Loot tables control what items drop from entities and containers. Sand's typed API covers pools, entries, conditions (entity properties, kill source, random chance), and functions (set count, set nbt, exploration map).</p>
+
+  <div class="code-block">
+    <div class="code-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="filename">src/loot.rs</span></div>
+    <pre><code class="language-rust">use sand_core::components::loot_table::{
+    LootCondition, LootEntry, LootFunction, LootPool, LootTable, LootTableType,
+    NumberProvider,
+};
+use sand_core::cmd::generated::Item;
+use sand_macros::component;
+
+// ── Ender Dragon Drop ─────────────────────────────────────────────────────────
+
+/// Loot table for the Ender Dragon, injected via `loot replace entity`.
+///
+/// - 100% chance: 1× Dragon's Heart (represented as a Nether Star with NBT)
+/// - 50% chance: 1–3 Mana Crystals
+/// - 30% chance: Void Blade custom item
+/// - 10% chance: Arcane Robes custom item
+#[component]
+pub fn loot_ender_dragon() -> LootTable {
+    LootTable::new("arcane_arsenal:ender_dragon_drop".parse().unwrap())
+        .loot_type(LootTableType::Entity)
+        // Pool 1: guaranteed Dragon's Heart
+        .pool(
+            LootPool::new()
+                .rolls(NumberProvider::constant(1.0))
+                .entry(LootEntry::item(Item::NetherStar)
+                    .function(LootFunction::SetName {
+                        name: r#"{"text":"Dragon's Heart","color":"dark_purple","italic":false}"#.to_string(),
+                    })
+                    .function(LootFunction::SetCount {
+                        count: NumberProvider::constant(1.0),
+                    })),
+        )
+        // Pool 2: mana crystals (Amethyst Shards, 50% chance, 1–3)
+        .pool(
+            LootPool::new()
+                .rolls(NumberProvider::constant(1.0))
+                .bonus_rolls(NumberProvider::uniform(0.0, 1.0))
+                .condition(LootCondition::RandomChance { chance: 0.5 })
+                .entry(LootEntry::item(Item::AmethystShard)
+                    .function(LootFunction::SetCount {
+                        count: NumberProvider::uniform(1.0, 3.0),
+                    })),
+        )
+        // Pool 3: void blade drop (30% chance)
+        .pool(
+            LootPool::new()
+                .rolls(NumberProvider::constant(1.0))
+                .condition(LootCondition::RandomChance { chance: 0.30 })
+                .entry(LootEntry::item(Item::WoodenSword)
+                    .function(LootFunction::SetCustomModelData { value: 1001 })
+                    .function(LootFunction::SetName {
+                        name: r#"{"text":"Void Blade","color":"dark_purple","italic":false,"bold":true}"#.to_string(),
+                    })),
+        )
+        // Pool 4: arcane robes (10% chance, only on first kill)
+        .pool(
+            LootPool::new()
+                .rolls(NumberProvider::constant(1.0))
+                .condition(LootCondition::RandomChance { chance: 0.10 })
+                .condition(LootCondition::EntityProperties {
+                    entity: "killer_player".to_string(),
+                    predicate: serde_json::json!({
+                        "player": {
+                            "advancements": {
+                                "arcane_arsenal:void_adept": true
+                            }
+                        }
+                    }),
+                })
+                .entry(LootEntry::item(Item::LeatherChestplate)
+                    .function(LootFunction::SetCustomModelData { value: 3001 })
+                    .function(LootFunction::SetName {
+                        name: r#"{"text":"Arcane Robes","color":"dark_purple","italic":false,"bold":true}"#.to_string(),
+                    })),
+        )
+}
+
+// ── Arcane Chest ──────────────────────────────────────────────────────────────
+
+/// Loot table for the arcane treasure chest hidden in the world.
+///
+/// Always contains 2–4 items chosen from: mana potions, mana crystals,
+/// enchanted books (Mending, Unbreaking III), and a rare weapon.
+#[component]
+pub fn loot_arcane_chest() -> LootTable {
+    LootTable::new("arcane_arsenal:arcane_chest".parse().unwrap())
+        .loot_type(LootTableType::Chest)
+        .pool(
+            LootPool::new()
+                .rolls(NumberProvider::uniform(2.0, 4.0))
+                .entry(LootEntry::item(Item::HoneyBottle)
+                    .weight(30)
+                    .function(LootFunction::SetCount {
+                        count: NumberProvider::uniform(1.0, 3.0),
+                    }))
+                .entry(LootEntry::item(Item::AmethystShard)
+                    .weight(25)
+                    .function(LootFunction::SetCount {
+                        count: NumberProvider::uniform(2.0, 6.0),
+                    }))
+                .entry(LootEntry::item(Item::EnchantedBook)
+                    .weight(15)
+                    .function(LootFunction::EnchantWithLevels {
+                        treasure: true,
+                        levels: NumberProvider::uniform(20.0, 39.0),
+                    }))
+                .entry(LootEntry::item(Item::WoodenSword)
+                    .weight(5)
+                    .function(LootFunction::SetCustomModelData { value: 1001 })
+                    .function(LootFunction::SetName {
+                        name: r#"{"text":"Void Blade","color":"dark_purple","italic":false,"bold":true}"#.to_string(),
+                    })),
+        )
+}</code></pre>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- TAGS                                                           -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section id="tags">
+  <h2><span class="icon">🏷️</span> Tags</h2>
+  <p>Function tags let other datapacks (or your own tick loop) call a group of functions by tag. Item and entity tags enable typed predicate checks.</p>
+
+  <div class="code-block">
+    <div class="code-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="filename">src/tags.rs</span></div>
+    <pre><code class="language-rust">use sand_core::components::tag::Tag;
+use sand_macros::component;
+
+/// Function tag grouping all five Arcane Arsenal spell functions.
+///
+/// Other datapacks can call `function #arcane_arsenal:spells` to fire
+/// all registered spells (useful for testing or event-based triggers).
+#[component]
+pub fn tag_spells() -> Tag {
+    Tag::new("arcane_arsenal:tags/function/spells".parse().unwrap())
+        .entry("arcane_arsenal:spell_void_strike")
+        .entry("arcane_arsenal:spell_thunder_bolt")
+        .entry("arcane_arsenal:spell_inferno_wave")
+        .entry("arcane_arsenal:spell_frost_nova")
+        .entry("arcane_arsenal:spell_arcane_shield")
+}
+
+/// Item tag for all weapons in the Arcane Arsenal set.
+///
+/// Used in `execute if items` checks to detect whether a player is
+/// holding any arcane weapon — e.g., to enable the mana HUD.
+#[component]
+pub fn tag_arcane_weapons() -> Tag {
+    Tag::new("arcane_arsenal:tags/items/arcane_weapons".parse().unwrap())
+        .entry("arcane_arsenal:void_blade")
+        .entry("arcane_arsenal:thunder_staff")
+        .entry("arcane_arsenal:inferno_wand")
+}
+
+/// Entity type tag for all boss entities that can drop arcane loot.
+#[component]
+pub fn tag_arcane_bosses() -> Tag {
+    Tag::new("arcane_arsenal:tags/entity_types/arcane_bosses".parse().unwrap())
+        .entry("minecraft:ender_dragon")
+        .entry("minecraft:wither")
+        // Include any modded bosses via tag reference
+        .tag_ref("forge:bosses")
+}</code></pre>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- ITEM MODIFIERS                                                 -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section id="modifiers">
+  <h2><span class="icon">🔮</span> Item modifiers</h2>
+  <p><code>ItemModifier</code> defines reusable loot modification functions that can be referenced from loot tables, advancements, or applied directly via <code>item modify</code>.</p>
+
+  <div class="code-block">
+    <div class="code-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="filename">src/modifiers.rs</span></div>
+    <pre><code class="language-rust">use sand_core::components::item_modifier::ItemModifier;
+use sand_macros::component;
+
+/// Item modifier applied on kill — restores 5 mana to the killer.
+///
+/// Referenced as `arcane_arsenal:on_kill_mana_restore` in loot tables
+/// and called via `item modify entity @s weapon.mainhand arcane_arsenal:on_kill_mana_restore`
+/// from the kill-event function.
+#[component]
+pub fn on_kill_mana_restore() -> ItemModifier {
+    ItemModifier::new("arcane_arsenal:on_kill_mana_restore".parse().unwrap())
+        .function(serde_json::json!({
+            "function": "minecraft:run_function",
+            "value": "arcane_arsenal:give_kill_mana"
+        }))
+}
+
+/// Item modifier that applies the Arcane Glow enchantment glint to any item.
+///
+/// Applied to weapons crafted at the Arcane Forge (smithing table) to add
+/// the enchantment glint effect without actually enchanting the item.
+#[component]
+pub fn arcane_glow_modifier() -> ItemModifier {
+    ItemModifier::new("arcane_arsenal:arcane_glow".parse().unwrap())
+        .function(serde_json::json!({
+            "function": "minecraft:set_components",
+            "components": {
+                "minecraft:enchantment_glint_override": true
+            }
+        }))
+}</code></pre>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- PREDICATES                                                     -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section id="predicates">
+  <h2><span class="icon">🔍</span> Predicates</h2>
+  <p>Predicates are reusable condition JSON files. Sand wraps them as <code>Predicate</code> structs with raw JSON conditions — you can reference them in advancements, loot tables, and <code>execute if predicate</code> checks.</p>
+
+  <div class="code-block">
+    <div class="code-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="filename">src/predicates.rs</span></div>
+    <pre><code class="language-rust">use sand_core::components::predicate::Predicate;
+use sand_macros::component;
+
+/// Predicate: passes if the entity is holding a Void Blade in their mainhand.
+///
+/// Used in `execute if predicate arcane_arsenal:has_void_blade` checks
+/// throughout the spell and tick systems.
+#[component]
+pub fn pred_has_void_blade() -> Predicate {
+    Predicate::new("arcane_arsenal:has_void_blade".parse().unwrap())
+        .condition(serde_json::json!({
+            "condition": "minecraft:entity_properties",
+            "entity": "this",
+            "predicate": {
+                "equipment": {
+                    "mainhand": {
+                        "items": "minecraft:wooden_sword",
+                        "predicates": {
+                            "minecraft:custom_model_data": { "floats": [1001.0] }
+                        }
+                    }
+                }
+            }
+        }))
+}
+
+/// Predicate: passes if the executing player has at least 1 mana remaining.
+///
+/// Used as a fast gate before running any mana-cost logic.
+#[component]
+pub fn pred_has_mana() -> Predicate {
+    Predicate::new("arcane_arsenal:has_mana".parse().unwrap())
+        .condition(serde_json::json!({
+            "condition": "minecraft:entity_scores",
+            "entity": "this",
+            "scores": { "arcane_mana": { "min": 1 } }
+        }))
+}</code></pre>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- NBT STORAGE                                                    -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section id="storage">
+  <h2><span class="icon">📦</span> NBT storage</h2>
+  <p>Sand's <strong><code>Storage</code></strong> builder provides a typed HashMap-style interface over Minecraft's <code>data modify storage</code> commands. Use it for per-player state that doesn't fit scoreboards — complex objects, lists, strings.</p>
+
+  <div class="code-block">
+    <div class="code-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="filename">src/lib.rs — using Storage</span></div>
+    <pre><code class="language-rust">use sand_core::cmd::{NbtValue, Storage};
+
+// Namespace all storage under "arcane_arsenal:"
+let store = Storage::new("arcane_arsenal:");
+
+// In on_load: set version metadata
+store.insert("meta.version", NbtValue::String("0.1.0".into()));
+
+// In on_player_join: push the player name to a visit log list
+store.push("logs.visits", NbtValue::String("@s".into()));
+
+// In a spell function: store the last spell cast timestamp
+store.insert(
+    "spell_state.last_cast",
+    NbtValue::Int(0),   // populated at runtime via 'execute store result'
+);
+
+// In tick: read back stored value
+store.get("spell_state.last_cast");</code></pre>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- TEXT & DISPLAY                                                 -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section id="display">
+  <h2><span class="icon">💬</span> Text &amp; display</h2>
+  <p>Sand provides <strong><code>TextComponent</code></strong> for JSON text, <strong><code>Title</code></strong>/<strong><code>Actionbar</code></strong> for on-screen messages, and <strong><code>Bossbar</code></strong> for persistent bar displays — all as typed builders that produce correct Minecraft JSON.</p>
+
+  <div class="code-block">
+    <div class="code-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="filename">src/lib.rs — text &amp; display examples</span></div>
+    <pre><code class="language-rust">use sand_core::cmd::{
+    Actionbar, BossbarColor, BossbarStyle, ChatColor,
+    Selector, TextComponent, Title, Bossbar,
+};
+
+// ── TextComponent: rich JSON text ─────────────────────────────────────────────
+let msg = TextComponent::literal("Arcane Arsenal ")
+    .color(ChatColor::DarkPurple)
+    .bold(true)
+    .then(TextComponent::literal("loaded!").color(ChatColor::Gray).bold(false));
+// Produces: {"text":"Arcane Arsenal ","color":"dark_purple","bold":true,"extra":[...]}
+
+// Score reference in text (shows player's current mana)
+let mana_text = TextComponent::literal("Mana: ")
+    .color(ChatColor::Aqua)
+    .then(TextComponent::score("@s", "arcane_mana").color(ChatColor::White))
+    .then(TextComponent::literal(" / ").color(ChatColor::DarkGray))
+    .then(TextComponent::score("@s", "arcane_max_mana").color(ChatColor::White));
+
+// ── Title / subtitle ─────────────────────────────────────────────────────────
+Title::of(Selector::self_())
+    .title(TextComponent::literal("VOID STRIKE").color(ChatColor::DarkPurple).bold(true))
+    .subtitle(TextComponent::literal("-30 Mana").color(ChatColor::Aqua))
+    .times(0, 25, 10)
+    .build();
+
+// ── Actionbar ────────────────────────────────────────────────────────────────
+Actionbar::show(
+    TextComponent::literal("❄ Frost Nova — ")
+        .color(ChatColor::Aqua)
+        .then(TextComponent::literal("Enemies frozen for 4s!").color(ChatColor::White))
+);
+
+// ── Bossbar (for dungeon boss fights) ────────────────────────────────────────
+Bossbar::add("arcane_arsenal:dungeon_boss",
+    TextComponent::literal("☠ Arcane Lich").color(ChatColor::DarkPurple));
+Bossbar::set_color("arcane_arsenal:dungeon_boss", BossbarColor::Purple);
+Bossbar::set_style("arcane_arsenal:dungeon_boss", BossbarStyle::Notched20);
+Bossbar::set_max("arcane_arsenal:dungeon_boss", 200);
+Bossbar::set_players("arcane_arsenal:dungeon_boss", Selector::all_players());
+Bossbar::set_visible("arcane_arsenal:dungeon_boss", true);</code></pre>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- EXECUTE CHAINS                                                 -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section id="execute">
+  <h2><span class="icon">⛓️</span> Execute chains</h2>
+  <p>The <strong><code>Execute</code></strong> builder covers all Minecraft 1.21 subcommands. Chains are constructed method-by-method and emit a single, correctly formatted command string. The <code>.run()</code> terminal accepts anything implementing <code>Display</code>.</p>
+
+  <div class="code-block">
+    <div class="code-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="filename">src/lib.rs — execute chain examples</span></div>
+    <pre><code class="language-rust">use sand_core::cmd::{
+    Anchor, Coord, Execute, Selector, Vec3,
+    generated::{Block, Item},
+};
+
+// ── as + at + if_entity ───────────────────────────────────────────────────────
+// Run a spell only if the caster is standing on enchanting table
+Execute::new()
+    .as_(Selector::all_players().tag("arcane_initialized"))
+    .at(Selector::self_())
+    .if_block(
+        Vec3::rel(0.0, -1.0, 0.0),   // block below the player
+        Block::EnchantingTable,
+    )
+    .run("function arcane_arsenal:grant_leyline_bonus");
+
+// ── positioned + anchored ─────────────────────────────────────────────────────
+// Spawn particles at eye level of the caster, facing the same direction
+Execute::new()
+    .as_(Selector::self_())
+    .at(Selector::self_())
+    .anchored(Anchor::Eyes)
+    .positioned(Vec3::local(0.0, 0.0, 1.5))   // 1.5 blocks ahead
+    .run("particle minecraft:soul_fire_flame ~ ~ ~ 0 0 0 0.1 5 force");
+
+// ── store result ──────────────────────────────────────────────────────────────
+// Count nearby enemies and store in a score
+Execute::new()
+    .store_result_score("#nearby_count", "arcane_temp")
+    .run(format!(
+        "execute as {} run return 1",
+        Selector::all_entities().not_player().distance_max(10.0)
+    ));
+
+// ── if_items (1.20.5+) ────────────────────────────────────────────────────────
+// Only run if the player is holding a Void Blade mainhand
+Execute::new()
+    .as_(Selector::all_players())
+    .if_items(
+        "entity @s weapon.mainhand",
+        "minecraft:wooden_sword[minecraft:custom_model_data~=1001]",
+    )
+    .run("tag @s add holding_void_blade");
+
+// ── on + summon ───────────────────────────────────────────────────────────────
+// Teleport caster to their own target passenger entity, then summon a familiar
+Execute::new()
+    .as_(Selector::self_())
+    .on("passengers")
+    .run("function arcane_arsenal:familiar_teleport");
+
+Execute::new()
+    .summon("minecraft:vex")
+    .run("function arcane_arsenal:init_familiar");
+
+// ── in (dimension) ────────────────────────────────────────────────────────────
+// Teleport the player to an exact nether coordinate
+Execute::new()
+    .as_(Selector::self_())
+    .in_("minecraft:the_nether")
+    .run(format!(
+        "tp @s {}",
+        Vec3::abs(100.0, 64.0, 100.0)
+    ));</code></pre>
+  </div>
+</section>
+
+<hr class="section-divider">
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- RESOURCE PACK SETUP                                            -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section id="resourcepack">
+  <h2><span class="icon">🎨</span> Resource pack — setup</h2>
+  <p>Enabling the resource pack adds a <code>[resourcepack]</code> section to <code>sand.toml</code> and a second export binary. Sand merges all font providers, generates sprite sheet PNGs programmatically, and outputs a complete resource pack alongside the datapack.</p>
+
+  <div class="callout callout-info">
+    <span class="callout-icon">ℹ️</span>
+    <p>Run <code>sand add resourcepack</code> to scaffold the resource pack binaries and config, or follow the manual steps in <code>src/lib.rs</code> comments. The <code>features = ["resourcepack"]</code> flag on <code>sand-macros</code> enables <code>hud_bar!</code>, <code>hud_element!</code>, and <code>texture!</code> macros.</p>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="filename">src/bin/sand_resource_export.rs</span></div>
+    <pre><code class="language-rust">fn main() {
+    arcane_arsenal::__sand_resource_export("arcane_arsenal");
+}</code></pre>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- HUD BARS                                                       -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section id="hudbars">
+  <h2><span class="icon">📊</span> HUD bars</h2>
+  <p><strong><code>hud_bar!</code></strong> creates a bitmap-font progress bar. Sand assigns Unicode private-use codepoints automatically, generates the sprite sheet PNG (each frame is a slice of the bar), and injects the font provider into <code>assets/arcane_arsenal/font/default.json</code>.</p>
+  <p>Bars are displayed via the actionbar using <code>display_commands(frame)</code>, where <code>frame</code> is an integer 0..=steps.</p>
+
+  <div class="code-block">
+    <div class="code-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="filename">src/lib.rs — HUD bars (resource pack)</span></div>
+    <pre><code class="language-rust">use sand_macros::{hud_bar, hud_element};
+
+// ── Mana bar (20 steps, programmatic blue/dark-blue gradient) ────────────────
+
+/// Mana bar displayed in the actionbar — 20 segments, blue fill.
+///
+/// `gen!` generates the sprite sheet PNG at build time:
+/// - `fill:` is the color of a filled segment (0xAARRGGBB)
+/// - `empty:` is the color of an empty segment
+/// Sand assigns codepoints U+E100..U+E114 (20 frames + 1 empty).
+hud_bar!(
+    name:    "mana",
+    texture: gen!(fill: 0xFF5599FFFF, empty: 0xFF1A2A4AFF),
+    steps:   20,
+    height:  9,
+    ascent:  9,
+);
+
+/// Health bar — rendered below the mana bar using negative ascent offset.
+hud_bar!(
+    name:    "health",
+    texture: gen!(fill: 0xFFE84040FF, empty: 0xFF3A1010FF),
+    steps:   20,
+    height:  9,
+    ascent:  -2,    // rendered below the mana bar
+);
+
+/// XP bar — rendered below the health bar.
+hud_bar!(
+    name:    "xp",
+    texture: gen!(fill: 0xFF80FF40FF, empty: 0xFF1A3A10FF),
+    steps:   20,
+    height:  5,
+    ascent:  -13,
+);
+
+// ── Using bars in functions ───────────────────────────────────────────────────
+
+/// Updates the HUD bars for the executing player.
+///
+/// Computes the frame index from the current/max mana ratio and emits
+/// the actionbar display command. Called from the main tick.
+#[function]
+pub fn update_hud() {
+    // Compute mana bar frame: (current_mana * 20) / max_mana → 0..20
+    // Uses Execute store + division to stay purely in mcfunction
+    mcfunction! {
+        // Scale mana to 0..20 range
+        Execute::new()
+            .store_result_score("@s", "arcane_hud_frame")
+            .run("scoreboard players get @s arcane_mana");
+        "scoreboard players operation @s arcane_hud_frame *= #20 arcane_const";
+        Execute::new()
+            .store_result_score("@s", "arcane_hud_frame")
+            .run(Execute::new()
+                .store_result_score("@s", "arcane_hud_frame")
+                .run("scoreboard players get @s arcane_hud_frame"));
+        "scoreboard players operation @s arcane_hud_frame /= @s arcane_max_mana";
+
+        // Display frame 0..20 via the generated display_commands
+        // (Sand emits one 'execute if score … run' per frame index)
+        MANA_BAR.display_commands("@s", "arcane_hud_frame", "arcane_arsenal");
+    }
+}</code></pre>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- HUD ELEMENTS                                                   -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section id="hudelements">
+  <h2><span class="icon">🖼️</span> HUD elements</h2>
+  <p><strong><code>hud_element!</code></strong> creates a static single-character overlay (one Unicode codepoint → one bitmap glyph). Use it for persistent overlays like vignettes, crosshairs, or decorative borders.</p>
+
+  <div class="code-block">
+    <div class="code-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="filename">src/lib.rs — HUD elements</span></div>
+    <pre><code class="language-rust">// ── Arcane vignette — full-screen dark overlay when mana is critical ─────────
+
+/// A dark purple vignette that appears at the screen edges when mana is below 20%.
+///
+/// Displayed via actionbar on top of the bar stack using high negative ascent.
+/// The PNG is a 256×256 semi-transparent purple gradient circle.
+hud_element!(
+    name:    "arcane_vignette",
+    texture: "src/assets/arcane_vignette.png",  // pre-made asset
+    height:  128,
+    ascent:  -64,   // positions center of glyph at screen center
+);
+
+/// Spell locked indicator (grey padlock icon) shown above spell buttons.
+hud_element!(
+    name:    "spell_locked",
+    texture: gen!(color: 0x99333333FF),   // solid 64×64 grey square
+    height:  16,
+    ascent:  24,
+);
+
+// ── Programmatic solid-color overlays ─────────────────────────────────────────
+
+/// Frostbite overlay — full-screen icy blue tint when the player is frozen.
+hud_element!(
+    name:    "frost_overlay",
+    texture: gen!(color: 0x664499FFFF),   // semi-transparent ice blue
+    height:  128,
+    ascent:  0,
+);
+
+// ── Using elements in functions ───────────────────────────────────────────────
+#[function]
+pub fn show_frost_overlay() {
+    mcfunction! {
+        // Display the frost overlay element for 60 ticks (via scheduled function)
+        FROST_OVERLAY.show(Selector::self_(), "arcane_arsenal");
+    }
+}</code></pre>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- TEXTURES                                                       -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section id="textures">
+  <h2><span class="icon">🖌️</span> Textures</h2>
+  <p><strong><code>texture!</code></strong> copies a raw asset PNG into the resource pack at the given resource location path. Use it for custom item textures referenced by <code>custom_model_data</code>.</p>
+
+  <div class="code-block">
+    <div class="code-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="filename">src/lib.rs — textures</span></div>
+    <pre><code class="language-rust">// ── Custom item model textures ────────────────────────────────────────────────
+//
+// Each texture! call copies src/assets/<name>.png into:
+// assets/arcane_arsenal/textures/item/<name>.png
+
+/// Void Blade item texture — used by custom_model_data 1001.
+texture!(
+    id:   "arcane_arsenal:item/void_blade",
+    path: "src/assets/void_blade.png",
+);
+
+/// Thunder Staff item texture — used by custom_model_data 1002.
+texture!(
+    id:   "arcane_arsenal:item/thunder_staff",
+    path: "src/assets/thunder_staff.png",
+);
+
+/// Inferno Wand item texture — used by custom_model_data 1003.
+texture!(
+    id:   "arcane_arsenal:item/inferno_wand",
+    path: "src/assets/inferno_wand.png",
+);
+
+/// Mana Crystal item texture — used by custom_model_data 2002.
+texture!(
+    id:   "arcane_arsenal:item/mana_crystal",
+    path: "src/assets/mana_crystal.png",
+);
+
+/// Arcane Robes chest armor texture — used by custom_model_data 3001.
+texture!(
+    id:   "arcane_arsenal:item/arcane_robes",
+    path: "src/assets/arcane_robes.png",
+);</code></pre>
+  </div>
+</section>
+
+<hr class="section-divider">
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- PUBLIC API SURFACE                                             -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section id="api">
+  <h2><span class="icon">📚</span> Public API surface</h2>
+  <p>Reference table of every Sand feature used in Arcane Arsenal.</p>
+
+  <h3>Macros</h3>
+  <table>
+    <tr><th>Macro</th><th>Where</th><th>Description</th></tr>
+    <tr><td><code>#[function]</code></td><td>sand-macros</td><td>Turns a Rust fn into a <code>.mcfunction</code> file registered at link time</td></tr>
+    <tr><td><code>#[component]</code></td><td>sand-macros</td><td>Registers any <code>DatapackComponent</code> (advancement, recipe, tag, etc.)</td></tr>
+    <tr><td><code>#[component(Tick)]</code></td><td>sand-macros</td><td>Registers a function into <code>minecraft:tick</code></td></tr>
+    <tr><td><code>#[component(Load)]</code></td><td>sand-macros</td><td>Registers a function into <code>minecraft:load</code></td></tr>
+    <tr><td><code>#[component(Tag = "…")]</code></td><td>sand-macros</td><td>Registers a function into a named function tag</td></tr>
+    <tr><td><code>#[component(ArmorEquip(…))]</code></td><td>sand-macros</td><td>Auto-generates equip detection for a specific item/slot</td></tr>
+    <tr><td><code>#[component(ArmorUnequip(…))]</code></td><td>sand-macros</td><td>Auto-generates unequip detection for a specific item/slot</td></tr>
+    <tr><td><code>mcfunction! { … }</code></td><td>sand-core</td><td>Builds a <code>Vec&lt;String&gt;</code> of commands from expressions</td></tr>
+    <tr><td><code>run_fn!("ns:path" { … })</code></td><td>sand-macros</td><td>Define and call an inline function in one expression</td></tr>
+    <tr><td><code>hud_bar!( … )</code></td><td>sand-macros (resourcepack)</td><td>Declares a bitmap-font progress bar</td></tr>
+    <tr><td><code>hud_element!( … )</code></td><td>sand-macros (resourcepack)</td><td>Declares a static HUD overlay glyph</td></tr>
+    <tr><td><code>texture!( … )</code></td><td>sand-macros (resourcepack)</td><td>Copies a PNG asset into the resource pack</td></tr>
+  </table>
+
+  <h3>Command builders</h3>
+  <table>
+    <tr><th>Type</th><th>Description</th></tr>
+    <tr><td><code>Execute</code></td><td>Full <code>execute</code> command chain builder</td></tr>
+    <tr><td><code>Selector</code></td><td>Entity/player selector with all filter builder methods</td></tr>
+    <tr><td><code>TextComponent</code></td><td>JSON text builder (literal, score, selector, translate)</td></tr>
+    <tr><td><code>Title</code></td><td>Title, subtitle, actionbar, times builder</td></tr>
+    <tr><td><code>Actionbar</code></td><td>Static helpers for actionbar display</td></tr>
+    <tr><td><code>Bossbar</code></td><td>Bossbar add/remove/configure commands</td></tr>
+    <tr><td><code>Sound</code></td><td>Playsound builder (source, volume, pitch, min_volume)</td></tr>
+    <tr><td><code>ParticleEffect</code></td><td>Geometric particle shape generators (circle, sphere, helix…)</td></tr>
+    <tr><td><code>Objective</code></td><td>Scoreboard objective operations with typed operators</td></tr>
+    <tr><td><code>Cooldown</code></td><td>Scoreboard-based cooldown: register, guard, start, tick</td></tr>
+    <tr><td><code>Storage</code></td><td>Typed <code>data modify storage</code> builder (insert, get, push…)</td></tr>
+    <tr><td><code>BlockState</code></td><td>Block state builder with typed property map</td></tr>
+    <tr><td><code>SetBlock</code> / <code>Fill</code></td><td>Block placement commands</td></tr>
+    <tr><td><code>Inventory</code></td><td>Inventory slot manipulation commands</td></tr>
+    <tr><td><code>Vec3</code> / <code>BlockPos</code></td><td>3D / block coordinates (absolute, relative, local)</td></tr>
+  </table>
+
+  <h3>Component types</h3>
+  <table>
+    <tr><th>Type</th><th>Datapack path</th></tr>
+    <tr><td><code>McFunction</code></td><td><code>function/*.mcfunction</code></td></tr>
+    <tr><td><code>Advancement</code></td><td><code>advancement/*.json</code></td></tr>
+    <tr><td><code>ShapedRecipe</code></td><td><code>recipe/*.json</code></td></tr>
+    <tr><td><code>ShapelessRecipe</code></td><td><code>recipe/*.json</code></td></tr>
+    <tr><td><code>CookingRecipe</code></td><td><code>recipe/*.json</code></td></tr>
+    <tr><td><code>StonecuttingRecipe</code></td><td><code>recipe/*.json</code></td></tr>
+    <tr><td><code>SmithingTransformRecipe</code></td><td><code>recipe/*.json</code></td></tr>
+    <tr><td><code>SmithingTrimRecipe</code></td><td><code>recipe/*.json</code></td></tr>
+    <tr><td><code>LootTable</code></td><td><code>loot_table/*.json</code></td></tr>
+    <tr><td><code>Predicate</code></td><td><code>predicate/*.json</code></td></tr>
+    <tr><td><code>ItemModifier</code></td><td><code>item_modifier/*.json</code></td></tr>
+    <tr><td><code>Tag</code></td><td><code>tags/**/*.json</code></td></tr>
+    <tr><td><code>CustomItem</code></td><td><code>custom_items/*.json</code> (1.21+)</td></tr>
+  </table>
+
+  <h3>Generated types (from Minecraft data)</h3>
+  <table>
+    <tr><th>Enum</th><th>Generated from</th><th>Variants</th></tr>
+    <tr><td><code>Item</code></td><td><code>registries.json</code></td><td>All 1500+ vanilla item IDs as PascalCase variants</td></tr>
+    <tr><td><code>Block</code></td><td><code>registries.json</code></td><td>All vanilla block IDs</td></tr>
+    <tr><td><code>EntityType</code></td><td><code>registries.json</code></td><td>All vanilla entity type IDs</td></tr>
+    <tr><td><code>Biome</code></td><td><code>registries.json</code></td><td>All vanilla biome IDs</td></tr>
+    <tr><td><code>Enchantment</code></td><td><code>registries.json</code></td><td>All vanilla enchantment IDs</td></tr>
+    <tr><td><code>SoundEvent</code></td><td><code>registries.json</code></td><td>All vanilla sound event IDs</td></tr>
+    <tr><td><code>*Properties</code></td><td><code>blocks.json</code></td><td>Per-block typed property structs (facing, waterlogged, etc.)</td></tr>
+    <tr><td><code>cmd::*</code> (generated)</td><td><code>commands.json</code></td><td>Typed command builders from the official command tree</td></tr>
+  </table>
+</section>
+
+</main>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  hljs.highlightAll();
+});
+</script>
+</body>
+</html>

@@ -15,27 +15,44 @@ use crate::resource_location::ResourceLocation;
 /// Each variant corresponds to a specific loot table type defined in the Minecraft datapack spec,
 /// with a `Custom` variant for extensibility.
 pub enum LootTableType {
+    /// Empty loot table (returns nothing).
     Empty,
+    /// Entity drops (e.g. from `minecraft:bat`).
     Entity,
+    /// Block drops (e.g. from `minecraft:stone`).
     Block,
+    /// Chest loot.
     Chest,
+    /// Equipment drops.
     Equipment,
+    /// Fishing rewards.
     Fishing,
+    /// Gift drops.
     Gift,
+    /// Vault rewards (1.21+).
     VaultReward,
+    /// Shearing rewards (e.g. wool from sheep).
     Shearing,
+    /// Archaeology loot.
     Archaeology,
+    /// Generic/untyped loot.
     Generic,
+    /// Bartering with piglins.
     Barter,
+    /// Command rewards.
     Command,
+    /// Selector-based loot.
     Selector,
+    /// Advancement reward loot.
     AdvancementReward,
+    /// Advancement entity rewards.
     AdvancementEntity,
+    /// Custom or user-defined loot table type.
     Custom(String),
 }
 
 impl LootTableType {
-    /// Returns the Minecraft namespace string for this loot table type.
+    /// Get the Minecraft namespace string for this loot table type.
     pub fn type_str(&self) -> String {
         match self {
             LootTableType::Empty => "minecraft:empty".to_string(),
@@ -65,18 +82,29 @@ impl LootTableType {
 ///
 /// Variants include constant values, uniform random ranges, binomial distributions, and score-based values.
 pub enum NumberProvider {
+    /// A constant numeric value.
     Constant(f64),
+    /// Uniform random distribution between `min` and `max`.
     Uniform {
+        /// Minimum value (inclusive).
         min: f64,
+        /// Maximum value (inclusive).
         max: f64,
     },
+    /// Binomial distribution with `n` trials and probability `p`.
     Binomial {
+        /// Number of trials.
         n: i32,
+        /// Probability of success per trial.
         p: f64,
     },
+    /// Dynamic value from a scoreboard score.
     Score {
+        /// The target selector or name.
         target: Value,
+        /// The objective name.
         score: String,
+        /// Optional scale factor to apply to the score.
         scale: Option<f64>,
     },
 }
@@ -137,52 +165,87 @@ impl Serialize for NumberProvider {
 /// Includes boolean composition (AllOf, AnyOf, Inverted), entity/block checks, probability,
 /// and custom conditions for fine-grained control over loot generation.
 pub enum LootCondition {
+    /// All conditions must be true (AND).
     AllOf {
+        /// List of conditions that must all be true.
         terms: Vec<LootCondition>,
     },
+    /// At least one condition must be true (OR).
     AnyOf {
+        /// List of conditions, at least one must be true.
         terms: Vec<LootCondition>,
     },
+    /// Inverted logic (NOT).
     Inverted {
+        /// The condition to invert.
         term: Box<LootCondition>,
     },
+    /// Random probability check (0.0 to 1.0).
     RandomChance {
+        /// Probability of success.
         chance: f64,
     },
+    /// True if the entity was killed by a player.
     KilledByPlayer,
+    /// Check entity properties/predicates.
     EntityProperties {
+        /// The entity selector.
         entity: String,
+        /// The predicate to check.
         predicate: Value,
     },
+    /// Check entity scoreboard scores.
     EntityScores {
+        /// The entity selector.
         entity: String,
+        /// Score names and their required values.
         scores: HashMap<String, Value>,
     },
+    /// Match the tool used to mine/break the block.
     MatchTool {
+        /// Item predicate for the tool.
         predicate: Value,
     },
+    /// Block survives explosion (doesn't drop).
     SurvivesExplosion,
+    /// Enchantment bonus table (e.g. for fortune).
     TableBonus {
+        /// Enchantment ID to check.
         enchantment: String,
+        /// Chances per enchantment level.
         chances: Vec<f64>,
     },
+    /// Check the current game time.
     TimeCheck {
+        /// The time value or range to check.
         value: Value,
+        /// Optional period for periodic checking.
         period: Option<i64>,
     },
+    /// Check weather conditions.
     WeatherCheck {
+        /// Is it raining?
         raining: Option<bool>,
+        /// Is it thundering?
         thundering: Option<bool>,
     },
+    /// Check block state properties.
     BlockStateProperty {
+        /// Block ID.
         block: String,
+        /// Properties to match.
         properties: HashMap<String, String>,
     },
+    /// Reference to a named predicate file.
     Reference {
+        /// Predicate file name/ID.
         name: String,
     },
+    /// Custom condition type.
     Custom {
+        /// Condition type identifier.
         condition: String,
+        /// Additional condition data.
         data: Value,
     },
 }

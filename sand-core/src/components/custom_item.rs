@@ -45,17 +45,21 @@ use crate::{Advancement, AdvancementRewards, AdvancementTrigger, Criterion, Reso
 
 // ── ItemRarity ────────────────────────────────────────────────────────────────
 
-/// Item rarity — affects the default name colour.
+/// Item rarity level — affects the default name color in the UI.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ItemRarity {
+    /// White text (default).
     Common,
+    /// Yellow text.
     Uncommon,
+    /// Cyan text.
     Rare,
+    /// Pink/magenta text.
     Epic,
 }
 
 impl ItemRarity {
-    fn as_str(self) -> &'static str {
+    pub fn as_str(self) -> &'static str {
         match self {
             ItemRarity::Common => "common",
             ItemRarity::Uncommon => "uncommon",
@@ -70,36 +74,60 @@ impl ItemRarity {
 /// Minecraft entity attribute type for [`AttributeModifier`].
 #[derive(Debug, Clone)]
 pub enum AttributeType {
+    /// Melee damage dealt by the entity.
     AttackDamage,
+    /// How fast the entity attacks (lower = faster).
     AttackSpeed,
+    /// Knockback applied by the entity's attacks.
     AttackKnockback,
+    /// Physical damage reduction.
     Armor,
+    /// Extra damage reduction for strong armor.
     ArmorToughness,
+    /// Maximum health points.
     MaxHealth,
+    /// Speed of walking/running.
     MovementSpeed,
+    /// Speed of flying (for flying entities).
     FlyingSpeed,
+    /// Resistance to being knocked back.
     KnockbackResistance,
+    /// Extra luck for loot tables.
     Luck,
+    /// Jump height.
     JumpStrength,
+    /// Zombie reinforcement spawning.
     SpawnReinforcements,
+    /// Speed at which blocks are mined.
     BlockBreakSpeed,
+    /// Duration of burning damage.
     BurningTime,
+    /// Resistance to explosion knockback.
     ExplosionKnockbackResistance,
+    /// Multiplier for fall damage.
     FallDamageMultiplier,
+    /// Gravity multiplier (affects fall speed).
     Gravity,
+    /// Bonus underwater breathing time.
     OxygenBonus,
+    /// Safe fall distance before damage.
     SafeFallDistance,
+    /// Size scale of the entity.
     Scale,
+    /// Height of blocks the entity can step on.
     StepHeight,
+    /// Mining speed underwater.
     SubmergedMiningSpeed,
+    /// Damage dealt by sweep attacks.
     SweepingDamageRatio,
+    /// Speed efficiency in water.
     WaterMovementEfficiency,
-    /// Any attribute not covered above.
+    /// Any attribute not covered above (namespace:name format).
     Custom(String),
 }
 
 impl AttributeType {
-    fn as_str(&self) -> &str {
+    pub fn as_str(&self) -> &str {
         match self {
             AttributeType::AttackDamage => "minecraft:attack_damage",
             AttributeType::AttackSpeed => "minecraft:attack_speed",
@@ -134,19 +162,19 @@ impl AttributeType {
 
 // ── AttributeOperation ────────────────────────────────────────────────────────
 
-/// How an [`AttributeModifier`] value is applied.
+/// How an [`AttributeModifier`] value is applied to the base attribute.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AttributeOperation {
-    /// `base + amount`
+    /// Flat addition: `base + amount`
     AddValue,
-    /// `base + base * amount`
+    /// Scaled addition: `base + (base * amount)`
     AddMultipliedBase,
-    /// `total * (1 + amount)`
+    /// Multiplicative: `total * (1 + amount)`
     AddMultipliedTotal,
 }
 
 impl AttributeOperation {
-    fn as_str(self) -> &'static str {
+    pub fn as_str(self) -> &'static str {
         match self {
             AttributeOperation::AddValue => "add_value",
             AttributeOperation::AddMultipliedBase => "add_multiplied_base",
@@ -160,20 +188,30 @@ impl AttributeOperation {
 /// Which equipment slot(s) an [`AttributeModifier`] is active in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EquipmentSlotGroup {
+    /// Active in all slots.
     Any,
+    /// Main hand slot only.
     Mainhand,
+    /// Off hand slot only.
     Offhand,
+    /// Both main and off hand slots.
     Hand,
+    /// Head armor slot only.
     Head,
+    /// Chest armor slot only.
     Chest,
+    /// Legs armor slot only.
     Legs,
+    /// Feet armor slot only.
     Feet,
+    /// Any armor slot (head, chest, legs, or feet).
     Armor,
+    /// Body slots (includes all armor and hand slots).
     Body,
 }
 
 impl EquipmentSlotGroup {
-    fn as_str(self) -> &'static str {
+    pub fn as_str(self) -> &'static str {
         match self {
             EquipmentSlotGroup::Any => "any",
             EquipmentSlotGroup::Mainhand => "mainhand",
@@ -204,7 +242,7 @@ pub struct AttributeModifier {
 }
 
 impl AttributeModifier {
-    /// Create a new attribute modifier with the given parameters.
+    /// Create a new attribute modifier with the given type, amount, operation, and slot.
     pub fn new(
         attribute: AttributeType,
         amount: f64,
@@ -220,7 +258,7 @@ impl AttributeModifier {
         }
     }
 
-    /// Set the resource-location identifier for this modifier.
+    /// Set a unique resource-location identifier for this modifier (e.g. `"my_pack:bonus_damage"`).
     pub fn id(mut self, id: impl Into<String>) -> Self {
         self.id = Some(id.into());
         self
@@ -249,8 +287,11 @@ impl AttributeModifier {
 /// Properties for the `food` item component.
 #[derive(Debug, Clone)]
 pub struct FoodProperties {
+    /// Hunger points restored (1-20).
     pub nutrition: i32,
+    /// Saturation restored (usually 0.0-2.0).
     pub saturation: f32,
+    /// Whether the food can be eaten even with full hunger.
     pub can_always_eat: bool,
 }
 
@@ -264,7 +305,7 @@ impl FoodProperties {
         }
     }
 
-    /// Allow the food to be eaten even when the hunger bar is full.
+    /// Set whether this food can be eaten with a full hunger bar.
     pub fn can_always_eat(mut self, v: bool) -> Self {
         self.can_always_eat = v;
         self
@@ -285,20 +326,30 @@ impl FoodProperties {
 /// Specifies the animation played when consuming an item.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConsumableAnimation {
+    /// No animation.
     None,
+    /// Eating animation (like food).
     Eat,
+    /// Drinking animation (like potions).
     Drink,
+    /// Blocking animation (like shields).
     Block,
+    /// Bow drawing animation.
     Bow,
+    /// Spear throwing animation.
     Spear,
+    /// Crossbow loading animation.
     Crossbow,
+    /// Spyglass animation.
     Spyglass,
+    /// Horn tooting animation.
     TootHorn,
+    /// Brush animation.
     Brush,
 }
 
 impl ConsumableAnimation {
-    fn as_str(self) -> &'static str {
+    pub fn as_str(self) -> &'static str {
         match self {
             ConsumableAnimation::None => "none",
             ConsumableAnimation::Eat => "eat",
@@ -319,14 +370,18 @@ impl ConsumableAnimation {
 /// Properties for the `consumable` item component.
 #[derive(Debug, Clone)]
 pub struct ConsumableProperties {
+    /// Time in seconds to consume the item.
     pub consume_seconds: f32,
+    /// Animation to play during consumption.
     pub animation: ConsumableAnimation,
+    /// Whether particles appear when consuming.
     pub has_consume_particles: bool,
+    /// Optional custom sound to play.
     pub sound: Option<String>,
 }
 
 impl ConsumableProperties {
-    /// Create consumable properties with the given duration in seconds.
+    /// Create consumable properties with the given consumption duration in seconds.
     pub fn new(consume_seconds: f32) -> Self {
         Self {
             consume_seconds,
@@ -336,19 +391,19 @@ impl ConsumableProperties {
         }
     }
 
-    /// Set the use animation for this consumable.
+    /// Set the animation to play when consuming this item.
     pub fn animation(mut self, animation: ConsumableAnimation) -> Self {
         self.animation = animation;
         self
     }
 
-    /// Control whether particles appear when consuming.
+    /// Set whether particles appear when consuming.
     pub fn has_consume_particles(mut self, v: bool) -> Self {
         self.has_consume_particles = v;
         self
     }
 
-    /// Set a custom sound to play when consuming.
+    /// Set a custom sound to play when consuming (e.g. `"minecraft:entity.player.burp"`).
     pub fn sound(mut self, sound: impl Into<String>) -> Self {
         self.sound = Some(sound.into());
         self
@@ -371,22 +426,29 @@ impl ConsumableProperties {
 
 // ── EquippableProperties ──────────────────────────────────────────────────────
 
-/// Slot for the `equippable` item component.
+/// Equipment slot for the `equippable` item component.
 ///
 /// Specifies which equipment slot an item can be equipped into.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EquipmentSlot {
+    /// Head armor slot.
     Head,
+    /// Chest armor slot.
     Chest,
+    /// Legs armor slot.
     Legs,
+    /// Feet armor slot.
     Feet,
+    /// Body (all armor slots).
     Body,
+    /// Main hand weapon slot.
     Mainhand,
+    /// Off hand slot.
     Offhand,
 }
 
 impl EquipmentSlot {
-    fn as_str(self) -> &'static str {
+    pub fn as_str(self) -> &'static str {
         match self {
             EquipmentSlot::Head => "head",
             EquipmentSlot::Chest => "chest",
@@ -404,12 +466,19 @@ impl EquipmentSlot {
 /// Configures whether an item can be equipped and its behavior when equipped.
 #[derive(Debug, Clone)]
 pub struct EquippableProperties {
+    /// The equipment slot this item occupies.
     pub slot: EquipmentSlot,
+    /// Whether dispensers can automatically equip this item.
     pub dispensable: bool,
+    /// Whether players can swap this item with existing equipment.
     pub swappable: bool,
+    /// Whether the item takes damage when the wearer is hurt.
     pub damage_on_hurt: bool,
+    /// Optional sound to play when equipping.
     pub equip_sound: Option<String>,
+    /// Optional custom model for the equipped item.
     pub model: Option<String>,
+    /// Optional entity tag restricting who can wear this.
     pub allowed_entities: Option<String>,
 }
 
@@ -427,32 +496,32 @@ impl EquippableProperties {
         }
     }
 
-    /// Control whether dispensers can equip this item.
+    /// Set whether dispensers can automatically equip this item.
     pub fn dispensable(mut self, v: bool) -> Self {
         self.dispensable = v;
         self
     }
-    /// Control whether players can swap this item with existing equipment.
+    /// Set whether players can swap this item with existing equipment.
     pub fn swappable(mut self, v: bool) -> Self {
         self.swappable = v;
         self
     }
-    /// Control whether the item takes damage when the wearer is hurt.
+    /// Set whether the item takes damage when the wearer is hurt.
     pub fn damage_on_hurt(mut self, v: bool) -> Self {
         self.damage_on_hurt = v;
         self
     }
-    /// Set a sound to play when equipping this item.
+    /// Set a sound to play when equipping (e.g. `"minecraft:item.armor.equip_diamond"`).
     pub fn equip_sound(mut self, sound: impl Into<String>) -> Self {
         self.equip_sound = Some(sound.into());
         self
     }
-    /// Set a custom model for this equipped item.
+    /// Set a custom model override for this equipped item.
     pub fn model(mut self, model: impl Into<String>) -> Self {
         self.model = Some(model.into());
         self
     }
-    /// Restrict equipment to entities matching a tag.
+    /// Restrict equipping to entities with a specific tag.
     pub fn allowed_entities(mut self, tag: impl Into<String>) -> Self {
         self.allowed_entities = Some(tag.into());
         self
@@ -485,7 +554,9 @@ impl EquippableProperties {
 pub struct ToolRule {
     /// Block or block tag to match (e.g. `"#minecraft:pickaxe_mineable"`).
     pub blocks: String,
+    /// Optional mining speed multiplier for this rule.
     pub speed: Option<f32>,
+    /// Optional flag for whether the tool drops blocks correctly.
     pub correct_for_drops: Option<bool>,
 }
 
@@ -499,12 +570,12 @@ impl ToolRule {
         }
     }
 
-    /// Set the mining speed multiplier for this rule.
+    /// Set the mining speed multiplier (1.0 = normal, 2.0 = twice as fast).
     pub fn speed(mut self, speed: f32) -> Self {
         self.speed = Some(speed);
         self
     }
-    /// Control whether this tool drops blocks correctly.
+    /// Set whether this tool is capable of correctly mining the blocks.
     pub fn correct_for_drops(mut self, v: bool) -> Self {
         self.correct_for_drops = Some(v);
         self
@@ -527,13 +598,16 @@ impl ToolRule {
 /// Properties for the `tool` item component.
 #[derive(Debug, Clone)]
 pub struct ToolProperties {
+    /// Rules for specific block types or tags.
     pub rules: Vec<ToolRule>,
+    /// Default mining speed for blocks not matching any rule.
     pub default_mining_speed: f32,
+    /// Durability damage taken per broken block.
     pub damage_per_block: i32,
 }
 
 impl ToolProperties {
-    /// Create a new tool with default properties.
+    /// Create a new tool with default properties (1.0x speed, 1 damage per block).
     pub fn new() -> Self {
         Self {
             rules: Vec::new(),
@@ -547,7 +621,7 @@ impl ToolProperties {
         self.rules.push(rule);
         self
     }
-    /// Set the default mining speed for unspecified blocks.
+    /// Set the default mining speed for blocks not matching any rule.
     pub fn default_mining_speed(mut self, speed: f32) -> Self {
         self.default_mining_speed = speed;
         self
@@ -580,18 +654,21 @@ impl Default for ToolProperties {
 /// RGB color for the `dyed_color` item component (leather armor, etc.).
 #[derive(Debug, Clone, Copy)]
 pub struct DyedColor {
+    /// Red component (0-255).
     pub r: u8,
+    /// Green component (0-255).
     pub g: u8,
+    /// Blue component (0-255).
     pub b: u8,
 }
 
 impl DyedColor {
-    /// Create a color from individual red, green, and blue values (0-255).
+    /// Create a color from individual red, green, and blue values (0-255 each).
     pub fn new(r: u8, g: u8, b: u8) -> Self {
         Self { r, g, b }
     }
 
-    /// Construct from a 24-bit hex integer (e.g. `0xFF5733`).
+    /// Construct a color from a 24-bit hex integer (e.g. `0xFF5733` for orange).
     pub fn hex(rgb: u32) -> Self {
         Self {
             r: ((rgb >> 16) & 0xFF) as u8,
@@ -727,38 +804,37 @@ impl CustomItem {
 
     // ── Display ───────────────────────────────────────────────────────────────
 
-    /// Override the item's display name (not italicised by default).
+    /// Set the item's custom display name (not italicized).
     pub fn custom_name(mut self, name: TextComponent) -> Self {
         self.custom_name = Some(name.to_string());
         self
     }
 
-    /// Set the item name component (shown in italic in UI — use `custom_name`
-    /// for a non-italic name override).
+    /// Set the item name component (shown italicized in UI). Use `custom_name` for non-italic text.
     pub fn item_name(mut self, name: TextComponent) -> Self {
         self.item_name = Some(name.to_string());
         self
     }
 
-    /// Append a lore line.
+    /// Add a single lore line to the item.
     pub fn lore_line(mut self, line: TextComponent) -> Self {
         self.lore.push(line.to_string());
         self
     }
 
-    /// Set multiple lore lines at once.
+    /// Add multiple lore lines at once.
     pub fn lore(mut self, lines: Vec<TextComponent>) -> Self {
         self.lore.extend(lines.into_iter().map(|l| l.to_string()));
         self
     }
 
-    /// Set the rarity level of this item (affects display color).
+    /// Set the rarity level (affects item name color).
     pub fn rarity(mut self, rarity: ItemRarity) -> Self {
         self.rarity = Some(rarity);
         self
     }
 
-    /// Force or suppress the enchantment glint.
+    /// Force or suppress the enchantment glint animation.
     pub fn enchantment_glint_override(mut self, glint: bool) -> Self {
         self.enchantment_glint_override = Some(glint);
         self
@@ -770,7 +846,7 @@ impl CustomItem {
         self
     }
 
-    /// Hide the entire tooltip.
+    /// Hide the entire item tooltip.
     pub fn hide_tooltip(mut self) -> Self {
         self.hide_tooltip = true;
         self
@@ -839,49 +915,49 @@ impl CustomItem {
 
     // ── Behaviour ─────────────────────────────────────────────────────────────
 
-    /// Set food properties for this item.
+    /// Add food properties to this item (makes it edible).
     pub fn food(mut self, food: FoodProperties) -> Self {
         self.food = Some(food);
         self
     }
 
-    /// Set consumable properties for this item.
+    /// Add consumable properties to this item.
     pub fn consumable(mut self, consumable: ConsumableProperties) -> Self {
         self.consumable = Some(consumable);
         self
     }
 
-    /// Apply a use-cooldown in seconds.
+    /// Set a use cooldown (in seconds) between each use.
     pub fn use_cooldown(mut self, seconds: f32) -> Self {
         self.use_cooldown = Some(seconds);
         self
     }
 
-    /// Set tool properties for this item.
+    /// Add tool properties to this item (makes it a tool/weapon).
     pub fn tool(mut self, tool: ToolProperties) -> Self {
         self.tool = Some(tool);
         self
     }
 
-    /// Set equippable properties for this item.
+    /// Make this item equippable in a specific slot.
     pub fn equippable(mut self, equippable: EquippableProperties) -> Self {
         self.equippable = Some(equippable);
         self
     }
 
-    /// Make the item function as a glider (like an elytra).
+    /// Make this item function as a glider (like an elytra).
     pub fn glider(mut self) -> Self {
         self.glider = true;
         self
     }
 
-    /// Mark the item as fire-resistant (won't burn in lava).
+    /// Mark this item as fire-resistant (won't burn in lava or fire).
     pub fn fire_resistant(mut self) -> Self {
         self.fire_resistant = true;
         self
     }
 
-    /// Set a dyed colour (leather armour, etc.).
+    /// Set a dye color for this item (for leather armor, etc.).
     pub fn dyed_color(mut self, color: DyedColor) -> Self {
         self.dyed_color = Some(color);
         self
@@ -889,9 +965,9 @@ impl CustomItem {
 
     // ── Escape hatch ──────────────────────────────────────────────────────────
 
-    /// Append a raw `key=snbt_value` component string verbatim.
+    /// Add a raw item component (for features not covered by the typed API).
     ///
-    /// Use this for any component not covered by the typed API.
+    /// Appends `key=snbt_value` verbatim to the component string.
     pub fn raw_component(mut self, key: impl Into<String>, snbt_value: impl Into<String>) -> Self {
         self.extra_components.push((key.into(), snbt_value.into()));
         self
@@ -899,13 +975,12 @@ impl CustomItem {
 
     // ── Item predicate ────────────────────────────────────────────────────────
 
-    /// Build a Minecraft item predicate JSON for this item.
+    /// Build a Minecraft item predicate JSON for matching this item.
     ///
-    /// Matches the base item type and, if a [`custom_data`](Self::custom_data)
-    /// key was set, also matches the `minecraft:custom_data` component.
+    /// Matches the base item type and, if a [`custom_data`](Self::custom_data) key was set,
+    /// also matches the `minecraft:custom_data` component.
     ///
-    /// Use the returned value in advancement `conditions`, loot table conditions,
-    /// or anywhere a Minecraft item predicate is accepted.
+    /// Use the result in advancement criteria, loot table conditions, or predicates.
     pub fn item_predicate(&self) -> Value {
         let mut pred = serde_json::Map::new();
         pred.insert("items".into(), serde_json::json!([self.base]));
@@ -920,10 +995,10 @@ impl CustomItem {
 
     // ── Advancement helpers ───────────────────────────────────────────────────
 
-    /// Build an [`Advancement`] that fires when a player right-clicks with this
-    /// item (`UsedItem` trigger) and calls `reward_fn` as its reward.
+    /// Build an advancement that fires when the player right-clicks with this item.
     ///
-    /// Register the returned value with `#[component]`.
+    /// The advancement uses the `UsingItem` trigger and calls `reward_fn` as its reward.
+    /// Register the result with `#[component]`.
     pub fn on_use_advancement(
         &self,
         location: ResourceLocation,
@@ -939,12 +1014,11 @@ impl CustomItem {
             .rewards(AdvancementRewards::new().function(reward_fn))
     }
 
-    /// Build an [`Advancement`] that fires when a player kills an entity while
-    /// holding this item and calls `reward_fn` as its reward.
+    /// Build an advancement that fires when the player kills an entity.
     ///
-    /// Note: Minecraft's `PlayerKilledEntity` trigger does not directly filter
-    /// by held item. You may want to check the player's mainhand in the reward
-    /// function using `execute if items entity @s weapon.mainhand ...`.
+    /// Note: Minecraft's `PlayerKilledEntity` trigger does not filter by held item.
+    /// Verify the mainhand in the reward function using
+    /// `execute if items entity @s weapon.mainhand ...`.
     pub fn on_kill_advancement(
         &self,
         location: ResourceLocation,
@@ -961,9 +1035,9 @@ impl CustomItem {
             .rewards(AdvancementRewards::new().function(reward_fn))
     }
 
-    /// Build an [`Advancement`] using a fully custom trigger.
+    /// Build an advancement with a custom trigger.
     ///
-    /// Use this for interactions not covered by the typed helpers above.
+    /// Use this for item interactions not covered by the other helper methods.
     pub fn custom_trigger_advancement(
         &self,
         location: ResourceLocation,

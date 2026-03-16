@@ -81,86 +81,126 @@ pub struct Execute {
 }
 
 impl Execute {
+    /// Create a new `Execute` builder with no sub-commands.
     pub fn new() -> Self {
         Self { parts: vec![] }
     }
 
     // ── Context sub-commands ──────────────────────────────────────────────────
 
-    /// `as <selector>` — change the executing entity.
+    /// `as <selector>` — change the executing entity to match the selector.
+    ///
+    /// After this, all subsequent context (position, rotation) and `@s` refer to the selected entity.
+    /// Produces: `execute as <selector> ...`
     pub fn as_(mut self, selector: Selector) -> Self {
         self.parts.push(format!("as {selector}"));
         self
     }
 
-    /// `at <selector>` — change position/rotation to match entity.
+    /// `at <selector>` — change position and rotation to match the selected entity.
+    ///
+    /// Subsequent `@s` refers to the entity selected here. Useful for executing at a player's position.
+    /// Produces: `execute at <selector> ...`
     pub fn at(mut self, selector: Selector) -> Self {
         self.parts.push(format!("at {selector}"));
         self
     }
 
-    /// `positioned <pos>` — change position.
+    /// `positioned <pos>` — change execution position to the given absolute coordinates.
+    ///
+    /// Relative coordinates (`~x ~y ~z`) are supported. Rotation remains unchanged.
+    /// Produces: `execute positioned <pos> ...`
     pub fn positioned(mut self, pos: Vec3) -> Self {
         self.parts.push(format!("positioned {pos}"));
         self
     }
 
-    /// `positioned as <selector>` — change position to match entity.
+    /// `positioned as <selector>` — change position to match the selected entity's position.
+    ///
+    /// Like `at` but only changes position, not rotation.
+    /// Produces: `execute positioned as <selector> ...`
     pub fn positioned_as(mut self, selector: Selector) -> Self {
         self.parts.push(format!("positioned as {selector}"));
         self
     }
 
-    /// `rotated <yaw> <pitch>` — change rotation.
+    /// `rotated <yaw> <pitch>` — change execution rotation to the given angles.
+    ///
+    /// Yaw (0-360 degrees) and pitch (-90 to 90 degrees). Position remains unchanged.
+    /// Produces: `execute rotated <rotation> ...`
     pub fn rotated(mut self, rotation: Rotation) -> Self {
         self.parts.push(format!("rotated {rotation}"));
         self
     }
 
-    /// `rotated as <selector>` — change rotation to match entity.
+    /// `rotated as <selector>` — change rotation to match the selected entity's rotation.
+    ///
+    /// Like `at` but only changes rotation, not position.
+    /// Produces: `execute rotated as <selector> ...`
     pub fn rotated_as(mut self, selector: Selector) -> Self {
         self.parts.push(format!("rotated as {selector}"));
         self
     }
 
-    /// `facing <pos>` — rotate to face a position.
+    /// `facing <pos>` — rotate execution to face a position in the world.
+    ///
+    /// The executor's position is used as the origin. Useful for making entities look at a location.
+    /// Produces: `execute facing <pos> ...`
     pub fn facing(mut self, pos: Vec3) -> Self {
         self.parts.push(format!("facing {pos}"));
         self
     }
 
-    /// `facing entity <selector> <anchor>` — rotate to face an entity.
+    /// `facing entity <selector> <anchor>` — rotate execution to face an entity's anchor point.
+    ///
+    /// Anchor can be `eyes` or `feet`. Rotates from the executor toward the target.
+    /// Produces: `execute facing entity <selector> <anchor> ...`
     pub fn facing_entity(mut self, selector: Selector, anchor: Anchor) -> Self {
         self.parts
             .push(format!("facing entity {selector} {anchor}"));
         self
     }
 
-    /// `in <dimension>` — change dimension.
+    /// `in <dimension>` — change dimension for subsequent commands.
+    ///
+    /// Changes which dimension the command executes in (e.g., `"minecraft:the_nether"`).
+    /// Produces: `execute in <dimension> ...`
     pub fn in_(mut self, dimension: impl Into<String>) -> Self {
         self.parts.push(format!("in {}", dimension.into()));
         self
     }
 
-    /// `align <axes>` — floor coordinates to block grid (e.g. `"xy"`).
+    /// `align <axes>` — snap coordinates to the block grid along specified axes.
+    ///
+    /// Rounds coordinates down to block boundaries. E.g., `align(Swizzle::xy())` snaps x and y.
+    /// Produces: `execute align <axes> ...`
     pub fn align(mut self, axes: Swizzle) -> Self {
         self.parts.push(format!("align {axes}"));
         self
     }
 
-    /// `anchored <anchor>` — change anchor point.
+    /// `anchored <anchor>` — change the anchor point for position calculations.
+    ///
+    /// `eyes` for head level, `feet` for foot level. Affects position calculations in subsequent commands.
+    /// Produces: `execute anchored <anchor> ...`
     pub fn anchored(mut self, anchor: Anchor) -> Self {
         self.parts.push(format!("anchored {anchor}"));
         self
     }
 
-    /// `on <relation>` — follow an entity relationship (attacker, vehicle, etc.).
+    /// `on <relation>` — follow an entity relationship chain.
+    ///
+    /// Switches execution to a related entity (e.g., `"attacker"`, `"vehicle"`, `"passenger"`).
+    /// Produces: `execute on <relation> ...`
     pub fn on(mut self, relation: impl Into<String>) -> Self {
         self.parts.push(format!("on {}", relation.into()));
         self
     }
 
-    /// `summon <entity_type>` — summon an entity and execute as it.
+    /// `summon <entity_type>` — summon an entity and execute as it immediately.
+    ///
+    /// The summoned entity becomes the executor for subsequent commands.
+    /// Produces: `execute summon <entity_type> ...`
     pub fn summon(mut self, entity_type: impl Into<String>) -> Self {
         self.parts.push(format!("summon {}", entity_type.into()));
         self
@@ -168,39 +208,47 @@ impl Execute {
 
     // ── Condition sub-commands ────────────────────────────────────────────────
 
-    /// `if entity <selector>` — execute only if the selector matches.
+    /// `if entity <selector>` — execute only if the selector matches at least one entity.
+    ///
+    /// Produces: `execute if entity <selector> ...`
     pub fn if_entity(mut self, selector: Selector) -> Self {
         self.parts.push(format!("if entity {selector}"));
         self
     }
 
-    /// `unless entity <selector>` — execute only if NO entity matches.
+    /// `unless entity <selector>` — execute only if the selector matches NO entities.
+    ///
+    /// Produces: `execute unless entity <selector> ...`
     pub fn unless_entity(mut self, selector: Selector) -> Self {
         self.parts.push(format!("unless entity {selector}"));
         self
     }
 
-    /// `if entity @s[team=<team>]` — continue only if the current executing entity
-    /// is on the given team.
+    /// `if entity @s[team=<team>]` — continue only if the current executing entity is on the given team.
     ///
-    /// After `execute as @e[...]`, `@s` is each iterated entity, so this checks
+    /// After `execute as @e[...]`, `@s` refers to each iterated entity, so this checks
     /// **the target entity's** team — not the original executor's team.
+    /// Useful for friendly-fire prevention and team-based filters.
+    /// Produces: `execute if entity @s[team=<team>] ...`
     pub fn if_on_team(mut self, team: impl Into<String>) -> Self {
         self.parts
             .push(format!("if entity @s[team={}]", team.into()));
         self
     }
 
-    /// `unless entity @s[team=<team>]` — skip if the current executing entity is
-    /// on the given team.
+    /// `unless entity @s[team=<team>]` — skip execution if the current executing entity is on the given team.
     ///
-    /// See [`if_on_team`](Execute::if_on_team) for the semantics of `@s`.
+    /// See [`if_on_team`](Execute::if_on_team) for team context semantics.
+    /// Produces: `execute unless entity @s[team=<team>] ...`
     pub fn unless_on_team(mut self, team: impl Into<String>) -> Self {
         self.parts
             .push(format!("unless entity @s[team={}]", team.into()));
         self
     }
 
+    /// `unless score <a> <a_obj> = <b> <b_obj>` — skip if two scores are equal.
+    ///
+    /// Produces: `execute unless score <a_selector> <obj> = <b_selector> <obj> ...`
     pub fn unless_score(
         mut self,
         primary_selector: Selector,
@@ -216,20 +264,28 @@ impl Execute {
         self
     }
 
-    /// `if block <pos> <block>` — execute only if block at pos matches.
+    /// `if block <pos> <block>` — execute only if the block at `pos` matches the given type.
+    ///
+    /// Supports block states in the block argument (e.g., `"redstone_wire[power=15]"`).
+    /// Produces: `execute if block <pos> <block> ...`
     pub fn if_block(mut self, pos: BlockPos, block: impl Into<String>) -> Self {
         self.parts.push(format!("if block {pos} {}", block.into()));
         self
     }
 
-    /// `unless block <pos> <block>`.
+    /// `unless block <pos> <block>` — execute only if the block at `pos` does NOT match the given type.
+    ///
+    /// Produces: `execute unless block <pos> <block> ...`
     pub fn unless_block(mut self, pos: BlockPos, block: impl Into<String>) -> Self {
         self.parts
             .push(format!("unless block {pos} {}", block.into()));
         self
     }
 
-    /// `if score <holder> <obj> matches <range>` — check score against a range.
+    /// `if score <holder> <obj> matches <range>` — execute if a score falls within the given range.
+    ///
+    /// Range can be `"5"` (exact), `"5.."` (5 or more), `"..5"` (5 or less), or `"1..10"` (between).
+    /// Produces: `execute if score <holder> <obj> matches <range> ...`
     pub fn if_score_matches(
         mut self,
         holder: impl Into<String>,
@@ -245,7 +301,9 @@ impl Execute {
         self
     }
 
-    /// `unless score <holder> <obj> matches <range>`.
+    /// `unless score <holder> <obj> matches <range>` — execute if a score falls OUTSIDE the given range.
+    ///
+    /// Produces: `execute unless score <holder> <obj> matches <range> ...`
     pub fn unless_score_matches(
         mut self,
         holder: impl Into<String>,
@@ -261,7 +319,10 @@ impl Execute {
         self
     }
 
-    /// `if score <a> <a_obj> <op> <b> <b_obj>` — compare two scores.
+    /// `if score <a> <a_obj> <op> <b> <b_obj>` — compare two scores using an operation.
+    ///
+    /// Operations: `=`, `<`, `>`, `<=`, `>=`, `!=`. Useful for relative comparisons.
+    /// Produces: `execute if score <a> <a_obj> <op> <b> <b_obj> ...`
     pub fn if_score_compare(
         mut self,
         a: impl Into<String>,
@@ -280,7 +341,9 @@ impl Execute {
         self
     }
 
-    /// `unless score <a> <a_obj> <op> <b> <b_obj>`.
+    /// `unless score <a> <a_obj> <op> <b> <b_obj>` — skip execution if the comparison is true.
+    ///
+    /// Produces: `execute unless score <a> <a_obj> <op> <b> <b_obj> ...`
     pub fn unless_score_compare(
         mut self,
         a: impl Into<String>,
@@ -299,7 +362,10 @@ impl Execute {
         self
     }
 
-    /// `if predicate <predicate>` — check a loot predicate.
+    /// `if predicate <predicate>` — execute if a loot table predicate evaluates to true.
+    ///
+    /// Predicates are defined in JSON and can check entity properties, NBT, and more.
+    /// Produces: `execute if predicate <predicate> ...`
     pub fn if_predicate(mut self, predicate: impl Into<String>) -> Self {
         self.parts
             .push(format!("if predicate {}", predicate.into()));
@@ -323,8 +389,10 @@ impl Execute {
 
     // ── Items conditions (1.20.5+) ────────────────────────────────────────────
 
-    /// `if items entity <selector> <slot> <item>` — continues only if the slot
-    /// holds an item matching the predicate (1.20.5+).
+    /// `if items entity <selector> <slot> <item>` — execute if the slot holds a matching item (1.20.5+).
+    ///
+    /// Item argument uses item predicates to match stacks by type, count, NBT, etc.
+    /// Produces: `execute if items entity <selector> <slot> <item> ...`
     pub fn if_items(
         mut self,
         selector: Selector,
@@ -336,7 +404,9 @@ impl Execute {
         self
     }
 
-    /// `unless items entity <selector> <slot> <item>` (1.20.5+).
+    /// `unless items entity <selector> <slot> <item>` — execute if the slot does NOT match (1.20.5+).
+    ///
+    /// Produces: `execute unless items entity <selector> <slot> <item> ...`
     pub fn unless_items(
         mut self,
         selector: Selector,
@@ -350,13 +420,10 @@ impl Execute {
         self
     }
 
-    /// `if items entity <selector> <slot_pattern> <item>` with a wildcard pattern (1.20.5+).
+    /// `if items entity <selector> <slot_pattern> <item>` — check multiple slots using a pattern (1.20.5+).
     ///
-    /// ```rust,ignore
-    /// Execute::new()
-    ///     .if_items_pattern(Selector::self_(), SlotPattern::AnyHotbar, "minecraft:torch")
-    ///     .run_raw("say has torch in hotbar")
-    /// ```
+    /// Patterns like `AnyHotbar` or `AnyInventory` allow checking multiple slots at once.
+    /// Produces: `execute if items entity <selector> <pattern> <item> ...`
     pub fn if_items_pattern(
         mut self,
         selector: Selector,
@@ -370,7 +437,9 @@ impl Execute {
         self
     }
 
-    /// `unless items entity <selector> <slot_pattern> <item>` with a wildcard pattern (1.20.5+).
+    /// `unless items entity <selector> <slot_pattern> <item>` — check pattern does NOT match (1.20.5+).
+    ///
+    /// Produces: `execute unless items entity <selector> <pattern> <item> ...`
     pub fn unless_items_pattern(
         mut self,
         selector: Selector,
@@ -386,14 +455,20 @@ impl Execute {
 
     // ── Store sub-commands ────────────────────────────────────────────────────
 
-    /// `store result score <holder> <objective>` — store result of `run` into a score.
+    /// `store result score <holder> <objective>` — capture the numeric result of the `run` command into a score.
+    ///
+    /// The command's return value (e.g., the data byte count from `data get`) is stored as the score.
+    /// Produces: `execute store result score <holder> <objective> run ...`
     pub fn store_result_score(mut self, holder: ScoreHolder, objective: impl Into<String>) -> Self {
         self.parts
             .push(format!("store result score {holder} {}", objective.into()));
         self
     }
 
-    /// `store success score <holder> <objective>`.
+    /// `store success score <holder> <objective>` — store 1 if the `run` command succeeds, 0 if it fails.
+    ///
+    /// Unlike `store result`, this captures success/failure rather than a numeric output.
+    /// Produces: `execute store success score <holder> <objective> run ...`
     pub fn store_success_score(
         mut self,
         holder: ScoreHolder,
@@ -406,15 +481,21 @@ impl Execute {
 
     // ── Terminal ──────────────────────────────────────────────────────────────
 
-    /// `run <command>` — execute the given command in the new context.
+    /// `run <command>` — finalize the execute chain and run the given command.
     ///
-    /// This finalizes the execute chain and returns the full command string.
+    /// This must be called last. The command receives all context changes from prior methods.
+    /// Returns the complete execute command string ready to emit.
+    /// Produces: `execute <sub-commands> run <command>`
     pub fn run(mut self, cmd: impl Command) -> String {
         self.parts.push(format!("run {cmd}"));
         format!("execute {}", self.parts.join(" "))
     }
 
-    /// Like [`run`](Execute::run) but accepts a raw string instead of a typed command.
+    /// Like [`run`](Execute::run) but accepts a raw unparsed command string.
+    ///
+    /// Use this when you have a command as a plain string or when the command type
+    /// doesn't implement the `Command` trait.
+    /// Produces: `execute <sub-commands> run <command>`
     pub fn run_raw(mut self, cmd: impl Into<String>) -> String {
         self.parts.push(format!("run {}", cmd.into()));
         format!("execute {}", self.parts.join(" "))
@@ -422,7 +503,10 @@ impl Execute {
 }
 
 impl fmt::Display for Execute {
-    /// Renders the execute chain WITHOUT a `run` clause (useful for partial chains).
+    /// Render the execute chain without a `run` clause.
+    ///
+    /// Useful for debugging or when building the command piecemeal. The result
+    /// is incomplete and cannot be executed by Minecraft without adding a `run` clause.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "execute {}", self.parts.join(" "))
     }

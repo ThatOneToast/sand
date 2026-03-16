@@ -39,39 +39,47 @@ use super::types::ScoreHolder;
 
 // ── Cooldown ──────────────────────────────────────────────────────────────────
 
+/// Scoreboard-based cooldown system for ability tracking.
+///
+/// A cooldown is a countdown timer backed by a scoreboard objective.
+/// While the score is > 0, the ability is on cooldown; at 0 it's ready.
 pub struct Cooldown {
     objective: &'static Objective,
-    /// Duration in ticks that the cooldown lasts.
+    /// Duration in ticks that the cooldown lasts (e.g., 60 = 3 seconds at 20 tps).
     ticks: u32,
 }
 
 impl Cooldown {
-    /// Create a cooldown backed by `objective` lasting `ticks` ticks.
+    /// Create a cooldown instance with duration in ticks.
     ///
-    /// Both `objective` and the `Cooldown` itself are suitable for `static`
-    /// declarations (no heap allocation).
+    /// The objective must already be defined. Both `Cooldown` and objective are
+    /// suitable for `static`/`const` declarations (no heap allocation).
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// static COOLDOWN_OBJ: Objective = Objective::new("spell_cd");
+    /// static SPELL_COOLDOWN: Cooldown = Cooldown::new(&COOLDOWN_OBJ, 60); // 3 seconds
+    /// ```
     pub const fn new(objective: &'static Objective, ticks: u32) -> Self {
         Self { objective, ticks }
     }
 
     // ── Scoreboard registration ───────────────────────────────────────────────
 
-    /// `scoreboard objectives add <name> dummy` — register the objective.
+    /// `scoreboard objectives add <name> dummy` — register the underlying objective.
     ///
-    /// Call once in your `load` / `setup` function.
+    /// Call this once in your data pack's `load` function or setup phase.
     pub fn register(&self) -> String {
         format!("scoreboard objectives add {} dummy", self.objective.name())
     }
 
     // ── Per-ability-use commands ──────────────────────────────────────────────
 
-    /// Guard the cooldown: if the score is > 0 the function **returns**
-    /// immediately (ability blocked).
+    /// Guard clause: return early if the cooldown is active (score > 0).
     ///
-    /// Generates:
-    /// ```text
-    /// execute if score <holder> <obj> matches 1.. run return 0
-    /// ```
+    /// Place this at the start of your ability function to prevent use while cooling.
+    /// If score is > 0, the function returns 0 immediately. Otherwise execution continues.
+    /// Produces: `execute if score <holder> <obj> matches 1.. run return 0`
     pub fn guard(&self, holder: ScoreHolder) -> String {
         format!(
             "execute if score {} {} matches 1.. run return 0",
@@ -80,29 +88,26 @@ impl Cooldown {
         )
     }
 
-    /// Start the cooldown for `holder`, setting the score to `ticks`.
+    /// Start the cooldown by setting the score to the configured duration.
     ///
-    /// Generates:
-    /// ```text
-    /// scoreboard players set <holder> <obj> <ticks>
-    /// ```
+    /// Call this after the ability executes to begin the countdown.
+    /// Produces: `scoreboard players set <holder> <obj> <ticks>`
     pub fn start(&self, holder: ScoreHolder) -> String {
         self.objective.set(holder, self.ticks as i32)
     }
 
-    /// Reset the cooldown immediately (set score to 0).
+    /// Reset the cooldown immediately to ready (score = 0).
     pub fn reset(&self, holder: ScoreHolder) -> String {
         self.objective.set(holder, 0)
     }
 
     // ── Per-tick command ──────────────────────────────────────────────────────
 
-    /// Decrement the cooldown by 1 tick (only if it is currently > 0).
+    /// Decrement the cooldown by 1 tick (only if score > 0).
     ///
-    /// Generates:
-    /// ```text
-    /// execute if score <holder> <obj> matches 1.. run scoreboard players remove <holder> <obj> 1
-    /// ```
+    /// Place this in your data pack's tick function to countdown all active cooldowns.
+    /// Safe to call repeatedly — only decrements if score is positive.
+    /// Produces: `execute if score <holder> <obj> matches 1.. run scoreboard players remove <holder> <obj> 1`
     pub fn tick(&self, holder: ScoreHolder) -> String {
         format!(
             "execute if score {} {} matches 1.. run scoreboard players remove {} {} 1",
@@ -115,24 +120,30 @@ impl Cooldown {
 
     // ── Condition helpers ─────────────────────────────────────────────────────
 
-    /// Returns a condition fragment `"if score <holder> <obj> matches 1.."` for
-    /// use inside an `execute` chain — true while the cooldown is **active**.
+    /// Return a condition fragment: true while the cooldown is **active** (score >= 1).
+    ///
+    /// Use with `Execute::if_()` to conditionally execute code when cooldown is active.
+    /// Produces: `if score <holder> <obj> matches 1..`
     pub fn is_active(&self, holder: ScoreHolder) -> String {
         format!("if score {} {} matches 1..", holder, self.objective.name())
     }
 
-    /// Returns a condition fragment `"if score <holder> <obj> matches 0"` —
-    /// true when the cooldown is **ready**.
+    /// Return a condition fragment: true when the cooldown is **ready** (score = 0).
+    ///
+    /// Use with `Execute::if_()` to conditionally execute code when ability is ready.
+    /// Produces: `if score <holder> <obj> matches 0`
     pub fn is_ready(&self, holder: ScoreHolder) -> String {
         format!("if score {} {} matches 0", holder, self.objective.name())
     }
 
-    /// Returns the current objective.
+    /// Return a reference to the underlying objective.
+    ///
+    /// Useful if you need direct access to the objective for other operations.
     pub fn objective(&self) -> &Objective {
         self.objective
     }
 
-    /// Returns the cooldown duration in ticks.
+    /// Return the configured cooldown duration in ticks.
     pub fn ticks(&self) -> u32 {
         self.ticks
     }

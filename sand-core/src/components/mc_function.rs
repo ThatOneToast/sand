@@ -3,18 +3,22 @@ use serde_json::Value;
 use crate::component::{ComponentContent, DatapackComponent};
 use crate::resource_location::ResourceLocation;
 
+/// Trait for types that can be converted into a list of Minecraft commands.
 pub trait IntoCommands {
+    /// Convert this value into a vector of command strings.
     fn into_commands(self) -> Vec<String>;
 }
 
 /// A Minecraft function file (.mcfunction) that contains a list of commands to be executed.
 pub struct McFunction {
+    /// The resource location for this function.
     pub location: ResourceLocation,
+    /// List of commands in this function.
     pub commands: Vec<String>,
 }
 
 impl McFunction {
-    /// Creates a new McFunction with the given resource location.
+    /// Create a new function with the given resource location.
     pub fn new(location: ResourceLocation) -> Self {
         Self {
             location,
@@ -22,13 +26,13 @@ impl McFunction {
         }
     }
 
-    /// Adds a single command to this function.
+    /// Add a single command to this function.
     pub fn command(mut self, cmd: impl Into<String>) -> Self {
         self.commands.push(cmd.into());
         self
     }
 
-    /// Adds multiple commands to this function.
+    /// Add multiple commands to this function.
     pub fn commands(mut self, cmds: impl IntoIterator<Item = impl Into<String>>) -> Self {
         self.commands.extend(cmds.into_iter().map(|c| c.into()));
         self

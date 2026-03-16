@@ -12,21 +12,32 @@
 
 // ── ParticleSpread ────────────────────────────────────────────────────────────
 
-/// Spread/delta parameters for the `particle` command.
-/// `(dx, dy, dz)` — the Minecraft spread box half-extents.
+/// Spread/dispersion parameters for particles.
+///
+/// Particles are randomly scattered within a bounding box with these half-extents.
+/// `(dx, dy, dz)` — dispersion in each axis direction from the particle origin.
 pub struct ParticleSpread {
+    /// Half-extent in the X axis.
     pub dx: f64,
+    /// Half-extent in the Y axis.
     pub dy: f64,
+    /// Half-extent in the Z axis.
     pub dz: f64,
 }
 
 impl ParticleSpread {
+    /// A point particle with no spread (all zeros).
+    ///
+    /// Particles appear exactly at the specified position.
     pub const POINT: Self = Self {
         dx: 0.0,
         dy: 0.0,
         dz: 0.0,
     };
 
+    /// Create a uniform cube of spread in all three directions.
+    ///
+    /// All axes get the same spread value.
     pub fn uniform(v: f64) -> Self {
         Self {
             dx: v,
@@ -34,6 +45,8 @@ impl ParticleSpread {
             dz: v,
         }
     }
+
+    /// Create custom spread parameters.
     pub fn new(dx: f64, dy: f64, dz: f64) -> Self {
         Self { dx, dy, dz }
     }
@@ -71,19 +84,22 @@ fn particle_cmd(name: &str, x: f64, y: f64, z: f64, spread: &ParticleSpread) -> 
 
 // ── ParticleEffect ────────────────────────────────────────────────────────────
 
-/// Collection of static methods that generate `Vec<String>` of `particle`
-/// commands for common geometric shapes.
+/// Static geometry generators for particle effects.
 ///
-/// All offsets are relative to the executor's position.
+/// Produces `Vec<String>` of `particle` commands that form geometric shapes.
+/// All coordinates are relative (`~x ~y ~z`) to the executor's position,
+/// so effects work in any location without hard-coded coordinates.
 pub struct ParticleEffect;
 
 impl ParticleEffect {
-    /// A horizontal ring of `count` evenly-spaced particles at the given
-    /// `radius`, offset `y` blocks above the executor.
+    /// Generate a horizontal ring of particles.
+    ///
+    /// Creates `count` evenly-spaced particles at the given radius.
+    /// Y-offset: positive is up, negative is down from executor.
     ///
     /// # Example
     /// ```rust,ignore
-    /// // 32 flame particles in a ring of radius 2 at feet level
+    /// // 32 flame particles in a horizontal ring of radius 2
     /// let cmds = ParticleEffect::circle("minecraft:flame", 2.0, 0.0, 32, &ParticleSpread::POINT);
     /// ```
     pub fn circle(
@@ -103,8 +119,10 @@ impl ParticleEffect {
             .collect()
     }
 
-    /// A sphere of `count` particles distributed uniformly using the
-    /// Fibonacci sphere algorithm.
+    /// Generate a sphere of particles distributed uniformly.
+    ///
+    /// Uses the Fibonacci sphere algorithm for even distribution across the surface and interior.
+    /// Good for spherical effects like magic orbs or auras.
     pub fn sphere(
         particle: &str,
         radius: f64,
@@ -125,8 +143,10 @@ impl ParticleEffect {
             .collect()
     }
 
-    /// A helix rising `height` blocks over `turns` rotations with `count`
-    /// total particles.
+    /// Generate a spiral helix rising upward.
+    ///
+    /// Creates a DNA-like spiral that rises `height` blocks while rotating `turns` times.
+    /// Good for staff effects, tornadoes, or DNA visualizations.
     pub fn helix(
         particle: &str,
         radius: f64,
@@ -147,8 +167,10 @@ impl ParticleEffect {
             .collect()
     }
 
-    /// A straight line of `count` particles from `(x1,y1,z1)` to `(x2,y2,z2)`
-    /// relative to the executor.
+    /// Generate a straight line of particles between two points.
+    ///
+    /// Both endpoints are relative to the executor. Good for laser beams or lightning paths.
+    /// Handles edge cases: empty list if count=0, single point if count=1.
     pub fn line(
         particle: &str,
         x1: f64,
@@ -177,8 +199,10 @@ impl ParticleEffect {
             .collect()
     }
 
-    /// An outward burst of `count` particles scattered across a sphere of
-    /// `radius`. Good for explosions/impacts.
+    /// Generate an outward burst of particles radiating from a center.
+    ///
+    /// Particles spread across a sphere with extra velocity for expansion.
+    /// Good for explosions, impact effects, or muzzle flashes.
     pub fn burst(
         particle: &str,
         radius: f64,
@@ -195,7 +219,10 @@ impl ParticleEffect {
         Self::sphere(particle, radius, y_offset, count, &spread_boost)
     }
 
-    /// Two interleaved helices (DNA-style) rising `height` blocks.
+    /// Generate two interleaved helices (DNA-style) rising upward.
+    ///
+    /// Creates a double helix with complementary particles offset by 180 degrees.
+    /// Rising `height` blocks over `turns` rotations.
     pub fn double_helix(
         particle: &str,
         radius: f64,
@@ -221,7 +248,11 @@ impl ParticleEffect {
         cmds
     }
 
-    /// A filled disc (circle + inner rings) of radius `radius`.
+    /// Generate a filled disc (solid circle with concentric rings).
+    ///
+    /// Creates a center point plus concentric rings to fill the disk.
+    /// Density controls the number of rings; higher values = more particles, better coverage.
+    /// Good for beam effects, platform highlights, or dimensional portals.
     pub fn disc(
         particle: &str,
         radius: f64,

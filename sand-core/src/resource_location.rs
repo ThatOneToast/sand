@@ -29,6 +29,9 @@ pub struct ResourceLocation {
 impl ResourceLocation {
     /// Construct a `ResourceLocation`, returning an error if either part
     /// contains invalid characters or is empty.
+    ///
+    /// - **namespace** must match `[a-z0-9_.-]+`
+    /// - **path** must match `[a-z0-9_./-]+`
     pub fn new(namespace: impl AsRef<str>, path: impl AsRef<str>) -> Result<Self> {
         let namespace = namespace.as_ref();
         let path = path.as_ref();
@@ -45,10 +48,12 @@ impl ResourceLocation {
         Self::new("minecraft", path)
     }
 
+    /// Get the namespace part of this resource location.
     pub fn namespace(&self) -> &str {
         &self.namespace
     }
 
+    /// Get the path part of this resource location.
     pub fn path(&self) -> &str {
         &self.path
     }
@@ -97,12 +102,14 @@ pub type Identifier = ResourceLocation;
 pub struct PackNamespace(String);
 
 impl PackNamespace {
+    /// Create a `PackNamespace`, validating that it matches `[a-z0-9_.-]+`.
     pub fn new(namespace: impl AsRef<str>) -> Result<Self> {
         let ns = namespace.as_ref();
         validate_namespace(ns)?;
         Ok(Self(ns.to_string()))
     }
 
+    /// Get this namespace as a string.
     pub fn as_str(&self) -> &str {
         &self.0
     }

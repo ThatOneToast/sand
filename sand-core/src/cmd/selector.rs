@@ -6,7 +6,8 @@ use std::fmt;
 
 /// An entity/player selector for use in Minecraft commands.
 ///
-/// Constructed via static factory methods and refined with builder methods.
+/// Selectors target entities in the world. Construct with a base selector (e.g., `all_players()`)
+/// then refine with builder methods to add filters (tags, distance, team, etc.).
 ///
 /// # Examples
 /// ```
@@ -25,7 +26,7 @@ pub struct Selector {
     args: Vec<SelectorArg>,
 }
 
-/// The base target of a selector.
+/// The base target variant of a selector.
 #[derive(Debug, Clone, PartialEq)]
 enum TargetBase {
     AllPlayers,
@@ -36,12 +37,18 @@ enum TargetBase {
     Player(String),
 }
 
-/// Sort order for `@a`/`@e` selectors.
+/// Sort order for entity selection in `@a`/`@e` selectors.
+///
+/// Determines the order entities are iterated when using commands like `execute as`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SortOrder {
+    /// Sort by distance from executor (nearest first).
     Nearest,
+    /// Sort by distance from executor (furthest first).
     Furthest,
+    /// Randomize the order.
     Random,
+    /// No specific order (performance optimized).
     Arbitrary,
 }
 
@@ -120,7 +127,9 @@ impl fmt::Display for SelectorArg {
 // ── Constructor methods ───────────────────────────────────────────────────────
 
 impl Selector {
-    /// `@a` — all players.
+    /// `@a` — all players currently connected to the server.
+    ///
+    /// The most common base for targeting players. Can be filtered by team, distance, tag, etc.
     pub fn all_players() -> Self {
         Self {
             base: TargetBase::AllPlayers,
@@ -128,7 +137,9 @@ impl Selector {
         }
     }
 
-    /// `@e` — all entities (including players).
+    /// `@e` — all entities in the world, including players, mobs, armor stands, etc.
+    ///
+    /// Use `.not_player()` to exclude players, or `.entity_type()` to filter by specific types.
     pub fn all_entities() -> Self {
         Self {
             base: TargetBase::AllEntities,
@@ -136,7 +147,9 @@ impl Selector {
         }
     }
 
-    /// `@p` — nearest player.
+    /// `@p` — the nearest player to the command executor.
+    ///
+    /// Returns a single player. Respects distance filters and other selector arguments.
     pub fn nearest_player() -> Self {
         Self {
             base: TargetBase::NearestPlayer,
@@ -144,7 +157,10 @@ impl Selector {
         }
     }
 
-    /// `@s` — the entity executing the command.
+    /// `@s` — the entity currently executing the command.
+    ///
+    /// In the context of an `execute as` chain, this refers to each iterated entity.
+    /// Outside of execute context, this is the command executor (player or command block).
     pub fn self_() -> Self {
         Self {
             base: TargetBase::Self_,
@@ -152,7 +168,9 @@ impl Selector {
         }
     }
 
-    /// `@r` — a random player.
+    /// `@r` — a random player from the current players.
+    ///
+    /// Picks one player at random. Distribution respects filters like distance.
     pub fn random_player() -> Self {
         Self {
             base: TargetBase::RandomPlayer,
@@ -160,7 +178,10 @@ impl Selector {
         }
     }
 
-    /// A specific player by name.
+    /// A specific player by exact name (no selector, just the player name).
+    ///
+    /// Use this for targeting a single known player: `Selector::player("Steve")` → `Steve`.
+    /// The player must be online for the command to affect them.
     pub fn player(name: impl Into<String>) -> Self {
         Self {
             base: TargetBase::Player(name.into()),
@@ -172,133 +193,172 @@ impl Selector {
 // ── Builder methods ───────────────────────────────────────────────────────────
 
 impl Selector {
-    /// `tag=<tag>` — only entities with this tag.
+    /// `tag=<tag>` — select only entities that have the given tag.
+    ///
+    /// Tags are added via `tag add` and removed via `tag remove`. An entity can have multiple tags.
     pub fn tag(mut self, tag: impl Into<String>) -> Self {
         self.args.push(SelectorArg::Tag(tag.into()));
         self
     }
 
-    /// `tag=!<tag>` — only entities WITHOUT this tag.
+    /// `tag=!<tag>` — select only entities that do NOT have the given tag.
+    ///
+    /// Useful for excluding specific entities without affecting other filters.
     pub fn not_tag(mut self, tag: impl Into<String>) -> Self {
         self.args.push(SelectorArg::NotTag(tag.into()));
         self
     }
 
-    /// `team=<team>` — only entities on this team.
+    /// `team=<team>` — select only entities on the given team.
+    ///
+    /// Teams are registered via `team add` and entities join via `team join`. Used for PvP and grouping.
     pub fn team(mut self, team: impl Into<String>) -> Self {
         self.args.push(SelectorArg::Team(team.into()));
         self
     }
 
-    /// `team=!<team>` — only entities NOT on this team.
+    /// `team=!<team>` — select only entities NOT on the given team.
+    ///
+    /// Useful for targeting enemies or neutral entities.
     pub fn not_team(mut self, team: impl Into<String>) -> Self {
         self.args.push(SelectorArg::NotTeam(team.into()));
         self
     }
 
-    /// `name=<name>` — only entities with this display name.
+    /// `name=<name>` — select only entities with the exact display name.
+    ///
+    /// The name is the custom display name set via commands or name tags, not the player username.
     pub fn name(mut self, name: impl Into<String>) -> Self {
         self.args.push(SelectorArg::Name(name.into()));
         self
     }
 
-    /// `name=!<name>` — only entities WITHOUT this display name.
+    /// `name=!<name>` — select only entities WITHOUT the given display name.
+    ///
+    /// Negation of the `name` filter.
     pub fn not_name(mut self, name: impl Into<String>) -> Self {
         self.args.push(SelectorArg::NotName(name.into()));
         self
     }
 
-    /// `type=<entity_type>` — only entities of this type (e.g. `"minecraft:zombie"`).
+    /// `type=<entity_type>` — select only entities of the given type.
+    ///
+    /// Types use the namespaced format: `"minecraft:zombie"`, `"minecraft:armor_stand"`, etc.
     pub fn entity_type(mut self, ty: impl Into<String>) -> Self {
         self.args.push(SelectorArg::Type(ty.into()));
         self
     }
 
-    /// `type=!<entity_type>` — only entities NOT of this type.
+    /// `type=!<entity_type>` — select only entities NOT of the given type.
+    ///
+    /// Useful for excluding specific mobs or entities.
     pub fn not_type(mut self, ty: impl Into<String>) -> Self {
         self.args.push(SelectorArg::NotType(ty.into()));
         self
     }
 
-    /// `limit=<n>` — at most `n` entities.
+    /// `limit=<n>` — select at most `n` entities.
+    ///
+    /// Combined with `sort`, this lets you pick the nearest/random/etc entity. Default is unlimited.
     pub fn limit(mut self, n: i32) -> Self {
         self.args.push(SelectorArg::Limit(n));
         self
     }
 
-    /// `sort=<order>` — sort order before applying `limit`.
+    /// `sort=<order>` — set the sort order before applying limit.
+    ///
+    /// Determines which entities are picked when using `limit`. `nearest` for closest, `random` for random, etc.
     pub fn sort(mut self, order: SortOrder) -> Self {
         self.args.push(SelectorArg::Sort(order));
         self
     }
 
-    /// `distance=<range>` — only entities within the given distance range (e.g. `"0..10"`).
+    /// `distance=<range>` — select only entities within a distance range.
+    ///
+    /// Range format: `"5"` (exact), `"5.."` (5 or more), `"..5"` (5 or less), `"1..10"` (between).
     pub fn distance(mut self, range: impl Into<String>) -> Self {
         self.args.push(SelectorArg::Distance(range.into()));
         self
     }
 
-    /// `distance=..<max>` — only entities at most `max` blocks away.
+    /// `distance=..<max>` — select only entities at most `max` blocks away.
     ///
-    /// Equivalent to `.distance(format!("..{max}"))` but typed.
+    /// Convenience method; equivalent to `.distance(format!("..{max}"))`.
     pub fn distance_max(mut self, max: f64) -> Self {
         self.args.push(SelectorArg::Distance(format!("..{max}")));
         self
     }
 
-    /// `distance=<min>..` — only entities at least `min` blocks away.
+    /// `distance=<min>..` — select only entities at least `min` blocks away.
+    ///
+    /// Convenience method; equivalent to `.distance(format!("{min}.."))`.
     pub fn distance_min(mut self, min: f64) -> Self {
         self.args.push(SelectorArg::Distance(format!("{min}..")));
         self
     }
 
-    /// `distance=<min>..<max>` — only entities between `min` and `max` blocks away.
+    /// `distance=<min>..<max>` — select only entities between `min` and `max` blocks away.
+    ///
+    /// Convenience method; equivalent to `.distance(format!("{min}..{max}"))`.
     pub fn distance_range(mut self, min: f64, max: f64) -> Self {
         self.args
             .push(SelectorArg::Distance(format!("{min}..{max}")));
         self
     }
 
-    /// `type=!minecraft:player` — exclude players from the selection.
+    /// `type=!minecraft:player` — exclude all players from the selection.
     ///
-    /// Useful with `@e` to select only non-player entities.
+    /// Shorthand for `.not_type("minecraft:player")`. Use with `@e` to select only mobs/objects.
     pub fn not_player(mut self) -> Self {
         self.args
             .push(SelectorArg::NotType("minecraft:player".into()));
         self
     }
 
-    /// `level=<range>` — only players with XP level in range (e.g. `"0..10"`).
+    /// `level=<range>` — select only players within the given XP level range.
+    ///
+    /// Range format: `"0..10"`, `"10"`, `"10.."`, etc. Only applies to players.
     pub fn level(mut self, range: impl Into<String>) -> Self {
         self.args.push(SelectorArg::Level(range.into()));
         self
     }
 
-    /// `gamemode=<mode>` — only players in the given gamemode.
+    /// `gamemode=<mode>` — select only players in the given gamemode.
+    ///
+    /// Valid modes: `"survival"`, `"creative"`, `"adventure"`, `"spectator"`. Only applies to players.
     pub fn gamemode(mut self, mode: impl Into<String>) -> Self {
         self.args.push(SelectorArg::Gamemode(mode.into()));
         self
     }
 
-    /// `scores=<objective>=<range>` — only entities with matching score (e.g. `"playtime=100.."`).
+    /// `scores=<objective>=<range>` — select only entities with matching scoreboard score.
+    ///
+    /// Example: `.scores("damage=10..20")` selects entities with damage score between 10 and 20.
     pub fn scores(mut self, scores: impl Into<String>) -> Self {
         self.args.push(SelectorArg::Scores(scores.into()));
         self
     }
 
-    /// `nbt=<nbt>` — only entities matching this NBT compound.
+    /// `nbt=<nbt>` — select only entities matching the given NBT compound.
+    ///
+    /// NBT format: `"{Health:10f}"` or `"{Custom:{Value:42}}"`. Matches entities with matching NBT.
     pub fn nbt(mut self, nbt: impl Into<String>) -> Self {
         self.args.push(SelectorArg::Nbt(nbt.into()));
         self
     }
 
-    /// `predicate=<predicate>` — only entities matching this loot predicate.
+    /// `predicate=<predicate>` — select only entities matching a loot table predicate.
+    ///
+    /// Predicates are defined in JSON files and can check complex conditions.
     pub fn predicate(mut self, predicate: impl Into<String>) -> Self {
         self.args.push(SelectorArg::Predicate(predicate.into()));
         self
     }
 
-    /// `dx/dy/dz` bounding box filter. All three must be set for it to work.
+    /// `dx/dy/dz` — set a bounding box volume filter (half-extents).
+    ///
+    /// All three must be set together. Used with `at_pos` to define an axis-aligned cuboid.
+    /// Entities within the box relative to the origin are selected.
     pub fn volume(mut self, dx: f64, dy: f64, dz: f64) -> Self {
         self.args.push(SelectorArg::Dx(dx));
         self.args.push(SelectorArg::Dy(dy));
@@ -306,7 +366,9 @@ impl Selector {
         self
     }
 
-    /// `x/y/z` origin for distance/volume checks.
+    /// `x/y/z` — set the origin point for distance and volume checks.
+    ///
+    /// All three coordinates must be set together. If not set, the executor's position is used.
     pub fn at_pos(mut self, x: f64, y: f64, z: f64) -> Self {
         self.args.push(SelectorArg::X(x));
         self.args.push(SelectorArg::Y(y));

@@ -37,6 +37,7 @@ pub struct McVersion {
 }
 
 impl McVersion {
+    /// Construct a `McVersion` from component integers.
     pub fn new(major: u32, minor: u32, patch: u32) -> Self {
         Self {
             major,
@@ -45,7 +46,7 @@ impl McVersion {
         }
     }
 
-    /// Parse a version string. Equivalent to `s.parse::<McVersion>()`.
+    /// Parse a version string (e.g. `"1.21.4"`). Equivalent to `s.parse::<McVersion>()`.
     pub fn parse(s: &str) -> Result<Self> {
         s.parse()
     }

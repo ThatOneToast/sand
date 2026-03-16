@@ -1,5 +1,6 @@
 pub mod advancement;
 pub mod custom_item;
+pub mod event_filters;
 pub mod item_modifier;
 pub mod loot_table;
 pub mod mc_function;
@@ -16,6 +17,7 @@ pub use custom_item::{
     ConsumableProperties, CustomItem, DyedColor, EquipmentSlot, EquipmentSlotGroup,
     EquippableProperties, FoodProperties, ItemRarity, ToolProperties, ToolRule,
 };
+pub use event_filters::{EntityPredicate, InventorySlots, ItemPredicate};
 pub use item_modifier::ItemModifier;
 pub use loot_table::{
     LootCondition, LootEntry, LootFunction, LootPool, LootTable, LootTableType, NumberProvider,

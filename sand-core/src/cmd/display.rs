@@ -23,7 +23,10 @@ use super::types::TextComponent;
 
 // ── Title ─────────────────────────────────────────────────────────────────────
 
-/// Builder for `title` commands targeting a selector.
+/// Builder for title screen display commands (`title` command).
+///
+/// Coordinates the title, subtitle, and action bar text along with timing animations.
+/// Commands must be sent in order: times, subtitle, title, actionbar (and no reordering).
 pub struct Title {
     selector: Selector,
     title: Option<TextComponent>,
@@ -35,7 +38,9 @@ pub struct Title {
 }
 
 impl Title {
-    /// Create a new `Title` for the given selector.
+    /// Create a new Title display for the given selector.
+    ///
+    /// Defaults: 10 ticks fade-in, 70 ticks stay, 20 ticks fade-out.
     pub fn of(selector: Selector) -> Self {
         Self {
             selector,
@@ -48,22 +53,35 @@ impl Title {
         }
     }
 
+    /// Set the main title text (large, centered).
+    ///
+    /// Produces: `title <selector> title <json>`
     pub fn title(mut self, text: TextComponent) -> Self {
         self.title = Some(text);
         self
     }
 
+    /// Set the subtitle text (smaller, below title).
+    ///
+    /// Produces: `title <selector> subtitle <json>`
     pub fn subtitle(mut self, text: TextComponent) -> Self {
         self.subtitle = Some(text);
         self
     }
 
+    /// Set the action bar text (bottom-left, overlays hotbar).
+    ///
+    /// Produces: `title <selector> actionbar <json>`
     pub fn actionbar(mut self, text: TextComponent) -> Self {
         self.actionbar = Some(text);
         self
     }
 
-    /// Set fade-in / stay / fade-out tick durations.
+    /// Set animation timings in ticks.
+    ///
+    /// - `fade_in`: ticks to fade in from invisible.
+    /// - `stay`: ticks to display at full opacity.
+    /// - `fade_out`: ticks to fade out to invisible.
     pub fn times(mut self, fade_in: u32, stay: u32, fade_out: u32) -> Self {
         self.fade_in = fade_in;
         self.stay = stay;
@@ -71,10 +89,10 @@ impl Title {
         self
     }
 
-    /// Generate the ordered list of commands needed to display this title.
+    /// Generate the ordered list of commands for this title.
     ///
-    /// Always emits a `title ... times` first, then title/subtitle/actionbar
-    /// in the correct order.
+    /// Commands must be sent in order: times first, then subtitle, title, actionbar.
+    /// Returns: `["title ... times ...", "title ... subtitle ...", ...]`
     pub fn build(self) -> Vec<String> {
         let sel = &self.selector;
         let mut cmds = Vec::new();
@@ -102,12 +120,12 @@ impl Title {
         cmds
     }
 
-    /// Clear the title display for the selector.
+    /// `title <selector> clear` — hide the current title display.
     pub fn clear(selector: Selector) -> String {
         format!("title {} clear", selector)
     }
 
-    /// Reset title display settings to defaults.
+    /// `title <selector> reset` — reset title display settings to defaults.
     pub fn reset(selector: Selector) -> String {
         format!("title {} reset", selector)
     }
@@ -115,15 +133,23 @@ impl Title {
 
 // ── Actionbar ─────────────────────────────────────────────────────────────────
 
+/// Static helpers for action bar display (HUD text above hotbar).
+///
+/// The action bar is a single line of text at the bottom-left, useful for
+/// status messages, cooldown timers, or interaction hints.
 pub struct Actionbar;
 
 impl Actionbar {
-    /// Show `text` in the action bar for `selector`.
+    /// `title <selector> actionbar <json>` — show a TextComponent in the action bar.
+    ///
+    /// Renders until overwritten or the player logs out.
     pub fn show(selector: impl Display, text: TextComponent) -> String {
         format!("title {} actionbar {}", selector, text)
     }
 
-    /// Show a raw JSON string in the action bar.
+    /// Show a raw JSON string in the action bar (for advanced formatting).
+    ///
+    /// Use this when you have the JSON string directly. Prefer `show()` when using TextComponent.
     pub fn show_raw(selector: impl Display, json: impl Display) -> String {
         format!("title {} actionbar {}", selector, json)
     }
@@ -131,14 +157,22 @@ impl Actionbar {
 
 // ── BossbarColor ─────────────────────────────────────────────────────────────
 
+/// Boss bar color/appearance.
 #[derive(Debug, Clone, Copy)]
 pub enum BossbarColor {
+    /// Blue boss bar.
     Blue,
+    /// Green boss bar.
     Green,
+    /// Pink/magenta boss bar.
     Pink,
+    /// Purple boss bar.
     Purple,
+    /// Red boss bar.
     Red,
+    /// White boss bar.
     White,
+    /// Yellow boss bar.
     Yellow,
 }
 
@@ -159,12 +193,20 @@ impl Display for BossbarColor {
 
 // ── BossbarStyle ─────────────────────────────────────────────────────────────
 
+/// Boss bar segmentation style.
+///
+/// Controls whether the boss bar is a smooth progress bar or divided into segments.
 #[derive(Debug, Clone, Copy)]
 pub enum BossbarStyle {
+    /// Smooth continuous progress bar.
     Progress,
+    /// 6 segments (like Ender Dragon health).
     Notched6,
+    /// 10 segments.
     Notched10,
+    /// 12 segments.
     Notched12,
+    /// 20 segments (default Wither).
     Notched20,
 }
 
@@ -183,66 +225,82 @@ impl Display for BossbarStyle {
 
 // ── Bossbar ───────────────────────────────────────────────────────────────────
 
-/// Static helpers for `bossbar` commands.
+/// Static helpers for boss bar display and management (`bossbar` command).
+///
+/// Boss bars are persistent health-like indicators visible in the player's HUD.
+/// Useful for tracking boss health, quest progress, or custom metrics.
 pub struct Bossbar;
 
 impl Bossbar {
-    /// `bossbar add <id> <name>` — create the bossbar.
+    /// `bossbar add <id> <name>` — create a new boss bar.
+    ///
+    /// The ID is a namespaced identifier (e.g., `"mynamespace:boss_name"`).
+    /// The name is a TextComponent displayed as the boss bar title.
     pub fn add(id: impl Display, name: TextComponent) -> String {
         format!("bossbar add {} {}", id, name)
     }
 
-    /// `bossbar remove <id>`
+    /// `bossbar remove <id>` — delete a boss bar completely.
     pub fn remove(id: impl Display) -> String {
         format!("bossbar remove {}", id)
     }
 
-    /// `bossbar set <id> value <n>`
+    /// `bossbar set <id> value <n>` — set the current fill value.
+    ///
+    /// The bar fills from 0 to the max value. Useful for health or progress bars.
     pub fn set_value(id: impl Display, value: u32) -> String {
         format!("bossbar set {} value {}", id, value)
     }
 
-    /// `bossbar set <id> max <n>`
+    /// `bossbar set <id> max <n>` — set the maximum fill value.
+    ///
+    /// Determines the scale. For a 0-100% health bar, set max=100.
     pub fn set_max(id: impl Display, max: u32) -> String {
         format!("bossbar set {} max {}", id, max)
     }
 
-    /// `bossbar set <id> players <selector>`
+    /// `bossbar set <id> players <selector>` — show the boss bar to players matching the selector.
+    ///
+    /// Only selected players see the bar. Use `@a` for all players.
     pub fn set_players(id: impl Display, selector: impl Display) -> String {
         format!("bossbar set {} players {}", id, selector)
     }
 
-    /// `bossbar set <id> color <color>`
+    /// `bossbar set <id> color <color>` — set the boss bar color.
     pub fn set_color(id: impl Display, color: BossbarColor) -> String {
         format!("bossbar set {} color {}", id, color)
     }
 
-    /// `bossbar set <id> style <style>`
+    /// `bossbar set <id> style <style>` — set segmentation (progress vs. notched).
     pub fn set_style(id: impl Display, style: BossbarStyle) -> String {
         format!("bossbar set {} style {}", id, style)
     }
 
-    /// `bossbar set <id> name <name>`
+    /// `bossbar set <id> name <name>` — change the boss bar title.
     pub fn set_name(id: impl Display, name: TextComponent) -> String {
         format!("bossbar set {} name {}", id, name)
     }
 
-    /// `bossbar set <id> visible <bool>`
+    /// `bossbar set <id> visible <bool>` — show or hide the boss bar.
+    ///
+    /// Hidden bars still exist and track progress, but are invisible to players.
     pub fn set_visible(id: impl Display, visible: bool) -> String {
         format!("bossbar set {} visible {}", id, visible)
     }
 
-    /// `bossbar get <id> value`
+    /// `bossbar get <id> value` — query the current fill value.
+    ///
+    /// Use with `execute store result` to capture the value into a scoreboard.
     pub fn get_value(id: impl Display) -> String {
         format!("bossbar get {} value", id)
     }
 
-    /// `bossbar get <id> max`
+    /// `bossbar get <id> max` — query the maximum fill value.
     pub fn get_max(id: impl Display) -> String {
         format!("bossbar get {} max", id)
     }
 
-    /// `bossbar get <id> players`
+    /// `bossbar get <id> players` — query the number of players seeing the boss bar.
     pub fn get_players(id: impl Display) -> String {
         format!("bossbar get {} players", id)
     }

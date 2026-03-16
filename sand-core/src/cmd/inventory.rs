@@ -60,9 +60,13 @@ pub enum InventorySlot {
     Offhand,
 
     // ── Armor ─────────────────────────────────────────────────────────────
+    /// Helmet slot (`armor.head`).
     ArmorHead,
+    /// Chestplate slot (`armor.chest`).
     ArmorChest,
+    /// Leggings slot (`armor.legs`).
     ArmorLegs,
+    /// Boots slot (`armor.feet`).
     ArmorFeet,
 
     // ── Player inventory ──────────────────────────────────────────────────
@@ -182,6 +186,7 @@ pub struct Inventory {
 }
 
 impl Inventory {
+    /// Validate that inventory slots are within their valid ranges.
     pub(crate) fn ensure_slot(slot: &InventorySlot) {
         match &slot {
             InventorySlot::Container(n) => {

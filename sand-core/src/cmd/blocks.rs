@@ -40,7 +40,7 @@ pub struct BlockState {
 }
 
 impl BlockState {
-    /// Start building a block state for `block` (e.g. `"minecraft:stone"`).
+    /// Start building a block state string for the given block ID (e.g. `"minecraft:stone"`).
     pub fn of(block: impl Into<String>) -> Self {
         Self {
             block: block.into(),
@@ -48,13 +48,13 @@ impl BlockState {
         }
     }
 
-    /// Add a block state property.
+    /// Add a single block state property (e.g. `"facing"`, `"east"`).
     pub fn prop(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
         self.props.insert(key.into(), value.into());
         self
     }
 
-    /// Add multiple properties at once from an iterator of `(key, value)` pairs.
+    /// Add multiple block state properties at once from an iterator of `(key, value)` pairs.
     pub fn props<K, V>(mut self, iter: impl IntoIterator<Item = (K, V)>) -> Self
     where
         K: Into<String>,
@@ -101,11 +101,15 @@ impl From<String> for BlockState {
 
 // ── SetBlockMode ──────────────────────────────────────────────────────────────
 
+/// Mode for the `setblock` command.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum SetBlockMode {
+    /// Replace the block (default).
     #[default]
     Replace,
+    /// Destroy the block, dropping items.
     Destroy,
+    /// Keep the block if it exists (don't replace).
     Keep,
 }
 
@@ -122,6 +126,7 @@ impl fmt::Display for SetBlockMode {
 
 // ── SetBlock ──────────────────────────────────────────────────────────────────
 
+/// Builder for the `setblock` command.
 pub struct SetBlock {
     pos: BlockPos,
     block: BlockState,
@@ -129,6 +134,7 @@ pub struct SetBlock {
 }
 
 impl SetBlock {
+    /// Create a new `setblock` command at the given position.
     pub fn new(pos: BlockPos, block: impl Into<BlockState>) -> Self {
         Self {
             pos,
@@ -137,11 +143,13 @@ impl SetBlock {
         }
     }
 
+    /// Set the mode for this `setblock` command.
     pub fn mode(mut self, mode: SetBlockMode) -> Self {
         self.mode = mode;
         self
     }
 
+    /// Build the complete `setblock` command string.
     pub fn build(self) -> String {
         let mode_str = match self.mode {
             SetBlockMode::Replace => String::new(), // default, can omit
@@ -153,12 +161,18 @@ impl SetBlock {
 
 // ── FillMode ─────────────────────────────────────────────────────────────────
 
+/// Mode for the `fill` command.
 #[derive(Debug, Clone, PartialEq)]
 pub enum FillMode {
+    /// Replace all blocks in the region (default).
     Replace,
+    /// Destroy blocks, dropping items.
     Destroy,
+    /// Replace only non-air blocks (hollow out a structure).
     Hollow,
+    /// Replace only the outer shell of the region (create an outline).
     Outline,
+    /// Only replace air blocks.
     Keep,
     /// `replace <filter>` — only replace blocks matching `filter`.
     ReplaceFilter(String),
@@ -179,6 +193,7 @@ impl fmt::Display for FillMode {
 
 // ── Fill ──────────────────────────────────────────────────────────────────────
 
+/// Builder for the `fill` command.
 pub struct Fill {
     from: BlockPos,
     to: BlockPos,
@@ -187,6 +202,7 @@ pub struct Fill {
 }
 
 impl Fill {
+    /// Create a new `fill` command for the region from `from` to `to`.
     pub fn new(from: BlockPos, to: BlockPos, block: impl Into<BlockState>) -> Self {
         Self {
             from,
@@ -196,11 +212,13 @@ impl Fill {
         }
     }
 
+    /// Set the mode for this `fill` command.
     pub fn mode(mut self, mode: FillMode) -> Self {
         self.mode = mode;
         self
     }
 
+    /// Build the complete `fill` command string.
     pub fn build(self) -> String {
         match &self.mode {
             FillMode::Replace => format!("fill {} {} {}", self.from, self.to, self.block),
@@ -221,19 +239,27 @@ pub struct CloneBlocks {
     filter: Option<String>,
 }
 
+/// Mask mode for the `clone` command.
 #[derive(Debug, Clone, Copy, Default)]
 pub enum CloneMaskMode {
+    /// Clone all blocks (default).
     #[default]
     Replace,
+    /// Only clone non-air blocks (skip air).
     Masked,
+    /// Only clone blocks matching a filter.
     Filtered,
 }
 
+/// Clone mode for the `clone` command.
 #[derive(Debug, Clone, Copy, Default)]
 pub enum CloneMode {
+    /// Normal cloning (default).
     #[default]
     Normal,
+    /// Force-clone even if blocks overlap.
     Force,
+    /// Move blocks (clone then clear source).
     Move,
 }
 
@@ -258,6 +284,7 @@ impl fmt::Display for CloneMode {
 }
 
 impl CloneBlocks {
+    /// Create a new `clone` command from region `from..to` to `dest`.
     pub fn new(from: BlockPos, to: BlockPos, dest: BlockPos) -> Self {
         Self {
             from,
@@ -269,23 +296,26 @@ impl CloneBlocks {
         }
     }
 
+    /// Only clone non-air blocks.
     pub fn masked(mut self) -> Self {
         self.mask_mode = CloneMaskMode::Masked;
         self
     }
 
-    /// `filtered <block>` — only clone blocks matching `block`.
+    /// Only clone blocks matching the given filter.
     pub fn filtered(mut self, block: impl Into<String>) -> Self {
         self.mask_mode = CloneMaskMode::Filtered;
         self.filter = Some(block.into());
         self
     }
 
+    /// Set the clone mode (normal, force, or move).
     pub fn clone_mode(mut self, mode: CloneMode) -> Self {
         self.clone_mode = mode;
         self
     }
 
+    /// Build the complete `clone` command string.
     pub fn build(self) -> String {
         match self.mask_mode {
             CloneMaskMode::Filtered => {

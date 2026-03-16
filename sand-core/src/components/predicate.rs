@@ -7,12 +7,14 @@ use super::loot_table::LootCondition;
 
 /// A Minecraft predicate that defines a condition that can be evaluated in commands or loot tables.
 pub struct Predicate {
+    /// The resource location for this predicate.
     pub location: ResourceLocation,
+    /// The condition logic for this predicate.
     pub condition: LootCondition,
 }
 
 impl Predicate {
-    /// Creates a new Predicate with the given resource location and condition.
+    /// Create a new predicate with the given resource location and condition.
     pub fn new(location: ResourceLocation, condition: LootCondition) -> Self {
         Self {
             location,

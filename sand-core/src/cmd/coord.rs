@@ -20,23 +20,23 @@ pub enum Coord {
 }
 
 impl Coord {
-    /// Absolute coordinate at the given position.
+    /// Create an absolute coordinate.
     pub fn abs(v: impl Into<f64>) -> Self {
         Coord::Absolute(v.into())
     }
-    /// Relative to the executor's position. `~` when offset is 0.
+    /// Create a relative coordinate at the executor's position (`~`).
     pub fn rel() -> Self {
         Coord::Relative(0.0)
     }
-    /// Relative with an offset. `~N`.
+    /// Create a relative coordinate with an offset (`~N`).
     pub fn rel_n(v: impl Into<f64>) -> Self {
         Coord::Relative(v.into())
     }
-    /// Local (along facing direction). `^` when offset is 0.
+    /// Create a local coordinate (along executor's facing direction, `^`).
     pub fn local() -> Self {
         Coord::Local(0.0)
     }
-    /// Local with an offset. `^N`.
+    /// Create a local coordinate with an offset (`^N`).
     pub fn local_n(v: impl Into<f64>) -> Self {
         Coord::Local(v.into())
     }
@@ -104,6 +104,7 @@ pub struct BlockPos {
 }
 
 impl BlockPos {
+    /// Create a block position from three coordinates.
     pub fn new(x: impl Into<Coord>, y: impl Into<Coord>, z: impl Into<Coord>) -> Self {
         Self {
             x: x.into(),
@@ -112,22 +113,22 @@ impl BlockPos {
         }
     }
 
-    /// `~ ~ ~` — current position.
+    /// Current position (`~ ~ ~`).
     pub fn here() -> Self {
         Self::new(Coord::rel(), Coord::rel(), Coord::rel())
     }
 
-    /// `X Y Z` — exact block coordinates.
+    /// Exact block coordinates (`X Y Z`).
     pub fn absolute(x: i32, y: i32, z: i32) -> Self {
         Self::new(Coord::abs(x), Coord::abs(y), Coord::abs(z))
     }
 
-    /// `~ ~N ~` — N blocks above current position.
+    /// Position N blocks above current (`~ ~N ~`).
     pub fn above(n: i32) -> Self {
         Self::new(Coord::rel(), Coord::rel_n(n), Coord::rel())
     }
 
-    /// `~ ~-N ~` — N blocks below current position.
+    /// Position N blocks below current (`~ ~-N ~`).
     pub fn below(n: i32) -> Self {
         Self::new(Coord::rel(), Coord::rel_n(-n), Coord::rel())
     }
@@ -150,6 +151,7 @@ pub struct Vec3 {
 }
 
 impl Vec3 {
+    /// Create a 3D position from three coordinates.
     pub fn new(x: impl Into<Coord>, y: impl Into<Coord>, z: impl Into<Coord>) -> Self {
         Self {
             x: x.into(),
@@ -158,12 +160,12 @@ impl Vec3 {
         }
     }
 
-    /// `~ ~ ~` — current position.
+    /// Current position (`~ ~ ~`).
     pub fn here() -> Self {
         Self::new(Coord::rel(), Coord::rel(), Coord::rel())
     }
 
-    /// `X Y Z` — exact world coordinates.
+    /// Exact world coordinates (`X Y Z`).
     pub fn absolute(x: f64, y: f64, z: f64) -> Self {
         Self::new(Coord::abs(x), Coord::abs(y), Coord::abs(z))
     }
@@ -185,6 +187,7 @@ pub struct Vec2 {
 }
 
 impl Vec2 {
+    /// Create a 2D position (column) from X and Z coordinates.
     pub fn new(x: impl Into<Coord>, z: impl Into<Coord>) -> Self {
         Self {
             x: x.into(),
@@ -209,6 +212,7 @@ pub struct Rotation {
 }
 
 impl Rotation {
+    /// Create a rotation from yaw and pitch coordinates.
     pub fn new(yaw: impl Into<Coord>, pitch: impl Into<Coord>) -> Self {
         Self {
             yaw: yaw.into(),
@@ -221,7 +225,7 @@ impl Rotation {
         Self::new(Coord::rel(), Coord::rel())
     }
 
-    /// Absolute yaw + pitch.
+    /// Absolute yaw and pitch angles.
     pub fn absolute(yaw: f64, pitch: f64) -> Self {
         Self::new(Coord::abs(yaw), Coord::abs(pitch))
     }

@@ -5,13 +5,16 @@ use crate::resource_location::ResourceLocation;
 
 /// A Minecraft tag file that groups entities, items, blocks, or other objects together.
 pub struct Tag {
+    /// The resource location for this tag.
     pub location: ResourceLocation,
+    /// Whether this tag replaces existing tag definitions.
     pub replace: bool,
+    /// List of tag entries (item/block/entity IDs or tag references).
     pub values: Vec<String>,
 }
 
 impl Tag {
-    /// Creates a new Tag with the given resource location.
+    /// Create a new tag with the given resource location.
     pub fn new(location: ResourceLocation) -> Self {
         Self {
             location,
@@ -20,19 +23,19 @@ impl Tag {
         }
     }
 
-    /// Adds a single entry to this tag.
+    /// Add a single entry to this tag.
     pub fn entry(mut self, id: impl std::fmt::Display) -> Self {
         self.values.push(id.to_string());
         self
     }
 
-    /// Adds a reference to another tag (prefixed with #).
+    /// Add a reference to another tag (prefixed with `#`).
     pub fn tag_ref(mut self, tag: impl std::fmt::Display) -> Self {
         self.values.push(format!("#{tag}"));
         self
     }
 
-    /// Sets whether this tag should replace existing tag data.
+    /// Set whether this tag replaces existing tag definitions.
     pub fn replace(mut self, v: bool) -> Self {
         self.replace = v;
         self

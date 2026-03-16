@@ -22,6 +22,7 @@ inventory::collect!(FunctionDescriptor);
 /// component and boxes it as a trait object. Registered at link time via
 /// `inventory::submit!` — no user wiring needed.
 pub struct ComponentFactory {
+    /// Factory function that returns a boxed datapack component.
     pub make: fn() -> Box<dyn crate::DatapackComponent>,
 }
 inventory::collect!(ComponentFactory);
@@ -44,3 +45,108 @@ pub struct FunctionTagDescriptor {
     pub function_path: &'static str,
 }
 inventory::collect!(FunctionTagDescriptor);
+
+/// Descriptor for a function registered via `#[sand_macros::event]`.
+///
+/// Combines a registered `.mcfunction` file with an automatically generated
+/// `Advancement` that calls it as a reward. Collected via
+/// [`inventory::iter::<EventDescriptor>`] at export time.
+///
+/// # Fields
+/// - `path` — function resource location path (no namespace), e.g. `"on_join"`
+/// - `id_override` — optional full advancement ID override (e.g. `"my_pack:events/join"`)
+/// - `make_trigger` — factory that returns the `AdvancementTrigger` for this event
+/// - `make` — factory that returns the Vec<String> of mcfunction commands
+/// - `revoke` — if true, the export prepends `advancement revoke @s only <id>` to the
+///   function's commands so the advancement re-fires next time the trigger condition is met
+pub struct EventDescriptor {
+    pub path: &'static str,
+    pub id_override: Option<&'static str>,
+    pub make_trigger: fn() -> crate::AdvancementTrigger,
+    pub make: fn() -> Vec<String>,
+    pub revoke: bool,
+}
+inventory::collect!(EventDescriptor);
+
+/// Which inventory slot to watch for [`ArmorEventDescriptor`] events.
+///
+/// Slot IDs match Minecraft's NBT slot bytes:
+/// `Head=103b`, `Chest=102b`, `Legs=101b`, `Feet=100b`, `Offhand=-106b`.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum ArmorSlot {
+    /// Helmet slot. NBT: `Slot:103b`
+    Head,
+    /// Chestplate slot. NBT: `Slot:102b`
+    Chest,
+    /// Leggings slot. NBT: `Slot:101b`
+    Legs,
+    /// Boots slot. NBT: `Slot:100b`
+    Feet,
+    /// Offhand slot. NBT: `Slot:-106b`
+    Offhand,
+}
+
+impl ArmorSlot {
+    /// Get the NBT slot byte for this armor slot.
+    pub fn slot_byte(self) -> i8 {
+        match self {
+            ArmorSlot::Head => 103,
+            ArmorSlot::Chest => 102,
+            ArmorSlot::Legs => 101,
+            ArmorSlot::Feet => 100,
+            ArmorSlot::Offhand => -106,
+        }
+    }
+
+    /// Get the tag name segment for this armor slot (used in entity tag names).
+    pub fn tag_name_segment(self) -> &'static str {
+        match self {
+            ArmorSlot::Head => "head",
+            ArmorSlot::Chest => "chest",
+            ArmorSlot::Legs => "legs",
+            ArmorSlot::Feet => "feet",
+            ArmorSlot::Offhand => "offhand",
+        }
+    }
+
+    /// Slot name for `execute if items entity @s <slot>`.
+    pub fn slot_name(self) -> &'static str {
+        match self {
+            ArmorSlot::Head => "armor.head",
+            ArmorSlot::Chest => "armor.chest",
+            ArmorSlot::Legs => "armor.legs",
+            ArmorSlot::Feet => "armor.feet",
+            ArmorSlot::Offhand => "weapon.offhand",
+        }
+    }
+}
+
+/// Whether the event fires on equip or unequip.
+#[derive(Clone, Copy)]
+pub enum ArmorEventKind {
+    /// Fires on the tick the item appears in the watched slot.
+    Equip,
+    /// Fires on the tick the item is removed from the watched slot.
+    Unequip,
+}
+
+/// Descriptor for `#[sand_macros::armor_event]` annotated functions.
+///
+/// At export time, all descriptors are combined into a single
+/// `__sand_armor_check` mcfunction registered to `minecraft:tick`.
+pub struct ArmorEventDescriptor {
+    /// Function path (no namespace), e.g. `"on_boots_equip"`.
+    pub path: &'static str,
+    /// Factory that returns the mcfunction commands.
+    pub make: fn() -> Vec<String>,
+    /// Which slot to watch.
+    pub slot: ArmorSlot,
+    /// Equip or Unequip.
+    pub kind: ArmorEventKind,
+    /// Item ID filter, e.g. `"minecraft:leather_boots"`. `None` = any item.
+    pub item_id: Option<&'static str>,
+    /// SNBT for `minecraft:custom_data` matching, e.g. `"{mana_boots:true}"`.
+    /// Generates: `components:{"minecraft:custom_data":<snbt>}` in the NBT selector.
+    pub custom_data_snbt: Option<&'static str>,
+}
+inventory::collect!(ArmorEventDescriptor);

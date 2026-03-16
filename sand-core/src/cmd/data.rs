@@ -160,19 +160,24 @@ impl From<String> for NbtValue {
 /// Where data should be read from or written to.
 #[derive(Debug, Clone)]
 pub enum DataTarget {
+    /// Entity NBT data (target must be a selector matching the entity).
     Entity(Selector),
+    /// Block entity NBT data at a specific position.
     Block(BlockPos),
     /// A named NBT storage namespace (e.g. `"my_pack:global"`).
     Storage(String),
 }
 
 impl DataTarget {
+    /// Create a data target for a specific entity.
     pub fn entity(selector: Selector) -> Self {
         DataTarget::Entity(selector)
     }
+    /// Create a data target for a block entity.
     pub fn block(pos: BlockPos) -> Self {
         DataTarget::Block(pos)
     }
+    /// Create a data target for a named storage namespace.
     pub fn storage(id: impl Into<String>) -> Self {
         DataTarget::Storage(id.into())
     }
@@ -378,7 +383,7 @@ pub struct Storage {
 }
 
 impl Storage {
-    /// Const-compatible global storage constructor.
+    /// Construct a global storage namespace at compile time.
     ///
     /// ```rust,ignore
     /// static WORLD: Storage = Storage::global("my_pack:world");
@@ -390,7 +395,7 @@ impl Storage {
         }
     }
 
-    /// Const-compatible per-player storage constructor.
+    /// Construct a per-player storage namespace at compile time.
     ///
     /// ```rust,ignore
     /// static PLAYERS: Storage = Storage::per_player("my_pack:players");

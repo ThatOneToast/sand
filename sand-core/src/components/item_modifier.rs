@@ -7,12 +7,14 @@ use super::loot_table::LootFunction;
 
 /// An item modifier that applies loot functions to transform items in Minecraft.
 pub struct ItemModifier {
+    /// The resource location for this item modifier.
     pub location: ResourceLocation,
+    /// List of loot functions to apply to items.
     pub functions: Vec<LootFunction>,
 }
 
 impl ItemModifier {
-    /// Creates a new ItemModifier with the given resource location.
+    /// Create a new item modifier with the given resource location.
     pub fn new(location: ResourceLocation) -> Self {
         Self {
             location,
@@ -20,7 +22,7 @@ impl ItemModifier {
         }
     }
 
-    /// Adds a loot function to this item modifier.
+    /// Add a loot function to this item modifier.
     pub fn function(mut self, f: LootFunction) -> Self {
         self.functions.push(f);
         self

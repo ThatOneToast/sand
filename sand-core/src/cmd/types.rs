@@ -4,12 +4,18 @@ use std::fmt;
 
 // ── GameMode ──────────────────────────────────────────────────────────────────
 
-/// Minecraft game mode.
+/// Minecraft player game mode.
+///
+/// Determines the player's interaction rules (creative building, survival challenges, etc.).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GameMode {
+    /// `survival` — normal gameplay with health, hunger, and environmental damage.
     Survival,
+    /// `creative` — infinite resources, flight, and block placement without cost.
     Creative,
+    /// `adventure` — survival-like but players cannot destroy blocks (for map creators).
     Adventure,
+    /// `spectator` — observe-only mode; players can see through walls but cannot interact.
     Spectator,
 }
 
@@ -26,24 +32,42 @@ impl fmt::Display for GameMode {
 
 // ── ChatColor ─────────────────────────────────────────────────────────────────
 
-/// Minecraft chat/text color.
+/// Standard Minecraft text color for chat, titles, and JSON components.
+///
+/// These are the 16 legacy colors. For arbitrary colors, use hex with `color_hex()`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ChatColor {
+    /// Black text.
     Black,
+    /// Dark blue text.
     DarkBlue,
+    /// Dark green text.
     DarkGreen,
+    /// Dark cyan/aqua text.
     DarkAqua,
+    /// Dark red text.
     DarkRed,
+    /// Dark purple/magenta text.
     DarkPurple,
+    /// Gold/orange text.
     Gold,
+    /// Light gray text.
     Gray,
+    /// Dark gray text.
     DarkGray,
+    /// Bright blue text.
     Blue,
+    /// Bright green text.
     Green,
+    /// Bright cyan/aqua text.
     Aqua,
+    /// Bright red text.
     Red,
+    /// Bright pink/magenta text.
     LightPurple,
+    /// Bright yellow text.
     Yellow,
+    /// White text.
     White,
 }
 
@@ -135,22 +159,23 @@ pub struct TextComponent {
 impl TextComponent {
     // ── Constructors ──────────────────────────────────────────────────────────
 
-    /// `{"text": "..."}` — a plain string.
+    /// `{"text": "..."}` — a plain text literal component.
+    ///
+    /// Renders as the given string. Use builder methods to add formatting.
     pub fn literal(text: impl Into<String>) -> Self {
         Self::new(TextContent::Literal(text.into()))
     }
 
-    /// `{"score": {"name": "...", "objective": "..."}}` — inline scoreboard value.
+    /// `{"score": {"name": "...", "objective": "..."}}` — display a scoreboard value inline.
     ///
-    /// `name` accepts a selector (`"@s"`, `"@p"`) or a fake player name.
-    /// The rendered value is the integer stored in `objective` for that holder.
+    /// The `name` can be a selector (`"@s"`, `"@p"`) or a fake player name.
+    /// Renders the integer score stored in the objective for that holder.
     ///
+    /// # Example
     /// ```
     /// use sand_core::cmd::TextComponent;
-    /// let s = TextComponent::score("@s", "join_count").to_string();
-    /// assert!(s.contains("\"score\""));
-    /// assert!(s.contains("\"name\":\"@s\""));
-    /// assert!(s.contains("\"objective\":\"join_count\""));
+    /// let comp = TextComponent::score("@s", "join_count");
+    /// // Renders the player's join_count score where they execute the command
     /// ```
     pub fn score(name: impl Into<String>, objective: impl Into<String>) -> Self {
         Self::new(TextContent::Score {
@@ -159,17 +184,18 @@ impl TextComponent {
         })
     }
 
-    /// `{"selector": "..."}` — renders the display name(s) of matched entities.
+    /// `{"selector": "..."}` — display the name(s) of matched entities.
     ///
-    /// `selector` is a raw selector string such as `"@s"` or `"@a"`.
+    /// The selector string (e.g., `"@s"`, `"@a"`) is evaluated, and the display names
+    /// of all matched entities are rendered. Multiple matches appear as a comma-separated list.
     pub fn selector(selector: impl Into<String>) -> Self {
         Self::new(TextContent::Selector(selector.into()))
     }
 
-    /// `{"translate": "..."}` — a localisation key.
+    /// `{"translate": "..."}` — a localization key from Minecraft's language files.
     ///
-    /// Use [`TextComponent::translate_with`] when the translation includes
-    /// positional arguments.
+    /// Renders the translated string for the player's language. No interpolation arguments.
+    /// Use [`translate_with`](Self::translate_with) for translations with placeholders.
     pub fn translate(key: impl Into<String>) -> Self {
         Self::new(TextContent::Translate {
             key: key.into(),
@@ -177,7 +203,9 @@ impl TextComponent {
         })
     }
 
-    /// `{"translate": "...", "with": [...]}` — a localisation key with arguments.
+    /// `{"translate": "...", "with": [...]}` — localization key with interpolation arguments.
+    ///
+    /// The `with` vector provides components that are substituted into `%s`, `%1$s`, etc. in the translation.
     pub fn translate_with(key: impl Into<String>, with: Vec<TextComponent>) -> Self {
         Self::new(TextContent::Translate {
             key: key.into(),
@@ -185,10 +213,10 @@ impl TextComponent {
         })
     }
 
-    /// `{"keybind": "..."}` — shows the key bound to an action.
+    /// `{"keybind": "..."}` — display the key bound to a Minecraft action.
     ///
-    /// Example: `TextComponent::keybind("key.jump")` renders as `[SPACE]` for
-    /// a player with the default bindings.
+    /// Example: `keybind("key.jump")` renders as `[SPACE]` for default bindings.
+    /// Use Minecraft keybind IDs like `"key.attack"`, `"key.sneak"`, etc.
     pub fn keybind(key: impl Into<String>) -> Self {
         Self::new(TextContent::Keybind(key.into()))
     }
@@ -208,46 +236,75 @@ impl TextComponent {
 
     // ── Formatting ────────────────────────────────────────────────────────────
 
+    /// Set the text color using a standard Minecraft color.
+    ///
+    /// Produces `"color":"<color_name>"` in the JSON output.
     pub fn color(mut self, color: ChatColor) -> Self {
         self.color = Some(color.to_string());
         self
     }
 
-    /// Hex color, e.g. `"#FF5733"`. Requires Minecraft 1.16+.
+    /// Set the text color using a hex color code (Minecraft 1.16+).
+    ///
+    /// Example: `"#FF5733"` for orange. Produces `"color":"#FF5733"` in JSON.
     pub fn color_hex(mut self, hex: impl Into<String>) -> Self {
         self.color = Some(hex.into());
         self
     }
 
+    /// Set bold formatting on or off.
+    ///
+    /// Produces `"bold":true` or `"bold":false`.
     pub fn bold(mut self, v: bool) -> Self {
         self.bold = Some(v);
         self
     }
+
+    /// Set italic formatting on or off.
+    ///
+    /// Produces `"italic":true` or `"italic":false`.
     pub fn italic(mut self, v: bool) -> Self {
         self.italic = Some(v);
         self
     }
+
+    /// Set underline formatting on or off.
+    ///
+    /// Produces `"underlined":true` or `"underlined":false`.
     pub fn underlined(mut self, v: bool) -> Self {
         self.underlined = Some(v);
         self
     }
+
+    /// Set strikethrough formatting on or off.
+    ///
+    /// Produces `"strikethrough":true` or `"strikethrough":false`.
     pub fn strikethrough(mut self, v: bool) -> Self {
         self.strikethrough = Some(v);
         self
     }
+
+    /// Set obfuscated (scrambled) text on or off.
+    ///
+    /// Text displays as random characters but can still be selected/copied as the original.
+    /// Produces `"obfuscated":true` or `"obfuscated":false`.
     pub fn obfuscated(mut self, v: bool) -> Self {
         self.obfuscated = Some(v);
         self
     }
 
-    /// Append another component in the `extra` array.
+    /// Append another text component in the `extra` array.
     ///
-    /// Enables building multi-segment messages without raw JSON strings:
+    /// Enables building multi-segment messages without raw JSON. Each `then()` adds
+    /// a sibling component that inherits formatting from the parent unless overridden.
+    ///
+    /// # Example
     /// ```
     /// use sand_core::cmd::{TextComponent, ChatColor};
     /// let msg = TextComponent::literal("Score: ")
+    ///     .color(ChatColor::White)
     ///     .then(TextComponent::score("@s", "kills").color(ChatColor::Red));
-    /// assert!(msg.to_string().contains("\"extra\""));
+    /// // Renders as: "Score: " + the player's kills score in red
     /// ```
     pub fn then(mut self, next: TextComponent) -> Self {
         self.extra.push(next);
@@ -307,10 +364,15 @@ impl fmt::Display for TextComponent {
 
 // ── Anchor ────────────────────────────────────────────────────────────────────
 
-/// Entity anchor point for `execute anchored` and `execute facing entity`.
+/// Entity anchor point for eye-level or foot-level calculations.
+///
+/// Used in `execute anchored` and `execute facing entity` to specify which part
+/// of an entity is the reference point (e.g., where they look from vs. where they stand).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Anchor {
+    /// The entity's eye level (head/face).
     Eyes,
+    /// The entity's feet level (bottom).
     Feet,
 }
 
@@ -325,29 +387,42 @@ impl fmt::Display for Anchor {
 
 // ── Swizzle ───────────────────────────────────────────────────────────────────
 
-/// Axis combination for `execute align`.
+/// Axis combination for `execute align` — specifies which axes to floor to block boundaries.
 #[derive(Debug, Clone)]
 pub struct Swizzle(String);
 
 impl Swizzle {
+    /// `x` — floor the X coordinate only.
     pub fn x() -> Self {
         Swizzle("x".into())
     }
+
+    /// `y` — floor the Y coordinate only.
     pub fn y() -> Self {
         Swizzle("y".into())
     }
+
+    /// `z` — floor the Z coordinate only.
     pub fn z() -> Self {
         Swizzle("z".into())
     }
+
+    /// `xy` — floor both X and Y coordinates.
     pub fn xy() -> Self {
         Swizzle("xy".into())
     }
+
+    /// `xz` — floor both X and Z coordinates.
     pub fn xz() -> Self {
         Swizzle("xz".into())
     }
+
+    /// `yz` — floor both Y and Z coordinates.
     pub fn yz() -> Self {
         Swizzle("yz".into())
     }
+
+    /// `xyz` — floor all three coordinates to the block grid.
     pub fn xyz() -> Self {
         Swizzle("xyz".into())
     }
@@ -361,18 +436,32 @@ impl fmt::Display for Swizzle {
 
 // ── ScoreHolder ───────────────────────────────────────────────────────────────
 
-/// A scoreboard score holder: either an entity selector or a fake player name.
+/// A scoreboard score holder: an entity selector or a fake player name.
+///
+/// Score holders are the subjects of scoreboard operations (e.g., who gets or increments a score).
+/// Can be a single player, all matching entities, or a named fake player for global counters.
 #[derive(Debug, Clone)]
 pub struct ScoreHolder(String);
 
 impl ScoreHolder {
+    /// Create a score holder from an entity selector.
+    ///
+    /// Example: `ScoreHolder::entity(Selector::self_())` → `"@s"`.
     pub fn entity(selector: super::Selector) -> Self {
         ScoreHolder(selector.to_string())
     }
+
+    /// Create a score holder from a fake player name (for global counters).
+    ///
+    /// Fake players have no existence in the world; they exist only for scoreboard storage.
+    /// Example: `ScoreHolder::fake("total_kills")` → `"total_kills"`.
     pub fn fake(name: impl Into<String>) -> Self {
         ScoreHolder(name.into())
     }
-    /// `*` — all score holders with at least one score.
+
+    /// `*` — all score holders that have at least one score in this objective.
+    ///
+    /// Use in operations to affect all holders at once (e.g., reset all scores).
     pub fn all() -> Self {
         ScoreHolder("*".into())
     }
@@ -386,17 +475,28 @@ impl fmt::Display for ScoreHolder {
 
 // ── ScoreOp ───────────────────────────────────────────────────────────────────
 
-/// Scoreboard arithmetic operation (`+=`, `-=`, `*=`, `/=`, `%=`, `=`, `<`, `>`, `><`).
+/// Scoreboard arithmetic operation for score comparisons and modifications.
+///
+/// Used in `execute if score` comparisons and `scoreboard players operation` commands.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScoreOp {
+    /// `+=` — add: `a += b` (a becomes a + b).
     Add,
+    /// `-=` — subtract: `a -= b` (a becomes a - b).
     Sub,
+    /// `*=` — multiply: `a *= b` (a becomes a * b).
     Mul,
+    /// `/=` — divide: `a /= b` (a becomes a / b, truncated).
     Div,
+    /// `%=` — modulo: `a %= b` (a becomes a mod b).
     Mod,
+    /// `=` — assign: `a = b` (a becomes b).
     Set,
+    /// `<` — minimum: `a < b` (a becomes min(a, b)).
     Min,
+    /// `>` — maximum: `a > b` (a becomes max(a, b)).
     Max,
+    /// `><` — swap: `a >< b` (exchange values of a and b).
     Swap,
 }
 

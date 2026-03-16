@@ -20,18 +20,30 @@ use super::selector::Selector;
 
 // ── SoundSource ───────────────────────────────────────────────────────────────
 
-/// Minecraft sound source categories.
+/// Minecraft audio channel/category for sound playback.
+///
+/// Determines which volume slider in settings affects the sound and enables selective audio control.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SoundSource {
+    /// Master volume channel — controls overall volume.
     Master,
+    /// Music volume — background music and melodies.
     Music,
+    /// Record volume — music discs and note blocks.
     Record,
+    /// Weather volume — rain and thunderstorms.
     Weather,
+    /// Block volume — mining, placing, and block interactions.
     Block,
+    /// Hostile volume — hostile mob sounds (zombies, creepers, etc.).
     Hostile,
+    /// Neutral volume — passive mob sounds (cows, sheep, etc.).
     Neutral,
+    /// Player volume — player sounds (footsteps, damage, death, etc.).
     Player,
+    /// Ambient volume — cave sounds and ambient effects.
     Ambient,
+    /// Voice volume — voice chat and spoken text.
     Voice,
 }
 
@@ -55,6 +67,9 @@ impl Display for SoundSource {
 
 // ── Sound ─────────────────────────────────────────────────────────────────────
 
+/// Builder for `playsound` commands.
+///
+/// Chain methods to configure the sound, then call `build()` to generate the command string.
 pub struct Sound {
     event: String,
     source: SoundSource,
@@ -67,6 +82,9 @@ pub struct Sound {
 
 impl Sound {
     /// Begin building a `playsound` command for the given sound event ID.
+    ///
+    /// Sound event ID example: `"minecraft:entity.experience_orb.pickup"`.
+    /// Chain builder methods to customize, then call `build()`.
     pub fn play(event: impl Into<String>) -> Self {
         Self {
             event: event.into(),
@@ -79,45 +97,58 @@ impl Sound {
         }
     }
 
-    /// Target selector (required before calling `build`).
+    /// Set the target entity/player who hears the sound.
+    ///
+    /// If not set, defaults to `@s`. The sound is positioned relative to the target.
     pub fn to(mut self, selector: Selector) -> Self {
         self.target = Some(selector);
         self
     }
 
-    /// Sound source category (default: `master`).
+    /// Set the sound source/channel category (default: `master`).
+    ///
+    /// Determines which volume slider in settings affects this sound.
     pub fn source(mut self, source: SoundSource) -> Self {
         self.source = source;
         self
     }
 
-    /// Position to play the sound from (default: `~ ~ ~`).
+    /// Set the position in the world where the sound originates (default: `~ ~ ~`).
+    ///
+    /// Affects the direction and distance the sound appears to come from for the listener.
     pub fn at(mut self, pos: Vec3) -> Self {
         self.pos = Some(pos);
         self
     }
 
-    /// Volume multiplier (default: `1.0`).
+    /// Set the volume multiplier (default: `1.0`).
+    ///
+    /// `0.5` is half volume, `2.0` is double volume. Higher values can exceed normal limits.
     pub fn volume(mut self, volume: f64) -> Self {
         self.volume = volume;
         self
     }
 
-    /// Pitch multiplier (default: `1.0`).
+    /// Set the pitch multiplier (default: `1.0`).
+    ///
+    /// `0.5` is half pitch (lower), `2.0` is double pitch (higher).
     pub fn pitch(mut self, pitch: f64) -> Self {
         self.pitch = pitch;
         self
     }
 
-    /// Minimum volume for players outside the normal hearing range.
+    /// Set minimum volume for players far from the sound origin.
+    ///
+    /// Ensures the sound stays audible even at distance. Useful for important sounds.
     pub fn min_volume(mut self, min: f64) -> Self {
         self.min_volume = Some(min);
         self
     }
 
-    /// Build the `playsound` command string.
+    /// Build and return the `playsound` command string.
     ///
-    /// Uses `@s` if no target was set.
+    /// Defaults: target=`@s`, position=`~ ~ ~`.
+    /// Produces: `playsound <event> <source> <target> <pos> <volume> <pitch> [min_volume]`
     pub fn build(self) -> String {
         let target = self.target.unwrap_or_else(Selector::self_);
         let pos = self.pos.unwrap_or_else(Vec3::here);
@@ -137,17 +168,21 @@ impl Sound {
 
     // ── stopsound helpers ─────────────────────────────────────────────────────
 
-    /// `stopsound <selector>` — stop all sounds for the target.
+    /// `stopsound <selector>` — stop all sounds playing for the target.
     pub fn stop_all(target: impl Display) -> String {
         format!("stopsound {}", target)
     }
 
-    /// `stopsound <selector> <source>` — stop all sounds in a category.
+    /// `stopsound <selector> <source>` — stop all sounds in a specific category for the target.
+    ///
+    /// Useful for silencing all music or all ambient sounds without affecting others.
     pub fn stop_source(target: impl Display, source: SoundSource) -> String {
         format!("stopsound {} {}", target, source)
     }
 
-    /// `stopsound <selector> <source> <event>` — stop a specific sound.
+    /// `stopsound <selector> <source> <event>` — stop a specific sound for the target.
+    ///
+    /// The most precise stopsound — affects only this one sound event.
     pub fn stop(target: impl Display, source: SoundSource, event: impl Display) -> String {
         format!("stopsound {} {} {}", target, source, event)
     }

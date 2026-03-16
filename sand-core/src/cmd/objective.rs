@@ -70,6 +70,10 @@ pub struct Objective {
 impl Objective {
     /// Const-compatible constructor for `static`/`const` declarations.
     ///
+    /// Use this for objectives known at compile time (the common case).
+    /// Produces no heap allocation — the name is borrowed from the `'static` string.
+    ///
+    /// # Example
     /// ```rust,ignore
     /// static INFERNO_DMG: Objective = Objective::new("inferno_dmg");
     /// ```
@@ -79,14 +83,17 @@ impl Objective {
         }
     }
 
-    /// Dynamic constructor for runtime-determined names.
+    /// Create an objective with a runtime-determined name.
+    ///
+    /// Use this when the objective name is computed or loaded at runtime.
+    /// The name is heap-allocated; prefer `new()` for static objectives.
     pub fn dynamic(name: impl Into<String>) -> Self {
         Self {
             name: Cow::Owned(name.into()),
         }
     }
 
-    /// The objective name string.
+    /// Return the objective name as a string.
     pub fn name(&self) -> &str {
         &self.name
     }
@@ -153,24 +160,32 @@ impl Objective {
 
     // ── Direct manipulation ────────────────────────────────────────────────
 
-    /// `scoreboard players set <holder> <obj> <value>`
+    /// `scoreboard players set <holder> <obj> <value>` — set the score to an exact value.
+    ///
+    /// Produces: `scoreboard players set <holder> <objective> <value>`
     pub fn set(&self, holder: ScoreHolder, value: i32) -> String {
         format!("scoreboard players set {} {} {}", holder, self.name, value)
     }
 
-    /// `scoreboard players get <holder> <obj>`
+    /// `scoreboard players get <holder> <obj>` — fetch the score value.
     ///
-    /// Returns the value for use in `execute store result` chains.
+    /// Returns the command string for use in `execute store result` chains.
+    /// The command's return value is the number of bytes read (for use in score calculations).
+    /// Produces: `scoreboard players get <holder> <objective>`
     pub fn get(&self, holder: ScoreHolder) -> String {
         format!("scoreboard players get {} {}", holder, self.name)
     }
 
-    /// `scoreboard players add <holder> <obj> <amount>`
+    /// `scoreboard players add <holder> <obj> <amount>` — increment the score.
+    ///
+    /// Produces: `scoreboard players add <holder> <objective> <amount>`
     pub fn add(&self, holder: ScoreHolder, amount: i32) -> String {
         format!("scoreboard players add {} {} {}", holder, self.name, amount)
     }
 
-    /// `scoreboard players remove <holder> <obj> <amount>`
+    /// `scoreboard players remove <holder> <obj> <amount>` — decrement the score.
+    ///
+    /// Produces: `scoreboard players remove <holder> <objective> <amount>`
     pub fn subtract(&self, holder: ScoreHolder, amount: i32) -> String {
         format!(
             "scoreboard players remove {} {} {}",
@@ -178,7 +193,9 @@ impl Objective {
         )
     }
 
-    /// `scoreboard players reset <holder> <obj>`
+    /// `scoreboard players reset <holder> <obj>` — clear the score (remove this holder from the objective).
+    ///
+    /// Produces: `scoreboard players reset <holder> <objective>`
     pub fn reset(&self, holder: ScoreHolder) -> String {
         format!("scoreboard players reset {} {}", holder, self.name)
     }
@@ -208,10 +225,12 @@ impl Objective {
 
     // ── Execute conditions ─────────────────────────────────────────────────
 
-    /// `execute if score <holder> <obj> matches <range>`
+    /// Return a condition fragment `if score <holder> <obj> matches <range>`.
     ///
-    /// Returns a condition fragment for use in an `Execute` chain.
+    /// Use this with `Execute::if_()` to add a score condition to an execute chain.
+    /// Range format: `"5"` (exact), `"5.."` (5 or more), `"..5"` (5 or less), `"1..10"` (between).
     ///
+    /// # Example
     /// ```rust,ignore
     /// Execute::new()
     ///     .if_(COOLDOWN.if_matches(ScoreHolder::self_(), "0"))
@@ -221,7 +240,9 @@ impl Objective {
         format!("if score {} {} matches {}", holder, self.name, range.into())
     }
 
-    /// `execute unless score <holder> <obj> matches <range>`
+    /// Return a condition fragment `unless score <holder> <obj> matches <range>`.
+    ///
+    /// Use this with `Execute::if_()` to skip execution if score is in range.
     pub fn unless_matches(&self, holder: ScoreHolder, range: impl Into<String>) -> String {
         format!(
             "unless score {} {} matches {}",
@@ -233,8 +254,11 @@ impl Objective {
 
     // ── Display ───────────────────────────────────────────────────────────
 
-    /// Create a `TextComponent` that displays this objective's value for `selector`.
+    /// Create a `TextComponent` displaying this objective's value for an entity selector.
     ///
+    /// Use in `title`, `actionbar`, `tellraw`, or `bossbar` commands to show live scoreboard values.
+    ///
+    /// # Example
     /// ```rust,ignore
     /// INFERNO_DMG.as_text(Selector::self_()).color(ChatColor::Yellow)
     /// // → {"score":{"name":"@s","objective":"inferno_dmg"},"color":"yellow"}
@@ -243,10 +267,14 @@ impl Objective {
         TextComponent::score(selector.to_string(), self.name())
     }
 
-    /// Create a `TextComponent` for a fake player (e.g. a global counter).
+    /// Create a `TextComponent` displaying a fake player's score in this objective.
     ///
+    /// Use this for global counters or persistent values tied to a fake player name.
+    ///
+    /// # Example
     /// ```rust,ignore
     /// KILL_COUNT.as_text_fake("__global")
+    /// // → {"score":{"name":"__global","objective":"kill_count"}}
     /// ```
     pub fn as_text_fake(&self, fake_player: impl Into<String>) -> TextComponent {
         TextComponent::score(fake_player, self.name())
@@ -255,9 +283,11 @@ impl Objective {
 
 // ── ScoreHolder convenience ────────────────────────────────────────────────────
 
-/// Extra constructors on [`ScoreHolder`] for common cases.
+/// Convenience constructors added to [`ScoreHolder`] for common patterns.
 impl ScoreHolder {
-    /// `@s` — the entity executing the command.
+    /// `@s` — score holder for the entity executing the command.
+    ///
+    /// Shorthand for `ScoreHolder::entity(Selector::self_())`.
     pub fn self_() -> Self {
         ScoreHolder::entity(Selector::self_())
     }

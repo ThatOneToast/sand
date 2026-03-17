@@ -224,8 +224,126 @@ pub fn export_components_json(namespace: &str) -> String {
             .push(format!("{namespace}:{armor_path}"));
     }
 
+    // ── EventDescriptors ──────────────────────────────────────────────────────
+    use crate::function::EventDispatch;
+
+    let mut death_tick_events: Vec<&EventDescriptor> = Vec::new();
+
+    for desc in inventory::iter::<EventDescriptor>() {
+        match &desc.dispatch {
+            EventDispatch::DeathTick => {
+                // Collect for bulk dispatch below; generate the mcfunction now.
+                let commands = (desc.make)();
+                records.push(ComponentRecord {
+                    namespace: namespace.to_string(),
+                    dir: "function".to_string(),
+                    path: desc.path.to_string(),
+                    ext: "mcfunction".to_string(),
+                    content: commands.join("\n"),
+                });
+                death_tick_events.push(desc);
+            }
+            EventDispatch::Advancement {
+                make_trigger,
+                revoke,
+            } => {
+                let advancement_id = desc
+                    .id_override
+                    .map(|s| s.to_string())
+                    .unwrap_or_else(|| format!("{}:{}", namespace, desc.path));
+
+                let mut commands = (desc.make)();
+                if *revoke {
+                    commands.insert(
+                        0,
+                        format!("advancement revoke @s only {}", advancement_id),
+                    );
+                }
+                records.push(ComponentRecord {
+                    namespace: namespace.to_string(),
+                    dir: "function".to_string(),
+                    path: desc.path.to_string(),
+                    ext: "mcfunction".to_string(),
+                    content: commands.join("\n"),
+                });
+
+                let trigger = make_trigger();
+                let fn_ref = format!("{}:{}", namespace, desc.path);
+                let advancement = crate::components::advancement::Advancement::new(
+                    advancement_id
+                        .parse()
+                        .expect("invalid advancement ID in #[event]"),
+                )
+                .criterion(
+                    "event",
+                    crate::components::advancement::Criterion::new(trigger),
+                )
+                .rewards(
+                    crate::components::advancement::AdvancementRewards::new().function(fn_ref),
+                );
+                let content = serde_json::to_string_pretty(&advancement.to_json()).unwrap();
+                let rl = advancement.resource_location();
+                records.push(ComponentRecord {
+                    namespace: rl.namespace().to_string(),
+                    dir: advancement.component_dir().to_string(),
+                    path: rl.path().to_string(),
+                    ext: advancement.file_extension().to_string(),
+                    content,
+                });
+            }
+        }
+    }
+
+    // ── DeathTick aggregation ─────────────────────────────────────────────────
+    if !death_tick_events.is_empty() {
+        // Init function: creates the deathCount objective on load.
+        let init_path = "__sand_death_init";
+        records.push(ComponentRecord {
+            namespace: namespace.to_string(),
+            dir: "function".to_string(),
+            path: init_path.to_string(),
+            ext: "mcfunction".to_string(),
+            content: "scoreboard objectives add __sand_dc deathCount".to_string(),
+        });
+        tag_map
+            .entry("minecraft:load".to_string())
+            .or_default()
+            .push(format!("{namespace}:{init_path}"));
+
+        // Tick function: detects deaths and dispatches to each handler.
+        let check_path = "__sand_death_check";
+        let mut check_cmds: Vec<String> = Vec::new();
+        // Mark players who just died.
+        check_cmds.push(
+            "execute as @a[scores={__sand_dc=1..}] run tag @s add __sand_just_died".to_string(),
+        );
+        // Reset so we don't double-fire.
+        check_cmds.push("scoreboard players set @a __sand_dc 0".to_string());
+        // Dispatch to each registered handler (with @s = the player who died).
+        for desc in &death_tick_events {
+            check_cmds.push(format!(
+                "execute as @a[tag=__sand_just_died] run function {namespace}:{}",
+                desc.path
+            ));
+        }
+        // Clean up the temporary tag.
+        check_cmds.push("tag @a remove __sand_just_died".to_string());
+
+        records.push(ComponentRecord {
+            namespace: namespace.to_string(),
+            dir: "function".to_string(),
+            path: check_path.to_string(),
+            ext: "mcfunction".to_string(),
+            content: check_cmds.join("\n"),
+        });
+        tag_map
+            .entry("minecraft:tick".to_string())
+            .or_default()
+            .push(format!("{namespace}:{check_path}"));
+    }
+
     // ── Finalize tag_map → records ────────────────────────────────────────────
-    // (Moved after armor events so armor check can be injected into tick.)
+    // (Done last so armor events and death events can both inject into tick/load.)
     for (tag_rl, values) in tag_map {
         let (tag_ns, tag_path) = match tag_rl.split_once(':') {
             Some((ns, path)) => (ns.to_string(), path.to_string()),
@@ -238,48 +356,6 @@ pub fn export_components_json(namespace: &str) -> String {
             path: tag_path,
             ext: "json".to_string(),
             content: serde_json::to_string_pretty(&json).unwrap(),
-        });
-    }
-
-    // ── EventDescriptors ──────────────────────────────────────────────────────
-    for desc in inventory::iter::<EventDescriptor>() {
-        let advancement_id = desc
-            .id_override
-            .map(|s| s.to_string())
-            .unwrap_or_else(|| format!("{}:{}", namespace, desc.path));
-
-        let mut commands = (desc.make)();
-        if desc.revoke {
-            commands.insert(0, format!("advancement revoke @s only {}", advancement_id));
-        }
-        records.push(ComponentRecord {
-            namespace: namespace.to_string(),
-            dir: "function".to_string(),
-            path: desc.path.to_string(),
-            ext: "mcfunction".to_string(),
-            content: commands.join("\n"),
-        });
-
-        let trigger = (desc.make_trigger)();
-        let fn_ref = format!("{}:{}", namespace, desc.path);
-        let advancement = crate::components::advancement::Advancement::new(
-            advancement_id
-                .parse()
-                .expect("invalid advancement ID in #[event]"),
-        )
-        .criterion(
-            "event",
-            crate::components::advancement::Criterion::new(trigger),
-        )
-        .rewards(crate::components::advancement::AdvancementRewards::new().function(fn_ref));
-        let content = serde_json::to_string_pretty(&advancement.to_json()).unwrap();
-        let rl = advancement.resource_location();
-        records.push(ComponentRecord {
-            namespace: rl.namespace().to_string(),
-            dir: advancement.component_dir().to_string(),
-            path: rl.path().to_string(),
-            ext: advancement.file_extension().to_string(),
-            content,
         });
     }
 

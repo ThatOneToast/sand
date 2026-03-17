@@ -846,50 +846,78 @@ fn expand_event(func: ItemFn, attr: EventAttr) -> syn::Result<proc_macro2::Token
         &format!("__sand_fn_{}_make", fn_name),
         proc_macro2::Span::call_site(),
     );
-    let trigger_ident = proc_macro2::Ident::new(
-        &format!("__sand_event_{}_trigger", fn_name),
-        proc_macro2::Span::call_site(),
-    );
 
     let body = build_cmd_body(&func.block);
 
-    // Build the trigger expression tokens
-    let trigger_expr = build_trigger_expr(&attr.event_type, &attr.filters)?;
+    // Decide dispatch strategy: Death with no entity/killing_blow → DeathTick.
+    let is_death_tick = attr.event_type == "Death"
+        && !attr.filters.contains_key("entity")
+        && !attr.filters.contains_key("killing_blow");
 
-    // id_override token
     let id_override_tokens = match &attr.id_override {
         Some(s) => quote! { ::std::option::Option::Some(#s) },
         None => quote! { ::std::option::Option::None },
     };
 
-    let revoke_val = attr.revoke;
+    if is_death_tick {
+        // Tick-based dispatch: no advancement, no revoke, no trigger fn.
+        Ok(quote! {
+            #(#attrs)*
+            #vis fn #fn_name() -> ::std::vec::Vec<::std::string::String> {
+                #body
+            }
 
-    Ok(quote! {
-        #(#attrs)*
-        #vis fn #fn_name() -> ::std::vec::Vec<::std::string::String> {
-            #body
-        }
+            #[doc(hidden)]
+            #[allow(dead_code)]
+            fn #fn_make_ident() -> ::std::vec::Vec<::std::string::String> {
+                #fn_name()
+            }
 
-        #[doc(hidden)]
-        #[allow(dead_code)]
-        fn #fn_make_ident() -> ::std::vec::Vec<::std::string::String> {
-            #fn_name()
-        }
+            ::sand_core::inventory::submit!(::sand_core::EventDescriptor {
+                path: #fn_name_str,
+                id_override: #id_override_tokens,
+                make: #fn_make_ident,
+                dispatch: ::sand_core::EventDispatch::DeathTick,
+            });
+        })
+    } else {
+        // Advancement-based dispatch.
+        let trigger_ident = proc_macro2::Ident::new(
+            &format!("__sand_event_{}_trigger", fn_name),
+            proc_macro2::Span::call_site(),
+        );
+        let trigger_expr = build_trigger_expr(&attr.event_type, &attr.filters)?;
+        let revoke_val = attr.revoke;
 
-        #[doc(hidden)]
-        #[allow(dead_code)]
-        fn #trigger_ident() -> ::sand_core::AdvancementTrigger {
-            #trigger_expr
-        }
+        Ok(quote! {
+            #(#attrs)*
+            #vis fn #fn_name() -> ::std::vec::Vec<::std::string::String> {
+                #body
+            }
 
-        ::sand_core::inventory::submit!(::sand_core::EventDescriptor {
-            path: #fn_name_str,
-            id_override: #id_override_tokens,
-            make_trigger: #trigger_ident,
-            make: #fn_make_ident,
-            revoke: #revoke_val,
-        });
-    })
+            #[doc(hidden)]
+            #[allow(dead_code)]
+            fn #fn_make_ident() -> ::std::vec::Vec<::std::string::String> {
+                #fn_name()
+            }
+
+            #[doc(hidden)]
+            #[allow(dead_code)]
+            fn #trigger_ident() -> ::sand_core::AdvancementTrigger {
+                #trigger_expr
+            }
+
+            ::sand_core::inventory::submit!(::sand_core::EventDescriptor {
+                path: #fn_name_str,
+                id_override: #id_override_tokens,
+                make: #fn_make_ident,
+                dispatch: ::sand_core::EventDispatch::Advancement {
+                    make_trigger: #trigger_ident,
+                    revoke: #revoke_val,
+                },
+            });
+        })
+    }
 }
 
 /// Build the `AdvancementTrigger` expression for the given event type and filters.
@@ -1313,7 +1341,7 @@ fn build_inventory_items_filter(
 /// Returns a `cmd::function(...)` call and optionally registers an inline body
 /// as a named `.mcfunction` file.
 ///
-/// # With body — define + call inline
+/// # Named with body — define + call inline
 ///
 /// The body is registered as a named datapack function and the macro expands
 /// to the `cmd::function(...)` call in one step:
@@ -1333,6 +1361,20 @@ fn build_inventory_items_filter(
 /// }
 /// ```
 ///
+/// # Anonymous with body — one-off inline function
+///
+/// When no name is given, the namespace is read from `sand.toml` and a unique
+/// function name is generated automatically. Perfect for one-off inline
+/// functions that don't need to be referenced elsewhere:
+///
+/// ```rust,ignore
+/// Execute::new()
+///     .as_(Selector::all_players())
+///     .run(run_fn!({
+///         cmd::say("One-off greeting!");
+///     }));
+/// ```
+///
 /// # Without body — shorthand for `cmd::function(...)`
 ///
 /// ```rust,ignore
@@ -1349,19 +1391,29 @@ pub fn run_fn(input: TokenStream) -> TokenStream {
 }
 
 struct RunFnInput {
-    name: LitStr,
+    /// `None` when the user writes `run_fn! { … }` (anonymous).
+    name: Option<LitStr>,
     body: Option<syn::Block>,
 }
 
 impl syn::parse::Parse for RunFnInput {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let name: LitStr = input.parse()?;
-        let body = if input.peek(token::Brace) {
-            Some(input.parse::<syn::Block>()?)
+        // If the first token is a string literal → named form.
+        // If the first token is `{` → anonymous form.
+        if input.peek(LitStr) {
+            let name: LitStr = input.parse()?;
+            let body = if input.peek(token::Brace) {
+                Some(input.parse::<syn::Block>()?)
+            } else {
+                None
+            };
+            Ok(RunFnInput { name: Some(name), body })
+        } else if input.peek(token::Brace) {
+            let body: syn::Block = input.parse()?;
+            Ok(RunFnInput { name: None, body: Some(body) })
         } else {
-            None
-        };
-        Ok(RunFnInput { name, body })
+            Err(input.error("expected a string literal (e.g. \"ns:path\") or a block { … }"))
+        }
     }
 }
 
@@ -2282,9 +2334,57 @@ fn expand_armor_event(attr: ArmorEventAttr, func: ItemFn) -> syn::Result<proc_ma
 
 // ── run_fn! ───────────────────────────────────────────────────────────────────
 
+/// Read the `[pack].namespace` value from `sand.toml` next to `CARGO_MANIFEST_DIR`.
+fn read_sand_namespace() -> Option<String> {
+    let dir = std::env::var("CARGO_MANIFEST_DIR").ok()?;
+    let path = std::path::Path::new(&dir).join("sand.toml");
+    let content = std::fs::read_to_string(path).ok()?;
+    // Simple parse: find `namespace` key under `[pack]`.
+    let mut in_pack = false;
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with('[') {
+            in_pack = trimmed == "[pack]";
+            continue;
+        }
+        if in_pack {
+            if let Some(rest) = trimmed.strip_prefix("namespace") {
+                let rest = rest.trim_start();
+                if let Some(rest) = rest.strip_prefix('=') {
+                    let val = rest.trim().trim_matches('"').trim_matches('\'');
+                    if !val.is_empty() {
+                        return Some(val.to_string());
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Global counter for generating unique anonymous function names.
+static ANON_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
 fn expand_run_fn(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
     let RunFnInput { name, body } = syn::parse::<RunFnInput>(input)?;
-    let name_val = name.value();
+
+    // Resolve the full resource location string (e.g. "ns:path").
+    let (name_val, span) = match &name {
+        Some(lit) => (lit.value(), lit.span()),
+        None => {
+            // Anonymous: read namespace from sand.toml, generate unique path.
+            let ns = read_sand_namespace().ok_or_else(|| {
+                syn::Error::new(
+                    proc_macro2::Span::call_site(),
+                    "could not read [pack].namespace from sand.toml; \
+                     provide an explicit name or ensure sand.toml exists",
+                )
+            })?;
+            let id = ANON_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            let anon_path = format!("{ns}:__anon/fn_{id}");
+            (anon_path, proc_macro2::Span::call_site())
+        }
+    };
 
     // Extract the path part (after ":") for the FunctionDescriptor path.
     let path_part = match name_val.find(':') {
@@ -2292,9 +2392,10 @@ fn expand_run_fn(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
         None => &name_val[..],
     };
 
+    let name_lit = LitStr::new(&name_val, span);
     let fn_call = quote! {
         ::sand_core::cmd::function(
-            #name.parse::<::sand_core::ResourceLocation>().unwrap()
+            #name_lit.parse::<::sand_core::ResourceLocation>().unwrap()
         )
     };
 
@@ -2305,7 +2406,7 @@ fn expand_run_fn(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
             &format!("__sand_run_fn_{mangled}"),
             proc_macro2::Span::call_site(),
         );
-        let path_lit = LitStr::new(path_part, name.span());
+        let path_lit = LitStr::new(path_part, span);
         let cmd_body = build_cmd_body(&block);
 
         Ok(quote! {

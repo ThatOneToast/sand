@@ -69,7 +69,8 @@
 
 use std::fmt;
 
-use super::{Anchor, BlockPos, Command, Rotation, ScoreHolder, ScoreOp, Selector, Swizzle, Vec3};
+use super::{Anchor, BlockPos, Command, NbtStoreKind, Rotation, ScoreCmp, ScoreHolder, Selector, Swizzle, Vec3};
+use super::data::DataTarget;
 
 /// Builder for the `execute` command chain.
 ///
@@ -179,6 +180,23 @@ impl Execute {
         self
     }
 
+    /// `positioned over <heightmap>` — snap y-coordinate to the top of the given heightmap (1.19.4+).
+    ///
+    /// Common heightmaps: `"world_surface"`, `"motion_blocking"`, `"ocean_floor"`.
+    /// Useful for placing things at ground level regardless of terrain.
+    ///
+    /// ```rust,ignore
+    /// Execute::new()
+    ///     .as_(Selector::all_players())
+    ///     .positioned_as(Selector::self_())
+    ///     .positioned_over("world_surface")
+    ///     .run_raw("summon lightning_bolt ~ ~ ~");
+    /// ```
+    pub fn positioned_over(mut self, heightmap: impl Into<String>) -> Self {
+        self.parts.push(format!("positioned over {}", heightmap.into()));
+        self
+    }
+
     /// `anchored <anchor>` — change the anchor point for position calculations.
     ///
     /// `eyes` for head level, `feet` for foot level. Affects position calculations in subsequent commands.
@@ -243,6 +261,24 @@ impl Execute {
     pub fn unless_on_team(mut self, team: impl Into<String>) -> Self {
         self.parts
             .push(format!("unless entity @s[team={}]", team.into()));
+        self
+    }
+
+    /// `if score <a> <a_obj> = <b> <b_obj>` — continue only if the two scores are equal.
+    ///
+    /// Produces: `execute if score <a> <a_obj> = <b> <b_obj> ...`
+    pub fn if_score(
+        mut self,
+        a: Selector,
+        a_obj: impl Into<String>,
+        b: Selector,
+        b_obj: impl Into<String>,
+    ) -> Self {
+        self.parts.push(format!(
+            "if score {a} {} = {b} {}",
+            a_obj.into(),
+            b_obj.into()
+        ));
         self
     }
 
@@ -319,20 +355,23 @@ impl Execute {
         self
     }
 
-    /// `if score <a> <a_obj> <op> <b> <b_obj>` — compare two scores using an operation.
+    /// `if score <a> <a_obj> <cmp> <b> <b_obj>` — compare two scores.
     ///
-    /// Operations: `=`, `<`, `>`, `<=`, `>=`, `!=`. Useful for relative comparisons.
-    /// Produces: `execute if score <a> <a_obj> <op> <b> <b_obj> ...`
+    /// Use [`ScoreCmp`] for the operator (`Eq`, `Lt`, `Le`, `Gt`, `Ge`).
+    /// For named shorthands see [`if_score_eq`](Execute::if_score_eq),
+    /// [`if_score_lt`](Execute::if_score_lt), etc.
+    ///
+    /// Produces: `execute if score <a> <a_obj> <cmp> <b> <b_obj> ...`
     pub fn if_score_compare(
         mut self,
         a: impl Into<String>,
         a_obj: impl Into<String>,
-        op: ScoreOp,
+        cmp: ScoreCmp,
         b: impl Into<String>,
         b_obj: impl Into<String>,
     ) -> Self {
         self.parts.push(format!(
-            "if score {} {} {op} {} {}",
+            "if score {} {} {cmp} {} {}",
             a.into(),
             a_obj.into(),
             b.into(),
@@ -341,24 +380,178 @@ impl Execute {
         self
     }
 
-    /// `unless score <a> <a_obj> <op> <b> <b_obj>` — skip execution if the comparison is true.
+    /// `unless score <a> <a_obj> <cmp> <b> <b_obj>` — skip if the comparison is true.
     ///
-    /// Produces: `execute unless score <a> <a_obj> <op> <b> <b_obj> ...`
+    /// Produces: `execute unless score <a> <a_obj> <cmp> <b> <b_obj> ...`
     pub fn unless_score_compare(
         mut self,
         a: impl Into<String>,
         a_obj: impl Into<String>,
-        op: ScoreOp,
+        cmp: ScoreCmp,
         b: impl Into<String>,
         b_obj: impl Into<String>,
     ) -> Self {
         self.parts.push(format!(
-            "unless score {} {} {op} {} {}",
+            "unless score {} {} {cmp} {} {}",
             a.into(),
             a_obj.into(),
             b.into(),
             b_obj.into()
         ));
+        self
+    }
+
+    // ── Score comparison shorthands ───────────────────────────────────────────
+
+    /// `if score <a> <a_obj> = <b> <b_obj>` — continue if scores are equal.
+    pub fn if_score_eq(self, a: impl Into<String>, a_obj: impl Into<String>, b: impl Into<String>, b_obj: impl Into<String>) -> Self {
+        self.if_score_compare(a, a_obj, ScoreCmp::Eq, b, b_obj)
+    }
+
+    /// `unless score <a> <a_obj> = <b> <b_obj>` — skip if scores are equal.
+    pub fn unless_score_eq(self, a: impl Into<String>, a_obj: impl Into<String>, b: impl Into<String>, b_obj: impl Into<String>) -> Self {
+        self.unless_score_compare(a, a_obj, ScoreCmp::Eq, b, b_obj)
+    }
+
+    /// `if score <a> <a_obj> < <b> <b_obj>` — continue if `a` is strictly less than `b`.
+    pub fn if_score_lt(self, a: impl Into<String>, a_obj: impl Into<String>, b: impl Into<String>, b_obj: impl Into<String>) -> Self {
+        self.if_score_compare(a, a_obj, ScoreCmp::Lt, b, b_obj)
+    }
+
+    /// `unless score <a> <a_obj> < <b> <b_obj>` — skip if `a` is strictly less than `b`.
+    pub fn unless_score_lt(self, a: impl Into<String>, a_obj: impl Into<String>, b: impl Into<String>, b_obj: impl Into<String>) -> Self {
+        self.unless_score_compare(a, a_obj, ScoreCmp::Lt, b, b_obj)
+    }
+
+    /// `if score <a> <a_obj> <= <b> <b_obj>` — continue if `a` is less than or equal to `b`.
+    pub fn if_score_lte(self, a: impl Into<String>, a_obj: impl Into<String>, b: impl Into<String>, b_obj: impl Into<String>) -> Self {
+        self.if_score_compare(a, a_obj, ScoreCmp::Le, b, b_obj)
+    }
+
+    /// `unless score <a> <a_obj> <= <b> <b_obj>` — skip if `a` is less than or equal to `b`.
+    pub fn unless_score_lte(self, a: impl Into<String>, a_obj: impl Into<String>, b: impl Into<String>, b_obj: impl Into<String>) -> Self {
+        self.unless_score_compare(a, a_obj, ScoreCmp::Le, b, b_obj)
+    }
+
+    /// `if score <a> <a_obj> > <b> <b_obj>` — continue if `a` is strictly greater than `b`.
+    pub fn if_score_gt(self, a: impl Into<String>, a_obj: impl Into<String>, b: impl Into<String>, b_obj: impl Into<String>) -> Self {
+        self.if_score_compare(a, a_obj, ScoreCmp::Gt, b, b_obj)
+    }
+
+    /// `unless score <a> <a_obj> > <b> <b_obj>` — skip if `a` is strictly greater than `b`.
+    pub fn unless_score_gt(self, a: impl Into<String>, a_obj: impl Into<String>, b: impl Into<String>, b_obj: impl Into<String>) -> Self {
+        self.unless_score_compare(a, a_obj, ScoreCmp::Gt, b, b_obj)
+    }
+
+    /// `if score <a> <a_obj> >= <b> <b_obj>` — continue if `a` is greater than or equal to `b`.
+    pub fn if_score_gte(self, a: impl Into<String>, a_obj: impl Into<String>, b: impl Into<String>, b_obj: impl Into<String>) -> Self {
+        self.if_score_compare(a, a_obj, ScoreCmp::Ge, b, b_obj)
+    }
+
+    /// `unless score <a> <a_obj> >= <b> <b_obj>` — skip if `a` is greater than or equal to `b`.
+    pub fn unless_score_gte(self, a: impl Into<String>, a_obj: impl Into<String>, b: impl Into<String>, b_obj: impl Into<String>) -> Self {
+        self.unless_score_compare(a, a_obj, ScoreCmp::Ge, b, b_obj)
+    }
+
+    // ── Data / NBT conditions ─────────────────────────────────────────────────
+
+    /// `if data entity <target> <path>` — continue if entity NBT has a value at `path`.
+    ///
+    /// ```rust,ignore
+    /// Execute::new()
+    ///     .if_data_entity(Selector::self_(), "Custom.ready")
+    ///     .run_raw("say ready");
+    /// ```
+    pub fn if_data_entity(mut self, selector: Selector, path: impl Into<String>) -> Self {
+        self.parts.push(format!("if data entity {selector} {}", path.into()));
+        self
+    }
+
+    /// `unless data entity <target> <path>` — skip if entity NBT has a value at `path`.
+    pub fn unless_data_entity(mut self, selector: Selector, path: impl Into<String>) -> Self {
+        self.parts.push(format!("unless data entity {selector} {}", path.into()));
+        self
+    }
+
+    /// `if data block <pos> <path>` — continue if block NBT has a value at `path`.
+    pub fn if_data_block(mut self, pos: BlockPos, path: impl Into<String>) -> Self {
+        self.parts.push(format!("if data block {pos} {}", path.into()));
+        self
+    }
+
+    /// `unless data block <pos> <path>` — skip if block NBT has a value at `path`.
+    pub fn unless_data_block(mut self, pos: BlockPos, path: impl Into<String>) -> Self {
+        self.parts.push(format!("unless data block {pos} {}", path.into()));
+        self
+    }
+
+    /// `if data storage <source> <path>` — continue if storage has a value at `path`.
+    ///
+    /// ```rust,ignore
+    /// Execute::new()
+    ///     .if_data_storage("my_pack:state", "phase")
+    ///     .run_raw("say phase exists");
+    /// ```
+    pub fn if_data_storage(mut self, source: impl Into<String>, path: impl Into<String>) -> Self {
+        self.parts.push(format!("if data storage {} {}", source.into(), path.into()));
+        self
+    }
+
+    /// `unless data storage <source> <path>` — skip if storage has a value at `path`.
+    pub fn unless_data_storage(mut self, source: impl Into<String>, path: impl Into<String>) -> Self {
+        self.parts.push(format!("unless data storage {} {}", source.into(), path.into()));
+        self
+    }
+
+    // ── World conditions ──────────────────────────────────────────────────────
+
+    /// `if biome <pos> <biome>` — continue if the biome at `pos` matches (1.19.4+).
+    ///
+    /// ```rust,ignore
+    /// Execute::new()
+    ///     .if_biome(BlockPos::here(), "minecraft:desert")
+    ///     .run_raw("say you're in a desert");
+    /// ```
+    pub fn if_biome(mut self, pos: BlockPos, biome: impl Into<String>) -> Self {
+        self.parts.push(format!("if biome {pos} {}", biome.into()));
+        self
+    }
+
+    /// `unless biome <pos> <biome>` — skip if the biome at `pos` matches (1.19.4+).
+    pub fn unless_biome(mut self, pos: BlockPos, biome: impl Into<String>) -> Self {
+        self.parts.push(format!("unless biome {pos} {}", biome.into()));
+        self
+    }
+
+    /// `if dimension <dimension>` — continue if executing in the given dimension (1.21+).
+    ///
+    /// ```rust,ignore
+    /// Execute::new()
+    ///     .if_dimension("minecraft:the_nether")
+    ///     .run_raw("say you're in the nether");
+    /// ```
+    pub fn if_dimension(mut self, dimension: impl Into<String>) -> Self {
+        self.parts.push(format!("if dimension {}", dimension.into()));
+        self
+    }
+
+    /// `unless dimension <dimension>` — skip if executing in the given dimension (1.21+).
+    pub fn unless_dimension(mut self, dimension: impl Into<String>) -> Self {
+        self.parts.push(format!("unless dimension {}", dimension.into()));
+        self
+    }
+
+    /// `if loaded <pos>` — continue only if the chunk at `pos` is fully loaded.
+    ///
+    /// Prevents commands from running in unloaded chunks where they would silently fail.
+    pub fn if_loaded(mut self, pos: BlockPos) -> Self {
+        self.parts.push(format!("if loaded {pos}"));
+        self
+    }
+
+    /// `unless loaded <pos>` — skip if the chunk at `pos` is NOT fully loaded.
+    pub fn unless_loaded(mut self, pos: BlockPos) -> Self {
+        self.parts.push(format!("unless loaded {pos}"));
         self
     }
 
@@ -479,6 +672,66 @@ impl Execute {
         self
     }
 
+    /// `store result nbt <target> <path> <type> <scale>` — write the `run` result into NBT.
+    ///
+    /// The numeric result of the `run` command is multiplied by `scale` then stored
+    /// at `path` with the given type. `scale` of `1.0` stores the value unchanged.
+    ///
+    /// ```rust,ignore
+    /// // Store entity's health as a float in Custom.LastHealth:
+    /// Execute::new()
+    ///     .store_result_nbt(DataTarget::entity(Selector::self_()), "Custom.LastHealth", NbtStoreKind::Float, 1.0)
+    ///     .run_raw("data get entity @s Health");
+    /// ```
+    pub fn store_result_nbt(
+        mut self,
+        target: DataTarget,
+        path: impl Into<String>,
+        kind: NbtStoreKind,
+        scale: f64,
+    ) -> Self {
+        self.parts.push(format!(
+            "store result {} {} {kind} {scale}",
+            target,
+            path.into()
+        ));
+        self
+    }
+
+    /// `store success nbt <target> <path> <type> <scale>` — write 1/0 (success/fail) into NBT.
+    pub fn store_success_nbt(
+        mut self,
+        target: DataTarget,
+        path: impl Into<String>,
+        kind: NbtStoreKind,
+        scale: f64,
+    ) -> Self {
+        self.parts.push(format!(
+            "store success {} {} {kind} {scale}",
+            target,
+            path.into()
+        ));
+        self
+    }
+
+    /// `store result bossbar <id> value` — write the `run` result into a bossbar's current value.
+    ///
+    /// ```rust,ignore
+    /// Execute::new()
+    ///     .store_result_bossbar("my_pack:health_bar", "value")
+    ///     .run_raw("scoreboard players get @s health");
+    /// ```
+    pub fn store_result_bossbar(mut self, id: impl Into<String>, attribute: impl Into<String>) -> Self {
+        self.parts.push(format!("store result bossbar {} {}", id.into(), attribute.into()));
+        self
+    }
+
+    /// `store success bossbar <id> <attribute>` — write success/failure into a bossbar attribute.
+    pub fn store_success_bossbar(mut self, id: impl Into<String>, attribute: impl Into<String>) -> Self {
+        self.parts.push(format!("store success bossbar {} {}", id.into(), attribute.into()));
+        self
+    }
+
     // ── Terminal ──────────────────────────────────────────────────────────────
 
     /// `run <command>` — finalize the execute chain and run the given command.
@@ -538,6 +791,79 @@ mod tests {
         assert_eq!(
             s,
             "execute as @a at @s if score @s playtime matches 100.. run say milestone!"
+        );
+    }
+
+    #[test]
+    fn score_compare_ops() {
+        let eq = Execute::new()
+            .if_score_eq("@s", "mana", "@s", "max_mana")
+            .run_raw("say full");
+        assert_eq!(eq, "execute if score @s mana = @s max_mana run say full");
+
+        let lt = Execute::new()
+            .if_score_lt("@s", "health", "#const", "ten")
+            .run_raw("say low");
+        assert_eq!(lt, "execute if score @s health < #const ten run say low");
+
+        let lte = Execute::new()
+            .if_score_lte("@s", "health", "#const", "ten")
+            .run_raw("say lte");
+        assert_eq!(lte, "execute if score @s health <= #const ten run say lte");
+
+        let gte = Execute::new()
+            .if_score_gte("@s", "mana", "@s", "cost")
+            .run_raw("say can cast");
+        assert_eq!(gte, "execute if score @s mana >= @s cost run say can cast");
+
+        let unless = Execute::new()
+            .unless_score_gt("@s", "mana", "#const", "zero")
+            .run_raw("say no mana");
+        assert_eq!(unless, "execute unless score @s mana > #const zero run say no mana");
+    }
+
+    #[test]
+    fn if_data_conditions() {
+        let s = Execute::new()
+            .if_data_entity(Selector::self_(), "Custom.ready")
+            .run_raw("say ready");
+        assert_eq!(s, "execute if data entity @s Custom.ready run say ready");
+
+        let s = Execute::new()
+            .if_data_storage("my_pack:state", "phase")
+            .run_raw("say has phase");
+        assert_eq!(s, "execute if data storage my_pack:state phase run say has phase");
+    }
+
+    #[test]
+    fn world_conditions() {
+        let s = Execute::new()
+            .if_biome(BlockPos::here(), "minecraft:desert")
+            .run_raw("say desert");
+        assert_eq!(s, "execute if biome ~ ~ ~ minecraft:desert run say desert");
+
+        let s = Execute::new()
+            .if_loaded(BlockPos::here())
+            .run_raw("say loaded");
+        assert_eq!(s, "execute if loaded ~ ~ ~ run say loaded");
+
+        let s = Execute::new()
+            .if_dimension("minecraft:the_nether")
+            .run_raw("say nether");
+        assert_eq!(s, "execute if dimension minecraft:the_nether run say nether");
+    }
+
+    #[test]
+    fn positioned_over_test() {
+        use super::super::Vec3;
+        let s = Execute::new()
+            .as_(Selector::all_players())
+            .positioned_as(Selector::self_())
+            .positioned_over("world_surface")
+            .run_raw("say ground");
+        assert_eq!(
+            s,
+            "execute as @a positioned as @s positioned over world_surface run say ground"
         );
     }
 

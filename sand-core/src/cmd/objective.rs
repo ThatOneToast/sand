@@ -32,8 +32,94 @@
 //! ```
 
 use std::borrow::Cow;
+use std::fmt;
 
-use super::{ScoreHolder, ScoreOp, Selector, Storage, TextComponent};
+use super::{Command, ScoreHolder, ScoreOp, Selector, Storage, TextComponent};
+
+// ── ScoreboardPlayersOperation ────────────────────────────────────────────────
+
+/// Result of [`scoreboard_players_operation`]. Implements [`Command`] so it
+/// can be used anywhere a command string is expected.
+#[derive(Debug, Clone)]
+pub struct ScoreboardPlayersOperation {
+    targets: String,
+    target_objective: String,
+    op: ScoreOp,
+    source: String,
+    source_objective: String,
+}
+
+impl fmt::Display for ScoreboardPlayersOperation {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "scoreboard players operation {} {} {} {} {}",
+            self.targets, self.target_objective, self.op, self.source, self.source_objective
+        )
+    }
+}
+
+impl Command for ScoreboardPlayersOperation {}
+
+/// `scoreboard players operation <targets> <targetObjective> <op> <source> <sourceObjective>`
+///
+/// Performs integer arithmetic between two scores in-place. The target score
+/// is modified; the source score is read but not changed (except for `><` swap).
+///
+/// ```rust,ignore
+/// cmd::scoreboard_players_operation("@s", "player_mana", ScoreOp::Add, "@s", "player_mana_regen")
+/// // → scoreboard players operation @s player_mana += @s player_mana_regen
+///
+/// cmd::scoreboard_players_operation("@s", "mana", ScoreOp::Min, "#max_mana", "const")
+/// // → scoreboard players operation @s mana < #max_mana const  (cap at max)
+/// ```
+pub fn scoreboard_players_operation(
+    targets: impl Into<String>,
+    target_objective: impl Into<String>,
+    op: ScoreOp,
+    source: impl Into<String>,
+    source_objective: impl Into<String>,
+) -> ScoreboardPlayersOperation {
+    ScoreboardPlayersOperation {
+        targets: targets.into(),
+        target_objective: target_objective.into(),
+        op,
+        source: source.into(),
+        source_objective: source_objective.into(),
+    }
+}
+
+// ── DisplaySlot ───────────────────────────────────────────────────────────────
+
+/// The display slot for `scoreboard objectives setdisplay`.
+///
+/// # Example
+/// ```rust,ignore
+/// KILL_COUNT.set_display(DisplaySlot::Sidebar)
+/// // → scoreboard objectives setdisplay sidebar kill_count
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DisplaySlot {
+    /// `list` — player tab-list.
+    List,
+    /// `sidebar` — right-hand scoreboard sidebar.
+    Sidebar,
+    /// `belowname` — shown below the player name tag in world.
+    BelowName,
+    /// `sidebar.team.<color>` — team-colored sidebar (e.g. `DisplaySlot::TeamSidebar("red".into())`).
+    TeamSidebar(String),
+}
+
+impl fmt::Display for DisplaySlot {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            DisplaySlot::List => write!(f, "list"),
+            DisplaySlot::Sidebar => write!(f, "sidebar"),
+            DisplaySlot::BelowName => write!(f, "belowname"),
+            DisplaySlot::TeamSidebar(color) => write!(f, "sidebar.team.{color}"),
+        }
+    }
+}
 
 // ── Objective ─────────────────────────────────────────────────────────────────
 
@@ -158,6 +244,75 @@ impl Objective {
         )
     }
 
+    // ── Objective lifecycle ────────────────────────────────────────────────
+
+    /// `scoreboard objectives add <name> <criterion>` — create this objective.
+    ///
+    /// Call from your `#[component(Load)]` function so the objective exists on pack load.
+    ///
+    /// Common criteria: `"dummy"`, `"deathCount"`, `"playerKillCount"`, `"totalKillCount"`,
+    /// `"health"`, `"food"`, `"xp"`, `"level"`, `"trigger"`.
+    ///
+    /// ```rust,ignore
+    /// static MANA: Objective = Objective::new("mana");
+    ///
+    /// #[component(Load)]
+    /// pub fn on_load() {
+    ///     mcfunction! { MANA.create("dummy"); }
+    /// }
+    /// ```
+    pub fn create(&self, criterion: impl Into<String>) -> String {
+        format!("scoreboard objectives add {} {}", self.name, criterion.into())
+    }
+
+    /// `scoreboard objectives add <name> <criterion> <displayName>` — create with a display name.
+    ///
+    /// The display name supports JSON text (e.g. `r#"{"text":"Mana","color":"blue"}"#`).
+    pub fn create_with_display(&self, criterion: impl Into<String>, display: impl Into<String>) -> String {
+        format!(
+            "scoreboard objectives add {} {} {}",
+            self.name,
+            criterion.into(),
+            display.into()
+        )
+    }
+
+    /// `scoreboard objectives remove <name>` — delete this objective.
+    ///
+    /// Also removes it from any display slots it occupies.
+    pub fn remove(&self) -> String {
+        format!("scoreboard objectives remove {}", self.name)
+    }
+
+    /// `scoreboard objectives setdisplay <slot> <name>` — show this objective in a display slot.
+    ///
+    /// ```rust,ignore
+    /// MANA.set_display(DisplaySlot::Sidebar)
+    /// // → scoreboard objectives setdisplay sidebar mana
+    /// ```
+    pub fn set_display(&self, slot: DisplaySlot) -> String {
+        format!("scoreboard objectives setdisplay {slot} {}", self.name)
+    }
+
+    /// `scoreboard objectives setdisplay <slot>` — clear the given display slot (no objective shown).
+    pub fn clear_display(slot: DisplaySlot) -> String {
+        format!("scoreboard objectives setdisplay {slot}")
+    }
+
+    /// `scoreboard objectives modify <name> displayname <text>` — change the display name.
+    ///
+    /// Accepts a JSON text component string for formatted names.
+    pub fn modify_display_name(&self, display: impl Into<String>) -> String {
+        format!("scoreboard objectives modify {} displayname {}", self.name, display.into())
+    }
+
+    /// `scoreboard objectives modify <name> rendertype <type>` — change render type.
+    ///
+    /// Valid types: `"integer"`, `"hearts"`.
+    pub fn modify_render_type(&self, render_type: impl Into<String>) -> String {
+        format!("scoreboard objectives modify {} rendertype {}", self.name, render_type.into())
+    }
+
     // ── Direct manipulation ────────────────────────────────────────────────
 
     /// `scoreboard players set <holder> <obj> <value>` — set the score to an exact value.
@@ -221,6 +376,79 @@ impl Objective {
             "scoreboard players operation {} {} {} {} {}",
             lhs, self.name, op, rhs, rhs_obj.name
         )
+    }
+
+    /// `scoreboard players enable <holder> <obj>` — enable a trigger objective for a player.
+    ///
+    /// Only applies to objectives with criterion `"trigger"`. Must be re-enabled
+    /// each time (Minecraft disables it after it is triggered).
+    ///
+    /// ```rust,ignore
+    /// static TRIGGER: Objective = Objective::new("my_trigger");
+    ///
+    /// // In your tick function — re-enable every tick so players can trigger it:
+    /// TRIGGER.enable(ScoreHolder::entity(Selector::all_players()))
+    /// // → scoreboard players enable @a my_trigger
+    /// ```
+    pub fn enable(&self, holder: ScoreHolder) -> String {
+        format!("scoreboard players enable {} {}", holder, self.name)
+    }
+
+    /// `scoreboard players set * <obj> <value>` — set the score for ALL tracked players.
+    pub fn set_all(&self, value: i32) -> String {
+        format!("scoreboard players set * {} {}", self.name, value)
+    }
+
+    /// `scoreboard players reset * <obj>` — reset scores for ALL tracked players.
+    pub fn reset_all(&self) -> String {
+        format!("scoreboard players reset * {}", self.name)
+    }
+
+    // ── Named operation shortcuts ──────────────────────────────────────────
+
+    /// `scoreboard players operation <lhs> <obj> += <rhs> <rhs_obj>` — add rhs score into lhs.
+    pub fn add_from(&self, lhs: ScoreHolder, rhs: ScoreHolder, rhs_obj: &Objective) -> String {
+        self.operation(lhs, ScoreOp::Add, rhs, rhs_obj)
+    }
+
+    /// `scoreboard players operation <lhs> <obj> -= <rhs> <rhs_obj>` — subtract rhs from lhs.
+    pub fn sub_from(&self, lhs: ScoreHolder, rhs: ScoreHolder, rhs_obj: &Objective) -> String {
+        self.operation(lhs, ScoreOp::Sub, rhs, rhs_obj)
+    }
+
+    /// `scoreboard players operation <lhs> <obj> *= <rhs> <rhs_obj>` — multiply lhs by rhs.
+    pub fn mul_from(&self, lhs: ScoreHolder, rhs: ScoreHolder, rhs_obj: &Objective) -> String {
+        self.operation(lhs, ScoreOp::Mul, rhs, rhs_obj)
+    }
+
+    /// `scoreboard players operation <lhs> <obj> /= <rhs> <rhs_obj>` — divide lhs by rhs (truncated).
+    pub fn div_from(&self, lhs: ScoreHolder, rhs: ScoreHolder, rhs_obj: &Objective) -> String {
+        self.operation(lhs, ScoreOp::Div, rhs, rhs_obj)
+    }
+
+    /// `scoreboard players operation <lhs> <obj> %= <rhs> <rhs_obj>` — set lhs to lhs mod rhs.
+    pub fn mod_from(&self, lhs: ScoreHolder, rhs: ScoreHolder, rhs_obj: &Objective) -> String {
+        self.operation(lhs, ScoreOp::Mod, rhs, rhs_obj)
+    }
+
+    /// `scoreboard players operation <lhs> <obj> = <rhs> <rhs_obj>` — copy rhs into lhs.
+    pub fn copy_from(&self, lhs: ScoreHolder, rhs: ScoreHolder, rhs_obj: &Objective) -> String {
+        self.operation(lhs, ScoreOp::Set, rhs, rhs_obj)
+    }
+
+    /// `scoreboard players operation <lhs> <obj> < <rhs> <rhs_obj>` — set lhs to min(lhs, rhs).
+    pub fn min_from(&self, lhs: ScoreHolder, rhs: ScoreHolder, rhs_obj: &Objective) -> String {
+        self.operation(lhs, ScoreOp::Min, rhs, rhs_obj)
+    }
+
+    /// `scoreboard players operation <lhs> <obj> > <rhs> <rhs_obj>` — set lhs to max(lhs, rhs).
+    pub fn max_from(&self, lhs: ScoreHolder, rhs: ScoreHolder, rhs_obj: &Objective) -> String {
+        self.operation(lhs, ScoreOp::Max, rhs, rhs_obj)
+    }
+
+    /// `scoreboard players operation <lhs> <obj> >< <rhs> <rhs_obj>` — swap lhs and rhs values.
+    pub fn swap_with(&self, lhs: ScoreHolder, rhs: ScoreHolder, rhs_obj: &Objective) -> String {
+        self.operation(lhs, ScoreOp::Swap, rhs, rhs_obj)
     }
 
     // ── Execute conditions ─────────────────────────────────────────────────
@@ -360,6 +588,60 @@ mod tests {
         assert_eq!(
             cmd,
             "scoreboard players operation @s inferno_dmg += @s other_dmg"
+        );
+    }
+
+    #[test]
+    fn create_and_lifecycle() {
+        assert_eq!(DMG.create("dummy"), "scoreboard objectives add inferno_dmg dummy");
+        assert_eq!(
+            DMG.create_with_display("dummy", r#"{"text":"Damage"}"#),
+            r#"scoreboard objectives add inferno_dmg dummy {"text":"Damage"}"#
+        );
+        assert_eq!(DMG.remove(), "scoreboard objectives remove inferno_dmg");
+        assert_eq!(
+            DMG.set_display(DisplaySlot::Sidebar),
+            "scoreboard objectives setdisplay sidebar inferno_dmg"
+        );
+        assert_eq!(
+            DMG.set_display(DisplaySlot::TeamSidebar("red".into())),
+            "scoreboard objectives setdisplay sidebar.team.red inferno_dmg"
+        );
+        assert_eq!(
+            Objective::clear_display(DisplaySlot::Sidebar),
+            "scoreboard objectives setdisplay sidebar"
+        );
+    }
+
+    #[test]
+    fn enable_and_wildcards() {
+        static TRIGGER: Objective = Objective::new("my_trigger");
+        assert_eq!(
+            TRIGGER.enable(ScoreHolder::entity(Selector::all_players())),
+            "scoreboard players enable @a my_trigger"
+        );
+        assert_eq!(DMG.set_all(0), "scoreboard players set * inferno_dmg 0");
+        assert_eq!(DMG.reset_all(), "scoreboard players reset * inferno_dmg");
+    }
+
+    #[test]
+    fn named_operations() {
+        static OTHER: Objective = Objective::new("other");
+        assert_eq!(
+            DMG.add_from(ScoreHolder::self_(), ScoreHolder::self_(), &OTHER),
+            "scoreboard players operation @s inferno_dmg += @s other"
+        );
+        assert_eq!(
+            DMG.copy_from(ScoreHolder::self_(), ScoreHolder::self_(), &OTHER),
+            "scoreboard players operation @s inferno_dmg = @s other"
+        );
+        assert_eq!(
+            DMG.swap_with(ScoreHolder::self_(), ScoreHolder::self_(), &OTHER),
+            "scoreboard players operation @s inferno_dmg >< @s other"
+        );
+        assert_eq!(
+            DMG.min_from(ScoreHolder::self_(), ScoreHolder::self_(), &OTHER),
+            "scoreboard players operation @s inferno_dmg < @s other"
         );
     }
 

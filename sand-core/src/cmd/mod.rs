@@ -42,11 +42,11 @@ pub use display::{Actionbar, Bossbar, BossbarColor, BossbarStyle, Title};
 pub use execute::Execute;
 pub use inventory::{Inventory, InventorySlot, SlotPattern};
 pub use macros::{function_with, macro_line, macro_var};
-pub use objective::Objective;
+pub use objective::{DisplaySlot, Objective, ScoreboardPlayersOperation, scoreboard_players_operation};
 pub use particles::{ParticleEffect, ParticleSpread};
 pub use selector::{Selector, SortOrder};
 pub use sound::{Sound, SoundSource};
-pub use types::{Anchor, ChatColor, GameMode, ScoreHolder, ScoreOp, Swizzle, TextComponent};
+pub use types::{Anchor, ChatColor, GameMode, NbtStoreKind, ScoreCmp, ScoreHolder, ScoreOp, Swizzle, TextComponent};
 
 /// A typed Minecraft command that can be serialized to a command string.
 ///

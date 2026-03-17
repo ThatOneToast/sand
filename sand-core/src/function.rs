@@ -46,25 +46,43 @@ pub struct FunctionTagDescriptor {
 }
 inventory::collect!(FunctionTagDescriptor);
 
+/// How a Sand event is dispatched at runtime.
+///
+/// Most events use an advancement trigger (`Advancement`). Death events with no
+/// entity/killing_blow filter use `DeathTick`, which detects all deaths (including
+/// fall damage, drowning, `/kill`, etc.) via a `deathCount` scoreboard tick loop.
+pub enum EventDispatch {
+    /// Classic advancement-backed event.
+    ///
+    /// Fires when the player completes the advancement criteria. If `revoke` is
+    /// `true`, `advancement revoke @s only <id>` is prepended to the function so
+    /// the event can fire again next time the trigger is met.
+    Advancement {
+        make_trigger: fn() -> crate::AdvancementTrigger,
+        revoke: bool,
+    },
+    /// Tick-loop death detection via the `deathCount` scoreboard criterion.
+    ///
+    /// Fires for **all** player deaths (mobs, fall, fire, void, `/kill`, …).
+    /// Sand generates a single `__sand_death_check` tick function that runs
+    /// `execute as @a[scores={__sand_dc=1..}]` and dispatches to each handler.
+    DeathTick,
+}
+
 /// Descriptor for a function registered via `#[sand_macros::event]`.
 ///
-/// Combines a registered `.mcfunction` file with an automatically generated
-/// `Advancement` that calls it as a reward. Collected via
-/// [`inventory::iter::<EventDescriptor>`] at export time.
+/// Collected via [`inventory::iter::<EventDescriptor>`] at export time.
 ///
 /// # Fields
 /// - `path` — function resource location path (no namespace), e.g. `"on_join"`
-/// - `id_override` — optional full advancement ID override (e.g. `"my_pack:events/join"`)
-/// - `make_trigger` — factory that returns the `AdvancementTrigger` for this event
+/// - `id_override` — optional full advancement ID override (advancement dispatch only)
 /// - `make` — factory that returns the Vec<String> of mcfunction commands
-/// - `revoke` — if true, the export prepends `advancement revoke @s only <id>` to the
-///   function's commands so the advancement re-fires next time the trigger condition is met
+/// - `dispatch` — whether to use an advancement trigger or the DeathTick tick loop
 pub struct EventDescriptor {
     pub path: &'static str,
     pub id_override: Option<&'static str>,
-    pub make_trigger: fn() -> crate::AdvancementTrigger,
     pub make: fn() -> Vec<String>,
-    pub revoke: bool,
+    pub dispatch: EventDispatch,
 }
 inventory::collect!(EventDescriptor);
 

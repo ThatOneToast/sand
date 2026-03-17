@@ -517,6 +517,88 @@ impl fmt::Display for ScoreOp {
     }
 }
 
+// ── ScoreCmp ──────────────────────────────────────────────────────────────────
+
+/// Comparison operator for `execute if score … <op> … ` conditions.
+///
+/// **Distinct from [`ScoreOp`]** — `ScoreOp` is for `scoreboard players operation`
+/// (arithmetic that modifies scores). `ScoreCmp` is read-only: it tests two scores
+/// without changing either.
+///
+/// # Examples
+/// ```rust,ignore
+/// Execute::new()
+///     .if_score_compare("@s", "mana", ScoreCmp::Ge, "@s", "max_mana")
+///     .run_raw("say full mana");
+///
+/// // Or use the named shorthand:
+/// Execute::new()
+///     .if_score_lt("@s", "health", "#const", "ten")
+///     .run_raw("say low health");
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ScoreCmp {
+    /// `=` — left score equals right.
+    Eq,
+    /// `<` — left score is strictly less than right.
+    Lt,
+    /// `<=` — left score is less than or equal to right.
+    Le,
+    /// `>` — left score is strictly greater than right.
+    Gt,
+    /// `>=` — left score is greater than or equal to right.
+    Ge,
+}
+
+impl fmt::Display for ScoreCmp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            ScoreCmp::Eq => "=",
+            ScoreCmp::Lt => "<",
+            ScoreCmp::Le => "<=",
+            ScoreCmp::Gt => ">",
+            ScoreCmp::Ge => ">=",
+        };
+        write!(f, "{s}")
+    }
+}
+
+// ── NbtStoreKind ──────────────────────────────────────────────────────────────
+
+/// The NBT data type used when storing a value via `execute store result/success … nbt`.
+///
+/// Minecraft truncates or rounds the stored value to fit the chosen type.
+/// Use `Double` or `Float` when storing fractional values (with a `scale` factor).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NbtStoreKind {
+    /// Store as `byte` (`0b`–`127b`). Values outside `i8` range are truncated.
+    Byte,
+    /// Store as `short` (`0s`–`32767s`). Values outside `i16` range are truncated.
+    Short,
+    /// Store as `int`. Values outside `i32` range are truncated.
+    Int,
+    /// Store as `long`. Full `i64` range.
+    Long,
+    /// Store as `float`. Result is multiplied by scale, then cast.
+    Float,
+    /// Store as `double`. Highest precision floating-point storage.
+    Double,
+}
+
+impl fmt::Display for NbtStoreKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            NbtStoreKind::Byte => "byte",
+            NbtStoreKind::Short => "short",
+            NbtStoreKind::Int => "int",
+            NbtStoreKind::Long => "long",
+            NbtStoreKind::Float => "float",
+            NbtStoreKind::Double => "double",
+        };
+        write!(f, "{s}")
+    }
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]

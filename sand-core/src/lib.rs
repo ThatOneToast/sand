@@ -41,8 +41,9 @@ pub mod resource_location;
 
 pub use cmd::{
     Actionbar, BlockState, Bossbar, BossbarColor, BossbarStyle, CloneBlocks, CloneMaskMode,
-    CloneMode, Command, Cooldown, Fill, FillMode, NbtValue, Objective, ParticleEffect,
-    ParticleSpread, SetBlock, SetBlockMode, Sound, SoundSource, Storage, Title,
+    CloneMode, Command, Cooldown, Fill, FillMode, NbtStoreKind, NbtValue, Objective,
+    ParticleEffect, ParticleSpread, ScoreCmp, SetBlock, SetBlockMode, Sound, SoundSource,
+    Storage, Title,
 };
 pub use component::export_components_json;
 pub use component::{ComponentContent, ComponentRecord, DatapackComponent, IntoDatapack};
@@ -60,7 +61,7 @@ pub use components::{
 pub use error::{Result, SandError};
 pub use function::{
     ArmorEventDescriptor, ArmorEventKind, ArmorSlot, ComponentFactory, EventDescriptor,
-    FunctionDescriptor, FunctionTagDescriptor,
+    EventDispatch, FunctionDescriptor, FunctionTagDescriptor,
 };
 pub use mc_version::McVersion;
 pub use resource_location::{Identifier, PackNamespace, ResourceLocation};

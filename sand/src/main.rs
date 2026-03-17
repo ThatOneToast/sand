@@ -62,6 +62,9 @@ enum Commands {
         /// Also run `cargo clean` to remove the Cargo target directory
         #[arg(long)]
         cargo: bool,
+        /// Also remove the dist/server/ directory created by `sand run`
+        #[arg(long)]
+        server: bool,
     },
     /// Add features to an existing Sand project
     Add(AddArgs),
@@ -157,7 +160,7 @@ fn run() -> Result<()> {
             offline,
             no_build,
         }),
-        Commands::Clean { cargo } => cmd_clean(cargo),
+        Commands::Clean { cargo, server } => cmd_clean(cargo, server),
         Commands::Add(args) => match args.feature {
             AddFeature::Resourcepack => add_cmd::run_resourcepack(),
         },
@@ -272,16 +275,52 @@ fn cmd_init(args: InitArgs) -> Result<()> {
 
 // ── `sand clean` ──────────────────────────────────────────────────────────────
 
-fn cmd_clean(also_cargo: bool) -> Result<()> {
+fn cmd_clean(also_cargo: bool, also_server: bool) -> Result<()> {
     let dist = PathBuf::from("dist");
+    let server_dir = dist.join("server");
+
     if dist.exists() {
-        std::fs::remove_dir_all(&dist)
-            .with_context(|| format!("failed to remove '{}'", dist.display()))?;
-        println!(
-            "{} {}",
-            "Removed".cyan().bold(),
-            dist.display().to_string().white().bold()
-        );
+        if also_server {
+            // Remove everything including dist/server/.
+            std::fs::remove_dir_all(&dist)
+                .with_context(|| format!("failed to remove '{}'", dist.display()))?;
+            println!(
+                "{} {}",
+                "Removed".cyan().bold(),
+                dist.display().to_string().white().bold()
+            );
+        } else if server_dir.exists() {
+            // Remove everything in dist/ except server/.
+            for entry in std::fs::read_dir(&dist).context("failed to read dist/")? {
+                let entry = entry?;
+                let path = entry.path();
+                if path == server_dir {
+                    continue;
+                }
+                if path.is_dir() {
+                    std::fs::remove_dir_all(&path)
+                        .with_context(|| format!("failed to remove '{}'", path.display()))?;
+                } else {
+                    std::fs::remove_file(&path)
+                        .with_context(|| format!("failed to remove '{}'", path.display()))?;
+                }
+            }
+            println!(
+                "{} {} (kept dist/server/; use {} to remove it)",
+                "Removed".cyan().bold(),
+                "dist/*".white().bold(),
+                "--server".yellow()
+            );
+        } else {
+            // No server dir, just remove everything.
+            std::fs::remove_dir_all(&dist)
+                .with_context(|| format!("failed to remove '{}'", dist.display()))?;
+            println!(
+                "{} {}",
+                "Removed".cyan().bold(),
+                dist.display().to_string().white().bold()
+            );
+        }
     } else {
         println!(
             "{} dist/ does not exist, nothing to remove",

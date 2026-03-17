@@ -342,8 +342,121 @@ pub fn export_components_json(namespace: &str) -> String {
             .push(format!("{namespace}:{check_path}"));
     }
 
+    // ── ScheduleDescriptors ───────────────────────────────────────────────────
+    use crate::function::ScheduleDescriptor;
+
+    let schedules: Vec<&ScheduleDescriptor> = inventory::iter::<ScheduleDescriptor>().collect();
+    if !schedules.is_empty() {
+        let mut init_cmds: Vec<String> = Vec::new();
+        let mut tick_cmds: Vec<String> = Vec::new();
+
+        for desc in &schedules {
+            let hash = schedule_key(desc.path);
+            let obj_t = format!("__ss_{hash}_t");
+            let obj_p = format!("__ss_{hash}_p");
+
+            // ── body mcfunction ────────────────────────────────────────────
+            records.push(ComponentRecord {
+                namespace: namespace.to_string(),
+                dir: "function".to_string(),
+                path: desc.path.to_string(),
+                ext: "mcfunction".to_string(),
+                content: (desc.make)().join("\n"),
+            });
+
+            // ── start mcfunction ───────────────────────────────────────────
+            let mut start_cmds = vec![
+                format!("scoreboard players set @s {obj_t} {}", desc.total_ticks),
+            ];
+            if desc.every > 1 {
+                // Phase starts at 1 so the body fires on the very first tick.
+                start_cmds.push(format!("scoreboard players set @s {obj_p} 1"));
+            }
+            records.push(ComponentRecord {
+                namespace: namespace.to_string(),
+                dir: "function".to_string(),
+                path: format!("{}_start", desc.path),
+                ext: "mcfunction".to_string(),
+                content: start_cmds.join("\n"),
+            });
+
+            // ── stop mcfunction ────────────────────────────────────────────
+            records.push(ComponentRecord {
+                namespace: namespace.to_string(),
+                dir: "function".to_string(),
+                path: format!("{}_stop", desc.path),
+                ext: "mcfunction".to_string(),
+                content: format!("scoreboard players set @s {obj_t} 0"),
+            });
+
+            // ── init (load) ────────────────────────────────────────────────
+            init_cmds.push(format!("scoreboard objectives add {obj_t} dummy"));
+            if desc.every > 1 {
+                init_cmds.push(format!("scoreboard objectives add {obj_p} dummy"));
+            }
+
+            // ── tick handler ───────────────────────────────────────────────
+            let active = format!("{obj_t}=1..");
+            if desc.every <= 1 {
+                // Simple: run every tick while active.
+                tick_cmds.push(format!(
+                    "execute as @a[scores={{{active}}}] at @s run function {namespace}:{}",
+                    desc.path
+                ));
+                tick_cmds.push(format!(
+                    "scoreboard players remove @a[scores={{{active}}}] {obj_t} 1"
+                ));
+            } else {
+                // Phase-gated: decrement phase each tick; fire when phase ≤ 0.
+                tick_cmds.push(format!(
+                    "scoreboard players remove @a[scores={{{active}}}] {obj_p} 1"
+                ));
+                let fire = format!("{obj_t}=1..,{obj_p}=..0");
+                tick_cmds.push(format!(
+                    "execute as @a[scores={{{fire}}}] at @s run function {namespace}:{}",
+                    desc.path
+                ));
+                tick_cmds.push(format!(
+                    "execute as @a[scores={{{fire}}}] run scoreboard players set @s {obj_p} {}",
+                    desc.every
+                ));
+                tick_cmds.push(format!(
+                    "scoreboard players remove @a[scores={{{active}}}] {obj_t} 1"
+                ));
+            }
+        }
+
+        // ── __sand_sched_init (injected into minecraft:load) ───────────────
+        let init_path = "__sand_sched_init";
+        records.push(ComponentRecord {
+            namespace: namespace.to_string(),
+            dir: "function".to_string(),
+            path: init_path.to_string(),
+            ext: "mcfunction".to_string(),
+            content: init_cmds.join("\n"),
+        });
+        tag_map
+            .entry("minecraft:load".to_string())
+            .or_default()
+            .push(format!("{namespace}:{init_path}"));
+
+        // ── __sand_sched_tick (injected into minecraft:tick) ───────────────
+        let tick_path = "__sand_sched_tick";
+        records.push(ComponentRecord {
+            namespace: namespace.to_string(),
+            dir: "function".to_string(),
+            path: tick_path.to_string(),
+            ext: "mcfunction".to_string(),
+            content: tick_cmds.join("\n"),
+        });
+        tag_map
+            .entry("minecraft:tick".to_string())
+            .or_default()
+            .push(format!("{namespace}:{tick_path}"));
+    }
+
     // ── Finalize tag_map → records ────────────────────────────────────────────
-    // (Done last so armor events and death events can both inject into tick/load.)
+    // (Done last so armor events, death events, and schedules can all inject.)
     for (tag_rl, values) in tag_map {
         let (tag_ns, tag_path) = match tag_rl.split_once(':') {
             Some((ns, path)) => (ns.to_string(), path.to_string()),
@@ -360,6 +473,19 @@ pub fn export_components_json(namespace: &str) -> String {
     }
 
     serde_json::to_string_pretty(&records).unwrap()
+}
+
+/// Compute a stable 8-hex-char key for a schedule path.
+///
+/// Uses FNV-1a 32-bit so the result always fits in Minecraft's 16-char
+/// scoreboard objective name limit: `__ss_` (5) + 8 hex + `_t/_p` (2/2) = 15/15.
+fn schedule_key(path: &str) -> String {
+    let mut h: u32 = 2_166_136_261; // FNV offset basis
+    for b in path.bytes() {
+        h ^= b as u32;
+        h = h.wrapping_mul(16_777_619); // FNV prime
+    }
+    format!("{h:08x}")
 }
 
 /// Sanitize a string for use inside an entity tag name.

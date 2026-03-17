@@ -599,6 +599,103 @@ impl fmt::Display for NbtStoreKind {
     }
 }
 
+// ── ItemSlot ──────────────────────────────────────────────────────────────────
+
+/// An inventory slot specifier for `execute if items`.
+///
+/// Used with [`Execute::if_items_entity`], [`Execute::if_items_block`], etc.
+/// Wildcards (e.g. [`ItemSlot::AnyArmor`]) match all slots in that group.
+///
+/// # Examples
+/// ```rust,ignore
+/// // Detect if @s has *any* item in the feet armor slot
+/// Execute::new()
+///     .if_items_entity(Selector::self_(), ItemSlot::Feet, "minecraft:iron_boots")
+///     .run(cmd::say("wearing iron boots!"));
+///
+/// // Detect a specific custom item
+/// Execute::new()
+///     .if_items_entity(Selector::self_(), ItemSlot::Feet, "minecraft:leather_boots[minecraft:custom_data={mana_boots:true}]")
+///     .run_fn("ns:on_mana_boots");
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ItemSlot {
+    // ── Armor ─────────────────────────────────────────────────────────────────
+    /// `armor.head` — helmet slot.
+    Head,
+    /// `armor.chest` — chestplate slot.
+    Chest,
+    /// `armor.legs` — leggings slot.
+    Legs,
+    /// `armor.feet` — boots slot.
+    Feet,
+    /// `armor.*` — any armor slot (head, chest, legs, feet).
+    AnyArmor,
+    // ── Weapon ────────────────────────────────────────────────────────────────
+    /// `weapon.mainhand` — main hand slot.
+    MainHand,
+    /// `weapon.offhand` — off-hand slot.
+    OffHand,
+    /// `weapon.*` — either hand.
+    AnyWeapon,
+    // ── Hotbar / inventory ────────────────────────────────────────────────────
+    /// `hotbar.<n>` — hotbar slot 0–8.
+    Hotbar(u8),
+    /// `hotbar.*` — any hotbar slot.
+    AnyHotbar,
+    /// `inventory.<n>` — main inventory slot 0–26.
+    Inventory(u8),
+    /// `inventory.*` — any main inventory slot.
+    AnyInventory,
+    /// `container.<n>` — container slot 0–53 (chest, shulker box, etc.).
+    Container(u8),
+    /// `container.*` — any container slot.
+    AnyContainer,
+    // ── Saddle / body ────────────────────────────────────────────────────────
+    /// `horse.saddle` — saddle slot on rideable mobs.
+    HorseSaddle,
+    /// `horse.chest` — chest slot on donkeys/llamas.
+    HorseChest,
+    /// `horse.armor` — horse armor slot.
+    HorseArmor,
+    /// `horse.*` — any horse equipment slot.
+    AnyHorse,
+    // ── Villager / crafting ────────────────────────────────────────────────────
+    /// `villager.*` — villager trade slots.
+    AnyVillager,
+    // ── Raw string for forward-compatibility ──────────────────────────────────
+    /// A raw slot string for any slot not covered by the enum variants.
+    Raw(String),
+}
+
+impl fmt::Display for ItemSlot {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s: std::borrow::Cow<str> = match self {
+            ItemSlot::Head => "armor.head".into(),
+            ItemSlot::Chest => "armor.chest".into(),
+            ItemSlot::Legs => "armor.legs".into(),
+            ItemSlot::Feet => "armor.feet".into(),
+            ItemSlot::AnyArmor => "armor.*".into(),
+            ItemSlot::MainHand => "weapon.mainhand".into(),
+            ItemSlot::OffHand => "weapon.offhand".into(),
+            ItemSlot::AnyWeapon => "weapon.*".into(),
+            ItemSlot::Hotbar(n) => format!("hotbar.{n}").into(),
+            ItemSlot::AnyHotbar => "hotbar.*".into(),
+            ItemSlot::Inventory(n) => format!("inventory.{n}").into(),
+            ItemSlot::AnyInventory => "inventory.*".into(),
+            ItemSlot::Container(n) => format!("container.{n}").into(),
+            ItemSlot::AnyContainer => "container.*".into(),
+            ItemSlot::HorseSaddle => "horse.saddle".into(),
+            ItemSlot::HorseChest => "horse.chest".into(),
+            ItemSlot::HorseArmor => "horse.armor".into(),
+            ItemSlot::AnyHorse => "horse.*".into(),
+            ItemSlot::AnyVillager => "villager.*".into(),
+            ItemSlot::Raw(s) => s.as_str().into(),
+        };
+        write!(f, "{s}")
+    }
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]

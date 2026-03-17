@@ -86,6 +86,39 @@ pub struct EventDescriptor {
 }
 inventory::collect!(EventDescriptor);
 
+/// Descriptor for a function registered via `#[sand_macros::schedule]`.
+///
+/// Produces three `.mcfunction` files and injects tick/load handlers:
+/// - `<path>.mcfunction` — the body called each interval
+/// - `<path>_start.mcfunction` — initialises the scoreboard counters for `@s`
+/// - `<path>_stop.mcfunction`  — cancels an active schedule for `@s`
+///
+/// # Scoreboard objectives (auto-created on load)
+/// Objective names are derived from a stable FNV-1a hash of `path` so they
+/// always fit within Minecraft's 16-character limit:
+/// - `__ss_<hash>_t` (`dummy`) — ticks remaining; `0` = inactive
+/// - `__ss_<hash>_p` (`dummy`) — phase countdown between executions (only
+///   created when `every > 1`)
+///
+/// # Usage
+/// Start / stop the schedule at runtime by calling the generated functions:
+/// ```mcfunction
+/// # From another .mcfunction — run for the executing entity (@s)
+/// function mypack:my_effect_start
+/// function mypack:my_effect_stop
+/// ```
+pub struct ScheduleDescriptor {
+    /// Resource location path (no namespace), e.g. `"my_effect"`.
+    pub path: &'static str,
+    /// Total duration in ticks. Counts down every tick regardless of `every`.
+    pub total_ticks: u32,
+    /// Execute the body every N ticks. `1` = every tick (default).
+    pub every: u32,
+    /// Factory that returns the command strings for the body function.
+    pub make: fn() -> Vec<String>,
+}
+inventory::collect!(ScheduleDescriptor);
+
 /// Which inventory slot to watch for [`ArmorEventDescriptor`] events.
 ///
 /// Slot IDs match Minecraft's NBT slot bytes:

@@ -3,12 +3,14 @@
 //! Procedural macros for the [Sand](https://github.com/ThatOneToast/sand)
 //! Minecraft datapack toolkit.
 //!
-//! Provides three macros:
+//! Provides four macros:
 //!
 //! - **`#[function]`** — turns a Rust function into a `.mcfunction` file,
 //!   automatically registered via `inventory` at link time.
 //! - **`#[component]`** — registers a datapack component (advancement, recipe,
 //!   loot table, etc.) or hooks a function into `Tick`/`Load`/custom tags.
+//! - **`#[schedule]`** — defines a function that runs for N ticks (with an
+//!   optional interval), triggered at runtime via generated `_start`/`_stop` functions.
 //! - **`run_fn!`** — defines an inline function and returns the
 //!   `cmd::function(...)` call to invoke it.
 //!
@@ -2428,4 +2430,161 @@ fn expand_run_fn(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
     } else {
         Ok(fn_call)
     }
+}
+
+// ── #[schedule] ───────────────────────────────────────────────────────────────
+
+/// Defines a scheduled function that runs for a fixed number of ticks.
+///
+/// The body is called repeatedly while the schedule is active. Start and stop
+/// the schedule at runtime by calling the generated companion functions:
+///
+/// | Function | Effect |
+/// |---|---|
+/// | `<name>_start` | Start/restart the schedule for `@s` |
+/// | `<name>_stop` | Cancel the schedule for `@s` |
+///
+/// # Parameters
+/// - `ticks` (**required**) — total duration in ticks (e.g. `60` = 3 seconds).
+/// - `every` *(optional, default `1`)* — execute body every N ticks.
+///   `every = 1` fires on every tick; `every = 3` fires on ticks 1, 4, 7, …
+///
+/// # Example
+/// ```rust,ignore
+/// use sand_macros::schedule;
+/// use sand_core::{cmd::*, mcfunction};
+///
+/// /// Flame aura: runs every tick for 3 seconds.
+/// #[schedule(ticks = 60)]
+/// pub fn flame_aura() {
+///     mcfunction! {
+///         for cmd in &ParticleBuilder::new(Particle::named("minecraft:flame"))
+///             .circle(1.5, 1.0, 24) { cmd; }
+///     }
+/// }
+///
+/// /// Pulse effect: runs every 5 ticks for 4 seconds.
+/// #[schedule(ticks = 80, every = 5)]
+/// pub fn pulse_effect() {
+///     mcfunction! {
+///         for cmd in &ParticleBuilder::new(Particle::dust_hex(0xFF4400, 1.5))
+///             .sphere(2.0, 1.0, 48) { cmd; }
+///     }
+/// }
+///
+/// // Trigger from another function:
+/// // cmd::function("mypack:flame_aura_start".parse().unwrap())
+/// // cmd::function("mypack:flame_aura_stop".parse().unwrap())
+/// ```
+#[proc_macro_attribute]
+pub fn schedule(attr: TokenStream, item: TokenStream) -> TokenStream {
+    let func = parse_macro_input!(item as ItemFn);
+    match parse_schedule_attr(attr).and_then(|sa| expand_schedule(func, sa)) {
+        Ok(ts) => ts.into(),
+        Err(e) => e.to_compile_error().into(),
+    }
+}
+
+struct ScheduleAttr {
+    ticks: u32,
+    every: u32,
+}
+
+fn parse_schedule_attr(attr: TokenStream) -> syn::Result<ScheduleAttr> {
+    struct Parsed {
+        ticks: u32,
+        every: u32,
+    }
+
+    impl syn::parse::Parse for Parsed {
+        fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+            let mut ticks: Option<u32> = None;
+            let mut every: u32 = 1;
+
+            while !input.is_empty() {
+                let key: syn::Ident = input.parse()?;
+                let _eq: syn::Token![=] = input.parse()?;
+                let val: syn::LitInt = input.parse()?;
+                match key.to_string().as_str() {
+                    "ticks" => ticks = Some(val.base10_parse()?),
+                    "every" => every = val.base10_parse()?,
+                    other => {
+                        return Err(syn::Error::new_spanned(
+                            &key,
+                            format!("unknown parameter `{other}`; expected `ticks` or `every`"),
+                        ))
+                    }
+                }
+                if input.peek(syn::Token![,]) {
+                    let _: syn::Token![,] = input.parse()?;
+                }
+            }
+
+            let ticks = ticks.ok_or_else(|| {
+                syn::Error::new(
+                    proc_macro2::Span::call_site(),
+                    "#[schedule] requires `ticks = <n>`, e.g. `#[schedule(ticks = 60)]`",
+                )
+            })?;
+
+            Ok(Parsed { ticks, every })
+        }
+    }
+
+    let parsed = syn::parse::<Parsed>(attr)?;
+    Ok(ScheduleAttr {
+        ticks: parsed.ticks,
+        every: parsed.every.max(1),
+    })
+}
+
+fn expand_schedule(func: ItemFn, attr: ScheduleAttr) -> syn::Result<proc_macro2::TokenStream> {
+    let fn_name = &func.sig.ident;
+    let fn_name_str = fn_name.to_string();
+    let vis = &func.vis;
+    let attrs = &func.attrs;
+
+    if let Some(recv) = func.sig.inputs.iter().find_map(|a| {
+        if let syn::FnArg::Receiver(r) = a { Some(r) } else { None }
+    }) {
+        return Err(syn::Error::new_spanned(
+            recv,
+            "#[schedule] cannot be applied to methods — use a free-standing `fn`",
+        ));
+    }
+    if !func.sig.inputs.is_empty() {
+        return Err(syn::Error::new_spanned(
+            &func.sig.inputs,
+            "#[schedule] functions must take no parameters",
+        ));
+    }
+
+    let fn_make_ident = proc_macro2::Ident::new(
+        &format!("__sand_fn_{fn_name}_sched_make"),
+        proc_macro2::Span::call_site(),
+    );
+
+    let body = build_cmd_body(&func.block);
+    let total_ticks = attr.ticks;
+    let every = attr.every;
+
+    Ok(quote! {
+        #(#attrs)*
+        #vis fn #fn_name() -> ::std::vec::Vec<::std::string::String> {
+            #body
+        }
+
+        #[doc(hidden)]
+        #[allow(dead_code)]
+        fn #fn_make_ident() -> ::std::vec::Vec<::std::string::String> {
+            #fn_name()
+        }
+
+        ::sand_core::inventory::submit!(::sand_core::ScheduleDescriptor {
+            path: #fn_name_str,
+            total_ticks: #total_ticks,
+            every: #every,
+            make: #fn_make_ident,
+        });
+    })
 }

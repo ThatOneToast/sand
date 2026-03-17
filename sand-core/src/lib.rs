@@ -41,7 +41,7 @@ pub mod resource_location;
 
 pub use cmd::{
     Actionbar, BlockState, Bossbar, BossbarColor, BossbarStyle, CloneBlocks, CloneMaskMode,
-    CloneMode, Command, Cooldown, Fill, FillMode, NbtStoreKind, NbtValue, Objective,
+    CloneMode, Command, Cooldown, Fill, FillMode, ItemSlot, NbtStoreKind, NbtValue, Objective,
     ParticleEffect, ParticleSpread, ScoreCmp, SetBlock, SetBlockMode, Sound, SoundSource,
     Storage, Title,
 };
@@ -61,7 +61,7 @@ pub use components::{
 pub use error::{Result, SandError};
 pub use function::{
     ArmorEventDescriptor, ArmorEventKind, ArmorSlot, ComponentFactory, EventDescriptor,
-    EventDispatch, FunctionDescriptor, FunctionTagDescriptor,
+    EventDispatch, FunctionDescriptor, FunctionTagDescriptor, ScheduleDescriptor,
 };
 pub use mc_version::McVersion;
 pub use resource_location::{Identifier, PackNamespace, ResourceLocation};

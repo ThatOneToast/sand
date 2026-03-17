@@ -69,7 +69,7 @@
 
 use std::fmt;
 
-use super::{Anchor, BlockPos, Command, NbtStoreKind, Rotation, ScoreCmp, ScoreHolder, Selector, Swizzle, Vec3};
+use super::{Anchor, BlockPos, Command, ItemSlot, NbtStoreKind, Rotation, ScoreCmp, ScoreHolder, Selector, Swizzle, Vec3};
 use super::data::DataTarget;
 
 /// Builder for the `execute` command chain.
@@ -552,6 +552,77 @@ impl Execute {
     /// `unless loaded <pos>` — skip if the chunk at `pos` is NOT fully loaded.
     pub fn unless_loaded(mut self, pos: BlockPos) -> Self {
         self.parts.push(format!("unless loaded {pos}"));
+        self
+    }
+
+    /// `if items entity <selector> <slot> <item>` — execute if an entity has a
+    /// matching item in the given slot.
+    ///
+    /// `item` is an item predicate string, e.g. `"minecraft:iron_boots"` or
+    /// `"minecraft:leather_boots[minecraft:custom_data={mana_boots:true}]"`.
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// // Run function only if @s has iron boots equipped
+    /// Execute::new()
+    ///     .if_items_entity(Selector::self_(), ItemSlot::Feet, "minecraft:iron_boots")
+    ///     .run(cmd::say("iron boots!"));
+    ///
+    /// // Tick loop: all players wearing custom mana boots
+    /// Execute::new()
+    ///     .as_(Selector::all_players())
+    ///     .at(Selector::self_())
+    ///     .if_items_entity(Selector::self_(), ItemSlot::Feet,
+    ///         "minecraft:leather_boots[minecraft:custom_data={mana_boots:true}]")
+    ///     .run_fn("ns:on_mana_boots_tick");
+    /// ```
+    pub fn if_items_entity(
+        mut self,
+        selector: Selector,
+        slot: ItemSlot,
+        item: impl Into<String>,
+    ) -> Self {
+        self.parts
+            .push(format!("if items entity {selector} {slot} {}", item.into()));
+        self
+    }
+
+    /// `unless items entity <selector> <slot> <item>` — skip if the entity has
+    /// the item; continue only if it does NOT.
+    pub fn unless_items_entity(
+        mut self,
+        selector: Selector,
+        slot: ItemSlot,
+        item: impl Into<String>,
+    ) -> Self {
+        self.parts
+            .push(format!("unless items entity {selector} {slot} {}", item.into()));
+        self
+    }
+
+    /// `if items block <pos> <slot> <item>` — execute if a block container has
+    /// a matching item in the given slot.
+    pub fn if_items_block(
+        mut self,
+        pos: BlockPos,
+        slot: ItemSlot,
+        item: impl Into<String>,
+    ) -> Self {
+        self.parts
+            .push(format!("if items block {pos} {slot} {}", item.into()));
+        self
+    }
+
+    /// `unless items block <pos> <slot> <item>` — skip if the block container
+    /// has the item; continue only if it does NOT.
+    pub fn unless_items_block(
+        mut self,
+        pos: BlockPos,
+        slot: ItemSlot,
+        item: impl Into<String>,
+    ) -> Self {
+        self.parts
+            .push(format!("unless items block {pos} {slot} {}", item.into()));
         self
     }
 

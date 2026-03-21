@@ -1,6 +1,7 @@
 mod add_cmd;
 mod build_cmd;
 mod config;
+mod join_cmd;
 mod pack_format;
 mod run_cmd;
 mod scaffold;
@@ -56,6 +57,16 @@ enum Commands {
         /// Skip `sand build`; use whatever is already in dist/
         #[arg(long)]
         no_build: bool,
+    },
+    /// **Requires Prism Launcher**
+    /// Either join the local dev server started by `sand run` or join the sand-dev world with the datapack + optional resource pack
+    Join {
+        /// Join the local dev server started by `sand run`
+        #[arg(long)]
+        local: bool,
+        /// Join the sand-dev world with the datapack + optional resource pack
+        #[arg(long)]
+        singleplayer: bool,
     },
     /// Remove build artifacts (dist/ and optionally Cargo target/)
     Clean {
@@ -159,6 +170,13 @@ fn run() -> Result<()> {
             ram,
             offline,
             no_build,
+        }),
+        Commands::Join {
+            local,
+            singleplayer,
+        } => join_cmd::run(join_cmd::JoinArgs {
+            local,
+            singleplayer,
         }),
         Commands::Clean { cargo, server } => cmd_clean(cargo, server),
         Commands::Add(args) => match args.feature {

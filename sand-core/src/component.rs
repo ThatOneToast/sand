@@ -1,59 +1,17 @@
 use serde::Serialize;
-use serde_json::Value;
 
-use crate::resource_location::ResourceLocation;
+// ── Unified traits ────────────────────────────────────────────────────────────
+// Re-export the canonical definitions from sand-components so the entire
+// workspace shares ONE set of traits.  All builders in sand-components already
+// implement these; McFunction (below) does too via crate::resource_location
+// which now resolves to sand_components::ResourceLocation.
 
-/// Content of a datapack component, either structured JSON or raw text.
-pub enum ComponentContent {
-    /// Structured JSON value (for most datapack files like advancements, loot tables).
-    Json(serde_json::Value),
-    /// Raw text content (for `.mcfunction` files).
-    Text(String),
-}
+pub use sand_components::component::{ComponentContent, DatapackComponent, IntoDatapack};
 
-/// A value that can be written as a file into a Minecraft datapack.
-///
-/// Implementors represent datapack elements such as functions, advancements,
-/// recipes, and loot tables. Each component knows its own resource location
-/// and can serialize itself to the JSON (or text) format that Minecraft expects.
-pub trait DatapackComponent {
-    /// The resource location that identifies this component within the datapack
-    /// (e.g. `my_pack:function/tick`).
-    fn resource_location(&self) -> &ResourceLocation;
+// ── sand-core-specific types ──────────────────────────────────────────────────
 
-    /// Serialize this component to the JSON value that will be written to disk.
-    ///
-    /// For `.mcfunction` files the commands are returned as a
-    /// `Value::Array` of strings rather than an object.
-    fn to_json(&self) -> Value;
-
-    /// Get the serialized content of this component, defaulting to JSON form.
-    fn content(&self) -> ComponentContent {
-        ComponentContent::Json(self.to_json())
-    }
-
-    /// The subdirectory under `data/<namespace>/` where this component lives.
-    ///
-    /// Examples: `"advancement"`, `"function"`, `"loot_table"`, `"recipe"`,
-    /// `"predicate"`, `"item_modifier"`, `"tags"`.
-    fn component_dir(&self) -> &'static str;
-
-    /// The file extension for this component (without the leading dot).
-    ///
-    /// Defaults to `"json"`. Override for `.mcfunction` files.
-    fn file_extension(&self) -> &'static str {
-        "json"
-    }
-}
-
-/// A type that can produce a collection of [`DatapackComponent`]s ready to be
-/// written into a datapack output directory.
-pub trait IntoDatapack {
-    /// Convert this value into a vector of boxed datapack components.
-    fn into_datapack(self) -> Vec<Box<dyn DatapackComponent>>;
-}
-
-/// A serializable record of a datapack component for output during the build process.
+/// A serializable record of a datapack component for output during the build
+/// process.  Consumed by `sand-build` / the generated `sand_export` binary.
 #[derive(Serialize)]
 pub struct ComponentRecord {
     /// The namespace (e.g. `"my_pack"`).
@@ -69,17 +27,16 @@ pub struct ComponentRecord {
 }
 
 /// Collect all inventory-registered components and return them as a JSON string
-/// for consumption by `sand build`. Called by the generated `sand_export` binary.
+/// for consumption by `sand build`.  Called by the generated `sand_export` binary.
 ///
-/// This function iterates through all registered:
-/// - `FunctionDescriptor`s (creating `.mcfunction` files)
-/// - `ComponentFactory`s (creating component JSON files)
-/// - `FunctionTagDescriptor`s (grouping functions into tags)
-/// - `ArmorEventDescriptor`s (creating armor event handlers)
-/// - `EventDescriptor`s (creating advancement-backed events)
+/// Iterates through all registered:
+/// - `FunctionDescriptor`s — `.mcfunction` files
+/// - `ComponentFactory`s — component JSON files
+/// - `FunctionTagDescriptor`s — function tag JSON files
+/// - `ArmorEventDescriptor`s — armor event handlers
+/// - `EventDescriptor`s — advancement-backed events
 ///
-/// Returns a JSON string containing an array of `ComponentRecord` objects,
-/// one per component to be written to the datapack.
+/// Returns a JSON string containing an array of [`ComponentRecord`] objects.
 pub fn export_components_json(namespace: &str) -> String {
     use crate::function::{
         ArmorEventDescriptor, ArmorEventKind, ArmorSlot, ComponentFactory, EventDescriptor,
@@ -89,7 +46,6 @@ pub fn export_components_json(namespace: &str) -> String {
     use std::collections::BTreeMap;
 
     let mut records: Vec<ComponentRecord> = Vec::new();
-    // tag_map is declared early so armor events can inject into minecraft:tick.
     let mut tag_map: BTreeMap<String, Vec<String>> = BTreeMap::new();
 
     // ── FunctionDescriptors ───────────────────────────────────────────────────
@@ -99,6 +55,17 @@ pub fn export_components_json(namespace: &str) -> String {
             namespace: namespace.to_string(),
             dir: "function".to_string(),
             path: desc.path.to_string(),
+            ext: "mcfunction".to_string(),
+            content: commands.join("\n"),
+        });
+    }
+
+    // ── Dynamic anonymous functions (run_fn! blocks) ──────────────────────────
+    for (path, commands) in crate::drain_dyn_fns() {
+        records.push(ComponentRecord {
+            namespace: namespace.to_string(),
+            dir: "function".to_string(),
+            path,
             ext: "mcfunction".to_string(),
             content: commands.join("\n"),
         });
@@ -121,7 +88,7 @@ pub fn export_components_json(namespace: &str) -> String {
         });
     }
 
-    // ── FunctionTagDescriptors → fill tag_map ─────────────────────────────────
+    // ── FunctionTagDescriptors ────────────────────────────────────────────────
     for desc in inventory::iter::<FunctionTagDescriptor>() {
         let fn_ref = format!("{}:{}", namespace, desc.function_path);
         tag_map
@@ -130,119 +97,34 @@ pub fn export_components_json(namespace: &str) -> String {
             .push(fn_ref);
     }
 
-    // ── ArmorEventDescriptors ─────────────────────────────────────────────────
-    let armor_events: Vec<&ArmorEventDescriptor> =
-        inventory::iter::<ArmorEventDescriptor>().collect();
-    if !armor_events.is_empty() {
-        // 1. Generate each callback mcfunction.
-        for desc in &armor_events {
-            let commands = (desc.make)();
-            records.push(ComponentRecord {
-                namespace: namespace.to_string(),
-                dir: "function".to_string(),
-                path: desc.path.to_string(),
-                ext: "mcfunction".to_string(),
-                content: commands.join("\n"),
-            });
-        }
-
-        // 2. Group watches by (slot + item_id + custom_data_snbt) so each
-        //    unique combo shares one tracking tag.
-        //    Map key → (slot, item_id, custom_data_snbt, handlers)
-        let mut watches: BTreeMap<
-            String,
-            (
-                ArmorSlot,
-                Option<&'static str>,
-                Option<&'static str>,
-                Vec<(ArmorEventKind, &'static str)>,
-            ),
-        > = BTreeMap::new();
-
-        for desc in &armor_events {
-            let key = {
-                let mut parts = vec![desc.slot.tag_name_segment().to_string()];
-                if let Some(id) = desc.item_id {
-                    parts.push(sanitize_armor_tag(id));
-                }
-                if let Some(cd) = desc.custom_data_snbt {
-                    parts.push(sanitize_armor_tag(cd));
-                }
-                parts.join("_")
-            };
-            let entry = watches.entry(key).or_insert((
-                desc.slot,
-                desc.item_id,
-                desc.custom_data_snbt,
-                Vec::new(),
-            ));
-            entry.3.push((desc.kind, desc.path));
-        }
-
-        // 3. Build __sand_armor_check commands.
-        let mut armor_cmds: Vec<String> = Vec::new();
-
-        for (key, (slot, item_id, custom_data, handlers)) in &watches {
-            let tag = format!("__armor_{key}");
-            let item_cond = build_item_cond(*slot, *item_id, *custom_data);
-
-            // Equip/Unequip dispatches.
-            for (kind, path) in handlers {
-                match kind {
-                    ArmorEventKind::Equip => {
-                        armor_cmds.push(format!(
-                            "execute as @a[tag=!{tag}] if {item_cond} run function {namespace}:{path}"
-                        ));
-                    }
-                    ArmorEventKind::Unequip => {
-                        armor_cmds.push(format!(
-                            "execute as @a[tag={tag}] unless {item_cond} run function {namespace}:{path}"
-                        ));
-                    }
-                }
-            }
-
-            // Tag update (remove then re-add if condition is met).
-            armor_cmds.push(format!("tag @a remove {tag}"));
-            armor_cmds.push(format!("execute as @a if {item_cond} run tag @s add {tag}"));
-        }
-
-        // 4. Register __sand_armor_check as a function.
-        let armor_path = "__sand_armor_check";
-        records.push(ComponentRecord {
-            namespace: namespace.to_string(),
-            dir: "function".to_string(),
-            path: armor_path.to_string(),
-            ext: "mcfunction".to_string(),
-            content: armor_cmds.join("\n"),
-        });
-
-        // 5. Inject into minecraft:tick so it runs every tick.
-        tag_map
-            .entry("minecraft:tick".to_string())
-            .or_default()
-            .push(format!("{namespace}:{armor_path}"));
-    }
-
-    // ── EventDescriptors ──────────────────────────────────────────────────────
+    // ── EventDescriptors + ArmorEventDescriptors ─────────────────────────────
     use crate::function::EventDispatch;
 
+    // Categorise events by dispatch type so we can batch-generate aggregators.
+    let mut join_tick_events: Vec<&EventDescriptor> = Vec::new();
     let mut death_tick_events: Vec<&EventDescriptor> = Vec::new();
+    let mut respawn_tick_events: Vec<&EventDescriptor> = Vec::new();
+    // (descriptor, condition_string)
+    let mut tick_poll_events: Vec<(&EventDescriptor, String)> = Vec::new();
+    // Shared armor watch map — populated by both EventDescriptor ArmorEquip/
+    // ArmorUnequip dispatch and the legacy ArmorEventDescriptor entries.
+    // (slot, item_id, custom_data_snbt, Vec<(is_equip, path)>)
+    let mut armor_watch_map: BTreeMap<
+        String,
+        (
+            ArmorSlot,
+            Option<&'static str>,
+            Option<&'static str>,
+            Vec<(bool, &'static str)>, // (is_equip, path)
+        ),
+    > = BTreeMap::new();
 
     for desc in inventory::iter::<EventDescriptor>() {
+        // Always emit the handler function body first.
+        let commands = (desc.make)();
+
         match &desc.dispatch {
-            EventDispatch::DeathTick => {
-                // Collect for bulk dispatch below; generate the mcfunction now.
-                let commands = (desc.make)();
-                records.push(ComponentRecord {
-                    namespace: namespace.to_string(),
-                    dir: "function".to_string(),
-                    path: desc.path.to_string(),
-                    ext: "mcfunction".to_string(),
-                    content: commands.join("\n"),
-                });
-                death_tick_events.push(desc);
-            }
+            // ── Advancement-backed ────────────────────────────────────────────
             EventDispatch::Advancement {
                 make_trigger,
                 revoke,
@@ -252,35 +134,28 @@ pub fn export_components_json(namespace: &str) -> String {
                     .map(|s| s.to_string())
                     .unwrap_or_else(|| format!("{}:{}", namespace, desc.path));
 
-                let mut commands = (desc.make)();
+                let mut body = commands;
                 if *revoke {
-                    commands.insert(
-                        0,
-                        format!("advancement revoke @s only {}", advancement_id),
-                    );
+                    body.insert(0, format!("advancement revoke @s only {}", advancement_id));
                 }
                 records.push(ComponentRecord {
                     namespace: namespace.to_string(),
                     dir: "function".to_string(),
                     path: desc.path.to_string(),
                     ext: "mcfunction".to_string(),
-                    content: commands.join("\n"),
+                    content: body.join("\n"),
                 });
 
                 let trigger = make_trigger();
                 let fn_ref = format!("{}:{}", namespace, desc.path);
-                let advancement = crate::components::advancement::Advancement::new(
+                let advancement = sand_components::Advancement::new(
                     advancement_id
                         .parse()
                         .expect("invalid advancement ID in #[event]"),
                 )
-                .criterion(
-                    "event",
-                    crate::components::advancement::Criterion::new(trigger),
-                )
-                .rewards(
-                    crate::components::advancement::AdvancementRewards::new().function(fn_ref),
-                );
+                .criterion("event", sand_components::Criterion::new(trigger))
+                .rewards(sand_components::AdvancementRewards::new().function(fn_ref));
+
                 let content = serde_json::to_string_pretty(&advancement.to_json()).unwrap();
                 let rl = advancement.resource_location();
                 records.push(ComponentRecord {
@@ -291,12 +166,250 @@ pub fn export_components_json(namespace: &str) -> String {
                     content,
                 });
             }
+
+            // ── JoinTick ─────────────────────────────────────────────────────
+            EventDispatch::JoinTick => {
+                records.push(ComponentRecord {
+                    namespace: namespace.to_string(),
+                    dir: "function".to_string(),
+                    path: desc.path.to_string(),
+                    ext: "mcfunction".to_string(),
+                    content: commands.join("\n"),
+                });
+                join_tick_events.push(desc);
+            }
+
+            // ── DeathTick ────────────────────────────────────────────────────
+            EventDispatch::DeathTick => {
+                records.push(ComponentRecord {
+                    namespace: namespace.to_string(),
+                    dir: "function".to_string(),
+                    path: desc.path.to_string(),
+                    ext: "mcfunction".to_string(),
+                    content: commands.join("\n"),
+                });
+                death_tick_events.push(desc);
+            }
+
+            // ── RespawnTick ──────────────────────────────────────────────────
+            EventDispatch::RespawnTick => {
+                records.push(ComponentRecord {
+                    namespace: namespace.to_string(),
+                    dir: "function".to_string(),
+                    path: desc.path.to_string(),
+                    ext: "mcfunction".to_string(),
+                    content: commands.join("\n"),
+                });
+                respawn_tick_events.push(desc);
+            }
+
+            // ── TickPoll ─────────────────────────────────────────────────────
+            EventDispatch::TickPoll { make_condition } => {
+                records.push(ComponentRecord {
+                    namespace: namespace.to_string(),
+                    dir: "function".to_string(),
+                    path: desc.path.to_string(),
+                    ext: "mcfunction".to_string(),
+                    content: commands.join("\n"),
+                });
+                tick_poll_events.push((desc, make_condition()));
+            }
+
+            // ── ArmorEquip ───────────────────────────────────────────────────
+            EventDispatch::ArmorEquip {
+                slot,
+                item_id,
+                custom_data_snbt,
+            } => {
+                records.push(ComponentRecord {
+                    namespace: namespace.to_string(),
+                    dir: "function".to_string(),
+                    path: desc.path.to_string(),
+                    ext: "mcfunction".to_string(),
+                    content: commands.join("\n"),
+                });
+                let key = armor_watch_key(*slot, *item_id, *custom_data_snbt);
+                let entry = armor_watch_map.entry(key).or_insert((
+                    *slot,
+                    *item_id,
+                    *custom_data_snbt,
+                    Vec::new(),
+                ));
+                entry.3.push((true, desc.path));
+            }
+
+            // ── ArmorUnequip ─────────────────────────────────────────────────
+            EventDispatch::ArmorUnequip {
+                slot,
+                item_id,
+                custom_data_snbt,
+            } => {
+                records.push(ComponentRecord {
+                    namespace: namespace.to_string(),
+                    dir: "function".to_string(),
+                    path: desc.path.to_string(),
+                    ext: "mcfunction".to_string(),
+                    content: commands.join("\n"),
+                });
+                let key = armor_watch_key(*slot, *item_id, *custom_data_snbt);
+                let entry = armor_watch_map.entry(key).or_insert((
+                    *slot,
+                    *item_id,
+                    *custom_data_snbt,
+                    Vec::new(),
+                ));
+                entry.3.push((false, desc.path));
+            }
+
+            // ── Custom SandEvent ─────────────────────────────────────────────
+            EventDispatch::Custom {
+                make_trigger,
+                make_condition,
+                revoke,
+            } => {
+                if let Some(trigger) = make_trigger() {
+                    // Advancement-backed custom event.
+                    let advancement_id = desc
+                        .id_override
+                        .map(|s| s.to_string())
+                        .unwrap_or_else(|| format!("{}:{}", namespace, desc.path));
+
+                    let mut body = commands;
+                    if (revoke)() {
+                        body.insert(0, format!("advancement revoke @s only {}", advancement_id));
+                    }
+                    records.push(ComponentRecord {
+                        namespace: namespace.to_string(),
+                        dir: "function".to_string(),
+                        path: desc.path.to_string(),
+                        ext: "mcfunction".to_string(),
+                        content: body.join("\n"),
+                    });
+
+                    let fn_ref = format!("{}:{}", namespace, desc.path);
+                    let advancement = sand_components::Advancement::new(
+                        advancement_id
+                            .parse()
+                            .expect("invalid advancement ID in custom #[event]"),
+                    )
+                    .criterion("event", sand_components::Criterion::new(trigger))
+                    .rewards(sand_components::AdvancementRewards::new().function(fn_ref));
+
+                    let content = serde_json::to_string_pretty(&advancement.to_json()).unwrap();
+                    let rl = advancement.resource_location();
+                    records.push(ComponentRecord {
+                        namespace: rl.namespace().to_string(),
+                        dir: advancement.component_dir().to_string(),
+                        path: rl.path().to_string(),
+                        ext: advancement.file_extension().to_string(),
+                        content,
+                    });
+                } else if let Some(condition) = make_condition() {
+                    // Tick-poll custom event — same as TickPoll.
+                    records.push(ComponentRecord {
+                        namespace: namespace.to_string(),
+                        dir: "function".to_string(),
+                        path: desc.path.to_string(),
+                        ext: "mcfunction".to_string(),
+                        content: commands.join("\n"),
+                    });
+                    tick_poll_events.push((desc, condition));
+                } else {
+                    panic!(
+                        "Custom SandEvent for handler `{}` returned None from both \
+                         make_trigger() and make_condition() — implement exactly one",
+                        desc.path
+                    );
+                }
+            }
         }
     }
 
-    // ── DeathTick aggregation ─────────────────────────────────────────────────
-    if !death_tick_events.is_empty() {
-        // Init function: creates the deathCount objective on load.
+    // ── ArmorEventDescriptors (legacy #[armor_event]) ─────────────────────────
+    for desc in inventory::iter::<ArmorEventDescriptor>() {
+        let commands = (desc.make)();
+        records.push(ComponentRecord {
+            namespace: namespace.to_string(),
+            dir: "function".to_string(),
+            path: desc.path.to_string(),
+            ext: "mcfunction".to_string(),
+            content: commands.join("\n"),
+        });
+        let key = armor_watch_key(desc.slot, desc.item_id, desc.custom_data_snbt);
+        let is_equip = matches!(desc.kind, ArmorEventKind::Equip);
+        let entry = armor_watch_map.entry(key).or_insert((
+            desc.slot,
+            desc.item_id,
+            desc.custom_data_snbt,
+            Vec::new(),
+        ));
+        entry.3.push((is_equip, desc.path));
+    }
+
+    // ── JoinTick aggregation ──────────────────────────────────────────────────
+    // Detection: players whose `__sand_join` scoreboard score is unset (never
+    // seen) or was cleared by the load-time reset have (re)joined since the
+    // last server start/reload.
+    //
+    // WHY scoreboard instead of entity tag:
+    //   Entity tags are saved to each player's playerdata/<uuid>.dat, so they
+    //   persist across disconnects. A player who logs out still has the tag
+    //   when they log back in, so tag-based detection fires only once ever.
+    //   Scoreboard scores live in the world's scoreboard.dat.
+    //   `scoreboard players reset * __sand_join` (run on minecraft:load)
+    //   clears ALL entries — including offline players — so the next time
+    //   any player joins after a server start or /reload, they fire OnJoin.
+    //
+    // KNOWN LIMITATION:
+    //   Mid-session disconnect → reconnect WITHOUT a /reload does NOT re-fire
+    //   OnJoin. The score for the player is still 1 in scoreboard.dat.
+    //   True per-login detection for mid-session reconnects requires a mod or
+    //   plugin; it is not achievable in vanilla datapacks.
+    if !join_tick_events.is_empty() {
+        // ── Init (minecraft:load) ──────────────────────────────────────────
+        let join_init_path = "__sand_join_init";
+        records.push(ComponentRecord {
+            namespace: namespace.to_string(),
+            dir: "function".to_string(),
+            path: join_init_path.to_string(),
+            ext: "mcfunction".to_string(),
+            // `reset *` clears ALL tracked entries, including offline players.
+            content: "scoreboard objectives add __sand_join dummy\nscoreboard players reset * __sand_join".to_string(),
+        });
+        tag_map
+            .entry("minecraft:load".to_string())
+            .or_default()
+            .push(format!("{namespace}:{join_init_path}"));
+
+        // ── Tick check ────────────────────────────────────────────────────
+        let join_path = "__sand_join_check";
+        let mut join_cmds: Vec<String> = Vec::new();
+        for desc in &join_tick_events {
+            join_cmds.push(format!(
+                "execute as @a unless score @s __sand_join matches 1 at @s run function {namespace}:{}",
+                desc.path
+            ));
+        }
+        // Set score for all online players AFTER all handlers have run, so
+        // every handler fires for a newly-joined player on the same tick.
+        join_cmds.push("scoreboard players set @a __sand_join 1".to_string());
+
+        records.push(ComponentRecord {
+            namespace: namespace.to_string(),
+            dir: "function".to_string(),
+            path: join_path.to_string(),
+            ext: "mcfunction".to_string(),
+            content: join_cmds.join("\n"),
+        });
+        tag_map
+            .entry("minecraft:tick".to_string())
+            .or_default()
+            .push(format!("{namespace}:{join_path}"));
+    }
+
+    // ── DeathTick + RespawnTick aggregation ───────────────────────────────────
+    let needs_death_check = !death_tick_events.is_empty() || !respawn_tick_events.is_empty();
+    if needs_death_check {
         let init_path = "__sand_death_init";
         records.push(ComponentRecord {
             namespace: namespace.to_string(),
@@ -310,23 +423,22 @@ pub fn export_components_json(namespace: &str) -> String {
             .or_default()
             .push(format!("{namespace}:{init_path}"));
 
-        // Tick function: detects deaths and dispatches to each handler.
         let check_path = "__sand_death_check";
         let mut check_cmds: Vec<String> = Vec::new();
-        // Mark players who just died.
         check_cmds.push(
             "execute as @a[scores={__sand_dc=1..}] run tag @s add __sand_just_died".to_string(),
         );
-        // Reset so we don't double-fire.
         check_cmds.push("scoreboard players set @a __sand_dc 0".to_string());
-        // Dispatch to each registered handler (with @s = the player who died).
+        // Tag dying players so the respawn check can detect them later.
+        if !respawn_tick_events.is_empty() {
+            check_cmds.push("tag @a[tag=__sand_just_died] add __sand_was_dead".to_string());
+        }
         for desc in &death_tick_events {
             check_cmds.push(format!(
                 "execute as @a[tag=__sand_just_died] run function {namespace}:{}",
                 desc.path
             ));
         }
-        // Clean up the temporary tag.
         check_cmds.push("tag @a remove __sand_just_died".to_string());
 
         records.push(ComponentRecord {
@@ -342,9 +454,110 @@ pub fn export_components_json(namespace: &str) -> String {
             .push(format!("{namespace}:{check_path}"));
     }
 
+    // ── RespawnTick check ─────────────────────────────────────────────────────
+    if !respawn_tick_events.is_empty() {
+        let respawn_path = "__sand_respawn_check";
+        let mut respawn_cmds: Vec<String> = Vec::new();
+        for desc in &respawn_tick_events {
+            respawn_cmds.push(format!(
+                "execute as @a[tag=__sand_was_dead,gamemode=!spectator] \
+                 run function {namespace}:{}",
+                desc.path
+            ));
+        }
+        // Remove the tag once the player has respawned (i.e. exited spectator).
+        respawn_cmds.push("tag @a[gamemode=!spectator] remove __sand_was_dead".to_string());
+
+        records.push(ComponentRecord {
+            namespace: namespace.to_string(),
+            dir: "function".to_string(),
+            path: respawn_path.to_string(),
+            ext: "mcfunction".to_string(),
+            content: respawn_cmds.join("\n"),
+        });
+        tag_map
+            .entry("minecraft:tick".to_string())
+            .or_default()
+            .push(format!("{namespace}:{respawn_path}"));
+    }
+
+    // ── TickPoll aggregation ──────────────────────────────────────────────────
+    if !tick_poll_events.is_empty() {
+        let tick_path = "__sand_tick_check";
+        let tick_cmds: Vec<String> = tick_poll_events
+            .iter()
+            .map(|(desc, condition)| {
+                format!(
+                    "execute as @a if {condition} at @s run function {namespace}:{}",
+                    desc.path
+                )
+            })
+            .collect();
+        records.push(ComponentRecord {
+            namespace: namespace.to_string(),
+            dir: "function".to_string(),
+            path: tick_path.to_string(),
+            ext: "mcfunction".to_string(),
+            content: tick_cmds.join("\n"),
+        });
+        tag_map
+            .entry("minecraft:tick".to_string())
+            .or_default()
+            .push(format!("{namespace}:{tick_path}"));
+    }
+
+    // ── Armor check aggregation ───────────────────────────────────────────────
+    if !armor_watch_map.is_empty() {
+        let armor_path = "__sand_armor_check";
+        let mut armor_cmds: Vec<String> = Vec::new();
+
+        for (key, (slot, item_id, custom_data_snbt, handlers)) in &armor_watch_map {
+            let tag_now = format!("__armor_{key}_now");
+            let tag_had = format!("__armor_{key}_had");
+            let cond = build_item_cond(*slot, *item_id, *custom_data_snbt);
+
+            // Tag players currently wearing/holding the item.
+            armor_cmds.push(format!("execute as @a if {cond} run tag @s add {tag_now}"));
+
+            // Fire equip handlers (now present, wasn't before).
+            for (is_equip, path) in handlers {
+                if *is_equip {
+                    armor_cmds.push(format!(
+                        "execute as @a[tag={tag_now},tag=!{tag_had}] at @s run function {namespace}:{path}"
+                    ));
+                }
+            }
+
+            // Fire unequip handlers (was present, now gone).
+            for (is_equip, path) in handlers {
+                if !is_equip {
+                    armor_cmds.push(format!(
+                        "execute as @a[tag=!{tag_now},tag={tag_had}] at @s run function {namespace}:{path}"
+                    ));
+                }
+            }
+
+            // Advance state: sync `_had` to match current `_now`.
+            armor_cmds.push(format!("tag @a[tag={tag_now}] add {tag_had}"));
+            armor_cmds.push(format!("tag @a[tag=!{tag_now}] remove {tag_had}"));
+            armor_cmds.push(format!("tag @a remove {tag_now}"));
+        }
+
+        records.push(ComponentRecord {
+            namespace: namespace.to_string(),
+            dir: "function".to_string(),
+            path: armor_path.to_string(),
+            ext: "mcfunction".to_string(),
+            content: armor_cmds.join("\n"),
+        });
+        tag_map
+            .entry("minecraft:tick".to_string())
+            .or_default()
+            .push(format!("{namespace}:{armor_path}"));
+    }
+
     // ── ScheduleDescriptors ───────────────────────────────────────────────────
     use crate::function::ScheduleDescriptor;
-
     let schedules: Vec<&ScheduleDescriptor> = inventory::iter::<ScheduleDescriptor>().collect();
     if !schedules.is_empty() {
         let mut init_cmds: Vec<String> = Vec::new();
@@ -355,7 +568,6 @@ pub fn export_components_json(namespace: &str) -> String {
             let obj_t = format!("__ss_{hash}_t");
             let obj_p = format!("__ss_{hash}_p");
 
-            // ── body mcfunction ────────────────────────────────────────────
             records.push(ComponentRecord {
                 namespace: namespace.to_string(),
                 dir: "function".to_string(),
@@ -364,12 +576,11 @@ pub fn export_components_json(namespace: &str) -> String {
                 content: (desc.make)().join("\n"),
             });
 
-            // ── start mcfunction ───────────────────────────────────────────
-            let mut start_cmds = vec![
-                format!("scoreboard players set @s {obj_t} {}", desc.total_ticks),
-            ];
+            let mut start_cmds = vec![format!(
+                "scoreboard players set @s {obj_t} {}",
+                desc.total_ticks
+            )];
             if desc.every > 1 {
-                // Phase starts at 1 so the body fires on the very first tick.
                 start_cmds.push(format!("scoreboard players set @s {obj_p} 1"));
             }
             records.push(ComponentRecord {
@@ -379,8 +590,6 @@ pub fn export_components_json(namespace: &str) -> String {
                 ext: "mcfunction".to_string(),
                 content: start_cmds.join("\n"),
             });
-
-            // ── stop mcfunction ────────────────────────────────────────────
             records.push(ComponentRecord {
                 namespace: namespace.to_string(),
                 dir: "function".to_string(),
@@ -389,16 +598,13 @@ pub fn export_components_json(namespace: &str) -> String {
                 content: format!("scoreboard players set @s {obj_t} 0"),
             });
 
-            // ── init (load) ────────────────────────────────────────────────
             init_cmds.push(format!("scoreboard objectives add {obj_t} dummy"));
             if desc.every > 1 {
                 init_cmds.push(format!("scoreboard objectives add {obj_p} dummy"));
             }
 
-            // ── tick handler ───────────────────────────────────────────────
             let active = format!("{obj_t}=1..");
             if desc.every <= 1 {
-                // Simple: run every tick while active.
                 tick_cmds.push(format!(
                     "execute as @a[scores={{{active}}}] at @s run function {namespace}:{}",
                     desc.path
@@ -407,7 +613,6 @@ pub fn export_components_json(namespace: &str) -> String {
                     "scoreboard players remove @a[scores={{{active}}}] {obj_t} 1"
                 ));
             } else {
-                // Phase-gated: decrement phase each tick; fire when phase ≤ 0.
                 tick_cmds.push(format!(
                     "scoreboard players remove @a[scores={{{active}}}] {obj_p} 1"
                 ));
@@ -426,7 +631,6 @@ pub fn export_components_json(namespace: &str) -> String {
             }
         }
 
-        // ── __sand_sched_init (injected into minecraft:load) ───────────────
         let init_path = "__sand_sched_init";
         records.push(ComponentRecord {
             namespace: namespace.to_string(),
@@ -440,7 +644,6 @@ pub fn export_components_json(namespace: &str) -> String {
             .or_default()
             .push(format!("{namespace}:{init_path}"));
 
-        // ── __sand_sched_tick (injected into minecraft:tick) ───────────────
         let tick_path = "__sand_sched_tick";
         records.push(ComponentRecord {
             namespace: namespace.to_string(),
@@ -455,8 +658,42 @@ pub fn export_components_json(namespace: &str) -> String {
             .push(format!("{namespace}:{tick_path}"));
     }
 
+    // ── TempScoreboard → __sand_temp_scores (minecraft:load) ─────────────────
+    {
+        use std::collections::BTreeSet;
+        let mut seen: BTreeSet<(&str, &str)> = BTreeSet::new();
+        let mut ts_cmds: Vec<String> = Vec::new();
+        for ts in inventory::iter::<crate::TempScoreboard>() {
+            if seen.insert((ts.name, ts.criteria)) {
+                match ts.display_name {
+                    Some(dn) => ts_cmds.push(format!(
+                        "scoreboard objectives add {} {} {}",
+                        ts.name, ts.criteria, dn
+                    )),
+                    None => ts_cmds.push(format!(
+                        "scoreboard objectives add {} {}",
+                        ts.name, ts.criteria
+                    )),
+                }
+            }
+        }
+        if !ts_cmds.is_empty() {
+            let ts_path = "__sand_temp_scores";
+            records.push(ComponentRecord {
+                namespace: namespace.to_string(),
+                dir: "function".to_string(),
+                path: ts_path.to_string(),
+                ext: "mcfunction".to_string(),
+                content: ts_cmds.join("\n"),
+            });
+            tag_map
+                .entry("minecraft:load".to_string())
+                .or_default()
+                .push(format!("{namespace}:{ts_path}"));
+        }
+    }
+
     // ── Finalize tag_map → records ────────────────────────────────────────────
-    // (Done last so armor events, death events, and schedules can all inject.)
     for (tag_rl, values) in tag_map {
         let (tag_ns, tag_path) = match tag_rl.split_once(':') {
             Some((ns, path)) => (ns.to_string(), path.to_string()),
@@ -475,23 +712,36 @@ pub fn export_components_json(namespace: &str) -> String {
     serde_json::to_string_pretty(&records).unwrap()
 }
 
-/// Compute a stable 8-hex-char key for a schedule path.
-///
-/// Uses FNV-1a 32-bit so the result always fits in Minecraft's 16-char
-/// scoreboard objective name limit: `__ss_` (5) + 8 hex + `_t/_p` (2/2) = 15/15.
+// ── Private helpers ───────────────────────────────────────────────────────────
+
+/// Compute a stable 8-hex-char key for a schedule path (FNV-1a 32-bit).
+/// Keeps scoreboard objective names within Minecraft's 16-char limit:
+/// `__ss_` (5) + 8 hex + `_t`/`_p` (2) = 15 chars.
 fn schedule_key(path: &str) -> String {
-    let mut h: u32 = 2_166_136_261; // FNV offset basis
+    let mut h: u32 = 2_166_136_261;
     for b in path.bytes() {
         h ^= b as u32;
-        h = h.wrapping_mul(16_777_619); // FNV prime
+        h = h.wrapping_mul(16_777_619);
     }
     format!("{h:08x}")
 }
 
-/// Sanitize a string for use inside an entity tag name.
-///
-/// Keeps only `[a-zA-Z0-9_]`, replaces everything else with `_`, and strips
-/// leading/trailing underscores so the result is always a clean segment.
+/// Build the unique key used to group armor watch entries by slot + filters.
+fn armor_watch_key(
+    slot: crate::function::ArmorSlot,
+    item_id: Option<&str>,
+    custom_data: Option<&str>,
+) -> String {
+    let mut parts = vec![slot.tag_name_segment().to_string()];
+    if let Some(id) = item_id {
+        parts.push(sanitize_armor_tag(id));
+    }
+    if let Some(cd) = custom_data {
+        parts.push(sanitize_armor_tag(cd));
+    }
+    parts.join("_")
+}
+
 fn sanitize_armor_tag(s: &str) -> String {
     let raw: String = s
         .chars()
@@ -506,9 +756,6 @@ fn sanitize_armor_tag(s: &str) -> String {
     raw.trim_matches('_').to_string()
 }
 
-/// Build the `execute if items` condition for an armor slot check (Minecraft 1.20.5+).
-///
-/// Returns e.g. `items entity @s armor.feet minecraft:leather_boots[minecraft:custom_data={mana_boots:true}]`
 fn build_item_cond(
     slot: crate::function::ArmorSlot,
     item_id: Option<&str>,
@@ -517,7 +764,7 @@ fn build_item_cond(
     let predicate = match (item_id, custom_data) {
         (None, _) => "*".to_string(),
         (Some(id), None) => id.to_string(),
-        (Some(id), Some(cd)) => format!("{}[minecraft:custom_data={}]", id, cd),
+        (Some(id), Some(cd)) => format!("{}[minecraft:custom_data~{}]", id, cd),
     };
     format!("items entity @s {} {}", slot.slot_name(), predicate)
 }

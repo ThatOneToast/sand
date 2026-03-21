@@ -1,6 +1,6 @@
 use crate::component::{AssetContent, AssetOutput, ResourcePackComponent};
 use crate::components::font::{BitmapFont, BitmapProvider};
-use crate::gen_::{Color, gen_element_png};
+use crate::sprite::{Color, gen_element_png};
 
 /// A static HUD overlay element whose texture is **generated at build time**
 /// from a solid color rather than copied from a user-supplied PNG.

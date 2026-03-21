@@ -147,10 +147,10 @@ pub mod component;
 pub mod components;
 pub mod descriptor;
 pub mod export;
-pub mod gen_;
 pub mod handle;
 pub mod layout;
 pub mod pack_format;
+pub mod sprite;
 pub mod stat;
 pub mod unicode;
 
@@ -161,10 +161,10 @@ pub use components::{
 };
 pub use descriptor::ResourcePackDescriptor;
 pub use export::export_resourcepack_json;
-pub use gen_::Color;
 pub use handle::{BarHandle, ElementHandle};
 pub use layout::HudLayout;
 pub use pack_format::resource_pack_format_for;
+pub use sprite::Color;
 pub use stat::BarStat;
 pub use unicode::{advance_x, bar_char, bar_text_json, element_char, element_text_json};
 

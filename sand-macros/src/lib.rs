@@ -11,6 +11,8 @@
 //!   loot table, etc.) or hooks a function into `Tick`/`Load`/custom tags.
 //! - **`#[schedule]`** — defines a function that runs for N ticks (with an
 //!   optional interval), triggered at runtime via generated `_start`/`_stop` functions.
+//! - **`#[item]`** — reads a `CustomItem`-returning function and generates a typed
+//!   struct with `BASE`, `PREDICATE`, `CUSTOM_DATA_KEY` constants and an `item()` method.
 //! - **`run_fn!`** — defines an inline function and returns the
 //!   `cmd::function(...)` call to invoke it.
 //!
@@ -441,11 +443,142 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
 
 // ── #[event] ─────────────────────────────────────────────────────────────────
 
-/// Turns a function into a Minecraft advancement-driven event handler.
+/// Turns a function into a Sand event handler.
 ///
-/// Registers the function as a `.mcfunction` file **and** auto-generates an
-/// `Advancement` that calls it as its reward — no manual advancement setup
-/// needed.
+/// The event type is determined by the **function parameter** — pass the
+/// desired event type as the single (phantom) argument. The parameter is not
+/// used at runtime; it is only inspected at compile time to decide how to
+/// wire the event.
+///
+/// # Syntax
+///
+/// ```rust,ignore
+/// #[event]
+/// pub fn handler(event: EventType) { /* body */ }
+///
+/// // With filters (required for some event types):
+/// #[event(slot = Head, item = "minecraft:diamond_helmet")]
+/// pub fn handler(event: ArmorEquipEvent) { /* body */ }
+/// ```
+///
+/// # Built-in event types
+///
+/// ## Session / lifecycle
+///
+/// | Type | When it fires | Notes |
+/// |---|---|---|
+/// | `OnJoinEvent` | First tick after each server start/reload, or new player mid-session | Scoreboard-based; mid-session reconnect not re-fired (vanilla limit) |
+/// | `FirstJoinEvent` | Very first join ever | Advancement never revoked |
+/// | `OnDeathEvent` | Any death (mob, fall, void, `/kill`, …) | deathCount scoreboard |
+/// | `OnRespawnEvent` | Tick after respawning from death | Tag `__sand_was_dead` + spectator check |
+///
+/// ## Equipment (tick-based state transitions)
+///
+/// | Type | Filters |
+/// |---|---|
+/// | `ArmorEquipEvent` | `slot` (required), `item`, `custom_data` |
+/// | `ArmorUnequipEvent` | `slot` (required), `item`, `custom_data` |
+/// | `HoldingItemEvent` | `item` (required), `slot` (Mainhand/Offhand) |
+/// | `CurrentlyWearingEvent` | `slot` (required), `item` (required) |
+///
+/// ## Kill / combat
+///
+/// | Type | Trigger |
+/// |---|---|
+/// | `EntityKillEvent` | Player kills any entity |
+/// | `PlayerKillEvent` | Player is killed by any entity |
+/// | `PlayerDamageEntityEvent` | Player deals damage to any entity |
+/// | `EntityDamagePlayerEvent` | Any entity deals damage to the player |
+/// | `ShotCrossbowEvent` | Player shoots a crossbow |
+/// | `ChanneledLightningEvent` | Player channels trident lightning |
+///
+/// ## Items
+///
+/// | Type | Trigger |
+/// |---|---|
+/// | `ItemConsumeEvent` | Player eats/drinks any item |
+/// | `ItemCraftEvent` | Player crafts any item |
+/// | `ItemEnchantEvent` | Player enchants any item |
+/// | `BucketFillEvent` | Player fills a bucket |
+/// | `BucketEmptyEvent` | Player empties a bucket (1.17+) |
+/// | `FishingEvent` | Fishing rod hooks something |
+/// | `ItemPickedUpEvent` | A thrown item is picked up |
+/// | `ItemDurabilityChangeEvent` | An item loses durability |
+/// | `BrewPotionEvent` | Player brews a potion |
+/// | `TotemActivateEvent` | Player activates a totem of undying |
+/// | `RecipeUnlockEvent` | Player unlocks any recipe |
+///
+/// ## Blocks / world
+///
+/// | Type | Trigger |
+/// |---|---|
+/// | `BlockPlaceEvent` | Player places any block |
+/// | `EnterBlockEvent` | Player enters a block (water, honey, …) |
+/// | `SlideDownBlockEvent` | Player slides down a block (honey wall, etc.) |
+/// | `TargetHitEvent` | A target block is hit by a projectile |
+/// | `BeeNestDestroyedEvent` | Player destroys a bee nest/hive |
+///
+/// ## Player state
+///
+/// | Type | Trigger |
+/// |---|---|
+/// | `ChangeDimensionEvent` | Player changes dimension |
+/// | `PlayerSleepEvent` | Player sleeps in a bed |
+/// | `FallFromHeightEvent` | Player falls and lands |
+/// | `PlayerLevelUpEvent` | Player levels up |
+/// | `EffectsChangedEvent` | Player's effects change |
+/// | `StartRidingEvent` | Player starts riding an entity |
+/// | `UseEnderEyeEvent` | Player uses an ender eye |
+/// | `TameAnimalEvent` | Player tames an animal |
+/// | `BreedAnimalsEvent` | Player breeds animals |
+/// | `SummonEntityEvent` | Player summons an entity |
+/// | `InteractWithEntityEvent` | Player right-clicks any entity |
+/// | `VillagerTradeEvent` | Player trades with a villager |
+/// | `ConstructBeaconEvent` | Player builds/upgrades a beacon |
+/// | `CureZombieVillagerEvent` | Player cures a zombie villager |
+/// | `LootContainerOpenEvent` | Player opens a loot container |
+/// | `HeroOfTheVillageEvent` | Player achieves Hero of the Village |
+/// | `LightningStrikeEvent` | Lightning strikes near the player |
+///
+/// ## Tick-poll (fire every tick condition is true)
+///
+/// | Type | Condition |
+/// |---|---|
+/// | `PlayerSneakEvent` | Player is crouching/sneaking |
+/// | `PlayerSprintEvent` | Player is sprinting |
+/// | `PlayerSwimmingEvent` | Player is in swimming animation |
+/// | `PlayerFlyingEvent` | Player is flying (Creative/Spectator) |
+/// | `PlayerOnFireEvent` | Player is burning |
+/// | `PlayerInCreativeEvent` | Player is in Creative mode |
+/// | `PlayerInAdventureEvent` | Player is in Adventure mode |
+/// | `PlayerInSpectatorEvent` | Player is in Spectator mode |
+///
+/// # Custom events
+///
+/// Implement `sand_core::events::SandEvent` on your type, then use it as the
+/// parameter:
+///
+/// ```rust,ignore
+/// use sand_core::events::{SandEvent, SandEventDispatch};
+/// use sand_core::AdvancementTrigger;
+///
+/// pub struct MyEvent;
+/// impl SandEvent for MyEvent {
+///     fn dispatch() -> SandEventDispatch {
+///         SandEventDispatch::AdvancementTrigger(AdvancementTrigger::UsedItem { item: None })
+///     }
+/// }
+///
+/// #[event]
+/// pub fn on_use(event: MyEvent) {
+///     mcfunction! { "say Used something!" }
+/// }
+/// ```
+///
+/// # Optional attribute
+///
+/// `#[event(id = "ns:override/path")]` overrides the advancement resource
+/// location (advancement dispatch only).
 ///
 /// # Options
 ///
@@ -716,113 +849,82 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
 #[proc_macro_attribute]
 pub fn event(attr: TokenStream, item: TokenStream) -> TokenStream {
     let func = parse_macro_input!(item as ItemFn);
-    match parse_event_attr(attr).and_then(|ea| expand_event(func, ea)) {
+    match expand_event(attr, func) {
         Ok(tokens) => tokens.into(),
         Err(e) => e.to_compile_error().into(),
     }
 }
 
-// ── EventAttr parsing ─────────────────────────────────────────────────────────
+// ── New event attribute ───────────────────────────────────────────────────────
 
-struct EventAttr {
-    event_type: syn::Ident,
-    filters: std::collections::HashMap<String, syn::Expr>,
-    revoke: bool,
+/// Flat key=value attributes for the new-style `#[event]` macro.
+struct FlatEventAttr {
+    /// `slot = Head | Chest | Legs | Feet | Offhand | Mainhand`
+    slot: Option<syn::Ident>,
+    /// `item = "namespace:item_id"`
+    item: Option<syn::LitStr>,
+    /// `custom_data = "{key:1b}"`
+    custom_data: Option<syn::LitStr>,
+    /// `id = "ns:path"` — override advancement resource location
     id_override: Option<syn::LitStr>,
 }
 
-fn parse_event_attr(attr: TokenStream) -> syn::Result<EventAttr> {
-    // We parse a custom token stream rather than using syn::Meta so that we
-    // can handle the mixed `EventType { field = … } , revoke = true` syntax.
-    struct ParsedEventAttr {
-        event_type: syn::Ident,
-        filters: std::collections::HashMap<String, syn::Expr>,
-        revoke: bool,
-        id_override: Option<syn::LitStr>,
-    }
+impl syn::parse::Parse for FlatEventAttr {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let mut slot = None;
+        let mut item = None;
+        let mut custom_data = None;
+        let mut id_override = None;
 
-    impl syn::parse::Parse for ParsedEventAttr {
-        fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-            // Parse the event type identifier (e.g. `Join`, `Death`, `Custom`)
-            let event_type: syn::Ident = input.parse()?;
-
-            // Optionally parse filter fields inside braces: `{ field = "value", … }`
-            let mut filters = std::collections::HashMap::new();
-            if input.peek(syn::token::Brace) {
-                let brace_content;
-                syn::braced!(brace_content in input);
-                // Parse comma-separated `key = value` pairs
-                loop {
-                    if brace_content.is_empty() {
-                        break;
-                    }
-                    let key: syn::Ident = brace_content.parse()?;
-                    let _eq: syn::Token![=] = brace_content.parse()?;
-                    let val: syn::Expr = brace_content.parse()?;
-                    filters.insert(key.to_string(), val);
-                    if brace_content.is_empty() {
-                        break;
-                    }
-                    let _comma: syn::Token![,] = brace_content.parse()?;
+        while !input.is_empty() {
+            let key: syn::Ident = input.parse()?;
+            let _eq: syn::Token![=] = input.parse()?;
+            match key.to_string().as_str() {
+                "slot" => {
+                    slot = Some(input.parse::<syn::Ident>()?);
+                }
+                "item" => {
+                    item = Some(input.parse::<syn::LitStr>()?);
+                }
+                "custom_data" => {
+                    custom_data = Some(input.parse::<syn::LitStr>()?);
+                }
+                "id" => {
+                    id_override = Some(input.parse::<syn::LitStr>()?);
+                }
+                other => {
+                    return Err(syn::Error::new_spanned(
+                        &key,
+                        format!(
+                            "unknown #[event] filter `{other}`; \
+                             allowed: slot, item, custom_data, id"
+                        ),
+                    ));
                 }
             }
-
-            // Parse optional trailing `, revoke = true` and/or `, id = "..."` options
-            let mut revoke = false;
-            let mut id_override: Option<syn::LitStr> = None;
-
-            while input.peek(syn::Token![,]) {
+            if !input.is_empty() {
                 let _comma: syn::Token![,] = input.parse()?;
-                if input.is_empty() {
-                    break;
-                }
-                let key: syn::Ident = input.parse()?;
-                let _eq: syn::Token![=] = input.parse()?;
-                match key.to_string().as_str() {
-                    "revoke" => {
-                        let val: syn::LitBool = input.parse()?;
-                        revoke = val.value;
-                    }
-                    "id" => {
-                        let val: syn::LitStr = input.parse()?;
-                        id_override = Some(val);
-                    }
-                    other => {
-                        return Err(syn::Error::new_spanned(
-                            &key,
-                            format!("unknown option `{other}`; expected `revoke` or `id`"),
-                        ));
-                    }
-                }
             }
-
-            Ok(ParsedEventAttr {
-                event_type,
-                filters,
-                revoke,
-                id_override,
-            })
         }
-    }
 
-    let parsed = syn::parse::<ParsedEventAttr>(attr)?;
-    Ok(EventAttr {
-        event_type: parsed.event_type,
-        filters: parsed.filters,
-        revoke: parsed.revoke,
-        id_override: parsed.id_override,
-    })
+        Ok(FlatEventAttr {
+            slot,
+            item,
+            custom_data,
+            id_override,
+        })
+    }
 }
 
-// ── Event expansion ───────────────────────────────────────────────────────────
+// ── Event expansion ──────────────────────────────────────────────────────────
 
-fn expand_event(func: ItemFn, attr: EventAttr) -> syn::Result<proc_macro2::TokenStream> {
+fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::TokenStream> {
     let fn_name = &func.sig.ident;
     let fn_name_str = fn_name.to_string();
     let vis = &func.vis;
-    let attrs = &func.attrs;
+    let fn_attrs = &func.attrs;
 
-    // Validate: no `self` receiver (must be free-standing)
+    // Reject method receivers.
     if let Some(recv) = func.sig.inputs.iter().find_map(|a| {
         if let syn::FnArg::Receiver(r) = a {
             Some(r)
@@ -836,506 +938,436 @@ fn expand_event(func: ItemFn, attr: EventAttr) -> syn::Result<proc_macro2::Token
         ));
     }
 
-    // Validate: no parameters
-    if !func.sig.inputs.is_empty() {
+    // Exactly one typed parameter required.
+    if func.sig.inputs.len() != 1 {
         return Err(syn::Error::new_spanned(
             &func.sig.inputs,
-            "#[event] functions must take no parameters",
+            "#[event] functions must take exactly one parameter: the event type \
+             (e.g. `event: OnJoinEvent`)",
         ));
     }
+
+    // Extract the event type name and the full type path token stream.
+    let (event_type_name, param_type_tokens): (String, proc_macro2::TokenStream) = {
+        let param = func.sig.inputs.first().unwrap();
+        match param {
+            syn::FnArg::Typed(pt) => match pt.ty.as_ref() {
+                syn::Type::Path(tp) => {
+                    let name = tp.path.segments.last().unwrap().ident.to_string();
+                    let ty = pt.ty.as_ref();
+                    (name, quote! { #ty })
+                }
+                other => {
+                    return Err(syn::Error::new_spanned(
+                        other,
+                        "#[event] parameter type must be a path (e.g. `OnJoinEvent`)",
+                    ));
+                }
+            },
+            syn::FnArg::Receiver(r) => {
+                return Err(syn::Error::new_spanned(r, "#[event] cannot be a method"));
+            }
+        }
+    };
+
+    // Parse the flat attribute: slot=, item=, custom_data=, id=
+    let flat_attr: FlatEventAttr = if attr.is_empty() {
+        FlatEventAttr {
+            slot: None,
+            item: None,
+            custom_data: None,
+            id_override: None,
+        }
+    } else {
+        syn::parse::<FlatEventAttr>(attr)?
+    };
 
     let fn_make_ident = proc_macro2::Ident::new(
         &format!("__sand_fn_{}_make", fn_name),
         proc_macro2::Span::call_site(),
     );
 
+    // Strip the event parameter from the generated function — the body is
+    // unchanged but the actual runtime function takes no args.
     let body = build_cmd_body(&func.block);
 
-    // Decide dispatch strategy: Death with no entity/killing_blow → DeathTick.
-    let is_death_tick = attr.event_type == "Death"
-        && !attr.filters.contains_key("entity")
-        && !attr.filters.contains_key("killing_blow");
-
-    let id_override_tokens = match &attr.id_override {
+    let id_override_tokens = match &flat_attr.id_override {
         Some(s) => quote! { ::std::option::Option::Some(#s) },
         None => quote! { ::std::option::Option::None },
     };
 
-    if is_death_tick {
-        // Tick-based dispatch: no advancement, no revoke, no trigger fn.
-        Ok(quote! {
-            #(#attrs)*
-            #vis fn #fn_name() -> ::std::vec::Vec<::std::string::String> {
-                #body
+    // ── Shared preamble: emit the body function + hidden factory ──────────────
+    let preamble = quote! {
+        #(#fn_attrs)*
+        #vis fn #fn_name() -> ::std::vec::Vec<::std::string::String> {
+            #body
+        }
+
+        #[doc(hidden)]
+        #[allow(dead_code)]
+        fn #fn_make_ident() -> ::std::vec::Vec<::std::string::String> {
+            #fn_name()
+        }
+    };
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    /// Map a slot ident string to `::sand_core::ArmorSlot::*` tokens.
+    fn slot_to_armor_slot_tokens(slot: &syn::Ident) -> syn::Result<proc_macro2::TokenStream> {
+        match slot.to_string().as_str() {
+            "Head" | "Chest" | "Legs" | "Feet" | "Offhand" => {
+                Ok(quote! { ::sand_core::ArmorSlot::#slot })
             }
-
-            #[doc(hidden)]
-            #[allow(dead_code)]
-            fn #fn_make_ident() -> ::std::vec::Vec<::std::string::String> {
-                #fn_name()
-            }
-
-            ::sand_core::inventory::submit!(::sand_core::EventDescriptor {
-                path: #fn_name_str,
-                id_override: #id_override_tokens,
-                make: #fn_make_ident,
-                dispatch: ::sand_core::EventDispatch::DeathTick,
-            });
-        })
-    } else {
-        // Advancement-based dispatch.
-        let trigger_ident = proc_macro2::Ident::new(
-            &format!("__sand_event_{}_trigger", fn_name),
-            proc_macro2::Span::call_site(),
-        );
-        let trigger_expr = build_trigger_expr(&attr.event_type, &attr.filters)?;
-        let revoke_val = attr.revoke;
-
-        Ok(quote! {
-            #(#attrs)*
-            #vis fn #fn_name() -> ::std::vec::Vec<::std::string::String> {
-                #body
-            }
-
-            #[doc(hidden)]
-            #[allow(dead_code)]
-            fn #fn_make_ident() -> ::std::vec::Vec<::std::string::String> {
-                #fn_name()
-            }
-
-            #[doc(hidden)]
-            #[allow(dead_code)]
-            fn #trigger_ident() -> ::sand_core::AdvancementTrigger {
-                #trigger_expr
-            }
-
-            ::sand_core::inventory::submit!(::sand_core::EventDescriptor {
-                path: #fn_name_str,
-                id_override: #id_override_tokens,
-                make: #fn_make_ident,
-                dispatch: ::sand_core::EventDispatch::Advancement {
-                    make_trigger: #trigger_ident,
-                    revoke: #revoke_val,
-                },
-            });
-        })
-    }
-}
-
-/// Build the `AdvancementTrigger` expression for the given event type and filters.
-fn build_trigger_expr(
-    event_type: &syn::Ident,
-    filters: &std::collections::HashMap<String, syn::Expr>,
-) -> syn::Result<proc_macro2::TokenStream> {
-    let event_str = event_type.to_string();
-
-    match event_str.as_str() {
-        "Join" | "Tick" => {
-            check_no_unknown_filters(event_type, filters, &[])?;
-            Ok(quote! { ::sand_core::AdvancementTrigger::Tick })
-        }
-        "Impossible" => {
-            check_no_unknown_filters(event_type, filters, &[])?;
-            Ok(quote! { ::sand_core::AdvancementTrigger::Impossible })
-        }
-        "Death" => {
-            check_no_unknown_filters(event_type, filters, &["entity", "killing_blow"])?;
-            let entity = build_opt_entity_filter(filters, "entity");
-            let killing_blow = build_opt_value_filter(filters, "killing_blow")?;
-            Ok(quote! {
-                ::sand_core::AdvancementTrigger::EntityKilledPlayer {
-                    entity: #entity,
-                    killing_blow: #killing_blow,
-                }
-            })
-        }
-        "Kill" => {
-            check_no_unknown_filters(event_type, filters, &["entity", "killing_blow"])?;
-            let entity = build_opt_entity_filter(filters, "entity");
-            let killing_blow = build_opt_value_filter(filters, "killing_blow")?;
-            Ok(quote! {
-                ::sand_core::AdvancementTrigger::PlayerKilledEntity {
-                    entity: #entity,
-                    killing_blow: #killing_blow,
-                }
-            })
-        }
-        "ItemUsed" => {
-            check_no_unknown_filters(event_type, filters, &["item"])?;
-            let item = build_opt_entity_filter(filters, "item");
-            Ok(quote! {
-                ::sand_core::AdvancementTrigger::UsedItem { item: #item }
-            })
-        }
-        "ItemConsumed" => {
-            check_no_unknown_filters(event_type, filters, &["item"])?;
-            let item = build_opt_entity_filter(filters, "item");
-            Ok(quote! {
-                ::sand_core::AdvancementTrigger::ConsumeItem { item: #item }
-            })
-        }
-        "UsingItem" => {
-            check_no_unknown_filters(event_type, filters, &["item"])?;
-            let item = build_opt_entity_filter(filters, "item");
-            Ok(quote! {
-                ::sand_core::AdvancementTrigger::UsingItem { item: #item }
-            })
-        }
-        "BlockPlaced" => {
-            check_no_unknown_filters(event_type, filters, &["block", "item", "location", "state"])?;
-            let block = build_opt_plain_string_filter(filters, "block");
-            let item = build_opt_entity_filter(filters, "item");
-            let location = build_opt_value_filter(filters, "location")?;
-            let state = build_opt_state_map_filter(filters, "state")?;
-            Ok(quote! {
-                ::sand_core::AdvancementTrigger::PlacedBlock {
-                    block: #block,
-                    item: #item,
-                    location: #location,
-                    state: #state,
-                }
-            })
-        }
-        "RecipeUnlocked" => {
-            check_no_unknown_filters(event_type, filters, &["recipe"])?;
-            let recipe = require_plain_string_filter(event_type, filters, "recipe")?;
-            Ok(quote! {
-                ::sand_core::AdvancementTrigger::RecipeUnlocked { recipe: #recipe.to_string() }
-            })
-        }
-        "EnterBlock" => {
-            check_no_unknown_filters(event_type, filters, &["block", "state"])?;
-            let block = build_opt_plain_string_filter(filters, "block");
-            let state = build_opt_state_map_filter(filters, "state")?;
-            Ok(quote! {
-                ::sand_core::AdvancementTrigger::EnterBlock {
-                    block: #block,
-                    state: #state,
-                }
-            })
-        }
-        "EnchantedItem" => {
-            check_no_unknown_filters(event_type, filters, &["item", "levels"])?;
-            let item = build_opt_entity_filter(filters, "item");
-            let levels = build_opt_value_filter(filters, "levels")?;
-            Ok(quote! {
-                ::sand_core::AdvancementTrigger::EnchantedItem {
-                    item: #item,
-                    levels: #levels,
-                }
-            })
-        }
-        "TamedAnimal" => {
-            check_no_unknown_filters(event_type, filters, &["entity"])?;
-            let entity = build_opt_entity_filter(filters, "entity");
-            Ok(quote! {
-                ::sand_core::AdvancementTrigger::TamedAnimal { entity: #entity }
-            })
-        }
-        "SummonedEntity" => {
-            check_no_unknown_filters(event_type, filters, &["entity"])?;
-            let entity = build_opt_entity_filter(filters, "entity");
-            Ok(quote! {
-                ::sand_core::AdvancementTrigger::SummonedEntity { entity: #entity }
-            })
-        }
-        "Location" => {
-            check_no_unknown_filters(event_type, filters, &["location"])?;
-            let location = build_opt_value_filter(filters, "location")?;
-            Ok(quote! {
-                ::sand_core::AdvancementTrigger::Location { location: #location }
-            })
-        }
-        "BredAnimals" => {
-            check_no_unknown_filters(event_type, filters, &["parent", "partner", "child"])?;
-            let parent = build_opt_entity_filter(filters, "parent");
-            let partner = build_opt_entity_filter(filters, "partner");
-            let child = build_opt_entity_filter(filters, "child");
-            Ok(quote! {
-                ::sand_core::AdvancementTrigger::BredAnimals {
-                    parent: #parent,
-                    partner: #partner,
-                    child: #child,
-                }
-            })
-        }
-        "InteractEntity" => {
-            check_no_unknown_filters(event_type, filters, &["item", "entity"])?;
-            let item = build_opt_entity_filter(filters, "item");
-            let entity = build_opt_entity_filter(filters, "entity");
-            Ok(quote! {
-                ::sand_core::AdvancementTrigger::PlayerInteractedWithEntity {
-                    item: #item,
-                    entity: #entity,
-                }
-            })
-        }
-        "NetherTravel" => {
-            check_no_unknown_filters(event_type, filters, &["entered", "exited", "distance"])?;
-            let entered = build_opt_value_filter(filters, "entered")?;
-            let exited = build_opt_value_filter(filters, "exited")?;
-            let distance = build_opt_value_filter(filters, "distance")?;
-            Ok(quote! {
-                ::sand_core::AdvancementTrigger::NetherTravel {
-                    entered: #entered,
-                    exited: #exited,
-                    distance: #distance,
-                }
-            })
-        }
-        "InventoryChanged" => {
-            check_no_unknown_filters(event_type, filters, &["items", "slots"])?;
-            let items_tokens = build_inventory_items_filter(filters)?;
-            let slots = build_opt_value_filter(filters, "slots")?;
-            Ok(quote! {
-                ::sand_core::AdvancementTrigger::InventoryChanged {
-                    slots: #slots,
-                    items: #items_tokens,
-                }
-            })
-        }
-        "Custom" => {
-            check_no_unknown_filters(event_type, filters, &["trigger", "conditions"])?;
-            let trigger = require_plain_string_filter(event_type, filters, "trigger")?;
-            let conditions = build_opt_json_object_filter(filters, "conditions")?;
-            Ok(quote! {
-                ::sand_core::AdvancementTrigger::Custom {
-                    trigger: #trigger.to_string(),
-                    conditions: #conditions,
-                }
-            })
-        }
-        _ => Err(syn::Error::new_spanned(
-            event_type,
-            format!(
-                "unknown event type `{event_str}`; expected one of: \
-                Join, Tick, Impossible, Death, Kill, ItemUsed, ItemConsumed, UsingItem, \
-                BlockPlaced, RecipeUnlocked, EnterBlock, EnchantedItem, TamedAnimal, \
-                SummonedEntity, Location, BredAnimals, InteractEntity, NetherTravel, \
-                InventoryChanged, Custom"
-            ),
-        )),
-    }
-}
-
-/// Verify that all keys in `filters` are in the `allowed` list.
-fn check_no_unknown_filters(
-    event_type: &syn::Ident,
-    filters: &std::collections::HashMap<String, syn::Expr>,
-    allowed: &[&str],
-) -> syn::Result<()> {
-    for key in filters.keys() {
-        if !allowed.contains(&key.as_str()) {
-            return Err(syn::Error::new_spanned(
-                event_type,
-                format!(
-                    "unknown filter `{key}` for event `{}`; allowed: {}",
-                    event_type,
-                    if allowed.is_empty() {
-                        "none".to_string()
-                    } else {
-                        allowed.join(", ")
-                    }
-                ),
-            ));
+            other => Err(syn::Error::new_spanned(
+                slot,
+                format!("invalid slot `{other}`; expected Head, Chest, Legs, Feet, or Offhand"),
+            )),
         }
     }
-    Ok(())
-}
 
-/// Build an `Option<serde_json::Value>` expression for an entity/item filter field.
-///
-/// Accepts:
-/// - A plain string ID: `"minecraft:zombie"` → `{"type": "minecraft:zombie"}`
-/// - A JSON object string: `r#"{"type":"minecraft:zombie","nbt":"..."}"#`
-/// - A typed `EntityPredicate` or `ItemPredicate` expression (serialized via serde_json)
-fn build_opt_entity_filter(
-    filters: &std::collections::HashMap<String, syn::Expr>,
-    key: &str,
-) -> proc_macro2::TokenStream {
-    match filters.get(key) {
-        None => quote! { ::std::option::Option::None },
-        Some(syn::Expr::Lit(syn::ExprLit {
-            lit: syn::Lit::Str(s),
-            ..
-        })) => {
-            let val = s.value();
-            if val.starts_with('{') || val.starts_with('[') {
-                // Raw JSON string — parse directly.
-                quote! {
-                    ::std::option::Option::Some(
-                        ::sand_core::serde_json::from_str::<::sand_core::serde_json::Value>(#s)
-                            .expect(concat!("invalid JSON in `", #key, "` filter"))
-                    )
-                }
-            } else {
-                // Plain type ID — auto-wrap as {"type": "..."}.
-                quote! {
-                    ::std::option::Option::Some(
-                        ::sand_core::serde_json::json!({"type": #s})
-                    )
-                }
+    fn item_id_expr(item: &Option<syn::LitStr>) -> proc_macro2::TokenStream {
+        match item {
+            Some(lit) => {
+                let s = lit.value();
+                quote! { ::std::option::Option::Some(#s) }
             }
+            None => quote! { ::std::option::Option::None },
         }
-        Some(other) => {
-            // Typed Rust expression (EntityPredicate, ItemPredicate, serde_json::Value, …)
+    }
+
+    fn custom_data_expr(cd: &Option<syn::LitStr>) -> proc_macro2::TokenStream {
+        match cd {
+            Some(lit) => {
+                let s = lit.value();
+                quote! { ::std::option::Option::Some(#s) }
+            }
+            None => quote! { ::std::option::Option::None },
+        }
+    }
+
+    // ── Dispatch selection ────────────────────────────────────────────────────
+    let dispatch_tokens = match event_type_name.as_str() {
+        // OnJoinEvent — entity-tag based join detection (fires once per session login)
+        //
+        // Uses JoinTick dispatch: `__sand_join_check` detects players who lack the
+        // `__sand_online` tag (removed on disconnect) and fires all handlers before
+        // re-applying the tag. This avoids the Tick+revoke every-tick loop.
+        "OnJoinEvent" => {
             quote! {
-                ::std::option::Option::Some(
-                    ::sand_core::serde_json::to_value(#other)
-                        .expect(concat!("failed to serialize `", #key, "` filter"))
-                )
+                #preamble
+
+                ::sand_core::inventory::submit!(::sand_core::EventDescriptor {
+                    path: #fn_name_str,
+                    id_override: #id_override_tokens,
+                    make: #fn_make_ident,
+                    dispatch: ::sand_core::EventDispatch::JoinTick,
+                });
             }
         }
-    }
-}
 
-/// Build an `Option<serde_json::Value>` for a raw JSON value filter field.
-/// Strings starting with `{` or `[` are parsed; anything else is treated as a
-/// JSON string value.
-fn build_opt_value_filter(
-    filters: &std::collections::HashMap<String, syn::Expr>,
-    key: &str,
-) -> syn::Result<proc_macro2::TokenStream> {
-    match filters.get(key) {
-        None => Ok(quote! { ::std::option::Option::None }),
-        Some(syn::Expr::Lit(syn::ExprLit {
-            lit: syn::Lit::Str(s),
-            ..
-        })) => {
-            let val = s.value();
-            if val.starts_with('{') || val.starts_with('[') {
-                Ok(quote! {
-                    ::std::option::Option::Some(
-                        ::sand_core::serde_json::from_str::<::sand_core::serde_json::Value>(#s).unwrap()
-                    )
-                })
-            } else {
-                Ok(quote! {
-                    ::std::option::Option::Some(
-                        ::sand_core::serde_json::Value::String(#s.to_string())
-                    )
-                })
-            }
-        }
-        Some(other) => Ok(quote! {
-            ::std::option::Option::Some({
-                let __v = #other;
-                ::sand_core::serde_json::to_value(__v).unwrap()
-            })
-        }),
-    }
-}
+        // FirstJoinEvent — Advancement + Tick + no revoke (fires once ever)
+        "FirstJoinEvent" => {
+            let trigger_ident = proc_macro2::Ident::new(
+                &format!("__sand_event_{}_trigger", fn_name),
+                proc_macro2::Span::call_site(),
+            );
+            quote! {
+                #preamble
 
-/// Build an `Option<serde_json::Value>` for a JSON object field specifically.
-fn build_opt_json_object_filter(
-    filters: &std::collections::HashMap<String, syn::Expr>,
-    key: &str,
-) -> syn::Result<proc_macro2::TokenStream> {
-    match filters.get(key) {
-        None => Ok(quote! { ::std::option::Option::None }),
-        Some(syn::Expr::Lit(syn::ExprLit {
-            lit: syn::Lit::Str(s),
-            ..
-        })) => Ok(quote! {
-            ::std::option::Option::Some(
-                ::sand_core::serde_json::from_str::<::sand_core::serde_json::Value>(#s).unwrap()
-            )
-        }),
-        Some(other) => Ok(quote! {
-            ::std::option::Option::Some(::sand_core::serde_json::to_value(#other).unwrap())
-        }),
-    }
-}
-
-/// Build an `Option<String>` expression for a plain-string filter field.
-fn build_opt_plain_string_filter(
-    filters: &std::collections::HashMap<String, syn::Expr>,
-    key: &str,
-) -> proc_macro2::TokenStream {
-    match filters.get(key) {
-        None => quote! { ::std::option::Option::None },
-        Some(expr) => quote! { ::std::option::Option::Some((#expr).to_string()) },
-    }
-}
-
-/// Require a plain string filter field; produce a compile error if missing.
-fn require_plain_string_filter(
-    event_type: &syn::Ident,
-    filters: &std::collections::HashMap<String, syn::Expr>,
-    key: &str,
-) -> syn::Result<proc_macro2::TokenStream> {
-    match filters.get(key) {
-        None => Err(syn::Error::new_spanned(
-            event_type,
-            format!("`{key}` is required for `{}` events", event_type),
-        )),
-        Some(expr) => Ok(quote! { #expr }),
-    }
-}
-
-/// Build an `Option<HashMap<String, String>>` expression for block state maps.
-/// Expects a JSON object string like `r#"{"facing":"north"}"#`.
-fn build_opt_state_map_filter(
-    filters: &std::collections::HashMap<String, syn::Expr>,
-    key: &str,
-) -> syn::Result<proc_macro2::TokenStream> {
-    match filters.get(key) {
-        None => Ok(quote! { ::std::option::Option::None }),
-        Some(syn::Expr::Lit(syn::ExprLit {
-            lit: syn::Lit::Str(s),
-            ..
-        })) => Ok(quote! {
-            ::std::option::Option::Some(
-                ::sand_core::serde_json::from_str::<
-                    ::std::collections::HashMap<::std::string::String, ::std::string::String>
-                >(#s).unwrap()
-            )
-        }),
-        Some(other) => Ok(quote! {
-            ::std::option::Option::Some(
-                ::sand_core::serde_json::from_str::<
-                    ::std::collections::HashMap<::std::string::String, ::std::string::String>
-                >(&(#other).to_string()).unwrap()
-            )
-        }),
-    }
-}
-
-/// Build a `Vec<serde_json::Value>` expression for InventoryChanged items.
-///
-/// Accepts:
-/// - A JSON array string: `r#"[{"id":"minecraft:diamond"}]"#`
-/// - A Rust array/Vec of `ItemPredicate` (or anything `serde::Serialize`):
-///   `[ItemPredicate::id("minecraft:leather_boots")]`
-fn build_inventory_items_filter(
-    filters: &std::collections::HashMap<String, syn::Expr>,
-) -> syn::Result<proc_macro2::TokenStream> {
-    match filters.get("items") {
-        None => Ok(quote! { ::std::vec::Vec::new() }),
-        Some(syn::Expr::Lit(syn::ExprLit {
-            lit: syn::Lit::Str(s),
-            ..
-        })) => {
-            // Raw JSON string — parse as array at runtime.
-            Ok(quote! {
-                ::sand_core::serde_json::from_str::<
-                    ::std::vec::Vec<::sand_core::serde_json::Value>
-                >(#s).expect("invalid JSON array in InventoryChanged items filter")
-            })
-        }
-        Some(other) => {
-            // Typed Rust expression (e.g. `[ItemPredicate::id("...")]`).
-            // Serialize via serde_json::to_value and unwrap the array.
-            Ok(quote! {{
-                let __items_val = ::sand_core::serde_json::to_value(#other)
-                    .expect("InventoryChanged items must be serializable");
-                match __items_val {
-                    ::sand_core::serde_json::Value::Array(arr) => arr,
-                    single => vec![single],
+                #[doc(hidden)]
+                #[allow(dead_code)]
+                fn #trigger_ident() -> ::sand_core::AdvancementTrigger {
+                    ::sand_core::AdvancementTrigger::Tick
                 }
-            }})
+
+                ::sand_core::inventory::submit!(::sand_core::EventDescriptor {
+                    path: #fn_name_str,
+                    id_override: #id_override_tokens,
+                    make: #fn_make_ident,
+                    dispatch: ::sand_core::EventDispatch::Advancement {
+                        make_trigger: #trigger_ident,
+                        revoke: false,
+                    },
+                });
+            }
         }
-    }
+
+        // OnDeathEvent — deathCount scoreboard tick loop
+        "OnDeathEvent" => {
+            quote! {
+                #preamble
+
+                ::sand_core::inventory::submit!(::sand_core::EventDescriptor {
+                    path: #fn_name_str,
+                    id_override: #id_override_tokens,
+                    make: #fn_make_ident,
+                    dispatch: ::sand_core::EventDispatch::DeathTick,
+                });
+            }
+        }
+
+        // OnRespawnEvent — tick poll after death tag
+        "OnRespawnEvent" => {
+            quote! {
+                #preamble
+
+                ::sand_core::inventory::submit!(::sand_core::EventDescriptor {
+                    path: #fn_name_str,
+                    id_override: #id_override_tokens,
+                    make: #fn_make_ident,
+                    dispatch: ::sand_core::EventDispatch::RespawnTick,
+                });
+            }
+        }
+
+        // ArmorEquipEvent — tick armor-tag equip detection
+        "ArmorEquipEvent" => {
+            let slot_ident = flat_attr.slot.as_ref().ok_or_else(|| {
+                syn::Error::new(
+                    proc_macro2::Span::call_site(),
+                    "ArmorEquipEvent requires `slot = Head|Chest|Legs|Feet|Offhand`",
+                )
+            })?;
+            let slot_tokens = slot_to_armor_slot_tokens(slot_ident)?;
+            let item_tok = item_id_expr(&flat_attr.item);
+            let cd_tok = custom_data_expr(&flat_attr.custom_data);
+
+            quote! {
+                #preamble
+
+                ::sand_core::inventory::submit!(::sand_core::EventDescriptor {
+                    path: #fn_name_str,
+                    id_override: #id_override_tokens,
+                    make: #fn_make_ident,
+                    dispatch: ::sand_core::EventDispatch::ArmorEquip {
+                        slot: #slot_tokens,
+                        item_id: #item_tok,
+                        custom_data_snbt: #cd_tok,
+                    },
+                });
+            }
+        }
+
+        // ArmorUnequipEvent — tick armor-tag unequip detection
+        "ArmorUnequipEvent" => {
+            let slot_ident = flat_attr.slot.as_ref().ok_or_else(|| {
+                syn::Error::new(
+                    proc_macro2::Span::call_site(),
+                    "ArmorUnequipEvent requires `slot = Head|Chest|Legs|Feet|Offhand`",
+                )
+            })?;
+            let slot_tokens = slot_to_armor_slot_tokens(slot_ident)?;
+            let item_tok = item_id_expr(&flat_attr.item);
+            let cd_tok = custom_data_expr(&flat_attr.custom_data);
+
+            quote! {
+                #preamble
+
+                ::sand_core::inventory::submit!(::sand_core::EventDescriptor {
+                    path: #fn_name_str,
+                    id_override: #id_override_tokens,
+                    make: #fn_make_ident,
+                    dispatch: ::sand_core::EventDispatch::ArmorUnequip {
+                        slot: #slot_tokens,
+                        item_id: #item_tok,
+                        custom_data_snbt: #cd_tok,
+                    },
+                });
+            }
+        }
+
+        // HoldingItemEvent — tick poll on weapon.mainhand / weapon.offhand
+        "HoldingItemEvent" => {
+            let item_str = flat_attr
+                .item
+                .as_ref()
+                .ok_or_else(|| {
+                    syn::Error::new(
+                        proc_macro2::Span::call_site(),
+                        "HoldingItemEvent requires `item = \"namespace:item_id\"`",
+                    )
+                })?
+                .value();
+
+            let slot_str = match flat_attr.slot.as_ref().map(|s| s.to_string()).as_deref() {
+                Some("Offhand") => "weapon.offhand",
+                None | Some("Mainhand") => "weapon.mainhand",
+                Some(other) => {
+                    return Err(syn::Error::new(
+                        proc_macro2::Span::call_site(),
+                        format!(
+                            "HoldingItemEvent `slot` must be `Mainhand` or `Offhand`, got `{other}`"
+                        ),
+                    ));
+                }
+            };
+
+            let condition = match &flat_attr.custom_data {
+                Some(cd) => {
+                    let cd_str = cd.value();
+                    format!("items entity @s {slot_str} {item_str}[minecraft:custom_data~{cd_str}]")
+                }
+                None => format!("items entity @s {slot_str} {item_str}"),
+            };
+
+            let cond_ident = proc_macro2::Ident::new(
+                &format!("__sand_event_{}_condition", fn_name),
+                proc_macro2::Span::call_site(),
+            );
+
+            quote! {
+                #preamble
+
+                #[doc(hidden)]
+                #[allow(dead_code)]
+                fn #cond_ident() -> ::std::string::String {
+                    #condition.to_string()
+                }
+
+                ::sand_core::inventory::submit!(::sand_core::EventDescriptor {
+                    path: #fn_name_str,
+                    id_override: #id_override_tokens,
+                    make: #fn_make_ident,
+                    dispatch: ::sand_core::EventDispatch::TickPoll {
+                        make_condition: #cond_ident,
+                    },
+                });
+            }
+        }
+
+        // CurrentlyWearingEvent — tick poll on armor.<slot>
+        "CurrentlyWearingEvent" => {
+            let slot_str = match flat_attr.slot.as_ref().map(|s| s.to_string()).as_deref() {
+                Some("Head") => "armor.head",
+                Some("Chest") => "armor.chest",
+                Some("Legs") => "armor.legs",
+                Some("Feet") => "armor.feet",
+                None => {
+                    return Err(syn::Error::new(
+                        proc_macro2::Span::call_site(),
+                        "CurrentlyWearingEvent requires `slot = Head|Chest|Legs|Feet`",
+                    ));
+                }
+                Some(other) => {
+                    return Err(syn::Error::new(
+                        proc_macro2::Span::call_site(),
+                        format!(
+                            "CurrentlyWearingEvent `slot` must be Head, Chest, Legs, or Feet, \
+                         got `{other}`"
+                        ),
+                    ));
+                }
+            };
+
+            let item_str = flat_attr
+                .item
+                .as_ref()
+                .ok_or_else(|| {
+                    syn::Error::new(
+                        proc_macro2::Span::call_site(),
+                        "CurrentlyWearingEvent requires `item = \"namespace:item_id\"`",
+                    )
+                })?
+                .value();
+
+            let condition = match &flat_attr.custom_data {
+                Some(cd) => {
+                    let cd_str = cd.value();
+                    format!("items entity @s {slot_str} {item_str}[minecraft:custom_data~{cd_str}]")
+                }
+                None => format!("items entity @s {slot_str} {item_str}"),
+            };
+
+            let cond_ident = proc_macro2::Ident::new(
+                &format!("__sand_event_{}_condition", fn_name),
+                proc_macro2::Span::call_site(),
+            );
+
+            quote! {
+                #preamble
+
+                #[doc(hidden)]
+                #[allow(dead_code)]
+                fn #cond_ident() -> ::std::string::String {
+                    #condition.to_string()
+                }
+
+                ::sand_core::inventory::submit!(::sand_core::EventDescriptor {
+                    path: #fn_name_str,
+                    id_override: #id_override_tokens,
+                    make: #fn_make_ident,
+                    dispatch: ::sand_core::EventDispatch::TickPoll {
+                        make_condition: #cond_ident,
+                    },
+                });
+            }
+        }
+
+        // Unknown type — must implement SandEvent.
+        _ => {
+            let trigger_ident = proc_macro2::Ident::new(
+                &format!("__sand_event_{}_trigger", fn_name),
+                proc_macro2::Span::call_site(),
+            );
+            let cond_ident = proc_macro2::Ident::new(
+                &format!("__sand_event_{}_condition", fn_name),
+                proc_macro2::Span::call_site(),
+            );
+            let revoke_ident = proc_macro2::Ident::new(
+                &format!("__sand_event_{}_revoke", fn_name),
+                proc_macro2::Span::call_site(),
+            );
+
+            quote! {
+                #preamble
+
+                #[doc(hidden)]
+                #[allow(dead_code)]
+                fn #trigger_ident() -> ::std::option::Option<::sand_core::AdvancementTrigger> {
+                    match <#param_type_tokens as ::sand_core::events::SandEvent>::dispatch() {
+                        ::sand_core::events::SandEventDispatch::AdvancementTrigger(t) => {
+                            ::std::option::Option::Some(t)
+                        }
+                        ::sand_core::events::SandEventDispatch::TickCondition(_) => {
+                            ::std::option::Option::None
+                        }
+                    }
+                }
+
+                #[doc(hidden)]
+                #[allow(dead_code)]
+                fn #cond_ident() -> ::std::option::Option<::std::string::String> {
+                    match <#param_type_tokens as ::sand_core::events::SandEvent>::dispatch() {
+                        ::sand_core::events::SandEventDispatch::TickCondition(s) => {
+                            ::std::option::Option::Some(s)
+                        }
+                        ::sand_core::events::SandEventDispatch::AdvancementTrigger(_) => {
+                            ::std::option::Option::None
+                        }
+                    }
+                }
+
+                #[doc(hidden)]
+                #[allow(dead_code)]
+                fn #revoke_ident() -> bool {
+                    <#param_type_tokens as ::sand_core::events::SandEvent>::revoke()
+                }
+
+                ::sand_core::inventory::submit!(::sand_core::EventDescriptor {
+                    path: #fn_name_str,
+                    id_override: #id_override_tokens,
+                    make: #fn_make_ident,
+                    dispatch: ::sand_core::EventDispatch::Custom {
+                        make_trigger: #trigger_ident,
+                        make_condition: #cond_ident,
+                        revoke: #revoke_ident,
+                    },
+                });
+            }
+        }
+    };
+
+    Ok(dispatch_tokens)
 }
 
 // ── run_fn! ───────────────────────────────────────────────────────────────────
@@ -1409,10 +1441,16 @@ impl syn::parse::Parse for RunFnInput {
             } else {
                 None
             };
-            Ok(RunFnInput { name: Some(name), body })
+            Ok(RunFnInput {
+                name: Some(name),
+                body,
+            })
         } else if input.peek(token::Brace) {
             let body: syn::Block = input.parse()?;
-            Ok(RunFnInput { name: None, body: Some(body) })
+            Ok(RunFnInput {
+                name: None,
+                body: Some(body),
+            })
         } else {
             Err(input.error("expected a string literal (e.g. \"ns:path\") or a block { … }"))
         }
@@ -2130,8 +2168,10 @@ fn expand_texture(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
 struct ArmorEventAttr {
     kind_ident: syn::Ident,
     slot_ident: syn::Ident,
-    item: Option<syn::LitStr>,
-    custom_data: Option<syn::LitStr>,
+    /// String literal or path expression (e.g. `MyItem::BASE`).
+    item: Option<syn::Expr>,
+    /// String literal or path expression (e.g. `MyItem::CUSTOM_DATA_SNBT`).
+    custom_data: Option<syn::Expr>,
 }
 
 impl syn::parse::Parse for ArmorEventAttr {
@@ -2173,8 +2213,8 @@ impl syn::parse::Parse for ArmorEventAttr {
         }
 
         // 4. Parse optional key = value pairs
-        let mut item: Option<syn::LitStr> = None;
-        let mut custom_data: Option<syn::LitStr> = None;
+        let mut item: Option<syn::Expr> = None;
+        let mut custom_data: Option<syn::Expr> = None;
 
         while input.peek(token::Comma) {
             let _comma: token::Comma = input.parse()?;
@@ -2186,10 +2226,12 @@ impl syn::parse::Parse for ArmorEventAttr {
             let _eq: token::Eq = input.parse()?;
             match key_str.as_str() {
                 "item" => {
-                    item = Some(input.parse()?);
+                    item = Some(input.parse::<syn::Expr>()?);
                 }
                 "custom_data" => {
-                    custom_data = Some(input.parse()?);
+                    // Accept either a string literal ("key") or a path expression
+                    // (e.g. MyItem::CUSTOM_DATA_KEY).
+                    custom_data = Some(input.parse::<syn::Expr>()?);
                 }
                 other => {
                     return Err(syn::Error::new_spanned(
@@ -2402,31 +2444,47 @@ fn expand_run_fn(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
     };
 
     if let Some(block) = body {
-        // Mangle the path into a valid Rust identifier.
-        let mangled = path_part.replace(['/', ':'], "_");
-        let fn_ident = proc_macro2::Ident::new(
-            &format!("__sand_run_fn_{mangled}"),
-            proc_macro2::Span::call_site(),
-        );
         let path_lit = LitStr::new(path_part, span);
         let cmd_body = build_cmd_body(&block);
 
-        Ok(quote! {
-            {
-                fn #fn_ident() -> ::std::vec::Vec<::std::string::String> {
-                    #cmd_body
-                }
-
-                ::sand_core::inventory::submit!(
-                    ::sand_core::FunctionDescriptor {
-                        path: #path_lit,
-                        make: #fn_ident,
+        if name.is_some() {
+            // Named run_fn!("ns:path" { ... }) — no captures expected; use inventory.
+            let mangled = path_part.replace(['/', ':'], "_");
+            let fn_ident = proc_macro2::Ident::new(
+                &format!("__sand_run_fn_{mangled}"),
+                proc_macro2::Span::call_site(),
+            );
+            Ok(quote! {
+                {
+                    fn #fn_ident() -> ::std::vec::Vec<::std::string::String> {
+                        #cmd_body
                     }
-                );
 
-                #fn_call
-            }
-        })
+                    ::sand_core::inventory::submit!(
+                        ::sand_core::FunctionDescriptor {
+                            path: #path_lit,
+                            make: #fn_ident,
+                        }
+                    );
+
+                    #fn_call
+                }
+            })
+        } else {
+            // Anonymous run_fn!({ ... }) — body is evaluated immediately so local
+            // variable captures work. Registered via runtime registry instead of
+            // inventory, so the component builder picks it up after user fns run.
+            Ok(quote! {
+                {
+                    ::sand_core::register_dyn_fn(
+                        #path_lit.to_string(),
+                        { #cmd_body },
+                    );
+
+                    #fn_call
+                }
+            })
+        }
     } else {
         Ok(fn_call)
     }
@@ -2512,7 +2570,7 @@ fn parse_schedule_attr(attr: TokenStream) -> syn::Result<ScheduleAttr> {
                         return Err(syn::Error::new_spanned(
                             &key,
                             format!("unknown parameter `{other}`; expected `ticks` or `every`"),
-                        ))
+                        ));
                     }
                 }
                 if input.peek(syn::Token![,]) {
@@ -2545,7 +2603,11 @@ fn expand_schedule(func: ItemFn, attr: ScheduleAttr) -> syn::Result<proc_macro2:
     let attrs = &func.attrs;
 
     if let Some(recv) = func.sig.inputs.iter().find_map(|a| {
-        if let syn::FnArg::Receiver(r) = a { Some(r) } else { None }
+        if let syn::FnArg::Receiver(r) = a {
+            Some(r)
+        } else {
+            None
+        }
     }) {
         return Err(syn::Error::new_spanned(
             recv,
@@ -2586,5 +2648,354 @@ fn expand_schedule(func: ItemFn, attr: ScheduleAttr) -> syn::Result<proc_macro2:
             every: #every,
             make: #fn_make_ident,
         });
+    })
+}
+
+// ── #[item] ───────────────────────────────────────────────────────────────────
+
+/// Generate a typed item struct from a `CustomItem`-producing function.
+///
+/// Reads `CustomItem::new("base_id")` and `.custom_data("key")` directly from
+/// the function body — no duplication needed. Generates a unit struct with
+/// `BASE`, `PREDICATE`, and an `item()` method that calls the original function.
+///
+/// The struct name is derived automatically from the `custom_data` key
+/// (converted to PascalCase). Override it with `#[item(name = "MyName")]`.
+/// If there is no `custom_data` call, `name` is required.
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// // Struct name "ManaBoots" derived from custom_data key "mana_boots"
+/// #[item]
+/// pub fn mana_boots() -> CustomItem {
+///     CustomItem::new("minecraft:leather_boots")
+///         .custom_data("mana_boots")
+///         .display_name("Mana Boots")
+/// }
+///
+/// // No custom_data — must provide name
+/// #[item(name = "ShardBlade")]
+/// pub fn shard_blade() -> CustomItem {
+///     CustomItem::new("minecraft:diamond_sword")
+///         .display_name("Shard Blade")
+/// }
+/// ```
+///
+/// Generated:
+/// ```rust,ignore
+/// pub struct ManaBoots;
+/// impl ManaBoots {
+///     pub const BASE: &'static str = "minecraft:leather_boots";
+///     pub const PREDICATE: &'static str =
+///         "minecraft:leather_boots[custom_data={mana_boots:1b}]";
+///     pub const CUSTOM_DATA_KEY: &'static str = "mana_boots";
+///     pub fn item() -> CustomItem { mana_boots() }
+/// }
+/// ```
+///
+/// Usage:
+/// ```rust,ignore
+/// Execute::new()
+///     .as_(Selector::all_players())
+///     .at(Selector::self_())
+///     .if_items_entity(Selector::self_(), ItemSlot::Feet, ManaBoots::PREDICATE)
+///     .run_fn("ns:on_mana_boots_tick");
+/// ```
+#[proc_macro_attribute]
+pub fn item(attr: TokenStream, input: TokenStream) -> TokenStream {
+    let func = parse_macro_input!(input as ItemFn);
+    match expand_item(attr, func) {
+        Ok(ts) => ts.into(),
+        Err(e) => e.to_compile_error().into(),
+    }
+}
+
+/// Convert `snake_case` or `kebab-case` to `PascalCase`.
+fn to_pascal_case(s: &str) -> String {
+    s.split(|c: char| c == '_' || c == '-')
+        .filter(|seg| !seg.is_empty())
+        .map(|seg| {
+            let mut chars = seg.chars();
+            match chars.next() {
+                None => String::new(),
+                Some(c) => c.to_uppercase().collect::<String>() + chars.as_str(),
+            }
+        })
+        .collect()
+}
+
+/// Recursively walk a syn `Expr` looking for:
+/// - `CustomItem::new("<base>")` → returns the base string
+/// - `.custom_data("<key>")` → returns the custom_data key
+fn item_walk_expr(expr: &syn::Expr, base: &mut Option<String>, cd: &mut Option<String>) {
+    match expr {
+        syn::Expr::Call(c) => {
+            // CustomItem::new("...") or new("...")
+            if let syn::Expr::Path(p) = &*c.func {
+                let last = p.path.segments.last().map(|s| s.ident.to_string());
+                let has_custom_item = p.path.segments.iter().any(|s| s.ident == "CustomItem");
+                if last.as_deref() == Some("new") && has_custom_item {
+                    if let Some(syn::Expr::Lit(syn::ExprLit {
+                        lit: syn::Lit::Str(s),
+                        ..
+                    })) = c.args.first()
+                    {
+                        *base = Some(s.value());
+                    }
+                }
+            }
+            item_walk_expr(&c.func, base, cd);
+            for arg in &c.args {
+                item_walk_expr(arg, base, cd);
+            }
+        }
+        syn::Expr::MethodCall(mc) => {
+            if mc.method == "custom_data" {
+                if let Some(syn::Expr::Lit(syn::ExprLit {
+                    lit: syn::Lit::Str(s),
+                    ..
+                })) = mc.args.first()
+                {
+                    *cd = Some(s.value());
+                }
+            }
+            item_walk_expr(&mc.receiver, base, cd);
+            for arg in &mc.args {
+                item_walk_expr(arg, base, cd);
+            }
+        }
+        syn::Expr::Block(b) => {
+            for stmt in &b.block.stmts {
+                item_walk_stmt(stmt, base, cd);
+            }
+        }
+        syn::Expr::Return(r) => {
+            if let Some(e) = &r.expr {
+                item_walk_expr(e, base, cd);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn item_walk_stmt(stmt: &syn::Stmt, base: &mut Option<String>, cd: &mut Option<String>) {
+    match stmt {
+        syn::Stmt::Expr(e, _) => item_walk_expr(e, base, cd),
+        syn::Stmt::Local(l) => {
+            if let Some(init) = &l.init {
+                item_walk_expr(&init.expr, base, cd);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// A single entry in the `data = [NAME: Type = value]` list.
+struct ItemDataConst {
+    name: proc_macro2::Ident,
+    ty: syn::Type,
+    value: syn::Expr,
+}
+
+/// Parse the attr tokens for `#[item(...)]`.
+/// Accepts: `name = "..."` and/or `data = [IDENT: Type = expr, ...]`
+struct ItemAttr {
+    name: Option<String>,
+    data: Vec<ItemDataConst>,
+}
+
+impl syn::parse::Parse for ItemAttr {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let mut name: Option<String> = None;
+        let mut data: Vec<ItemDataConst> = Vec::new();
+
+        while !input.is_empty() {
+            let key: syn::Ident = input.parse()?;
+            let _eq: syn::Token![=] = input.parse()?;
+
+            match key.to_string().as_str() {
+                "name" => {
+                    let val: LitStr = input.parse()?;
+                    name = Some(val.value());
+                }
+                "data" => {
+                    // Parse `[ IDENT: Type = Expr, ... ]`
+                    let content;
+                    syn::bracketed!(content in input);
+                    while !content.is_empty() {
+                        let const_name: proc_macro2::Ident = content.parse()?;
+                        let _colon: syn::Token![:] = content.parse()?;
+                        let ty: syn::Type = content.parse()?;
+                        let _eq2: syn::Token![=] = content.parse()?;
+                        let value: syn::Expr = content.parse()?;
+                        data.push(ItemDataConst {
+                            name: const_name,
+                            ty,
+                            value,
+                        });
+                        if content.peek(syn::Token![,]) {
+                            let _: syn::Token![,] = content.parse()?;
+                        }
+                    }
+                }
+                other => {
+                    return Err(syn::Error::new_spanned(
+                        &key,
+                        format!(
+                            "unknown #[item] parameter `{other}`; \
+                             expected `name = \"...\"` or \
+                             `data = [CONST: Type = value, ...]`"
+                        ),
+                    ));
+                }
+            }
+
+            if input.peek(syn::Token![,]) {
+                let _: syn::Token![,] = input.parse()?;
+            }
+        }
+
+        Ok(ItemAttr { name, data })
+    }
+}
+
+fn expand_item(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::TokenStream> {
+    // ── Parse attr ────────────────────────────────────────────────────────────
+    let item_attr = if attr.is_empty() {
+        ItemAttr {
+            name: None,
+            data: vec![],
+        }
+    } else {
+        syn::parse::<ItemAttr>(attr)?
+    };
+
+    // ── Extract base and custom_data from function body ───────────────────────
+    let mut base: Option<String> = None;
+    let mut custom_data: Option<String> = None;
+    for stmt in &func.block.stmts {
+        item_walk_stmt(stmt, &mut base, &mut custom_data);
+    }
+
+    let base = base.ok_or_else(|| {
+        syn::Error::new_spanned(
+            &func.sig,
+            "#[item] could not find `CustomItem::new(\"minecraft:...\")` in the function body. \
+             Make sure the base item ID is a string literal passed directly to `CustomItem::new`.",
+        )
+    })?;
+
+    // ── Determine struct name ─────────────────────────────────────────────────
+    let struct_name_str = if let Some(n) = item_attr.name {
+        n
+    } else if let Some(ref cd) = custom_data {
+        to_pascal_case(cd)
+    } else {
+        return Err(syn::Error::new_spanned(
+            &func.sig,
+            "#[item] could not find a `.custom_data(\"key\")` call to derive the struct name. \
+             Either add `.custom_data(\"your_key\")` to uniquely identify this item, or \
+             specify an explicit name with `#[item(name = \"YourName\")]`.",
+        ));
+    };
+
+    // ── Build constants ───────────────────────────────────────────────────────
+    let struct_ident = proc_macro2::Ident::new(&struct_name_str, proc_macro2::Span::call_site());
+    let fn_ident = &func.sig.ident;
+    let vis = &func.vis;
+    let fn_attrs = &func.attrs;
+
+    let predicate_lit = match &custom_data {
+        // 1.21.2+: use ~ (partial/contains match); full namespace required in commands.
+        Some(key) => format!("{base}[minecraft:custom_data~{{{key}:1b}}]"),
+        None => base.clone(),
+    };
+
+    let custom_data_const = if let Some(ref key) = custom_data {
+        let snbt = format!("{{{key}:1b}}");
+        quote! {
+            /// The raw `custom_data` key (e.g. `"mana_boots"`).
+            pub const CUSTOM_DATA_KEY: &'static str = #key;
+
+            /// SNBT form of the `custom_data` tag (e.g. `"{mana_boots:1b}"`).
+            ///
+            /// Use this with `#[armor_event(..., custom_data = MyItem::CUSTOM_DATA_SNBT)]`.
+            pub const CUSTOM_DATA_SNBT: &'static str = #snbt;
+        }
+    } else {
+        quote! {}
+    };
+
+    // ── User-defined data consts ──────────────────────────────────────────────
+    let data_consts = item_attr.data.iter().map(|c| {
+        let const_name = &c.name;
+        let ty = &c.ty;
+        let val = &c.value;
+        quote! { pub const #const_name: #ty = #val; }
+    });
+
+    Ok(quote! {
+        #(#fn_attrs)*
+        #func
+
+        /// Auto-generated item reference type produced by `#[item]`.
+        ///
+        /// Use [`PREDICATE`](Self::PREDICATE) with
+        /// [`Execute::if_items_entity`] to detect this item in any slot, and
+        /// [`item()`](Self::item) to obtain the [`CustomItem`] definition.
+        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        #vis struct #struct_ident;
+
+        impl #struct_ident {
+            /// The base Minecraft item ID (e.g. `"minecraft:leather_boots"`).
+            pub const BASE: &'static str = #base;
+
+            /// Full item predicate for `execute if items`.
+            ///
+            /// Includes the `custom_data` component when set, making this
+            /// predicate uniquely identify this item.
+            pub const PREDICATE: &'static str = #predicate_lit;
+
+            #custom_data_const
+
+            #(#data_consts)*
+
+            /// Returns an `execute if items entity @s <slot> <predicate> run <cmd>` command
+            /// that runs `cmd` only when `@s` has this item equipped in `slot`.
+            ///
+            /// # Example
+            /// ```rust,ignore
+            /// mcfunction! {
+            ///     ManaBoots::if_wearing(ItemSlot::Feet, run_fn! { … });
+            /// }
+            /// ```
+            pub fn if_wearing(
+                slot: ::sand_core::cmd::ItemSlot,
+                cmd: impl ::std::fmt::Display,
+            ) -> ::std::string::String {
+                ::std::format!(
+                    "execute if items entity @s {slot} {} run {cmd}",
+                    Self::PREDICATE,
+                )
+            }
+
+            /// Returns an `execute unless items entity @s <slot> <predicate> run <cmd>` command
+            /// that runs `cmd` only when `@s` does NOT have this item in `slot`.
+            pub fn unless_wearing(
+                slot: ::sand_core::cmd::ItemSlot,
+                cmd: impl ::std::fmt::Display,
+            ) -> ::std::string::String {
+                ::std::format!(
+                    "execute unless items entity @s {slot} {} run {cmd}",
+                    Self::PREDICATE,
+                )
+            }
+
+            /// Construct the [`CustomItem`] definition for this item.
+            pub fn item() -> ::sand_core::CustomItem {
+                #fn_ident()
+            }
+        }
     })
 }

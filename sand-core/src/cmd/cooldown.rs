@@ -34,8 +34,7 @@
 /// "scoreboard objectives add fireball_cd dummy"
 /// ```
 /// The `Cooldown::register()` helper generates that command for you.
-use super::objective::Objective;
-use super::types::ScoreHolder;
+use sand_commands::{Objective, ScoreHolder};
 
 // ── Cooldown ──────────────────────────────────────────────────────────────────
 
@@ -154,9 +153,7 @@ impl Cooldown {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::cmd::objective::Objective;
-    use crate::cmd::selector::Selector;
-    use crate::cmd::types::ScoreHolder;
+    use sand_commands::{Objective, ScoreHolder};
 
     static OBJ: Objective = Objective::new("fireball_cd");
     static CD: Cooldown = Cooldown::new(&OBJ, 60);

@@ -1594,11 +1594,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "sand-commands"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
+name = "sand-components"
+version = "0.1.0"
+dependencies = [
+ "sand-commands",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "sand-core"
 version = "0.1.0"
 dependencies = [
  "inventory",
  "sand-build",
+ "sand-commands",
+ "sand-components",
  "serde",
  "serde_json",
  "thiserror 2.0.18",

@@ -1,0 +1,15 @@
+[package]
+name = "sand-commands"
+description = "Typed Minecraft command builders for the Sand datapack toolkit"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+keywords = ["minecraft", "datapack", "commands", "gamedev"]
+categories = ["game-development"]
+
+[dependencies]
+serde_json = "1"

@@ -1,57 +1,78 @@
 //! High-level HUD layout compositor.
 //!
-//! [`HudLayout`] is the recommended way to display one or more HUD elements
-//! simultaneously. It:
+//! [`HudLayout`] is the recommended high-level interface for displaying one
+//! or more HUD bars and elements simultaneously. It:
 //!
-//! - Accepts any mix of [`BarHandle`]s and [`ElementHandle`]s
+//! - Accepts any mix of [`BarHandle`]s (dynamic progress bars) and
+//!   [`ElementHandle`]s (static overlays)
 //! - Positions each element at an absolute canvas coordinate
-//! - Combines everything into a single actionbar text component per command
-//!   so multiple elements appear at once without overwriting each other
-//! - Handles the scoreboard Cartesian product for multiple dynamic bars
+//! - Combines all elements into a single actionbar text component so
+//!   multiple HUD pieces appear together without overwriting each other
+//! - Handles all unicode Private-Use-Area glyph selection and advance math
+//!   automatically — no manual codepoint manipulation needed
+//!
+//! # Rendering strategies
+//!
+//! Two methods emit the tick-time display commands. Choose based on how many
+//! bar steps your layout has:
+//!
+//! | Method | Command count | Best for |
+//! |---|---|---|
+//! | [`broadcast`] | `N₁ × N₂ × …` (Cartesian product) | 1–2 bars with ≤ 10 steps each |
+//! | [`broadcast_via_storage`] | `N₁ + N₂ + … + 1` (linear) | Any layout; **preferred for 3+ bars or > 10 steps** |
+//!
+//! **Prefer [`broadcast_via_storage`]** for production code. It scales
+//! linearly regardless of bar count or step count, while [`broadcast`] grows
+//! exponentially and can easily exceed Minecraft's per-tick command budget.
 //!
 //! # Vertical positioning
 //!
-//! Horizontal position is set via `canvas_x`. Vertical position is fixed at
-//! build time through the `ascent` field in each `hud_bar!` / `hud_element!`
-//! call — bars with different `ascent` values appear at different heights.
-//! You do **not** need to do anything at display time to control Y position.
+//! Horizontal position is set via `canvas_x`. Vertical position is baked in
+//! at macro registration time via the `ascent` field in each `hud_bar!` /
+//! `hud_element!` call — bars with different `ascent` values appear at
+//! different Y positions. No per-tick work is required for vertical layout.
 //!
-//! # Example
+//! # Example — two bars, storage-based (recommended)
 //!
 //! ```rust,ignore
-//! use sand_resourcepack::HudLayout;
+//! use sand_resourcepack::{HudLayout, BarStat};
 //!
 //! hud_bar!(
-//!     name = "health",
-//!     texture = create!(fill = 0xFF4444FF, empty = 0x333333FF),
-//!     steps = 20, height = 14, ascent = 14,
+//!     name: "health",
+//!     texture: create!(fill: 0xFF4444FF, empty: 0x333333FF),
+//!     steps: 20, height: 14, ascent: 14,
 //! );
 //! hud_bar!(
-//!     name = "mana",
-//!     texture = create!(fill = 0x4444FFFF, empty = 0x222244FF),
-//!     steps = 20, height = 14, ascent = 0,   // lower Y than health
+//!     name: "mana",
+//!     texture: create!(fill: 0x4444FFFF, empty: 0x222244FF),
+//!     steps: 20, height: 14, ascent: 0,   // lower than health
 //! );
 //!
 //! const CANVAS_WIDTH: i32 = 1000;
+//! const MY_LAYOUT: HudLayout = /* constructed elsewhere, typically const/lazy */;
+//!
+//! #[component(Load)]
+//! pub fn load() {
+//!     mcfunction! {
+//!         // Pre-compute static element JSON once at load time
+//!         MY_LAYOUT.setup_storage();
+//!     }
+//! }
 //!
 //! #[component(Tick)]
 //! pub fn tick() {
 //!     mcfunction! {
-//!         // ... scoreboard math ...
-//!
-//!         HudLayout::new("my_pack", CANVAS_WIDTH)
-//!             .bar(HEALTH, "hp_frame", 250)   // health bar at left-quarter
-//!             .bar(MANA, "mp_frame", 750)     // mana bar at right-quarter
-//!             .broadcast("@a");
+//!         // Execute per-player so each player's write is isolated
+//!         execute as @a run run_fn!({
+//!             // ... scale scoreboard values to 0..steps ...
+//!             MY_LAYOUT.broadcast_via_storage("@s"); // 20+20+1 = 41 cmds, not 400
+//!         });
 //!     }
 //! }
 //! ```
 //!
-//! The layout emits `steps_health × steps_mana` combined actionbar commands.
-//! For two bars of 20 steps each that is 400 commands — each one checks both
-//! scores and renders both bars in a single text component. This is the only
-//! correct way to show multiple dynamic bars without them overwriting each
-//! other.
+//! [`broadcast`]: HudLayout::broadcast
+//! [`broadcast_via_storage`]: HudLayout::broadcast_via_storage
 
 use crate::handle::{BarHandle, ElementHandle};
 use crate::stat::BarStat;
@@ -179,20 +200,24 @@ impl HudLayout {
 
     // ── Internal text building ─────────────────────────────────────────────
 
-    /// Build the combined text string for a specific combination of bar frames.
+    /// Build the combined text string for one font group in a specific bar-frame combination.
     ///
-    /// Each element is placed using the zero-total-width technique:
-    /// `advance_to + char + advance_back` where `advance_back` cancels the
-    /// glyph advance, keeping the total string width at 0. With width 0 the
-    /// centering origin is exactly at screen center, so `x_offset` pixels
-    /// directly maps to font pixels from center.
+    /// Uses the **zero-total-width technique**: for each element the cursor is
+    /// advanced to `canvas_x − canvas_width/2` (placing the glyph at the
+    /// desired screen position relative to the actionbar center), then advanced
+    /// back by the same amount plus the glyph advance, so the net cursor
+    /// movement is always zero. This lets every element in the string appear at
+    /// its chosen absolute position regardless of ordering.
+    ///
+    /// `bar_frames` must have one entry per [`LayoutEntry::Bar`] in this layout,
+    /// in order. Pass `&[]` only when the layout has no bar entries (elements only).
     fn build_text_for_font(&self, font: &str, bar_frames: &[u32]) -> String {
         let mut text = String::new();
         let mut bar_idx = 0;
 
         for entry in &self.entries {
             if entry.font() != font {
-                // Advance bar_idx even for skipped bars so indexing stays consistent.
+                // Keep bar_idx in sync even for entries in other fonts.
                 if let LayoutEntry::Bar { .. } = entry {
                     bar_idx += 1;
                 }
@@ -225,10 +250,39 @@ impl HudLayout {
 
     /// Build the full JSON text component for a given bar-frame combination.
     ///
-    /// If all entries share one font, produces a single `{"text":...}` object.
-    /// If multiple fonts are in use, wraps each font group in an array element
-    /// so every group can specify its own font identifier.
+    /// Groups entries by font so each font gets a separate JSON object with
+    /// its own `"font"` field. Multiple font groups are wrapped in a JSON array.
+    /// Single-font layouts emit a plain `{"text":"…"}` object (no array wrapper).
+    ///
+    /// Characters are JSON-escaped (`\uXXXX`) so the result can be embedded
+    /// directly in a Minecraft command string. For storage use see
+    /// [`build_json_for_storage`].
+    ///
+    /// [`build_json_for_storage`]: HudLayout::build_json_for_storage
     fn build_json(&self, bar_frames: &[u32]) -> String {
+        self.build_json_impl(bar_frames, true)
+    }
+
+    /// Same as [`build_json`] but embeds characters as raw UTF-8 instead of
+    /// `\uXXXX` escapes.
+    ///
+    /// SNBT single-quoted strings (used by `data modify storage … set value '…'`)
+    /// do not reliably support `\uXXXX` escape sequences across all Minecraft
+    /// versions — the backslash may be processed before the value reaches NBT
+    /// storage, corrupting the JSON. Raw PUA characters (U+E000–U+F8FF) are
+    /// valid in JSON strings and are preserved verbatim by the SNBT parser, so
+    /// `"interpret":true` can then parse and render them correctly.
+    ///
+    /// [`build_json`]: HudLayout::build_json
+    fn build_json_for_storage(&self, bar_frames: &[u32]) -> String {
+        self.build_json_impl(bar_frames, false)
+    }
+
+    /// Shared implementation for [`build_json`] and [`build_json_for_storage`].
+    ///
+    /// When `escape` is `true` every PUA character is written as `\uXXXX`.
+    /// When `false` the raw UTF-8 bytes are embedded directly.
+    fn build_json_impl(&self, bar_frames: &[u32], escape: bool) -> String {
         // Collect distinct fonts in insertion order.
         let mut fonts: Vec<&str> = Vec::new();
         for entry in &self.entries {
@@ -246,9 +300,13 @@ impl HudLayout {
             .iter()
             .map(|&font| {
                 let text = self.build_text_for_font(font, bar_frames);
-                let escaped = json_escape_chars(&text);
+                let content = if escape {
+                    json_escape_chars(&text)
+                } else {
+                    text
+                };
                 let font_id = format!("{}:{}", self.namespace, font);
-                format!(r#"{{"text":"{escaped}","font":"{font_id}","color":"white"}}"#)
+                format!(r#"{{"text":"{content}","font":"{font_id}","color":"white"}}"#)
             })
             .collect();
 
@@ -257,6 +315,39 @@ impl HudLayout {
         } else {
             format!("[{}]", components.join(","))
         }
+    }
+
+    /// Build the JSON component for the **static elements only** (no bars).
+    ///
+    /// This is equivalent to `build_json(&[])` on a layout that contains only
+    /// elements. Delegates to the standard pipeline by temporarily filtering to
+    /// elements, so the font-grouping logic is shared and not duplicated.
+    fn build_static_json(&self) -> String {
+        // Build a temporary view with only element entries.
+        let elem_only = HudLayout {
+            namespace: self.namespace.clone(),
+            canvas_width: self.canvas_width,
+            entries: self
+                .entries
+                .iter()
+                .filter_map(|e| {
+                    if let LayoutEntry::Element { handle, canvas_x } = e {
+                        Some(LayoutEntry::Element {
+                            handle: ElementHandle {
+                                name: handle.name,
+                                font: handle.font,
+                                char_width: handle.char_width,
+                            },
+                            canvas_x: *canvas_x,
+                        })
+                    } else {
+                        None
+                    }
+                })
+                .collect(),
+        };
+
+        elem_only.build_json_for_storage(&[])
     }
 
     // ── Public command generators ──────────────────────────────────────────
@@ -328,6 +419,175 @@ impl HudLayout {
                 format!("execute as {executor} {conditions} run title @s actionbar {json}")
             })
             .collect()
+    }
+
+    // ── Storage-based rendering ────────────────────────────────────────────
+
+    /// Build the full JSON text component for a single bar entry at a specific
+    /// frame.
+    ///
+    /// Creates a temporary single-bar [`HudLayout`] and delegates to
+    /// [`build_json`] so the font-grouping logic is shared with [`broadcast`].
+    /// The returned string is stored verbatim in NBT storage and later parsed
+    /// by Minecraft via `"interpret":true`.
+    ///
+    /// Example output:
+    /// `{"text":"\uE045\uF801…","font":"ns:hud","color":"white"}`
+    ///
+    /// [`build_json`]: HudLayout::build_json
+    /// [`broadcast`]: HudLayout::broadcast
+    fn build_bar_json_for_frame(&self, handle: &BarHandle, canvas_x: i32, frame: u32) -> String {
+        let single = HudLayout {
+            namespace: self.namespace.clone(),
+            canvas_width: self.canvas_width,
+            entries: vec![LayoutEntry::Bar {
+                handle: *handle,
+                objective: String::new(), // unused during JSON building
+                canvas_x,
+            }],
+        };
+        single.build_json_for_storage(&[frame])
+    }
+
+    /// Returns a single `data modify storage` command that stores the static
+    /// element JSON at `{namespace}:hud static`.
+    ///
+    /// Call this from your **load function** once to initialize the storage key
+    /// that [`broadcast_via_storage`] reads every tick.
+    ///
+    /// If this layout has no static elements, returns `None`.
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// #[component(Load)]
+    /// pub fn load() {
+    ///     mcfunction! {
+    ///         // ... other load commands ...
+    ///         MY_LAYOUT.setup_storage();
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// [`broadcast_via_storage`]: HudLayout::broadcast_via_storage
+    pub fn setup_storage(&self) -> Option<String> {
+        let has_elements = self
+            .entries
+            .iter()
+            .any(|e| matches!(e, LayoutEntry::Element { .. }));
+        if !has_elements {
+            return None;
+        }
+        let json = self.build_static_json();
+        Some(format!(
+            "data modify storage {}:hud static set value '{json}'",
+            self.namespace
+        ))
+    }
+
+    /// Storage-based HUD broadcast: **O(N₁ + N₂ + … + 1)** commands instead
+    /// of the Cartesian-product O(N₁ × N₂ × …) produced by [`broadcast`].
+    ///
+    /// For each bar this emits one `execute if score …` command per frame that
+    /// writes the frame JSON into `{namespace}:hud barI` in NBT storage. A
+    /// single `title` command then reads every bar's storage key (and the
+    /// pre-initialized `static` key for elements) to assemble the final
+    /// actionbar in one shot.
+    ///
+    /// # Required setup
+    ///
+    /// If your layout contains static elements, call [`setup_storage`] from
+    /// your load function first.
+    ///
+    /// # Per-player isolation
+    ///
+    /// Because all bars share the same storage keys, this method **must run
+    /// inside a per-player function** so that each player's writes are flushed
+    /// before the `title` command reads them. The canonical pattern is to call
+    /// it from an anonymous `run_fn!` block (which Sand wraps in a
+    /// `execute as @a run function …` call):
+    ///
+    /// ```rust,ignore
+    /// #[component(Tick)]
+    /// pub fn tick() {
+    ///     mcfunction! {
+    ///         execute as @a run run_fn!({
+    ///             // scale / clamp bar objectives …
+    ///             MY_LAYOUT.broadcast_via_storage("@s");
+    ///         });
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// # Command count
+    ///
+    /// steps₁ + steps₂ + … + 1. Three bars of 20 / 100 / 20 → **141 commands**
+    /// regardless of how many players are online (vs 40 000 with [`broadcast`]).
+    ///
+    /// [`broadcast`]: HudLayout::broadcast
+    /// [`setup_storage`]: HudLayout::setup_storage
+    pub fn broadcast_via_storage(&self, executor: &str) -> Vec<String> {
+        let ns = &self.namespace;
+        let mut cmds = Vec::new();
+
+        // Per-bar: emit one `data modify storage` command per frame that stores
+        // the full JSON text component (identical format to what `broadcast`
+        // emits directly). The title command later reads each key with
+        // `"interpret":true` so Minecraft parses the stored string as a JSON
+        // text component — the font, color, and cursor-advance chars are all
+        // resolved correctly that way.
+        let mut bar_i = 0usize;
+        for entry in &self.entries {
+            if let LayoutEntry::Bar {
+                handle,
+                objective,
+                canvas_x,
+            } = entry
+            {
+                for frame in 0..handle.steps {
+                    let json = self.build_bar_json_for_frame(handle, *canvas_x, frame);
+                    cmds.push(format!(
+                        "execute if score @s {objective} matches {frame}..{frame} run data modify storage {ns}:hud bar{bar_i} set value '{json}'"
+                    ));
+                }
+                bar_i += 1;
+            }
+        }
+
+        let bar_count = bar_i;
+        let has_elements = self
+            .entries
+            .iter()
+            .any(|e| matches!(e, LayoutEntry::Element { .. }));
+
+        if bar_count == 0 && !has_elements {
+            return Vec::new();
+        }
+
+        // Assemble the title command. Every component — both static elements
+        // and per-bar keys — uses `"interpret":true` so Minecraft parses the
+        // stored JSON string and applies the correct font and positioning.
+        let mut parts: Vec<String> = Vec::new();
+
+        if has_elements {
+            parts.push(format!(
+                r#"{{"type":"nbt","source":"storage","storage":"{ns}:hud","nbt":"static","interpret":true}}"#
+            ));
+        }
+        for i in 0..bar_count {
+            parts.push(format!(
+                r#"{{"type":"nbt","source":"storage","storage":"{ns}:hud","nbt":"bar{i}","interpret":true}}"#
+            ));
+        }
+
+        let title_json = if parts.len() == 1 {
+            parts[0].clone()
+        } else {
+            format!("[{}]", parts.join(","))
+        };
+
+        cmds.push(format!("title {executor} actionbar {title_json}"));
+        cmds
     }
 
     /// Generate commands that show only the **static elements** in this layout
@@ -462,6 +722,79 @@ mod tests {
         // We can't inspect the exact unicode escapes portably, but we can check
         // the command is well-formed.
         assert!(cmds[0].contains("\"font\":\"ns:hud\""));
+    }
+
+    #[test]
+    fn broadcast_via_storage_command_count() {
+        // steps_health + steps_mana + 1 title command
+        let cmds = HudLayout::new("ns", 1000)
+            .bar(HEALTH, "hp_frame", 300)
+            .bar(MANA, "mp_frame", 700)
+            .broadcast_via_storage("@s");
+        assert_eq!(cmds.len(), HEALTH.steps as usize + MANA.steps as usize + 1);
+        // First commands write to storage
+        assert!(cmds[0].contains("data modify storage ns:hud bar0"));
+        assert!(cmds[0].contains("matches 0..0"));
+        // Last command is the title
+        let last = cmds.last().unwrap();
+        assert!(last.starts_with("title @s actionbar"));
+        assert!(last.contains(r#""source":"storage""#));
+        assert!(last.contains(r#""storage":"ns:hud""#));
+        // All components use interpret:true — font is inside the stored JSON
+        assert!(last.contains(r#""interpret":true"#));
+    }
+
+    #[test]
+    fn broadcast_via_storage_bars_use_separate_keys() {
+        let cmds = HudLayout::new("ns", 1000)
+            .bar(HEALTH, "hp_frame", 300)
+            .bar(MANA, "mp_frame", 700)
+            .broadcast_via_storage("@s");
+        // Health writes to bar0, mana writes to bar1
+        assert!(cmds[0].contains("bar0"));
+        let mana_start = HEALTH.steps as usize;
+        assert!(cmds[mana_start].contains("bar1"));
+    }
+
+    #[test]
+    fn broadcast_via_storage_static_in_title() {
+        let cmds = HudLayout::new("ns", 1000)
+            .bar(HEALTH, "hp_frame", 300)
+            .element(BORDER, 500)
+            .broadcast_via_storage("@s");
+        let title = cmds.last().unwrap();
+        assert!(title.contains(r#""nbt":"static""#));
+        assert!(title.contains(r#""nbt":"bar0""#));
+    }
+
+    #[test]
+    fn setup_storage_returns_none_without_elements() {
+        let layout = HudLayout::new("ns", 1000).bar(HEALTH, "hp_frame", 300);
+        assert!(layout.setup_storage().is_none());
+    }
+
+    #[test]
+    fn setup_storage_returns_command_with_elements() {
+        let layout = HudLayout::new("ns", 1000)
+            .bar(HEALTH, "hp_frame", 300)
+            .element(BORDER, 500);
+        let cmd = layout.setup_storage().unwrap();
+        assert!(cmd.starts_with("data modify storage ns:hud static set value '"));
+    }
+
+    #[test]
+    fn broadcast_via_storage_single_bar_no_elements() {
+        let cmds = HudLayout::new("ns", 1000)
+            .bar(HEALTH, "hp_frame", 500)
+            .broadcast_via_storage("@s");
+        // steps + 1 title
+        assert_eq!(cmds.len(), HEALTH.steps as usize + 1);
+        let title = cmds.last().unwrap();
+        // Only bar0, no static
+        assert!(title.contains(r#""nbt":"bar0""#));
+        assert!(!title.contains(r#""nbt":"static""#));
+        // Single component — not wrapped in array
+        assert!(!title.contains('['));
     }
 
     #[test]

@@ -1,4 +1,9 @@
-//! Typed API for Minecraft's `data` command and NBT storage.
+//! Minecraft NBT storage abstraction for datapacks.
+//!
+//! This module provides only the datapack-level types: [`Storage`] and
+//! [`StorageKind`]. The low-level building blocks — [`NbtValue`], [`DataTarget`],
+//! [`DataModify`], and [`data_modify`] — live in `sand-commands` and are
+//! re-exported from `sand_core::cmd`.
 //!
 //! # Storage — a typed HashMap over Minecraft NBT
 //!
@@ -31,292 +36,18 @@
 //! WORLD.push_front("kill_log", NbtValue::from("Golem"))
 //! ```
 //!
-//! ## Minecraft storage locations
+//! ## Passing Storage to Objective
 //!
-//! | Location | Type | Persists | Best for |
-//! |----------|------|----------|----------|
-//! | [`DataTarget::Entity`] | per-entity NBT | until entity removed | per-entity state |
-//! | [`DataTarget::Block`]  | block-entity NBT | until block removed | chest/furnace contents |
-//! | [`DataTarget::Storage`] | named storage | world lifetime | global / cross-function state |
+//! `Storage` implements `Into<String>` (via `From<&Storage> for String`), so
+//! it can be passed directly to `Objective::load_from`:
+//!
+//! ```rust,ignore
+//! INFERNO_DMG.load_from(ScoreHolder::self_(), &PLAYERS, "uuid.damage")
+//! ```
 
 use std::borrow::Cow;
-use std::fmt;
 
-use super::{BlockPos, Command, Selector};
-
-// ── NbtValue ──────────────────────────────────────────────────────────────────
-
-/// A typed NBT value for use with [`Storage`] and [`DataModify`].
-///
-/// Implements `From` for the most common Rust primitives so you rarely need
-/// to construct this explicitly:
-///
-/// ```rust,ignore
-/// store.insert("phase",  2_i32);   // i32 → NbtValue::Int
-/// store.insert("active", true);    // bool → NbtValue::Bool
-/// store.insert("name",   "Golem"); // &str → NbtValue::String
-/// store.insert("ratio",  0.5_f64); // f64  → NbtValue::Double
-/// ```
-///
-/// For compound or list values use [`NbtValue::raw`]:
-/// ```rust,ignore
-/// store.insert("spawn", NbtValue::raw("{x:0,y:64,z:0}"));
-/// ```
-#[derive(Debug, Clone)]
-pub enum NbtValue {
-    /// Boolean flag. Serializes as `1b` (true) or `0b` (false).
-    Bool(bool),
-    /// 8-bit signed integer. Serializes as `<n>b`.
-    Byte(i8),
-    /// 16-bit signed integer. Serializes as `<n>s`.
-    Short(i16),
-    /// 32-bit signed integer. Serializes as `<n>`.
-    Int(i32),
-    /// 64-bit signed integer. Serializes as `<n>L`.
-    Long(i64),
-    /// 32-bit float. Serializes as `<n>f`.
-    Float(f32),
-    /// 64-bit float. Serializes as `<n>d`.
-    Double(f64),
-    /// UTF-8 string. Serializes as `"<escaped>"`.
-    String(String),
-    /// Raw SNBT — use this for compounds, lists, or any pre-formatted NBT.
-    Raw(String),
-}
-
-impl NbtValue {
-    /// Wrap a pre-formatted SNBT string (e.g. `"{x:0,y:64,z:0}"`).
-    pub fn raw(snbt: impl Into<String>) -> Self {
-        NbtValue::Raw(snbt.into())
-    }
-}
-
-impl fmt::Display for NbtValue {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            NbtValue::Bool(b) => write!(f, "{}", if *b { "1b" } else { "0b" }),
-            NbtValue::Byte(n) => write!(f, "{n}b"),
-            NbtValue::Short(n) => write!(f, "{n}s"),
-            NbtValue::Int(n) => write!(f, "{n}"),
-            NbtValue::Long(n) => write!(f, "{n}L"),
-            NbtValue::Float(n) => write!(f, "{n}f"),
-            NbtValue::Double(n) => write!(f, "{n}d"),
-            NbtValue::String(s) => {
-                write!(f, "\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\""))
-            }
-            NbtValue::Raw(s) => write!(f, "{s}"),
-        }
-    }
-}
-
-impl From<bool> for NbtValue {
-    fn from(v: bool) -> Self {
-        NbtValue::Bool(v)
-    }
-}
-impl From<i8> for NbtValue {
-    fn from(v: i8) -> Self {
-        NbtValue::Byte(v)
-    }
-}
-impl From<i16> for NbtValue {
-    fn from(v: i16) -> Self {
-        NbtValue::Short(v)
-    }
-}
-impl From<i32> for NbtValue {
-    fn from(v: i32) -> Self {
-        NbtValue::Int(v)
-    }
-}
-impl From<i64> for NbtValue {
-    fn from(v: i64) -> Self {
-        NbtValue::Long(v)
-    }
-}
-impl From<f32> for NbtValue {
-    fn from(v: f32) -> Self {
-        NbtValue::Float(v)
-    }
-}
-impl From<f64> for NbtValue {
-    fn from(v: f64) -> Self {
-        NbtValue::Double(v)
-    }
-}
-impl From<&str> for NbtValue {
-    fn from(v: &str) -> Self {
-        NbtValue::String(v.to_owned())
-    }
-}
-impl From<String> for NbtValue {
-    fn from(v: String) -> Self {
-        NbtValue::String(v)
-    }
-}
-
-// ── DataTarget ────────────────────────────────────────────────────────────────
-
-/// Where data should be read from or written to.
-#[derive(Debug, Clone)]
-pub enum DataTarget {
-    /// Entity NBT data (target must be a selector matching the entity).
-    Entity(Selector),
-    /// Block entity NBT data at a specific position.
-    Block(BlockPos),
-    /// A named NBT storage namespace (e.g. `"my_pack:global"`).
-    Storage(String),
-}
-
-impl DataTarget {
-    /// Create a data target for a specific entity.
-    pub fn entity(selector: Selector) -> Self {
-        DataTarget::Entity(selector)
-    }
-    /// Create a data target for a block entity.
-    pub fn block(pos: BlockPos) -> Self {
-        DataTarget::Block(pos)
-    }
-    /// Create a data target for a named storage namespace.
-    pub fn storage(id: impl Into<String>) -> Self {
-        DataTarget::Storage(id.into())
-    }
-}
-
-impl fmt::Display for DataTarget {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            DataTarget::Entity(sel) => write!(f, "entity {sel}"),
-            DataTarget::Block(pos) => write!(f, "block {pos}"),
-            DataTarget::Storage(id) => write!(f, "storage {id}"),
-        }
-    }
-}
-
-// ── DataModify ────────────────────────────────────────────────────────────────
-
-/// Builder for `data modify <target> <path> <operation> <source>`.
-///
-/// # Example
-/// ```rust,ignore
-/// use sand_core::cmd::{data_modify, DataTarget, NbtValue, Selector};
-///
-/// // data modify entity @s Custom.ready set value 1b
-/// let cmd = data_modify(DataTarget::entity(Selector::self_()), "Custom.ready")
-///     .set(true);
-///
-/// // data modify entity @s Inventory append value {id:"minecraft:apple",Count:1b}
-/// let cmd = data_modify(DataTarget::entity(Selector::self_()), "Inventory")
-///     .append(NbtValue::raw(r#"{id:"minecraft:apple",Count:1b}"#));
-/// ```
-#[derive(Debug, Clone)]
-pub struct DataModify {
-    target: DataTarget,
-    path: String,
-}
-
-impl DataModify {
-    pub(crate) fn new(target: DataTarget, path: impl Into<String>) -> Self {
-        Self {
-            target,
-            path: path.into(),
-        }
-    }
-
-    /// `set value <nbt>` — overwrite the path with a typed value.
-    pub fn set(self, value: impl Into<NbtValue>) -> String {
-        format!(
-            "data modify {} {} set value {}",
-            self.target,
-            self.path,
-            value.into()
-        )
-    }
-
-    /// `set from <source> <source_path>` — copy a value from another location.
-    pub fn set_from(self, source: DataTarget, source_path: impl Into<String>) -> String {
-        format!(
-            "data modify {} {} set from {} {}",
-            self.target,
-            self.path,
-            source,
-            source_path.into()
-        )
-    }
-
-    /// `append value <nbt>` — push to the end of a list.
-    pub fn append(self, value: impl Into<NbtValue>) -> String {
-        format!(
-            "data modify {} {} append value {}",
-            self.target,
-            self.path,
-            value.into()
-        )
-    }
-
-    /// `prepend value <nbt>` — push to the front of a list.
-    pub fn prepend(self, value: impl Into<NbtValue>) -> String {
-        format!(
-            "data modify {} {} prepend value {}",
-            self.target,
-            self.path,
-            value.into()
-        )
-    }
-
-    /// `append from <source> <source_path>` — copy-append from another location.
-    pub fn append_from(self, source: DataTarget, source_path: impl Into<String>) -> String {
-        format!(
-            "data modify {} {} append from {} {}",
-            self.target,
-            self.path,
-            source,
-            source_path.into()
-        )
-    }
-
-    /// `insert <index> value <nbt>` — insert into a list at the given index.
-    pub fn insert(self, index: i32, value: impl Into<NbtValue>) -> String {
-        format!(
-            "data modify {} {} insert {} value {}",
-            self.target,
-            self.path,
-            index,
-            value.into()
-        )
-    }
-
-    /// `merge value <nbt>` — merge a compound value into the path.
-    pub fn merge(self, value: impl Into<NbtValue>) -> String {
-        format!(
-            "data modify {} {} merge value {}",
-            self.target,
-            self.path,
-            value.into()
-        )
-    }
-}
-
-impl fmt::Display for DataModify {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "data modify {} {}", self.target, self.path)
-    }
-}
-
-impl Command for DataModify {}
-
-/// Build a `data modify` command targeting `target` at `path`.
-///
-/// # Example
-/// ```rust,ignore
-/// use sand_core::cmd::{data_modify, DataTarget, Selector};
-/// let cmd = data_modify(DataTarget::entity(Selector::self_()), "Custom.Phase")
-///     .set(2_i32);
-/// assert_eq!(cmd, "data modify entity @s Custom.Phase set value 2");
-/// ```
-pub fn data_modify(target: DataTarget, path: impl Into<String>) -> DataModify {
-    DataModify::new(target, path)
-}
+use sand_commands::{DataModify, DataTarget, NbtValue};
 
 // ── StorageKind ───────────────────────────────────────────────────────────────
 
@@ -479,14 +210,7 @@ impl Storage {
     /// Returns a condition fragment for use with `execute if data storage …`.
     ///
     /// Equivalent to `HashMap::contains_key`. Use in `Execute::if_` to branch
-    /// on whether `key` is present:
-    ///
-    /// ```rust,ignore
-    /// // execute if data storage my_pack:world boss_phase run say phase exists
-    /// Execute::new()
-    ///     .if_(WORLD.contains("boss_phase"))
-    ///     .run(cmd::say("phase exists"))
-    /// ```
+    /// on whether `key` is present.
     pub fn contains(&self, key: impl Into<String>) -> String {
         format!("data storage {} {}", self.id, key.into())
     }
@@ -495,12 +219,6 @@ impl Storage {
     ///
     /// Equivalent to `HashMap::entry(k).or_insert(v)`. Returns a single
     /// `execute unless data storage … run data modify …` command.
-    ///
-    /// ```rust,ignore
-    /// WORLD.get_or_insert("boss_phase", 1_i32)
-    /// // → execute unless data storage my_pack:world boss_phase
-    /// //       run data modify storage my_pack:world boss_phase set value 1
-    /// ```
     pub fn get_or_insert(&self, key: impl Into<String>, default: impl Into<NbtValue>) -> String {
         let key = key.into();
         let val = default.into();
@@ -513,10 +231,6 @@ impl Storage {
     // ── List operations ───────────────────────────────────────────────────
 
     /// Append `value` to the end of the list at `key`.
-    ///
-    /// ```rust,ignore
-    /// WORLD.push("kill_log", NbtValue::raw(r#"{type:"zombie"}"#))
-    /// ```
     pub fn push(&self, key: impl Into<String>, value: impl Into<NbtValue>) -> String {
         DataModify::new(self.target(), key).append(value)
     }
@@ -529,11 +243,6 @@ impl Storage {
     // ── Merge ─────────────────────────────────────────────────────────────
 
     /// `data merge storage <id> <nbt>` — merge a compound into the root.
-    ///
-    /// Use this to set multiple keys at once:
-    /// ```rust,ignore
-    /// WORLD.merge(NbtValue::raw("{phase:2,active:1b}"))
-    /// ```
     pub fn merge(&self, value: impl Into<NbtValue>) -> String {
         format!("data merge storage {} {}", self.id, value.into())
     }
@@ -541,15 +250,10 @@ impl Storage {
     // ── Copy from other locations ─────────────────────────────────────────
 
     /// Copy a value from entity NBT into this storage.
-    ///
-    /// ```rust,ignore
-    /// WORLD.copy_from_entity("debug.health", Selector::self_(), "Health")
-    /// // → data modify storage my_pack:world debug.health set from entity @s Health
-    /// ```
     pub fn copy_from_entity(
         &self,
         key: impl Into<String>,
-        entity: Selector,
+        entity: sand_commands::Selector,
         src_path: impl Into<String>,
     ) -> String {
         DataModify::new(self.target(), key).set_from(DataTarget::Entity(entity), src_path)
@@ -566,77 +270,33 @@ impl Storage {
     }
 }
 
+// ── Into<String> bridge ───────────────────────────────────────────────────────
+
+/// Allows `&Storage` to be passed wherever `impl Into<String>` is expected.
+///
+/// This is the primary integration point between `Storage` and
+/// `Objective::load_from` / `Objective::load_from_scaled`:
+///
+/// ```rust,ignore
+/// INFERNO_DMG.load_from(ScoreHolder::self_(), &PLAYERS, "uuid.damage")
+/// //                                          ^^^^^^^^^
+/// //                          &Storage satisfies impl Into<String>
+/// ```
+impl From<&Storage> for String {
+    fn from(s: &Storage) -> String {
+        s.id().to_string()
+    }
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::cmd::Selector;
+    use sand_commands::{DataTarget, NbtValue, Selector, data_modify};
 
     static WORLD: Storage = Storage::global("my_pack:world");
     static PLAYERS: Storage = Storage::per_player("my_pack:players");
-
-    // ── NbtValue serialization ─────────────────────────────────────────────
-
-    #[test]
-    fn nbt_value_display() {
-        assert_eq!(NbtValue::Bool(true).to_string(), "1b");
-        assert_eq!(NbtValue::Bool(false).to_string(), "0b");
-        assert_eq!(NbtValue::Byte(42_i8).to_string(), "42b");
-        assert_eq!(NbtValue::Short(100_i16).to_string(), "100s");
-        assert_eq!(NbtValue::Int(42_i32).to_string(), "42");
-        assert_eq!(NbtValue::Long(99_i64).to_string(), "99L");
-        assert_eq!(NbtValue::String("hi".into()).to_string(), "\"hi\"");
-        assert_eq!(NbtValue::Raw("{x:0}".into()).to_string(), "{x:0}");
-    }
-
-    #[test]
-    fn nbt_value_string_escaping() {
-        let v = NbtValue::from("say \"hello\"");
-        assert_eq!(v.to_string(), r#""say \"hello\"""#);
-    }
-
-    #[test]
-    fn nbt_value_from_primitives() {
-        assert_eq!(NbtValue::from(true).to_string(), "1b");
-        assert_eq!(NbtValue::from(2_i32).to_string(), "2");
-        assert_eq!(NbtValue::from("hi").to_string(), "\"hi\"");
-        assert_eq!(NbtValue::from(1.5_f64).to_string(), "1.5d");
-    }
-
-    // ── DataModify ─────────────────────────────────────────────────────────
-
-    #[test]
-    fn data_modify_set() {
-        let cmd = data_modify(DataTarget::entity(Selector::self_()), "Custom.Phase").set(2_i32);
-        assert_eq!(cmd, "data modify entity @s Custom.Phase set value 2");
-    }
-
-    #[test]
-    fn data_modify_set_bool() {
-        let cmd = data_modify(DataTarget::entity(Selector::self_()), "Custom.Active").set(true);
-        assert_eq!(cmd, "data modify entity @s Custom.Active set value 1b");
-    }
-
-    #[test]
-    fn data_modify_append() {
-        let cmd = data_modify(DataTarget::storage("my_pack:log"), "kills")
-            .append(NbtValue::raw(r#"{type:"zombie"}"#));
-        assert_eq!(
-            cmd,
-            r#"data modify storage my_pack:log kills append value {type:"zombie"}"#
-        );
-    }
-
-    #[test]
-    fn data_modify_set_from_entity() {
-        let cmd = data_modify(DataTarget::storage("my_pack:debug"), "health")
-            .set_from(DataTarget::entity(Selector::self_()), "Health");
-        assert_eq!(
-            cmd,
-            "data modify storage my_pack:debug health set from entity @s Health"
-        );
-    }
 
     // ── Storage static / const ─────────────────────────────────────────────
 
@@ -732,11 +392,16 @@ mod tests {
     }
 
     #[test]
-    fn data_target_display() {
-        assert_eq!(
-            DataTarget::entity(Selector::self_()).to_string(),
-            "entity @s"
-        );
-        assert_eq!(DataTarget::storage("ns:key").to_string(), "storage ns:key");
+    fn storage_into_string() {
+        let s: String = (&PLAYERS).into();
+        assert_eq!(s, "my_pack:players");
+    }
+
+    // ── data_modify convenience ────────────────────────────────────────────
+
+    #[test]
+    fn data_modify_via_sand_commands() {
+        let cmd = data_modify(DataTarget::entity(Selector::self_()), "Custom.Phase").set(2_i32);
+        assert_eq!(cmd, "data modify entity @s Custom.Phase set value 2");
     }
 }

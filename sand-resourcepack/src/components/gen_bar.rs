@@ -1,6 +1,6 @@
 use crate::component::{AssetContent, AssetOutput, ResourcePackComponent};
 use crate::components::font::{BitmapFont, BitmapProvider};
-use crate::gen_::{Color, gen_bar_png};
+use crate::sprite::{Color, gen_bar_png};
 
 /// A bitmap-font progress bar whose sprite strip is **generated at build time**
 /// from color parameters rather than copied from a user-supplied PNG.

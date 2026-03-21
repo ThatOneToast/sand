@@ -28,3 +28,14 @@ pub enum SandError {
 
 /// Convenience type alias for `Result<T, SandError>`.
 pub type Result<T> = std::result::Result<T, SandError>;
+
+impl From<sand_components::SandError> for SandError {
+    fn from(e: sand_components::SandError) -> Self {
+        match e {
+            sand_components::SandError::InvalidNamespace(s) => SandError::InvalidNamespace(s),
+            sand_components::SandError::InvalidPath(s) => SandError::InvalidPath(s),
+            sand_components::SandError::Serialization(e) => SandError::Serialization(e),
+            sand_components::SandError::Io(e) => SandError::Io(e),
+        }
+    }
+}

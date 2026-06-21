@@ -135,6 +135,7 @@ pub use function::{
 };
 pub use mc_version::McVersion;
 pub use resource_location::{Identifier, PackNamespace, ResourceLocation};
+pub use state::{NbtPath, StorageVar};
 
 // ── McFunction (sand-core-specific component) ─────────────────────────────────
 

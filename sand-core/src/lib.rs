@@ -34,11 +34,16 @@
 pub mod cmd;
 pub mod component;
 pub mod components;
+pub mod condition;
 pub mod error;
 pub mod events;
+pub mod execute_when;
 pub mod function;
 pub mod mc_version;
 pub mod resource_location;
+pub mod resource_ref;
+pub mod state;
+pub mod version;
 
 // ── Re-export the sand-components crate itself ────────────────────────────────
 
@@ -300,6 +305,42 @@ macro_rules! mcfunction {
         )*
         _commands
     }};
+}
+
+/// Compose a typed [`Condition`](crate::condition::Condition) requiring **all** sub-conditions.
+///
+/// Sugar for [`Condition::all`](crate::condition::Condition::all).
+///
+/// # Example
+/// ```rust,ignore
+/// use sand_core::{all, state::ScoreVar};
+/// static MANA: ScoreVar<i32> = ScoreVar::new("mana");
+/// let cond = all![MANA.of("@s").gte(25), MANA.of("@s").lte(100)];
+/// ```
+#[macro_export]
+macro_rules! all {
+    ($($c:expr),+ $(,)?) => {
+        $crate::condition::Condition::all([$($c),+])
+    };
+}
+
+/// Compose a typed [`Condition`](crate::condition::Condition) requiring **any** sub-condition.
+///
+/// Sugar for [`Condition::any`](crate::condition::Condition::any).
+/// Generates one execute command per sub-condition.
+///
+/// # Example
+/// ```rust,ignore
+/// use sand_core::{any, state::ScoreVar};
+/// static MANA: ScoreVar<i32> = ScoreVar::new("mana");
+/// static RAGE: ScoreVar<i32> = ScoreVar::new("rage");
+/// let cond = any![MANA.of("@s").gte(25), RAGE.of("@s").gte(10)];
+/// ```
+#[macro_export]
+macro_rules! any {
+    ($($c:expr),+ $(,)?) => {
+        $crate::condition::Condition::any([$($c),+])
+    };
 }
 
 /// Generated Minecraft registry enums (`Item`, `Block`, `EntityType`, etc.).

@@ -63,6 +63,12 @@ impl IntoCommands for Vec<String> {
     }
 }
 
+impl IntoCommands for Vec<&str> {
+    fn into_commands(self) -> Vec<String> {
+        self.into_iter().map(|s| s.to_string()).collect()
+    }
+}
+
 impl<T: crate::cmd::Command> IntoCommands for T {
     fn into_commands(self) -> Vec<String> {
         vec![self.to_string()]

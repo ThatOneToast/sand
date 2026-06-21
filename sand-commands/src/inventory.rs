@@ -133,11 +133,10 @@ impl Inventory {
                     panic!("InventorySlot::Container must be within range 0-26");
                 }
             }
-            InventorySlot::Hotbar(n) => {
-                if *n >= 9 {
-                    panic!("InventorySlot::Hotbar must be within range 0-8");
-                }
+            InventorySlot::Hotbar(n) if *n >= 9 => {
+                panic!("InventorySlot::Hotbar must be within range 0-8");
             }
+            InventorySlot::Hotbar(_) => {}
             _ => {}
         }
     }

@@ -68,6 +68,38 @@ impl fmt::Display for ChatColor {
     }
 }
 
+// ── Click / Hover events ──────────────────────────────────────────────────────
+
+/// A click event attached to a [`TextComponent`].
+#[derive(Debug, Clone)]
+pub enum ClickEvent {
+    /// Execute a command when clicked.
+    RunCommand(String),
+    /// Fill the chat bar with a command suggestion.
+    SuggestCommand(String),
+    /// Open a URL in the player's browser.
+    OpenUrl(String),
+    /// Copy text to the clipboard.
+    CopyToClipboard(String),
+    /// Turn to a book page (book items only).
+    ChangePage(u32),
+}
+
+/// A hover event attached to a [`TextComponent`].
+#[derive(Debug, Clone)]
+pub enum HoverEvent {
+    /// Show another text component as a tooltip.
+    ShowText(Box<TextComponent>),
+    /// Show an item tooltip.
+    ShowItem { id: String, count: Option<u32> },
+    /// Show an entity tooltip.
+    ShowEntity {
+        name: String,
+        entity_type: String,
+        id: Option<String>,
+    },
+}
+
 // ── TextComponent internals ────────────────────────────────────────────────────
 
 #[derive(Debug, Clone)]
@@ -112,7 +144,36 @@ pub struct TextComponent {
     underlined: Option<bool>,
     strikethrough: Option<bool>,
     obfuscated: Option<bool>,
+    insertion: Option<String>,
+    click_event: Option<ClickEvent>,
+    hover_event: Option<HoverEvent>,
     extra: Vec<TextComponent>,
+}
+
+// ── Text (ergonomic alias) ────────────────────────────────────────────────────
+
+/// Ergonomic alias — `Text::new("hi")` creates a `TextComponent::literal("hi")`.
+///
+/// ```
+/// use sand_commands::Text;
+/// let t = Text::new("Hello").gold().bold(true);
+/// assert!(t.to_string().contains("\"color\":\"gold\""));
+/// ```
+pub struct Text;
+
+impl Text {
+    /// Create a plain-text component from `s`.
+    #[allow(clippy::new_ret_no_self)]
+    pub fn new(s: impl Into<String>) -> TextComponent {
+        TextComponent::literal(s)
+    }
+
+    /// Embed a pre-serialized JSON string directly (escape hatch).
+    ///
+    /// No formatting is applied — the string is returned as-is.
+    pub fn raw_json(json: impl Into<String>) -> String {
+        json.into()
+    }
 }
 
 impl TextComponent {
@@ -166,6 +227,9 @@ impl TextComponent {
             underlined: None,
             strikethrough: None,
             obfuscated: None,
+            insertion: None,
+            click_event: None,
+            hover_event: None,
             extra: vec![],
         }
     }
@@ -183,6 +247,75 @@ impl TextComponent {
         self.color = Some(hex.into());
         self
     }
+
+    // ── Ergonomic color shortcuts ─────────────────────────────────────────────
+
+    /// Apply `ChatColor::Black`.
+    pub fn black(self) -> Self {
+        self.color(ChatColor::Black)
+    }
+    /// Apply `ChatColor::DarkBlue`.
+    pub fn dark_blue(self) -> Self {
+        self.color(ChatColor::DarkBlue)
+    }
+    /// Apply `ChatColor::DarkGreen`.
+    pub fn dark_green(self) -> Self {
+        self.color(ChatColor::DarkGreen)
+    }
+    /// Apply `ChatColor::DarkAqua`.
+    pub fn dark_aqua(self) -> Self {
+        self.color(ChatColor::DarkAqua)
+    }
+    /// Apply `ChatColor::DarkRed`.
+    pub fn dark_red(self) -> Self {
+        self.color(ChatColor::DarkRed)
+    }
+    /// Apply `ChatColor::DarkPurple`.
+    pub fn dark_purple(self) -> Self {
+        self.color(ChatColor::DarkPurple)
+    }
+    /// Apply `ChatColor::Gold`.
+    pub fn gold(self) -> Self {
+        self.color(ChatColor::Gold)
+    }
+    /// Apply `ChatColor::Gray`.
+    pub fn gray(self) -> Self {
+        self.color(ChatColor::Gray)
+    }
+    /// Apply `ChatColor::DarkGray`.
+    pub fn dark_gray(self) -> Self {
+        self.color(ChatColor::DarkGray)
+    }
+    /// Apply `ChatColor::Blue`.
+    pub fn blue(self) -> Self {
+        self.color(ChatColor::Blue)
+    }
+    /// Apply `ChatColor::Green`.
+    pub fn green(self) -> Self {
+        self.color(ChatColor::Green)
+    }
+    /// Apply `ChatColor::Aqua`.
+    pub fn aqua(self) -> Self {
+        self.color(ChatColor::Aqua)
+    }
+    /// Apply `ChatColor::Red`.
+    pub fn red(self) -> Self {
+        self.color(ChatColor::Red)
+    }
+    /// Apply `ChatColor::LightPurple`.
+    pub fn light_purple(self) -> Self {
+        self.color(ChatColor::LightPurple)
+    }
+    /// Apply `ChatColor::Yellow`.
+    pub fn yellow(self) -> Self {
+        self.color(ChatColor::Yellow)
+    }
+    /// Apply `ChatColor::White`.
+    pub fn white(self) -> Self {
+        self.color(ChatColor::White)
+    }
+
+    // ── Text formatting ───────────────────────────────────────────────────────
 
     /// Set bold formatting.
     pub fn bold(mut self, v: bool) -> Self {
@@ -211,6 +344,55 @@ impl TextComponent {
     /// Set obfuscated (scrambled) text.
     pub fn obfuscated(mut self, v: bool) -> Self {
         self.obfuscated = Some(v);
+        self
+    }
+
+    /// Set the `insertion` string — shift-clicking inserts this into the chat bar.
+    pub fn insertion(mut self, text: impl Into<String>) -> Self {
+        self.insertion = Some(text.into());
+        self
+    }
+
+    // ── Click events ──────────────────────────────────────────────────────────
+
+    /// Run a command when this text is clicked.
+    pub fn click_run_command(mut self, cmd: impl Into<String>) -> Self {
+        self.click_event = Some(ClickEvent::RunCommand(cmd.into()));
+        self
+    }
+
+    /// Fill the chat bar with a suggestion when clicked.
+    pub fn click_suggest_command(mut self, cmd: impl Into<String>) -> Self {
+        self.click_event = Some(ClickEvent::SuggestCommand(cmd.into()));
+        self
+    }
+
+    /// Open a URL when clicked.
+    pub fn click_open_url(mut self, url: impl Into<String>) -> Self {
+        self.click_event = Some(ClickEvent::OpenUrl(url.into()));
+        self
+    }
+
+    /// Copy text to the clipboard when clicked.
+    pub fn click_copy(mut self, text: impl Into<String>) -> Self {
+        self.click_event = Some(ClickEvent::CopyToClipboard(text.into()));
+        self
+    }
+
+    // ── Hover events ──────────────────────────────────────────────────────────
+
+    /// Show another `TextComponent` as a tooltip on hover.
+    pub fn hover_text(mut self, text: TextComponent) -> Self {
+        self.hover_event = Some(HoverEvent::ShowText(Box::new(text)));
+        self
+    }
+
+    /// Show an item tooltip on hover.
+    pub fn hover_item(mut self, item_id: impl Into<String>) -> Self {
+        self.hover_event = Some(HoverEvent::ShowItem {
+            id: item_id.into(),
+            count: None,
+        });
         self
     }
 
@@ -256,6 +438,51 @@ impl TextComponent {
         }
         if let Some(v) = self.obfuscated {
             obj["obfuscated"] = serde_json::json!(v);
+        }
+        if let Some(ins) = &self.insertion {
+            obj["insertion"] = serde_json::json!(ins);
+        }
+        if let Some(ev) = &self.click_event {
+            obj["clickEvent"] = match ev {
+                ClickEvent::RunCommand(s) => {
+                    serde_json::json!({"action": "run_command", "value": s})
+                }
+                ClickEvent::SuggestCommand(s) => {
+                    serde_json::json!({"action": "suggest_command", "value": s})
+                }
+                ClickEvent::OpenUrl(s) => serde_json::json!({"action": "open_url", "value": s}),
+                ClickEvent::CopyToClipboard(s) => {
+                    serde_json::json!({"action": "copy_to_clipboard", "value": s})
+                }
+                ClickEvent::ChangePage(p) => {
+                    serde_json::json!({"action": "change_page", "value": p})
+                }
+            };
+        }
+        if let Some(ev) = &self.hover_event {
+            obj["hoverEvent"] = match ev {
+                HoverEvent::ShowText(t) => {
+                    serde_json::json!({"action": "show_text", "contents": t.to_json_value()})
+                }
+                HoverEvent::ShowItem { id, count } => {
+                    let mut h = serde_json::json!({"action": "show_item", "id": id});
+                    if let Some(c) = count {
+                        h["count"] = serde_json::json!(c);
+                    }
+                    h
+                }
+                HoverEvent::ShowEntity {
+                    name,
+                    entity_type,
+                    id,
+                } => {
+                    let mut h = serde_json::json!({"action": "show_entity", "name": name, "type": entity_type});
+                    if let Some(i) = id {
+                        h["id"] = serde_json::json!(i);
+                    }
+                    h
+                }
+            };
         }
         if !self.extra.is_empty() {
             let extras: Vec<_> = self.extra.iter().map(|e| e.to_json_value()).collect();
@@ -366,5 +593,154 @@ mod tests {
         assert!(s.contains("\"underlined\":true"));
         assert!(s.contains("\"strikethrough\":false"));
         assert!(s.contains("\"obfuscated\":true"));
+    }
+
+    // ── New: color shortcuts ──────────────────────────────────────────────────
+
+    #[test]
+    fn color_shortcuts() {
+        assert!(
+            TextComponent::literal("x")
+                .gold()
+                .to_string()
+                .contains("\"color\":\"gold\"")
+        );
+        assert!(
+            TextComponent::literal("x")
+                .aqua()
+                .to_string()
+                .contains("\"color\":\"aqua\"")
+        );
+        assert!(
+            TextComponent::literal("x")
+                .green()
+                .to_string()
+                .contains("\"color\":\"green\"")
+        );
+        assert!(
+            TextComponent::literal("x")
+                .red()
+                .to_string()
+                .contains("\"color\":\"red\"")
+        );
+        assert!(
+            TextComponent::literal("x")
+                .yellow()
+                .to_string()
+                .contains("\"color\":\"yellow\"")
+        );
+        assert!(
+            TextComponent::literal("x")
+                .white()
+                .to_string()
+                .contains("\"color\":\"white\"")
+        );
+        assert!(
+            TextComponent::literal("x")
+                .gray()
+                .to_string()
+                .contains("\"color\":\"gray\"")
+        );
+        assert!(
+            TextComponent::literal("x")
+                .dark_gray()
+                .to_string()
+                .contains("\"color\":\"dark_gray\"")
+        );
+    }
+
+    // ── New: Text alias ───────────────────────────────────────────────────────
+
+    #[test]
+    fn text_alias_new() {
+        let t = Text::new("Hello").gold().bold(true);
+        let s = t.to_string();
+        assert!(s.contains("\"text\":\"Hello\""));
+        assert!(s.contains("\"color\":\"gold\""));
+        assert!(s.contains("\"bold\":true"));
+    }
+
+    #[test]
+    fn text_raw_json() {
+        let json = Text::raw_json("{\"text\":\"raw\"}");
+        assert_eq!(json, "{\"text\":\"raw\"}");
+    }
+
+    // ── New: click events ─────────────────────────────────────────────────────
+
+    #[test]
+    fn click_run_command() {
+        let t = Text::new("Click me").click_run_command("/say hi");
+        let s = t.to_string();
+        assert!(s.contains("\"clickEvent\""), "got: {s}");
+        assert!(s.contains("\"run_command\""), "got: {s}");
+        assert!(s.contains("/say hi"), "got: {s}");
+    }
+
+    #[test]
+    fn click_suggest_command() {
+        let t = Text::new("Suggest").click_suggest_command("/tell @s ");
+        let s = t.to_string();
+        assert!(s.contains("\"suggest_command\""), "got: {s}");
+    }
+
+    #[test]
+    fn click_open_url() {
+        let t = Text::new("Visit").click_open_url("https://example.com");
+        let s = t.to_string();
+        assert!(s.contains("\"open_url\""), "got: {s}");
+        assert!(s.contains("https://example.com"), "got: {s}");
+    }
+
+    #[test]
+    fn click_copy() {
+        let t = Text::new("Copy").click_copy("some text");
+        let s = t.to_string();
+        assert!(s.contains("\"copy_to_clipboard\""), "got: {s}");
+    }
+
+    // ── New: hover events ─────────────────────────────────────────────────────
+
+    #[test]
+    fn hover_text() {
+        let tooltip = Text::new("Tooltip").gray();
+        let t = Text::new("Hover me").hover_text(tooltip);
+        let s = t.to_string();
+        assert!(s.contains("\"hoverEvent\""), "got: {s}");
+        assert!(s.contains("\"show_text\""), "got: {s}");
+        assert!(s.contains("Tooltip"), "got: {s}");
+    }
+
+    #[test]
+    fn hover_item() {
+        let t = Text::new("Item").hover_item("minecraft:diamond");
+        let s = t.to_string();
+        assert!(s.contains("\"show_item\""), "got: {s}");
+        assert!(s.contains("minecraft:diamond"), "got: {s}");
+    }
+
+    // ── New: insertion ────────────────────────────────────────────────────────
+
+    #[test]
+    fn insertion_field() {
+        let t = Text::new("shift+click").insertion("/tell @s hello");
+        let s = t.to_string();
+        assert!(s.contains("\"insertion\""), "got: {s}");
+        assert!(s.contains("/tell @s hello"), "got: {s}");
+    }
+
+    // ── Golden output ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn golden_clickable_text() {
+        let t = Text::new("Click me")
+            .green()
+            .hover_text(Text::new("Runs a command").gray())
+            .click_run_command("/say clicked");
+        let s = t.to_string();
+        assert!(s.contains("\"text\":\"Click me\""), "got: {s}");
+        assert!(s.contains("\"color\":\"green\""), "got: {s}");
+        assert!(s.contains("\"hoverEvent\""), "got: {s}");
+        assert!(s.contains("\"clickEvent\""), "got: {s}");
     }
 }

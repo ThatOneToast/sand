@@ -40,7 +40,7 @@ pub use scoreboard::{
 };
 pub use selector::{GameMode, Selector, SortOrder, TargetBase};
 pub use sound::{Sound, SoundSource};
-pub use text::{ChatColor, TextComponent};
+pub use text::{ChatColor, ClickEvent, HoverEvent, Text, TextComponent};
 
 // ── Build trait ───────────────────────────────────────────────────────────────
 

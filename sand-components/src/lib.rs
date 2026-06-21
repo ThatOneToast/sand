@@ -29,6 +29,7 @@ pub mod banner_pattern;
 pub mod chat_type;
 pub mod component;
 pub mod damage_type;
+pub mod dialog;
 pub mod enchantment;
 pub mod error;
 pub mod instrument;

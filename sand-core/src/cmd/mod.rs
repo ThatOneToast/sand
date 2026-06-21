@@ -63,7 +63,7 @@ pub use sand_commands::{GameMode, Selector, SortOrder, TargetBase};
 // Sound
 pub use sand_commands::{Sound, SoundSource};
 // Text components
-pub use sand_commands::{ChatColor, TextComponent};
+pub use sand_commands::{ChatColor, ClickEvent, HoverEvent, Text, TextComponent};
 // NBT types — owned by sand-commands
 pub use sand_commands::{DataModify, DataTarget, NbtValue, data_modify};
 // Scoreboard types — owned by sand-commands

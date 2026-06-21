@@ -35,6 +35,7 @@
 mod cooldown;
 mod data;
 mod fn_macros;
+mod typed_execute;
 
 // ── Re-exports from sand-commands ─────────────────────────────────────────────
 
@@ -83,6 +84,7 @@ pub use cooldown::Cooldown;
 // All other NBT/scoreboard types come from sand-commands above.
 pub use data::{Storage, StorageKind};
 pub use fn_macros::{function_with, macro_line, macro_var};
+pub use typed_execute::{ConditionedExecute, ExecuteExt, TypedExecute};
 
 /// A typed Minecraft command that can be serialized to a command string.
 ///

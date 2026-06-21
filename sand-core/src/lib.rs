@@ -142,6 +142,10 @@ pub use components::mc_function::{IntoCommands, McFunction};
 
 // ── Datapack component builders (all from sand-components) ───────────────────
 
+// ── Dialog builders ───────────────────────────────────────────────────────────
+
+pub use sand_components::dialog::{Dialog, DialogAction, DialogBody, DialogButton, DialogKind};
+
 pub use sand_components::{
     // Advancement
     Advancement,

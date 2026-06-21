@@ -40,6 +40,7 @@ pub mod events;
 pub mod execute_when;
 pub mod function;
 pub mod mc_version;
+pub mod prelude;
 pub mod resource_location;
 pub mod resource_ref;
 pub mod state;

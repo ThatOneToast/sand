@@ -54,9 +54,9 @@ pub use sand_components;
 
 pub use cmd::{
     Actionbar, BlockState, Bossbar, BossbarColor, BossbarStyle, CloneBlocks, CloneMaskMode,
-    CloneMode, Command, Cooldown, Fill, FillMode, ItemSlot, NbtStoreKind, NbtValue, Objective,
-    ParticleEffect, ParticleSpread, ScoreCmp, SetBlock, SetBlockMode, Sound, SoundSource, Storage,
-    Title,
+    CloneMode, Command, ConditionedExecute, Cooldown, ExecuteExt, Fill, FillMode, ItemSlot,
+    NbtStoreKind, NbtValue, Objective, ParticleEffect, ParticleSpread, ScoreCmp, SetBlock,
+    SetBlockMode, Sound, SoundSource, Storage, Title, TypedExecute,
 };
 pub use component::export_components_json;
 pub use component::{ComponentContent, ComponentRecord, DatapackComponent, IntoDatapack};

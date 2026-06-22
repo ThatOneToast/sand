@@ -7,6 +7,7 @@
 - [Authoring Model](authoring-model.md)
 - [Typed State](typed-state.md)
 - [Conditions](conditions.md)
+- [Events](events.md)
 - [Typed Execute](typed-execute.md)
 - [Typed Commands](typed-commands.md)
 - [Text And UI](text-and-ui.md)

@@ -366,6 +366,28 @@ pub fn kick(player: impl Into<String>, reason: Option<&str>) -> String {
     }
 }
 
+/// `return fail` — stop the current function and return a failure value.
+///
+/// In Minecraft 1.20.2+, `return fail` terminates the current `.mcfunction`
+/// and signals to callers that the function failed (return value −1).
+/// Equivalent to the Java API `return -1` for `execute … run function`.
+///
+/// Use inside branch functions to halt that branch without affecting the parent.
+pub fn return_fail() -> String {
+    "return fail".to_string()
+}
+
+/// `return <value>` — stop the current function and return an integer value.
+///
+/// `return_cmd(0)` → `return 0` (success)
+/// `return_cmd(1)` → `return 1`
+///
+/// In Minecraft 1.20.2+, `return <n>` terminates the current `.mcfunction`
+/// with the given integer result code, visible to `execute store result`.
+pub fn return_cmd(value: i32) -> String {
+    format!("return {value}")
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]

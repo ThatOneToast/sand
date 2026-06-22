@@ -147,6 +147,40 @@ pub fn show_dialog(
     format!("dialog show {selector} {}", dialog.into_dialog_ref())
 }
 
+/// `return fail` — stop the current function with a failure return value.
+///
+/// In Minecraft 1.20.2+, `return fail` terminates the current `.mcfunction`
+/// and reports failure (return value −1) to callers using `execute … run function`.
+/// Use inside branch or helper functions to halt that branch.
+///
+/// ```rust,ignore
+/// when(HAS_CELLS.of("@s").is_true()).then_all([
+///     tellraw(Selector::self_(), Text::new("Already granted")),
+///     cmd::return_fail(),
+/// ]);
+/// ```
+pub fn return_fail() -> String {
+    "return fail".to_string()
+}
+
+/// `return <value>` — stop the current function with an integer return value.
+///
+/// `cmd::return_cmd(0)` → `return 0` (success, also readable by `execute store result`).
+/// `cmd::return_cmd(1)` → `return 1`.
+///
+/// In Minecraft 1.20.2+, `return <n>` terminates the current `.mcfunction`
+/// with the given result code. Callers using `execute … run function` see this value.
+///
+/// ```rust,ignore
+/// unless(HAS_CELLS.of("@s").is_true()).then_all([
+///     HAS_CELLS.enable("@s"),
+///     cmd::return_cmd(0),
+/// ]);
+/// ```
+pub fn return_cmd(value: i32) -> String {
+    format!("return {value}")
+}
+
 /// Explicit escape hatch for raw Minecraft command syntax.
 ///
 /// Prefer typed builders for normal datapack code. Use this for interop with

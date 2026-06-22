@@ -20,7 +20,7 @@
 //! cargo run -p arcane_pack
 //! ```
 
-use sand_core::events::{FirstJoinEvent, OnDeathEvent, OnJoinEvent, OnRespawnEvent};
+use sand_core::event::vanilla::{FirstJoin, OnDeath, OnJoin, OnRespawn};
 use sand_core::prelude::*;
 use sand_core::{EventHandle, EventPlayer};
 use sand_macros::{component, event, function};
@@ -230,7 +230,7 @@ static GOLDEN_APPLE_HANDLE: EventHandle = EventHandle::new("arcane:on_ate_golden
 
 /// Fires every time a player joins the world.
 #[event]
-pub fn on_join(event: OnJoinEvent) {
+pub fn on_join(event: OnJoin) {
     cmd::tellraw(
         event.player(),
         Text::new("Welcome to the Arcane Pack!").gold(),
@@ -242,7 +242,7 @@ pub fn on_join(event: OnJoinEvent) {
 /// The dispatch = "advancement" attribute is ignored for FirstJoinEvent
 /// (the macro hardcodes a Tick advancement with no revoke).
 #[event]
-pub fn on_first_join(event: FirstJoinEvent) {
+pub fn on_first_join(event: FirstJoin) {
     MANA.set(event.player(), 100);
     Title::of(event.player())
         .title(Text::new("Arcane Pack").gold().bold(true))
@@ -257,7 +257,7 @@ pub fn on_first_join(event: FirstJoinEvent) {
 /// Fires when a player dies — disables the golden apple handle,
 /// resets shield flag, and shows a death title.
 #[event]
-pub fn on_death(event: OnDeathEvent) {
+pub fn on_death(event: OnDeath) {
     GOLDEN_APPLE_HANDLE.disable("@s");
     SHIELD.disable(Selector::self_());
     Title::of(event.player())
@@ -269,7 +269,7 @@ pub fn on_death(event: OnDeathEvent) {
 /// Fires when a player respawns — re-enables the golden apple handle,
 /// restores 50 mana, and stops all cooldowns.
 #[event]
-pub fn on_respawn(event: OnRespawnEvent) {
+pub fn on_respawn(event: OnRespawn) {
     GOLDEN_APPLE_HANDLE.enable("@s");
     MANA.set(Selector::self_(), 50);
     DASH.stop(Selector::self_());

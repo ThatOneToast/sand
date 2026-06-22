@@ -8,7 +8,8 @@ use sand_core::prelude::*;
 
 static DATA: StorageVar<i32> = StorageVar::new("example:data", "players.self.mana");
 
-mcfunction! {
+#[component(Load)]
+pub fn load_storage() {
     DATA.set_int(100);
     DATA.as_path().key("flags").key("has_dash").set_bool(true);
 }

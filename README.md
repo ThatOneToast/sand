@@ -48,39 +48,33 @@ static PLAYER_DATA: StorageVar<i32> = StorageVar::new("example:data", "player.ma
 
 #[component(Load)]
 pub fn load() {
-    mcfunction! {
-        MANA.define();
-        CASTING.define();
-        DASH.define();
-        PLAYER_DATA.set_int(100);
-    }
+    MANA.define();
+    CASTING.define();
+    DASH.define();
+    PLAYER_DATA.set_int(100);
 }
 
 #[component(Tick)]
 pub fn tick() {
-    mcfunction! {
-        DASH.tick(Selector::all_players());
-        TypedExecute::as_players()
-            .when(all![
-                MANA.of("@s").gte(25),
-                any![DASH.ready("@s"), PLAYER_DATA.exists()],
-                CASTING.of("@s").is_false(),
-            ])
-            .run(Actionbar::show(
-                Selector::self_(),
-                Text::new("Dash ready").aqua().bold(true),
-            ));
-    }
+    DASH.tick(Selector::all_players());
+    TypedExecute::as_players()
+        .when(all![
+            MANA.of("@s").gte(25),
+            any![DASH.ready("@s"), PLAYER_DATA.exists()],
+            CASTING.of("@s").is_false(),
+        ])
+        .run(Actionbar::show(
+            Selector::self_(),
+            Text::new("Dash ready").aqua().bold(true),
+        ));
 }
 
 #[function]
 pub fn start() {
-    mcfunction! {
-        cmd::tellraw(
-            Selector::all_players(),
-            Text::new("Hello from Sand").gold().bold(true),
-        );
-    }
+    cmd::tellraw(
+        Selector::all_players(),
+        Text::new("Hello from Sand").gold().bold(true),
+    );
 }
 
 #[component]
@@ -106,7 +100,8 @@ instead of writing scoreboard or storage commands directly.
 static HEALTH: ScoreVar<i32> = ScoreVar::new("health");
 static HAS_DASH: Flag = Flag::new("has_dash");
 
-mcfunction! {
+#[component(Load)]
+pub fn load_state() {
     HEALTH.define();
     HEALTH.set("@s", 20);
     HEALTH.add("@s", 1);
@@ -186,7 +181,8 @@ cross-function payloads.
 ```rust
 static DATA: StorageVar<i32> = StorageVar::new("example:data", "players.self.mana");
 
-mcfunction! {
+#[component(Load)]
+pub fn load_storage() {
     DATA.set_int(100);
     DATA.as_path().key("regen").set_bool(true);
 }

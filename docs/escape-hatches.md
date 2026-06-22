@@ -14,8 +14,9 @@ Use raw commands for:
 ```rust
 use sand_core::prelude::*;
 
-// Escape hatch: this calls another datapack's documented API.
-mcfunction! {
+#[function]
+pub fn interop() {
+    // Escape hatch: this calls another datapack's documented API.
     cmd::raw("function other_pack:api/do_special_thing");
 }
 ```

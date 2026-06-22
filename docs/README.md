@@ -3,9 +3,13 @@
 Sand is organized around typed Rust APIs that compile to vanilla Minecraft Java
 datapacks and optional resource packs.
 
+This directory contains focused reference docs, audits, and development notes.
+The mdBook site in `book/` is the user-facing guide when present.
+
 ## Beginner Path
 
 - [Getting Started](getting-started.md)
+- [Authoring Model](authoring-model.md)
 - [Typed State](typed-state.md)
 - [Typed Commands](typed-commands.md)
 - [Conditions](conditions.md)

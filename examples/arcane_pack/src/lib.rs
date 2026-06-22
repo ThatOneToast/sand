@@ -41,6 +41,9 @@ static FIREBALL: Cooldown = Cooldown::new("fireball", Ticks::seconds(5));
 /// Shield active flag.
 static SHIELD: Flag = Flag::new("shield");
 
+/// Enhanced cells — grants +20 max HP (40 total).
+static HAS_ENHANCED_CELLS: Flag = Flag::new("has_enhanced_cells");
+
 /// Persistent player settings (NBT storage).
 static PLAYER_DATA: StorageVar<i32> = StorageVar::new("arcane:data", "player.settings");
 
@@ -53,6 +56,7 @@ pub fn load() {
     DASH.define();
     FIREBALL.define();
     SHIELD.define();
+    HAS_ENHANCED_CELLS.define();
     GOLDEN_APPLE_HANDLE.define();
     PLAYER_DATA.set_int(100);
     cmd::tellraw(
@@ -314,6 +318,41 @@ pub fn dash_wand_effect() {
     cmd::say("Whoosh!");
 }
 
+// -- Enhanced cells (conditional branch dogfood) ---------------------------
+
+/// Grant enhanced cells — gives the player +20 max health (40 total hearts).
+///
+/// Demonstrates the `if_()` grouped-branch API:
+/// - The `if` branch detects the flag is already set and returns early.
+/// - The `else` branch sets the attribute, notifies the player, sets the flag,
+///   and returns. The flag is mutated inside the else branch; the return still
+///   fires because all commands run in order inside one branch function.
+#[function("arcane:grant_enhanced_cells")]
+pub fn grant_enhanced_cells() {
+    cmd::say("Enhanced cells was called");
+    if_(HAS_ENHANCED_CELLS.of("@s").is_true())
+        .then_all(mcfunction![
+            cmd::tellraw(
+                Selector::self_(),
+                Text::new("You already have enhanced cells").red(),
+            );
+            cmd::return_fail();
+        ])
+        .else_all(mcfunction![
+            cmd::attribute_base_set(
+                Selector::self_(),
+                AttributeType::MaxHealth.as_str(),
+                40.0,
+            );
+            cmd::tellraw(
+                Selector::self_(),
+                Text::new("Granted enhanced cells!").green(),
+            );
+            HAS_ENHANCED_CELLS.enable("@s");
+            cmd::return_cmd(0);
+        ]);
+}
+
 // -- Export hook (required by sand build) ----------------------------------
 
 /// Invoked by the generated `sand_export` binary.
@@ -346,11 +385,112 @@ mod tests {
             cmds.iter()
                 .any(|c| c.contains("scoreboard objectives add shield"))
         );
+        // has_enhanced_cells is >16 chars so gets hashed; check via define()
+        let enhanced_cells_define = HAS_ENHANCED_CELLS.define();
+        assert!(
+            cmds.iter().any(|c| c == &enhanced_cells_define),
+            "expected {enhanced_cells_define} in load cmds: {cmds:?}"
+        );
         assert!(
             cmds.iter()
                 .any(|c| c.contains("data modify storage arcane:data"))
         );
         assert!(cmds.iter().any(|c| c.contains("Datapack loaded")));
+    }
+
+    // ── Enhanced cells dogfood — conditional branch semantics ─────────────────
+    //
+    // These three sub-checks are in one test function because they share the
+    // same `drain_dyn_fns()` registry (global mutable state), and parallel
+    // execution of separate tests would cause them to drain each other's entries.
+
+    #[test]
+    fn grant_enhanced_cells_branches() {
+        // Drain any leftover entries from other tests
+        sand_core::drain_dyn_fns();
+
+        let cmds = grant_enhanced_cells();
+        let fns = sand_core::drain_dyn_fns();
+
+        // ── Parent function structure ─────────────────────────────────────────
+        assert_eq!(cmds[0], "say Enhanced cells was called", "first cmd");
+        assert_eq!(
+            cmds.len(),
+            3,
+            "parent: say + if-branch + unless-branch: {cmds:?}"
+        );
+
+        let flag_obj = HAS_ENHANCED_CELLS.objective_name();
+        assert!(
+            cmds[1].contains(&format!("execute if score @s {flag_obj} matches 1")),
+            "then arm should be 'if': {}",
+            cmds[1]
+        );
+        assert!(
+            cmds[2].contains(&format!("execute unless score @s {flag_obj} matches 1")),
+            "else arm should be 'unless': {}",
+            cmds[2]
+        );
+        assert!(
+            cmds[1].contains("function __sand_local:sand/branches/"),
+            "then arm calls branch fn"
+        );
+        assert!(
+            cmds[2].contains("function __sand_local:sand/branches/"),
+            "else arm calls branch fn"
+        );
+
+        // Exactly two branch functions registered for this one call
+        assert_eq!(fns.len(), 2, "exactly 2 branch fns: {fns:?}");
+
+        // ── Already-have branch: message + return fail ────────────────────────
+        let already = fns
+            .iter()
+            .find(|(_, b)| b.iter().any(|c| c.contains("already have enhanced cells")))
+            .expect("already-have branch not found");
+        assert!(
+            already.1.iter().any(|c| c == "return fail"),
+            "already branch must return fail: {:?}",
+            already.1
+        );
+
+        // ── Grant branch: attribute → message → flag set → return 0 ──────────
+        let grant = fns
+            .iter()
+            .find(|(_, b)| b.iter().any(|c| c.contains("Granted enhanced cells")))
+            .expect("grant branch not found");
+        let gb = &grant.1;
+
+        assert!(
+            gb.iter().any(|c| c.contains("minecraft:max_health")),
+            "sets max_health: {gb:?}"
+        );
+        assert!(
+            gb.iter().any(|c| c.contains("Granted enhanced cells")),
+            "message: {gb:?}"
+        );
+        assert!(
+            gb.iter().any(|c| c.contains("scoreboard players set")
+                && c.contains(&flag_obj)
+                && c.ends_with(" 1")),
+            "enables flag: {gb:?}"
+        );
+        assert!(gb.iter().any(|c| c == "return 0"), "return 0: {gb:?}");
+
+        // Order: attribute → message → flag set → return
+        let attr_i = gb.iter().position(|c| c.contains("max_health")).unwrap();
+        let msg_i = gb
+            .iter()
+            .position(|c| c.contains("Granted enhanced cells"))
+            .unwrap();
+        let flag_i = gb
+            .iter()
+            .position(|c| c.contains(&flag_obj) && c.contains("set"))
+            .unwrap();
+        let ret_i = gb.iter().position(|c| c == "return 0").unwrap();
+        assert!(attr_i < msg_i, "attribute before message");
+        assert!(msg_i < flag_i, "message before flag set");
+        assert!(flag_i < ret_i, "flag set before return");
     }
 
     #[test]

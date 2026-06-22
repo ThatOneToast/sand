@@ -20,7 +20,6 @@
 //! cargo run -p arcane_pack
 //! ```
 
-use sand_core::EventPlayer;
 use sand_core::event::vanilla::{FirstJoin, OnDeath, OnJoin, OnRespawn};
 use sand_core::prelude::*;
 use sand_macros::{component, event, function};
@@ -237,8 +236,7 @@ pub fn on_join(event: OnJoin) {
 
 /// Fires once per player — initializes mana and shows a welcome title.
 ///
-/// The dispatch = "advancement" attribute is ignored for FirstJoinEvent
-/// (the macro hardcodes a Tick advancement with no revoke).
+/// FirstJoinEvent uses a tick advancement with no revoke.
 #[event]
 pub fn on_first_join(event: FirstJoin) {
     MANA.set(event.player(), 100);
@@ -280,11 +278,11 @@ pub fn on_respawn(event: OnRespawn) {
 
 /// Fired when a golden apple is consumed with mana below 100 (see guard).
 /// Uses a custom AdvancementEvent with guard() and function pointer call.
-#[event(dispatch = "advancement")]
-pub fn on_ate_golden_apple(event: AteGoldenAppleEvent) {
+#[event]
+pub fn on_ate_golden_apple(event: Event<AteGoldenAppleEvent>) {
     MANA.add(event.player(), 10);
     Actionbar::show(event.player(), Text::new("+10 mana (golden apple)").green());
-    cmd::call(golden_apple_reward as fn() -> Vec<String>);
+    cmd::call(golden_apple_reward);
 }
 
 /// Sound reward for golden apple — called via function pointer.
@@ -296,12 +294,12 @@ pub fn golden_apple_reward() {
 /// Fired when a player uses a dash wand (stick with custom data) while
 /// eligible (mana >= 25, dash cooldown ready, shield inactive).
 /// Uses a custom AdvancementEvent with guard() and function pointer call.
-#[event(dispatch = "advancement")]
-pub fn on_used_dash_wand(event: UsedDashWandEvent) {
+#[event]
+pub fn on_used_dash_wand(event: Event<UsedDashWandEvent>) {
     MANA.remove(event.player(), 25);
     DASH.start(event.player());
     Actionbar::show(event.player(), Text::new("Dash wand activated!").gold());
-    cmd::call(dash_wand_effect as fn() -> Vec<String>);
+    cmd::call(dash_wand_effect);
 }
 
 /// Speed boost feedback — called via function pointer.

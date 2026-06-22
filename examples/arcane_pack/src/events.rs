@@ -1,6 +1,6 @@
 use sand_core::ItemPredicate;
+use sand_core::event::AdvancementEvent;
 use sand_core::event::trigger::{ConsumeItemTrigger, UsingItemTrigger};
-use sand_core::event::{AdvancementEvent, EventPlayer};
 use sand_core::prelude::*;
 
 /// Fires when a player eats a golden apple with mana below max.
@@ -16,12 +16,6 @@ impl AdvancementEvent for AteGoldenAppleEvent {
 
     fn guard() -> Option<Condition> {
         Some(super::MANA.of("@s").lt(100))
-    }
-}
-
-impl EventPlayer for AteGoldenAppleEvent {
-    fn player(&self) -> Selector {
-        Selector::self_()
     }
 }
 
@@ -50,11 +44,5 @@ impl AdvancementEvent for UsedDashWandEvent {
                 .and(super::DASH.ready("@s"))
                 .and_not(super::SHIELD.of("@s").is_true()),
         )
-    }
-}
-
-impl EventPlayer for UsedDashWandEvent {
-    fn player(&self) -> Selector {
-        Selector::self_()
     }
 }

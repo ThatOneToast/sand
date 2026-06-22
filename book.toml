@@ -1,0 +1,11 @@
+[book]
+title = "Sand Guide"
+description = "Typed Rust authoring for Minecraft Java datapacks"
+authors = ["Sand contributors"]
+language = "en"
+multilingual = false
+src = "book/src"
+
+[output.html]
+git-repository-url = "https://github.com/ThatOneToast/sand"
+edit-url-template = "https://github.com/ThatOneToast/sand/edit/main/{path}"

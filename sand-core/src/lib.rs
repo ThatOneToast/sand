@@ -58,6 +58,17 @@ pub mod version;
 /// The `sand-components` crate — typed JSON builders for every datapack component type.
 pub use sand_components;
 
+// ── Dialog callback registry ──────────────────────────────────────────────────
+
+/// Drain all registered dialog callbacks (id, path) pairs.
+///
+/// Called by the export pipeline to generate `__sand_dialog_tick` and
+/// `__sand_dialog_init` infrastructure. End users do not call this directly.
+pub use sand_components::dialog::drain_dialog_callbacks;
+
+/// The scoreboard trigger objective used by `DialogAction::callback(...)`.
+pub use sand_components::dialog::SAND_DIALOG_TRIGGER;
+
 // ── Core infrastructure ───────────────────────────────────────────────────────
 
 pub use cmd::{

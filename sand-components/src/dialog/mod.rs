@@ -13,11 +13,46 @@
 //! }
 //! ```
 
+use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::{Mutex, OnceLock};
+
 use crate::{DatapackComponent, ResourceLocation};
 use sand_commands::{Text, TextComponent};
 use serde_json::{Value, json};
 
 const SAND_LOCAL_NS: &str = "__sand_local";
+
+// ── Dialog callback registry ──────────────────────────────────────────────────
+
+/// The scoreboard trigger objective Sand uses for dialog callbacks.
+pub const SAND_DIALOG_TRIGGER: &str = "sand.dialog";
+
+/// Counter for assigning stable IDs to dialog callbacks.
+/// Starts at 1 (0 = not triggered / not set).
+static CALLBACK_ID_COUNTER: AtomicU32 = AtomicU32::new(1);
+
+fn callback_registry() -> &'static Mutex<Vec<(u32, String)>> {
+    static REG: OnceLock<Mutex<Vec<(u32, String)>>> = OnceLock::new();
+    REG.get_or_init(|| Mutex::new(Vec::new()))
+}
+
+/// Register a dialog callback function and return its stable trigger ID.
+///
+/// The path must be a full `namespace:path` or a `__sand_local:path` sentinel.
+/// IDs start at 1 (0 means "trigger not yet set").
+pub fn register_dialog_callback(path: String) -> u32 {
+    let id = CALLBACK_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
+    callback_registry().lock().unwrap().push((id, path));
+    id
+}
+
+/// Drain all registered dialog callbacks.
+///
+/// Returns `(trigger_id, function_path)` pairs. Called by `export_components_json`
+/// to generate the dialog dispatch tick/load functions.
+pub fn drain_dialog_callbacks() -> Vec<(u32, String)> {
+    std::mem::take(&mut *callback_registry().lock().unwrap())
+}
 
 /// Identifier accepted by dialog constructors.
 #[derive(Debug, Clone)]
@@ -145,11 +180,15 @@ where
 
 pub trait IntoDialogFunctionRef {
     fn into_dialog_function_command(self) -> String;
+    fn into_dialog_function_path(self) -> String;
 }
 
 impl IntoDialogFunctionRef for ResourceLocation {
     fn into_dialog_function_command(self) -> String {
         format!("/function {self}")
+    }
+    fn into_dialog_function_path(self) -> String {
+        self.to_string()
     }
 }
 
@@ -157,17 +196,26 @@ impl IntoDialogFunctionRef for &ResourceLocation {
     fn into_dialog_function_command(self) -> String {
         format!("/function {self}")
     }
+    fn into_dialog_function_path(self) -> String {
+        self.to_string()
+    }
 }
 
 impl IntoDialogFunctionRef for &str {
     fn into_dialog_function_command(self) -> String {
         format!("/function {self}")
     }
+    fn into_dialog_function_path(self) -> String {
+        self.to_string()
+    }
 }
 
 impl IntoDialogFunctionRef for String {
     fn into_dialog_function_command(self) -> String {
-        format!("/function {self}")
+        format!("/function {}", self)
+    }
+    fn into_dialog_function_path(self) -> String {
+        self
     }
 }
 
@@ -182,6 +230,15 @@ where
         panic!(
             "unregistered function pointer: the function must be annotated with \
              #[function] or #[function(\"path\")] to be used in DialogAction::run_function()"
+        )
+    }
+    fn into_dialog_function_path(self) -> String {
+        if let Some(path) = registered_path_for_function_value(self) {
+            return local_id_for_path(path);
+        }
+        panic!(
+            "unregistered function pointer: the function must be annotated with \
+             #[function] or #[function(\"path\")] to be used in DialogAction::callback()"
         )
     }
 }
@@ -338,6 +395,31 @@ impl DialogAction {
     /// ```
     pub fn run_function(id: impl IntoDialogFunctionRef) -> Self {
         Self::RunCommand(id.into_dialog_function_command())
+    }
+
+    /// Survival-friendly callback — runs a datapack function via a scoreboard trigger.
+    ///
+    /// Use this instead of [`run_function`](DialogAction::run_function) for player-facing
+    /// dialog buttons. `/trigger` is available to all players in survival mode without
+    /// requiring operator permissions.
+    ///
+    /// **How it works:**
+    /// 1. Sand assigns the callback a stable integer ID.
+    /// 2. The button action runs `/trigger sand.dialog set <id>`.
+    /// 3. Sand generates a tick function that detects players with matching scores
+    ///    and calls the target function as that player.
+    /// 4. Load and tick infrastructure is generated automatically — no manual
+    ///    `scoreboard objectives add` or tick wiring needed.
+    ///
+    /// ```rust,ignore
+    /// DialogButton::new(Text::new("Enhanced Cells"))
+    ///     .tooltip(Text::new("Gain an extra row of hearts"))
+    ///     .action(DialogAction::callback(grant_enhanced_cells))
+    /// ```
+    pub fn callback(id: impl IntoDialogFunctionRef) -> Self {
+        let path = id.into_dialog_function_path();
+        let trigger_id = register_dialog_callback(path);
+        Self::RunCommand(format!("/trigger {SAND_DIALOG_TRIGGER} set {trigger_id}"))
     }
 
     pub fn suggest_command(cmd: impl Into<String>) -> Self {

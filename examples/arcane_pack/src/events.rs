@@ -1,6 +1,6 @@
 use sand_core::ItemPredicate;
-use sand_core::event::AdvancementEvent;
 use sand_core::event::trigger::{ConsumeItemTrigger, UsingItemTrigger};
+use sand_core::event::{AdvancementEvent, DamageAdvancementEvent};
 use sand_core::prelude::*;
 
 /// Fires when a player eats a golden apple with mana below max.
@@ -18,6 +18,26 @@ impl AdvancementEvent for AteGoldenAppleEvent {
         Some(super::MANA.of("@s").lt(100))
     }
 }
+
+/// Fires when an enhanced-cells player is damaged.
+pub struct EnhancedCellsDamagedEvent;
+
+impl AdvancementEvent for EnhancedCellsDamagedEvent {
+    type Trigger = sand_core::AdvancementTrigger;
+
+    fn trigger() -> Self::Trigger {
+        sand_core::AdvancementTrigger::EntityHurtPlayer {
+            entity: None,
+            damage: None,
+        }
+    }
+
+    fn guard() -> Option<Condition> {
+        Some(super::HAS_ENHANCED_CELLS.of("@s").is_true())
+    }
+}
+
+impl DamageAdvancementEvent for EnhancedCellsDamagedEvent {}
 
 /// Fires when a player uses a dash wand (stick with custom data) while eligible.
 pub struct UsedDashWandEvent;

@@ -13,7 +13,7 @@
 //! ];
 //! ```
 
-use crate::selector::Selector;
+use crate::selector::{EntityTargets, Selector, SingleEntity};
 use crate::text::TextComponent;
 
 // ── Chat / messaging ──────────────────────────────────────────────────────────
@@ -299,9 +299,243 @@ pub fn gamerule_fire_tick(enabled: bool) -> String {
 
 // ── Damage ────────────────────────────────────────────────────────────────────
 
-/// `damage <target> <amount> <damage_type>` — deal damage to entities (1.19.4+).
-pub fn damage(target: Selector, amount: f64, damage_type: impl Into<String>) -> String {
+/// `damage <target> <amount> <damage_type>` — direct vanilla damage command.
+///
+/// Vanilla accepts exactly one entity target. Use [`Damage`] for high-level
+/// damage that can safely target many entities.
+pub fn damage(
+    target: impl Into<SingleEntity>,
+    amount: f64,
+    damage_type: impl Into<String>,
+) -> String {
+    let target = target.into();
     format!("damage {} {} {}", target, amount, damage_type.into())
+}
+
+/// A damage amount that Sand can lower to Minecraft commands.
+#[derive(Debug, Clone)]
+pub enum DamageAmount {
+    /// A fixed number of hit points.
+    Fixed(f64),
+    /// Future score-backed amount. Not lowered yet.
+    Score(String),
+    /// Same as event damage amount. Requires a real tracking system.
+    SameAsEvent,
+}
+
+impl DamageAmount {
+    /// Fixed hit-point damage.
+    pub fn fixed(amount: f64) -> Self {
+        Self::Fixed(amount)
+    }
+
+    fn as_fixed(&self) -> f64 {
+        match self {
+            Self::Fixed(v) => *v,
+            Self::Score(_) => {
+                panic!("score-backed damage amounts are not implemented yet")
+            }
+            Self::SameAsEvent => {
+                panic!(
+                    "same-as-event damage is unavailable: vanilla advancement rewards do not expose exact damage amount"
+                )
+            }
+        }
+    }
+}
+
+impl From<f64> for DamageAmount {
+    fn from(value: f64) -> Self {
+        Self::Fixed(value)
+    }
+}
+
+impl From<f32> for DamageAmount {
+    fn from(value: f32) -> Self {
+        Self::Fixed(value as f64)
+    }
+}
+
+/// Built-in vanilla damage type IDs for command damage.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DamageKind {
+    /// `minecraft:generic`
+    Generic,
+    /// `minecraft:magic`
+    Magic,
+    /// `minecraft:thorns`
+    Thorns,
+    /// `minecraft:freeze`
+    Freeze,
+    /// `minecraft:lightning_bolt`
+    LightningBolt,
+}
+
+impl DamageKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Generic => "minecraft:generic",
+            Self::Magic => "minecraft:magic",
+            Self::Thorns => "minecraft:thorns",
+            Self::Freeze => "minecraft:freeze",
+            Self::LightningBolt => "minecraft:lightning_bolt",
+        }
+    }
+}
+
+impl std::fmt::Display for DamageKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl From<DamageKind> for String {
+    fn from(value: DamageKind) -> Self {
+        value.as_str().to_string()
+    }
+}
+
+/// High-level damage builder that knows how to lower multi-target damage safely.
+#[derive(Debug, Clone)]
+pub struct Damage {
+    targets: DamageTargets,
+    amount: DamageAmount,
+    damage_type: String,
+    source: Option<SingleEntity>,
+    centered_at: Option<SingleEntity>,
+}
+
+#[derive(Debug, Clone)]
+pub enum DamageTargets {
+    One(SingleEntity),
+    Many(EntityTargets),
+}
+
+impl Damage {
+    /// Create a damage builder with default generic fixed 1.0 damage to `@s`.
+    pub fn new() -> Self {
+        Self {
+            targets: DamageTargets::One(SingleEntity::self_()),
+            amount: DamageAmount::Fixed(1.0),
+            damage_type: DamageKind::Generic.as_str().to_string(),
+            source: None,
+            centered_at: None,
+        }
+    }
+
+    /// Start a reflected-damage builder centered on `source`.
+    pub fn reflect_from(source: impl Into<SingleEntity>) -> Self {
+        let source = source.into();
+        Self::new().centered_at(source)
+    }
+
+    /// Set target entity or entities.
+    pub fn to(mut self, targets: impl IntoDamageTargets) -> Self {
+        self.targets = targets.into_damage_targets();
+        self
+    }
+
+    /// Set damage amount.
+    pub fn amount(mut self, amount: impl Into<DamageAmount>) -> Self {
+        self.amount = amount.into();
+        self
+    }
+
+    /// Set damage type/resource ID.
+    pub fn damage_type(mut self, damage_type: impl Into<String>) -> Self {
+        self.damage_type = damage_type.into();
+        self
+    }
+
+    /// Alias for [`damage_type`](Damage::damage_type).
+    pub fn kind(self, damage_type: impl Into<String>) -> Self {
+        self.damage_type(damage_type)
+    }
+
+    /// Attribute the damage source to a single entity.
+    pub fn source(mut self, source: impl Into<SingleEntity>) -> Self {
+        self.source = Some(source.into());
+        self
+    }
+
+    /// Explicitly omit source attribution.
+    pub fn without_source(mut self) -> Self {
+        self.source = None;
+        self
+    }
+
+    /// Run target selection at another single entity's position.
+    pub fn centered_at(mut self, center: impl Into<SingleEntity>) -> Self {
+        self.centered_at = Some(center.into());
+        self
+    }
+
+    /// Build one or more valid Minecraft command lines.
+    pub fn run(self) -> Vec<String> {
+        let Self {
+            targets,
+            amount,
+            damage_type,
+            source,
+            centered_at,
+        } = self;
+        let amount = amount.as_fixed();
+        match targets {
+            DamageTargets::One(target) => {
+                vec![damage_command(
+                    target,
+                    amount,
+                    &damage_type,
+                    source.as_ref(),
+                )]
+            }
+            DamageTargets::Many(targets) => {
+                let inner =
+                    damage_command(SingleEntity::self_(), amount, &damage_type, source.as_ref());
+                let prefix = match centered_at {
+                    Some(center) => format!("execute at {center} as {targets}"),
+                    None => format!("execute as {targets}"),
+                };
+                vec![format!("{prefix} run {inner}")]
+            }
+        }
+    }
+}
+
+fn damage_command(
+    target: SingleEntity,
+    amount: f64,
+    damage_type: &str,
+    source: Option<&SingleEntity>,
+) -> String {
+    let base = format!("damage {target} {amount} {damage_type}");
+    match source {
+        Some(source) => format!("{base} by {source}"),
+        None => base,
+    }
+}
+
+impl Default for Damage {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Converts typed target wrappers into the damage builder's target model.
+pub trait IntoDamageTargets {
+    fn into_damage_targets(self) -> DamageTargets;
+}
+
+impl IntoDamageTargets for SingleEntity {
+    fn into_damage_targets(self) -> DamageTargets {
+        DamageTargets::One(self)
+    }
+}
+
+impl IntoDamageTargets for EntityTargets {
+    fn into_damage_targets(self) -> DamageTargets {
+        DamageTargets::Many(self)
+    }
 }
 
 // ── Attributes ────────────────────────────────────────────────────────────────
@@ -460,6 +694,43 @@ mod tests {
         assert_eq!(
             damage(Selector::self_(), 5.0, "minecraft:generic"),
             "damage @s 5 minecraft:generic"
+        );
+    }
+
+    #[test]
+    fn damage_many_lowers_through_execute_as() {
+        let cmds = Damage::new()
+            .to(EntityTargets::nearby(5.0)
+                .excluding_players()
+                .excluding_self())
+            .amount(DamageAmount::fixed(4.0))
+            .damage_type(DamageKind::Generic)
+            .run();
+
+        assert_eq!(
+            cmds,
+            vec![
+                "execute as @e[distance=0.1..5,type=!minecraft:player] run damage @s 4 minecraft:generic"
+            ]
+        );
+        assert!(!cmds[0].contains("damage @e"));
+    }
+
+    #[test]
+    fn reflected_many_damage_centers_on_source_without_unsafe_attribution() {
+        let cmds = Damage::reflect_from(SingleEntity::self_())
+            .to(EntityTargets::nearby(5.0)
+                .excluding_players()
+                .excluding_self())
+            .amount(4.0)
+            .damage_type(DamageKind::Generic)
+            .run();
+
+        assert_eq!(
+            cmds,
+            vec![
+                "execute at @s as @e[distance=0.1..5,type=!minecraft:player] run damage @s 4 minecraft:generic"
+            ]
         );
     }
 

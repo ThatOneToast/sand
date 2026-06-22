@@ -981,6 +981,8 @@ adv_event!(EntityKillEvent);
 adv_event!(PlayerKillEvent);
 adv_event!(PlayerDamageEntityEvent);
 adv_event!(EntityDamagePlayerEvent);
+impl crate::event::DamageAdvancementEvent for PlayerDamageEntityEvent {}
+impl crate::event::DamageAdvancementEvent for EntityDamagePlayerEvent {}
 adv_event!(ShotCrossbowEvent);
 adv_event!(ChanneledLightningEvent);
 adv_event!(ItemConsumeEvent);

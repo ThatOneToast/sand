@@ -1,0 +1,22 @@
+error[E0277]: the trait bound `EntityTarget<One>: From<EntityTarget<Many>>` is not satisfied
+ --> tests/cases/fail_damage_direct_many_targets.rs:4:25
+  |
+4 |     let _ = cmd::damage(EntityTargets::nearby(5.0), 4.0);
+  |             ----------- ^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `From<EntityTarget<Many>>` is not implemented for `EntityTarget<One>`
+  |             |
+  |             required by a bound introduced by this call
+  |
+help: `EntityTarget<One>` implements trait `From<T>`
+ --> $WORKSPACE/sand-commands/src/selector.rs
+  |
+  | impl From<Selector> for SingleEntity {
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `From<sand_core::cmd::Selector>`
+...
+  | impl From<SinglePlayer> for SingleEntity {
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `From<PlayerTarget<One>>`
+  = note: required for `EntityTarget<Many>` to implement `Into<EntityTarget<One>>`
+note: required by a bound in `damage`
+ --> $OUT_DIR[sand-core]/commands.rs
+  |
+  | pub fn damage(target: impl Into<SingleEntity>, amount: f32) -> Damage {
+  |                            ^^^^^^^^^^^^^^^^^^ required by this bound in `damage`

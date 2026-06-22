@@ -62,7 +62,10 @@ pub use sand_commands::{Inventory, InventorySlot, SlotPattern};
 // Particle effects
 pub use sand_commands::{Particle, ParticleBuilder, ParticleEffect, ParticleSpread};
 // Entity/player targeting
-pub use sand_commands::{GameMode, Selector, SortOrder, TargetBase};
+pub use sand_commands::{
+    Damage as DamageBuilder, DamageAmount, DamageKind, EntityTarget, EntityTargets, GameMode, Many,
+    One, PlayerTarget, PlayerTargets, Selector, SingleEntity, SinglePlayer, SortOrder, TargetBase,
+};
 // Sound
 pub use sand_commands::{Sound, SoundSource};
 // Text components

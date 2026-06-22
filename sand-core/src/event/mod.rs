@@ -151,6 +151,14 @@ pub trait AdvancementEvent {
     }
 }
 
+/// Capability marker for advancement events that represent player damage.
+///
+/// Vanilla advancement reward functions identify the triggering player as
+/// `@s`, but they do not provide exact damage amount to the reward function.
+/// Use [`DamageAmount::Fixed`](sand_commands::DamageAmount::Fixed) today, or
+/// add a real tracking system before using same-as-event damage.
+pub trait DamageAdvancementEvent: AdvancementEvent {}
+
 /// Legacy compatibility trait — provides `player()` for bare event-type handler
 /// parameters (e.g. `event: OnJoinEvent`).
 ///
@@ -225,6 +233,54 @@ impl<E: AdvancementEvent> Event<E> {
 }
 
 impl<E: AdvancementEvent> Default for Event<E> {
+    fn default() -> Self {
+        Self::context()
+    }
+}
+
+impl<E: DamageAdvancementEvent> Event<E> {
+    /// Start a reflected-damage command builder from this event's player.
+    pub fn damage(&self) -> sand_commands::Damage {
+        sand_commands::Damage::reflect_from(crate::cmd::SingleEntity::self_())
+    }
+}
+
+/// Damage-specific event handler context for `#[event]` functions.
+///
+/// Use `DamageEvent<T>` when `T: DamageAdvancementEvent`. It exposes the
+/// triggering player as a statically single player/entity target and provides
+/// a first-class reflected-damage builder.
+pub struct DamageEvent<E: DamageAdvancementEvent> {
+    _marker: PhantomData<E>,
+}
+
+impl<E: DamageAdvancementEvent> DamageEvent<E> {
+    /// Construct the handler context value.
+    ///
+    /// Called by `#[event]`-generated code. Not normally called directly.
+    pub fn context() -> Self {
+        Self {
+            _marker: PhantomData,
+        }
+    }
+
+    /// Returns `@s` as a single player: the player who triggered the event.
+    pub fn player(&self) -> crate::cmd::SinglePlayer {
+        crate::cmd::SinglePlayer::self_()
+    }
+
+    /// Returns `@s` as a single entity: the damaged subject.
+    pub fn subject(&self) -> crate::cmd::SingleEntity {
+        crate::cmd::SingleEntity::self_()
+    }
+
+    /// Start a reflected-damage builder centered on and sourced from the player.
+    pub fn reflect_damage(&self) -> sand_commands::Damage {
+        sand_commands::Damage::reflect_from(self.subject())
+    }
+}
+
+impl<E: DamageAdvancementEvent> Default for DamageEvent<E> {
     fn default() -> Self {
         Self::context()
     }

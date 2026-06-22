@@ -15,9 +15,11 @@ pub use crate::execute_when::{if_, unless, when};
 
 // ── Command builders ──────────────────────────────────────────────────────────
 
+pub use crate::Damage;
 pub use crate::cmd::{
-    Actionbar, Bossbar, BossbarColor, BossbarStyle, Execute, Inventory, InventorySlot, Selector,
-    SlotPattern, Title,
+    Actionbar, Bossbar, BossbarColor, BossbarStyle, DamageAmount, DamageBuilder, DamageKind,
+    EntityTargets, Execute, Inventory, InventorySlot, PlayerTargets, Selector, SingleEntity,
+    SinglePlayer, SlotPattern, Title,
 };
 
 // ── State variables ───────────────────────────────────────────────────────────
@@ -45,8 +47,8 @@ pub use crate::function::IntoFunctionRef;
 
 pub use crate::event::handle::EventHandle;
 pub use crate::event::{
-    AdvancementEvent, Event, EventId, EventPlayer, EventReset, EventVisibility,
-    IntoEventAdvancement,
+    AdvancementEvent, DamageAdvancementEvent, DamageEvent, Event, EventId, EventPlayer, EventReset,
+    EventVisibility, IntoEventAdvancement,
 };
 
 // ── Dialog builders ───────────────────────────────────────────────────────────

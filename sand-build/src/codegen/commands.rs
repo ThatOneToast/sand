@@ -78,6 +78,14 @@ fn map_parser(parser: &str) -> (&'static str, &'static str, bool) {
     }
 }
 
+fn map_arg_parser(literals: &[&str], arg: &ArgInfo) -> (&'static str, &'static str, bool) {
+    if literals == ["damage"] && arg.name == "target" && arg.parser == "minecraft:entity" {
+        return ("impl Into<SingleEntity>", "SingleEntity", true);
+    }
+
+    map_parser(&arg.parser)
+}
+
 // ---------------------------------------------------------------------------
 // Field name sanitization
 // ---------------------------------------------------------------------------
@@ -332,11 +340,11 @@ fn emit_variant(code: &mut String, variant: &CommandVariant) {
 
     writeln!(code, "pub struct {sname} {{").unwrap();
     for arg in &required {
-        let (_param_ty, stored_ty, _needs_into) = map_parser(&arg.parser);
+        let (_param_ty, stored_ty, _needs_into) = map_arg_parser(&literals, arg);
         writeln!(code, "    {}: {stored_ty},", arg.name).unwrap();
     }
     for arg in &variant.optional_args {
-        let (_param_ty, stored_ty, _needs_into) = map_parser(&arg.parser);
+        let (_param_ty, stored_ty, _needs_into) = map_arg_parser(&literals, arg);
         writeln!(code, "    {}: Option<{stored_ty}>,", arg.name).unwrap();
     }
     writeln!(code, "}}").unwrap();
@@ -348,7 +356,7 @@ fn emit_variant(code: &mut String, variant: &CommandVariant) {
         let mut params = Vec::new();
         let mut body_lines = Vec::new();
         for arg in &required {
-            let (param_ty, _stored_ty, needs_into) = map_parser(&arg.parser);
+            let (param_ty, _stored_ty, needs_into) = map_arg_parser(&literals, arg);
             if needs_into {
                 params.push(format!("{}: {param_ty}", arg.name));
                 body_lines.push(format!("{}: {}.into()", arg.name, arg.name));
@@ -371,7 +379,7 @@ fn emit_variant(code: &mut String, variant: &CommandVariant) {
     }
 
     for arg in &variant.optional_args {
-        let (param_ty, _stored_ty, needs_into) = map_parser(&arg.parser);
+        let (param_ty, _stored_ty, needs_into) = map_arg_parser(&literals, arg);
         writeln!(
             code,
             "    pub fn {name}(mut self, {name}: {param_ty}) -> Self {{",
@@ -452,7 +460,7 @@ fn emit_variant(code: &mut String, variant: &CommandVariant) {
         let mut call_args = Vec::new();
 
         for arg in &required {
-            let (param_ty, _stored_ty, _needs_into) = map_parser(&arg.parser);
+            let (param_ty, _stored_ty, _needs_into) = map_arg_parser(&literals, arg);
             params.push(format!("{}: {param_ty}", arg.name));
             call_args.push(arg.name.clone());
         }

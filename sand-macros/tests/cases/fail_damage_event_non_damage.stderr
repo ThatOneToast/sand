@@ -1,0 +1,42 @@
+error[E0277]: the trait bound `AteEvent: DamageAdvancementEvent` is not satisfied
+  --> tests/cases/fail_damage_event_non_damage.rs:14:1
+   |
+14 | #[event]
+   | ^^^^^^^^ unsatisfied trait bound
+   |
+help: the trait `DamageAdvancementEvent` is not implemented for `AteEvent`
+  --> tests/cases/fail_damage_event_non_damage.rs:4:1
+   |
+ 4 | pub struct AteEvent;
+   | ^^^^^^^^^^^^^^^^^^^
+help: the following other types implement trait `DamageAdvancementEvent`
+  --> $WORKSPACE/sand-core/src/events/mod.rs
+   |
+   | impl crate::event::DamageAdvancementEvent for PlayerDamageEntityEvent {}
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `PlayerDamageEntityEvent`
+   | impl crate::event::DamageAdvancementEvent for EntityDamagePlayerEvent {}
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `EntityDamagePlayerEvent`
+note: required by a bound in `DamageEvent`
+  --> $WORKSPACE/sand-core/src/event/mod.rs
+   |
+   | pub struct DamageEvent<E: DamageAdvancementEvent> {
+   |                           ^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `DamageEvent`
+   = note: this error originates in the attribute macro `event` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0599]: the associated function or constant `context` exists for struct `DamageEvent<AteEvent>`, but its trait bounds were not satisfied
+  --> tests/cases/fail_damage_event_non_damage.rs:14:1
+   |
+ 4 | pub struct AteEvent;
+   | ------------------- doesn't satisfy `AteEvent: DamageAdvancementEvent`
+...
+14 | #[event]
+   | ^^^^^^^^ associated function or constant cannot be called on `DamageEvent<AteEvent>` due to unsatisfied trait bounds
+   |
+   = note: the following trait bounds were not satisfied:
+           `AteEvent: DamageAdvancementEvent`
+note: the trait `DamageAdvancementEvent` must be implemented
+  --> $WORKSPACE/sand-core/src/event/mod.rs
+   |
+   | pub trait DamageAdvancementEvent: AdvancementEvent {}
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: this error originates in the attribute macro `event` (in Nightly builds, run with -Z macro-backtrace for more info)

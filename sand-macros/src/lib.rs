@@ -1069,32 +1069,33 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
     fn extract_event_context_type(
         ty: &syn::Type,
         tp: &syn::TypePath,
-    ) -> syn::Result<Option<(String, proc_macro2::TokenStream)>> {
+    ) -> syn::Result<Option<(String, proc_macro2::TokenStream, bool)>> {
         let Some(segment) = tp.path.segments.last() else {
             return Ok(None);
         };
-        if segment.ident != "Event" {
+        let is_damage_context = segment.ident == "DamageEvent";
+        if segment.ident != "Event" && !is_damage_context {
             return Ok(None);
         }
 
         let syn::PathArguments::AngleBracketed(args) = &segment.arguments else {
             return Err(syn::Error::new_spanned(
                 ty,
-                "#[event] Event handlers must specify the event type, e.g. `Event<MyEvent>`",
+                "#[event] generic handlers must specify the event type, e.g. `Event<MyEvent>` or `DamageEvent<MyDamageEvent>`",
             ));
         };
 
         if args.args.len() != 1 {
             return Err(syn::Error::new_spanned(
                 args,
-                "#[event] Event handlers must use exactly one generic argument, e.g. `Event<MyEvent>`",
+                "#[event] generic handlers must use exactly one generic argument, e.g. `Event<MyEvent>`",
             ));
         }
 
         let Some(syn::GenericArgument::Type(event_ty)) = args.args.first() else {
             return Err(syn::Error::new_spanned(
                 args,
-                "#[event] Event handlers must use a type argument, e.g. `Event<MyEvent>`",
+                "#[event] generic handlers must use a type argument, e.g. `Event<MyEvent>`",
             ));
         };
 
@@ -1108,7 +1109,11 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
             _ => "Event".to_string(),
         };
 
-        Ok(Some((event_type_name, quote! { #event_ty })))
+        Ok(Some((
+            event_type_name,
+            quote! { #event_ty },
+            is_damage_context,
+        )))
     }
 
     // Extract the handler parameter model. `Event<T>` is the primary typed
@@ -1119,11 +1124,17 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
             syn::FnArg::Typed(pt) => match pt.ty.as_ref() {
                 syn::Type::Path(tp) => {
                     let ty = pt.ty.as_ref();
-                    if let Some((event_type_name, event_type_tokens)) =
+                    if let Some((event_type_name, event_type_tokens, is_damage_context)) =
                         extract_event_context_type(ty, tp)?
                     {
-                        let binding_tokens = quote! {
-                            ::sand_core::event::Event::<#event_type_tokens>::context()
+                        let binding_tokens = if is_damage_context {
+                            quote! {
+                                ::sand_core::event::DamageEvent::<#event_type_tokens>::context()
+                            }
+                        } else {
+                            quote! {
+                                ::sand_core::event::Event::<#event_type_tokens>::context()
+                            }
                         };
                         EventParam::Context {
                             event_type_name,
@@ -1159,6 +1170,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 event_type_name,
                 event_type_tokens,
                 binding_tokens,
+                ..
             } => (
                 event_type_name.clone(),
                 event_type_tokens.clone(),

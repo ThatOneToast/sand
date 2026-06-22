@@ -60,7 +60,7 @@ pub fn export_components_json(namespace: &str) -> String {
         });
     }
 
-    // ── Dynamic anonymous functions (run_fn! blocks) ──────────────────────────
+    // ── Dynamic anonymous functions (run_fn! blocks + conditional branches) ─────
     for (path, commands) in crate::drain_dyn_fns() {
         records.push(ComponentRecord {
             namespace: namespace.to_string(),
@@ -69,6 +69,59 @@ pub fn export_components_json(namespace: &str) -> String {
             ext: "mcfunction".to_string(),
             content: commands.join("\n"),
         });
+    }
+
+    // ── Dialog callback dispatcher ────────────────────────────────────────────
+    // If any DialogAction::callback(...) calls were made, generate the
+    // trigger objective infrastructure and per-player dispatch tick function.
+    let callbacks = sand_components::dialog::drain_dialog_callbacks();
+    if !callbacks.is_empty() {
+        let trigger = sand_components::dialog::SAND_DIALOG_TRIGGER;
+
+        // Init function: create the trigger objective and enable for all players.
+        let init_cmds = [
+            format!("scoreboard objectives add {trigger} trigger"),
+            format!("scoreboard players enable @a {trigger}"),
+        ];
+        records.push(ComponentRecord {
+            namespace: namespace.to_string(),
+            dir: "function".to_string(),
+            path: "__sand_dialog_init".to_string(),
+            ext: "mcfunction".to_string(),
+            content: init_cmds.join("\n"),
+        });
+        // Register the init function in minecraft:load
+        tag_map
+            .entry("minecraft:load".to_string())
+            .or_default()
+            .push(format!("{namespace}:__sand_dialog_init"));
+
+        // Tick dispatcher: for each callback, detect and dispatch.
+        let mut tick_cmds: Vec<String> = Vec::new();
+        // Re-enable trigger at start so players can use buttons this tick
+        tick_cmds.push(format!("scoreboard players enable @a {trigger}"));
+        for (id, path) in &callbacks {
+            // The path may contain __sand_local sentinel; resolve in records later
+            tick_cmds.push(format!(
+                "execute as @a[scores={{{trigger}={id}}}] at @s run function {path}"
+            ));
+            tick_cmds.push(format!(
+                "scoreboard players set @a[scores={{{trigger}={id}}}] {trigger} 0"
+            ));
+            tick_cmds.push(format!("scoreboard players enable @a {trigger}"));
+        }
+        records.push(ComponentRecord {
+            namespace: namespace.to_string(),
+            dir: "function".to_string(),
+            path: "__sand_dialog_tick".to_string(),
+            ext: "mcfunction".to_string(),
+            content: tick_cmds.join("\n"),
+        });
+        // Register the tick function in minecraft:tick
+        tag_map
+            .entry("minecraft:tick".to_string())
+            .or_default()
+            .push(format!("{namespace}:__sand_dialog_tick"));
     }
 
     // ── ComponentFactories ────────────────────────────────────────────────────

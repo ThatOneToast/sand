@@ -20,22 +20,28 @@
 //!
 //! ```rust,ignore
 //! use sand_macros::event;
+//! use sand_core::prelude::*;
 //! use sand_core::events::{OnJoinEvent, OnDeathEvent, ArmorEquipEvent};
+//!
+//! static TOTAL_DEATHS: ScoreVar<i32> = ScoreVar::new("total_deaths");
 //!
 //! #[event]
 //! pub fn on_join(event: OnJoinEvent) {
-//!     mcfunction! { r#"tellraw @s {"text":"Welcome!","color":"gold"}"# }
+//!     cmd::tellraw(
+//!         Selector::self_(),
+//!         Text::new("Welcome!").gold(),
+//!     );
 //! }
 //!
 //! #[event]
 //! pub fn on_death(event: OnDeathEvent) {
-//!     mcfunction! { "scoreboard players add @s total_deaths 1" }
+//!     TOTAL_DEATHS.add(Selector::self_(), 1);
 //! }
 //!
 //! // Slot filter required; item is optional
 //! #[event(slot = Head, item = "minecraft:diamond_helmet")]
 //! pub fn equipped_diamond_helmet(event: ArmorEquipEvent) {
-//!     mcfunction! { "say Diamond helmet on!" }
+//!     cmd::say("Diamond helmet on!");
 //! }
 //! ```
 //!
@@ -100,6 +106,7 @@ pub enum SandEventDispatch {
 ///
 /// ```rust,ignore
 /// use sand_core::events::{SandEvent, SandEventDispatch};
+/// use sand_core::prelude::*;
 /// use sand_core::AdvancementTrigger;
 ///
 /// /// Fires when a player picks up any item.
@@ -115,7 +122,7 @@ pub enum SandEventDispatch {
 ///
 /// #[event]
 /// pub fn on_item_pickup(event: ItemPickupEvent) {
-///     mcfunction! { r#"playsound minecraft:entity.item.pickup player @s"# }
+///     cmd::say("Picked something up!");
 /// }
 /// ```
 pub trait SandEvent {
@@ -149,7 +156,10 @@ pub trait SandEvent {
 /// ```rust,ignore
 /// #[event]
 /// pub fn on_join(event: OnJoinEvent) {
-///     mcfunction! { r#"tellraw @s {"text":"Welcome back!","color":"gold"}"# }
+///     cmd::tellraw(
+///         Selector::self_(),
+///         Text::new("Welcome back!").gold(),
+///     );
 /// }
 /// ```
 pub struct OnJoinEvent;
@@ -165,10 +175,11 @@ pub struct OnJoinEvent;
 /// ```rust,ignore
 /// #[event]
 /// pub fn first_join(event: FirstJoinEvent) {
-///     mcfunction! {
-///         r#"tellraw @s {"text":"Welcome for the very first time!","color":"aqua"}"#;
-///         "give @s minecraft:diamond 3";
-///     }
+///     cmd::tellraw(
+///         Selector::self_(),
+///         Text::new("Welcome for the very first time!").aqua(),
+///     );
+///     cmd::give(Selector::self_(), "minecraft:diamond").count(3);
 /// }
 /// ```
 pub struct FirstJoinEvent;
@@ -181,12 +192,11 @@ pub struct FirstJoinEvent;
 /// # Example
 ///
 /// ```rust,ignore
+/// static TOTAL_DEATHS: ScoreVar<i32> = ScoreVar::new("total_deaths");
+///
 /// #[event]
 /// pub fn on_death(event: OnDeathEvent) {
-///     mcfunction! {
-///         "scoreboard players add @s total_deaths 1";
-///         "playsound minecraft:entity.wither.death player @s ~ ~ ~ 0.5 0.8";
-///     }
+///     TOTAL_DEATHS.add(Selector::self_(), 1);
 /// }
 /// ```
 pub struct OnDeathEvent;
@@ -202,10 +212,10 @@ pub struct OnDeathEvent;
 /// ```rust,ignore
 /// #[event]
 /// pub fn on_respawn(event: OnRespawnEvent) {
-///     mcfunction! {
-///         r#"tellraw @s {"text":"You respawned!","color":"green"}"#;
-///         "effect give @s minecraft:regeneration 5 1 true";
-///     }
+///     cmd::tellraw(
+///         Selector::self_(),
+///         Text::new("You respawned!").green(),
+///     );
 /// }
 /// ```
 pub struct OnRespawnEvent;
@@ -227,16 +237,18 @@ pub struct OnRespawnEvent;
 /// # Example
 ///
 /// ```rust,ignore
+/// static MANA_REGEN: Flag = Flag::new("mana_regen");
+///
 /// // Any item equipped in the feet slot
 /// #[event(slot = Feet)]
 /// pub fn any_boots_equipped(event: ArmorEquipEvent) {
-///     mcfunction! { "say Boots equipped!" }
+///     cmd::say("Boots equipped!");
 /// }
 ///
 /// // Specific item with custom NBT
 /// #[event(slot = Feet, item = "minecraft:leather_boots", custom_data = "{mana_boots:1b}")]
 /// pub fn mana_boots_equipped(event: ArmorEquipEvent) {
-///     mcfunction! { "scoreboard players set @s mana_regen 1" }
+///     MANA_REGEN.enable(Selector::self_());
 /// }
 /// ```
 pub struct ArmorEquipEvent;
@@ -248,9 +260,11 @@ pub struct ArmorEquipEvent;
 /// # Example
 ///
 /// ```rust,ignore
+/// static MANA_REGEN: Flag = Flag::new("mana_regen");
+///
 /// #[event(slot = Feet, item = "minecraft:leather_boots", custom_data = "{mana_boots:1b}")]
 /// pub fn mana_boots_removed(event: ArmorUnequipEvent) {
-///     mcfunction! { "scoreboard players set @s mana_regen 0" }
+///     MANA_REGEN.disable(Selector::self_());
 /// }
 /// ```
 pub struct ArmorUnequipEvent;
@@ -271,14 +285,16 @@ pub struct ArmorUnequipEvent;
 /// # Example
 ///
 /// ```rust,ignore
+/// static BLOCKING: Flag = Flag::new("blocking");
+///
 /// #[event(item = "minecraft:diamond_sword")]
 /// pub fn holding_diamond_sword(event: HoldingItemEvent) {
-///     mcfunction! { "particle minecraft:crit @s ~ ~1 ~ 0.3 0.3 0.3 0.01 3" }
+///     cmd::particle(Particle::Crit, Selector::self_());
 /// }
 ///
 /// #[event(item = "minecraft:shield", slot = Offhand)]
 /// pub fn holding_shield_offhand(event: HoldingItemEvent) {
-///     mcfunction! { "scoreboard players set @s blocking 1" }
+///     BLOCKING.enable(Selector::self_());
 /// }
 /// ```
 pub struct HoldingItemEvent;
@@ -301,7 +317,7 @@ pub struct HoldingItemEvent;
 /// ```rust,ignore
 /// #[event(slot = Head, item = "minecraft:diamond_helmet")]
 /// pub fn wearing_diamond_helmet(event: CurrentlyWearingEvent) {
-///     mcfunction! { "particle minecraft:enchant @s ~ ~1.8 ~ 0.2 0.2 0.2 0.1 2" }
+///     cmd::particle(Particle::Enchant, Selector::self_());
 /// }
 /// ```
 pub struct CurrentlyWearingEvent;
@@ -326,9 +342,11 @@ pub struct CurrentlyWearingEvent;
 ///
 /// # Example
 /// ```rust,ignore
+/// static TOTAL_KILLS: ScoreVar<i32> = ScoreVar::new("total_kills");
+///
 /// #[event]
 /// pub fn on_kill(event: EntityKillEvent) {
-///     mcfunction! { "scoreboard players add @s total_kills 1" }
+///     TOTAL_KILLS.add(Selector::self_(), 1);
 /// }
 /// ```
 pub struct EntityKillEvent;
@@ -349,7 +367,10 @@ impl SandEvent for EntityKillEvent {
 /// ```rust,ignore
 /// #[event]
 /// pub fn on_killed(event: PlayerKillEvent) {
-///     mcfunction! { r#"tellraw @s {"text":"You were slain!","color":"red"}"# }
+///     cmd::tellraw(
+///         Selector::self_(),
+///         Text::new("You were slain!").red(),
+///     );
 /// }
 /// ```
 pub struct PlayerKillEvent;
@@ -418,7 +439,7 @@ impl SandEvent for ChanneledLightningEvent {
 /// ```rust,ignore
 /// #[event]
 /// pub fn on_eat(event: ItemConsumeEvent) {
-///     mcfunction! { "say Yum!" }
+///     cmd::say("Yum!");
 /// }
 /// ```
 pub struct ItemConsumeEvent;
@@ -562,9 +583,11 @@ impl SandEvent for RecipeUnlockEvent {
 ///
 /// # Example
 /// ```rust,ignore
+/// static BLOCKS_PLACED: ScoreVar<i32> = ScoreVar::new("blocks_placed");
+///
 /// #[event]
 /// pub fn on_place(event: BlockPlaceEvent) {
-///     mcfunction! { "scoreboard players add @s blocks_placed 1" }
+///     BLOCKS_PLACED.add(Selector::self_(), 1);
 /// }
 /// ```
 pub struct BlockPlaceEvent;
@@ -641,7 +664,7 @@ impl SandEvent for BeeNestDestroyedEvent {
 /// ```rust,ignore
 /// #[event]
 /// pub fn on_change_dim(event: ChangeDimensionEvent) {
-///     mcfunction! { "say Dimension change!" }
+///     cmd::say("Dimension change!");
 /// }
 /// ```
 pub struct ChangeDimensionEvent;
@@ -674,7 +697,10 @@ impl SandEvent for PlayerSleepEvent {
 /// ```rust,ignore
 /// #[event]
 /// pub fn on_fall(event: FallFromHeightEvent) {
-///     mcfunction! { "playsound minecraft:entity.player.hurt player @s" }
+///     cmd::playsound(
+///         ResourceLocation::new("minecraft", "entity.player.hurt").unwrap(),
+///         Selector::self_(),
+///     );
 /// }
 /// ```
 pub struct FallFromHeightEvent;
@@ -878,7 +904,7 @@ impl SandEvent for LightningStrikeEvent {
 /// ```rust,ignore
 /// #[event]
 /// pub fn while_sneaking(event: PlayerSneakEvent) {
-///     mcfunction! { "particle minecraft:smoke @s ~ ~1 ~ 0 0 0 0 1" }
+///     cmd::particle(Particle::Smoke, Selector::self_());
 /// }
 /// ```
 pub struct PlayerSneakEvent;

@@ -8,11 +8,11 @@
 //!
 //! - [`ResourceLocation`] — validated `namespace:path` identifiers
 //! - [`DatapackComponent`] — trait implemented by all datapack element types
-//! - [`mcfunction!`] — macro for building command lists
 //! - [`cmd`] — typed command builders (`Execute`, `Selector`, `SetBlock`, etc.)
 //!   plus auto-generated enums for `Item`, `Block`, `EntityType`, and more
 //! - [`components`] — advancements, recipes, loot tables, predicates, item
 //!   modifiers, tags, and custom items
+//! - [`mcfunction!`] — advanced macro for command grouping and migration
 //!
 //! # Usage
 //!
@@ -20,14 +20,20 @@
 //! for the `#[function]` and `#[component]` proc macros:
 //!
 //! ```rust,ignore
-//! use sand_core::mcfunction;
+//! use sand_core::prelude::*;
 //! use sand_macros::{component, function};
 //!
 //! #[function]
 //! pub fn greet() {
-//!     mcfunction! {
-//!         r#"tellraw @a {"text":"Hello!","color":"gold"}"#;
-//!     }
+//!     cmd::tellraw(
+//!         Selector::all_players(),
+//!         Text::new("Hello from Sand!").gold().bold(true),
+//!     );
+//! }
+//!
+//! #[component(Load)]
+//! pub fn on_load() {
+//!     cmd::say("Datapack loaded");
 //! }
 //! ```
 

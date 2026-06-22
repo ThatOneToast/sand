@@ -618,7 +618,7 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
 ///
 /// #[event]
 /// pub fn on_use(event: MyEvent) {
-///     mcfunction! { "say Used something!" }
+///     cmd::say("Used something!");
 /// }
 /// ```
 ///
@@ -647,7 +647,8 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
 /// **Join detection pattern** — use `revoke = false` (default) and add this to
 /// your `#[component(Load)]` to reset for every world load/reload:
 /// ```rust,ignore
-/// "advancement revoke @a only my_pack:on_join";
+/// // Escape hatch: typed advancement revoke builder is not yet available.
+/// cmd::raw("advancement revoke @a only my_pack:on_join");
 /// ```
 ///
 /// # Event types
@@ -660,10 +661,12 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
 /// standard pattern for initialization logic.
 ///
 /// ```rust,ignore
+/// static PLAYER_MANA: ScoreVar<i32> = ScoreVar::new("player_mana");
+///
 /// #[event(Join)]
 /// pub fn on_join() {
-///     "scoreboard players set @s player_mana 100";
-///     "say Welcome!";
+///     PLAYER_MANA.set(Selector::self_(), 100);
+///     cmd::say("Welcome!");
 /// }
 /// ```
 ///
@@ -678,11 +681,11 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
 /// ```rust,ignore
 /// // Any death
 /// #[event(Death, revoke = true)]
-/// pub fn on_death() { "say A player died!"; }
+/// pub fn on_death() { cmd::say("A player died!"); }
 ///
 /// // Only zombie kills
 /// #[event(Death { entity = "minecraft:zombie" }, revoke = true)]
-/// pub fn on_zombie_death() { "give @s minecraft:apple 1"; }
+/// pub fn on_zombie_death() { cmd::give(Selector::self_(), "minecraft:apple").count(1); }
 ///
 /// // Complex predicate — pass a raw JSON object (must start with `{`)
 /// #[event(Death { killing_blow = r#"{"direct_entity":{"type":"minecraft:arrow"}}"# })]
@@ -697,7 +700,7 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
 ///
 /// ```rust,ignore
 /// #[event(Kill { entity = "minecraft:skeleton" }, revoke = true)]
-/// pub fn on_skeleton_kill() { "give @s minecraft:bone 1"; }
+/// pub fn on_skeleton_kill() { cmd::give(Selector::self_(), "minecraft:bone").count(1); }
 /// ```
 ///
 /// ---
@@ -710,7 +713,7 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
 ///
 /// ```rust,ignore
 /// #[event(BlockPlaced { block = "minecraft:tnt" }, revoke = true)]
-/// pub fn on_tnt_placed() { "say TNT placed!"; }
+/// pub fn on_tnt_placed() { cmd::say("TNT placed!"); }
 /// ```
 ///
 /// ---
@@ -731,7 +734,7 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
 ///
 /// ```rust,ignore
 /// #[event(ItemConsumed { item = "minecraft:golden_apple" }, revoke = true)]
-/// pub fn on_golden_apple() { "say Golden apple consumed!"; }
+/// pub fn on_golden_apple() { cmd::say("Golden apple consumed!"); }
 /// ```
 ///
 /// ---
@@ -753,7 +756,7 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
 ///
 /// ```rust,ignore
 /// #[event(RecipeUnlocked { recipe = "minecraft:diamond_sword" }, revoke = true)]
-/// pub fn on_diamond_sword_recipe() { "give @s minecraft:diamond 1"; }
+/// pub fn on_diamond_sword_recipe() { cmd::give(Selector::self_(), "minecraft:diamond").count(1); }
 /// ```
 ///
 /// ---
@@ -764,7 +767,7 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
 ///
 /// ```rust,ignore
 /// #[event(EnterBlock { block = "minecraft:lava" }, revoke = true)]
-/// pub fn on_enter_lava() { "say Lava!"; }
+/// pub fn on_enter_lava() { cmd::say("Lava!"); }
 /// ```
 ///
 /// ---
@@ -786,7 +789,7 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
 ///
 /// ```rust,ignore
 /// #[event(TamedAnimal { entity = "minecraft:wolf" }, revoke = true)]
-/// pub fn on_wolf_tamed() { "give @s minecraft:bone 5"; }
+/// pub fn on_wolf_tamed() { cmd::give(Selector::self_(), "minecraft:bone").count(5); }
 /// ```
 ///
 /// ---
@@ -795,7 +798,7 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
 ///
 /// ```rust,ignore
 /// #[event(SummonedEntity { entity = "minecraft:wither" }, revoke = true)]
-/// pub fn on_wither_summon() { "say Wither summoned!"; }
+/// pub fn on_wither_summon() { cmd::say("Wither summoned!"); }
 /// ```
 ///
 /// ---
@@ -828,7 +831,7 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
 ///
 /// ```rust,ignore
 /// #[event(Location { location = r#"{"biome":"minecraft:desert"}"# }, revoke = true)]
-/// pub fn on_desert_enter() { "say You entered the desert!"; }
+/// pub fn on_desert_enter() { cmd::say("You entered the desert!"); }
 /// ```
 ///
 /// ---
@@ -852,7 +855,7 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
 /// ```rust,ignore
 /// // Fire when player picks up any diamond
 /// #[event(InventoryChanged { items = r#"[{"id":"minecraft:diamond"}]"# }, revoke = true)]
-/// pub fn on_get_diamond() { "say You got a diamond!"; }
+/// pub fn on_get_diamond() { cmd::say("You got a diamond!"); }
 ///
 /// // No filter — fires on any inventory change
 /// #[event(InventoryChanged, revoke = true)]
@@ -1429,7 +1432,9 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
 ///
 /// ```rust,ignore
 /// use sand_macros::{function, run_fn};
-/// use sand_core::cmd::{Execute, Selector};
+/// use sand_core::prelude::*;
+///
+/// static VISITS: ScoreVar<i32> = ScoreVar::new("visits");
 ///
 /// #[function]
 /// fn my_fn() {
@@ -1437,7 +1442,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
 ///         .as_(Selector::all_players())
 ///         .run(run_fn!("hello_world:greet" {
 ///             cmd::say("Welcome!");
-///             "scoreboard players add @s visits 1";
+///             VISITS.add(Selector::self_(), 1);
 ///         }));
 /// }
 /// ```
@@ -2329,17 +2334,19 @@ impl syn::parse::Parse for ArmorEventAttr {
 /// a specific `minecraft:custom_data` component tag (SNBT format):
 ///
 /// ```rust,ignore
+/// static MANA_REGEN_BOOST: Flag = Flag::new("mana_regen_boost");
+///
 /// // Fire when any custom "mana boots" item is equipped in the feet slot
 /// #[armor_event(Equip, slot = Feet, item = "minecraft:leather_boots",
 ///               custom_data = "{mana_boots:true}")]
 /// pub fn on_mana_boots_equip() {
-///     "scoreboard players set @s mana_regen_boost 1";
+///     MANA_REGEN_BOOST.enable(Selector::self_());
 /// }
 ///
 /// #[armor_event(Unequip, slot = Feet, item = "minecraft:leather_boots",
 ///               custom_data = "{mana_boots:true}")]
 /// pub fn on_mana_boots_unequip() {
-///     "scoreboard players set @s mana_regen_boost 0";
+///     MANA_REGEN_BOOST.disable(Selector::self_());
 /// }
 /// ```
 ///

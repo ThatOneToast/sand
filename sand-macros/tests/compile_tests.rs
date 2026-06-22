@@ -6,6 +6,7 @@ fn compile_tests() {
     t.pass("tests/cases/pass_plain_stmts.rs");
     t.pass("tests/cases/pass_attribute_typed.rs");
     t.pass("tests/cases/pass_component.rs");
+    t.pass("tests/cases/pass_component_dialog.rs");
     t.pass("tests/cases/pass_event_generic.rs");
     t.pass("tests/cases/pass_event_generic_used_dash_wand.rs");
     t.compile_fail("tests/cases/fail_with_params.rs");

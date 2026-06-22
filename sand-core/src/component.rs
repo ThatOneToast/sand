@@ -761,14 +761,16 @@ pub fn export_components_json(namespace: &str) -> String {
     }
 
     // ── Resolve local sentinels → real namespace ──────────────────────────────
-    // Two sentinel patterns written by Sand-generated code:
+    // Sentinel patterns written by Sand-generated code:
     //   `function __sand_local:<path>`         — from cmd::call(fn_ptr) for bare functions
     //   `... only __sand_local:<path>`         — from EventHandle::revoke/grant
-    // Both are resolved to the pack namespace here, after all records are collected.
+    //   `__sand_local:<path>` in JSON          — from local component refs
+    // They are resolved to the pack namespace here, after all records are collected.
     for rec in &mut records {
-        if rec.ext == "mcfunction" {
-            rec.content = resolve_local_refs(&rec.content, namespace);
+        if rec.namespace == crate::function::SAND_LOCAL_NS {
+            rec.namespace = namespace.to_string();
         }
+        rec.content = resolve_local_refs(&rec.content, namespace);
     }
 
     // Sanity: no sentinel should survive into the final output.

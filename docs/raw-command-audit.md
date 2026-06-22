@@ -14,7 +14,7 @@ typed Rust-first datapack framework.
 - `sand-core/src/state/**`: typed state APIs document and test their generated
   scoreboard/storage commands.
 - `sand-macros/tests/cases/**`: macro compile tests intentionally use raw
-  strings to verify escape-hatch compatibility.
+  strings to verify diagnostics and escape-hatch compatibility.
 
 ## B. Valid Explicit Escape Hatch
 
@@ -23,26 +23,38 @@ typed Rust-first datapack framework.
 - `sand_commands::*_raw` helpers remain valid escape hatches for advanced
   debugging, interop, and future Minecraft syntax.
 
-## C. Stale User-Facing Teaching
+## C. Cleaned Up In Attribute-First Pass
 
-- `README.md` still leads with raw `mcfunction!` examples for `tellraw` and
-  scoreboards.
-- `examples/basic_functions.rs` teaches raw `.mcfunction` strings as the first
-  beginner path.
-- `examples/README.md` still mentions `cargo install sand` even though the CLI
-  is not currently published that way.
+- `README.md` now starts with `#[component(Load)]`, `#[component(Tick)]`, and
+  `#[function]` bodies containing typed command expressions directly.
+- `docs/getting-started.md`, `docs/typed-state.md`,
+  `docs/typed-commands.md`, and `docs/storage-nbt.md` now teach attribute
+  functions before `mcfunction!`.
+- `examples/basic_typed.rs`, `examples/state_and_conditions.rs`,
+  `examples/spell_system.rs`, `examples/storage_nbt.rs`, and
+  `examples/player_join.rs` no longer use raw command strings for normal logic.
+
+## D. Remaining Stale Or Legacy Teaching
+
 - Several rustdoc examples in `sand-core/src/lib.rs`, `sand-core/src/events`,
-  and `sand-macros/src/lib.rs` still show raw `tellraw` or scoreboard strings.
+  and deeper `sand-macros/src/lib.rs` event sections still show legacy raw
+  command strings. These should be converted in a focused event-doc pass.
+- `examples/arcane_arsenal.html` is a generated/static long-form reference
+  page that still contains raw command strings. It should either be regenerated
+  from typed examples or moved under a legacy/migration label.
 
-## D. Missing Typed API That Forced a Raw String
+## E. Missing Typed API That Forced a Raw String
 
 - Dialog examples currently use `DialogAction::run_command("/function ...")`.
   The command builder exists as `cmd::function(ResourceLocation)`, but dialog
   actions need a typed command-friendly path documented and hardened.
 - Event rustdocs use raw score and message commands even though typed state,
   text, selectors, and command builders now cover the normal use cases.
+- `examples/player_join.rs` still uses `cmd::raw("advancement revoke ...")`
+  because the beginner prelude does not yet expose a typed advancement
+  grant/revoke builder.
 
-## E. Interop/Modded Examples That Should Stay Raw
+## F. Interop/Modded Examples That Should Stay Raw
 
 - A single interop example should remain under `examples/interop_escape_hatches.rs`
   and `docs/escape-hatches.md`, clearly labeled as an explicit escape hatch for

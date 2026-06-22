@@ -19,22 +19,22 @@
 //! # Example
 //!
 //! ```rust,ignore
-//! use sand_core::mcfunction;
+//! use sand_core::prelude::*;
 //! use sand_macros::{component, function, run_fn};
 //!
 //! #[function]
 //! pub fn greet() {
-//!     mcfunction! { "say Hello from Sand!"; }
+//!     cmd::tellraw(Selector::all_players(), Text::new("Hello from Sand").gold());
 //! }
 //!
 //! #[component(Tick)]
 //! pub fn tick() {
-//!     mcfunction! { "scoreboard players add @a timer 1"; }
+//!     cmd::say("Tick from Sand");
 //! }
 //!
 //! #[component(Load)]
 //! pub fn on_load() {
-//!     mcfunction! { "scoreboard objectives add timer dummy"; }
+//!     cmd::say("Sand datapack loaded");
 //! }
 //! ```
 
@@ -47,23 +47,25 @@ use syn::{ItemFn, LitStr, parse_macro_input, token};
 /// Convert a `#[function]` / `#[component(Tick|Load|Tag)]` block into the
 /// `Vec<String>` construction the build pipeline expects.
 ///
-/// All expressions — with or without a trailing `;` — and all macro
-/// invocations are routed through
-/// [`IntoCommands::into_commands`](::sand_core::IntoCommands), which accepts:
+/// All expressions — with or without a trailing `;` — and macro invocations are
+/// routed through [`IntoCommands::into_commands`](::sand_core::IntoCommands),
+/// which accepts:
 ///
 /// - `String` / `&str` → single command
 /// - `Vec<String>` → extends with all commands (call a helper fn directly)
-/// - `mcfunction![…]` → extends with all commands the macro produces
+/// - typed command builders from `sand_core::cmd` / `sand_commands`
+/// - `mcfunction![…]` → extends with all commands the macro produces for
+///   advanced command collection
 ///
-/// This means plain helper functions returning `Vec<String>` work directly
-/// alongside individual command strings — no wrapping in `mcfunction!` needed:
+/// Attribute functions reject raw string literals directly. Use typed commands
+/// for normal code, or `cmd::raw(...)` when an escape hatch is intentional.
 ///
 /// ```rust,ignore
 /// #[function]
 /// pub fn load() {
 ///     init_scoreboards();       // fn returning Vec<String> — commands extended
-///     "say pack loaded";        // &str — single command
-///     mcfunction!["say ready"]; // Vec<String> — commands extended
+///     cmd::say("pack loaded");  // typed command expression
+///     cmd::raw("function other_pack:api/run"); // explicit escape hatch
 /// }
 /// ```
 fn command_body_expr(expr: &syn::Expr) -> syn::Result<proc_macro2::TokenStream> {
@@ -137,9 +139,9 @@ fn build_cmd_body(block: &syn::Block) -> syn::Result<proc_macro2::TokenStream> {
 
 /// Registers a free-standing function as a datapack `.mcfunction` file.
 ///
-/// The function body must return a `Vec<String>` of commands, typically via
-/// the [`mcfunction!`] macro which accepts any `Display`-implementing expression
-/// (string literals or command builder values).
+/// Write typed command expressions directly in the function body. Sand collects
+/// each expression into the generated command list. Use `mcfunction!` only for
+/// advanced command grouping or migration code.
 ///
 /// The function is automatically registered via [`inventory`] at program startup —
 /// no manual collection or wiring is needed.
@@ -151,15 +153,15 @@ fn build_cmd_body(block: &syn::Block) -> syn::Result<proc_macro2::TokenStream> {
 /// # Example
 /// ```rust,ignore
 /// use sand_macros::function;
-/// use sand_core::cmd::{Execute, Selector, cmd};
+/// use sand_core::prelude::*;
 ///
 /// #[function]
 /// fn hello_world() {
-///     mcfunction! {
-///         r#"tellraw @a {"text":"Welcome!","color":"gold","bold":true}"#;
-///         cmd::say("Enjoy your stay!");
-///         Execute::new().as_(Selector::all_players()).run(cmd::kill(Selector::self_()));
-///     }
+///     cmd::tellraw(
+///         Selector::all_players(),
+///         Text::new("Welcome!").gold().bold(true),
+///     );
+///     cmd::say("Enjoy your stay!");
 /// }
 /// ```
 #[proc_macro_attribute]
@@ -281,16 +283,12 @@ fn expand_function(
 /// ```rust,ignore
 /// #[component(Tick)]
 /// pub fn my_tick() {
-///     mcfunction! {
-///         "scoreboard players add @a timer 1";
-///     }
+///     TIMER.tick(Selector::all_players());
 /// }
 ///
 /// #[component(Load)]
 /// pub fn on_load() {
-///     mcfunction! {
-///         "scoreboard objectives add timer dummy";
-///     }
+///     TIMER.define();
 /// }
 /// ```
 ///
@@ -302,7 +300,7 @@ fn expand_function(
 /// ```rust,ignore
 /// #[component(Tag = "my_lib:on_player_death")]
 /// pub fn handle_death() {
-///     mcfunction! { "say player died"; }
+///     cmd::say("player died");
 /// }
 /// ```
 #[proc_macro_attribute]

@@ -9,31 +9,28 @@ static DASH: Cooldown = Cooldown::new("dash", Ticks::seconds(3));
 
 #[component(Load)]
 pub fn load_state() {
-    mcfunction! {
-        MANA.define();
-        CASTING.define();
-        DASH.define();
-        MANA.set(Selector::all_players(), 100);
-        CASTING.disable(Selector::all_players());
-    }
+    MANA.define();
+    CASTING.define();
+    DASH.define();
+    MANA.set(Selector::all_players(), 100);
+    CASTING.disable(Selector::all_players());
 }
 
 #[component(Tick)]
 pub fn tick_state() {
-    mcfunction! {
-        DASH.tick(Selector::all_players());
-    }
+    DASH.tick(Selector::all_players());
 }
 
 #[function]
 pub fn try_dash() {
-    mcfunction! {
-        TypedExecute::as_players_at_self()
-            .when(all![
-                MANA.of("@s").gte(25),
-                CASTING.of("@s").is_false(),
-                any![DASH.ready("@s"), Condition::predicate("example:dash_override")],
-            ])
-            .run(Actionbar::show(Selector::self_(), Text::new("Dash ready").aqua()));
-    }
+    TypedExecute::as_players_at_self()
+        .when(all![
+            MANA.of("@s").gte(25),
+            CASTING.of("@s").is_false(),
+            any![DASH.ready("@s"), Condition::predicate("example:dash_override")],
+        ])
+        .run(Actionbar::show(
+            Selector::self_(),
+            Text::new("Dash ready").aqua(),
+        ));
 }

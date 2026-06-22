@@ -14,17 +14,13 @@ static MANA: ScoreVar<i32> = ScoreVar::new("mana");
 
 #[component(Load)]
 pub fn load() {
-    mcfunction! {
-        MANA.define();
-        MANA.set(Selector::all_players(), 100);
-    }
+    MANA.define();
+    MANA.set(Selector::all_players(), 100);
 }
 
 #[function]
 pub fn greet() {
-    mcfunction! {
-        cmd::tellraw(Selector::all_players(), Text::new("Hello from Sand").gold());
-    }
+    cmd::tellraw(Selector::all_players(), Text::new("Hello from Sand").gold());
 }
 ```
 
@@ -34,3 +30,7 @@ The CLI is currently used from the workspace while publishing is unfinished:
 cargo run -p sand -- new my_pack
 cargo run -p sand -- build
 ```
+
+Use `mcfunction!` later when you need advanced command grouping or explicit
+interop fragments. Normal Sand datapack functions should stay as ordinary Rust
+functions with typed command expressions.

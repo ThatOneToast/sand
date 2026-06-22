@@ -20,8 +20,10 @@
 //! Scoreboards persist in `world/data/scoreboard.dat` across server restarts.
 //! No external storage needed for simple integer counters.
 
-use sand_core::mcfunction;
+use sand_core::prelude::*;
 use sand_macros::{component, function};
+
+static JOIN_COUNT: ScoreVar<i32> = ScoreVar::new("join_count");
 
 // ── 1. Initialize scoreboards on load ────────────────────────────────────────
 
@@ -29,9 +31,7 @@ use sand_macros::{component, function};
 /// `scoreboard objectives add` is idempotent — safe to call every reload.
 #[component(Load)]
 pub fn on_load() {
-    mcfunction! {
-        "scoreboard objectives add join_count dummy";
-    }
+    JOIN_COUNT.define();
 }
 
 // ── 2. Detect the join event ─────────────────────────────────────────────────
@@ -55,17 +55,16 @@ pub fn detect_join() -> sand_core::Advancement {
 /// - Revokes the detection advancement so it fires again next login
 #[function]
 pub fn on_player_join() {
-    mcfunction! {
-        // Increment visit counter (persists in scoreboard.dat)
-        "scoreboard players add @s join_count 1";
+    // Increment visit counter (persists in scoreboard.dat).
+    JOIN_COUNT.add(Selector::self_(), 1);
 
-        // Welcome the joining player with their visit number
-        r#"tellraw @s [{"text":"Welcome back! ","color":"gold","bold":true},{"text":"This is visit #","color":"yellow"},{"score":{"name":"@s","objective":"join_count"},"color":"aqua"},{"text":".","color":"yellow"}]"#;
+    cmd::tellraw(
+        Selector::self_(),
+        Text::new("Welcome back. Your visit counter was updated.").gold(),
+    );
+    cmd::tellraw(Selector::all_players(), Text::new("A player joined.").gray());
 
-        // Announce to everyone else
-        r#"tellraw @a[tag=!joined_just_now] [{"selector":"@s","color":"green"},{"text":" joined the server!","color":"gray"}]"#;
-
-        // Re-arm the detection advancement
-        "advancement revoke @s only my_pack:detect_join";
-    }
+    // Escape hatch: typed advancement revoke builders are not exposed in the
+    // prelude yet.
+    cmd::raw("advancement revoke @s only my_pack:detect_join");
 }

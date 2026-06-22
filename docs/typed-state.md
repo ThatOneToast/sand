@@ -12,10 +12,11 @@ static TIMER: Timer = Timer::new("blink", Ticks::seconds(5));
 ```
 
 State APIs return command builders or command strings that can be used directly
-inside `mcfunction!`.
+inside `#[function]`, `#[component(Load)]`, and `#[component(Tick)]` bodies.
 
 ```rust
-mcfunction! {
+#[component(Tick)]
+pub fn tick_state() {
     MANA.define();
     MANA.set(Selector::all_players(), 100);
     MANA.add(Selector::all_players(), 1);
@@ -30,7 +31,8 @@ For structured state, use `StorageVar<T>`:
 ```rust
 static DATA: StorageVar<i32> = StorageVar::new("example:data", "players.self.mana");
 
-mcfunction! {
+#[component(Load)]
+pub fn load_storage() {
     DATA.set_int(100);
     DATA.as_path().key("regen").set_bool(true);
 }

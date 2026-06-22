@@ -5,7 +5,8 @@ Sand command builders live under `sand_core::cmd` and `sand_commands`.
 ```rust
 use sand_core::prelude::*;
 
-mcfunction! {
+#[function]
+pub fn reward_player() {
     cmd::tellraw(Selector::all_players(), Text::new("Quest complete").green());
     cmd::give(Selector::self_(), "minecraft:diamond");
     cmd::tag_add(Selector::self_(), "quest_complete");

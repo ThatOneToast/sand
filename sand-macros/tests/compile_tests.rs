@@ -7,6 +7,7 @@ fn compile_tests() {
     t.pass("tests/cases/pass_attribute_typed.rs");
     t.pass("tests/cases/pass_component.rs");
     t.pass("tests/cases/pass_event_generic.rs");
+    t.pass("tests/cases/pass_event_generic_used_dash_wand.rs");
     t.compile_fail("tests/cases/fail_with_params.rs");
     t.compile_fail("tests/cases/fail_empty_body.rs");
     t.compile_fail("tests/cases/fail_raw_string.rs");

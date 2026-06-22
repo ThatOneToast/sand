@@ -32,6 +32,7 @@ use crate::condition::Condition;
 /// Builder returned by [`when`]. Call [`then`](WhenBuilder::then) to produce commands.
 pub struct WhenBuilder {
     cond: Condition,
+    actions: Option<Vec<String>>,
 }
 
 impl WhenBuilder {
@@ -50,7 +51,29 @@ impl WhenBuilder {
     /// ];
     /// ```
     pub fn then(self, cmd: impl std::fmt::Display) -> Vec<String> {
-        self.cond.execute_commands(false, &cmd.to_string())
+        let mut actions = self.actions.unwrap_or_default();
+        actions.extend(self.cond.execute_commands(false, &cmd.to_string()));
+        actions
+    }
+
+    /// Add a command to execute when the condition is met, and return the builder for chaining.
+    ///
+    /// Each call wraps `cmd` in the condition. Finish the chain with [`then`](WhenBuilder::then).
+    ///
+    /// ```rust,ignore
+    /// let cmds = when(MANA.of("@s").gte(25))
+    ///     .and_then("say first")
+    ///     .and_then("say second")
+    ///     .then("say third");
+    /// // → three separate condition-wrapped commands
+    /// ```
+    pub fn and_then(self, cmd: impl std::fmt::Display) -> WhenBuilder {
+        let mut actions = self.actions.unwrap_or_default();
+        actions.extend(self.cond.execute_commands(false, &cmd.to_string()));
+        WhenBuilder {
+            cond: self.cond,
+            actions: Some(actions),
+        }
     }
 }
 
@@ -76,7 +99,10 @@ impl UnlessBuilder {
 /// let cmds = when(MANA.of("@s").gte(25)).then("say enough mana");
 /// ```
 pub fn when(cond: Condition) -> WhenBuilder {
-    WhenBuilder { cond }
+    WhenBuilder {
+        cond,
+        actions: None,
+    }
 }
 
 /// Begin an `execute unless <condition> run …` chain.
@@ -232,6 +258,39 @@ mod tests {
             cmds.iter().all(|c| c.contains("if score @s mana")),
             "both commands should include mana check: {cmds:?}"
         );
+    }
+
+    #[test]
+    fn when_and_then_applies_condition_to_each() {
+        let cmds = when(MANA.of("@s").gte(25))
+            .and_then("say first")
+            .and_then("say second")
+            .then("say third");
+        assert_eq!(cmds.len(), 3, "got: {cmds:?}");
+        assert_eq!(
+            cmds[0],
+            "execute if score @s mana matches 25.. run say first"
+        );
+        assert_eq!(
+            cmds[1],
+            "execute if score @s mana matches 25.. run say second"
+        );
+        assert_eq!(
+            cmds[2],
+            "execute if score @s mana matches 25.. run say third"
+        );
+    }
+
+    #[test]
+    fn when_and_then_with_any_expands_each() {
+        let cmds = when(Condition::any([
+            MANA.of("@s").gte(25),
+            MANA.of("@s").gte(50),
+        ]))
+        .and_then("say first")
+        .then("say second");
+        // Any(a, b) expands to 2 per command, total 4
+        assert_eq!(cmds.len(), 4, "Any x 2 commands = 4: got {cmds:?}");
     }
 
     #[test]

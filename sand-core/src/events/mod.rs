@@ -148,6 +148,8 @@ pub trait SandEvent {
 
 /// Fires on the first tick each time a player joins the server.
 ///
+/// The preferred short name is [`sand_core::event::vanilla::OnJoin`](crate::event::vanilla::OnJoin).
+///
 /// Implemented as an `Advancement + Tick` trigger that is immediately
 /// revoked — so it fires **once per join session**, not every tick.
 ///
@@ -165,6 +167,8 @@ pub trait SandEvent {
 pub struct OnJoinEvent;
 
 /// Fires the very first time a player ever joins. Never fires again.
+///
+/// The preferred short name is [`sand_core::event::vanilla::FirstJoin`](crate::event::vanilla::FirstJoin).
 ///
 /// Implemented as an `Advancement + Tick` trigger **without** revocation.
 /// Once the advancement is granted it stays, so the event fires exactly once
@@ -186,6 +190,8 @@ pub struct FirstJoinEvent;
 
 /// Fires on the tick a player dies (any cause: mob, fall, void, `/kill`, …).
 ///
+/// The preferred short name is [`sand_core::event::vanilla::OnDeath`](crate::event::vanilla::OnDeath).
+///
 /// Implemented via the `deathCount` scoreboard criterion. The handler runs as
 /// `@s` = the dying player.
 ///
@@ -202,6 +208,8 @@ pub struct FirstJoinEvent;
 pub struct OnDeathEvent;
 
 /// Fires on the tick after a player respawns from death.
+///
+/// The preferred short name is [`sand_core::event::vanilla::OnRespawn`](crate::event::vanilla::OnRespawn).
 ///
 /// Sand tags each dying player with `__sand_was_dead` during the death check.
 /// Each tick, any player with that tag who is no longer in spectator mode

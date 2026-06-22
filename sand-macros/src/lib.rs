@@ -1116,12 +1116,12 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
 
     // ── Dispatch selection ────────────────────────────────────────────────────
     let dispatch_tokens = match event_type_name.as_str() {
-        // OnJoinEvent — entity-tag based join detection (fires once per session login)
+        // OnJoinEvent / OnJoin — entity-tag based join detection (fires once per session login)
         //
         // Uses JoinTick dispatch: `__sand_join_check` detects players who lack the
         // `__sand_online` tag (removed on disconnect) and fires all handlers before
         // re-applying the tag. This avoids the Tick+revoke every-tick loop.
-        "OnJoinEvent" => {
+        "OnJoinEvent" | "OnJoin" => {
             quote! {
                 #preamble
 
@@ -1134,8 +1134,8 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
             }
         }
 
-        // FirstJoinEvent — Advancement + Tick + no revoke (fires once ever)
-        "FirstJoinEvent" => {
+        // FirstJoinEvent / FirstJoin — Advancement + Tick + no revoke (fires once ever)
+        "FirstJoinEvent" | "FirstJoin" => {
             let trigger_ident = proc_macro2::Ident::new(
                 &format!("__sand_event_{}_trigger", fn_name),
                 proc_macro2::Span::call_site(),
@@ -1162,8 +1162,8 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
             }
         }
 
-        // OnDeathEvent — deathCount scoreboard tick loop
-        "OnDeathEvent" => {
+        // OnDeathEvent / OnDeath — deathCount scoreboard tick loop
+        "OnDeathEvent" | "OnDeath" => {
             quote! {
                 #preamble
 
@@ -1176,8 +1176,8 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
             }
         }
 
-        // OnRespawnEvent — tick poll after death tag
-        "OnRespawnEvent" => {
+        // OnRespawnEvent / OnRespawn — tick poll after death tag
+        "OnRespawnEvent" | "OnRespawn" => {
             quote! {
                 #preamble
 

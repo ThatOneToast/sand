@@ -13,6 +13,7 @@
 
 pub mod handle;
 pub mod trigger;
+pub mod vanilla;
 
 use crate::AdvancementTrigger;
 use std::marker::PhantomData;

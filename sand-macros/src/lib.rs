@@ -258,7 +258,7 @@ fn expand_function(
 
         ::sand_core::inventory::submit!(
             ::sand_core::FunctionPointerEntry {
-                ptr: #factory_ident as fn() -> ::std::vec::Vec<::std::string::String>,
+                ptr: #fn_name as fn() -> ::std::vec::Vec<::std::string::String>,
                 path: #ptr_path_str,
             }
         );

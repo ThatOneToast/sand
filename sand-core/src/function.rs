@@ -175,6 +175,8 @@ pub enum EventDispatch {
         make_trigger: fn() -> crate::AdvancementTrigger,
         /// Returns `true` to revoke the advancement after firing, `false` for once-only.
         revoke: fn() -> bool,
+        /// Optional extra condition; when `Some`, prepend `execute unless <cond> run return 0`.
+        guard: Option<fn() -> Option<String>>,
     },
 
     /// All-deaths detection via the `deathCount` scoreboard criterion.

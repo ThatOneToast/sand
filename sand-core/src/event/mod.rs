@@ -11,6 +11,7 @@
 //! | [`EventVisibility`] | Controls toast/chat visibility |
 //! | [`IntoEventAdvancement`] | Extension: builds the full advancement from an event |
 
+pub mod handle;
 pub mod trigger;
 
 use crate::AdvancementTrigger;
@@ -115,6 +116,36 @@ pub trait AdvancementEvent {
     /// The advancement's display visibility.
     fn visibility() -> EventVisibility {
         EventVisibility::Hidden
+    }
+
+    /// An optional extra condition checked before the handler runs.
+    ///
+    /// When `Some(condition)` is returned, the handler function starts with
+    /// `execute unless <condition> run return 0`, skipping execution when the
+    /// condition is not met.
+    ///
+    /// Useful for adding score-based or entity-based guards beyond what the
+    /// advancement trigger itself provides.
+    fn guard() -> Option<crate::condition::Condition> {
+        None
+    }
+}
+
+/// Provides the `player()` method available inside `#[event]` handler bodies.
+///
+/// All built-in event types implement this trait. The `#[event]` macro
+/// generates `let event = <EventType>;` so you can call `event.player()`:
+///
+/// ```rust,ignore
+/// #[event]
+/// pub fn on_kill(event: EntityKillEvent) {
+///     cmd::tellraw(event.player(), Text::new("Killed!"));
+/// }
+/// ```
+pub trait EventPlayer {
+    /// Returns `Selector::self_()` — the player who triggered the event.
+    fn player(&self) -> crate::cmd::Selector {
+        crate::cmd::Selector::self_()
     }
 }
 

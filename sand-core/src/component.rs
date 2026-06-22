@@ -126,6 +126,7 @@ pub fn export_components_json(namespace: &str) -> String {
             EventDispatch::Advancement {
                 make_trigger,
                 revoke,
+                guard,
             } => {
                 let advancement_id = desc
                     .id_override
@@ -135,6 +136,11 @@ pub fn export_components_json(namespace: &str) -> String {
                 let mut body = commands;
                 if revoke() {
                     body.insert(0, format!("advancement revoke @s only {}", advancement_id));
+                }
+                if let Some(make_guard) = guard
+                    && let Some(guard_cmd) = make_guard()
+                {
+                    body.insert(0, format!("execute unless {guard_cmd} run return 0"));
                 }
                 records.push(ComponentRecord {
                     namespace: namespace.to_string(),

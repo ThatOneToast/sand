@@ -1064,9 +1064,11 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
     };
 
     // ── Shared preamble: emit the body function + hidden factory ──────────────
+    // The `let event` binding enables `event.player()` inside handler bodies.
     let preamble = quote! {
         #(#fn_attrs)*
         #vis fn #fn_name() -> ::std::vec::Vec<::std::string::String> {
+            let event = #param_type_tokens;
             #body
         }
 
@@ -1154,6 +1156,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                     dispatch: ::sand_core::EventDispatch::Advancement {
                         make_trigger: #trigger_ident,
                         revoke: (|| false) as fn() -> bool,
+                        guard: ::std::option::Option::None,
                     },
                 });
             }
@@ -1381,6 +1384,11 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 proc_macro2::Span::call_site(),
             );
 
+            let guard_ident = proc_macro2::Ident::new(
+                &format!("__sand_event_{}_guard", fn_name),
+                proc_macro2::Span::call_site(),
+            );
+
             quote! {
                 #preamble
 
@@ -1396,6 +1404,17 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                     <#param_type_tokens as ::sand_core::event::AdvancementEvent>::reset().should_revoke()
                 }
 
+                #[doc(hidden)]
+                #[allow(dead_code)]
+                fn #guard_ident() -> ::std::option::Option<::std::string::String> {
+                    match <#param_type_tokens as ::sand_core::event::AdvancementEvent>::guard() {
+                        ::std::option::Option::Some(cond) => {
+                            ::std::option::Option::Some(cond.render_clauses(false).join(" "))
+                        }
+                        ::std::option::Option::None => ::std::option::Option::None,
+                    }
+                }
+
                 ::sand_core::inventory::submit!(::sand_core::EventDescriptor {
                     path: #fn_name_str,
                     id_override: #id_override_tokens,
@@ -1403,6 +1422,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                     dispatch: ::sand_core::EventDispatch::Advancement {
                         make_trigger: #trigger_ident,
                         revoke: #revoke_ident,
+                        guard: ::std::option::Option::Some(#guard_ident),
                     },
                 });
             }

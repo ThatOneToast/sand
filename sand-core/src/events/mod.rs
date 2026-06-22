@@ -901,6 +901,7 @@ macro_rules! adv_event {
                 <$ty as SandEvent>::dispatch().into_trigger().unwrap()
             }
         }
+        impl crate::event::EventPlayer for $ty {}
     };
 }
 
@@ -1048,3 +1049,31 @@ impl SandEvent for PlayerInSpectatorEvent {
         SandEventDispatch::TickCondition("entity @s[gamemode=spectator]".into())
     }
 }
+
+// ════════════════════════════════════════════════════════════════════════════
+// ── EventPlayer impls for all event types ──────────────────────────────────
+// ════════════════════════════════════════════════════════════════════════════
+// (Advancement-backed types are covered by the adv_event! macro above.)
+
+macro_rules! player_event {
+    ($ty:ty) => {
+        impl crate::event::EventPlayer for $ty {}
+    };
+}
+
+player_event!(OnJoinEvent);
+player_event!(FirstJoinEvent);
+player_event!(OnDeathEvent);
+player_event!(OnRespawnEvent);
+player_event!(ArmorEquipEvent);
+player_event!(ArmorUnequipEvent);
+player_event!(HoldingItemEvent);
+player_event!(CurrentlyWearingEvent);
+player_event!(PlayerSneakEvent);
+player_event!(PlayerSprintEvent);
+player_event!(PlayerSwimmingEvent);
+player_event!(PlayerFlyingEvent);
+player_event!(PlayerOnFireEvent);
+player_event!(PlayerInCreativeEvent);
+player_event!(PlayerInAdventureEvent);
+player_event!(PlayerInSpectatorEvent);

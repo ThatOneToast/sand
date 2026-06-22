@@ -52,3 +52,42 @@ pub fn on_join(event: OnJoinEvent) {
     cmd::tellraw(event.player(), Text::new("Welcome").green());
 }
 ```
+
+## Damage Events
+
+Use `DamageEvent<T>` when `T: DamageAdvancementEvent` and the handler needs
+damage-specific helpers:
+
+```rust
+pub struct EnhancedCellsDamagedEvent;
+
+impl AdvancementEvent for EnhancedCellsDamagedEvent {
+    type Trigger = AdvancementTrigger;
+
+    fn trigger() -> Self::Trigger {
+        AdvancementTrigger::EntityHurtPlayer {
+            entity: None,
+            damage: None,
+        }
+    }
+}
+
+impl DamageAdvancementEvent for EnhancedCellsDamagedEvent {}
+
+#[event]
+pub fn on_damaged(event: DamageEvent<EnhancedCellsDamagedEvent>) {
+    event
+        .reflect_damage()
+        .to(EntityTargets::nearby(5.0).excluding_players().excluding_self())
+        .amount(DamageAmount::fixed(4.0))
+        .damage_type(DamageKind::Generic)
+        .run();
+}
+```
+
+`Event<T>` still works for ordinary advancement handlers. `DamageEvent<T>` is
+restricted to damage-capable events, so damage-only helpers are not available in
+non-damage contexts.
+
+Vanilla advancement rewards do not expose exact damage amount. Reflected damage
+uses explicit fixed amounts unless a future tracker is enabled.

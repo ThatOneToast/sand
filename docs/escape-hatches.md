@@ -11,6 +11,10 @@ Use raw commands for:
 - Unknown future Minecraft features
 - Debugging generated output
 
+Do not use raw commands for modeled gameplay operations such as reflected
+damage. Prefer `Damage`, `DamageEvent<T>`, typed selectors, `cmd::call(...)`,
+and `DialogAction::run_function(...)`.
+
 ```rust
 use sand_core::prelude::*;
 

@@ -131,7 +131,11 @@ impl<'a> FlagRef<'a> {
         self.is_true()
     }
 
-    /// Alias for [`is_false`](FlagRef::is_false).
+    /// Checks `score … matches 0` exactly — the flag score exists **and** equals 0.
+    ///
+    /// This is **not** equivalent to "the flag was never set". A player whose flag score
+    /// has never been touched has *no* score entry, so `is_unset()` returns `false` for
+    /// them. Use [`is_not_true`](FlagRef::is_not_true) for "player does not have this yet".
     pub fn is_unset(self) -> Condition {
         self.is_false()
     }

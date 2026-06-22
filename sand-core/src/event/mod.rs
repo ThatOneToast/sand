@@ -40,23 +40,36 @@ impl EventId {
 }
 
 /// Controls whether the event re-arms itself after firing.
-#[derive(Clone, Debug)]
+/// Controls when a fired advancement-backed event re-arms itself.
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum EventReset {
-    /// Use the trait's default behavior.
+    /// Revoke the advancement immediately after firing so it can trigger again
+    /// on the next game tick when the condition is met.  This is the default
+    /// for most repeating events (e.g. consuming an item on any occasion).
+    AfterFire,
+    /// Fire once per player, ever — the advancement is never revoked.
+    /// Use for permanent progression milestones (e.g. first join).
+    OncePerPlayer,
+    /// No automatic revocation.  The pack is responsible for revoking the
+    /// advancement manually (e.g. via `EventHandle::revoke()`), typically as
+    /// part of a session lifecycle or a cool-down system.
+    Manual,
+
+    // ── Backward-compatible aliases ──────────────────────────────────────────
+    /// Alias for [`AfterFire`](EventReset::AfterFire).
     Auto,
-    /// Always revoke the advancement after firing (re-arm for next trigger).
+    /// Alias for [`AfterFire`](EventReset::AfterFire).
     Revoke,
-    /// Fire only once per player, ever (no revocation).
+    /// Alias for [`OncePerPlayer`](EventReset::OncePerPlayer).
     Once,
 }
 
 impl EventReset {
-    /// Whether the advancement should be revoked after the handler runs.
+    /// Whether the export pipeline should prepend an `advancement revoke` line.
     pub fn should_revoke(&self) -> bool {
         match self {
-            EventReset::Auto => true,
-            EventReset::Revoke => true,
-            EventReset::Once => false,
+            EventReset::AfterFire | EventReset::Auto | EventReset::Revoke => true,
+            EventReset::OncePerPlayer | EventReset::Once | EventReset::Manual => false,
         }
     }
 }
@@ -93,7 +106,7 @@ pub enum EventVisibility {
 ///         AdvancementTrigger::ConsumeItem { item: None }
 ///     }
 ///     fn id() -> EventId { EventId::Auto }
-///     fn reset() -> EventReset { EventReset::Auto }
+///     fn reset() -> EventReset { EventReset::AfterFire }
 ///     fn visibility() -> EventVisibility { EventVisibility::Hidden }
 /// }
 /// ```
@@ -110,8 +123,13 @@ pub trait AdvancementEvent {
     }
 
     /// Whether to revoke the advancement after firing.
+    ///
+    /// Default is [`EventReset::AfterFire`] — the advancement is revoked
+    /// immediately so the trigger can re-arm each time the condition is met.
+    /// Override with [`EventReset::OncePerPlayer`] for one-shot milestones or
+    /// [`EventReset::Manual`] to manage lifecycle via [`EventHandle`](crate::EventHandle).
     fn reset() -> EventReset {
-        EventReset::Auto
+        EventReset::AfterFire
     }
 
     /// The advancement's display visibility.
@@ -321,11 +339,14 @@ mod tests {
 
     #[test]
     fn event_reset_defaults_to_revoke() {
-        assert!(EventReset::Auto.should_revoke());
+        assert!(EventReset::AfterFire.should_revoke());
+        assert!(EventReset::Auto.should_revoke(), "backward-compat alias");
     }
 
     #[test]
     fn event_reset_once_does_not_revoke() {
-        assert!(!EventReset::Once.should_revoke());
+        assert!(!EventReset::OncePerPlayer.should_revoke());
+        assert!(!EventReset::Once.should_revoke(), "backward-compat alias");
+        assert!(!EventReset::Manual.should_revoke());
     }
 }

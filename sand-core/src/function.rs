@@ -147,6 +147,21 @@ impl IntoFunctionRef for fn() -> Vec<String> {
     }
 }
 
+/// Maps an event-type's [`TypeId`](std::any::TypeId) to the handler function
+/// path registered by `#[event]`.
+///
+/// Used by [`crate::event::handle::EventHandle`] to derive advancement IDs for
+/// `revoke()` and `grant()` without requiring a string argument.
+///
+/// Populated automatically by the `#[event]` macro for advancement-backed
+/// events (`dispatch = "advancement"`).  Not emitted for tick-poll events.
+pub struct EventPathEntry {
+    pub type_id: std::any::TypeId,
+    /// The handler function path component, e.g. `"on_ate_golden_apple"`.
+    pub path: &'static str,
+}
+inventory::collect!(EventPathEntry);
+
 /// Registry entry for a `#[component]`-annotated function.
 ///
 /// The `make` fn pointer is a zero-argument function that constructs the
@@ -193,8 +208,13 @@ pub enum EventDispatch {
         make_trigger: fn() -> crate::AdvancementTrigger,
         /// Returns `true` to revoke the advancement after firing, `false` for once-only.
         revoke: fn() -> bool,
-        /// Optional extra condition; when `Some`, prepend `execute unless <cond> run return 0`.
-        guard: Option<fn() -> Option<String>>,
+        /// Optional typed guard condition.
+        ///
+        /// When `Some`, the entry function prepends one or more
+        /// `execute unless <clause> run return 0` lines generated from the
+        /// [`Condition`](crate::condition::Condition) via `execute_commands(true, "return 0")`.
+        /// This correctly handles `Any` (OR) conditions as multiple guard lines.
+        guard: Option<fn() -> Option<crate::condition::Condition>>,
     },
 
     /// All-deaths detection via the `deathCount` scoreboard criterion.

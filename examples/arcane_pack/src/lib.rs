@@ -473,7 +473,11 @@ mod tests {
         let records: Vec<serde_json::Value> =
             serde_json::from_str(&json_str).expect("valid JSON from export");
 
-        // ── Advancement: ate golden apple (custom event with guard) ─────────
+        // ─────────────────────────────────────────────────────────────────────
+        // AteGoldenAppleEvent — advancement-backed with guard and fn-ptr call
+        // ─────────────────────────────────────────────────────────────────────
+
+        // Advancement JSON: trigger + reward pointing at entry function
         let apple_adv = records
             .iter()
             .find(|r| r["path"] == "on_ate_golden_apple" && r["dir"] == "advancement")
@@ -485,42 +489,75 @@ mod tests {
             apple_json["criteria"]["event"]["trigger"], "minecraft:consume_item",
             "golden apple trigger"
         );
+        // Reward must call the entry function (same path as before).
         assert_eq!(
-            apple_json["rewards"]["function"],
-            "arcane:on_ate_golden_apple"
+            apple_json["rewards"]["function"], "arcane:on_ate_golden_apple",
+            "advancement reward must call entry function"
         );
 
-        // ── Handler: ate golden apple (should contain mana update) ──────────
-        let apple_fn = records
+        // Entry function: revoke → guard → call body (Part 4+5)
+        let apple_entry = records
             .iter()
             .find(|r| r["path"] == "on_ate_golden_apple" && r["dir"] == "function")
-            .expect("ate_golden_apple handler");
-        let apple_content = apple_fn["content"].as_str().unwrap();
-        assert!(apple_content.contains("mana"), "handler updates mana");
-        // Verify bare function pointer call resolved to real namespace (Parts 2+3)
+            .expect("ate_golden_apple entry function");
+        let entry_content = apple_entry["content"].as_str().unwrap();
+
+        // Revoke must be first (re-arms even when guard rejects)
+        let revoke_pos = entry_content.find("advancement revoke");
+        let guard_pos = entry_content.find("execute unless");
+        let body_call_pos = entry_content.find("function arcane:on_ate_golden_apple/body");
+        assert!(revoke_pos.is_some(), "entry must revoke: {entry_content}");
         assert!(
-            apple_content.contains("function arcane:golden_apple_reward"),
-            "cmd::call() must resolve to 'function arcane:golden_apple_reward', got:\n{apple_content}"
+            guard_pos.is_some(),
+            "entry must check guard: {entry_content}"
         );
         assert!(
-            !apple_content.contains("__sand_local"),
-            "sentinel must be replaced by export, but found __sand_local in:\n{apple_content}"
-        );
-        // Verify revoke-before-guard order (Part 6): the advancement must be
-        // revoked before the guard check so the event can re-fire even when the
-        // guard rejects execution.
-        let revoke_pos = apple_content.find("advancement revoke");
-        let guard_pos = apple_content.find("execute unless");
-        assert!(
-            revoke_pos.is_some() && guard_pos.is_some(),
-            "expected both revoke and guard in handler:\n{apple_content}"
+            body_call_pos.is_some(),
+            "entry must call body: {entry_content}"
         );
         assert!(
             revoke_pos.unwrap() < guard_pos.unwrap(),
-            "revoke must come before guard check so the event can re-fire:\n{apple_content}"
+            "revoke must precede guard so event re-arms on guard failure:\n{entry_content}"
+        );
+        assert!(
+            guard_pos.unwrap() < body_call_pos.unwrap(),
+            "guard must precede body call:\n{entry_content}"
+        );
+        // Guard must be correct Minecraft syntax (no 'unless if')
+        assert!(
+            entry_content.contains("execute unless score @s mana matches ..99 run return 0"),
+            "guard must use correct execute unless syntax, got:\n{entry_content}"
         );
 
-        // ── Advancement: used dash wand (custom event with guard) ──────────
+        // Body function: pure user commands, no plumbing (Part 4)
+        let apple_body = records
+            .iter()
+            .find(|r| r["path"] == "on_ate_golden_apple/body" && r["dir"] == "function")
+            .expect("ate_golden_apple body function");
+        let body_content = apple_body["content"].as_str().unwrap();
+        assert!(
+            body_content.contains("mana"),
+            "body updates mana: {body_content}"
+        );
+        // Bare function pointer resolved to real namespace (Parts 2+3)
+        assert!(
+            body_content.contains("function arcane:golden_apple_reward"),
+            "cmd::call() must resolve to 'function arcane:golden_apple_reward':\n{body_content}"
+        );
+        // No sentinel leaks into exported content
+        assert!(
+            !body_content.contains("__sand_local"),
+            "sentinel must be resolved, found in:\n{body_content}"
+        );
+        assert!(
+            !entry_content.contains("__sand_local"),
+            "sentinel must be resolved, found in entry:\n{entry_content}"
+        );
+
+        // ─────────────────────────────────────────────────────────────────────
+        // UsedDashWandEvent — also advancement-backed with compound guard
+        // ─────────────────────────────────────────────────────────────────────
+
         let wand_adv = records
             .iter()
             .find(|r| r["path"] == "on_used_dash_wand" && r["dir"] == "advancement")
@@ -533,15 +570,19 @@ mod tests {
             "dash wand trigger"
         );
 
-        // ── Handler: used dash wand (should contain mana remove) ───────────
-        let wand_fn = records
+        let wand_body = records
             .iter()
-            .find(|r| r["path"] == "on_used_dash_wand" && r["dir"] == "function")
-            .expect("used_dash_wand handler");
-        let wand_content = wand_fn["content"].as_str().unwrap();
-        assert!(wand_content.contains("mana"), "handler removes mana");
+            .find(|r| r["path"] == "on_used_dash_wand/body" && r["dir"] == "function")
+            .expect("used_dash_wand body function");
+        assert!(
+            wand_body["content"].as_str().unwrap().contains("mana"),
+            "wand body removes mana"
+        );
 
-        // ── First join advancement (Tick trigger, no revoke) ────────────────
+        // ─────────────────────────────────────────────────────────────────────
+        // FirstJoin — Tick advancement, OncePerPlayer (no revoke)
+        // ─────────────────────────────────────────────────────────────────────
+
         let join_adv = records
             .iter()
             .find(|r| r["path"] == "on_first_join" && r["dir"] == "advancement")
@@ -555,7 +596,10 @@ mod tests {
         );
         assert!(join_json.get("rewards").is_some(), "first join has rewards");
 
-        // ── Function pointer functions are registered ──────────────────────
+        // ─────────────────────────────────────────────────────────────────────
+        // Helper function — registered via #[function] with no explicit path
+        // ─────────────────────────────────────────────────────────────────────
+
         let reward_fn = records
             .iter()
             .find(|r| r["path"] == "golden_apple_reward" && r["dir"] == "function")

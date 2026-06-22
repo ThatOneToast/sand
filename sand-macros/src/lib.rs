@@ -1406,13 +1406,8 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
 
                 #[doc(hidden)]
                 #[allow(dead_code)]
-                fn #guard_ident() -> ::std::option::Option<::std::string::String> {
-                    match <#param_type_tokens as ::sand_core::event::AdvancementEvent>::guard() {
-                        ::std::option::Option::Some(cond) => {
-                            ::std::option::Option::Some(cond.render_clauses(false).join(" "))
-                        }
-                        ::std::option::Option::None => ::std::option::Option::None,
-                    }
+                fn #guard_ident() -> ::std::option::Option<::sand_core::condition::Condition> {
+                    <#param_type_tokens as ::sand_core::event::AdvancementEvent>::guard()
                 }
 
                 ::sand_core::inventory::submit!(::sand_core::EventDescriptor {
@@ -1424,6 +1419,12 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                         revoke: #revoke_ident,
                         guard: ::std::option::Option::Some(#guard_ident),
                     },
+                });
+
+                // Register event type → handler path mapping for EventHandle<E>.revoke/grant.
+                ::sand_core::inventory::submit!(::sand_core::EventPathEntry {
+                    type_id: ::std::any::TypeId::of::<#param_type_tokens>(),
+                    path: #fn_name_str,
                 });
             }
         }

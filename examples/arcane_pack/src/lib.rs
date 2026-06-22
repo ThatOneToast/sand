@@ -20,9 +20,9 @@
 //! cargo run -p arcane_pack
 //! ```
 
+use sand_core::EventPlayer;
 use sand_core::event::vanilla::{FirstJoin, OnDeath, OnJoin, OnRespawn};
 use sand_core::prelude::*;
-use sand_core::EventPlayer;
 use sand_macros::{component, event, function};
 
 mod events;
@@ -507,6 +507,19 @@ mod tests {
         assert!(
             !apple_content.contains("__sand_local"),
             "sentinel must be replaced by export, but found __sand_local in:\n{apple_content}"
+        );
+        // Verify revoke-before-guard order (Part 6): the advancement must be
+        // revoked before the guard check so the event can re-fire even when the
+        // guard rejects execution.
+        let revoke_pos = apple_content.find("advancement revoke");
+        let guard_pos = apple_content.find("execute unless");
+        assert!(
+            revoke_pos.is_some() && guard_pos.is_some(),
+            "expected both revoke and guard in handler:\n{apple_content}"
+        );
+        assert!(
+            revoke_pos.unwrap() < guard_pos.unwrap(),
+            "revoke must come before guard check so the event can re-fire:\n{apple_content}"
         );
 
         // ── Advancement: used dash wand (custom event with guard) ──────────

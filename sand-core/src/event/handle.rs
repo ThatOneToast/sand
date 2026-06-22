@@ -224,7 +224,10 @@ mod tests {
         let enable = handle.enable("@s");
         let disable = handle.disable("@s");
         assert!(enable.contains("@s") && enable.ends_with("1"), "{enable}");
-        assert!(disable.contains("@s") && disable.ends_with("0"), "{disable}");
+        assert!(
+            disable.contains("@s") && disable.ends_with("0"),
+            "{disable}"
+        );
         let obj = handle.objective_name().to_string();
         assert!(enable.contains(&obj));
         assert!(disable.contains(&obj));
@@ -242,7 +245,10 @@ mod tests {
     fn raw_handle_backward_compat() {
         let raw = RawEventHandle::new("arcane:on_ate_golden_apple");
         let define = raw.define();
-        assert!(define.starts_with("scoreboard objectives add __ev_"), "{define}");
+        assert!(
+            define.starts_with("scoreboard objectives add __ev_"),
+            "{define}"
+        );
     }
 
     #[test]

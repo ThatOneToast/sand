@@ -135,6 +135,21 @@ impl<'a> FlagRef<'a> {
     pub fn is_unset(self) -> Condition {
         self.is_false()
     }
+
+    /// `unless score <sel> <obj> matches 1` — flag is not `true` (missing or non-1).
+    ///
+    /// Lowers to `Condition::Not(is_true())`, which generates `unless score … matches 1`.
+    /// This matches both score = 0 **and** missing scores, unlike `is_false()` which
+    /// requires the score to exist and equal exactly 0.
+    ///
+    /// ```rust,ignore
+    /// // Prefer this over is_false() for "player doesn't have this yet" checks:
+    /// when(HAS_CELLS.of("@s").is_not_true()).then_all([...]);
+    /// unless(HAS_CELLS.of("@s").is_true()).then_all([...]);  // equivalent
+    /// ```
+    pub fn is_not_true(self) -> Condition {
+        Condition::Not(Box::new(self.is_true()))
+    }
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -200,11 +215,46 @@ mod tests {
     fn is_set_is_unset_aliases() {
         let a = CASTING.of("@s").is_set();
         let b = CASTING.of("@s").is_true();
-        // both should produce the same condition shape
         assert!(matches!(a, Condition::Flag { value: true, .. }));
         assert!(matches!(b, Condition::Flag { value: true, .. }));
 
         let c = CASTING.of("@s").is_unset();
         assert!(matches!(c, Condition::Flag { value: false, .. }));
+    }
+
+    #[test]
+    fn is_not_true_generates_unless() {
+        let cond = CASTING.of("@s").is_not_true();
+        let cmds = cond.execute_commands(false, "say ok");
+        assert_eq!(
+            cmds,
+            vec!["execute unless score @s casting matches 1 run say ok"],
+            "is_not_true() must use unless, not if"
+        );
+    }
+
+    #[test]
+    fn is_false_is_exact_zero() {
+        let cond = CASTING.of("@s").is_false();
+        let cmds = cond.execute_commands(false, "say ok");
+        assert_eq!(
+            cmds,
+            vec!["execute if score @s casting matches 0 run say ok"],
+            "is_false() requires exactly 0"
+        );
+    }
+
+    #[test]
+    fn is_not_true_is_distinct_from_is_false() {
+        let not_true = CASTING.of("@s").is_not_true();
+        assert!(
+            matches!(not_true, Condition::Not(_)),
+            "is_not_true should wrap in Not"
+        );
+        let is_false = CASTING.of("@s").is_false();
+        assert!(
+            matches!(is_false, Condition::Flag { value: false, .. }),
+            "is_false should be Flag(false)"
+        );
     }
 }

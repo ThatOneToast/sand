@@ -25,7 +25,7 @@ use sand_core::prelude::*;
 use sand_macros::{component, event, function};
 
 mod events;
-use crate::events::{AteGoldenAppleEvent, UsedDashWandEvent};
+use crate::events::{AteGoldenAppleEvent, EnhancedCellsDamagedEvent, UsedDashWandEvent};
 
 // -- State ------------------------------------------------------------------
 
@@ -353,6 +353,20 @@ pub fn grant_enhanced_cells() {
         ]);
 }
 
+/// Reflect fixed damage to nearby non-player entities when an enhanced-cells
+/// player is damaged.
+#[event]
+pub fn on_damaged_damage_nearby(event: DamageEvent<EnhancedCellsDamagedEvent>) {
+    event
+        .reflect_damage()
+        .to(EntityTargets::nearby(5.0)
+            .excluding_players()
+            .excluding_self())
+        .amount(DamageAmount::fixed(4.0))
+        .damage_type(DamageKind::Generic)
+        .run();
+}
+
 // -- Export hook (required by sand build) ----------------------------------
 
 /// Invoked by the generated `sand_export` binary.
@@ -491,6 +505,19 @@ mod tests {
         assert!(attr_i < msg_i, "attribute before message");
         assert!(msg_i < flag_i, "message before flag set");
         assert!(flag_i < ret_i, "flag set before return");
+    }
+
+    #[test]
+    fn enhanced_cells_reflect_damage_uses_typed_lowering() {
+        let cmds = on_damaged_damage_nearby();
+        assert_eq!(
+            cmds,
+            vec![
+                "execute at @s as @e[distance=0.1..5,type=!minecraft:player] run damage @s 4 minecraft:generic"
+            ]
+        );
+        assert!(!cmds.iter().any(|cmd| cmd.contains("damage @e[")));
+        assert!(cmds.iter().any(|cmd| cmd.contains("execute at @s as @e[")));
     }
 
     #[test]

@@ -137,8 +137,8 @@ pub use events::{
 };
 pub use function::{
     ArmorEventDescriptor, ArmorEventKind, ArmorSlot, ComponentFactory, EventDescriptor,
-    EventDispatch, FunctionDescriptor, FunctionTagDescriptor, ScheduleDescriptor, TempScoreboard,
-    drain_dyn_fns, register_dyn_fn,
+    EventDispatch, FunctionDescriptor, FunctionPointerEntry, FunctionTagDescriptor,
+    IntoFunctionRef, ScheduleDescriptor, TempScoreboard, drain_dyn_fns, register_dyn_fn,
 };
 pub use mc_version::McVersion;
 pub use resource_location::{Identifier, PackNamespace, ResourceLocation};

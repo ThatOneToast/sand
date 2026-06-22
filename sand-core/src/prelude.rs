@@ -36,6 +36,10 @@ pub use crate::resource_ref::{
 
 pub use crate::version::{MinecraftVersion, VersionProfile};
 
+// ── Function refs (IntoFunctionRef trait) ──────────────────────────────────────
+
+pub use crate::function::IntoFunctionRef;
+
 // ── Dialog builders ───────────────────────────────────────────────────────────
 
 pub use sand_components::dialog::{Dialog, DialogAction, DialogBody, DialogButton, DialogKind};

@@ -41,7 +41,8 @@
 //! # Usage
 //!
 //! Use the `#[event]` attribute macro from `sand_macros` on a free-standing
-//! function. The event type is passed as the (phantom) function parameter:
+//! function. The primary handler parameter is `Event<T>` where `T` implements
+//! [`AdvancementEvent`](crate::event::AdvancementEvent):
 //!
 //! ```rust,ignore
 //! use sand_macros::event;
@@ -51,7 +52,7 @@
 //! static TOTAL_DEATHS: ScoreVar<i32> = ScoreVar::new("total_deaths");
 //!
 //! #[event]
-//! pub fn on_join(event: OnJoinEvent) {
+//! pub fn on_join(event: Event<OnJoinEvent>) {
 //!     cmd::tellraw(
 //!         Selector::self_(),
 //!         Text::new("Welcome!").gold(),
@@ -59,21 +60,48 @@
 //! }
 //!
 //! #[event]
-//! pub fn on_death(event: OnDeathEvent) {
-//!     TOTAL_DEATHS.add(Selector::self_(), 1);
+//! pub fn on_death(event: Event<OnDeathEvent>) {
+//!     TOTAL_DEATHS.add(event.player(), 1);
 //! }
 //!
 //! // Slot filter required; item is optional
 //! #[event(slot = Head, item = "minecraft:diamond_helmet")]
-//! pub fn equipped_diamond_helmet(event: ArmorEquipEvent) {
+//! pub fn equipped_diamond_helmet(event: Event<ArmorEquipEvent>) {
 //!     cmd::say("Diamond helmet on!");
 //! }
 //! ```
 //!
-//! # Custom events
+//! # Custom advancement events
 //!
-//! Implement [`SandEvent`] on your own type only when you need the legacy
-//! dispatch mechanism or a custom tick-condition:
+//! For custom advancement-backed events, implement
+//! [`AdvancementEvent`](crate::event::AdvancementEvent) on a marker struct and
+//! handle it with `Event<T>`:
+//!
+//! ```rust,ignore
+//! use sand_core::event::trigger::ConsumeItemTrigger;
+//! use sand_core::prelude::*;
+//! use sand_components::ItemPredicate;
+//!
+//! pub struct AteGoldenAppleEvent;
+//!
+//! impl AdvancementEvent for AteGoldenAppleEvent {
+//!     type Trigger = ConsumeItemTrigger;
+//!     fn trigger() -> Self::Trigger {
+//!         ConsumeItemTrigger::new().item(ItemPredicate::id("minecraft:golden_apple"))
+//!     }
+//! }
+//!
+//! #[event]
+//! pub fn on_ate_golden_apple(event: Event<AteGoldenAppleEvent>) {
+//!     cmd::say("Golden apple eaten");
+//! }
+//! ```
+//!
+//! # Legacy: `SandEvent` (tick-poll and backward compatibility)
+//!
+//! Implement [`SandEvent`] only when you need a custom tick-condition dispatch
+//! or are migrating existing code. New advancement-backed events should use
+//! [`AdvancementEvent`](crate::event::AdvancementEvent) instead.
 //!
 //! ```rust,ignore
 //! use sand_core::events::{SandEvent, SandEventDispatch};
@@ -91,8 +119,8 @@
 //! }
 //!
 //! #[event]
-//! pub fn on_pickup(event: ItemPickupEvent) {
-//!     mcfunction! { "say Picked something up!" }
+//! pub fn on_pickup(event: Event<ItemPickupEvent>) {
+//!     cmd::say("Picked something up!");
 //! }
 //! ```
 
@@ -182,7 +210,7 @@ pub trait SandEvent {
 ///
 /// ```rust,ignore
 /// #[event]
-/// pub fn on_join(event: OnJoinEvent) {
+/// pub fn on_join(event: Event<OnJoinEvent>) {
 ///     cmd::tellraw(
 ///         Selector::self_(),
 ///         Text::new("Welcome back!").gold(),
@@ -203,7 +231,7 @@ pub struct OnJoinEvent;
 ///
 /// ```rust,ignore
 /// #[event]
-/// pub fn first_join(event: FirstJoinEvent) {
+/// pub fn first_join(event: Event<FirstJoinEvent>) {
 ///     cmd::tellraw(
 ///         Selector::self_(),
 ///         Text::new("Welcome for the very first time!").aqua(),
@@ -226,8 +254,8 @@ pub struct FirstJoinEvent;
 /// static TOTAL_DEATHS: ScoreVar<i32> = ScoreVar::new("total_deaths");
 ///
 /// #[event]
-/// pub fn on_death(event: OnDeathEvent) {
-///     TOTAL_DEATHS.add(Selector::self_(), 1);
+/// pub fn on_death(event: Event<OnDeathEvent>) {
+///     TOTAL_DEATHS.add(event.player(), 1);
 /// }
 /// ```
 pub struct OnDeathEvent;
@@ -244,7 +272,7 @@ pub struct OnDeathEvent;
 ///
 /// ```rust,ignore
 /// #[event]
-/// pub fn on_respawn(event: OnRespawnEvent) {
+/// pub fn on_respawn(event: Event<OnRespawnEvent>) {
 ///     cmd::tellraw(
 ///         Selector::self_(),
 ///         Text::new("You respawned!").green(),
@@ -274,14 +302,14 @@ pub struct OnRespawnEvent;
 ///
 /// // Any item equipped in the feet slot
 /// #[event(slot = Feet)]
-/// pub fn any_boots_equipped(event: ArmorEquipEvent) {
+/// pub fn any_boots_equipped(event: Event<ArmorEquipEvent>) {
 ///     cmd::say("Boots equipped!");
 /// }
 ///
 /// // Specific item with custom NBT
 /// #[event(slot = Feet, item = "minecraft:leather_boots", custom_data = "{mana_boots:1b}")]
-/// pub fn mana_boots_equipped(event: ArmorEquipEvent) {
-///     MANA_REGEN.enable(Selector::self_());
+/// pub fn mana_boots_equipped(event: Event<ArmorEquipEvent>) {
+///     MANA_REGEN.enable(event.player());
 /// }
 /// ```
 pub struct ArmorEquipEvent;
@@ -296,8 +324,8 @@ pub struct ArmorEquipEvent;
 /// static MANA_REGEN: Flag = Flag::new("mana_regen");
 ///
 /// #[event(slot = Feet, item = "minecraft:leather_boots", custom_data = "{mana_boots:1b}")]
-/// pub fn mana_boots_removed(event: ArmorUnequipEvent) {
-///     MANA_REGEN.disable(Selector::self_());
+/// pub fn mana_boots_removed(event: Event<ArmorUnequipEvent>) {
+///     MANA_REGEN.disable(event.player());
 /// }
 /// ```
 pub struct ArmorUnequipEvent;
@@ -321,13 +349,13 @@ pub struct ArmorUnequipEvent;
 /// static BLOCKING: Flag = Flag::new("blocking");
 ///
 /// #[event(item = "minecraft:diamond_sword")]
-/// pub fn holding_diamond_sword(event: HoldingItemEvent) {
-///     cmd::particle(Particle::Crit, Selector::self_());
+/// pub fn holding_diamond_sword(event: Event<HoldingItemEvent>) {
+///     cmd::particle(Particle::Crit, event.player());
 /// }
 ///
 /// #[event(item = "minecraft:shield", slot = Offhand)]
-/// pub fn holding_shield_offhand(event: HoldingItemEvent) {
-///     BLOCKING.enable(Selector::self_());
+/// pub fn holding_shield_offhand(event: Event<HoldingItemEvent>) {
+///     BLOCKING.enable(event.player());
 /// }
 /// ```
 pub struct HoldingItemEvent;
@@ -349,8 +377,8 @@ pub struct HoldingItemEvent;
 ///
 /// ```rust,ignore
 /// #[event(slot = Head, item = "minecraft:diamond_helmet")]
-/// pub fn wearing_diamond_helmet(event: CurrentlyWearingEvent) {
-///     cmd::particle(Particle::Enchant, Selector::self_());
+/// pub fn wearing_diamond_helmet(event: Event<CurrentlyWearingEvent>) {
+///     cmd::particle(Particle::Enchant, event.player());
 /// }
 /// ```
 pub struct CurrentlyWearingEvent;
@@ -378,8 +406,8 @@ pub struct CurrentlyWearingEvent;
 /// static TOTAL_KILLS: ScoreVar<i32> = ScoreVar::new("total_kills");
 ///
 /// #[event]
-/// pub fn on_kill(event: EntityKillEvent) {
-///     TOTAL_KILLS.add(Selector::self_(), 1);
+/// pub fn on_kill(event: Event<EntityKillEvent>) {
+///     TOTAL_KILLS.add(event.player(), 1);
 /// }
 /// ```
 pub struct EntityKillEvent;
@@ -399,9 +427,9 @@ impl SandEvent for EntityKillEvent {
 /// # Example
 /// ```rust,ignore
 /// #[event]
-/// pub fn on_killed(event: PlayerKillEvent) {
+/// pub fn on_killed(event: Event<PlayerKillEvent>) {
 ///     cmd::tellraw(
-///         Selector::self_(),
+///         event.player(),
 ///         Text::new("You were slain!").red(),
 ///     );
 /// }
@@ -471,7 +499,7 @@ impl SandEvent for ChanneledLightningEvent {
 /// # Example
 /// ```rust,ignore
 /// #[event]
-/// pub fn on_eat(event: ItemConsumeEvent) {
+/// pub fn on_eat(event: Event<ItemConsumeEvent>) {
 ///     cmd::say("Yum!");
 /// }
 /// ```
@@ -619,8 +647,8 @@ impl SandEvent for RecipeUnlockEvent {
 /// static BLOCKS_PLACED: ScoreVar<i32> = ScoreVar::new("blocks_placed");
 ///
 /// #[event]
-/// pub fn on_place(event: BlockPlaceEvent) {
-///     BLOCKS_PLACED.add(Selector::self_(), 1);
+/// pub fn on_place(event: Event<BlockPlaceEvent>) {
+///     BLOCKS_PLACED.add(event.player(), 1);
 /// }
 /// ```
 pub struct BlockPlaceEvent;
@@ -696,7 +724,7 @@ impl SandEvent for BeeNestDestroyedEvent {
 /// # Example
 /// ```rust,ignore
 /// #[event]
-/// pub fn on_change_dim(event: ChangeDimensionEvent) {
+/// pub fn on_change_dim(event: Event<ChangeDimensionEvent>) {
 ///     cmd::say("Dimension change!");
 /// }
 /// ```
@@ -729,10 +757,10 @@ impl SandEvent for PlayerSleepEvent {
 /// # Example
 /// ```rust,ignore
 /// #[event]
-/// pub fn on_fall(event: FallFromHeightEvent) {
+/// pub fn on_fall(event: Event<FallFromHeightEvent>) {
 ///     cmd::playsound(
 ///         ResourceLocation::new("minecraft", "entity.player.hurt").unwrap(),
-///         Selector::self_(),
+///         event.player(),
 ///     );
 /// }
 /// ```
@@ -1006,8 +1034,8 @@ adv_event!(LightningStrikeEvent);
 /// # Example
 /// ```rust,ignore
 /// #[event]
-/// pub fn while_sneaking(event: PlayerSneakEvent) {
-///     cmd::particle(Particle::Smoke, Selector::self_());
+/// pub fn while_sneaking(event: Event<PlayerSneakEvent>) {
+///     cmd::particle(Particle::Smoke, event.player());
 /// }
 /// ```
 pub struct PlayerSneakEvent;

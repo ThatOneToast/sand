@@ -151,17 +151,22 @@ pub trait AdvancementEvent {
     }
 }
 
-/// Provides the `player()` method available inside `#[event]` handler bodies.
+/// Legacy compatibility trait — provides `player()` for bare event-type handler
+/// parameters (e.g. `event: OnJoinEvent`).
 ///
-/// All built-in event types implement this trait. The `#[event]` macro
-/// generates `let event = <EventType>;` so you can call `event.player()`:
+/// The primary event model is `Event<T>` where `T: AdvancementEvent`, which
+/// gives you `event.player()` directly:
 ///
 /// ```rust,ignore
 /// #[event]
-/// pub fn on_kill(event: EntityKillEvent) {
+/// pub fn on_kill(event: Event<EntityKillEvent>) {
 ///     cmd::tellraw(event.player(), Text::new("Killed!"));
 /// }
 /// ```
+///
+/// `EventPlayer` is implemented on all built-in event marker types so that
+/// legacy bare-parameter handlers compiled before the `Event<T>` model are
+/// still accepted by the `#[event]` macro. Prefer `Event<T>` for new code.
 pub trait EventPlayer {
     /// Returns `Selector::self_()` — the player who triggered the event.
     fn player(&self) -> crate::cmd::Selector {

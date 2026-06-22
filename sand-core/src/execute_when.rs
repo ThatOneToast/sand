@@ -130,8 +130,8 @@ impl WhenBuilder {
     ///     .then("say third");
     /// // → one execute line that calls a branch function containing all 3 commands
     /// ```
-    pub fn and_then(mut self, cmd: impl Into<String>) -> WhenBuilder {
-        self.staged.push(cmd.into());
+    pub fn and_then(mut self, cmd: impl std::fmt::Display) -> WhenBuilder {
+        self.staged.push(cmd.to_string());
         self
     }
 
@@ -139,9 +139,9 @@ impl WhenBuilder {
     ///
     /// - With no prior `.and_then(...)`: emits a single `execute if … run <cmd>` line.
     /// - With prior `.and_then(...)` calls: creates a grouped branch function.
-    pub fn then(self, cmd: impl Into<String>) -> Vec<String> {
+    pub fn then(self, cmd: impl std::fmt::Display) -> Vec<String> {
         let mut all_cmds = self.staged;
-        all_cmds.push(cmd.into());
+        all_cmds.push(cmd.to_string());
         if all_cmds.len() == 1 {
             self.cond.execute_commands(false, &all_cmds[0])
         } else {
@@ -154,8 +154,8 @@ impl WhenBuilder {
     /// Always emit a single `execute if … run <cmd>` line (no branch function).
     ///
     /// Use when you want one command wrapped in the condition, with no grouping.
-    pub fn then_one(self, cmd: impl Into<String>) -> Vec<String> {
-        self.cond.execute_commands(false, &cmd.into())
+    pub fn then_one(self, cmd: impl std::fmt::Display) -> Vec<String> {
+        self.cond.execute_commands(false, &cmd.to_string())
     }
 
     /// Collect all commands into a branch function, always (even for one command).
@@ -163,14 +163,17 @@ impl WhenBuilder {
     /// The branch function is called once under the condition. All commands run
     /// in order, regardless of whether they mutate the condition.
     ///
+    /// Accepts any value implementing [`Display`](std::fmt::Display) — use raw strings,
+    /// [`cmd`](crate::cmd) builders, or any other display-able command type.
+    ///
     /// ```rust,ignore
     /// when(HAS_CELLS.of("@s").is_true()).then_all([
-    ///     tellraw(Selector::self_(), Text::new("Already granted")),
+    ///     cmd::tellraw(Selector::self_(), Text::new("Already granted")),
     ///     cmd::return_fail(),
     /// ]);
     /// ```
-    pub fn then_all(self, cmds: impl IntoIterator<Item = impl Into<String>>) -> Vec<String> {
-        let commands: Vec<String> = cmds.into_iter().map(|c| c.into()).collect();
+    pub fn then_all(self, cmds: impl IntoIterator<Item = impl std::fmt::Display>) -> Vec<String> {
+        let commands: Vec<String> = cmds.into_iter().map(|c| c.to_string()).collect();
         let branch_ref = register_branch(commands);
         self.cond
             .execute_commands(false, &format!("function {branch_ref}"))
@@ -181,9 +184,9 @@ impl WhenBuilder {
     /// Each command is independently `execute if … run <cmd>`. If a command mutates
     /// the condition, later commands may not run. Prefer [`then_all`](WhenBuilder::then_all)
     /// for most multi-command branches.
-    pub fn then_each(self, cmds: impl IntoIterator<Item = impl Into<String>>) -> Vec<String> {
+    pub fn then_each(self, cmds: impl IntoIterator<Item = impl std::fmt::Display>) -> Vec<String> {
         cmds.into_iter()
-            .flat_map(|cmd| self.cond.execute_commands(false, &cmd.into()))
+            .flat_map(|cmd| self.cond.execute_commands(false, &cmd.to_string()))
             .collect()
     }
 }
@@ -202,8 +205,8 @@ impl UnlessBuilder {
     /// Accumulate a command to run unless the condition holds.
     ///
     /// Calling `.then(cmd)` afterwards creates a **grouped branch function**.
-    pub fn and_then(mut self, cmd: impl Into<String>) -> UnlessBuilder {
-        self.staged.push(cmd.into());
+    pub fn and_then(mut self, cmd: impl std::fmt::Display) -> UnlessBuilder {
+        self.staged.push(cmd.to_string());
         self
     }
 
@@ -211,9 +214,9 @@ impl UnlessBuilder {
     ///
     /// - With no prior `.and_then(...)`: emits a single `execute unless … run <cmd>` line.
     /// - With prior `.and_then(...)` calls: creates a grouped branch function.
-    pub fn then(self, cmd: impl Into<String>) -> Vec<String> {
+    pub fn then(self, cmd: impl std::fmt::Display) -> Vec<String> {
         let mut all_cmds = self.staged;
-        all_cmds.push(cmd.into());
+        all_cmds.push(cmd.to_string());
         if all_cmds.len() == 1 {
             self.cond.execute_commands(true, &all_cmds[0])
         } else {
@@ -224,30 +227,30 @@ impl UnlessBuilder {
     }
 
     /// Always emit a single `execute unless … run <cmd>` line (no branch function).
-    pub fn then_one(self, cmd: impl Into<String>) -> Vec<String> {
-        self.cond.execute_commands(true, &cmd.into())
+    pub fn then_one(self, cmd: impl std::fmt::Display) -> Vec<String> {
+        self.cond.execute_commands(true, &cmd.to_string())
     }
 
     /// Collect all commands into a branch function called once under `unless`.
     ///
     /// ```rust,ignore
     /// unless(HAS_CELLS.of("@s").is_true()).then_all([
-    ///     attribute_base_set(Selector::self_(), AttributeType::MaxHealth.as_str(), 40.0),
+    ///     cmd::attribute_base_set(Selector::self_(), AttributeType::MaxHealth.as_str(), 40.0),
     ///     HAS_CELLS.enable("@s"),
     ///     cmd::return_cmd(0),
     /// ]);
     /// ```
-    pub fn then_all(self, cmds: impl IntoIterator<Item = impl Into<String>>) -> Vec<String> {
-        let commands: Vec<String> = cmds.into_iter().map(|c| c.into()).collect();
+    pub fn then_all(self, cmds: impl IntoIterator<Item = impl std::fmt::Display>) -> Vec<String> {
+        let commands: Vec<String> = cmds.into_iter().map(|c| c.to_string()).collect();
         let branch_ref = register_branch(commands);
         self.cond
             .execute_commands(true, &format!("function {branch_ref}"))
     }
 
     /// Wrap **each** command in the condition separately (old per-command behavior).
-    pub fn then_each(self, cmds: impl IntoIterator<Item = impl Into<String>>) -> Vec<String> {
+    pub fn then_each(self, cmds: impl IntoIterator<Item = impl std::fmt::Display>) -> Vec<String> {
         cmds.into_iter()
-            .flat_map(|cmd| self.cond.execute_commands(true, &cmd.into()))
+            .flat_map(|cmd| self.cond.execute_commands(true, &cmd.to_string()))
             .collect()
     }
 }
@@ -263,8 +266,9 @@ impl IfBuilder {
     /// Specify the commands to run when the condition holds.
     ///
     /// Returns an [`IfThenBuilder`] where you can optionally attach an `.else_all(...)`.
-    pub fn then_all(self, cmds: impl IntoIterator<Item = impl Into<String>>) -> IfThenBuilder {
-        let then_cmds: Vec<String> = cmds.into_iter().map(|c| c.into()).collect();
+    /// Accepts any value implementing [`Display`](std::fmt::Display).
+    pub fn then_all(self, cmds: impl IntoIterator<Item = impl std::fmt::Display>) -> IfThenBuilder {
+        let then_cmds: Vec<String> = cmds.into_iter().map(|c| c.to_string()).collect();
         IfThenBuilder {
             cond: self.cond,
             then_cmds,
@@ -288,8 +292,8 @@ impl IfThenBuilder {
     ///     .then_all([tellraw(...), cmd::return_fail()])
     ///     .else_all([attribute_base_set(...), HAS_CELLS.enable("@s")]);
     /// ```
-    pub fn else_all(self, cmds: impl IntoIterator<Item = impl Into<String>>) -> Vec<String> {
-        let else_cmds: Vec<String> = cmds.into_iter().map(|c| c.into()).collect();
+    pub fn else_all(self, cmds: impl IntoIterator<Item = impl std::fmt::Display>) -> Vec<String> {
+        let else_cmds: Vec<String> = cmds.into_iter().map(|c| c.to_string()).collect();
         let then_ref = register_branch(self.then_cmds);
         let else_ref = register_branch(else_cmds);
         let mut result = self

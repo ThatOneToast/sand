@@ -1,0 +1,9 @@
+error: Rust if/match statements are not supported directly inside Sand attribute functions yet. Use TypedExecute/typed condition helpers for Minecraft conditionals, or mcfunction! for advanced command collection.
+ --> tests/cases/fail_unsupported_if.rs:5:5
+  |
+5 | /     if true {
+6 | |         cmd::say("hello")
+7 | |     } else {
+8 | |         cmd::say("goodbye")
+9 | |     };
+  | |_____^

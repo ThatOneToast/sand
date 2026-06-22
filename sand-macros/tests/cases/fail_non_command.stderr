@@ -1,5 +1,5 @@
 error: this expression is not a Sand command. Attribute function body expressions must produce a typed command, Vec<String>, or another IntoCommands value.
- --> tests/cases/fail_empty_body.rs:6:5
+ --> tests/cases/fail_non_command.rs:5:5
   |
-6 |     42i32
-  |     ^^^^^
+5 |     42;
+  |     ^^

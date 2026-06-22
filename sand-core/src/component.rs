@@ -133,7 +133,7 @@ pub fn export_components_json(namespace: &str) -> String {
                     .unwrap_or_else(|| format!("{}:{}", namespace, desc.path));
 
                 let mut body = commands;
-                if *revoke {
+                if revoke() {
                     body.insert(0, format!("advancement revoke @s only {}", advancement_id));
                 }
                 records.push(ComponentRecord {

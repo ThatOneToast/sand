@@ -173,7 +173,8 @@ pub enum EventDispatch {
     /// the trigger is met.
     Advancement {
         make_trigger: fn() -> crate::AdvancementTrigger,
-        revoke: bool,
+        /// Returns `true` to revoke the advancement after firing, `false` for once-only.
+        revoke: fn() -> bool,
     },
 
     /// All-deaths detection via the `deathCount` scoreboard criterion.

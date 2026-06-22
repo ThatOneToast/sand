@@ -886,6 +886,75 @@ impl SandEvent for LightningStrikeEvent {
     }
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// ── AdvancementEvent impls for all advancement-backed events ──────────────
+// ════════════════════════════════════════════════════════════════════════════
+//
+// These allow using the built-in event types with `Event<E>` and the typed
+// trigger builders from `sand_core::event::trigger`.
+
+macro_rules! adv_event {
+    ($ty:ty) => {
+        impl crate::event::AdvancementEvent for $ty {
+            type Trigger = crate::AdvancementTrigger;
+            fn trigger() -> Self::Trigger {
+                <$ty as SandEvent>::dispatch().into_trigger().unwrap()
+            }
+        }
+    };
+}
+
+impl SandEventDispatch {
+    /// Extract the advancement trigger from this dispatch, panicking if it's
+    /// a tick-condition dispatch.
+    fn into_trigger(self) -> Option<crate::AdvancementTrigger> {
+        match self {
+            SandEventDispatch::AdvancementTrigger(t) => Some(t),
+            SandEventDispatch::TickCondition(_) => None,
+        }
+    }
+}
+
+adv_event!(EntityKillEvent);
+adv_event!(PlayerKillEvent);
+adv_event!(PlayerDamageEntityEvent);
+adv_event!(EntityDamagePlayerEvent);
+adv_event!(ShotCrossbowEvent);
+adv_event!(ChanneledLightningEvent);
+adv_event!(ItemConsumeEvent);
+adv_event!(ItemCraftEvent);
+adv_event!(ItemEnchantEvent);
+adv_event!(BucketFillEvent);
+adv_event!(BucketEmptyEvent);
+adv_event!(FishingEvent);
+adv_event!(ItemPickedUpEvent);
+adv_event!(ItemDurabilityChangeEvent);
+adv_event!(BrewPotionEvent);
+adv_event!(TotemActivateEvent);
+adv_event!(RecipeUnlockEvent);
+adv_event!(BlockPlaceEvent);
+adv_event!(EnterBlockEvent);
+adv_event!(SlideDownBlockEvent);
+adv_event!(TargetHitEvent);
+adv_event!(BeeNestDestroyedEvent);
+adv_event!(ChangeDimensionEvent);
+adv_event!(PlayerSleepEvent);
+adv_event!(FallFromHeightEvent);
+adv_event!(PlayerLevelUpEvent);
+adv_event!(EffectsChangedEvent);
+adv_event!(StartRidingEvent);
+adv_event!(UseEnderEyeEvent);
+adv_event!(TameAnimalEvent);
+adv_event!(BreedAnimalsEvent);
+adv_event!(SummonEntityEvent);
+adv_event!(InteractWithEntityEvent);
+adv_event!(VillagerTradeEvent);
+adv_event!(ConstructBeaconEvent);
+adv_event!(CureZombieVillagerEvent);
+adv_event!(LootContainerOpenEvent);
+adv_event!(HeroOfTheVillageEvent);
+adv_event!(LightningStrikeEvent);
+
 // ── Tick-poll events ──────────────────────────────────────────────────────
 //
 // These fire every tick the condition is true, checked as each online player.

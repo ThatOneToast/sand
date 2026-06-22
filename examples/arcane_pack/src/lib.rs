@@ -20,8 +20,9 @@
 //! cargo run -p arcane_pack
 //! ```
 
+use sand_core::events::ItemConsumeEvent;
 use sand_core::prelude::*;
-use sand_macros::{component, function};
+use sand_macros::{component, event, function};
 
 // -- State ------------------------------------------------------------------
 
@@ -209,6 +210,22 @@ pub fn welcome_dialog() -> Dialog {
                     .to_string(),
             )),
         )
+}
+
+// -- Event: Golden apple restores mana -------------------------------------
+//
+// Demonstrates the typed event API: the event type (ItemConsumeEvent) impls
+// both SandEvent and AdvancementEvent, so #[event(dispatch = "advancement")]
+// builds the advancement from the typed ConsumeItemTrigger.
+
+/// Called via advancement trigger when the player eats a golden apple.
+#[event(dispatch = "advancement")]
+pub fn on_eat_golden_apple(_event: ItemConsumeEvent) {
+    MANA.add(Selector::self_(), 10);
+    cmd::tellraw(
+        Selector::self_(),
+        Text::new("Golden apple restored 10 mana!").green(),
+    );
 }
 
 // -- Export hook (required by sand build) ----------------------------------

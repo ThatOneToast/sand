@@ -42,6 +42,7 @@ pub mod component;
 pub mod components;
 pub mod condition;
 pub mod error;
+pub mod event;
 pub mod events;
 pub mod execute_when;
 pub mod function;
@@ -68,6 +69,10 @@ pub use cmd::{
 pub use component::export_components_json;
 pub use component::{ComponentContent, ComponentRecord, DatapackComponent, IntoDatapack};
 pub use error::{Result, SandError};
+pub use event::{
+    AdvancementEvent, Event as TypedEvent, EventId, EventReset, EventVisibility,
+    IntoEventAdvancement,
+};
 pub use events::{
     // Equipment events
     ArmorEquipEvent,

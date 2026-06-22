@@ -40,6 +40,12 @@ pub use crate::version::{MinecraftVersion, VersionProfile};
 
 pub use crate::function::IntoFunctionRef;
 
+// ── Typed event model ─────────────────────────────────────────────────────────
+
+pub use crate::event::{
+    AdvancementEvent, EventId, EventReset, EventVisibility, IntoEventAdvancement,
+};
+
 // ── Dialog builders ───────────────────────────────────────────────────────────
 
 pub use sand_components::dialog::{Dialog, DialogAction, DialogBody, DialogButton, DialogKind};

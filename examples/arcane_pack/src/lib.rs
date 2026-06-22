@@ -199,20 +199,18 @@ pub fn welcome_dialog() -> Dialog {
         .title("Welcome to Arcane Pack")
         .body(DialogBody::text("Choose an action below."))
         .button(
-            DialogButton::new("Cast Dash").action(DialogAction::run_command(
-                cmd::function(ResourceLocation::new("arcane", "cast_dash").unwrap()).to_string(),
+            DialogButton::new("Cast Dash").action(DialogAction::run_function(
+                ResourceLocation::new("arcane", "cast_dash").unwrap(),
             )),
         )
         .button(
-            DialogButton::new("Cast Fireball").action(DialogAction::run_command(
-                cmd::function(ResourceLocation::new("arcane", "cast_fireball").unwrap())
-                    .to_string(),
+            DialogButton::new("Cast Fireball").action(DialogAction::run_function(
+                ResourceLocation::new("arcane", "cast_fireball").unwrap(),
             )),
         )
         .button(
-            DialogButton::new("Toggle Shield").action(DialogAction::run_command(
-                cmd::function(ResourceLocation::new("arcane", "toggle_shield").unwrap())
-                    .to_string(),
+            DialogButton::new("Toggle Shield").action(DialogAction::run_function(
+                ResourceLocation::new("arcane", "toggle_shield").unwrap(),
             )),
         )
 }

@@ -13,6 +13,7 @@
 //! }
 //! ```
 
+use crate::ResourceLocation;
 use serde_json::{Value, json};
 
 // ── DialogBody ────────────────────────────────────────────────────────────────
@@ -113,6 +114,24 @@ impl DialogAction {
     pub fn run_command(cmd: impl Into<String>) -> Self {
         Self::RunCommand(cmd.into())
     }
+
+    /// Run a datapack function when the button is pressed.
+    ///
+    /// Prefer this over `run_command("/function ns:path")` — it uses a typed
+    /// [`ResourceLocation`] and emits the correct `/function` syntax.
+    ///
+    /// ```
+    /// use sand_components::dialog::DialogAction;
+    /// use sand_components::ResourceLocation;
+    ///
+    /// let action = DialogAction::run_function(
+    ///     ResourceLocation::new("example", "start").unwrap()
+    /// );
+    /// ```
+    pub fn run_function(id: ResourceLocation) -> Self {
+        Self::RunCommand(format!("/function {id}"))
+    }
+
     pub fn suggest_command(cmd: impl Into<String>) -> Self {
         Self::SuggestCommand(cmd.into())
     }

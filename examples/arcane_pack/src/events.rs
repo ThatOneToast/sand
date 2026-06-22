@@ -1,3 +1,4 @@
+use sand_core::ItemPredicate;
 use sand_core::event::trigger::{ConsumeItemTrigger, UsingItemTrigger};
 use sand_core::event::{AdvancementEvent, EventPlayer};
 use sand_core::prelude::*;
@@ -9,7 +10,8 @@ impl AdvancementEvent for AteGoldenAppleEvent {
     type Trigger = ConsumeItemTrigger;
 
     fn trigger() -> Self::Trigger {
-        ConsumeItemTrigger::new().item(serde_json::json!({"items": "minecraft:golden_apple"}))
+        // Typed predicate — no raw serde_json
+        ConsumeItemTrigger::new().item(ItemPredicate::id("minecraft:golden_apple"))
     }
 
     fn guard() -> Option<Condition> {
@@ -30,6 +32,7 @@ impl AdvancementEvent for UsedDashWandEvent {
     type Trigger = UsingItemTrigger;
 
     fn trigger() -> Self::Trigger {
+        // Custom data matching requires raw JSON escape hatch — arcane_wand:1b predicate
         UsingItemTrigger::new().item(serde_json::json!({
             "items": "minecraft:stick",
             "predicates": {
@@ -39,11 +42,14 @@ impl AdvancementEvent for UsedDashWandEvent {
     }
 
     fn guard() -> Option<Condition> {
-        Some(all![
-            super::MANA.of("@s").gte(25),
-            super::DASH.ready("@s"),
-            super::SHIELD.of("@s").is_false(),
-        ])
+        // Fluent chaining: mana AND dash ready AND shield not active
+        Some(
+            super::MANA
+                .of("@s")
+                .gte(25)
+                .and(super::DASH.ready("@s"))
+                .and_not(super::SHIELD.of("@s").is_true()),
+        )
     }
 }
 

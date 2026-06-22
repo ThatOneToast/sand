@@ -3,12 +3,15 @@
 //! Procedural macros for the [Sand](https://github.com/ThatOneToast/sand)
 //! Minecraft datapack toolkit.
 //!
-//! Provides four macros:
+//! Provides five attribute macros and one procedural macro:
 //!
 //! - **`#[function]`** — turns a Rust function into a `.mcfunction` file,
 //!   automatically registered via `inventory` at link time.
 //! - **`#[component]`** — registers a datapack component (advancement, recipe,
 //!   loot table, etc.) or hooks a function into `Tick`/`Load`/custom tags.
+//! - **`#[event]`** — wires a handler function to a Minecraft advancement trigger
+//!   or tick-poll event. The handler parameter must be `Event<T>` where
+//!   `T: AdvancementEvent`. Use `event.player()` to access `@s`.
 //! - **`#[schedule]`** — defines a function that runs for N ticks (with an
 //!   optional interval), triggered at runtime via generated `_start`/`_stop` functions.
 //! - **`#[item]`** — reads a `CustomItem`-returning function and generates a typed

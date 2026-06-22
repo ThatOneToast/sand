@@ -611,8 +611,9 @@ mod tests {
             .title("Welcome!")
             .body(DialogBody::text("Choose an option."))
             .button(
-                DialogButton::new("Start")
-                    .action(DialogAction::run_command("/function example:start")),
+                DialogButton::new("Start").action(DialogAction::run_function(
+                    ResourceLocation::new("example", "start").unwrap(),
+                )),
             );
         let json = d.to_json();
         assert!(
@@ -622,6 +623,22 @@ mod tests {
         assert_eq!(json["title"]["text"].as_str().unwrap(), "Welcome!");
         assert!(json["body"].is_array());
         assert!(json["buttons"].is_array());
+    }
+
+    /// Escape hatch: `DialogAction::run_command` accepts any raw command string,
+    /// including non-function commands like `/say`. Use `run_function` for
+    /// datapack function calls; use `run_command` only when there is no typed API.
+    #[test]
+    fn button_action_run_command_escape_hatch() {
+        let btn = DialogButton::new("OK").action(DialogAction::run_command("/say hi"));
+        let json = btn.to_json();
+        assert_eq!(json["label"]["text"].as_str().unwrap(), "OK");
+        assert!(
+            json["action"]["command"]
+                .as_str()
+                .unwrap()
+                .contains("/say hi")
+        );
     }
 
     #[test]
@@ -664,19 +681,6 @@ mod tests {
                 .as_str()
                 .unwrap()
                 .contains("multi_action")
-        );
-    }
-
-    #[test]
-    fn button_action_run_command() {
-        let btn = DialogButton::new("OK").action(DialogAction::run_command("/say hi"));
-        let json = btn.to_json();
-        assert_eq!(json["label"]["text"].as_str().unwrap(), "OK");
-        assert!(
-            json["action"]["command"]
-                .as_str()
-                .unwrap()
-                .contains("/say hi")
         );
     }
 

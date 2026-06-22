@@ -78,6 +78,7 @@ fn build_cmd_body(block: &syn::Block) -> proc_macro2::TokenStream {
             syn::Stmt::Item(item) => {
                 pieces.push(quote! { #item });
             }
+
             // Every expression (with or without `;`) goes through IntoCommands.
             // This handles String, &str, Vec<String>, and any custom type.
             syn::Stmt::Expr(expr, _semi) => {
@@ -1753,6 +1754,7 @@ fn require_lit_int(
 }
 
 #[cfg(feature = "resourcepack")]
+#[allow(dead_code)]
 fn require_lit_char(
     map: &std::collections::HashMap<String, syn::Expr>,
     key: &str,
@@ -2391,14 +2393,12 @@ fn read_sand_namespace() -> Option<String> {
             in_pack = trimmed == "[pack]";
             continue;
         }
-        if in_pack {
-            if let Some(rest) = trimmed.strip_prefix("namespace") {
-                let rest = rest.trim_start();
-                if let Some(rest) = rest.strip_prefix('=') {
-                    let val = rest.trim().trim_matches('"').trim_matches('\'');
-                    if !val.is_empty() {
-                        return Some(val.to_string());
-                    }
+        if in_pack && let Some(rest) = trimmed.strip_prefix("namespace") {
+            let rest = rest.trim_start();
+            if let Some(rest) = rest.strip_prefix('=') {
+                let val = rest.trim().trim_matches('"').trim_matches('\'');
+                if !val.is_empty() {
+                    return Some(val.to_string());
                 }
             }
         }
@@ -2713,7 +2713,7 @@ pub fn item(attr: TokenStream, input: TokenStream) -> TokenStream {
 
 /// Convert `snake_case` or `kebab-case` to `PascalCase`.
 fn to_pascal_case(s: &str) -> String {
-    s.split(|c: char| c == '_' || c == '-')
+    s.split(['_', '-'])
         .filter(|seg| !seg.is_empty())
         .map(|seg| {
             let mut chars = seg.chars();
@@ -2735,14 +2735,14 @@ fn item_walk_expr(expr: &syn::Expr, base: &mut Option<String>, cd: &mut Option<S
             if let syn::Expr::Path(p) = &*c.func {
                 let last = p.path.segments.last().map(|s| s.ident.to_string());
                 let has_custom_item = p.path.segments.iter().any(|s| s.ident == "CustomItem");
-                if last.as_deref() == Some("new") && has_custom_item {
-                    if let Some(syn::Expr::Lit(syn::ExprLit {
+                if last.as_deref() == Some("new")
+                    && has_custom_item
+                    && let Some(syn::Expr::Lit(syn::ExprLit {
                         lit: syn::Lit::Str(s),
                         ..
                     })) = c.args.first()
-                    {
-                        *base = Some(s.value());
-                    }
+                {
+                    *base = Some(s.value());
                 }
             }
             item_walk_expr(&c.func, base, cd);
@@ -2751,14 +2751,13 @@ fn item_walk_expr(expr: &syn::Expr, base: &mut Option<String>, cd: &mut Option<S
             }
         }
         syn::Expr::MethodCall(mc) => {
-            if mc.method == "custom_data" {
-                if let Some(syn::Expr::Lit(syn::ExprLit {
+            if mc.method == "custom_data"
+                && let Some(syn::Expr::Lit(syn::ExprLit {
                     lit: syn::Lit::Str(s),
                     ..
                 })) = mc.args.first()
-                {
-                    *cd = Some(s.value());
-                }
+            {
+                *cd = Some(s.value());
             }
             item_walk_expr(&mc.receiver, base, cd);
             for arg in &mc.args {

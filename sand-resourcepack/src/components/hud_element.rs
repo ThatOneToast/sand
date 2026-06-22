@@ -154,7 +154,7 @@ mod tests {
             AssetContent::Json(v) => {
                 let chars = v["providers"][0]["chars"][0].as_str().unwrap();
                 let ch = chars.chars().next().unwrap() as u32;
-                assert!(ch >= 0xF000 && ch <= 0xF8FF);
+                assert!((0xF000..=0xF8FF).contains(&ch));
             }
             _ => panic!("expected Json"),
         }

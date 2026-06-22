@@ -680,7 +680,7 @@ impl DyedColor {
         }
     }
 
-    fn to_decimal(&self) -> i32 {
+    fn to_decimal(self) -> i32 {
         ((self.r as i32) << 16) | ((self.g as i32) << 8) | (self.b as i32)
     }
 }

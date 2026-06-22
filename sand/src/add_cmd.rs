@@ -252,13 +252,13 @@ fn add_rp_imports(src: &str) -> String {
     if src.contains("hud_bar") {
         return src.to_string();
     }
-    if let Some(idx) = src.find("use sand_macros::{") {
-        if let Some(end) = src[idx..].find("};") {
-            let insert_at = idx + end; // position of `}`
-            let mut result = src.to_string();
-            result.insert_str(insert_at, ", hud_bar, hud_element, texture");
-            return result;
-        }
+    if let Some(idx) = src.find("use sand_macros::{")
+        && let Some(end) = src[idx..].find("};")
+    {
+        let insert_at = idx + end;
+        let mut result = src.to_string();
+        result.insert_str(insert_at, ", hud_bar, hud_element, texture");
+        return result;
     }
     src.to_string()
 }

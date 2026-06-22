@@ -255,8 +255,8 @@ mod tests {
         let a = bar_base_codepoint("health");
         let b = bar_base_codepoint("mana");
         // Both in bar region, but different slots.
-        assert!(a >= BAR_BASE && a < ELEM_BASE);
-        assert!(b >= BAR_BASE && b < ELEM_BASE);
+        assert!((BAR_BASE..ELEM_BASE).contains(&a));
+        assert!((BAR_BASE..ELEM_BASE).contains(&b));
         assert_ne!(a, b);
     }
 

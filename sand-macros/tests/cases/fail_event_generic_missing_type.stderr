@@ -1,4 +1,4 @@
-error: #[event] Event handlers must specify the event type, e.g. `Event<MyEvent>`
+error: #[event] generic handlers must specify the event type, e.g. `Event<MyEvent>` or `DamageEvent<MyDamageEvent>`
  --> tests/cases/fail_event_generic_missing_type.rs:5:19
   |
 5 | pub fn bad(event: Event) {

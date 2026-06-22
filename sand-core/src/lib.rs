@@ -73,9 +73,10 @@ pub use sand_components::dialog::SAND_DIALOG_TRIGGER;
 
 pub use cmd::{
     Actionbar, BlockState, Bossbar, BossbarColor, BossbarStyle, CloneBlocks, CloneMaskMode,
-    CloneMode, Command, ConditionedExecute, Cooldown, ExecuteExt, Fill, FillMode, ItemSlot,
-    NbtStoreKind, NbtValue, Objective, ParticleEffect, ParticleSpread, ScoreCmp, SetBlock,
-    SetBlockMode, Sound, SoundSource, Storage, Title, TypedExecute,
+    CloneMode, Command, ConditionedExecute, Cooldown, EntityTargets, ExecuteExt, Fill, FillMode,
+    ItemSlot, NbtStoreKind, NbtValue, Objective, ParticleEffect, ParticleSpread, PlayerTargets,
+    ScoreCmp, SetBlock, SetBlockMode, SingleEntity, SinglePlayer, Sound, SoundSource, Storage,
+    Title, TypedExecute,
 };
 pub use component::export_components_json;
 pub use component::{ComponentContent, ComponentRecord, DatapackComponent, IntoDatapack};
@@ -83,6 +84,8 @@ pub use error::{Result, SandError};
 pub use event::handle::{EventHandle, RawEventHandle};
 pub use event::{
     AdvancementEvent,
+    DamageAdvancementEvent,
+    DamageEvent,
     Event,
     // Kept for backward compat; prefer Event<E> as handler context
     Event as TypedEvent,
@@ -164,7 +167,7 @@ pub use function::{
     ArmorEventDescriptor, ArmorEventKind, ArmorSlot, ComponentFactory, EventDescriptor,
     EventDispatch, EventPathEntry, FunctionDescriptor, FunctionPointerEntry,
     FunctionPointerTypeEntry, FunctionTagDescriptor, IntoFunctionRef, ScheduleDescriptor,
-    TempScoreboard, drain_dyn_fns, register_dyn_fn,
+    TempScoreboard, drain_dyn_fns, register_dyn_fn, register_dyn_fn_dedup,
 };
 pub use mc_version::McVersion;
 pub use resource_location::{Identifier, PackNamespace, ResourceLocation};
@@ -261,6 +264,9 @@ pub use sand_components::{
     // Wolf
     WolfVariant,
 };
+
+/// High-level typed damage command builder.
+pub use sand_commands::Damage;
 
 /// Register a temporary scoreboard objective that Sand creates automatically on load.
 ///

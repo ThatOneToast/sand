@@ -133,6 +133,26 @@ let commands = TypedExecute::as_players().when(cond).run(cmd::function(
 ));
 ```
 
+## Typed Damage And Events
+
+Damage builders model vanilla target rules. Direct `/damage` requires one
+entity, while high-level damage can safely target many entities:
+
+```rust
+#[event]
+pub fn on_damaged(event: DamageEvent<MyDamageEvent>) {
+    event
+        .reflect_damage()
+        .to(EntityTargets::nearby(5.0).excluding_players().excluding_self())
+        .amount(DamageAmount::fixed(4.0))
+        .damage_type(DamageKind::Generic)
+        .run();
+}
+```
+
+Sand lowers the multi-target case through `execute as ... run damage @s ...`
+instead of generating invalid `damage @e[...]` commands.
+
 ## Typed Execute
 
 Use `TypedExecute` for common chains and `ExecuteExt::when`/`unless` for typed

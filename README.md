@@ -84,9 +84,9 @@ pub fn welcome_dialog() -> Dialog {
         .body(DialogBody::text("Choose your next action."))
         .button(
             DialogButton::new("Start")
-                .action(DialogAction::run_command(cmd::function(
+                .action(DialogAction::run_function(
                     ResourceLocation::new("example", "start").unwrap(),
-                )))
+                ))
         )
 }
 ```

@@ -276,19 +276,20 @@ No test verifies that `cmd::call(local_fn_pointer)` emits `function <namespace>:
 
 | # | Issue | Class | Status |
 |---|---|---|---|
-| 1 | `Event<E>` is builder not handler context | A | Open |
-| 2 | `EventHandle` is stringly typed | A | Open |
-| 3 | Function pointers emit bare paths | A+E | Open |
-| 4 | `#[function]` requires explicit namespace | E | Open |
-| 5 | Trigger builders accept raw `Value` | A+F | Open |
-| 6 | No condition chaining methods | F | Open |
-| 7 | Dialog IDs/labels/actions use strings | A+F | Open |
-| 8 | Two parallel event module hierarchies | A | Open |
-| 9 | Book teaches stringly `EventHandle` | B | Open |
-| 10 | README teaches `Dialog::run_command("/function")` | B | Open |
-| 11 | `IntoFunctionRef for &str/String` bypass namespace | C | Open |
-| 12 | No golden test for namespace inference | G | Open |
+| 1 | `Event<E>` is builder not handler context | A | **Fixed (08c0eb2)** |
+| 2 | `EventHandle` is stringly typed | A | **Fixed (aadaaae)** |
+| 3 | Function pointers emit bare paths | A+E | **Fixed (5cc00d9)** |
+| 4 | `#[function]` requires explicit namespace | E | Partial — `cmd::call()` resolved; explicit `#[function("ns:path")]` still requires namespace |
+| 5 | Trigger builders accept raw `Value` | A+F | **Fixed (c2d9031)** — typed predicates + raw escape hatch |
+| 6 | No condition chaining methods | F | **Fixed (d96ba42)** |
+| 7 | Dialog IDs/labels/actions use strings | A+F | **Partial (da8f3d6)** — `run_function(ResourceLocation)` added; title/label typed API deferred |
+| 8 | Two parallel event module hierarchies | A | **Fixed (6f99a1e)** — `event::vanilla` aliases added |
+| 9 | Book teaches stringly `EventHandle` | B | **Fixed (aadaaae + docs update)** |
+| 10 | README teaches `Dialog::run_command("/function")` | B | **Fixed (da8f3d6 + docs update)** |
+| 11 | `IntoFunctionRef for &str/String` bypass namespace | C | Open — escape hatch, kept for cross-pack use |
+| 12 | No golden test for namespace inference | G | **Fixed (5cc00d9)** — arcane_pack golden test |
 | 13 | `WhenBuilder::and_then` ignored condition | A | **Fixed (3fab2c7)** |
+| 14 | Advancement revoke-before-guard ordering | A | **Fixed (0c50466)** |
 
 ## Planned escape hatches to keep
 

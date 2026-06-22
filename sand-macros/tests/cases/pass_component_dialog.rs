@@ -7,6 +7,11 @@ pub fn start() {
     cmd::say("start");
 }
 
+#[function]
+pub fn open_welcome_menu() {
+    cmd::show_dialog(Selector::self_(), DialogRef::local("welcome"));
+}
+
 #[component]
 pub fn welcome_dialog() -> Dialog {
     Dialog::notice_local("welcome")
@@ -36,4 +41,8 @@ fn main() {
         "/function __sand_local:start"
     );
     assert_eq!(json["buttons"][1]["action"]["dialog"], "__sand_local:rules");
+    assert_eq!(
+        open_welcome_menu(),
+        vec!["dialog show @s __sand_local:welcome"]
+    );
 }

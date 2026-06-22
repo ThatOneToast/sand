@@ -718,18 +718,32 @@ mod tests {
 
     #[test]
     fn golden_welcome_dialog() {
-        let d = Dialog::notice("example:welcome")
-            .title("Welcome to the server!")
-            .body(DialogBody::text("Choose what you want to do next."))
+        let d = Dialog::notice_local("welcome")
+            .title(Text::new("Welcome to the server!").gold())
+            .body(DialogBody::text(Text::new(
+                "Choose what you want to do next.",
+            )))
+            .button(DialogButton::new(Text::new("Start").green()).action(
+                DialogAction::run_function(ResourceLocation::new("example", "start").unwrap()),
+            ))
             .button(
-                DialogButton::new("Start")
-                    .action(DialogAction::run_command("/function example:start")),
-            )
-            .button(DialogButton::new("Rules").action(DialogAction::open_dialog("example:rules")));
+                DialogButton::new(Text::new("Rules").yellow())
+                    .action(DialogAction::open_dialog(DialogId::local("rules"))),
+            );
         let json = d.to_json();
         let buttons = json["buttons"].as_array().unwrap();
         assert_eq!(buttons.len(), 2);
+        assert_eq!(json["title"]["color"].as_str().unwrap(), "gold");
         assert_eq!(buttons[0]["label"]["text"].as_str().unwrap(), "Start");
+        assert_eq!(buttons[0]["label"]["color"].as_str().unwrap(), "green");
+        assert_eq!(
+            buttons[0]["action"]["command"].as_str().unwrap(),
+            "/function example:start"
+        );
         assert_eq!(buttons[1]["label"]["text"].as_str().unwrap(), "Rules");
+        assert_eq!(
+            buttons[1]["action"]["dialog"].as_str().unwrap(),
+            "__sand_local:rules"
+        );
     }
 }

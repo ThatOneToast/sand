@@ -713,10 +713,28 @@ pub fn export_components_json(namespace: &str) -> String {
         });
     }
 
+    // ── Resolve local function sentinel → real namespace ─────────────────────
+    // cmd::call() emits `function __sand_local:<path>` for bare (un-namespaced)
+    // functions.  Now that we know the pack namespace, substitute it in.
+    for rec in &mut records {
+        if rec.ext == "mcfunction" {
+            rec.content = resolve_local_fns(&rec.content, namespace);
+        }
+    }
+
     serde_json::to_string_pretty(&records).unwrap()
 }
 
 // ── Private helpers ───────────────────────────────────────────────────────────
+
+/// Replace every `function __sand_local:<path>` sentinel in an mcfunction body
+/// with `function <namespace>:<path>`.
+fn resolve_local_fns(content: &str, namespace: &str) -> String {
+    content.replace(
+        &format!("function {}:", crate::function::SAND_LOCAL_NS),
+        &format!("function {namespace}:"),
+    )
+}
 
 /// Compute a stable 8-hex-char key for a schedule path (FNV-1a 32-bit).
 /// Keeps scoreboard objective names within Minecraft's 16-char limit:

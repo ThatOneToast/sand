@@ -104,27 +104,45 @@ impl IntoFunctionRef for String {
     }
 }
 
+/// Sentinel namespace emitted for local function pointers whose namespace is
+/// not yet known at compile time.  The export pipeline in
+/// [`crate::component::export_components_json`] replaces this with the actual
+/// pack namespace from `sand.toml`.
+pub const SAND_LOCAL_NS: &str = "__sand_local";
+
 impl IntoFunctionRef for fn() -> Vec<String> {
     fn into_function_command(self) -> String {
         for entry in inventory::iter::<FunctionPointerEntry>() {
             if entry.ptr as usize == self as usize {
-                return format!("function {}", entry.path);
+                let path = entry.path;
+                // Already fully-qualified (contains ':') — use as-is.
+                // Bare path — emit sentinel; resolved to real namespace at export.
+                return if path.contains(':') {
+                    format!("function {path}")
+                } else {
+                    format!("function {SAND_LOCAL_NS}:{path}")
+                };
             }
         }
         panic!(
             "unregistered function pointer: the function must be annotated with \
-             #[function(\"ns:path\")] or #[function] to be callable via cmd::call()"
+             #[function] or #[function(\"path\")] to be callable via cmd::call()"
         )
     }
     fn into_function_id(self) -> String {
         for entry in inventory::iter::<FunctionPointerEntry>() {
             if entry.ptr as usize == self as usize {
-                return entry.path.to_string();
+                let path = entry.path;
+                return if path.contains(':') {
+                    path.to_string()
+                } else {
+                    format!("{SAND_LOCAL_NS}:{path}")
+                };
             }
         }
         panic!(
             "unregistered function pointer: the function must be annotated with \
-             #[function(\"ns:path\")] or #[function] to be callable via cmd::function_id()"
+             #[function] or #[function(\"path\")] to be callable via cmd::call()"
         )
     }
 }

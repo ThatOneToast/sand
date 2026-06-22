@@ -10,26 +10,8 @@
 //! | [`EventReset`] | Controls re-arming after firing |
 //! | [`EventVisibility`] | Controls toast/chat visibility |
 //! | [`IntoEventAdvancement`] | Extension: builds the full advancement from an event |
-//!
-//! # Usage
-//!
-//! ```rust,ignore
-//! use sand_core::event::{AdvancementEvent, Event, EventId, EventReset, EventVisibility};
-//! use sand_core::AdvancementTrigger;
-//!
-//! pub struct DrankHoney;
-//!
-//! impl AdvancementEvent for DrankHoney {
-//!     type Trigger = AdvancementTrigger;
-//!     fn trigger() -> Self::Trigger {
-//!         AdvancementTrigger::ConsumeItem { item: None }
-//!     }
-//! }
-//!
-//! // Build the event advancement
-//! let event = Event::<DrankHoney>::new("my_pack:drank_honey", "my_pack:handler_drank_honey");
-//! let advancement: sand_components::Advancement = event.into_advancement();
-//! ```
+
+pub mod trigger;
 
 use crate::AdvancementTrigger;
 use std::marker::PhantomData;

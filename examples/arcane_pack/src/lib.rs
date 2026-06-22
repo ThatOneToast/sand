@@ -20,10 +20,13 @@
 //! cargo run -p arcane_pack
 //! ```
 
-use sand_core::EventPlayer;
-use sand_core::events::ItemConsumeEvent;
+use sand_core::events::{FirstJoinEvent, OnDeathEvent, OnJoinEvent, OnRespawnEvent};
 use sand_core::prelude::*;
+use sand_core::{EventHandle, EventPlayer};
 use sand_macros::{component, event, function};
+
+mod events;
+use crate::events::{AteGoldenAppleEvent, UsedDashWandEvent};
 
 // -- State ------------------------------------------------------------------
 
@@ -51,6 +54,7 @@ pub fn load() {
     DASH.define();
     FIREBALL.define();
     SHIELD.define();
+    GOLDEN_APPLE_HANDLE.define();
     PLAYER_DATA.set_int(100);
     cmd::tellraw(
         Selector::all_players(),
@@ -213,20 +217,99 @@ pub fn welcome_dialog() -> Dialog {
         )
 }
 
-// -- Event: Golden apple restores mana -------------------------------------
-//
-// Demonstrates the typed event API: the event type (ItemConsumeEvent) impls
-// both SandEvent and AdvancementEvent, so #[event(dispatch = "advancement")]
-// builds the advancement from the typed ConsumeItemTrigger.
+// -- EventHandle: lifecycle control for advancement events -----------------
 
-/// Called via advancement trigger when the player eats a golden apple.
-#[event(dispatch = "advancement")]
-pub fn on_eat_golden_apple(event: ItemConsumeEvent) {
-    MANA.add(event.player(), 10);
+/// Enables/disables the golden apple event per player.
+static GOLDEN_APPLE_HANDLE: EventHandle = EventHandle::new("arcane:on_ate_golden_apple");
+
+// -- Events ----------------------------------------------------------------
+//
+// Demonstrates every dispatch mode: join tick, death/respawn tick, and
+// custom advancement events with guard(), function pointer calls,
+// EventHandle, and typed trigger builders.
+
+/// Fires every time a player joins the world.
+#[event]
+pub fn on_join(event: OnJoinEvent) {
     cmd::tellraw(
         event.player(),
-        Text::new("Golden apple restored 10 mana!").green(),
+        Text::new("Welcome to the Arcane Pack!").gold(),
     );
+}
+
+/// Fires once per player — initializes mana and shows a welcome title.
+///
+/// The dispatch = "advancement" attribute is ignored for FirstJoinEvent
+/// (the macro hardcodes a Tick advancement with no revoke).
+#[event]
+pub fn on_first_join(event: FirstJoinEvent) {
+    MANA.set(event.player(), 100);
+    Title::of(event.player())
+        .title(Text::new("Arcane Pack").gold().bold(true))
+        .subtitle(Text::new("Your journey begins").green())
+        .build();
+    cmd::tellraw(
+        event.player(),
+        Text::new("You have been granted 100 mana!").aqua(),
+    );
+}
+
+/// Fires when a player dies — disables the golden apple handle,
+/// resets shield flag, and shows a death title.
+#[event]
+pub fn on_death(event: OnDeathEvent) {
+    GOLDEN_APPLE_HANDLE.disable("@s");
+    SHIELD.disable(Selector::self_());
+    Title::of(event.player())
+        .title(Text::new("You died!").red())
+        .subtitle(Text::new("Shield deactivated, cooldowns cleared").gray())
+        .build();
+}
+
+/// Fires when a player respawns — re-enables the golden apple handle,
+/// restores 50 mana, and stops all cooldowns.
+#[event]
+pub fn on_respawn(event: OnRespawnEvent) {
+    GOLDEN_APPLE_HANDLE.enable("@s");
+    MANA.set(Selector::self_(), 50);
+    DASH.stop(Selector::self_());
+    FIREBALL.stop(Selector::self_());
+    cmd::tellraw(
+        event.player(),
+        Text::new("You have been granted 50 mana on respawn.").aqua(),
+    );
+}
+
+/// Fired when a golden apple is consumed with mana below 100 (see guard).
+/// Uses a custom AdvancementEvent with guard() and function pointer call.
+#[event(dispatch = "advancement")]
+pub fn on_ate_golden_apple(event: AteGoldenAppleEvent) {
+    MANA.add(event.player(), 10);
+    Actionbar::show(event.player(), Text::new("+10 mana (golden apple)").green());
+    cmd::call(golden_apple_reward as fn() -> Vec<String>);
+}
+
+/// Sound reward for golden apple — called via function pointer.
+#[function]
+pub fn golden_apple_reward() {
+    cmd::say("Delicious!");
+}
+
+/// Fired when a player uses a dash wand (stick with custom data) while
+/// eligible (mana >= 25, dash cooldown ready, shield inactive).
+/// Uses a custom AdvancementEvent with guard() and function pointer call.
+#[event(dispatch = "advancement")]
+pub fn on_used_dash_wand(event: UsedDashWandEvent) {
+    MANA.remove(event.player(), 25);
+    DASH.start(event.player());
+    Actionbar::show(event.player(), Text::new("Dash wand activated!").gold());
+    cmd::call(dash_wand_effect as fn() -> Vec<String>);
+}
+
+/// Speed boost feedback — called via function pointer.
+#[function]
+pub fn dash_wand_effect() {
+    cmd::say("Whoosh!");
 }
 
 // -- Export hook (required by sand build) ----------------------------------
@@ -388,45 +471,76 @@ mod tests {
     }
 
     #[test]
-    fn golden_event_advancement_output() {
+    fn golden_advancements_generated() {
         let json_str = sand_core::export_components_json("arcane");
         let records: Vec<serde_json::Value> =
             serde_json::from_str(&json_str).expect("valid JSON from export");
 
-        // ── Function record for the golden apple event handler ──────────────
-        let handler_fn = records
+        // ── Advancement: ate golden apple (custom event with guard) ─────────
+        let apple_adv = records
             .iter()
-            .find(|r| r["path"] == "on_eat_golden_apple" && r["dir"] == "function")
-            .expect("handler function record");
-        assert_eq!(handler_fn["ext"], "mcfunction");
-        let content = handler_fn["content"].as_str().unwrap();
-        assert!(
-            content.contains("mana"),
-            "handler fn should contain mana update"
+            .find(|r| r["path"] == "on_ate_golden_apple" && r["dir"] == "advancement")
+            .expect("ate_golden_apple advancement record");
+        let apple_json: serde_json::Value =
+            serde_json::from_str(apple_adv["content"].as_str().unwrap())
+                .expect("valid advancement JSON");
+        assert_eq!(
+            apple_json["criteria"]["event"]["trigger"], "minecraft:consume_item",
+            "golden apple trigger"
         );
-        assert!(
-            content.contains("Golden apple"),
-            "handler fn should contain tellraw message"
+        assert_eq!(
+            apple_json["rewards"]["function"],
+            "arcane:on_ate_golden_apple"
         );
 
-        // ── Advancement record for the golden apple event ───────────────────
-        let advancement = records
+        // ── Handler: ate golden apple (should contain mana update) ──────────
+        let apple_fn = records
             .iter()
-            .find(|r| r["path"] == "on_eat_golden_apple" && r["dir"] == "advancement")
-            .expect("advancement record");
-        assert_eq!(advancement["ext"], "json");
-        let adv_json: serde_json::Value =
-            serde_json::from_str(advancement["content"].as_str().unwrap())
+            .find(|r| r["path"] == "on_ate_golden_apple" && r["dir"] == "function")
+            .expect("ate_golden_apple handler");
+        let apple_content = apple_fn["content"].as_str().unwrap();
+        assert!(apple_content.contains("mana"), "handler updates mana");
+
+        // ── Advancement: used dash wand (custom event with guard) ──────────
+        let wand_adv = records
+            .iter()
+            .find(|r| r["path"] == "on_used_dash_wand" && r["dir"] == "advancement")
+            .expect("used_dash_wand advancement record");
+        let wand_json: serde_json::Value =
+            serde_json::from_str(wand_adv["content"].as_str().unwrap())
                 .expect("valid advancement JSON");
-        // Trigger should be consume_item (from ItemConsumeEvent)
         assert_eq!(
-            adv_json["criteria"]["event"]["trigger"],
-            "minecraft:consume_item"
+            wand_json["criteria"]["event"]["trigger"], "minecraft:using_item",
+            "dash wand trigger"
         );
-        // Rewards should point to the handler
+
+        // ── Handler: used dash wand (should contain mana remove) ───────────
+        let wand_fn = records
+            .iter()
+            .find(|r| r["path"] == "on_used_dash_wand" && r["dir"] == "function")
+            .expect("used_dash_wand handler");
+        let wand_content = wand_fn["content"].as_str().unwrap();
+        assert!(wand_content.contains("mana"), "handler removes mana");
+
+        // ── First join advancement (Tick trigger, no revoke) ────────────────
+        let join_adv = records
+            .iter()
+            .find(|r| r["path"] == "on_first_join" && r["dir"] == "advancement")
+            .expect("first_join advancement record");
+        let join_json: serde_json::Value =
+            serde_json::from_str(join_adv["content"].as_str().unwrap())
+                .expect("valid advancement JSON");
         assert_eq!(
-            adv_json["rewards"]["function"],
-            "arcane:on_eat_golden_apple"
+            join_json["criteria"]["event"]["trigger"], "minecraft:tick",
+            "first join trigger"
         );
+        assert!(join_json.get("rewards").is_some(), "first join has rewards");
+
+        // ── Function pointer functions are registered ──────────────────────
+        let reward_fn = records
+            .iter()
+            .find(|r| r["path"] == "golden_apple_reward" && r["dir"] == "function")
+            .expect("golden_apple_reward function");
+        assert!(reward_fn["content"].as_str().unwrap().contains("Delicious"));
     }
 }

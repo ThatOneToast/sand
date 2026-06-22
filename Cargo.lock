@@ -85,6 +85,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "arcane_pack"
+version = "0.1.0"
+dependencies = [
+ "sand-build",
+ "sand-core",
+ "sand-macros",
+ "serde_json",
+]
+
+[[package]]
 name = "atomic-waker"
 version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"

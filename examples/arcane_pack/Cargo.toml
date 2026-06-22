@@ -1,0 +1,24 @@
+[package]
+name = "arcane_pack"
+description = "Arcane Pack — a complete dogfood datapack for Sand"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+publish = false
+
+[[bin]]
+name = "sand_export"
+path = "src/bin/sand_export.rs"
+doc = false
+
+[dependencies]
+sand-core = { path = "../../sand-core" }
+sand-macros = { path = "../../sand-macros" }
+serde_json = "1"
+
+[build-dependencies]
+sand-build = { path = "../../sand-build" }

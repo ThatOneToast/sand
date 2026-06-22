@@ -5,6 +5,8 @@
 //! use sand_core::prelude::*;
 //! ```
 
+pub use crate::{all, any, cmd, mcfunction};
+
 // ── Conditions & execute wiring ───────────────────────────────────────────────
 
 pub use crate::cmd::{ConditionedExecute, ExecuteExt, TypedExecute};
@@ -12,7 +14,10 @@ pub use crate::condition::{Condition, ExecutePlan};
 
 // ── Command builders ──────────────────────────────────────────────────────────
 
-// Execute and Selector already pulled in via cmd above — no duplicate needed
+pub use crate::cmd::{
+    Actionbar, Bossbar, BossbarColor, BossbarStyle, Execute, Inventory, InventorySlot, Selector,
+    SlotPattern, Title,
+};
 
 // ── State variables ───────────────────────────────────────────────────────────
 
@@ -22,6 +27,7 @@ pub use crate::state::{
 
 // ── Resource refs ─────────────────────────────────────────────────────────────
 
+pub use crate::ResourceLocation;
 pub use crate::resource_ref::{
     AdvancementRef, DialogRef, FunctionRef, LootTableRef, PredicateRef, RecipeRef,
 };
@@ -38,7 +44,27 @@ pub use sand_components::dialog::{Dialog, DialogAction, DialogBody, DialogButton
 
 pub use sand_commands::{ChatColor, ClickEvent, HoverEvent, Text, TextComponent};
 
-// ── Macros (re-exported as items so `use prelude::*` captures them) ───────────
-// The macros themselves are `#[macro_export]` at the crate root, so they
-// are already in scope as `sand_core::mcfunction!` etc. after a wildcard import
-// of items. Nothing extra is needed here.
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn prelude_exports_typed_command_path() {
+        let cmd = cmd::tellraw(
+            Selector::all_players(),
+            Text::new("Hello from Sand").gold().bold(true),
+        )
+        .to_string();
+
+        assert!(cmd.starts_with("tellraw @a "));
+        assert!(cmd.contains(r#""text":"Hello from Sand""#));
+        assert!(cmd.contains(r#""color":"gold""#));
+        assert!(cmd.contains(r#""bold":true"#));
+    }
+
+    #[test]
+    fn prelude_exports_resource_locations_for_function_refs() {
+        let id = ResourceLocation::new("example", "start").unwrap();
+        assert_eq!(cmd::function(id).to_string(), "function example:start");
+    }
+}

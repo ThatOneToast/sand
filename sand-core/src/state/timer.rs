@@ -1,0 +1,175 @@
+//! Tick-based duration and timer utilities.
+
+// ── Ticks ─────────────────────────────────────────────────────────────────────
+
+/// A duration expressed in Minecraft game ticks (20 ticks = 1 second).
+///
+/// # Examples
+/// ```
+/// use sand_core::state::Ticks;
+///
+/// let one_second = Ticks::new(20);
+/// let three_seconds = Ticks::seconds(3);
+/// assert_eq!(three_seconds.get(), 60);
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Ticks(u32);
+
+impl Ticks {
+    /// Construct a `Ticks` value from a raw tick count.
+    pub const fn new(ticks: u32) -> Self {
+        Self(ticks)
+    }
+
+    /// Construct from seconds (rounded to ticks at 20 tps).
+    pub const fn seconds(s: u32) -> Self {
+        Self(s * 20)
+    }
+
+    /// Construct from minutes (rounded to ticks at 20 tps).
+    pub const fn minutes(m: u32) -> Self {
+        Self(m * 1200)
+    }
+
+    /// Return the raw tick count.
+    pub const fn get(self) -> u32 {
+        self.0
+    }
+
+    /// Return the approximate duration in seconds (rounded down).
+    pub fn as_seconds(self) -> u32 {
+        self.0 / 20
+    }
+}
+
+impl std::fmt::Display for Ticks {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+// ── Timer ─────────────────────────────────────────────────────────────────────
+
+/// A scoreboard-backed countdown timer.
+///
+/// A `Timer` counts down from a starting value to zero. It does not generate
+/// conditions; use [`CooldownVar`](super::cooldown::CooldownVar) when you need
+/// ready/active conditions.
+///
+/// ```rust,ignore
+/// use sand_core::state::{Timer, Ticks};
+///
+/// static BLINK: Timer = Timer::new("blink_cd", Ticks::seconds(5));
+///
+/// let cmds = vec![
+///     BLINK.define(),
+///     BLINK.start("@s"),
+///     BLINK.tick("@a"),
+/// ];
+/// ```
+pub struct Timer {
+    name: &'static str,
+    duration: Ticks,
+}
+
+impl Timer {
+    /// Create a new timer with the given objective name and duration.
+    pub const fn new(name: &'static str, duration: Ticks) -> Self {
+        Self { name, duration }
+    }
+
+    /// Return the actual scoreboard objective name.
+    pub fn objective_name(&self) -> String {
+        super::score::objective_name(self.name)
+    }
+
+    /// `scoreboard objectives add <obj> dummy`
+    pub fn define(&self) -> String {
+        format!("scoreboard objectives add {} dummy", self.objective_name())
+    }
+
+    /// Set the timer to the configured duration for `selector`.
+    pub fn start(&self, selector: impl std::fmt::Display) -> String {
+        format!(
+            "scoreboard players set {} {} {}",
+            selector,
+            self.objective_name(),
+            self.duration.get()
+        )
+    }
+
+    /// Decrement the timer by 1 tick for `selector` (only if > 0).
+    pub fn tick(&self, selector: impl std::fmt::Display) -> String {
+        let selector = selector.to_string();
+        let obj = self.objective_name();
+        format!(
+            "execute if score {selector} {obj} matches 1.. run scoreboard players remove {selector} {obj} 1"
+        )
+    }
+
+    /// Reset the timer to zero for `selector`.
+    pub fn reset(&self, selector: impl std::fmt::Display) -> String {
+        format!(
+            "scoreboard players set {} {} 0",
+            selector,
+            self.objective_name()
+        )
+    }
+
+    /// Return the configured duration.
+    pub fn duration(&self) -> Ticks {
+        self.duration
+    }
+}
+
+// ── Tests ─────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ticks_new() {
+        assert_eq!(Ticks::new(60).get(), 60);
+    }
+
+    #[test]
+    fn ticks_seconds() {
+        assert_eq!(Ticks::seconds(3).get(), 60);
+    }
+
+    #[test]
+    fn ticks_minutes() {
+        assert_eq!(Ticks::minutes(1).get(), 1200);
+    }
+
+    #[test]
+    fn ticks_as_seconds() {
+        assert_eq!(Ticks::new(60).as_seconds(), 3);
+        assert_eq!(Ticks::new(25).as_seconds(), 1); // floor division
+    }
+
+    static BLINK: Timer = Timer::new("blink_cd", Ticks::new(100));
+
+    #[test]
+    fn timer_define() {
+        assert_eq!(BLINK.define(), "scoreboard objectives add blink_cd dummy");
+    }
+
+    #[test]
+    fn timer_start() {
+        assert_eq!(BLINK.start("@s"), "scoreboard players set @s blink_cd 100");
+    }
+
+    #[test]
+    fn timer_tick() {
+        let cmd = BLINK.tick("@a");
+        assert!(cmd.contains("matches 1.."), "got: {cmd}");
+        assert!(cmd.contains("remove @a blink_cd 1"), "got: {cmd}");
+    }
+
+    #[test]
+    fn timer_reset() {
+        assert_eq!(BLINK.reset("@s"), "scoreboard players set @s blink_cd 0");
+    }
+}

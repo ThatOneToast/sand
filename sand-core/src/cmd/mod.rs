@@ -86,6 +86,15 @@ pub use data::{Storage, StorageKind};
 pub use fn_macros::{function_with, macro_line, macro_var};
 pub use typed_execute::{ConditionedExecute, ExecuteExt, TypedExecute};
 
+/// Explicit escape hatch for raw Minecraft command syntax.
+///
+/// Prefer typed builders for normal datapack code. Use this for interop with
+/// other datapacks, modded commands, snapshot-only syntax, future features not
+/// modeled by Sand yet, or focused debugging.
+pub fn raw(command: impl Into<String>) -> String {
+    command.into()
+}
+
 /// A typed Minecraft command that can be serialized to a command string.
 ///
 /// All command builders generated from the Minecraft command tree implement
@@ -110,3 +119,14 @@ mod _generated {
 }
 #[allow(unused)]
 pub use _generated::*;
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn raw_escape_hatch_is_explicit() {
+        assert_eq!(
+            super::raw("function other_pack:api/do_special_thing"),
+            "function other_pack:api/do_special_thing"
+        );
+    }
+}

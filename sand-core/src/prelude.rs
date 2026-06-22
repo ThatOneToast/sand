@@ -46,6 +46,7 @@ pub use crate::event::{
     AdvancementEvent, Event, EventId, EventPlayer, EventReset, EventVisibility,
     IntoEventAdvancement,
 };
+pub use crate::event::handle::EventHandle;
 
 // ── Dialog builders ───────────────────────────────────────────────────────────
 

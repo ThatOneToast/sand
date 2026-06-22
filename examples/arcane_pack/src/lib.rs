@@ -22,7 +22,7 @@
 
 use sand_core::event::vanilla::{FirstJoin, OnDeath, OnJoin, OnRespawn};
 use sand_core::prelude::*;
-use sand_core::{EventHandle, EventPlayer};
+use sand_core::EventPlayer;
 use sand_macros::{component, event, function};
 
 mod events;
@@ -219,8 +219,8 @@ pub fn welcome_dialog() -> Dialog {
 
 // -- EventHandle: lifecycle control for advancement events -----------------
 
-/// Enables/disables the golden apple event per player.
-static GOLDEN_APPLE_HANDLE: EventHandle = EventHandle::new("arcane:on_ate_golden_apple");
+/// Enables/disables the golden apple event per player (typed — no string needed).
+static GOLDEN_APPLE_HANDLE: EventHandle<events::AteGoldenAppleEvent> = EventHandle::new();
 
 // -- Events ----------------------------------------------------------------
 //

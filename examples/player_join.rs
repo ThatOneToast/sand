@@ -64,7 +64,7 @@ pub fn on_player_join() {
     );
     cmd::tellraw(Selector::all_players(), Text::new("A player joined.").gray());
 
-    // Escape hatch: typed advancement revoke builders are not exposed in the
-    // prelude yet.
-    cmd::raw("advancement revoke @s only my_pack:detect_join");
+    // Revoke the detection advancement so it fires again next login.
+    // advancement_revoke_only is a generated typed builder from sand_core::cmd.
+    cmd::advancement_revoke_only(Selector::self_(), "my_pack:detect_join");
 }

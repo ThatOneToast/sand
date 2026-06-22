@@ -2,14 +2,18 @@
 //!
 //! A Minecraft {{mc_version}} datapack built with [Sand](https://crates.io/crates/sand).
 
-use sand_core::mcfunction;
+use sand_core::prelude::*;
 {{#if resourcepack}}
 use sand_macros::{component, function, hud_bar, hud_element, texture};
 {{else}}
 use sand_macros::{component, function};
 {{/if}}
 
-// ── Functions ─────────────────────────────────────────────────────────────────
+// -- State ------------------------------------------------------------------
+
+static PLAYER_DATA: StorageVar<i32> = StorageVar::new("{{namespace}}:data", "player.mana");
+
+// -- Functions -------------------------------------------------------------
 
 /// Broadcasts a welcome message to all players.
 ///
@@ -17,13 +21,13 @@ use sand_macros::{component, function};
 /// by `sand build`.
 #[function]
 pub fn hello_world() {
-    mcfunction! {
-        r#"tellraw @a {"text":"Welcome to {{name}}!","color":"gold","bold":true}"#;
-        "playsound minecraft:ui.toast.challenge_complete master @a ~ ~ ~ 1 1";
-    }
+    cmd::tellraw(
+        Selector::all_players(),
+        Text::new("Welcome to {{name}}!").gold().bold(true),
+    );
 }
 
-// ── Components ────────────────────────────────────────────────────────────────
+// -- Components ------------------------------------------------------------
 
 /// Fires `{{namespace}}:hello_world` the first tick after a player joins.
 ///
@@ -37,7 +41,7 @@ pub fn player_join() -> sand_core::Advancement {
         .rewards(AdvancementRewards::new().function("{{namespace}}:hello_world"))
 }
 
-// ── Datapack export hook — required by `sand build`, do not remove ────────────
+// -- Datapack export hook -- required by `sand build`, do not remove -------
 
 /// Invoked by the generated `sand_export` binary.
 ///
@@ -53,7 +57,7 @@ pub fn __sand_export(namespace: &str) {
 }
 
 {{#if resourcepack}}
-// ── Resource pack export hook — required by `sand build --resourcepack` ───────
+// -- Resource pack export hook -- required by `sand build --resourcepack` ----
 
 /// Invoked by `src/bin/sand_resource_export.rs` to collect all registered
 /// resource pack components (`hud_bar!`, `hud_element!`, `texture!`).
@@ -65,7 +69,7 @@ pub fn __sand_resource_export(namespace: &str) {
     println!("{}", sand_resourcepack::export_resourcepack_json(namespace));
 }
 
-// ── Resource pack components ──────────────────────────────────────────────────
+// -- Resource pack components -----------------------------------------------
 //
 // Register HUD elements and textures here. Each macro call is automatically
 // collected by `sand build --resourcepack` via the inventory registration.
@@ -116,7 +120,7 @@ pub fn __sand_resource_export(namespace: &str) {
 //   );
 
 {{else}}
-// ── Resource pack export hook (opt-in) ───────────────────────────────────────
+// -- Resource pack export hook (opt-in) ------------------------------------
 //
 // Run `sand add resourcepack` to enable `sand build --resourcepack`, or follow
 // the manual steps below:

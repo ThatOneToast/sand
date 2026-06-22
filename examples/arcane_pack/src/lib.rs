@@ -499,6 +499,15 @@ mod tests {
             .expect("ate_golden_apple handler");
         let apple_content = apple_fn["content"].as_str().unwrap();
         assert!(apple_content.contains("mana"), "handler updates mana");
+        // Verify bare function pointer call resolved to real namespace (Parts 2+3)
+        assert!(
+            apple_content.contains("function arcane:golden_apple_reward"),
+            "cmd::call() must resolve to 'function arcane:golden_apple_reward', got:\n{apple_content}"
+        );
+        assert!(
+            !apple_content.contains("__sand_local"),
+            "sentinel must be replaced by export, but found __sand_local in:\n{apple_content}"
+        );
 
         // ── Advancement: used dash wand (custom event with guard) ──────────
         let wand_adv = records

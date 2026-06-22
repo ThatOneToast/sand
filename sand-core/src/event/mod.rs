@@ -5,7 +5,7 @@
 //! | Type | Purpose |
 //! |---|---|
 //! | [`AdvancementEvent`] | Trait for events backed by an advancement trigger |
-//! | [`Event`] | Strongly-typed advancement component builder |
+//! | [`Event`] | Zero-cost handler context passed to `#[event]` handlers |
 //! | [`EventId`] | Controls how the advancement ID is determined |
 //! | [`EventReset`] | Controls re-arming after firing |
 //! | [`EventVisibility`] | Controls toast/chat visibility |
@@ -90,7 +90,8 @@ pub enum EventVisibility {
 /// Marker trait for events backed by a Minecraft advancement trigger.
 ///
 /// Implement this on your event type to define how it fires, how its
-/// advancement ID is derived, and whether it re-arms.
+/// advancement ID is derived, whether it re-arms, and any typed guard
+/// condition. Handle the event with `#[event] fn handler(event: Event<T>)`.
 ///
 /// # Example
 ///

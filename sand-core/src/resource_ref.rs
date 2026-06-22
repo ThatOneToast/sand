@@ -91,7 +91,7 @@ resource_ref!(
 );
 
 resource_ref!(
-    /// A typed reference to a dialog JSON file (requires Minecraft 1.21.5+ / 26.x).
+    /// A typed reference to a dialog JSON file (requires Minecraft 1.21.6+ / 26.x).
     ///
     /// Use `VersionProfile::supports_dialogs()` before generating dialog references.
     DialogRef

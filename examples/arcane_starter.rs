@@ -16,7 +16,7 @@
 //! 1. **Load**: defines scoreboards, initializes storage, broadcasts a welcome.
 //! 2. **Tick**: decrements cooldowns, shows actionbar status.
 //! 3. **cast_dash**: the player-facing ability — costs mana, triggers cooldown.
-//! 4. **welcome_dialog**: a typed dialog component (1.21.5+ / 26.x).
+//! 4. **welcome_dialog**: a typed dialog component (1.21.6+ / 26.x).
 //!
 //! ## Build
 //!
@@ -107,20 +107,24 @@ pub fn show_mana() {
         ));
 }
 
-// -- Dialog (1.21.5+ / 26.x) ----------------------------------------------
+// -- Dialog (1.21.6+ / 26.x) ----------------------------------------------
 
 /// A welcome dialog presented to players.
 #[component]
 pub fn welcome_dialog() -> Dialog {
-    Dialog::notice("arcane:welcome")
-        .title("Welcome to Arcane Starter")
-        .body(DialogBody::text("Choose an action below."))
+    Dialog::notice_local("welcome")
+        .title(Text::new("Welcome to Arcane Starter").gold())
+        .body(DialogBody::text(Text::new("Choose an action below.").aqua()))
         .button(
-            DialogButton::new("Cast Dash")
-                .action(DialogAction::run_command(cmd::function(
-                    ResourceLocation::new("arcane", "cast_dash").unwrap(),
-                ))),
+            DialogButton::new(Text::new("Cast Dash").aqua())
+                .action(DialogAction::run_function(cast_dash)),
         )
+}
+
+/// Opens the local welcome dialog for the current player.
+#[function("arcane:open_welcome_menu")]
+pub fn open_welcome_menu() {
+    cmd::show_dialog(Selector::self_(), DialogRef::local("welcome"));
 }
 
 // -- Interop escape hatch --------------------------------------------------

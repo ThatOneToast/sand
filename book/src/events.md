@@ -6,12 +6,29 @@ at build time.
 
 ```rust
 use sand_core::prelude::*;
+use sand_core::event::trigger::ConsumeItemTrigger;
+use sand_components::ItemPredicate;
 use sand_macros::event;
 
 static MANA: ScoreVar<i32> = ScoreVar::new("mana");
 
-#[event(dispatch = "advancement")]
-pub fn on_eat_golden_apple(event: ItemConsumeEvent) {
+pub struct AteGoldenAppleEvent;
+
+impl AdvancementEvent for AteGoldenAppleEvent {
+    type Trigger = ConsumeItemTrigger;
+
+    fn trigger() -> Self::Trigger {
+        ConsumeItemTrigger::new()
+            .item(ItemPredicate::id("minecraft:golden_apple"))
+    }
+
+    fn guard() -> Option<Condition> {
+        Some(MANA.of("@s").lt(100))
+    }
+}
+
+#[event]
+pub fn on_eat_golden_apple(event: Event<AteGoldenAppleEvent>) {
     MANA.add(event.player(), 10);
     cmd::tellraw(event.player(), Text::new("+10 mana!").green());
 }
@@ -24,32 +41,36 @@ pub fn on_eat_golden_apple(event: ItemConsumeEvent) {
 | `#[event]` for `OnJoinEvent` | Tick tag check — every session join |
 | `#[event]` for `FirstJoinEvent` | Tick advancement (no revoke) — once per player ever |
 | `#[event]` for `OnDeathEvent` / `OnRespawnEvent` | Death count scoreboard — tick-based |
-| `#[event(dispatch = "advancement")]` for custom types | `AdvancementEvent::trigger()` type + `AdvancementEvent::guard()` |
+| `#[event]` with `Event<T>` | `T: AdvancementEvent` trigger + typed `Condition` guard |
 | `#[event]` for `HoldingItemEvent` / `CurrentlyWearingEvent` | Per-tick `execute if items` |
 
 ## Custom events with `AdvancementEvent`
 
-Define a marker struct and implement `AdvancementEvent` + `EventPlayer`:
+Define a marker struct and implement `AdvancementEvent`:
 
 ```rust
-use sand_core::event::AdvancementEvent;
 use sand_core::event::trigger::ConsumeItemTrigger;
+use sand_core::prelude::*;
+use sand_components::ItemPredicate;
 
 pub struct AteGoldenAppleEvent;
 
 impl AdvancementEvent for AteGoldenAppleEvent {
     type Trigger = ConsumeItemTrigger;
+
     fn trigger() -> Self::Trigger {
         ConsumeItemTrigger::new()
-            .item(serde_json::json!({"items": "minecraft:golden_apple"}))
+            .item(ItemPredicate::id("minecraft:golden_apple"))
     }
+
     fn guard() -> Option<Condition> {
         Some(MANA.of("@s").lt(100))
     }
 }
 
-impl EventPlayer for AteGoldenAppleEvent {
-    fn player(&self) -> Selector { Selector::self_() }
+#[event]
+pub fn on_ate_golden_apple(event: Event<AteGoldenAppleEvent>) {
+    MANA.add(event.player(), 10);
 }
 ```
 
@@ -93,7 +114,7 @@ fn guard() -> Option<Condition> {
 scoreboard objectives (`__ev_<hash>`):
 
 ```rust
-static GOLDEN_APPLE_HANDLE: EventHandle = EventHandle::new("my_pack:on_ate_golden_apple");
+static GOLDEN_APPLE_HANDLE: EventHandle<AteGoldenAppleEvent> = EventHandle::new();
 
 // In load function:
 GOLDEN_APPLE_HANDLE.define();
@@ -115,9 +136,9 @@ pub fn reward_effect() {
     cmd::say("Reward triggered!");
 }
 
-#[event(dispatch = "advancement")]
-pub fn on_event(event: SomeEvent) {
-    cmd::call(reward_effect as fn() -> Vec<String>);
+#[event]
+pub fn on_event(event: Event<SomeEvent>) {
+    cmd::call(reward_effect);
 }
 ```
 
@@ -130,4 +151,5 @@ Sand ships 50+ event types in `sand_core::events`. The most common:
 - `ArmorEquipEvent` / `ArmorUnequipEvent` — equipment changes
 - `HoldingItemEvent` / `CurrentlyWearingEvent` — per-tick item checks
 - `ItemConsumeEvent` — eating/drinking
-- Custom: implement `SandEvent` or `AdvancementEvent` for your own types
+- Custom advancement events: implement `AdvancementEvent` and handle `Event<T>`
+- Legacy/custom tick-poll events: implement `SandEvent`

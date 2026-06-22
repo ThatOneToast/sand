@@ -6,7 +6,7 @@ the emerging 26.x series.
 Use `VersionProfile` for capability checks:
 
 ```rust
-let profile = VersionProfile::resolve(&MinecraftVersion::parse("1.21.5").unwrap()).unwrap();
+let profile = VersionProfile::resolve(&MinecraftVersion::parse("1.21.6").unwrap()).unwrap();
 assert!(profile.supports_feature("dialogs"));
 ```
 

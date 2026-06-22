@@ -1,4 +1,29 @@
-//! Built-in Sand event types and the [`SandEvent`] trait for custom events.
+//! Built-in Sand event types and the legacy [`SandEvent`] trait for custom
+//! tick-poll or compatibility events.
+//!
+//! New custom advancement-backed events should implement
+//! [`AdvancementEvent`](crate::event::AdvancementEvent) and use
+//! [`Event<T>`](crate::event::Event) as the handler parameter:
+//!
+//! ```rust,ignore
+//! use sand_core::prelude::*;
+//! use sand_core::event::trigger::ConsumeItemTrigger;
+//! use sand_components::ItemPredicate;
+//!
+//! pub struct AteGoldenAppleEvent;
+//!
+//! impl AdvancementEvent for AteGoldenAppleEvent {
+//!     type Trigger = ConsumeItemTrigger;
+//!     fn trigger() -> Self::Trigger {
+//!         ConsumeItemTrigger::new().item(ItemPredicate::id("minecraft:golden_apple"))
+//!     }
+//! }
+//!
+//! #[event]
+//! pub fn on_ate_golden_apple(event: Event<AteGoldenAppleEvent>) {
+//!     cmd::say("Golden apple eaten");
+//! }
+//! ```
 //!
 //! # Built-in events
 //!
@@ -47,8 +72,8 @@
 //!
 //! # Custom events
 //!
-//! Implement [`SandEvent`] on your own type to define a custom event. You
-//! choose the dispatch mechanism — advancement-trigger or tick-condition:
+//! Implement [`SandEvent`] on your own type only when you need the legacy
+//! dispatch mechanism or a custom tick-condition:
 //!
 //! ```rust,ignore
 //! use sand_core::events::{SandEvent, SandEventDispatch};

@@ -1,15 +1,15 @@
 //! Typed dialog datapack component builders.
 //!
-//! Dialogs are a Minecraft 1.21.5+ / 26.x feature for displaying data-driven
+//! Dialogs are a Minecraft 1.21.6+ / 26.x feature for displaying data-driven
 //! UI panels to players. They live at `data/<namespace>/dialog/<path>.json`.
 //!
 //! Always gate dialog usage with `VersionProfile::supports_dialogs()`:
 //! ```rust,ignore
 //! if profile.supports_dialogs() {
-//!     let d = Dialog::notice("example:welcome")
-//!         .title("Welcome!")
-//!         .body(DialogBody::text("Choose what to do next."))
-//!         .button(DialogButton::new("Start").action(DialogAction::run_command("/function example:start")));
+//!     let d = Dialog::notice_local("welcome")
+//!         .title(Text::new("Welcome!").gold())
+//!         .body(DialogBody::text(Text::new("Choose what to do next.")))
+//!         .button(DialogButton::new(Text::new("Start").green()));
 //! }
 //! ```
 
@@ -324,8 +324,9 @@ impl DialogAction {
 
     /// Run a datapack function when the button is pressed.
     ///
-    /// Prefer this over `run_command("/function ns:path")` — it uses a typed
-    /// [`ResourceLocation`] and emits the correct `/function` syntax.
+    /// Prefer this over [`run_command`](DialogAction::run_command) for datapack
+    /// functions. It accepts registered function pointers and typed external
+    /// resource locations.
     ///
     /// ```
     /// use sand_components::dialog::DialogAction;
@@ -446,19 +447,20 @@ impl DialogKind {
 /// A typed dialog datapack component builder.
 ///
 /// Dialogs live at `data/<namespace>/dialog/<path>.json` and require
-/// Minecraft 1.21.5+ / 26.x. Always check `VersionProfile::supports_dialogs()`
+/// Minecraft 1.21.6+ / 26.x. Always check `VersionProfile::supports_dialogs()`
 /// before generating dialog output.
 ///
 /// # Example
 /// ```
 /// use sand_components::dialog::{Dialog, DialogBody, DialogButton, DialogAction};
+/// use sand_commands::Text;
 ///
-/// let d = Dialog::notice("example:welcome")
-///     .title("Welcome!")
-///     .body(DialogBody::text("Choose what to do next."))
+/// let d = Dialog::notice_local("welcome")
+///     .title(Text::new("Welcome!").gold())
+///     .body(DialogBody::text(Text::new("Choose what to do next.")))
 ///     .button(
-///         DialogButton::new("Start")
-///             .action(DialogAction::run_command("/function example:start"))
+///         DialogButton::new(Text::new("Start").green())
+///             .action(DialogAction::close())
 ///     );
 ///
 /// let json = d.to_json();

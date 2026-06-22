@@ -40,6 +40,13 @@ pub use crate::version::{MinecraftVersion, VersionProfile};
 
 pub use sand_components::dialog::{Dialog, DialogAction, DialogBody, DialogButton, DialogKind};
 
+// ── Item/component builders ──────────────────────────────────────────────────
+
+pub use sand_components::{
+    AttributeModifier, AttributeOperation, AttributeType, CustomItem, EquipmentSlotGroup,
+    FoodProperties, ItemPredicate, ItemRarity,
+};
+
 // ── Text / chat ───────────────────────────────────────────────────────────────
 
 pub use sand_commands::{ChatColor, ClickEvent, HoverEvent, Text, TextComponent};

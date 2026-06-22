@@ -49,7 +49,7 @@ pub fn arcane_interop() {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sand_core::{FunctionDescriptor, FunctionTagDescriptor, inventory};
+    use sand_core::{FunctionDescriptor, inventory};
 
     fn commands_for(path: &str) -> Vec<String> {
         let descriptor = inventory::iter::<FunctionDescriptor>()

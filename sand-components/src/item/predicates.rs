@@ -24,6 +24,26 @@
 use serde::Serialize;
 use serde_json::Value;
 
+// ── Into<Value> impls ─────────────────────────────────────────────────────────
+
+/// Helper: serialize a typed predicate struct to `serde_json::Value`.
+///
+/// Trigger builders accept `impl Into<serde_json::Value>` so typed predicates
+/// can be passed directly:
+///
+/// ```rust,ignore
+/// ConsumeItemTrigger::new().item(ItemPredicate::id("minecraft:golden_apple"))
+/// ```
+macro_rules! impl_into_value {
+    ($ty:ty) => {
+        impl From<$ty> for Value {
+            fn from(p: $ty) -> Value {
+                serde_json::to_value(p).unwrap_or(Value::Null)
+            }
+        }
+    };
+}
+
 // ── ItemPredicate ──────────────────────────────────────────────────────────────
 
 /// A Minecraft item predicate for use in `#[event]` filters.
@@ -209,6 +229,8 @@ impl ItemPredicate {
     }
 }
 
+impl_into_value!(ItemPredicate);
+
 // ── InventorySlots ─────────────────────────────────────────────────────────────
 
 /// Slot-count conditions for `InventoryChanged { slots = ... }`.
@@ -283,6 +305,8 @@ impl InventorySlots {
         self
     }
 }
+
+impl_into_value!(InventorySlots);
 
 // ── EntityPredicate ────────────────────────────────────────────────────────────
 
@@ -437,3 +461,5 @@ impl EntityPredicate {
         self
     }
 }
+
+impl_into_value!(EntityPredicate);

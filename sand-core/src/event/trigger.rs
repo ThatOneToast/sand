@@ -4,14 +4,24 @@
 //! All builders implement `Into<AdvancementTrigger>` so they work directly with
 //! [`crate::event::AdvancementEvent`]'s `Trigger` associated type.
 //!
-//! # Example
+//! # Typed predicates
+//!
+//! Use [`ItemPredicate`] and [`EntityPredicate`] for type-safe trigger filters.
+//! Raw `serde_json::Value` is accepted as an explicit escape hatch via the same
+//! `impl Into<serde_json::Value>` bound.
 //!
 //! ```rust,ignore
 //! use sand_core::event::trigger::ConsumeItemTrigger;
 //! use sand_core::ItemPredicate;
 //!
+//! // Typed (preferred):
 //! let trigger = ConsumeItemTrigger::new()
-//!     .item(ItemPredicate::new().with_id("minecraft:golden_apple"))
+//!     .item(ItemPredicate::id("minecraft:golden_apple"))
+//!     .build();
+//!
+//! // Raw JSON (escape hatch):
+//! let trigger = ConsumeItemTrigger::new()
+//!     .item(serde_json::json!({"items": "minecraft:golden_apple"}))
 //!     .build();
 //! ```
 
@@ -396,5 +406,82 @@ impl MultiKillTrigger {
 impl From<MultiKillTrigger> for AdvancementTrigger {
     fn from(t: MultiKillTrigger) -> Self {
         t.build()
+    }
+}
+
+// ── Tests ─────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn consume_item_typed_predicate() {
+        use crate::ItemPredicate;
+        let trigger = ConsumeItemTrigger::new()
+            .item(ItemPredicate::id("minecraft:golden_apple"))
+            .build();
+        match trigger {
+            AdvancementTrigger::ConsumeItem { item: Some(v) } => {
+                assert_eq!(v["id"], "minecraft:golden_apple");
+            }
+            _other => panic!("unexpected trigger variant"),
+        }
+    }
+
+    #[test]
+    fn consume_item_raw_json_escape_hatch() {
+        let trigger = ConsumeItemTrigger::new()
+            .item(serde_json::json!({"items": "minecraft:honey_bottle"}))
+            .build();
+        match trigger {
+            AdvancementTrigger::ConsumeItem { item: Some(v) } => {
+                assert_eq!(v["items"], "minecraft:honey_bottle");
+            }
+            _other => panic!("unexpected trigger variant"),
+        }
+    }
+
+    #[test]
+    fn player_killed_entity_typed_predicate() {
+        use crate::EntityPredicate;
+        let trigger = PlayerKilledEntityTrigger::new()
+            .entity(EntityPredicate::type_("minecraft:zombie"))
+            .build();
+        match trigger {
+            AdvancementTrigger::PlayerKilledEntity {
+                entity: Some(v), ..
+            } => {
+                assert_eq!(v["type"], "minecraft:zombie");
+            }
+            _other => panic!("unexpected trigger variant"),
+        }
+    }
+
+    #[test]
+    fn inventory_changed_typed_item_predicate() {
+        use crate::ItemPredicate;
+        let trigger = InventoryChangedTrigger::new()
+            .item(ItemPredicate::id("minecraft:diamond"))
+            .build();
+        match trigger {
+            AdvancementTrigger::InventoryChanged { items, .. } => {
+                assert_eq!(items.len(), 1);
+                assert_eq!(items[0]["id"], "minecraft:diamond");
+            }
+            _other => panic!("unexpected trigger variant"),
+        }
+    }
+
+    #[test]
+    fn tick_trigger_builds() {
+        let t: AdvancementTrigger = TickTrigger::new().into();
+        assert!(matches!(t, AdvancementTrigger::Tick));
+    }
+
+    #[test]
+    fn impossible_trigger_builds() {
+        let t: AdvancementTrigger = ImpossibleTrigger::new().into();
+        assert!(matches!(t, AdvancementTrigger::Impossible));
     }
 }

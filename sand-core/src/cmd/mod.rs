@@ -124,6 +124,29 @@ pub fn function_id(id: impl crate::function::IntoFunctionRef) -> String {
     id.into_function_id()
 }
 
+/// Show a typed datapack dialog to one or more players.
+///
+/// Dialogs are available in Minecraft Java 1.21.6+ / pack format 80+.
+/// The command emitted is `dialog show <targets> <dialog>`.
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// use sand_core::prelude::*;
+///
+/// cmd::show_dialog(Selector::self_(), DialogRef::local("welcome"));
+/// cmd::show_dialog(
+///     Selector::all_players(),
+///     DialogRef::external("other_pack:settings").unwrap(),
+/// );
+/// ```
+pub fn show_dialog(
+    selector: impl std::fmt::Display,
+    dialog: impl sand_components::dialog::IntoDialogRef,
+) -> String {
+    format!("dialog show {selector} {}", dialog.into_dialog_ref())
+}
+
 /// Explicit escape hatch for raw Minecraft command syntax.
 ///
 /// Prefer typed builders for normal datapack code. Use this for interop with
@@ -160,11 +183,32 @@ pub use _generated::*;
 
 #[cfg(test)]
 mod tests {
+    use crate::resource_ref::DialogRef;
+
     #[test]
     fn raw_escape_hatch_is_explicit() {
         assert_eq!(
             super::raw("function other_pack:api/do_special_thing"),
             "function other_pack:api/do_special_thing"
+        );
+    }
+
+    #[test]
+    fn show_dialog_local_ref() {
+        assert_eq!(
+            super::show_dialog(super::Selector::self_(), DialogRef::local("welcome")),
+            "dialog show @s __sand_local:welcome"
+        );
+    }
+
+    #[test]
+    fn show_dialog_external_ref() {
+        assert_eq!(
+            super::show_dialog(
+                super::Selector::all_players(),
+                DialogRef::external("other_pack:settings").unwrap()
+            ),
+            "dialog show @a other_pack:settings"
         );
     }
 }

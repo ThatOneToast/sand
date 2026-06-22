@@ -214,6 +214,12 @@ pub fn welcome_dialog() -> Dialog {
         )
 }
 
+/// Opens the local welcome dialog for the current player.
+#[function("arcane:open_welcome_menu")]
+pub fn open_welcome_menu() {
+    cmd::show_dialog(Selector::self_(), DialogRef::local("welcome"));
+}
+
 // -- EventHandle: lifecycle control for advancement events -----------------
 
 /// Enables/disables the golden apple event per player (typed — no string needed).
@@ -470,6 +476,14 @@ mod tests {
     }
 
     #[test]
+    fn open_welcome_menu_shows_dialog() {
+        assert_eq!(
+            open_welcome_menu(),
+            vec!["dialog show @s __sand_local:welcome".to_string()]
+        );
+    }
+
+    #[test]
     fn golden_advancements_generated() {
         let json_str = sand_core::export_components_json("arcane");
         let records: Vec<serde_json::Value> =
@@ -628,6 +642,15 @@ mod tests {
         assert!(
             !dialog["content"].as_str().unwrap().contains("__sand_local"),
             "dialog export should resolve local refs"
+        );
+
+        let open_menu = records
+            .iter()
+            .find(|r| r["path"] == "open_welcome_menu" && r["dir"] == "function")
+            .expect("open_welcome_menu function");
+        assert_eq!(
+            open_menu["content"], "dialog show @s arcane:welcome",
+            "show_dialog should resolve local dialog refs during export"
         );
     }
 }

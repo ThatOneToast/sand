@@ -1,6 +1,7 @@
 //! Entity/player selector (`@a`, `@e`, `@s`, etc.) with a typed builder API.
 
 use std::fmt;
+use std::marker::PhantomData;
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -47,6 +48,263 @@ pub enum TargetBase {
     Self_,
     RandomPlayer,
     Player(String),
+}
+
+/// Marker for selector wrappers that are statically known to select one target.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum One {}
+
+/// Marker for selector wrappers that may select multiple targets.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Many {}
+
+/// Entity selector with statically modeled arity.
+#[derive(Debug, Clone)]
+pub struct EntityTarget<A> {
+    raw: Selector,
+    _arity: PhantomData<A>,
+}
+
+/// Player selector with statically modeled arity.
+#[derive(Debug, Clone)]
+pub struct PlayerTarget<A> {
+    raw: Selector,
+    _arity: PhantomData<A>,
+}
+
+/// Exactly one entity target.
+pub type SingleEntity = EntityTarget<One>;
+
+/// One or more entity targets.
+pub type EntityTargets = EntityTarget<Many>;
+
+/// Exactly one player target.
+pub type SinglePlayer = PlayerTarget<One>;
+
+/// One or more player targets.
+pub type PlayerTargets = PlayerTarget<Many>;
+
+impl<A> EntityTarget<A> {
+    /// Access the underlying selector.
+    pub fn selector(&self) -> &Selector {
+        &self.raw
+    }
+
+    /// Convert this typed target into the underlying selector.
+    pub fn into_selector(self) -> Selector {
+        self.raw
+    }
+
+    /// `tag=<tag>` — select only entities that have the given tag.
+    pub fn tag(mut self, tag: impl Into<String>) -> Self {
+        self.raw = self.raw.tag(tag);
+        self
+    }
+
+    /// `tag=!<tag>` — select only entities that do NOT have the given tag.
+    pub fn not_tag(mut self, tag: impl Into<String>) -> Self {
+        self.raw = self.raw.not_tag(tag);
+        self
+    }
+
+    /// `type=<entity_type>` — select only entities of the given type.
+    pub fn entity_type(mut self, ty: impl Into<String>) -> Self {
+        self.raw = self.raw.entity_type(ty);
+        self
+    }
+
+    /// `type=!<entity_type>` — select only entities NOT of the given type.
+    pub fn not_type(mut self, ty: impl Into<String>) -> Self {
+        self.raw = self.raw.not_type(ty);
+        self
+    }
+
+    /// `type=!minecraft:player` — exclude players from the target set.
+    pub fn excluding_players(self) -> Self {
+        self.not_type("minecraft:player")
+    }
+
+    /// `distance=0.1..` — exclude the current executor when centered at `@s`.
+    pub fn excluding_self(mut self) -> Self {
+        self.raw = self.raw.exclude_self_distance();
+        self
+    }
+
+    /// `distance=..<max>` — select targets within `max` blocks.
+    pub fn within_blocks(mut self, max: f64) -> Self {
+        self.raw = self.raw.distance_max(max);
+        self
+    }
+
+    /// `distance=<range>` — select only entities within a distance range.
+    pub fn distance(mut self, range: impl Into<String>) -> Self {
+        self.raw = self.raw.distance(range);
+        self
+    }
+
+    /// `distance=<min>..<max>` — select only entities between `min` and `max`.
+    pub fn distance_range(mut self, min: f64, max: f64) -> Self {
+        self.raw = self.raw.distance_range(min, max);
+        self
+    }
+}
+
+impl EntityTargets {
+    /// `@e` — all entities.
+    pub fn all() -> Self {
+        Self::from(Selector::all_entities())
+    }
+
+    /// `@e[distance=..<radius>]` — all entities within a radius of the executor.
+    pub fn nearby(radius: f64) -> Self {
+        Self::all().within_blocks(radius)
+    }
+
+    /// Add `limit=1` and convert to a single-entity target.
+    pub fn limit(mut self, n: i32) -> SingleEntity {
+        self.raw = self.raw.limit(n);
+        SingleEntity::from(self.raw)
+    }
+
+    /// Pick the nearest matching entity as a single target.
+    pub fn nearest(mut self) -> SingleEntity {
+        self.raw = self.raw.sort(SortOrder::Nearest).limit(1);
+        SingleEntity::from(self.raw)
+    }
+}
+
+impl SingleEntity {
+    /// `@s` — the current executor as a single entity.
+    pub fn self_() -> Self {
+        Self::from(Selector::self_())
+    }
+}
+
+impl<A> PlayerTarget<A> {
+    /// Access the underlying selector.
+    pub fn selector(&self) -> &Selector {
+        &self.raw
+    }
+
+    /// Convert this typed target into the underlying selector.
+    pub fn into_selector(self) -> Selector {
+        self.raw
+    }
+
+    /// `tag=<tag>` — select only players that have the given tag.
+    pub fn tag(mut self, tag: impl Into<String>) -> Self {
+        self.raw = self.raw.tag(tag);
+        self
+    }
+
+    /// `tag=!<tag>` — select only players that do NOT have the given tag.
+    pub fn not_tag(mut self, tag: impl Into<String>) -> Self {
+        self.raw = self.raw.not_tag(tag);
+        self
+    }
+
+    /// `distance=..<max>` — select players within `max` blocks.
+    pub fn within_blocks(mut self, max: f64) -> Self {
+        self.raw = self.raw.distance_max(max);
+        self
+    }
+
+    /// `distance=<min>..<max>` — select only players between `min` and `max`.
+    pub fn distance_range(mut self, min: f64, max: f64) -> Self {
+        self.raw = self.raw.distance_range(min, max);
+        self
+    }
+}
+
+impl PlayerTargets {
+    /// `@a` — all players.
+    pub fn all() -> Self {
+        Self::from(Selector::all_players())
+    }
+
+    /// Add `limit=1` and convert to a single-player target.
+    pub fn limit(mut self, n: i32) -> SinglePlayer {
+        self.raw = self.raw.limit(n);
+        SinglePlayer::from(self.raw)
+    }
+
+    /// Pick the nearest matching player as a single target.
+    pub fn nearest(mut self) -> SinglePlayer {
+        self.raw = self.raw.sort(SortOrder::Nearest).limit(1);
+        SinglePlayer::from(self.raw)
+    }
+}
+
+impl SinglePlayer {
+    /// `@s` — the current executor as a single player.
+    pub fn self_() -> Self {
+        Self::from(Selector::self_())
+    }
+
+    /// `@p` — the nearest player.
+    pub fn nearest() -> Self {
+        Self::from(Selector::nearest_player())
+    }
+}
+
+impl From<Selector> for SingleEntity {
+    fn from(raw: Selector) -> Self {
+        Self {
+            raw,
+            _arity: PhantomData,
+        }
+    }
+}
+
+impl From<Selector> for EntityTargets {
+    fn from(raw: Selector) -> Self {
+        Self {
+            raw,
+            _arity: PhantomData,
+        }
+    }
+}
+
+impl From<Selector> for SinglePlayer {
+    fn from(raw: Selector) -> Self {
+        Self {
+            raw,
+            _arity: PhantomData,
+        }
+    }
+}
+
+impl From<Selector> for PlayerTargets {
+    fn from(raw: Selector) -> Self {
+        Self {
+            raw,
+            _arity: PhantomData,
+        }
+    }
+}
+
+impl From<SinglePlayer> for SingleEntity {
+    fn from(player: SinglePlayer) -> Self {
+        SingleEntity::from(player.raw)
+    }
+}
+
+impl From<PlayerTargets> for EntityTargets {
+    fn from(players: PlayerTargets) -> Self {
+        EntityTargets::from(players.raw)
+    }
+}
+
+impl<A> fmt::Display for EntityTarget<A> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.raw.fmt(f)
+    }
+}
+
+impl<A> fmt::Display for PlayerTarget<A> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.raw.fmt(f)
+    }
 }
 
 /// Sort order for entity selection in `@a`/`@e` selectors.
@@ -328,6 +586,19 @@ impl Selector {
         self.args.push(SelectorArg::Z(z));
         self
     }
+
+    fn exclude_self_distance(mut self) -> Self {
+        for arg in &mut self.args {
+            if let SelectorArg::Distance(range) = arg
+                && let Some(max) = range.strip_prefix("..")
+            {
+                *range = format!("0.1..{max}");
+                return self;
+            }
+        }
+        self.args.push(SelectorArg::Distance("0.1..".to_string()));
+        self
+    }
 }
 
 // ── Display ───────────────────────────────────────────────────────────────────
@@ -421,6 +692,28 @@ mod tests {
         assert_eq!(
             Selector::all_players().not_team("red").to_string(),
             "@a[team=!red]"
+        );
+    }
+
+    #[test]
+    fn typed_entity_targets_render_stably() {
+        let targets = EntityTargets::nearby(5.0)
+            .excluding_players()
+            .excluding_self();
+        assert_eq!(
+            targets.to_string(),
+            "@e[distance=0.1..5,type=!minecraft:player]"
+        );
+    }
+
+    #[test]
+    fn many_entity_limit_converts_to_single() {
+        let target = EntityTargets::all()
+            .entity_type("minecraft:zombie")
+            .nearest();
+        assert_eq!(
+            target.to_string(),
+            "@e[type=minecraft:zombie,sort=nearest,limit=1]"
         );
     }
 }

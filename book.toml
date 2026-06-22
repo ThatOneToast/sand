@@ -3,8 +3,10 @@ title = "Sand Guide"
 description = "Typed Rust authoring for Minecraft Java datapacks"
 authors = ["Sand contributors"]
 language = "en"
-multilingual = false
 src = "book/src"
+
+[build]
+build-dir = "target/mdbook"
 
 [output.html]
 git-repository-url = "https://github.com/ThatOneToast/sand"

@@ -172,7 +172,7 @@ pub struct VersionProfile {
     pub supports_data_components: bool,
     /// Whether this is the new 26.x calendar-versioned series.
     pub supports_26_series: bool,
-    /// Whether this version supports data-driven dialogs (1.21.5+ / 26.x).
+    /// Whether this version supports data-driven dialogs (1.21.6+ / 26.x).
     pub supports_dialogs: bool,
     /// Whether this version supports function macros — `$()` syntax (1.20.2+).
     pub supports_function_macros: bool,
@@ -243,7 +243,7 @@ impl VersionProfile {
 
     // ── Convenience predicate methods ─────────────────────────────────────────
 
-    /// Returns `true` if data-driven dialogs are supported (1.21.5+ / 26.x).
+    /// Returns `true` if data-driven dialogs are supported (1.21.6+ / 26.x).
     pub fn supports_dialogs(&self) -> bool {
         self.supports_dialogs
     }
@@ -339,16 +339,16 @@ impl Default for VersionCaps {
 /// Look up version capabilities from (major, minor, patch).
 fn lookup(major: u32, minor: u32, patch: u32) -> VersionCaps {
     match (major, minor, patch) {
-        // ── 1.21.5+ — dialogs introduced ─────────────────────────────────────
-        (1, 21, p) if p >= 5 => VersionCaps {
+        // ── 1.21.6+ — dialogs introduced ─────────────────────────────────────
+        (1, 21, p) if p >= 6 => VersionCaps {
             data_fmt: 61,
             res_fmt: 46,
             dialogs: true,
             is_fallback: false,
             ..VersionCaps::default()
         },
-        // ── 1.21.4 ───────────────────────────────────────────────────────────
-        (1, 21, 4) => VersionCaps {
+        // ── 1.21.4-5 ─────────────────────────────────────────────────────────
+        (1, 21, 4..=5) => VersionCaps {
             data_fmt: 61,
             res_fmt: 46,
             dialogs: false,
@@ -615,15 +615,22 @@ mod tests {
     fn dialogs_not_in_1_21_4() {
         let v = MinecraftVersion::parse("1.21.4").unwrap();
         let p = VersionProfile::resolve(&v).unwrap();
-        assert!(!p.supports_dialogs(), "1.21.4 predates dialogs (1.21.5)");
+        assert!(!p.supports_dialogs(), "1.21.4 predates dialogs (1.21.6)");
         assert!(!p.supports_feature("dialogs"));
     }
 
     #[test]
-    fn dialogs_in_1_21_5() {
+    fn dialogs_not_in_1_21_5() {
         let v = MinecraftVersion::parse("1.21.5").unwrap();
         let p = VersionProfile::resolve(&v).unwrap();
-        assert!(p.supports_dialogs(), "1.21.5 introduced dialogs");
+        assert!(!p.supports_dialogs(), "1.21.5 predates dialogs");
+    }
+
+    #[test]
+    fn dialogs_in_1_21_6() {
+        let v = MinecraftVersion::parse("1.21.6").unwrap();
+        let p = VersionProfile::resolve(&v).unwrap();
+        assert!(p.supports_dialogs(), "1.21.6 introduced dialogs");
     }
 
     #[test]

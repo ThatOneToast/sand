@@ -5,9 +5,11 @@ use sand_macros::component;
 
 #[component]
 pub fn starter_dialog() -> Dialog {
-    Dialog::notice("example:starter")
-        .title("Starter Kit")
-        .body(DialogBody::text("Your datapack JSON came from typed Rust."))
+    Dialog::notice_local("starter")
+        .title(Text::new("Starter Kit").gold())
+        .body(DialogBody::text(Text::new(
+            "Your datapack JSON came from typed Rust.",
+        )))
 }
 
 #[component]

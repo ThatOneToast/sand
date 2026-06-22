@@ -8,9 +8,9 @@ use sand_macros::component;
 
 #[component]
 pub fn welcome_dialog() -> Dialog {
-    Dialog::notice("example:welcome")
-        .title("Welcome")
-        .body(DialogBody::text("Typed components compile to datapack JSON."))
+    Dialog::notice_local("welcome")
+        .title(Text::new("Welcome").gold())
+        .body(DialogBody::text(Text::new("Typed components compile to datapack JSON.")))
 }
 ```
 

@@ -532,16 +532,19 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
 
 /// Turns a function into a Sand event handler.
 ///
-/// The event type is determined by the **function parameter** — pass the
-/// desired event type as the single (phantom) argument. The parameter is not
-/// used at runtime; it is only inspected at compile time to decide how to
-/// wire the event.
+/// The primary typed form is `Event<T>`, where `T: AdvancementEvent`.
+/// Built-in legacy/tick events can still use the event type directly as the
+/// single parameter.
 ///
 /// # Syntax
 ///
 /// ```rust,ignore
 /// #[event]
-/// pub fn handler(event: EventType) { /* body */ }
+/// pub fn handler(event: Event<MyAdvancementEvent>) { /* body */ }
+///
+/// // Legacy/tick built-in events can use unit-style parameters:
+/// #[event]
+/// pub fn on_join(event: OnJoinEvent) { /* body */ }
 ///
 /// // With filters (required for some event types):
 /// #[event(slot = Head, item = "minecraft:diamond_helmet")]
@@ -642,25 +645,29 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
 ///
 /// # Custom events
 ///
-/// Implement `sand_core::events::SandEvent` on your type, then use it as the
-/// parameter:
+/// Implement `sand_core::event::AdvancementEvent` on your type, then handle
+/// `Event<T>`:
 ///
 /// ```rust,ignore
-/// use sand_core::events::{SandEvent, SandEventDispatch};
-/// use sand_core::AdvancementTrigger;
+/// use sand_core::prelude::*;
+/// use sand_core::event::trigger::ConsumeItemTrigger;
+/// use sand_components::ItemPredicate;
 ///
 /// pub struct MyEvent;
-/// impl SandEvent for MyEvent {
-///     fn dispatch() -> SandEventDispatch {
-///         SandEventDispatch::AdvancementTrigger(AdvancementTrigger::UsedItem { item: None })
+/// impl AdvancementEvent for MyEvent {
+///     type Trigger = ConsumeItemTrigger;
+///     fn trigger() -> Self::Trigger {
+///         ConsumeItemTrigger::new().item(ItemPredicate::id("minecraft:golden_apple"))
 ///     }
 /// }
 ///
 /// #[event]
-/// pub fn on_use(event: MyEvent) {
+/// pub fn on_use(event: Event<MyEvent>) {
 ///     cmd::say("Used something!");
 /// }
 /// ```
+///
+/// `SandEvent` remains available for compatibility and custom tick-poll events.
 ///
 /// # Optional attribute
 ///
@@ -670,11 +677,10 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
 /// # Options
 ///
 /// ```rust,ignore
-/// #[event(EventType)]                                  // basic
-/// #[event(EventType, revoke = true)]                   // re-arm on next trigger
-/// #[event(EventType, id = "my_pack:custom/id")]        // override advancement ID
-/// #[event(EventType { field = "value" })]              // with filter
-/// #[event(EventType { f1 = "v1", f2 = "v2" }, revoke = true)]
+/// #[event]                                             // basic
+/// #[event(id = "my_pack:custom/id")]                   // override advancement ID
+/// #[event(slot = Head, item = "minecraft:diamond_helmet")]
+/// #[event(dispatch = "advancement")]                   // compatibility only
 /// ```
 ///
 /// ## `revoke = true`

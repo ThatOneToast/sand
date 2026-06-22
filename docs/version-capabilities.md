@@ -5,7 +5,7 @@ Use `VersionProfile` as the source of truth for feature support.
 ```rust
 use sand_core::prelude::*;
 
-let version = MinecraftVersion::parse("1.21.5").unwrap();
+let version = MinecraftVersion::parse("1.21.6").unwrap();
 let profile = VersionProfile::resolve(&version).unwrap();
 
 assert!(profile.supports_feature("dialogs"));

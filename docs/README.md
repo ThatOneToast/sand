@@ -14,11 +14,13 @@ The mdBook site in `book/` is the user-facing guide when present.
 - [Typed Commands](typed-commands.md)
 - [Conditions](conditions.md)
 - [Typed Execute](typed-execute.md)
+- [Events](events.md)
 
 ## Datapack Components
 
 - [Components](components.md)
 - [Dialogs](dialogs.md)
+- [Advancement Events](advancement-events.md)
 - Advancements, recipes, loot tables, predicates, item modifiers, and tags are
   covered from [Components](components.md) and [Examples](examples.md).
 

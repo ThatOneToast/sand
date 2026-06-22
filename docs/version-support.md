@@ -8,7 +8,7 @@ Configure projects through `sand.toml`:
 ```toml
 [pack]
 namespace = "example"
-mc_version = "1.21.5"
+mc_version = "1.21.6"
 ```
 
 Known pack formats and feature flags are resolved through `VersionProfile`.

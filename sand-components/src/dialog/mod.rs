@@ -13,8 +13,58 @@
 //! }
 //! ```
 
-use crate::ResourceLocation;
+use crate::{DatapackComponent, ResourceLocation};
 use serde_json::{Value, json};
+
+const SAND_LOCAL_NS: &str = "__sand_local";
+
+/// Identifier accepted by dialog constructors.
+#[derive(Debug, Clone)]
+pub struct DialogId(ResourceLocation);
+
+impl DialogId {
+    pub fn local(path: impl AsRef<str>) -> Self {
+        Self(
+            ResourceLocation::new(SAND_LOCAL_NS, path).expect("invalid local dialog resource path"),
+        )
+    }
+
+    pub fn external(location: impl AsRef<str>) -> Self {
+        Self::from(location.as_ref())
+    }
+
+    fn into_location(self) -> ResourceLocation {
+        self.0
+    }
+}
+
+impl From<ResourceLocation> for DialogId {
+    fn from(value: ResourceLocation) -> Self {
+        Self(value)
+    }
+}
+
+impl From<&ResourceLocation> for DialogId {
+    fn from(value: &ResourceLocation) -> Self {
+        Self(value.clone())
+    }
+}
+
+impl From<&str> for DialogId {
+    fn from(value: &str) -> Self {
+        if value.contains(':') {
+            Self(value.parse().expect("invalid dialog resource location"))
+        } else {
+            Self::local(value)
+        }
+    }
+}
+
+impl From<String> for DialogId {
+    fn from(value: String) -> Self {
+        Self::from(value.as_str())
+    }
+}
 
 // ── DialogBody ────────────────────────────────────────────────────────────────
 
@@ -261,7 +311,7 @@ impl DialogKind {
 #[derive(Debug, Clone)]
 pub struct Dialog {
     /// The resource location for this dialog (e.g. `"example:welcome"`).
-    pub id: String,
+    pub id: ResourceLocation,
     kind: DialogKind,
     title: Option<String>,
     body: Vec<DialogBody>,
@@ -272,23 +322,38 @@ pub struct Dialog {
 
 impl Dialog {
     /// Create a notice dialog — informational, dismissible.
-    pub fn notice(id: impl Into<String>) -> Self {
+    pub fn notice(id: impl Into<DialogId>) -> Self {
         Self::new_with_kind(id, DialogKind::Notice)
     }
 
+    /// Create a local notice dialog whose namespace is resolved during export.
+    pub fn notice_local(path: impl AsRef<str>) -> Self {
+        Self::new_with_kind(DialogId::local(path), DialogKind::Notice)
+    }
+
     /// Create a confirmation dialog — confirm / cancel.
-    pub fn confirmation(id: impl Into<String>) -> Self {
+    pub fn confirmation(id: impl Into<DialogId>) -> Self {
         Self::new_with_kind(id, DialogKind::Confirmation)
     }
 
+    /// Create a local confirmation dialog whose namespace is resolved during export.
+    pub fn confirmation_local(path: impl AsRef<str>) -> Self {
+        Self::new_with_kind(DialogId::local(path), DialogKind::Confirmation)
+    }
+
     /// Create a multi-action dialog — multiple custom buttons.
-    pub fn multi_action(id: impl Into<String>) -> Self {
+    pub fn multi_action(id: impl Into<DialogId>) -> Self {
         Self::new_with_kind(id, DialogKind::MultiAction)
     }
 
-    fn new_with_kind(id: impl Into<String>, kind: DialogKind) -> Self {
+    /// Create a local multi-action dialog whose namespace is resolved during export.
+    pub fn multi_action_local(path: impl AsRef<str>) -> Self {
+        Self::new_with_kind(DialogId::local(path), DialogKind::MultiAction)
+    }
+
+    fn new_with_kind(id: impl Into<DialogId>, kind: DialogKind) -> Self {
         Self {
-            id: id.into(),
+            id: id.into().into_location(),
             kind,
             title: None,
             body: vec![],
@@ -353,11 +418,25 @@ impl Dialog {
     ///
     /// For `"example:welcome"` returns `"example/dialog/welcome.json"`.
     pub fn resource_path(&self) -> String {
-        if let Some((ns, path)) = self.id.split_once(':') {
-            format!("{ns}/dialog/{path}.json")
+        if self.id.namespace() == SAND_LOCAL_NS {
+            format!("dialog/{}.json", self.id.path())
         } else {
-            format!("dialog/{}.json", self.id)
+            format!("{}/dialog/{}.json", self.id.namespace(), self.id.path())
         }
+    }
+}
+
+impl DatapackComponent for Dialog {
+    fn resource_location(&self) -> &ResourceLocation {
+        &self.id
+    }
+
+    fn to_json(&self) -> Value {
+        Dialog::to_json(self)
+    }
+
+    fn component_dir(&self) -> &'static str {
+        "dialog"
     }
 }
 
@@ -396,6 +475,15 @@ mod tests {
     fn resource_path_no_namespace() {
         let d = Dialog::notice("welcome");
         assert_eq!(d.resource_path(), "dialog/welcome.json");
+    }
+
+    #[test]
+    fn dialog_component_metadata() {
+        let d = Dialog::notice_local("welcome");
+        assert_eq!(d.resource_location().namespace(), SAND_LOCAL_NS);
+        assert_eq!(d.resource_location().path(), "welcome");
+        assert_eq!(d.component_dir(), "dialog");
+        assert_eq!(d.file_extension(), "json");
     }
 
     #[test]

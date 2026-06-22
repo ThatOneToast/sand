@@ -1614,6 +1614,7 @@ dependencies = [
 name = "sand-components"
 version = "0.1.0"
 dependencies = [
+ "inventory",
  "sand-commands",
  "serde",
  "serde_json",

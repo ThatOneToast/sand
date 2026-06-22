@@ -14,6 +14,7 @@
 //! ```
 
 use crate::{DatapackComponent, ResourceLocation};
+use sand_commands::{Text, TextComponent};
 use serde_json::{Value, json};
 
 const SAND_LOCAL_NS: &str = "__sand_local";
@@ -66,13 +67,169 @@ impl From<String> for DialogId {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct DialogText(TextComponent);
+
+impl DialogText {
+    fn to_json(&self) -> Value {
+        serde_json::from_str(&self.0.to_string()).expect("TextComponent must serialize to JSON")
+    }
+}
+
+impl From<TextComponent> for DialogText {
+    fn from(value: TextComponent) -> Self {
+        Self(value)
+    }
+}
+
+impl From<&TextComponent> for DialogText {
+    fn from(value: &TextComponent) -> Self {
+        Self(value.clone())
+    }
+}
+
+impl From<&str> for DialogText {
+    fn from(value: &str) -> Self {
+        Self(Text::new(value))
+    }
+}
+
+impl From<String> for DialogText {
+    fn from(value: String) -> Self {
+        Self(Text::new(value))
+    }
+}
+
+pub struct DialogFunctionPointerEntry {
+    pub ptr: fn() -> Vec<String>,
+    pub path: &'static str,
+}
+inventory::collect!(DialogFunctionPointerEntry);
+
+pub struct DialogFunctionPointerTypeEntry {
+    pub type_id: fn() -> std::any::TypeId,
+    pub path: &'static str,
+}
+inventory::collect!(DialogFunctionPointerTypeEntry);
+
+fn local_id_for_path(path: &str) -> String {
+    if path.contains(':') {
+        path.to_string()
+    } else {
+        format!("{SAND_LOCAL_NS}:{path}")
+    }
+}
+
+fn registered_path_for_function_value<F>(value: F) -> Option<&'static str>
+where
+    F: Copy + 'static,
+{
+    let type_id = std::any::TypeId::of::<F>();
+    for entry in inventory::iter::<DialogFunctionPointerTypeEntry>() {
+        if (entry.type_id)() == type_id {
+            return Some(entry.path);
+        }
+    }
+
+    if std::mem::size_of::<F>() == std::mem::size_of::<fn() -> Vec<String>>() {
+        let ptr = unsafe { *(&value as *const F).cast::<fn() -> Vec<String>>() };
+        for entry in inventory::iter::<DialogFunctionPointerEntry>() {
+            if entry.ptr as usize == ptr as usize {
+                return Some(entry.path);
+            }
+        }
+    }
+
+    None
+}
+
+pub trait IntoDialogFunctionRef {
+    fn into_dialog_function_command(self) -> String;
+}
+
+impl IntoDialogFunctionRef for ResourceLocation {
+    fn into_dialog_function_command(self) -> String {
+        format!("/function {self}")
+    }
+}
+
+impl IntoDialogFunctionRef for &ResourceLocation {
+    fn into_dialog_function_command(self) -> String {
+        format!("/function {self}")
+    }
+}
+
+impl IntoDialogFunctionRef for &str {
+    fn into_dialog_function_command(self) -> String {
+        format!("/function {self}")
+    }
+}
+
+impl IntoDialogFunctionRef for String {
+    fn into_dialog_function_command(self) -> String {
+        format!("/function {self}")
+    }
+}
+
+impl<F> IntoDialogFunctionRef for F
+where
+    F: Fn() -> Vec<String> + Copy + 'static,
+{
+    fn into_dialog_function_command(self) -> String {
+        if let Some(path) = registered_path_for_function_value(self) {
+            return format!("/function {}", local_id_for_path(path));
+        }
+        panic!(
+            "unregistered function pointer: the function must be annotated with \
+             #[function] or #[function(\"path\")] to be used in DialogAction::run_function()"
+        )
+    }
+}
+
+pub trait IntoDialogRef {
+    fn into_dialog_ref(self) -> String;
+}
+
+impl IntoDialogRef for ResourceLocation {
+    fn into_dialog_ref(self) -> String {
+        self.to_string()
+    }
+}
+
+impl IntoDialogRef for &ResourceLocation {
+    fn into_dialog_ref(self) -> String {
+        self.to_string()
+    }
+}
+
+impl IntoDialogRef for DialogId {
+    fn into_dialog_ref(self) -> String {
+        self.into_location().to_string()
+    }
+}
+
+impl IntoDialogRef for &str {
+    fn into_dialog_ref(self) -> String {
+        DialogId::from(self).into_location().to_string()
+    }
+}
+
+impl IntoDialogRef for String {
+    fn into_dialog_ref(self) -> String {
+        DialogId::from(self).into_location().to_string()
+    }
+}
+
 // ── DialogBody ────────────────────────────────────────────────────────────────
 
 /// A dialog body element (text, item display, etc.).
 #[derive(Debug, Clone)]
 pub enum DialogBody {
     /// Plain text body element.
-    Text { text: String, width: Option<u32> },
+    Text {
+        text: Box<DialogText>,
+        width: Option<u32>,
+    },
     /// Item display body element.
     Item {
         item: String,
@@ -83,17 +240,17 @@ pub enum DialogBody {
 
 impl DialogBody {
     /// Plain text body.
-    pub fn text(content: impl Into<String>) -> Self {
+    pub fn text(content: impl Into<DialogText>) -> Self {
         Self::Text {
-            text: content.into(),
+            text: Box::new(content.into()),
             width: None,
         }
     }
 
     /// Plain text body with explicit width.
-    pub fn text_with_width(content: impl Into<String>, width: u32) -> Self {
+    pub fn text_with_width(content: impl Into<DialogText>, width: u32) -> Self {
         Self::Text {
-            text: content.into(),
+            text: Box::new(content.into()),
             width: Some(width),
         }
     }
@@ -119,7 +276,7 @@ impl DialogBody {
     pub(crate) fn to_json(&self) -> Value {
         match self {
             Self::Text { text, width } => {
-                let mut v = json!({"type": "minecraft:plain_message", "contents": {"text": text}});
+                let mut v = json!({"type": "minecraft:plain_message", "contents": text.to_json()});
                 if let Some(w) = width {
                     v["width"] = json!(w);
                 }
@@ -178,8 +335,8 @@ impl DialogAction {
     ///     ResourceLocation::new("example", "start").unwrap()
     /// );
     /// ```
-    pub fn run_function(id: ResourceLocation) -> Self {
-        Self::RunCommand(format!("/function {id}"))
+    pub fn run_function(id: impl IntoDialogFunctionRef) -> Self {
+        Self::RunCommand(id.into_dialog_function_command())
     }
 
     pub fn suggest_command(cmd: impl Into<String>) -> Self {
@@ -188,8 +345,8 @@ impl DialogAction {
     pub fn open_url(url: impl Into<String>) -> Self {
         Self::OpenUrl(url.into())
     }
-    pub fn open_dialog(dialog: impl Into<String>) -> Self {
-        Self::OpenDialog(dialog.into())
+    pub fn open_dialog(dialog: impl IntoDialogRef) -> Self {
+        Self::OpenDialog(dialog.into_dialog_ref())
     }
     pub fn close() -> Self {
         Self::Close
@@ -211,15 +368,15 @@ impl DialogAction {
 /// A button displayed in a dialog.
 #[derive(Debug, Clone)]
 pub struct DialogButton {
-    label: String,
+    label: DialogText,
     action: Option<DialogAction>,
-    tooltip: Option<String>,
+    tooltip: Option<DialogText>,
     width: Option<u32>,
 }
 
 impl DialogButton {
     /// Create a button with the given label text.
-    pub fn new(label: impl Into<String>) -> Self {
+    pub fn new(label: impl Into<DialogText>) -> Self {
         Self {
             label: label.into(),
             action: None,
@@ -235,7 +392,7 @@ impl DialogButton {
     }
 
     /// Attach a tooltip shown when hovering over the button.
-    pub fn tooltip(mut self, tip: impl Into<String>) -> Self {
+    pub fn tooltip(mut self, tip: impl Into<DialogText>) -> Self {
         self.tooltip = Some(tip.into());
         self
     }
@@ -247,12 +404,12 @@ impl DialogButton {
     }
 
     pub(crate) fn to_json(&self) -> Value {
-        let mut v = json!({"label": {"text": self.label}});
+        let mut v = json!({"label": self.label.to_json()});
         if let Some(a) = &self.action {
             v["action"] = a.to_json();
         }
         if let Some(t) = &self.tooltip {
-            v["tooltip"] = json!({"text": t});
+            v["tooltip"] = t.to_json();
         }
         if let Some(w) = self.width {
             v["width"] = json!(w);
@@ -313,7 +470,7 @@ pub struct Dialog {
     /// The resource location for this dialog (e.g. `"example:welcome"`).
     pub id: ResourceLocation,
     kind: DialogKind,
-    title: Option<String>,
+    title: Option<DialogText>,
     body: Vec<DialogBody>,
     buttons: Vec<DialogButton>,
     pause: bool,
@@ -364,7 +521,7 @@ impl Dialog {
     }
 
     /// Set the dialog title.
-    pub fn title(mut self, text: impl Into<String>) -> Self {
+    pub fn title(mut self, text: impl Into<DialogText>) -> Self {
         self.title = Some(text.into());
         self
     }
@@ -397,7 +554,7 @@ impl Dialog {
     pub fn to_json(&self) -> Value {
         let mut v = json!({"type": self.kind.type_str()});
         if let Some(t) = &self.title {
-            v["title"] = json!({"text": t});
+            v["title"] = t.to_json();
         }
         if !self.body.is_empty() {
             v["body"] = json!(self.body.iter().map(|b| b.to_json()).collect::<Vec<_>>());

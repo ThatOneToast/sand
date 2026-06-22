@@ -279,6 +279,20 @@ fn expand_function(
                 path: #ptr_path_str,
             }
         );
+
+        ::sand_core::inventory::submit!(
+            ::sand_core::sand_components::dialog::DialogFunctionPointerEntry {
+                ptr: #fn_name as fn() -> ::std::vec::Vec<::std::string::String>,
+                path: #ptr_path_str,
+            }
+        );
+
+        ::sand_core::inventory::submit!(
+            ::sand_core::sand_components::dialog::DialogFunctionPointerTypeEntry {
+                type_id: #type_id_ident,
+                path: #ptr_path_str,
+            }
+        );
     })
 }
 

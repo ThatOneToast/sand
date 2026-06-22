@@ -926,6 +926,8 @@ struct FlatEventAttr {
     custom_data: Option<syn::LitStr>,
     /// `id = "ns:path"` — override advancement resource location
     id_override: Option<syn::LitStr>,
+    /// `dispatch = "advancement"` — use `AdvancementEvent` trait (instead of `SandEvent`)
+    dispatch: Option<syn::LitStr>,
 }
 
 impl syn::parse::Parse for FlatEventAttr {
@@ -934,6 +936,7 @@ impl syn::parse::Parse for FlatEventAttr {
         let mut item = None;
         let mut custom_data = None;
         let mut id_override = None;
+        let mut dispatch = None;
 
         while !input.is_empty() {
             let key: syn::Ident = input.parse()?;
@@ -951,12 +954,15 @@ impl syn::parse::Parse for FlatEventAttr {
                 "id" => {
                     id_override = Some(input.parse::<syn::LitStr>()?);
                 }
+                "dispatch" => {
+                    dispatch = Some(input.parse::<syn::LitStr>()?);
+                }
                 other => {
                     return Err(syn::Error::new_spanned(
                         &key,
                         format!(
                             "unknown #[event] filter `{other}`; \
-                             allowed: slot, item, custom_data, id"
+                             allowed: slot, item, custom_data, id, dispatch"
                         ),
                     ));
                 }
@@ -971,6 +977,7 @@ impl syn::parse::Parse for FlatEventAttr {
             item,
             custom_data,
             id_override,
+            dispatch,
         })
     }
 }
@@ -1036,6 +1043,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
             item: None,
             custom_data: None,
             id_override: None,
+            dispatch: None,
         }
     } else {
         syn::parse::<FlatEventAttr>(attr)?
@@ -1357,6 +1365,44 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                     make: #fn_make_ident,
                     dispatch: ::sand_core::EventDispatch::TickPoll {
                         make_condition: #cond_ident,
+                    },
+                });
+            }
+        }
+
+        // Unknown type with `dispatch = "advancement"` — use AdvancementEvent trait.
+        _ if flat_attr.dispatch.as_ref().map(|s| s.value()).as_deref() == Some("advancement") => {
+            let trigger_ident = proc_macro2::Ident::new(
+                &format!("__sand_event_{}_trigger", fn_name),
+                proc_macro2::Span::call_site(),
+            );
+            let revoke_ident = proc_macro2::Ident::new(
+                &format!("__sand_event_{}_revoke", fn_name),
+                proc_macro2::Span::call_site(),
+            );
+
+            quote! {
+                #preamble
+
+                #[doc(hidden)]
+                #[allow(dead_code)]
+                fn #trigger_ident() -> ::sand_core::AdvancementTrigger {
+                    <#param_type_tokens as ::sand_core::event::AdvancementEvent>::trigger().into()
+                }
+
+                #[doc(hidden)]
+                #[allow(dead_code)]
+                fn #revoke_ident() -> bool {
+                    <#param_type_tokens as ::sand_core::event::AdvancementEvent>::reset().should_revoke()
+                }
+
+                ::sand_core::inventory::submit!(::sand_core::EventDescriptor {
+                    path: #fn_name_str,
+                    id_override: #id_override_tokens,
+                    make: #fn_make_ident,
+                    dispatch: ::sand_core::EventDispatch::Advancement {
+                        make_trigger: #trigger_ident,
+                        revoke: #revoke_ident,
                     },
                 });
             }

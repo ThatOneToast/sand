@@ -43,7 +43,8 @@ pub use crate::function::IntoFunctionRef;
 // ── Typed event model ─────────────────────────────────────────────────────────
 
 pub use crate::event::{
-    AdvancementEvent, EventId, EventReset, EventVisibility, IntoEventAdvancement,
+    AdvancementEvent, Event, EventId, EventPlayer, EventReset, EventVisibility,
+    IntoEventAdvancement,
 };
 
 // ── Dialog builders ───────────────────────────────────────────────────────────

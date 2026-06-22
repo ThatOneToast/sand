@@ -38,7 +38,10 @@ pub use scoreboard::{
     DisplaySlot, Objective, ScoreCmp, ScoreHolder, ScoreOp, ScoreboardPlayersOperation,
     scoreboard_players_operation,
 };
-pub use selector::{GameMode, Selector, SortOrder, TargetBase};
+pub use selector::{
+    EntityTarget, EntityTargets, GameMode, Many, One, PlayerTarget, PlayerTargets, Selector,
+    SingleEntity, SinglePlayer, SortOrder, TargetBase,
+};
 pub use sound::{Sound, SoundSource};
 pub use text::{ChatColor, ClickEvent, HoverEvent, Text, TextComponent};
 

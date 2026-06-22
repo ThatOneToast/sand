@@ -298,6 +298,15 @@ mod tests {
         assert!(lib_rs.contains("Welcome to test_pack!"));
         assert!(lib_rs.contains("#[component]"));
         assert!(lib_rs.contains("__sand_export"));
+        // Attribute-first: scaffold uses typed commands, not raw mcfunction!
+        assert!(lib_rs.contains("use sand_core::prelude::*"));
+        assert!(lib_rs.contains("cmd::tellraw("));
+        assert!(lib_rs.contains("Text::new("));
+        assert!(lib_rs.contains("Selector::all_players()"));
+        // No raw mcfunction usage in generated beginner code
+        assert!(!lib_rs.contains("mcfunction!"));
+        assert!(!lib_rs.contains("tellraw @"));
+        assert!(!lib_rs.contains("playsound minecraft:"));
         // Commented-out snippet mentions the name, but the active definition
         // must NOT be present when resourcepack: false.
         assert!(!lib_rs.contains("\npub fn __sand_resource_export"));

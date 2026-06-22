@@ -64,7 +64,7 @@ pub fn golden_interop() {
 }
 
 pub fn golden_welcome_dialog() -> Dialog {
-    Dialog::notice("golden:welcome")
+    Dialog::multi_action_local("welcome")
         .title("Welcome")
         .body(DialogBody::text("Dash is ready."))
         .button(DialogButton::new("Start").action(DialogAction::run_command(
@@ -167,13 +167,14 @@ mod tests {
     #[test]
     fn golden_dialog_component_json() {
         let json = golden_welcome_dialog().to_json();
+        assert_eq!(json["type"].as_str().unwrap(), "minecraft:multi_action");
         assert_eq!(json["title"]["text"], Value::String("Welcome".to_string()));
         assert_eq!(
             json["body"][0]["contents"]["text"],
             Value::String("Dash is ready.".to_string())
         );
         assert_eq!(
-            json["buttons"][0]["action"]["command"],
+            json["actions"][0]["action"]["command"],
             Value::String("function golden:start".to_string())
         );
     }

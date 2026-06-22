@@ -67,6 +67,30 @@ impl NbtPath {
         format!("data remove storage {} {}", self.storage, self.path)
     }
 
+    /// `data modify storage <storage> <path> set value <snbt>` — raw SNBT.
+    pub fn set_raw(&self, snbt: &str) -> String {
+        format!(
+            "data modify storage {} {} set value {}",
+            self.storage, self.path, snbt
+        )
+    }
+
+    /// Set an integer value at this path.
+    pub fn set_int(&self, v: i32) -> String {
+        self.set_raw(&v.to_string())
+    }
+
+    /// Set a boolean as a byte (`0b` or `1b`) at this path.
+    pub fn set_bool(&self, v: bool) -> String {
+        self.set_raw(if v { "1b" } else { "0b" })
+    }
+
+    /// Set a string value at this path.
+    pub fn set_string(&self, v: &str) -> String {
+        let escaped = v.replace('\\', "\\\\").replace('"', "\\\"");
+        self.set_raw(&format!("\"{escaped}\""))
+    }
+
     /// Build a `Condition` that checks `if data storage <storage> <path>`.
     pub fn exists(&self) -> Condition {
         Condition::StorageExists {
@@ -322,6 +346,15 @@ mod tests {
         let p = NbtPath::new("sand:data", "player.mana");
         assert_eq!(p.get(), "data get storage sand:data player.mana");
         assert_eq!(p.remove(), "data remove storage sand:data player.mana");
+    }
+
+    #[test]
+    fn nbt_path_set_bool() {
+        let p = NbtPath::new("sand:data", "player").key("mana");
+        assert_eq!(
+            p.set_bool(true),
+            "data modify storage sand:data player.mana set value 1b"
+        );
     }
 
     #[test]

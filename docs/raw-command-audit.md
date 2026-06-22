@@ -20,42 +20,46 @@ typed Rust-first datapack framework.
 
 - `sand_components` custom loot, predicate, and item component APIs keep raw
   JSON/SNBT entry points for modded datapacks and features not yet modeled.
-- `sand_commands::*_raw` helpers remain valid escape hatches for advanced
-  debugging, interop, and future Minecraft syntax.
+- `cmd::raw(...)` remains the explicit escape hatch for interop, modded
+  commands, snapshot syntax, future features, and debugging.
 
 ## C. Cleaned Up In Attribute-First Pass
 
-- `README.md` now starts with `#[component(Load)]`, `#[component(Tick)]`, and
+- `README.md` starts with `#[component(Load)]`, `#[component(Tick)]`, and
   `#[function]` bodies containing typed command expressions directly.
 - `docs/getting-started.md`, `docs/typed-state.md`,
-  `docs/typed-commands.md`, and `docs/storage-nbt.md` now teach attribute
+  `docs/typed-commands.md`, and `docs/storage-nbt.md` teach attribute
   functions before `mcfunction!`.
 - `examples/basic_typed.rs`, `examples/state_and_conditions.rs`,
   `examples/spell_system.rs`, `examples/storage_nbt.rs`, and
-  `examples/player_join.rs` no longer use raw command strings for normal logic.
+  `examples/player_join.rs` use typed command builders throughout.
+- Event rustdocs (`sand-core/src/events/mod.rs`) use typed command builders.
+- Macro event docs (`sand-macros/src/lib.rs`) use typed command builders.
+- Crate-level rustdoc (`sand-core/src/lib.rs`) shows typed-first usage.
+- Scaffold template generates attribute-first typed code.
 
 ## D. Remaining Stale Or Legacy Teaching
 
-- Several rustdoc examples in `sand-core/src/lib.rs`, `sand-core/src/events`,
-  and deeper `sand-macros/src/lib.rs` event sections still show legacy raw
-  command strings. These should be converted in a focused event-doc pass.
 - `examples/arcane_arsenal.html` is a generated/static long-form reference
   page that still contains raw command strings. It should either be regenerated
   from typed examples or moved under a legacy/migration label.
 
-## E. Missing Typed API That Forced a Raw String
+## E. Typed APIs Now Available
 
-- Dialog examples currently use `DialogAction::run_command("/function ...")`.
-  The command builder exists as `cmd::function(ResourceLocation)`, but dialog
-  actions need a typed command-friendly path documented and hardened.
-- Event rustdocs use raw score and message commands even though typed state,
-  text, selectors, and command builders now cover the normal use cases.
-- `examples/player_join.rs` still uses `cmd::raw("advancement revoke ...")`
-  because the beginner prelude does not yet expose a typed advancement
-  grant/revoke builder.
+- `cmd::advancement_grant_only(targets, advancement)` — generated typed builder
+- `cmd::advancement_revoke_only(targets, advancement)` — generated typed builder
+- `cmd::advancement_grant_everything(targets)` — generated typed builder
+- `cmd::advancement_revoke_everything(targets)` — generated typed builder
+- `cmd::recipe_give(targets)`, `cmd::recipe_give_2(targets, recipe)` — generated
+- `cmd::recipe_take(targets)`, `cmd::recipe_take_2(targets, recipe)` — generated
+- `cmd::function(id)` — free function in builtins
+- `cmd::give(selector, item)` — free function accepting typed items via `Into<String>`
+- `Sound::play(event).to(selector)` — typed sound builder
+- `cmd::tag_add(selector, tag)`, `cmd::tag_remove(selector, tag)` — builtins
+- `cmd::effect_give(selector, effect, duration, amplifier)` — builtin
 
 ## F. Interop/Modded Examples That Should Stay Raw
 
-- A single interop example should remain under `examples/interop_escape_hatches.rs`
+- A single interop example remains under `examples/interop_escape_hatches.rs`
   and `docs/escape-hatches.md`, clearly labeled as an explicit escape hatch for
   another datapack's command/function contract.

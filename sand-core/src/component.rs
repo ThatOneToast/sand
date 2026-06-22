@@ -134,13 +134,17 @@ pub fn export_components_json(namespace: &str) -> String {
                     .unwrap_or_else(|| format!("{}:{}", namespace, desc.path));
 
                 let mut body = commands;
-                if revoke() {
-                    body.insert(0, format!("advancement revoke @s only {}", advancement_id));
-                }
+                // Insert in reverse order so the final mcfunction reads:
+                //   1. revoke (always — even when guard fails, so the event can re-fire)
+                //   2. execute unless <guard> run return 0
+                //   3. handler commands
                 if let Some(make_guard) = guard
                     && let Some(guard_cmd) = make_guard()
                 {
                     body.insert(0, format!("execute unless {guard_cmd} run return 0"));
+                }
+                if revoke() {
+                    body.insert(0, format!("advancement revoke @s only {}", advancement_id));
                 }
                 records.push(ComponentRecord {
                     namespace: namespace.to_string(),

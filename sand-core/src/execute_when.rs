@@ -79,31 +79,19 @@
 //! ]);
 //! ```
 
-use std::sync::atomic::{AtomicU64, Ordering};
-
 use crate::condition::Condition;
-
-// ── Branch counter ────────────────────────────────────────────────────────────
-
-static BRANCH_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 /// Reset the branch counter. For use in unit tests only — keeps paths stable.
 #[doc(hidden)]
 pub fn reset_branch_counter_for_tests() {
-    BRANCH_COUNTER.store(0, Ordering::SeqCst);
-}
-
-fn next_branch_id() -> u64 {
-    BRANCH_COUNTER.fetch_add(1, Ordering::Relaxed)
+    crate::drain_dyn_fns();
 }
 
 /// Register commands as an anonymous branch function and return its path.
 ///
 /// Uses `__sand_local:` sentinel so the namespace is resolved at export time.
 fn register_branch(commands: Vec<String>) -> String {
-    let id = next_branch_id();
-    let path = format!("sand/branches/{id}");
-    crate::register_dyn_fn(path.clone(), commands);
+    let path = crate::register_dyn_fn_dedup("sand/branches", commands);
     format!("__sand_local:{path}")
 }
 
@@ -822,5 +810,24 @@ mod tests {
             }),
             "branch fn not found in registry: {fns:?}"
         );
+    }
+
+    #[test]
+    fn identical_branch_bodies_reuse_generated_helper() {
+        reset_branch_counter_for_tests();
+        let first = when(MANA.of("@s").gte(10)).then_all(["say same"]);
+        let second = when(MANA.of("@s").gte(20)).then_all(["say same"]);
+        let fns = crate::drain_dyn_fns();
+
+        assert_eq!(fns.len(), 1, "identical branch bodies dedupe: {fns:?}");
+        let first_path = first[0]
+            .split("function ")
+            .nth(1)
+            .expect("first branch function path");
+        let second_path = second[0]
+            .split("function ")
+            .nth(1)
+            .expect("second branch function path");
+        assert_eq!(first_path, second_path);
     }
 }

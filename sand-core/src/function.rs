@@ -498,7 +498,31 @@ fn dyn_fn_registry() -> &'static Mutex<Vec<DynFnEntry>> {
 /// Called by anonymous `run_fn!` blocks that capture local variables.
 /// The `commands` are the pre-computed mcfunction lines.
 pub fn register_dyn_fn(path: String, commands: Vec<String>) {
-    dyn_fn_registry().lock().unwrap().push((path, commands));
+    let mut registry = dyn_fn_registry().lock().unwrap();
+    if !registry.iter().any(|(existing_path, existing_commands)| {
+        existing_path == &path && existing_commands == &commands
+    }) {
+        registry.push((path, commands));
+    }
+}
+
+/// Register a generated helper function, reusing an existing helper with an
+/// identical body when context semantics allow it.
+pub fn register_dyn_fn_dedup(prefix: &str, commands: Vec<String>) -> String {
+    let mut registry = dyn_fn_registry().lock().unwrap();
+    if let Some((path, _)) = registry.iter().find(|(path, existing_commands)| {
+        path.starts_with(prefix) && existing_commands == &commands
+    }) {
+        return path.clone();
+    }
+
+    let path = format!("{prefix}/{}", stable_commands_key(&commands));
+    if !registry.iter().any(|(existing_path, existing_commands)| {
+        existing_path == &path && existing_commands == &commands
+    }) {
+        registry.push((path.clone(), commands));
+    }
+    path
 }
 
 /// Drain all dynamically-registered anonymous functions.
@@ -507,4 +531,15 @@ pub fn register_dyn_fn(path: String, commands: Vec<String>) {
 /// so all `register_dyn_fn` calls are guaranteed to have completed.
 pub fn drain_dyn_fns() -> Vec<(String, Vec<String>)> {
     std::mem::take(&mut *dyn_fn_registry().lock().unwrap())
+}
+
+fn stable_commands_key(commands: &[String]) -> String {
+    let mut h: u32 = 2_166_136_261;
+    for command in commands {
+        for b in command.bytes().chain(std::iter::once(0)) {
+            h ^= b as u32;
+            h = h.wrapping_mul(16_777_619);
+        }
+    }
+    format!("{h:08x}")
 }

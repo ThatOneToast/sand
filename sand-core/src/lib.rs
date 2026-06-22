@@ -71,7 +71,15 @@ pub use component::{ComponentContent, ComponentRecord, DatapackComponent, IntoDa
 pub use error::{Result, SandError};
 pub use event::handle::EventHandle;
 pub use event::{
-    AdvancementEvent, Event as TypedEvent, EventId, EventPlayer, EventReset, EventVisibility,
+    AdvancementEvent,
+    Event,
+    // Kept for backward compat; prefer Event<E> as handler context
+    Event as TypedEvent,
+    EventAdvancement,
+    EventId,
+    EventPlayer,
+    EventReset,
+    EventVisibility,
     IntoEventAdvancement,
 };
 pub use events::{

@@ -149,44 +149,84 @@ pub trait EventPlayer {
     }
 }
 
-// ── Event<E> builder ────────────────────────────────────────────────────────
+// ── Event<E> — handler context ───────────────────────────────────────────────
 
-/// Strongly-typed advancement-backed event builder.
+/// Zero-cost handler context for `#[event]`-annotated functions.
 ///
-/// `Event<E>` constructs a [`sand_components::Advancement`] whose trigger,
-/// ID, reset, and visibility are all determined at compile time by the
-/// [`AdvancementEvent`] implementation for `E`.
-///
-/// # Example
+/// Inside an `#[event]` handler, the generated code creates an `Event<E>`
+/// value that gives you access to context methods like [`player()`]. You
+/// never construct `Event<E>` manually — the `#[event]` macro generates it.
 ///
 /// ```rust,ignore
-/// use sand_core::event::{AdvancementEvent, Event};
-/// use sand_core::AdvancementTrigger;
+/// use sand_macros::event;
+/// use sand_core::prelude::*;
 ///
-/// pub struct DrankHoney;
-/// impl AdvancementEvent for DrankHoney {
-///     type Trigger = AdvancementTrigger;
-///     fn trigger() -> Self::Trigger {
-///         AdvancementTrigger::ConsumeItem { item: None }
-///     }
+/// pub struct AteGoldenApple;
+/// impl AdvancementEvent for AteGoldenApple { /* … */ }
+///
+/// static MANA: ScoreVar<i32> = ScoreVar::new("mana");
+///
+/// #[event]
+/// pub fn ate_golden_apple(event: Event<AteGoldenApple>) {
+///     MANA.add(event.player(), 25);
 /// }
-///
-/// let event = Event::<DrankHoney>::new(
-///     "my_pack:drank_honey",
-///     "my_pack:handler_drank_honey",
-/// );
-/// let advancement = event.into_advancement();
 /// ```
 pub struct Event<E: AdvancementEvent> {
-    /// The advancement resource location.
-    advancement_id: String,
-    /// The handler function reference for `rewards.function`.
-    handler_function: String,
     _marker: PhantomData<E>,
 }
 
 impl<E: AdvancementEvent> Event<E> {
-    /// Create a new typed event with the given advancement ID and handler function.
+    /// Construct the handler context value.
+    ///
+    /// Called by `#[event]`-generated code. Not normally called directly.
+    pub fn context() -> Self {
+        Self {
+            _marker: PhantomData,
+        }
+    }
+
+    /// Returns `Selector::self_()` — the player who triggered the event.
+    ///
+    /// In advancement-backed events, `@s` is the player at the time the
+    /// advancement reward function ran.
+    pub fn player(&self) -> crate::cmd::Selector {
+        crate::cmd::Selector::self_()
+    }
+
+    /// Returns `Selector::self_()` — alias for [`player`](Event::player).
+    pub fn subject(&self) -> crate::cmd::Selector {
+        crate::cmd::Selector::self_()
+    }
+}
+
+impl<E: AdvancementEvent> Default for Event<E> {
+    fn default() -> Self {
+        Self::context()
+    }
+}
+
+// ── EventAdvancement<E> — internal advancement builder ───────────────────────
+
+/// Internal advancement component builder for `AdvancementEvent`-backed events.
+///
+/// Users should not construct this directly. The `#[event]` macro and the
+/// export pipeline use this to build the final `Advancement` JSON.
+///
+/// # Migration note
+///
+/// Code that previously called `Event::<E>::new("ns:path", "ns:handler")` should
+/// be updated to use this type instead. The old `Event<E>` builder API is gone
+/// — `Event<E>` is now the zero-cost handler context.
+pub struct EventAdvancement<E: AdvancementEvent> {
+    /// The advancement resource location.
+    pub advancement_id: String,
+    /// The handler function reference for `rewards.function`.
+    pub handler_function: String,
+    _marker: PhantomData<E>,
+}
+
+impl<E: AdvancementEvent> EventAdvancement<E> {
+    /// Create a new typed event advancement with the given IDs.
     ///
     /// - `advancement_id` — full `namespace:path` for the generated advancement
     /// - `handler_function` — full `namespace:path` for the mcfunction to run
@@ -197,25 +237,32 @@ impl<E: AdvancementEvent> Event<E> {
             _marker: PhantomData,
         }
     }
+
+    /// Build the [`Advancement`](crate::Advancement) component.
+    pub fn into_advancement(self) -> crate::Advancement {
+        let trigger = E::trigger().into();
+        let rl: crate::ResourceLocation = self
+            .advancement_id
+            .parse()
+            .expect("invalid advancement resource location in EventAdvancement::new");
+
+        crate::Advancement::new(rl)
+            .criterion("event", crate::Criterion::new(trigger))
+            .rewards(crate::AdvancementRewards::new().function(self.handler_function))
+    }
 }
 
-/// Converts a typed [`Event`] into a [`sand_components::Advancement`] component.
+/// Converts a typed [`EventAdvancement`] into a [`sand_components::Advancement`] component.
+///
+/// Kept for backward compatibility with code that used the old `Event<E>` builder.
 pub trait IntoEventAdvancement<E: AdvancementEvent> {
     /// Build the advancement component from this event.
     fn into_advancement(self) -> crate::Advancement;
 }
 
-impl<E: AdvancementEvent> IntoEventAdvancement<E> for Event<E> {
+impl<E: AdvancementEvent> IntoEventAdvancement<E> for EventAdvancement<E> {
     fn into_advancement(self) -> crate::Advancement {
-        let trigger = E::trigger().into();
-        let rl: crate::ResourceLocation = self
-            .advancement_id
-            .parse()
-            .expect("invalid advancement resource location in Event::new");
-
-        crate::Advancement::new(rl)
-            .criterion("event", crate::Criterion::new(trigger))
-            .rewards(crate::AdvancementRewards::new().function(self.handler_function))
+        self.into_advancement()
     }
 }
 
@@ -234,9 +281,24 @@ mod tests {
     }
 
     #[test]
-    fn event_builds_advancement() {
-        let event = Event::<TestTickEvent>::new("test_pack:test_event", "test_pack:on_test_event");
-        let adv = event.into_advancement();
+    fn event_context_player_returns_self() {
+        let event = Event::<TestTickEvent>::context();
+        let sel = event.player();
+        assert_eq!(sel.to_string(), "@s");
+    }
+
+    #[test]
+    fn event_context_subject_alias() {
+        let event = Event::<TestTickEvent>::default();
+        let sel = event.subject();
+        assert_eq!(sel.to_string(), "@s");
+    }
+
+    #[test]
+    fn event_advancement_builds() {
+        let ea =
+            EventAdvancement::<TestTickEvent>::new("test_pack:test_event", "test_pack:on_test");
+        let adv = ea.into_advancement();
         assert_eq!(adv.resource_location().to_string(), "test_pack:test_event");
     }
 

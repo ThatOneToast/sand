@@ -97,6 +97,36 @@ resource_ref!(
     DialogRef
 );
 
+impl DialogRef {
+    /// Construct a local dialog reference whose namespace is resolved during export.
+    ///
+    /// Panics if `path` is not a valid resource path. Use [`try_local`](Self::try_local)
+    /// when the path is user-provided.
+    pub fn local(path: impl AsRef<str>) -> Self {
+        Self::try_local(path).expect("invalid local dialog path")
+    }
+
+    /// Fallibly construct a local dialog reference whose namespace is resolved during export.
+    pub fn try_local(path: impl AsRef<str>) -> Result<Self> {
+        Ok(Self(ResourceLocation::new(
+            crate::function::SAND_LOCAL_NS,
+            path,
+        )?))
+    }
+}
+
+impl sand_components::dialog::IntoDialogRef for DialogRef {
+    fn into_dialog_ref(self) -> String {
+        self.to_string()
+    }
+}
+
+impl sand_components::dialog::IntoDialogRef for &DialogRef {
+    fn into_dialog_ref(self) -> String {
+        self.to_string()
+    }
+}
+
 // ── Condition::predicate integration ─────────────────────────────────────────
 
 impl crate::condition::Condition {

@@ -5,13 +5,12 @@ use sand_macros::component;
 
 #[component]
 pub fn welcome_dialog() -> Dialog {
-    Dialog::notice("example:welcome")
-        .title("Welcome")
-        .body(DialogBody::text("Choose your next action."))
+    Dialog::notice_local("welcome")
+        .title(Text::new("Welcome").gold())
+        .body(DialogBody::text(Text::new("Choose your next action.").aqua()))
         .button(
-            DialogButton::new("Start")
-                .action(DialogAction::run_command(cmd::function(
-                    ResourceLocation::new("example", "start").unwrap(),
-                )))
+            DialogButton::new(Text::new("Start").green()).action(DialogAction::run_function(
+                ResourceLocation::new("example", "start").unwrap(),
+            )),
         )
 }

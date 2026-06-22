@@ -193,24 +193,24 @@ pub fn show_mana() {
 // -- Dialog (1.21.5+ / 26.x) ----------------------------------------------
 
 /// A welcome dialog presented to players.
+#[component]
 pub fn welcome_dialog() -> Dialog {
-    Dialog::notice("arcane:welcome")
-        .title("Welcome to Arcane Pack")
-        .body(DialogBody::text("Choose an action below."))
+    Dialog::notice_local("welcome")
+        .title(Text::new("Welcome to Arcane Pack").gold())
+        .body(DialogBody::text(
+            Text::new("Choose an action below.").aqua(),
+        ))
         .button(
-            DialogButton::new("Cast Dash").action(DialogAction::run_function(
-                ResourceLocation::new("arcane", "cast_dash").unwrap(),
-            )),
+            DialogButton::new(Text::new("Cast Dash").aqua())
+                .action(DialogAction::run_function(cast_dash)),
         )
         .button(
-            DialogButton::new("Cast Fireball").action(DialogAction::run_function(
-                ResourceLocation::new("arcane", "cast_fireball").unwrap(),
-            )),
+            DialogButton::new(Text::new("Cast Fireball").red())
+                .action(DialogAction::run_function(cast_fireball)),
         )
         .button(
-            DialogButton::new("Toggle Shield").action(DialogAction::run_function(
-                ResourceLocation::new("arcane", "toggle_shield").unwrap(),
-            )),
+            DialogButton::new(Text::new("Toggle Shield").green())
+                .action(DialogAction::run_function(toggle_shield)),
         )
 }
 
@@ -463,6 +463,10 @@ mod tests {
         );
         assert!(json["buttons"].is_array());
         assert_eq!(json["buttons"].as_array().unwrap().len(), 3);
+        assert_eq!(
+            json["buttons"][0]["action"]["command"],
+            serde_json::Value::String("/function arcane:cast_dash".to_string())
+        );
     }
 
     #[test]
@@ -603,5 +607,27 @@ mod tests {
             .find(|r| r["path"] == "golden_apple_reward" && r["dir"] == "function")
             .expect("golden_apple_reward function");
         assert!(reward_fn["content"].as_str().unwrap().contains("Delicious"));
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Dialog component — local component path and typed function actions
+        // ─────────────────────────────────────────────────────────────────────
+
+        let dialog = records
+            .iter()
+            .find(|r| r["path"] == "welcome" && r["dir"] == "dialog")
+            .expect("welcome dialog component");
+        assert_eq!(dialog["namespace"], "arcane");
+        let dialog_json: serde_json::Value =
+            serde_json::from_str(dialog["content"].as_str().unwrap()).expect("dialog JSON");
+        assert_eq!(dialog_json["title"]["text"], "Welcome to Arcane Pack");
+        assert_eq!(dialog_json["title"]["color"], "gold");
+        assert_eq!(
+            dialog_json["buttons"][0]["action"]["command"],
+            "/function arcane:cast_dash"
+        );
+        assert!(
+            !dialog["content"].as_str().unwrap().contains("__sand_local"),
+            "dialog export should resolve local refs"
+        );
     }
 }

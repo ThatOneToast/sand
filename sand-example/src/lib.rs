@@ -10,6 +10,8 @@ pub mod join_example;
 pub use join_example::*;
 pub mod attribute_golden;
 pub use attribute_golden::*;
+pub mod arcane_golden;
+pub use arcane_golden::*;
 
 use sand_core::mcfunction;
 use sand_macros::{component, function, run_fn};

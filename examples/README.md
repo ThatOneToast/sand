@@ -15,6 +15,7 @@ standalone crates; scaffold a project and paste the relevant code into
 
 ## Advanced And Interop
 
+- `arcane_starter.rs` — complete dogfood datapack: mana, dash cooldown, actionbar, typed execute, storage, dialog, and interop escape hatch. Includes golden tests.
 - `interop_escape_hatches.rs` — the only beginner-facing raw command example; intentionally labeled as interop escape hatch.
 - `advancements.rs`, `recipes.rs`, `loot_tables.rs`, `custom_items.rs`, `particle_effects.rs`, `player_join.rs` — legacy reference files for specific component types. Useful during migration, but new beginner docs should prefer the typed files above.
 

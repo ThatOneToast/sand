@@ -157,6 +157,64 @@ impl std::ops::Not for Condition {
     }
 }
 
+// ── Ergonomic chaining ────────────────────────────────────────────────────────
+
+impl Condition {
+    /// Both `self` and `other` must hold (`All`).
+    ///
+    /// Flattens adjacent `All` chains so `a.and(b).and(c)` produces a single
+    /// `All([a, b, c])` rather than nested `All([All([a, b]), c])`.
+    ///
+    /// ```rust,ignore
+    /// let cond = MANA.of("@s").gte(25).and(DASH.ready("@s"));
+    /// ```
+    pub fn and(self, other: Condition) -> Condition {
+        match self {
+            Condition::All(mut conds) => {
+                conds.push(other);
+                Condition::All(conds)
+            }
+            _ => Condition::All(vec![self, other]),
+        }
+    }
+
+    /// Either `self` or `other` must hold (`Any`).
+    ///
+    /// Flattens adjacent `Any` chains so `a.or(b).or(c)` produces a single
+    /// `Any([a, b, c])`.
+    ///
+    /// ```rust,ignore
+    /// let cond = MANA.of("@s").gte(100).or(SHIELD.of("@s").is_true());
+    /// ```
+    pub fn or(self, other: Condition) -> Condition {
+        match self {
+            Condition::Any(mut conds) => {
+                conds.push(other);
+                Condition::Any(conds)
+            }
+            _ => Condition::Any(vec![self, other]),
+        }
+    }
+
+    /// `self` must hold and `other` must **not** hold.
+    ///
+    /// Equivalent to `self.and(!other)`.
+    ///
+    /// ```rust,ignore
+    /// let cond = MANA.of("@s").gte(25).and_not(CASTING.of("@s").is_true());
+    /// ```
+    pub fn and_not(self, other: Condition) -> Condition {
+        self.and(!other)
+    }
+
+    /// Either `self` holds or `other` must **not** hold.
+    ///
+    /// Equivalent to `self.or(!other)`.
+    pub fn or_not(self, other: Condition) -> Condition {
+        self.or(!other)
+    }
+}
+
 // ── Execute plan lowering ─────────────────────────────────────────────────────
 
 /// A single execute plan — a sequence of `if/unless …` clause strings to chain.
@@ -617,6 +675,105 @@ mod tests {
         assert_eq!(
             cmds,
             vec!["execute if data storage ex:state mana run say has mana"]
+        );
+    }
+
+    // ── Condition chaining ────────────────────────────────────────────────────
+
+    #[test]
+    fn and_produces_all() {
+        let a = score("@s", "mana", ScoreRange::Gte(25));
+        let b = flag("@s", "casting", false);
+        let cond = a.and(b);
+        let cmds = cond.execute_commands(false, "say ok");
+        assert_eq!(cmds.len(), 1);
+        assert!(cmds[0].contains("if score @s mana"), "got: {}", cmds[0]);
+        assert!(cmds[0].contains("if score @s casting"), "got: {}", cmds[0]);
+    }
+
+    #[test]
+    fn and_flattens_chain() {
+        let a = score("@s", "mana", ScoreRange::Gte(25));
+        let b = flag("@s", "casting", false);
+        let c = flag("@s", "sprinting", true);
+        // a.and(b).and(c) should be a flat All([a, b, c]), not All([All([a,b]), c])
+        let cond = a.and(b).and(c);
+        match &cond {
+            Condition::All(v) => assert_eq!(v.len(), 3, "expected flat All([a,b,c])"),
+            other => panic!("expected All, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn or_produces_any() {
+        let a = score("@s", "mana", ScoreRange::Gte(100));
+        let b = flag("@s", "shield", true);
+        let cond = a.or(b);
+        let cmds = cond.execute_commands(false, "say ok");
+        assert_eq!(cmds.len(), 2, "Any should expand to 2 commands");
+    }
+
+    #[test]
+    fn or_flattens_chain() {
+        let a = score("@s", "mana", ScoreRange::Gte(100));
+        let b = score("@s", "rage", ScoreRange::Gte(50));
+        let c = score("@s", "ki", ScoreRange::Gte(10));
+        let cond = a.or(b).or(c);
+        match &cond {
+            Condition::Any(v) => assert_eq!(v.len(), 3, "expected flat Any([a,b,c])"),
+            other => panic!("expected Any, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn and_not_negates_rhs() {
+        let a = score("@s", "mana", ScoreRange::Gte(25));
+        let b = flag("@s", "casting", true);
+        let cond = a.and_not(b);
+        let cmds = cond.execute_commands(false, "say ok");
+        assert_eq!(cmds.len(), 1);
+        assert!(cmds[0].contains("if score @s mana"), "got: {}", cmds[0]);
+        assert!(
+            cmds[0].contains("unless score @s casting"),
+            "got: {}",
+            cmds[0]
+        );
+    }
+
+    #[test]
+    fn chained_and_with_nested_or() {
+        let mana = score("@s", "mana", ScoreRange::Gte(25));
+        let dash = flag("@s", "dash", false);
+        let shield = flag("@s", "shield", true);
+        // mana AND (dash OR shield) → 2 commands
+        let cond = mana.and(dash.or(shield));
+        let cmds = cond.execute_commands(false, "say ok");
+        assert_eq!(cmds.len(), 2, "AND with nested OR: {cmds:?}");
+        assert!(
+            cmds.iter().all(|c| c.contains("if score @s mana")),
+            "both commands include mana: {cmds:?}"
+        );
+    }
+
+    #[test]
+    fn event_guard_chaining_pattern() {
+        static MANA2: crate::state::ScoreVar<i32> = crate::state::ScoreVar::new("mana");
+        static DASH2: crate::state::Cooldown =
+            crate::state::Cooldown::new("dash", crate::state::Ticks::new(60));
+        static CASTING2: crate::state::Flag = crate::state::Flag::new("casting");
+        let guard = MANA2
+            .of("@s")
+            .gte(25)
+            .and(DASH2.ready("@s"))
+            .and_not(CASTING2.of("@s").is_true());
+        let cmds = guard.execute_commands(false, "function ns:handler");
+        assert_eq!(cmds.len(), 1);
+        assert!(cmds[0].contains("if score @s mana"), "got: {}", cmds[0]);
+        assert!(cmds[0].contains("if score @s dash"), "got: {}", cmds[0]);
+        assert!(
+            cmds[0].contains("unless score @s casting"),
+            "got: {}",
+            cmds[0]
         );
     }
 }

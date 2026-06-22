@@ -1,256 +1,290 @@
 # Sand
 
-**Write Minecraft datapacks in Rust.**
+**A Rust-first framework for Minecraft Java datapacks and optional resource packs.**
 
-Sand is a toolkit that lets you define Minecraft datapack functions, advancements, recipes, loot tables, and more using type-safe Rust code. It compiles your project into a standard datapack that works with vanilla Minecraft (1.18+, targeting 1.21.x).
+Sand lets you write typed Rust builders for datapack behavior and compile them
+to vanilla Minecraft output: optimized `.mcfunction` files, component JSON,
+function tags, generated load/tick helpers, and version-correct pack layouts.
 
-## Features
+Sand's default path is typed APIs. Raw command strings still exist, but they are
+escape hatches for interop, modded commands, snapshot syntax, future Minecraft
+features, and advanced debugging.
 
-- **Type-safe commands** — generated enums for every `Item`, `Block`, `EntityType`, `Biome`, `Enchantment`, and `SoundEvent` in vanilla Minecraft, plus typed command builders for `execute`, `give`, `kill`, selectors, and more.
-- **Proc macros** — `#[function]` turns a Rust function into a `.mcfunction` file. `#[component]` registers advancements, recipes, loot tables, and other datapack elements. `#[component(Tick)]` and `#[component(Load)]` hook into the game loop.
-- **Auto-codegen from Minecraft data** — Sand downloads the official server jar and runs Minecraft's data generator to produce Rust types that exactly match the version you're targeting. No stale hand-maintained tables.
-- **CLI tooling** — `sand new`, `sand build`, `sand run` (launches a local test server), and `sand clean`.
-- **Full datapack component library** — advancements with triggers/criteria/rewards, shaped/shapeless/cooking/stonecutting/smithing recipes, loot tables with pools/conditions/functions, predicates, item modifiers, tags, and custom items (1.21+ item components).
-- **Escape hatches** — every component type supports raw JSON for mod compatibility and edge cases not yet covered by typed APIs.
+## Design Principles
 
-## Quick start
+- Typed builders first: commands, text, selectors, state, conditions, dialogs,
+  items, NBT, events, recipes, loot tables, predicates, tags, and resource refs.
+- Minecraft output remains ordinary datapack/resource-pack files.
+- Version behavior flows through `VersionProfile` instead of scattered checks.
+- Raw strings are explicit escape hatches, not the beginner workflow.
 
-### Prerequisites
+## Quick Start
 
-- **Rust** 1.85+ (edition 2024)
-- **Java** 21+ (for Minecraft's data generator — runs automatically during `cargo build`)
+### Requirements
 
-### Install the CLI
+- Rust 1.93+ with edition 2024 support
+- Java 21+ for Minecraft data generation during builds
+- Network access on first build so Sand can cache Minecraft assets
 
-> [!warning]
-Currently not available via `cargo install`.
+The CLI is currently built from this workspace; it is not published with a
+stable `cargo install sand` flow yet.
+
 ```sh
-cargo install sand
-```
-
-### Create a project
-
-```sh
-sand new my_pack
+cargo run -p sand -- new my_pack
 cd my_pack
+cargo run -p sand -- build
 ```
 
-This scaffolds a new Rust project with `sand.toml`, `build.rs`, and a starter `src/lib.rs`.
-
-### Write your datapack
+### Typed Datapack Code
 
 ```rust
-use sand_core::mcfunction;
+use sand_core::prelude::*;
 use sand_macros::{component, function};
 
-/// A simple function — compiled to `data/my_pack/function/greet.mcfunction`
-#[function]
-pub fn greet() {
-    mcfunction! {
-        r#"tellraw @a {"text":"Hello from Sand!","color":"gold"}"#;
-    }
-}
+static MANA: ScoreVar<i32> = ScoreVar::new("mana");
+static CASTING: Flag = Flag::new("casting");
+static DASH: Cooldown = Cooldown::new("dash", Ticks::seconds(3));
+static PLAYER_DATA: StorageVar<i32> = StorageVar::new("example:data", "player.mana");
 
-/// Runs every tick — automatically added to `minecraft:tick` function tag
-#[component(Tick)]
-pub fn tick_counter() {
-    mcfunction! {
-        "scoreboard players add @a tick_count 1";
-    }
-}
-
-/// Runs once on load — automatically added to `minecraft:load` function tag
 #[component(Load)]
-pub fn on_load() {
+pub fn load() {
     mcfunction! {
-        "scoreboard objectives add tick_count dummy";
+        MANA.define();
+        CASTING.define();
+        DASH.define();
+        PLAYER_DATA.set_int(100);
     }
 }
-```
 
-### Build
-
-```sh
-sand build           # writes to dist/my_pack/
-sand build --release # also produces dist/my_pack.zip
-```
-
-The output is a standard Minecraft datapack. Copy the folder (or zip) into your world's `datapacks/` directory.
-
-### Test locally
-
-```sh
-sand run             # builds, downloads server jar, starts a local server
-sand run --offline   # sets online-mode=false for easier testing
-```
-
-## Architecture
-
-Sand is a five-crate workspace:
-
-| Crate | Role |
-|---|---|
-| **`sand`** | CLI binary — `new`, `build`, `run`, `clean`, `version` |
-| **`sand-core`** | Core types, traits, command builders, and all datapack component structs |
-| **`sand-macros`** | Proc macros — `#[function]`, `#[component]`, `run_fn!` |
-| **`sand-build`** | Build pipeline — downloads server jars, runs data generator, produces Rust codegen |
-| **`sand-example`** | Integration tests and reference examples |
-
-### How it works
-
-1. **`build.rs`** calls `sand_build::generate()` which downloads the Minecraft server jar, runs its data generator, and writes `registries.rs`, `block_states.rs`, and `commands.rs` to `$OUT_DIR`.
-2. **`sand-core`** `include!`s those generated files, giving you typed enums and builders.
-3. **`sand-macros`** provides `#[function]` and `#[component]` which expand into `inventory::submit!()` registrations — no manual wiring needed.
-4. **`sand build`** compiles your crate, runs the `sand_export` binary, collects all registered components as JSON, and writes the datapack directory structure.
-
-## Macros
-
-### `#[function]`
-
-Turns a Rust function into a `.mcfunction` file. The function name becomes the resource path.
-
-```rust
-#[function]
-pub fn give_diamonds() {
-    mcfunction! {
-        "give @a minecraft:diamond 64";
-    }
-}
-// Produces: data/<namespace>/function/give_diamonds.mcfunction
-```
-
-### `#[component]`
-
-Registers a datapack component (advancement, recipe, loot table, etc.).
-
-```rust
-#[component]
-pub fn my_advancement() -> sand_core::Advancement {
-    use sand_core::*;
-    Advancement::new("my_pack:my_advancement".parse().unwrap())
-        .criterion("has_diamond", Criterion::new(
-            AdvancementTrigger::inventory_changed(vec![Item::Diamond])
-        ))
-        .display(AdvancementDisplay::new(
-            AdvancementIcon::new(Item::Diamond),
-            "Diamond Collector",
-            "Obtain a diamond",
-        ))
-}
-```
-
-### `#[component(Tick)]` / `#[component(Load)]`
-
-Shorthand for registering a function that runs every tick or once on load:
-
-```rust
 #[component(Tick)]
-pub fn my_tick() {
-    mcfunction! { "scoreboard players add @a timer 1"; }
+pub fn tick() {
+    mcfunction! {
+        DASH.tick(Selector::all_players());
+        TypedExecute::as_players()
+            .when(all![
+                MANA.of("@s").gte(25),
+                any![DASH.ready("@s"), PLAYER_DATA.exists()],
+                CASTING.of("@s").is_false(),
+            ])
+            .run(Actionbar::show(
+                Selector::self_(),
+                Text::new("Dash ready").aqua().bold(true),
+            ));
+    }
 }
-```
 
-### `#[component(Tag = "ns:name")]`
-
-Hook into any function tag — useful for inter-datapack APIs:
-
-```rust
-#[component(Tag = "my_lib:on_player_death")]
-pub fn handle_death() {
-    mcfunction! { "say A player died!"; }
-}
-```
-
-### `run_fn!`
-
-Define and call an inline function in one expression:
-
-```rust
 #[function]
-pub fn main_fn() {
-    sand_core::cmd::Execute::new()
-        .as_(sand_core::cmd::Selector::all_players())
-        .run(run_fn!("my_pack:helper" {
-            "say helper function";
-        }));
+pub fn start() {
+    mcfunction! {
+        cmd::tellraw(
+            Selector::all_players(),
+            Text::new("Hello from Sand").gold().bold(true),
+        );
+    }
+}
+
+#[component]
+pub fn welcome_dialog() -> Dialog {
+    Dialog::notice("example:welcome")
+        .title("Welcome")
+        .body(DialogBody::text("Choose your next action."))
+        .button(
+            DialogButton::new("Start")
+                .action(DialogAction::run_command(cmd::function(
+                    ResourceLocation::new("example", "start").unwrap(),
+                )))
+        )
+}
+```
+
+## Typed State
+
+Use `ScoreVar<T>`, `Flag`, `Timer`, `Cooldown`, `Ticks`, and `StorageVar<T>`
+instead of writing scoreboard or storage commands directly.
+
+```rust
+static HEALTH: ScoreVar<i32> = ScoreVar::new("health");
+static HAS_DASH: Flag = Flag::new("has_dash");
+
+mcfunction! {
+    HEALTH.define();
+    HEALTH.set("@s", 20);
+    HEALTH.add("@s", 1);
+    HAS_DASH.enable("@s");
+}
+```
+
+## Typed Conditions
+
+Conditions lower into valid `execute if/unless` plans. Nested `any!` inside
+`all!` expands into multiple legal commands.
+
+```rust
+let cond = all![
+    MANA.of("@s").between(10, 100),
+    any![DASH.ready("@s"), Condition::predicate("example:can_dash")],
+    CASTING.of("@s").is_false(),
+];
+
+let commands = TypedExecute::as_players().when(cond).run(cmd::function(
+    ResourceLocation::new("example", "dash").unwrap(),
+));
+```
+
+## Typed Execute
+
+Use `TypedExecute` for common chains and `ExecuteExt::when`/`unless` for typed
+conditions:
+
+```rust
+TypedExecute::as_players_at_self()
+    .when(MANA.of("@s").gte(25))
+    .run(
+        cmd::playsound_player(ResourceLocation::new("minecraft", "entity.player.levelup").unwrap())
+            .targets(Selector::self_()),
+    );
+```
+
+## Typed Text And HUD Output
+
+Use `Text`/`TextComponent`, `Actionbar`, `Title`, and `Bossbar` builders instead
+of hand-written JSON.
+
+```rust
+cmd::tellraw(
+    Selector::all_players(),
+    Text::new("Quest complete").green().bold(true),
+);
+
+Title::of(Selector::self_())
+    .title(Text::new("Level Up").gold())
+    .subtitle(Text::new("+1 skill point").aqua())
+    .build();
+```
+
+## Dialogs
+
+Dialogs are typed datapack components and are version-gated through
+`VersionProfile::supports_dialogs()`.
+
+```rust
+let profile = VersionProfile::latest();
+if profile.supports_dialogs() {
+    Dialog::notice("example:welcome")
+        .title("Welcome")
+        .body(DialogBody::text("Pick a path."))
+        .button(DialogButton::new("Start"));
+}
+```
+
+## Storage And NBT
+
+Use `StorageVar<T>` and `NbtPath` for typed storage paths. Use scoreboards for
+fast integer state and storage for structured data, strings, lists, and
+cross-function payloads.
+
+```rust
+static DATA: StorageVar<i32> = StorageVar::new("example:data", "players.self.mana");
+
+mcfunction! {
+    DATA.set_int(100);
+    DATA.as_path().key("regen").set_bool(true);
 }
 ```
 
 ## Components
 
-Sand provides typed Rust structs for all major datapack element types:
+Sand provides typed Rust structs for core datapack components:
 
-- **`McFunction`** — list of command strings
-- **`Advancement`** — triggers, criteria, display, rewards, telemetry
-- **`ShapedRecipe` / `ShapelessRecipe`** — crafting recipes
-- **`CookingRecipe`** — smelting, blasting, smoking, campfire cooking
-- **`StonecuttingRecipe` / `SmithingTransformRecipe` / `SmithingTrimRecipe`**
-- **`LootTable`** — pools, entries, conditions, functions
-- **`Predicate`** — condition wrappers
-- **`ItemModifier`** — loot modification functions
-- **`Tag`** — block, item, entity, and function tags
-- **`CustomItem`** — 1.21+ item component system (food, equipment, tools, etc.)
+- Advancements and criteria
+- Recipes
+- Loot tables and item modifiers
+- Predicates
+- Function, item, block, and entity tags
+- Dialogs
+- Damage types, enchantments, jukebox songs, trims, banner patterns, wolf
+  variants, chat types, and worldgen components
+- Custom item component builders
 
-## Configuration
+## Version Support
 
-Your project is configured via `sand.toml`:
+Sand targets modern Minecraft Java datapacks, including the 1.19 through 1.21.x
+series and the emerging 26.x series. Known pack formats and feature gates live
+in `VersionProfile`; unknown future 26.x details resolve through fallback
+capabilities until confirmed.
 
-```toml
-[pack]
-namespace   = "my_pack"
-description = "A cool datapack"
-mc_version  = "1.21.4"
-# pack_format is derived automatically; uncomment to override:
-# pack_format = 61
+```rust
+let profile = VersionProfile::resolve(&MinecraftVersion::parse("1.21.5").unwrap()).unwrap();
+assert!(profile.supports_feature("dialogs"));
 ```
 
-## CLI reference
+## Escape Hatches
 
-| Command | Description |
+Raw strings remain available, but use them deliberately:
+
+```rust
+// Escape hatch: another datapack exposes this as its public API.
+cmd::raw("function other_pack:api/do_special_thing");
+```
+
+Use raw command or JSON hatches for interop, modded commands, snapshot-only
+syntax not modeled by Sand yet, unknown future features, and debugging generated
+output. Prefer typed builders for normal datapack logic.
+
+## CLI
+
+| Command | Purpose |
 |---|---|
-| `sand new <name>` | Create a new project (with `--mc_version`, `--description`) |
-| `sand init` | Initialize in the current directory |
-| `sand build` | Compile to datapack in `dist/` |
-| `sand build --release` | Compile + zip for distribution |
-| `sand run` | Build + start a local Minecraft server |
-| `sand run --offline` | Same, with `online-mode=false` |
-| `sand run --ram 8G` | Set JVM heap size |
-| `sand clean` | Remove `dist/` |
-| `sand clean --cargo` | Remove `dist/` and `target/` |
-| `sand version` | Print version |
+| `sand new <name>` | Create a Sand project |
+| `sand init` | Initialize the current directory |
+| `sand build` | Compile to `dist/` |
+| `sand build --release` | Compile and zip output |
+| `sand run` | Build and run a local test server |
+| `sand clean` | Remove generated output |
+| `sand version` | Print CLI version |
 
-## Requirements
+## Architecture
 
-- **Rust** 1.85+ with edition 2024 support
-- **Java** 21+ (used at build time to run Minecraft's data generator)
-- **Internet access** on first build (to download the Minecraft server jar; cached afterwards in `~/.sand/cache/`)
+This workspace currently has eight crates:
 
+| Crate | Role |
+|---|---|
+| `sand` | CLI binary |
+| `sand-core` | Typed framework APIs, component export, state, conditions, version model |
+| `sand-commands` | Typed Minecraft command builders |
+| `sand-components` | Typed datapack JSON/component builders |
+| `sand-macros` | `#[function]`, `#[component]`, event, schedule, and item macros |
+| `sand-build` | Minecraft data generator and codegen pipeline |
+| `sand-resourcepack` | Optional resource-pack and HUD helpers |
+| `sand-example` | Integration tests and reference coverage |
 
-## AI Usage
+Build flow:
 
-This project was developed with the assistance of AI tools throug various parts of the codebase — including
-implementation, documentation, and design exploration.
+1. `sand-build` resolves the target Minecraft version and generates Rust types.
+2. `sand-core` and `sand-commands` expose typed builders over generated data.
+3. `sand-macros` registers functions and components through inventory.
+4. `sand build` collects registered output into datapack/resource-pack files.
 
-All AI-generated output was reviewed, tested, and integrated by the project
-maintainer(s). As with any software, you are encouraged to audit the code
-yourself rather than taking correctness for granted. 
+## Examples
 
-That said, not everything may have been caught during review. Every effort was
-made to audit AI-generated contributions thoroughly, but subtle bugs, incorrect
-assumptions, or unidiomatic patterns may still exist. If you spot something
-that looks wrong, misleading, or unsafe — please open an issue. Community
-feedback is genuinely appreciated and helps improve the quality and
-trustworthiness of the project for everyone.
+See `examples/README.md` and `docs/examples.md`. Beginner examples use typed
+APIs first; raw examples are quarantined under escape-hatch interop docs.
 
-Minecraft is a large and complex game — spanning hundreds of components,
-commands, data formats, and version-specific behaviors. AI tooling can
-meaningfully accelerate development across that surface area, but it also
-introduces a higher chance of subtle oversights: things like incorrect component
-structure, outdated or invalid command syntax, wrong argument ordering, or
-assumptions that don't hold across versions. If something doesn't behave as
-expected in-game, there's a reasonable chance an AI-assisted part of the
-implementation is to blame. Opening an issue with details goes a long way.
+## Contributing And Testing
 
+Run the same checks used during framework work:
+
+```sh
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo test --workspace --all-features
+cargo test -p sand-macros
+cargo doc --workspace --all-features --no-deps
+```
+
+Minecraft is large and version-sensitive. Changes that add public APIs should
+include focused tests for generated command strings, component JSON, paths, and
+version behavior.
 
 ## License
 

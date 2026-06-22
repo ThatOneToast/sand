@@ -1153,7 +1153,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                     make: #fn_make_ident,
                     dispatch: ::sand_core::EventDispatch::Advancement {
                         make_trigger: #trigger_ident,
-                        revoke: false,
+                        revoke: (|| false) as fn() -> bool,
                     },
                 });
             }

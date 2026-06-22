@@ -20,6 +20,7 @@
 //! cargo run -p arcane_pack
 //! ```
 
+use sand_core::EventPlayer;
 use sand_core::events::ItemConsumeEvent;
 use sand_core::prelude::*;
 use sand_macros::{component, event, function};
@@ -220,10 +221,10 @@ pub fn welcome_dialog() -> Dialog {
 
 /// Called via advancement trigger when the player eats a golden apple.
 #[event(dispatch = "advancement")]
-pub fn on_eat_golden_apple(_event: ItemConsumeEvent) {
-    MANA.add(Selector::self_(), 10);
+pub fn on_eat_golden_apple(event: ItemConsumeEvent) {
+    MANA.add(event.player(), 10);
     cmd::tellraw(
-        Selector::self_(),
+        event.player(),
         Text::new("Golden apple restored 10 mana!").green(),
     );
 }
@@ -384,5 +385,48 @@ mod tests {
         );
         assert!(json["buttons"].is_array());
         assert_eq!(json["buttons"].as_array().unwrap().len(), 3);
+    }
+
+    #[test]
+    fn golden_event_advancement_output() {
+        let json_str = sand_core::export_components_json("arcane");
+        let records: Vec<serde_json::Value> =
+            serde_json::from_str(&json_str).expect("valid JSON from export");
+
+        // ── Function record for the golden apple event handler ──────────────
+        let handler_fn = records
+            .iter()
+            .find(|r| r["path"] == "on_eat_golden_apple" && r["dir"] == "function")
+            .expect("handler function record");
+        assert_eq!(handler_fn["ext"], "mcfunction");
+        let content = handler_fn["content"].as_str().unwrap();
+        assert!(
+            content.contains("mana"),
+            "handler fn should contain mana update"
+        );
+        assert!(
+            content.contains("Golden apple"),
+            "handler fn should contain tellraw message"
+        );
+
+        // ── Advancement record for the golden apple event ───────────────────
+        let advancement = records
+            .iter()
+            .find(|r| r["path"] == "on_eat_golden_apple" && r["dir"] == "advancement")
+            .expect("advancement record");
+        assert_eq!(advancement["ext"], "json");
+        let adv_json: serde_json::Value =
+            serde_json::from_str(advancement["content"].as_str().unwrap())
+                .expect("valid advancement JSON");
+        // Trigger should be consume_item (from ItemConsumeEvent)
+        assert_eq!(
+            adv_json["criteria"]["event"]["trigger"],
+            "minecraft:consume_item"
+        );
+        // Rewards should point to the handler
+        assert_eq!(
+            adv_json["rewards"]["function"],
+            "arcane:on_eat_golden_apple"
+        );
     }
 }

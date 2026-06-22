@@ -1,6 +1,8 @@
 //! Runtime event handle API for enabling/disabling/resetting events.
 
 use crate::condition::{Condition, ScoreRange};
+use crate::function::SAND_LOCAL_NS;
+use std::any::TypeId;
 use std::marker::PhantomData;
 use std::sync::OnceLock;
 
@@ -37,8 +39,10 @@ use std::sync::OnceLock;
 /// When migrating from [`RawEventHandle`], issue a one-time scoreboard rename
 /// in your load function.
 pub struct EventHandle<E> {
-    /// Lazily-initialised objective name (computed from `type_name::<E>()`).
+    /// Lazily-initialised scoreboard objective name.
     objective: OnceLock<String>,
+    /// Lazily-resolved advancement sentinel path (`__sand_local:<path>`).
+    adv_path: OnceLock<String>,
     /// Variance: `fn() -> E` keeps the handle `Sync` even for non-`Sync` `E`,
     /// since no `E` value is ever stored.
     _marker: PhantomData<fn() -> E>,
@@ -52,6 +56,7 @@ impl<E> EventHandle<E> {
     pub const fn new() -> Self {
         Self {
             objective: OnceLock::new(),
+            adv_path: OnceLock::new(),
             _marker: PhantomData,
         }
     }
@@ -96,22 +101,69 @@ impl<E> EventHandle<E> {
         )
     }
 
-    /// `advancement revoke <selector> only <advancement_id>` — re-arm the trigger.
+    /// Revoke (re-arm) the advancement for this event.
     ///
-    /// Call this to allow the advancement to fire again after it has been granted.
-    pub fn reset(&self, advancement_id: &str, selector: impl std::fmt::Display) -> String {
-        format!("advancement revoke {selector} only {advancement_id}")
+    /// Emits `advancement revoke <selector> only <ns>:<path>`.  The advancement
+    /// resource location is resolved from the [`EventPathEntry`] registry
+    /// populated by the `#[event]` macro; the namespace sentinel is replaced at
+    /// export time by [`crate::component::export_components_json`].
+    ///
+    /// Requires `E: 'static` for the `TypeId` lookup.
+    pub fn revoke(&self, selector: impl std::fmt::Display) -> String
+    where
+        E: 'static,
+    {
+        format!(
+            "advancement revoke {selector} only {}",
+            self.adv_sentinel::<E>()
+        )
     }
 
-    /// `advancement grant <selector> only <advancement_id>` — manually fire the trigger.
-    pub fn grant(&self, advancement_id: &str, selector: impl std::fmt::Display) -> String {
-        format!("advancement grant {selector} only {advancement_id}")
+    /// Alias for [`revoke`](EventHandle::revoke).
+    pub fn reset(&self, selector: impl std::fmt::Display) -> String
+    where
+        E: 'static,
+    {
+        self.revoke(selector)
+    }
+
+    /// Grant the advancement for this event (manually fire the trigger logic).
+    ///
+    /// Emits `advancement grant <selector> only <ns>:<path>`.
+    pub fn grant(&self, selector: impl std::fmt::Display) -> String
+    where
+        E: 'static,
+    {
+        format!(
+            "advancement grant {selector} only {}",
+            self.adv_sentinel::<E>()
+        )
     }
 
     pub(crate) fn objective_name(&self) -> &str {
         self.objective.get_or_init(|| {
             let h = stable_hash(std::any::type_name::<E>());
             format!("__ev_{h}")
+        })
+    }
+
+    /// Look up the advancement path from the `EventPathEntry` inventory and
+    /// return a local sentinel `__sand_local:<path>` for namespace resolution.
+    fn adv_sentinel<F: 'static>(&self) -> &str {
+        self.adv_path.get_or_init(|| {
+            use crate::inventory;
+            let tid = TypeId::of::<F>();
+            for entry in inventory::iter::<crate::function::EventPathEntry>() {
+                if entry.type_id == tid {
+                    return format!("{SAND_LOCAL_NS}:{}", entry.path);
+                }
+            }
+            // Fallback: no EventPathEntry found (e.g. tick-poll event or unregistered type).
+            // Use type-name hash so the command is at least stable.
+            format!(
+                "{SAND_LOCAL_NS}:__unknown_{}",
+                stable_hash(std::any::type_name::<F>())
+            )
         })
     }
 }

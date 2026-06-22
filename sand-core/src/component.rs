@@ -123,6 +123,17 @@ pub fn export_components_json(namespace: &str) -> String {
 
         match &desc.dispatch {
             // ── Advancement-backed ────────────────────────────────────────────
+            //
+            // Generates three resources per event:
+            //   function/<path>/body    — user-authored handler commands (pure)
+            //   function/<path>         — entry: revoke → guard → call body
+            //   advancement/<path>      — fires the trigger; reward calls entry
+            //
+            // Separation rationale:
+            //   • body is testable independently (pure user commands, no plumbing)
+            //   • entry's revoke always runs before guard, so AfterFire events
+            //     re-arm even when the guard rejects execution on a given tick
+            //   • Any-condition guards correctly expand into multiple guard lines
             EventDispatch::Advancement {
                 make_trigger,
                 revoke,
@@ -133,36 +144,53 @@ pub fn export_components_json(namespace: &str) -> String {
                     .map(|s| s.to_string())
                     .unwrap_or_else(|| format!("{}:{}", namespace, desc.path));
 
-                let mut body = commands;
-                // Insert in reverse order so the final mcfunction reads:
-                //   1. revoke (always — even when guard fails, so the event can re-fire)
-                //   2. execute unless <guard> run return 0
-                //   3. handler commands
-                if let Some(make_guard) = guard
-                    && let Some(guard_cmd) = make_guard()
-                {
-                    body.insert(0, format!("execute unless {guard_cmd} run return 0"));
-                }
+                let body_path = format!("{}/body", desc.path);
+                let body_fn_ref = format!("{namespace}:{body_path}");
+
+                // ── Body function: pure user commands ─────────────────────────
+                records.push(ComponentRecord {
+                    namespace: namespace.to_string(),
+                    dir: "function".to_string(),
+                    path: body_path,
+                    ext: "mcfunction".to_string(),
+                    content: commands.join("\n"),
+                });
+
+                // ── Entry function: revoke → guard(s) → call body ─────────────
+                let mut entry: Vec<String> = Vec::new();
                 if revoke() {
-                    body.insert(0, format!("advancement revoke @s only {}", advancement_id));
+                    entry.push(format!("advancement revoke @s only {advancement_id}"));
                 }
+                if let Some(make_guard) = guard
+                    && let Some(cond) = make_guard()
+                {
+                    // execute_commands(true, "return 0") correctly expands
+                    // Any/OR guards into multiple guard lines and All/AND into
+                    // one compound line — no more "unless if" syntax errors.
+                    entry.extend(cond.execute_commands(true, "return 0"));
+                }
+                entry.push(format!("function {body_fn_ref}"));
+
                 records.push(ComponentRecord {
                     namespace: namespace.to_string(),
                     dir: "function".to_string(),
                     path: desc.path.to_string(),
                     ext: "mcfunction".to_string(),
-                    content: body.join("\n"),
+                    content: entry.join("\n"),
                 });
 
+                // ── Advancement: trigger fires entry ──────────────────────────
                 let trigger = make_trigger();
-                let fn_ref = format!("{}:{}", namespace, desc.path);
                 let advancement = sand_components::Advancement::new(
                     advancement_id
                         .parse()
                         .expect("invalid advancement ID in #[event]"),
                 )
                 .criterion("event", sand_components::Criterion::new(trigger))
-                .rewards(sand_components::AdvancementRewards::new().function(fn_ref));
+                .rewards(
+                    sand_components::AdvancementRewards::new()
+                        .function(format!("{namespace}:{}", desc.path)),
+                );
 
                 let content = serde_json::to_string_pretty(&advancement.to_json()).unwrap();
                 let rl = advancement.resource_location();
@@ -276,32 +304,47 @@ pub fn export_components_json(namespace: &str) -> String {
                 revoke,
             } => {
                 if let Some(trigger) = make_trigger() {
-                    // Advancement-backed custom event.
+                    // Advancement-backed custom (SandEvent) event.
+                    // Same entry/body split as the typed Advancement arm.
                     let advancement_id = desc
                         .id_override
                         .map(|s| s.to_string())
                         .unwrap_or_else(|| format!("{}:{}", namespace, desc.path));
 
-                    let mut body = commands;
+                    let body_path = format!("{}/body", desc.path);
+                    let body_fn_ref = format!("{namespace}:{body_path}");
+
+                    records.push(ComponentRecord {
+                        namespace: namespace.to_string(),
+                        dir: "function".to_string(),
+                        path: body_path,
+                        ext: "mcfunction".to_string(),
+                        content: commands.join("\n"),
+                    });
+
+                    let mut entry: Vec<String> = Vec::new();
                     if (revoke)() {
-                        body.insert(0, format!("advancement revoke @s only {}", advancement_id));
+                        entry.push(format!("advancement revoke @s only {advancement_id}"));
                     }
+                    entry.push(format!("function {body_fn_ref}"));
                     records.push(ComponentRecord {
                         namespace: namespace.to_string(),
                         dir: "function".to_string(),
                         path: desc.path.to_string(),
                         ext: "mcfunction".to_string(),
-                        content: body.join("\n"),
+                        content: entry.join("\n"),
                     });
 
-                    let fn_ref = format!("{}:{}", namespace, desc.path);
                     let advancement = sand_components::Advancement::new(
                         advancement_id
                             .parse()
                             .expect("invalid advancement ID in custom #[event]"),
                     )
                     .criterion("event", sand_components::Criterion::new(trigger))
-                    .rewards(sand_components::AdvancementRewards::new().function(fn_ref));
+                    .rewards(
+                        sand_components::AdvancementRewards::new()
+                            .function(format!("{namespace}:{}", desc.path)),
+                    );
 
                     let content = serde_json::to_string_pretty(&advancement.to_json()).unwrap();
                     let rl = advancement.resource_location();
@@ -717,27 +760,39 @@ pub fn export_components_json(namespace: &str) -> String {
         });
     }
 
-    // ── Resolve local function sentinel → real namespace ─────────────────────
-    // cmd::call() emits `function __sand_local:<path>` for bare (un-namespaced)
-    // functions.  Now that we know the pack namespace, substitute it in.
+    // ── Resolve local sentinels → real namespace ──────────────────────────────
+    // Two sentinel patterns written by Sand-generated code:
+    //   `function __sand_local:<path>`         — from cmd::call(fn_ptr) for bare functions
+    //   `... only __sand_local:<path>`         — from EventHandle::revoke/grant
+    // Both are resolved to the pack namespace here, after all records are collected.
     for rec in &mut records {
         if rec.ext == "mcfunction" {
-            rec.content = resolve_local_fns(&rec.content, namespace);
+            rec.content = resolve_local_refs(&rec.content, namespace);
         }
     }
+
+    // Sanity: no sentinel should survive into the final output.
+    debug_assert!(
+        !records
+            .iter()
+            .any(|r| r.content.contains(crate::function::SAND_LOCAL_NS)),
+        "BUG: unresolved __sand_local sentinel found in exported records"
+    );
 
     serde_json::to_string_pretty(&records).unwrap()
 }
 
 // ── Private helpers ───────────────────────────────────────────────────────────
 
-/// Replace every `function __sand_local:<path>` sentinel in an mcfunction body
-/// with `function <namespace>:<path>`.
-fn resolve_local_fns(content: &str, namespace: &str) -> String {
-    content.replace(
-        &format!("function {}:", crate::function::SAND_LOCAL_NS),
-        &format!("function {namespace}:"),
-    )
+/// Replace every `__sand_local:<path>` sentinel in an mcfunction content string
+/// with `<namespace>:<path>`.
+///
+/// Handles both patterns:
+/// - `function __sand_local:path` — bare function pointer calls
+/// - `... only __sand_local:path` — advancement revoke/grant from EventHandle
+fn resolve_local_refs(content: &str, namespace: &str) -> String {
+    let sentinel = crate::function::SAND_LOCAL_NS;
+    content.replace(&format!("{sentinel}:"), &format!("{namespace}:"))
 }
 
 /// Compute a stable 8-hex-char key for a schedule path (FNV-1a 32-bit).

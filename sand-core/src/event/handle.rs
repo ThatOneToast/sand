@@ -39,6 +39,13 @@ impl EventHandle {
         }
     }
 
+    /// `scoreboard objectives add <obj> dummy` — register the objective.
+    ///
+    /// Call this in your `load` function.
+    pub fn define(&self) -> String {
+        format!("scoreboard objectives add {} dummy", self.objective_name())
+    }
+
     /// Build a [`Condition`] that checks whether this event is enabled for `@s`.
     ///
     /// ```rust,ignore

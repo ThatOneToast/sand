@@ -324,6 +324,36 @@ impl From<ItemEnchantTrigger> for AdvancementTrigger {
     }
 }
 
+// ─── UsingItemTrigger ─────────────────────────────────────────────────────
+
+/// Fires when the player is actively using (holding right-click) an item.
+#[derive(Clone, Debug, Default)]
+pub struct UsingItemTrigger {
+    item: Option<::serde_json::Value>,
+}
+
+impl UsingItemTrigger {
+    pub fn new() -> Self {
+        Self { item: None }
+    }
+
+    /// Filter by the item being used.
+    pub fn item(mut self, predicate: impl Into<::serde_json::Value>) -> Self {
+        self.item = Some(predicate.into());
+        self
+    }
+
+    pub fn build(self) -> AdvancementTrigger {
+        AdvancementTrigger::UsingItem { item: self.item }
+    }
+}
+
+impl From<UsingItemTrigger> for AdvancementTrigger {
+    fn from(t: UsingItemTrigger) -> Self {
+        t.build()
+    }
+}
+
 // ─── KillEntityNearStructureTrigger (KilledByCrossbow) ──────────────────────
 
 /// Fires when the player kills multiple unique entity types with a crossbow.

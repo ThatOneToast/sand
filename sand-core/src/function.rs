@@ -292,8 +292,10 @@ inventory::collect!(TempScoreboard);
 use std::sync::Mutex;
 use std::sync::OnceLock;
 
-fn dyn_fn_registry() -> &'static Mutex<Vec<(String, Vec<String>)>> {
-    static REGISTRY: OnceLock<Mutex<Vec<(String, Vec<String>)>>> = OnceLock::new();
+type DynFnEntry = (String, Vec<String>);
+
+fn dyn_fn_registry() -> &'static Mutex<Vec<DynFnEntry>> {
+    static REGISTRY: OnceLock<Mutex<Vec<DynFnEntry>>> = OnceLock::new();
     REGISTRY.get_or_init(|| Mutex::new(Vec::new()))
 }
 

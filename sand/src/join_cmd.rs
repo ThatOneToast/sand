@@ -4,7 +4,6 @@ use crate::config::SandConfig;
 
 pub struct JoinArgs {
     pub local: bool,
-    pub singleplayer: bool,
 }
 
 pub fn run(args: JoinArgs) -> anyhow::Result<()> {
@@ -12,11 +11,11 @@ pub fn run(args: JoinArgs) -> anyhow::Result<()> {
     if !config_path.exists() {
         bail!("sand.toml not found in current directory");
     }
-    let config: SandConfig = toml::from_str(&std::fs::read_to_string(&config_path)?)
+    let _config: SandConfig = toml::from_str(&std::fs::read_to_string(&config_path)?)
         .context("failed to parse sand.toml")?;
 
     if args.local {
-        if let Some(resourcepack) = &config.resourcepack {}
+        // TODO: local join logic
     }
     Ok(())
 }

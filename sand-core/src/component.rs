@@ -109,15 +109,13 @@ pub fn export_components_json(namespace: &str) -> String {
     // Shared armor watch map — populated by both EventDescriptor ArmorEquip/
     // ArmorUnequip dispatch and the legacy ArmorEventDescriptor entries.
     // (slot, item_id, custom_data_snbt, Vec<(is_equip, path)>)
-    let mut armor_watch_map: BTreeMap<
-        String,
-        (
-            ArmorSlot,
-            Option<&'static str>,
-            Option<&'static str>,
-            Vec<(bool, &'static str)>, // (is_equip, path)
-        ),
-    > = BTreeMap::new();
+    type ArmorWatchEntry = (
+        ArmorSlot,
+        Option<&'static str>,
+        Option<&'static str>,
+        Vec<(bool, &'static str)>,
+    );
+    let mut armor_watch_map: BTreeMap<String, ArmorWatchEntry> = BTreeMap::new();
 
     for desc in inventory::iter::<EventDescriptor>() {
         // Always emit the handler function body first.

@@ -341,60 +341,111 @@ fn lookup(major: u32, minor: u32, patch: u32) -> VersionCaps {
     match (major, minor, patch) {
         // ── 1.21.5+ — dialogs introduced ─────────────────────────────────────
         (1, 21, p) if p >= 5 => VersionCaps {
-            data_fmt: 61, res_fmt: 46, dialogs: true, is_fallback: false, ..VersionCaps::default()
+            data_fmt: 61,
+            res_fmt: 46,
+            dialogs: true,
+            is_fallback: false,
+            ..VersionCaps::default()
         },
         // ── 1.21.4 ───────────────────────────────────────────────────────────
         (1, 21, 4) => VersionCaps {
-            data_fmt: 61, res_fmt: 46, dialogs: false, is_fallback: false,
+            data_fmt: 61,
+            res_fmt: 46,
+            dialogs: false,
+            is_fallback: false,
             ..VersionCaps::default()
         },
         // ── 1.21.2-3 ─────────────────────────────────────────────────────────
         (1, 21, 2..=3) => VersionCaps {
-            data_fmt: 57, res_fmt: 42, dialogs: false, is_fallback: false,
+            data_fmt: 57,
+            res_fmt: 42,
+            dialogs: false,
+            is_fallback: false,
             ..VersionCaps::default()
         },
         // ── 1.21.0-1 ─────────────────────────────────────────────────────────
         (1, 21, 0..=1) => VersionCaps {
-            data_fmt: 48, res_fmt: 34, dialogs: false, is_fallback: false,
+            data_fmt: 48,
+            res_fmt: 34,
+            dialogs: false,
+            is_fallback: false,
             ..VersionCaps::default()
         },
         // ── 1.20.5-6 ─────────────────────────────────────────────────────────
         (1, 20, 5..=6) => VersionCaps {
-            data_fmt: 41, res_fmt: 32, dialogs: false, jukebox_songs: false,
-            enchantments: false, is_fallback: false, ..VersionCaps::default()
+            data_fmt: 41,
+            res_fmt: 32,
+            dialogs: false,
+            jukebox_songs: false,
+            enchantments: false,
+            is_fallback: false,
+            ..VersionCaps::default()
         },
         // ── 1.20.3-4 ─────────────────────────────────────────────────────────
         (1, 20, 3..=4) => VersionCaps {
-            data_fmt: 26, res_fmt: 22, item_components: false, dialogs: false,
-            jukebox_songs: false, enchantments: false, is_fallback: false,
+            data_fmt: 26,
+            res_fmt: 22,
+            item_components: false,
+            dialogs: false,
+            jukebox_songs: false,
+            enchantments: false,
+            is_fallback: false,
             ..VersionCaps::default()
         },
         // ── 1.20.2 ───────────────────────────────────────────────────────────
         (1, 20, 2) => VersionCaps {
-            data_fmt: 18, res_fmt: 18, item_components: false, dialogs: false,
-            jukebox_songs: false, enchantments: false, is_fallback: false,
+            data_fmt: 18,
+            res_fmt: 18,
+            item_components: false,
+            dialogs: false,
+            jukebox_songs: false,
+            enchantments: false,
+            is_fallback: false,
             ..VersionCaps::default()
         },
         // ── 1.20.0-1 ─────────────────────────────────────────────────────────
         (1, 20, 0..=1) => VersionCaps {
-            data_fmt: 15, res_fmt: 15, item_components: false, data_components: false,
-            dialogs: false, function_macros: false, resource_pack_overlays: false,
-            jukebox_songs: false, enchantments: false, is_fallback: false,
+            data_fmt: 15,
+            res_fmt: 15,
+            item_components: false,
+            data_components: false,
+            dialogs: false,
+            function_macros: false,
+            resource_pack_overlays: false,
+            jukebox_songs: false,
+            enchantments: false,
+            is_fallback: false,
             ..VersionCaps::default()
         },
         // ── 1.19.4 ───────────────────────────────────────────────────────────
         (1, 19, 4) => VersionCaps {
-            data_fmt: 12, res_fmt: 13, item_components: false, data_components: false,
-            dialogs: false, function_macros: false, resource_pack_overlays: false,
-            jukebox_songs: false, enchantments: false, is_fallback: false,
+            data_fmt: 12,
+            res_fmt: 13,
+            item_components: false,
+            data_components: false,
+            dialogs: false,
+            function_macros: false,
+            resource_pack_overlays: false,
+            jukebox_songs: false,
+            enchantments: false,
+            is_fallback: false,
             ..VersionCaps::default()
         },
         // ── 1.19.0-3 ─────────────────────────────────────────────────────────
         (1, 19, 0..=3) => VersionCaps {
-            data_fmt: 10, res_fmt: 12, item_components: false, data_components: false,
-            dialogs: false, function_macros: false, resource_pack_overlays: false,
-            trim_assets: false, jukebox_songs: false, enchantments: false,
-            damage_types: false, is_fallback: false, ..VersionCaps::default()
+            data_fmt: 10,
+            res_fmt: 12,
+            item_components: false,
+            data_components: false,
+            dialogs: false,
+            function_macros: false,
+            resource_pack_overlays: false,
+            trim_assets: false,
+            jukebox_songs: false,
+            enchantments: false,
+            damage_types: false,
+            is_fallback: false,
+            ..VersionCaps::default()
         },
         // ── 26.x series — pack formats not yet finalized; dialogs included ────
         (26, _, _) => VersionCaps::default(),

@@ -64,9 +64,6 @@ enum Commands {
         /// Join the local dev server started by `sand run`
         #[arg(long)]
         local: bool,
-        /// Join the sand-dev world with the datapack + optional resource pack
-        #[arg(long)]
-        singleplayer: bool,
     },
     /// Remove build artifacts (dist/ and optionally Cargo target/)
     Clean {
@@ -171,13 +168,7 @@ fn run() -> Result<()> {
             offline,
             no_build,
         }),
-        Commands::Join {
-            local,
-            singleplayer,
-        } => join_cmd::run(join_cmd::JoinArgs {
-            local,
-            singleplayer,
-        }),
+        Commands::Join { local } => join_cmd::run(join_cmd::JoinArgs { local }),
         Commands::Clean { cargo, server } => cmd_clean(cargo, server),
         Commands::Add(args) => match args.feature {
             AddFeature::Resourcepack => add_cmd::run_resourcepack(),

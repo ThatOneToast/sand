@@ -597,6 +597,7 @@ impl ParticleEffect {
     }
 
     /// Straight line between two relative points.
+    #[allow(clippy::too_many_arguments)]
     pub fn line(
         particle: &str,
         x1: f64,

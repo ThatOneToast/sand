@@ -1,0 +1,29 @@
+# Sand Documentation
+
+Sand is organized around typed Rust APIs that compile to vanilla Minecraft Java
+datapacks and optional resource packs.
+
+## Beginner Path
+
+- [Getting Started](getting-started.md)
+- [Typed State](typed-state.md)
+- [Typed Commands](typed-commands.md)
+- [Conditions](conditions.md)
+- [Typed Execute](typed-execute.md)
+
+## Datapack Components
+
+- [Components](components.md)
+- [Dialogs](dialogs.md)
+- Advancements, recipes, loot tables, predicates, item modifiers, and tags are
+  covered from [Components](components.md) and [Examples](examples.md).
+
+## Advanced
+
+- [Storage And NBT](storage-nbt.md)
+- [Version Support](version-support.md)
+- [Version Capabilities](version-capabilities.md)
+- [Architecture](architecture.md)
+- [Testing](testing.md)
+- [Escape Hatches](escape-hatches.md)
+- [Examples](examples.md)

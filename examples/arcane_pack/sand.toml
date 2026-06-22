@@ -1,0 +1,4 @@
+[pack]
+namespace   = "arcane"
+description = "Arcane Pack — a complete dogfood datapack for Sand"
+mc_version  = "1.21.4"

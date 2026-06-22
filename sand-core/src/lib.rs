@@ -69,7 +69,7 @@ pub use cmd::{
 pub use component::export_components_json;
 pub use component::{ComponentContent, ComponentRecord, DatapackComponent, IntoDatapack};
 pub use error::{Result, SandError};
-pub use event::handle::EventHandle;
+pub use event::handle::{EventHandle, RawEventHandle};
 pub use event::{
     AdvancementEvent,
     Event,

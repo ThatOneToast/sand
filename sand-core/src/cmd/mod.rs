@@ -42,6 +42,9 @@ mod typed_execute;
 /// The `Build` trait: every command builder implements `build(&self) -> String`.
 pub use sand_commands::Build;
 
+/// Trait for types resolving to a `function <id>` command.
+pub use crate::function::IntoFunctionRef;
+
 // Block placement
 pub use sand_commands::{
     BlockState, CloneBlocks, CloneMaskMode, CloneMode, Fill, FillMode, SetBlock, SetBlockMode,
@@ -85,6 +88,41 @@ pub use cooldown::Cooldown;
 pub use data::{Storage, StorageKind};
 pub use fn_macros::{function_with, macro_line, macro_var};
 pub use typed_execute::{ConditionedExecute, ExecuteExt, TypedExecute};
+
+/// Call a function by resolved reference.
+///
+/// Accepts registered `#[function]` pointers, [`FunctionRef`], [`ResourceLocation`],
+/// and raw path strings.
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// use sand_core::prelude::*;
+///
+/// // Local registered function pointer (requires `use IntoFunctionRef`)
+/// cmd::call(ate_golden_apple);
+///
+/// // External function ref
+/// cmd::call(FunctionRef::external("other_pack:api/do_thing").unwrap());
+///
+/// // Resource location
+/// cmd::call(ResourceLocation::new("my_pack", "my_func").unwrap());
+/// ```
+pub fn call(id: impl crate::function::IntoFunctionRef) -> String {
+    id.into_function_command()
+}
+
+/// Resolve a function identifier to its `namespace:path` resource location.
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// let loc = cmd::function_id(ate_golden_apple);
+/// assert_eq!(loc, "powers:ate_golden_apple");
+/// ```
+pub fn function_id(id: impl crate::function::IntoFunctionRef) -> String {
+    id.into_function_id()
+}
 
 /// Explicit escape hatch for raw Minecraft command syntax.
 ///

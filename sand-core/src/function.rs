@@ -16,6 +16,119 @@ pub struct FunctionDescriptor {
 
 inventory::collect!(FunctionDescriptor);
 
+/// Side table mapping `fn() -> Vec<String>` pointers to their registered
+/// resource location path (namespace:path or bare path).
+///
+/// Automatically populated by `#[sand_macros::function]`. The path stored
+/// is the full `"ns:path"` if given explicitly, or just the path component
+/// for bare `#[function]` functions.
+pub struct FunctionPointerEntry {
+    /// The function pointer to match against.
+    pub ptr: fn() -> Vec<String>,
+    /// The resource location path as specified in the attribute,
+    /// e.g. `"powers:ate_golden_apple"` or `"my_function"`.
+    pub path: &'static str,
+}
+inventory::collect!(FunctionPointerEntry);
+
+/// Trait for types that can be resolved to a `function <id>` command string.
+///
+/// This enables `cmd::call(...)` to accept local function pointers,
+/// [`FunctionRef`] values, [`ResourceLocation`] values, and raw path strings.
+///
+/// # Implementors
+///
+/// | Type | Resolution |
+/// |---|---|
+/// | [`FunctionRef`] | Uses the ref's `Display` → `"function namespace:path"` |
+/// | `&FunctionRef` | Same as above |
+/// | [`ResourceLocation`] | Uses the location's `Display` → `"function namespace:path"` |
+/// | `&str` | Used as-is → `"function raw_path"` |
+/// | `String` | Used as-is → `"function raw_path"` |
+/// | `fn() -> Vec<String>` | Looks up the registered path from `#[function]` inventory |
+///
+/// # Errors
+///
+/// An unregistered `fn() -> Vec<String>`  (not annotated with `#[function]`)
+/// will panic with a clear message.
+pub trait IntoFunctionRef {
+    /// Resolve to a complete `function <id>` Minecraft command string.
+    fn into_function_command(self) -> String;
+
+    /// Resolve to just the `namespace:path` resource location string.
+    fn into_function_id(self) -> String;
+}
+
+impl IntoFunctionRef for crate::resource_ref::FunctionRef {
+    fn into_function_command(self) -> String {
+        format!("function {self}")
+    }
+    fn into_function_id(self) -> String {
+        self.to_string()
+    }
+}
+
+impl IntoFunctionRef for &crate::resource_ref::FunctionRef {
+    fn into_function_command(self) -> String {
+        format!("function {self}")
+    }
+    fn into_function_id(self) -> String {
+        self.to_string()
+    }
+}
+
+impl IntoFunctionRef for crate::ResourceLocation {
+    fn into_function_command(self) -> String {
+        format!("function {self}")
+    }
+    fn into_function_id(self) -> String {
+        self.to_string()
+    }
+}
+
+impl IntoFunctionRef for &str {
+    fn into_function_command(self) -> String {
+        format!("function {self}")
+    }
+    fn into_function_id(self) -> String {
+        self.to_string()
+    }
+}
+
+impl IntoFunctionRef for String {
+    fn into_function_command(self) -> String {
+        format!("function {self}")
+    }
+    fn into_function_id(self) -> String {
+        self.to_string()
+    }
+}
+
+impl IntoFunctionRef for fn() -> Vec<String> {
+    fn into_function_command(self) -> String {
+        for entry in inventory::iter::<FunctionPointerEntry>() {
+            if entry.ptr as usize == self as usize {
+                return format!("function {}", entry.path);
+            }
+        }
+        panic!(
+            "unregistered function pointer: the function must be annotated with \
+             #[function(\"ns:path\")] or #[function] to be callable via cmd::call()"
+        )
+    }
+    fn into_function_id(self) -> String {
+        for entry in inventory::iter::<FunctionPointerEntry>() {
+            if entry.ptr as usize == self as usize {
+                return entry.path.to_string();
+            }
+        }
+        panic!(
+            "unregistered function pointer: the function must be annotated with \
+             #[function(\"ns:path\")] or #[function] to be callable via cmd::function_id()"
+        )
+    }
+}
+
 /// Registry entry for a `#[component]`-annotated function.
 ///
 /// The `make` fn pointer is a zero-argument function that constructs the

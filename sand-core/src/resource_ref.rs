@@ -44,6 +44,13 @@ macro_rules! resource_ref {
                 Ok(Self(ResourceLocation::new(ns, path)?))
             }
 
+            /// Construct a typed reference to an external function (in another datapack).
+            ///
+            /// Alias for [`new`](Self::new) — the name makes the cross-pack intent explicit.
+            pub fn external(location: impl AsRef<str>) -> Result<Self> {
+                Self::new(location)
+            }
+
             /// Return the underlying [`ResourceLocation`].
             pub fn location(&self) -> &ResourceLocation {
                 &self.0

@@ -202,7 +202,9 @@ fn expand_function(
     explicit_path: Option<String>,
 ) -> syn::Result<proc_macro2::TokenStream> {
     let fn_name = &func.sig.ident;
-    let fn_name_str = function_descriptor_path(fn_name, explicit_path);
+    let fn_name_str = function_descriptor_path(fn_name, explicit_path.clone());
+    // Store the full path (with namespace if given) for IntoFunctionRef resolution.
+    let ptr_path_str = explicit_path.unwrap_or_else(|| fn_name.to_string());
     let vis = &func.vis;
     let attrs = &func.attrs;
 
@@ -251,6 +253,13 @@ fn expand_function(
             ::sand_core::FunctionDescriptor {
                 path: #fn_name_str,
                 make: #factory_ident,
+            }
+        );
+
+        ::sand_core::inventory::submit!(
+            ::sand_core::FunctionPointerEntry {
+                ptr: #factory_ident as fn() -> ::std::vec::Vec<::std::string::String>,
+                path: #ptr_path_str,
             }
         );
     })

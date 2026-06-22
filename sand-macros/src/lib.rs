@@ -234,6 +234,10 @@ fn expand_function(
         &format!("__sand_fn_{}_make", fn_name),
         proc_macro2::Span::call_site(),
     );
+    let type_id_ident = proc_macro2::Ident::new(
+        &format!("__sand_fn_{}_type_id", fn_name),
+        proc_macro2::Span::call_site(),
+    );
 
     let body = build_cmd_body(&func.block)?;
 
@@ -249,6 +253,12 @@ fn expand_function(
             #fn_name()
         }
 
+        #[doc(hidden)]
+        #[allow(dead_code)]
+        fn #type_id_ident() -> ::std::any::TypeId {
+            ::std::any::Any::type_id(&#fn_name)
+        }
+
         ::sand_core::inventory::submit!(
             ::sand_core::FunctionDescriptor {
                 path: #fn_name_str,
@@ -259,6 +269,13 @@ fn expand_function(
         ::sand_core::inventory::submit!(
             ::sand_core::FunctionPointerEntry {
                 ptr: #fn_name as fn() -> ::std::vec::Vec<::std::string::String>,
+                path: #ptr_path_str,
+            }
+        );
+
+        ::sand_core::inventory::submit!(
+            ::sand_core::FunctionPointerTypeEntry {
+                type_id: #type_id_ident,
                 path: #ptr_path_str,
             }
         );
@@ -1013,15 +1030,92 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
         ));
     }
 
-    // Extract the event type name and the full type path token stream.
-    let (event_type_name, param_type_tokens): (String, proc_macro2::TokenStream) = {
+    enum EventParam {
+        Context {
+            event_type_name: String,
+            event_type_tokens: proc_macro2::TokenStream,
+            binding_tokens: proc_macro2::TokenStream,
+        },
+        Legacy {
+            event_type_name: String,
+            param_type_tokens: proc_macro2::TokenStream,
+            binding_tokens: proc_macro2::TokenStream,
+        },
+    }
+
+    fn extract_event_context_type(
+        ty: &syn::Type,
+        tp: &syn::TypePath,
+    ) -> syn::Result<Option<(String, proc_macro2::TokenStream)>> {
+        let Some(segment) = tp.path.segments.last() else {
+            return Ok(None);
+        };
+        if segment.ident != "Event" {
+            return Ok(None);
+        }
+
+        let syn::PathArguments::AngleBracketed(args) = &segment.arguments else {
+            return Err(syn::Error::new_spanned(
+                ty,
+                "#[event] Event handlers must specify the event type, e.g. `Event<MyEvent>`",
+            ));
+        };
+
+        if args.args.len() != 1 {
+            return Err(syn::Error::new_spanned(
+                args,
+                "#[event] Event handlers must use exactly one generic argument, e.g. `Event<MyEvent>`",
+            ));
+        }
+
+        let Some(syn::GenericArgument::Type(event_ty)) = args.args.first() else {
+            return Err(syn::Error::new_spanned(
+                args,
+                "#[event] Event handlers must use a type argument, e.g. `Event<MyEvent>`",
+            ));
+        };
+
+        let event_type_name = match event_ty {
+            syn::Type::Path(event_tp) => event_tp
+                .path
+                .segments
+                .last()
+                .map(|segment| segment.ident.to_string())
+                .unwrap_or_else(|| "Event".to_string()),
+            _ => "Event".to_string(),
+        };
+
+        Ok(Some((event_type_name, quote! { #event_ty })))
+    }
+
+    // Extract the handler parameter model. `Event<T>` is the primary typed
+    // advancement path; bare event params stay available for legacy built-ins.
+    let event_param: EventParam = {
         let param = func.sig.inputs.first().unwrap();
         match param {
             syn::FnArg::Typed(pt) => match pt.ty.as_ref() {
                 syn::Type::Path(tp) => {
-                    let name = tp.path.segments.last().unwrap().ident.to_string();
                     let ty = pt.ty.as_ref();
-                    (name, quote! { #ty })
+                    if let Some((event_type_name, event_type_tokens)) =
+                        extract_event_context_type(ty, tp)?
+                    {
+                        let binding_tokens = quote! {
+                            ::sand_core::event::Event::<#event_type_tokens>::context()
+                        };
+                        EventParam::Context {
+                            event_type_name,
+                            event_type_tokens,
+                            binding_tokens,
+                        }
+                    } else {
+                        let name = tp.path.segments.last().unwrap().ident.to_string();
+                        let param_type_tokens = quote! { #ty };
+                        EventParam::Legacy {
+                            event_type_name: name,
+                            binding_tokens: quote! { #param_type_tokens },
+                            param_type_tokens,
+                        }
+                    }
                 }
                 other => {
                     return Err(syn::Error::new_spanned(
@@ -1035,6 +1129,30 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
             }
         }
     };
+
+    let (event_type_name, dispatch_type_tokens, event_binding_tokens, is_event_context) =
+        match &event_param {
+            EventParam::Context {
+                event_type_name,
+                event_type_tokens,
+                binding_tokens,
+            } => (
+                event_type_name.clone(),
+                event_type_tokens.clone(),
+                binding_tokens.clone(),
+                true,
+            ),
+            EventParam::Legacy {
+                event_type_name,
+                param_type_tokens,
+                binding_tokens,
+            } => (
+                event_type_name.clone(),
+                param_type_tokens.clone(),
+                binding_tokens.clone(),
+                false,
+            ),
+        };
 
     // Parse the flat attribute: slot=, item=, custom_data=, id=
     let flat_attr: FlatEventAttr = if attr.is_empty() {
@@ -1068,7 +1186,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
     let preamble = quote! {
         #(#fn_attrs)*
         #vis fn #fn_name() -> ::std::vec::Vec<::std::string::String> {
-            let event = #param_type_tokens;
+            let event = #event_binding_tokens;
             #body
         }
 
@@ -1373,8 +1491,11 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
             }
         }
 
-        // Unknown type with `dispatch = "advancement"` — use AdvancementEvent trait.
-        _ if flat_attr.dispatch.as_ref().map(|s| s.value()).as_deref() == Some("advancement") => {
+        // Event<T> and compatibility `dispatch = "advancement"` handlers use the
+        // typed AdvancementEvent path. This path never emits legacy string guards.
+        _ if is_event_context
+            || flat_attr.dispatch.as_ref().map(|s| s.value()).as_deref() == Some("advancement") =>
+        {
             let trigger_ident = proc_macro2::Ident::new(
                 &format!("__sand_event_{}_trigger", fn_name),
                 proc_macro2::Span::call_site(),
@@ -1395,19 +1516,19 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 #[doc(hidden)]
                 #[allow(dead_code)]
                 fn #trigger_ident() -> ::sand_core::AdvancementTrigger {
-                    <#param_type_tokens as ::sand_core::event::AdvancementEvent>::trigger().into()
+                    <#dispatch_type_tokens as ::sand_core::event::AdvancementEvent>::trigger().into()
                 }
 
                 #[doc(hidden)]
                 #[allow(dead_code)]
                 fn #revoke_ident() -> bool {
-                    <#param_type_tokens as ::sand_core::event::AdvancementEvent>::reset().should_revoke()
+                    <#dispatch_type_tokens as ::sand_core::event::AdvancementEvent>::reset().should_revoke()
                 }
 
                 #[doc(hidden)]
                 #[allow(dead_code)]
                 fn #guard_ident() -> ::std::option::Option<::sand_core::condition::Condition> {
-                    <#param_type_tokens as ::sand_core::event::AdvancementEvent>::guard()
+                    <#dispatch_type_tokens as ::sand_core::event::AdvancementEvent>::guard()
                 }
 
                 ::sand_core::inventory::submit!(::sand_core::EventDescriptor {
@@ -1423,7 +1544,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
 
                 // Register event type → handler path mapping for EventHandle<E>.revoke/grant.
                 ::sand_core::inventory::submit!(::sand_core::EventPathEntry {
-                    type_id: ::std::any::TypeId::of::<#param_type_tokens>(),
+                    type_id: ::std::any::TypeId::of::<#dispatch_type_tokens>(),
                     path: #fn_name_str,
                 });
             }
@@ -1450,7 +1571,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 #[doc(hidden)]
                 #[allow(dead_code)]
                 fn #trigger_ident() -> ::std::option::Option<::sand_core::AdvancementTrigger> {
-                    match <#param_type_tokens as ::sand_core::events::SandEvent>::dispatch() {
+                    match <#dispatch_type_tokens as ::sand_core::events::SandEvent>::dispatch() {
                         ::sand_core::events::SandEventDispatch::AdvancementTrigger(t) => {
                             ::std::option::Option::Some(t)
                         }
@@ -1463,7 +1584,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 #[doc(hidden)]
                 #[allow(dead_code)]
                 fn #cond_ident() -> ::std::option::Option<::std::string::String> {
-                    match <#param_type_tokens as ::sand_core::events::SandEvent>::dispatch() {
+                    match <#dispatch_type_tokens as ::sand_core::events::SandEvent>::dispatch() {
                         ::sand_core::events::SandEventDispatch::TickCondition(s) => {
                             ::std::option::Option::Some(s)
                         }
@@ -1476,7 +1597,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 #[doc(hidden)]
                 #[allow(dead_code)]
                 fn #revoke_ident() -> bool {
-                    <#param_type_tokens as ::sand_core::events::SandEvent>::revoke()
+                    <#dispatch_type_tokens as ::sand_core::events::SandEvent>::revoke()
                 }
 
                 ::sand_core::inventory::submit!(::sand_core::EventDescriptor {

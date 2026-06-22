@@ -31,6 +31,20 @@ pub struct FunctionPointerEntry {
 }
 inventory::collect!(FunctionPointerEntry);
 
+/// Side table mapping the unique type of a Rust function item to its registered
+/// resource location path.
+///
+/// Rust function items do not automatically satisfy trait impls for bare fn
+/// pointers in generic parameters, so this lets `cmd::call(local_function)`
+/// resolve without requiring `as fn() -> Vec<String>` casts.
+pub struct FunctionPointerTypeEntry {
+    /// Returns the unique [`TypeId`](std::any::TypeId) of the function item.
+    pub type_id: fn() -> std::any::TypeId,
+    /// The resource location path as specified in the attribute.
+    pub path: &'static str,
+}
+inventory::collect!(FunctionPointerTypeEntry);
+
 /// Trait for types that can be resolved to a `function <id>` command string.
 ///
 /// This enables `cmd::call(...)` to accept local function pointers,
@@ -45,7 +59,7 @@ inventory::collect!(FunctionPointerEntry);
 /// | [`ResourceLocation`] | Uses the location's `Display` → `"function namespace:path"` |
 /// | `&str` | Used as-is → `"function raw_path"` |
 /// | `String` | Used as-is → `"function raw_path"` |
-/// | `fn() -> Vec<String>` | Looks up the registered path from `#[function]` inventory |
+/// | `fn() -> Vec<String>` or function item | Looks up the registered path from `#[function]` inventory |
 ///
 /// # Errors
 ///
@@ -110,19 +124,52 @@ impl IntoFunctionRef for String {
 /// pack namespace from `sand.toml`.
 pub const SAND_LOCAL_NS: &str = "__sand_local";
 
-impl IntoFunctionRef for fn() -> Vec<String> {
-    fn into_function_command(self) -> String {
+fn command_for_path(path: &str) -> String {
+    if path.contains(':') {
+        format!("function {path}")
+    } else {
+        format!("function {SAND_LOCAL_NS}:{path}")
+    }
+}
+
+fn id_for_path(path: &str) -> String {
+    if path.contains(':') {
+        path.to_string()
+    } else {
+        format!("{SAND_LOCAL_NS}:{path}")
+    }
+}
+
+fn registered_path_for_function_value<F>(value: F) -> Option<&'static str>
+where
+    F: Copy + 'static,
+{
+    let type_id = std::any::TypeId::of::<F>();
+    for entry in inventory::iter::<FunctionPointerTypeEntry>() {
+        if (entry.type_id)() == type_id {
+            return Some(entry.path);
+        }
+    }
+
+    if std::mem::size_of::<F>() == std::mem::size_of::<fn() -> Vec<String>>() {
+        let ptr = unsafe { *(&value as *const F).cast::<fn() -> Vec<String>>() };
         for entry in inventory::iter::<FunctionPointerEntry>() {
-            if entry.ptr as usize == self as usize {
-                let path = entry.path;
-                // Already fully-qualified (contains ':') — use as-is.
-                // Bare path — emit sentinel; resolved to real namespace at export.
-                return if path.contains(':') {
-                    format!("function {path}")
-                } else {
-                    format!("function {SAND_LOCAL_NS}:{path}")
-                };
+            if entry.ptr as usize == ptr as usize {
+                return Some(entry.path);
             }
+        }
+    }
+
+    None
+}
+
+impl<F> IntoFunctionRef for F
+where
+    F: Fn() -> Vec<String> + Copy + 'static,
+{
+    fn into_function_command(self) -> String {
+        if let Some(path) = registered_path_for_function_value(self) {
+            return command_for_path(path);
         }
         panic!(
             "unregistered function pointer: the function must be annotated with \
@@ -130,15 +177,8 @@ impl IntoFunctionRef for fn() -> Vec<String> {
         )
     }
     fn into_function_id(self) -> String {
-        for entry in inventory::iter::<FunctionPointerEntry>() {
-            if entry.ptr as usize == self as usize {
-                let path = entry.path;
-                return if path.contains(':') {
-                    path.to_string()
-                } else {
-                    format!("{SAND_LOCAL_NS}:{path}")
-                };
-            }
+        if let Some(path) = registered_path_for_function_value(self) {
+            return id_for_path(path);
         }
         panic!(
             "unregistered function pointer: the function must be annotated with \

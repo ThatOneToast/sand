@@ -1,0 +1,5 @@
+error: #[event] functions must take exactly one parameter: the event type (e.g. `event: OnJoinEvent`)
+  --> tests/cases/fail_event_too_many_params.rs:16:12
+   |
+16 | pub fn bad(event: Event<TickEvent>, other: Event<TickEvent>) {
+   |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -79,7 +79,7 @@ pub fn start() {
 
 #[component]
 pub fn welcome_dialog() -> Dialog {
-    Dialog::notice_local("welcome")
+    Dialog::multi_action_local("welcome")
         .title(Text::new("Welcome").gold())
         .body(DialogBody::text(Text::new("Choose your next action.").aqua()))
         .button(
@@ -172,7 +172,7 @@ Dialogs are typed datapack components and are version-gated through
 ```rust
 let profile = VersionProfile::latest();
 if profile.supports_dialogs() {
-    Dialog::notice_local("welcome")
+    Dialog::multi_action_local("welcome")
         .title(Text::new("Welcome").gold())
         .body(DialogBody::text(Text::new("Pick a path.")))
         .button(

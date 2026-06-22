@@ -440,6 +440,13 @@ impl DialogKind {
             Self::MultiAction => "minecraft:multi_action",
         }
     }
+
+    fn button_key(&self) -> &'static str {
+        match self {
+            Self::MultiAction => "actions",
+            Self::Notice | Self::Confirmation => "buttons",
+        }
+    }
 }
 
 // ── Dialog ────────────────────────────────────────────────────────────────────
@@ -562,7 +569,8 @@ impl Dialog {
             v["body"] = json!(self.body.iter().map(|b| b.to_json()).collect::<Vec<_>>());
         }
         if !self.buttons.is_empty() {
-            v["buttons"] = json!(self.buttons.iter().map(|b| b.to_json()).collect::<Vec<_>>());
+            let key = self.kind.button_key();
+            v[key] = json!(self.buttons.iter().map(|b| b.to_json()).collect::<Vec<_>>());
         }
         if self.pause {
             v["pause"] = json!(true);
@@ -676,12 +684,84 @@ mod tests {
     #[test]
     fn multi_action_type() {
         let d = Dialog::multi_action("example:menu");
+        let json = d.to_json();
+        assert!(json["type"].as_str().unwrap().contains("multi_action"));
+    }
+
+    #[test]
+    fn multi_action_local_actions_key() {
+        let d = Dialog::multi_action_local("menu")
+            .title("Power Selector")
+            .button(
+                DialogButton::new("Enhanced Cells").action(DialogAction::run_function(
+                    ResourceLocation::new("example", "power/1").unwrap(),
+                )),
+            );
+        let json = d.to_json();
         assert!(
-            d.to_json()["type"]
-                .as_str()
-                .unwrap()
-                .contains("multi_action")
+            json["actions"].is_array(),
+            "multi_action must use \"actions\", got: {json}"
         );
+        assert!(
+            json.get("buttons").is_none(),
+            "multi_action must not contain \"buttons\", got: {json}"
+        );
+        assert_eq!(
+            json["actions"][0]["label"]["text"].as_str().unwrap(),
+            "Enhanced Cells"
+        );
+    }
+
+    #[test]
+    fn multi_action_no_buttons_key() {
+        let d = Dialog::multi_action("example:select")
+            .button(DialogButton::new("A"))
+            .button(DialogButton::new("B"));
+        let json = d.to_json();
+        assert!(json["actions"].is_array());
+        assert_eq!(json["actions"].as_array().unwrap().len(), 2);
+        assert!(
+            json.get("buttons").is_none(),
+            "multi_action must not have \"buttons\""
+        );
+    }
+
+    #[test]
+    fn passive_power_selector_actions() {
+        let d = Dialog::multi_action_local("power_selector")
+            .title(Text::new("Select Passive Power").gold())
+            .body(DialogBody::text(Text::new(
+                "Choose a passive power to unlock.",
+            )))
+            .button(
+                DialogButton::new(Text::new("Enhanced Cells").green()).action(
+                    DialogAction::run_function(
+                        ResourceLocation::new("example", "power/enhanced_cells").unwrap(),
+                    ),
+                ),
+            )
+            .button(DialogButton::new(Text::new("Regeneration").aqua()).action(
+                DialogAction::run_function(
+                    ResourceLocation::new("example", "power/regeneration").unwrap(),
+                ),
+            ));
+        let json = d.to_json();
+        assert_eq!(json["type"].as_str().unwrap(), "minecraft:multi_action");
+        assert!(json["actions"].is_array());
+        assert_eq!(json["actions"].as_array().unwrap().len(), 2);
+        assert_eq!(
+            json["actions"][0]["label"]["text"].as_str().unwrap(),
+            "Enhanced Cells"
+        );
+        assert_eq!(
+            json["actions"][0]["action"]["command"].as_str().unwrap(),
+            "/function example:power/enhanced_cells"
+        );
+        assert_eq!(
+            json["actions"][1]["label"]["text"].as_str().unwrap(),
+            "Regeneration"
+        );
+        assert!(json.get("buttons").is_none());
     }
 
     #[test]
@@ -722,7 +802,7 @@ mod tests {
 
     #[test]
     fn golden_welcome_dialog() {
-        let d = Dialog::notice_local("welcome")
+        let d = Dialog::multi_action_local("welcome")
             .title(Text::new("Welcome to the server!").gold())
             .body(DialogBody::text(Text::new(
                 "Choose what you want to do next.",
@@ -735,18 +815,19 @@ mod tests {
                     .action(DialogAction::open_dialog(DialogId::local("rules"))),
             );
         let json = d.to_json();
-        let buttons = json["buttons"].as_array().unwrap();
-        assert_eq!(buttons.len(), 2);
+        assert_eq!(json["type"].as_str().unwrap(), "minecraft:multi_action");
+        let actions = json["actions"].as_array().unwrap();
+        assert_eq!(actions.len(), 2);
         assert_eq!(json["title"]["color"].as_str().unwrap(), "gold");
-        assert_eq!(buttons[0]["label"]["text"].as_str().unwrap(), "Start");
-        assert_eq!(buttons[0]["label"]["color"].as_str().unwrap(), "green");
+        assert_eq!(actions[0]["label"]["text"].as_str().unwrap(), "Start");
+        assert_eq!(actions[0]["label"]["color"].as_str().unwrap(), "green");
         assert_eq!(
-            buttons[0]["action"]["command"].as_str().unwrap(),
+            actions[0]["action"]["command"].as_str().unwrap(),
             "/function example:start"
         );
-        assert_eq!(buttons[1]["label"]["text"].as_str().unwrap(), "Rules");
+        assert_eq!(actions[1]["label"]["text"].as_str().unwrap(), "Rules");
         assert_eq!(
-            buttons[1]["action"]["dialog"].as_str().unwrap(),
+            actions[1]["action"]["dialog"].as_str().unwrap(),
             "__sand_local:rules"
         );
     }

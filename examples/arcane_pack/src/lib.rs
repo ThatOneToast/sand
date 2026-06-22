@@ -195,7 +195,7 @@ pub fn show_mana() {
 /// A welcome dialog presented to players.
 #[component]
 pub fn welcome_dialog() -> Dialog {
-    Dialog::notice_local("welcome")
+    Dialog::multi_action_local("welcome")
         .title(Text::new("Welcome to Arcane Pack").gold())
         .body(DialogBody::text(
             Text::new("Choose an action below.").aqua(),
@@ -463,14 +463,15 @@ mod tests {
     #[test]
     fn welcome_dialog_json() {
         let json = welcome_dialog().to_json();
+        assert_eq!(json["type"].as_str().unwrap(), "minecraft:multi_action");
         assert_eq!(
             json["title"]["text"],
             serde_json::Value::String("Welcome to Arcane Pack".to_string())
         );
-        assert!(json["buttons"].is_array());
-        assert_eq!(json["buttons"].as_array().unwrap().len(), 3);
+        assert!(json["actions"].is_array());
+        assert_eq!(json["actions"].as_array().unwrap().len(), 3);
         assert_eq!(
-            json["buttons"][0]["action"]["command"],
+            json["actions"][0]["action"]["command"],
             serde_json::Value::String("/function arcane:cast_dash".to_string())
         );
     }
@@ -636,7 +637,7 @@ mod tests {
         assert_eq!(dialog_json["title"]["text"], "Welcome to Arcane Pack");
         assert_eq!(dialog_json["title"]["color"], "gold");
         assert_eq!(
-            dialog_json["buttons"][0]["action"]["command"],
+            dialog_json["actions"][0]["action"]["command"],
             "/function arcane:cast_dash"
         );
         assert!(

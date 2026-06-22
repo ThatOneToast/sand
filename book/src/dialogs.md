@@ -14,7 +14,7 @@ pub fn start() {
 
 #[component]
 pub fn welcome_dialog() -> Dialog {
-    Dialog::notice_local("welcome")
+    Dialog::multi_action_local("welcome")
         .title(Text::new("Welcome").gold())
         .body(DialogBody::text(Text::new("Choose your next action.")))
         .button(

@@ -1,0 +1,5 @@
+error: raw string commands are not accepted directly inside #[function] or #[component(Tick|Load)]. Use a typed command such as cmd::say("hello"), or use cmd::raw("say hello") for an explicit escape hatch.
+ --> tests/cases/fail_raw_string.rs:5:5
+  |
+5 |     "say hello";
+  |     ^^^^^^^^^^^

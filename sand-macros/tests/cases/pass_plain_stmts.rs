@@ -8,12 +8,12 @@ use sand_core::cmd::{self, Selector};
 fn greet() {
     let target = Selector::all_players();
     cmd::say("Welcome to the server!");
-    cmd::kill(target);
+    cmd::tellraw(target, sand_core::cmd::Text::new("Welcome").gold());
 }
 
 fn main() {
     let cmds = greet();
     assert_eq!(cmds.len(), 2);
     assert!(cmds[0].contains("say"));
-    assert!(cmds[1].contains("kill"));
+    assert!(cmds[1].contains("tellraw"));
 }

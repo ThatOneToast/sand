@@ -36,11 +36,11 @@ pub fn tick() {
 /// Demonstrates `run_fn!` — calls an inline function via execute.
 #[function]
 pub fn execute_example() {
-    use sand_core::cmd::{Execute, Selector};
+    use sand_core::cmd::{self, Execute, Selector};
     Execute::new()
         .as_(Selector::all_players())
         .run(run_fn!("hello_world:greet_inline" {
-            "say Welcome from the inline function!";
+            cmd::raw("say Welcome from the inline function!");
         }));
 }
 

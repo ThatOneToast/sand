@@ -66,7 +66,36 @@ use syn::{ItemFn, LitStr, parse_macro_input, token};
 ///     mcfunction!["say ready"]; // Vec<String> — commands extended
 /// }
 /// ```
-fn build_cmd_body(block: &syn::Block) -> proc_macro2::TokenStream {
+fn command_body_expr(expr: &syn::Expr) -> syn::Result<proc_macro2::TokenStream> {
+    match expr {
+        syn::Expr::Lit(syn::ExprLit {
+            lit: syn::Lit::Str(_),
+            ..
+        }) => Err(syn::Error::new_spanned(
+            expr,
+            "raw string commands are not accepted directly inside #[function] or #[component(Tick|Load)]. Use a typed command such as cmd::say(\"hello\"), or use cmd::raw(\"say hello\") for an explicit escape hatch.",
+        )),
+        syn::Expr::Lit(_) => Err(syn::Error::new_spanned(
+            expr,
+            "this expression is not a Sand command. Attribute function body expressions must produce a typed command, Vec<String>, or another IntoCommands value.",
+        )),
+        syn::Expr::If(_) | syn::Expr::Match(_) => Err(syn::Error::new_spanned(
+            expr,
+            "Rust if/match statements are not supported directly inside Sand attribute functions yet. Use TypedExecute/typed condition helpers for Minecraft conditionals, or mcfunction! for advanced command collection.",
+        )),
+        syn::Expr::Return(_) => Err(syn::Error::new_spanned(
+            expr,
+            "do not return from a Sand attribute function body. Write typed command expressions as statements; Sand collects them into the generated .mcfunction output.",
+        )),
+        _ => Ok(quote! {
+            __cmds.extend(
+                ::sand_core::IntoCommands::into_commands(#expr)
+            );
+        }),
+    }
+}
+
+fn build_cmd_body(block: &syn::Block) -> syn::Result<proc_macro2::TokenStream> {
     let mut pieces: Vec<proc_macro2::TokenStream> = Vec::new();
 
     for stmt in &block.stmts {
@@ -82,11 +111,7 @@ fn build_cmd_body(block: &syn::Block) -> proc_macro2::TokenStream {
             // Every expression (with or without `;`) goes through IntoCommands.
             // This handles String, &str, Vec<String>, and any custom type.
             syn::Stmt::Expr(expr, _semi) => {
-                pieces.push(quote! {
-                    __cmds.extend(
-                        ::sand_core::IntoCommands::into_commands(#expr)
-                    );
-                });
+                pieces.push(command_body_expr(expr)?);
             }
             // Every macro invocation goes through IntoCommands so that
             // `mcfunction![…]` (returns Vec<String>) extends the list and
@@ -102,12 +127,12 @@ fn build_cmd_body(block: &syn::Block) -> proc_macro2::TokenStream {
         }
     }
 
-    quote! {
+    Ok(quote! {
         let mut __cmds: ::std::vec::Vec<::std::string::String> =
             ::std::vec::Vec::new();
         #(#pieces)*
         __cmds
-    }
+    })
 }
 
 /// Registers a free-standing function as a datapack `.mcfunction` file.
@@ -139,10 +164,10 @@ fn build_cmd_body(block: &syn::Block) -> proc_macro2::TokenStream {
 /// ```
 #[proc_macro_attribute]
 pub fn function(attr: TokenStream, item: TokenStream) -> TokenStream {
-    let _ = attr; // #[function] takes no arguments
+    let attr = parse_function_attr(attr);
     let func = parse_macro_input!(item as ItemFn);
 
-    match expand_function(func) {
+    match attr.and_then(|path| expand_function(func, path)) {
         Ok(tokens) => tokens.into(),
         Err(e) => e.to_compile_error().into(),
     }
@@ -150,9 +175,32 @@ pub fn function(attr: TokenStream, item: TokenStream) -> TokenStream {
 
 // ── Expansion ─────────────────────────────────────────────────────────────────
 
-fn expand_function(func: ItemFn) -> syn::Result<proc_macro2::TokenStream> {
+fn parse_function_attr(attr: TokenStream) -> syn::Result<Option<String>> {
+    if attr.is_empty() {
+        return Ok(None);
+    }
+
+    let path = syn::parse::<LitStr>(attr)?;
+    Ok(Some(path.value()))
+}
+
+fn function_descriptor_path(fn_name: &syn::Ident, explicit: Option<String>) -> String {
+    explicit
+        .and_then(|value| {
+            value
+                .split_once(':')
+                .map(|(_, path)| path.to_string())
+                .or(Some(value))
+        })
+        .unwrap_or_else(|| fn_name.to_string())
+}
+
+fn expand_function(
+    func: ItemFn,
+    explicit_path: Option<String>,
+) -> syn::Result<proc_macro2::TokenStream> {
     let fn_name = &func.sig.ident;
-    let fn_name_str = fn_name.to_string();
+    let fn_name_str = function_descriptor_path(fn_name, explicit_path);
     let vis = &func.vis;
     let attrs = &func.attrs;
 
@@ -183,7 +231,7 @@ fn expand_function(func: ItemFn) -> syn::Result<proc_macro2::TokenStream> {
         proc_macro2::Span::call_site(),
     );
 
-    let body = build_cmd_body(&func.block);
+    let body = build_cmd_body(&func.block)?;
 
     Ok(quote! {
         #(#attrs)*
@@ -412,7 +460,7 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
         proc_macro2::Span::call_site(),
     );
 
-    let body = build_cmd_body(&func.block);
+    let body = build_cmd_body(&func.block)?;
 
     Ok(quote! {
         #(#attrs)*
@@ -990,7 +1038,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
 
     // Strip the event parameter from the generated function — the body is
     // unchanged but the actual runtime function takes no args.
-    let body = build_cmd_body(&func.block);
+    let body = build_cmd_body(&func.block)?;
 
     let id_override_tokens = match &flat_attr.id_override {
         Some(s) => quote! { ::std::option::Option::Some(#s) },
@@ -2333,7 +2381,7 @@ fn expand_armor_event(attr: ArmorEventAttr, func: ItemFn) -> syn::Result<proc_ma
         proc_macro2::Span::call_site(),
     );
 
-    let body = build_cmd_body(&func.block);
+    let body = build_cmd_body(&func.block)?;
 
     // Map slot ident to ::sand_core::ArmorSlot::*
     let slot_ident = &attr.slot_ident;
@@ -2445,7 +2493,7 @@ fn expand_run_fn(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
 
     if let Some(block) = body {
         let path_lit = LitStr::new(path_part, span);
-        let cmd_body = build_cmd_body(&block);
+        let cmd_body = build_cmd_body(&block)?;
 
         if name.is_some() {
             // Named run_fn!("ns:path" { ... }) — no captures expected; use inventory.
@@ -2626,7 +2674,7 @@ fn expand_schedule(func: ItemFn, attr: ScheduleAttr) -> syn::Result<proc_macro2:
         proc_macro2::Span::call_site(),
     );
 
-    let body = build_cmd_body(&func.block);
+    let body = build_cmd_body(&func.block)?;
     let total_ticks = attr.ticks;
     let every = attr.every;
 

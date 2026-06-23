@@ -1453,14 +1453,16 @@ impl CustomItem {
             parts.push(format!("repair_cost={cost}"));
         }
 
-        // Enchantments
+        // Minecraft's item-component command syntax stores each enchantment
+        // component as a direct id-to-level map. `levels` was part of an older
+        // representation and is parsed as an enchantment id by current targets.
         if !self.enchantments.is_empty() {
             let levels: Vec<String> = self
                 .enchantments
                 .iter()
                 .map(|(id, lvl)| format!("\"{id}\":{lvl}"))
                 .collect();
-            parts.push(format!("enchantments={{levels:{{{}}}}}", levels.join(",")));
+            parts.push(format!("enchantments={{{}}}", levels.join(",")));
         }
         if !self.stored_enchantments.is_empty() {
             let levels: Vec<String> = self
@@ -1468,10 +1470,7 @@ impl CustomItem {
                 .iter()
                 .map(|(id, lvl)| format!("\"{id}\":{lvl}"))
                 .collect();
-            parts.push(format!(
-                "stored_enchantments={{levels:{{{}}}}}",
-                levels.join(",")
-            ));
+            parts.push(format!("stored_enchantments={{{}}}", levels.join(",")));
         }
 
         // Attributes
@@ -1664,9 +1663,71 @@ mod tests {
             .enchantment("minecraft:fire_aspect", 2)
             .enchantment("minecraft:sharpness", 5);
         let s = item.to_string();
-        assert!(s.contains("enchantments={levels:{"));
+        assert!(s.contains("enchantments={"));
+        assert!(!s.contains("enchantments={levels:"));
         assert!(s.contains("\"minecraft:fire_aspect\":2"));
         assert!(s.contains("\"minecraft:sharpness\":5"));
+    }
+
+    #[test]
+    fn enchantment_component_is_a_direct_map_in_insertion_order() {
+        let item =
+            CustomItem::new("minecraft:crossbow").component(ItemComponent::Enchantments(vec![
+                EnchantmentEntry::new(EnchantmentId::minecraft("quick_charge").unwrap(), 10),
+                EnchantmentEntry::new(EnchantmentId::minecraft("infinity").unwrap(), 1),
+            ]));
+        assert_eq!(
+            item.to_string(),
+            "minecraft:crossbow[enchantments={\"minecraft:quick_charge\":10,\"minecraft:infinity\":1}]"
+        );
+    }
+
+    #[test]
+    fn stored_enchantment_component_is_a_direct_map() {
+        let item = CustomItem::new("minecraft:enchanted_book").component(
+            ItemComponent::StoredEnchantments(vec![EnchantmentEntry::new(
+                EnchantmentId::minecraft("sharpness").unwrap(),
+                5,
+            )]),
+        );
+        assert_eq!(
+            item.to_string(),
+            "minecraft:enchanted_book[stored_enchantments={\"minecraft:sharpness\":5}]"
+        );
+    }
+
+    #[test]
+    fn custom_item_enchantment_helpers_use_direct_maps() {
+        let string_item =
+            CustomItem::new("minecraft:crossbow").enchantment("minecraft:quick_charge", 10);
+        let typed_item = CustomItem::new("minecraft:crossbow")
+            .typed_enchantment(EnchantmentId::minecraft("quick_charge").unwrap(), 10);
+        assert_eq!(string_item.to_string(), typed_item.to_string());
+        assert_eq!(
+            typed_item.to_string(),
+            "minecraft:crossbow[enchantments={\"minecraft:quick_charge\":10}]"
+        );
+    }
+
+    #[test]
+    fn custom_item_stored_enchantment_helpers_use_direct_maps() {
+        let string_item = CustomItem::new("minecraft:enchanted_book")
+            .stored_enchantment("minecraft:sharpness", 5);
+        let typed_item = CustomItem::new("minecraft:enchanted_book")
+            .typed_stored_enchantment(EnchantmentId::minecraft("sharpness").unwrap(), 5);
+        assert_eq!(string_item.to_string(), typed_item.to_string());
+        assert_eq!(
+            typed_item.to_string(),
+            "minecraft:enchanted_book[stored_enchantments={\"minecraft:sharpness\":5}]"
+        );
+    }
+
+    #[test]
+    fn empty_enchantment_components_are_omitted() {
+        let item = CustomItem::new("minecraft:crossbow")
+            .component(ItemComponent::Enchantments(vec![]))
+            .component(ItemComponent::StoredEnchantments(vec![]));
+        assert_eq!(item.to_string(), "minecraft:crossbow");
     }
 
     #[test]

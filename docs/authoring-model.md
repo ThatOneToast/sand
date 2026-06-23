@@ -13,7 +13,7 @@ Use this path for normal datapack code:
 - Typed command builders such as `cmd::tellraw`, `Actionbar::show`,
   `Title::of(...).build()`, `Sound::play(...)`, and `cmd::function(...)`.
 - Typed state such as `ScoreVar<T>`, `Flag`, `Timer`, `Cooldown`, and
-  `StorageVar<T>`.
+  `StorageSchema<T>`.
 - Typed conditions via `Condition`, `all!`, `any!`, and `TypedExecute`.
 - Typed components for dialogs, recipes, advancements, loot tables, predicates,
   tags, and custom item data.

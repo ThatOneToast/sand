@@ -204,9 +204,13 @@ with an explicit `::raw(RawJson)` fallback on each type.
 
 | Symbol | Classification | Notes |
 |---|---|---|
-| `NbtPath` | **Mostly typed** | `set_raw()` is clear; typed setters for primitives are good |
-| `StorageVar<T>` | **Mostly typed** | Generic type param is phantom; default type param is `serde_json::Value` — confusing |
-| `StorageVar::set_raw()` | **Raw hatch** | Explicit name; good |
+| `SnbtValue` / `SnbtCompound` | **Typed** | Primitive, list, compound, and explicit `RawSnbt` escape hatch |
+| `NbtPath` | **Typed** | Supports root, field/key segments, list indexes, and quoted keys |
+| `StorageLocation` / `NbtLocation` | **Typed** | Storage, entity, and block NBT targets |
+| `StorageSchema<T>` | **Typed** | Preferred structured storage API |
+| `StorageField<Schema, T>` | **Typed** | Typed field handles with get/set/remove/exists/copy/append/merge |
+| `StorageVar<T>` | **Mostly typed** | Kept for simple legacy variables |
+| `StorageVar::set_raw()` / `NbtPath::set_raw()` | **Raw hatch** | Deprecated string compatibility; prefer `set_raw_snbt(RawSnbt)` |
 
 ### `state/score.rs`, `flag.rs`, `timer.rs`, `cooldown.rs`
 
@@ -306,7 +310,11 @@ item components remain explicit through `RawComponent`; the legacy
 `CustomItem::raw_component(key, snbt)` string-key helper is deprecated.
 
 ### Phase 9 — Typed storage schemas
-`StorageSchema<T>` with typed field paths and optional derive macro.
+Complete. `StorageSchema<T>` and `StorageField<Schema, T>` provide typed
+structured storage, `SnbtValue`/`SnbtCompound` cover primitive/list/compound
+SNBT generation, and `NbtPath` supports field/index builders. EventBuilder can
+declare typed storage fields via `.storage_field(...)`. A derive macro remains
+future work.
 
 ### Phase 10 — Commands and conditions cleanup
 Audit `impl Into<String>` across `sand-commands`; replace with typed IDs where
@@ -337,8 +345,8 @@ explicit opt-ins. They must never be removed.
 | `AdvancementTrigger::Custom { trigger, conditions }` | `advancement/mod.rs` | Modded advancement triggers |
 | `LootCondition::Custom { condition, data }` | `loot_table/mod.rs` | Modded loot conditions |
 | `LootFunction::Custom { function, data }` | `loot_table/mod.rs` | Modded loot functions |
-| `NbtValue::Raw(String)` | `sand-commands/nbt.rs` | Compound SNBT that has no typed model |
-| `StorageVar::set_raw(snbt)` | `state/storage.rs` | Compound/list SNBT |
+| `SnbtValue::Raw(RawSnbt)` / `set_raw_snbt(RawSnbt)` | `state/storage.rs` | Unsupported/modded/future SNBT |
+| `NbtValue::Raw(String)` | `sand-commands/nbt.rs` | Low-level command-builder compatibility |
 | `cmd::raw(RawCommand)` (planned rename) | `cmd/mod.rs` | Commands not yet generated |
 | `AttributeType::Custom(String)` | `item/mod.rs` | Modded entity attributes |
 | `LootTableType::Custom(String)` | `loot_table/mod.rs` | Modded loot table types |

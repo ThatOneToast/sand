@@ -41,6 +41,7 @@ pub mod cmd;
 pub mod component;
 pub mod components;
 pub mod condition;
+pub mod custom_item_ext;
 pub mod error;
 pub mod event;
 pub mod events;
@@ -182,6 +183,10 @@ pub use state::{
 // ── McFunction (sand-core-specific component) ─────────────────────────────────
 
 pub use components::mc_function::{IntoCommands, McFunction};
+
+// ── Custom item typed extensions ──────────────────────────────────────────────
+
+pub use custom_item_ext::{CustomItemExt, CustomItemId};
 
 // ── Datapack component builders (all from sand-components) ───────────────────
 

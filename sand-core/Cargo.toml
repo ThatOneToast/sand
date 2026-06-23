@@ -32,8 +32,14 @@ systems-player-data = ["systems-lifecycle"]
 ## Emits pure-vanilla local-coordinate teleport and effect-give commands.
 systems-movement = []
 
+## Typed inventory helpers: has/replace/clear/give with ItemSlot everywhere.
+systems-inventory = []
+
+## Typed interactable entity builder (interaction entity + trigger wiring).
+systems-entities = []
+
 ## Enable all optional systems.
-systems-all = ["systems-damage", "systems-cooldowns", "systems-player-data", "systems-movement"]
+systems-all = ["systems-damage", "systems-cooldowns", "systems-player-data", "systems-movement", "systems-inventory", "systems-entities"]
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }

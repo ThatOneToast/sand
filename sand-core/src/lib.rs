@@ -174,7 +174,10 @@ pub use function::{
 };
 pub use mc_version::McVersion;
 pub use resource_location::{Identifier, PackNamespace, ResourceLocation};
-pub use state::{NbtPath, StorageVar};
+pub use state::{
+    BlockNbt, EntityNbt, NbtLocation, NbtPath, SnbtCompound, SnbtValue, StorageField,
+    StorageLocation, StorageSchema, StorageVar,
+};
 
 // ── McFunction (sand-core-specific component) ─────────────────────────────────
 

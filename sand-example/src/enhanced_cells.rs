@@ -6,9 +6,9 @@
 //! - `#[derive(SandStorage)]` for player state (Part 6).
 //! - `DamageAmount::hearts(...)` produces correct HP commands.
 
+use sand_core::AdvancementTrigger;
 use sand_core::prelude::*;
 use sand_core::systems::damage::DamageTracker;
-use sand_core::AdvancementTrigger;
 use sand_macros::{SandStorage, component, event};
 
 // ── Player state schema ───────────────────────────────────────────────────────
@@ -91,7 +91,9 @@ pub fn ec_on_damaged(event: DamageEvent<EnhancedCellsDamagedEvent>) {
     when(AOE_DMG_COOLDOWN.ready("@s")).then_all([
         event
             .reflect_damage()
-            .to(EntityTargets::nearby(5.0).excluding_self().excluding_players())
+            .to(EntityTargets::nearby(5.0)
+                .excluding_self()
+                .excluding_players())
             .amount(DamageAmount::hearts(2.0))
             .damage_type(DamageKind::Magic)
             .run()
@@ -100,7 +102,8 @@ pub fn ec_on_damaged(event: DamageEvent<EnhancedCellsDamagedEvent>) {
         cmd::tellraw(
             Selector::self_(),
             Text::new("Enhanced Cells: AOE burst!").red(),
-        ).to_string(),
+        )
+        .to_string(),
     ]);
 }
 
@@ -144,20 +147,14 @@ mod tests {
     #[test]
     fn cells_state_get_command() {
         let cmd = CellsState::level().get();
-        assert!(
-            cmd.contains("data get storage ec:players"),
-            "got: {cmd}"
-        );
+        assert!(cmd.contains("data get storage ec:players"), "got: {cmd}");
         assert!(cmd.contains("player.cells.level"), "got: {cmd}");
     }
 
     #[test]
     fn cells_state_set_command() {
         let cmd = CellsState::level().set(SnbtValue::Int(10));
-        assert!(
-            cmd.contains("data modify storage ec:players"),
-            "got: {cmd}"
-        );
+        assert!(cmd.contains("data modify storage ec:players"), "got: {cmd}");
         assert!(cmd.contains("player.cells.level"), "got: {cmd}");
         assert!(cmd.contains("10"), "got: {cmd}");
     }
@@ -223,7 +220,9 @@ mod tests {
 
         let branch_cmds: Vec<_> = cmds
             .iter()
-            .filter(|c| c.contains("execute unless") && c.contains("function __sand_local:sand/branches/"))
+            .filter(|c| {
+                c.contains("execute unless") && c.contains("function __sand_local:sand/branches/")
+            })
             .collect();
         assert!(
             !branch_cmds.is_empty(),
@@ -232,9 +231,9 @@ mod tests {
 
         let branches = drain_dyn_fns();
         assert!(
-            branches.iter().any(|(_, cmds)| cmds
+            branches
                 .iter()
-                .any(|c| c.contains("minecraft:regeneration"))),
+                .any(|(_, cmds)| cmds.iter().any(|c| c.contains("minecraft:regeneration"))),
             "branch should contain regeneration effect: {branches:?}"
         );
     }
@@ -254,7 +253,8 @@ mod tests {
     fn ec_tick_includes_damage_tracker() {
         let cmds = ec_tick();
         assert!(
-            cmds.iter().any(|c| c.contains("sd_dmg_delta") && c.contains("sd_dmg_stat")),
+            cmds.iter()
+                .any(|c| c.contains("sd_dmg_delta") && c.contains("sd_dmg_stat")),
             "tick should include damage tracker operation: {cmds:?}"
         );
     }

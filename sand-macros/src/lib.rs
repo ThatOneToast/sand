@@ -3336,9 +3336,7 @@ pub fn sand_storage_derive(input: TokenStream) -> TokenStream {
     }
 }
 
-fn sand_storage_derive_impl(
-    input: syn::DeriveInput,
-) -> Result<TokenStream, syn::Error> {
+fn sand_storage_derive_impl(input: syn::DeriveInput) -> Result<TokenStream, syn::Error> {
     use proc_macro2::Span;
     use quote::quote;
     use syn::{Data, Fields, Lit, Meta};
@@ -3354,20 +3352,24 @@ fn sand_storage_derive_impl(
             continue;
         }
         let nested = attr
-            .parse_args_with(
-                syn::punctuated::Punctuated::<Meta, syn::Token![,]>::parse_terminated,
-            )
+            .parse_args_with(syn::punctuated::Punctuated::<Meta, syn::Token![,]>::parse_terminated)
             .map_err(|e| syn::Error::new_spanned(attr, format!("#[sand] parse error: {e}")))?;
 
         for meta in nested {
             match meta {
                 Meta::NameValue(nv) if nv.path.is_ident("storage") => {
-                    if let syn::Expr::Lit(syn::ExprLit { lit: Lit::Str(s), .. }) = &nv.value {
+                    if let syn::Expr::Lit(syn::ExprLit {
+                        lit: Lit::Str(s), ..
+                    }) = &nv.value
+                    {
                         storage_val = Some(s.value());
                     }
                 }
                 Meta::NameValue(nv) if nv.path.is_ident("root") => {
-                    if let syn::Expr::Lit(syn::ExprLit { lit: Lit::Str(s), .. }) = &nv.value {
+                    if let syn::Expr::Lit(syn::ExprLit {
+                        lit: Lit::Str(s), ..
+                    }) = &nv.value
+                    {
                         root_val = Some(s.value());
                     }
                 }
@@ -3433,7 +3435,9 @@ fn sand_storage_derive_impl(
                 for meta in nested {
                     if let Meta::NameValue(nv) = meta
                         && nv.path.is_ident("path")
-                        && let syn::Expr::Lit(syn::ExprLit { lit: Lit::Str(s), .. }) = &nv.value
+                        && let syn::Expr::Lit(syn::ExprLit {
+                            lit: Lit::Str(s), ..
+                        }) = &nv.value
                     {
                         path_override = Some(s.value());
                     }
@@ -3442,9 +3446,7 @@ fn sand_storage_derive_impl(
         }
 
         let field_name_str = field_ident.to_string();
-        let key_str: &str = path_override
-            .as_deref()
-            .unwrap_or(field_name_str.as_str());
+        let key_str: &str = path_override.as_deref().unwrap_or(field_name_str.as_str());
 
         methods.push(quote! {
             pub fn #field_ident() -> ::sand_core::state::StorageField<#struct_name, #field_ty> {

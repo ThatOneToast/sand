@@ -33,9 +33,9 @@
 //! | [`RawCommand`] | Raw Minecraft command string |
 //! | [`RawComponent`] | Raw item component `key=snbt` string |
 
-use std::fmt;
 use serde::{Serialize, Serializer};
 use serde_json::Value;
+use std::fmt;
 
 // ── RawJson ───────────────────────────────────────────────────────────────────
 

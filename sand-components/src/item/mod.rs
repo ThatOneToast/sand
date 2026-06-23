@@ -41,6 +41,7 @@ use std::fmt;
 use serde_json::Value;
 
 use crate::advancement::{Advancement, AdvancementRewards, AdvancementTrigger, Criterion};
+use crate::effect::PotionContents;
 use crate::predicates::ItemPredicate as TypedItemPredicate;
 use crate::raw::RawComponent;
 use crate::resource_location::ResourceLocation;
@@ -742,6 +743,7 @@ pub struct CustomItem {
     glider: bool,
     fire_resistant: bool,
     dyed_color: Option<DyedColor>,
+    potion_contents: Option<PotionContents>,
 
     // ── Raw escape hatch ──────────────────────────────────────────────────────
     /// Additional raw `key=snbt_value` components appended verbatim.
@@ -783,6 +785,7 @@ impl CustomItem {
             glider: false,
             fire_resistant: false,
             dyed_color: None,
+            potion_contents: None,
             extra_components: Vec::new(),
         }
     }
@@ -965,6 +968,12 @@ impl CustomItem {
     /// Set a dye color for this item (for leather armor, etc.).
     pub fn dyed_color(mut self, color: DyedColor) -> Self {
         self.dyed_color = Some(color);
+        self
+    }
+
+    /// Set typed `minecraft:potion_contents` component data.
+    pub fn potion_contents(mut self, contents: PotionContents) -> Self {
+        self.potion_contents = Some(contents);
         self
     }
 
@@ -1172,6 +1181,9 @@ impl CustomItem {
                 color.to_decimal()
             ));
         }
+        if let Some(ref contents) = self.potion_contents {
+            parts.push(format!("potion_contents={}", contents.to_snbt()));
+        }
 
         // Raw extras
         for (key, value) in &self.extra_components {
@@ -1258,6 +1270,19 @@ mod tests {
         assert!(
             item.to_string()
                 .contains("custom_model_data={floats:[1001.0f]}")
+        );
+    }
+
+    #[test]
+    fn typed_potion_contents_component() {
+        let item = CustomItem::new("minecraft:potion").potion_contents(
+            PotionContents::new()
+                .potion(crate::PotionId::Swiftness)
+                .effect(crate::StatusEffectInstance::new(crate::EffectId::Haste).seconds(5)),
+        );
+        assert_eq!(
+            item.to_string(),
+            "minecraft:potion[potion_contents={potion:\"minecraft:swiftness\",custom_effects:[{id:\"minecraft:haste\",duration:100}]}]"
         );
     }
 

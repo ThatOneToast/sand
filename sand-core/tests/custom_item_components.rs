@@ -44,6 +44,29 @@ fn typed_enchantments_and_attribute_modifiers() {
 }
 
 #[test]
+fn parser_oriented_complex_item_keeps_components_flat() {
+    let item = CustomItem::new("minecraft:diamond_sword")
+        .id("powers:inferno_blade")
+        .custom_name(Text::new("Inferno Blade").red())
+        .lore_line(Text::new("Forged in flame").dark_red())
+        .max_damage(3000)
+        .damage(0)
+        .typed_enchantment(EnchantmentId::minecraft("sharpness").unwrap(), 5)
+        .attribute_modifier(
+            AttributeModifier::new(AttributeId::AttackDamage)
+                .amount(10.0)
+                .operation(AttributeOperation::AddValue)
+                .slot(EquipmentSlotGroup::Mainhand),
+        )
+        .enchantment_glint_override(true);
+
+    assert_eq!(
+        item.to_string(),
+        "minecraft:diamond_sword[custom_data={\"powers:inferno_blade\":1b},custom_name={color:\"red\",text:\"Inferno Blade\"},lore=[{color:\"dark_red\",text:\"Forged in flame\"}],enchantment_glint_override=true,max_damage=3000,damage=0,enchantments={\"minecraft:sharpness\":5},attribute_modifiers=[{id:\"minecraft:attack_damage\",type:\"minecraft:attack_damage\",amount:10d,operation:\"add_value\",slot:\"mainhand\"}]]"
+    );
+}
+
+#[test]
 fn typed_food_consumable_equippable_and_tool_components() {
     let item = CustomItem::new("minecraft:apple")
         .component(ItemComponent::food(

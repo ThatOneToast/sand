@@ -18,7 +18,7 @@ code { border-radius: 3px; }
 table { display: table; width: 100%; margin: 1.25rem 0; border-collapse: collapse; }
 th { background: var(--sand-surface); }
 th, td { padding: .55rem .7rem; border: 1px solid var(--sand-border); }
-.sand-warning, .sand-note, .sand-danger, .sand-example, .sand-experimental, .sand-version {
+.sand-warning, .sand-note, .sand-danger, .sand-example, .sand-experimental, .sand-limit, .sand-generated, .sand-version {
   margin: 1.25rem 0;
   padding: .85rem 1rem;
   border-left: 4px solid var(--sand);
@@ -29,4 +29,6 @@ th, td { padding: .55rem .7rem; border: 1px solid var(--sand-border); }
 .sand-danger { border-left-color: #b23a30; background: #fff3f2; }
 .sand-example { border-left-color: #4f8a53; background: #f3faf3; }
 .sand-experimental { border-left-color: #a36418; background: #fff7df; }
+.sand-limit { border-left-color: #b04a2b; background: #fff2eb; }
+.sand-generated { border-left-color: #34718b; background: #eff8fb; }
 .sand-version { border-left-color: #7657a8; background: #f7f3fc; }

@@ -366,7 +366,7 @@ mod tests {
     fn advancement_json_output() {
         use sand_core::{
             Advancement, AdvancementDisplay, AdvancementFrame, AdvancementIcon, AdvancementRewards,
-            AdvancementTrigger, Criterion,
+            AdvancementTrigger, Criterion, EntityPredicate,
         };
         let adv = Advancement::new("hello_world:kill_zombie".parse().unwrap())
             .display(
@@ -380,7 +380,7 @@ mod tests {
             .criterion(
                 "kill",
                 Criterion::new(AdvancementTrigger::PlayerKilledEntity {
-                    entity: Some(serde_json::json!({"type": "minecraft:zombie"})),
+                    entity: Some(EntityPredicate::type_("minecraft:zombie")),
                     killing_blow: None,
                 }),
             )

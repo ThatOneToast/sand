@@ -30,6 +30,7 @@ pub mod chat_type;
 pub mod component;
 pub mod damage_type;
 pub mod dialog;
+pub mod effect;
 pub mod enchantment;
 pub mod error;
 pub mod instrument;
@@ -52,20 +53,23 @@ pub mod worldgen;
 // ── Core traits and types ─────────────────────────────────────────────────────
 
 pub use component::{ComponentContent, DatapackComponent, IntoDatapack};
+pub use effect::{
+    EffectId, PotionContents, PotionId, StatusEffectInstance, SuspiciousStewEffect, Ticks,
+};
 pub use raw::{RawCommand, RawComponent, RawJson, RawSnbt};
 
 // ── Shared typed predicate model ──────────────────────────────────────────────
 
+pub use error::{Result, SandError};
 pub use predicates::{
     BlockPredicate, DamagePredicate, DamageSourcePredicate, DamageTagEntry, DistancePredicate,
     EffectPredicate, EntityEquipment, EntityFlags, EntityPredicate, EntityTypeMatch, FloatRange,
-    IntRange, ItemPredicate, LocationPredicate,
+    IntRange, ItemPredicate, LocationPredicate, Range,
 };
 pub use registry::{
-    BiomeId, BlockId, DamageTypeId, DimensionId, EffectId, EnchantmentId, EntityTypeId, ItemId,
-    StructureId, TagId,
+    BiomeId, BlockId, DamageTypeId, DimensionId, EnchantmentId, EntityTypeId, ItemId, StructureId,
+    TagId,
 };
-pub use error::{Result, SandError};
 pub use resource_location::{Identifier, PackNamespace, ResourceLocation};
 
 // ── Advancement ───────────────────────────────────────────────────────────────

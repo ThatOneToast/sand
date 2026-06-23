@@ -1,52 +1,6 @@
 //! Tick-based duration and timer utilities.
 
-// ── Ticks ─────────────────────────────────────────────────────────────────────
-
-/// A duration expressed in Minecraft game ticks (20 ticks = 1 second).
-///
-/// # Examples
-/// ```
-/// use sand_core::state::Ticks;
-///
-/// let one_second = Ticks::new(20);
-/// let three_seconds = Ticks::seconds(3);
-/// assert_eq!(three_seconds.get(), 60);
-/// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Ticks(u32);
-
-impl Ticks {
-    /// Construct a `Ticks` value from a raw tick count.
-    pub const fn new(ticks: u32) -> Self {
-        Self(ticks)
-    }
-
-    /// Construct from seconds (rounded to ticks at 20 tps).
-    pub const fn seconds(s: u32) -> Self {
-        Self(s * 20)
-    }
-
-    /// Construct from minutes (rounded to ticks at 20 tps).
-    pub const fn minutes(m: u32) -> Self {
-        Self(m * 1200)
-    }
-
-    /// Return the raw tick count.
-    pub const fn get(self) -> u32 {
-        self.0
-    }
-
-    /// Return the approximate duration in seconds (rounded down).
-    pub fn as_seconds(self) -> u32 {
-        self.0 / 20
-    }
-}
-
-impl std::fmt::Display for Ticks {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
+pub use sand_components::Ticks;
 
 // ── Timer ─────────────────────────────────────────────────────────────────────
 

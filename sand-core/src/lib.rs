@@ -190,6 +190,17 @@ pub use sand_components::{
     RawComponent,
     RawJson,
     RawSnbt,
+    // Typed registry identifiers
+    BiomeId,
+    BlockId,
+    DamageTypeId,
+    DimensionId,
+    EffectId,
+    EnchantmentId,
+    EntityTypeId,
+    ItemId,
+    StructureId,
+    TagId,
     // Advancement
     Advancement,
     AdvancementDisplay,

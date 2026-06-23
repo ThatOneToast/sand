@@ -409,6 +409,80 @@ impl From<MultiKillTrigger> for AdvancementTrigger {
     }
 }
 
+// ── PlayerInteractedWithEntityTrigger ─────────────────────────────────────────
+
+/// Fires when the player right-clicks an entity.
+///
+/// Use this with `interaction` entities for custom clickable objects.
+#[derive(Clone, Debug, Default)]
+pub struct PlayerInteractedWithEntityTrigger {
+    item: Option<ItemPredicate>,
+    entity: Option<EntityPredicate>,
+}
+
+impl PlayerInteractedWithEntityTrigger {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Filter by the item held during the interaction.
+    pub fn item(mut self, predicate: ItemPredicate) -> Self {
+        self.item = Some(predicate);
+        self
+    }
+
+    /// Filter by the entity that was interacted with.
+    pub fn entity(mut self, predicate: EntityPredicate) -> Self {
+        self.entity = Some(predicate);
+        self
+    }
+
+    pub fn build(self) -> AdvancementTrigger {
+        AdvancementTrigger::PlayerInteractedWithEntity {
+            item: self.item,
+            entity: self.entity,
+        }
+    }
+}
+
+impl From<PlayerInteractedWithEntityTrigger> for AdvancementTrigger {
+    fn from(t: PlayerInteractedWithEntityTrigger) -> Self {
+        t.build()
+    }
+}
+
+// ── SummonedEntityTrigger ─────────────────────────────────────────────────────
+
+/// Fires when the player summons an entity (via a spawn egg, totem, etc.).
+#[derive(Clone, Debug, Default)]
+pub struct SummonedEntityTrigger {
+    entity: Option<EntityPredicate>,
+}
+
+impl SummonedEntityTrigger {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Filter by the summoned entity's properties.
+    pub fn entity(mut self, predicate: EntityPredicate) -> Self {
+        self.entity = Some(predicate);
+        self
+    }
+
+    pub fn build(self) -> AdvancementTrigger {
+        AdvancementTrigger::SummonedEntity {
+            entity: self.entity,
+        }
+    }
+}
+
+impl From<SummonedEntityTrigger> for AdvancementTrigger {
+    fn from(t: SummonedEntityTrigger) -> Self {
+        t.build()
+    }
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]

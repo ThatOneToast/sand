@@ -16,6 +16,8 @@
 //! | `systems-lifecycle` | Join/death/respawn lifecycle helpers |
 //! | `systems-player-data` | Player-data schema bootstrap (implies `systems-lifecycle`) |
 //! | `systems-movement` | Typed push, launch, speed boost, and slow helpers |
+//! | `systems-inventory` | Typed inventory has/replace/clear/give helpers |
+//! | `systems-entities` | Typed interactable entity builder |
 //! | `systems-all` | Enable all of the above |
 
 #[cfg(feature = "systems-damage")]
@@ -32,3 +34,9 @@ pub mod player_data;
 
 #[cfg(feature = "systems-movement")]
 pub mod movement;
+
+#[cfg(feature = "systems-inventory")]
+pub mod inventory;
+
+#[cfg(feature = "systems-entities")]
+pub mod entities;

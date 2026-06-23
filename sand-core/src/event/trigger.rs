@@ -27,10 +27,8 @@
 //! ```
 
 use crate::AdvancementTrigger;
-use sand_components::predicates::{
-    DamagePredicate, EntityPredicate, IntRange, ItemPredicate,
-};
 use sand_components::advancement::InventorySlotsPredicate;
+use sand_components::predicates::{DamagePredicate, EntityPredicate, IntRange, ItemPredicate};
 
 // ── TickTrigger ─────────────────────────────────────────────────────────────
 
@@ -210,7 +208,9 @@ impl RecipeUnlockedTrigger {
     }
 
     pub fn build(self) -> AdvancementTrigger {
-        AdvancementTrigger::RecipeUnlocked { recipe: self.recipe }
+        AdvancementTrigger::RecipeUnlocked {
+            recipe: self.recipe,
+        }
     }
 }
 
@@ -391,9 +391,7 @@ impl MultiKillTrigger {
 
     /// Filter by victim entity predicates.
     pub fn victim(mut self, predicate: EntityPredicate) -> Self {
-        self.victims
-            .get_or_insert_with(Vec::new)
-            .push(predicate);
+        self.victims.get_or_insert_with(Vec::new).push(predicate);
         self
     }
 

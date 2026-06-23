@@ -130,6 +130,7 @@
 ///
 /// Returned by [`SandEvent::dispatch`]. Sand inspects this at build time to
 /// generate the correct detection mechanism (advancement JSON or tick loop).
+#[allow(clippy::large_enum_variant)]
 pub enum SandEventDispatch {
     /// The event fires when the given advancement trigger criteria are met.
     ///

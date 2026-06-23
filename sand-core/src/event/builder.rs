@@ -139,13 +139,14 @@ impl EventConfig {
         // Serialise the trigger to JSON and reconstruct as Custom so the JSON
         // is preserved exactly.  Once AdvancementTrigger derives Clone we can
         // replace this with a direct clone.
-        let v = serde_json::to_value(&self.trigger)
-            .expect("trigger serialisation failed");
+        let v = serde_json::to_value(&self.trigger).expect("trigger serialisation failed");
         let trigger_id = v["trigger"]
             .as_str()
             .expect("trigger has no 'trigger' key")
             .to_string();
-        let conditions = v.get("conditions").cloned()
+        let conditions = v
+            .get("conditions")
+            .cloned()
             .map(sand_components::RawJson::new);
 
         AdvancementTrigger::Custom {
@@ -269,9 +270,9 @@ impl EventBuilder {
     /// Panics if no trigger was set via [`trigger`](EventBuilder::trigger).
     pub fn build(self) -> EventConfig {
         EventConfig {
-            trigger: self.trigger.expect(
-                "EventBuilder::build: no trigger set — call .trigger() before .build()",
-            ),
+            trigger: self
+                .trigger
+                .expect("EventBuilder::build: no trigger set — call .trigger() before .build()"),
             id: self.id.unwrap_or(EventId::Auto),
             reset: self.reset.unwrap_or(EventReset::AfterFire),
             visibility: self.visibility.unwrap_or(EventVisibility::Hidden),
@@ -287,8 +288,8 @@ impl EventBuilder {
 mod tests {
     use super::*;
     use crate::DatapackComponent;
+    use crate::state::{Flag, ScoreVar};
     use sand_components::predicates::{EntityPredicate, ItemPredicate};
-    use crate::state::{ScoreVar, Flag};
 
     static MANA: ScoreVar<i32> = ScoreVar::new("mana");
     static CASTING: Flag = Flag::new("casting");
@@ -306,7 +307,10 @@ mod tests {
         let adv = config.advancement("test:eat_apple", "test:on_eat_apple");
         let json = adv.to_json();
 
-        assert_eq!(json["criteria"]["event"]["trigger"], "minecraft:consume_item");
+        assert_eq!(
+            json["criteria"]["event"]["trigger"],
+            "minecraft:consume_item"
+        );
         assert_eq!(
             json["criteria"]["event"]["conditions"]["item"]["items"],
             "minecraft:golden_apple"
@@ -329,7 +333,10 @@ mod tests {
         let adv = config.advancement("test:slay_dragon", "test:on_slay");
         let json = adv.to_json();
 
-        assert_eq!(json["criteria"]["event"]["trigger"], "minecraft:player_killed_entity");
+        assert_eq!(
+            json["criteria"]["event"]["trigger"],
+            "minecraft:player_killed_entity"
+        );
         assert_eq!(
             json["criteria"]["event"]["conditions"]["entity"]["type"],
             "minecraft:ender_dragon"
@@ -384,9 +391,21 @@ mod tests {
         // [0] = revoke, [1] = guard
         assert_eq!(cmds.len(), 2);
         assert_eq!(cmds[0], "advancement revoke @s only test:my_event");
-        assert!(cmds[1].contains("unless"), "guard must use 'unless': {}", cmds[1]);
-        assert!(cmds[1].contains("return 0"), "guard must return 0: {}", cmds[1]);
-        assert!(cmds[1].contains("mana"), "guard must reference mana obj: {}", cmds[1]);
+        assert!(
+            cmds[1].contains("unless"),
+            "guard must use 'unless': {}",
+            cmds[1]
+        );
+        assert!(
+            cmds[1].contains("return 0"),
+            "guard must return 0: {}",
+            cmds[1]
+        );
+        assert!(
+            cmds[1].contains("mana"),
+            "guard must reference mana obj: {}",
+            cmds[1]
+        );
     }
 
     #[test]
@@ -415,8 +434,14 @@ mod tests {
 
         let defs = config.state_defines();
         assert_eq!(defs.len(), 2);
-        assert!(defs.contains(&MANA.define()), "missing mana define: {defs:?}");
-        assert!(defs.contains(&CASTING.define()), "missing casting define: {defs:?}");
+        assert!(
+            defs.contains(&MANA.define()),
+            "missing mana define: {defs:?}"
+        );
+        assert!(
+            defs.contains(&CASTING.define()),
+            "missing casting define: {defs:?}"
+        );
     }
 
     #[test]
@@ -440,7 +465,11 @@ mod tests {
 
         let defs = config.state_defines();
         assert_eq!(defs.len(), 1);
-        assert!(defs[0].contains("dash"), "expected dash define: {}", defs[0]);
+        assert!(
+            defs[0].contains("dash"),
+            "expected dash define: {}",
+            defs[0]
+        );
     }
 
     // ── EventId and reset fields ──────────────────────────────────────────────
@@ -497,7 +526,7 @@ mod tests {
 
         // trigger_clone() must produce a trigger that serialises identically
         let original = serde_json::to_value(&config.trigger).unwrap();
-        let cloned   = serde_json::to_value(&config.trigger_clone()).unwrap();
+        let cloned = serde_json::to_value(config.trigger_clone()).unwrap();
         assert_eq!(original, cloned, "trigger_clone must round-trip");
     }
 }

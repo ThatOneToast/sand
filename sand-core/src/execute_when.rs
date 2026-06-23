@@ -801,6 +801,7 @@ mod tests {
 
     #[test]
     fn branch_is_registered_in_dyn_fn_registry() {
+        let _ = crate::drain_dyn_fns();
         reset_branch_counter_for_tests();
         let _cmds = when(MANA.of("@s").gte(10)).then_all(["say registered"]);
         let fns = crate::drain_dyn_fns();
@@ -814,6 +815,7 @@ mod tests {
 
     #[test]
     fn identical_branch_bodies_reuse_generated_helper() {
+        let _ = crate::drain_dyn_fns();
         reset_branch_counter_for_tests();
         let first = when(MANA.of("@s").gte(10)).then_all(["say same"]);
         let second = when(MANA.of("@s").gte(20)).then_all(["say same"]);

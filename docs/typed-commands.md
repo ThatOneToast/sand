@@ -38,3 +38,5 @@ components that Sand does not model yet.
 For typed positions use `tp_vec3`, `tp_with_rotation`, `summon_at`, and `summon_at_with_nbt`. `DamageAmount::hearts`, `.points`, and `.fixed` are fixed values and never use the removed panic-prone score/event variants. See the full [typed command guide](../book/src/typed-commands.md).
 
 <div class="sand-warning"><strong>Experimental/version-sensitive.</strong> Typed APIs lower to vanilla command syntax. A raw command remains appropriate for unsupported snapshot, modded, or future syntax; keep it localized and label why it is raw.</div>
+
+For custom-item enchantments, prefer `typed_enchantment(EnchantmentId::minecraft("quick_charge").unwrap(), 3)` and `typed_stored_enchantment(EnchantmentId::minecraft("sharpness").unwrap(), 5)`. Sand emits current direct component maps, not legacy `{levels:{...}}` NBT. Use `RawComponent` only for a missing/version-sensitive component shape.

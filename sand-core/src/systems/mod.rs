@@ -1,0 +1,30 @@
+//! Optional built-in datapack systems, enabled via Cargo features.
+//!
+//! Each system is opt-in. Enable only what your pack needs:
+//!
+//! ```toml
+//! [dependencies]
+//! sand-core = { version = "...", features = ["systems-damage"] }
+//! ```
+//!
+//! # Available features
+//!
+//! | Feature | Description |
+//! |---|---|
+//! | `systems-damage` | Damage tracking via cumulative scoreboard stats |
+//! | `systems-cooldowns` | Auto-tick all registered cooldowns |
+//! | `systems-lifecycle` | Join/death/respawn lifecycle helpers |
+//! | `systems-player-data` | Player-data schema bootstrap (implies `systems-lifecycle`) |
+//! | `systems-all` | Enable all of the above |
+
+#[cfg(feature = "systems-damage")]
+pub mod damage;
+
+#[cfg(feature = "systems-cooldowns")]
+pub mod cooldowns;
+
+#[cfg(feature = "systems-lifecycle")]
+pub mod lifecycle;
+
+#[cfg(feature = "systems-player-data")]
+pub mod player_data;

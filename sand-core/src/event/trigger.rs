@@ -26,6 +26,7 @@
 //! ```
 
 use crate::AdvancementTrigger;
+use sand_components::RawJson;
 
 // ── TickTrigger ─────────────────────────────────────────────────────────────
 
@@ -207,7 +208,7 @@ impl RecipeUnlockedTrigger {
     pub fn build(self) -> AdvancementTrigger {
         AdvancementTrigger::Custom {
             trigger: "minecraft:recipe_unlocked".into(),
-            conditions: Some(::serde_json::json!({ "recipe": self.recipe })),
+            conditions: Some(RawJson::new(::serde_json::json!({ "recipe": self.recipe }))),
         }
     }
 }

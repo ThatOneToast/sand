@@ -89,6 +89,70 @@ impl Flag {
             selector: selector.to_string(),
         }
     }
+
+    /// Set the flag to an explicit boolean value.
+    ///
+    /// Equivalent to `enable` when `true` and `disable` when `false`.
+    pub fn set(&self, selector: impl std::fmt::Display, value: bool) -> String {
+        if value {
+            self.enable(selector)
+        } else {
+            self.disable(selector)
+        }
+    }
+
+    /// Alias for [`disable`](Flag::disable) — sets the flag to `false`.
+    pub fn clear(&self, selector: impl std::fmt::Display) -> String {
+        self.disable(selector)
+    }
+
+    /// Initialize the flag to `false` (0) only if the player has no existing score.
+    ///
+    /// Useful in join handlers to avoid overwriting state set by another system.
+    ///
+    /// Generated command:
+    /// ```text
+    /// execute unless score <selector> <obj> matches -2147483648.. run scoreboard players set <selector> <obj> 0
+    /// ```
+    pub fn init_false(&self, selector: impl std::fmt::Display) -> String {
+        let obj = self.objective_name();
+        format!(
+            "execute unless score {selector} {obj} matches -2147483648.. run scoreboard players set {selector} {obj} 0"
+        )
+    }
+
+    /// Initialize the flag to `true` (1) only if the player has no existing score.
+    ///
+    /// Generated command:
+    /// ```text
+    /// execute unless score <selector> <obj> matches -2147483648.. run scoreboard players set <selector> <obj> 1
+    /// ```
+    pub fn init_true(&self, selector: impl std::fmt::Display) -> String {
+        let obj = self.objective_name();
+        format!(
+            "execute unless score {selector} {obj} matches -2147483648.. run scoreboard players set {selector} {obj} 1"
+        )
+    }
+
+    /// Condition shorthand: flag is true. Equivalent to `self.of(selector).is_true()`.
+    pub fn when_true(&self, selector: &str) -> Condition {
+        self.of(selector).is_true()
+    }
+
+    /// Condition shorthand: flag is false (exact 0). Equivalent to `self.of(selector).is_false()`.
+    ///
+    /// See [`FlagRef::is_false`] for the difference between this and [`unless_true`](Flag::unless_true).
+    pub fn when_false(&self, selector: &str) -> Condition {
+        self.of(selector).is_false()
+    }
+
+    /// Condition shorthand: flag is not true (missing or 0).
+    ///
+    /// Equivalent to `self.of(selector).is_not_true()`. Prefer this over `when_false`
+    /// when you mean "player does not have this yet".
+    pub fn unless_true(&self, selector: &str) -> Condition {
+        self.of(selector).is_not_true()
+    }
 }
 
 // ── FlagRef ───────────────────────────────────────────────────────────────────
@@ -246,6 +310,61 @@ mod tests {
             vec!["execute if score @s casting matches 0 run say ok"],
             "is_false() requires exactly 0"
         );
+    }
+
+    #[test]
+    fn set_true_is_enable() {
+        assert_eq!(CASTING.set("@s", true), CASTING.enable("@s"));
+    }
+
+    #[test]
+    fn set_false_is_disable() {
+        assert_eq!(CASTING.set("@s", false), CASTING.disable("@s"));
+    }
+
+    #[test]
+    fn clear_is_disable() {
+        assert_eq!(CASTING.clear("@s"), CASTING.disable("@s"));
+    }
+
+    #[test]
+    fn init_false_uses_unless() {
+        let cmd = CASTING.init_false("@s");
+        assert!(
+            cmd.contains("unless score @s casting matches -2147483648.."),
+            "got: {cmd}"
+        );
+        assert!(cmd.contains("set @s casting 0"), "got: {cmd}");
+    }
+
+    #[test]
+    fn init_true_uses_unless() {
+        let cmd = CASTING.init_true("@s");
+        assert!(
+            cmd.contains("unless score @s casting matches -2147483648.."),
+            "got: {cmd}"
+        );
+        assert!(cmd.contains("set @s casting 1"), "got: {cmd}");
+    }
+
+    #[test]
+    fn when_true_shorthand() {
+        let a = CASTING.when_true("@s");
+        let b = CASTING.of("@s").is_true();
+        assert!(matches!(a, Condition::Flag { value: true, .. }));
+        assert!(matches!(b, Condition::Flag { value: true, .. }));
+    }
+
+    #[test]
+    fn when_false_shorthand() {
+        let cond = CASTING.when_false("@s");
+        assert!(matches!(cond, Condition::Flag { value: false, .. }));
+    }
+
+    #[test]
+    fn unless_true_shorthand() {
+        let cond = CASTING.unless_true("@s");
+        assert!(matches!(cond, Condition::Not(_)));
     }
 
     #[test]

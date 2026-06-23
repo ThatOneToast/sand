@@ -104,6 +104,49 @@ impl Cooldown {
         }
     }
 
+    /// Alias for [`ready`](Cooldown::ready) — more intuitive name when thinking about
+    /// whether the timer has "expired" (counted down to zero).
+    pub fn expired(&self, selector: &str) -> Condition {
+        self.ready(selector)
+    }
+
+    /// Alias for [`start`](Cooldown::start) — emphasizes the selector context.
+    pub fn start_for(&self, selector: impl std::fmt::Display) -> String {
+        self.start(selector)
+    }
+
+    /// Alias for [`stop`](Cooldown::stop) — resets the cooldown to zero immediately.
+    pub fn reset_for(&self, selector: impl std::fmt::Display) -> String {
+        self.stop(selector)
+    }
+
+    /// Tick the cooldown for all players (`@a`).
+    ///
+    /// Convenience for placing in a `#[component(Tick)]` function.
+    pub fn tick_all_players(&self) -> String {
+        self.tick("@a")
+    }
+
+    /// Alias for [`guard`](Cooldown::guard) — guards if the cooldown is NOT ready.
+    ///
+    /// Returns early (`return 0`) if the cooldown is still active.
+    pub fn guard_active(&self, selector: impl std::fmt::Display) -> String {
+        self.guard(selector)
+    }
+
+    /// Guard clause: return early if the cooldown IS ready (score == 0).
+    ///
+    /// Useful when you only want to run logic while the cooldown is active.
+    ///
+    /// Produces: `execute if score <selector> <obj> matches 0 run return 0`
+    pub fn guard_ready(&self, selector: impl std::fmt::Display) -> String {
+        format!(
+            "execute if score {} {} matches 0 run return 0",
+            selector,
+            self.objective_name()
+        )
+    }
+
     /// Return the configured duration.
     pub fn duration(&self) -> Ticks {
         self.duration
@@ -173,5 +216,52 @@ mod tests {
             } => {}
             other => panic!("unexpected: {other:?}"),
         }
+    }
+
+    #[test]
+    fn expired_is_alias_for_ready() {
+        let a = DASH.expired("@s");
+        let b = DASH.ready("@s");
+        // Both should be Eq(0)
+        assert!(matches!(
+            a,
+            Condition::Score {
+                range: ScoreRange::Eq(0),
+                ..
+            }
+        ));
+        assert!(matches!(
+            b,
+            Condition::Score {
+                range: ScoreRange::Eq(0),
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn start_for_is_start() {
+        assert_eq!(DASH.start_for("@s"), DASH.start("@s"));
+    }
+
+    #[test]
+    fn reset_for_is_stop() {
+        assert_eq!(DASH.reset_for("@s"), DASH.stop("@s"));
+    }
+
+    #[test]
+    fn tick_all_players() {
+        assert_eq!(DASH.tick_all_players(), DASH.tick("@a"));
+    }
+
+    #[test]
+    fn guard_ready_cmd() {
+        let cmd = DASH.guard_ready("@s");
+        assert_eq!(cmd, "execute if score @s dash matches 0 run return 0");
+    }
+
+    #[test]
+    fn guard_active_is_guard() {
+        assert_eq!(DASH.guard_active("@s"), DASH.guard("@s"));
     }
 }

@@ -28,6 +28,14 @@ pub use crate::state::{
     Cooldown, Flag, FlagRef, NbtPath, ScoreRef, ScoreVar, StorageVar, Ticks, Timer,
 };
 
+// ── Optional systems ──────────────────────────────────────────────────────────
+
+#[cfg(feature = "systems-damage")]
+pub use crate::systems::damage::{DamageTracker, recently_damaged};
+
+#[cfg(feature = "systems-player-data")]
+pub use crate::systems::player_data::PlayerSchema;
+
 // ── Resource refs ─────────────────────────────────────────────────────────────
 
 pub use crate::ResourceLocation;
@@ -61,6 +69,10 @@ pub use sand_components::{
     AttributeModifier, AttributeOperation, AttributeType, CustomItem, EquipmentSlotGroup,
     FoodProperties, ItemPredicate, ItemRarity,
 };
+
+// ── Raw escape hatch types ────────────────────────────────────────────────────
+
+pub use sand_components::{RawCommand, RawComponent, RawJson, RawSnbt};
 
 // ── Text / chat ───────────────────────────────────────────────────────────────
 

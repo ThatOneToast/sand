@@ -41,6 +41,7 @@ use std::fmt;
 use serde_json::Value;
 
 use crate::advancement::{Advancement, AdvancementRewards, AdvancementTrigger, Criterion};
+use crate::raw::RawComponent;
 use crate::resource_location::ResourceLocation;
 use sand_commands::TextComponent;
 
@@ -973,6 +974,16 @@ impl CustomItem {
     /// Appends `key=snbt_value` verbatim to the component string.
     pub fn raw_component(mut self, key: impl Into<String>, snbt_value: impl Into<String>) -> Self {
         self.extra_components.push((key.into(), snbt_value.into()));
+        self
+    }
+
+    /// Add a raw item component from an explicit [`RawComponent`] value.
+    ///
+    /// Prefer this over `raw_component(key, snbt)` when you want the escape hatch
+    /// to be visible at the construction site rather than buried in two string args.
+    pub fn with_raw_component(mut self, component: RawComponent) -> Self {
+        self.extra_components
+            .push((component.key().to_owned(), component.value().to_owned()));
         self
     }
 

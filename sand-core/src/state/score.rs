@@ -151,6 +151,149 @@ impl<T> ScoreVar<T> {
             _marker: PhantomData,
         }
     }
+
+    /// Initialize the score to `value` only if the selector has no existing score entry.
+    ///
+    /// Uses `unless score … matches -2147483648..` to detect a missing score.
+    ///
+    /// Generated command:
+    /// ```text
+    /// execute unless score <selector> <obj> matches -2147483648.. run scoreboard players set <selector> <obj> <value>
+    /// ```
+    pub fn init(&self, selector: impl std::fmt::Display, value: i32) -> String {
+        format!(
+            "execute unless score {} {} matches -2147483648.. run scoreboard players set {} {} {}",
+            selector,
+            self.objective_name(),
+            selector,
+            self.objective_name(),
+            value
+        )
+    }
+
+    /// Copy this score from `src_selector` to `dst_selector` within the same objective.
+    ///
+    /// Generated command:
+    /// ```text
+    /// scoreboard players operation <dst> <obj> = <src> <obj>
+    /// ```
+    pub fn copy_within(
+        &self,
+        src_selector: impl std::fmt::Display,
+        dst_selector: impl std::fmt::Display,
+    ) -> String {
+        format!(
+            "scoreboard players operation {} {} = {} {}",
+            dst_selector,
+            self.objective_name(),
+            src_selector,
+            self.objective_name()
+        )
+    }
+
+    /// Copy a score from another `ScoreVar` into this one for `selector`.
+    ///
+    /// Generated command:
+    /// ```text
+    /// scoreboard players operation <dst_sel> <self_obj> = <src_sel> <src_obj>
+    /// ```
+    pub fn copy_from<U>(
+        &self,
+        dst_selector: impl std::fmt::Display,
+        src: &ScoreVar<U>,
+        src_selector: impl std::fmt::Display,
+    ) -> String {
+        format!(
+            "scoreboard players operation {} {} = {} {}",
+            dst_selector,
+            self.objective_name(),
+            src_selector,
+            src.objective_name()
+        )
+    }
+
+    /// Copy this score into another `ScoreVar`.
+    ///
+    /// Generated command:
+    /// ```text
+    /// scoreboard players operation <dst_sel> <dst_obj> = <src_sel> <self_obj>
+    /// ```
+    pub fn copy_to<U>(
+        &self,
+        src_selector: impl std::fmt::Display,
+        dst: &ScoreVar<U>,
+        dst_selector: impl std::fmt::Display,
+    ) -> String {
+        format!(
+            "scoreboard players operation {} {} = {} {}",
+            dst_selector,
+            dst.objective_name(),
+            src_selector,
+            self.objective_name()
+        )
+    }
+
+    /// Set this score to the minimum of itself and another variable.
+    ///
+    /// Generated command:
+    /// ```text
+    /// scoreboard players operation <sel> <self_obj> < <other_sel> <other_obj>
+    /// ```
+    pub fn min_op<U>(
+        &self,
+        selector: impl std::fmt::Display,
+        other: &ScoreVar<U>,
+        other_selector: impl std::fmt::Display,
+    ) -> String {
+        format!(
+            "scoreboard players operation {} {} < {} {}",
+            selector,
+            self.objective_name(),
+            other_selector,
+            other.objective_name()
+        )
+    }
+
+    /// Set this score to the maximum of itself and another variable.
+    ///
+    /// Generated command:
+    /// ```text
+    /// scoreboard players operation <sel> <self_obj> > <other_sel> <other_obj>
+    /// ```
+    pub fn max_op<U>(
+        &self,
+        selector: impl std::fmt::Display,
+        other: &ScoreVar<U>,
+        other_selector: impl std::fmt::Display,
+    ) -> String {
+        format!(
+            "scoreboard players operation {} {} > {} {}",
+            selector,
+            self.objective_name(),
+            other_selector,
+            other.objective_name()
+        )
+    }
+
+    /// Condition: score equals zero.
+    pub fn is_zero(&self, selector: &str) -> crate::condition::Condition {
+        self.of(selector).is_zero()
+    }
+
+    /// Condition: score is not zero.
+    pub fn is_nonzero(&self, selector: &str) -> crate::condition::Condition {
+        self.of(selector).is_nonzero()
+    }
+
+    /// Condition: score is strictly positive (> 0).
+    pub fn positive(&self, selector: &str) -> crate::condition::Condition {
+        self.of(selector).positive()
+    }
+
+    /// Condition: score is strictly negative (< 0).
+    pub fn negative(&self, selector: &str) -> crate::condition::Condition {
+        self.of(selector).negative()
+    }
 }
 
 // ── ScoreRef ──────────────────────────────────────────────────────────────────
@@ -218,6 +361,26 @@ impl<'a, T> ScoreRef<'a, T> {
             objective,
             range: ScoreRange::Lt(n),
         }
+    }
+
+    /// Condition: score equals zero.
+    pub fn is_zero(self) -> Condition {
+        self.eq(0)
+    }
+
+    /// Condition: score is not zero.
+    pub fn is_nonzero(self) -> Condition {
+        self.ne(0)
+    }
+
+    /// Condition: score is strictly positive (`matches 1..`).
+    pub fn positive(self) -> Condition {
+        self.gt(0)
+    }
+
+    /// Condition: score is strictly negative (`matches ..-1`).
+    pub fn negative(self) -> Condition {
+        self.lt(0)
     }
 
     /// `if score <sel> <obj> matches ..<n>` — less than or equal to `n`.
@@ -389,6 +552,116 @@ mod tests {
             } => {}
             other => panic!("unexpected: {other:?}"),
         }
+    }
+
+    #[test]
+    fn init_cmd_uses_unless() {
+        let cmd = MANA.init("@s", 100);
+        assert!(
+            cmd.contains("unless score @s mana matches -2147483648.."),
+            "got: {cmd}"
+        );
+        assert!(cmd.contains("set @s mana 100"), "got: {cmd}");
+    }
+
+    #[test]
+    fn copy_within_cmd() {
+        let cmd = MANA.copy_within("@s", "@p");
+        assert_eq!(cmd, "scoreboard players operation @p mana = @s mana");
+    }
+
+    #[test]
+    fn copy_to_cmd() {
+        static OTHER: ScoreVar<i32> = ScoreVar::new("other");
+        let cmd = MANA.copy_to("@s", &OTHER, "@p");
+        assert_eq!(cmd, "scoreboard players operation @p other = @s mana");
+    }
+
+    #[test]
+    fn copy_from_cmd() {
+        static SRC: ScoreVar<i32> = ScoreVar::new("src");
+        let cmd = MANA.copy_from("@s", &SRC, "@p");
+        assert_eq!(cmd, "scoreboard players operation @s mana = @p src");
+    }
+
+    #[test]
+    fn min_op_cmd() {
+        static CAP: ScoreVar<i32> = ScoreVar::new("cap");
+        let cmd = MANA.min_op("@s", &CAP, "@s");
+        assert_eq!(cmd, "scoreboard players operation @s mana < @s cap");
+    }
+
+    #[test]
+    fn max_op_cmd() {
+        static FLOOR: ScoreVar<i32> = ScoreVar::new("floor");
+        let cmd = MANA.max_op("@s", &FLOOR, "@s");
+        assert_eq!(cmd, "scoreboard players operation @s mana > @s floor");
+    }
+
+    #[test]
+    fn is_zero_condition() {
+        let cond = MANA.is_zero("@s");
+        assert!(matches!(
+            cond,
+            Condition::Score {
+                range: ScoreRange::Eq(0),
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn is_nonzero_condition() {
+        let cond = MANA.is_nonzero("@s");
+        assert!(matches!(cond, Condition::Not(_)));
+    }
+
+    #[test]
+    fn positive_condition() {
+        let cond = MANA.positive("@s");
+        assert!(matches!(
+            cond,
+            Condition::Score {
+                range: ScoreRange::Gt(0),
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn negative_condition() {
+        let cond = MANA.negative("@s");
+        assert!(matches!(
+            cond,
+            Condition::Score {
+                range: ScoreRange::Lt(0),
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn scoreref_is_zero() {
+        let cond = MANA.of("@s").is_zero();
+        assert!(matches!(
+            cond,
+            Condition::Score {
+                range: ScoreRange::Eq(0),
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn scoreref_positive() {
+        let cond = MANA.of("@s").positive();
+        assert!(matches!(
+            cond,
+            Condition::Score {
+                range: ScoreRange::Gt(0),
+                ..
+            }
+        ));
     }
 
     #[test]

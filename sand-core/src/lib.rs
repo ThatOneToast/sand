@@ -51,6 +51,7 @@ pub mod prelude;
 pub mod resource_location;
 pub mod resource_ref;
 pub mod state;
+pub mod systems;
 pub mod version;
 
 // ── Re-export the sand-components crate itself ────────────────────────────────
@@ -184,6 +185,11 @@ pub use components::mc_function::{IntoCommands, McFunction};
 pub use sand_components::dialog::{Dialog, DialogAction, DialogBody, DialogButton, DialogKind};
 
 pub use sand_components::{
+    // Raw escape hatch types
+    RawCommand,
+    RawComponent,
+    RawJson,
+    RawSnbt,
     // Advancement
     Advancement,
     AdvancementDisplay,

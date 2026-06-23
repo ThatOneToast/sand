@@ -3431,15 +3431,11 @@ fn sand_storage_derive_impl(
                 syn::punctuated::Punctuated::<Meta, syn::Token![,]>::parse_terminated,
             ) {
                 for meta in nested {
-                    if let Meta::NameValue(nv) = meta {
-                        if nv.path.is_ident("path") {
-                            if let syn::Expr::Lit(syn::ExprLit {
-                                lit: Lit::Str(s), ..
-                            }) = &nv.value
-                            {
-                                path_override = Some(s.value());
-                            }
-                        }
+                    if let Meta::NameValue(nv) = meta
+                        && nv.path.is_ident("path")
+                        && let syn::Expr::Lit(syn::ExprLit { lit: Lit::Str(s), .. }) = &nv.value
+                    {
+                        path_override = Some(s.value());
                     }
                 }
             }

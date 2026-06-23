@@ -15,7 +15,7 @@ name = "sand_export"
 path = "src/bin/sand_export.rs"
 
 [dependencies]
-sand-core = { path = "../sand-core" }
+sand-core = { path = "../sand-core", features = ["systems-damage"] }
 sand-macros = { path = "../sand-macros" }
 serde_json = "1"
 

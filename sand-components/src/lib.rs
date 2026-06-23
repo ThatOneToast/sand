@@ -103,9 +103,10 @@ pub use instrument::Instrument;
 
 pub use item::predicates::InventorySlots;
 pub use item::{
-    AttributeModifier, AttributeOperation, AttributeType, ConsumableAnimation,
-    ConsumableProperties, CustomItem, DyedColor, EquipmentSlot, EquipmentSlotGroup,
-    EquippableProperties, FoodProperties, ItemRarity, ToolProperties, ToolRule,
+    AttributeId, AttributeModifier, AttributeOperation, AttributeType, ConsumableAnimation,
+    ConsumableProperties, CustomData, CustomItem, DyedColor, EnchantmentEntry, EquipmentSlot,
+    EquipmentSlotGroup, EquippableProperties, FoodProperties, ItemComponent, ItemRarity, Rarity,
+    ToolProperties, ToolRule,
 };
 
 // ── Item Modifier ─────────────────────────────────────────────────────────────

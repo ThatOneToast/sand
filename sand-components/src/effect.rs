@@ -342,6 +342,10 @@ impl PotionContents {
         self
     }
 
+    pub fn custom_effect(self, effect: StatusEffectInstance) -> Self {
+        self.effect(effect)
+    }
+
     pub fn to_snbt(&self) -> String {
         let mut parts = Vec::new();
         if let Some(ref potion) = self.potion {

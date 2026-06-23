@@ -60,17 +60,6 @@ pub fn export_components_json(namespace: &str) -> String {
         });
     }
 
-    // ── Dynamic anonymous functions (run_fn! blocks + conditional branches) ─────
-    for (path, commands) in crate::drain_dyn_fns() {
-        records.push(ComponentRecord {
-            namespace: namespace.to_string(),
-            dir: "function".to_string(),
-            path,
-            ext: "mcfunction".to_string(),
-            content: commands.join("\n"),
-        });
-    }
-
     // ── Dialog callback dispatcher ────────────────────────────────────────────
     // If any DialogAction::callback(...) calls were made, generate the
     // trigger objective infrastructure and per-player dispatch tick function.
@@ -797,6 +786,12 @@ pub fn export_components_json(namespace: &str) -> String {
         }
     }
 
+    // ── Dynamic anonymous functions (branches from all make() calls above) ───
+    // Must run AFTER every desc.make() call so branches registered by event
+    // bodies, schedule bodies, armor handlers, etc. are all captured.
+    // The loop handles chains: draining can trigger further registrations.
+    drain_dynamic_functions_into(&mut records, namespace);
+
     // ── Finalize tag_map → records ────────────────────────────────────────────
     for (tag_rl, values) in tag_map {
         let (tag_ns, tag_path) = match tag_rl.split_once(':') {
@@ -838,6 +833,28 @@ pub fn export_components_json(namespace: &str) -> String {
 }
 
 // ── Private helpers ───────────────────────────────────────────────────────────
+
+/// Drain all dynamically-registered branch/anonymous functions into `records`.
+///
+/// Loops until the registry is empty so that branches registered *by* other
+/// branches (nested mcfunction! blocks) are also captured.
+fn drain_dynamic_functions_into(records: &mut Vec<ComponentRecord>, namespace: &str) {
+    loop {
+        let drained = crate::drain_dyn_fns();
+        if drained.is_empty() {
+            break;
+        }
+        for (path, commands) in drained {
+            records.push(ComponentRecord {
+                namespace: namespace.to_string(),
+                dir: "function".to_string(),
+                path,
+                ext: "mcfunction".to_string(),
+                content: commands.join("\n"),
+            });
+        }
+    }
+}
 
 /// Replace every `__sand_local:<path>` sentinel in an mcfunction content string
 /// with `<namespace>:<path>`.

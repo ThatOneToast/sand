@@ -40,12 +40,12 @@ use std::fmt;
 
 use serde_json::Value;
 
-use crate::EnchantmentId;
 use crate::advancement::{Advancement, AdvancementRewards, AdvancementTrigger, Criterion};
 use crate::effect::{PotionContents, SuspiciousStewEffect};
 use crate::predicates::ItemPredicate as TypedItemPredicate;
 use crate::raw::{RawComponent, RawSnbt};
 use crate::resource_location::ResourceLocation;
+use crate::{BlockId, EnchantmentId, EntityTypeId, TagId};
 use sand_commands::TextComponent;
 
 pub mod predicates;
@@ -639,8 +639,8 @@ impl ConsumableProperties {
     }
 
     /// Set a custom sound to play when consuming (e.g. `"minecraft:entity.player.burp"`).
-    pub fn sound(mut self, sound: impl Into<String>) -> Self {
-        self.sound = Some(sound.into());
+    pub fn sound(mut self, sound: impl fmt::Display) -> Self {
+        self.sound = Some(sound.to_string());
         self
     }
 
@@ -747,18 +747,28 @@ impl EquippableProperties {
         self
     }
     /// Set a sound to play when equipping (e.g. `"minecraft:item.armor.equip_diamond"`).
-    pub fn equip_sound(mut self, sound: impl Into<String>) -> Self {
-        self.equip_sound = Some(sound.into());
+    pub fn equip_sound(mut self, sound: impl fmt::Display) -> Self {
+        self.equip_sound = Some(sound.to_string());
         self
     }
     /// Set a custom model override for this equipped item.
-    pub fn model(mut self, model: impl Into<String>) -> Self {
-        self.model = Some(model.into());
+    pub fn model(mut self, model: impl fmt::Display) -> Self {
+        self.model = Some(model.to_string());
         self
     }
     /// Restrict equipping to entities with a specific tag.
-    pub fn allowed_entities(mut self, tag: impl Into<String>) -> Self {
-        self.allowed_entities = Some(tag.into());
+    pub fn allowed_entities(mut self, tag: impl fmt::Display) -> Self {
+        self.allowed_entities = Some(tag.to_string());
+        self
+    }
+    /// Restrict equipping to a specific entity type.
+    pub fn allowed_entity_type(mut self, entity_type: EntityTypeId) -> Self {
+        self.allowed_entities = Some(entity_type.to_string());
+        self
+    }
+    /// Restrict equipping to an entity type tag.
+    pub fn allowed_entity_tag(mut self, tag: TagId<EntityTypeId>) -> Self {
+        self.allowed_entities = Some(tag.to_tag_string());
         self
     }
 
@@ -797,12 +807,22 @@ pub struct ToolRule {
 
 impl ToolRule {
     /// Create a new tool rule for the given block or block tag.
-    pub fn new(blocks: impl Into<String>) -> Self {
+    pub fn new(blocks: impl fmt::Display) -> Self {
         Self {
-            blocks: blocks.into(),
+            blocks: blocks.to_string(),
             speed: None,
             correct_for_drops: None,
         }
+    }
+
+    /// Create a new tool rule for one block.
+    pub fn block(block: BlockId) -> Self {
+        Self::new(block)
+    }
+
+    /// Create a new tool rule for a block tag.
+    pub fn tag(tag: TagId<BlockId>) -> Self {
+        Self::new(tag.to_tag_string())
     }
 
     /// Set the mining speed multiplier (1.0 = normal, 2.0 = twice as fast).

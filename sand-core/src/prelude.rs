@@ -55,8 +55,8 @@ pub use crate::function::IntoFunctionRef;
 
 pub use crate::event::handle::EventHandle;
 pub use crate::event::{
-    AdvancementEvent, DamageAdvancementEvent, DamageEvent, Event, EventId, EventPlayer, EventReset,
-    EventVisibility, IntoEventAdvancement,
+    AdvancementEvent, DamageAdvancementEvent, DamageEvent, Event, EventBuilder, EventConfig,
+    EventId, EventPlayer, EventReset, EventVisibility, IntoEventAdvancement,
 };
 
 // ── Dialog builders ───────────────────────────────────────────────────────────

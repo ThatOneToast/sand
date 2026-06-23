@@ -7,7 +7,7 @@ use serde_json::Value;
 use crate::error::Result;
 
 /// Top-level commands to skip entirely (they use redirects or are aliases).
-const SKIP_COMMANDS: &[&str] = &["execute", "tell", "tm", "tp", "w", "xp"];
+const SKIP_COMMANDS: &[&str] = &["effect", "execute", "tell", "tm", "tp", "w", "xp"];
 
 /// Maximum tree depth to prevent runaway generation.
 const MAX_DEPTH: usize = 6;

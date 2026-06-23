@@ -34,6 +34,7 @@
 
 mod cooldown;
 mod data;
+mod effect;
 mod fn_macros;
 mod typed_execute;
 
@@ -89,6 +90,7 @@ pub use cooldown::Cooldown;
 // Storage and StorageKind are datapack concepts defined only in sand-core.
 // All other NBT/scoreboard types come from sand-commands above.
 pub use data::{Storage, StorageKind};
+pub use effect::{EffectGive, effect_clear, effect_clear_effect, effect_give, effect_give_raw};
 pub use fn_macros::{function_with, macro_line, macro_var};
 pub use typed_execute::{ConditionedExecute, ExecuteExt, TypedExecute};
 

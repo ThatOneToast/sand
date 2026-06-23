@@ -16,6 +16,7 @@ pub use crate::execute_when::{if_, unless, when};
 // ── Command builders ──────────────────────────────────────────────────────────
 
 pub use crate::Damage;
+#[allow(deprecated)]
 pub use crate::cmd::{
     Actionbar, Bossbar, BossbarColor, BossbarStyle, DamageAmount, DamageBuilder, DamageKind,
     EntityTargets, Execute, Inventory, InventorySlot, PlayerTargets, Selector, SingleEntity,

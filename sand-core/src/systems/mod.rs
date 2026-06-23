@@ -15,6 +15,7 @@
 //! | `systems-cooldowns` | Auto-tick all registered cooldowns |
 //! | `systems-lifecycle` | Join/death/respawn lifecycle helpers |
 //! | `systems-player-data` | Player-data schema bootstrap (implies `systems-lifecycle`) |
+//! | `systems-movement` | Typed push, launch, speed boost, and slow helpers |
 //! | `systems-all` | Enable all of the above |
 
 #[cfg(feature = "systems-damage")]
@@ -28,3 +29,6 @@ pub mod lifecycle;
 
 #[cfg(feature = "systems-player-data")]
 pub mod player_data;
+
+#[cfg(feature = "systems-movement")]
+pub mod movement;

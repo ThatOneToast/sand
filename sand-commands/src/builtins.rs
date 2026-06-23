@@ -13,6 +13,7 @@
 //! ];
 //! ```
 
+use crate::coord::{Rotation, Vec3};
 use crate::selector::{EntityTargets, Selector, SingleEntity};
 use crate::text::TextComponent;
 
@@ -82,6 +83,72 @@ pub fn tp_relative(target: Selector, dx: f64, dy: f64, dz: f64) -> String {
         }
     };
     format!("tp {} {} {} {}", target, fmt_r(dx), fmt_r(dy), fmt_r(dz))
+}
+
+/// `tp <target> <pos>` — teleport using a typed [`Vec3`] position.
+///
+/// Supports absolute, relative (`~`), and local (`^`) coordinates.
+///
+/// # Examples
+/// ```
+/// use sand_commands::{Selector, coord::{Vec3, Coord}};
+/// use sand_commands::builtins::tp_vec3;
+///
+/// assert_eq!(tp_vec3(Selector::self_(), Vec3::here()), "tp @s ~ ~ ~");
+/// assert_eq!(tp_vec3(Selector::self_(), Vec3::absolute(10.0, 64.0, -5.0)), "tp @s 10 64 -5");
+/// assert_eq!(
+///     tp_vec3(Selector::self_(), Vec3::new(Coord::local_n(0.0), Coord::local_n(0.5), Coord::local_n(2.0))),
+///     "tp @s ^ ^0.5 ^2",
+/// );
+/// ```
+pub fn tp_vec3(target: Selector, pos: Vec3) -> String {
+    format!("tp {} {}", target, pos)
+}
+
+/// `tp <target> <pos> <rotation>` — teleport with an explicit facing direction.
+///
+/// # Example
+/// ```
+/// use sand_commands::{Selector, coord::{Vec3, Rotation}};
+/// use sand_commands::builtins::tp_with_rotation;
+///
+/// let cmd = tp_with_rotation(Selector::self_(), Vec3::here(), Rotation::absolute(90.0, 0.0));
+/// assert_eq!(cmd, "tp @s ~ ~ ~ 90 0");
+/// ```
+pub fn tp_with_rotation(target: Selector, pos: Vec3, rotation: Rotation) -> String {
+    format!("tp {} {} {}", target, pos, rotation)
+}
+
+/// `summon <entity_type> <pos>` — summon an entity at a typed [`Vec3`] position.
+///
+/// # Example
+/// ```
+/// use sand_commands::coord::Vec3;
+/// use sand_commands::builtins::summon_at;
+///
+/// assert_eq!(summon_at("minecraft:zombie", Vec3::here()), "summon minecraft:zombie ~ ~ ~");
+/// assert_eq!(summon_at("minecraft:armor_stand", Vec3::absolute(0.0, 64.0, 0.0)), "summon minecraft:armor_stand 0 64 0");
+/// ```
+pub fn summon_at(entity_type: impl Into<String>, pos: Vec3) -> String {
+    format!("summon {} {}", entity_type.into(), pos)
+}
+
+/// `summon <entity_type> <pos> <nbt>` — summon an entity at a position with NBT data.
+///
+/// # Example
+/// ```
+/// use sand_commands::coord::Vec3;
+/// use sand_commands::builtins::summon_at_with_nbt;
+///
+/// let cmd = summon_at_with_nbt("minecraft:armor_stand", Vec3::here(), "{Invisible:1b}");
+/// assert_eq!(cmd, "summon minecraft:armor_stand ~ ~ ~ {Invisible:1b}");
+/// ```
+pub fn summon_at_with_nbt(
+    entity_type: impl Into<String>,
+    pos: Vec3,
+    nbt: impl std::fmt::Display,
+) -> String {
+    format!("summon {} {} {}", entity_type.into(), pos, nbt)
 }
 
 // ── Tags ──────────────────────────────────────────────────────────────────────
@@ -313,14 +380,23 @@ pub fn damage(
 }
 
 /// A damage amount that Sand can lower to Minecraft commands.
+///
+/// All safe constructors produce [`Fixed`](DamageAmount::Fixed) — a concrete
+/// hit-point value that maps directly to the vanilla `damage` command. Score-backed
+/// or per-event amounts are not yet supported; if you need them, track damage via
+/// [`sand_core::systems::damage::DamageTracker`] and emit the value from a scoreboard
+/// operation instead.
+///
+/// # Migration note
+///
+/// The `Score` and `SameAsEvent` variants were removed in this release because they
+/// panicked at command-generation time and could never produce valid output. Use
+/// `DamageAmount::fixed`, `DamageAmount::hearts`, or `DamageAmount::points` instead.
+#[non_exhaustive]
 #[derive(Debug, Clone)]
 pub enum DamageAmount {
     /// A fixed number of hit points.
     Fixed(f64),
-    /// Future score-backed amount. Not lowered yet.
-    Score(String),
-    /// Same as event damage amount. Requires a real tracking system.
-    SameAsEvent,
 }
 
 impl DamageAmount {
@@ -348,14 +424,6 @@ impl DamageAmount {
     fn as_fixed(&self) -> f64 {
         match self {
             Self::Fixed(v) => *v,
-            Self::Score(_) => {
-                panic!("score-backed damage amounts are not implemented yet")
-            }
-            Self::SameAsEvent => {
-                panic!(
-                    "same-as-event damage is unavailable: vanilla advancement rewards do not expose exact damage amount"
-                )
-            }
         }
     }
 }
@@ -783,5 +851,108 @@ mod tests {
             schedule_replace("my_pack:delayed", "20t"),
             "schedule function my_pack:delayed 20t replace"
         );
+    }
+
+    // ── Issue #1: DamageAmount never panics ───────────────────────────────────
+
+    #[test]
+    fn damage_amount_fixed_no_panic() {
+        let a = DamageAmount::fixed(5.0);
+        assert_eq!(a.as_fixed(), 5.0);
+    }
+
+    #[test]
+    fn damage_amount_hearts_no_panic() {
+        let a = DamageAmount::hearts(2.0);
+        assert_eq!(a.as_fixed(), 4.0);
+    }
+
+    #[test]
+    fn damage_amount_points_no_panic() {
+        let a = DamageAmount::points(3.0);
+        assert_eq!(a.as_fixed(), 3.0);
+    }
+
+    #[test]
+    fn damage_amount_from_f64_no_panic() {
+        let a: DamageAmount = 6.0_f64.into();
+        assert_eq!(a.as_fixed(), 6.0);
+    }
+
+    #[test]
+    fn damage_amount_from_f32_no_panic() {
+        let a: DamageAmount = 2.5_f32.into();
+        assert_eq!(a.as_fixed(), 2.5);
+    }
+
+    // ── Issue #2: typed teleport / summon ─────────────────────────────────────
+
+    #[test]
+    fn tp_vec3_here() {
+        use crate::coord::Vec3;
+        assert_eq!(tp_vec3(Selector::self_(), Vec3::here()), "tp @s ~ ~ ~");
+    }
+
+    #[test]
+    fn tp_vec3_absolute() {
+        use crate::coord::Vec3;
+        assert_eq!(
+            tp_vec3(Selector::self_(), Vec3::absolute(10.0, 64.0, -5.0)),
+            "tp @s 10 64 -5"
+        );
+    }
+
+    #[test]
+    fn tp_vec3_local_coords() {
+        use crate::coord::{Coord, Vec3};
+        let pos = Vec3::new(
+            Coord::local(),
+            Coord::local_n(0.5_f64),
+            Coord::local_n(2.0_f64),
+        );
+        assert_eq!(tp_vec3(Selector::self_(), pos), "tp @s ^ ^0.5 ^2");
+    }
+
+    #[test]
+    fn tp_with_rotation_absolute() {
+        use crate::coord::{Rotation, Vec3};
+        let cmd = tp_with_rotation(
+            Selector::self_(),
+            Vec3::here(),
+            Rotation::absolute(90.0, 0.0),
+        );
+        assert_eq!(cmd, "tp @s ~ ~ ~ 90 0");
+    }
+
+    #[test]
+    fn tp_with_rotation_relative() {
+        use crate::coord::{Rotation, Vec3};
+        let cmd = tp_with_rotation(Selector::self_(), Vec3::here(), Rotation::here());
+        assert_eq!(cmd, "tp @s ~ ~ ~ ~ ~");
+    }
+
+    #[test]
+    fn summon_at_here() {
+        use crate::coord::Vec3;
+        assert_eq!(
+            summon_at("minecraft:zombie", Vec3::here()),
+            "summon minecraft:zombie ~ ~ ~"
+        );
+    }
+
+    #[test]
+    fn summon_at_absolute() {
+        use crate::coord::Vec3;
+        assert_eq!(
+            summon_at("minecraft:armor_stand", Vec3::absolute(0.0, 64.0, 0.0)),
+            "summon minecraft:armor_stand 0 64 0"
+        );
+    }
+
+    #[test]
+    fn summon_at_with_nbt_test() {
+        use crate::coord::Vec3;
+        let cmd = summon_at_with_nbt("minecraft:armor_stand", Vec3::here(), "{Invisible:1b}");
+        assert_eq!(cmd, "summon minecraft:armor_stand ~ ~ ~ {Invisible:1b}");
     }
 }

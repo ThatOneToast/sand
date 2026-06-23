@@ -5,6 +5,7 @@ use serde::ser::{SerializeMap, Serializer};
 use serde_json::Value;
 
 use crate::component::DatapackComponent;
+use crate::raw::RawJson;
 use crate::resource_location::ResourceLocation;
 
 // ── AdvancementFrame ──────────────────────────────────────────────────────────
@@ -368,7 +369,10 @@ pub enum AdvancementTrigger {
     /// ```
     Custom {
         trigger: String,
-        conditions: Option<Value>,
+        /// Raw JSON conditions block.  Use [`RawJson`](sand_components::RawJson) to
+        /// construct this field; it signals that you are intentionally opting out
+        /// of the typed predicate API.
+        conditions: Option<RawJson>,
     },
 }
 

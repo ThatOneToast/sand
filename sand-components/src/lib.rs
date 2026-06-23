@@ -39,6 +39,7 @@ pub mod jukebox_song;
 pub mod loot_table;
 pub mod painting_variant;
 pub mod predicate;
+pub mod raw;
 pub mod recipe;
 pub mod resource_location;
 pub mod tag;
@@ -49,6 +50,7 @@ pub mod worldgen;
 // ── Core traits and types ─────────────────────────────────────────────────────
 
 pub use component::{ComponentContent, DatapackComponent, IntoDatapack};
+pub use raw::{RawCommand, RawComponent, RawJson, RawSnbt};
 pub use error::{Result, SandError};
 pub use resource_location::{Identifier, PackNamespace, ResourceLocation};
 

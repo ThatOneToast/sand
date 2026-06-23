@@ -12,6 +12,7 @@ pub mod attribute_golden;
 pub use attribute_golden::*;
 pub mod arcane_golden;
 pub use arcane_golden::*;
+pub mod state_ergonomics;
 
 use sand_core::mcfunction;
 use sand_macros::{component, function, run_fn};
@@ -739,12 +740,12 @@ mod tests {
 
     #[test]
     fn advancement_custom_trigger_escape_hatch() {
-        use sand_core::{Advancement, AdvancementTrigger, Criterion};
+        use sand_core::{Advancement, AdvancementTrigger, Criterion, RawJson};
         let adv = Advancement::new("hello_world:mod_adv".parse().unwrap()).criterion(
             "mod_thing",
             Criterion::new(AdvancementTrigger::Custom {
                 trigger: "mymod:do_thing".into(),
-                conditions: Some(serde_json::json!({"count": 5})),
+                conditions: Some(RawJson::new(serde_json::json!({"count": 5}))),
             }),
         );
         let json = adv.to_json();
@@ -863,12 +864,12 @@ mod tests {
 
     #[test]
     fn loot_condition_custom_escape_hatch() {
-        use sand_core::{LootCondition, Predicate};
+        use sand_core::{LootCondition, Predicate, RawJson};
         let pred = Predicate::new(
             "hello_world:mod_condition".parse().unwrap(),
             LootCondition::Custom {
                 condition: "mymod:special_condition".into(),
-                data: serde_json::json!({"level": 10}),
+                data: RawJson::new(serde_json::json!({"level": 10})),
             },
         );
         let json = pred.to_json();
@@ -895,11 +896,11 @@ mod tests {
 
     #[test]
     fn loot_function_custom_escape_hatch() {
-        use sand_core::{ItemModifier, LootFunction};
+        use sand_core::{ItemModifier, LootFunction, RawJson};
         let modifier = ItemModifier::new("hello_world:mod_func".parse().unwrap()).function(
             LootFunction::Custom {
                 function: "mymod:apply_buff".into(),
-                data: serde_json::json!({"power": 5}),
+                data: RawJson::new(serde_json::json!({"power": 5})),
             },
         );
         let json = modifier.to_json();

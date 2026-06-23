@@ -11,6 +11,26 @@ rust-version.workspace = true
 keywords = ["minecraft", "datapack", "commands", "gamedev"]
 categories = ["game-development", "data-structures"]
 
+[features]
+## Track recent player damage via the `minecraft.custom:minecraft.damage_taken` stat.
+## Provides `DamageTracker` and `recently_damaged` helpers. Cannot report exact per-event
+## damage amounts (a vanilla datapack limitation); see the `systems::damage` module docs.
+systems-damage = []
+
+## Auto-generate scoreboard-tick commands for all `Cooldown` values registered via
+## `systems::cooldowns::register`. Adds a tick-tag entry handled by the export pipeline.
+systems-cooldowns = []
+
+## Lifecycle helpers for join, death, and respawn — initializes registered player-data
+## schemas on first join and re-initialises state on respawn.
+systems-lifecycle = []
+
+## Player-data schema bootstrap: registers data init functions for all `PlayerData` schemas.
+systems-player-data = ["systems-lifecycle"]
+
+## Enable all optional systems.
+systems-all = ["systems-damage", "systems-cooldowns", "systems-player-data"]
+
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

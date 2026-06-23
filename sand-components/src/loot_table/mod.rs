@@ -6,6 +6,7 @@ use serde::ser::{SerializeMap, Serializer};
 use serde_json::Value;
 
 use crate::component::DatapackComponent;
+use crate::raw::RawJson;
 use crate::resource_location::ResourceLocation;
 
 // ── LootTableType ────────────────────────────────────────────────────────────
@@ -241,12 +242,15 @@ pub enum LootCondition {
         /// Predicate file name/ID.
         name: String,
     },
-    /// Custom condition type.
+    /// Custom condition type — explicit raw escape hatch for modded conditions.
+    ///
+    /// Use [`RawJson`](crate::raw::RawJson) for `data`.  The named type signals
+    /// intentional opt-out of the typed condition API.
     Custom {
-        /// Condition type identifier.
+        /// Condition type identifier (e.g. `"mymod:custom_condition"`).
         condition: String,
-        /// Additional condition data.
-        data: Value,
+        /// Additional condition data as raw JSON.
+        data: RawJson,
     },
 }
 
@@ -359,7 +363,7 @@ impl Serialize for LootCondition {
                 let mut map = serializer.serialize_map(Some(2))?;
                 map.serialize_entry("condition", condition)?;
                 // Merge data fields into the map
-                if let Value::Object(obj) = data {
+                if let Value::Object(obj) = data.as_value() {
                     for (k, v) in obj {
                         map.serialize_entry(k, v)?;
                     }
@@ -417,9 +421,14 @@ pub enum LootFunction {
     Reference {
         name: String,
     },
+    /// Custom function — explicit raw escape hatch for modded loot functions.
+    ///
+    /// Use [`RawJson`](crate::raw::RawJson) for `data`.
     Custom {
+        /// Function type identifier (e.g. `"mymod:custom_function"`).
         function: String,
-        data: Value,
+        /// Additional function data as raw JSON.
+        data: RawJson,
     },
 }
 
@@ -529,7 +538,7 @@ impl Serialize for LootFunction {
             LootFunction::Custom { function, data } => {
                 let mut map = serializer.serialize_map(None)?;
                 map.serialize_entry("function", function)?;
-                if let Value::Object(obj) = data {
+                if let Value::Object(obj) = data.as_value() {
                     for (k, v) in obj {
                         map.serialize_entry(k, v)?;
                     }

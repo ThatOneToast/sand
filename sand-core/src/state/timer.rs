@@ -116,6 +116,37 @@ impl Timer {
         )
     }
 
+    /// Condition: timer has expired (score == 0).
+    ///
+    /// Use this to check if the timer has counted down to zero.
+    pub fn expired(&self, selector: &str) -> crate::condition::Condition {
+        crate::condition::Condition::Score {
+            selector: selector.to_string(),
+            objective: self.objective_name(),
+            range: crate::condition::ScoreRange::Eq(0),
+        }
+    }
+
+    /// Condition: timer is still running (score >= 1).
+    pub fn active(&self, selector: &str) -> crate::condition::Condition {
+        crate::condition::Condition::Score {
+            selector: selector.to_string(),
+            objective: self.objective_name(),
+            range: crate::condition::ScoreRange::Gte(1),
+        }
+    }
+
+    /// Guard clause: return early if the timer is still running (score >= 1).
+    ///
+    /// Produces: `execute if score <selector> <obj> matches 1.. run return 0`
+    pub fn guard_active(&self, selector: impl std::fmt::Display) -> String {
+        format!(
+            "execute if score {} {} matches 1.. run return 0",
+            selector,
+            self.objective_name()
+        )
+    }
+
     /// Return the configured duration.
     pub fn duration(&self) -> Ticks {
         self.duration
@@ -171,5 +202,41 @@ mod tests {
     #[test]
     fn timer_reset() {
         assert_eq!(BLINK.reset("@s"), "scoreboard players set @s blink_cd 0");
+    }
+
+    #[test]
+    fn timer_expired_condition() {
+        use crate::condition::{Condition, ScoreRange};
+        let cond = BLINK.expired("@s");
+        match cond {
+            Condition::Score {
+                selector,
+                objective,
+                range: ScoreRange::Eq(0),
+            } => {
+                assert_eq!(selector, "@s");
+                assert_eq!(objective, "blink_cd");
+            }
+            other => panic!("unexpected: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn timer_active_condition() {
+        use crate::condition::{Condition, ScoreRange};
+        let cond = BLINK.active("@s");
+        assert!(matches!(
+            cond,
+            Condition::Score {
+                range: ScoreRange::Gte(1),
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn timer_guard_active() {
+        let cmd = BLINK.guard_active("@s");
+        assert_eq!(cmd, "execute if score @s blink_cd matches 1.. run return 0");
     }
 }

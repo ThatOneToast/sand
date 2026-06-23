@@ -5,7 +5,7 @@
 
 use sand_core::{
     Advancement, AdvancementDisplay, AdvancementFrame, AdvancementIcon,
-    AdvancementRewards, AdvancementTrigger, Criterion,
+    AdvancementRewards, AdvancementTrigger, Criterion, RawJson,
 };
 use sand_macros::component;
 
@@ -61,13 +61,15 @@ pub fn dragon_slayer() -> Advancement {
         )
         .criterion(
             "killed_dragon",
+            // RawJson explicitly signals that we are opting out of the typed
+            // entity-predicate API because we need a modded entity type.
             Criterion::new(AdvancementTrigger::Custom {
                 trigger: "minecraft:player_killed_entity".to_string(),
-                conditions: serde_json::json!({
+                conditions: Some(RawJson::new(serde_json::json!({
                     "entity": {
                         "type": "minecraft:ender_dragon"
                     }
-                }),
+                }))),
             }),
         )
         .rewards(
@@ -95,18 +97,18 @@ pub fn master_miner() -> Advancement {
             "mined_diamond",
             Criterion::new(AdvancementTrigger::Custom {
                 trigger: "minecraft:inventory_changed".to_string(),
-                conditions: serde_json::json!({
+                conditions: Some(RawJson::new(serde_json::json!({
                     "items": [{"items": "minecraft:diamond"}]
-                }),
+                }))),
             }),
         )
         .criterion(
             "mined_emerald",
             Criterion::new(AdvancementTrigger::Custom {
                 trigger: "minecraft:inventory_changed".to_string(),
-                conditions: serde_json::json!({
+                conditions: Some(RawJson::new(serde_json::json!({
                     "items": [{"items": "minecraft:emerald"}]
-                }),
+                }))),
             }),
         )
         // Both criteria must be met (default behavior)

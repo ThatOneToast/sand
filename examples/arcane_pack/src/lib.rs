@@ -131,6 +131,10 @@ pub fn cast_dash() {
 pub fn cast_dash_execute() {
     MANA.remove(Selector::self_(), 25);
     DASH.start(Selector::self_());
+    cmd::effect_give(Selector::self_(), EffectId::Speed)
+        .duration(Ticks::seconds(2))
+        .amplifier(1)
+        .particles(false);
     cmd::tellraw(Selector::self_(), Text::new("Dash cast!").gold());
 }
 
@@ -177,6 +181,7 @@ pub fn toggle_shield() {
 pub fn toggle_shield_on() {
     MANA.remove(Selector::self_(), 10);
     SHIELD.enable(Selector::self_());
+    cmd::effect_give(Selector::self_(), EffectId::Resistance).seconds(15);
     cmd::tellraw(Selector::self_(), Text::new("Shield activated!").green());
 }
 
@@ -184,6 +189,7 @@ pub fn toggle_shield_on() {
 #[function("arcane:toggle_shield/off")]
 pub fn toggle_shield_off() {
     SHIELD.disable(Selector::self_());
+    cmd::effect_clear_effect(Selector::self_(), EffectId::Resistance);
     cmd::tellraw(Selector::self_(), Text::new("Shield deactivated.").red());
 }
 
@@ -270,6 +276,7 @@ pub fn on_first_join(event: FirstJoin) {
 pub fn on_death(event: OnDeath) {
     GOLDEN_APPLE_HANDLE.disable("@s");
     SHIELD.disable(Selector::self_());
+    cmd::effect_clear(Selector::self_());
     Title::of(event.player())
         .title(Text::new("You died!").red())
         .subtitle(Text::new("Shield deactivated, cooldowns cleared").gray())
@@ -319,6 +326,15 @@ pub fn on_used_dash_wand(event: Event<UsedDashWandEvent>) {
 /// Speed boost feedback — called via function pointer.
 #[function]
 pub fn dash_wand_effect() {
+    cmd::effect_give(Selector::self_(), EffectId::JumpBoost)
+        .seconds(3)
+        .particles(false);
+    cmd::effect_give(
+        Selector::self_(),
+        EffectId::custom("arcane:dash_resonance").unwrap(),
+    )
+    .seconds(1)
+    .particles(false);
     cmd::say("Whoosh!");
 }
 
@@ -408,8 +424,7 @@ pub fn villager_trade_config() -> EventConfig {
 /// reward function path must match the `#[function]` below.
 #[component]
 pub fn villager_trade_advancement() -> sand_core::Advancement {
-    villager_trade_config()
-        .advancement("arcane:villager_trade", "arcane:on_villager_trade")
+    villager_trade_config().advancement("arcane:villager_trade", "arcane:on_villager_trade")
 }
 
 /// Handler for the villager trade event.
@@ -914,11 +929,22 @@ mod tests {
         let prologue = config.reward_prologue("arcane:villager_trade");
 
         // First command must revoke (AfterFire reset).
-        assert_eq!(prologue[0], "advancement revoke @s only arcane:villager_trade");
+        assert_eq!(
+            prologue[0],
+            "advancement revoke @s only arcane:villager_trade"
+        );
 
         // Second command must guard on merchant_rank.
-        assert!(prologue[1].contains("unless"), "must use unless: {}", prologue[1]);
-        assert!(prologue[1].contains("return 0"), "must return 0: {}", prologue[1]);
+        assert!(
+            prologue[1].contains("unless"),
+            "must use unless: {}",
+            prologue[1]
+        );
+        assert!(
+            prologue[1].contains("return 0"),
+            "must return 0: {}",
+            prologue[1]
+        );
         assert!(
             prologue[1].contains("merchant_rank"),
             "must reference merchant_rank: {}",
@@ -942,17 +968,21 @@ mod tests {
 
     #[test]
     fn ate_golden_apple_state_defines_returns_mana() {
-        use sand_core::event::AdvancementEvent;
         use crate::events::AteGoldenAppleEvent;
+        use sand_core::event::AdvancementEvent;
         let defs = AteGoldenAppleEvent::state_defines();
         assert_eq!(defs.len(), 1);
-        assert!(defs[0].contains("mana"), "expected mana define: {}", defs[0]);
+        assert!(
+            defs[0].contains("mana"),
+            "expected mana define: {}",
+            defs[0]
+        );
     }
 
     #[test]
     fn event_state_init_accessor() {
-        use sand_core::Event;
         use crate::events::AteGoldenAppleEvent;
+        use sand_core::Event;
         let defs = Event::<AteGoldenAppleEvent>::state_init();
         assert!(!defs.is_empty());
         assert!(defs.iter().any(|d| d.contains("mana")));
@@ -972,9 +1002,17 @@ mod tests {
         let cmds = on_villager_trade();
         // Prologue: revoke + guard.
         assert_eq!(cmds[0], "advancement revoke @s only arcane:villager_trade");
-        assert!(cmds[1].contains("unless") && cmds[1].contains("return 0"), "{}", cmds[1]);
+        assert!(
+            cmds[1].contains("unless") && cmds[1].contains("return 0"),
+            "{}",
+            cmds[1]
+        );
         // Body: rank up, mana bonus, actionbar.
-        assert!(cmds.iter().any(|c| c.contains("scoreboard players add") && c.contains("merchant_rank") && c.contains("1")));
-        assert!(cmds.iter().any(|c| c.contains("scoreboard players add") && c.contains("mana") && c.contains("5")));
+        assert!(cmds.iter().any(|c| c.contains("scoreboard players add")
+            && c.contains("merchant_rank")
+            && c.contains("1")));
+        assert!(cmds.iter().any(|c| c.contains("scoreboard players add")
+            && c.contains("mana")
+            && c.contains("5")));
     }
 }

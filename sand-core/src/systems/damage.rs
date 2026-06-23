@@ -11,93 +11,172 @@
 //! # How it works
 //!
 //! Minecraft tracks cumulative damage taken in the scoreboard stat
-//! `minecraft.custom:minecraft.damage_taken` (measured in half-hearts × 10,
-//! so 10 = 1 heart). By comparing the stat value between ticks, we can detect
-//! that a player was hurt and estimate the amount within a tick window.
+//! `minecraft.custom:minecraft.damage_taken` (units: 1 stat = 0.1 hearts,
+//! so 10 = 1 heart). By comparing the stat value between ticks we detect
+//! that a player was hurt and approximate the amount.
 //!
-//! This is not exact: multiple damage sources within the same tick collapse into
-//! one delta, and invincibility frames mean some hits are ignored by the game.
+//! # Accuracy limitations
 //!
-//! # Provided types
+//! - Multiple hits within the same tick are summed into one delta.
+//! - Invincibility frames cause some hits to register as 0 delta.
+//! - Damage cause/type/attacker cannot be tracked here — use
+//!   `DamageAdvancementEvent` for source-aware events.
 //!
-//! - [`DamageTracker`] — tracks the delta of `damage_taken` per tick per player.
-//! - [`recently_damaged`] — condition: player's damage delta > 0 this tick.
+//! # Units
+//!
+//! Sand user-facing APIs use **hearts** (1 heart = 2 HP). Internal scoreboard
+//! values use the Minecraft stat unit (1 stat = 0.1 hearts). Use
+//! [`DamageThreshold::hearts`] and [`DamageThreshold::raw_stat`] to convert.
+//!
+//! # Setup
+//!
+//! ```rust,ignore
+//! #[component(Load)]
+//! fn load() {
+//!     DamageTracker::define();
+//! }
+//!
+//! #[component(Tick)]
+//! fn tick() {
+//!     DamageTracker::tick_players();
+//! }
+//! ```
 
 use crate::condition::{Condition, ScoreRange};
-use crate::state::ScoreVar;
+use crate::state::{ScoreVar, Ticks};
 
 // ── Objective names ────────────────────────────────────────────────────────────
 
-/// Objective name for the raw cumulative `damage_taken` stat.
+/// Objective: cumulative `damage_taken` vanilla stat (mirrors Minecraft's value).
 pub const DAMAGE_STAT_OBJ: &str = "sd_dmg_stat";
-/// Objective name for the previous-tick snapshot.
+/// Objective: previous-tick stat snapshot.
 pub const DAMAGE_PREV_OBJ: &str = "sd_dmg_prev";
-/// Objective name for the per-tick delta (current − previous).
+/// Objective: per-tick damage delta (`stat - prev`); 0 when not hurt this tick.
 pub const DAMAGE_DELTA_OBJ: &str = "sd_dmg_delta";
+/// Objective: last non-zero damage delta (persists until next damage event).
+pub const DAMAGE_LAST_OBJ: &str = "sd_dmg_last";
+/// Objective: ticks since last damage; `0` on the tick damage is taken.
+pub const DAMAGE_HURT_AGE_OBJ: &str = "sd_dmg_hurt";
+
+// ── DamageThreshold ───────────────────────────────────────────────────────────
+
+/// A damage amount threshold for querying [`DamageTracker`] conditions.
+///
+/// # Units
+///
+/// Prefer [`DamageThreshold::hearts`] for user-facing values:
+/// - `1.0` heart = one full heart = 10 internal stat units
+/// - `0.5` hearts = half a heart = 5 stat units
+///
+/// Use [`DamageThreshold::raw_stat`] only when you need to match the raw
+/// Minecraft scoreboard stat value directly.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum DamageThreshold {
+    /// Number of hearts (1.0 = 1 heart = 10 stat units).
+    Hearts(f32),
+    /// Raw Minecraft stat units (same scale as `minecraft.damage_taken`).
+    RawStat(i32),
+}
+
+impl DamageThreshold {
+    /// Threshold in hearts (1.0 = one heart, 0.5 = half a heart).
+    pub fn hearts(h: f32) -> Self {
+        Self::Hearts(h)
+    }
+
+    /// Raw scoreboard stat units — advanced use only.
+    pub fn raw_stat(v: i32) -> Self {
+        Self::RawStat(v)
+    }
+
+    /// Convert to the raw Minecraft scoreboard stat integer used internally.
+    pub fn to_raw_stat(self) -> i32 {
+        match self {
+            Self::Hearts(h) => (h * 10.0).round() as i32,
+            Self::RawStat(v) => v,
+        }
+    }
+}
 
 // ── DamageTracker ─────────────────────────────────────────────────────────────
 
-/// A damage tracker that measures per-tick damage taken via cumulative scoreboard stats.
+/// Tracks per-tick damage state for players via cumulative scoreboard stats.
 ///
-/// # Setup
-///
-/// Call `define()` in your load function and `tick("@a")` every game tick.
-/// The tracker maintains three internal objectives:
+/// Maintains five objectives:
 /// - `sd_dmg_stat` — mirrors `minecraft.custom:minecraft.damage_taken`
 /// - `sd_dmg_prev` — previous-tick snapshot
-/// - `sd_dmg_delta` — `stat - prev` (damage taken this tick, in half-hearts × 10)
-///
-/// # Limitations
-///
-/// - Values are in half-hearts × 10 (e.g. 5 = half a heart, 10 = one heart).
-/// - Multiple hits within the same tick are summed.
-/// - Invincibility frames cause some hits to register as 0 delta.
-/// - Cannot distinguish attacker or damage type (use [`DamageAdvancementEvent`] for that).
-///
-/// [`DamageAdvancementEvent`]: crate::event::DamageAdvancementEvent
+/// - `sd_dmg_delta` — damage this tick (0 when not hurt)
+/// - `sd_dmg_last` — last non-zero delta (persists between hurt events)
+/// - `sd_dmg_hurt` — ticks since last damage; `0` on the hurt tick
 pub struct DamageTracker;
 
 impl DamageTracker {
-    /// Define the three required scoreboard objectives.
+    /// Define all five required scoreboard objectives.
     ///
-    /// Returns three commands suitable for a load function.
+    /// Call once in a `#[component(Load)]` function.
     pub fn define() -> Vec<String> {
         vec![
             format!(
-                "scoreboard objectives add {DAMAGE_STAT_OBJ} minecraft.custom:minecraft.damage_taken"
+                "scoreboard objectives add {DAMAGE_STAT_OBJ} \
+                 minecraft.custom:minecraft.damage_taken"
             ),
             format!("scoreboard objectives add {DAMAGE_PREV_OBJ} dummy"),
             format!("scoreboard objectives add {DAMAGE_DELTA_OBJ} dummy"),
+            format!("scoreboard objectives add {DAMAGE_LAST_OBJ} dummy"),
+            format!("scoreboard objectives add {DAMAGE_HURT_AGE_OBJ} dummy"),
         ]
     }
 
-    /// Update damage deltas for `selector` (run every tick).
+    /// Update all damage tracking state for `selector` (call every tick).
     ///
-    /// Returns commands that compute `delta = stat - prev` and then advance `prev`.
-    ///
-    /// Generated commands:
-    /// ```text
-    /// scoreboard players operation @a sd_dmg_delta = @a sd_dmg_stat
-    /// scoreboard players operation @a sd_dmg_delta -= @a sd_dmg_prev
-    /// scoreboard players operation @a sd_dmg_prev = @a sd_dmg_stat
-    /// ```
+    /// Algorithm (in order):
+    /// 1. `delta = stat`
+    /// 2. `delta -= prev`
+    /// 3. If `delta > 0`: `last = delta`
+    /// 4. If `delta > 0`: `hurt_age = 0`
+    /// 5. Unless `delta > 0`: `hurt_age += 1`
+    /// 6. `prev = stat`
     pub fn tick(selector: impl std::fmt::Display) -> Vec<String> {
         let sel = selector.to_string();
         vec![
+            // 1+2: delta = stat - prev
             format!(
                 "scoreboard players operation {sel} {DAMAGE_DELTA_OBJ} = {sel} {DAMAGE_STAT_OBJ}"
             ),
             format!(
                 "scoreboard players operation {sel} {DAMAGE_DELTA_OBJ} -= {sel} {DAMAGE_PREV_OBJ}"
             ),
+            // 3: if delta > 0: last = delta
+            format!(
+                "execute as {sel}[scores={{{DAMAGE_DELTA_OBJ}=1..}}] \
+                 run scoreboard players operation @s {DAMAGE_LAST_OBJ} = @s {DAMAGE_DELTA_OBJ}"
+            ),
+            // 4: if delta > 0: hurt_age = 0
+            format!(
+                "execute as {sel}[scores={{{DAMAGE_DELTA_OBJ}=1..}}] \
+                 run scoreboard players set @s {DAMAGE_HURT_AGE_OBJ} 0"
+            ),
+            // 5: unless delta > 0: hurt_age += 1
+            format!(
+                "execute as {sel}[scores={{{DAMAGE_DELTA_OBJ}=..0}}] \
+                 run scoreboard players add @s {DAMAGE_HURT_AGE_OBJ} 1"
+            ),
+            // 6: prev = stat
             format!(
                 "scoreboard players operation {sel} {DAMAGE_PREV_OBJ} = {sel} {DAMAGE_STAT_OBJ}"
             ),
         ]
     }
 
+    /// Shorthand: `tick("@a")` — tick all online players.
+    pub fn tick_players() -> Vec<String> {
+        Self::tick("@a")
+    }
+
+    // ── Conditions ────────────────────────────────────────────────────────────
+
     /// Condition: `selector` was damaged this tick (delta > 0).
-    pub fn recently_damaged(selector: &str) -> Condition {
+    pub fn damaged_this_tick(selector: &str) -> Condition {
         Condition::Score {
             selector: selector.to_string(),
             objective: DAMAGE_DELTA_OBJ.to_string(),
@@ -105,35 +184,109 @@ impl DamageTracker {
         }
     }
 
-    /// Condition: `selector` took at least `min_half_hearts_x10` damage this tick.
-    ///
-    /// The unit is half-hearts × 10 (same as `minecraft.damage_taken`):
-    /// - 1 = 0.05 hearts
-    /// - 10 = 1 heart
-    /// - 20 = 2 hearts (one hit from a zombie on normal)
-    pub fn damaged_at_least(selector: &str, min_half_hearts_x10: i32) -> Condition {
+    /// Condition: `selector` was NOT damaged this tick (delta == 0).
+    pub fn not_damaged_this_tick(selector: &str) -> Condition {
         Condition::Score {
             selector: selector.to_string(),
             objective: DAMAGE_DELTA_OBJ.to_string(),
-            range: ScoreRange::Gte(min_half_hearts_x10),
+            range: ScoreRange::Eq(0),
         }
     }
 
-    /// The delta objective name, for use with [`ScoreVar`](crate::state::ScoreVar) conditions.
+    /// Condition: `selector` took at least `threshold` damage this tick.
+    pub fn current_damage_at_least(selector: &str, threshold: DamageThreshold) -> Condition {
+        Condition::Score {
+            selector: selector.to_string(),
+            objective: DAMAGE_DELTA_OBJ.to_string(),
+            range: ScoreRange::Gte(threshold.to_raw_stat()),
+        }
+    }
+
+    /// Condition: the last recorded damage for `selector` was at least `threshold`.
+    ///
+    /// Uses `sd_dmg_last`, which persists between damage events.
+    pub fn last_damage_at_least(selector: &str, threshold: DamageThreshold) -> Condition {
+        Condition::Score {
+            selector: selector.to_string(),
+            objective: DAMAGE_LAST_OBJ.to_string(),
+            range: ScoreRange::Gte(threshold.to_raw_stat()),
+        }
+    }
+
+    /// Condition: `selector` was last hurt within `ticks` ticks ago.
+    pub fn hurt_within(selector: &str, ticks: Ticks) -> Condition {
+        Condition::Score {
+            selector: selector.to_string(),
+            objective: DAMAGE_HURT_AGE_OBJ.to_string(),
+            range: ScoreRange::Lte(ticks.get() as i32),
+        }
+    }
+
+    // ── Raw score accessors (advanced use) ────────────────────────────────────
+
+    /// The raw current-tick delta objective name.
+    pub fn current_damage_raw(selector: &str) -> Condition {
+        Condition::Score {
+            selector: selector.to_string(),
+            objective: DAMAGE_DELTA_OBJ.to_string(),
+            range: ScoreRange::Gte(1),
+        }
+    }
+
+    /// The raw last-damage objective name.
+    pub fn last_damage_raw(selector: &str) -> Condition {
+        Condition::Score {
+            selector: selector.to_string(),
+            objective: DAMAGE_LAST_OBJ.to_string(),
+            range: ScoreRange::Gte(1),
+        }
+    }
+
+    /// The ticks-since-hurt objective name (for use with ScoreVar).
+    pub fn ticks_since_hurt(selector: &str) -> Condition {
+        Condition::Score {
+            selector: selector.to_string(),
+            objective: DAMAGE_HURT_AGE_OBJ.to_string(),
+            range: ScoreRange::Gte(0),
+        }
+    }
+
+    // ── Deprecated compatibility shims ────────────────────────────────────────
+
+    /// Condition: `selector` was damaged this tick (delta > 0).
+    ///
+    /// Deprecated: use [`damaged_this_tick`](DamageTracker::damaged_this_tick).
+    #[deprecated(note = "use DamageTracker::damaged_this_tick")]
+    pub fn recently_damaged(selector: &str) -> Condition {
+        Self::damaged_this_tick(selector)
+    }
+
+    /// Condition: `selector` took at least `min_raw` damage this tick.
+    ///
+    /// Deprecated: use [`current_damage_at_least`](DamageTracker::current_damage_at_least)
+    /// with [`DamageThreshold`].
+    #[deprecated(note = "use DamageTracker::current_damage_at_least(DamageThreshold::raw_stat(v))")]
+    pub fn damaged_at_least(selector: &str, min_raw: i32) -> Condition {
+        Self::current_damage_at_least(selector, DamageThreshold::raw_stat(min_raw))
+    }
+
+    /// The delta objective name.
+    ///
+    /// Deprecated: use objective constants directly.
+    #[deprecated(note = "use DAMAGE_DELTA_OBJ constant")]
     pub fn delta_objective() -> String {
         let var: ScoreVar<i32> = ScoreVar::new(DAMAGE_DELTA_OBJ);
         var.objective_name()
     }
 }
 
-// ── recently_damaged free function ────────────────────────────────────────────
+// ── Free function shims ───────────────────────────────────────────────────────
 
 /// Condition shorthand: player at `selector` took damage this tick.
 ///
-/// Requires the `systems-damage` feature and that [`DamageTracker::tick`] runs
-/// every game tick for the relevant selector.
+/// Requires `DamageTracker::tick()` to run every game tick.
 pub fn recently_damaged(selector: &str) -> Condition {
-    DamageTracker::recently_damaged(selector)
+    DamageTracker::damaged_this_tick(selector)
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -144,47 +297,102 @@ mod tests {
     use crate::condition::Condition;
 
     #[test]
-    fn define_produces_three_objectives() {
+    fn define_produces_five_objectives() {
         let cmds = DamageTracker::define();
-        assert_eq!(cmds.len(), 3);
+        assert_eq!(cmds.len(), 5);
         assert!(cmds[0].contains(DAMAGE_STAT_OBJ), "stat obj: {}", cmds[0]);
         assert!(cmds[1].contains(DAMAGE_PREV_OBJ), "prev obj: {}", cmds[1]);
         assert!(cmds[2].contains(DAMAGE_DELTA_OBJ), "delta obj: {}", cmds[2]);
-        // Stat objective must use the minecraft stat criterion
+        assert!(cmds[3].contains(DAMAGE_LAST_OBJ), "last obj: {}", cmds[3]);
+        assert!(cmds[4].contains(DAMAGE_HURT_AGE_OBJ), "age obj: {}", cmds[4]);
         assert!(
             cmds[0].contains("minecraft.custom:minecraft.damage_taken"),
-            "stat cmd: {}",
+            "stat criterion: {}",
             cmds[0]
         );
     }
 
     #[test]
-    fn tick_produces_three_operations() {
+    fn tick_produces_six_commands_in_correct_order() {
         let cmds = DamageTracker::tick("@a");
-        assert_eq!(cmds.len(), 3);
-        // delta = stat
+        assert_eq!(cmds.len(), 6, "expected 6 tick commands: {cmds:?}");
+
+        // 1: delta = stat
         assert!(
             cmds[0].contains(&format!("{DAMAGE_DELTA_OBJ} = @a {DAMAGE_STAT_OBJ}")),
-            "got: {}",
+            "step 1 delta=stat: {}",
             cmds[0]
         );
-        // delta -= prev
+        // 2: delta -= prev
         assert!(
             cmds[1].contains(&format!("{DAMAGE_DELTA_OBJ} -= @a {DAMAGE_PREV_OBJ}")),
-            "got: {}",
+            "step 2 delta-=prev: {}",
             cmds[1]
         );
-        // prev = stat
+        // 3: if delta > 0: last = delta
         assert!(
-            cmds[2].contains(&format!("{DAMAGE_PREV_OBJ} = @a {DAMAGE_STAT_OBJ}")),
-            "got: {}",
+            cmds[2].contains(&format!("{DAMAGE_DELTA_OBJ}=1.."))
+                && cmds[2].contains(&format!("{DAMAGE_LAST_OBJ} = @s {DAMAGE_DELTA_OBJ}")),
+            "step 3 last=delta: {}",
             cmds[2]
+        );
+        // 4: if delta > 0: hurt_age = 0
+        assert!(
+            cmds[3].contains(&format!("{DAMAGE_DELTA_OBJ}=1.."))
+                && cmds[3].contains(&format!("{DAMAGE_HURT_AGE_OBJ}"))
+                && cmds[3].contains("set @s")
+                && cmds[3].contains(" 0"),
+            "step 4 hurt_age=0: {}",
+            cmds[3]
+        );
+        // 5: unless delta > 0: hurt_age += 1
+        assert!(
+            cmds[4].contains(&format!("{DAMAGE_DELTA_OBJ}=..0"))
+                && cmds[4].contains(&format!("{DAMAGE_HURT_AGE_OBJ}"))
+                && cmds[4].contains("add @s"),
+            "step 5 hurt_age+=1: {}",
+            cmds[4]
+        );
+        // 6: prev = stat (MUST be last)
+        assert!(
+            cmds[5].contains(&format!("{DAMAGE_PREV_OBJ} = @a {DAMAGE_STAT_OBJ}")),
+            "step 6 prev=stat: {}",
+            cmds[5]
         );
     }
 
     #[test]
-    fn recently_damaged_condition() {
-        let cond = DamageTracker::recently_damaged("@s");
+    fn tick_players_is_tick_at_a() {
+        assert_eq!(DamageTracker::tick_players(), DamageTracker::tick("@a"));
+    }
+
+    // ── DamageThreshold unit conversion ──────────────────────────────────────
+
+    #[test]
+    fn threshold_hearts_one_heart() {
+        assert_eq!(DamageThreshold::hearts(1.0).to_raw_stat(), 10);
+    }
+
+    #[test]
+    fn threshold_hearts_half_heart() {
+        assert_eq!(DamageThreshold::hearts(0.5).to_raw_stat(), 5);
+    }
+
+    #[test]
+    fn threshold_hearts_two_hearts() {
+        assert_eq!(DamageThreshold::hearts(2.0).to_raw_stat(), 20);
+    }
+
+    #[test]
+    fn threshold_raw_stat_passthrough() {
+        assert_eq!(DamageThreshold::raw_stat(42).to_raw_stat(), 42);
+    }
+
+    // ── Conditions ────────────────────────────────────────────────────────────
+
+    #[test]
+    fn damaged_this_tick_condition() {
+        let cond = DamageTracker::damaged_this_tick("@s");
         match cond {
             Condition::Score {
                 selector,
@@ -199,15 +407,53 @@ mod tests {
     }
 
     #[test]
-    fn damaged_at_least_condition() {
-        let cond = DamageTracker::damaged_at_least("@s", 20);
+    fn not_damaged_this_tick_condition() {
+        let cond = DamageTracker::not_damaged_this_tick("@s");
         assert!(matches!(
             cond,
             Condition::Score {
-                range: ScoreRange::Gte(20),
+                range: ScoreRange::Eq(0),
                 ..
             }
         ));
+    }
+
+    #[test]
+    fn current_damage_at_least_hearts() {
+        let cond = DamageTracker::current_damage_at_least("@s", DamageThreshold::hearts(1.0));
+        assert!(matches!(
+            cond,
+            Condition::Score {
+                range: ScoreRange::Gte(10),
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn last_damage_at_least_half_heart() {
+        let cond = DamageTracker::last_damage_at_least("@s", DamageThreshold::hearts(0.5));
+        match cond {
+            Condition::Score {
+                objective,
+                range: ScoreRange::Gte(5),
+                ..
+            } => assert_eq!(objective, DAMAGE_LAST_OBJ),
+            other => panic!("unexpected: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn hurt_within_ticks() {
+        let cond = DamageTracker::hurt_within("@s", Ticks::new(20));
+        match cond {
+            Condition::Score {
+                objective,
+                range: ScoreRange::Lte(20),
+                ..
+            } => assert_eq!(objective, DAMAGE_HURT_AGE_OBJ),
+            other => panic!("unexpected: {other:?}"),
+        }
     }
 
     #[test]
@@ -217,6 +463,34 @@ mod tests {
             cond,
             Condition::Score {
                 range: ScoreRange::Gte(1),
+                ..
+            }
+        ));
+    }
+
+    // ── Deprecated API still compiles and works ───────────────────────────────
+
+    #[test]
+    #[allow(deprecated)]
+    fn deprecated_recently_damaged_still_works() {
+        let cond = DamageTracker::recently_damaged("@s");
+        assert!(matches!(
+            cond,
+            Condition::Score {
+                range: ScoreRange::Gte(1),
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    #[allow(deprecated)]
+    fn deprecated_damaged_at_least_still_works() {
+        let cond = DamageTracker::damaged_at_least("@s", 20);
+        assert!(matches!(
+            cond,
+            Condition::Score {
+                range: ScoreRange::Gte(20),
                 ..
             }
         ));

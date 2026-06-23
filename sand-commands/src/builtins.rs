@@ -329,6 +329,22 @@ impl DamageAmount {
         Self::Fixed(amount)
     }
 
+    /// Damage in hearts (1.0 = one heart = 2 HP).
+    ///
+    /// This is the preferred user-facing constructor. The `damage` command takes
+    /// HP (hit points), so `hearts(1.0)` emits `2.0` to the command.
+    pub fn hearts(h: f32) -> Self {
+        Self::Fixed(h as f64 * 2.0)
+    }
+
+    /// Damage in vanilla hit points (1.0 HP = 0.5 hearts).
+    ///
+    /// Equivalent to [`fixed`](DamageAmount::fixed). Use when you are already
+    /// thinking in HP rather than hearts.
+    pub fn points(p: f32) -> Self {
+        Self::Fixed(p as f64)
+    }
+
     fn as_fixed(&self) -> f64 {
         match self {
             Self::Fixed(v) => *v,
@@ -732,6 +748,33 @@ mod tests {
                 "execute at @s as @e[distance=0.1..5,type=!minecraft:player] run damage @s 4 minecraft:generic"
             ]
         );
+    }
+
+    #[test]
+    fn damage_amount_hearts_one_heart_is_two_hp() {
+        let cmd = Damage::new()
+            .amount(DamageAmount::hearts(1.0))
+            .damage_type(DamageKind::Generic)
+            .run();
+        assert_eq!(cmd, vec!["damage @s 2 minecraft:generic"]);
+    }
+
+    #[test]
+    fn damage_amount_hearts_half_heart_is_one_hp() {
+        let cmd = Damage::new()
+            .amount(DamageAmount::hearts(0.5))
+            .damage_type(DamageKind::Generic)
+            .run();
+        assert_eq!(cmd, vec!["damage @s 1 minecraft:generic"]);
+    }
+
+    #[test]
+    fn damage_amount_points_passthrough() {
+        let cmd = Damage::new()
+            .amount(DamageAmount::points(5.0))
+            .damage_type(DamageKind::Generic)
+            .run();
+        assert_eq!(cmd, vec!["damage @s 5 minecraft:generic"]);
     }
 
     #[test]

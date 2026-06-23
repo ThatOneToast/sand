@@ -190,7 +190,8 @@ with an explicit `::raw(RawJson)` fallback on each type.
 | `DataTarget` | **Typed** | Clean enum |
 | `Scoreboard / Objective / ScoreHolder` | **Mostly typed** | Names are raw strings |
 | `builtins::*` | **Mostly typed** | Most take `impl Into<String>` for IDs (entity type, item, etc.) |
-| `effect_give()` | **Needs redesign** | Effect ID is `impl Into<String>`; duration/amplifier are untyped integers |
+| `sand_core::cmd::effect_give()` | **Typed** | Uses `EffectId` and builder options for duration, amplifier, particles |
+| `sand_commands::effect_give()` | **Raw hatch** | Low-level compatibility helper; prefer `sand_core::cmd::effect_give()` |
 | `summon()` | **Mostly typed** | Entity type is `impl Into<String>` |
 | `gamemode()` | **Typed** | Uses `GameMode` enum — good |
 
@@ -288,8 +289,11 @@ Typed `EventBuilder` API wrapping `AdvancementEvent` with guard, state, reset,
 and visibility. `EventAdvancement` IDs become `ResourceLocation`.
 
 ### Phase 7 — Typed status effects
-`EffectId` enum, `StatusEffectInstance`, `PotionContents`. Replace
-`builtins::effect_give()` string parameter.
+Complete. `EffectId` covers vanilla variants plus `EffectId::custom(...)` for
+modded effects. `StatusEffectInstance`, `PotionContents`, `PotionId`, and
+`SuspiciousStewEffect` cover structured JSON/SNBT data. `sand_core::cmd`
+provides typed `effect_give`, `effect_clear`, and `effect_clear_effect`; raw
+effect command syntax is explicit through compatibility/escape hatches.
 
 ### Phase 8 — CustomItem v2
 `CustomItem::item_predicate()` returns typed `ItemPredicate` instead of `Value`.

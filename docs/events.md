@@ -31,6 +31,7 @@ impl AdvancementEvent for AteGoldenAppleEvent {
 #[event]
 pub fn on_ate_golden_apple(event: Event<AteGoldenAppleEvent>) {
     MANA.add(event.player(), 10);
+    cmd::effect_give(event.player(), EffectId::Regeneration).seconds(5);
     cmd::call(golden_apple_reward);
 }
 
@@ -42,6 +43,11 @@ pub fn golden_apple_reward() {
 
 Use `dispatch = "advancement"` only for compatibility with older unit-style
 custom event handlers. New custom advancement events should not need it.
+
+Event handlers can use the same typed effect APIs as ordinary functions:
+`EffectId` covers vanilla effects and `EffectId::custom("namespace:path")`
+covers modded effects. Use `StatusEffectInstance` when serializing structured
+effect data into item components or predicates.
 
 Built-in tick/synthetic events can still use unit-style parameters while they
 remain on the legacy dispatch path:

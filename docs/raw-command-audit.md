@@ -56,7 +56,8 @@ typed Rust-first datapack framework.
 - `cmd::give(selector, item)` — free function accepting typed items via `Into<String>`
 - `Sound::play(event).to(selector)` — typed sound builder
 - `cmd::tag_add(selector, tag)`, `cmd::tag_remove(selector, tag)` — builtins
-- `cmd::effect_give(selector, effect, duration, amplifier)` — builtin
+- `cmd::effect_give(selector, EffectId::Speed).seconds(10)` — typed builder
+- `cmd::effect_give_raw(...)` — explicit effect command escape hatch
 
 ## F. Interop/Modded Examples That Should Stay Raw
 

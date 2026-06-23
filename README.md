@@ -153,6 +153,28 @@ pub fn on_damaged(event: DamageEvent<MyDamageEvent>) {
 Sand lowers the multi-target case through `execute as ... run damage @s ...`
 instead of generating invalid `damage @e[...]` commands.
 
+## Typed Status Effects
+
+Use `EffectId` for vanilla and modded status effects. `effect give` is a builder
+so duration, amplifier, and particles are explicit:
+
+```rust
+cmd::effect_give(Selector::self_(), EffectId::Speed)
+    .duration(Ticks::seconds(10))
+    .amplifier(1)
+    .particles(false);
+
+cmd::effect_clear(Selector::self_());
+cmd::effect_clear_effect(Selector::self_(), EffectId::Regeneration);
+
+let custom = EffectId::custom("mymod:arcane_burn").unwrap();
+cmd::effect_give(Selector::self_(), custom).seconds(3);
+```
+
+Use `StatusEffectInstance`, `PotionContents`, and `SuspiciousStewEffect` for
+structured datapack JSON/SNBT effect data. Raw command strings remain available
+through explicit escape hatches for unsupported future formats.
+
 ## Typed Execute
 
 Use `TypedExecute` for common chains and `ExecuteExt::when`/`unless` for typed

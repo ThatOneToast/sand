@@ -26,14 +26,24 @@ pub fn tick_state() {
 }
 ```
 
-For structured state, use `StorageVar<T>`:
+For structured state, prefer `StorageSchema<T>` and typed fields:
 
 ```rust
-static DATA: StorageVar<i32> = StorageVar::new("example:data", "players.self.mana");
+#[derive(Debug)]
+struct PlayerMagic;
+
+static MAGIC: StorageSchema<PlayerMagic> =
+    StorageSchema::new("example:data", "players.self.magic");
+static MANA_DATA: StorageField<PlayerMagic, i32> = MAGIC.field("mana");
+static SCHOOL: StorageField<PlayerMagic, String> = MAGIC.field("school");
 
 #[component(Load)]
 pub fn load_storage() {
-    DATA.set_int(100);
-    DATA.as_path().key("regen").set_bool(true);
+    MANA_DATA.set(100);
+    SCHOOL.set("pyromancy");
 }
 ```
+
+`StorageVar<T>` remains available for simple legacy variables. Use `RawSnbt`
+only as an explicit escape hatch when typed `SnbtValue`/`SnbtCompound` builders
+do not cover the shape.

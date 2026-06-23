@@ -1,21 +1,37 @@
 # Storage And NBT
 
-Use `StorageVar<T>` and `NbtPath` for structured datapack state.
+Use `StorageSchema<T>` for structured datapack storage.
 
 ```rust
-static SETTINGS: StorageVar<i32> = StorageVar::new("example:data", "settings.mana");
+#[derive(Debug)]
+struct Settings;
+
+static SETTINGS: StorageSchema<Settings> =
+    StorageSchema::new("example:data", "settings");
+static MANA: StorageField<Settings, i32> = SETTINGS.field("mana");
+static SCHOOL: StorageField<Settings, String> = SETTINGS.field("school");
 
 #[component(Load)]
 pub fn load_storage() {
-    SETTINGS.set_int(100);
-    SETTINGS.as_path().key("regen").set_bool(true);
+    SETTINGS.set(SnbtCompound::new().field("mana", 100).field("school", "unbound"));
+    MANA.set(100);
+    SCHOOL.set("pyromancy");
 }
 ```
 
-Storage paths can be used as execute conditions:
+Storage fields can be used as execute conditions:
 
 ```rust
 TypedExecute::as_players()
-    .when(SETTINGS.exists())
+    .when(MANA.exists())
     .run(Actionbar::show(Selector::self_(), Text::new("Storage ready").green()));
 ```
+
+Build paths with segments instead of dotted strings:
+
+```rust
+let path = NbtPath::root("settings").field("magic").field("mana");
+```
+
+Use `StorageVar<T>` for simple legacy variables. Use `RawSnbt` only when no
+typed `SnbtValue` or `SnbtCompound` builder covers the NBT shape.

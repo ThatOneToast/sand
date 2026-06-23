@@ -100,7 +100,7 @@ pub fn open_welcome_menu() {
 
 ## Typed State
 
-Use `ScoreVar<T>`, `Flag`, `Timer`, `Cooldown`, `Ticks`, and `StorageVar<T>`
+Use `ScoreVar<T>`, `Flag`, `Timer`, `Cooldown`, `Ticks`, and `StorageSchema<T>`
 instead of writing scoreboard or storage commands directly.
 
 ```rust
@@ -230,19 +230,29 @@ if profile.supports_dialogs() {
 
 ## Storage And NBT
 
-Use `StorageVar<T>` and `NbtPath` for typed storage paths. Use scoreboards for
-fast integer state and storage for structured data, strings, lists, and
-cross-function payloads.
+Use `StorageSchema<T>` and `StorageField<Schema, T>` for structured datapack
+storage. Use scoreboards for fast integer conditions and storage for structured
+data, strings, lists, and cross-function payloads.
 
 ```rust
-static DATA: StorageVar<i32> = StorageVar::new("example:data", "players.self.mana");
+#[derive(Debug)]
+struct PlayerMagic;
+
+static MAGIC: StorageSchema<PlayerMagic> =
+    StorageSchema::new("example:data", "players.self.magic");
+static MANA: StorageField<PlayerMagic, i32> = MAGIC.field("mana");
+static SCHOOL: StorageField<PlayerMagic, String> = MAGIC.field("school");
 
 #[component(Load)]
 pub fn load_storage() {
-    DATA.set_int(100);
-    DATA.as_path().key("regen").set_bool(true);
+    MAGIC.set(SnbtCompound::new().field("mana", 100).field("school", "unbound"));
+    MANA.set(100);
+    SCHOOL.set("pyromancy");
 }
 ```
+
+`StorageVar<T>` remains available for simple legacy variables. Use
+`RawSnbt` only when no typed `SnbtValue` or `SnbtCompound` shape fits.
 
 ## Components
 

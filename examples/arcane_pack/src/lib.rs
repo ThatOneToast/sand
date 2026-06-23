@@ -44,8 +44,16 @@ static SHIELD: Flag = Flag::new("shield");
 /// Enhanced cells — grants +20 max HP (40 total).
 static HAS_ENHANCED_CELLS: Flag = Flag::new("has_enhanced_cells");
 
-/// Persistent player settings (NBT storage).
-static PLAYER_DATA: StorageVar<i32> = StorageVar::new("arcane:data", "player.settings");
+/// Persistent player magic data (NBT storage schema).
+#[derive(Debug)]
+pub struct PlayerMagic;
+
+static PLAYER_MAGIC: StorageSchema<PlayerMagic> =
+    StorageSchema::new("arcane:data", "players.self.magic");
+static STORED_MANA: StorageField<PlayerMagic, i32> = PLAYER_MAGIC.field("mana");
+static MAGIC_SCHOOL: StorageField<PlayerMagic, String> = PLAYER_MAGIC.field("school");
+static UNLOCKED_SPELLS: StorageField<PlayerMagic, Vec<String>> =
+    PLAYER_MAGIC.field("unlocked_spells");
 
 // -- Load ------------------------------------------------------------------
 
@@ -58,7 +66,12 @@ pub fn load() {
     SHIELD.define();
     HAS_ENHANCED_CELLS.define();
     GOLDEN_APPLE_HANDLE.define();
-    PLAYER_DATA.set_int(100);
+    PLAYER_MAGIC.set(
+        SnbtCompound::new()
+            .field("mana", 100)
+            .field("school", "unbound")
+            .field("unlocked_spells", SnbtValue::from(Vec::<SnbtValue>::new())),
+    );
 
     // EventBuilder-declared state: merchant rank scoreboard.
     MERCHANT_RANK.define();
@@ -198,6 +211,9 @@ pub fn toggle_shield_off() {
 pub fn show_mana() {
     TypedExecute::as_players()
         .when(MANA.of("@s").gte(0))
+        .run(STORED_MANA.get());
+    TypedExecute::as_players()
+        .when(MANA.of("@s").gte(0))
         .run(cmd::tellraw(
             Selector::self_(),
             Text::new("Your mana is available.").green(),
@@ -301,6 +317,9 @@ pub fn on_join(event: OnJoin) {
 #[event]
 pub fn on_first_join(event: FirstJoin) {
     MANA.set(event.player(), 100);
+    STORED_MANA.set(100);
+    MAGIC_SCHOOL.set("unbound");
+    UNLOCKED_SPELLS.append("dash");
     Title::of(event.player())
         .title(Text::new("Arcane Pack").gold().bold(true))
         .subtitle(Text::new("Your journey begins").green())
@@ -317,6 +336,7 @@ pub fn on_first_join(event: FirstJoin) {
 pub fn on_death(event: OnDeath) {
     GOLDEN_APPLE_HANDLE.disable("@s");
     SHIELD.disable(Selector::self_());
+    MAGIC_SCHOOL.remove();
     cmd::effect_clear(Selector::self_());
     Title::of(event.player())
         .title(Text::new("You died!").red())
@@ -343,6 +363,7 @@ pub fn on_respawn(event: OnRespawn) {
 #[event]
 pub fn on_ate_golden_apple(event: Event<AteGoldenAppleEvent>) {
     MANA.add(event.player(), 10);
+    STORED_MANA.set(110);
     Actionbar::show(event.player(), Text::new("+10 mana (golden apple)").green());
     cmd::call(golden_apple_reward);
 }
@@ -456,6 +477,8 @@ pub fn villager_trade_config() -> EventConfig {
         .guard(MERCHANT_RANK.of("@s").gte(0))
         .score(&MERCHANT_RANK)
         .score(&MANA)
+        .storage_field(STORED_MANA)
+        .storage_field(MAGIC_SCHOOL)
         .build()
 }
 

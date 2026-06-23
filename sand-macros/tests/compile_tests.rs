@@ -22,4 +22,8 @@ fn compile_tests() {
     t.compile_fail("tests/cases/fail_damage_direct_many_targets.rs");
     t.compile_fail("tests/cases/fail_event_too_many_params.rs");
     t.pass("tests/cases/pass_run_fn.rs");
+    t.pass("tests/cases/pass_sand_storage.rs");
+    t.pass("tests/cases/pass_sand_storage_custom_path.rs");
+    t.compile_fail("tests/cases/fail_sand_storage_tuple_struct.rs");
+    t.compile_fail("tests/cases/fail_sand_storage_missing_attr.rs");
 }

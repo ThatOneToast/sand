@@ -1,0 +1,5 @@
+error: #[derive(SandStorage)] does not support tuple structs; use named fields
+ --> tests/cases/fail_sand_storage_tuple_struct.rs:5:12
+  |
+5 | pub struct BadSchema(i32, String);
+  |            ^^^^^^^^^

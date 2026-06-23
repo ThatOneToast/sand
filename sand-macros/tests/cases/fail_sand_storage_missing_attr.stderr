@@ -1,0 +1,7 @@
+error: #[derive(SandStorage)] requires #[sand(storage = "namespace:id", root = "nbt.path")]
+ --> tests/cases/fail_sand_storage_missing_attr.rs:3:10
+  |
+3 | #[derive(SandStorage)]
+  |          ^^^^^^^^^^^
+  |
+  = note: this error originates in the derive macro `SandStorage` (in Nightly builds, run with -Z macro-backtrace for more info)

@@ -508,6 +508,21 @@ impl<Schema, T> StorageField<Schema, T> {
         self.path().as_str().to_string()
     }
 
+    /// The dot-separated NBT path for this field (`root.field`).
+    ///
+    /// Alias for [`full_path`](Self::full_path). Useful when passing the path
+    /// to a player-scoped command manually, since Minecraft storage is global
+    /// and does not have automatic per-player keying.
+    ///
+    /// ```text
+    /// // Manually build a per-player storage write:
+    /// let path = PlayerMagic::mana().field_path();
+    /// let cmd  = format!("data modify storage powers:players {path} set value 100");
+    /// ```
+    pub fn field_path(&self) -> String {
+        self.full_path()
+    }
+
     pub fn location(&self) -> StorageLocation {
         StorageLocation::parse(self.storage)
             .expect("StorageField requires a valid storage resource location")

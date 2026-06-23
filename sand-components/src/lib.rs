@@ -39,6 +39,7 @@ pub mod jukebox_song;
 pub mod loot_table;
 pub mod painting_variant;
 pub mod predicate;
+pub mod predicates;
 pub mod raw;
 pub mod recipe;
 pub mod registry;
@@ -52,6 +53,14 @@ pub mod worldgen;
 
 pub use component::{ComponentContent, DatapackComponent, IntoDatapack};
 pub use raw::{RawCommand, RawComponent, RawJson, RawSnbt};
+
+// ── Shared typed predicate model ──────────────────────────────────────────────
+
+pub use predicates::{
+    BlockPredicate, DamagePredicate, DamageSourcePredicate, DamageTagEntry, DistancePredicate,
+    EffectPredicate, EntityEquipment, EntityFlags, EntityPredicate, EntityTypeMatch, FloatRange,
+    IntRange, ItemPredicate, LocationPredicate,
+};
 pub use registry::{
     BiomeId, BlockId, DamageTypeId, DimensionId, EffectId, EnchantmentId, EntityTypeId, ItemId,
     StructureId, TagId,
@@ -88,7 +97,7 @@ pub use instrument::Instrument;
 
 // ── Item ──────────────────────────────────────────────────────────────────────
 
-pub use item::predicates::{EntityPredicate, InventorySlots, ItemPredicate};
+pub use item::predicates::InventorySlots;
 pub use item::{
     AttributeModifier, AttributeOperation, AttributeType, ConsumableAnimation,
     ConsumableProperties, CustomItem, DyedColor, EquipmentSlot, EquipmentSlotGroup,

@@ -424,7 +424,8 @@ mod tests {
             .build();
         match trigger {
             AdvancementTrigger::ConsumeItem { item: Some(v) } => {
-                assert_eq!(v["id"], "minecraft:golden_apple");
+                // New ItemPredicate uses "items" key (1.21+ format)
+                assert_eq!(v["items"], "minecraft:golden_apple");
             }
             _other => panic!("unexpected trigger variant"),
         }
@@ -468,7 +469,8 @@ mod tests {
         match trigger {
             AdvancementTrigger::InventoryChanged { items, .. } => {
                 assert_eq!(items.len(), 1);
-                assert_eq!(items[0]["id"], "minecraft:diamond");
+                // New ItemPredicate uses "items" key (1.21+ format)
+                assert_eq!(items[0]["items"], "minecraft:diamond");
             }
             _other => panic!("unexpected trigger variant"),
         }

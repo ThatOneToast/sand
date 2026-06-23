@@ -88,14 +88,16 @@ pub use event::{
     DamageAdvancementEvent,
     DamageEvent,
     Event,
-    // Kept for backward compat; prefer Event<E> as handler context
-    Event as TypedEvent,
     EventAdvancement,
+    EventBuilder,
+    EventConfig,
     EventId,
     EventPlayer,
     EventReset,
     EventVisibility,
     IntoEventAdvancement,
+    // Kept for backward compat; prefer Event<E> as handler context
+    Event as TypedEvent,
 };
 pub use events::{
     // Equipment events

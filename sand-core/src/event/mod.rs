@@ -11,9 +11,12 @@
 //! | [`EventVisibility`] | Controls toast/chat visibility |
 //! | [`IntoEventAdvancement`] | Extension: builds the full advancement from an event |
 
+pub mod builder;
 pub mod handle;
 pub mod trigger;
 pub mod vanilla;
+
+pub use builder::{EventBuilder, EventConfig};
 
 use crate::AdvancementTrigger;
 use std::marker::PhantomData;
@@ -149,6 +152,37 @@ pub trait AdvancementEvent {
     fn guard() -> Option<crate::condition::Condition> {
         None
     }
+
+    /// `scoreboard objectives add …` / storage init commands for state variables
+    /// this event depends on.
+    ///
+    /// Override to list every [`ScoreVar`], [`Flag`], [`Cooldown`], or [`Timer`]
+    /// the event's handler reads or writes.  The export pipeline — and your
+    /// `#[component(Load)]` function — can call `Event::<Self>::state_init()` to
+    /// collect these commands without knowing the concrete types.
+    ///
+    /// [`ScoreVar`]: crate::state::ScoreVar
+    /// [`Flag`]: crate::state::Flag
+    /// [`Cooldown`]: crate::state::Cooldown
+    /// [`Timer`]: crate::state::Timer
+    fn state_defines() -> Vec<String> {
+        vec![]
+    }
+
+    /// Build a value-based [`EventConfig`] from this trait impl.
+    ///
+    /// This bridges the trait-based and builder-based APIs: you can obtain an
+    /// `EventConfig` from any `AdvancementEvent` impl without knowing whether
+    /// it was defined via a struct+impl or via [`EventBuilder`].
+    fn into_config() -> crate::event::builder::EventConfig {
+        crate::event::builder::EventBuilder::new()
+            .trigger(Self::trigger().into())
+            .reset(Self::reset())
+            .visibility(Self::visibility())
+            .build()
+        // Note: guard and state_defines are not forwarded here because Condition
+        // is not Clone. Override into_config() on your event if you need them.
+    }
 }
 
 /// Capability marker for advancement events that represent player damage.
@@ -229,6 +263,31 @@ impl<E: AdvancementEvent> Event<E> {
     /// Returns `Selector::self_()` — alias for [`player`](Event::player).
     pub fn subject(&self) -> crate::cmd::Selector {
         crate::cmd::Selector::self_()
+    }
+
+    /// `scoreboard objectives add …` commands for every state variable this
+    /// event declared via [`AdvancementEvent::state_defines`].
+    ///
+    /// Call this in your `#[component(Load)]` function so all objectives exist
+    /// before the event fires:
+    ///
+    /// ```rust,ignore
+    /// #[component(Load)]
+    /// fn load() {
+    ///     for cmd in Event::<DrinkManaEvent>::state_init() {
+    ///         cmd::raw(cmd);
+    ///     }
+    /// }
+    /// ```
+    pub fn state_init() -> Vec<String> {
+        E::state_defines()
+    }
+
+    /// Build a value-based [`EventConfig`] from this event's trait impl.
+    ///
+    /// Convenience wrapper over [`AdvancementEvent::into_config`].
+    pub fn config() -> crate::event::builder::EventConfig {
+        E::into_config()
     }
 }
 

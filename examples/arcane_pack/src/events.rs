@@ -17,6 +17,14 @@ impl AdvancementEvent for AteGoldenAppleEvent {
     fn guard() -> Option<Condition> {
         Some(super::MANA.of("@s").lt(100))
     }
+
+    /// Declares that this event depends on the MANA scoreboard variable.
+    ///
+    /// Calling `Event::<AteGoldenAppleEvent>::state_init()` in load will
+    /// include `MANA.define()` automatically.
+    fn state_defines() -> Vec<String> {
+        vec![super::MANA.define()]
+    }
 }
 
 /// Fires when an enhanced-cells player is damaged.

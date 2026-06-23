@@ -11,3 +11,4 @@ build-dir = "target/mdbook"
 [output.html]
 git-repository-url = "https://github.com/ThatOneToast/sand"
 edit-url-template = "https://github.com/ThatOneToast/sand/edit/main/{path}"
+additional-css = ["book/theme/sand.css"]

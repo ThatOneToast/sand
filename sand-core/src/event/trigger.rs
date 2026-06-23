@@ -1,32 +1,36 @@
 //! Typed trigger builders for Minecraft advancement triggers.
 //!
-//! Each trigger type has a builder with typed methods instead of `Option<Value>`.
-//! All builders implement `Into<AdvancementTrigger>` so they work directly with
+//! Each trigger type has a builder with typed methods. All builders implement
+//! `Into<AdvancementTrigger>` so they work directly with
 //! [`crate::event::AdvancementEvent`]'s `Trigger` associated type.
 //!
 //! # Typed predicates
 //!
-//! Use [`ItemPredicate`] and [`EntityPredicate`] for type-safe trigger filters.
-//! Raw `serde_json::Value` is accepted as an explicit escape hatch via the same
-//! `impl Into<serde_json::Value>` bound.
+//! Use [`ItemPredicate`] and [`EntityPredicate`] from the prelude for type-safe
+//! trigger filters.  To pass raw JSON as an escape hatch, wrap it with
+//! `ItemPredicate::raw(RawJson::new(json!({...})))`.
 //!
 //! ```rust,ignore
 //! use sand_core::event::trigger::ConsumeItemTrigger;
-//! use sand_core::ItemPredicate;
+//! use sand_core::{ItemPredicate, RawJson};
+//! use serde_json::json;
 //!
 //! // Typed (preferred):
 //! let trigger = ConsumeItemTrigger::new()
 //!     .item(ItemPredicate::id("minecraft:golden_apple"))
 //!     .build();
 //!
-//! // Raw JSON (escape hatch):
+//! // Raw JSON escape hatch:
 //! let trigger = ConsumeItemTrigger::new()
-//!     .item(serde_json::json!({"items": "minecraft:golden_apple"}))
+//!     .item(ItemPredicate::raw(RawJson::new(json!({"items": "minecraft:golden_apple"}))))
 //!     .build();
 //! ```
 
 use crate::AdvancementTrigger;
-use sand_components::RawJson;
+use sand_components::predicates::{
+    DamagePredicate, EntityPredicate, IntRange, ItemPredicate,
+};
+use sand_components::advancement::InventorySlotsPredicate;
 
 // ── TickTrigger ─────────────────────────────────────────────────────────────
 
@@ -79,7 +83,7 @@ impl From<ImpossibleTrigger> for AdvancementTrigger {
 /// Fires when the player consumes an item (food, potion, honey bottle, etc.).
 #[derive(Clone, Debug, Default)]
 pub struct ConsumeItemTrigger {
-    item: Option<::serde_json::Value>,
+    item: Option<ItemPredicate>,
 }
 
 impl ConsumeItemTrigger {
@@ -88,8 +92,8 @@ impl ConsumeItemTrigger {
     }
 
     /// Filter by the consumed item.
-    pub fn item(mut self, predicate: impl Into<::serde_json::Value>) -> Self {
-        self.item = Some(predicate.into());
+    pub fn item(mut self, predicate: ItemPredicate) -> Self {
+        self.item = Some(predicate);
         self
     }
 
@@ -109,8 +113,8 @@ impl From<ConsumeItemTrigger> for AdvancementTrigger {
 /// Fires when the player kills any entity.
 #[derive(Clone, Debug, Default)]
 pub struct PlayerKilledEntityTrigger {
-    entity: Option<::serde_json::Value>,
-    killing_blow: Option<::serde_json::Value>,
+    entity: Option<EntityPredicate>,
+    killing_blow: Option<DamagePredicate>,
 }
 
 impl PlayerKilledEntityTrigger {
@@ -122,14 +126,14 @@ impl PlayerKilledEntityTrigger {
     }
 
     /// Filter by the killed entity's properties.
-    pub fn entity(mut self, predicate: impl Into<::serde_json::Value>) -> Self {
-        self.entity = Some(predicate.into());
+    pub fn entity(mut self, predicate: EntityPredicate) -> Self {
+        self.entity = Some(predicate);
         self
     }
 
     /// Filter by how the entity was killed (damage type, etc.).
-    pub fn killing_blow(mut self, predicate: impl Into<::serde_json::Value>) -> Self {
-        self.killing_blow = Some(predicate.into());
+    pub fn killing_blow(mut self, predicate: DamagePredicate) -> Self {
+        self.killing_blow = Some(predicate);
         self
     }
 
@@ -152,8 +156,8 @@ impl From<PlayerKilledEntityTrigger> for AdvancementTrigger {
 /// Fires when any entity kills the player.
 #[derive(Clone, Debug, Default)]
 pub struct EntityKilledPlayerTrigger {
-    entity: Option<::serde_json::Value>,
-    killing_blow: Option<::serde_json::Value>,
+    entity: Option<EntityPredicate>,
+    killing_blow: Option<DamagePredicate>,
 }
 
 impl EntityKilledPlayerTrigger {
@@ -165,14 +169,14 @@ impl EntityKilledPlayerTrigger {
     }
 
     /// Filter by the attacking entity's properties.
-    pub fn entity(mut self, predicate: impl Into<::serde_json::Value>) -> Self {
-        self.entity = Some(predicate.into());
+    pub fn entity(mut self, predicate: EntityPredicate) -> Self {
+        self.entity = Some(predicate);
         self
     }
 
     /// Filter by the killing blow (damage type, etc.).
-    pub fn killing_blow(mut self, predicate: impl Into<::serde_json::Value>) -> Self {
-        self.killing_blow = Some(predicate.into());
+    pub fn killing_blow(mut self, predicate: DamagePredicate) -> Self {
+        self.killing_blow = Some(predicate);
         self
     }
 
@@ -206,10 +210,7 @@ impl RecipeUnlockedTrigger {
     }
 
     pub fn build(self) -> AdvancementTrigger {
-        AdvancementTrigger::Custom {
-            trigger: "minecraft:recipe_unlocked".into(),
-            conditions: Some(RawJson::new(::serde_json::json!({ "recipe": self.recipe }))),
-        }
+        AdvancementTrigger::RecipeUnlocked { recipe: self.recipe }
     }
 }
 
@@ -224,8 +225,8 @@ impl From<RecipeUnlockedTrigger> for AdvancementTrigger {
 /// Fires when the player's inventory changes.
 #[derive(Clone, Debug, Default)]
 pub struct InventoryChangedTrigger {
-    slots: Option<::serde_json::Value>,
-    items: Vec<::serde_json::Value>,
+    slots: Option<InventorySlotsPredicate>,
+    items: Vec<ItemPredicate>,
 }
 
 impl InventoryChangedTrigger {
@@ -237,14 +238,14 @@ impl InventoryChangedTrigger {
     }
 
     /// Filter by occupied/empty slot ranges.
-    pub fn slots(mut self, slots: impl Into<::serde_json::Value>) -> Self {
-        self.slots = Some(slots.into());
+    pub fn slots(mut self, slots: InventorySlotsPredicate) -> Self {
+        self.slots = Some(slots);
         self
     }
 
     /// Add an item filter. Can be called multiple times.
-    pub fn item(mut self, predicate: impl Into<::serde_json::Value>) -> Self {
-        self.items.push(predicate.into());
+    pub fn item(mut self, predicate: ItemPredicate) -> Self {
+        self.items.push(predicate);
         self
     }
 
@@ -267,7 +268,7 @@ impl From<InventoryChangedTrigger> for AdvancementTrigger {
 /// Fires when the player obtains an item (crafting, smelting, etc.).
 #[derive(Clone, Debug, Default)]
 pub struct ItemObtainedTrigger {
-    item: Option<::serde_json::Value>,
+    item: Option<ItemPredicate>,
 }
 
 impl ItemObtainedTrigger {
@@ -276,8 +277,8 @@ impl ItemObtainedTrigger {
     }
 
     /// Filter by the obtained item.
-    pub fn item(mut self, predicate: impl Into<::serde_json::Value>) -> Self {
-        self.item = Some(predicate.into());
+    pub fn item(mut self, predicate: ItemPredicate) -> Self {
+        self.item = Some(predicate);
         self
     }
 
@@ -297,8 +298,8 @@ impl From<ItemObtainedTrigger> for AdvancementTrigger {
 /// Fires when the player enchants an item.
 #[derive(Clone, Debug, Default)]
 pub struct ItemEnchantTrigger {
-    item: Option<::serde_json::Value>,
-    levels: Option<::serde_json::Value>,
+    item: Option<ItemPredicate>,
+    levels: Option<IntRange>,
 }
 
 impl ItemEnchantTrigger {
@@ -310,14 +311,14 @@ impl ItemEnchantTrigger {
     }
 
     /// Filter by the enchanted item.
-    pub fn item(mut self, predicate: impl Into<::serde_json::Value>) -> Self {
-        self.item = Some(predicate.into());
+    pub fn item(mut self, predicate: ItemPredicate) -> Self {
+        self.item = Some(predicate);
         self
     }
 
     /// Filter by experience levels spent.
-    pub fn levels(mut self, levels: impl Into<::serde_json::Value>) -> Self {
-        self.levels = Some(levels.into());
+    pub fn levels(mut self, levels: IntRange) -> Self {
+        self.levels = Some(levels);
         self
     }
 
@@ -340,7 +341,7 @@ impl From<ItemEnchantTrigger> for AdvancementTrigger {
 /// Fires when the player is actively using (holding right-click) an item.
 #[derive(Clone, Debug, Default)]
 pub struct UsingItemTrigger {
-    item: Option<::serde_json::Value>,
+    item: Option<ItemPredicate>,
 }
 
 impl UsingItemTrigger {
@@ -349,8 +350,8 @@ impl UsingItemTrigger {
     }
 
     /// Filter by the item being used.
-    pub fn item(mut self, predicate: impl Into<::serde_json::Value>) -> Self {
-        self.item = Some(predicate.into());
+    pub fn item(mut self, predicate: ItemPredicate) -> Self {
+        self.item = Some(predicate);
         self
     }
 
@@ -365,13 +366,13 @@ impl From<UsingItemTrigger> for AdvancementTrigger {
     }
 }
 
-// ─── KillEntityNearStructureTrigger (KilledByCrossbow) ──────────────────────
+// ─── MultiKillTrigger (KilledByCrossbow) ────────────────────────────────────
 
 /// Fires when the player kills multiple unique entity types with a crossbow.
 #[derive(Clone, Debug, Default)]
 pub struct MultiKillTrigger {
-    unique_entity_types: Option<::serde_json::Value>,
-    victims: Option<Vec<::serde_json::Value>>,
+    unique_entity_types: Option<IntRange>,
+    victims: Option<Vec<EntityPredicate>>,
 }
 
 impl MultiKillTrigger {
@@ -383,16 +384,16 @@ impl MultiKillTrigger {
     }
 
     /// Number of unique entity types that must be killed.
-    pub fn unique_entity_types(mut self, count: impl Into<::serde_json::Value>) -> Self {
-        self.unique_entity_types = Some(count.into());
+    pub fn unique_entity_types(mut self, count: IntRange) -> Self {
+        self.unique_entity_types = Some(count);
         self
     }
 
     /// Filter by victim entity predicates.
-    pub fn victim(mut self, predicate: impl Into<::serde_json::Value>) -> Self {
+    pub fn victim(mut self, predicate: EntityPredicate) -> Self {
         self.victims
             .get_or_insert_with(Vec::new)
-            .push(predicate.into());
+            .push(predicate);
         self
     }
 
@@ -418,62 +419,42 @@ mod tests {
 
     #[test]
     fn consume_item_typed_predicate() {
-        use crate::ItemPredicate;
         let trigger = ConsumeItemTrigger::new()
             .item(ItemPredicate::id("minecraft:golden_apple"))
             .build();
-        match trigger {
-            AdvancementTrigger::ConsumeItem { item: Some(v) } => {
-                // New ItemPredicate uses "items" key (1.21+ format)
-                assert_eq!(v["items"], "minecraft:golden_apple");
-            }
-            _other => panic!("unexpected trigger variant"),
-        }
+        let v = serde_json::to_value(&trigger).unwrap();
+        assert_eq!(v["conditions"]["item"]["items"], "minecraft:golden_apple");
     }
 
     #[test]
     fn consume_item_raw_json_escape_hatch() {
+        use sand_components::RawJson;
         let trigger = ConsumeItemTrigger::new()
-            .item(serde_json::json!({"items": "minecraft:honey_bottle"}))
+            .item(ItemPredicate::raw(RawJson::new(
+                serde_json::json!({"items": "minecraft:honey_bottle"}),
+            )))
             .build();
-        match trigger {
-            AdvancementTrigger::ConsumeItem { item: Some(v) } => {
-                assert_eq!(v["items"], "minecraft:honey_bottle");
-            }
-            _other => panic!("unexpected trigger variant"),
-        }
+        let v = serde_json::to_value(&trigger).unwrap();
+        assert_eq!(v["conditions"]["item"]["items"], "minecraft:honey_bottle");
     }
 
     #[test]
     fn player_killed_entity_typed_predicate() {
-        use crate::EntityPredicate;
         let trigger = PlayerKilledEntityTrigger::new()
             .entity(EntityPredicate::type_("minecraft:zombie"))
             .build();
-        match trigger {
-            AdvancementTrigger::PlayerKilledEntity {
-                entity: Some(v), ..
-            } => {
-                assert_eq!(v["type"], "minecraft:zombie");
-            }
-            _other => panic!("unexpected trigger variant"),
-        }
+        let v = serde_json::to_value(&trigger).unwrap();
+        assert_eq!(v["conditions"]["entity"]["type"], "minecraft:zombie");
     }
 
     #[test]
     fn inventory_changed_typed_item_predicate() {
-        use crate::ItemPredicate;
         let trigger = InventoryChangedTrigger::new()
             .item(ItemPredicate::id("minecraft:diamond"))
             .build();
-        match trigger {
-            AdvancementTrigger::InventoryChanged { items, .. } => {
-                assert_eq!(items.len(), 1);
-                // New ItemPredicate uses "items" key (1.21+ format)
-                assert_eq!(items[0]["items"], "minecraft:diamond");
-            }
-            _other => panic!("unexpected trigger variant"),
-        }
+        let v = serde_json::to_value(&trigger).unwrap();
+        let items = &v["conditions"]["items"];
+        assert_eq!(items[0]["items"], "minecraft:diamond");
     }
 
     #[test]
@@ -486,5 +467,13 @@ mod tests {
     fn impossible_trigger_builds() {
         let t: AdvancementTrigger = ImpossibleTrigger::new().into();
         assert!(matches!(t, AdvancementTrigger::Impossible));
+    }
+
+    #[test]
+    fn recipe_unlocked_uses_typed_variant() {
+        let t = RecipeUnlockedTrigger::new("minecraft:crafting_table").build();
+        let v = serde_json::to_value(&t).unwrap();
+        assert_eq!(v["trigger"], "minecraft:recipe_unlocked");
+        assert_eq!(v["conditions"]["recipe"], "minecraft:crafting_table");
     }
 }

@@ -41,6 +41,7 @@ use std::fmt;
 use serde_json::Value;
 
 use crate::advancement::{Advancement, AdvancementRewards, AdvancementTrigger, Criterion};
+use crate::predicates::ItemPredicate as TypedItemPredicate;
 use crate::raw::RawComponent;
 use crate::resource_location::ResourceLocation;
 use sand_commands::TextComponent;
@@ -995,16 +996,12 @@ impl CustomItem {
     /// also matches the `minecraft:custom_data` component.
     ///
     /// Use the result in advancement criteria, loot table conditions, or predicates.
-    pub fn item_predicate(&self) -> Value {
-        let mut pred = serde_json::Map::new();
-        pred.insert("items".into(), serde_json::json!([self.base]));
+    pub fn item_predicate(&self) -> TypedItemPredicate {
+        let mut pred = TypedItemPredicate::id(&self.base);
         if let Some(ref key) = self.custom_data_key {
-            pred.insert(
-                "components".into(),
-                serde_json::json!({ "minecraft:custom_data": { key: true } }),
-            );
+            pred = pred.custom_data_key(key);
         }
-        Value::Object(pred)
+        pred
     }
 
     // ── Advancement helpers ───────────────────────────────────────────────────
@@ -1331,8 +1328,8 @@ mod tests {
     #[test]
     fn item_predicate_with_custom_data() {
         let item = CustomItem::new("minecraft:diamond_sword").custom_data("inferno_blade");
-        let pred = item.item_predicate();
-        assert_eq!(pred["items"][0], "minecraft:diamond_sword");
+        let pred = serde_json::to_value(item.item_predicate()).unwrap();
+        assert_eq!(pred["items"], "minecraft:diamond_sword");
         assert!(
             pred["components"]["minecraft:custom_data"]["inferno_blade"]
                 .as_bool()
@@ -1343,8 +1340,8 @@ mod tests {
     #[test]
     fn item_predicate_without_custom_data() {
         let item = CustomItem::new("minecraft:diamond_sword");
-        let pred = item.item_predicate();
-        assert_eq!(pred["items"][0], "minecraft:diamond_sword");
+        let pred = serde_json::to_value(item.item_predicate()).unwrap();
+        assert_eq!(pred["items"], "minecraft:diamond_sword");
         assert!(pred.get("components").is_none());
     }
 

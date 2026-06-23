@@ -1,4 +1,4 @@
-use sand_core::ItemPredicate;
+use sand_core::{ItemPredicate, RawJson};
 use sand_core::event::trigger::{ConsumeItemTrigger, UsingItemTrigger};
 use sand_core::event::{AdvancementEvent, DamageAdvancementEvent};
 use sand_core::prelude::*;
@@ -46,13 +46,13 @@ impl AdvancementEvent for UsedDashWandEvent {
     type Trigger = UsingItemTrigger;
 
     fn trigger() -> Self::Trigger {
-        // Custom data matching requires raw JSON escape hatch — arcane_wand:1b predicate
-        UsingItemTrigger::new().item(serde_json::json!({
-            "items": "minecraft:stick",
-            "predicates": {
-                "minecraft:custom_data": "{arcane_wand:1b}"
-            }
-        }))
+        // Custom data matching uses typed item + raw SNBT predicate escape hatch
+        UsingItemTrigger::new().item(
+            ItemPredicate::id("minecraft:stick")
+                .raw_predicates(RawJson::new(serde_json::json!({
+                    "minecraft:custom_data": "{arcane_wand:1b}"
+                }))),
+        )
     }
 
     fn guard() -> Option<Condition> {

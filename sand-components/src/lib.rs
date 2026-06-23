@@ -41,6 +41,7 @@ pub mod painting_variant;
 pub mod predicate;
 pub mod raw;
 pub mod recipe;
+pub mod registry;
 pub mod resource_location;
 pub mod tag;
 pub mod trim;
@@ -51,6 +52,10 @@ pub mod worldgen;
 
 pub use component::{ComponentContent, DatapackComponent, IntoDatapack};
 pub use raw::{RawCommand, RawComponent, RawJson, RawSnbt};
+pub use registry::{
+    BiomeId, BlockId, DamageTypeId, DimensionId, EffectId, EnchantmentId, EntityTypeId, ItemId,
+    StructureId, TagId,
+};
 pub use error::{Result, SandError};
 pub use resource_location::{Identifier, PackNamespace, ResourceLocation};
 

@@ -74,6 +74,13 @@ pub use sand_components::{
 
 pub use sand_components::{RawCommand, RawComponent, RawJson, RawSnbt};
 
+// ── Typed registry identifiers ────────────────────────────────────────────────
+
+pub use sand_components::{
+    BiomeId, BlockId, DamageTypeId, DimensionId, EffectId, EnchantmentId, EntityTypeId, ItemId,
+    StructureId, TagId,
+};
+
 // ── Text / chat ───────────────────────────────────────────────────────────────
 
 pub use sand_commands::{ChatColor, ClickEvent, HoverEvent, Text, TextComponent};

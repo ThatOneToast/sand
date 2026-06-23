@@ -15,3 +15,5 @@ assert!(profile.supports_dialogs());
 Capabilities currently include pack formats, dialogs, function macros, item and
 data components, resource-pack overlays, trim assets, jukebox songs, damage
 types, chat types, enchantments, and 26.x fallback tracking.
+
+Cargo features are separate from `VersionProfile`: `systems-damage`, `systems-cooldowns`, `systems-lifecycle`, `systems-player-data`, `systems-movement`, `systems-inventory`, `systems-entities`, and `systems-all` opt into Sand systems. `SandStorage` and the authoring macros are macro-crate APIs, not features. See the [guide capability matrix](../book/src/version-capabilities.md).

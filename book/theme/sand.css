@@ -1,0 +1,32 @@
+/* Local, dependency-free presentation layer for the Sand guide. */
+:root {
+  --sand: #d47b26;
+  --sand-dark: #8a4616;
+  --sand-surface: #fff8ef;
+  --sand-border: #e5c39f;
+}
+
+.sidebar .sidebar-scrollbox { scrollbar-color: var(--sand-border) transparent; }
+.sidebar .chapter-item { line-height: 1.45; }
+.sidebar .chapter-item.expanded > a,
+.sidebar a:hover { color: var(--sand); }
+.content main { max-width: 54rem; }
+.content h1, .content h2 { border-bottom-color: var(--sand-border); }
+.content h1 { color: var(--sand-dark); }
+pre { margin: 1.25rem 0; padding: 1rem !important; border: 1px solid var(--sand-border); border-radius: 7px; }
+code { border-radius: 3px; }
+table { display: table; width: 100%; margin: 1.25rem 0; border-collapse: collapse; }
+th { background: var(--sand-surface); }
+th, td { padding: .55rem .7rem; border: 1px solid var(--sand-border); }
+.sand-warning, .sand-note, .sand-danger, .sand-example, .sand-experimental, .sand-version {
+  margin: 1.25rem 0;
+  padding: .85rem 1rem;
+  border-left: 4px solid var(--sand);
+  border-radius: 0 6px 6px 0;
+  background: var(--sand-surface);
+}
+.sand-note { border-left-color: #4583a6; background: #f1f8fc; }
+.sand-danger { border-left-color: #b23a30; background: #fff3f2; }
+.sand-example { border-left-color: #4f8a53; background: #f3faf3; }
+.sand-experimental { border-left-color: #a36418; background: #fff7df; }
+.sand-version { border-left-color: #7657a8; background: #f7f3fc; }

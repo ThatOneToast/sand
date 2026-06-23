@@ -24,3 +24,16 @@ Title::of(Selector::self_())
 
 For item-heavy datapacks, prefer `CustomItem` and item predicate builders over
 manually assembled component strings.
+
+```rust
+let item = CustomItem::new(ItemId::minecraft("diamond_sword").unwrap())
+    .id("example:inferno_blade")
+    .component(ItemComponent::custom_name(Text::new("Inferno Blade").red()))
+    .component(ItemComponent::custom_model_data(1001))
+    .component(ItemComponent::rarity(Rarity::Epic));
+
+cmd::give(Selector::self_(), item);
+```
+
+Use `RawComponent` only as an explicit escape hatch for modded or future item
+components that Sand does not model yet.

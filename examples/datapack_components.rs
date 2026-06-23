@@ -15,10 +15,14 @@ pub fn starter_dialog() -> Dialog {
 #[component]
 pub fn starter_item() -> CustomItem {
     CustomItem::new("minecraft:stick")
-        .custom_name(Text::new("Dash Wand").aqua().bold(true))
-        .lore_line(Text::new("Right click to dash").gray())
-        .lore_line(Text::new("Consumes mana").dark_gray())
-        .custom_data("dash_wand")
-        .enchantment_glint_override(true)
-        .max_stack_size(1)
+        .id("example:dash_wand")
+        .component(ItemComponent::custom_name(
+            Text::new("Dash Wand").aqua().bold(true),
+        ))
+        .component(ItemComponent::lore(vec![
+            Text::new("Right click to dash").gray(),
+            Text::new("Consumes mana").dark_gray(),
+        ]))
+        .component(ItemComponent::EnchantmentGlintOverride(true))
+        .component(ItemComponent::max_stack_size(1))
 }

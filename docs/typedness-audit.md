@@ -94,16 +94,17 @@ with an explicit `::raw(RawJson)` fallback on each type.
 | `AttributeModifier` | **Typed** | Serializes to SNBT internally; user never writes SNBT |
 | `FoodProperties` | **Typed** | Clean |
 | `ConsumableAnimation` | **Typed** | Clean enum |
-| `ConsumableProperties::sound` | **Mostly typed** | `Option<String>` — should be typed sound ID |
-| `EquippableProperties::equip_sound` | **Mostly typed** | `Option<String>` — same |
-| `EquippableProperties::model` | **Mostly typed** | `Option<String>` — resource location |
-| `EquippableProperties::allowed_entities` | **Mostly typed** | `Option<String>` — entity tag |
-| `ToolRule::blocks` | **Mostly typed** | `String` — should be typed block/tag ID |
-| `CustomItem::new(base)` | **Mostly typed** | `impl Into<String>` for base item — should be typed item ID |
-| `CustomItem::enchantment()` | **Mostly typed** | `impl Into<String>` for enchantment ID — should be typed |
-| `CustomItem::stored_enchantment()` | **Mostly typed** | Same |
-| `CustomItem::item_predicate()` | **Needs redesign** | Returns `serde_json::Value` — leaks raw JSON into caller |
-| `CustomItem::raw_component()` | **Raw hatch** | Well-named explicit escape hatch — keep |
+| `ConsumableProperties::sound` | **Mostly typed** | Accepts displayable IDs; a dedicated sound registry wrapper is still pending |
+| `EquippableProperties::equip_sound` | **Mostly typed** | Accepts displayable IDs; a dedicated sound registry wrapper is still pending |
+| `EquippableProperties::model` | **Mostly typed** | Accepts displayable resource locations |
+| `EquippableProperties::allowed_entities` | **Typed** | Supports `EntityTypeId` and `TagId<EntityTypeId>` helpers |
+| `ToolRule::blocks` | **Typed** | Supports `BlockId` and `TagId<BlockId>` helpers |
+| `ItemComponent` | **Typed** | Primary CustomItem v2 component model |
+| `CustomItem::new(base)` | **Typed** | Accepts displayable typed item IDs such as `ItemId` |
+| `CustomItem::id()` | **Typed** | Namespaced `custom_data` marker for stable item identity |
+| `CustomItem::component()` | **Typed** | Primary component API |
+| `CustomItem::item_predicate()` | **Typed** | Returns typed `ItemPredicate` |
+| `CustomItem::raw_component()` | **Raw hatch** | Deprecated string-key compatibility API; prefer `RawComponent` |
 
 ---
 
@@ -296,8 +297,13 @@ provides typed `effect_give`, `effect_clear`, and `effect_clear_effect`; raw
 effect command syntax is explicit through compatibility/escape hatches.
 
 ### Phase 8 — CustomItem v2
-`CustomItem::item_predicate()` returns typed `ItemPredicate` instead of `Value`.
-Enchantment/sound/entity-type fields use typed IDs.
+Complete. `ItemComponent` is the primary component model for `custom_name`,
+`item_name`, `lore`, `rarity`, `custom_model_data`, enchantments, attribute
+modifiers, food, consumable, equippable, tool, potion contents, suspicious stew
+effects, durability/stacking components, unbreakable, and custom data.
+`CustomItem::item_predicate()` returns typed `ItemPredicate`. Modded and future
+item components remain explicit through `RawComponent`; the legacy
+`CustomItem::raw_component(key, snbt)` string-key helper is deprecated.
 
 ### Phase 9 — Typed storage schemas
 `StorageSchema<T>` with typed field paths and optional derive macro.
@@ -327,7 +333,7 @@ explicit opt-ins. They must never be removed.
 
 | Escape hatch | Location | Reason to keep |
 |---|---|---|
-| `CustomItem::raw_component(key, snbt)` | `item/mod.rs` | Modded/future item components |
+| `RawComponent` / `CustomItem::with_raw_component()` | `item/mod.rs` | Modded/future item components |
 | `AdvancementTrigger::Custom { trigger, conditions }` | `advancement/mod.rs` | Modded advancement triggers |
 | `LootCondition::Custom { condition, data }` | `loot_table/mod.rs` | Modded loot conditions |
 | `LootFunction::Custom { function, data }` | `loot_table/mod.rs` | Modded loot functions |

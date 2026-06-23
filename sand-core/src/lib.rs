@@ -88,6 +88,8 @@ pub use event::{
     DamageAdvancementEvent,
     DamageEvent,
     Event,
+    // Kept for backward compat; prefer Event<E> as handler context
+    Event as TypedEvent,
     EventAdvancement,
     EventBuilder,
     EventConfig,
@@ -96,8 +98,6 @@ pub use event::{
     EventReset,
     EventVisibility,
     IntoEventAdvancement,
-    // Kept for backward compat; prefer Event<E> as handler context
-    Event as TypedEvent,
 };
 pub use events::{
     // Equipment events
@@ -187,35 +187,6 @@ pub use components::mc_function::{IntoCommands, McFunction};
 pub use sand_components::dialog::{Dialog, DialogAction, DialogBody, DialogButton, DialogKind};
 
 pub use sand_components::{
-    // Raw escape hatch types
-    RawCommand,
-    RawComponent,
-    RawJson,
-    RawSnbt,
-    // Typed predicate model
-    BlockPredicate,
-    DamagePredicate,
-    DamageSourcePredicate,
-    DamageTagEntry,
-    DistancePredicate,
-    EffectPredicate,
-    EntityEquipment,
-    EntityFlags,
-    EntityTypeMatch,
-    FloatRange,
-    IntRange,
-    LocationPredicate,
-    // Typed registry identifiers
-    BiomeId,
-    BlockId,
-    DamageTypeId,
-    DimensionId,
-    EffectId,
-    EnchantmentId,
-    EntityTypeId,
-    ItemId,
-    StructureId,
-    TagId,
     // Advancement
     Advancement,
     AdvancementDisplay,
@@ -232,6 +203,11 @@ pub use sand_components::{
     // Worldgen
     Biome,
     BiomeEffects,
+    // Typed registry identifiers
+    BiomeId,
+    BlockId,
+    // Typed predicate model
+    BlockPredicate,
     ChatDecoration,
     ChatType,
     ConsumableAnimation,
@@ -243,30 +219,47 @@ pub use sand_components::{
     CustomItem,
     // Damage
     DamageEffects,
+    DamagePredicate,
     DamageScaling,
+    DamageSourcePredicate,
+    DamageTagEntry,
     DamageType,
+    DamageTypeId,
     DeathMessageType,
     Dimension,
+    DimensionId,
+    DistancePredicate,
     DyedColor,
+    EffectId,
+    EffectPredicate,
     // Enchantment
     Enchantment,
     EnchantmentCost,
     EnchantmentEffect,
+    EnchantmentId,
+    EntityEquipment,
+    EntityFlags,
     // Item predicates
     EntityPredicate,
+    EntityTypeId,
+    EntityTypeMatch,
     EquipmentSlot,
     EquipmentSlotGroup,
     EquippableProperties,
+    FloatRange,
     FoodProperties,
     Ingredient,
     // Instrument / Jukebox
     Instrument,
+    IntRange,
     InventorySlots,
+    ItemId,
     // Item modifier
     ItemModifier,
     ItemPredicate,
     ItemRarity,
     JukeboxSong,
+    LocationPredicate,
     // Loot table
     LootCondition,
     LootEntry,
@@ -278,16 +271,29 @@ pub use sand_components::{
     NumberProvider,
     PaintingVariant,
     PlacedFeature,
+    PotionContents,
+    PotionId,
     // Predicate
     Predicate,
+    Range,
+    // Raw escape hatch types
+    RawCommand,
+    RawComponent,
+    RawJson,
+    RawSnbt,
     RecipeResult,
     ShapedRecipe,
     ShapelessRecipe,
     SmithingTransformRecipe,
     SmithingTrimRecipe,
+    StatusEffectInstance,
     StonecuttingRecipe,
+    StructureId,
+    SuspiciousStewEffect,
     // Tag
     Tag,
+    TagId,
+    Ticks,
     ToolProperties,
     ToolRule,
     // Trim

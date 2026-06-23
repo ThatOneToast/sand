@@ -116,11 +116,6 @@ registry_id! {
 }
 
 registry_id! {
-    /// Typed Minecraft status effect identifier (e.g. `minecraft:speed` or `mymod:arcane_burn`).
-    EffectId
-}
-
-registry_id! {
     /// Typed Minecraft enchantment identifier (e.g. `minecraft:sharpness` or `mymod:arcane`).
     EnchantmentId
 }
@@ -293,13 +288,6 @@ mod tests {
         let rl = ResourceLocation::new("mymod", "special_blocks").unwrap();
         let tag: TagId<BlockId> = TagId::custom(rl);
         assert_eq!(tag.to_string(), "mymod:special_blocks");
-    }
-
-    #[test]
-    fn effect_id_serialize() {
-        let id = EffectId::minecraft("speed").unwrap();
-        let s = serde_json::to_string(&id).unwrap();
-        assert_eq!(s, r#""minecraft:speed""#);
     }
 
     #[test]

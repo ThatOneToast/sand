@@ -368,7 +368,7 @@ impl CustomData {
 
     fn to_snbt(&self) -> String {
         match self {
-            CustomData::Marker(key) => format!("{{{key}:1b}}"),
+            CustomData::Marker(key) => format!("{{{}:1b}}", snbt_compound_key(key)),
             CustomData::Raw(snbt) => snbt.to_string(),
         }
     }
@@ -1094,6 +1094,11 @@ impl CustomItem {
         self
     }
 
+    /// Set this custom item's stable ID as a namespaced `custom_data` marker.
+    pub fn id(self, id: impl Into<String>) -> Self {
+        self.component(ItemComponent::custom_data_marker(id))
+    }
+
     /// Set typed custom data for this item.
     pub fn typed_custom_data(mut self, data: CustomData) -> Self {
         self.custom_data = Some(data);
@@ -1538,6 +1543,17 @@ fn json_val_to_snbt(v: &Value) -> String {
         Value::Bool(b) => b.to_string(),
         Value::Number(n) => n.to_string(),
         Value::Null => "\"\"".to_string(),
+    }
+}
+
+fn snbt_compound_key(key: &str) -> String {
+    if key
+        .chars()
+        .all(|c| matches!(c, 'a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-' | '.'))
+    {
+        key.to_string()
+    } else {
+        format!("\"{}\"", key.replace('\\', "\\\\").replace('"', "\\\""))
     }
 }
 

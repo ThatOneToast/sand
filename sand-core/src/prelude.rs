@@ -67,9 +67,9 @@ pub use sand_components::dialog::{Dialog, DialogAction, DialogBody, DialogButton
 
 pub use sand_components::{
     AttributeId, AttributeModifier, AttributeOperation, AttributeType, ConsumableAnimation,
-    ConsumableProperties, CustomData, CustomItem, EnchantmentEntry, EquipmentSlot, EquipmentSlotGroup,
-    EquippableProperties, FoodProperties, ItemComponent, ItemPredicate, ItemRarity, Rarity,
-    ToolProperties, ToolRule,
+    ConsumableProperties, CustomData, CustomItem, EnchantmentEntry, EquipmentSlot,
+    EquipmentSlotGroup, EquippableProperties, FoodProperties, ItemComponent, ItemPredicate,
+    ItemRarity, Rarity, ToolProperties, ToolRule,
 };
 
 // ── Raw escape hatch types ────────────────────────────────────────────────────

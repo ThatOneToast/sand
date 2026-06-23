@@ -40,10 +40,11 @@ use std::fmt;
 
 use serde_json::Value;
 
+use crate::EnchantmentId;
 use crate::advancement::{Advancement, AdvancementRewards, AdvancementTrigger, Criterion};
-use crate::effect::PotionContents;
+use crate::effect::{PotionContents, SuspiciousStewEffect};
 use crate::predicates::ItemPredicate as TypedItemPredicate;
-use crate::raw::RawComponent;
+use crate::raw::{RawComponent, RawSnbt};
 use crate::resource_location::ResourceLocation;
 use sand_commands::TextComponent;
 
@@ -63,6 +64,9 @@ pub enum ItemRarity {
     /// Pink/magenta text.
     Epic,
 }
+
+/// Alias for the public item component rarity model.
+pub type Rarity = ItemRarity;
 
 impl ItemRarity {
     pub fn as_str(self) -> &'static str {
@@ -131,6 +135,9 @@ pub enum AttributeType {
     /// Any attribute not covered above (namespace:name format).
     Custom(String),
 }
+
+/// Alias for the public item attribute identifier model.
+pub type AttributeId = AttributeType;
 
 impl AttributeType {
     pub fn as_str(&self) -> &str {
@@ -248,20 +255,46 @@ pub struct AttributeModifier {
 }
 
 impl AttributeModifier {
-    /// Create a new attribute modifier with the given type, amount, operation, and slot.
-    pub fn new(
+    /// Create a new attribute modifier for the given attribute.
+    pub fn new(attribute: AttributeType) -> Self {
+        Self {
+            attribute,
+            amount: 0.0,
+            operation: AttributeOperation::AddValue,
+            slot: EquipmentSlotGroup::Any,
+            id: None,
+        }
+    }
+
+    /// Create a fully specified attribute modifier in one call.
+    pub fn with_values(
         attribute: AttributeType,
         amount: f64,
         operation: AttributeOperation,
         slot: EquipmentSlotGroup,
     ) -> Self {
-        Self {
-            attribute,
-            amount,
-            operation,
-            slot,
-            id: None,
-        }
+        Self::new(attribute)
+            .amount(amount)
+            .operation(operation)
+            .slot(slot)
+    }
+
+    /// Set the modifier amount.
+    pub fn amount(mut self, amount: f64) -> Self {
+        self.amount = amount;
+        self
+    }
+
+    /// Set the modifier operation.
+    pub fn operation(mut self, operation: AttributeOperation) -> Self {
+        self.operation = operation;
+        self
+    }
+
+    /// Set the equipment slot group where this modifier applies.
+    pub fn slot(mut self, slot: EquipmentSlotGroup) -> Self {
+        self.slot = slot;
+        self
     }
 
     /// Set a unique resource-location identifier for this modifier (e.g. `"my_pack:bonus_damage"`).
@@ -285,6 +318,202 @@ impl AttributeModifier {
             self.operation.as_str(),
             self.slot.as_str(),
         )
+    }
+}
+
+// ── EnchantmentEntry ─────────────────────────────────────────────────────────
+
+/// A typed enchantment level entry for item components.
+#[derive(Debug, Clone)]
+pub struct EnchantmentEntry {
+    id: EnchantmentId,
+    level: u32,
+}
+
+impl EnchantmentEntry {
+    /// Create a typed enchantment entry.
+    pub fn new(id: EnchantmentId, level: u32) -> Self {
+        Self { id, level }
+    }
+}
+
+// ── CustomData ───────────────────────────────────────────────────────────────
+
+/// Typed wrapper for the `custom_data` item component.
+#[derive(Debug, Clone)]
+pub enum CustomData {
+    /// A common marker emitted as `{key:1b}`.
+    Marker(String),
+    /// Explicit raw SNBT for complex custom data payloads.
+    Raw(RawSnbt),
+}
+
+impl CustomData {
+    /// Create a marker custom data payload: `{key:1b}`.
+    pub fn marker(key: impl Into<String>) -> Self {
+        Self::Marker(key.into())
+    }
+
+    /// Wrap raw custom data SNBT explicitly.
+    pub fn raw(snbt: RawSnbt) -> Self {
+        Self::Raw(snbt)
+    }
+
+    fn marker_key(&self) -> Option<&str> {
+        match self {
+            CustomData::Marker(key) => Some(key),
+            CustomData::Raw(_) => None,
+        }
+    }
+
+    fn to_snbt(&self) -> String {
+        match self {
+            CustomData::Marker(key) => format!("{{{key}:1b}}"),
+            CustomData::Raw(snbt) => snbt.to_string(),
+        }
+    }
+}
+
+impl From<RawSnbt> for CustomData {
+    fn from(value: RawSnbt) -> Self {
+        Self::Raw(value)
+    }
+}
+
+// ── ItemComponent ────────────────────────────────────────────────────────────
+
+/// Strongly typed Minecraft item component values used by [`CustomItem`].
+#[derive(Debug, Clone)]
+pub enum ItemComponent {
+    CustomName(TextComponent),
+    ItemName(TextComponent),
+    Lore(Vec<TextComponent>),
+    Rarity(ItemRarity),
+    CustomModelData(i32),
+    Enchantments(Vec<EnchantmentEntry>),
+    StoredEnchantments(Vec<EnchantmentEntry>),
+    AttributeModifiers(Vec<AttributeModifier>),
+    Food(FoodProperties),
+    Consumable(ConsumableProperties),
+    Equippable(EquippableProperties),
+    Tool(ToolProperties),
+    PotionContents(PotionContents),
+    SuspiciousStewEffects(Vec<SuspiciousStewEffect>),
+    MaxStackSize(u32),
+    MaxDamage(i32),
+    Damage(i32),
+    Unbreakable { show_in_tooltip: bool },
+    CustomData(CustomData),
+    EnchantmentGlintOverride(bool),
+    HideAdditionalTooltip,
+    HideTooltip,
+    RepairCost(i32),
+    UseCooldown(f32),
+    Glider,
+    FireResistant,
+    DyedColor(DyedColor),
+    Raw(RawComponent),
+}
+
+impl ItemComponent {
+    pub fn custom_name(name: TextComponent) -> Self {
+        Self::CustomName(name)
+    }
+
+    pub fn item_name(name: TextComponent) -> Self {
+        Self::ItemName(name)
+    }
+
+    pub fn lore(lines: Vec<TextComponent>) -> Self {
+        Self::Lore(lines)
+    }
+
+    pub fn lore_line(line: TextComponent) -> Self {
+        Self::Lore(vec![line])
+    }
+
+    pub fn rarity(rarity: ItemRarity) -> Self {
+        Self::Rarity(rarity)
+    }
+
+    pub fn custom_model_data(value: i32) -> Self {
+        Self::CustomModelData(value)
+    }
+
+    pub fn enchantment(id: EnchantmentId, level: u32) -> Self {
+        Self::Enchantments(vec![EnchantmentEntry::new(id, level)])
+    }
+
+    pub fn enchantments(entries: Vec<EnchantmentEntry>) -> Self {
+        Self::Enchantments(entries)
+    }
+
+    pub fn stored_enchantment(id: EnchantmentId, level: u32) -> Self {
+        Self::StoredEnchantments(vec![EnchantmentEntry::new(id, level)])
+    }
+
+    pub fn attribute_modifier(modifier: AttributeModifier) -> Self {
+        Self::AttributeModifiers(vec![modifier])
+    }
+
+    pub fn attribute_modifiers(modifiers: Vec<AttributeModifier>) -> Self {
+        Self::AttributeModifiers(modifiers)
+    }
+
+    pub fn food(food: FoodProperties) -> Self {
+        Self::Food(food)
+    }
+
+    pub fn consumable(consumable: ConsumableProperties) -> Self {
+        Self::Consumable(consumable)
+    }
+
+    pub fn equippable(equippable: EquippableProperties) -> Self {
+        Self::Equippable(equippable)
+    }
+
+    pub fn tool(tool: ToolProperties) -> Self {
+        Self::Tool(tool)
+    }
+
+    pub fn potion_contents(contents: PotionContents) -> Self {
+        Self::PotionContents(contents)
+    }
+
+    pub fn suspicious_stew_effect(effect: SuspiciousStewEffect) -> Self {
+        Self::SuspiciousStewEffects(vec![effect])
+    }
+
+    pub fn suspicious_stew_effects(effects: Vec<SuspiciousStewEffect>) -> Self {
+        Self::SuspiciousStewEffects(effects)
+    }
+
+    pub fn max_stack_size(size: u32) -> Self {
+        Self::MaxStackSize(size)
+    }
+
+    pub fn max_damage(damage: i32) -> Self {
+        Self::MaxDamage(damage)
+    }
+
+    pub fn damage(damage: i32) -> Self {
+        Self::Damage(damage)
+    }
+
+    pub fn unbreakable(show_in_tooltip: bool) -> Self {
+        Self::Unbreakable { show_in_tooltip }
+    }
+
+    pub fn custom_data(data: CustomData) -> Self {
+        Self::CustomData(data)
+    }
+
+    pub fn custom_data_marker(key: impl Into<String>) -> Self {
+        Self::CustomData(CustomData::marker(key))
+    }
+
+    pub fn raw_component(component: RawComponent) -> Self {
+        Self::Raw(component)
     }
 }
 
@@ -706,7 +935,7 @@ pub struct CustomItem {
     base: String,
 
     // ── Identity ──────────────────────────────────────────────────────────────
-    custom_data_key: Option<String>,
+    custom_data: Option<CustomData>,
     custom_model_data: Option<i32>,
 
     // ── Display ───────────────────────────────────────────────────────────────
@@ -724,6 +953,7 @@ pub struct CustomItem {
     // ── Stack / durability ────────────────────────────────────────────────────
     max_stack_size: Option<u32>,
     max_damage: Option<i32>,
+    damage: Option<i32>,
     /// `None` = not unbreakable; `Some(show_in_tooltip)` = unbreakable.
     unbreakable: Option<bool>,
     repair_cost: Option<i32>,
@@ -744,6 +974,7 @@ pub struct CustomItem {
     fire_resistant: bool,
     dyed_color: Option<DyedColor>,
     potion_contents: Option<PotionContents>,
+    suspicious_stew_effects: Vec<SuspiciousStewEffect>,
 
     // ── Raw escape hatch ──────────────────────────────────────────────────────
     /// Additional raw `key=snbt_value` components appended verbatim.
@@ -758,10 +989,10 @@ impl CustomItem {
     /// let item = CustomItem::new("minecraft:diamond_sword");
     /// assert!(item.to_string().starts_with("minecraft:diamond_sword"));
     /// ```
-    pub fn new(base: impl Into<String>) -> Self {
+    pub fn new(base: impl fmt::Display) -> Self {
         Self {
-            base: base.into(),
-            custom_data_key: None,
+            base: base.to_string(),
+            custom_data: None,
             custom_model_data: None,
             custom_name: None,
             item_name: None,
@@ -772,6 +1003,7 @@ impl CustomItem {
             hide_tooltip: false,
             max_stack_size: None,
             max_damage: None,
+            damage: None,
             unbreakable: None,
             repair_cost: None,
             enchantments: Vec::new(),
@@ -786,7 +1018,67 @@ impl CustomItem {
             fire_resistant: false,
             dyed_color: None,
             potion_contents: None,
+            suspicious_stew_effects: Vec::new(),
             extra_components: Vec::new(),
+        }
+    }
+
+    /// Add or merge a typed item component.
+    pub fn component(mut self, component: ItemComponent) -> Self {
+        self.apply_component(component);
+        self
+    }
+
+    fn apply_component(&mut self, component: ItemComponent) {
+        match component {
+            ItemComponent::CustomName(name) => self.custom_name = Some(name.to_string()),
+            ItemComponent::ItemName(name) => self.item_name = Some(name.to_string()),
+            ItemComponent::Lore(lines) => {
+                self.lore.extend(lines.into_iter().map(|l| l.to_string()))
+            }
+            ItemComponent::Rarity(rarity) => self.rarity = Some(rarity),
+            ItemComponent::CustomModelData(value) => self.custom_model_data = Some(value),
+            ItemComponent::Enchantments(entries) => self.enchantments.extend(
+                entries
+                    .into_iter()
+                    .map(|entry| (entry.id.to_string(), entry.level)),
+            ),
+            ItemComponent::StoredEnchantments(entries) => self.stored_enchantments.extend(
+                entries
+                    .into_iter()
+                    .map(|entry| (entry.id.to_string(), entry.level)),
+            ),
+            ItemComponent::AttributeModifiers(modifiers) => {
+                self.attribute_modifiers.extend(modifiers);
+            }
+            ItemComponent::Food(food) => self.food = Some(food),
+            ItemComponent::Consumable(consumable) => self.consumable = Some(consumable),
+            ItemComponent::Equippable(equippable) => self.equippable = Some(equippable),
+            ItemComponent::Tool(tool) => self.tool = Some(tool),
+            ItemComponent::PotionContents(contents) => self.potion_contents = Some(contents),
+            ItemComponent::SuspiciousStewEffects(effects) => {
+                self.suspicious_stew_effects.extend(effects);
+            }
+            ItemComponent::MaxStackSize(size) => self.max_stack_size = Some(size),
+            ItemComponent::MaxDamage(damage) => self.max_damage = Some(damage),
+            ItemComponent::Damage(damage) => self.damage = Some(damage),
+            ItemComponent::Unbreakable { show_in_tooltip } => {
+                self.unbreakable = Some(show_in_tooltip);
+            }
+            ItemComponent::CustomData(data) => self.custom_data = Some(data),
+            ItemComponent::EnchantmentGlintOverride(glint) => {
+                self.enchantment_glint_override = Some(glint);
+            }
+            ItemComponent::HideAdditionalTooltip => self.hide_additional_tooltip = true,
+            ItemComponent::HideTooltip => self.hide_tooltip = true,
+            ItemComponent::RepairCost(cost) => self.repair_cost = Some(cost),
+            ItemComponent::UseCooldown(seconds) => self.use_cooldown = Some(seconds),
+            ItemComponent::Glider => self.glider = true,
+            ItemComponent::FireResistant => self.fire_resistant = true,
+            ItemComponent::DyedColor(color) => self.dyed_color = Some(color),
+            ItemComponent::Raw(component) => self
+                .extra_components
+                .push((component.key().to_owned(), component.value().to_owned())),
         }
     }
 
@@ -798,94 +1090,92 @@ impl CustomItem {
     /// like [`item_predicate`](Self::item_predicate) and
     /// [`on_use_advancement`](Self::on_use_advancement).
     pub fn custom_data(mut self, key: impl Into<String>) -> Self {
-        self.custom_data_key = Some(key.into());
+        self.custom_data = Some(CustomData::marker(key));
+        self
+    }
+
+    /// Set typed custom data for this item.
+    pub fn typed_custom_data(mut self, data: CustomData) -> Self {
+        self.custom_data = Some(data);
         self
     }
 
     /// Set `custom_model_data` for pairing with resourcepack model overrides.
     ///
     /// Emits `custom_model_data={floats:[N.0f]}` (1.21.4+ format).
-    pub fn custom_model_data(mut self, value: i32) -> Self {
-        self.custom_model_data = Some(value);
-        self
+    pub fn custom_model_data(self, value: i32) -> Self {
+        self.component(ItemComponent::custom_model_data(value))
     }
 
     // ── Display ───────────────────────────────────────────────────────────────
 
     /// Set the item's custom display name (not italicized).
-    pub fn custom_name(mut self, name: TextComponent) -> Self {
-        self.custom_name = Some(name.to_string());
-        self
+    pub fn custom_name(self, name: TextComponent) -> Self {
+        self.component(ItemComponent::custom_name(name))
     }
 
     /// Set the item name component (shown italicized in UI). Use `custom_name` for non-italic text.
-    pub fn item_name(mut self, name: TextComponent) -> Self {
-        self.item_name = Some(name.to_string());
-        self
+    pub fn item_name(self, name: TextComponent) -> Self {
+        self.component(ItemComponent::item_name(name))
     }
 
     /// Add a single lore line to the item.
-    pub fn lore_line(mut self, line: TextComponent) -> Self {
-        self.lore.push(line.to_string());
-        self
+    pub fn lore_line(self, line: TextComponent) -> Self {
+        self.component(ItemComponent::lore_line(line))
     }
 
     /// Add multiple lore lines at once.
-    pub fn lore(mut self, lines: Vec<TextComponent>) -> Self {
-        self.lore.extend(lines.into_iter().map(|l| l.to_string()));
-        self
+    pub fn lore(self, lines: Vec<TextComponent>) -> Self {
+        self.component(ItemComponent::lore(lines))
     }
 
     /// Set the rarity level (affects item name color).
-    pub fn rarity(mut self, rarity: ItemRarity) -> Self {
-        self.rarity = Some(rarity);
-        self
+    pub fn rarity(self, rarity: ItemRarity) -> Self {
+        self.component(ItemComponent::rarity(rarity))
     }
 
     /// Force or suppress the enchantment glint animation.
-    pub fn enchantment_glint_override(mut self, glint: bool) -> Self {
-        self.enchantment_glint_override = Some(glint);
-        self
+    pub fn enchantment_glint_override(self, glint: bool) -> Self {
+        self.component(ItemComponent::EnchantmentGlintOverride(glint))
     }
 
     /// Hide the additional tooltip section (enchantments, attributes, etc.).
-    pub fn hide_additional_tooltip(mut self) -> Self {
-        self.hide_additional_tooltip = true;
-        self
+    pub fn hide_additional_tooltip(self) -> Self {
+        self.component(ItemComponent::HideAdditionalTooltip)
     }
 
     /// Hide the entire item tooltip.
-    pub fn hide_tooltip(mut self) -> Self {
-        self.hide_tooltip = true;
-        self
+    pub fn hide_tooltip(self) -> Self {
+        self.component(ItemComponent::HideTooltip)
     }
 
     // ── Stack / durability ────────────────────────────────────────────────────
 
     /// Set the maximum stack size for this item.
-    pub fn max_stack_size(mut self, size: u32) -> Self {
-        self.max_stack_size = Some(size);
-        self
+    pub fn max_stack_size(self, size: u32) -> Self {
+        self.component(ItemComponent::max_stack_size(size))
     }
 
     /// Set the maximum durability (creates a damageable item).
-    pub fn max_damage(mut self, damage: i32) -> Self {
-        self.max_damage = Some(damage);
-        self
+    pub fn max_damage(self, damage: i32) -> Self {
+        self.component(ItemComponent::max_damage(damage))
+    }
+
+    /// Set the current damage value for this item.
+    pub fn damage(self, damage: i32) -> Self {
+        self.component(ItemComponent::damage(damage))
     }
 
     /// Mark the item as unbreakable.
     ///
     /// `show_in_tooltip` controls whether "Unbreakable" is shown in the tooltip.
-    pub fn unbreakable(mut self, show_in_tooltip: bool) -> Self {
-        self.unbreakable = Some(show_in_tooltip);
-        self
+    pub fn unbreakable(self, show_in_tooltip: bool) -> Self {
+        self.component(ItemComponent::unbreakable(show_in_tooltip))
     }
 
     /// Set the experience cost to repair this item at an anvil.
-    pub fn repair_cost(mut self, cost: i32) -> Self {
-        self.repair_cost = Some(cost);
-        self
+    pub fn repair_cost(self, cost: i32) -> Self {
+        self.component(ItemComponent::RepairCost(cost))
     }
 
     // ── Combat / enchanting ───────────────────────────────────────────────────
@@ -896,85 +1186,95 @@ impl CustomItem {
         self
     }
 
+    /// Add a typed enchantment by ID and level.
+    pub fn typed_enchantment(self, id: EnchantmentId, level: u32) -> Self {
+        self.component(ItemComponent::enchantment(id, level))
+    }
+
     /// Add a stored enchantment (for enchanted books).
     pub fn stored_enchantment(mut self, id: impl Into<String>, level: u32) -> Self {
         self.stored_enchantments.push((id.into(), level));
         self
     }
 
+    /// Add a typed stored enchantment by ID and level.
+    pub fn typed_stored_enchantment(self, id: EnchantmentId, level: u32) -> Self {
+        self.component(ItemComponent::stored_enchantment(id, level))
+    }
+
     /// Add a pre-built [`AttributeModifier`].
-    pub fn attribute_modifier(mut self, modifier: AttributeModifier) -> Self {
-        self.attribute_modifiers.push(modifier);
-        self
+    pub fn attribute_modifier(self, modifier: AttributeModifier) -> Self {
+        self.component(ItemComponent::attribute_modifier(modifier))
     }
 
     /// Convenience shorthand for the common case of a single attribute modifier.
     pub fn attribute(
-        mut self,
+        self,
         attr: AttributeType,
         amount: f64,
         operation: AttributeOperation,
         slot: EquipmentSlotGroup,
     ) -> Self {
-        self.attribute_modifiers
-            .push(AttributeModifier::new(attr, amount, operation, slot));
-        self
+        self.component(ItemComponent::attribute_modifier(
+            AttributeModifier::with_values(attr, amount, operation, slot),
+        ))
     }
 
     // ── Behaviour ─────────────────────────────────────────────────────────────
 
     /// Add food properties to this item (makes it edible).
-    pub fn food(mut self, food: FoodProperties) -> Self {
-        self.food = Some(food);
-        self
+    pub fn food(self, food: FoodProperties) -> Self {
+        self.component(ItemComponent::food(food))
     }
 
     /// Add consumable properties to this item.
-    pub fn consumable(mut self, consumable: ConsumableProperties) -> Self {
-        self.consumable = Some(consumable);
-        self
+    pub fn consumable(self, consumable: ConsumableProperties) -> Self {
+        self.component(ItemComponent::consumable(consumable))
     }
 
     /// Set a use cooldown (in seconds) between each use.
-    pub fn use_cooldown(mut self, seconds: f32) -> Self {
-        self.use_cooldown = Some(seconds);
-        self
+    pub fn use_cooldown(self, seconds: f32) -> Self {
+        self.component(ItemComponent::UseCooldown(seconds))
     }
 
     /// Add tool properties to this item (makes it a tool/weapon).
-    pub fn tool(mut self, tool: ToolProperties) -> Self {
-        self.tool = Some(tool);
-        self
+    pub fn tool(self, tool: ToolProperties) -> Self {
+        self.component(ItemComponent::tool(tool))
     }
 
     /// Make this item equippable in a specific slot.
-    pub fn equippable(mut self, equippable: EquippableProperties) -> Self {
-        self.equippable = Some(equippable);
-        self
+    pub fn equippable(self, equippable: EquippableProperties) -> Self {
+        self.component(ItemComponent::equippable(equippable))
     }
 
     /// Make this item function as a glider (like an elytra).
-    pub fn glider(mut self) -> Self {
-        self.glider = true;
-        self
+    pub fn glider(self) -> Self {
+        self.component(ItemComponent::Glider)
     }
 
     /// Mark this item as fire-resistant (won't burn in lava or fire).
-    pub fn fire_resistant(mut self) -> Self {
-        self.fire_resistant = true;
-        self
+    pub fn fire_resistant(self) -> Self {
+        self.component(ItemComponent::FireResistant)
     }
 
     /// Set a dye color for this item (for leather armor, etc.).
-    pub fn dyed_color(mut self, color: DyedColor) -> Self {
-        self.dyed_color = Some(color);
-        self
+    pub fn dyed_color(self, color: DyedColor) -> Self {
+        self.component(ItemComponent::DyedColor(color))
     }
 
     /// Set typed `minecraft:potion_contents` component data.
-    pub fn potion_contents(mut self, contents: PotionContents) -> Self {
-        self.potion_contents = Some(contents);
-        self
+    pub fn potion_contents(self, contents: PotionContents) -> Self {
+        self.component(ItemComponent::potion_contents(contents))
+    }
+
+    /// Add a typed `minecraft:suspicious_stew_effects` entry.
+    pub fn suspicious_stew_effect(self, effect: SuspiciousStewEffect) -> Self {
+        self.component(ItemComponent::suspicious_stew_effect(effect))
+    }
+
+    /// Add typed `minecraft:suspicious_stew_effects` entries.
+    pub fn suspicious_stew_effects(self, effects: Vec<SuspiciousStewEffect>) -> Self {
+        self.component(ItemComponent::suspicious_stew_effects(effects))
     }
 
     // ── Escape hatch ──────────────────────────────────────────────────────────
@@ -982,19 +1282,22 @@ impl CustomItem {
     /// Add a raw item component (for features not covered by the typed API).
     ///
     /// Appends `key=snbt_value` verbatim to the component string.
-    pub fn raw_component(mut self, key: impl Into<String>, snbt_value: impl Into<String>) -> Self {
-        self.extra_components.push((key.into(), snbt_value.into()));
-        self
+    #[deprecated(
+        since = "0.1.0",
+        note = "use CustomItem::component(ItemComponent::raw_component(RawComponent::new(...))) or with_raw_component(...)"
+    )]
+    pub fn raw_component(self, key: impl Into<String>, snbt_value: impl Into<String>) -> Self {
+        self.component(ItemComponent::raw_component(RawComponent::new(
+            key, snbt_value,
+        )))
     }
 
     /// Add a raw item component from an explicit [`RawComponent`] value.
     ///
     /// Prefer this over `raw_component(key, snbt)` when you want the escape hatch
     /// to be visible at the construction site rather than buried in two string args.
-    pub fn with_raw_component(mut self, component: RawComponent) -> Self {
-        self.extra_components
-            .push((component.key().to_owned(), component.value().to_owned()));
-        self
+    pub fn with_raw_component(self, component: RawComponent) -> Self {
+        self.component(ItemComponent::raw_component(component))
     }
 
     // ── Item predicate ────────────────────────────────────────────────────────
@@ -1007,7 +1310,7 @@ impl CustomItem {
     /// Use the result in advancement criteria, loot table conditions, or predicates.
     pub fn item_predicate(&self) -> TypedItemPredicate {
         let mut pred = TypedItemPredicate::id(&self.base);
-        if let Some(ref key) = self.custom_data_key {
+        if let Some(key) = self.custom_data.as_ref().and_then(CustomData::marker_key) {
             pred = pred.custom_data_key(key);
         }
         pred
@@ -1075,8 +1378,8 @@ impl CustomItem {
         let mut parts: Vec<String> = Vec::new();
 
         // Identity
-        if let Some(ref key) = self.custom_data_key {
-            parts.push(format!("custom_data={{{key}:1b}}"));
+        if let Some(ref data) = self.custom_data {
+            parts.push(format!("custom_data={}", data.to_snbt()));
         }
         if let Some(cmd) = self.custom_model_data {
             // 1.21.4+ format: custom_model_data={floats:[N.0f]}
@@ -1114,6 +1417,9 @@ impl CustomItem {
         }
         if let Some(damage) = self.max_damage {
             parts.push(format!("max_damage={damage}"));
+        }
+        if let Some(damage) = self.damage {
+            parts.push(format!("damage={damage}"));
         }
         if let Some(show_tooltip) = self.unbreakable {
             parts.push(format!("unbreakable={{show_in_tooltip:{show_tooltip}}}"));
@@ -1183,6 +1489,15 @@ impl CustomItem {
         }
         if let Some(ref contents) = self.potion_contents {
             parts.push(format!("potion_contents={}", contents.to_snbt()));
+        }
+        if !self.suspicious_stew_effects.is_empty() {
+            let effects = self
+                .suspicious_stew_effects
+                .iter()
+                .map(SuspiciousStewEffect::to_snbt)
+                .collect::<Vec<_>>()
+                .join(",");
+            parts.push(format!("suspicious_stew_effects=[{effects}]"));
         }
 
         // Raw extras
@@ -1372,7 +1687,8 @@ mod tests {
 
     #[test]
     fn raw_component_escape_hatch() {
-        let item = CustomItem::new("minecraft:bow").raw_component("bundle_contents", "{items:[]}");
+        let item = CustomItem::new("minecraft:bow")
+            .with_raw_component(RawComponent::new("bundle_contents", "{items:[]}"));
         assert!(item.to_string().contains("bundle_contents={items:[]}"));
     }
 

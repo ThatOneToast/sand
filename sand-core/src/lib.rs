@@ -195,6 +195,7 @@ pub use sand_components::{
     AdvancementRewards,
     AdvancementTrigger,
     // Custom item
+    AttributeId,
     AttributeModifier,
     AttributeOperation,
     AttributeType,
@@ -216,6 +217,7 @@ pub use sand_components::{
     CookingRecipe,
     CookingType,
     Criterion,
+    CustomData,
     CustomItem,
     // Damage
     DamageEffects,
@@ -236,6 +238,7 @@ pub use sand_components::{
     Enchantment,
     EnchantmentCost,
     EnchantmentEffect,
+    EnchantmentEntry,
     EnchantmentId,
     EntityEquipment,
     EntityFlags,
@@ -253,6 +256,7 @@ pub use sand_components::{
     Instrument,
     IntRange,
     InventorySlots,
+    ItemComponent,
     ItemId,
     // Item modifier
     ItemModifier,
@@ -276,6 +280,7 @@ pub use sand_components::{
     // Predicate
     Predicate,
     Range,
+    Rarity,
     // Raw escape hatch types
     RawCommand,
     RawComponent,

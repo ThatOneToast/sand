@@ -3283,3 +3283,191 @@ fn expand_item(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Toke
         }
     })
 }
+
+// ── SandStorage derive macro ──────────────────────────────────────────────────
+
+/// Derive `StorageSchema` and typed field accessors from a Rust struct.
+///
+/// # Required attribute
+///
+/// ```rust,ignore
+/// #[derive(SandStorage)]
+/// #[sand(storage = "namespace:id", root = "nbt.path")]
+/// pub struct MySchema {
+///     pub field_one: i32,
+///     pub field_two: String,
+/// }
+/// ```
+///
+/// # Generated API
+///
+/// ```rust,ignore
+/// impl MySchema {
+///     pub const SCHEMA: StorageSchema<MySchema> =
+///         StorageSchema::new("namespace:id", "nbt.path");
+///
+///     pub fn field_one() -> StorageField<MySchema, i32> {
+///         Self::SCHEMA.field("field_one")
+///     }
+///
+///     pub fn field_two() -> StorageField<MySchema, String> {
+///         Self::SCHEMA.field("field_two")
+///     }
+/// }
+/// ```
+///
+/// # Custom field paths
+///
+/// ```rust,ignore
+/// #[sand(path = "alternate.key")]
+/// pub school: String,
+/// ```
+///
+/// # Restrictions
+///
+/// - Named structs only; tuple structs are rejected at compile time.
+/// - The `#[sand(storage = ..., root = ...)]` attribute is required.
+#[proc_macro_derive(SandStorage, attributes(sand))]
+pub fn sand_storage_derive(input: TokenStream) -> TokenStream {
+    let input = syn::parse_macro_input!(input as syn::DeriveInput);
+    match sand_storage_derive_impl(input) {
+        Ok(ts) => ts,
+        Err(e) => e.to_compile_error().into(),
+    }
+}
+
+fn sand_storage_derive_impl(
+    input: syn::DeriveInput,
+) -> Result<TokenStream, syn::Error> {
+    use proc_macro2::Span;
+    use quote::quote;
+    use syn::{Data, Fields, Lit, Meta};
+
+    let struct_name = &input.ident;
+
+    // ── Extract #[sand(storage = "...", root = "...")] from the struct ────────
+    let mut storage_val: Option<String> = None;
+    let mut root_val: Option<String> = None;
+
+    for attr in &input.attrs {
+        if !attr.path().is_ident("sand") {
+            continue;
+        }
+        let nested = attr
+            .parse_args_with(
+                syn::punctuated::Punctuated::<Meta, syn::Token![,]>::parse_terminated,
+            )
+            .map_err(|e| syn::Error::new_spanned(attr, format!("#[sand] parse error: {e}")))?;
+
+        for meta in nested {
+            match meta {
+                Meta::NameValue(nv) if nv.path.is_ident("storage") => {
+                    if let syn::Expr::Lit(syn::ExprLit { lit: Lit::Str(s), .. }) = &nv.value {
+                        storage_val = Some(s.value());
+                    }
+                }
+                Meta::NameValue(nv) if nv.path.is_ident("root") => {
+                    if let syn::Expr::Lit(syn::ExprLit { lit: Lit::Str(s), .. }) = &nv.value {
+                        root_val = Some(s.value());
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    let storage = storage_val.ok_or_else(|| {
+        syn::Error::new(
+            Span::call_site(),
+            "#[derive(SandStorage)] requires #[sand(storage = \"namespace:id\", root = \"nbt.path\")]",
+        )
+    })?;
+    let root = root_val.ok_or_else(|| {
+        syn::Error::new(
+            Span::call_site(),
+            "#[derive(SandStorage)] requires #[sand(root = \"nbt.path\")] on the struct",
+        )
+    })?;
+
+    // ── Validate named struct ─────────────────────────────────────────────────
+    let fields = match &input.data {
+        Data::Struct(s) => match &s.fields {
+            Fields::Named(f) => &f.named,
+            Fields::Unnamed(_) => {
+                return Err(syn::Error::new_spanned(
+                    struct_name,
+                    "#[derive(SandStorage)] does not support tuple structs; use named fields",
+                ));
+            }
+            Fields::Unit => {
+                return Err(syn::Error::new_spanned(
+                    struct_name,
+                    "#[derive(SandStorage)] requires at least one named field",
+                ));
+            }
+        },
+        _ => {
+            return Err(syn::Error::new_spanned(
+                struct_name,
+                "#[derive(SandStorage)] can only be applied to structs",
+            ));
+        }
+    };
+
+    // ── Build field accessor methods ─────────────────────────────────────────
+    let mut methods = Vec::new();
+
+    for field in fields {
+        let field_ident = field.ident.as_ref().expect("named field has ident");
+        let field_ty = &field.ty;
+
+        // Check for #[sand(path = "...")] override
+        let mut path_override: Option<String> = None;
+        for attr in &field.attrs {
+            if !attr.path().is_ident("sand") {
+                continue;
+            }
+            if let Ok(nested) = attr.parse_args_with(
+                syn::punctuated::Punctuated::<Meta, syn::Token![,]>::parse_terminated,
+            ) {
+                for meta in nested {
+                    if let Meta::NameValue(nv) = meta {
+                        if nv.path.is_ident("path") {
+                            if let syn::Expr::Lit(syn::ExprLit {
+                                lit: Lit::Str(s), ..
+                            }) = &nv.value
+                            {
+                                path_override = Some(s.value());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let field_name_str = field_ident.to_string();
+        let key_str: &str = path_override
+            .as_deref()
+            .unwrap_or(field_name_str.as_str());
+
+        methods.push(quote! {
+            pub fn #field_ident() -> ::sand_core::state::StorageField<#struct_name, #field_ty> {
+                Self::SCHEMA.field(#key_str)
+            }
+        });
+    }
+
+    let storage_lit = storage.as_str();
+    let root_lit = root.as_str();
+
+    let expanded = quote! {
+        impl #struct_name {
+            pub const SCHEMA: ::sand_core::state::StorageSchema<#struct_name> =
+                ::sand_core::state::StorageSchema::new(#storage_lit, #root_lit);
+
+            #( #methods )*
+        }
+    };
+
+    Ok(expanded.into())
+}

@@ -39,7 +39,7 @@ fn typed_enchantments_and_attribute_modifiers() {
 
     assert_eq!(
         item.to_string(),
-        "minecraft:diamond_sword[enchantments={levels:{\"minecraft:sharpness\":5}},attribute_modifiers=[{id:\"minecraft:attack_damage\",type:\"minecraft:attack_damage\",amount:10d,operation:\"add_value\",slot:\"mainhand\"}]]"
+        "minecraft:diamond_sword[enchantments={\"minecraft:sharpness\":5},attribute_modifiers=[{id:\"minecraft:attack_damage\",type:\"minecraft:attack_damage\",amount:10d,operation:\"add_value\",slot:\"mainhand\"}]]"
     );
 }
 

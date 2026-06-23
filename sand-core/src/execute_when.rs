@@ -371,10 +371,16 @@ mod tests {
     use crate::condition::Condition;
     use crate::state::{Cooldown, Flag, ScoreVar, Ticks};
     use crate::{all, any};
+    use std::sync::{Mutex, OnceLock};
 
     static MANA: ScoreVar<i32> = ScoreVar::new("mana");
     static CASTING: Flag = Flag::new("casting");
     static DASH: Cooldown = Cooldown::new("dash", Ticks::new(60));
+
+    fn dyn_fn_test_lock() -> std::sync::MutexGuard<'static, ()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(())).lock().unwrap()
+    }
 
     // ── then_one (direct single-command behavior) ─────────────────────────────
 
@@ -801,6 +807,7 @@ mod tests {
 
     #[test]
     fn branch_is_registered_in_dyn_fn_registry() {
+        let _guard = dyn_fn_test_lock();
         let _ = crate::drain_dyn_fns();
         reset_branch_counter_for_tests();
         let _cmds = when(MANA.of("@s").gte(10)).then_all(["say registered"]);
@@ -815,6 +822,7 @@ mod tests {
 
     #[test]
     fn identical_branch_bodies_reuse_generated_helper() {
+        let _guard = dyn_fn_test_lock();
         let _ = crate::drain_dyn_fns();
         reset_branch_counter_for_tests();
         let first = when(MANA.of("@s").gte(10)).then_all(["say same"]);

@@ -434,6 +434,35 @@ impl<T> StorageSchema<T> {
         StorageLocation::parse(self.storage)
             .expect("StorageSchema::new requires a valid storage resource location")
     }
+
+    pub fn get(&self) -> String {
+        self.path().get()
+    }
+
+    pub fn set(&self, value: impl Into<SnbtValue>) -> String {
+        self.path().set_value(value)
+    }
+
+    pub fn set_raw_snbt(&self, raw: RawSnbt) -> String {
+        self.path().set_raw_snbt(raw)
+    }
+
+    pub fn merge(&self, value: impl Into<SnbtValue>) -> String {
+        format!(
+            "data modify storage {} {} merge value {}",
+            self.storage,
+            self.root,
+            value.into()
+        )
+    }
+
+    pub fn remove(&self) -> String {
+        self.path().remove()
+    }
+
+    pub fn exists(&self) -> Condition {
+        self.path().exists()
+    }
 }
 
 /// A typed field inside a [`StorageSchema`].
@@ -955,6 +984,24 @@ mod tests {
         assert_eq!(MAGIC.root_path(), "player.magic");
         assert_eq!(MAGIC.path().as_str(), "player.magic");
         assert_eq!(MAGIC_MANA.full_path(), "player.magic.mana");
+    }
+
+    #[test]
+    fn storage_schema_root_commands() {
+        assert_eq!(MAGIC.get(), "data get storage arcane:players player.magic");
+        assert_eq!(
+            MAGIC.set(SnbtCompound::new().field("mana", 100)),
+            "data modify storage arcane:players player.magic set value {mana:100}"
+        );
+        assert_eq!(
+            MAGIC.merge(SnbtCompound::new().field("school", "pyromancy")),
+            r#"data modify storage arcane:players player.magic merge value {school:"pyromancy"}"#
+        );
+        assert_eq!(
+            MAGIC.remove(),
+            "data remove storage arcane:players player.magic"
+        );
+        assert!(matches!(MAGIC.exists(), Condition::StorageExists { .. }));
     }
 
     #[test]

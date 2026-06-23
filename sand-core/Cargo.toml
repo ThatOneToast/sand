@@ -28,8 +28,12 @@ systems-lifecycle = []
 ## Player-data schema bootstrap: registers data init functions for all `PlayerData` schemas.
 systems-player-data = ["systems-lifecycle"]
 
+## Typed movement helpers: push-away shockwave, launch upward, speed boost, slow.
+## Emits pure-vanilla local-coordinate teleport and effect-give commands.
+systems-movement = []
+
 ## Enable all optional systems.
-systems-all = ["systems-damage", "systems-cooldowns", "systems-player-data"]
+systems-all = ["systems-damage", "systems-cooldowns", "systems-player-data", "systems-movement"]
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }

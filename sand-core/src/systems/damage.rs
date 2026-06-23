@@ -304,7 +304,11 @@ mod tests {
         assert!(cmds[1].contains(DAMAGE_PREV_OBJ), "prev obj: {}", cmds[1]);
         assert!(cmds[2].contains(DAMAGE_DELTA_OBJ), "delta obj: {}", cmds[2]);
         assert!(cmds[3].contains(DAMAGE_LAST_OBJ), "last obj: {}", cmds[3]);
-        assert!(cmds[4].contains(DAMAGE_HURT_AGE_OBJ), "age obj: {}", cmds[4]);
+        assert!(
+            cmds[4].contains(DAMAGE_HURT_AGE_OBJ),
+            "age obj: {}",
+            cmds[4]
+        );
         assert!(
             cmds[0].contains("minecraft.custom:minecraft.damage_taken"),
             "stat criterion: {}",
@@ -339,7 +343,7 @@ mod tests {
         // 4: if delta > 0: hurt_age = 0
         assert!(
             cmds[3].contains(&format!("{DAMAGE_DELTA_OBJ}=1.."))
-                && cmds[3].contains(&format!("{DAMAGE_HURT_AGE_OBJ}"))
+                && cmds[3].contains(DAMAGE_HURT_AGE_OBJ)
                 && cmds[3].contains("set @s")
                 && cmds[3].contains(" 0"),
             "step 4 hurt_age=0: {}",
@@ -348,7 +352,7 @@ mod tests {
         // 5: unless delta > 0: hurt_age += 1
         assert!(
             cmds[4].contains(&format!("{DAMAGE_DELTA_OBJ}=..0"))
-                && cmds[4].contains(&format!("{DAMAGE_HURT_AGE_OBJ}"))
+                && cmds[4].contains(DAMAGE_HURT_AGE_OBJ)
                 && cmds[4].contains("add @s"),
             "step 5 hurt_age+=1: {}",
             cmds[4]

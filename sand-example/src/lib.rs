@@ -12,8 +12,8 @@ pub mod attribute_golden;
 pub use attribute_golden::*;
 pub mod arcane_golden;
 pub use arcane_golden::*;
-pub mod state_ergonomics;
 pub mod enhanced_cells;
+pub mod state_ergonomics;
 
 use sand_core::mcfunction;
 use sand_macros::{component, function, run_fn};

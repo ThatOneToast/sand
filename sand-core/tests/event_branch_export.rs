@@ -23,9 +23,7 @@ fn simulate_event_body_when() -> Vec<String> {
 
 fn simulate_event_body_unless() -> Vec<String> {
     let mut cmds = Vec::new();
-    cmds.extend(
-        unless(CASTING.of("@s").is_true()).then_all(["say not casting", "say can start"]),
-    );
+    cmds.extend(unless(CASTING.of("@s").is_true()).then_all(["say not casting", "say can start"]));
     cmds
 }
 

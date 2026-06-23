@@ -1,5 +1,7 @@
 # Introduction
 
+This is Sand's primary manual. Follow the [project walkthrough](walkthrough/index.md) for a complete datapack, then use the [manual](manual/functions.md) and [reference](reference/cheat-sheet.md) for focused API answers.
+
 Sand is a Rust-first framework for Minecraft Java datapacks. You write normal
 Rust functions with typed builders, and Sand exports `.mcfunction` files,
 datapack JSON, function tags, and optional resource-pack assets.

@@ -12,6 +12,7 @@
 //! - Spells gated behind `all!`/`any!` conditions
 //! - A welcome dialog (1.21.5+ only) shown on first join
 
+use sand_commands::{Coord, Vec3, summon_at_with_nbt};
 use sand_core::prelude::*;
 use sand_core::{all, any, mcfunction};
 
@@ -58,9 +59,15 @@ fn fireball_commands() -> Vec<String> {
 
     let cast_guard = all![has_mana, not_casting];
 
+    // Raw NBT is intentional: fireball direction/explosion data has no dedicated
+    // typed component yet; the position and summon command remain typed.
     let mut cmds = TypedExecute::as_self_at_self()
         .when(cast_guard)
-        .run("summon minecraft:fireball ~ ~1.5 ~ {direction:[0.0,0.0,1.0],ExplosionPower:2}");
+        .run(summon_at_with_nbt(
+            "minecraft:fireball",
+            Vec3::new(Coord::rel(), Coord::rel_n(1.5), Coord::rel()),
+            "{direction:[0.0,0.0,1.0],ExplosionPower:2}",
+        ));
 
     cmds.push(MANA.remove("@s", 30));
     cmds.push(CASTING.enable("@s"));
@@ -73,9 +80,11 @@ fn fireball_commands() -> Vec<String> {
 fn heal_commands() -> Vec<String> {
     let has_mana = MANA.of("@s").gte(20);
 
-    TypedExecute::as_self_at_self()
-        .when(has_mana)
-        .run("effect give @s minecraft:regeneration 5 2")
+    TypedExecute::as_self_at_self().when(has_mana).run(
+        cmd::effect_give(Selector::self_(), EffectId::Regeneration)
+            .seconds(5)
+            .amplifier(2),
+    )
 }
 
 // ── Welcome dialog (version-gated) ────────────────────────────────────────────

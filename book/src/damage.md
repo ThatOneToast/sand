@@ -1,4 +1,4 @@
-# Typed Damage
+# Damage Tracking
 
 Direct `/damage` is single-target in vanilla, so Sand models that in Rust:
 
@@ -38,3 +38,15 @@ pub fn on_damaged(event: DamageEvent<MyDamageEvent>) {
 
 Exact same-as-event damage is not available from vanilla advancement reward
 functions. Use fixed damage unless a real tracker is added.
+
+Enable `systems-damage` for `DamageTracker`. It creates cumulative damage stat, previous stat, current delta, last non-zero delta, and ticks-since-hurt objectives. Call `DamageTracker::define()` in load and `DamageTracker::tick_players()` every tick before reading a condition.
+
+```rust
+let hit = DamageTracker::damaged_this_tick("@s");
+let large_hit = DamageTracker::current_damage_at_least("@s", DamageThreshold::hearts(1.0));
+let recent = DamageTracker::hurt_within("@s", Ticks::seconds(2));
+```
+
+`not_damaged_this_tick`, `last_damage_at_least`, `current_damage_at_least`, and `hurt_within` are the normal query helpers. `DamageThreshold::hearts(1.0)` becomes 10 raw stat units; `raw_stat` is for advanced scoreboard work. Minecraft's damage-taken statistic is **not** `/damage` HP: one stat unit is 0.1 heart. In contrast, `DamageAmount::hearts(1.0)` emits two `/damage` HP.
+
+<div class="sand-warning"><strong>Approximation.</strong> Multiple hits in one tick are summed; invulnerability frames can report no delta; source/type/attacker are not available from this statistic. Combine an advancement damage event for source-aware reactions. <code>recently_damaged</code>, <code>damaged_at_least</code>, and <code>delta_objective</code> are deprecated compatibility APIs.</div>

@@ -49,3 +49,5 @@ explicit escape hatch for unsupported, modded, or future NBT shapes:
 ```rust
 MANA.set_raw_snbt(RawSnbt::new("{custom:1b}"));
 ```
+
+<div class="sand-danger"><strong>Global storage.</strong> <code>data storage</code> is not per-player. Use scoreboards for per-player numbers/flags, global storage for static structured data, and explicit UUID/name keying only when you deliberately build that runtime convention.</div>

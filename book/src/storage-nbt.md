@@ -1,5 +1,7 @@
 # Storage And NBT
 
+Prefer a [derived schema](storage-derive.md) for a stable structured path. For a small manual schema, use `StorageSchema` and its typed fields. `NbtPath`, `StorageVar`, `StorageField`, `EntityNbt`, and `BlockNbt` model static data targets. Use `RawSnbt` only when typed values cannot express the desired NBT; it is the explicit raw escape hatch. `data storage` is global, so static typed paths are not player records—see [Player Data Schemas](player-data.md).
+
 Use `StorageSchema<T>` for structured datapack storage.
 
 ```rust

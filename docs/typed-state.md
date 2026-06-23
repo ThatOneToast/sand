@@ -47,3 +47,5 @@ pub fn load_storage() {
 `StorageVar<T>` remains available for simple legacy variables. Use `RawSnbt`
 only as an explicit escape hatch when typed `SnbtValue`/`SnbtCompound` builders
 do not cover the shape.
+
+`#[derive(SandStorage)]` is the preferred schema declaration for new code. `PlayerSchema` tracks score/flag/cooldown initialization and storage descriptors but does not create per-player dynamic NBT: Minecraft storage is global. See [storage reference](storage-nbt.md) and the [player-data guide](../book/src/player-data.md).

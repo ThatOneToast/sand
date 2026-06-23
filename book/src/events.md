@@ -91,6 +91,8 @@ Available in `sand_core::event::trigger`:
 | `ItemEnchantTrigger` | `minecraft:enchanted_item` | `item(predicate)`, `levels(predicate)` |
 | `RecipeUnlockedTrigger` | `minecraft:recipe_unlocked` | `new(recipe)` |
 | `MultiKillTrigger` | `minecraft:killed_by_crossbow` | `unique_entity_types(n)`, `victim(predicate)` |
+| `PlayerInteractedWithEntityTrigger` | `minecraft:player_interacted_with_entity` | `item(predicate)`, `entity(predicate)` |
+| `SummonedEntityTrigger` | `minecraft:summoned_entity` | `entity(predicate)` |
 
 ## Guard conditions
 
@@ -153,3 +155,7 @@ Sand ships 50+ event types in `sand_core::events`. The most common:
 - `ItemConsumeEvent` — eating/drinking
 - Custom advancement events: implement `AdvancementEvent` and handle `Event<T>`
 - Legacy/custom tick-poll events: implement `SandEvent`
+
+`Event<T>` is the typed handler context; use `event.player()` for the player selector. `AdvancementEvent` is the architecture for typed advancement triggers, while custom-item extension events and `Interactable` generate the same advancement-plus-reward-function shape. Damage events add source-aware advancement criteria; `UsingItemTrigger` and `SummonedEntityTrigger` cover their vanilla trigger semantics.
+
+<div class="sand-warning"><strong>Vanilla event boundary.</strong> Sand cannot invent a Minecraft trigger. Some actions have no advancement trigger and must be modeled with a tick system, scoreboards, inventory checks, or damage tracking. Use a guard to reject unwanted advancement matches rather than assuming all gameplay context is present.</div>

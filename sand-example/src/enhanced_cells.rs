@@ -115,7 +115,11 @@ pub fn ec_on_damaged_regen(event: DamageEvent<EnhancedCellsDamagedEvent>) {
     let _ = event;
     // unless(...).then_all(...) also registers a branch
     unless(REGEN_COOLDOWN.active("@s")).then_all([
-        cmd::raw("effect give @s minecraft:regeneration 5 1 true"),
+        cmd::effect_give(Selector::self_(), EffectId::Regeneration)
+            .seconds(5)
+            .amplifier(1)
+            .particles(false)
+            .to_string(),
         REGEN_COOLDOWN.start(Selector::self_()),
     ]);
 }

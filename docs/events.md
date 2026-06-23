@@ -97,3 +97,5 @@ non-damage contexts.
 
 Vanilla advancement rewards do not expose exact damage amount. Reflected damage
 uses explicit fixed amounts unless a future tracker is enabled.
+
+Current typed trigger builders also include `UsingItemTrigger`, `PlayerInteractedWithEntityTrigger`, and `SummonedEntityTrigger`. Their predicates lower to advancement JSON and reward a generated function. Not every gameplay action is an advancement trigger; use a tick/scoreboard system where vanilla lacks one. The [events guide](../book/src/events.md) and [trigger reference](../book/src/advancement-triggers.md) cover the full model.

@@ -228,6 +228,47 @@ pub fn welcome_dialog() -> Dialog {
         )
 }
 
+/// Dash wand item used by the custom advancement event.
+pub fn dash_wand_item() -> CustomItem {
+    CustomItem::new(ItemId::minecraft("stick").unwrap())
+        .id("arcane:dash_wand")
+        .component(ItemComponent::custom_name(
+            Text::new("Dash Wand").aqua().bold(true),
+        ))
+        .component(ItemComponent::lore(vec![
+            Text::new("Right click to dash").gray(),
+            Text::new("Consumes 25 mana").dark_gray(),
+        ]))
+        .component(ItemComponent::custom_data_marker("arcane_wand"))
+        .component(ItemComponent::custom_model_data(1001))
+        .component(ItemComponent::rarity(Rarity::Rare))
+        .component(ItemComponent::attribute_modifier(
+            AttributeModifier::new(AttributeId::AttackSpeed)
+                .amount(0.2)
+                .operation(AttributeOperation::AddValue)
+                .slot(EquipmentSlotGroup::Mainhand),
+        ))
+        .component(ItemComponent::potion_contents(
+            PotionContents::new().custom_effect(
+                StatusEffectInstance::new(EffectId::Speed).duration(Ticks::seconds(2)),
+            ),
+        ))
+        .component(ItemComponent::max_stack_size(1))
+}
+
+/// Intentional raw escape hatch example for a future/modded component.
+pub fn resonance_relic_item() -> CustomItem {
+    CustomItem::new(ItemId::minecraft("amethyst_shard").unwrap())
+        .component(ItemComponent::custom_name(
+            Text::new("Resonance Relic").light_purple(),
+        ))
+        .component(ItemComponent::custom_data_marker("resonance_relic"))
+        .with_raw_component(RawComponent::new(
+            "arcane:resonance",
+            "{frequency:7,stable:true}",
+        ))
+}
+
 /// Opens the local welcome dialog for the current player.
 #[function("arcane:open_welcome_menu")]
 pub fn open_welcome_menu() {

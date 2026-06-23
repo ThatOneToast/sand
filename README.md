@@ -258,6 +258,35 @@ Sand provides typed Rust structs for core datapack components:
   variants, chat types, and worldgen components
 - Custom item component builders
 
+Custom item creation uses typed item components by default:
+
+```rust
+let wand = CustomItem::new(ItemId::minecraft("stick").unwrap())
+    .id("arcane:dash_wand")
+    .component(ItemComponent::custom_name(Text::new("Dash Wand").aqua()))
+    .component(ItemComponent::lore(vec![Text::new("Right click to dash").gray()]))
+    .component(ItemComponent::custom_model_data(1001))
+    .component(ItemComponent::rarity(Rarity::Rare))
+    .component(ItemComponent::attribute_modifier(
+        AttributeModifier::new(AttributeId::AttackSpeed)
+            .amount(0.2)
+            .operation(AttributeOperation::AddValue)
+            .slot(EquipmentSlotGroup::Mainhand),
+    ))
+    .component(ItemComponent::potion_contents(
+        PotionContents::new().custom_effect(
+            StatusEffectInstance::new(EffectId::Speed).duration(Ticks::seconds(2)),
+        ),
+    ));
+```
+
+Use `RawComponent` only when a modded or future component is not typed yet:
+
+```rust
+let relic = CustomItem::new("minecraft:amethyst_shard")
+    .with_raw_component(RawComponent::new("mymod:charge", "{value:3}"));
+```
+
 ## Version Support
 
 Sand targets modern Minecraft Java datapacks, including the 1.19 through 1.21.x

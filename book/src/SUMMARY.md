@@ -56,6 +56,14 @@
 - [Version Support](manual/version-support.md)
 - [Testing Datapacks](manual/testing.md)
 
+## Minecraft Data Model
+
+- [Variables, Scores, Flags, And Timers](manual/data-model/variables.md)
+- [Global Storage And Dynamic Paths](manual/data-model/storage.md)
+- [Representing Locations](manual/data-model/locations.md)
+- [Runtime Entities And Tags](manual/data-model/entities.md)
+- [What Vanilla Can Reliably Do](manual/data-model/what-is-possible.md)
+
 # Recipes
 
 - [Shockwave Shield](recipes/shockwave-shield.md)
@@ -69,6 +77,8 @@
 
 - [API Cheat Sheet](reference/cheat-sheet.md)
 - [Command Builders](reference/command-builders.md)
+- [Entity And Player Commands](reference/commands/entity.md)
+- [Scoreboard And Storage Commands](reference/commands/data.md)
 - [Event Trigger Matrix](reference/event-trigger-matrix.md)
 - [Vanilla Limitations](reference/vanilla-limitations.md)
 - [Migration Notes](reference/migration.md)

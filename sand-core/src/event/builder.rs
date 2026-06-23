@@ -44,7 +44,7 @@
 use crate::AdvancementTrigger;
 use crate::condition::Condition;
 use crate::event::{EventId, EventReset, EventVisibility};
-use crate::state::{Cooldown, Flag, ScoreVar, StorageVar, Timer};
+use crate::state::{Cooldown, Flag, ScoreVar, StorageField, StorageVar, Timer};
 
 // ── EventConfig ───────────────────────────────────────────────────────────────
 
@@ -263,6 +263,15 @@ impl EventBuilder {
         self
     }
 
+    /// Declare a typed [`StorageField`] used by this event.
+    ///
+    /// Storage-backed fields do not need explicit scoreboard-style definition,
+    /// so this is a no-op for [`EventConfig::state_defines()`]. It exists to
+    /// keep event state declarations complete and typed.
+    pub fn storage_field<Schema, T>(self, _field: StorageField<Schema, T>) -> Self {
+        self
+    }
+
     /// Finalise the builder into an [`EventConfig`].
     ///
     /// # Panics
@@ -288,11 +297,16 @@ impl EventBuilder {
 mod tests {
     use super::*;
     use crate::DatapackComponent;
-    use crate::state::{Flag, ScoreVar};
+    use crate::state::{Flag, ScoreVar, StorageField, StorageSchema};
     use sand_components::predicates::{EntityPredicate, ItemPredicate};
 
     static MANA: ScoreVar<i32> = ScoreVar::new("mana");
     static CASTING: Flag = Flag::new("casting");
+    #[derive(Debug)]
+    struct MagicState;
+    static MAGIC: StorageSchema<MagicState> = StorageSchema::new("test:players", "player.magic");
+    static MAGIC_MANA: StorageField<MagicState, i32> = MAGIC.field("mana");
+    static MAGIC_SCHOOL: StorageField<MagicState, String> = MAGIC.field("school");
 
     // ── Advancement generation ────────────────────────────────────────────────
 
@@ -451,6 +465,18 @@ mod tests {
             .build();
 
         assert!(config.state_defines().is_empty());
+    }
+
+    #[test]
+    fn state_defines_accepts_typed_storage_fields() {
+        let config = EventBuilder::new()
+            .trigger(AdvancementTrigger::Tick)
+            .score(&MANA)
+            .storage_field(MAGIC_MANA)
+            .storage_field(MAGIC_SCHOOL)
+            .build();
+
+        assert_eq!(config.state_defines(), &[MANA.define()]);
     }
 
     #[test]

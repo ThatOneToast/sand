@@ -157,10 +157,18 @@ impl fmt::Display for MinecraftVersion {
 /// ```
 /// use sand_core::version::{MinecraftVersion, VersionProfile};
 ///
+/// // Known version → exact profile
+/// let v = MinecraftVersion::parse("1.21.4").unwrap();
+/// let p = VersionProfile::resolve(&v).unwrap();
+/// assert_eq!(p.data_pack_format, 61);
+/// assert!(!p.is_fallback);
+///
+/// // Unknown 26.x → conservative fallback; all features false
 /// let v = MinecraftVersion::parse("26.1").unwrap();
 /// let p = VersionProfile::resolve(&v).unwrap();
 /// assert!(p.supports_26_series);
-/// assert!(p.supports_item_components);
+/// assert!(p.is_fallback, "26.x formats are not yet verified");
+/// assert!(!p.supports_item_components, "conservative profile");
 /// ```
 #[derive(Debug, Clone)]
 pub struct VersionProfile {

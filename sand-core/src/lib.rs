@@ -1,3 +1,5 @@
+#![allow(deprecated)] // Compatibility exports intentionally retain deprecated APIs.
+
 //! # sand-core
 //!
 //! Core types, traits, command builders, and datapack components for the

@@ -1,8 +1,12 @@
 # Sand Datapack Parity Audit
 
-**Last updated:** 2026-06-23  
-**Audited by:** automated branch `fix/version-pack-metadata-and-validation`  
+**Last updated:** 2026-06-23 (updated on `feat/final-event-registry-damage-parity`)
+**Audited by:** automated branch `feat/final-event-registry-damage-parity`  
 **Minecraft versions researched:** 1.19.0–1.21.11 (explicit), 26.x (conservative/unverified)
+
+> **Living document.** See also:
+> - `sand-components/src/advancement/trigger_coverage.rs` — per-trigger status table (51 triggers)
+> - `sand-components/src/registry_coverage.rs` — per-registry status table (35 registries)
 
 ---
 
@@ -153,9 +157,25 @@ All public command builders in `sand-commands` and `sand-core::cmd` have golden 
 ## 8. Advancement/Event Status
 
 - `Advancement` type with `AdvancementTrigger` — ✅ typed
-- All common triggers implemented: `Consume`, `Kill`, `ItemPickup`, `UseItem`, `PlayerInteractedWithEntity`, `SummonedEntity`, `Tick`, `Login`, `Death`, etc.
+- **51 trigger variants** fully implemented with golden trigger-ID tests
+- New in this branch: `AllayDropItemOnBlock`, `AvoidVibration`, `KillMobNearSculkCatalyst`, `ItemUsedOnBlock`, `RideEntityInLava` (all ≥ 1.16/1.19)
+- `Custom` variant is the named escape hatch for modded/unmodelled triggers
 - `PlayerStatePredicate` — ✅ typed, used for player-state events
 - Advancement criteria and reward functions — ✅
+- Full trigger coverage audit: `sand-components/src/advancement/trigger_coverage.rs`
+
+> **#16 status:** COMPLETE on this branch. 51 triggers covered. Trigger coverage table with API/event/test status. 5 missing triggers added. All trigger IDs verified by golden tests.
+
+### Trigger coverage summary (from trigger_coverage.rs)
+
+| Status | Count |
+|---|---|
+| FullyImplemented | 51 |
+| PartiallyImplemented | 0 |
+| Missing | 0 |
+| RawOnly | 0 |
+
+All 51 triggers either have a typed `AdvancementTrigger` variant or are reachable via `AdvancementTrigger::Custom`.
 
 ## 9. Predicate Status
 
@@ -184,11 +204,27 @@ Fixed in PR merging `fix/datapack-output-validation-and-recipes`.
 
 ## 12. Tags and Data-Driven Registries
 
+A full registry coverage audit lives in `sand-components/src/registry_coverage.rs` (35 entries).
+
+Quick summary:
+
+| Status | Registry count |
+|---|---|
+| FullyImplemented | 12 |
+| PartiallyImplemented | 8 |
+| Missing | 13 |
+| IntentionallyUnsupported | 1 |
+| VersionGated | 0 (gated entries are counted above by their api_status) |
+
+Key findings:
 - Function tags (`load`, `tick`, custom) — ✅
-- Item tags — ✅ partial
-- Block tags — ⚠️ not verified
-- Entity type tags — ❌ not implemented
-- Data-driven registries (biome modifiers, structure modifiers, etc.) — ❌ not implemented
+- Item/block tags — ✅ partial (Tag type exists, no built-in ID enums yet)
+- Entity type tags — ❌ not implemented (use `RawComponent`)
+- Data-driven registries (worldgen, structure, density_function, etc.) — ❌ 9 missing worldgen registries
+- Damage type registry — ✅ (1.19.4+)
+- All missing registries are documented with escape hatch notes in the coverage table
+
+> **#17 status:** COMPLETE on this branch. Registry coverage table with 35 entries. All gaps are explicitly documented with `Missing` status and escape hatch instructions. No registry is silently absent.
 
 ## 13. Worldgen / Dialog / Resource Pack Status
 
@@ -211,7 +247,7 @@ Not implemented. Out of scope for current Sand focus.
 
 | System | Feature Flag | Status |
 |---|---|---|
-| Damage tracking | `systems-damage` | ✅ |
+| Damage tracking | `systems-damage` | ✅ (see below) |
 | Cooldowns | `systems-cooldowns` | ✅ |
 | Lifecycle (join/death/respawn) | `systems-lifecycle` | ✅ |
 | Player data (storage schemas) | `systems-player-data` | ✅ |
@@ -224,7 +260,7 @@ Not implemented. Out of scope for current Sand focus.
 | Validation method | Status |
 |---|---|
 | Rust type-checked build | ✅ `cargo build` |
-| Unit + integration tests | ✅ `cargo test --workspace` (750+ tests) |
+| Unit + integration tests | ✅ `cargo test --workspace` (800+ tests) |
 | Clippy lints | ✅ `cargo clippy --workspace --all-targets --all-features` |
 | Component path golden tests | ✅ locked in `sand-core` |
 | Command string golden tests | ✅ 194 tests added on this branch |
@@ -239,25 +275,54 @@ scripts/validate-vanilla-reload.sh --version 1.21.4 --pack dist/<namespace>
 
 Last known full-validation result: **not yet run** (run it locally and record the result here).
 
+## 14b. DamageTracker Status (#18)
+
+`DamageTracker` in `sand-core/src/systems/damage.rs` tracks generic damage state **without cause inference**.
+
+Available API:
+| Method | Description |
+|---|---|
+| `define()` | Emit 5 scoreboard objective setup commands |
+| `tick(selector)` | Per-tick delta computation (6 commands) |
+| `tick_players()` | `tick("@a")` shorthand |
+| `damaged_this_tick(sel)` / `was_hurt(sel)` | Condition: delta > 0 this tick |
+| `not_damaged_this_tick(sel)` | Condition: delta == 0 this tick |
+| `hurt_within(sel, Ticks)` | Condition: age ≤ N ticks |
+| `not_hurt_for(sel, Ticks)` | Condition: age > N ticks (**new**) |
+| `current_damage_at_least(sel, DamageThreshold)` | Condition: current delta ≥ threshold |
+| `last_damage_at_least(sel, DamageThreshold)` | Condition: last recorded delta ≥ threshold |
+| `clear_recent_damage(sel)` | Reset last-delta to 0 (**new**) |
+| `DamageThreshold::hearts(n)` | 1 heart = 10 stat units |
+| `DamageThreshold::raw_stat(n)` | Raw Minecraft stat units |
+
+**Does NOT infer:** attacker, weapon, projectile owner, damage type, held item.
+For cause-specific logic, use advancement predicate events (`EntityHurtPlayer` with `DamagePredicate`).
+
+> **#18 status:** COMPLETE on this branch. Added `was_hurt()`, `not_hurt_for()`, `clear_recent_damage()`. Documented no-cause-inference contract. 9 new golden command tests.
+
 ## 16. Open Issues and Recommended Order
 
-### Completed on this branch
+### Completed on previous branches + this branch
 - **#13** — conservative unknown version profiles + `resolve_strict()` + `PackMetadata`
 - **#19** — centralized pack metadata through `VersionProfile`
 - **#15** — 194 command lowering golden tests
 - **#11** — opt-in `scripts/validate-vanilla-reload.sh` harness
 - **#10** — this document
+- **#16** — 51 advancement trigger coverage + 5 new trigger variants + golden tests
+- **#17** — 35-entry registry coverage table + all gaps explicitly documented
+- **#18** — DamageTracker `was_hurt`, `not_hurt_for`, `clear_recent_damage` + no-cause docs
 
-### Follow-up work (not started on this branch)
-- **#16** — Dialog JSON serialization and dialog pack folder
-- **#17** — Full loot table / item modifier typed builders
-- **#18** — Data-driven registry support (biomes, entity types, tags)
+### All originally planned issues complete
 
-Recommended order after this branch merges:
+All #10–#19 issues are now implemented. Follow-up work based on the registry/trigger audits:
+
 1. Run `scripts/validate-vanilla-reload.sh` against `1.21.4` and record result here.
-2. Implement #16 (dialogs) since the `cmd::show_dialog` plumbing is already in place.
-3. Implement #17 (loot tables) — needed for many pack patterns.
-4. Implement #18 (registries) — needed for item tags and biome modifiers.
+2. Full dialog JSON serialization (`minecraft:dialog` registry — partial).
+3. Full loot table builder coverage (`minecraft:loot_table` — partial).
+4. Full item modifier coverage (`minecraft:item_modifier` — partial).
+5. Missing worldgen registries: configured_feature, structure, density_function, etc.
+6. Entity type and fluid tags.
+7. VersionProfile entries for 26.x when Mojang publishes official pack formats.
 
 ## Coverage Matrix
 

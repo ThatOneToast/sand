@@ -44,6 +44,7 @@ pub mod predicates;
 pub mod raw;
 pub mod recipe;
 pub mod registry;
+pub mod registry_coverage;
 pub mod resource_location;
 pub mod tag;
 pub mod trim;

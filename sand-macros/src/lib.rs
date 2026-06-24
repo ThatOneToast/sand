@@ -1315,6 +1315,25 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
             }
         }
 
+        // PlayerLevelUpEvent / PlayerLevelsUp — tick-backed XP level-up detection
+        //
+        // Vanilla has no `minecraft:leveled_up` trigger. Sand generates its own
+        // scoreboard objectives (__sand_xp_lvl, __sand_xp_prev, __sand_xp_delta,
+        // __sand_xp_seen) and a `__sand_xp_check` tick function that fires all
+        // registered handlers when a player's XP level increases.
+        "PlayerLevelUpEvent" | "PlayerLevelsUp" => {
+            quote! {
+                #preamble
+
+                ::sand_core::inventory::submit!(::sand_core::EventDescriptor {
+                    path: #fn_name_str,
+                    id_override: #id_override_tokens,
+                    make: #fn_make_ident,
+                    dispatch: ::sand_core::EventDispatch::XpLevelUp,
+                });
+            }
+        }
+
         // OnDeathEvent / OnDeath — deathCount scoreboard tick loop
         "OnDeathEvent" | "OnDeath" => {
             quote! {

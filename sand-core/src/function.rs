@@ -325,6 +325,20 @@ pub enum EventDispatch {
         /// Whether to revoke the advancement after firing (advancement dispatch only).
         revoke: fn() -> bool,
     },
+
+    /// Tick-backed XP level-up detection.
+    ///
+    /// Sand generates four Sand-owned scoreboard objectives and a dedicated
+    /// `__sand_xp_check` tick function. Handlers are called when a player's XP
+    /// level increases. The first tick after load/join initialises previous-level
+    /// state without firing. Level decreases do not fire the event.
+    ///
+    /// Objectives used (all ≤16 chars):
+    /// - `__sand_xp_lvl`   — current XP level (refreshed every tick)
+    /// - `__sand_xp_prev`  — previous XP level (last tick)
+    /// - `__sand_xp_delta` — current − previous
+    /// - `__sand_xp_seen`  — 0 until first tick; prevents spurious fire on join
+    XpLevelUp,
 }
 
 /// Descriptor for a function registered via `#[sand_macros::event]`.

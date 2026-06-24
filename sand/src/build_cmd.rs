@@ -47,10 +47,37 @@ pub fn run(release: bool, resourcepack: bool) -> Result<()> {
 
     // Resolve mc_version ("latest" → actual version from Mojang manifest)
     let mc_version = resolve_mc_version(&config.pack.mc_version);
-    let pack_format = config
-        .pack
-        .pack_format
-        .unwrap_or_else(|| pack_format_for(&mc_version));
+
+    // Resolve pack format: explicit override in sand.toml wins; otherwise derive
+    // from the version profile.  If the version is not in the known table the
+    // profile is a conservative fallback and we warn the user.
+    let (pack_format, format_is_fallback) = {
+        use sand_core::version::{MinecraftVersion, VersionProfile};
+        if let Some(explicit) = config.pack.pack_format {
+            (explicit, false)
+        } else if let Ok(v) = MinecraftVersion::parse(&mc_version) {
+            let p = VersionProfile::resolve(&v).unwrap_or_else(|_| {
+                // parse never fails for well-formed versions, but default if it does
+                VersionProfile::resolve(&MinecraftVersion::parse("1.21.4").unwrap()).unwrap()
+            });
+            let meta = p.datapack_metadata();
+            (meta.pack_format, meta.is_fallback)
+        } else {
+            (pack_format_for(&mc_version), false)
+        }
+    };
+
+    if format_is_fallback {
+        eprintln!(
+            "{} Minecraft version '{}' is not in Sand's known version table. \
+             Using pack_format {} as a conservative fallback. \
+             Add `pack_format = {}` to [pack] in sand.toml to silence this warning.",
+            "warning:".yellow().bold(),
+            mc_version,
+            pack_format,
+            pack_format
+        );
+    }
 
     println!(
         "{} {} (Minecraft {}, pack_format {})...",

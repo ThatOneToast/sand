@@ -1,9 +1,12 @@
 //! Typed scoreboard variable — wraps a scoreboard objective for clean access.
 
+use std::collections::BTreeMap;
 use std::marker::PhantomData;
 use std::ops::RangeBounds;
+use std::sync::{Mutex, OnceLock};
 
-use crate::condition::{Condition, ScoreRange};
+use crate::condition::{Condition, ScoreCompareOp, ScoreOperand, ScoreRange};
+use crate::execute_when::Conditional;
 
 // ── Name utilities ────────────────────────────────────────────────────────────
 
@@ -27,6 +30,180 @@ fn fnv1a(s: &str) -> u64 {
     }
     h
 }
+
+/// Vanilla scoreboard-player operations.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ScoreOperation {
+    Assign,
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Mod,
+    Min,
+    Max,
+    Swap,
+}
+
+impl ScoreOperation {
+    /// Render this operation as vanilla command syntax.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Assign => "=",
+            Self::Add => "+=",
+            Self::Sub => "-=",
+            Self::Mul => "*=",
+            Self::Div => "/=",
+            Self::Mod => "%=",
+            Self::Min => "<",
+            Self::Max => ">",
+            Self::Swap => "><",
+        }
+    }
+}
+
+/// A namespace for reusable fake-player score constants.
+#[derive(Debug, Clone, Copy)]
+pub struct ScoreConstants {
+    objective: &'static str,
+}
+
+impl ScoreConstants {
+    /// Create a constant namespace. Its objective is created automatically in
+    /// Sand's generated load function when one of its constants is used.
+    pub const fn new(objective: &'static str) -> Self {
+        Self { objective }
+    }
+
+    /// Define a typed integer constant.
+    pub const fn i32(&self, name: &'static str, value: i32) -> ScoreConst<i32> {
+        ScoreConst {
+            objective: self.objective,
+            name,
+            value,
+            _marker: PhantomData,
+        }
+    }
+}
+
+/// A typed fake-player constant for scoreboard operations and comparisons.
+#[derive(Debug, Clone, Copy)]
+pub struct ScoreConst<T = i32> {
+    objective: &'static str,
+    name: &'static str,
+    value: i32,
+    _marker: PhantomData<T>,
+}
+
+impl<T> ScoreConst<T> {
+    /// Construct a constant in Sand's default `sand_consts` objective.
+    pub const fn new(name: &'static str, value: i32) -> Self {
+        Self {
+            objective: "sand_consts",
+            name,
+            value,
+            _marker: PhantomData,
+        }
+    }
+
+    /// Return this constant as a score operand and register its deterministic
+    /// load-time setup. Reusing the same name/value is deduplicated; a
+    /// conflicting definition panics during pack generation rather than
+    /// silently changing scoreboard math.
+    pub fn ref_(self) -> ScoreOperand {
+        let objective = objective_name(self.objective);
+        let holder = constant_holder(self.name);
+        register_constant(&objective, &holder, self.value);
+        ScoreOperand {
+            selector: holder,
+            objective,
+        }
+    }
+}
+
+fn constant_holder(name: &str) -> String {
+    let clean: String = name
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.'))
+        .collect();
+    let clean = if clean.is_empty() { "const" } else { &clean };
+    let prefix: String = clean.chars().take(28).collect();
+    format!("#sand_{prefix}_{:06x}", fnv1a(name) & 0xFF_FFFF)
+}
+
+fn constants_registry() -> &'static Mutex<BTreeMap<(String, String), i32>> {
+    static REGISTRY: OnceLock<Mutex<BTreeMap<(String, String), i32>>> = OnceLock::new();
+    REGISTRY.get_or_init(|| Mutex::new(BTreeMap::new()))
+}
+
+fn register_constant(objective: &str, holder: &str, value: i32) {
+    let mut registry = constants_registry()
+        .lock()
+        .expect("score constant registry poisoned");
+    let key = (objective.to_string(), holder.to_string());
+    if let Some(existing) = registry.insert(key.clone(), value)
+        && existing != value
+    {
+        panic!(
+            "conflicting Sand score constant `{}` in objective `{}`: {existing} versus {value}",
+            holder, objective
+        );
+    }
+}
+
+/// Drain constant setup commands after all user command factories have run.
+/// This is consumed by the export pipeline, not by user code.
+#[doc(hidden)]
+pub fn drain_constant_setup() -> Vec<String> {
+    let mut registry = constants_registry()
+        .lock()
+        .expect("score constant registry poisoned");
+    let entries = std::mem::take(&mut *registry);
+    let mut objectives = entries
+        .keys()
+        .map(|(objective, _)| objective.clone())
+        .collect::<Vec<_>>();
+    objectives.sort();
+    objectives.dedup();
+    let mut commands: Vec<String> = objectives
+        .into_iter()
+        .map(|objective| format!("scoreboard objectives add {objective} dummy"))
+        .collect();
+    commands.extend(entries.into_iter().map(|((objective, holder), value)| {
+        format!("scoreboard players set {holder} {objective} {value}")
+    }));
+    commands
+}
+
+fn expression_temp_requested() -> &'static Mutex<bool> {
+    static REQUESTED: OnceLock<Mutex<bool>> = OnceLock::new();
+    REQUESTED.get_or_init(|| Mutex::new(false))
+}
+
+fn request_expression_temp() {
+    *expression_temp_requested()
+        .lock()
+        .expect("score expression registry poisoned") = true;
+}
+
+/// Drain all internally managed score setup. Used by the exporter.
+#[doc(hidden)]
+pub fn drain_internal_score_setup() -> Vec<String> {
+    let mut commands = drain_constant_setup();
+    let mut requested = expression_temp_requested()
+        .lock()
+        .expect("score expression registry poisoned");
+    if std::mem::take(&mut *requested) {
+        commands.insert(
+            0,
+            format!("scoreboard objectives add {SCORE_EXPRESSION_TEMP_OBJECTIVE} dummy"),
+        );
+    }
+    commands
+}
+
+/// Sand's compiler-managed temporary objective used by score expressions.
+pub const SCORE_EXPRESSION_TEMP_OBJECTIVE: &str = "__sand_tmp";
 
 // ── ScoreVar ──────────────────────────────────────────────────────────────────
 
@@ -313,6 +490,122 @@ impl<'a, T> ScoreRef<'a, T> {
         objective_name(self.objective)
     }
 
+    /// Return the typed scoreboard entry represented by this reference.
+    pub fn operand(&self) -> ScoreOperand {
+        ScoreOperand {
+            selector: self.selector.clone(),
+            objective: self.obj(),
+        }
+    }
+
+    fn operation<O: Into<ScoreOperand>>(self, op: ScoreOperation, other: O) -> String {
+        let left = self.operand();
+        let right = other.into();
+        format!(
+            "scoreboard players operation {} {} {} {} {}",
+            left.selector,
+            left.objective,
+            op.as_str(),
+            right.selector,
+            right.objective
+        )
+    }
+
+    /// Assign this score from another score entry (`=`).
+    pub fn assign<O: Into<ScoreOperand>>(self, other: O) -> String {
+        self.operation(ScoreOperation::Assign, other)
+    }
+
+    /// Add another score entry (`+=`).
+    pub fn add_score<O: Into<ScoreOperand>>(self, other: O) -> String {
+        self.operation(ScoreOperation::Add, other)
+    }
+
+    /// Subtract another score entry (`-=`).
+    pub fn sub_score<O: Into<ScoreOperand>>(self, other: O) -> String {
+        self.operation(ScoreOperation::Sub, other)
+    }
+
+    /// Multiply by another score entry (`*=`).
+    pub fn mul_score<O: Into<ScoreOperand>>(self, other: O) -> String {
+        self.operation(ScoreOperation::Mul, other)
+    }
+
+    /// Divide by another score entry (`/=`). Scoreboard math is integer-only;
+    /// division by zero remains a vanilla runtime error.
+    pub fn div_score<O: Into<ScoreOperand>>(self, other: O) -> String {
+        self.operation(ScoreOperation::Div, other)
+    }
+
+    /// Modulo another score entry (`%=`). Modulo by zero remains a vanilla
+    /// runtime error.
+    pub fn mod_score<O: Into<ScoreOperand>>(self, other: O) -> String {
+        self.operation(ScoreOperation::Mod, other)
+    }
+
+    /// Keep the minimum of this and another score entry (`<`).
+    pub fn min_score<O: Into<ScoreOperand>>(self, other: O) -> String {
+        self.operation(ScoreOperation::Min, other)
+    }
+
+    /// Keep the maximum of this and another score entry (`>`).
+    pub fn max_score<O: Into<ScoreOperand>>(self, other: O) -> String {
+        self.operation(ScoreOperation::Max, other)
+    }
+
+    /// Swap this score entry with another (`><`).
+    pub fn swap<O: Into<ScoreOperand>>(self, other: O) -> String {
+        self.operation(ScoreOperation::Swap, other)
+    }
+
+    fn compare<O: Into<ScoreOperand>>(self, op: ScoreCompareOp, other: O) -> Condition {
+        Condition::ScoreCompare {
+            left: self.operand(),
+            op,
+            right: other.into(),
+        }
+    }
+
+    /// Compare this score to another score entry (`=`).
+    pub fn eq_score<O: Into<ScoreOperand>>(self, other: O) -> Condition {
+        self.compare(ScoreCompareOp::Eq, other)
+    }
+
+    /// Compare this score as not equal to another score entry.
+    pub fn ne_score<O: Into<ScoreOperand>>(self, other: O) -> Condition {
+        !self.eq_score(other)
+    }
+
+    /// Compare this score as greater than another score entry (`>`).
+    pub fn gt_score<O: Into<ScoreOperand>>(self, other: O) -> Condition {
+        self.compare(ScoreCompareOp::Gt, other)
+    }
+
+    /// Compare this score as greater than or equal to another score entry (`>=`).
+    pub fn gte_score<O: Into<ScoreOperand>>(self, other: O) -> Condition {
+        self.compare(ScoreCompareOp::Gte, other)
+    }
+
+    /// Compare this score as less than another score entry (`<`).
+    pub fn lt_score<O: Into<ScoreOperand>>(self, other: O) -> Condition {
+        self.compare(ScoreCompareOp::Lt, other)
+    }
+
+    /// Compare this score as less than or equal to another score entry (`<=`).
+    pub fn lte_score<O: Into<ScoreOperand>>(self, other: O) -> Condition {
+        self.compare(ScoreCompareOp::Lte, other)
+    }
+
+    /// Begin an integer-only score expression. Its setup commands are emitted
+    /// before the final branch condition is evaluated.
+    pub fn expr(&self) -> ScoreExpr<T> {
+        ScoreExpr {
+            base: self.operand(),
+            steps: Vec::new(),
+            _marker: PhantomData,
+        }
+    }
+
     /// `if score <sel> <obj> matches <n>` — equal to `n`.
     pub fn eq(self, n: i32) -> Condition {
         let objective = self.obj();
@@ -429,6 +722,180 @@ impl<'a, T> ScoreRef<'a, T> {
             objective,
             range: ScoreRange::Between(lo, hi),
         }
+    }
+}
+
+impl<'a, T> From<ScoreRef<'a, T>> for ScoreOperand {
+    fn from(value: ScoreRef<'a, T>) -> Self {
+        value.operand()
+    }
+}
+
+/// A compiler-managed sequence of vanilla scoreboard operations.
+pub struct ScoreExpr<T = i32> {
+    base: ScoreOperand,
+    steps: Vec<(ScoreOperation, ScoreOperand)>,
+    _marker: PhantomData<T>,
+}
+
+impl<T> ScoreExpr<T> {
+    fn operation<O: Into<ScoreOperand>>(mut self, op: ScoreOperation, other: O) -> Self {
+        self.steps.push((op, other.into()));
+        self
+    }
+
+    pub fn plus<O: Into<ScoreOperand>>(self, other: O) -> Self {
+        self.operation(ScoreOperation::Add, other)
+    }
+    pub fn minus<O: Into<ScoreOperand>>(self, other: O) -> Self {
+        self.operation(ScoreOperation::Sub, other)
+    }
+    #[allow(clippy::should_implement_trait)]
+    pub fn mul<O: Into<ScoreOperand>>(self, other: O) -> Self {
+        self.operation(ScoreOperation::Mul, other)
+    }
+    #[allow(clippy::should_implement_trait)]
+    pub fn div<O: Into<ScoreOperand>>(self, other: O) -> Self {
+        self.operation(ScoreOperation::Div, other)
+    }
+    pub fn modulo<O: Into<ScoreOperand>>(self, other: O) -> Self {
+        self.operation(ScoreOperation::Mod, other)
+    }
+    pub fn min<O: Into<ScoreOperand>>(self, other: O) -> Self {
+        self.operation(ScoreOperation::Min, other)
+    }
+    pub fn max<O: Into<ScoreOperand>>(self, other: O) -> Self {
+        self.operation(ScoreOperation::Max, other)
+    }
+
+    fn lowered(self, condition: Condition) -> Conditional {
+        request_expression_temp();
+        let temp = ScoreOperand {
+            selector: self.base.selector.clone(),
+            objective: SCORE_EXPRESSION_TEMP_OBJECTIVE.to_string(),
+        };
+        let mut setup = vec![format!(
+            "scoreboard players operation {} {} = {} {}",
+            temp.selector, temp.objective, self.base.selector, self.base.objective
+        )];
+        setup.extend(self.steps.into_iter().map(|(op, right)| {
+            format!(
+                "scoreboard players operation {} {} {} {} {}",
+                temp.selector,
+                temp.objective,
+                op.as_str(),
+                right.selector,
+                right.objective
+            )
+        }));
+        Conditional::with_setup(setup, condition)
+    }
+
+    fn temp(&self) -> ScoreOperand {
+        ScoreOperand {
+            selector: self.base.selector.clone(),
+            objective: SCORE_EXPRESSION_TEMP_OBJECTIVE.to_string(),
+        }
+    }
+
+    pub fn eq(self, n: i32) -> Conditional {
+        let temp = self.temp();
+        self.lowered(Condition::Score {
+            selector: temp.selector,
+            objective: temp.objective,
+            range: ScoreRange::Eq(n),
+        })
+    }
+    pub fn gt(self, n: i32) -> Conditional {
+        let temp = self.temp();
+        self.lowered(Condition::Score {
+            selector: temp.selector,
+            objective: temp.objective,
+            range: ScoreRange::Gt(n),
+        })
+    }
+    pub fn gte(self, n: i32) -> Conditional {
+        let temp = self.temp();
+        self.lowered(Condition::Score {
+            selector: temp.selector,
+            objective: temp.objective,
+            range: ScoreRange::Gte(n),
+        })
+    }
+    pub fn lt(self, n: i32) -> Conditional {
+        let temp = self.temp();
+        self.lowered(Condition::Score {
+            selector: temp.selector,
+            objective: temp.objective,
+            range: ScoreRange::Lt(n),
+        })
+    }
+    pub fn lte(self, n: i32) -> Conditional {
+        let temp = self.temp();
+        self.lowered(Condition::Score {
+            selector: temp.selector,
+            objective: temp.objective,
+            range: ScoreRange::Lte(n),
+        })
+    }
+    pub fn matches(self, range: impl RangeBounds<i32>) -> Conditional {
+        use std::ops::Bound;
+        let lo = match range.start_bound() {
+            Bound::Included(&n) => Some(n),
+            Bound::Excluded(&n) => Some(n + 1),
+            Bound::Unbounded => None,
+        };
+        let hi = match range.end_bound() {
+            Bound::Included(&n) => Some(n),
+            Bound::Excluded(&n) => Some(n - 1),
+            Bound::Unbounded => None,
+        };
+        let temp = self.temp();
+        self.lowered(Condition::Score {
+            selector: temp.selector,
+            objective: temp.objective,
+            range: ScoreRange::Between(lo, hi),
+        })
+    }
+    pub fn eq_score<O: Into<ScoreOperand>>(self, other: O) -> Conditional {
+        let left = self.temp();
+        self.lowered(Condition::ScoreCompare {
+            left,
+            op: ScoreCompareOp::Eq,
+            right: other.into(),
+        })
+    }
+    pub fn gt_score<O: Into<ScoreOperand>>(self, other: O) -> Conditional {
+        let left = self.temp();
+        self.lowered(Condition::ScoreCompare {
+            left,
+            op: ScoreCompareOp::Gt,
+            right: other.into(),
+        })
+    }
+    pub fn gte_score<O: Into<ScoreOperand>>(self, other: O) -> Conditional {
+        let left = self.temp();
+        self.lowered(Condition::ScoreCompare {
+            left,
+            op: ScoreCompareOp::Gte,
+            right: other.into(),
+        })
+    }
+    pub fn lt_score<O: Into<ScoreOperand>>(self, other: O) -> Conditional {
+        let left = self.temp();
+        self.lowered(Condition::ScoreCompare {
+            left,
+            op: ScoreCompareOp::Lt,
+            right: other.into(),
+        })
+    }
+    pub fn lte_score<O: Into<ScoreOperand>>(self, other: O) -> Conditional {
+        let left = self.temp();
+        self.lowered(Condition::ScoreCompare {
+            left,
+            op: ScoreCompareOp::Lte,
+            right: other.into(),
+        })
     }
 }
 
@@ -680,5 +1147,69 @@ mod tests {
             } => {}
             other => panic!("unexpected: {other:?}"),
         }
+    }
+
+    #[test]
+    fn score_comparisons_render_all_vanilla_operators() {
+        static COST: ScoreVar<i32> = ScoreVar::new("cost");
+        let cases = [
+            (MANA.of("@s").eq_score(COST.of("@s")), "="),
+            (MANA.of("@s").gt_score(COST.of("@s")), ">"),
+            (MANA.of("@s").gte_score(COST.of("@p")), ">="),
+            (MANA.of("@s").lt_score(COST.of("@p")), "<"),
+            (MANA.of("@s").lte_score(COST.of("@p")), "<="),
+        ];
+        for (condition, operator) in cases {
+            assert_eq!(
+                condition.execute_commands(false, "say ok")[0],
+                format!(
+                    "execute if score @s mana {operator} {} cost run say ok",
+                    if operator == "=" || operator == ">" {
+                        "@s"
+                    } else {
+                        "@p"
+                    }
+                )
+            );
+        }
+    }
+
+    #[test]
+    fn score_operations_render_all_symbols() {
+        static OTHER: ScoreVar<i32> = ScoreVar::new("other");
+        let actual = [
+            MANA.of("@s").assign(OTHER.of("@p")),
+            MANA.of("@s").add_score(OTHER.of("@p")),
+            MANA.of("@s").sub_score(OTHER.of("@p")),
+            MANA.of("@s").mul_score(OTHER.of("@p")),
+            MANA.of("@s").div_score(OTHER.of("@p")),
+            MANA.of("@s").mod_score(OTHER.of("@p")),
+            MANA.of("@s").min_score(OTHER.of("@p")),
+            MANA.of("@s").max_score(OTHER.of("@p")),
+            MANA.of("@s").swap(OTHER.of("@p")),
+        ];
+        for (command, operator) in actual
+            .iter()
+            .zip(["=", "+=", "-=", "*=", "/=", "%=", "<", ">", "><"])
+        {
+            assert_eq!(
+                command,
+                &format!("scoreboard players operation @s mana {operator} @p other")
+            );
+        }
+    }
+
+    #[test]
+    fn constants_register_setup_and_support_negative_values() {
+        let constant = ScoreConst::<i32>::new("negative scale", -2);
+        let command = MANA.of("@s").mul_score(constant.ref_());
+        assert!(command.contains("#sand_negative"));
+        let setup = drain_internal_score_setup();
+        assert!(
+            setup
+                .iter()
+                .any(|line| line == "scoreboard objectives add sand_consts dummy")
+        );
+        assert!(setup.iter().any(|line| line.ends_with(" sand_consts -2")));
     }
 }

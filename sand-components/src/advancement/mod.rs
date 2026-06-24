@@ -465,7 +465,8 @@ impl InventorySlotsPredicate {
 // ── AdvancementTrigger::trigger_id helper ─────────────────────────────────────
 
 impl AdvancementTrigger {
-    fn trigger_id(&self) -> &str {
+    /// Return the vanilla trigger ID selected by this typed trigger.
+    pub fn trigger_id(&self) -> &str {
         match self {
             AdvancementTrigger::Tick => "minecraft:tick",
             AdvancementTrigger::Impossible => "minecraft:impossible",
@@ -529,6 +530,23 @@ impl AdvancementTrigger {
             AdvancementTrigger::ItemUsedOnBlock { .. } => "minecraft:item_used_on_block",
             AdvancementTrigger::RideEntityInLava { .. } => "minecraft:ride_entity_in_lava",
             AdvancementTrigger::Custom { trigger, .. } => trigger.as_str(),
+        }
+    }
+
+    /// Validate this trigger against Sand's supported vanilla target profiles.
+    ///
+    /// This intentionally fails before an advancement JSON file is emitted for
+    /// IDs known to be absent from the vanilla registry.
+    pub fn validate_for_target(&self) -> Result<(), String> {
+        let metadata = crate::advancement::trigger_coverage::trigger_metadata(self.trigger_id());
+        if metadata.supported {
+            Ok(())
+        } else {
+            Err(format!(
+                "advancement trigger `{}` is not available for Sand's supported Minecraft targets. {}",
+                self.trigger_id(),
+                metadata.diagnostic.unwrap_or("choose a supported trigger")
+            ))
         }
     }
 
@@ -1311,6 +1329,14 @@ mod tests {
         };
         let v = serde_json::to_value(&t).unwrap();
         assert_eq!(v["conditions"]["level"]["min"], 30);
+    }
+
+    #[test]
+    fn leveled_up_is_rejected_before_advancement_export() {
+        let trigger = AdvancementTrigger::LeveledUp { level: None };
+        let error = trigger.validate_for_target().unwrap_err();
+        assert!(error.contains("minecraft:leveled_up"));
+        assert!(error.contains("experience query"));
     }
 
     #[test]

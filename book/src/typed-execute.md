@@ -68,6 +68,21 @@ The flag mutation (`enable("@s")`) inside the else branch does **not** prevent
 `return 0` from running, because all commands are inside one helper function
 evaluated under one condition check.
 
+## Score expressions
+
+For compound integer math, use `expr()`. Sand writes the required scoreboard
+temporary operations immediately before the branch check; Minecraft cannot
+evaluate arithmetic inside `execute if score` directly.
+
+```rust,ignore
+when(MANA.of("@s").expr().minus(COST.of("@s")).gte(0))
+    .then_all([MANA.of("@s").sub_score(COST.of("@s")), cmd::call(cast_spell)]);
+```
+
+This lowers to a copy into Sand's `__sand_tmp` objective, a `-=` operation, and
+then `execute if score @s __sand_tmp matches 0..`. The temporary objective is
+created automatically in `__sand_score_init` during `minecraft:load`.
+
 ## Return behavior
 
 | Context | `cmd::return_fail()` / `cmd::return_cmd(n)` |

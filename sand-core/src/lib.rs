@@ -1,3 +1,5 @@
+#![allow(deprecated)] // Compatibility exports intentionally retain deprecated APIs.
+
 //! # sand-core
 //!
 //! Core types, traits, command builders, and datapack components for the
@@ -100,6 +102,7 @@ pub use event::{
     EventVisibility,
     IntoEventAdvancement,
 };
+#[allow(deprecated)]
 pub use events::{
     // Equipment events
     ArmorEquipEvent,

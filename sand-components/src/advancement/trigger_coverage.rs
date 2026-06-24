@@ -76,6 +76,38 @@ pub struct TriggerCoverage {
     pub notes: &'static str,
 }
 
+/// Runtime availability metadata for a vanilla advancement trigger.
+///
+/// The coverage table records API parity; this metadata is the separate source
+/// of truth used to prevent serializing known-invalid trigger IDs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TriggerMetadata {
+    pub id: &'static str,
+    pub supported: bool,
+    pub diagnostic: Option<&'static str>,
+}
+
+/// Return availability metadata for a trigger ID in Sand's supported modern
+/// Java profiles. Unknown IDs are intentionally left to `Custom` users.
+pub fn trigger_metadata(id: &str) -> TriggerMetadata {
+    match id {
+        // Verified against the vanilla generated trigger registry for current
+        // 1.21.x and 26.x targets: this ID is not present in either registry.
+        "minecraft:leveled_up" => TriggerMetadata {
+            id: "minecraft:leveled_up",
+            supported: false,
+            diagnostic: Some(
+                "use tick polling: `execute store result score @s <objective> run experience query @s levels`, then compare the stored score",
+            ),
+        },
+        _ => TriggerMetadata {
+            id: "",
+            supported: true,
+            diagnostic: None,
+        },
+    }
+}
+
 // ── Coverage table ────────────────────────────────────────────────────────────
 
 /// Static coverage table for all known vanilla advancement triggers.
@@ -319,11 +351,11 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
     TriggerCoverage {
         trigger_id: "minecraft:leveled_up",
         since: "1.12",
-        removed_in: None,
-        api_status: TriggerApiStatus::FullyImplemented,
-        event_wrapper: EventWrapperStatus::Supported,
-        golden_json_tested: true,
-        notes: "AdvancementTrigger::LeveledUp. vanilla::PlayerLevelsUp event.",
+        removed_in: Some("1.12"),
+        api_status: TriggerApiStatus::IntentionallyUnsupported,
+        event_wrapper: EventWrapperStatus::None,
+        golden_json_tested: false,
+        notes: "minecraft:leveled_up is not in the vanilla trigger registry. Kept only for source compatibility; generation fails with an XP polling migration diagnostic.",
     },
     TriggerCoverage {
         trigger_id: "minecraft:lightning_strike",
@@ -601,5 +633,20 @@ mod tests {
             51,
             "trigger coverage table size changed — update this count when adding/removing triggers"
         );
+    }
+
+    #[test]
+    fn known_invalid_leveled_up_trigger_has_a_migration_diagnostic() {
+        let metadata = trigger_metadata("minecraft:leveled_up");
+        assert!(!metadata.supported);
+        assert!(metadata.diagnostic.unwrap().contains("experience query"));
+        let coverage = TRIGGER_COVERAGE
+            .iter()
+            .find(|entry| entry.trigger_id == "minecraft:leveled_up")
+            .unwrap();
+        assert!(matches!(
+            coverage.api_status,
+            TriggerApiStatus::IntentionallyUnsupported
+        ));
     }
 }

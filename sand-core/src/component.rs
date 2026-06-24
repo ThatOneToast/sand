@@ -223,6 +223,12 @@ pub fn export_components_json(namespace: &str) -> String {
 
                 // ── Advancement: trigger fires entry ──────────────────────────
                 let trigger = make_trigger();
+                trigger.validate_for_target().unwrap_or_else(|diagnostic| {
+                    panic!(
+                        "cannot export advancement event `{}`: {diagnostic}",
+                        desc.path
+                    )
+                });
                 let advancement = sand_components::Advancement::new(
                     advancement_id
                         .parse()
@@ -802,6 +808,26 @@ pub fn export_components_json(namespace: &str) -> String {
                 .or_default()
                 .push(format!("{namespace}:{ts_path}"));
         }
+    }
+
+    // ── Dynamic anonymous functions (branches from all make() calls above) ───
+    // ── Compiler-managed score constants / expression temporaries ───────────
+    // Score operands are registered while user factories execute, so this must
+    // run after all factory/event processing and before tags are finalized.
+    let score_setup = crate::state::score::drain_internal_score_setup();
+    if !score_setup.is_empty() {
+        let path = "__sand_score_init";
+        records.push(ComponentRecord {
+            namespace: namespace.to_string(),
+            dir: "function".to_string(),
+            path: path.to_string(),
+            ext: "mcfunction".to_string(),
+            content: score_setup.join("\n"),
+        });
+        tag_map
+            .entry("minecraft:load".to_string())
+            .or_default()
+            .push(format!("{namespace}:{path}"));
     }
 
     // ── Dynamic anonymous functions (branches from all make() calls above) ───

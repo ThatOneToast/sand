@@ -28,6 +28,12 @@ pub enum VersionError {
         "Invalid version '{0}': expected '1.21', '1.21.4', '26', '26.1', '26.1.2', or 'latest'"
     )]
     ParseError(String),
+    /// The version was parsed but is not in the known table.
+    ///
+    /// Use [`VersionProfile::resolve`] (which returns a conservative fallback) or
+    /// add `pack_format` / `resource_pack_format` overrides to `sand.toml`.
+    #[error("Unknown or unverified Minecraft version '{requested}'. {hint}")]
+    UnknownVersion { requested: String, hint: String },
 }
 
 // ── MinecraftVersion ──────────────────────────────────────────────────────────
@@ -199,6 +205,33 @@ pub struct VersionProfile {
 /// The latest version this table was last verified against.
 pub const LATEST_KNOWN: &str = "1.21.11";
 
+// ── PackMetadata ──────────────────────────────────────────────────────────────
+
+/// Resolved `pack.mcmeta` metadata for a single pack root.
+///
+/// Obtain via [`VersionProfile::datapack_metadata`] or
+/// [`VersionProfile::resourcepack_metadata`].
+///
+/// # Example
+/// ```
+/// use sand_core::version::{MinecraftVersion, VersionProfile};
+///
+/// let v = MinecraftVersion::parse("1.21.4").unwrap();
+/// let p = VersionProfile::resolve(&v).unwrap();
+/// let meta = p.datapack_metadata();
+/// assert_eq!(meta.pack_format, 61);
+/// assert!(!meta.is_fallback);
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PackMetadata {
+    /// The `pack.pack_format` value to write to `pack.mcmeta`.
+    pub pack_format: u32,
+    /// `true` if this metadata was resolved from a conservative fallback because
+    /// the exact version was not in the known table.  The caller should warn
+    /// the user and accept an override from `sand.toml`.
+    pub is_fallback: bool,
+}
+
 impl VersionProfile {
     /// Resolve a [`MinecraftVersion`] into a [`VersionProfile`].
     ///
@@ -268,6 +301,64 @@ impl VersionProfile {
         self.supports_damage_types
     }
 
+    /// Resolve a [`MinecraftVersion`] into a [`VersionProfile`], returning an error
+    /// if the version is not in the known table (i.e. `is_fallback` would be `true`).
+    ///
+    /// Use this in CI/release builds to prevent silently emitting packs for
+    /// unverified Minecraft versions. For local experimentation, use
+    /// [`resolve`](Self::resolve) which returns a conservative fallback instead.
+    ///
+    /// # Errors
+    /// Returns [`VersionError::UnknownVersion`] for any version that is not
+    /// explicitly listed in the known-version table, including future `26.x` series
+    /// versions and future `1.x` minor versions not yet verified by Sand.
+    ///
+    /// # Examples
+    /// ```
+    /// use sand_core::version::{MinecraftVersion, VersionProfile};
+    ///
+    /// // Known version → OK
+    /// let v = MinecraftVersion::parse("1.21.4").unwrap();
+    /// assert!(VersionProfile::resolve_strict(&v).is_ok());
+    ///
+    /// // Unknown version → Err
+    /// let v = MinecraftVersion::parse("26.99").unwrap();
+    /// assert!(VersionProfile::resolve_strict(&v).is_err());
+    /// ```
+    pub fn resolve_strict(version: &MinecraftVersion) -> Result<Self, VersionError> {
+        let profile = Self::resolve(version)?;
+        if profile.is_fallback {
+            return Err(VersionError::UnknownVersion {
+                requested: version.to_string(),
+                hint: "Add an explicit `pack_format` override in sand.toml, \
+                       or use `VersionProfile::resolve` to accept a conservative \
+                       fallback for local experimentation."
+                    .to_string(),
+            });
+        }
+        Ok(profile)
+    }
+
+    /// Return pack metadata for a datapack using this version profile.
+    ///
+    /// The returned value contains the exact `pack_format` to write to `pack.mcmeta`.
+    /// When `is_fallback` is `true`, both formats are derived from the latest known
+    /// version and the caller should warn that the output may not be validated.
+    pub fn datapack_metadata(&self) -> PackMetadata {
+        PackMetadata {
+            pack_format: self.data_pack_format,
+            is_fallback: self.is_fallback,
+        }
+    }
+
+    /// Return pack metadata for a resource pack using this version profile.
+    pub fn resourcepack_metadata(&self) -> PackMetadata {
+        PackMetadata {
+            pack_format: self.resource_pack_format,
+            is_fallback: self.is_fallback,
+        }
+    }
+
     /// Query a named capability by string key.
     ///
     /// Useful for version-gating features without importing each flag name:
@@ -316,10 +407,14 @@ struct VersionCaps {
 }
 
 impl Default for VersionCaps {
+    /// All-features-enabled baseline used as a spread target by known-version arms.
+    ///
+    /// Do NOT use this as the fallback for unknown versions — use
+    /// [`VersionCaps::conservative`] instead.
     fn default() -> Self {
         Self {
             data_fmt: 61,
-            res_fmt: 61,
+            res_fmt: 46,
             item_components: true,
             data_components: true,
             dialogs: true,
@@ -331,6 +426,32 @@ impl Default for VersionCaps {
             damage_types: true,
             chat_types: true,
             enchantments: true,
+            is_fallback: false,
+        }
+    }
+}
+
+impl VersionCaps {
+    /// Conservative profile for any version not explicitly listed in the known table.
+    ///
+    /// All feature flags are `false`; pack formats default to the latest known
+    /// values so that `pack.mcmeta` is at least structurally valid.  The caller
+    /// must warn the user that output for this version is unverified.
+    fn conservative() -> Self {
+        Self {
+            data_fmt: 61,
+            res_fmt: 46,
+            item_components: false,
+            data_components: false,
+            dialogs: false,
+            function_macros: false,
+            predicates: false,
+            resource_pack_overlays: false,
+            trim_assets: false,
+            jukebox_songs: false,
+            damage_types: false,
+            chat_types: false,
+            enchantments: false,
             is_fallback: true,
         }
     }
@@ -447,12 +568,14 @@ fn lookup(major: u32, minor: u32, patch: u32) -> VersionCaps {
             is_fallback: false,
             ..VersionCaps::default()
         },
-        // ── 26.x series — pack formats not yet finalized; dialogs included ────
-        (26, _, _) => VersionCaps::default(),
+        // ── 26.x series — pack formats not verified; use conservative caps ────
+        //    Until specific 26.x versions are mapped, treat all as unknown.
+        //    Use VersionProfile::resolve_strict() to reject these outright.
+        (26, _, _) => VersionCaps::conservative(),
         // ── future 1.x > 1.21 — conservative fallback ────────────────────────
-        (1, minor, _) if minor > 21 => VersionCaps::default(),
+        (1, minor, _) if minor > 21 => VersionCaps::conservative(),
         // ── anything else — conservative fallback ─────────────────────────────
-        _ => VersionCaps::default(),
+        _ => VersionCaps::conservative(),
     }
 }
 
@@ -570,10 +693,13 @@ mod tests {
         let v = MinecraftVersion::parse("26.1").unwrap();
         let p = VersionProfile::resolve(&v).unwrap();
         assert!(p.supports_26_series);
-        assert!(p.supports_item_components);
         assert!(
             p.is_fallback,
-            "26.x is a fallback since formats are not finalized"
+            "26.x is conservative since no version is mapped yet"
+        );
+        assert!(
+            !p.supports_item_components,
+            "conservative profile has all features false"
         );
     }
 
@@ -583,6 +709,10 @@ mod tests {
         let p = VersionProfile::resolve(&v).unwrap();
         assert!(p.supports_26_series);
         assert!(p.is_fallback);
+        assert!(
+            !p.supports_dialogs,
+            "unverified version must not claim dialog support"
+        );
     }
 
     #[test]
@@ -634,10 +764,14 @@ mod tests {
     }
 
     #[test]
-    fn dialogs_in_26x() {
+    fn dialogs_not_in_26x_unverified() {
+        // 26.x is conservative until specific versions are mapped to exact formats.
         let v = MinecraftVersion::parse("26.1").unwrap();
         let p = VersionProfile::resolve(&v).unwrap();
-        assert!(p.supports_dialogs());
+        assert!(
+            !p.supports_dialogs(),
+            "26.x is unverified — must not claim dialog support"
+        );
     }
 
     #[test]
@@ -692,7 +826,76 @@ mod tests {
         let v = MinecraftVersion::parse("26.99").unwrap();
         let p = VersionProfile::resolve(&v).unwrap();
         assert!(p.is_fallback);
-        assert!(p.supports_dialogs);
+        assert!(!p.supports_dialogs, "conservative profile: dialogs=false");
         assert!(p.supports_26_series);
+    }
+
+    // ── resolve_strict ────────────────────────────────────────────────────────
+
+    #[test]
+    fn strict_known_version_ok() {
+        let v = MinecraftVersion::parse("1.21.4").unwrap();
+        assert!(VersionProfile::resolve_strict(&v).is_ok());
+    }
+
+    #[test]
+    fn strict_unknown_26x_fails() {
+        let v = MinecraftVersion::parse("26.1").unwrap();
+        let err = VersionProfile::resolve_strict(&v).unwrap_err();
+        assert!(
+            matches!(err, VersionError::UnknownVersion { .. }),
+            "expected UnknownVersion, got {err:?}"
+        );
+    }
+
+    #[test]
+    fn strict_future_1x_fails() {
+        let v = MinecraftVersion::parse("1.22.0").unwrap();
+        let err = VersionProfile::resolve_strict(&v).unwrap_err();
+        assert!(matches!(err, VersionError::UnknownVersion { .. }));
+    }
+
+    #[test]
+    fn strict_latest_known_boundary_ok() {
+        // 1.21.6+ is in the known table, so strict resolution should succeed.
+        let v = MinecraftVersion::parse("1.21.6").unwrap();
+        assert!(VersionProfile::resolve_strict(&v).is_ok());
+    }
+
+    // ── PackMetadata ──────────────────────────────────────────────────────────
+
+    #[test]
+    fn pack_metadata_known_datapack() {
+        let v = MinecraftVersion::parse("1.21.4").unwrap();
+        let p = VersionProfile::resolve(&v).unwrap();
+        let m = p.datapack_metadata();
+        assert_eq!(m.pack_format, 61);
+        assert!(!m.is_fallback);
+    }
+
+    #[test]
+    fn pack_metadata_known_resourcepack() {
+        let v = MinecraftVersion::parse("1.21.4").unwrap();
+        let p = VersionProfile::resolve(&v).unwrap();
+        let m = p.resourcepack_metadata();
+        assert_eq!(m.pack_format, 46);
+        assert!(!m.is_fallback);
+    }
+
+    #[test]
+    fn pack_metadata_oldest_profile_datapack() {
+        let v = MinecraftVersion::parse("1.19.0").unwrap();
+        let p = VersionProfile::resolve(&v).unwrap();
+        let m = p.datapack_metadata();
+        assert_eq!(m.pack_format, 10);
+        assert!(!m.is_fallback);
+    }
+
+    #[test]
+    fn pack_metadata_fallback_is_flagged() {
+        let v = MinecraftVersion::parse("26.99").unwrap();
+        let p = VersionProfile::resolve(&v).unwrap();
+        let m = p.datapack_metadata();
+        assert!(m.is_fallback);
     }
 }

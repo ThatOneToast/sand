@@ -716,4 +716,91 @@ mod tests {
             "@e[type=minecraft:zombie,sort=nearest,limit=1]"
         );
     }
+
+    // ── Selector argument golden tests ────────────────────────────────────────
+
+    #[test]
+    fn scores_arg() {
+        // scores() wraps the argument in { } automatically
+        let s = Selector::all_players().scores("kills=1..10,deaths=0");
+        assert_eq!(s.to_string(), "@a[scores={kills=1..10,deaths=0}]");
+    }
+
+    #[test]
+    fn nbt_arg() {
+        let s = Selector::all_entities().nbt("{CustomName:\"Boss\"}");
+        assert_eq!(s.to_string(), r#"@e[nbt={CustomName:"Boss"}]"#);
+    }
+
+    #[test]
+    fn predicate_arg() {
+        let s = Selector::all_players().predicate("my_pack:is_sneaking");
+        assert_eq!(s.to_string(), "@a[predicate=my_pack:is_sneaking]");
+    }
+
+    #[test]
+    fn gamemode_arg() {
+        let s = Selector::all_players().gamemode("survival");
+        assert_eq!(s.to_string(), "@a[gamemode=survival]");
+    }
+
+    #[test]
+    fn level_range_arg() {
+        let s = Selector::all_players().level("10..30");
+        assert_eq!(s.to_string(), "@a[level=10..30]");
+    }
+
+    #[test]
+    fn distance_range_arg() {
+        let s = Selector::all_entities().distance_range(0.5, 10.0);
+        assert_eq!(s.to_string(), "@e[distance=0.5..10]");
+    }
+
+    #[test]
+    fn distance_max_arg() {
+        let s = Selector::nearest_player().distance_max(16.0);
+        assert_eq!(s.to_string(), "@p[distance=..16]");
+    }
+
+    #[test]
+    fn sort_random_arg() {
+        let s = Selector::all_entities()
+            .entity_type("minecraft:cow")
+            .sort(SortOrder::Random)
+            .limit(1);
+        assert_eq!(s.to_string(), "@e[type=minecraft:cow,sort=random,limit=1]");
+    }
+
+    #[test]
+    fn volume_box_arg() {
+        let s = Selector::all_entities().volume(3.0, 1.0, 3.0);
+        assert_eq!(s.to_string(), "@e[dx=3,dy=1,dz=3]");
+    }
+
+    #[test]
+    fn at_pos_shifts_origin() {
+        let s = Selector::all_entities().at_pos(10.0, 64.0, -20.0);
+        assert_eq!(s.to_string(), "@e[x=10,y=64,z=-20]");
+    }
+
+    #[test]
+    fn not_player_type_arg() {
+        let s = Selector::all_entities()
+            .not_player()
+            .limit(3)
+            .sort(SortOrder::Nearest);
+        assert_eq!(
+            s.to_string(),
+            "@e[type=!minecraft:player,limit=3,sort=nearest]"
+        );
+    }
+
+    #[test]
+    fn name_and_not_name() {
+        let s = Selector::all_players().name("Steve");
+        assert_eq!(s.to_string(), "@a[name=Steve]");
+
+        let s = Selector::all_players().not_name("Notch");
+        assert_eq!(s.to_string(), "@a[name=!Notch]");
+    }
 }

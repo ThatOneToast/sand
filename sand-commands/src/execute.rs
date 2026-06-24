@@ -864,4 +864,117 @@ mod tests {
             "execute store result score @s my_score run data get entity @s Health"
         );
     }
+
+    // ── Additional execute golden tests ───────────────────────────────────────
+
+    #[test]
+    fn anchored_eyes() {
+        let s = Execute::new().anchored(Anchor::Eyes).run_raw("say looking");
+        assert_eq!(s, "execute anchored eyes run say looking");
+    }
+
+    #[test]
+    fn anchored_feet() {
+        let s = Execute::new().anchored(Anchor::Feet).run_raw("say feet");
+        assert_eq!(s, "execute anchored feet run say feet");
+    }
+
+    #[test]
+    fn in_dimension() {
+        let s = Execute::new()
+            .in_("minecraft:the_nether")
+            .run_raw("say nether");
+        assert_eq!(s, "execute in minecraft:the_nether run say nether");
+    }
+
+    #[test]
+    fn rotated_as() {
+        let s = Execute::new()
+            .rotated_as(Selector::self_())
+            .run_raw("tp @s ~ ~ ~");
+        assert_eq!(s, "execute rotated as @s run tp @s ~ ~ ~");
+    }
+
+    #[test]
+    fn facing_entity() {
+        let s = Execute::new()
+            .facing_entity(Selector::nearest_player(), Anchor::Eyes)
+            .run_raw("say facing");
+        assert_eq!(s, "execute facing entity @p eyes run say facing");
+    }
+
+    #[test]
+    fn if_predicate_chain() {
+        let s = Execute::new()
+            .as_(Selector::all_players())
+            .if_predicate("my_pack:is_sneaking")
+            .run_raw("say sneaking");
+        assert_eq!(
+            s,
+            "execute as @a if predicate my_pack:is_sneaking run say sneaking"
+        );
+    }
+
+    #[test]
+    fn store_result_nbt_entity() {
+        let s = Execute::new()
+            .store_result_nbt(
+                crate::nbt::DataTarget::Entity(Selector::self_()),
+                "Custom.kills",
+                NbtStoreKind::Int,
+                1.0,
+            )
+            .run_raw("scoreboard players get @s kills");
+        assert_eq!(
+            s,
+            "execute store result entity @s Custom.kills int 1 run scoreboard players get @s kills"
+        );
+    }
+
+    #[test]
+    fn store_success_score() {
+        let s = Execute::new()
+            .store_success_score(ScoreHolder::entity(Selector::self_()), "result_obj")
+            .if_entity(Selector::all_entities().entity_type("minecraft:zombie"))
+            .run_raw("say zombies");
+        assert_eq!(
+            s,
+            "execute store success score @s result_obj if entity @e[type=minecraft:zombie] run say zombies"
+        );
+    }
+
+    #[test]
+    fn run_fn_formats_correctly() {
+        let s = Execute::new()
+            .as_(Selector::all_players())
+            .run_fn("my_pack:on_tick");
+        assert_eq!(s, "execute as @a run function my_pack:on_tick");
+    }
+
+    #[test]
+    fn summon_subcommand() {
+        let s = Execute::new()
+            .summon("minecraft:armor_stand")
+            .run_raw("say spawned");
+        assert_eq!(s, "execute summon minecraft:armor_stand run say spawned");
+    }
+
+    #[test]
+    fn unless_entity() {
+        let s = Execute::new()
+            .unless_entity(Selector::all_players().tag("ready"))
+            .run_raw("say not ready");
+        assert_eq!(s, "execute unless entity @a[tag=ready] run say not ready");
+    }
+
+    #[test]
+    fn unless_block_condition() {
+        let s = Execute::new()
+            .unless_block(BlockPos::here(), "minecraft:air")
+            .run_raw("say blocked");
+        assert_eq!(
+            s,
+            "execute unless block ~ ~ ~ minecraft:air run say blocked"
+        );
+    }
 }

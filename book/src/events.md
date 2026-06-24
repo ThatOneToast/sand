@@ -1,21 +1,69 @@
 # Events
 
-## XP level changes
-
-`minecraft:leveled_up` is not a valid vanilla advancement trigger in Sand's
-supported Minecraft targets. Do not use `PlayerLevelUpEvent`; it is deprecated
-and export fails with a diagnostic. Track levels with a tick-polled score instead:
-
-```mcfunction
-execute store result score @s xp_level run experience query @s levels
-```
-
-Compare `xp_level` to a previous or maximum score with typed `ScoreVar`
-operations and conditions.
-
 Events connect Rust functions to Minecraft gameplay triggers. Annotate a function
 with `#[event]` and Sand generates the advancement JSON + reward function wire-up
 at build time.
+
+## XP level-up (`PlayerLevelUpEvent`)
+
+Sand provides a working `PlayerLevelUpEvent` backed by a generated
+scoreboard/tick system. Use it as any other `#[event]` handler:
+
+```rust
+use sand_core::event::vanilla::PlayerLevelsUp;  // shorter alias
+use sand_core::events::PlayerLevelUpEvent;       // long form
+use sand_core::prelude::*;
+use sand_macros::event;
+
+static MANA: ScoreVar<i32> = ScoreVar::new("mana");
+
+#[event]
+pub fn on_level_up(event: Event<PlayerLevelUpEvent>) {
+    MANA.add(event.player(), 10);
+}
+```
+
+### Why not `minecraft:leveled_up`?
+
+Vanilla Minecraft does **not** have a `minecraft:leveled_up` advancement trigger.
+Any datapack that emits one is rejected at load time. Sand models level-up as a
+generated scoreboard/tick system instead:
+
+| Generated objective | Contents |
+|---|---|
+| `__sand_xp_lvl`   | Current XP level, refreshed every tick |
+| `__sand_xp_prev`  | XP level from the previous tick |
+| `__sand_xp_delta` | `current − previous` (≥ 1 when handler fires) |
+| `__sand_xp_seen`  | Join-safety flag; prevents a false fire on first tick |
+
+### Behaviour
+
+- **First tick after join**: the system initialises `__sand_xp_prev` to the
+  player's current level. No handler fires.
+- **Level increase**: if `__sand_xp_delta >= 1`, all registered handlers fire.
+- **Level decrease or no change**: handlers do not fire.
+- **Multiple handlers**: all fire from the same generated `__sand_xp_check` tick
+  function; only one tick function is added to `minecraft:tick`.
+
+### Helper methods
+
+Use `PlayerLevelUpEvent::current_level`, `previous_level`, and `level_delta` to
+build typed conditions inside your handler without knowing the objective names:
+
+```rust
+#[event]
+pub fn on_level_up(event: Event<PlayerLevelUpEvent>) {
+    // Give mana on any level-up.
+    MANA.add(event.player(), 10);
+
+    // Bonus for gaining 5+ levels at once (e.g. via XP bottles).
+    let big_jump = PlayerLevelUpEvent::level_delta("@s").gte(5);
+    when(big_jump).then_one(cmd::tellraw(
+        event.player(),
+        Text::new("Massive level up!").gold(),
+    ));
+}
+```
 
 ```rust
 use sand_core::prelude::*;
@@ -54,6 +102,7 @@ pub fn on_eat_golden_apple(event: Event<AteGoldenAppleEvent>) {
 | `#[event]` for `OnJoinEvent` | Tick tag check — every session join |
 | `#[event]` for `FirstJoinEvent` | Tick advancement (no revoke) — once per player ever |
 | `#[event]` for `OnDeathEvent` / `OnRespawnEvent` | Death count scoreboard — tick-based |
+| `#[event]` for `PlayerLevelUpEvent` / `PlayerLevelsUp` | XP scoreboard/tick system — no advancement |
 | `#[event]` with `Event<T>` | `T: AdvancementEvent` trigger + typed `Condition` guard |
 | `#[event]` for `HoldingItemEvent` / `CurrentlyWearingEvent` | Per-tick `execute if items` |
 

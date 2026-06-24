@@ -301,4 +301,104 @@ mod tests {
         assert_eq!(Title::clear(Selector::all_players()), "title @a clear");
         assert_eq!(Title::reset(Selector::all_players()), "title @a reset");
     }
+
+    // ── Bossbar full coverage ─────────────────────────────────────────────────
+
+    #[test]
+    fn bossbar_add_and_remove() {
+        assert_eq!(
+            Bossbar::add("my_pack:boss", TextComponent::literal("The Boss")),
+            r#"bossbar add my_pack:boss {"text":"The Boss"}"#
+        );
+        assert_eq!(
+            Bossbar::remove("my_pack:boss"),
+            "bossbar remove my_pack:boss"
+        );
+    }
+
+    #[test]
+    fn bossbar_set_name() {
+        let name = TextComponent::literal("Updated Name");
+        assert_eq!(
+            Bossbar::set_name("my_pack:boss", name),
+            r#"bossbar set my_pack:boss name {"text":"Updated Name"}"#
+        );
+    }
+
+    #[test]
+    fn bossbar_set_players() {
+        assert_eq!(
+            Bossbar::set_players("my_pack:boss", Selector::all_players()),
+            "bossbar set my_pack:boss players @a"
+        );
+    }
+
+    #[test]
+    fn bossbar_set_visible() {
+        assert_eq!(
+            Bossbar::set_visible("my_pack:boss", true),
+            "bossbar set my_pack:boss visible true"
+        );
+        assert_eq!(
+            Bossbar::set_visible("my_pack:boss", false),
+            "bossbar set my_pack:boss visible false"
+        );
+    }
+
+    #[test]
+    fn bossbar_set_style() {
+        assert_eq!(
+            Bossbar::set_style("my_pack:boss", BossbarStyle::Notched10),
+            "bossbar set my_pack:boss style notched_10"
+        );
+        assert_eq!(
+            Bossbar::set_style("my_pack:boss", BossbarStyle::Progress),
+            "bossbar set my_pack:boss style progress"
+        );
+    }
+
+    #[test]
+    fn bossbar_get_variants() {
+        assert_eq!(
+            Bossbar::get_value("my_pack:boss"),
+            "bossbar get my_pack:boss value"
+        );
+        assert_eq!(
+            Bossbar::get_max("my_pack:boss"),
+            "bossbar get my_pack:boss max"
+        );
+        assert_eq!(
+            Bossbar::get_players("my_pack:boss"),
+            "bossbar get my_pack:boss players"
+        );
+    }
+
+    // ── Title exact JSON output ───────────────────────────────────────────────
+
+    #[test]
+    fn title_exact_json_output() {
+        let cmds = Title::of(Selector::self_())
+            .title(TextComponent::literal("Boss Phase 2"))
+            .times(5, 40, 10)
+            .build();
+        assert_eq!(cmds[0], "title @s times 5 40 10");
+        assert_eq!(cmds[1], r#"title @s title {"text":"Boss Phase 2"}"#);
+    }
+
+    #[test]
+    fn subtitle_exact_json_output() {
+        // build() always emits times first, then subtitle
+        let cmds = Title::of(Selector::all_players())
+            .subtitle(TextComponent::literal("Get ready!"))
+            .build();
+        assert_eq!(cmds.len(), 2, "expected times + subtitle");
+        assert_eq!(cmds[0], "title @a times 10 70 20");
+        assert_eq!(cmds[1], r#"title @a subtitle {"text":"Get ready!"}"#);
+    }
+
+    #[test]
+    fn actionbar_exact_json_output() {
+        let cmd = Actionbar::show(Selector::self_(), TextComponent::literal("5 HP left"));
+        assert_eq!(cmd, r#"title @s actionbar {"text":"5 HP left"}"#);
+    }
 }

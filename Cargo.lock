@@ -1578,6 +1578,7 @@ dependencies = [
  "colored",
  "handlebars",
  "sand-build",
+ "sand-core",
  "sand-resourcepack",
  "serde",
  "serde_json",

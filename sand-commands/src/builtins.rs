@@ -955,4 +955,141 @@ mod tests {
         let cmd = summon_at_with_nbt("minecraft:armor_stand", Vec3::here(), "{Invisible:1b}");
         assert_eq!(cmd, "summon minecraft:armor_stand ~ ~ ~ {Invisible:1b}");
     }
+
+    // ── Additional command golden tests ───────────────────────────────────────
+
+    #[test]
+    fn tell_whisper() {
+        assert_eq!(
+            tell(Selector::nearest_player(), "secret message"),
+            "tell @p secret message"
+        );
+    }
+
+    #[test]
+    fn me_emote() {
+        assert_eq!(me("waves"), "me waves");
+    }
+
+    #[test]
+    fn attribute_get_test() {
+        assert_eq!(
+            attribute_get(Selector::self_(), "minecraft:generic.max_health"),
+            "attribute @s minecraft:generic.max_health get"
+        );
+    }
+
+    #[test]
+    fn attribute_base_set_test() {
+        assert_eq!(
+            attribute_base_set(Selector::self_(), "minecraft:generic.max_health", 40.0),
+            "attribute @s minecraft:generic.max_health base set 40"
+        );
+    }
+
+    #[test]
+    fn clear_inventory() {
+        assert_eq!(clear(Selector::self_()), "clear @s");
+        assert_eq!(
+            clear_item(Selector::self_(), "minecraft:dirt"),
+            "clear @s minecraft:dirt"
+        );
+    }
+
+    #[test]
+    fn give_item() {
+        assert_eq!(
+            give(Selector::self_(), "minecraft:diamond_sword"),
+            "give @s minecraft:diamond_sword"
+        );
+        assert_eq!(
+            give_count(Selector::all_players(), "minecraft:apple", 64),
+            "give @a minecraft:apple 64"
+        );
+    }
+
+    #[test]
+    fn time_commands() {
+        assert_eq!(time_set("day"), "time set day");
+        assert_eq!(time_set("6000"), "time set 6000");
+        assert_eq!(time_add(20), "time add 20");
+    }
+
+    #[test]
+    fn weather_commands() {
+        assert_eq!(weather_clear(), "weather clear");
+        assert_eq!(weather_rain(), "weather rain");
+        assert_eq!(weather_thunder(), "weather thunder");
+    }
+
+    #[test]
+    fn difficulty_command() {
+        assert_eq!(difficulty("hard"), "difficulty hard");
+        assert_eq!(difficulty("peaceful"), "difficulty peaceful");
+    }
+
+    #[test]
+    fn schedule_append_mode() {
+        assert_eq!(
+            schedule("my_pack:delayed", "40t", "append"),
+            "schedule function my_pack:delayed 40t append"
+        );
+        assert_eq!(
+            schedule_clear("my_pack:delayed"),
+            "schedule clear my_pack:delayed"
+        );
+    }
+
+    #[test]
+    fn return_variants() {
+        assert_eq!(return_fail(), "return fail");
+        assert_eq!(return_cmd(0), "return 0");
+        assert_eq!(return_cmd(1), "return 1");
+        assert_eq!(return_cmd(-1), "return -1");
+    }
+
+    #[test]
+    fn xp_add_levels_test() {
+        assert_eq!(
+            xp_add_levels(Selector::self_(), 5),
+            "experience add @s 5 levels"
+        );
+        assert_eq!(
+            xp_set_points(Selector::self_(), 0),
+            "experience set @s 0 points"
+        );
+    }
+
+    #[test]
+    fn setblock_abs_test() {
+        assert_eq!(
+            setblock_abs(10, 64, -5, "minecraft:stone"),
+            "setblock 10 64 -5 minecraft:stone"
+        );
+    }
+
+    #[test]
+    fn gamerule_variants() {
+        assert_eq!(gamerule_mob_spawning(false), "gamerule doMobSpawning false");
+        assert_eq!(gamerule_fire_tick(true), "gamerule doFireTick true");
+        assert_eq!(
+            gamerule("sendCommandFeedback", "false"),
+            "gamerule sendCommandFeedback false"
+        );
+    }
+
+    #[test]
+    fn effect_give_hidden_test() {
+        assert_eq!(
+            effect_give_hidden(Selector::self_(), "minecraft:speed", 30, 1),
+            "effect give @s minecraft:speed 30 1 true"
+        );
+    }
+
+    #[test]
+    fn reload_and_seed_and_list() {
+        assert_eq!(reload(), "reload");
+        assert_eq!(seed(), "seed");
+        assert_eq!(list(), "list");
+    }
 }

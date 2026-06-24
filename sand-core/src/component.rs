@@ -576,6 +576,24 @@ pub fn export_components_json(namespace: &str) -> String {
 
     // ── TickPoll aggregation ──────────────────────────────────────────────────
     if !tick_poll_events.is_empty() {
+        // Built-in player-state events use generated entity predicates rather
+        // than selector NBT. Emit only the predicates actually referenced by
+        // this pack so a pack with no state events gets no internal files.
+        let mut state_predicates = BTreeMap::new();
+        for (_, condition) in &tick_poll_events {
+            if let Some((path, flag)) = sand_player_state_predicate(condition) {
+                state_predicates.insert(path, flag);
+            }
+        }
+        for (path, flag) in state_predicates {
+            records.push(ComponentRecord {
+                namespace: namespace.to_string(),
+                dir: "predicate".to_string(),
+                path: path.to_string(),
+                ext: "json".to_string(),
+                content: serde_json::to_string_pretty(&player_state_predicate_json(flag)).unwrap(),
+            });
+        }
         let tick_path = "__sand_tick_check";
         let tick_cmds: Vec<String> = tick_poll_events
             .iter()
@@ -798,6 +816,10 @@ pub fn export_components_json(namespace: &str) -> String {
             Some((ns, path)) => (ns.to_string(), path.to_string()),
             None => (namespace.to_string(), tag_rl.clone()),
         };
+        // Registration can reach the same lifecycle tag through multiple
+        // framework paths. Preserve deterministic order while emitting each
+        // function reference only once.
+        let values: std::collections::BTreeSet<_> = values.into_iter().collect();
         let json = serde_json::json!({ "values": values });
         records.push(ComponentRecord {
             namespace: tag_ns,
@@ -830,6 +852,34 @@ pub fn export_components_json(namespace: &str) -> String {
     );
 
     serde_json::to_string_pretty(&records).unwrap()
+}
+
+/// Returns the output path and entity-predicate flag for a Sand-owned player
+/// state predicate. Custom `TickCondition`s are deliberately left untouched.
+fn sand_player_state_predicate(condition: &str) -> Option<(&'static str, &'static str)> {
+    match condition {
+        "predicate __sand_local:__sand/player_sneaking" => {
+            Some(("__sand/player_sneaking", "is_sneaking"))
+        }
+        "predicate __sand_local:__sand/player_sprinting" => {
+            Some(("__sand/player_sprinting", "is_sprinting"))
+        }
+        "predicate __sand_local:__sand/player_swimming" => {
+            Some(("__sand/player_swimming", "is_swimming"))
+        }
+        "predicate __sand_local:__sand/player_on_fire" => {
+            Some(("__sand/player_on_fire", "is_on_fire"))
+        }
+        _ => None,
+    }
+}
+
+fn player_state_predicate_json(flag: &str) -> serde_json::Value {
+    serde_json::json!({
+        "condition": "minecraft:entity_properties",
+        "entity": "this",
+        "predicate": { "flags": { flag: true } },
+    })
 }
 
 // ── Private helpers ───────────────────────────────────────────────────────────
@@ -920,4 +970,56 @@ fn build_item_cond(
         (Some(id), Some(cd)) => format!("{}[minecraft:custom_data~{}]", id, cd),
     };
     format!("items entity @s {} {}", slot.slot_name(), predicate)
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::{player_state_predicate_json, sand_player_state_predicate};
+    use crate::events::{PlayerSwimmingEvent, SandEvent};
+
+    #[test]
+    fn player_state_events_use_predicate_flags() {
+        let condition = match PlayerSwimmingEvent::dispatch() {
+            crate::events::SandEventDispatch::TickCondition(condition) => condition,
+            _ => panic!("player swimming must be tick-polled"),
+        };
+        assert_eq!(
+            sand_player_state_predicate(&condition),
+            Some(("__sand/player_swimming", "is_swimming"))
+        );
+        assert!(!condition.contains("nbt={"));
+        assert_eq!(
+            player_state_predicate_json("is_swimming"),
+            json!({
+                "condition": "minecraft:entity_properties",
+                "entity": "this",
+                "predicate": { "flags": { "is_swimming": true } },
+            })
+        );
+        assert_eq!(
+            format!(
+                "execute as @a if {} at @s run function audit:while_swimming",
+                condition.replace("__sand_local:", "audit:")
+            ),
+            "execute as @a if predicate audit:__sand/player_swimming at @s run function audit:while_swimming"
+        );
+    }
+
+    #[test]
+    fn all_owned_state_predicates_have_expected_flags() {
+        assert_eq!(
+            sand_player_state_predicate("predicate __sand_local:__sand/player_sneaking"),
+            Some(("__sand/player_sneaking", "is_sneaking"))
+        );
+        assert_eq!(
+            sand_player_state_predicate("predicate __sand_local:__sand/player_sprinting"),
+            Some(("__sand/player_sprinting", "is_sprinting"))
+        );
+        assert_eq!(
+            sand_player_state_predicate("predicate __sand_local:__sand/player_on_fire"),
+            Some(("__sand/player_on_fire", "is_on_fire"))
+        );
+    }
 }

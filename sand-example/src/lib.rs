@@ -351,10 +351,7 @@ mod tests {
         let json = recipe.to_json();
         assert_eq!(json["type"].as_str().unwrap(), "minecraft:crafting_shaped");
         assert_eq!(json["category"].as_str().unwrap(), "equipment");
-        assert_eq!(
-            json["key"]["D"]["item"].as_str().unwrap(),
-            "minecraft:diamond"
-        );
+        assert_eq!(json["key"]["D"].as_str().unwrap(), "minecraft:diamond");
         assert_eq!(
             json["result"]["id"].as_str().unwrap(),
             "minecraft:diamond_sword"
@@ -550,7 +547,7 @@ mod tests {
         );
         let ings = json["ingredients"].as_array().unwrap();
         assert_eq!(ings.len(), 3);
-        assert_eq!(ings[0]["item"].as_str().unwrap(), "minecraft:blaze_powder");
+        assert_eq!(ings[0].as_str().unwrap(), "minecraft:blaze_powder");
         assert_eq!(json["result"]["count"].as_u64().unwrap(), 3);
     }
 
@@ -567,10 +564,7 @@ mod tests {
         .cooking_time(200);
         let json = recipe.to_json();
         assert_eq!(json["type"].as_str().unwrap(), "minecraft:smelting");
-        assert_eq!(
-            json["ingredient"]["item"].as_str().unwrap(),
-            "minecraft:iron_ore"
-        );
+        assert_eq!(json["ingredient"].as_str().unwrap(), "minecraft:iron_ore");
         assert!((json["experience"].as_f64().unwrap() - 0.7).abs() < 0.001);
         assert_eq!(json["cookingtime"].as_u64().unwrap(), 200);
     }
@@ -586,11 +580,7 @@ mod tests {
         .result(RecipeResult::new("minecraft:gold_ingot", 1));
         let json = recipe.to_json();
         assert_eq!(json["type"].as_str().unwrap(), "minecraft:blasting");
-        // tag ingredient serializes as {"tag": "..."}
-        assert_eq!(
-            json["ingredient"]["tag"].as_str().unwrap(),
-            "minecraft:gold_ores"
-        );
+        assert_eq!(json["ingredient"].as_str().unwrap(), "#minecraft:gold_ores");
     }
 
     #[test]
@@ -603,10 +593,7 @@ mod tests {
         let json = recipe.to_json();
         assert_eq!(json["type"].as_str().unwrap(), "minecraft:stonecutting");
         assert_eq!(json["count"].as_u64().unwrap(), 2);
-        assert_eq!(
-            json["ingredient"]["item"].as_str().unwrap(),
-            "minecraft:stone"
-        );
+        assert_eq!(json["ingredient"].as_str().unwrap(), "minecraft:stone");
     }
 
     #[test]
@@ -624,10 +611,7 @@ mod tests {
             json["type"].as_str().unwrap(),
             "minecraft:smithing_transform"
         );
-        assert_eq!(
-            json["base"]["item"].as_str().unwrap(),
-            "minecraft:diamond_sword"
-        );
+        assert_eq!(json["base"].as_str().unwrap(), "minecraft:diamond_sword");
         assert_eq!(
             json["result"]["id"].as_str().unwrap(),
             "minecraft:netherite_sword"
@@ -644,8 +628,8 @@ mod tests {
         let json = recipe.to_json();
         assert_eq!(json["type"].as_str().unwrap(), "minecraft:smithing_trim");
         assert_eq!(
-            json["template"]["tag"].as_str().unwrap(),
-            "minecraft:trim_templates"
+            json["template"].as_str().unwrap(),
+            "#minecraft:trim_templates"
         );
     }
 

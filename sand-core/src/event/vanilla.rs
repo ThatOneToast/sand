@@ -80,11 +80,11 @@ pub use crate::events::TameAnimalEvent as AnimalTamed;
 /// Fires when the player summons an entity.
 pub use crate::events::SummonEntityEvent as EntitySummoned;
 
-/// Deprecated: use tick-polled XP level tracking. Vanilla has no
-/// `minecraft:leveled_up` advancement trigger.
-#[deprecated(
-    note = "minecraft:leveled_up is invalid; use tick polling with `experience query @s levels` and scores"
-)]
+/// Fires when a player's XP level increases (tick-backed; no advancement).
+///
+/// Vanilla Minecraft has no `minecraft:leveled_up` advancement trigger.
+/// Sand implements this event via a generated scoreboard/tick system.
+/// See [`crate::events::PlayerLevelUpEvent`] for full documentation.
 pub use crate::events::PlayerLevelUpEvent as PlayerLevelsUp;
 
 /// Fires when the player brews a potion.

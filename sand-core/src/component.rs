@@ -146,6 +146,7 @@ pub fn export_components_json(namespace: &str) -> String {
     let mut join_tick_events: Vec<&EventDescriptor> = Vec::new();
     let mut death_tick_events: Vec<&EventDescriptor> = Vec::new();
     let mut respawn_tick_events: Vec<&EventDescriptor> = Vec::new();
+    let mut xp_level_up_events: Vec<&EventDescriptor> = Vec::new();
     // (descriptor, condition_string)
     let mut tick_poll_events: Vec<(&EventDescriptor, String)> = Vec::new();
     // Shared armor watch map — populated by both EventDescriptor ArmorEquip/
@@ -297,6 +298,18 @@ pub fn export_components_json(namespace: &str) -> String {
                     content: commands.join("\n"),
                 });
                 tick_poll_events.push((desc, make_condition()));
+            }
+
+            // ── XpLevelUp ────────────────────────────────────────────────────
+            EventDispatch::XpLevelUp => {
+                records.push(ComponentRecord {
+                    namespace: namespace.to_string(),
+                    dir: "function".to_string(),
+                    path: desc.path.to_string(),
+                    ext: "mcfunction".to_string(),
+                    content: commands.join("\n"),
+                });
+                xp_level_up_events.push(desc);
             }
 
             // ── ArmorEquip ───────────────────────────────────────────────────
@@ -578,6 +591,81 @@ pub fn export_components_json(namespace: &str) -> String {
             .entry("minecraft:tick".to_string())
             .or_default()
             .push(format!("{namespace}:{respawn_path}"));
+    }
+
+    // ── XpLevelUp aggregation ─────────────────────────────────────────────────
+    // Objectives (all ≤16 chars):
+    //   __sand_xp_lvl   — current XP level this tick
+    //   __sand_xp_prev  — XP level last tick
+    //   __sand_xp_delta — current − previous
+    //   __sand_xp_seen  — 0 until first tick (prevents spurious fire on join)
+    if !xp_level_up_events.is_empty() {
+        let xp_init_path = "__sand_xp_init";
+        records.push(ComponentRecord {
+            namespace: namespace.to_string(),
+            dir: "function".to_string(),
+            path: xp_init_path.to_string(),
+            ext: "mcfunction".to_string(),
+            content: [
+                "scoreboard objectives add __sand_xp_lvl dummy",
+                "scoreboard objectives add __sand_xp_prev dummy",
+                "scoreboard objectives add __sand_xp_delta dummy",
+                "scoreboard objectives add __sand_xp_seen dummy",
+            ]
+            .join("\n"),
+        });
+        tag_map
+            .entry("minecraft:load".to_string())
+            .or_default()
+            .push(format!("{namespace}:{xp_init_path}"));
+
+        let xp_check_path = "__sand_xp_check";
+        // Tick flow:
+        // 1. Snapshot current XP level for all online players.
+        // 2. On first tick (seen=0), copy current to prev as a baseline;
+        //    then mark seen=1. Do NOT fire handlers yet.
+        // 3. Compute delta = current − prev.
+        // 4. Fire each handler for players whose delta ≥ 1 (level increased).
+        // 5. Update prev to current (covers both increases and decreases).
+        let handler_cmds: Vec<String> = xp_level_up_events
+            .iter()
+            .map(|desc| {
+                format!(
+                    "execute as @a[scores={{__sand_xp_delta=1..}}] at @s run function {namespace}:{}",
+                    desc.path
+                )
+            })
+            .collect();
+        let mut xp_cmds = vec![
+            // Step 1 — snapshot
+            "execute as @a store result score @s __sand_xp_lvl run experience query @s levels"
+                .to_string(),
+            // Step 2 — first-tick baseline
+            "execute as @a unless score @s __sand_xp_seen matches 1 \
+             run scoreboard players operation @s __sand_xp_prev = @s __sand_xp_lvl"
+                .to_string(),
+            "scoreboard players set @a __sand_xp_seen 1".to_string(),
+            // Step 3 — delta = current − prev
+            "scoreboard players operation @a __sand_xp_delta = @a __sand_xp_lvl".to_string(),
+            "scoreboard players operation @a __sand_xp_delta -= @a __sand_xp_prev".to_string(),
+        ];
+        // Step 4 — fire handlers
+        xp_cmds.extend(handler_cmds);
+        // Step 5 — advance prev
+        xp_cmds
+            .push("scoreboard players operation @a __sand_xp_prev = @a __sand_xp_lvl".to_string());
+
+        records.push(ComponentRecord {
+            namespace: namespace.to_string(),
+            dir: "function".to_string(),
+            path: xp_check_path.to_string(),
+            ext: "mcfunction".to_string(),
+            content: xp_cmds.join("\n"),
+        });
+        tag_map
+            .entry("minecraft:tick".to_string())
+            .or_default()
+            .push(format!("{namespace}:{xp_check_path}"));
     }
 
     // ── TickPoll aggregation ──────────────────────────────────────────────────

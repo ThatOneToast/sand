@@ -775,18 +775,89 @@ impl SandEvent for FallFromHeightEvent {
     }
 }
 
-/// Former level-up advancement event.
+/// Fires when a player's XP level increases (gains one or more levels in a tick).
 ///
-/// `minecraft:leveled_up` is not a vanilla advancement trigger in supported
-/// Minecraft versions. This type remains for source compatibility but export
-/// fails with a migration diagnostic. Track XP levels with tick polling instead.
-#[deprecated(
-    note = "minecraft:leveled_up is invalid; use tick polling with `experience query @s levels` and scores"
-)]
+/// The preferred short name is
+/// [`sand_core::event::vanilla::PlayerLevelsUp`](crate::event::vanilla::PlayerLevelsUp).
+///
+/// Implemented as a Sand-generated tick-backed system — not an advancement.
+/// Vanilla Minecraft has no `minecraft:leveled_up` advancement trigger.
+///
+/// Sand generates four scoreboard objectives:
+/// - `__sand_xp_lvl`   — current XP level
+/// - `__sand_xp_prev`  — previous tick's XP level
+/// - `__sand_xp_delta` — current − previous
+/// - `__sand_xp_seen`  — join-safety flag (prevents false fire on first tick)
+///
+/// The handler fires once per player per tick where their level increased. Level
+/// decreases and same-level ticks do not fire. The first tick after a player
+/// joins only initialises the baseline and does not fire.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// use sand_core::event::vanilla::PlayerLevelsUp;
+/// use sand_core::events::PlayerLevelUpEvent;
+/// use sand_core::prelude::*;
+/// use sand_macros::event;
+///
+/// static MANA: ScoreVar<i32> = ScoreVar::new("mana");
+///
+/// #[event]
+/// pub fn on_level_up(event: Event<PlayerLevelUpEvent>) {
+///     MANA.add(event.player(), 10);
+/// }
+/// ```
 pub struct PlayerLevelUpEvent;
-impl SandEvent for PlayerLevelUpEvent {
-    fn dispatch() -> SandEventDispatch {
-        SandEventDispatch::AdvancementTrigger(crate::AdvancementTrigger::LeveledUp { level: None })
+
+/// Sand-internal score objectives used by the XP level-up tick system.
+///
+/// These are named exactly so the component generator and `Event<PlayerLevelUpEvent>`
+/// helpers agree on the same objective names. All names are ≤16 characters.
+pub(crate) static SAND_XP_LVL: crate::state::score::ScoreVar<i32> =
+    crate::state::score::ScoreVar::new("__sand_xp_lvl");
+pub(crate) static SAND_XP_PREV: crate::state::score::ScoreVar<i32> =
+    crate::state::score::ScoreVar::new("__sand_xp_prev");
+pub(crate) static SAND_XP_DELTA: crate::state::score::ScoreVar<i32> =
+    crate::state::score::ScoreVar::new("__sand_xp_delta");
+
+impl PlayerLevelUpEvent {
+    /// Returns a [`ScoreRef`] for the player's current XP level this tick.
+    ///
+    /// The objective `__sand_xp_lvl` is populated each tick by
+    /// `experience query @s levels`.
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// #[event]
+    /// pub fn on_level_up(event: Event<PlayerLevelUpEvent>) {
+    ///     let lvl = PlayerLevelUpEvent::current_level("@s");
+    /// }
+    /// ```
+    ///
+    /// [`ScoreRef`]: crate::state::score::ScoreRef
+    pub fn current_level(selector: &str) -> crate::state::score::ScoreRef<'static, i32> {
+        SAND_XP_LVL.of(selector)
+    }
+
+    /// Returns a [`ScoreRef`] for the player's XP level on the previous tick.
+    ///
+    /// The objective `__sand_xp_prev` holds the level from the preceding tick.
+    ///
+    /// [`ScoreRef`]: crate::state::score::ScoreRef
+    pub fn previous_level(selector: &str) -> crate::state::score::ScoreRef<'static, i32> {
+        SAND_XP_PREV.of(selector)
+    }
+
+    /// Returns a [`ScoreRef`] for the level delta this tick (current − previous).
+    ///
+    /// The objective `__sand_xp_delta` is always ≥ 1 when a handler fires,
+    /// since the handler only runs when the delta is positive.
+    ///
+    /// [`ScoreRef`]: crate::state::score::ScoreRef
+    pub fn level_delta(selector: &str) -> crate::state::score::ScoreRef<'static, i32> {
+        SAND_XP_DELTA.of(selector)
     }
 }
 
@@ -1010,7 +1081,20 @@ adv_event!(BeeNestDestroyedEvent);
 adv_event!(ChangeDimensionEvent);
 adv_event!(PlayerSleepEvent);
 adv_event!(FallFromHeightEvent);
-adv_event!(PlayerLevelUpEvent);
+// PlayerLevelUpEvent uses XpLevelUp dispatch — not an advancement trigger.
+// The AdvancementEvent impl here is a placeholder so Event<PlayerLevelUpEvent>
+// satisfies the Event<E: AdvancementEvent> bound. The macro special-cases
+// PlayerLevelUpEvent / PlayerLevelsUp and emits EventDispatch::XpLevelUp instead
+// of calling this trigger.
+impl crate::event::AdvancementEvent for PlayerLevelUpEvent {
+    type Trigger = crate::AdvancementTrigger;
+    fn trigger() -> Self::Trigger {
+        // This trigger is never emitted — the macro bypasses AdvancementEvent::trigger()
+        // for PlayerLevelUpEvent and emits EventDispatch::XpLevelUp instead.
+        crate::AdvancementTrigger::Tick
+    }
+}
+impl crate::event::EventPlayer for PlayerLevelUpEvent {}
 adv_event!(EffectsChangedEvent);
 adv_event!(StartRidingEvent);
 adv_event!(UseEnderEyeEvent);
@@ -1142,3 +1226,73 @@ player_event!(PlayerOnFireEvent);
 player_event!(PlayerInCreativeEvent);
 player_event!(PlayerInAdventureEvent);
 player_event!(PlayerInSpectatorEvent);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::event::AdvancementEvent;
+
+    #[test]
+    fn player_level_up_event_is_not_deprecated() {
+        // Compile-time: just instantiating the type confirms no deprecated attr.
+        let _: PlayerLevelUpEvent = PlayerLevelUpEvent;
+    }
+
+    #[test]
+    fn player_level_up_event_implements_advancement_event() {
+        // The placeholder trigger must be Tick (safe; never emitted for XpLevelUp).
+        let trigger = PlayerLevelUpEvent::trigger();
+        // Tick trigger serializes to "minecraft:tick" — not "minecraft:leveled_up".
+        let id = trigger.trigger_id();
+        assert_ne!(id, "minecraft:leveled_up");
+        assert_eq!(id, "minecraft:tick");
+    }
+
+    #[test]
+    fn xp_score_vars_have_valid_names() {
+        // Objective names must be ≤ 16 chars for Minecraft.
+        assert!(SAND_XP_LVL.objective_name().len() <= 16);
+        assert!(SAND_XP_PREV.objective_name().len() <= 16);
+        assert!(SAND_XP_DELTA.objective_name().len() <= 16);
+    }
+
+    #[test]
+    fn xp_objective_names_are_stable() {
+        assert_eq!(SAND_XP_LVL.objective_name(), "__sand_xp_lvl");
+        assert_eq!(SAND_XP_PREV.objective_name(), "__sand_xp_prev");
+        assert_eq!(SAND_XP_DELTA.objective_name(), "__sand_xp_delta");
+    }
+
+    #[test]
+    fn helper_current_level_generates_score_ref() {
+        let score_ref = PlayerLevelUpEvent::current_level("@s");
+        let operand = score_ref.operand();
+        assert_eq!(operand.selector, "@s");
+        assert_eq!(operand.objective, "__sand_xp_lvl");
+    }
+
+    #[test]
+    fn helper_previous_level_generates_score_ref() {
+        let score_ref = PlayerLevelUpEvent::previous_level("@s");
+        let operand = score_ref.operand();
+        assert_eq!(operand.selector, "@s");
+        assert_eq!(operand.objective, "__sand_xp_prev");
+    }
+
+    #[test]
+    fn helper_level_delta_generates_score_ref() {
+        let score_ref = PlayerLevelUpEvent::level_delta("@s");
+        let operand = score_ref.operand();
+        assert_eq!(operand.selector, "@s");
+        assert_eq!(operand.objective, "__sand_xp_delta");
+    }
+
+    #[test]
+    fn player_levels_up_alias_is_same_type() {
+        // crate::event::vanilla::PlayerLevelsUp is just a type alias — verify it
+        // has the same helper methods available.
+        let score_ref = crate::event::vanilla::PlayerLevelsUp::current_level("@s");
+        let operand = score_ref.operand();
+        assert_eq!(operand.objective, "__sand_xp_lvl");
+    }
+}

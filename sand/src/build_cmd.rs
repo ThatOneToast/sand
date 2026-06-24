@@ -661,6 +661,143 @@ mod tests {
             .is_err()
         );
     }
+
+    #[test]
+    fn locks_modern_singular_datapack_component_paths() {
+        let dist = Path::new("dist/audit");
+        let cases = [
+            (
+                "function",
+                "load",
+                "mcfunction",
+                "data/audit/function/load.mcfunction",
+            ),
+            (
+                "tags/function",
+                "load",
+                "json",
+                "data/audit/tags/function/load.json",
+            ),
+            (
+                "advancement",
+                "test",
+                "json",
+                "data/audit/advancement/test.json",
+            ),
+            ("recipe", "test", "json", "data/audit/recipe/test.json"),
+            (
+                "predicate",
+                "test",
+                "json",
+                "data/audit/predicate/test.json",
+            ),
+            (
+                "loot_table",
+                "test",
+                "json",
+                "data/audit/loot_table/test.json",
+            ),
+            (
+                "item_modifier",
+                "test",
+                "json",
+                "data/audit/item_modifier/test.json",
+            ),
+            (
+                "damage_type",
+                "test",
+                "json",
+                "data/audit/damage_type/test.json",
+            ),
+            (
+                "enchantment",
+                "test",
+                "json",
+                "data/audit/enchantment/test.json",
+            ),
+            (
+                "banner_pattern",
+                "test",
+                "json",
+                "data/audit/banner_pattern/test.json",
+            ),
+            (
+                "painting_variant",
+                "test",
+                "json",
+                "data/audit/painting_variant/test.json",
+            ),
+            (
+                "trim_material",
+                "test",
+                "json",
+                "data/audit/trim_material/test.json",
+            ),
+            (
+                "trim_pattern",
+                "test",
+                "json",
+                "data/audit/trim_pattern/test.json",
+            ),
+            (
+                "chat_type",
+                "test",
+                "json",
+                "data/audit/chat_type/test.json",
+            ),
+            (
+                "wolf_variant",
+                "test",
+                "json",
+                "data/audit/wolf_variant/test.json",
+            ),
+            (
+                "jukebox_song",
+                "test",
+                "json",
+                "data/audit/jukebox_song/test.json",
+            ),
+            (
+                "worldgen/biome",
+                "test",
+                "json",
+                "data/audit/worldgen/biome/test.json",
+            ),
+            (
+                "worldgen/noise_settings",
+                "test",
+                "json",
+                "data/audit/worldgen/noise_settings/test.json",
+            ),
+            (
+                "worldgen/placed_feature",
+                "test",
+                "json",
+                "data/audit/worldgen/placed_feature/test.json",
+            ),
+        ];
+        for (dir, path, ext, expected) in cases {
+            let output = component_output_path(dist, &record(dir, path, ext, "{}")).unwrap();
+            let actual = output
+                .strip_prefix(dist)
+                .unwrap()
+                .to_string_lossy()
+                .replace('\\', "/");
+            assert_eq!(actual, expected, "wrong directory for {dir}");
+        }
+
+        let minecraft_tag = ComponentRecord {
+            namespace: "minecraft".into(),
+            ..record("tags/function", "tick", "json", "{}")
+        };
+        assert_eq!(
+            component_output_path(dist, &minecraft_tag)
+                .unwrap()
+                .strip_prefix(dist)
+                .unwrap(),
+            PathBuf::from("data/minecraft/tags/function/tick.json")
+        );
+    }
 }
 
 fn zip_dir(dist: &Path, name: &str) -> Result<PathBuf> {

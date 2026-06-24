@@ -816,6 +816,10 @@ pub fn export_components_json(namespace: &str) -> String {
             Some((ns, path)) => (ns.to_string(), path.to_string()),
             None => (namespace.to_string(), tag_rl.clone()),
         };
+        // Registration can reach the same lifecycle tag through multiple
+        // framework paths. Preserve deterministic order while emitting each
+        // function reference only once.
+        let values: std::collections::BTreeSet<_> = values.into_iter().collect();
         let json = serde_json::json!({ "values": values });
         records.push(ComponentRecord {
             namespace: tag_ns,

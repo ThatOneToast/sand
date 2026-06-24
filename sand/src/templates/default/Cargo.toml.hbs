@@ -18,6 +18,7 @@ path = "src/bin/sand_resource_export.rs"
 
 {{/if}}
 [dependencies]
+{{#if use_path_deps}}
 sand-core   = { path = "{{sand_core_path}}" }
 {{#if resourcepack}}
 sand-macros = { path = "{{sand_macros_path}}", features = ["resourcepack"] }
@@ -25,7 +26,20 @@ sand-resourcepack = { path = "{{sand_resourcepack_path}}" }
 {{else}}
 sand-macros = { path = "{{sand_macros_path}}" }
 {{/if}}
+{{else}}
+sand-core   = "{{sand_version}}"
+{{#if resourcepack}}
+sand-macros = { version = "{{sand_version}}", features = ["resourcepack"] }
+sand-resourcepack = "{{sand_version}}"
+{{else}}
+sand-macros = "{{sand_version}}"
+{{/if}}
+{{/if}}
 serde_json = "1"
 
 [build-dependencies]
+{{#if use_path_deps}}
 sand-build = { path = "{{sand_build_path}}" }
+{{else}}
+sand-build = "{{sand_version}}"
+{{/if}}

@@ -157,18 +157,25 @@ impl fmt::Display for MinecraftVersion {
 /// ```
 /// use sand_core::version::{MinecraftVersion, VersionProfile};
 ///
-/// // Known version → exact profile
+/// // Known 1.21 version → exact profile
 /// let v = MinecraftVersion::parse("1.21.4").unwrap();
 /// let p = VersionProfile::resolve(&v).unwrap();
 /// assert_eq!(p.data_pack_format, 61);
 /// assert!(!p.is_fallback);
 ///
-/// // Unknown 26.x → conservative fallback; all features false
+/// // Known 26.x version → exact profile with full feature support
 /// let v = MinecraftVersion::parse("26.1").unwrap();
 /// let p = VersionProfile::resolve(&v).unwrap();
 /// assert!(p.supports_26_series);
-/// assert!(p.is_fallback, "26.x formats are not yet verified");
-/// assert!(!p.supports_item_components, "conservative profile");
+/// assert!(!p.is_fallback, "26.1 is a verified, mapped version");
+/// assert_eq!(p.data_pack_format, 101);
+/// assert!(p.supports_item_components);
+///
+/// // Unknown future 26.x → conservative fallback; feature flags false
+/// let v = MinecraftVersion::parse("26.99").unwrap();
+/// let p = VersionProfile::resolve(&v).unwrap();
+/// assert!(p.is_fallback, "26.99 is beyond the known table");
+/// assert!(!p.supports_dialogs);
 /// ```
 #[derive(Debug, Clone)]
 pub struct VersionProfile {
@@ -211,7 +218,7 @@ pub struct VersionProfile {
 }
 
 /// The latest version this table was last verified against.
-pub const LATEST_KNOWN: &str = "1.21.11";
+pub const LATEST_KNOWN: &str = "26.2";
 
 // ── PackMetadata ──────────────────────────────────────────────────────────────
 
@@ -447,8 +454,8 @@ impl VersionCaps {
     /// must warn the user that output for this version is unverified.
     fn conservative() -> Self {
         Self {
-            data_fmt: 61,
-            res_fmt: 46,
+            data_fmt: 107,
+            res_fmt: 88,
             item_components: false,
             data_components: false,
             dialogs: false,
@@ -466,25 +473,86 @@ impl VersionCaps {
 }
 
 /// Look up version capabilities from (major, minor, patch).
+///
+/// Pack format numbers sourced from <https://minecraft.wiki/w/Pack_format>.
 fn lookup(major: u32, minor: u32, patch: u32) -> VersionCaps {
     match (major, minor, patch) {
-        // ── 1.21.6+ — dialogs introduced ─────────────────────────────────────
-        (1, 21, p) if p >= 6 => VersionCaps {
-            data_fmt: 61,
-            res_fmt: 46,
+        // ════════════════════════════════════════════════════════════════════
+        // 26.x calendar series  (2026+, Minecraft's new versioning scheme)
+        // ════════════════════════════════════════════════════════════════════
+
+        // ── 26.2.x — data 107, resource 88 ───────────────────────────────
+        (26, 2, _) => VersionCaps {
+            data_fmt: 107,
+            res_fmt: 88,
             dialogs: true,
             is_fallback: false,
             ..VersionCaps::default()
         },
-        // ── 1.21.4-5 ─────────────────────────────────────────────────────────
-        (1, 21, 4..=5) => VersionCaps {
+        // ── 26.1.x — data 101, resource 84 ───────────────────────────────
+        (26, 1, _) => VersionCaps {
+            data_fmt: 101,
+            res_fmt: 84,
+            dialogs: true,
+            is_fallback: false,
+            ..VersionCaps::default()
+        },
+        // ── 26.x unknown minor — conservative; reject via resolve_strict ──
+        (26, _, _) => VersionCaps::conservative(),
+
+        // ════════════════════════════════════════════════════════════════════
+        // 1.21.x series
+        // ════════════════════════════════════════════════════════════════════
+
+        // ── 1.21.11 — data 94, resource 75 ───────────────────────────────
+        (1, 21, 11) => VersionCaps {
+            data_fmt: 94,
+            res_fmt: 75,
+            dialogs: true,
+            is_fallback: false,
+            ..VersionCaps::default()
+        },
+        // ── 1.21.9-10 — data 88, resource 69 ────────────────────────────
+        (1, 21, 9..=10) => VersionCaps {
+            data_fmt: 88,
+            res_fmt: 69,
+            dialogs: true,
+            is_fallback: false,
+            ..VersionCaps::default()
+        },
+        // ── 1.21.7-8 — data 81, resource 64 ─────────────────────────────
+        (1, 21, 7..=8) => VersionCaps {
+            data_fmt: 81,
+            res_fmt: 64,
+            dialogs: true,
+            is_fallback: false,
+            ..VersionCaps::default()
+        },
+        // ── 1.21.6 — dialogs introduced; data 80, resource 63 ────────────
+        (1, 21, 6) => VersionCaps {
+            data_fmt: 80,
+            res_fmt: 63,
+            dialogs: true,
+            is_fallback: false,
+            ..VersionCaps::default()
+        },
+        // ── 1.21.5 — data 71, resource 55 ────────────────────────────────
+        (1, 21, 5) => VersionCaps {
+            data_fmt: 71,
+            res_fmt: 55,
+            dialogs: false,
+            is_fallback: false,
+            ..VersionCaps::default()
+        },
+        // ── 1.21.4 — data 61, resource 46 ────────────────────────────────
+        (1, 21, 4) => VersionCaps {
             data_fmt: 61,
             res_fmt: 46,
             dialogs: false,
             is_fallback: false,
             ..VersionCaps::default()
         },
-        // ── 1.21.2-3 ─────────────────────────────────────────────────────────
+        // ── 1.21.2-3 — data 57, resource 42 ─────────────────────────────
         (1, 21, 2..=3) => VersionCaps {
             data_fmt: 57,
             res_fmt: 42,
@@ -492,7 +560,7 @@ fn lookup(major: u32, minor: u32, patch: u32) -> VersionCaps {
             is_fallback: false,
             ..VersionCaps::default()
         },
-        // ── 1.21.0-1 ─────────────────────────────────────────────────────────
+        // ── 1.21.0-1 — data 48, resource 34 ─────────────────────────────
         (1, 21, 0..=1) => VersionCaps {
             data_fmt: 48,
             res_fmt: 34,
@@ -500,7 +568,20 @@ fn lookup(major: u32, minor: u32, patch: u32) -> VersionCaps {
             is_fallback: false,
             ..VersionCaps::default()
         },
-        // ── 1.20.5-6 ─────────────────────────────────────────────────────────
+        // ── unknown future 1.21.x — use latest known 1.21 as fallback ────
+        (1, 21, _) => VersionCaps {
+            data_fmt: 94,
+            res_fmt: 75,
+            dialogs: true,
+            is_fallback: true,
+            ..VersionCaps::default()
+        },
+
+        // ════════════════════════════════════════════════════════════════════
+        // 1.20.x series
+        // ════════════════════════════════════════════════════════════════════
+
+        // ── 1.20.5-6 — data 41, resource 32 ─────────────────────────────
         (1, 20, 5..=6) => VersionCaps {
             data_fmt: 41,
             res_fmt: 32,
@@ -510,7 +591,7 @@ fn lookup(major: u32, minor: u32, patch: u32) -> VersionCaps {
             is_fallback: false,
             ..VersionCaps::default()
         },
-        // ── 1.20.3-4 ─────────────────────────────────────────────────────────
+        // ── 1.20.3-4 — data 26, resource 22 ─────────────────────────────
         (1, 20, 3..=4) => VersionCaps {
             data_fmt: 26,
             res_fmt: 22,
@@ -521,7 +602,7 @@ fn lookup(major: u32, minor: u32, patch: u32) -> VersionCaps {
             is_fallback: false,
             ..VersionCaps::default()
         },
-        // ── 1.20.2 ───────────────────────────────────────────────────────────
+        // ── 1.20.2 — data 18, resource 18 ────────────────────────────────
         (1, 20, 2) => VersionCaps {
             data_fmt: 18,
             res_fmt: 18,
@@ -532,7 +613,7 @@ fn lookup(major: u32, minor: u32, patch: u32) -> VersionCaps {
             is_fallback: false,
             ..VersionCaps::default()
         },
-        // ── 1.20.0-1 ─────────────────────────────────────────────────────────
+        // ── 1.20.0-1 — data 15, resource 15 ─────────────────────────────
         (1, 20, 0..=1) => VersionCaps {
             data_fmt: 15,
             res_fmt: 15,
@@ -546,7 +627,12 @@ fn lookup(major: u32, minor: u32, patch: u32) -> VersionCaps {
             is_fallback: false,
             ..VersionCaps::default()
         },
-        // ── 1.19.4 ───────────────────────────────────────────────────────────
+
+        // ════════════════════════════════════════════════════════════════════
+        // 1.19.x series
+        // ════════════════════════════════════════════════════════════════════
+
+        // ── 1.19.4 — data 12, resource 13 ────────────────────────────────
         (1, 19, 4) => VersionCaps {
             data_fmt: 12,
             res_fmt: 13,
@@ -560,7 +646,7 @@ fn lookup(major: u32, minor: u32, patch: u32) -> VersionCaps {
             is_fallback: false,
             ..VersionCaps::default()
         },
-        // ── 1.19.0-3 ─────────────────────────────────────────────────────────
+        // ── 1.19.0-3 — data 10, resource 12 ─────────────────────────────
         (1, 19, 0..=3) => VersionCaps {
             data_fmt: 10,
             res_fmt: 12,
@@ -576,13 +662,47 @@ fn lookup(major: u32, minor: u32, patch: u32) -> VersionCaps {
             is_fallback: false,
             ..VersionCaps::default()
         },
-        // ── 26.x series — pack formats not verified; use conservative caps ────
-        //    Until specific 26.x versions are mapped, treat all as unknown.
-        //    Use VersionProfile::resolve_strict() to reject these outright.
-        (26, _, _) => VersionCaps::conservative(),
-        // ── future 1.x > 1.21 — conservative fallback ────────────────────────
-        (1, minor, _) if minor > 21 => VersionCaps::conservative(),
-        // ── anything else — conservative fallback ─────────────────────────────
+
+        // ════════════════════════════════════════════════════════════════════
+        // 1.18.x series
+        // ════════════════════════════════════════════════════════════════════
+
+        // ── 1.18.2 — data 9, resource 8 ──────────────────────────────────
+        (1, 18, 2) => VersionCaps {
+            data_fmt: 9,
+            res_fmt: 8,
+            item_components: false,
+            data_components: false,
+            dialogs: false,
+            function_macros: false,
+            resource_pack_overlays: false,
+            trim_assets: false,
+            jukebox_songs: false,
+            enchantments: false,
+            damage_types: false,
+            chat_types: false,
+            is_fallback: false,
+            ..VersionCaps::default()
+        },
+        // ── 1.18.0-1 — data 8, resource 8 ───────────────────────────────
+        (1, 18, 0..=1) => VersionCaps {
+            data_fmt: 8,
+            res_fmt: 8,
+            item_components: false,
+            data_components: false,
+            dialogs: false,
+            function_macros: false,
+            resource_pack_overlays: false,
+            trim_assets: false,
+            jukebox_songs: false,
+            enchantments: false,
+            damage_types: false,
+            chat_types: false,
+            is_fallback: false,
+            ..VersionCaps::default()
+        },
+
+        // ── future 1.x > 1.21 / anything unknown — conservative fallback ─
         _ => VersionCaps::conservative(),
     }
 }
@@ -687,28 +807,36 @@ mod tests {
     }
 
     #[test]
-    fn resolve_121_11_future_fallback() {
+    fn resolve_121_11_known() {
         let v = MinecraftVersion::parse("1.21.11").unwrap();
         let p = VersionProfile::resolve(&v).unwrap();
-        // 1.21.11 is beyond the table; still resolves with fallback
-        assert_eq!(p.data_pack_format, 61);
-        assert_eq!(p.resource_pack_format, 46);
+        assert_eq!(p.data_pack_format, 94);
+        assert_eq!(p.resource_pack_format, 75);
         assert!(!p.is_fallback);
+        assert!(p.supports_dialogs());
     }
 
     #[test]
-    fn resolve_26_series() {
+    fn resolve_26_1_known() {
         let v = MinecraftVersion::parse("26.1").unwrap();
         let p = VersionProfile::resolve(&v).unwrap();
         assert!(p.supports_26_series);
-        assert!(
-            p.is_fallback,
-            "26.x is conservative since no version is mapped yet"
-        );
-        assert!(
-            !p.supports_item_components,
-            "conservative profile has all features false"
-        );
+        assert!(!p.is_fallback, "26.1 is an explicitly mapped version");
+        assert_eq!(p.data_pack_format, 101);
+        assert_eq!(p.resource_pack_format, 84);
+        assert!(p.supports_dialogs(), "26.1 supports dialogs");
+        assert!(p.supports_item_components, "26.1 supports item components");
+    }
+
+    #[test]
+    fn resolve_26_2_known() {
+        let v = MinecraftVersion::parse("26.2").unwrap();
+        let p = VersionProfile::resolve(&v).unwrap();
+        assert!(p.supports_26_series);
+        assert!(!p.is_fallback, "26.2 is an explicitly mapped version");
+        assert_eq!(p.data_pack_format, 107);
+        assert_eq!(p.resource_pack_format, 88);
+        assert!(p.supports_dialogs());
     }
 
     #[test]
@@ -716,7 +844,7 @@ mod tests {
         let v = MinecraftVersion::parse("26.99").unwrap();
         let p = VersionProfile::resolve(&v).unwrap();
         assert!(p.supports_26_series);
-        assert!(p.is_fallback);
+        assert!(p.is_fallback, "26.99 is beyond the known table");
         assert!(
             !p.supports_dialogs,
             "unverified version must not claim dialog support"
@@ -728,7 +856,10 @@ mod tests {
         let v = MinecraftVersion::parse("latest").unwrap();
         let p = VersionProfile::resolve(&v).unwrap();
         assert!(p.resolved_name.contains("latest"));
-        assert_eq!(p.data_pack_format, 61);
+        // LATEST_KNOWN = "26.2": data 107, resource 88
+        assert_eq!(p.data_pack_format, 107);
+        assert_eq!(p.resource_pack_format, 88);
+        assert!(!p.is_fallback);
     }
 
     #[test]
@@ -772,13 +903,20 @@ mod tests {
     }
 
     #[test]
-    fn dialogs_not_in_26x_unverified() {
-        // 26.x is conservative until specific versions are mapped to exact formats.
+    fn dialogs_in_26_1() {
         let v = MinecraftVersion::parse("26.1").unwrap();
+        let p = VersionProfile::resolve(&v).unwrap();
+        assert!(p.supports_dialogs(), "26.1 supports dialogs");
+    }
+
+    #[test]
+    fn dialogs_not_in_26x_unknown() {
+        // Unknown 26.x minors (beyond the known table) use conservative caps.
+        let v = MinecraftVersion::parse("26.99").unwrap();
         let p = VersionProfile::resolve(&v).unwrap();
         assert!(
             !p.supports_dialogs(),
-            "26.x is unverified — must not claim dialog support"
+            "26.99 is unverified — conservative profile must not claim dialog support"
         );
     }
 
@@ -847,12 +985,26 @@ mod tests {
     }
 
     #[test]
-    fn strict_unknown_26x_fails() {
+    fn strict_known_26x_ok() {
         let v = MinecraftVersion::parse("26.1").unwrap();
+        assert!(
+            VersionProfile::resolve_strict(&v).is_ok(),
+            "26.1 is a known version"
+        );
+        let v2 = MinecraftVersion::parse("26.2").unwrap();
+        assert!(
+            VersionProfile::resolve_strict(&v2).is_ok(),
+            "26.2 is a known version"
+        );
+    }
+
+    #[test]
+    fn strict_unknown_26x_fails() {
+        let v = MinecraftVersion::parse("26.99").unwrap();
         let err = VersionProfile::resolve_strict(&v).unwrap_err();
         assert!(
             matches!(err, VersionError::UnknownVersion { .. }),
-            "expected UnknownVersion, got {err:?}"
+            "expected UnknownVersion for 26.99, got {err:?}"
         );
     }
 
@@ -905,5 +1057,97 @@ mod tests {
         let p = VersionProfile::resolve(&v).unwrap();
         let m = p.datapack_metadata();
         assert!(m.is_fallback);
+    }
+
+    #[test]
+    fn resource_pack_formats_1_21_series() {
+        let cases = [
+            ("1.21.0", 34u32),
+            ("1.21.2", 42),
+            ("1.21.4", 46),
+            ("1.21.5", 55),
+            ("1.21.6", 63),
+            ("1.21.7", 64),
+            ("1.21.9", 69),
+            ("1.21.11", 75),
+        ];
+        for (ver, expected) in cases {
+            let v = MinecraftVersion::parse(ver).unwrap();
+            let p = VersionProfile::resolve(&v).unwrap();
+            assert_eq!(
+                p.resource_pack_format, expected,
+                "wrong resource_pack_format for {ver}"
+            );
+        }
+    }
+
+    #[test]
+    fn data_pack_formats_1_21_series() {
+        let cases = [
+            ("1.21.0", 48u32),
+            ("1.21.2", 57),
+            ("1.21.4", 61),
+            ("1.21.5", 71),
+            ("1.21.6", 80),
+            ("1.21.7", 81),
+            ("1.21.9", 88),
+            ("1.21.11", 94),
+        ];
+        for (ver, expected) in cases {
+            let v = MinecraftVersion::parse(ver).unwrap();
+            let p = VersionProfile::resolve(&v).unwrap();
+            assert_eq!(
+                p.data_pack_format, expected,
+                "wrong data_pack_format for {ver}"
+            );
+        }
+    }
+
+    #[test]
+    fn pack_formats_26_series() {
+        let cases = [
+            ("26.1", 101u32, 84u32),
+            ("26.1.2", 101, 84),
+            ("26.2", 107, 88),
+        ];
+        for (ver, expected_data, expected_res) in cases {
+            let v = MinecraftVersion::parse(ver).unwrap();
+            let p = VersionProfile::resolve(&v).unwrap();
+            assert_eq!(
+                p.data_pack_format, expected_data,
+                "wrong data_fmt for {ver}"
+            );
+            assert_eq!(
+                p.resource_pack_format, expected_res,
+                "wrong res_fmt for {ver}"
+            );
+            assert!(!p.is_fallback, "{ver} must be a known version");
+        }
+    }
+
+    #[test]
+    fn resource_pack_formats_1_18_series() {
+        let v1 = MinecraftVersion::parse("1.18.1").unwrap();
+        let p1 = VersionProfile::resolve(&v1).unwrap();
+        assert_eq!(p1.resource_pack_format, 8);
+        assert_eq!(p1.data_pack_format, 8);
+        assert!(!p1.is_fallback);
+
+        let v2 = MinecraftVersion::parse("1.18.2").unwrap();
+        let p2 = VersionProfile::resolve(&v2).unwrap();
+        assert_eq!(p2.resource_pack_format, 8);
+        assert_eq!(p2.data_pack_format, 9);
+        assert!(!p2.is_fallback);
+    }
+
+    #[test]
+    fn conservative_fallback_uses_latest_res_fmt() {
+        // Unknown versions use the latest known resource pack format (88, 26.2)
+        // so generated packs are at least structurally valid.
+        let v = MinecraftVersion::parse("1.22.0").unwrap();
+        let p = VersionProfile::resolve(&v).unwrap();
+        assert_eq!(p.resource_pack_format, 88);
+        assert_eq!(p.data_pack_format, 107);
+        assert!(p.is_fallback);
     }
 }

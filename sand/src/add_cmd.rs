@@ -116,27 +116,77 @@ pub fn run_resourcepack() -> Result<()> {
 
 // ── Patching helpers ──────────────────────────────────────────────────────────
 
+/// Extract the version string from any `sand-* = "X.Y.Z"` or
+/// `sand-* = { version = "X.Y.Z", ... }` line in a `Cargo.toml` string.
+/// Returns `None` if no versioned sand dep is found (e.g. path-dep-only project).
+fn extract_sand_version(cargo_toml: &str) -> Option<String> {
+    for line in cargo_toml.lines() {
+        let trimmed = line.trim_start();
+        if !trimmed.starts_with("sand-") {
+            continue;
+        }
+        // Simple form: sand-foo = "1.2.3"
+        if let Some(eq) = trimmed.find('=') {
+            let rhs = trimmed[eq + 1..].trim();
+            if rhs.starts_with('"') && rhs.ends_with('"') {
+                return Some(rhs[1..rhs.len() - 1].to_string());
+            }
+            // Inline table form: sand-foo = { version = "1.2.3", ... }
+            if let Some(ver_start) = rhs.find("version = \"") {
+                let after = &rhs[ver_start + 11..];
+                if let Some(end) = after.find('"') {
+                    return Some(after[..end].to_string());
+                }
+            }
+        }
+    }
+    None
+}
+
 /// Add `sand-resourcepack` dep, `features = ["resourcepack"]` on sand-macros,
 /// and a `[[bin]] sand_resource_export` target to `Cargo.toml`.
 fn patch_cargo_toml(original: &str, namespace: &str) -> Result<()> {
     let _ = namespace; // reserved for future namespace-aware path derivation
-    let sand_resourcepack_path = format!("{}/sand-resourcepack", WORKSPACE_ROOT);
+
+    // Detect whether the project uses path deps or versioned deps by checking
+    // whether any sand-* line contains `path =`.
+    let uses_path_deps = original
+        .lines()
+        .any(|l| l.trim_start().starts_with("sand-") && l.contains("path ="));
+
+    let sand_resourcepack_dep = if uses_path_deps {
+        let path = format!("{}/sand-resourcepack", WORKSPACE_ROOT);
+        format!("sand-resourcepack = {{ path = \"{path}\" }}")
+    } else {
+        // Derive the version from an existing sand-* dep so we don't mix crate
+        // versions when the CLI is newer than the project's deps.
+        let version =
+            extract_sand_version(original).unwrap_or_else(|| env!("CARGO_PKG_VERSION").to_string());
+        format!("sand-resourcepack = \"{version}\"")
+    };
+
     let mut lines: Vec<String> = original.lines().map(String::from).collect();
 
     // 1. Modify the sand-macros line to add `features = ["resourcepack"]`.
-    //    Matches any line starting with `sand-macros` (handles spacing variants).
+    //    Handles both dep forms:
+    //      sand-macros = { path = "..." }        → append before closing }
+    //      sand-macros = "0.1.0"                 → expand to inline table form
     let mut modified_macros = false;
     for line in &mut lines {
         let trimmed = line.trim_start();
         if trimmed.starts_with("sand-macros") && !line.contains("resourcepack") {
-            // Insert the feature flag before the closing `}` on an inline table,
-            // or before a closing `"` for simple `= "..."` forms.
-            //
-            // Handles the two common patterns:
-            //   sand-macros = { path = "..." }
-            //   sand-macros = { path = "...", features = [...] }  (already handled)
             if let Some(idx) = line.rfind('}') {
+                // Inline table form: insert before closing `}`
                 line.insert_str(idx, ", features = [\"resourcepack\"]");
+            } else if let Some(eq) = line.find('=') {
+                // Simple string form: `sand-macros = "0.1.0"` → expand
+                let rhs = line[eq + 1..].trim();
+                if rhs.starts_with('"') && rhs.ends_with('"') {
+                    let ver = &rhs[1..rhs.len() - 1];
+                    let lhs = &line[..eq];
+                    *line =
+                        format!("{lhs}= {{ version = \"{ver}\", features = [\"resourcepack\"] }}");
+                }
             }
             modified_macros = true;
             break;
@@ -152,7 +202,7 @@ fn patch_cargo_toml(original: &str, namespace: &str) -> Result<()> {
 
     // 2. Append sand-resourcepack after the sand-macros line (or at end of deps).
     //    Find the [dependencies] section and append there.
-    let dep_line = format!("sand-resourcepack = {{ path = \"{sand_resourcepack_path}\" }}");
+    let dep_line = sand_resourcepack_dep;
     let mut inserted_dep = false;
     let mut result: Vec<String> = Vec::with_capacity(lines.len() + 2);
     let mut in_deps = false;

@@ -1,5 +1,5 @@
 mod add_cmd;
-mod build_cmd;
+mod build;
 mod config;
 mod join_cmd;
 mod pack_format;
@@ -100,6 +100,15 @@ struct NewArgs {
     /// hook in src/lib.rs.
     #[arg(long)]
     resourcepack: bool,
+
+    /// Use local path dependencies pointing into a Sand workspace checkout
+    ///
+    /// By default, versioned crate deps are emitted (e.g. `sand-core = "0.1.0"`),
+    /// which produce portable projects without requiring a local Sand workspace.
+    /// Pass this flag if you are developing Sand itself and want Cargo to pick
+    /// up your in-tree changes without publishing.
+    #[arg(long)]
+    path_deps: bool,
 }
 
 #[derive(clap::Args)]
@@ -119,6 +128,15 @@ struct InitArgs {
     /// hook in src/lib.rs.
     #[arg(long)]
     resourcepack: bool,
+
+    /// Use local path dependencies pointing into a Sand workspace checkout
+    ///
+    /// By default, versioned crate deps are emitted (e.g. `sand-core = "0.1.0"`),
+    /// which produce portable projects without requiring a local Sand workspace.
+    /// Pass this flag if you are developing Sand itself and want Cargo to pick
+    /// up your in-tree changes without publishing.
+    #[arg(long)]
+    path_deps: bool,
 }
 
 #[derive(clap::Args)]
@@ -158,7 +176,7 @@ fn run() -> Result<()> {
         Commands::Build {
             release,
             resourcepack,
-        } => build_cmd::run(release, resourcepack),
+        } => build::run(release, resourcepack),
         Commands::Run {
             ram,
             offline,
@@ -211,6 +229,7 @@ fn cmd_new(args: NewArgs) -> Result<()> {
         mc_version,
         dir,
         resourcepack: args.resourcepack,
+        use_path_deps: args.path_deps,
     })?;
 
     println!();
@@ -272,6 +291,7 @@ fn cmd_init(args: InitArgs) -> Result<()> {
         mc_version,
         dir,
         resourcepack: args.resourcepack,
+        use_path_deps: args.path_deps,
     })?;
 
     println!();

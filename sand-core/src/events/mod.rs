@@ -1025,46 +1025,44 @@ adv_event!(LightningStrikeEvent);
 // These fire every tick the condition is true, checked as each online player.
 // They use `TickCondition` dispatch — no advancement file is generated.
 //
-// ⚠️  NBT-based conditions may vary between Minecraft versions. The strings
-//     below are tested against Java Edition 1.20–1.21. If a condition doesn't
-//     work for your version, implement a custom [`SandEvent`] with the
-//     corrected condition string.
+// These use Sand-owned entity predicates. Predicate flags are stable datapack
+// schema, unlike raw player NBT selector fields.
 
 /// Fires every tick the player is sneaking / crouching (Shift held).
 ///
-/// Uses `entity @s[nbt={IsSneaking:1b}]` — runtime NBT selector.
+/// Uses a generated `flags.is_sneaking` predicate.
 ///
 /// # Example
 /// ```rust,ignore
 /// #[event]
-/// pub fn while_sneaking(event: Event<PlayerSneakEvent>) {
+/// pub fn while_sneaking(event: PlayerSneakEvent) {
 ///     cmd::particle(Particle::Smoke, event.player());
 /// }
 /// ```
 pub struct PlayerSneakEvent;
 impl SandEvent for PlayerSneakEvent {
     fn dispatch() -> SandEventDispatch {
-        SandEventDispatch::TickCondition("entity @s[nbt={IsSneaking:1b}]".into())
+        SandEventDispatch::TickCondition("predicate __sand_local:__sand/player_sneaking".into())
     }
 }
 
 /// Fires every tick the player is sprinting.
 ///
-/// Uses `entity @s[nbt={IsSprinting:1b}]`.
+/// Uses a generated `flags.is_sprinting` predicate.
 pub struct PlayerSprintEvent;
 impl SandEvent for PlayerSprintEvent {
     fn dispatch() -> SandEventDispatch {
-        SandEventDispatch::TickCondition("entity @s[nbt={IsSprinting:1b}]".into())
+        SandEventDispatch::TickCondition("predicate __sand_local:__sand/player_sprinting".into())
     }
 }
 
 /// Fires every tick the player is swimming (swimming animation active, 1.13+).
 ///
-/// Uses `entity @s[nbt={Swimming:1b}]`.
+/// Uses a generated `flags.is_swimming` predicate.
 pub struct PlayerSwimmingEvent;
 impl SandEvent for PlayerSwimmingEvent {
     fn dispatch() -> SandEventDispatch {
-        SandEventDispatch::TickCondition("entity @s[nbt={Swimming:1b}]".into())
+        SandEventDispatch::TickCondition("predicate __sand_local:__sand/player_swimming".into())
     }
 }
 
@@ -1080,13 +1078,11 @@ impl SandEvent for PlayerFlyingEvent {
 
 /// Fires every tick the player is on fire.
 ///
-/// Uses `entity @s[nbt={Fire:1s..}]`. Note: `Fire` is a short — negative
-/// values indicate the "cooling down" state from water. Values ≥ 1 mean
-/// actively burning.
+/// Uses a generated `flags.is_on_fire` predicate.
 pub struct PlayerOnFireEvent;
 impl SandEvent for PlayerOnFireEvent {
     fn dispatch() -> SandEventDispatch {
-        SandEventDispatch::TickCondition("entity @s[nbt={Fire:1s..}]".into())
+        SandEventDispatch::TickCondition("predicate __sand_local:__sand/player_on_fire".into())
     }
 }
 

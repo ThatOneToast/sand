@@ -38,7 +38,7 @@ pub mod timer;
 
 pub use cooldown::Cooldown;
 pub use flag::{Flag, FlagRef};
-pub use score::{ScoreRef, ScoreVar};
+pub use score::{ScoreConst, ScoreConstants, ScoreExpr, ScoreOperation, ScoreRef, ScoreVar};
 pub use storage::{
     BlockNbt, EntityNbt, NbtLocation, NbtPath, SnbtCompound, SnbtValue, StorageField,
     StorageLocation, StorageSchema, StorageVar,

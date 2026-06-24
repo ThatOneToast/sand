@@ -1,5 +1,18 @@
 # Events
 
+## XP level changes
+
+`minecraft:leveled_up` is not a valid vanilla advancement trigger in Sand's
+supported Minecraft targets. Do not use `PlayerLevelUpEvent`; it is deprecated
+and export fails with a diagnostic. Track levels with a tick-polled score instead:
+
+```mcfunction
+execute store result score @s xp_level run experience query @s levels
+```
+
+Compare `xp_level` to a previous or maximum score with typed `ScoreVar`
+operations and conditions.
+
 Events connect Rust functions to Minecraft gameplay triggers. Annotate a function
 with `#[event]` and Sand generates the advancement JSON + reward function wire-up
 at build time.

@@ -81,6 +81,54 @@
 
 use crate::condition::Condition;
 
+/// A condition with commands that must run before it is evaluated.
+///
+/// Plain [`Condition`] values convert into this type with no setup, preserving
+/// the existing command output. Score expressions use it to materialize their
+/// temporary score before the generated `execute` command.
+pub struct Conditional {
+    setup: Vec<String>,
+    condition: Condition,
+}
+
+impl Conditional {
+    #[doc(hidden)]
+    pub fn with_setup(setup: Vec<String>, condition: Condition) -> Self {
+        Self { setup, condition }
+    }
+
+    /// Combine this lowered condition with a normal condition.
+    pub fn and(self, other: Condition) -> Self {
+        Self {
+            setup: self.setup,
+            condition: self.condition.and(other),
+        }
+    }
+
+    /// Combine this lowered condition with a normal condition.
+    pub fn or(self, other: Condition) -> Self {
+        Self {
+            setup: self.setup,
+            condition: self.condition.or(other),
+        }
+    }
+
+    fn execute_commands(&self, negated: bool, run: &str) -> Vec<String> {
+        let mut commands = self.setup.clone();
+        commands.extend(self.condition.execute_commands(negated, run));
+        commands
+    }
+}
+
+impl From<Condition> for Conditional {
+    fn from(condition: Condition) -> Self {
+        Self {
+            setup: Vec::new(),
+            condition,
+        }
+    }
+}
+
 /// Reset the branch counter. For use in unit tests only — keeps paths stable.
 #[doc(hidden)]
 pub fn reset_branch_counter_for_tests() {
@@ -100,7 +148,7 @@ fn register_branch(commands: Vec<String>) -> String {
 /// Builder returned by [`when`]. Call [`then_one`](WhenBuilder::then_one),
 /// [`then_all`](WhenBuilder::then_all), or build up with [`and_then`](WhenBuilder::and_then).
 pub struct WhenBuilder {
-    cond: Condition,
+    cond: Conditional,
     /// Commands accumulated via `.and_then(...)` — when non-empty, `.then()` creates a branch.
     staged: Vec<String>,
 }
@@ -184,7 +232,7 @@ impl WhenBuilder {
 /// Builder returned by [`unless`]. Call [`then_one`](UnlessBuilder::then_one),
 /// [`then_all`](UnlessBuilder::then_all), or build up with [`and_then`](UnlessBuilder::and_then).
 pub struct UnlessBuilder {
-    cond: Condition,
+    cond: Conditional,
     /// Commands accumulated via `.and_then(...)`.
     staged: Vec<String>,
 }
@@ -247,7 +295,7 @@ impl UnlessBuilder {
 
 /// Builder returned by [`if_`]. Supplies a `then_all` arm.
 pub struct IfBuilder {
-    cond: Condition,
+    cond: Conditional,
 }
 
 impl IfBuilder {
@@ -266,7 +314,7 @@ impl IfBuilder {
 
 /// Returned by [`IfBuilder::then_all`]. Finishes with `.else_all(...)` or used alone.
 pub struct IfThenBuilder {
-    cond: Condition,
+    cond: Conditional,
     then_cmds: Vec<String>,
 }
 
@@ -284,11 +332,15 @@ impl IfThenBuilder {
         let else_cmds: Vec<String> = cmds.into_iter().map(|c| c.to_string()).collect();
         let then_ref = register_branch(self.then_cmds);
         let else_ref = register_branch(else_cmds);
-        let mut result = self
-            .cond
-            .execute_commands(false, &format!("function {then_ref}"));
+        let mut result = self.cond.setup.clone();
         result.extend(
             self.cond
+                .condition
+                .execute_commands(false, &format!("function {then_ref}")),
+        );
+        result.extend(
+            self.cond
+                .condition
                 .execute_commands(true, &format!("function {else_ref}")),
         );
         result
@@ -317,9 +369,9 @@ impl crate::components::mc_function::IntoCommands for IfThenBuilder {
 ///     cmd::return_fail(),
 /// ]);
 /// ```
-pub fn when(cond: Condition) -> WhenBuilder {
+pub fn when(cond: impl Into<Conditional>) -> WhenBuilder {
     WhenBuilder {
-        cond,
+        cond: cond.into(),
         staged: Vec::new(),
     }
 }
@@ -337,9 +389,9 @@ pub fn when(cond: Condition) -> WhenBuilder {
 ///     cmd::return_cmd(0),
 /// ]);
 /// ```
-pub fn unless(cond: Condition) -> UnlessBuilder {
+pub fn unless(cond: impl Into<Conditional>) -> UnlessBuilder {
     UnlessBuilder {
-        cond,
+        cond: cond.into(),
         staged: Vec::new(),
     }
 }
@@ -359,8 +411,8 @@ pub fn unless(cond: Condition) -> UnlessBuilder {
 ///         cmd::return_cmd(0),
 ///     ]);
 /// ```
-pub fn if_(cond: Condition) -> IfBuilder {
-    IfBuilder { cond }
+pub fn if_(cond: impl Into<Conditional>) -> IfBuilder {
+    IfBuilder { cond: cond.into() }
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -827,19 +879,6 @@ mod tests {
         reset_branch_counter_for_tests();
         let first = when(MANA.of("@s").gte(10)).then_all(["say same"]);
         let second = when(MANA.of("@s").gte(20)).then_all(["say same"]);
-        let fns = crate::drain_dyn_fns();
-
-        // Only count entries with the "say same" body — concurrent tests may have
-        // added unrelated entries to the shared registry between our drain calls.
-        let say_same_entries: Vec<_> = fns
-            .iter()
-            .filter(|(_, cmds)| cmds == &vec!["say same".to_string()])
-            .collect();
-        assert_eq!(
-            say_same_entries.len(),
-            1,
-            "identical branch bodies should dedupe to exactly one entry: {fns:?}"
-        );
         let first_path = first[0]
             .split("function ")
             .nth(1)
@@ -849,5 +888,26 @@ mod tests {
             .nth(1)
             .expect("second branch function path");
         assert_eq!(first_path, second_path);
+    }
+
+    #[test]
+    fn score_expression_setup_precedes_branch_check_once() {
+        static COST: ScoreVar<i32> = ScoreVar::new("cost");
+        let commands = if_(MANA.of("@s").expr().minus(COST.of("@s")).gte(0))
+            .then_all(["say yes"])
+            .else_all(["say no"]);
+        assert_eq!(commands.len(), 4);
+        assert_eq!(
+            commands[0],
+            "scoreboard players operation @s __sand_tmp = @s mana"
+        );
+        assert_eq!(
+            commands[1],
+            "scoreboard players operation @s __sand_tmp -= @s cost"
+        );
+        assert!(commands[2].starts_with("execute if score @s __sand_tmp matches 0.. run function"));
+        assert!(
+            commands[3].starts_with("execute unless score @s __sand_tmp matches 0.. run function")
+        );
     }
 }

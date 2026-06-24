@@ -43,6 +43,41 @@ pub enum ScoreRange {
     Between(Option<i32>, Option<i32>),
 }
 
+/// One scoreboard entry used by score-to-score comparisons.
+///
+/// This is public so typed score operands can be reused by the expression API,
+/// but callers normally obtain one from [`ScoreRef`](crate::state::ScoreRef).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ScoreOperand {
+    /// The score holder or entity selector.
+    pub(crate) selector: String,
+    /// The (already Minecraft-safe) objective name.
+    pub(crate) objective: String,
+}
+
+/// Vanilla operators accepted by `execute if score <left> <op> <right>`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ScoreCompareOp {
+    Eq,
+    Gt,
+    Gte,
+    Lt,
+    Lte,
+}
+
+impl ScoreCompareOp {
+    /// Render the vanilla scoreboard comparison operator.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Eq => "=",
+            Self::Gt => ">",
+            Self::Gte => ">=",
+            Self::Lt => "<",
+            Self::Lte => "<=",
+        }
+    }
+}
+
 impl ScoreRange {
     /// Render the range to a Minecraft matches string fragment.
     pub fn render(&self) -> String {
@@ -80,6 +115,12 @@ pub enum Condition {
         selector: String,
         objective: String,
         range: ScoreRange,
+    },
+    /// `if score <left selector> <left objective> <op> <right selector> <right objective>`.
+    ScoreCompare {
+        left: ScoreOperand,
+        op: ScoreCompareOp,
+        right: ScoreOperand,
     },
     /// `if score <selector> <flag_objective> matches 1` (or `0` when `value = false`)
     Flag {
@@ -251,6 +292,17 @@ impl Condition {
                 vec![vec![format!(
                     "{kw} score {selector} {objective} matches {}",
                     range.render()
+                )]]
+            }
+            Condition::ScoreCompare { left, op, right } => {
+                let kw = if_kw(negated);
+                vec![vec![format!(
+                    "{kw} score {} {} {} {} {}",
+                    left.selector,
+                    left.objective,
+                    op.as_str(),
+                    right.selector,
+                    right.objective
                 )]]
             }
             Condition::Flag {

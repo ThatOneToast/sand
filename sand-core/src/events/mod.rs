@@ -775,9 +775,11 @@ impl SandEvent for FallFromHeightEvent {
     }
 }
 
-/// Fires when the player levels up.
+/// Former level-up advancement event.
 ///
-/// Maps to `minecraft:leveled_up`.
+/// `minecraft:leveled_up` is not a vanilla advancement trigger in supported
+/// Minecraft versions. This type remains for source compatibility but export
+/// fails with a migration diagnostic. Track XP levels with tick polling instead.
 pub struct PlayerLevelUpEvent;
 impl SandEvent for PlayerLevelUpEvent {
     fn dispatch() -> SandEventDispatch {

@@ -100,6 +100,7 @@ pub use event::{
     EventVisibility,
     IntoEventAdvancement,
 };
+#[allow(deprecated)]
 pub use events::{
     // Equipment events
     ArmorEquipEvent,

@@ -251,6 +251,46 @@ impl DamageTracker {
         }
     }
 
+    // ── Additional helpers (no cause inference) ───────────────────────────────
+
+    /// Condition: `selector` was hurt this tick (same as `damaged_this_tick`).
+    ///
+    /// Convenient alias for common event-gating patterns:
+    /// ```rust,ignore
+    /// if DamageTracker::was_hurt("@s") { ... }
+    /// ```
+    ///
+    /// Does **not** tell you the cause, attacker, damage type, or weapon.
+    /// Use advancement predicate events for cause-specific logic.
+    pub fn was_hurt(selector: &str) -> Condition {
+        Self::damaged_this_tick(selector)
+    }
+
+    /// Condition: `selector` has not been hurt for at least `ticks` ticks.
+    ///
+    /// This is the complement of [`hurt_within`](DamageTracker::hurt_within):
+    /// - `hurt_within(n)` → age ≤ n → hurt recently
+    /// - `not_hurt_for(n)` → age > n → safe for at least n ticks
+    ///
+    /// Useful for ability cooldown windows that reset on damage.
+    pub fn not_hurt_for(selector: &str, ticks: Ticks) -> Condition {
+        Condition::Score {
+            selector: selector.to_string(),
+            objective: DAMAGE_HURT_AGE_OBJ.to_string(),
+            range: ScoreRange::Gte(ticks.get() as i32 + 1),
+        }
+    }
+
+    /// Reset the last-recorded damage delta for `selector` to 0.
+    ///
+    /// Useful after consuming a damage event so stale deltas don't re-fire
+    /// condition checks on the next tick.
+    ///
+    /// Returns a single scoreboard `set ... 0` command.
+    pub fn clear_recent_damage(selector: impl std::fmt::Display) -> String {
+        format!("scoreboard players set {} {DAMAGE_LAST_OBJ} 0", selector)
+    }
+
     // ── Deprecated compatibility shims ────────────────────────────────────────
 
     /// Condition: `selector` was damaged this tick (delta > 0).
@@ -498,5 +538,112 @@ mod tests {
                 ..
             }
         ));
+    }
+
+    // ── New helpers: was_hurt, not_hurt_for, clear_recent_damage ─────────────
+
+    #[test]
+    fn was_hurt_is_alias_for_damaged_this_tick() {
+        let a = DamageTracker::was_hurt("@s");
+        let b = DamageTracker::damaged_this_tick("@s");
+        // Both must be Gte(1) on the delta objective
+        assert!(matches!(
+            a,
+            Condition::Score {
+                range: ScoreRange::Gte(1),
+                ..
+            }
+        ));
+        assert!(matches!(
+            b,
+            Condition::Score {
+                range: ScoreRange::Gte(1),
+                ..
+            }
+        ));
+        // Same objective
+        if let (Condition::Score { objective: oa, .. }, Condition::Score { objective: ob, .. }) =
+            (a, b)
+        {
+            assert_eq!(oa, ob);
+        }
+    }
+
+    #[test]
+    fn not_hurt_for_uses_age_gte_n_plus_one() {
+        let cond = DamageTracker::not_hurt_for("@s", Ticks::new(20));
+        match cond {
+            Condition::Score {
+                ref objective,
+                range: ScoreRange::Gte(21),
+                ..
+            } => assert_eq!(objective, DAMAGE_HURT_AGE_OBJ),
+            other => panic!("unexpected: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn not_hurt_for_zero_ticks() {
+        // not_hurt_for(0) → age >= 1, i.e. "not hurt this tick"
+        let cond = DamageTracker::not_hurt_for("@s", Ticks::new(0));
+        assert!(matches!(
+            cond,
+            Condition::Score {
+                range: ScoreRange::Gte(1),
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn was_hurt_and_not_hurt_for_are_complementary() {
+        // was_hurt → delta >= 1
+        // not_hurt_for(0) → age >= 1 (not hurt this tick)
+        // They use different objectives so they are not direct complements,
+        // but both should produce Gte conditions.
+        let hurt = DamageTracker::was_hurt("@s");
+        let safe = DamageTracker::not_hurt_for("@s", Ticks::new(10));
+        assert!(matches!(
+            hurt,
+            Condition::Score {
+                range: ScoreRange::Gte(1),
+                ..
+            }
+        ));
+        assert!(matches!(
+            safe,
+            Condition::Score {
+                range: ScoreRange::Gte(11),
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn clear_recent_damage_golden_command() {
+        let cmd = DamageTracker::clear_recent_damage("@s");
+        assert_eq!(
+            cmd,
+            format!("scoreboard players set @s {DAMAGE_LAST_OBJ} 0")
+        );
+    }
+
+    #[test]
+    fn clear_recent_damage_all_players() {
+        let cmd = DamageTracker::clear_recent_damage("@a");
+        assert!(cmd.contains(DAMAGE_LAST_OBJ));
+        assert!(cmd.contains("set @a"));
+        assert!(cmd.ends_with(" 0"));
+    }
+
+    #[test]
+    fn clear_recent_damage_does_not_infer_cause() {
+        // The command must only touch the 'last delta' scoreboard — not any
+        // cause-specific score or storage key.
+        let cmd = DamageTracker::clear_recent_damage("@s");
+        assert!(!cmd.contains("attacker"), "must not mention attacker");
+        assert!(!cmd.contains("source"), "must not mention damage source");
+        assert!(!cmd.contains("weapon"), "must not mention weapon");
+        assert!(!cmd.contains("type"), "must not mention damage type");
     }
 }

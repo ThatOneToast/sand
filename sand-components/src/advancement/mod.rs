@@ -1,3 +1,5 @@
+pub mod trigger_coverage;
+
 use std::collections::HashMap;
 
 use serde::Serialize;
@@ -375,6 +377,32 @@ pub enum AdvancementTrigger {
         distance: Option<FloatRange>,
     },
 
+    // ── 1.19+ triggers ───────────────────────────────────────────────────────
+    /// Player causes an allay to drop an item on a block (1.19+).
+    AllayDropItemOnBlock {
+        item: Option<ItemPredicate>,
+        location: Option<LocationPredicate>,
+    },
+    /// Player avoids triggering a sculk sensor vibration (1.19+).
+    AvoidVibration,
+    /// Player kills a mob near a sculk catalyst (1.19+).
+    KillMobNearSculkCatalyst {
+        entity: Option<EntityPredicate>,
+        killing_blow: Option<DamagePredicate>,
+    },
+    /// Player right-clicks on a block while holding an item (1.19.4+).
+    ItemUsedOnBlock {
+        item: Option<ItemPredicate>,
+        location: Option<LocationPredicate>,
+    },
+
+    // ── 1.16+ triggers ───────────────────────────────────────────────────────
+    /// Player rides an entity in lava (1.16+).
+    RideEntityInLava {
+        start_position: Option<LocationPredicate>,
+        distance: Option<DistancePredicate>,
+    },
+
     // ── Custom (escape hatch) ─────────────────────────────────────────────────
     /// Any trigger not covered by the typed variants.
     ///
@@ -493,6 +521,13 @@ impl AdvancementTrigger {
             AdvancementTrigger::TamedAnimalInteracted { .. } => {
                 "minecraft:player_interacted_with_entity"
             }
+            AdvancementTrigger::AllayDropItemOnBlock { .. } => "minecraft:allay_drop_item_on_block",
+            AdvancementTrigger::AvoidVibration => "minecraft:avoid_vibration",
+            AdvancementTrigger::KillMobNearSculkCatalyst { .. } => {
+                "minecraft:kill_mob_near_sculk_catalyst"
+            }
+            AdvancementTrigger::ItemUsedOnBlock { .. } => "minecraft:item_used_on_block",
+            AdvancementTrigger::RideEntityInLava { .. } => "minecraft:ride_entity_in_lava",
             AdvancementTrigger::Custom { trigger, .. } => trigger.as_str(),
         }
     }
@@ -955,6 +990,66 @@ impl Serialize for AdvancementTrigger {
                 }
             }
 
+            AdvancementTrigger::AllayDropItemOnBlock { item, location } => {
+                let mut cond = serde_json::Map::new();
+                if let Some(i) = item {
+                    cond.insert("item".into(), serde_json::to_value(i).unwrap());
+                }
+                if let Some(l) = location {
+                    cond.insert("location".into(), serde_json::to_value(l).unwrap());
+                }
+                if !cond.is_empty() {
+                    map.serialize_entry("conditions", &Value::Object(cond))?;
+                }
+            }
+
+            AdvancementTrigger::AvoidVibration => {}
+
+            AdvancementTrigger::KillMobNearSculkCatalyst {
+                entity,
+                killing_blow,
+            } => {
+                let mut cond = serde_json::Map::new();
+                if let Some(e) = entity {
+                    cond.insert("entity".into(), serde_json::to_value(e).unwrap());
+                }
+                if let Some(k) = killing_blow {
+                    cond.insert("killing_blow".into(), serde_json::to_value(k).unwrap());
+                }
+                if !cond.is_empty() {
+                    map.serialize_entry("conditions", &Value::Object(cond))?;
+                }
+            }
+
+            AdvancementTrigger::ItemUsedOnBlock { item, location } => {
+                let mut cond = serde_json::Map::new();
+                if let Some(i) = item {
+                    cond.insert("item".into(), serde_json::to_value(i).unwrap());
+                }
+                if let Some(l) = location {
+                    cond.insert("location".into(), serde_json::to_value(l).unwrap());
+                }
+                if !cond.is_empty() {
+                    map.serialize_entry("conditions", &Value::Object(cond))?;
+                }
+            }
+
+            AdvancementTrigger::RideEntityInLava {
+                start_position,
+                distance,
+            } => {
+                let mut cond = serde_json::Map::new();
+                if let Some(s) = start_position {
+                    cond.insert("start_position".into(), serde_json::to_value(s).unwrap());
+                }
+                if let Some(d) = distance {
+                    cond.insert("distance".into(), serde_json::to_value(d).unwrap());
+                }
+                if !cond.is_empty() {
+                    map.serialize_entry("conditions", &Value::Object(cond))?;
+                }
+            }
+
             AdvancementTrigger::Custom { conditions, .. } => {
                 if let Some(c) = conditions {
                     map.serialize_entry("conditions", c)?;
@@ -1282,4 +1377,371 @@ mod tests {
         );
         assert_eq!(json["rewards"]["experience"], 1000);
     }
+
+    // ── Trigger ID golden tests ───────────────────────────────────────────────
+    // One test per trigger variant asserting the exact vanilla trigger ID.
+
+    fn trigger_id(t: &AdvancementTrigger) -> &str {
+        t.trigger_id()
+    }
+
+    macro_rules! trigger_id_test {
+        ($name:ident, $trigger:expr, $expected:expr) => {
+            #[test]
+            fn $name() {
+                assert_eq!(trigger_id(&$trigger), $expected);
+            }
+        };
+    }
+
+    trigger_id_test!(tick_id, AdvancementTrigger::Tick, "minecraft:tick");
+    trigger_id_test!(
+        impossible_id,
+        AdvancementTrigger::Impossible,
+        "minecraft:impossible"
+    );
+    trigger_id_test!(
+        player_killed_entity_id,
+        AdvancementTrigger::PlayerKilledEntity {
+            entity: None,
+            killing_blow: None
+        },
+        "minecraft:player_killed_entity"
+    );
+    trigger_id_test!(
+        entity_killed_player_id,
+        AdvancementTrigger::EntityKilledPlayer {
+            entity: None,
+            killing_blow: None
+        },
+        "minecraft:entity_killed_player"
+    );
+    trigger_id_test!(
+        player_hurt_entity_id,
+        AdvancementTrigger::PlayerHurtEntity {
+            entity: None,
+            damage: None
+        },
+        "minecraft:player_hurt_entity"
+    );
+    trigger_id_test!(
+        entity_hurt_player_id,
+        AdvancementTrigger::EntityHurtPlayer {
+            entity: None,
+            damage: None
+        },
+        "minecraft:entity_hurt_player"
+    );
+    trigger_id_test!(
+        killed_by_crossbow_id,
+        AdvancementTrigger::KilledByCrossbow {
+            unique_entity_types: None,
+            victims: None
+        },
+        "minecraft:killed_by_crossbow"
+    );
+    trigger_id_test!(
+        channeled_lightning_id,
+        AdvancementTrigger::ChanneledLightning { victims: None },
+        "minecraft:channeled_lightning"
+    );
+    trigger_id_test!(
+        lightning_strike_id,
+        AdvancementTrigger::LightningStrike {
+            lightning: None,
+            bystander: None
+        },
+        "minecraft:lightning_strike"
+    );
+    trigger_id_test!(
+        inventory_changed_id,
+        AdvancementTrigger::InventoryChanged {
+            slots: None,
+            items: vec![]
+        },
+        "minecraft:inventory_changed"
+    );
+    trigger_id_test!(
+        recipe_unlocked_id,
+        AdvancementTrigger::RecipeUnlocked {
+            recipe: "test:r".into()
+        },
+        "minecraft:recipe_unlocked"
+    );
+    trigger_id_test!(
+        used_item_id,
+        AdvancementTrigger::UsedItem { item: None },
+        "minecraft:used_item"
+    );
+    trigger_id_test!(
+        consume_item_id,
+        AdvancementTrigger::ConsumeItem { item: None },
+        "minecraft:consume_item"
+    );
+    trigger_id_test!(
+        using_item_id,
+        AdvancementTrigger::UsingItem { item: None },
+        "minecraft:using_item"
+    );
+    trigger_id_test!(
+        crafted_item_id,
+        AdvancementTrigger::CraftedItem { item: None },
+        "minecraft:crafted_item"
+    );
+    trigger_id_test!(
+        filled_bucket_id,
+        AdvancementTrigger::FilledBucket { item: None },
+        "minecraft:filled_bucket"
+    );
+    trigger_id_test!(
+        emptied_bucket_id,
+        AdvancementTrigger::EmptiedBucket {
+            item: None,
+            location: None
+        },
+        "minecraft:emptied_bucket"
+    );
+    trigger_id_test!(
+        shot_crossbow_id,
+        AdvancementTrigger::ShotCrossbow { item: None },
+        "minecraft:shot_crossbow"
+    );
+    trigger_id_test!(
+        used_totem_id,
+        AdvancementTrigger::UsedTotem { item: None },
+        "minecraft:used_totem"
+    );
+    trigger_id_test!(
+        thrown_item_picked_up_id,
+        AdvancementTrigger::ThrownItemPickedUp {
+            item: None,
+            entity: None
+        },
+        "minecraft:thrown_item_picked_up"
+    );
+    trigger_id_test!(
+        item_durability_changed_id,
+        AdvancementTrigger::ItemDurabilityChanged {
+            item: None,
+            delta: None,
+            durability: None
+        },
+        "minecraft:item_durability_changed"
+    );
+    trigger_id_test!(
+        brewed_potion_id,
+        AdvancementTrigger::BrewedPotion { potion: None },
+        "minecraft:brewed_potion"
+    );
+    trigger_id_test!(
+        bee_nest_destroyed_id,
+        AdvancementTrigger::BeeNestDestroyed {
+            block: None,
+            item: None,
+            num_bees_inside: None
+        },
+        "minecraft:bee_nest_destroyed"
+    );
+    trigger_id_test!(
+        enchanted_item_id,
+        AdvancementTrigger::EnchantedItem {
+            item: None,
+            levels: None
+        },
+        "minecraft:enchanted_item"
+    );
+    trigger_id_test!(
+        bred_animals_id,
+        AdvancementTrigger::BredAnimals {
+            parent: None,
+            partner: None,
+            child: None
+        },
+        "minecraft:bred_animals"
+    );
+    trigger_id_test!(
+        tamed_animal_id,
+        AdvancementTrigger::TamedAnimal { entity: None },
+        "minecraft:tame_animal"
+    );
+    trigger_id_test!(
+        summoned_entity_id,
+        AdvancementTrigger::SummonedEntity { entity: None },
+        "minecraft:summoned_entity"
+    );
+    trigger_id_test!(
+        player_interacted_with_entity_id,
+        AdvancementTrigger::PlayerInteractedWithEntity {
+            item: None,
+            entity: None
+        },
+        "minecraft:player_interacted_with_entity"
+    );
+    trigger_id_test!(
+        fishing_rod_hooked_id,
+        AdvancementTrigger::FishingRodHooked {
+            rod: None,
+            entity: None,
+            item: None
+        },
+        "minecraft:fishing_rod_hooked"
+    );
+    trigger_id_test!(
+        villager_trade_id,
+        AdvancementTrigger::VillagerTrade {
+            item: None,
+            villager: None
+        },
+        "minecraft:villager_trade"
+    );
+    trigger_id_test!(
+        cured_zombie_villager_id,
+        AdvancementTrigger::CuredZombieVillager {
+            villager: None,
+            zombie: None
+        },
+        "minecraft:cured_zombie_villager"
+    );
+    trigger_id_test!(
+        placed_block_id,
+        AdvancementTrigger::PlacedBlock {
+            block: None,
+            item: None,
+            location: None,
+            state: None
+        },
+        "minecraft:placed_block"
+    );
+    trigger_id_test!(
+        enter_block_id,
+        AdvancementTrigger::EnterBlock {
+            block: None,
+            state: None
+        },
+        "minecraft:enter_block"
+    );
+    trigger_id_test!(
+        location_id,
+        AdvancementTrigger::Location { location: None },
+        "minecraft:location"
+    );
+    trigger_id_test!(
+        nether_travel_id,
+        AdvancementTrigger::NetherTravel {
+            entered: None,
+            exited: None,
+            distance: None
+        },
+        "minecraft:nether_travel"
+    );
+    trigger_id_test!(
+        changed_dimension_id,
+        AdvancementTrigger::ChangedDimension {
+            from: None,
+            to: None
+        },
+        "minecraft:changed_dimension"
+    );
+    trigger_id_test!(
+        slept_in_bed_id,
+        AdvancementTrigger::SleptInBed { location: None },
+        "minecraft:slept_in_bed"
+    );
+    trigger_id_test!(
+        fall_from_height_id,
+        AdvancementTrigger::FallFromHeight {
+            distance: None,
+            start_position: None
+        },
+        "minecraft:fall_from_height"
+    );
+    trigger_id_test!(
+        slide_down_block_id,
+        AdvancementTrigger::SlideDownBlock { block: None },
+        "minecraft:slide_down_block"
+    );
+    trigger_id_test!(
+        target_hit_id,
+        AdvancementTrigger::TargetHit {
+            signal_strength: None,
+            projectile: None
+        },
+        "minecraft:target_hit"
+    );
+    trigger_id_test!(
+        hero_of_the_village_id,
+        AdvancementTrigger::HeroOfTheVillage { location: None },
+        "minecraft:hero_of_the_village"
+    );
+    trigger_id_test!(
+        player_generates_container_loot_id,
+        AdvancementTrigger::PlayerGeneratesContainerLoot { loot_table: None },
+        "minecraft:player_generates_container_loot"
+    );
+    trigger_id_test!(
+        leveled_up_id,
+        AdvancementTrigger::LeveledUp { level: None },
+        "minecraft:leveled_up"
+    );
+    trigger_id_test!(
+        effects_changed_id,
+        AdvancementTrigger::EffectsChanged {
+            effects: None,
+            source: None
+        },
+        "minecraft:effects_changed"
+    );
+    trigger_id_test!(
+        started_riding_id,
+        AdvancementTrigger::StartedRiding,
+        "minecraft:started_riding"
+    );
+    trigger_id_test!(
+        construct_beacon_id,
+        AdvancementTrigger::ConstructBeacon { level: None },
+        "minecraft:construct_beacon"
+    );
+    trigger_id_test!(
+        used_ender_eye_id,
+        AdvancementTrigger::UsedEnderEye { distance: None },
+        "minecraft:used_ender_eye"
+    );
+    // New 1.19+ triggers
+    trigger_id_test!(
+        allay_drop_item_on_block_id,
+        AdvancementTrigger::AllayDropItemOnBlock {
+            item: None,
+            location: None
+        },
+        "minecraft:allay_drop_item_on_block"
+    );
+    trigger_id_test!(
+        avoid_vibration_id,
+        AdvancementTrigger::AvoidVibration,
+        "minecraft:avoid_vibration"
+    );
+    trigger_id_test!(
+        kill_mob_near_sculk_catalyst_id,
+        AdvancementTrigger::KillMobNearSculkCatalyst {
+            entity: None,
+            killing_blow: None
+        },
+        "minecraft:kill_mob_near_sculk_catalyst"
+    );
+    trigger_id_test!(
+        item_used_on_block_id,
+        AdvancementTrigger::ItemUsedOnBlock {
+            item: None,
+            location: None
+        },
+        "minecraft:item_used_on_block"
+    );
+    trigger_id_test!(
+        ride_entity_in_lava_id,
+        AdvancementTrigger::RideEntityInLava {
+            start_position: None,
+            distance: None
+        },
+        "minecraft:ride_entity_in_lava"
+    );
 }

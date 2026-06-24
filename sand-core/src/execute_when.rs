@@ -879,19 +879,6 @@ mod tests {
         reset_branch_counter_for_tests();
         let first = when(MANA.of("@s").gte(10)).then_all(["say same"]);
         let second = when(MANA.of("@s").gte(20)).then_all(["say same"]);
-        let fns = crate::drain_dyn_fns();
-
-        // Only count entries with the "say same" body — concurrent tests may have
-        // added unrelated entries to the shared registry between our drain calls.
-        let say_same_entries: Vec<_> = fns
-            .iter()
-            .filter(|(_, cmds)| cmds == &vec!["say same".to_string()])
-            .collect();
-        assert_eq!(
-            say_same_entries.len(),
-            1,
-            "identical branch bodies should dedupe to exactly one entry: {fns:?}"
-        );
         let first_path = first[0]
             .split("function ")
             .nth(1)

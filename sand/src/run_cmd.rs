@@ -29,7 +29,7 @@ pub fn run(args: RunArgs) -> Result<()> {
     if args.no_build {
         println!("{}", "Skipping build (--no-build)".dimmed());
     } else {
-        crate::build_cmd::run(false, false)?;
+        crate::build::run(false, false)?;
     }
 
     // ── 3. Download / verify server jar ─────────────────────────────────────

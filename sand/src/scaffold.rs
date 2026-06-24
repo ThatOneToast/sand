@@ -21,6 +21,10 @@ const SAND_RESOURCE_EXPORT_RS_HBS: &str =
 // Embedded at compile time by sand/build.rs.
 pub(crate) const WORKSPACE_ROOT: &str = env!("SAND_WORKSPACE_ROOT");
 
+/// The Sand workspace version — used for versioned dependency strings in
+/// scaffolded projects so they don't require local workspace paths.
+const SAND_VERSION: &str = env!("CARGO_PKG_VERSION");
+
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /// All parameters needed to scaffold a new datapack project.
@@ -45,6 +49,13 @@ pub struct ScaffoldOptions {
     ///   import stubs.
     /// - `src/bin/sand_resource_export.rs` is created.
     pub resourcepack: bool,
+    /// When `true`, scaffolded `Cargo.toml` uses local `path = "..."` deps
+    /// pointing into the Sand workspace (useful for Sand contributors).
+    ///
+    /// When `false` (the default), versioned crate deps are emitted:
+    /// `sand-core = "0.1.0"`.  This produces portable projects that don't
+    /// require a local Sand workspace checkout to build.
+    pub use_path_deps: bool,
 }
 
 /// Validate a project name and return `Err` with a user-friendly message if
@@ -115,6 +126,8 @@ pub fn scaffold(opts: &ScaffoldOptions) -> Result<()> {
         "sand_macros_path":       sand_macros_path,
         "sand_resourcepack_path": sand_resourcepack_path,
         "resourcepack":           opts.resourcepack,
+        "use_path_deps":          opts.use_path_deps,
+        "sand_version":           SAND_VERSION,
     });
 
     let hbs = build_handlebars();
@@ -259,6 +272,8 @@ mod tests {
             "sand_macros_path":       "/tmp/sand-macros",
             "sand_resourcepack_path": "/tmp/sand-resourcepack",
             "resourcepack":           false,
+            "use_path_deps":          false,
+            "sand_version":           "0.1.0",
         });
 
         let hbs = build_handlebars();
@@ -338,6 +353,8 @@ mod tests {
             "sand_macros_path":       "/tmp/sand-macros",
             "sand_resourcepack_path": "/tmp/sand-resourcepack",
             "resourcepack":           true,
+            "use_path_deps":          false,
+            "sand_version":           "0.1.0",
         });
 
         let hbs = build_handlebars();
@@ -386,9 +403,134 @@ mod tests {
         assert!(cargo_toml.contains("sand-resourcepack"));
         assert!(cargo_toml.contains("features = [\"resourcepack\"]"));
         assert!(cargo_toml.contains("sand_resource_export"));
+        // Default scaffold emits versioned deps — no Sand crate should use path deps.
+        assert!(
+            !cargo_toml.contains("sand-core = { path"),
+            "default scaffold must not contain path dep for sand-core"
+        );
+        assert!(
+            !cargo_toml.contains("sand-build = { path"),
+            "default scaffold must not contain path dep for sand-build"
+        );
 
         let resource_export =
             std::fs::read_to_string(project_dir.join("src/bin/sand_resource_export.rs")).unwrap();
         assert!(resource_export.contains("__sand_resource_export"));
+    }
+
+    #[test]
+    fn default_scaffold_emits_versioned_deps() {
+        let dir = tempfile::tempdir().unwrap();
+        let project_dir = dir.path().join("ver_pack");
+        std::fs::create_dir_all(project_dir.join("src/bin")).unwrap();
+
+        let ctx = serde_json::json!({
+            "name":                   "ver_pack",
+            "name_snake":             "ver_pack",
+            "namespace":              "ver_pack",
+            "description":            "Test",
+            "mc_version":             "1.21.4",
+            "pack_format":            61,
+            "resource_pack_format":   46,
+            "sand_core_path":         "/should/not/appear",
+            "sand_build_path":        "/should/not/appear",
+            "sand_macros_path":       "/should/not/appear",
+            "sand_resourcepack_path": "/should/not/appear",
+            "resourcepack":           false,
+            "use_path_deps":          false,
+            "sand_version":           "0.1.0",
+        });
+
+        let hbs = build_handlebars();
+        write_rendered(
+            &hbs,
+            "cargo_toml",
+            CARGO_TOML_HBS,
+            &ctx,
+            &project_dir.join("Cargo.toml"),
+        )
+        .unwrap();
+
+        let cargo_toml = std::fs::read_to_string(project_dir.join("Cargo.toml")).unwrap();
+        assert!(
+            cargo_toml.contains("sand-core"),
+            "sand-core dep must be present"
+        );
+        assert!(
+            cargo_toml.contains("sand-macros"),
+            "sand-macros dep must be present"
+        );
+        assert!(
+            cargo_toml.contains("sand-build"),
+            "sand-build dep must be present"
+        );
+        assert!(
+            cargo_toml.contains("\"0.1.0\""),
+            "versioned deps must use the crate version"
+        );
+        assert!(
+            !cargo_toml.contains("sand-core = { path"),
+            "default scaffold must not emit path dep for sand-core"
+        );
+        assert!(
+            !cargo_toml.contains("sand-build = { path"),
+            "default scaffold must not emit path dep for sand-build"
+        );
+        assert!(
+            !cargo_toml.contains("/should/not/appear"),
+            "workspace paths must not leak"
+        );
+        assert!(
+            !cargo_toml.contains("sand-resourcepack"),
+            "no RP dep when resourcepack: false"
+        );
+    }
+
+    #[test]
+    fn path_deps_scaffold_emits_workspace_paths() {
+        let dir = tempfile::tempdir().unwrap();
+        let project_dir = dir.path().join("path_pack");
+        std::fs::create_dir_all(project_dir.join("src/bin")).unwrap();
+
+        let ctx = serde_json::json!({
+            "name":                   "path_pack",
+            "name_snake":             "path_pack",
+            "namespace":              "path_pack",
+            "description":            "Test",
+            "mc_version":             "1.21.4",
+            "pack_format":            61,
+            "resource_pack_format":   46,
+            "sand_core_path":         "/workspace/sand-core",
+            "sand_build_path":        "/workspace/sand-build",
+            "sand_macros_path":       "/workspace/sand-macros",
+            "sand_resourcepack_path": "/workspace/sand-resourcepack",
+            "resourcepack":           false,
+            "use_path_deps":          true,
+            "sand_version":           "0.1.0",
+        });
+
+        let hbs = build_handlebars();
+        write_rendered(
+            &hbs,
+            "cargo_toml",
+            CARGO_TOML_HBS,
+            &ctx,
+            &project_dir.join("Cargo.toml"),
+        )
+        .unwrap();
+
+        let cargo_toml = std::fs::read_to_string(project_dir.join("Cargo.toml")).unwrap();
+        assert!(
+            cargo_toml.contains("path ="),
+            "--path-deps scaffold must emit path deps"
+        );
+        assert!(
+            cargo_toml.contains("/workspace/sand-core"),
+            "workspace core path must appear"
+        );
+        assert!(
+            cargo_toml.contains("/workspace/sand-build"),
+            "workspace build path must appear"
+        );
     }
 }

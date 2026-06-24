@@ -583,6 +583,7 @@ fn supported_component_dir(dir: &str) -> bool {
 }
 
 #[cfg(test)]
+#[allow(clippy::items_after_test_module)]
 mod tests {
     use super::*;
 
@@ -645,6 +646,13 @@ mod tests {
     #[test]
     fn separates_datapack_and_resourcepack_roots() {
         assert!(
+            validate_component_records(
+                Path::new("dist/audit"),
+                &[record("assets", "escaped", "json", "{}")]
+            )
+            .is_err()
+        );
+        assert!(
             validate_resourcepack_records(&[ResourcePackRecord {
                 path: "assets/audit/models/item/test.json".into(),
                 content_type: "json".into(),
@@ -660,6 +668,43 @@ mod tests {
             }])
             .is_err()
         );
+    }
+
+    #[test]
+    fn pack_metadata_and_release_zip_stay_with_their_pack_root() {
+        let temp = tempfile::tempdir().unwrap();
+        let datapack = temp.path().join("audit");
+        let resourcepack = temp.path().join("audit-resources");
+        std::fs::create_dir_all(datapack.join("data/audit/function")).unwrap();
+        std::fs::create_dir_all(resourcepack.join("assets/audit/models/item")).unwrap();
+        write_pack_mcmeta(&datapack, "audit", "data", 71).unwrap();
+        write_resourcepack_mcmeta(&resourcepack, "resources", 48).unwrap();
+        std::fs::write(
+            datapack.join("data/audit/function/load.mcfunction"),
+            "say loaded",
+        )
+        .unwrap();
+        std::fs::write(
+            resourcepack.join("assets/audit/models/item/test.json"),
+            "{}",
+        )
+        .unwrap();
+
+        let data_meta: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(datapack.join("pack.mcmeta")).unwrap())
+                .unwrap();
+        let resource_meta: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(resourcepack.join("pack.mcmeta")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(data_meta["pack"]["pack_format"], 71);
+        assert_eq!(resource_meta["pack"]["pack_format"], 48);
+
+        let zip_path = zip_dir(&datapack, "audit").unwrap();
+        let mut zip = zip::ZipArchive::new(std::fs::File::open(zip_path).unwrap()).unwrap();
+        assert!(zip.by_name("pack.mcmeta").is_ok());
+        assert!(zip.by_name("data/audit/function/load.mcfunction").is_ok());
+        assert!(zip.by_name("assets/audit/models/item/test.json").is_err());
     }
 
     #[test]

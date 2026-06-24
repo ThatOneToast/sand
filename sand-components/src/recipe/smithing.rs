@@ -25,18 +25,9 @@ impl SmithingTransformRecipe {
         Self {
             location,
             group: None,
-            template: Ingredient {
-                item: None,
-                tag: None,
-            },
-            base: Ingredient {
-                item: None,
-                tag: None,
-            },
-            addition: Ingredient {
-                item: None,
-                tag: None,
-            },
+            template: Ingredient::empty(),
+            base: Ingredient::empty(),
+            addition: Ingredient::empty(),
             result: RecipeResult {
                 id: String::new(),
                 count: 1,
@@ -133,18 +124,9 @@ impl SmithingTrimRecipe {
         Self {
             location,
             group: None,
-            template: Ingredient {
-                item: None,
-                tag: None,
-            },
-            base: Ingredient {
-                item: None,
-                tag: None,
-            },
-            addition: Ingredient {
-                item: None,
-                tag: None,
-            },
+            template: Ingredient::empty(),
+            base: Ingredient::empty(),
+            addition: Ingredient::empty(),
         }
     }
 

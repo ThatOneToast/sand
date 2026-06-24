@@ -1,5 +1,6 @@
+use std::collections::HashSet;
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
 use colored::Colorize;
@@ -75,10 +76,7 @@ pub fn run(release: bool, resourcepack: bool) -> Result<()> {
 
     // 3. Run the export binary
     let profile = if release { "release" } else { "debug" };
-    let binary = std::env::current_dir()?
-        .join("target")
-        .join(profile)
-        .join("sand_export");
+    let binary = cargo_target_dir()?.join(profile).join("sand_export");
     let output = std::process::Command::new(&binary)
         .output()
         .with_context(|| format!("failed to run '{}'", binary.display()))?;
@@ -110,8 +108,12 @@ pub fn run(release: bool, resourcepack: bool) -> Result<()> {
         anyhow::anyhow!("failed to parse component export JSON: {}{}", e, hint)
     })?;
 
-    // 5. Write pack.mcmeta
+    // 5. Validate every record before creating the output directory.  A build
+    // must fail before it produces a partially valid datapack.
     let dist = PathBuf::from("dist").join(&config.pack.namespace);
+    validate_component_records(&dist, &records)?;
+
+    // 6. Write pack.mcmeta
     std::fs::create_dir_all(&dist)?;
     write_pack_mcmeta(
         &dist,
@@ -120,7 +122,7 @@ pub fn run(release: bool, resourcepack: bool) -> Result<()> {
         pack_format,
     )?;
 
-    // 6. Write each component file
+    // 7. Write each component file
     for record in &records {
         write_component(&dist, record)?;
     }
@@ -132,7 +134,7 @@ pub fn run(release: bool, resourcepack: bool) -> Result<()> {
         format!("dist/{}/", config.pack.namespace).white().bold()
     );
 
-    // 7. Zip if --release, otherwise hint how to install manually.
+    // 8. Zip if --release, otherwise hint how to install manually.
     if release {
         let zip_path = zip_dir(&dist, &config.pack.namespace)?;
         println!(
@@ -154,7 +156,7 @@ pub fn run(release: bool, resourcepack: bool) -> Result<()> {
         );
     }
 
-    // 8. Resource pack build (optional, --resourcepack flag)
+    // 9. Resource pack build (optional, --resourcepack flag)
     if resourcepack {
         build_resourcepack(&config, &mc_version, release)?;
     }
@@ -228,8 +230,7 @@ fn build_resourcepack(config: &SandConfig, mc_version: &str, release: bool) -> R
 
     // Run the resource export binary.
     let profile = if release { "release" } else { "debug" };
-    let binary = std::env::current_dir()?
-        .join("target")
+    let binary = cargo_target_dir()?
         .join(profile)
         .join("sand_resource_export");
     let output = std::process::Command::new(&binary)
@@ -245,6 +246,8 @@ fn build_resourcepack(config: &SandConfig, mc_version: &str, release: bool) -> R
     // Parse resource pack records.
     let records: Vec<ResourcePackRecord> = serde_json::from_slice(&output.stdout)
         .context("failed to parse resource pack export JSON")?;
+
+    validate_resourcepack_records(&records)?;
 
     // Write pack.mcmeta for the resource pack.
     let rp_dist_name = format!("{}-resources", config.pack.namespace);
@@ -363,6 +366,29 @@ fn resolve_mc_version(mc_version: &str) -> String {
     }
 }
 
+/// Ask Cargo for its target directory instead of assuming a project-local
+/// `target/`. Workspace members commonly write into the workspace root.
+fn cargo_target_dir() -> Result<PathBuf> {
+    #[derive(Deserialize)]
+    struct CargoMetadata {
+        target_directory: PathBuf,
+    }
+
+    let output = std::process::Command::new("cargo")
+        .args(["metadata", "--format-version=1", "--no-deps"])
+        .output()
+        .context("failed to invoke `cargo metadata`")?;
+    if !output.status.success() {
+        bail!(
+            "`cargo metadata` failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+    Ok(serde_json::from_slice::<CargoMetadata>(&output.stdout)
+        .context("failed to parse `cargo metadata` output")?
+        .target_directory)
+}
+
 fn write_pack_mcmeta(
     dist: &Path,
     namespace: &str,
@@ -392,9 +418,431 @@ fn write_component(dist: &Path, record: &ComponentRecord) -> Result<()> {
         .join(format!("{}.{}", record.path, record.ext));
     std::fs::create_dir_all(file_path.parent().unwrap())
         .with_context(|| format!("failed to create dir for '{}'", file_path.display()))?;
-    std::fs::write(&file_path, &record.content)
+    // Minecraft accepts LF on every supported platform. Normalizing here makes
+    // generated functions deterministic and follows the validation contract.
+    let content = if record.ext == "mcfunction" {
+        record.content.replace("\r\n", "\n").replace('\r', "\n")
+    } else {
+        record.content.clone()
+    };
+    std::fs::write(&file_path, content)
         .with_context(|| format!("failed to write '{}'", file_path.display()))?;
     Ok(())
+}
+
+/// Validate component records before any datapack file is written.
+fn validate_component_records(dist: &Path, records: &[ComponentRecord]) -> Result<()> {
+    let mut paths = HashSet::new();
+    for record in records {
+        let output_path = component_output_path(dist, record)?;
+        if !paths.insert(output_path.clone()) {
+            bail!(
+                "duplicate generated component output path '{}': {}:{}/{}",
+                output_path.display(),
+                record.namespace,
+                record.dir,
+                record.path
+            );
+        }
+        match record.ext.as_str() {
+            "json" => {
+                serde_json::from_str::<serde_json::Value>(&record.content).with_context(|| {
+                    format!(
+                        "invalid generated JSON for component {}:{}/{} at '{}':",
+                        record.namespace,
+                        record.dir,
+                        record.path,
+                        output_path.display()
+                    )
+                })?;
+            }
+            "mcfunction" => {
+                if record.content.contains('\0') {
+                    bail!(
+                        "invalid generated function {}:{}/{} at '{}': embedded null byte",
+                        record.namespace,
+                        record.dir,
+                        record.path,
+                        output_path.display()
+                    );
+                }
+            }
+            ext => bail!(
+                "unsupported component extension '{ext}' for {}:{}/{}",
+                record.namespace,
+                record.dir,
+                record.path
+            ),
+        }
+    }
+    Ok(())
+}
+
+fn component_output_path(dist: &Path, record: &ComponentRecord) -> Result<PathBuf> {
+    validate_namespace(&record.namespace)?;
+    validate_relative("component directory", &record.dir)?;
+    validate_relative("component path", &record.path)?;
+    if !matches!(record.ext.as_str(), "json" | "mcfunction") {
+        bail!(
+            "unsupported component extension '{}' for {}:{}/{}",
+            record.ext,
+            record.namespace,
+            record.dir,
+            record.path
+        );
+    }
+    if !supported_component_dir(&record.dir) {
+        bail!(
+            "unsupported component directory '{}' for {}:{}",
+            record.dir,
+            record.namespace,
+            record.path
+        );
+    }
+    Ok(dist
+        .join("data")
+        .join(&record.namespace)
+        .join(&record.dir)
+        .join(format!("{}.{}", record.path, record.ext)))
+}
+
+fn validate_resourcepack_records(records: &[ResourcePackRecord]) -> Result<()> {
+    let mut paths = HashSet::new();
+    for record in records {
+        validate_relative("resource-pack asset path", &record.path)?;
+        if !record.path.starts_with("assets/") {
+            bail!(
+                "resource-pack record '{}' must be under assets/ (data/ belongs to the datapack)",
+                record.path
+            );
+        }
+        if !paths.insert(record.path.as_str()) {
+            bail!("duplicate resource-pack output path '{}'", record.path);
+        }
+        if record.content_type == "json" {
+            serde_json::from_str::<serde_json::Value>(&record.content)
+                .with_context(|| format!("invalid resource-pack JSON '{}':", record.path))?;
+        }
+    }
+    Ok(())
+}
+
+fn validate_relative(kind: &str, value: &str) -> Result<()> {
+    if value.is_empty() || Path::new(value).is_absolute() || value.contains('\0') {
+        bail!("invalid {kind} '{value}'");
+    }
+    if Path::new(value).components().any(|part| {
+        matches!(
+            part,
+            Component::ParentDir | Component::RootDir | Component::Prefix(_)
+        )
+    }) {
+        bail!("unsafe {kind} '{value}'");
+    }
+    Ok(())
+}
+
+fn validate_namespace(namespace: &str) -> Result<()> {
+    if namespace.is_empty()
+        || !namespace.bytes().all(|byte| {
+            byte.is_ascii_lowercase() || byte.is_ascii_digit() || matches!(byte, b'_' | b'-' | b'.')
+        })
+    {
+        bail!("invalid namespace '{namespace}'");
+    }
+    Ok(())
+}
+
+fn supported_component_dir(dir: &str) -> bool {
+    matches!(
+        dir,
+        "advancement"
+            | "banner_pattern"
+            | "chat_type"
+            | "damage_type"
+            | "dialog"
+            | "dimension"
+            | "enchantment"
+            | "function"
+            | "instrument"
+            | "item_modifier"
+            | "jukebox_song"
+            | "loot_table"
+            | "painting_variant"
+            | "predicate"
+            | "recipe"
+            | "tags"
+            | "tags/function"
+            | "trim_material"
+            | "trim_pattern"
+            | "wolf_variant"
+            | "worldgen/biome"
+            | "worldgen/noise_settings"
+            | "worldgen/placed_feature"
+    )
+}
+
+#[cfg(test)]
+#[allow(clippy::items_after_test_module)]
+mod tests {
+    use super::*;
+
+    fn record(dir: &str, path: &str, ext: &str, content: &str) -> ComponentRecord {
+        ComponentRecord {
+            namespace: "audit".into(),
+            dir: dir.into(),
+            path: path.into(),
+            ext: ext.into(),
+            content: content.into(),
+        }
+    }
+
+    #[test]
+    fn validates_component_records_before_writing() {
+        let dist = Path::new("dist/audit");
+        assert!(
+            validate_component_records(
+                dist,
+                &[record(
+                    "recipe",
+                    "valid",
+                    "json",
+                    "{\"type\":\"minecraft:crafting_shaped\"}"
+                )]
+            )
+            .is_ok()
+        );
+        assert!(
+            validate_component_records(dist, &[record("recipe", "invalid", "json", "{")]).is_err()
+        );
+        assert!(
+            validate_component_records(
+                dist,
+                &[record("function", "null", "mcfunction", "say hi\0")]
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn rejects_duplicate_and_unsafe_component_outputs() {
+        let dist = Path::new("dist/audit");
+        assert!(
+            validate_component_records(
+                dist,
+                &[
+                    record("recipe", "same", "json", "{}"),
+                    record("recipe", "same", "json", "{}"),
+                ]
+            )
+            .is_err()
+        );
+        assert!(
+            validate_component_records(dist, &[record("recipe", "../escape", "json", "{}")])
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn separates_datapack_and_resourcepack_roots() {
+        assert!(
+            validate_component_records(
+                Path::new("dist/audit"),
+                &[record("assets", "escaped", "json", "{}")]
+            )
+            .is_err()
+        );
+        assert!(
+            validate_resourcepack_records(&[ResourcePackRecord {
+                path: "assets/audit/models/item/test.json".into(),
+                content_type: "json".into(),
+                content: "{}".into(),
+            }])
+            .is_ok()
+        );
+        assert!(
+            validate_resourcepack_records(&[ResourcePackRecord {
+                path: "data/audit/recipe/test.json".into(),
+                content_type: "json".into(),
+                content: "{}".into(),
+            }])
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn pack_metadata_and_release_zip_stay_with_their_pack_root() {
+        let temp = tempfile::tempdir().unwrap();
+        let datapack = temp.path().join("audit");
+        let resourcepack = temp.path().join("audit-resources");
+        std::fs::create_dir_all(datapack.join("data/audit/function")).unwrap();
+        std::fs::create_dir_all(resourcepack.join("assets/audit/models/item")).unwrap();
+        write_pack_mcmeta(&datapack, "audit", "data", 71).unwrap();
+        write_resourcepack_mcmeta(&resourcepack, "resources", 48).unwrap();
+        std::fs::write(
+            datapack.join("data/audit/function/load.mcfunction"),
+            "say loaded",
+        )
+        .unwrap();
+        std::fs::write(
+            resourcepack.join("assets/audit/models/item/test.json"),
+            "{}",
+        )
+        .unwrap();
+
+        let data_meta: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(datapack.join("pack.mcmeta")).unwrap())
+                .unwrap();
+        let resource_meta: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(resourcepack.join("pack.mcmeta")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(data_meta["pack"]["pack_format"], 71);
+        assert_eq!(resource_meta["pack"]["pack_format"], 48);
+
+        let zip_path = zip_dir(&datapack, "audit").unwrap();
+        let mut zip = zip::ZipArchive::new(std::fs::File::open(zip_path).unwrap()).unwrap();
+        assert!(zip.by_name("pack.mcmeta").is_ok());
+        assert!(zip.by_name("data/audit/function/load.mcfunction").is_ok());
+        assert!(zip.by_name("assets/audit/models/item/test.json").is_err());
+    }
+
+    #[test]
+    fn locks_modern_singular_datapack_component_paths() {
+        let dist = Path::new("dist/audit");
+        let cases = [
+            (
+                "function",
+                "load",
+                "mcfunction",
+                "data/audit/function/load.mcfunction",
+            ),
+            (
+                "tags/function",
+                "load",
+                "json",
+                "data/audit/tags/function/load.json",
+            ),
+            (
+                "advancement",
+                "test",
+                "json",
+                "data/audit/advancement/test.json",
+            ),
+            ("recipe", "test", "json", "data/audit/recipe/test.json"),
+            (
+                "predicate",
+                "test",
+                "json",
+                "data/audit/predicate/test.json",
+            ),
+            (
+                "loot_table",
+                "test",
+                "json",
+                "data/audit/loot_table/test.json",
+            ),
+            (
+                "item_modifier",
+                "test",
+                "json",
+                "data/audit/item_modifier/test.json",
+            ),
+            (
+                "damage_type",
+                "test",
+                "json",
+                "data/audit/damage_type/test.json",
+            ),
+            (
+                "enchantment",
+                "test",
+                "json",
+                "data/audit/enchantment/test.json",
+            ),
+            (
+                "banner_pattern",
+                "test",
+                "json",
+                "data/audit/banner_pattern/test.json",
+            ),
+            (
+                "painting_variant",
+                "test",
+                "json",
+                "data/audit/painting_variant/test.json",
+            ),
+            (
+                "trim_material",
+                "test",
+                "json",
+                "data/audit/trim_material/test.json",
+            ),
+            (
+                "trim_pattern",
+                "test",
+                "json",
+                "data/audit/trim_pattern/test.json",
+            ),
+            (
+                "chat_type",
+                "test",
+                "json",
+                "data/audit/chat_type/test.json",
+            ),
+            (
+                "wolf_variant",
+                "test",
+                "json",
+                "data/audit/wolf_variant/test.json",
+            ),
+            (
+                "jukebox_song",
+                "test",
+                "json",
+                "data/audit/jukebox_song/test.json",
+            ),
+            (
+                "worldgen/biome",
+                "test",
+                "json",
+                "data/audit/worldgen/biome/test.json",
+            ),
+            (
+                "worldgen/noise_settings",
+                "test",
+                "json",
+                "data/audit/worldgen/noise_settings/test.json",
+            ),
+            (
+                "worldgen/placed_feature",
+                "test",
+                "json",
+                "data/audit/worldgen/placed_feature/test.json",
+            ),
+        ];
+        for (dir, path, ext, expected) in cases {
+            let output = component_output_path(dist, &record(dir, path, ext, "{}")).unwrap();
+            let actual = output
+                .strip_prefix(dist)
+                .unwrap()
+                .to_string_lossy()
+                .replace('\\', "/");
+            assert_eq!(actual, expected, "wrong directory for {dir}");
+        }
+
+        let minecraft_tag = ComponentRecord {
+            namespace: "minecraft".into(),
+            ..record("tags/function", "tick", "json", "{}")
+        };
+        assert_eq!(
+            component_output_path(dist, &minecraft_tag)
+                .unwrap()
+                .strip_prefix(dist)
+                .unwrap(),
+            PathBuf::from("data/minecraft/tags/function/tick.json")
+        );
+    }
 }
 
 fn zip_dir(dist: &Path, name: &str) -> Result<PathBuf> {

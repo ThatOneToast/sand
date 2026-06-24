@@ -3,7 +3,7 @@
 use std::fmt::Display;
 
 use serde::Serialize;
-use serde::ser::{SerializeMap, Serializer};
+use serde::ser::{SerializeMap, SerializeSeq, Serializer};
 
 // ── Ingredient ───────────────────────────────────────────────────────────────
 
@@ -11,6 +11,7 @@ use serde::ser::{SerializeMap, Serializer};
 pub struct Ingredient {
     pub item: Option<String>,
     pub tag: Option<String>,
+    alternatives: Vec<Ingredient>,
 }
 
 impl Ingredient {
@@ -19,6 +20,7 @@ impl Ingredient {
         Self {
             item: Some(id.to_string()),
             tag: None,
+            alternatives: Vec::new(),
         }
     }
 
@@ -27,21 +29,48 @@ impl Ingredient {
         Self {
             item: None,
             tag: Some(id.to_string()),
+            alternatives: Vec::new(),
+        }
+    }
+
+    /// Creates an ingredient that matches any of the supplied alternatives.
+    /// Modern recipe JSON represents alternatives as an array of ingredient
+    /// values, where item IDs and tag IDs are both strings.
+    pub fn alternatives(alternatives: impl IntoIterator<Item = Ingredient>) -> Self {
+        Self {
+            item: None,
+            tag: None,
+            alternatives: alternatives.into_iter().collect(),
+        }
+    }
+
+    pub(crate) fn empty() -> Self {
+        Self {
+            item: None,
+            tag: None,
+            alternatives: Vec::new(),
         }
     }
 }
 
 impl Serialize for Ingredient {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let count = self.item.is_some() as usize + self.tag.is_some() as usize;
-        let mut map = serializer.serialize_map(Some(count))?;
+        if !self.alternatives.is_empty() {
+            let mut seq = serializer.serialize_seq(Some(self.alternatives.len()))?;
+            for ingredient in &self.alternatives {
+                seq.serialize_element(ingredient)?;
+            }
+            return seq.end();
+        }
         if let Some(ref item) = self.item {
-            map.serialize_entry("item", item)?;
+            return serializer.serialize_str(item);
         }
         if let Some(ref tag) = self.tag {
-            map.serialize_entry("tag", tag)?;
+            return serializer.serialize_str(&format!("#{tag}"));
         }
-        map.end()
+        Err(serde::ser::Error::custom(
+            "recipe ingredient cannot be empty",
+        ))
     }
 }
 
@@ -91,5 +120,40 @@ impl CookingType {
             CookingType::Smoking => "minecraft:smoking",
             CookingType::CampfireCooking => "minecraft:campfire_cooking",
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::{Ingredient, RecipeResult};
+
+    #[test]
+    fn serializes_modern_ingredient_forms() {
+        assert_eq!(
+            serde_json::to_value(Ingredient::item("minecraft:oak_planks")).unwrap(),
+            json!("minecraft:oak_planks")
+        );
+        assert_eq!(
+            serde_json::to_value(Ingredient::tag("minecraft:planks")).unwrap(),
+            json!("#minecraft:planks")
+        );
+        assert_eq!(
+            serde_json::to_value(Ingredient::alternatives([
+                Ingredient::item("minecraft:oak_planks"),
+                Ingredient::tag("minecraft:logs"),
+            ]))
+            .unwrap(),
+            json!(["minecraft:oak_planks", "#minecraft:logs"])
+        );
+    }
+
+    #[test]
+    fn serializes_modern_recipe_result() {
+        assert_eq!(
+            serde_json::to_value(RecipeResult::new("powers:reinforced_shield", 1)).unwrap(),
+            json!({ "id": "powers:reinforced_shield", "count": 1 })
+        );
     }
 }

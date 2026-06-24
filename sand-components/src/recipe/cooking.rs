@@ -27,10 +27,7 @@ impl CookingRecipe {
             recipe_type,
             category: None,
             group: None,
-            ingredient: Ingredient {
-                item: None,
-                tag: None,
-            },
+            ingredient: Ingredient::empty(),
             result: RecipeResult {
                 id: String::new(),
                 count: 1,

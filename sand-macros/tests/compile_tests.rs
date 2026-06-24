@@ -8,6 +8,7 @@ fn compile_tests() {
     t.pass("tests/cases/pass_component.rs");
     t.pass("tests/cases/pass_component_dialog.rs");
     t.pass("tests/cases/pass_event_generic.rs");
+    t.pass("tests/cases/pass_event_level_up.rs");
     t.pass("tests/cases/pass_damage_event.rs");
     t.pass("tests/cases/pass_event_generic_used_dash_wand.rs");
     t.compile_fail("tests/cases/fail_with_params.rs");

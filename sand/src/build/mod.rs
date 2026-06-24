@@ -41,7 +41,10 @@ pub fn run(release: bool, resourcepack: bool) -> Result<()> {
         } else if let Ok(v) = MinecraftVersion::parse(&mc_version) {
             let p = VersionProfile::resolve(&v).unwrap_or_else(|_| {
                 // parse never fails for well-formed versions, but default if it does
-                VersionProfile::resolve(&MinecraftVersion::parse("1.21.4").unwrap()).unwrap()
+                VersionProfile::resolve(
+                    &MinecraftVersion::parse(sand_core::version::LATEST_KNOWN).unwrap(),
+                )
+                .unwrap()
             });
             let meta = p.datapack_metadata();
             (meta.pack_format, meta.is_fallback)

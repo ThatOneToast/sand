@@ -14,7 +14,7 @@ pub fn pack_format_for(mc_version: &str) -> u32 {
         .ok()
         .and_then(|v| VersionProfile::resolve(&v).ok())
         .map(|p| p.data_pack_format)
-        .unwrap_or(61)
+        .unwrap_or(107)
 }
 
 #[cfg(test)]
@@ -33,14 +33,18 @@ mod tests {
     }
 
     #[test]
-    fn future_version_returns_latest_known() {
-        // Unknown versions return a conservative fallback (latest known format).
-        assert_eq!(pack_format_for("1.21.11"), 61);
-        assert_eq!(pack_format_for("1.22.0"), 61);
+    fn known_recent_versions() {
+        assert_eq!(pack_format_for("1.21.5"), 71);
+        assert_eq!(pack_format_for("1.21.6"), 80);
+        assert_eq!(pack_format_for("1.21.11"), 94);
+        assert_eq!(pack_format_for("26.1"), 101);
+        assert_eq!(pack_format_for("26.2"), 107);
     }
 
     #[test]
-    fn unknown_version_returns_latest_known() {
-        assert_eq!(pack_format_for("0.0.0"), 61);
+    fn unknown_version_returns_conservative_latest() {
+        // Unknown versions return the conservative fallback (latest known: 26.2 = 107).
+        assert_eq!(pack_format_for("1.22.0"), 107);
+        assert_eq!(pack_format_for("0.0.0"), 107);
     }
 }

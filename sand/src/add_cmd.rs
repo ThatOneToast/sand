@@ -116,6 +116,33 @@ pub fn run_resourcepack() -> Result<()> {
 
 // ── Patching helpers ──────────────────────────────────────────────────────────
 
+/// Extract the version string from any `sand-* = "X.Y.Z"` or
+/// `sand-* = { version = "X.Y.Z", ... }` line in a `Cargo.toml` string.
+/// Returns `None` if no versioned sand dep is found (e.g. path-dep-only project).
+fn extract_sand_version(cargo_toml: &str) -> Option<String> {
+    for line in cargo_toml.lines() {
+        let trimmed = line.trim_start();
+        if !trimmed.starts_with("sand-") {
+            continue;
+        }
+        // Simple form: sand-foo = "1.2.3"
+        if let Some(eq) = trimmed.find('=') {
+            let rhs = trimmed[eq + 1..].trim();
+            if rhs.starts_with('"') && rhs.ends_with('"') {
+                return Some(rhs[1..rhs.len() - 1].to_string());
+            }
+            // Inline table form: sand-foo = { version = "1.2.3", ... }
+            if let Some(ver_start) = rhs.find("version = \"") {
+                let after = &rhs[ver_start + 11..];
+                if let Some(end) = after.find('"') {
+                    return Some(after[..end].to_string());
+                }
+            }
+        }
+    }
+    None
+}
+
 /// Add `sand-resourcepack` dep, `features = ["resourcepack"]` on sand-macros,
 /// and a `[[bin]] sand_resource_export` target to `Cargo.toml`.
 fn patch_cargo_toml(original: &str, namespace: &str) -> Result<()> {
@@ -131,7 +158,10 @@ fn patch_cargo_toml(original: &str, namespace: &str) -> Result<()> {
         let path = format!("{}/sand-resourcepack", WORKSPACE_ROOT);
         format!("sand-resourcepack = {{ path = \"{path}\" }}")
     } else {
-        let version = env!("CARGO_PKG_VERSION");
+        // Derive the version from an existing sand-* dep so we don't mix crate
+        // versions when the CLI is newer than the project's deps.
+        let version =
+            extract_sand_version(original).unwrap_or_else(|| env!("CARGO_PKG_VERSION").to_string());
         format!("sand-resourcepack = \"{version}\"")
     };
 

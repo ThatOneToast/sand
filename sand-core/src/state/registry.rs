@@ -133,21 +133,29 @@ pub fn drain_tick_commands() -> Vec<String> {
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
+/// A test-only serialization lock shared across any test that touches the global
+/// lifecycle registries.  Lives at module level (not inside `mod tests`) so that
+/// component-level tests in `sand_core::component` can import and use it too.
+///
+/// Uses the same poison-recovery pattern so a `#[should_panic]` test does not
+/// permanently block subsequent tests.
+#[cfg(test)]
+pub(crate) fn registry_test_lock() -> std::sync::MutexGuard<'static, ()> {
+    static TEST_MUTEX: std::sync::OnceLock<std::sync::Mutex<()>> = std::sync::OnceLock::new();
+    let m = TEST_MUTEX.get_or_init(|| std::sync::Mutex::new(()));
+    m.lock().unwrap_or_else(|e| e.into_inner())
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::MutexGuard;
 
     use super::*;
 
-    /// A test-only serialization lock that ensures registry tests never run in
-    /// parallel with each other. This prevents one test's mutations from
-    /// polluting another test's assertions in the shared global registries.
+    /// Delegate to the module-level lock so both this module and component tests
+    /// serialize against the same mutex.
     fn test_lock() -> MutexGuard<'static, ()> {
-        static TEST_MUTEX: OnceLock<std::sync::Mutex<()>> = OnceLock::new();
-        let m = TEST_MUTEX.get_or_init(|| std::sync::Mutex::new(()));
-        // Recover from poison so a panicking `#[should_panic]` test does not
-        // permanently block subsequent tests.
-        m.lock().unwrap_or_else(|e| e.into_inner())
+        super::registry_test_lock()
     }
 
     /// Helper: drain both registries to avoid test pollution.

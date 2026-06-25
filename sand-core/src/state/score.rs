@@ -151,6 +151,38 @@ fn register_constant(objective: &str, holder: &str, value: i32) {
     }
 }
 
+fn score_constant_operand(prefix: &str, value: i32) -> ScoreOperand {
+    let objective = objective_name("sand_consts");
+    let holder = constant_holder(&format!("{prefix}_{value}"));
+    register_constant(&objective, &holder, value);
+    ScoreOperand {
+        selector: holder,
+        objective,
+    }
+}
+
+fn score_set_command(target: &ScoreOperand, value: i32) -> String {
+    format!(
+        "scoreboard players set {} {} {value}",
+        target.selector, target.objective
+    )
+}
+
+fn score_operation_command(
+    target: &ScoreOperand,
+    op: ScoreOperation,
+    source: &ScoreOperand,
+) -> String {
+    format!(
+        "scoreboard players operation {} {} {} {} {}",
+        target.selector,
+        target.objective,
+        op.as_str(),
+        source.selector,
+        source.objective
+    )
+}
+
 /// Drain constant setup commands after all user command factories have run.
 /// This is consumed by the export pipeline, not by user code.
 #[doc(hidden)]
@@ -501,14 +533,7 @@ impl<'a, T> ScoreRef<'a, T> {
     fn operation<O: Into<ScoreOperand>>(self, op: ScoreOperation, other: O) -> String {
         let left = self.operand();
         let right = other.into();
-        format!(
-            "scoreboard players operation {} {} {} {} {}",
-            left.selector,
-            left.objective,
-            op.as_str(),
-            right.selector,
-            right.objective
-        )
+        score_operation_command(&left, op, &right)
     }
 
     /// Assign this score from another score entry (`=`).
@@ -556,6 +581,150 @@ impl<'a, T> ScoreRef<'a, T> {
     /// Swap this score entry with another (`><`).
     pub fn swap<O: Into<ScoreOperand>>(self, other: O) -> String {
         self.operation(ScoreOperation::Swap, other)
+    }
+
+    /// Set this score to `value * percent / 100`.
+    ///
+    /// Scoreboard math is integer-only, so the final division truncates toward
+    /// zero. Sand registers the generated percentage constants automatically.
+    pub fn set_percent<O: Into<ScoreOperand>>(self, value: O, percent: i32) -> Vec<String> {
+        let target = self.operand();
+        let value = value.into();
+        let percent = score_constant_operand("score_percent", percent);
+        let hundred = score_constant_operand("score_percent_denominator", 100);
+        vec![
+            score_operation_command(&target, ScoreOperation::Assign, &value),
+            score_operation_command(&target, ScoreOperation::Mul, &percent),
+            score_operation_command(&target, ScoreOperation::Div, &hundred),
+        ]
+    }
+
+    /// Scale this score in place by `percent / 100`.
+    ///
+    /// Scoreboard math is integer-only, so the final division truncates toward
+    /// zero. Use [`ScoreRef::set_percent`] when the source and destination are
+    /// different scores.
+    pub fn scale_percent(self, percent: i32) -> Vec<String> {
+        let target = self.operand();
+        let percent = score_constant_operand("score_percent", percent);
+        let hundred = score_constant_operand("score_percent_denominator", 100);
+        vec![
+            score_operation_command(&target, ScoreOperation::Mul, &percent),
+            score_operation_command(&target, ScoreOperation::Div, &hundred),
+        ]
+    }
+
+    /// Set this score to `current * scale / max`.
+    ///
+    /// This emits the direct vanilla operations and does not hide division by
+    /// zero. Use [`ScoreRef::safe_divide`] when `max` may be zero.
+    pub fn set_ratio<N: Into<ScoreOperand>, D: Into<ScoreOperand>>(
+        self,
+        current: N,
+        max: D,
+        scale: i32,
+    ) -> Vec<String> {
+        let target = self.operand();
+        let current = current.into();
+        let max = max.into();
+        let scale = score_constant_operand("score_ratio_scale", scale);
+        vec![
+            score_operation_command(&target, ScoreOperation::Assign, &current),
+            score_operation_command(&target, ScoreOperation::Mul, &scale),
+            score_operation_command(&target, ScoreOperation::Div, &max),
+        ]
+    }
+
+    /// Divide this score by another score only when the divisor is non-zero.
+    ///
+    /// If the divisor is zero, the target is set to `fallback` instead. This
+    /// keeps generated output explicit about the branch that avoids vanilla's
+    /// division-by-zero runtime failure.
+    pub fn safe_divide<O: Into<ScoreOperand>>(self, divisor: O, fallback: i32) -> Vec<String> {
+        let target = self.operand();
+        let divisor = divisor.into();
+        vec![
+            format!(
+                "execute unless score {} {} matches 0 run {}",
+                divisor.selector,
+                divisor.objective,
+                score_operation_command(&target, ScoreOperation::Div, &divisor)
+            ),
+            format!(
+                "execute if score {} {} matches 0 run {}",
+                divisor.selector,
+                divisor.objective,
+                score_set_command(&target, fallback)
+            ),
+        ]
+    }
+
+    /// Clamp this score between two other score entries.
+    ///
+    /// The first command enforces the lower bound with vanilla's `>` operation
+    /// (`max`), and the second enforces the upper bound with `<` (`min`).
+    pub fn clamp_score<L: Into<ScoreOperand>, U: Into<ScoreOperand>>(
+        self,
+        min: L,
+        max: U,
+    ) -> Vec<String> {
+        let target = self.operand();
+        let min = min.into();
+        let max = max.into();
+        vec![
+            score_operation_command(&target, ScoreOperation::Max, &min),
+            score_operation_command(&target, ScoreOperation::Min, &max),
+        ]
+    }
+
+    /// Add `amount` and then clamp to the literal `[min, max]` range.
+    pub fn saturating_add(self, amount: i32, min: i32, max: i32) -> Vec<String> {
+        let target = self.operand();
+        vec![
+            format!(
+                "scoreboard players add {} {} {amount}",
+                target.selector, target.objective
+            ),
+            format!(
+                "execute if score {} {} matches ..{} run {}",
+                target.selector,
+                target.objective,
+                min.saturating_sub(1),
+                score_set_command(&target, min)
+            ),
+            format!(
+                "execute if score {} {} matches {}.. run {}",
+                target.selector,
+                target.objective,
+                max.saturating_add(1),
+                score_set_command(&target, max)
+            ),
+        ]
+    }
+
+    /// Subtract `amount` and then clamp to the literal `[min, max]` range.
+    pub fn saturating_sub(self, amount: i32, min: i32, max: i32) -> Vec<String> {
+        let target = self.operand();
+        vec![
+            format!(
+                "scoreboard players remove {} {} {amount}",
+                target.selector, target.objective
+            ),
+            format!(
+                "execute if score {} {} matches ..{} run {}",
+                target.selector,
+                target.objective,
+                min.saturating_sub(1),
+                score_set_command(&target, min)
+            ),
+            format!(
+                "execute if score {} {} matches {}.. run {}",
+                target.selector,
+                target.objective,
+                max.saturating_add(1),
+                score_set_command(&target, max)
+            ),
+        ]
     }
 
     fn compare<O: Into<ScoreOperand>>(self, op: ScoreCompareOp, other: O) -> Condition {
@@ -1211,5 +1380,136 @@ mod tests {
                 .any(|line| line == "scoreboard objectives add sand_consts dummy")
         );
         assert!(setup.iter().any(|line| line.ends_with(" sand_consts -2")));
+    }
+
+    #[test]
+    fn set_percent_generates_integer_math_pipeline() {
+        static DAMAGE: ScoreVar<i32> = ScoreVar::new("damage");
+        let cmds = MANA.of("@s").set_percent(DAMAGE.of("@s"), 150);
+
+        assert_eq!(cmds.len(), 3);
+        assert_eq!(cmds[0], "scoreboard players operation @s mana = @s damage");
+        assert!(
+            cmds[1].starts_with("scoreboard players operation @s mana *= #sand_score_percent_150_")
+        );
+        assert!(cmds[1].ends_with(" sand_consts"));
+        assert!(
+            cmds[2].starts_with(
+                "scoreboard players operation @s mana /= #sand_score_percent_denominator_"
+            ),
+            "got: {}",
+            cmds[2]
+        );
+        assert!(cmds[2].ends_with(" sand_consts"));
+    }
+
+    #[test]
+    fn scale_percent_updates_target_in_place() {
+        let cmds = MANA.of("@s").scale_percent(75);
+
+        assert_eq!(cmds.len(), 2);
+        assert!(
+            cmds[0].starts_with("scoreboard players operation @s mana *= #sand_score_percent_75_")
+        );
+        assert!(cmds[0].ends_with(" sand_consts"));
+        assert!(
+            cmds[1].starts_with(
+                "scoreboard players operation @s mana /= #sand_score_percent_denominator_"
+            ),
+            "got: {}",
+            cmds[1]
+        );
+    }
+
+    #[test]
+    fn set_ratio_generates_current_scale_divide_pipeline() {
+        static HEALTH: ScoreVar<i32> = ScoreVar::new("health");
+        static MAX_HEALTH: ScoreVar<i32> = ScoreVar::new("max_health");
+
+        let cmds = MANA
+            .of("@s")
+            .set_ratio(HEALTH.of("@s"), MAX_HEALTH.of("@s"), 100);
+
+        assert_eq!(cmds.len(), 3);
+        assert_eq!(cmds[0], "scoreboard players operation @s mana = @s health");
+        assert!(
+            cmds[1].starts_with(
+                "scoreboard players operation @s mana *= #sand_score_ratio_scale_100_"
+            )
+        );
+        assert!(cmds[1].ends_with(" sand_consts"));
+        assert_eq!(
+            cmds[2],
+            "scoreboard players operation @s mana /= @s max_health"
+        );
+    }
+
+    #[test]
+    fn safe_divide_guards_zero_divisor() {
+        static MAX_HEALTH: ScoreVar<i32> = ScoreVar::new("max_health");
+
+        let cmds = MANA.of("@s").safe_divide(MAX_HEALTH.of("@s"), 0);
+
+        assert_eq!(
+            cmds,
+            vec![
+                "execute unless score @s max_health matches 0 run scoreboard players operation @s mana /= @s max_health",
+                "execute if score @s max_health matches 0 run scoreboard players set @s mana 0",
+            ]
+        );
+    }
+
+    #[test]
+    fn safe_divide_supports_same_target_and_divisor() {
+        let cmds = MANA.of("@s").safe_divide(MANA.of("@s"), 42);
+
+        assert_eq!(
+            cmds,
+            vec![
+                "execute unless score @s mana matches 0 run scoreboard players operation @s mana /= @s mana",
+                "execute if score @s mana matches 0 run scoreboard players set @s mana 42",
+            ]
+        );
+    }
+
+    #[test]
+    fn clamp_score_uses_vanilla_min_max_operations() {
+        static MIN_MANA: ScoreVar<i32> = ScoreVar::new("min_mana");
+        static MAX_MANA: ScoreVar<i32> = ScoreVar::new("max_mana");
+
+        let cmds = MANA
+            .of("@s")
+            .clamp_score(MIN_MANA.of("@s"), MAX_MANA.of("@s"));
+
+        assert_eq!(
+            cmds,
+            vec![
+                "scoreboard players operation @s mana > @s min_mana",
+                "scoreboard players operation @s mana < @s max_mana",
+            ]
+        );
+    }
+
+    #[test]
+    fn saturating_add_and_sub_emit_literal_clamps() {
+        let add = MANA.of("@s").saturating_add(5, 0, 100);
+        assert_eq!(
+            add,
+            vec![
+                "scoreboard players add @s mana 5",
+                "execute if score @s mana matches ..-1 run scoreboard players set @s mana 0",
+                "execute if score @s mana matches 101.. run scoreboard players set @s mana 100",
+            ]
+        );
+
+        let sub = MANA.of("@s").saturating_sub(20, 0, 100);
+        assert_eq!(
+            sub,
+            vec![
+                "scoreboard players remove @s mana 20",
+                "execute if score @s mana matches ..-1 run scoreboard players set @s mana 0",
+                "execute if score @s mana matches 101.. run scoreboard players set @s mana 100",
+            ]
+        );
     }
 }

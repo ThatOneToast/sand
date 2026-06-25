@@ -594,13 +594,21 @@ mod tests {
         let empty = r#"{"values":[]}"#;
         assert!(validate_function_tag("load", empty).is_ok());
 
-        // Tag reference (#-prefixed)
+        // Tag reference (#-prefixed) with valid resource location
         let tag_ref = "{\"values\":[\"#minecraft:some_tag\"]}";
         assert!(validate_function_tag("load", tag_ref).is_ok());
 
-        // Object form with required=false
+        // Object form with valid resource location and required=false
         let optional = r#"{"values":[{"id":"my_pack:optional","required":false}]}"#;
         assert!(validate_function_tag("load", optional).is_ok());
+
+        // Object form with id only (required is optional)
+        let id_only = r#"{"values":[{"id":"my_pack:fn"}]}"#;
+        assert!(validate_function_tag("load", id_only).is_ok());
+
+        // Paths with subdirectories are valid
+        let subdir = r#"{"values":["my_pack:subfolder/load"]}"#;
+        assert!(validate_function_tag("load", subdir).is_ok());
     }
 
     #[test]
@@ -614,14 +622,73 @@ mod tests {
         // values is not an array
         assert!(validate_function_tag("load", r#"{"values":"my_pack:load"}"#).is_err());
 
-        // Entry missing ':' in resource location
+        // String entry missing ':' entirely
         assert!(validate_function_tag("load", r#"{"values":["no_colon_here"]}"#).is_err());
+
+        // Uppercase namespace is rejected
+        assert!(validate_function_tag("load", r#"{"values":["Bad:load"]}"#).is_err());
+
+        // Empty namespace
+        assert!(validate_function_tag("load", r#"{"values":[":load"]}"#).is_err());
+
+        // Empty path
+        assert!(validate_function_tag("load", r#"{"values":["minecraft:"]}"#).is_err());
 
         // Object entry missing 'id'
         assert!(validate_function_tag("load", r#"{"values":[{"required":false}]}"#).is_err());
 
+        // Object id is not a string
+        assert!(validate_function_tag("load", r#"{"values":[{"id":42}]}"#).is_err());
+
+        // Object id is not a valid resource location
+        assert!(validate_function_tag("load", r#"{"values":[{"id":"not_a_location"}]}"#).is_err());
+
+        // Object id with uppercase namespace
+        assert!(validate_function_tag("load", r#"{"values":[{"id":"Bad:load"}]}"#).is_err());
+
+        // required is not a boolean
+        assert!(
+            validate_function_tag(
+                "load",
+                r#"{"values":[{"id":"my_pack:fn","required":"yes"}]}"#
+            )
+            .is_err()
+        );
+
         // Invalid JSON
         assert!(validate_function_tag("load", r#"{"values": ["#).is_err());
+    }
+
+    #[test]
+    fn function_tag_validation_applies_to_generic_tags_dir() {
+        // A record with dir="tags" and path="function/load" should also be
+        // validated as a function tag by validate_component_records.
+        let dist = std::path::Path::new("dist/audit");
+
+        // Valid function tag via the generic dir="tags" form
+        let good: ComponentRecord = serde_json::from_value(serde_json::json!({
+            "namespace": "minecraft",
+            "dir": "tags",
+            "path": "function/load",
+            "ext": "json",
+            "content": r#"{"values":["my_pack:load"]}"#,
+        }))
+        .unwrap();
+        assert!(validate_component_records(dist, &[good]).is_ok());
+
+        // Malformed function tag via the generic dir="tags" form should fail
+        let bad: ComponentRecord = serde_json::from_value(serde_json::json!({
+            "namespace": "minecraft",
+            "dir": "tags",
+            "path": "function/load",
+            "ext": "json",
+            "content": r#"{"values":["BadNamespace:load"]}"#,
+        }))
+        .unwrap();
+        assert!(
+            validate_component_records(dist, &[bad]).is_err(),
+            "invalid resource location in tags dir+function/ path must be caught"
+        );
     }
 
     // ── Golden fixture ────────────────────────────────────────────────────────

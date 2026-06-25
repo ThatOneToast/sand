@@ -33,7 +33,12 @@ pub(super) fn validate_component_records(
                     )
                 })?;
                 // Function tags get structural validation in addition to JSON parsing.
-                if record.dir.as_str() == "tags/function" {
+                // Covers both the canonical form (dir="tags/function") and the generic
+                // form (dir="tags", path starts with "function/").
+                let is_function_tag = record.dir.as_str() == "tags/function"
+                    || (record.dir.as_str() == "tags"
+                        && record.path.as_str().starts_with("function/"));
+                if is_function_tag {
                     validate_function_tag(record.path.as_str(), &record.content)?;
                 }
             }
@@ -95,10 +100,11 @@ pub(super) fn validate_resourcepack_records(records: &[ResourcePackRecord]) -> R
 /// A valid function tag is a JSON object with a `"values"` array. Each entry
 /// must be either a resource-location string (`"namespace:path"`, optionally
 /// prefixed with `#` to reference another tag) or an object with an `"id"`
-/// field (`{"id": "...", "required": false}`).
+/// field containing a valid resource location (`{"id": "ns:path", "required": false}`).
 ///
 /// Called automatically from [`validate_component_records`] for all
-/// `tags/function` records, and available for standalone validation.
+/// `tags/function` and `tags`+`function/` records, and available for
+/// standalone validation.
 pub(super) fn validate_function_tag(tag_name: &str, json: &str) -> Result<()> {
     let v: serde_json::Value = serde_json::from_str(json)
         .with_context(|| format!("invalid JSON in function tag '{tag_name}'"))?;
@@ -119,27 +125,69 @@ pub(super) fn validate_function_tag(tag_name: &str, json: &str) -> Result<()> {
         match entry {
             serde_json::Value::String(s) => {
                 let target = s.trim_start_matches('#');
-                if !target.contains(':') {
+                if !is_valid_resource_location(target) {
                     bail!(
                         "function tag '{tag_name}' entry {i} '{s}' is not a valid \
-                         resource location (missing ':')"
+                         resource location (expected 'namespace:path' with lowercase \
+                         letters, digits, `_`, `-`, `.`)"
                     );
                 }
             }
             serde_json::Value::Object(obj) => {
-                if !obj.contains_key("id") {
-                    bail!("function tag '{tag_name}' entry {i} object must have an 'id' field");
+                let id_val = obj.get("id").ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "function tag '{tag_name}' entry {i} object must have an 'id' field"
+                    )
+                })?;
+                let id = id_val.as_str().ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "function tag '{tag_name}' entry {i} 'id' must be a string, \
+                         got {id_val}"
+                    )
+                })?;
+                if !is_valid_resource_location(id) {
+                    bail!(
+                        "function tag '{tag_name}' entry {i} 'id' value '{id}' is not \
+                         a valid resource location"
+                    );
+                }
+                if obj.get("required").is_some_and(|req| !req.is_boolean()) {
+                    bail!(
+                        "function tag '{tag_name}' entry {i} 'required' must be \
+                         a boolean"
+                    );
                 }
             }
             other => {
                 bail!(
-                    "function tag '{tag_name}' entry {i} must be a string or object, got {other}"
+                    "function tag '{tag_name}' entry {i} must be a string or object, \
+                     got {other}"
                 );
             }
         }
     }
 
     Ok(())
+}
+
+/// Returns `true` if `s` is a valid Minecraft resource location (`namespace:path`).
+///
+/// Rules:
+/// - Must contain exactly one `:`.
+/// - Namespace: non-empty, `[a-z0-9_.-]`.
+/// - Path: non-empty, `[a-z0-9_./-]`.
+fn is_valid_resource_location(s: &str) -> bool {
+    let Some((ns, path)) = s.split_once(':') else {
+        return false;
+    };
+    !ns.is_empty()
+        && !path.is_empty()
+        && ns.bytes().all(|b| {
+            b.is_ascii_lowercase() || b.is_ascii_digit() || matches!(b, b'_' | b'-' | b'.')
+        })
+        && path.bytes().all(|b| {
+            b.is_ascii_lowercase() || b.is_ascii_digit() || matches!(b, b'_' | b'-' | b'.' | b'/')
+        })
 }
 
 /// Validates a Minecraft namespace string (lowercase letters, digits, `_`, `-`, `.`).

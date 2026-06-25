@@ -32,15 +32,21 @@
 
 pub mod cooldown;
 pub mod flag;
+pub mod registry;
 pub mod score;
 pub mod storage;
 pub mod timer;
+pub mod typed_state;
 
 pub use cooldown::Cooldown;
 pub use flag::{Flag, FlagRef};
+pub use registry::{
+    drain_load_commands, drain_tick_commands, register_load_objective, register_tick_handler,
+};
 pub use score::{ScoreConst, ScoreConstants, ScoreExpr, ScoreOperation, ScoreRef, ScoreVar};
 pub use storage::{
     BlockNbt, EntityNbt, NbtLocation, NbtPath, SnbtCompound, SnbtValue, StorageField,
     StorageLocation, StorageSchema, StorageVar,
 };
 pub use timer::{Ticks, Timer};
+pub use typed_state::{GameState, GameStateRef, TypedGameState};

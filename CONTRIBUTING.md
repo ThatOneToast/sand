@@ -22,6 +22,29 @@ scripts/check.sh
 CI. Keep the workspace `rust-version` in `Cargo.toml` aligned with that pinned
 channel so Cargo metadata, rustup, and GitHub Actions agree.
 
+## Workspace lint policy
+
+Sand uses a staged strictness policy so public crates can tighten guarantees
+without large API-adjacent documentation rewrites.
+
+Currently enforced:
+
+- `#![forbid(unsafe_code)]` in public library crates that do not require unsafe
+  internals today: `sand-build`, `sand-commands`, `sand-macros`, and
+  `sand-resourcepack`.
+- `cargo clippy --workspace --all-targets --all-features -- -D warnings` for
+  default review and CI checks.
+- `cargo doc --workspace --all-features --no-deps` to keep public rustdoc
+  healthy.
+
+Staged goals:
+
+- Extend `#![forbid(unsafe_code)]` to `sand-core` and `sand-components` after
+  their callback registries no longer require unsafe function-pointer erasure.
+- Enable `missing_docs` crate by crate once each public crate has complete
+  public-item documentation. Do not enable it globally until every public crate
+  passes cleanly.
+
 ## Authoring guidance
 
 - Teach `#[function]`, `#[component(Load)]`, and `#[component(Tick)]` first.

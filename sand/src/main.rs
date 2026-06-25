@@ -1,18 +1,11 @@
-mod add_cmd;
-mod build;
-mod config;
-mod join_cmd;
-mod pack_format;
-mod run_cmd;
-mod scaffold;
-
 use std::path::PathBuf;
 
 use anyhow::{Context, Result, bail};
 use clap::{Parser, Subcommand};
 use colored::Colorize;
 
-use scaffold::{ScaffoldOptions, name_to_namespace, validate_name};
+use sand::scaffold::{ScaffoldOptions, name_to_namespace, validate_name};
+use sand::{add_cmd, build, join_cmd, run_cmd, scaffold};
 
 // ── CLI definition ────────────────────────────────────────────────────────────
 

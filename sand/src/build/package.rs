@@ -1,13 +1,13 @@
-use std::io::Write;
+use std::io::{BufReader, BufWriter};
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 
-pub(super) fn zip_dir(dist: &Path, name: &str) -> Result<PathBuf> {
+pub(crate) fn zip_dir(dist: &Path, name: &str) -> Result<PathBuf> {
     let zip_path = dist.parent().unwrap().join(format!("{name}.zip"));
     let file = std::fs::File::create(&zip_path)
         .with_context(|| format!("failed to create zip '{}'", zip_path.display()))?;
-    let mut zip = zip::ZipWriter::new(file);
+    let mut zip = zip::ZipWriter::new(BufWriter::new(file));
     let options = zip::write::SimpleFileOptions::default()
         .compression_method(zip::CompressionMethod::Deflated);
 
@@ -19,7 +19,12 @@ pub(super) fn zip_dir(dist: &Path, name: &str) -> Result<PathBuf> {
             // which is what Minecraft requires.
             let rel = abs.strip_prefix(dist)?;
             zip.start_file(rel.to_str().context("non-UTF-8 path")?, options)?;
-            zip.write_all(&std::fs::read(abs)?)?;
+            let mut input = BufReader::new(
+                std::fs::File::open(abs)
+                    .with_context(|| format!("failed to open '{}'", abs.display()))?,
+            );
+            std::io::copy(&mut input, &mut zip)
+                .with_context(|| format!("failed to zip '{}'", abs.display()))?;
         }
     }
     zip.finish()?;

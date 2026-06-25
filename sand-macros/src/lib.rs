@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 //! # sand-macros
 //!
 //! Procedural macros for the [Sand](https://github.com/ThatOneToast/sand)

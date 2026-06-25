@@ -1,3 +1,4 @@
+use std::io::{BufReader, BufWriter, Read};
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
@@ -95,12 +96,15 @@ pub fn run(args: RunArgs) -> Result<()> {
         );
     }
 
-    sync_dir(&src, &dest)
+    let sync = sync_dir(&src, &dest)
         .with_context(|| format!("failed to sync datapack to {}", dest.display()))?;
     println!(
-        "  {} datapack → {}",
+        "  {} datapack → {} ({} copied, {} skipped, {} pruned)",
         "Synced".dimmed(),
-        dest.display().to_string().white()
+        dest.display().to_string().white(),
+        sync.copied,
+        sync.skipped,
+        sync.pruned
     );
 
     // ── 8. Launch the server ─────────────────────────────────────────────────
@@ -140,11 +144,19 @@ fn resolve_mc_version(mc_version: &str) -> String {
     }
 }
 
-/// Recursively copy all files from `src` to `dest`, overwriting existing files.
+/// Incrementally mirror all files from `src` to `dest`.
 ///
-/// This mirrors the datapack directory so that every `sand run` picks up the
-/// latest build without having to restart the server process setup.
-fn sync_dir(src: &Path, dest: &Path) -> Result<()> {
+/// This copies changed/new files, skips unchanged files, and prunes stale files
+/// under the managed destination root.
+#[derive(Debug, Default, PartialEq, Eq)]
+pub(crate) struct SyncStats {
+    pub(crate) copied: usize,
+    pub(crate) skipped: usize,
+    pub(crate) pruned: usize,
+}
+
+pub(crate) fn sync_dir(src: &Path, dest: &Path) -> Result<SyncStats> {
+    let mut stats = SyncStats::default();
     std::fs::create_dir_all(dest)?;
     for entry in walkdir::WalkDir::new(src) {
         let entry = entry?;
@@ -156,8 +168,155 @@ fn sync_dir(src: &Path, dest: &Path) -> Result<()> {
             if let Some(parent) = target.parent() {
                 std::fs::create_dir_all(parent)?;
             }
-            std::fs::copy(entry.path(), &target)?;
+            if files_match(entry.path(), &target)? {
+                stats.skipped += 1;
+            } else {
+                copy_file_streaming(entry.path(), &target)?;
+                stats.copied += 1;
+            }
         }
     }
+
+    prune_stale(src, dest, &mut stats)?;
+    Ok(stats)
+}
+
+fn files_match(src: &Path, dest: &Path) -> Result<bool> {
+    if !dest.is_file() {
+        return Ok(false);
+    }
+
+    let src_meta = std::fs::metadata(src)?;
+    let dest_meta = std::fs::metadata(dest)?;
+    if src_meta.len() != dest_meta.len() {
+        return Ok(false);
+    }
+
+    streams_equal(src, dest)
+}
+
+fn streams_equal(left: &Path, right: &Path) -> Result<bool> {
+    let mut left = BufReader::new(std::fs::File::open(left)?);
+    let mut right = BufReader::new(std::fs::File::open(right)?);
+    let mut left_buf = [0u8; 8192];
+    let mut right_buf = [0u8; 8192];
+
+    loop {
+        let left_n = left.read(&mut left_buf)?;
+        let right_n = right.read(&mut right_buf)?;
+        if left_n != right_n {
+            return Ok(false);
+        }
+        if left_n == 0 {
+            return Ok(true);
+        }
+        if left_buf[..left_n] != right_buf[..right_n] {
+            return Ok(false);
+        }
+    }
+}
+
+fn copy_file_streaming(src: &Path, dest: &Path) -> Result<()> {
+    let mut input = BufReader::new(std::fs::File::open(src)?);
+    let mut output = BufWriter::new(std::fs::File::create(dest)?);
+    std::io::copy(&mut input, &mut output)?;
     Ok(())
+}
+
+fn prune_stale(src: &Path, dest: &Path, stats: &mut SyncStats) -> Result<()> {
+    for entry in walkdir::WalkDir::new(dest).contents_first(true) {
+        let entry = entry?;
+        let path = entry.path();
+        if path == dest {
+            continue;
+        }
+
+        let rel = path.strip_prefix(dest)?;
+        if src.join(rel).exists() {
+            continue;
+        }
+
+        if entry.file_type().is_dir() {
+            std::fs::remove_dir_all(path)?;
+        } else {
+            std::fs::remove_file(path)?;
+        }
+        stats.pruned += 1;
+    }
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::sync_dir;
+
+    #[test]
+    fn sync_skips_unchanged_files() {
+        let temp = tempfile::tempdir().unwrap();
+        let src = temp.path().join("dist/pack");
+        let dest = temp.path().join("server/world/datapacks/pack");
+        std::fs::create_dir_all(src.join("data/pack/function")).unwrap();
+        std::fs::create_dir_all(dest.join("data/pack/function")).unwrap();
+        std::fs::write(src.join("data/pack/function/load.mcfunction"), "say hi").unwrap();
+        std::fs::write(dest.join("data/pack/function/load.mcfunction"), "say hi").unwrap();
+
+        let stats = sync_dir(&src, &dest).unwrap();
+
+        assert_eq!(stats.copied, 0);
+        assert_eq!(stats.skipped, 1);
+        assert_eq!(stats.pruned, 0);
+    }
+
+    #[test]
+    fn sync_updates_changed_files() {
+        let temp = tempfile::tempdir().unwrap();
+        let src = temp.path().join("dist/pack");
+        let dest = temp.path().join("server/world/datapacks/pack");
+        std::fs::create_dir_all(src.join("data/pack/function")).unwrap();
+        std::fs::create_dir_all(dest.join("data/pack/function")).unwrap();
+        std::fs::write(src.join("data/pack/function/tick.mcfunction"), "say new").unwrap();
+        std::fs::write(dest.join("data/pack/function/tick.mcfunction"), "say old").unwrap();
+
+        let stats = sync_dir(&src, &dest).unwrap();
+
+        assert_eq!(stats.copied, 1);
+        assert_eq!(
+            std::fs::read_to_string(dest.join("data/pack/function/tick.mcfunction")).unwrap(),
+            "say new"
+        );
+    }
+
+    #[test]
+    fn sync_prunes_stale_managed_outputs() {
+        let temp = tempfile::tempdir().unwrap();
+        let src = temp.path().join("dist/pack");
+        let dest = temp.path().join("server/world/datapacks/pack");
+        std::fs::create_dir_all(src.join("data/pack/function")).unwrap();
+        std::fs::create_dir_all(dest.join("data/pack/function")).unwrap();
+        std::fs::write(src.join("data/pack/function/load.mcfunction"), "say live").unwrap();
+        std::fs::write(dest.join("data/pack/function/old.mcfunction"), "say stale").unwrap();
+
+        let stats = sync_dir(&src, &dest).unwrap();
+
+        assert_eq!(stats.copied, 1);
+        assert_eq!(stats.pruned, 1);
+        assert!(!dest.join("data/pack/function/old.mcfunction").exists());
+    }
+
+    #[test]
+    fn sync_does_not_prune_outside_managed_root() {
+        let temp = tempfile::tempdir().unwrap();
+        let src = temp.path().join("dist/pack");
+        let dest = temp.path().join("server/world/datapacks/pack");
+        let other = temp.path().join("server/world/datapacks/manual_pack");
+        std::fs::create_dir_all(&src).unwrap();
+        std::fs::create_dir_all(&dest).unwrap();
+        std::fs::create_dir_all(&other).unwrap();
+        std::fs::write(other.join("keep.mcfunction"), "say keep").unwrap();
+
+        sync_dir(&src, &dest).unwrap();
+
+        assert!(other.join("keep.mcfunction").exists());
+    }
 }

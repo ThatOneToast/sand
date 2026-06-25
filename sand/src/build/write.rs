@@ -4,7 +4,7 @@ use anyhow::{Context, Result, bail};
 
 use super::records::{ComponentRecord, ContentType, OutputExt, ResourcePackRecord};
 
-pub(super) fn write_pack_mcmeta(
+pub(crate) fn write_pack_mcmeta(
     dist: &Path,
     namespace: &str,
     description: &str,
@@ -24,7 +24,7 @@ pub(super) fn write_pack_mcmeta(
     Ok(())
 }
 
-pub(super) fn write_component(dist: &Path, record: &ComponentRecord) -> Result<()> {
+pub(crate) fn write_component(dist: &Path, record: &ComponentRecord) -> Result<()> {
     // path inside the datapack: data/<namespace>/<dir>/<path>.<ext>
     let file_path = dist
         .join("data")
@@ -45,7 +45,7 @@ pub(super) fn write_component(dist: &Path, record: &ComponentRecord) -> Result<(
     Ok(())
 }
 
-pub(super) fn write_resourcepack_mcmeta(
+pub(crate) fn write_resourcepack_mcmeta(
     dist: &Path,
     description: &str,
     pack_format: u32,
@@ -63,7 +63,7 @@ pub(super) fn write_resourcepack_mcmeta(
     Ok(())
 }
 
-pub(super) fn write_rp_record(
+pub(crate) fn write_rp_record(
     dist: &Path,
     project_root: &Path,
     record: &ResourcePackRecord,
@@ -90,7 +90,15 @@ pub(super) fn write_rp_record(
                     src.display()
                 );
             }
-            std::fs::copy(&src, &dest).with_context(|| {
+            let mut input = std::io::BufReader::new(
+                std::fs::File::open(&src)
+                    .with_context(|| format!("failed to open '{}'", src.display()))?,
+            );
+            let mut output = std::io::BufWriter::new(
+                std::fs::File::create(&dest)
+                    .with_context(|| format!("failed to create '{}'", dest.display()))?,
+            );
+            std::io::copy(&mut input, &mut output).with_context(|| {
                 format!("failed to copy '{}' → '{}'", src.display(), dest.display())
             })?;
         }

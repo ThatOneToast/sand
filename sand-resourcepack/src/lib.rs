@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 //! # sand-resourcepack
 //!
 //! Resource pack support for the [Sand](https://github.com/ThatOneToast/sand)

@@ -39,6 +39,52 @@ mod report;
 
 pub use error::{Error, Result};
 
+struct VersionCacheLock {
+    path: std::path::PathBuf,
+}
+
+impl VersionCacheLock {
+    fn acquire(version_id: &str) -> Result<Self> {
+        use std::io::ErrorKind;
+        use std::time::{Duration, Instant};
+
+        let dir = cache::version_dir(version_id)?;
+        cache::ensure_dir(&dir)?;
+        let path = dir.join(".sand-codegen.lock");
+        let start = Instant::now();
+
+        loop {
+            match std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&path)
+            {
+                Ok(_) => return Ok(Self { path }),
+                Err(e) if e.kind() == ErrorKind::AlreadyExists => {
+                    if start.elapsed() > Duration::from_secs(300) {
+                        return Err(std::io::Error::new(
+                            ErrorKind::TimedOut,
+                            format!(
+                                "timed out waiting for Sand codegen cache lock '{}'",
+                                path.display()
+                            ),
+                        )
+                        .into());
+                    }
+                    std::thread::sleep(Duration::from_millis(100));
+                }
+                Err(e) => return Err(e.into()),
+            }
+        }
+    }
+}
+
+impl Drop for VersionCacheLock {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.path);
+    }
+}
+
 /// Download and cache the vanilla server jar for `mc_version`, returning its path.
 ///
 /// Resolves `"latest"` to the current release via Mojang's version manifest.
@@ -94,6 +140,7 @@ pub fn generate_to_dir(mc_version: &str, out_dir: &std::path::Path) -> Result<()
     let entry = manifest.resolve(mc_version)?;
     let version_id = entry.id.clone();
     let version_json_url = entry.url.clone();
+    let _lock = VersionCacheLock::acquire(&version_id)?;
 
     // 2. Download server jar.
     let jar_path = download::ensure_server_jar(&version_id, &version_json_url)?;

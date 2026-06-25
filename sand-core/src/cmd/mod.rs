@@ -118,6 +118,14 @@ pub fn call(id: impl crate::function::IntoFunctionRef) -> String {
     id.into_function_command()
 }
 
+/// `function <namespace:path>` — run a datapack function by resource location.
+///
+/// This explicit fallback keeps the common function command available even when
+/// generated vanilla command builders cannot be produced in a local/CI build.
+pub fn function(id: impl std::fmt::Display) -> String {
+    format!("function {id}")
+}
+
 /// Resolve a function identifier to its `namespace:path` resource location.
 ///
 /// # Examples
@@ -151,6 +159,21 @@ pub fn show_dialog(
     dialog: impl sand_components::dialog::IntoDialogRef,
 ) -> String {
     format!("dialog show {selector} {}", dialog.into_dialog_ref())
+}
+
+/// `tellraw <target> <json>` — send a rich JSON text component to a target.
+pub fn tellraw(target: impl std::fmt::Display, text: TextComponent) -> String {
+    format!("tellraw {target} {text}")
+}
+
+/// `tellraw <target> <raw_json>` — send a raw JSON text component to a target.
+pub fn tellraw_raw(target: impl std::fmt::Display, json: impl Into<String>) -> String {
+    format!("tellraw {target} {}", json.into())
+}
+
+/// `give <targets> <item>` — give an item stack to one or more players.
+pub fn give(selector: Selector, item: impl Into<String>) -> String {
+    format!("give {selector} {}", item.into())
 }
 
 /// `return fail` — stop the current function with a failure return value.

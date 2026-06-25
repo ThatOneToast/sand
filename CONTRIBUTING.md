@@ -16,6 +16,12 @@ Or use the combined check script:
 scripts/check.sh
 ```
 
+## Toolchain policy
+
+`rust-toolchain.toml` is the Rust toolchain authority for local development and
+CI. Keep the workspace `rust-version` in `Cargo.toml` aligned with that pinned
+channel so Cargo metadata, rustup, and GitHub Actions agree.
+
 ## Authoring guidance
 
 - Teach `#[function]`, `#[component(Load)]`, and `#[component(Tick)]` first.

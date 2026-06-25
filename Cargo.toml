@@ -9,4 +9,4 @@ license = "MIT"
 repository = "https://github.com/ThatOneToast/sand"
 homepage = "https://github.com/ThatOneToast/sand"
 authors = ["Toast <ThatOneToast@proton.me>"]
-rust-version = "1.93"
+rust-version = "1.96.0"

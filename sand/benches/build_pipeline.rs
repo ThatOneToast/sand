@@ -80,7 +80,7 @@ fn bench_component_writing(c: &mut Criterion) {
             |temp| {
                 let dist = temp.path().join("bench");
                 for record in &records {
-                    write_component(&dist, record).unwrap();
+                    write_component(&dist, temp.path(), record).unwrap();
                 }
             },
             BatchSize::SmallInput,

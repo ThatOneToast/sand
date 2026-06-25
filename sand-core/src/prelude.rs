@@ -83,8 +83,8 @@ pub use sand_components::{RawCommand, RawComponent, RawJson, RawSnbt};
 
 pub use sand_components::{
     BiomeId, BlockId, DamageTypeId, DimensionId, EffectId, EnchantmentId, EntityTypeId, ItemId,
-    PotionContents, PotionId, Range, StatusEffectInstance, StructureId, SuspiciousStewEffect,
-    TagId,
+    PotionContents, PotionId, Range, StatusEffectInstance, StructureId, StructureTemplate,
+    SuspiciousStewEffect, TagId,
 };
 
 // ── Text / chat ───────────────────────────────────────────────────────────────

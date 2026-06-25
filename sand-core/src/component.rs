@@ -22,6 +22,8 @@ pub struct ComponentRecord {
     pub path: String,
     /// The file extension without the dot (e.g. `"mcfunction"`, `"json"`).
     pub ext: String,
+    /// `"text"` writes `content` directly; `"copy"` copies the source path in `content`.
+    pub content_type: String,
     /// The serialized content of the component.
     pub content: String,
 }
@@ -56,6 +58,7 @@ pub fn export_components_json(namespace: &str) -> String {
             dir: "function".to_string(),
             path: desc.path.to_string(),
             ext: "mcfunction".to_string(),
+            content_type: "text".to_string(),
             content: commands.join("\n"),
         });
     }
@@ -77,6 +80,7 @@ pub fn export_components_json(namespace: &str) -> String {
             dir: "function".to_string(),
             path: "__sand_dialog_init".to_string(),
             ext: "mcfunction".to_string(),
+            content_type: "text".to_string(),
             content: init_cmds.join("\n"),
         });
         // Register the init function in minecraft:load
@@ -104,6 +108,7 @@ pub fn export_components_json(namespace: &str) -> String {
             dir: "function".to_string(),
             path: "__sand_dialog_tick".to_string(),
             ext: "mcfunction".to_string(),
+            content_type: "text".to_string(),
             content: tick_cmds.join("\n"),
         });
         // Register the tick function in minecraft:tick
@@ -117,15 +122,20 @@ pub fn export_components_json(namespace: &str) -> String {
     for factory in inventory::iter::<ComponentFactory>() {
         let comp = (factory.make)();
         let rl = comp.resource_location();
-        let content = match comp.content() {
-            ComponentContent::Json(v) => serde_json::to_string_pretty(&v).unwrap(),
-            ComponentContent::Text(t) => t,
+        let (content_type, content) = if let Some(path) = comp.copy_source_path() {
+            ("copy", path.to_string())
+        } else {
+            match comp.content() {
+                ComponentContent::Json(v) => ("text", serde_json::to_string_pretty(&v).unwrap()),
+                ComponentContent::Text(t) => ("text", t),
+            }
         };
         records.push(ComponentRecord {
             namespace: rl.namespace().to_string(),
             dir: comp.component_dir().to_string(),
             path: rl.path().to_string(),
             ext: comp.file_extension().to_string(),
+            content_type: content_type.to_string(),
             content,
         });
     }
@@ -196,6 +206,7 @@ pub fn export_components_json(namespace: &str) -> String {
                     dir: "function".to_string(),
                     path: body_path,
                     ext: "mcfunction".to_string(),
+                    content_type: "text".to_string(),
                     content: commands.join("\n"),
                 });
 
@@ -219,6 +230,7 @@ pub fn export_components_json(namespace: &str) -> String {
                     dir: "function".to_string(),
                     path: desc.path.to_string(),
                     ext: "mcfunction".to_string(),
+                    content_type: "text".to_string(),
                     content: entry.join("\n"),
                 });
 
@@ -248,6 +260,7 @@ pub fn export_components_json(namespace: &str) -> String {
                     dir: advancement.component_dir().to_string(),
                     path: rl.path().to_string(),
                     ext: advancement.file_extension().to_string(),
+                    content_type: "text".to_string(),
                     content,
                 });
             }
@@ -259,6 +272,7 @@ pub fn export_components_json(namespace: &str) -> String {
                     dir: "function".to_string(),
                     path: desc.path.to_string(),
                     ext: "mcfunction".to_string(),
+                    content_type: "text".to_string(),
                     content: commands.join("\n"),
                 });
                 join_tick_events.push(desc);
@@ -271,6 +285,7 @@ pub fn export_components_json(namespace: &str) -> String {
                     dir: "function".to_string(),
                     path: desc.path.to_string(),
                     ext: "mcfunction".to_string(),
+                    content_type: "text".to_string(),
                     content: commands.join("\n"),
                 });
                 death_tick_events.push(desc);
@@ -283,6 +298,7 @@ pub fn export_components_json(namespace: &str) -> String {
                     dir: "function".to_string(),
                     path: desc.path.to_string(),
                     ext: "mcfunction".to_string(),
+                    content_type: "text".to_string(),
                     content: commands.join("\n"),
                 });
                 respawn_tick_events.push(desc);
@@ -295,6 +311,7 @@ pub fn export_components_json(namespace: &str) -> String {
                     dir: "function".to_string(),
                     path: desc.path.to_string(),
                     ext: "mcfunction".to_string(),
+                    content_type: "text".to_string(),
                     content: commands.join("\n"),
                 });
                 tick_poll_events.push((desc, make_condition()));
@@ -307,6 +324,7 @@ pub fn export_components_json(namespace: &str) -> String {
                     dir: "function".to_string(),
                     path: desc.path.to_string(),
                     ext: "mcfunction".to_string(),
+                    content_type: "text".to_string(),
                     content: commands.join("\n"),
                 });
                 xp_level_up_events.push(desc);
@@ -323,6 +341,7 @@ pub fn export_components_json(namespace: &str) -> String {
                     dir: "function".to_string(),
                     path: desc.path.to_string(),
                     ext: "mcfunction".to_string(),
+                    content_type: "text".to_string(),
                     content: commands.join("\n"),
                 });
                 let key = armor_watch_key(*slot, *item_id, *custom_data_snbt);
@@ -346,6 +365,7 @@ pub fn export_components_json(namespace: &str) -> String {
                     dir: "function".to_string(),
                     path: desc.path.to_string(),
                     ext: "mcfunction".to_string(),
+                    content_type: "text".to_string(),
                     content: commands.join("\n"),
                 });
                 let key = armor_watch_key(*slot, *item_id, *custom_data_snbt);
@@ -380,6 +400,7 @@ pub fn export_components_json(namespace: &str) -> String {
                         dir: "function".to_string(),
                         path: body_path,
                         ext: "mcfunction".to_string(),
+                        content_type: "text".to_string(),
                         content: commands.join("\n"),
                     });
 
@@ -393,6 +414,7 @@ pub fn export_components_json(namespace: &str) -> String {
                         dir: "function".to_string(),
                         path: desc.path.to_string(),
                         ext: "mcfunction".to_string(),
+                        content_type: "text".to_string(),
                         content: entry.join("\n"),
                     });
 
@@ -414,6 +436,7 @@ pub fn export_components_json(namespace: &str) -> String {
                         dir: advancement.component_dir().to_string(),
                         path: rl.path().to_string(),
                         ext: advancement.file_extension().to_string(),
+                        content_type: "text".to_string(),
                         content,
                     });
                 } else if let Some(condition) = make_condition() {
@@ -423,6 +446,7 @@ pub fn export_components_json(namespace: &str) -> String {
                         dir: "function".to_string(),
                         path: desc.path.to_string(),
                         ext: "mcfunction".to_string(),
+                        content_type: "text".to_string(),
                         content: commands.join("\n"),
                     });
                     tick_poll_events.push((desc, condition));
@@ -445,6 +469,7 @@ pub fn export_components_json(namespace: &str) -> String {
             dir: "function".to_string(),
             path: desc.path.to_string(),
             ext: "mcfunction".to_string(),
+            content_type: "text".to_string(),
             content: commands.join("\n"),
         });
         let key = armor_watch_key(desc.slot, desc.item_id, desc.custom_data_snbt);
@@ -485,6 +510,7 @@ pub fn export_components_json(namespace: &str) -> String {
             dir: "function".to_string(),
             path: join_init_path.to_string(),
             ext: "mcfunction".to_string(),
+            content_type: "text".to_string(),
             // `reset *` clears ALL tracked entries, including offline players.
             content: "scoreboard objectives add __sand_join dummy\nscoreboard players reset * __sand_join".to_string(),
         });
@@ -511,6 +537,7 @@ pub fn export_components_json(namespace: &str) -> String {
             dir: "function".to_string(),
             path: join_path.to_string(),
             ext: "mcfunction".to_string(),
+            content_type: "text".to_string(),
             content: join_cmds.join("\n"),
         });
         tag_map
@@ -528,6 +555,7 @@ pub fn export_components_json(namespace: &str) -> String {
             dir: "function".to_string(),
             path: init_path.to_string(),
             ext: "mcfunction".to_string(),
+            content_type: "text".to_string(),
             content: "scoreboard objectives add __sand_dc deathCount".to_string(),
         });
         tag_map
@@ -558,6 +586,7 @@ pub fn export_components_json(namespace: &str) -> String {
             dir: "function".to_string(),
             path: check_path.to_string(),
             ext: "mcfunction".to_string(),
+            content_type: "text".to_string(),
             content: check_cmds.join("\n"),
         });
         tag_map
@@ -585,6 +614,7 @@ pub fn export_components_json(namespace: &str) -> String {
             dir: "function".to_string(),
             path: respawn_path.to_string(),
             ext: "mcfunction".to_string(),
+            content_type: "text".to_string(),
             content: respawn_cmds.join("\n"),
         });
         tag_map
@@ -606,6 +636,7 @@ pub fn export_components_json(namespace: &str) -> String {
             dir: "function".to_string(),
             path: xp_init_path.to_string(),
             ext: "mcfunction".to_string(),
+            content_type: "text".to_string(),
             content: [
                 "scoreboard objectives add __sand_xp_lvl dummy",
                 "scoreboard objectives add __sand_xp_prev dummy",
@@ -660,6 +691,7 @@ pub fn export_components_json(namespace: &str) -> String {
             dir: "function".to_string(),
             path: xp_check_path.to_string(),
             ext: "mcfunction".to_string(),
+            content_type: "text".to_string(),
             content: xp_cmds.join("\n"),
         });
         tag_map
@@ -685,6 +717,7 @@ pub fn export_components_json(namespace: &str) -> String {
                 dir: "predicate".to_string(),
                 path: path.to_string(),
                 ext: "json".to_string(),
+                content_type: "text".to_string(),
                 content: serde_json::to_string_pretty(&player_state_predicate_json(flag)).unwrap(),
             });
         }
@@ -703,6 +736,7 @@ pub fn export_components_json(namespace: &str) -> String {
             dir: "function".to_string(),
             path: tick_path.to_string(),
             ext: "mcfunction".to_string(),
+            content_type: "text".to_string(),
             content: tick_cmds.join("\n"),
         });
         tag_map
@@ -753,6 +787,7 @@ pub fn export_components_json(namespace: &str) -> String {
             dir: "function".to_string(),
             path: armor_path.to_string(),
             ext: "mcfunction".to_string(),
+            content_type: "text".to_string(),
             content: armor_cmds.join("\n"),
         });
         tag_map
@@ -778,6 +813,7 @@ pub fn export_components_json(namespace: &str) -> String {
                 dir: "function".to_string(),
                 path: desc.path.to_string(),
                 ext: "mcfunction".to_string(),
+                content_type: "text".to_string(),
                 content: (desc.make)().join("\n"),
             });
 
@@ -793,6 +829,7 @@ pub fn export_components_json(namespace: &str) -> String {
                 dir: "function".to_string(),
                 path: format!("{}_start", desc.path),
                 ext: "mcfunction".to_string(),
+                content_type: "text".to_string(),
                 content: start_cmds.join("\n"),
             });
             records.push(ComponentRecord {
@@ -800,6 +837,7 @@ pub fn export_components_json(namespace: &str) -> String {
                 dir: "function".to_string(),
                 path: format!("{}_stop", desc.path),
                 ext: "mcfunction".to_string(),
+                content_type: "text".to_string(),
                 content: format!("scoreboard players set @s {obj_t} 0"),
             });
 
@@ -842,6 +880,7 @@ pub fn export_components_json(namespace: &str) -> String {
             dir: "function".to_string(),
             path: init_path.to_string(),
             ext: "mcfunction".to_string(),
+            content_type: "text".to_string(),
             content: init_cmds.join("\n"),
         });
         tag_map
@@ -855,6 +894,7 @@ pub fn export_components_json(namespace: &str) -> String {
             dir: "function".to_string(),
             path: tick_path.to_string(),
             ext: "mcfunction".to_string(),
+            content_type: "text".to_string(),
             content: tick_cmds.join("\n"),
         });
         tag_map
@@ -889,6 +929,7 @@ pub fn export_components_json(namespace: &str) -> String {
                 dir: "function".to_string(),
                 path: ts_path.to_string(),
                 ext: "mcfunction".to_string(),
+                content_type: "text".to_string(),
                 content: ts_cmds.join("\n"),
             });
             tag_map
@@ -910,6 +951,7 @@ pub fn export_components_json(namespace: &str) -> String {
             dir: "function".to_string(),
             path: path.to_string(),
             ext: "mcfunction".to_string(),
+            content_type: "text".to_string(),
             content: score_setup.join("\n"),
         });
         tag_map
@@ -929,6 +971,7 @@ pub fn export_components_json(namespace: &str) -> String {
                 dir: "function".to_string(),
                 path: path.to_string(),
                 ext: "mcfunction".to_string(),
+                content_type: "text".to_string(),
                 content: load_cmds.join("\n"),
             });
             tag_map
@@ -945,6 +988,7 @@ pub fn export_components_json(namespace: &str) -> String {
                 dir: "function".to_string(),
                 path: path.to_string(),
                 ext: "mcfunction".to_string(),
+                content_type: "text".to_string(),
                 content: tick_cmds.join("\n"),
             });
             tag_map
@@ -976,6 +1020,7 @@ pub fn export_components_json(namespace: &str) -> String {
             dir: "tags/function".to_string(),
             path: tag_path,
             ext: "json".to_string(),
+            content_type: "text".to_string(),
             content: serde_json::to_string_pretty(&json).unwrap(),
         });
     }
@@ -1050,6 +1095,7 @@ fn drain_dynamic_functions_into(records: &mut Vec<ComponentRecord>, namespace: &
                 dir: "function".to_string(),
                 path,
                 ext: "mcfunction".to_string(),
+                content_type: "text".to_string(),
                 content: commands.join("\n"),
             });
         }

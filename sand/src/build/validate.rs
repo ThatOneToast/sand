@@ -5,7 +5,7 @@ use anyhow::{Context, Result, bail};
 
 use super::records::{ComponentRecord, ContentType, OutputExt, ResourcePackRecord};
 
-pub(super) fn validate_component_records(
+pub fn validate_component_records(
     dist: &std::path::Path,
     records: &[ComponentRecord],
 ) -> Result<()> {
@@ -62,10 +62,7 @@ pub(super) fn validate_component_records(
 ///
 /// Namespace, directory, and path traversal safety are guaranteed by the
 /// newtypes on [`ComponentRecord`] — this function only assembles the path.
-pub(super) fn component_output_path(
-    dist: &std::path::Path,
-    record: &ComponentRecord,
-) -> Result<PathBuf> {
+pub fn component_output_path(dist: &std::path::Path, record: &ComponentRecord) -> Result<PathBuf> {
     Ok(dist
         .join("data")
         .join(record.namespace.as_str())
@@ -73,7 +70,7 @@ pub(super) fn component_output_path(
         .join(format!("{}.{}", record.path.as_str(), record.ext.as_str())))
 }
 
-pub(super) fn validate_resourcepack_records(records: &[ResourcePackRecord]) -> Result<()> {
+pub fn validate_resourcepack_records(records: &[ResourcePackRecord]) -> Result<()> {
     let mut paths = HashSet::new();
     for record in records {
         // RelativePackPath guarantees no traversal — check asset root prefix.
@@ -105,7 +102,7 @@ pub(super) fn validate_resourcepack_records(records: &[ResourcePackRecord]) -> R
 /// Called automatically from [`validate_component_records`] for all
 /// `tags/function` and `tags`+`function/` records, and available for
 /// standalone validation.
-pub(super) fn validate_function_tag(tag_name: &str, json: &str) -> Result<()> {
+pub fn validate_function_tag(tag_name: &str, json: &str) -> Result<()> {
     let v: serde_json::Value = serde_json::from_str(json)
         .with_context(|| format!("invalid JSON in function tag '{tag_name}'"))?;
 
@@ -194,7 +191,7 @@ fn is_valid_resource_location(s: &str) -> bool {
 ///
 /// Used to validate the `namespace` field from `sand.toml` at build time,
 /// before the namespace is used as a filesystem path component.
-pub(super) fn validate_namespace(namespace: &str) -> Result<()> {
+pub fn validate_namespace(namespace: &str) -> Result<()> {
     if namespace.is_empty()
         || !namespace.bytes().all(|byte| {
             byte.is_ascii_lowercase() || byte.is_ascii_digit() || matches!(byte, b'_' | b'-' | b'.')

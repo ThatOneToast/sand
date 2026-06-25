@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 //! Typed Minecraft command builders.
 //!
 //! Every command type implements [`Build`], which provides:

@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 //! # sand-build
 //!
 //! Build pipeline for the [Sand](https://github.com/ThatOneToast/sand)

@@ -1,6 +1,6 @@
 use std::fmt::Write as FmtWrite;
-use std::io::Read;
-use std::path::PathBuf;
+use std::io::{BufReader, BufWriter, Read, Write};
+use std::path::{Path, PathBuf};
 
 use indicatif::{ProgressBar, ProgressState, ProgressStyle};
 use serde::Deserialize;
@@ -51,12 +51,10 @@ pub fn ensure_server_jar(version_id: &str, version_json_url: &str) -> Result<Pat
         // SHA1 mismatch — re-download.
     }
 
-    // Stream the jar with a progress bar.
-    let bytes = download_with_progress(&server_url, version_id, known_size)?;
-
-    // Verify checksum before writing.
-    let actual = hex::encode(Sha1::digest(&bytes));
+    let tmp_path = jar_path.with_extension("jar.tmp");
+    let actual = download_with_progress(&server_url, version_id, known_size, &tmp_path)?;
     if actual != expected_sha1 {
+        let _ = std::fs::remove_file(&tmp_path);
         return Err(Error::ChecksumMismatch {
             path: server_url,
             expected: expected_sha1,
@@ -64,11 +62,19 @@ pub fn ensure_server_jar(version_id: &str, version_json_url: &str) -> Result<Pat
         });
     }
 
-    std::fs::write(&jar_path, &bytes)?;
+    if jar_path.exists() {
+        std::fs::remove_file(&jar_path)?;
+    }
+    std::fs::rename(&tmp_path, &jar_path)?;
     Ok(jar_path)
 }
 
-fn download_with_progress(url: &str, version_id: &str, known_size: Option<u64>) -> Result<Vec<u8>> {
+fn download_with_progress(
+    url: &str,
+    version_id: &str,
+    known_size: Option<u64>,
+    dest: &Path,
+) -> Result<String> {
     let response = reqwest::blocking::get(url)?;
     let total = known_size
         .or_else(|| response.content_length())
@@ -85,26 +91,38 @@ fn download_with_progress(url: &str, version_id: &str, known_size: Option<u64>) 
     );
     pb.set_message(format!("Downloading server.jar (Minecraft {version_id})"));
 
-    let mut buf = Vec::with_capacity(total as usize);
     let mut reader = response;
+    let mut writer = BufWriter::new(std::fs::File::create(dest)?);
+    let mut hasher = Sha1::new();
     let mut chunk = [0u8; 65536]; // 64 KiB chunks
     loop {
         let n = reader.read(&mut chunk)?;
         if n == 0 {
             break;
         }
-        buf.extend_from_slice(&chunk[..n]);
+        hasher.update(&chunk[..n]);
+        writer.write_all(&chunk[..n])?;
         pb.inc(n as u64);
     }
+    writer.flush()?;
 
     pb.finish_and_clear();
-    Ok(buf)
+    Ok(hex::encode(hasher.finalize()))
 }
 
 /// Compute the SHA1 hex digest of a file on disk.
-pub fn sha1_of_file(path: &PathBuf) -> Result<String> {
-    let bytes = std::fs::read(path)?;
-    Ok(hex::encode(Sha1::digest(&bytes)))
+pub fn sha1_of_file(path: &Path) -> Result<String> {
+    let mut reader = BufReader::new(std::fs::File::open(path)?);
+    let mut hasher = Sha1::new();
+    let mut chunk = [0u8; 65536];
+    loop {
+        let n = reader.read(&mut chunk)?;
+        if n == 0 {
+            break;
+        }
+        hasher.update(&chunk[..n]);
+    }
+    Ok(hex::encode(hasher.finalize()))
 }
 
 #[cfg(test)]
@@ -118,7 +136,7 @@ mod tests {
         // SHA1("") = da39a3ee5e6b4b0d3255bfef95601890afd80709
         let mut f = NamedTempFile::new().unwrap();
         f.write_all(b"").unwrap();
-        let hash = sha1_of_file(&f.path().to_path_buf()).unwrap();
+        let hash = sha1_of_file(f.path()).unwrap();
         assert_eq!(hash, "da39a3ee5e6b4b0d3255bfef95601890afd80709");
     }
 
@@ -127,7 +145,19 @@ mod tests {
         // SHA1("hello") = aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d
         let mut f = NamedTempFile::new().unwrap();
         f.write_all(b"hello").unwrap();
-        let hash = sha1_of_file(&f.path().to_path_buf()).unwrap();
+        let hash = sha1_of_file(f.path()).unwrap();
         assert_eq!(hash, "aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d");
+    }
+
+    #[test]
+    fn streaming_sha1_matches_whole_buffer_digest() {
+        let mut f = NamedTempFile::new().unwrap();
+        let data = (0..=255).cycle().take(1024 * 1024 + 13).collect::<Vec<_>>();
+        f.write_all(&data).unwrap();
+
+        let streaming = sha1_of_file(f.path()).unwrap();
+        let buffered = hex::encode(Sha1::digest(&data));
+
+        assert_eq!(streaming, buffered);
     }
 }

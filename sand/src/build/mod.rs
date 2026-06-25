@@ -1,9 +1,9 @@
 mod config;
-mod package;
-mod records;
+pub mod package;
+pub mod records;
 mod resourcepack;
-mod validate;
-mod write;
+pub mod validate;
+pub mod write;
 
 use std::path::PathBuf;
 

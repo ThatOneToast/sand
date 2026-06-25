@@ -149,13 +149,13 @@ fn resolve_mc_version(mc_version: &str) -> String {
 /// This copies changed/new files, skips unchanged files, and prunes stale files
 /// under the managed destination root.
 #[derive(Debug, Default, PartialEq, Eq)]
-pub(crate) struct SyncStats {
-    pub(crate) copied: usize,
-    pub(crate) skipped: usize,
-    pub(crate) pruned: usize,
+pub struct SyncStats {
+    pub copied: usize,
+    pub skipped: usize,
+    pub pruned: usize,
 }
 
-pub(crate) fn sync_dir(src: &Path, dest: &Path) -> Result<SyncStats> {
+pub fn sync_dir(src: &Path, dest: &Path) -> Result<SyncStats> {
     let mut stats = SyncStats::default();
     std::fs::create_dir_all(dest)?;
     for entry in walkdir::WalkDir::new(src) {

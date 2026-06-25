@@ -9,10 +9,10 @@ use serde::Deserialize;
 /// Validated at deserialization so downstream code can assume the value is safe
 /// to use as a filesystem path component.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct PackNamespace(String);
+pub struct PackNamespace(String);
 
 impl PackNamespace {
-    pub(crate) fn as_str(&self) -> &str {
+    pub fn as_str(&self) -> &str {
         &self.0
     }
 
@@ -48,10 +48,10 @@ impl std::fmt::Display for PackNamespace {
 ///
 /// Rejects: empty strings, absolute paths, `..` components, and null bytes.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct RelativePackPath(String);
+pub struct RelativePackPath(String);
 
 impl RelativePackPath {
-    pub(crate) fn as_str(&self) -> &str {
+    pub fn as_str(&self) -> &str {
         &self.0
     }
 
@@ -94,10 +94,10 @@ impl std::fmt::Display for RelativePackPath {
 /// Validated at deserialization so unknown or dangerous directories are
 /// rejected before any filesystem access.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct ComponentDirectory(String);
+pub struct ComponentDirectory(String);
 
 impl ComponentDirectory {
-    pub(crate) fn as_str(&self) -> &str {
+    pub fn as_str(&self) -> &str {
         &self.0
     }
 }
@@ -152,13 +152,13 @@ fn supported_component_dir(dir: &str) -> bool {
 // ── Typed extension for datapack components ───────────────────────────────────
 
 #[derive(Debug, PartialEq, Eq)]
-pub(crate) enum OutputExt {
+pub enum OutputExt {
     Json,
     Mcfunction,
 }
 
 impl OutputExt {
-    pub(crate) fn as_str(&self) -> &'static str {
+    pub fn as_str(&self) -> &'static str {
         match self {
             OutputExt::Json => "json",
             OutputExt::Mcfunction => "mcfunction",
@@ -182,19 +182,19 @@ impl<'de> Deserialize<'de> for OutputExt {
 // ── Datapack record (from sand_export) ────────────────────────────────────────
 
 #[derive(Deserialize)]
-pub(crate) struct ComponentRecord {
-    pub(crate) namespace: PackNamespace,
-    pub(crate) dir: ComponentDirectory,
-    pub(crate) path: RelativePackPath,
-    pub(crate) ext: OutputExt,
-    pub(crate) content: String,
+pub struct ComponentRecord {
+    pub namespace: PackNamespace,
+    pub dir: ComponentDirectory,
+    pub path: RelativePackPath,
+    pub ext: OutputExt,
+    pub content: String,
 }
 
 // ── Content type for resource pack assets ─────────────────────────────────────
 
 /// How the `content` field of a [`ResourcePackRecord`] should be interpreted.
 #[derive(Debug, PartialEq, Eq)]
-pub(crate) enum ContentType {
+pub enum ContentType {
     /// Write `content` as UTF-8 text (JSON).
     Json,
     /// Copy the file at the project-root-relative path in `content`.
@@ -220,11 +220,11 @@ impl<'de> Deserialize<'de> for ContentType {
 // ── Resource pack record (from sand_resource_export) ─────────────────────────
 
 #[derive(Deserialize)]
-pub(crate) struct ResourcePackRecord {
+pub struct ResourcePackRecord {
     /// Full path from the pack root, e.g. `"assets/ns/font/hud.json"`.
-    pub(crate) path: RelativePackPath,
+    pub path: RelativePackPath,
     /// How to interpret the `content` field.
-    pub(crate) content_type: ContentType,
+    pub content_type: ContentType,
     /// JSON string, project-root-relative source path, or base64-encoded bytes.
-    pub(crate) content: String,
+    pub content: String,
 }

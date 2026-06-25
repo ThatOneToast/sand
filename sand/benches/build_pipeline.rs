@@ -1,20 +1,10 @@
-#![allow(dead_code, unused_imports)]
-
 use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
 
-#[path = "../src/build/mod.rs"]
-mod build;
-#[path = "../src/config.rs"]
-mod config;
-#[path = "../src/pack_format.rs"]
-mod pack_format;
-#[path = "../src/run_cmd.rs"]
-mod run_cmd;
-
-use build::package::zip_dir;
-use build::records::{ComponentRecord, ResourcePackRecord};
-use build::validate::{validate_component_records, validate_resourcepack_records};
-use build::write::{write_component, write_rp_record};
+use sand::build::package::zip_dir;
+use sand::build::records::{ComponentRecord, ResourcePackRecord};
+use sand::build::validate::{validate_component_records, validate_resourcepack_records};
+use sand::build::write::{write_component, write_rp_record};
+use sand::run_cmd;
 
 fn component_records(count: usize) -> Vec<ComponentRecord> {
     let records = (0..count)

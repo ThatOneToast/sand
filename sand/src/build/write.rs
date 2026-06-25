@@ -4,7 +4,7 @@ use anyhow::{Context, Result, bail};
 
 use super::records::{ComponentRecord, ContentType, OutputExt, ResourcePackRecord};
 
-pub(crate) fn write_pack_mcmeta(
+pub fn write_pack_mcmeta(
     dist: &Path,
     namespace: &str,
     description: &str,
@@ -24,7 +24,7 @@ pub(crate) fn write_pack_mcmeta(
     Ok(())
 }
 
-pub(crate) fn write_component(dist: &Path, record: &ComponentRecord) -> Result<()> {
+pub fn write_component(dist: &Path, record: &ComponentRecord) -> Result<()> {
     // path inside the datapack: data/<namespace>/<dir>/<path>.<ext>
     let file_path = dist
         .join("data")
@@ -45,11 +45,7 @@ pub(crate) fn write_component(dist: &Path, record: &ComponentRecord) -> Result<(
     Ok(())
 }
 
-pub(crate) fn write_resourcepack_mcmeta(
-    dist: &Path,
-    description: &str,
-    pack_format: u32,
-) -> Result<()> {
+pub fn write_resourcepack_mcmeta(dist: &Path, description: &str, pack_format: u32) -> Result<()> {
     let mcmeta = serde_json::json!({
         "pack": {
             "pack_format": pack_format,
@@ -63,7 +59,7 @@ pub(crate) fn write_resourcepack_mcmeta(
     Ok(())
 }
 
-pub(crate) fn write_rp_record(
+pub fn write_rp_record(
     dist: &Path,
     project_root: &Path,
     record: &ResourcePackRecord,

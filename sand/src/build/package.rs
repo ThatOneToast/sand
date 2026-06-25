@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 
-pub(crate) fn zip_dir(dist: &Path, name: &str) -> Result<PathBuf> {
+pub fn zip_dir(dist: &Path, name: &str) -> Result<PathBuf> {
     let zip_path = dist.parent().unwrap().join(format!("{name}.zip"));
     let file = std::fs::File::create(&zip_path)
         .with_context(|| format!("failed to create zip '{}'", zip_path.display()))?;

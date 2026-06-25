@@ -1,3 +1,4 @@
+mod config;
 mod package;
 mod records;
 mod resourcepack;
@@ -8,15 +9,15 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result, bail};
 use colored::Colorize;
-use serde::Deserialize;
 
 use crate::config::SandConfig;
 use crate::pack_format::pack_format_for;
 
+use config::{cargo_target_dir, resolve_mc_version};
 use package::zip_dir;
 use records::ComponentRecord;
 use resourcepack::build_resourcepack;
-use validate::validate_component_records;
+use validate::{validate_component_records, validate_namespace};
 use write::{write_component, write_pack_mcmeta};
 
 pub fn run(release: bool, resourcepack: bool) -> Result<()> {
@@ -27,6 +28,8 @@ pub fn run(release: bool, resourcepack: bool) -> Result<()> {
     }
     let config: SandConfig = toml::from_str(&std::fs::read_to_string(&config_path)?)
         .context("failed to parse sand.toml")?;
+
+    validate_namespace(&config.pack.namespace)?;
 
     // Resolve mc_version ("latest" → actual version from Mojang manifest)
     let mc_version = resolve_mc_version(&config.pack.mc_version);
@@ -40,7 +43,6 @@ pub fn run(release: bool, resourcepack: bool) -> Result<()> {
             (explicit, false)
         } else if let Ok(v) = MinecraftVersion::parse(&mc_version) {
             let p = VersionProfile::resolve(&v).unwrap_or_else(|_| {
-                // parse never fails for well-formed versions, but default if it does
                 VersionProfile::resolve(
                     &MinecraftVersion::parse(sand_core::version::LATEST_KNOWN).unwrap(),
                 )
@@ -178,37 +180,6 @@ pub fn run(release: bool, resourcepack: bool) -> Result<()> {
     Ok(())
 }
 
-// ── Private helpers ───────────────────────────────────────────────────────────
-
-fn resolve_mc_version(mc_version: &str) -> String {
-    if mc_version == "latest" {
-        sand_build::latest_release_version()
-    } else {
-        mc_version.to_string()
-    }
-}
-
-fn cargo_target_dir() -> Result<PathBuf> {
-    #[derive(Deserialize)]
-    struct CargoMetadata {
-        target_directory: PathBuf,
-    }
-
-    let output = std::process::Command::new("cargo")
-        .args(["metadata", "--format-version=1", "--no-deps"])
-        .output()
-        .context("failed to invoke `cargo metadata`")?;
-    if !output.status.success() {
-        bail!(
-            "`cargo metadata` failed: {}",
-            String::from_utf8_lossy(&output.stderr)
-        );
-    }
-    Ok(serde_json::from_slice::<CargoMetadata>(&output.stdout)
-        .context("failed to parse `cargo metadata` output")?
-        .target_directory)
-}
-
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -218,24 +189,27 @@ mod tests {
     use super::package::zip_dir;
     use super::records::{ComponentRecord, ContentType, OutputExt, ResourcePackRecord};
     use super::validate::{
-        component_output_path, validate_component_records, validate_resourcepack_records,
+        component_output_path, validate_component_records, validate_function_tag,
+        validate_resourcepack_records,
     };
-    use super::write::{write_pack_mcmeta, write_resourcepack_mcmeta};
+    use super::write::{write_component, write_pack_mcmeta, write_resourcepack_mcmeta};
 
+    /// Construct a valid ComponentRecord from parts via JSON deserialization.
+    ///
+    /// Uses "audit" as the namespace. Panics if the inputs are invalid (which
+    /// makes test failures obvious at the point of construction).
     fn record(dir: &str, path: &str, ext: &str, content: &str) -> ComponentRecord {
-        let ext = match ext {
-            "json" => OutputExt::Json,
-            "mcfunction" => OutputExt::Mcfunction,
-            other => panic!("unsupported ext in test helper: {other}"),
-        };
-        ComponentRecord {
-            namespace: "audit".into(),
-            dir: dir.into(),
-            path: path.into(),
-            ext,
-            content: content.into(),
-        }
+        serde_json::from_value(serde_json::json!({
+            "namespace": "audit",
+            "dir": dir,
+            "path": path,
+            "ext": ext,
+            "content": content,
+        }))
+        .unwrap_or_else(|e| panic!("invalid test record ({dir}/{path}.{ext}): {e}"))
     }
+
+    // ── Record validation ─────────────────────────────────────────────────────
 
     #[test]
     fn validates_component_records_before_writing() {
@@ -265,7 +239,7 @@ mod tests {
     }
 
     #[test]
-    fn rejects_duplicate_and_unsafe_component_outputs() {
+    fn rejects_duplicate_component_outputs() {
         let dist = Path::new("dist/audit");
         assert!(
             validate_component_records(
@@ -277,38 +251,109 @@ mod tests {
             )
             .is_err()
         );
+    }
+
+    // ── Newtype boundary validation ───────────────────────────────────────────
+
+    #[test]
+    fn path_traversal_rejected_at_deserialization() {
+        let bad: Result<ComponentRecord, _> = serde_json::from_value(serde_json::json!({
+            "namespace": "audit",
+            "dir": "recipe",
+            "path": "../escape",
+            "ext": "json",
+            "content": "{}",
+        }));
         assert!(
-            validate_component_records(dist, &[record("recipe", "../escape", "json", "{}")])
-                .is_err()
+            bad.is_err(),
+            "path traversal must be rejected at deserialization"
+        );
+
+        let abs: Result<ComponentRecord, _> = serde_json::from_value(serde_json::json!({
+            "namespace": "audit",
+            "dir": "recipe",
+            "path": "/etc/passwd",
+            "ext": "json",
+            "content": "{}",
+        }));
+        assert!(
+            abs.is_err(),
+            "absolute path must be rejected at deserialization"
         );
     }
 
     #[test]
+    fn invalid_namespace_rejected_at_deserialization() {
+        for bad_ns in ["", "My_Pack", "has space", "upper/slash", "UPPER"] {
+            let result: Result<ComponentRecord, _> = serde_json::from_value(serde_json::json!({
+                "namespace": bad_ns,
+                "dir": "function",
+                "path": "load",
+                "ext": "mcfunction",
+                "content": "",
+            }));
+            assert!(
+                result.is_err(),
+                "namespace '{bad_ns}' must be rejected at deserialization"
+            );
+        }
+    }
+
+    #[test]
+    fn unsupported_component_dir_rejected_at_deserialization() {
+        for bad_dir in ["assets", "data", "META-INF", "../data", "unknown_dir"] {
+            let result: Result<ComponentRecord, _> = serde_json::from_value(serde_json::json!({
+                "namespace": "audit",
+                "dir": bad_dir,
+                "path": "test",
+                "ext": "json",
+                "content": "{}",
+            }));
+            assert!(
+                result.is_err(),
+                "dir '{bad_dir}' must be rejected at deserialization"
+            );
+        }
+    }
+
+    // ── Datapack / resource-pack separation ───────────────────────────────────
+
+    #[test]
     fn separates_datapack_and_resourcepack_roots() {
+        // 'assets' is not a valid ComponentDirectory — caught at deserialization
+        let bad_dir: Result<ComponentRecord, _> = serde_json::from_value(serde_json::json!({
+            "namespace": "audit",
+            "dir": "assets",
+            "path": "escaped",
+            "ext": "json",
+            "content": "{}",
+        }));
         assert!(
-            validate_component_records(
-                Path::new("dist/audit"),
-                &[record("assets", "escaped", "json", "{}")]
-            )
-            .is_err()
+            bad_dir.is_err(),
+            "'assets' dir must be rejected at deserialization"
         );
+
+        let rp_ok: ResourcePackRecord = serde_json::from_value(serde_json::json!({
+            "path": "assets/audit/models/item/test.json",
+            "content_type": "json",
+            "content": "{}",
+        }))
+        .unwrap();
+        assert!(validate_resourcepack_records(&[rp_ok]).is_ok());
+
+        let rp_bad: ResourcePackRecord = serde_json::from_value(serde_json::json!({
+            "path": "data/audit/recipe/test.json",
+            "content_type": "json",
+            "content": "{}",
+        }))
+        .unwrap();
         assert!(
-            validate_resourcepack_records(&[ResourcePackRecord {
-                path: "assets/audit/models/item/test.json".into(),
-                content_type: ContentType::Json,
-                content: "{}".into(),
-            }])
-            .is_ok()
-        );
-        assert!(
-            validate_resourcepack_records(&[ResourcePackRecord {
-                path: "data/audit/recipe/test.json".into(),
-                content_type: ContentType::Json,
-                content: "{}".into(),
-            }])
-            .is_err()
+            validate_resourcepack_records(&[rp_bad]).is_err(),
+            "data/ paths must be rejected for resource pack records"
         );
     }
+
+    // ── Pack metadata and zip ─────────────────────────────────────────────────
 
     #[test]
     fn pack_metadata_and_release_zip_stay_with_their_pack_root() {
@@ -346,6 +391,8 @@ mod tests {
         assert!(zip.by_name("data/audit/function/load.mcfunction").is_ok());
         assert!(zip.by_name("assets/audit/models/item/test.json").is_err());
     }
+
+    // ── Component output path computation ─────────────────────────────────────
 
     #[test]
     fn locks_modern_singular_datapack_component_paths() {
@@ -471,10 +518,14 @@ mod tests {
             assert_eq!(actual, expected, "wrong directory for {dir}");
         }
 
-        let minecraft_tag = ComponentRecord {
-            namespace: "minecraft".into(),
-            ..record("tags/function", "tick", "json", "{}")
-        };
+        let minecraft_tag: ComponentRecord = serde_json::from_value(serde_json::json!({
+            "namespace": "minecraft",
+            "dir": "tags/function",
+            "path": "tick",
+            "ext": "json",
+            "content": "{}",
+        }))
+        .unwrap();
         assert_eq!(
             component_output_path(dist, &minecraft_tag)
                 .unwrap()
@@ -483,6 +534,8 @@ mod tests {
             PathBuf::from("data/minecraft/tags/function/tick.json")
         );
     }
+
+    // ── OutputExt / ContentType deserialization ───────────────────────────────
 
     #[test]
     fn typed_output_ext_deserializes_from_json() {
@@ -523,5 +576,221 @@ mod tests {
     fn unknown_content_type_rejected_at_deserialize() {
         let json = r#"{"path":"assets/ns/a.png","content_type":"binary","content":""}"#;
         assert!(serde_json::from_str::<ResourcePackRecord>(json).is_err());
+    }
+
+    // ── Function tag validation ───────────────────────────────────────────────
+
+    #[test]
+    fn function_tag_accepts_valid_load_tick_tags() {
+        // Typical load tag
+        let load = r#"{"values":["my_pack:load"]}"#;
+        assert!(validate_function_tag("load", load).is_ok());
+
+        // Typical tick tag with multiple entries
+        let tick = r#"{"values":["my_pack:tick","other_pack:tick"]}"#;
+        assert!(validate_function_tag("tick", tick).is_ok());
+
+        // Empty values array is valid (no functions registered)
+        let empty = r#"{"values":[]}"#;
+        assert!(validate_function_tag("load", empty).is_ok());
+
+        // Tag reference (#-prefixed) with valid resource location
+        let tag_ref = "{\"values\":[\"#minecraft:some_tag\"]}";
+        assert!(validate_function_tag("load", tag_ref).is_ok());
+
+        // Object form with valid resource location and required=false
+        let optional = r#"{"values":[{"id":"my_pack:optional","required":false}]}"#;
+        assert!(validate_function_tag("load", optional).is_ok());
+
+        // Object form with id only (required is optional)
+        let id_only = r#"{"values":[{"id":"my_pack:fn"}]}"#;
+        assert!(validate_function_tag("load", id_only).is_ok());
+
+        // Paths with subdirectories are valid
+        let subdir = r#"{"values":["my_pack:subfolder/load"]}"#;
+        assert!(validate_function_tag("load", subdir).is_ok());
+    }
+
+    #[test]
+    fn function_tag_rejects_invalid_structures() {
+        // Not an object
+        assert!(validate_function_tag("load", r#"[]"#).is_err());
+
+        // Missing values key
+        assert!(validate_function_tag("load", r#"{}"#).is_err());
+
+        // values is not an array
+        assert!(validate_function_tag("load", r#"{"values":"my_pack:load"}"#).is_err());
+
+        // String entry missing ':' entirely
+        assert!(validate_function_tag("load", r#"{"values":["no_colon_here"]}"#).is_err());
+
+        // Uppercase namespace is rejected
+        assert!(validate_function_tag("load", r#"{"values":["Bad:load"]}"#).is_err());
+
+        // Empty namespace
+        assert!(validate_function_tag("load", r#"{"values":[":load"]}"#).is_err());
+
+        // Empty path
+        assert!(validate_function_tag("load", r#"{"values":["minecraft:"]}"#).is_err());
+
+        // Object entry missing 'id'
+        assert!(validate_function_tag("load", r#"{"values":[{"required":false}]}"#).is_err());
+
+        // Object id is not a string
+        assert!(validate_function_tag("load", r#"{"values":[{"id":42}]}"#).is_err());
+
+        // Object id is not a valid resource location
+        assert!(validate_function_tag("load", r#"{"values":[{"id":"not_a_location"}]}"#).is_err());
+
+        // Object id with uppercase namespace
+        assert!(validate_function_tag("load", r#"{"values":[{"id":"Bad:load"}]}"#).is_err());
+
+        // required is not a boolean
+        assert!(
+            validate_function_tag(
+                "load",
+                r#"{"values":[{"id":"my_pack:fn","required":"yes"}]}"#
+            )
+            .is_err()
+        );
+
+        // Invalid JSON
+        assert!(validate_function_tag("load", r#"{"values": ["#).is_err());
+    }
+
+    #[test]
+    fn function_tag_validation_applies_to_generic_tags_dir() {
+        // A record with dir="tags" and path="function/load" should also be
+        // validated as a function tag by validate_component_records.
+        let dist = std::path::Path::new("dist/audit");
+
+        // Valid function tag via the generic dir="tags" form
+        let good: ComponentRecord = serde_json::from_value(serde_json::json!({
+            "namespace": "minecraft",
+            "dir": "tags",
+            "path": "function/load",
+            "ext": "json",
+            "content": r#"{"values":["my_pack:load"]}"#,
+        }))
+        .unwrap();
+        assert!(validate_component_records(dist, &[good]).is_ok());
+
+        // Malformed function tag via the generic dir="tags" form should fail
+        let bad: ComponentRecord = serde_json::from_value(serde_json::json!({
+            "namespace": "minecraft",
+            "dir": "tags",
+            "path": "function/load",
+            "ext": "json",
+            "content": r#"{"values":["BadNamespace:load"]}"#,
+        }))
+        .unwrap();
+        assert!(
+            validate_component_records(dist, &[bad]).is_err(),
+            "invalid resource location in tags dir+function/ path must be caught"
+        );
+    }
+
+    // ── Golden fixture ────────────────────────────────────────────────────────
+
+    /// End-to-end fixture: given a minimal set of records (functions + tags),
+    /// the build pipeline writes the expected files with the expected content.
+    #[test]
+    fn golden_fixture_minimal_pack() {
+        let temp = tempfile::tempdir().unwrap();
+        let dist = temp.path().join("golden");
+
+        let tick_tag_json = r#"{"values":["golden:tick"]}"#;
+        let load_tag_json = r#"{"values":["golden:load"]}"#;
+
+        let records: Vec<ComponentRecord> = serde_json::from_value(serde_json::json!([
+            {
+                "namespace": "golden",
+                "dir": "function",
+                "path": "load",
+                "ext": "mcfunction",
+                "content": "say loaded",
+            },
+            {
+                "namespace": "golden",
+                "dir": "function",
+                "path": "tick",
+                "ext": "mcfunction",
+                "content": "say tick",
+            },
+            {
+                "namespace": "minecraft",
+                "dir": "tags/function",
+                "path": "load",
+                "ext": "json",
+                "content": load_tag_json,
+            },
+            {
+                "namespace": "minecraft",
+                "dir": "tags/function",
+                "path": "tick",
+                "ext": "json",
+                "content": tick_tag_json,
+            },
+        ]))
+        .unwrap();
+
+        // Validate before writing
+        validate_component_records(&dist, &records).unwrap();
+
+        // Validate load/tick tag structure explicitly
+        validate_function_tag("load", load_tag_json).unwrap();
+        validate_function_tag("tick", tick_tag_json).unwrap();
+
+        // Write the pack
+        std::fs::create_dir_all(&dist).unwrap();
+        write_pack_mcmeta(&dist, "golden", "Golden fixture pack", 71).unwrap();
+        for r in &records {
+            write_component(&dist, r).unwrap();
+        }
+
+        // Verify pack.mcmeta
+        let mcmeta: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(dist.join("pack.mcmeta")).unwrap())
+                .unwrap();
+        assert_eq!(mcmeta["pack"]["pack_format"], 71);
+        assert_eq!(mcmeta["pack"]["description"], "Golden fixture pack");
+
+        // Verify functions
+        assert_eq!(
+            std::fs::read_to_string(dist.join("data/golden/function/load.mcfunction")).unwrap(),
+            "say loaded"
+        );
+        assert_eq!(
+            std::fs::read_to_string(dist.join("data/golden/function/tick.mcfunction")).unwrap(),
+            "say tick"
+        );
+
+        // Verify function tags
+        let load_tag: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(dist.join("data/minecraft/tags/function/load.json")).unwrap(),
+        )
+        .unwrap();
+        assert!(
+            load_tag["values"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|v| v == "golden:load"),
+            "load tag must reference golden:load"
+        );
+
+        let tick_tag: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(dist.join("data/minecraft/tags/function/tick.json")).unwrap(),
+        )
+        .unwrap();
+        assert!(
+            tick_tag["values"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|v| v == "golden:tick"),
+            "tick tag must reference golden:tick"
+        );
     }
 }

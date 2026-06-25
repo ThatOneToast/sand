@@ -22,7 +22,8 @@ use write::{write_component, write_pack_mcmeta};
 
 pub fn run(release: bool, resourcepack: bool) -> Result<()> {
     // 1. Read sand.toml
-    let config_path = std::env::current_dir()?.join("sand.toml");
+    let project_root = std::env::current_dir()?;
+    let config_path = project_root.join("sand.toml");
     if !config_path.exists() {
         bail!("sand.toml not found — run `sand build` from your project root");
     }
@@ -140,7 +141,7 @@ pub fn run(release: bool, resourcepack: bool) -> Result<()> {
 
     // 7. Write each component file
     for record in &records {
-        write_component(&dist, record)?;
+        write_component(&dist, &project_root, record)?;
     }
 
     println!(
@@ -187,7 +188,9 @@ mod tests {
     use std::path::{Path, PathBuf};
 
     use super::package::zip_dir;
-    use super::records::{ComponentRecord, ContentType, OutputExt, ResourcePackRecord};
+    use super::records::{
+        ComponentContentType, ComponentRecord, ContentType, OutputExt, ResourcePackRecord,
+    };
     use super::validate::{
         component_output_path, validate_component_records, validate_function_tag,
         validate_resourcepack_records,
@@ -542,11 +545,17 @@ mod tests {
         let json = r#"{"namespace":"ns","dir":"function","path":"load","ext":"mcfunction","content":"say hi"}"#;
         let rec: ComponentRecord = serde_json::from_str(json).unwrap();
         assert_eq!(rec.ext, OutputExt::Mcfunction);
+        assert_eq!(rec.content_type, ComponentContentType::Text);
 
         let json2 =
             r#"{"namespace":"ns","dir":"recipe","path":"test","ext":"json","content":"{}"}"#;
         let rec2: ComponentRecord = serde_json::from_str(json2).unwrap();
         assert_eq!(rec2.ext, OutputExt::Json);
+
+        let json3 = r#"{"namespace":"ns","dir":"structure","path":"rooms/start","ext":"nbt","content_type":"copy","content":"structures/start.nbt"}"#;
+        let rec3: ComponentRecord = serde_json::from_str(json3).unwrap();
+        assert_eq!(rec3.ext, OutputExt::Nbt);
+        assert_eq!(rec3.content_type, ComponentContentType::Copy);
     }
 
     #[test]
@@ -576,6 +585,92 @@ mod tests {
     fn unknown_content_type_rejected_at_deserialize() {
         let json = r#"{"path":"assets/ns/a.png","content_type":"binary","content":""}"#;
         assert!(serde_json::from_str::<ResourcePackRecord>(json).is_err());
+    }
+
+    #[test]
+    fn validates_structure_template_copy_records() {
+        let dist = Path::new("dist/audit");
+        let good: ComponentRecord = serde_json::from_value(serde_json::json!({
+            "namespace": "audit",
+            "dir": "structure",
+            "path": "rooms/start",
+            "ext": "nbt",
+            "content_type": "copy",
+            "content": "src/structures/start.nbt",
+        }))
+        .unwrap();
+        assert!(validate_component_records(dist, &[good]).is_ok());
+
+        let unsafe_source: ComponentRecord = serde_json::from_value(serde_json::json!({
+            "namespace": "audit",
+            "dir": "structure",
+            "path": "rooms/start",
+            "ext": "nbt",
+            "content_type": "copy",
+            "content": "../start.nbt",
+        }))
+        .unwrap();
+        assert!(validate_component_records(dist, &[unsafe_source]).is_err());
+
+        let wrong_ext: ComponentRecord = serde_json::from_value(serde_json::json!({
+            "namespace": "audit",
+            "dir": "structure",
+            "path": "rooms/start",
+            "ext": "json",
+            "content": "{}",
+        }))
+        .unwrap();
+        assert!(
+            validate_component_records(dist, &[wrong_ext]).is_err(),
+            "structure outputs must use .nbt"
+        );
+
+        let text_nbt: ComponentRecord = serde_json::from_value(serde_json::json!({
+            "namespace": "audit",
+            "dir": "structure",
+            "path": "rooms/start",
+            "ext": "nbt",
+            "content": "not binary content",
+        }))
+        .unwrap();
+        assert!(validate_component_records(dist, &[text_nbt]).is_err());
+    }
+
+    #[test]
+    fn writes_and_zips_structure_template_assets() {
+        let temp = tempfile::tempdir().unwrap();
+        let project_root = temp.path().join("project");
+        let dist = temp.path().join("dist").join("audit");
+        let src = project_root.join("src/structures/start.nbt");
+        std::fs::create_dir_all(src.parent().unwrap()).unwrap();
+        std::fs::write(&src, [0x0a, 0x00, 0x00]).unwrap();
+
+        let record: ComponentRecord = serde_json::from_value(serde_json::json!({
+            "namespace": "audit",
+            "dir": "structure",
+            "path": "rooms/start",
+            "ext": "nbt",
+            "content_type": "copy",
+            "content": "src/structures/start.nbt",
+        }))
+        .unwrap();
+
+        validate_component_records(&dist, std::slice::from_ref(&record)).unwrap();
+        write_component(&dist, &project_root, &record).unwrap();
+
+        let output = dist.join("data/audit/structure/rooms/start.nbt");
+        assert_eq!(std::fs::read(&output).unwrap(), [0x0a, 0x00, 0x00]);
+
+        let zip_path = zip_dir(&dist, "audit").unwrap();
+        let zip_file = std::fs::File::open(zip_path).unwrap();
+        let mut archive = zip::ZipArchive::new(zip_file).unwrap();
+        let mut file = archive
+            .by_name("data/audit/structure/rooms/start.nbt")
+            .unwrap();
+        let mut bytes = Vec::new();
+        use std::io::Read as _;
+        file.read_to_end(&mut bytes).unwrap();
+        assert_eq!(bytes, [0x0a, 0x00, 0x00]);
     }
 
     // ── Function tag validation ───────────────────────────────────────────────
@@ -746,7 +841,7 @@ mod tests {
         std::fs::create_dir_all(&dist).unwrap();
         write_pack_mcmeta(&dist, "golden", "Golden fixture pack", 71).unwrap();
         for r in &records {
-            write_component(&dist, r).unwrap();
+            write_component(&dist, temp.path(), r).unwrap();
         }
 
         // Verify pack.mcmeta

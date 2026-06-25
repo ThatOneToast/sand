@@ -138,6 +138,7 @@ fn supported_component_dir(dir: &str) -> bool {
             | "painting_variant"
             | "predicate"
             | "recipe"
+            | "structure"
             | "tags"
             | "tags/function"
             | "trim_material"
@@ -151,10 +152,11 @@ fn supported_component_dir(dir: &str) -> bool {
 
 // ── Typed extension for datapack components ───────────────────────────────────
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OutputExt {
     Json,
     Mcfunction,
+    Nbt,
 }
 
 impl OutputExt {
@@ -162,6 +164,7 @@ impl OutputExt {
         match self {
             OutputExt::Json => "json",
             OutputExt::Mcfunction => "mcfunction",
+            OutputExt::Nbt => "nbt",
         }
     }
 }
@@ -172,8 +175,31 @@ impl<'de> Deserialize<'de> for OutputExt {
         match s.as_str() {
             "json" => Ok(OutputExt::Json),
             "mcfunction" => Ok(OutputExt::Mcfunction),
+            "nbt" => Ok(OutputExt::Nbt),
             other => Err(serde::de::Error::custom(format!(
-                "unsupported component extension '{other}'; expected 'json' or 'mcfunction'"
+                "unsupported component extension '{other}'; expected 'json', 'mcfunction', or 'nbt'"
+            ))),
+        }
+    }
+}
+
+// ── Content type for datapack components ─────────────────────────────────────
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum ComponentContentType {
+    #[default]
+    Text,
+    Copy,
+}
+
+impl<'de> Deserialize<'de> for ComponentContentType {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let s = String::deserialize(d)?;
+        match s.as_str() {
+            "text" => Ok(ComponentContentType::Text),
+            "copy" => Ok(ComponentContentType::Copy),
+            other => Err(serde::de::Error::custom(format!(
+                "unknown datapack component content_type '{other}'; expected 'text' or 'copy'"
             ))),
         }
     }
@@ -187,13 +213,15 @@ pub struct ComponentRecord {
     pub dir: ComponentDirectory,
     pub path: RelativePackPath,
     pub ext: OutputExt,
+    #[serde(default)]
+    pub content_type: ComponentContentType,
     pub content: String,
 }
 
 // ── Content type for resource pack assets ─────────────────────────────────────
 
 /// How the `content` field of a [`ResourcePackRecord`] should be interpreted.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ContentType {
     /// Write `content` as UTF-8 text (JSON).
     Json,

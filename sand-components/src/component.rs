@@ -27,6 +27,16 @@ pub trait DatapackComponent {
         ComponentContent::Json(self.to_json())
     }
 
+    /// Project-root-relative source path to copy verbatim for binary assets.
+    ///
+    /// Most datapack components are generated text and should use
+    /// [`DatapackComponent::content`]. Binary assets such as structure
+    /// templates override this hook so the build pipeline can copy the source
+    /// file without treating it as JSON or text.
+    fn copy_source_path(&self) -> Option<&str> {
+        None
+    }
+
     /// The subdirectory under `data/<namespace>/` where this component lives.
     ///
     /// Examples: `"advancement"`, `"loot_table"`, `"recipe"`, `"predicate"`,

@@ -19,6 +19,7 @@
 //! | [`painting_variant`] | `painting_variant/`                      | [`PaintingVariant`] |
 //! | [`predicate`]      | `predicate/`                               | [`Predicate`] |
 //! | [`recipe`]         | `recipe/`                                  | [`ShapedRecipe`], [`ShapelessRecipe`], … |
+//! | [`structure_template`] | `structure/`                          | [`StructureTemplate`] |
 //! | [`tag`]            | `tags/`                                    | [`Tag`] |
 //! | [`trim`]           | `trim_material/`, `trim_pattern/`          | [`TrimMaterial`], [`TrimPattern`] |
 //! | [`wolf_variant`]   | `wolf_variant/`                            | [`WolfVariant`] |
@@ -46,6 +47,7 @@ pub mod recipe;
 pub mod registry;
 pub mod registry_coverage;
 pub mod resource_location;
+pub mod structure_template;
 pub mod tag;
 pub mod trim;
 pub mod wolf_variant;
@@ -142,6 +144,10 @@ pub use recipe::{
 // ── Tag ───────────────────────────────────────────────────────────────────────
 
 pub use tag::Tag;
+
+// ── Structure Templates ───────────────────────────────────────────────────────
+
+pub use structure_template::StructureTemplate;
 
 // ── Trim ──────────────────────────────────────────────────────────────────────
 

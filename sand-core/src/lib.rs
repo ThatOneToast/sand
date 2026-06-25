@@ -310,6 +310,7 @@ pub use sand_components::{
     StatusEffectInstance,
     StonecuttingRecipe,
     StructureId,
+    StructureTemplate,
     SuspiciousStewEffect,
     // Tag
     Tag,

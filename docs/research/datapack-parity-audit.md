@@ -94,6 +94,7 @@ data/<namespace>/recipe/*.json              ✅ Generated (all standard types)
 data/<namespace>/predicate/*.json           ✅ Generated
 data/<namespace>/loot_table/*.json          ⚠️  Partial (item_modifier supported, full loot tables not)
 data/<namespace>/item_modifier/*.json       ✅ Generated
+data/<namespace>/structure/*.nbt            ✅ Copied from project assets
 data/<namespace>/tags/item/*.json           ✅ Generated
 data/<namespace>/tags/block/*.json          ⚠️  Not verified
 data/<namespace>/damage_type/*.json         ⚠️  Not implemented

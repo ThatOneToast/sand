@@ -82,15 +82,17 @@ pub trait TypedGameState: Copy + Eq + 'static {
 /// ```rust,ignore
 /// static PHASE: GameState<BossPhase> = GameState::new("boss_phase");
 /// ```
+///
+/// # Thread safety
+///
+/// `GameState<S>` stores only a `&'static str` and a `PhantomData<fn() -> S>`.
+/// The function-pointer phantom keeps auto-trait derivation sound — `fn() -> S`
+/// is always `Send + Sync` regardless of `S`, which is correct because the
+/// struct does not actually store or move a value of type `S`.
 pub struct GameState<S: TypedGameState> {
     name: &'static str,
-    _marker: PhantomData<S>,
+    _marker: PhantomData<fn() -> S>,
 }
-
-// SAFETY: GameState<S> is a ZST wrapper around a `&'static str` — it is safe
-// to share across threads regardless of S.
-unsafe impl<S: TypedGameState> Sync for GameState<S> {}
-unsafe impl<S: TypedGameState> Send for GameState<S> {}
 
 impl<S: TypedGameState> GameState<S> {
     /// Declare a new typed state variable with the given objective name.

@@ -5,6 +5,7 @@
 //! enchantment on an item does not guarantee that Minecraft gives it useful
 //! gameplay behavior (for example, Infinity on a crossbow).
 
+use sand_commands::give;
 use sand_core::prelude::*;
 
 fn charged_crossbow() -> CustomItem {
@@ -30,15 +31,15 @@ fn sharp_book() -> CustomItem {
 }
 
 fn give_crossbow() -> String {
-    cmd::give(Selector::self_(), charged_crossbow()).to_string()
+    give(Selector::self_(), charged_crossbow())
 }
 
 fn give_sword() -> String {
-    cmd::give(Selector::self_(), inferno_sword()).to_string()
+    give(Selector::self_(), inferno_sword())
 }
 
 fn give_book() -> String {
-    cmd::give(Selector::self_(), sharp_book()).to_string()
+    give(Selector::self_(), sharp_book())
 }
 
 fn main() {

@@ -49,6 +49,7 @@ pub mod event;
 pub mod events;
 pub mod execute_when;
 pub mod function;
+pub mod ir;
 pub mod mc_version;
 pub mod prelude;
 pub mod resource_location;
@@ -181,6 +182,10 @@ pub use resource_location::{Identifier, PackNamespace, ResourceLocation};
 pub use state::{
     BlockNbt, EntityNbt, NbtLocation, NbtPath, SnbtCompound, SnbtValue, StorageField,
     StorageLocation, StorageSchema, StorageVar,
+};
+pub use state::{GameState, GameStateRef, TypedGameState};
+pub use state::{
+    drain_load_commands, drain_tick_commands, register_load_objective, register_tick_handler,
 };
 
 // ── McFunction (sand-core-specific component) ─────────────────────────────────

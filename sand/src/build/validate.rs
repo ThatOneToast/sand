@@ -1,11 +1,14 @@
 use std::collections::HashSet;
-use std::path::{Component, Path, PathBuf};
+use std::path::PathBuf;
 
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 
 use super::records::{ComponentRecord, ContentType, OutputExt, ResourcePackRecord};
 
-pub(super) fn validate_component_records(dist: &Path, records: &[ComponentRecord]) -> Result<()> {
+pub(super) fn validate_component_records(
+    dist: &std::path::Path,
+    records: &[ComponentRecord],
+) -> Result<()> {
     let mut paths = HashSet::new();
     for record in records {
         let output_path = component_output_path(dist, record)?;
@@ -29,6 +32,10 @@ pub(super) fn validate_component_records(dist: &Path, records: &[ComponentRecord
                         output_path.display()
                     )
                 })?;
+                // Function tags get structural validation in addition to JSON parsing.
+                if record.dir.as_str() == "tags/function" {
+                    validate_function_tag(record.path.as_str(), &record.content)?;
+                }
             }
             OutputExt::Mcfunction => {
                 if record.content.contains('\0') {
@@ -46,30 +53,26 @@ pub(super) fn validate_component_records(dist: &Path, records: &[ComponentRecord
     Ok(())
 }
 
-pub(super) fn component_output_path(dist: &Path, record: &ComponentRecord) -> Result<PathBuf> {
-    validate_namespace(&record.namespace)?;
-    validate_relative("component directory", &record.dir)?;
-    validate_relative("component path", &record.path)?;
-    if !supported_component_dir(&record.dir) {
-        bail!(
-            "unsupported component directory '{}' for {}:{}",
-            record.dir,
-            record.namespace,
-            record.path
-        );
-    }
+/// Returns the absolute output path for a component record under `dist`.
+///
+/// Namespace, directory, and path traversal safety are guaranteed by the
+/// newtypes on [`ComponentRecord`] — this function only assembles the path.
+pub(super) fn component_output_path(
+    dist: &std::path::Path,
+    record: &ComponentRecord,
+) -> Result<PathBuf> {
     Ok(dist
         .join("data")
-        .join(&record.namespace)
-        .join(&record.dir)
-        .join(format!("{}.{}", record.path, record.ext.as_str())))
+        .join(record.namespace.as_str())
+        .join(record.dir.as_str())
+        .join(format!("{}.{}", record.path.as_str(), record.ext.as_str())))
 }
 
 pub(super) fn validate_resourcepack_records(records: &[ResourcePackRecord]) -> Result<()> {
     let mut paths = HashSet::new();
     for record in records {
-        validate_relative("resource-pack asset path", &record.path)?;
-        if !record.path.starts_with("assets/") {
+        // RelativePackPath guarantees no traversal — check asset root prefix.
+        if !record.path.as_str().starts_with("assets/") {
             bail!(
                 "resource-pack record '{}' must be under assets/ (data/ belongs to the datapack)",
                 record.path
@@ -87,57 +90,71 @@ pub(super) fn validate_resourcepack_records(records: &[ResourcePackRecord]) -> R
     Ok(())
 }
 
-pub(super) fn validate_relative(kind: &str, value: &str) -> Result<()> {
-    if value.is_empty() || Path::new(value).is_absolute() || value.contains('\0') {
-        bail!("invalid {kind} '{value}'");
+/// Validates a Minecraft function tag JSON string.
+///
+/// A valid function tag is a JSON object with a `"values"` array. Each entry
+/// must be either a resource-location string (`"namespace:path"`, optionally
+/// prefixed with `#` to reference another tag) or an object with an `"id"`
+/// field (`{"id": "...", "required": false}`).
+///
+/// Called automatically from [`validate_component_records`] for all
+/// `tags/function` records, and available for standalone validation.
+pub(super) fn validate_function_tag(tag_name: &str, json: &str) -> Result<()> {
+    let v: serde_json::Value = serde_json::from_str(json)
+        .with_context(|| format!("invalid JSON in function tag '{tag_name}'"))?;
+
+    let obj = v.as_object().ok_or_else(|| {
+        anyhow::anyhow!("function tag '{tag_name}' must be a JSON object, got {v}")
+    })?;
+
+    let values = obj.get("values").ok_or_else(|| {
+        anyhow::anyhow!("function tag '{tag_name}' missing required 'values' array")
+    })?;
+
+    let arr = values.as_array().ok_or_else(|| {
+        anyhow::anyhow!("function tag '{tag_name}'.values must be an array, got {values}")
+    })?;
+
+    for (i, entry) in arr.iter().enumerate() {
+        match entry {
+            serde_json::Value::String(s) => {
+                let target = s.trim_start_matches('#');
+                if !target.contains(':') {
+                    bail!(
+                        "function tag '{tag_name}' entry {i} '{s}' is not a valid \
+                         resource location (missing ':')"
+                    );
+                }
+            }
+            serde_json::Value::Object(obj) => {
+                if !obj.contains_key("id") {
+                    bail!("function tag '{tag_name}' entry {i} object must have an 'id' field");
+                }
+            }
+            other => {
+                bail!(
+                    "function tag '{tag_name}' entry {i} must be a string or object, got {other}"
+                );
+            }
+        }
     }
-    if Path::new(value).components().any(|part| {
-        matches!(
-            part,
-            Component::ParentDir | Component::RootDir | Component::Prefix(_)
-        )
-    }) {
-        bail!("unsafe {kind} '{value}'");
-    }
+
     Ok(())
 }
 
+/// Validates a Minecraft namespace string (lowercase letters, digits, `_`, `-`, `.`).
+///
+/// Used to validate the `namespace` field from `sand.toml` at build time,
+/// before the namespace is used as a filesystem path component.
 pub(super) fn validate_namespace(namespace: &str) -> Result<()> {
     if namespace.is_empty()
         || !namespace.bytes().all(|byte| {
             byte.is_ascii_lowercase() || byte.is_ascii_digit() || matches!(byte, b'_' | b'-' | b'.')
         })
     {
-        bail!("invalid namespace '{namespace}'");
+        bail!(
+            "invalid namespace '{namespace}' in sand.toml: expected lowercase letters, digits, `_`, `-`, or `.`"
+        );
     }
     Ok(())
-}
-
-pub(super) fn supported_component_dir(dir: &str) -> bool {
-    matches!(
-        dir,
-        "advancement"
-            | "banner_pattern"
-            | "chat_type"
-            | "damage_type"
-            | "dialog"
-            | "dimension"
-            | "enchantment"
-            | "function"
-            | "instrument"
-            | "item_modifier"
-            | "jukebox_song"
-            | "loot_table"
-            | "painting_variant"
-            | "predicate"
-            | "recipe"
-            | "tags"
-            | "tags/function"
-            | "trim_material"
-            | "trim_pattern"
-            | "wolf_variant"
-            | "worldgen/biome"
-            | "worldgen/noise_settings"
-            | "worldgen/placed_feature"
-    )
 }

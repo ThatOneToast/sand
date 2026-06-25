@@ -28,9 +28,9 @@ pub(super) fn write_component(dist: &Path, record: &ComponentRecord) -> Result<(
     // path inside the datapack: data/<namespace>/<dir>/<path>.<ext>
     let file_path = dist
         .join("data")
-        .join(&record.namespace)
-        .join(&record.dir)
-        .join(format!("{}.{}", record.path, record.ext.as_str()));
+        .join(record.namespace.as_str())
+        .join(record.dir.as_str())
+        .join(format!("{}.{}", record.path.as_str(), record.ext.as_str()));
     std::fs::create_dir_all(file_path.parent().unwrap())
         .with_context(|| format!("failed to create dir for '{}'", file_path.display()))?;
     // Minecraft accepts LF on every supported platform. Normalizing here makes
@@ -71,7 +71,7 @@ pub(super) fn write_rp_record(
     // The `path` field is already a full pack-relative path, e.g.
     // "assets/my_pack/font/hud.json". Strip any leading separator just in
     // case, then join to the dist directory.
-    let rel = record.path.trim_start_matches('/');
+    let rel = record.path.as_str().trim_start_matches('/');
     let dest = dist.join(rel);
     std::fs::create_dir_all(dest.parent().unwrap())
         .with_context(|| format!("failed to create dir for '{}'", dest.display()))?;
@@ -98,7 +98,7 @@ pub(super) fn write_rp_record(
             use base64::Engine as _;
             let bytes = base64::engine::general_purpose::STANDARD
                 .decode(&record.content)
-                .with_context(|| format!("failed to base64-decode '{}'", record.path))?;
+                .with_context(|| format!("failed to base64-decode '{}'", record.path.as_str()))?;
             std::fs::write(&dest, &bytes)
                 .with_context(|| format!("failed to write '{}'", dest.display()))?;
         }

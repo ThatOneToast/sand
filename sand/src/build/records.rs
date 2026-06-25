@@ -1,4 +1,153 @@
+use std::path::{Component, Path};
+
 use serde::Deserialize;
+
+// ── PackNamespace ─────────────────────────────────────────────────────────────
+
+/// A validated Minecraft namespace (lowercase letters, digits, `_`, `-`, `.`).
+///
+/// Validated at deserialization so downstream code can assume the value is safe
+/// to use as a filesystem path component.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct PackNamespace(String);
+
+impl PackNamespace {
+    pub(super) fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    fn is_valid(s: &str) -> bool {
+        !s.is_empty()
+            && s.bytes().all(|b| {
+                b.is_ascii_lowercase() || b.is_ascii_digit() || matches!(b, b'_' | b'-' | b'.')
+            })
+    }
+}
+
+impl<'de> Deserialize<'de> for PackNamespace {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let s = String::deserialize(d)?;
+        if !PackNamespace::is_valid(&s) {
+            return Err(serde::de::Error::custom(format!(
+                "invalid namespace '{s}'; expected lowercase letters, digits, `_`, `-`, or `.`"
+            )));
+        }
+        Ok(PackNamespace(s))
+    }
+}
+
+impl std::fmt::Display for PackNamespace {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+// ── RelativePackPath ──────────────────────────────────────────────────────────
+
+/// A relative path guaranteed not to escape the pack root.
+///
+/// Rejects: empty strings, absolute paths, `..` components, and null bytes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct RelativePackPath(String);
+
+impl RelativePackPath {
+    pub(super) fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    fn is_valid(s: &str) -> bool {
+        !s.is_empty()
+            && !s.contains('\0')
+            && !Path::new(s).is_absolute()
+            && !Path::new(s).components().any(|c| {
+                matches!(
+                    c,
+                    Component::ParentDir | Component::RootDir | Component::Prefix(_)
+                )
+            })
+    }
+}
+
+impl<'de> Deserialize<'de> for RelativePackPath {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let s = String::deserialize(d)?;
+        if !RelativePackPath::is_valid(&s) {
+            return Err(serde::de::Error::custom(format!(
+                "unsafe or empty pack path '{s}'"
+            )));
+        }
+        Ok(RelativePackPath(s))
+    }
+}
+
+impl std::fmt::Display for RelativePackPath {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+// ── ComponentDirectory ────────────────────────────────────────────────────────
+
+/// A validated datapack component directory (must be an allowed Minecraft
+/// datapack subdirectory).
+///
+/// Validated at deserialization so unknown or dangerous directories are
+/// rejected before any filesystem access.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct ComponentDirectory(String);
+
+impl ComponentDirectory {
+    pub(super) fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl<'de> Deserialize<'de> for ComponentDirectory {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let s = String::deserialize(d)?;
+        if !supported_component_dir(&s) {
+            return Err(serde::de::Error::custom(format!(
+                "unsupported component directory '{s}'"
+            )));
+        }
+        Ok(ComponentDirectory(s))
+    }
+}
+
+impl std::fmt::Display for ComponentDirectory {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+fn supported_component_dir(dir: &str) -> bool {
+    matches!(
+        dir,
+        "advancement"
+            | "banner_pattern"
+            | "chat_type"
+            | "damage_type"
+            | "dialog"
+            | "dimension"
+            | "enchantment"
+            | "function"
+            | "instrument"
+            | "item_modifier"
+            | "jukebox_song"
+            | "loot_table"
+            | "painting_variant"
+            | "predicate"
+            | "recipe"
+            | "tags"
+            | "tags/function"
+            | "trim_material"
+            | "trim_pattern"
+            | "wolf_variant"
+            | "worldgen/biome"
+            | "worldgen/noise_settings"
+            | "worldgen/placed_feature"
+    )
+}
 
 // ── Typed extension for datapack components ───────────────────────────────────
 
@@ -17,7 +166,7 @@ impl OutputExt {
     }
 }
 
-impl<'de> serde::Deserialize<'de> for OutputExt {
+impl<'de> Deserialize<'de> for OutputExt {
     fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
         let s = String::deserialize(d)?;
         match s.as_str() {
@@ -34,9 +183,9 @@ impl<'de> serde::Deserialize<'de> for OutputExt {
 
 #[derive(Deserialize)]
 pub(super) struct ComponentRecord {
-    pub(super) namespace: String,
-    pub(super) dir: String,
-    pub(super) path: String,
+    pub(super) namespace: PackNamespace,
+    pub(super) dir: ComponentDirectory,
+    pub(super) path: RelativePackPath,
     pub(super) ext: OutputExt,
     pub(super) content: String,
 }
@@ -54,7 +203,7 @@ pub(super) enum ContentType {
     Bytes,
 }
 
-impl<'de> serde::Deserialize<'de> for ContentType {
+impl<'de> Deserialize<'de> for ContentType {
     fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
         let s = String::deserialize(d)?;
         match s.as_str() {
@@ -73,7 +222,7 @@ impl<'de> serde::Deserialize<'de> for ContentType {
 #[derive(Deserialize)]
 pub(super) struct ResourcePackRecord {
     /// Full path from the pack root, e.g. `"assets/ns/font/hud.json"`.
-    pub(super) path: String,
+    pub(super) path: RelativePackPath,
     /// How to interpret the `content` field.
     pub(super) content_type: ContentType,
     /// JSON string, project-root-relative source path, or base64-encoded bytes.

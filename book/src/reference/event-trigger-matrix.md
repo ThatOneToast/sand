@@ -4,10 +4,9 @@ This matrix covers every public built-in event exported from `sand_core`.
 Each entry lists the Rust type, canonical import path, the vanilla or Sand
 mechanism that fires it, dispatch mode, reliability, and relevant caveats.
 
-**Coverage guarantee:** a test in `sand-core/src/events/mod.rs` asserts that
-every name in the `BUILTIN_EVENT_NAMES` constant appears in this file. CI will
-fail if a new built-in event is added without updating both the constant and
-this matrix.
+**Coverage guarantee:** a workspace test asserts that every name in the
+`BUILTIN_EVENT_NAMES` constant appears in this file. CI will fail if a new
+built-in event is added without updating both the constant and this matrix.
 
 ---
 

@@ -129,14 +129,8 @@ pub fn ec_on_damaged_regen(event: DamageEvent<EnhancedCellsDamagedEvent>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_support::dyn_fn_test_lock;
     use sand_core::drain_dyn_fns;
-
-    // Test mutex to isolate dyn_fn_registry state
-    use std::sync::{Mutex, OnceLock};
-    fn lock() -> std::sync::MutexGuard<'static, ()> {
-        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-        LOCK.get_or_init(|| Mutex::new(())).lock().unwrap()
-    }
 
     #[test]
     fn cells_state_schema_paths() {
@@ -183,7 +177,7 @@ mod tests {
 
     #[test]
     fn ec_on_damaged_registers_branch_for_then_all() {
-        let _guard = lock();
+        let _guard = dyn_fn_test_lock();
         let _ = drain_dyn_fns();
 
         // Simulate what the export pipeline does: call the event make() body.
@@ -217,7 +211,7 @@ mod tests {
 
     #[test]
     fn ec_on_damaged_regen_registers_unless_branch() {
-        let _guard = lock();
+        let _guard = dyn_fn_test_lock();
         let _ = drain_dyn_fns();
 
         let cmds = ec_on_damaged_regen();

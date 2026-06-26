@@ -1230,9 +1230,9 @@ player_event!(PlayerInSpectatorEvent);
 // ── Doc-coverage registry ────────────────────────────────────────────────────
 //
 // Every public built-in event type exported from this module must appear in
-// this list AND in `book/src/reference/event-trigger-matrix.md`. A test below
-// verifies matrix coverage at compile+test time. When adding a new public
-// event, append its type name here and add a row to the matrix.
+// this list AND in `book/src/reference/event-trigger-matrix.md`. Workspace
+// tests verify matrix coverage. When adding a new public event, append its type
+// name here and add a row to the matrix.
 //
 // `SandEvent` and `SandEventDispatch` are excluded: they are traits/enums,
 // not callable event types.
@@ -1369,28 +1369,6 @@ mod tests {
         let score_ref = crate::event::vanilla::PlayerLevelsUp::current_level("@s");
         let operand = score_ref.operand();
         assert_eq!(operand.objective, "__sand_xp_lvl");
-    }
-
-    // ── Doc-coverage test ────────────────────────────────────────────────────
-    //
-    // Asserts that every name in BUILTIN_EVENT_NAMES appears in the event
-    // trigger matrix. CI fails if a new event is registered here without being
-    // added to the matrix doc.
-    #[test]
-    fn all_builtin_events_covered_in_matrix() {
-        const MATRIX: &str = include_str!("../../../book/src/reference/event-trigger-matrix.md");
-        let mut missing: Vec<&str> = Vec::new();
-        for name in super::BUILTIN_EVENT_NAMES {
-            if !MATRIX.contains(name) {
-                missing.push(name);
-            }
-        }
-        assert!(
-            missing.is_empty(),
-            "The following built-in events are missing from \
-             book/src/reference/event-trigger-matrix.md: {missing:?}\n\
-             Add a row for each event and re-run the tests."
-        );
     }
 
     #[test]

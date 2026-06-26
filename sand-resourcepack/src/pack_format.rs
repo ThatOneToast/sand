@@ -1,72 +1,40 @@
-/// Returns the **resource pack** format number for a given Minecraft version
-/// string.
+use sand_core::version::{LATEST_KNOWN, MinecraftVersion, VersionProfile};
+
+/// Returns the resource pack format number for a given Minecraft version string.
 ///
-/// Resource pack format numbers are a *separate* series from data pack format
-/// numbers. For versions newer than the highest known entry the most recent
-/// known value is used as a conservative fallback — users can always override
-/// `resource_pack_format` in their `sand.toml`.
-///
-/// The canonical source of truth for these values is
-/// `sand_core::version::VersionProfile::resource_pack_format`. This table
-/// must remain consistent with that one.
+/// This is a thin compatibility wrapper around [`VersionProfile::resourcepack_metadata`],
+/// which is the single canonical source of truth for pack format numbers. For
+/// unknown or future versions the most recent known value is returned as a
+/// conservative fallback — users can always override `resource_pack_format` in
+/// their `sand.toml`.
 ///
 /// Reference: <https://minecraft.wiki/w/Pack_format>
-///
-/// | Minecraft version | Resource pack format |
-/// |---|---|
-/// | 26.2.x | 88 |
-/// | 26.1.x | 84 |
-/// | 1.21.11 | 75 |
-/// | 1.21.9–1.21.10 | 69 |
-/// | 1.21.7–1.21.8 | 64 |
-/// | 1.21.6 | 63 |
-/// | 1.21.5 | 55 |
-/// | 1.21.4 | 46 |
-/// | 1.21.2–1.21.3 | 42 |
-/// | 1.21.0–1.21.1 | 34 |
-/// | 1.20.5–1.20.6 | 32 |
-/// | 1.20.3–1.20.4 | 22 |
-/// | 1.20.2 | 18 |
-/// | 1.20.0–1.20.1 | 15 |
-/// | 1.19.4 | 13 |
-/// | 1.19.0–1.19.3 | 12 |
-/// | 1.18.0–1.18.2 | 8 |
 pub fn resource_pack_format_for(mc_version: &str) -> u32 {
-    let (major, minor, patch) = parse_version(mc_version);
-    match (major, minor, patch) {
-        // 26.x calendar series
-        (26, 2, _) => 88,
-        (26, 1, _) => 84,
-        (26, _, _) => 88, // unknown 26.x: use latest known (26.2)
-        // 1.21.x
-        (1, 21, 11) => 75,
-        (1, 21, 9..=10) => 69,
-        (1, 21, 7..=8) => 64,
-        (1, 21, 6) => 63,
-        (1, 21, 5) => 55,
-        (1, 21, 4) => 46,
-        (1, 21, 2..=3) => 42,
-        (1, 21, 0..=1) => 34,
-        (1, 21, _) => 75, // unknown future 1.21.x: use latest known (1.21.11)
-        // 1.20.x
-        (1, 20, 5..=6) => 32,
-        (1, 20, 3..=4) => 22,
-        (1, 20, 2) => 18,
-        (1, 20, 0..=1) => 15,
-        // 1.19.x
-        (1, 19, 4) => 13,
-        (1, 19, 0..=3) => 12,
-        // 1.18.x
-        (1, 18, 0..=2) => 8,
-        // anything else: conservative latest
-        _ => 88,
-    }
+    resolve_resource_pack_format(mc_version).0
 }
 
-fn parse_version(s: &str) -> (u32, u32, u32) {
-    let parts: Vec<&str> = s.split('.').collect();
-    let get = |i: usize| parts.get(i).and_then(|p| p.parse().ok()).unwrap_or(0);
-    (get(0), get(1), get(2))
+/// Resolve the resource pack format and whether it came from a conservative fallback.
+///
+/// Returns `(format, is_fallback)`. `is_fallback` is `true` when the exact
+/// version was not found in the known table and a conservative default was used.
+/// Callers that can warn the user (e.g. the build pipeline) should check this.
+pub(crate) fn resolve_resource_pack_format(mc_version: &str) -> (u32, bool) {
+    let v = match MinecraftVersion::parse(mc_version) {
+        Ok(v) => v,
+        Err(_) => {
+            let latest = MinecraftVersion::parse(LATEST_KNOWN).unwrap();
+            let profile = VersionProfile::resolve(&latest).unwrap();
+            let meta = profile.resourcepack_metadata();
+            return (meta.pack_format, true);
+        }
+    };
+
+    let profile = VersionProfile::resolve(&v).unwrap_or_else(|_| {
+        let latest = MinecraftVersion::parse(LATEST_KNOWN).unwrap();
+        VersionProfile::resolve(&latest).unwrap()
+    });
+    let meta = profile.resourcepack_metadata();
+    (meta.pack_format, meta.is_fallback)
 }
 
 #[cfg(test)]
@@ -74,35 +42,82 @@ mod tests {
     use super::*;
 
     #[test]
-    fn known_versions() {
-        assert_eq!(resource_pack_format_for("1.21.4"), 46);
-        assert_eq!(resource_pack_format_for("1.21.5"), 55);
-        assert_eq!(resource_pack_format_for("1.21.6"), 63);
-        assert_eq!(resource_pack_format_for("1.21.7"), 64);
-        assert_eq!(resource_pack_format_for("1.21.9"), 69);
-        assert_eq!(resource_pack_format_for("1.21.11"), 75);
-        assert_eq!(resource_pack_format_for("1.21.3"), 42);
-        assert_eq!(resource_pack_format_for("1.21.1"), 34);
-        assert_eq!(resource_pack_format_for("1.21.0"), 34);
-        assert_eq!(resource_pack_format_for("1.20.6"), 32);
-        assert_eq!(resource_pack_format_for("1.20.4"), 22);
-        assert_eq!(resource_pack_format_for("1.20.1"), 15);
-        assert_eq!(resource_pack_format_for("1.19.4"), 13);
-        assert_eq!(resource_pack_format_for("1.18.1"), 8);
+    fn known_version_26_2_resolves_to_88() {
+        let (fmt, is_fallback) = resolve_resource_pack_format("26.2");
+        assert_eq!(fmt, 88);
+        assert!(!is_fallback, "26.2 is a known mapped version");
     }
 
     #[test]
-    fn known_26_series() {
-        assert_eq!(resource_pack_format_for("26.1"), 84);
-        assert_eq!(resource_pack_format_for("26.1.2"), 84);
-        assert_eq!(resource_pack_format_for("26.2"), 88);
+    fn future_version_fallback() {
+        let (fmt, is_fallback) = resolve_resource_pack_format("26.99");
+        // Conservative fallback: uses latest known resource pack format (88 for 26.2)
+        assert_eq!(
+            fmt, 88,
+            "unknown 26.99 should fall back to latest known (88)"
+        );
+        assert!(is_fallback, "26.99 is beyond the known table");
     }
 
     #[test]
-    fn future_and_unknown_return_latest() {
-        // Unknown versions return the latest known resource pack format (26.2 = 88).
-        assert_eq!(resource_pack_format_for("26.3"), 88);
-        assert_eq!(resource_pack_format_for("1.22.0"), 88);
-        assert_eq!(resource_pack_format_for("0.0.0"), 88);
+    fn compatibility_wrapper_matches_version_profile() {
+        // Verify that resource_pack_format_for delegates correctly for all known versions.
+        let known_versions = [
+            ("1.18.0", 8u32),
+            ("1.18.2", 8),
+            ("1.19.0", 12),
+            ("1.19.4", 13),
+            ("1.20.0", 15),
+            ("1.20.2", 18),
+            ("1.20.3", 22),
+            ("1.20.5", 32),
+            ("1.21.0", 34),
+            ("1.21.2", 42),
+            ("1.21.4", 46),
+            ("1.21.5", 55),
+            ("1.21.6", 63),
+            ("1.21.7", 64),
+            ("1.21.9", 69),
+            ("1.21.11", 75),
+            ("26.1", 84),
+            ("26.2", 88),
+        ];
+
+        for (ver, expected) in known_versions {
+            let from_wrapper = resource_pack_format_for(ver);
+            assert_eq!(
+                from_wrapper, expected,
+                "resource_pack_format_for({ver}) returned {from_wrapper}, expected {expected}"
+            );
+
+            // Also confirm the wrapper agrees with VersionProfile directly.
+            let v = MinecraftVersion::parse(ver).unwrap();
+            let p = VersionProfile::resolve(&v).unwrap();
+            let from_profile = p.resourcepack_metadata().pack_format;
+            assert_eq!(
+                from_wrapper, from_profile,
+                "wrapper and VersionProfile diverged for {ver}: wrapper={from_wrapper}, profile={from_profile}"
+            );
+        }
+    }
+
+    #[test]
+    fn no_duplicate_table_regression() {
+        // Confirm that resolve_resource_pack_format always agrees with
+        // VersionProfile::resourcepack_metadata() for known versions.
+        // This test fails if a second independent table is ever introduced.
+        let spot_checks = ["1.21.4", "1.21.11", "26.1", "26.2"];
+        for ver in spot_checks {
+            let (wrapper_fmt, _) = resolve_resource_pack_format(ver);
+            let v = MinecraftVersion::parse(ver).unwrap();
+            let profile_fmt = VersionProfile::resolve(&v)
+                .unwrap()
+                .resourcepack_metadata()
+                .pack_format;
+            assert_eq!(
+                wrapper_fmt, profile_fmt,
+                "format mismatch for {ver}: resolve_resource_pack_format={wrapper_fmt}, VersionProfile={profile_fmt}"
+            );
+        }
     }
 }

@@ -2,7 +2,6 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result, bail};
 use colored::Colorize;
-use sand_resourcepack::resource_pack_format_for;
 
 use crate::config::SandConfig;
 
@@ -17,6 +16,8 @@ pub(super) fn build_resourcepack(
     release: bool,
     cargo_target_dir: &std::path::Path,
 ) -> Result<()> {
+    use sand_core::version::{MinecraftVersion, VersionProfile};
+
     let rp_cfg = config.resourcepack.as_ref();
     let rp_namespace = rp_cfg
         .and_then(|c| c.namespace.as_deref())
@@ -24,9 +25,37 @@ pub(super) fn build_resourcepack(
     let rp_description = rp_cfg
         .and_then(|c| c.description.as_deref())
         .unwrap_or(&config.pack.description);
-    let rp_format = rp_cfg
-        .and_then(|c| c.resource_pack_format)
-        .unwrap_or_else(|| resource_pack_format_for(mc_version));
+
+    let (rp_format, rp_format_is_fallback) =
+        if let Some(explicit) = rp_cfg.and_then(|c| c.resource_pack_format) {
+            (explicit, false)
+        } else if let Ok(v) = MinecraftVersion::parse(mc_version) {
+            let p = VersionProfile::resolve(&v).unwrap_or_else(|_| {
+                VersionProfile::resolve(
+                    &MinecraftVersion::parse(sand_core::version::LATEST_KNOWN).unwrap(),
+                )
+                .unwrap()
+            });
+            let meta = p.resourcepack_metadata();
+            (meta.pack_format, meta.is_fallback)
+        } else {
+            (
+                sand_resourcepack::resource_pack_format_for(mc_version),
+                false,
+            )
+        };
+
+    if rp_format_is_fallback {
+        eprintln!(
+            "{} Minecraft version '{}' is not in Sand's known version table. \
+             Using resource_pack_format {} as a conservative fallback. \
+             Add `resource_pack_format = {}` to [resourcepack] in sand.toml to silence this warning.",
+            "warning:".yellow().bold(),
+            mc_version,
+            rp_format,
+            rp_format
+        );
+    }
 
     println!(
         "{} {} (resource_pack_format {})...",

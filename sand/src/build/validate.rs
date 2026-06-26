@@ -1,13 +1,31 @@
 use std::collections::HashSet;
-use std::path::PathBuf;
+use std::path::{Component, Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
 
-use super::records::{ComponentRecord, ContentType, OutputExt, ResourcePackRecord};
+use super::records::{
+    ComponentContentType, ComponentRecord, ContentType, OutputExt, ResourcePackRecord,
+};
 
 pub fn validate_component_records(
     dist: &std::path::Path,
     records: &[ComponentRecord],
+) -> Result<()> {
+    validate_component_records_impl(dist, records, None)
+}
+
+pub fn validate_component_records_for_project(
+    dist: &std::path::Path,
+    project_root: &std::path::Path,
+    records: &[ComponentRecord],
+) -> Result<()> {
+    validate_component_records_impl(dist, records, Some(project_root))
+}
+
+fn validate_component_records_impl(
+    dist: &std::path::Path,
+    records: &[ComponentRecord],
+    project_root: Option<&std::path::Path>,
 ) -> Result<()> {
     let mut paths = HashSet::new();
     for record in records {
@@ -21,8 +39,23 @@ pub fn validate_component_records(
                 record.path
             );
         }
+        if record.dir.as_str() == "structure" && record.ext != OutputExt::Nbt {
+            bail!(
+                "structure template {}:{} must use .nbt output",
+                record.namespace,
+                record.path
+            );
+        }
         match record.ext {
             OutputExt::Json => {
+                if record.content_type != ComponentContentType::Text {
+                    bail!(
+                        "generated JSON component {}:{}/{} must use text content",
+                        record.namespace,
+                        record.dir,
+                        record.path
+                    );
+                }
                 serde_json::from_str::<serde_json::Value>(&record.content).map_err(|e| {
                     anyhow::anyhow!(
                         "invalid generated JSON for component {}:{}/{} at '{}': {e}",
@@ -43,6 +76,14 @@ pub fn validate_component_records(
                 }
             }
             OutputExt::Mcfunction => {
+                if record.content_type != ComponentContentType::Text {
+                    bail!(
+                        "generated function {}:{}/{} must use text content",
+                        record.namespace,
+                        record.dir,
+                        record.path
+                    );
+                }
                 if record.content.contains('\0') {
                     bail!(
                         "invalid generated function {}:{}/{} at '{}': embedded null byte",
@@ -51,6 +92,27 @@ pub fn validate_component_records(
                         record.path,
                         output_path.display()
                     );
+                }
+            }
+            OutputExt::Nbt => {
+                if record.dir.as_str() != "structure" {
+                    bail!(
+                        "binary NBT component {}:{}/{} must use the structure directory",
+                        record.namespace,
+                        record.dir,
+                        record.path
+                    );
+                }
+                if record.content_type != ComponentContentType::Copy {
+                    bail!(
+                        "structure template {}:{} must copy a source .nbt file",
+                        record.namespace,
+                        record.path
+                    );
+                }
+                validate_structure_source_path(&record.content)?;
+                if let Some(project_root) = project_root {
+                    validate_structure_source_file(project_root, record)?;
                 }
             }
         }
@@ -68,6 +130,52 @@ pub fn component_output_path(dist: &std::path::Path, record: &ComponentRecord) -
         .join(record.namespace.as_str())
         .join(record.dir.as_str())
         .join(format!("{}.{}", record.path.as_str(), record.ext.as_str())))
+}
+
+fn validate_structure_source_path(path: &str) -> Result<()> {
+    if path.is_empty()
+        || path.contains('\0')
+        || !path.ends_with(".nbt")
+        || Path::new(path).is_absolute()
+        || Path::new(path).components().any(|component| {
+            matches!(
+                component,
+                Component::ParentDir | Component::RootDir | Component::Prefix(_)
+            )
+        })
+    {
+        bail!(
+            "unsafe structure template source path '{path}'; expected a project-root-relative .nbt file"
+        );
+    }
+    Ok(())
+}
+
+fn validate_structure_source_file(project_root: &Path, record: &ComponentRecord) -> Result<()> {
+    let src = project_root.join(&record.content);
+    let metadata = std::fs::metadata(&src).with_context(|| {
+        format!(
+            "datapack structure asset not found or unreadable before writing output: '{}'\n\
+             Make sure the file exists relative to your project root.",
+            src.display()
+        )
+    })?;
+    if !metadata.is_file() {
+        bail!(
+            "datapack structure asset is not a file: '{}'\n\
+             Make sure the source path points to a project-root-relative .nbt file.",
+            src.display()
+        );
+    }
+
+    std::fs::File::open(&src).with_context(|| {
+        format!(
+            "datapack structure asset not readable before writing output: '{}'",
+            src.display()
+        )
+    })?;
+
+    Ok(())
 }
 
 pub fn validate_resourcepack_records(records: &[ResourcePackRecord]) -> Result<()> {

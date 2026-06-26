@@ -8,6 +8,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  SAND_MC_VERSION: "1.21.4"
 
 jobs:
   check:

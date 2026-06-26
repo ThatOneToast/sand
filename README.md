@@ -37,7 +37,7 @@ pub fn reward() {
 - Typed functions, load/tick components, selectors, conditions, execute chains, commands, text, state, storage schemas, and escape hatches.
 - Typed custom items and advancement-backed events, including typed function references.
 - Optional inventory, movement, entity/interactable, damage-tracking, lifecycle, cooldown, and player-data systems.
-- Typed datapack components: advancements, predicates, recipes, loot, tags, item modifiers, dialogs, resource-pack and HUD data.
+- Typed datapack components: advancements, predicates, recipes, loot, tags, item modifiers, dialogs, structure templates, resource-pack and HUD data.
 
 Enable only the systems you need, for example `features = ["systems-inventory", "systems-movement"]`. Raw commands and raw JSON/SNBT are deliberate interop escape hatches, not the default authoring model.
 

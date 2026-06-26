@@ -13,6 +13,23 @@ pub fn welcome_advancement() -> Advancement {
 Use typed builders for advancements, recipes, loot tables, predicates, tags,
 dialogs, and custom item data.
 
+Structure templates are binary `.nbt` assets and are copied into the datapack
+rather than generated as Rust data:
+
+```rust
+#[component]
+pub fn starter_room() -> StructureTemplate {
+    StructureTemplate::new(
+        ResourceLocation::new("example", "rooms/starter").unwrap(),
+        "src/structures/starter.nbt",
+    )
+}
+```
+
+This writes `src/structures/starter.nbt` to
+`data/example/structure/rooms/starter.nbt`. Sand rejects unsafe paths and
+requires structure template assets to use `.nbt`.
+
 Custom items use typed item components instead of handwritten component SNBT:
 
 ```rust

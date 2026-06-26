@@ -117,23 +117,34 @@ where
             fetcher(cache_path)
         }
 
-        ManifestCachePolicy::RefreshLatest => match fetcher(cache_path) {
-            Ok(manifest) => Ok(manifest),
-            Err(fetch_err) => {
-                if cache_path.exists()
-                    && let Ok(content) = std::fs::read_to_string(cache_path)
-                    && let Ok(manifest) = serde_json::from_str::<VersionManifest>(&content)
-                {
-                    eprintln!(
-                        "warning: failed to refresh Minecraft version manifest \
-                         ({fetch_err}); falling back to cached manifest — \
-                         `latest` may be stale"
-                    );
-                    return Ok(manifest);
+        ManifestCachePolicy::RefreshLatest => {
+            // Pre-load a valid cached manifest *before* calling the fetcher.
+            // If the fetcher corrupts the cache file before failing (e.g. by
+            // writing a bad HTTP error page), the in-memory copy is still valid.
+            let cached_fallback = if cache_path.exists() {
+                std::fs::read_to_string(cache_path)
+                    .ok()
+                    .and_then(|c| serde_json::from_str::<VersionManifest>(&c).ok())
+            } else {
+                None
+            };
+
+            match fetcher(cache_path) {
+                Ok(manifest) => Ok(manifest),
+                Err(fetch_err) => {
+                    if let Some(manifest) = cached_fallback {
+                        eprintln!(
+                            "warning: failed to refresh Minecraft version manifest \
+                             ({fetch_err}); falling back to cached manifest — \
+                             `latest` may be stale"
+                        );
+                        Ok(manifest)
+                    } else {
+                        Err(fetch_err)
+                    }
                 }
-                Err(fetch_err)
             }
-        },
+        }
 
         ManifestCachePolicy::OfflineOnly => {
             if cache_path.exists() {
@@ -156,12 +167,21 @@ fn fetch_and_cache(cache_path: &std::path::Path) -> Result<VersionManifest> {
     let response = reqwest::blocking::get(MANIFEST_URL)?;
     let content = response.text()?;
 
+    // Parse first — only write to cache after confirming the response is valid.
+    // This prevents a truncated or non-JSON HTTP error page from overwriting a
+    // previously valid cached manifest.
+    let manifest = serde_json::from_str::<VersionManifest>(&content)?;
+
     if let Some(parent) = cache_path.parent() {
         ensure_dir(&parent.to_path_buf())?;
     }
-    std::fs::write(cache_path, &content)?;
+    // Atomic write via temp-file + rename so the cache is never left in a
+    // partially-written state if the process is killed mid-write.
+    let tmp_path = cache_path.with_extension("json.tmp");
+    std::fs::write(&tmp_path, &content)?;
+    std::fs::rename(&tmp_path, cache_path)?;
 
-    Ok(serde_json::from_str(&content)?)
+    Ok(manifest)
 }
 
 #[cfg(test)]
@@ -306,6 +326,48 @@ mod tests {
         .unwrap();
         // Fell back to cached manifest.
         assert_eq!(manifest.latest.release, "1.20.0");
+    }
+
+    /// Regression: if the fetcher writes invalid content to the cache file before
+    /// failing (simulating a truncated or non-JSON HTTP error response), the
+    /// pre-loaded in-memory copy of the valid manifest is returned and the caller
+    /// receives a correct result even though the on-disk file is now corrupted.
+    #[test]
+    fn refresh_latest_bad_response_preserves_existing_cache() {
+        let dir = tempfile::tempdir().unwrap();
+        let cache_path = dir.path().join("version_manifest_v2.json");
+
+        let valid = make_manifest("1.20.0", &[("1.20.0", "http://example.com/1.20.0.json")]);
+        write_manifest_to(dir.path(), &valid);
+
+        // Simulate a fetcher that corrupts the cache file (e.g. writes an HTTP
+        // error page) before returning an error — the classic parse-after-write bug.
+        let cache_path_clone = cache_path.clone();
+        let fetcher = move |_: &std::path::Path| -> Result<VersionManifest> {
+            std::fs::write(&cache_path_clone, b"<html>502 Bad Gateway</html>").unwrap();
+            Err(Error::Json(
+                serde_json::from_str::<VersionManifest>("<bad>").unwrap_err(),
+            ))
+        };
+
+        let result = fetch_or_cached_impl(
+            "latest",
+            ManifestCachePolicy::RefreshLatest,
+            &cache_path,
+            fetcher,
+        )
+        .unwrap();
+
+        // The pre-loaded in-memory manifest is returned despite the corrupted file.
+        assert_eq!(result.latest.release, "1.20.0");
+
+        // Confirm the disk file was actually corrupted — this proves the test
+        // exercises the in-memory fallback, not a re-read of the (now bad) file.
+        let disk_content = std::fs::read_to_string(&cache_path).unwrap();
+        assert!(
+            serde_json::from_str::<VersionManifest>(&disk_content).is_err(),
+            "on-disk cache should be corrupted by the bad fetcher"
+        );
     }
 
     /// RefreshLatest with no cache and network error → returns Err.

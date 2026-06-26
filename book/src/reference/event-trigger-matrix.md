@@ -4,10 +4,9 @@ This matrix covers every public built-in event exported from `sand_core`.
 Each entry lists the Rust type, canonical import path, the vanilla or Sand
 mechanism that fires it, dispatch mode, reliability, and relevant caveats.
 
-**Coverage guarantee:** a test in `sand-core/src/events/mod.rs` asserts that
-every name in the `BUILTIN_EVENT_NAMES` constant appears in this file. CI will
-fail if a new built-in event is added without updating both the constant and
-this matrix.
+**Coverage guarantee:** a workspace test asserts that every name in the
+`BUILTIN_EVENT_NAMES` constant appears in this file. CI will fail if a new
+built-in event is added without updating both the constant and this matrix.
 
 ---
 
@@ -53,7 +52,7 @@ These fire on discrete player lifecycle transitions.
 
 | Event type | Preferred import | User intent | Vanilla mechanism | Dispatch | Reliability | Cost | Caveats |
 |---|---|---|---|---|---|---|---|
-| `OnJoinEvent` | `sand_core::event::vanilla::OnJoin` | Do something when a player connects | `minecraft:tick` advancement + immediate revoke | Advancement (AfterFire) | Medium | Negligible | Fires on the **first tick** after the player is tracked; brief connection delay before first tick. |
+| `OnJoinEvent` | `sand_core::event::vanilla::OnJoin` | Do something when a player connects | Generated scoreboard/tick detection using `__sand_join` | Sand tick / `JoinTick` scoreboard | Medium | Low | Fires on initial join/load detection. Mid-session disconnect/reconnect without `/reload` does not re-fire. |
 | `FirstJoinEvent` | `sand_core::event::vanilla::FirstJoin` | One-time welcome / starter kit | `minecraft:tick` advancement, never revoked | Advancement (OncePerPlayer) | High | Negligible | Fires once per player account across all sessions. Cannot un-fire. |
 | `OnDeathEvent` | `sand_core::event::vanilla::OnDeath` | React to any player death | `deathCount` scoreboard criterion | Sand tick / scoreboard | High | Low | Fires for any cause: mob, fall, void, `/kill`. Cannot distinguish cause without a separate tracker. |
 | `OnRespawnEvent` | `sand_core::event::vanilla::OnRespawn` | React to respawn (after death screen) | Sand tag `__sand_was_dead` + spectator-mode check | Sand tick / entity tag | Medium | Low | One-tick delay after the player leaves spectator. Does not fire for `/gamemode survival` outside of a death cycle. |

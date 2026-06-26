@@ -11,6 +11,22 @@ pub fn validate_component_records(
     dist: &std::path::Path,
     records: &[ComponentRecord],
 ) -> Result<()> {
+    validate_component_records_impl(dist, records, None)
+}
+
+pub fn validate_component_records_for_project(
+    dist: &std::path::Path,
+    project_root: &std::path::Path,
+    records: &[ComponentRecord],
+) -> Result<()> {
+    validate_component_records_impl(dist, records, Some(project_root))
+}
+
+fn validate_component_records_impl(
+    dist: &std::path::Path,
+    records: &[ComponentRecord],
+    project_root: Option<&std::path::Path>,
+) -> Result<()> {
     let mut paths = HashSet::new();
     for record in records {
         let output_path = component_output_path(dist, record)?;
@@ -95,6 +111,9 @@ pub fn validate_component_records(
                     );
                 }
                 validate_structure_source_path(&record.content)?;
+                if let Some(project_root) = project_root {
+                    validate_structure_source_file(project_root, record)?;
+                }
             }
         }
     }
@@ -129,6 +148,33 @@ fn validate_structure_source_path(path: &str) -> Result<()> {
             "unsafe structure template source path '{path}'; expected a project-root-relative .nbt file"
         );
     }
+    Ok(())
+}
+
+fn validate_structure_source_file(project_root: &Path, record: &ComponentRecord) -> Result<()> {
+    let src = project_root.join(&record.content);
+    let metadata = std::fs::metadata(&src).with_context(|| {
+        format!(
+            "datapack structure asset not found or unreadable before writing output: '{}'\n\
+             Make sure the file exists relative to your project root.",
+            src.display()
+        )
+    })?;
+    if !metadata.is_file() {
+        bail!(
+            "datapack structure asset is not a file: '{}'\n\
+             Make sure the source path points to a project-root-relative .nbt file.",
+            src.display()
+        );
+    }
+
+    std::fs::File::open(&src).with_context(|| {
+        format!(
+            "datapack structure asset not readable before writing output: '{}'",
+            src.display()
+        )
+    })?;
+
     Ok(())
 }
 

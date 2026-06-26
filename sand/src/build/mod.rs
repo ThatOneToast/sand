@@ -17,7 +17,7 @@ use config::{cargo_target_dir, resolve_mc_version};
 use package::zip_dir;
 use records::ComponentRecord;
 use resourcepack::build_resourcepack;
-use validate::{validate_component_records, validate_namespace};
+use validate::{validate_component_records_for_project, validate_namespace};
 use write::{write_component, write_pack_mcmeta};
 
 pub fn run(release: bool, resourcepack: bool) -> Result<()> {
@@ -128,7 +128,7 @@ pub fn run(release: bool, resourcepack: bool) -> Result<()> {
     // 5. Validate every record before creating the output directory.  A build
     // must fail before it produces a partially valid datapack.
     let dist = PathBuf::from("dist").join(&config.pack.namespace);
-    validate_component_records(&dist, &records)?;
+    validate_component_records_for_project(&dist, &project_root, &records)?;
 
     // 6. Write pack.mcmeta
     std::fs::create_dir_all(&dist)?;
@@ -192,8 +192,8 @@ mod tests {
         ComponentContentType, ComponentRecord, ContentType, OutputExt, ResourcePackRecord,
     };
     use super::validate::{
-        component_output_path, validate_component_records, validate_function_tag,
-        validate_resourcepack_records,
+        component_output_path, validate_component_records, validate_component_records_for_project,
+        validate_function_tag, validate_resourcepack_records,
     };
     use super::write::{write_component, write_pack_mcmeta, write_resourcepack_mcmeta};
 
@@ -589,7 +589,13 @@ mod tests {
 
     #[test]
     fn validates_structure_template_copy_records() {
-        let dist = Path::new("dist/audit");
+        let temp = tempfile::tempdir().unwrap();
+        let project_root = temp.path().join("project");
+        let dist = temp.path().join("dist/audit");
+        let src = project_root.join("src/structures/start.nbt");
+        std::fs::create_dir_all(src.parent().unwrap()).unwrap();
+        std::fs::write(&src, [0x0a, 0x00, 0x00]).unwrap();
+
         let good: ComponentRecord = serde_json::from_value(serde_json::json!({
             "namespace": "audit",
             "dir": "structure",
@@ -599,7 +605,7 @@ mod tests {
             "content": "src/structures/start.nbt",
         }))
         .unwrap();
-        assert!(validate_component_records(dist, &[good]).is_ok());
+        assert!(validate_component_records_for_project(&dist, &project_root, &[good]).is_ok());
 
         let unsafe_source: ComponentRecord = serde_json::from_value(serde_json::json!({
             "namespace": "audit",
@@ -610,7 +616,27 @@ mod tests {
             "content": "../start.nbt",
         }))
         .unwrap();
-        assert!(validate_component_records(dist, &[unsafe_source]).is_err());
+        assert!(
+            validate_component_records_for_project(&dist, &project_root, &[unsafe_source]).is_err()
+        );
+
+        let missing_source: ComponentRecord = serde_json::from_value(serde_json::json!({
+            "namespace": "audit",
+            "dir": "structure",
+            "path": "rooms/missing",
+            "ext": "nbt",
+            "content_type": "copy",
+            "content": "src/structures/missing.nbt",
+        }))
+        .unwrap();
+        assert!(
+            validate_component_records_for_project(&dist, &project_root, &[missing_source])
+                .is_err()
+        );
+        assert!(
+            !dist.exists(),
+            "copy-backed structure preflight must not create output"
+        );
 
         let wrong_ext: ComponentRecord = serde_json::from_value(serde_json::json!({
             "namespace": "audit",
@@ -621,7 +647,7 @@ mod tests {
         }))
         .unwrap();
         assert!(
-            validate_component_records(dist, &[wrong_ext]).is_err(),
+            validate_component_records_for_project(&dist, &project_root, &[wrong_ext]).is_err(),
             "structure outputs must use .nbt"
         );
 
@@ -633,7 +659,7 @@ mod tests {
             "content": "not binary content",
         }))
         .unwrap();
-        assert!(validate_component_records(dist, &[text_nbt]).is_err());
+        assert!(validate_component_records_for_project(&dist, &project_root, &[text_nbt]).is_err());
     }
 
     #[test]
@@ -655,7 +681,8 @@ mod tests {
         }))
         .unwrap();
 
-        validate_component_records(&dist, std::slice::from_ref(&record)).unwrap();
+        validate_component_records_for_project(&dist, &project_root, std::slice::from_ref(&record))
+            .unwrap();
         write_component(&dist, &project_root, &record).unwrap();
 
         let output = dist.join("data/audit/structure/rooms/start.nbt");

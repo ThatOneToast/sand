@@ -2,7 +2,9 @@ use std::path::Path;
 
 use anyhow::{Context, Result, bail};
 
-use super::records::{ComponentRecord, ContentType, OutputExt, ResourcePackRecord};
+use super::records::{
+    ComponentContentType, ComponentRecord, ContentType, OutputExt, ResourcePackRecord,
+};
 
 pub fn write_pack_mcmeta(
     dist: &Path,
@@ -24,7 +26,7 @@ pub fn write_pack_mcmeta(
     Ok(())
 }
 
-pub fn write_component(dist: &Path, record: &ComponentRecord) -> Result<()> {
+pub fn write_component(dist: &Path, project_root: &Path, record: &ComponentRecord) -> Result<()> {
     // path inside the datapack: data/<namespace>/<dir>/<path>.<ext>
     let file_path = dist
         .join("data")
@@ -33,15 +35,44 @@ pub fn write_component(dist: &Path, record: &ComponentRecord) -> Result<()> {
         .join(format!("{}.{}", record.path.as_str(), record.ext.as_str()));
     std::fs::create_dir_all(file_path.parent().unwrap())
         .with_context(|| format!("failed to create dir for '{}'", file_path.display()))?;
-    // Minecraft accepts LF on every supported platform. Normalizing here makes
-    // generated functions deterministic and follows the validation contract.
-    let content = if record.ext == OutputExt::Mcfunction {
-        record.content.replace("\r\n", "\n").replace('\r', "\n")
-    } else {
-        record.content.clone()
-    };
-    std::fs::write(&file_path, content)
-        .with_context(|| format!("failed to write '{}'", file_path.display()))?;
+    match record.content_type {
+        ComponentContentType::Text => {
+            // Minecraft accepts LF on every supported platform. Normalizing here makes
+            // generated functions deterministic and follows the validation contract.
+            let content = if record.ext == OutputExt::Mcfunction {
+                record.content.replace("\r\n", "\n").replace('\r', "\n")
+            } else {
+                record.content.clone()
+            };
+            std::fs::write(&file_path, content)
+                .with_context(|| format!("failed to write '{}'", file_path.display()))?;
+        }
+        ComponentContentType::Copy => {
+            let src = project_root.join(&record.content);
+            if !src.exists() {
+                bail!(
+                    "datapack structure asset not found: '{}'\n\
+                     Make sure the file exists relative to your project root.",
+                    src.display()
+                );
+            }
+            let mut input = std::io::BufReader::new(
+                std::fs::File::open(&src)
+                    .with_context(|| format!("failed to open '{}'", src.display()))?,
+            );
+            let mut output = std::io::BufWriter::new(
+                std::fs::File::create(&file_path)
+                    .with_context(|| format!("failed to create '{}'", file_path.display()))?,
+            );
+            std::io::copy(&mut input, &mut output).with_context(|| {
+                format!(
+                    "failed to copy '{}' → '{}'",
+                    src.display(),
+                    file_path.display()
+                )
+            })?;
+        }
+    }
     Ok(())
 }
 

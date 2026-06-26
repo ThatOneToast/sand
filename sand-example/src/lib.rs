@@ -13,6 +13,7 @@ pub use attribute_golden::*;
 pub mod arcane_golden;
 pub use arcane_golden::*;
 pub mod enhanced_cells;
+pub mod level_up_reward;
 pub mod state_ergonomics;
 
 use sand_core::mcfunction;

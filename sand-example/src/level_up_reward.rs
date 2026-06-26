@@ -61,6 +61,13 @@ pub fn lvl_tick() {
 
 // ── Event: level-up reward ────────────────────────────────────────────────────
 
+fn ensure_reward_cooldown_score(selector: &str) -> String {
+    let objective = REWARD_CD.objective_name();
+    format!(
+        "execute unless score {selector} {objective} = {selector} {objective} run scoreboard players set {selector} {objective} 0"
+    )
+}
+
 /// Fires whenever a player's XP level increases.
 ///
 /// Guards on `REWARD_CD` so that back-to-back level gains within 2 ticks produce
@@ -72,6 +79,7 @@ pub fn on_level_up(event: Event<PlayerLevelsUp>) {
     // In an event handler the executing entity is always @s — the player whose
     // level just increased. `event.player()` returns a Selector, but Cooldown
     // guards take &str, so we use the "@s" literal directly.
+    cmd::raw(ensure_reward_cooldown_score("@s"));
     when(REWARD_CD.ready("@s")).then_all([cmd::function(
         ResourceLocation::new("hello_world", "lvl_grant_reward").unwrap(),
     )]);
@@ -95,13 +103,8 @@ pub fn lvl_grant_reward() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_support::dyn_fn_test_lock;
     use sand_core::{FunctionDescriptor, FunctionTagDescriptor, drain_dyn_fns, inventory};
-    use std::sync::{Mutex, OnceLock};
-
-    fn lock() -> std::sync::MutexGuard<'static, ()> {
-        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-        LOCK.get_or_init(|| Mutex::new(())).lock().unwrap()
-    }
 
     #[test]
     fn lvl_load_defines_souls_and_cooldown_objectives() {
@@ -171,7 +174,7 @@ mod tests {
 
     #[test]
     fn on_level_up_creates_cooldown_gated_branch() {
-        let _guard = lock();
+        let _guard = dyn_fn_test_lock();
         let _ = drain_dyn_fns();
 
         let cmds = on_level_up();
@@ -192,6 +195,30 @@ mod tests {
                 .iter()
                 .any(|(_, cmds)| cmds.iter().any(|c| c.contains("lvl_grant_reward"))),
             "branch should call lvl_grant_reward: {branches:?}"
+        );
+    }
+
+    #[test]
+    fn on_level_up_initializes_missing_cooldown_before_ready_guard() {
+        let _guard = dyn_fn_test_lock();
+        let _ = drain_dyn_fns();
+
+        let cmds = on_level_up();
+        let init_idx = cmds
+            .iter()
+            .position(|c| {
+                c.contains("execute unless score @s lvl_reward_cd = @s lvl_reward_cd")
+                    && c.contains("scoreboard players set @s lvl_reward_cd 0")
+            })
+            .expect("event should initialize missing cooldown score");
+        let ready_idx = cmds
+            .iter()
+            .position(|c| c.contains("if score @s lvl_reward_cd matches 0"))
+            .expect("event should check cooldown readiness");
+
+        assert!(
+            init_idx < ready_idx,
+            "missing-score initialization must run before readiness check: {cmds:?}"
         );
     }
 }

@@ -19,6 +19,16 @@ pub mod state_ergonomics;
 use sand_core::mcfunction;
 use sand_macros::{component, function, run_fn};
 
+#[cfg(test)]
+pub(crate) mod test_support {
+    use std::sync::{Mutex, MutexGuard, OnceLock};
+
+    pub(crate) fn dyn_fn_test_lock() -> MutexGuard<'static, ()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(())).lock().unwrap()
+    }
+}
+
 // ── Datapack functions ────────────────────────────────────────────────────────
 
 /// Welcomes all online players to the world.
@@ -197,6 +207,27 @@ mod tests {
         assert_eq!(json, r#""minecraft:stone""#);
         let back: ResourceLocation = serde_json::from_str(&json).unwrap();
         assert_eq!(loc, back);
+    }
+
+    #[test]
+    fn all_builtin_events_covered_in_matrix() {
+        let matrix_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../book/src/reference/event-trigger-matrix.md");
+        let matrix = std::fs::read_to_string(&matrix_path)
+            .unwrap_or_else(|err| panic!("failed to read {}: {err}", matrix_path.display()));
+
+        let mut missing = Vec::new();
+        for name in sand_core::events::BUILTIN_EVENT_NAMES {
+            if !matrix.contains(name) {
+                missing.push(*name);
+            }
+        }
+        assert!(
+            missing.is_empty(),
+            "The following built-in events are missing from {}: {missing:?}\n\
+             Add a row for each event and re-run the tests.",
+            matrix_path.display()
+        );
     }
 
     // ── McVersion ─────────────────────────────────────────────────────────────

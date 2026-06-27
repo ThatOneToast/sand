@@ -33,6 +33,6 @@ pub fn greet() {
 }
 ```
 
-After `/reload`, invoke the generated function using its namespace and path, for example `/function my_pack:greet`. See [Functions And Components](functions-and-components.md) for path rules.
+After `/reload`, invoke the generated function using its namespace and path, for example `/function my_pack:greet`. See [Functions And Components](manual/functions.md) for path rules.
 
 <div class="sand-note"><strong>Reload failures.</strong> Minecraft reports JSON and function parse errors in the game log. Rust type errors happen during <code>cargo build</code>; a missing function, stale datapack copy, invalid resource location, or a version-incompatible component usually appears after <code>/reload</code>. Delete old output before diagnosing a stale installation.</div>

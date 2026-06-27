@@ -17,10 +17,6 @@ echo "=== Rustdoc ==="
 cargo doc --workspace --all-features --no-deps
 
 echo "=== mdBook ==="
-if command -v mdbook >/dev/null 2>&1; then
-  mdbook build
-else
-  echo "mdbook not installed, skipping"
-fi
+scripts/build-book.sh
 
 echo "=== All checks passed ==="

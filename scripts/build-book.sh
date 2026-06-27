@@ -7,3 +7,4 @@ if ! command -v mdbook >/dev/null 2>&1; then
 fi
 
 mdbook build
+python3 scripts/check-docs.py

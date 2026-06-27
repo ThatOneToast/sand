@@ -568,13 +568,12 @@ fn lookup(major: u32, minor: u32, patch: u32) -> VersionCaps {
             is_fallback: false,
             ..VersionCaps::default()
         },
-        // ── unknown future 1.21.x — use latest known 1.21 as fallback ────
+        // ── unknown future 1.21.x — keep latest known 1.21 pack formats,
+        //    but use conservative capabilities; reject via resolve_strict ─
         (1, 21, _) => VersionCaps {
             data_fmt: 94,
             res_fmt: 75,
-            dialogs: true,
-            is_fallback: true,
-            ..VersionCaps::default()
+            ..VersionCaps::conservative()
         },
 
         // ════════════════════════════════════════════════════════════════════
@@ -976,6 +975,40 @@ mod tests {
         assert!(p.supports_26_series);
     }
 
+    fn assert_conservative_fallback_capabilities(p: &VersionProfile) {
+        assert!(p.is_fallback);
+        assert!(!p.supports_item_components);
+        assert!(!p.supports_data_components);
+        assert!(!p.supports_dialogs);
+        assert!(!p.supports_function_macros);
+        assert!(!p.supports_predicates);
+        assert!(!p.supports_resource_pack_overlays);
+        assert!(!p.supports_trim_assets);
+        assert!(!p.supports_jukebox_songs);
+        assert!(!p.supports_damage_types);
+        assert!(!p.supports_chat_types);
+        assert!(!p.supports_enchantments);
+    }
+
+    #[test]
+    fn future_121_fallback_is_conservative() {
+        let v = MinecraftVersion::parse("1.21.99").unwrap();
+        let p = VersionProfile::resolve(&v).unwrap();
+        assert_eq!(p.data_pack_format, 94);
+        assert_eq!(p.resource_pack_format, 75);
+        assert_conservative_fallback_capabilities(&p);
+    }
+
+    #[test]
+    fn future_26_fallback_is_conservative() {
+        let v = MinecraftVersion::parse("26.99").unwrap();
+        let p = VersionProfile::resolve(&v).unwrap();
+        assert_eq!(p.data_pack_format, 107);
+        assert_eq!(p.resource_pack_format, 88);
+        assert!(p.supports_26_series);
+        assert_conservative_fallback_capabilities(&p);
+    }
+
     // ── resolve_strict ────────────────────────────────────────────────────────
 
     #[test]
@@ -1005,6 +1038,16 @@ mod tests {
         assert!(
             matches!(err, VersionError::UnknownVersion { .. }),
             "expected UnknownVersion for 26.99, got {err:?}"
+        );
+    }
+
+    #[test]
+    fn strict_unknown_121x_fails() {
+        let v = MinecraftVersion::parse("1.21.99").unwrap();
+        let err = VersionProfile::resolve_strict(&v).unwrap_err();
+        assert!(
+            matches!(err, VersionError::UnknownVersion { .. }),
+            "expected UnknownVersion for 1.21.99, got {err:?}"
         );
     }
 

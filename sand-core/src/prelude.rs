@@ -1,9 +1,15 @@
-//! Convenience re-export of the most commonly used Sand types.
+//! Default user-facing Sand API.
 //!
 //! Bring the whole prelude into scope with:
 //! ```rust,ignore
 //! use sand_core::prelude::*;
 //! ```
+//!
+//! The prelude is the recommended import for ordinary datapack authoring. It
+//! covers typed functions, components, commands, selectors, state, storage,
+//! events, common component builders, text, resource references, and deliberate
+//! raw escape hatches. Reach for [`crate::advanced`] only when you need
+//! lower-level export registries or custom framework integration points.
 
 pub use crate::{all, any, cmd, mcfunction};
 
@@ -57,6 +63,12 @@ pub use crate::function::IntoFunctionRef;
 // ── Typed event model ─────────────────────────────────────────────────────────
 
 pub use crate::event::handle::EventHandle;
+pub use crate::event::trigger::{
+    ConsumeItemTrigger, EntityKilledPlayerTrigger, ImpossibleTrigger, InventoryChangedTrigger,
+    ItemEnchantTrigger, ItemObtainedTrigger, MultiKillTrigger, PlayerInteractedWithEntityTrigger,
+    PlayerKilledEntityTrigger, RecipeUnlockedTrigger, SummonedEntityTrigger, TickTrigger,
+    UsingItemTrigger,
+};
 pub use crate::event::{
     AdvancementEvent, DamageAdvancementEvent, DamageEvent, Event, EventBuilder, EventConfig,
     EventId, EventPlayer, EventReset, EventVisibility, IntoEventAdvancement,
@@ -69,10 +81,16 @@ pub use sand_components::dialog::{Dialog, DialogAction, DialogBody, DialogButton
 // ── Item/component builders ──────────────────────────────────────────────────
 
 pub use sand_components::{
-    AttributeId, AttributeModifier, AttributeOperation, AttributeType, ConsumableAnimation,
-    ConsumableProperties, CustomData, CustomItem, EnchantmentEntry, EquipmentSlot,
-    EquipmentSlotGroup, EquippableProperties, FoodProperties, ItemComponent, ItemPredicate,
-    ItemRarity, Rarity, ToolProperties, ToolRule,
+    Advancement, AdvancementDisplay, AdvancementFrame, AdvancementIcon, AdvancementRewards,
+    AdvancementTrigger, AttributeId, AttributeModifier, AttributeOperation, AttributeType,
+    BannerPattern, BlockPredicate, ConsumableAnimation, ConsumableProperties, Criterion,
+    CustomData, CustomItem, DamagePredicate, DamageSourcePredicate, DistancePredicate,
+    EnchantmentEntry, EntityEquipment, EntityFlags, EntityPredicate, EquipmentSlot,
+    EquipmentSlotGroup, EquippableProperties, FoodProperties, Ingredient, ItemComponent,
+    ItemModifier, ItemPredicate, ItemRarity, LocationPredicate, LootCondition, LootEntry,
+    LootFunction, LootPool, LootTable, LootTableType, Predicate, Rarity, RecipeResult,
+    ShapedRecipe, ShapelessRecipe, SmithingTransformRecipe, SmithingTrimRecipe, StonecuttingRecipe,
+    Tag, ToolProperties, ToolRule,
 };
 
 // ── Raw escape hatch types ────────────────────────────────────────────────────

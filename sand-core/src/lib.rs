@@ -38,8 +38,20 @@
 //!     cmd::say("Datapack loaded");
 //! }
 //! ```
+//!
+//! # API tiers
+//!
+//! - [`prelude`] is the default user-facing import for datapack authors.
+//! - [`advanced`] contains supported lower-level export hooks and raw escape
+//!   hatches for custom integrations.
+//! - [`compat`] names backwards-compatible exports that remain available while
+//!   newer docs and examples avoid relying on them.
+//! - `#[doc(hidden)]` items are for macro expansion and internal wiring, not
+//!   a stable authoring surface.
 
+pub mod advanced;
 pub mod cmd;
+pub mod compat;
 pub mod component;
 pub mod components;
 pub mod condition;

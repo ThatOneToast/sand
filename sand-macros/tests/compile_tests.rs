@@ -28,3 +28,9 @@ fn compile_tests() {
     t.compile_fail("tests/cases/fail_sand_storage_tuple_struct.rs");
     t.compile_fail("tests/cases/fail_sand_storage_missing_attr.rs");
 }
+
+#[test]
+fn readme_quickstart_compile_test() {
+    let t = trybuild::TestCases::new();
+    t.pass("tests/cases/pass_readme_quickstart.rs");
+}

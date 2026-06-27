@@ -41,4 +41,4 @@ pub fn reward() {
 
 Enable only the systems you need, for example `features = ["systems-inventory", "systems-movement"]`. Raw commands and raw JSON/SNBT are deliberate interop escape hatches, not the default authoring model.
 
-Useful guide entry points: [getting started](book/src/getting-started.md), [custom items](book/src/custom-items.md), [events](book/src/events.md), [version capabilities](book/src/version-capabilities.md), and [full project tutorials](book/src/examples/shockwave-shield.md).
+Useful guide entry points: [getting started](book/src/getting-started.md), [custom items](book/src/manual/custom-items.md), [events](book/src/events.md), [version capabilities](book/src/version-capabilities.md), and [full project tutorials](book/src/recipes/shockwave-shield.md).

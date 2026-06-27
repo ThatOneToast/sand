@@ -21,7 +21,7 @@ The [mdBook guide](../book/src/introduction.md) is the user-facing project guide
 
 ## Systems reference
 
-The guide owns long tutorials. Its current system pages cover [inventory](../book/src/systems/inventory.md), [movement](../book/src/systems/movement.md), [entities/interactables](../book/src/systems/entities.md), [custom items](../book/src/custom-items.md), [item events](../book/src/item-events.md), and [player data](../book/src/player-data.md). These APIs are feature-gated and experimental; verify the target Minecraft version before depending on generated command/component syntax.
+The guide owns long tutorials. Its current manual pages cover [inventory](../book/src/manual/inventory.md), [movement](../book/src/manual/movement.md), [entities/interactables](../book/src/manual/entities.md), [custom items](../book/src/manual/custom-items.md), [item events](../book/src/manual/item-events.md), and [player data](../book/src/manual/player-data.md). These APIs are feature-gated and experimental; verify the target Minecraft version before depending on generated command/component syntax.
 
 ## Datapack Components
 

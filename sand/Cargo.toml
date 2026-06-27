@@ -13,6 +13,7 @@ categories = ["command-line-utilities", "game-development"]
 
 [dependencies]
 sand-build = { path = "../sand-build" }
+sand-components = { path = "../sand-components" }
 sand-core = { path = "../sand-core" }
 sand-resourcepack = { path = "../sand-resourcepack" }
 clap = { version = "4", features = ["derive"] }

@@ -196,6 +196,7 @@ mod tests {
         validate_function_tag, validate_resourcepack_records,
     };
     use super::write::{write_component, write_pack_mcmeta, write_resourcepack_mcmeta};
+    use sand_components::registry_coverage::REGISTRY_COVERAGE;
 
     /// Construct a valid ComponentRecord from parts via JSON deserialization.
     ///
@@ -317,6 +318,32 @@ mod tests {
                 "dir '{bad_dir}' must be rejected at deserialization"
             );
         }
+    }
+
+    #[test]
+    fn registry_coverage_component_dirs_are_supported() {
+        for entry in REGISTRY_COVERAGE {
+            let datapack_record = record(entry.datapack_dir, "sample", "json", "{}");
+            assert_eq!(datapack_record.dir.as_str(), entry.datapack_dir);
+
+            if let Some(tag_dir) = entry.tag_dir {
+                let tag_record = record(tag_dir, "sample", "json", "{}");
+                assert_eq!(tag_record.dir.as_str(), tag_dir);
+            }
+        }
+    }
+
+    #[test]
+    fn missing_registry_raw_json_component_passes_build_validation() {
+        let dist = Path::new("dist/audit");
+        let record = record(
+            "enchantment_provider",
+            "bonus_enchants",
+            "json",
+            r#"{"type":"minecraft:single_enchantment","enchantment":"minecraft:sharpness"}"#,
+        );
+
+        assert!(validate_component_records(dist, &[record]).is_ok());
     }
 
     // ── Datapack / resource-pack separation ───────────────────────────────────

@@ -76,6 +76,7 @@
 # Reference
 
 - [API Cheat Sheet](reference/cheat-sheet.md)
+- [API Tiers](reference/api-tiers.md)
 - [Command Builders](reference/command-builders.md)
 - [Entity And Player Commands](reference/commands/entity.md)
 - [Scoreboard And Storage Commands](reference/commands/data.md)

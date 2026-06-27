@@ -1,5 +1,9 @@
 # API Cheat Sheet
 
+Start normal pack code with `use sand_core::prelude::*;` plus the proc macros
+you need from `sand_macros`. Use [`advanced`](api-tiers.md) only for lower-level
+export hooks or custom integration work.
+
 | Need | Start with |
 |---|---|
 | Callable commands | `#[function]` |

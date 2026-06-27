@@ -41,4 +41,9 @@ pub fn reward() {
 
 Enable only the systems you need, for example `features = ["systems-inventory", "systems-movement"]`. Raw commands and raw JSON/SNBT are deliberate interop escape hatches, not the default authoring model.
 
+Normal pack code should import `sand_core::prelude::*` plus the proc macros it
+uses. Lower-level export hooks live under `sand_core::advanced`; compatibility
+exports remain available for older code but are not the preferred starting
+point.
+
 Useful guide entry points: [getting started](book/src/getting-started.md), [custom items](book/src/manual/custom-items.md), [events](book/src/events.md), [version capabilities](book/src/version-capabilities.md), and [full project tutorials](book/src/recipes/shockwave-shield.md).

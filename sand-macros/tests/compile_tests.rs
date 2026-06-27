@@ -5,6 +5,7 @@ fn compile_tests() {
     t.pass("tests/cases/pass_multiple_commands.rs");
     t.pass("tests/cases/pass_plain_stmts.rs");
     t.pass("tests/cases/pass_attribute_typed.rs");
+    t.pass("tests/cases/pass_public_api_tiers.rs");
     t.pass("tests/cases/pass_component.rs");
     t.pass("tests/cases/pass_component_dialog.rs");
     t.pass("tests/cases/pass_event_generic.rs");
@@ -33,4 +34,10 @@ fn compile_tests() {
 fn readme_quickstart_compile_test() {
     let t = trybuild::TestCases::new();
     t.pass("tests/cases/pass_readme_quickstart.rs");
+}
+
+#[test]
+fn public_api_tier_compile_test() {
+    let t = trybuild::TestCases::new();
+    t.pass("tests/cases/pass_public_api_tiers.rs");
 }

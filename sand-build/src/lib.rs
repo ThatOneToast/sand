@@ -99,11 +99,17 @@ pub fn ensure_server_jar(mc_version: &str) -> Result<std::path::PathBuf> {
 /// Returns the latest stable Minecraft release version string by fetching
 /// Mojang's version manifest.
 ///
-/// Falls back to `"1.21.11"` if the manifest cannot be fetched (e.g. offline).
+/// Falls back to Sand's bundled latest-known version if the manifest cannot be
+/// fetched (e.g. offline), so `"latest"` remains aligned with the verified
+/// version table used by `sand-core`.
 pub fn latest_release_version() -> String {
     manifest::VersionManifest::fetch_or_cached("latest")
         .and_then(|m| m.resolve("latest").map(|e| e.id.clone()))
-        .unwrap_or_else(|_| "1.21.11".to_string())
+        .unwrap_or_else(|_| latest_known_version().to_string())
+}
+
+fn latest_known_version() -> &'static str {
+    sand_version::LATEST_KNOWN
 }
 
 /// Entry point for user `build.rs` scripts.
@@ -152,4 +158,12 @@ pub fn generate_to_dir(mc_version: &str, out_dir: &std::path::Path) -> Result<()
     codegen::generate_all(&reports_dir, out_dir)?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn latest_known_fallback_uses_shared_version_anchor() {
+        assert_eq!(super::latest_known_version(), sand_version::LATEST_KNOWN);
+    }
 }

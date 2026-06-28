@@ -16,8 +16,9 @@ pub struct PackConfig {
     /// uppercase letters, spaces, or other illegal characters.
     pub namespace: PackNamespace,
     pub description: String,
-    /// Minecraft version string. Use `"latest"` to always resolve to the
-    /// current latest release from Mojang's version manifest.
+    /// Minecraft version string. Use `"latest"` to resolve through Mojang's
+    /// version manifest when available; offline/error fallback uses Sand's
+    /// bundled latest-known verified version.
     pub mc_version: String,
     /// Pack format number. If omitted, it is derived automatically from
     /// `mc_version` using the bundled version table.

@@ -430,6 +430,7 @@ mod tests {
 
     fn reset_dynamic_branch_registry_for_test() -> std::sync::MutexGuard<'static, ()> {
         let guard = crate::function::lock_dyn_fn_registry_for_tests();
+        let _ = crate::drain_dyn_fns();
         reset_branch_counter_for_tests();
         guard
     }
@@ -884,6 +885,21 @@ mod tests {
             .nth(1)
             .expect("second branch function path");
         assert_eq!(first_path, second_path);
+    }
+
+    #[test]
+    fn reset_dynamic_branch_registry_clears_stale_entries() {
+        {
+            let _guard = reset_dynamic_branch_registry_for_test();
+            let _cmds = when(MANA.of("@s").gte(10)).then_all(["say stale"]);
+        }
+
+        let _guard = reset_dynamic_branch_registry_for_test();
+        let fns = crate::drain_dyn_fns();
+        assert!(
+            fns.is_empty(),
+            "expected empty registry after reset, got: {fns:?}"
+        );
     }
 
     #[test]

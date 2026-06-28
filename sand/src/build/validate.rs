@@ -250,7 +250,8 @@ pub fn validate_function_tag(tag_name: &str, json: &str) -> Result<()> {
                          got {id_val}"
                     )
                 })?;
-                if !is_valid_resource_location(id) {
+                let target = id.trim_start_matches('#');
+                if !is_valid_resource_location(target) {
                     bail!(
                         "function tag '{tag_name}' entry {i} 'id' value '{id}' is not \
                          a valid resource location"
@@ -310,4 +311,55 @@ pub fn validate_namespace(namespace: &str) -> Result<()> {
         );
     }
     Ok(())
+}
+
+// ── Tests ─────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn accepts_string_tag_ref() {
+        // String form: "#other_pack:startup"
+        assert!(validate_function_tag("load", r##"{"values":["#other_pack:startup"]}"##).is_ok());
+    }
+
+    #[test]
+    fn accepts_object_tag_ref() {
+        // Object form with tag ref id
+        assert!(
+            validate_function_tag(
+                "load",
+                r##"{"values":[{"id":"#other_pack:startup","required":false}]}"##
+            )
+            .is_ok()
+        );
+    }
+
+    #[test]
+    fn accepts_object_function_ref() {
+        // Object form with regular function id (no #)
+        assert!(
+            validate_function_tag(
+                "load",
+                r#"{"values":[{"id":"other_pack:startup","required":false}]}"#
+            )
+            .is_ok()
+        );
+    }
+
+    #[test]
+    fn rejects_object_ref_with_invalid_id() {
+        // Invalid resource location in object form
+        let err = validate_function_tag(
+            "load",
+            r#"{"values":[{"id":"BadNamespace:load","required":false}]}"#,
+        )
+        .unwrap_err();
+        assert!(
+            err.to_string().contains("BadNamespace:load"),
+            "error must mention the bad id: {err}"
+        );
+    }
 }

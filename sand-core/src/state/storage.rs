@@ -501,7 +501,7 @@ impl<Schema, T> StorageField<Schema, T> {
     }
 
     pub fn path(&self) -> NbtPath {
-        NbtPath::root(self.root).field(self.field)
+        NbtPath::new(self.storage, self.root).field(self.field)
     }
 
     pub fn full_path(&self) -> String {
@@ -751,7 +751,20 @@ impl<T> StorageVar<T> {
 }
 
 fn escape_snbt_string(value: &str) -> String {
-    value.replace('\\', "\\\\").replace('"', "\\\"")
+    let mut out = String::with_capacity(value.len());
+    for c in value.chars() {
+        match c {
+            '\\' => out.push_str("\\\\"),
+            '"' => out.push_str("\\\""),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            '\0' => out.push_str("\\u0000"),
+            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
+            _ => out.push(c),
+        }
+    }
+    out
 }
 
 fn is_bare_snbt_key(key: &str) -> bool {
@@ -1064,6 +1077,130 @@ mod tests {
         assert_eq!(
             MAGIC_MANA.merge(SnbtCompound::new().field("bonus", 3)),
             "data modify storage arcane:players player.magic.mana merge value {bonus:3}"
+        );
+    }
+
+    // ── Issue #99 regression: StorageField::path() must be storage-bound ──────
+
+    #[test]
+    fn storage_field_path_retains_storage() {
+        let p = MAGIC_MANA.path();
+        assert_eq!(
+            p.storage(),
+            "arcane:players",
+            "path() must carry the storage target"
+        );
+        assert_eq!(p.as_str(), "player.magic.mana");
+    }
+
+    #[test]
+    fn storage_field_path_commands_are_valid() {
+        let p = MAGIC_MANA.path();
+        assert_eq!(p.get(), "data get storage arcane:players player.magic.mana");
+        assert_eq!(
+            p.remove(),
+            "data remove storage arcane:players player.magic.mana"
+        );
+        assert_eq!(
+            p.set_value(42_i32),
+            "data modify storage arcane:players player.magic.mana set value 42"
+        );
+        // storage target must not be empty
+        assert!(
+            !p.get().contains("storage  "),
+            "command must not have empty storage target"
+        );
+    }
+
+    #[test]
+    fn storage_field_full_path_unchanged() {
+        // full_path() still returns only the dot-separated NBT path (no storage prefix)
+        assert_eq!(MAGIC_MANA.full_path(), "player.magic.mana");
+        assert_eq!(MAGIC_SCHOOL.full_path(), "player.magic.school");
+    }
+
+    // ── Issue #98 regression: control characters must not appear literally ─────
+
+    #[test]
+    fn snbt_string_normal_values_unchanged() {
+        assert_eq!(
+            SnbtValue::from("hello world").to_string(),
+            r#""hello world""#
+        );
+        assert_eq!(SnbtValue::from("123").to_string(), r#""123""#);
+    }
+
+    #[test]
+    fn snbt_string_quotes_and_backslash() {
+        assert_eq!(
+            SnbtValue::from(r#"say "hi" \ now"#).to_string(),
+            r#""say \"hi\" \\ now""#
+        );
+    }
+
+    #[test]
+    fn snbt_string_control_chars_escaped() {
+        let rendered = SnbtValue::from("line1\nline2").to_string();
+        assert!(
+            !rendered.contains('\n'),
+            "newline must not appear literally: {rendered}"
+        );
+        assert!(
+            rendered.contains("\\n"),
+            "newline must be escaped as \\n: {rendered}"
+        );
+
+        let rendered = SnbtValue::from("col1\tcol2").to_string();
+        assert!(
+            !rendered.contains('\t'),
+            "tab must not appear literally: {rendered}"
+        );
+        assert!(
+            rendered.contains("\\t"),
+            "tab must be escaped as \\t: {rendered}"
+        );
+
+        let rendered = SnbtValue::from("a\rb").to_string();
+        assert!(
+            !rendered.contains('\r'),
+            "CR must not appear literally: {rendered}"
+        );
+        assert!(
+            rendered.contains("\\r"),
+            "CR must be escaped as \\r: {rendered}"
+        );
+
+        let rendered = SnbtValue::from("nul\0byte").to_string();
+        assert!(
+            !rendered.contains('\0'),
+            "NUL must not appear literally: {rendered}"
+        );
+        assert!(
+            rendered.contains("\\u0000"),
+            "NUL must be escaped: {rendered}"
+        );
+    }
+
+    #[test]
+    fn snbt_compound_key_control_chars_escaped() {
+        let compound = SnbtCompound::new().field("key\nwith\nnewline", 1_i32);
+        let rendered = compound.to_string();
+        assert!(
+            !rendered.contains('\n'),
+            "newline must not appear literally in key: {rendered}"
+        );
+    }
+
+    #[test]
+    fn set_string_control_chars_escaped() {
+        let rendered = NAME.set_string("line1\nline2");
+        assert!(
+            !rendered.contains('\n'),
+            "newline must not appear literally in command: {rendered}"
+        );
+        assert!(
+            rendered.contains("\\n"),
+            "newline must be escaped: {rendered}"
         );
     }
 }

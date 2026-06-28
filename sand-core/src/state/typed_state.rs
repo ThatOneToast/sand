@@ -120,6 +120,15 @@ impl<S: TypedGameState> GameState<S> {
         format!("scoreboard objectives add {} dummy", self.objective_name())
     }
 
+    /// Enroll this typed state in Sand's global lifecycle registry.
+    ///
+    /// The objective will be included in the next call to
+    /// [`define_registered_state`](crate::state::define_registered_state).
+    /// Calling `.register()` multiple times for the same variable is a no-op.
+    pub fn register(&self) {
+        crate::state::register_load_objective(self.objective_name(), "dummy");
+    }
+
     /// Bind this state to a selector to produce a typed accessor.
     ///
     /// ```rust,ignore

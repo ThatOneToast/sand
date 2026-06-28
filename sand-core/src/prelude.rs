@@ -37,6 +37,10 @@ pub use crate::state::{
     Timer,
 };
 
+// ── Lifecycle registry ────────────────────────────────────────────────────────
+
+pub use crate::state::define_registered_state;
+
 // ── Optional systems ──────────────────────────────────────────────────────────
 
 #[cfg(feature = "systems-damage")]
@@ -131,6 +135,11 @@ mod tests {
     fn prelude_exports_resource_locations_for_function_refs() {
         let id = ResourceLocation::new("example", "start").unwrap();
         assert_eq!(cmd::function(id).to_string(), "function example:start");
+    }
+
+    #[test]
+    fn prelude_exports_define_registered_state() {
+        let _drain: fn() -> Vec<String> = define_registered_state;
     }
 
     #[cfg(feature = "systems-damage")]

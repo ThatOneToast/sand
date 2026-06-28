@@ -102,6 +102,20 @@ pub fn scaffold(opts: &ScaffoldOptions) -> Result<()> {
         );
     }
 
+    write_scaffold_files(opts)?;
+    run_cargo_build(dir)?;
+
+    Ok(())
+}
+
+/// Write all project files for `opts` without running `cargo build`.
+///
+/// Used by the CLI's `sand new` flow (via [`scaffold`]) and by integration
+/// tests that need to inspect the generated file layout without the expense
+/// of a full Cargo compilation.
+pub fn write_scaffold_files(opts: &ScaffoldOptions) -> Result<()> {
+    let dir = &opts.dir;
+
     // Create directory structure.
     std::fs::create_dir_all(dir.join("src/bin"))
         .with_context(|| format!("failed to create project directory '{}'", dir.display()))?;
@@ -174,8 +188,6 @@ pub fn scaffold(opts: &ScaffoldOptions) -> Result<()> {
         std::fs::create_dir_all(dir.join("src/assets"))
             .with_context(|| format!("failed to create src/assets in '{}'", dir.display()))?;
     }
-
-    run_cargo_build(dir)?;
 
     Ok(())
 }

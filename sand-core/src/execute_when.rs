@@ -423,15 +423,15 @@ mod tests {
     use crate::condition::Condition;
     use crate::state::{Cooldown, Flag, ScoreVar, Ticks};
     use crate::{all, any};
-    use std::sync::{Mutex, OnceLock};
 
     static MANA: ScoreVar<i32> = ScoreVar::new("mana");
     static CASTING: Flag = Flag::new("casting");
     static DASH: Cooldown = Cooldown::new("dash", Ticks::new(60));
 
-    fn dyn_fn_test_lock() -> std::sync::MutexGuard<'static, ()> {
-        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-        LOCK.get_or_init(|| Mutex::new(())).lock().unwrap()
+    fn reset_dynamic_branch_registry_for_test() -> std::sync::MutexGuard<'static, ()> {
+        let guard = crate::function::lock_dyn_fn_registry_for_tests();
+        reset_branch_counter_for_tests();
+        guard
     }
 
     // ── then_one (direct single-command behavior) ─────────────────────────────
@@ -474,7 +474,7 @@ mod tests {
 
     #[test]
     fn when_then_alone_is_direct() {
-        reset_branch_counter_for_tests();
+        let _guard = reset_dynamic_branch_registry_for_test();
         let cmds = when(MANA.of("@s").gte(25)).then("say ok");
         assert_eq!(
             cmds,
@@ -488,7 +488,7 @@ mod tests {
 
     #[test]
     fn unless_then_alone_is_direct() {
-        reset_branch_counter_for_tests();
+        let _guard = reset_dynamic_branch_registry_for_test();
         let cmds = unless(CASTING.of("@s").is_true()).then("say ok");
         assert_eq!(
             cmds,
@@ -498,7 +498,7 @@ mod tests {
 
     #[test]
     fn when_and_then_then_creates_branch() {
-        reset_branch_counter_for_tests();
+        let _guard = reset_dynamic_branch_registry_for_test();
         let cmds = when(MANA.of("@s").gte(25))
             .and_then("say first")
             .and_then("say second")
@@ -523,7 +523,7 @@ mod tests {
 
     #[test]
     fn unless_and_then_then_creates_branch() {
-        reset_branch_counter_for_tests();
+        let _guard = reset_dynamic_branch_registry_for_test();
         let cmds = unless(CASTING.of("@s").is_true())
             .and_then("say a")
             .then("say b");
@@ -544,7 +544,7 @@ mod tests {
 
     #[test]
     fn when_then_all_creates_branch() {
-        reset_branch_counter_for_tests();
+        let _guard = reset_dynamic_branch_registry_for_test();
         let cmds = when(MANA.of("@s").gte(25)).then_all(["say a", "say b"]);
         assert_eq!(
             cmds.len(),
@@ -565,7 +565,7 @@ mod tests {
 
     #[test]
     fn unless_then_all_emits_unless() {
-        reset_branch_counter_for_tests();
+        let _guard = reset_dynamic_branch_registry_for_test();
         let cmds = unless(CASTING.of("@s").is_true()).then_all(["say a", "say b"]);
         assert_eq!(cmds.len(), 1, "unless then_all: {cmds:?}");
         assert!(
@@ -768,7 +768,7 @@ mod tests {
     #[test]
     fn if_then_all_creates_branch() {
         use crate::components::mc_function::IntoCommands;
-        reset_branch_counter_for_tests();
+        let _guard = reset_dynamic_branch_registry_for_test();
         let cmds = if_(CASTING.of("@s").is_true())
             .then_all(["say already casting"])
             .into_commands();
@@ -787,7 +787,7 @@ mod tests {
 
     #[test]
     fn if_else_creates_two_branches() {
-        reset_branch_counter_for_tests();
+        let _guard = reset_dynamic_branch_registry_for_test();
         let cmds = if_(CASTING.of("@s").is_true())
             .then_all(["say yes"])
             .else_all(["say no"]);
@@ -810,7 +810,7 @@ mod tests {
 
     #[test]
     fn if_else_polarity() {
-        reset_branch_counter_for_tests();
+        let _guard = reset_dynamic_branch_registry_for_test();
         let flag = Flag::new("active");
         let cmds = if_(flag.of("@s").is_true())
             .then_all(["say active"])
@@ -831,7 +831,7 @@ mod tests {
 
     #[test]
     fn then_all_with_return_fail() {
-        reset_branch_counter_for_tests();
+        let _guard = reset_dynamic_branch_registry_for_test();
         let cmds = when(CASTING.of("@s").is_true())
             .then_all(["say already casting".to_string(), crate::cmd::return_fail()]);
         assert_eq!(cmds.len(), 1);
@@ -844,7 +844,7 @@ mod tests {
 
     #[test]
     fn then_all_with_return_cmd() {
-        reset_branch_counter_for_tests();
+        let _guard = reset_dynamic_branch_registry_for_test();
         let cmds = unless(CASTING.of("@s").is_true())
             .then_all(["say starting cast".to_string(), crate::cmd::return_cmd(0)]);
         assert_eq!(cmds.len(), 1);
@@ -859,9 +859,7 @@ mod tests {
 
     #[test]
     fn branch_is_registered_in_dyn_fn_registry() {
-        let _guard = dyn_fn_test_lock();
-        let _ = crate::drain_dyn_fns();
-        reset_branch_counter_for_tests();
+        let _guard = reset_dynamic_branch_registry_for_test();
         let _cmds = when(MANA.of("@s").gte(10)).then_all(["say registered"]);
         let fns = crate::drain_dyn_fns();
         assert!(
@@ -874,9 +872,7 @@ mod tests {
 
     #[test]
     fn identical_branch_bodies_reuse_generated_helper() {
-        let _guard = dyn_fn_test_lock();
-        let _ = crate::drain_dyn_fns();
-        reset_branch_counter_for_tests();
+        let _guard = reset_dynamic_branch_registry_for_test();
         let first = when(MANA.of("@s").gte(10)).then_all(["say same"]);
         let second = when(MANA.of("@s").gte(20)).then_all(["say same"]);
         let first_path = first[0]
@@ -892,6 +888,7 @@ mod tests {
 
     #[test]
     fn score_expression_setup_precedes_branch_check_once() {
+        let _guard = reset_dynamic_branch_registry_for_test();
         static COST: ScoreVar<i32> = ScoreVar::new("cost");
         let commands = if_(MANA.of("@s").expr().minus(COST.of("@s")).gte(0))
             .then_all(["say yes"])

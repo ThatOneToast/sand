@@ -507,6 +507,14 @@ fn dyn_fn_registry() -> &'static Mutex<Vec<DynFnEntry>> {
     REGISTRY.get_or_init(|| Mutex::new(Vec::new()))
 }
 
+#[cfg(test)]
+pub(crate) fn lock_dyn_fn_registry_for_tests() -> std::sync::MutexGuard<'static, ()> {
+    // Hold this across reset/register/drain assertions for tests touching the
+    // process-global dynamic function registry.
+    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+    LOCK.get_or_init(|| Mutex::new(())).lock().unwrap()
+}
+
 /// Register an anonymous function body at runtime.
 ///
 /// Called by anonymous `run_fn!` blocks that capture local variables.

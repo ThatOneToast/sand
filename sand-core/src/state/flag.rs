@@ -39,6 +39,15 @@ impl Flag {
         format!("scoreboard objectives add {} dummy", self.objective_name())
     }
 
+    /// Enroll this flag in Sand's global lifecycle registry.
+    ///
+    /// The objective will be included in the next call to
+    /// [`define_registered_state`](crate::state::define_registered_state).
+    /// Calling `.register()` multiple times for the same flag is a no-op.
+    pub fn register(&self) {
+        crate::state::register_load_objective(self.objective_name(), "dummy");
+    }
+
     /// `scoreboard players set <selector> <obj> 1` — set flag to `true`.
     pub fn enable(&self, selector: impl std::fmt::Display) -> String {
         format!(

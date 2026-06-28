@@ -501,7 +501,7 @@ impl<Schema, T> StorageField<Schema, T> {
     }
 
     pub fn path(&self) -> NbtPath {
-        NbtPath::root(self.root).field(self.field)
+        NbtPath::new(self.storage, self.root).field(self.field)
     }
 
     pub fn full_path(&self) -> String {
@@ -751,7 +751,23 @@ impl<T> StorageVar<T> {
 }
 
 fn escape_snbt_string(value: &str) -> String {
-    value.replace('\\', "\\\\").replace('"', "\\\"")
+    let mut out = String::with_capacity(value.len());
+    for c in value.chars() {
+        let code = c as u32;
+        if code < 0x20 {
+            panic!(
+                "SNBT string contains control character U+{code:04X} which cannot be safely \
+                 represented in a Minecraft command string; strip or replace it before building \
+                 the command"
+            );
+        }
+        match c {
+            '\\' => out.push_str("\\\\"),
+            '"' => out.push_str("\\\""),
+            _ => out.push(c),
+        }
+    }
+    out
 }
 
 fn is_bare_snbt_key(key: &str) -> bool {
@@ -1065,5 +1081,101 @@ mod tests {
             MAGIC_MANA.merge(SnbtCompound::new().field("bonus", 3)),
             "data modify storage arcane:players player.magic.mana merge value {bonus:3}"
         );
+    }
+
+    // ── Issue #99 regression: StorageField::path() must be storage-bound ──────
+
+    #[test]
+    fn storage_field_path_retains_storage() {
+        let p = MAGIC_MANA.path();
+        assert_eq!(
+            p.storage(),
+            "arcane:players",
+            "path() must carry the storage target"
+        );
+        assert_eq!(p.as_str(), "player.magic.mana");
+    }
+
+    #[test]
+    fn storage_field_path_commands_are_valid() {
+        let p = MAGIC_MANA.path();
+        assert_eq!(p.get(), "data get storage arcane:players player.magic.mana");
+        assert_eq!(
+            p.remove(),
+            "data remove storage arcane:players player.magic.mana"
+        );
+        assert_eq!(
+            p.set_value(42_i32),
+            "data modify storage arcane:players player.magic.mana set value 42"
+        );
+        // storage target must not be empty
+        assert!(
+            !p.get().contains("storage  "),
+            "command must not have empty storage target"
+        );
+    }
+
+    #[test]
+    fn storage_field_full_path_unchanged() {
+        // full_path() still returns only the dot-separated NBT path (no storage prefix)
+        assert_eq!(MAGIC_MANA.full_path(), "player.magic.mana");
+        assert_eq!(MAGIC_SCHOOL.full_path(), "player.magic.school");
+    }
+
+    // ── Issue #98 regression: control characters must not appear literally ─────
+
+    #[test]
+    fn snbt_string_normal_values_unchanged() {
+        assert_eq!(
+            SnbtValue::from("hello world").to_string(),
+            r#""hello world""#
+        );
+        assert_eq!(SnbtValue::from("123").to_string(), r#""123""#);
+    }
+
+    #[test]
+    fn snbt_string_quotes_and_backslash() {
+        assert_eq!(
+            SnbtValue::from(r#"say "hi" \ now"#).to_string(),
+            r#""say \"hi\" \\ now""#
+        );
+    }
+
+    #[test]
+    #[should_panic]
+    fn snbt_string_newline_panics() {
+        let _ = SnbtValue::from("line1\nline2").to_string();
+    }
+
+    #[test]
+    #[should_panic]
+    fn snbt_string_tab_panics() {
+        let _ = SnbtValue::from("col1\tcol2").to_string();
+    }
+
+    #[test]
+    #[should_panic]
+    fn snbt_string_carriage_return_panics() {
+        let _ = SnbtValue::from("a\rb").to_string();
+    }
+
+    #[test]
+    #[should_panic]
+    fn snbt_string_nul_panics() {
+        let _ = SnbtValue::from("nul\0byte").to_string();
+    }
+
+    #[test]
+    #[should_panic]
+    fn snbt_compound_key_newline_panics() {
+        let _ = SnbtCompound::new()
+            .field("key\nwith\nnewline", 1_i32)
+            .to_string();
+    }
+
+    #[test]
+    #[should_panic]
+    fn set_string_newline_panics() {
+        let _ = NAME.set_string("line1\nline2");
     }
 }

@@ -151,7 +151,14 @@ impl VfxStep {
                 .map(|cmd| Execute::new().at(target.clone()).run(cmd))
                 .collect(),
             Self::Sound(step) => {
-                let cmd = step.render(Some(target), Some(Vec3::here()));
+                // Sound audience must NOT be the positional `target`.
+                // Using `target` as the audience inside `execute at <target>`
+                // would fork the sound once per matched entity and replay it
+                // to the entire audience on every fork — e.g.
+                //   execute at @a run playsound … @a
+                // Instead, use the sound's own configured audience or `@s`
+                // (the entity currently executing), which is always safe.
+                let cmd = step.render_with_own_audience(Some(Vec3::here()));
                 vec![Execute::new().at(target.clone()).run(cmd)]
             }
             Self::Command(command) => vec![Execute::new().at(target.clone()).run(command)],
@@ -374,6 +381,17 @@ impl VfxSound {
 
         sound.build()
     }
+
+    /// Render using the sound's own configured audience (falling back to `@s`),
+    /// never the positional selector passed to `play_at`.
+    ///
+    /// This prevents `play_at(@a)` from producing
+    /// `execute at @a run playsound ... @a`, which would multiply the sound
+    /// once per entity fork.
+    fn render_with_own_audience(&self, position: Option<Vec3>) -> String {
+        let audience = self.audience.clone().unwrap_or_else(Selector::self_);
+        self.render(Some(&audience), position)
+    }
 }
 
 /// Convert a value into a sound step.
@@ -535,6 +553,140 @@ mod tests {
         assert_eq!(
             vfx.play_at(Selector::self_()),
             vfx.play_at(Selector::self_())
+        );
+    }
+
+    // -----------------------------------------------------------------
+    // Regression tests for the multi-target sound-duplication bug.
+    //
+    // `play_at(target)` must NEVER reuse the positional selector as the
+    // playsound audience.  With a multi-player selector such as `@a`,
+    // Minecraft forks the execute chain once per matched entity; if the
+    // playsound audience were also `@a`, every player would hear the
+    // sound N times (once per fork).
+    // -----------------------------------------------------------------
+
+    #[test]
+    fn play_at_all_players_does_not_reuse_selector_as_sound_audience() {
+        let commands = Vfx::new("level_up")
+            .sound(VfxSound::new("minecraft:entity.player.levelup"))
+            .play_at(Selector::all_players());
+
+        // The playsound audience (third argument to playsound) must NOT be @a.
+        // playsound syntax: playsound <sound> <source> <audience> [x y z ...]
+        // We check that no command has "playsound" with @a as the audience token
+        // (the third whitespace-delimited word after "playsound").
+        assert!(
+            !commands.iter().any(|cmd| {
+                // Find the playsound substring and inspect its audience token.
+                if let Some(ps_pos) = cmd.find("playsound ") {
+                    let after_ps = &cmd[ps_pos + "playsound ".len()..];
+                    // tokens: <sound> <source> <audience> ...
+                    let mut tokens = after_ps.split_whitespace();
+                    tokens.next(); // skip sound event
+                    tokens.next(); // skip source
+                    tokens.next() == Some("@a")
+                } else {
+                    false
+                }
+            }),
+            "play_at must not reuse positional selector as sound audience: {commands:?}"
+        );
+    }
+
+    #[test]
+    fn play_at_all_players_sound_audience_is_self() {
+        // When no explicit audience is configured on the VfxSound, play_at
+        // must fall back to @s (the entity currently executing), not @a.
+        let commands = Vfx::new("level_up")
+            .sound(VfxSound::new("minecraft:entity.player.levelup"))
+            .play_at(Selector::all_players());
+
+        assert_eq!(
+            commands,
+            vec!["execute at @a run playsound minecraft:entity.player.levelup master @s ~ ~ ~ 1 1"]
+        );
+    }
+
+    #[test]
+    fn play_at_self_particle_behavior_unchanged() {
+        // play_at("@s") must still emit the expected positional particle
+        // command — the fix must not regress the common single-entity case.
+        let commands = Vfx::new("spark")
+            .particle(VfxParticle::named("minecraft:happy_villager"))
+            .play_at(Selector::self_());
+
+        assert_eq!(
+            commands,
+            vec!["execute at @s run particle minecraft:happy_villager ~0 ~0 ~0 0 0 0 0 1 force"]
+        );
+    }
+
+    #[test]
+    fn sound_audience_independent_from_positional_selector() {
+        // Particle uses the positional target; sound audience is separate.
+        let commands = Vfx::new("effect")
+            .particle(VfxParticle::named("minecraft:crit"))
+            .sound(VfxSound::new("minecraft:block.note_block.bell"))
+            .play_at(Selector::all_players());
+
+        assert_eq!(
+            commands,
+            vec![
+                "execute at @a run particle minecraft:crit ~0 ~0 ~0 0 0 0 0 1 force",
+                "execute at @a run playsound minecraft:block.note_block.bell master @s ~ ~ ~ 1 1",
+            ]
+        );
+    }
+
+    #[test]
+    fn explicit_sound_audience_is_preserved_through_play_at() {
+        // If VfxSound has an explicit audience set via `.to(...)`, that
+        // audience must survive through `play_at`, ignoring the positional
+        // selector entirely.
+        let commands = Vfx::new("broadcast")
+            .sound(
+                VfxSound::new("minecraft:ui.toast.challenge_complete").to(Selector::all_players()),
+            )
+            .play_at(Selector::self_());
+
+        assert_eq!(
+            commands,
+            vec![
+                "execute at @s run playsound minecraft:ui.toast.challenge_complete master @a ~ ~ ~ 1 1"
+            ]
+        );
+    }
+
+    #[test]
+    fn play_at_combined_particle_and_sound_preserves_order() {
+        // Combined effect: particle first, then sound, deterministic order.
+        let commands = Vfx::new("combo_at")
+            .particle(VfxParticle::named("minecraft:end_rod"))
+            .sound(VfxSound::new("minecraft:block.note_block.bell"))
+            .command("say vfx")
+            .play_at(Selector::self_());
+
+        assert_eq!(
+            commands,
+            vec![
+                "execute at @s run particle minecraft:end_rod ~0 ~0 ~0 0 0 0 0 1 force",
+                "execute at @s run playsound minecraft:block.note_block.bell master @s ~ ~ ~ 1 1",
+                "execute at @s run say vfx",
+            ]
+        );
+    }
+
+    #[test]
+    fn play_for_all_players_targets_expected_audience() {
+        // play_for must still target the supplied audience — regression guard.
+        let commands = Vfx::new("announce")
+            .sound(VfxSound::new("minecraft:entity.player.levelup"))
+            .play_for(Selector::all_players());
+
+        assert_eq!(
+            commands,
+            vec!["playsound minecraft:entity.player.levelup master @a ~ ~ ~ 1 1"]
         );
     }
 }

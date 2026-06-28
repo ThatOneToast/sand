@@ -3,6 +3,7 @@ pub mod package;
 pub mod records;
 mod resourcepack;
 pub mod validate;
+pub mod validate_output;
 pub mod write;
 
 use std::path::PathBuf;

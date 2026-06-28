@@ -40,7 +40,7 @@ pub use crate::state::{
 // ── Optional systems ──────────────────────────────────────────────────────────
 
 #[cfg(feature = "systems-damage")]
-pub use crate::systems::damage::{DamageTracker, recently_damaged};
+pub use crate::systems::damage::{DamageThreshold, DamageTracker, recently_damaged};
 
 #[cfg(feature = "systems-player-data")]
 pub use crate::systems::player_data::PlayerSchema;
@@ -131,6 +131,19 @@ mod tests {
     fn prelude_exports_resource_locations_for_function_refs() {
         let id = ResourceLocation::new("example", "start").unwrap();
         assert_eq!(cmd::function(id).to_string(), "function example:start");
+    }
+
+    #[cfg(feature = "systems-damage")]
+    #[test]
+    fn prelude_exports_damage_threshold_with_damage_system() {
+        let current: Condition =
+            DamageTracker::current_damage_at_least("@s", DamageThreshold::hearts(1.0));
+        let last: Condition =
+            DamageTracker::last_damage_at_least("@s", DamageThreshold::raw_stat(10));
+
+        assert_eq!(DamageThreshold::hearts(1.0).to_raw_stat(), 10);
+        assert!(matches!(current, Condition::Score { .. }));
+        assert!(matches!(last, Condition::Score { .. }));
     }
 
     #[cfg(feature = "systems-player-data")]

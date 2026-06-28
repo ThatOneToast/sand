@@ -13,7 +13,7 @@
 //! | [`Cooldown`] | Ability cooldown with ready/active conditions |
 //! | [`Ticks`] | Tick-based duration |
 //!
-//! # Example
+//! # Example — manual `.define()`
 //! ```rust,ignore
 //! use sand_core::state::{ScoreVar, Flag, Cooldown, Ticks};
 //!
@@ -29,6 +29,22 @@
 //!     vec![DASH.tick("@a")]
 //! }
 //! ```
+//!
+//! # Example — lifecycle registry
+//! ```rust,ignore
+//! use sand_core::state::{ScoreVar, Flag, Cooldown, Ticks, define_registered_state};
+//!
+//! static MANA: ScoreVar<i32> = ScoreVar::new("mana");
+//! static CASTING: Flag = Flag::new("casting");
+//! static DASH: Cooldown = Cooldown::new("dash", Ticks::new(60));
+//!
+//! fn load() -> Vec<String> {
+//!     MANA.register();
+//!     CASTING.register();
+//!     DASH.register();
+//!     define_registered_state() // emits all three objectives, sorted
+//! }
+//! ```
 
 pub mod cooldown;
 pub mod flag;
@@ -41,7 +57,8 @@ pub mod typed_state;
 pub use cooldown::Cooldown;
 pub use flag::{Flag, FlagRef};
 pub use registry::{
-    drain_load_commands, drain_tick_commands, register_load_objective, register_tick_handler,
+    define_registered_state, drain_load_commands, drain_tick_commands, register_load_objective,
+    register_tick_handler,
 };
 pub use score::{ScoreConst, ScoreConstants, ScoreExpr, ScoreOperation, ScoreRef, ScoreVar};
 pub use storage::{

@@ -85,7 +85,7 @@ pub fn run(args: RunArgs) -> Result<()> {
     }
 
     // ── 7. Sync datapack into world/datapacks/ ───────────────────────────────
-    let namespace = &config.pack.namespace;
+    let namespace = config.pack.namespace.as_str();
     let src = PathBuf::from("dist").join(namespace);
     let dest = server_dir.join("world").join("datapacks").join(namespace);
 

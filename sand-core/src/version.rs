@@ -25,7 +25,7 @@ use thiserror::Error;
 pub enum VersionError {
     /// The version string could not be parsed.
     #[error(
-        "Invalid version '{0}': expected examples like '1.19.4', '1.20.6', '1.21.11', '26', '26.2', '26.2.1', or 'latest'"
+        "Invalid version '{0}': expected examples like '1.19.4', '1.20.6', '1.21.11', '26', '26.2', '26.1.2', or 'latest'"
     )]
     ParseError(String),
     /// The version was parsed but is not in the known table.
@@ -69,7 +69,7 @@ impl MinecraftVersion {
     /// Parse a version string into a `MinecraftVersion`.
     ///
     /// Accepted formats include `"1.19.4"`, `"1.20.6"`, `"1.21.11"`,
-    /// `"26"`, `"26.2"`, `"26.2.1"`, and `"latest"`.
+    /// `"26"`, `"26.2"`, `"26.1.2"`, and `"latest"`.
     pub fn parse(s: &str) -> Result<Self, VersionError> {
         if s == "latest" {
             return Ok(Self {
@@ -491,16 +491,16 @@ fn lookup(major: u32, minor: u32, patch: u32) -> VersionCaps {
         // 26.x calendar series  (2026+, Minecraft's new versioning scheme)
         // ════════════════════════════════════════════════════════════════════
 
-        // ── 26.2.x — data 107, resource 88 ───────────────────────────────
-        (26, 2, _) => VersionCaps {
+        // ── 26.2 / 26.2.0 — data 107, resource 88 ────────────────────────
+        (26, 2, 0) => VersionCaps {
             data_fmt: 107,
             res_fmt: 88,
             dialogs: true,
             is_fallback: false,
             ..VersionCaps::default()
         },
-        // ── 26.1.x — data 101, resource 84 ───────────────────────────────
-        (26, 1, _) => VersionCaps {
+        // ── 26.1 through 26.1.2 — data 101, resource 84 ──────────────────
+        (26, 1, 0..=2) => VersionCaps {
             data_fmt: 101,
             res_fmt: 84,
             dialogs: true,
@@ -1021,6 +1021,21 @@ mod tests {
         assert_conservative_fallback_capabilities(&p);
     }
 
+    #[test]
+    fn future_26_patch_fallback_is_conservative() {
+        for ver in ["26.1.99", "26.2.99"] {
+            let v = MinecraftVersion::parse(ver).unwrap();
+            let p = VersionProfile::resolve(&v).unwrap();
+            assert_eq!(p.data_pack_format, 107);
+            assert_eq!(p.resource_pack_format, 88);
+            assert!(
+                p.supports_26_series,
+                "{ver} should still be recognized as a 26-series version"
+            );
+            assert_conservative_fallback_capabilities(&p);
+        }
+    }
+
     // ── resolve_strict ────────────────────────────────────────────────────────
 
     #[test]
@@ -1051,6 +1066,18 @@ mod tests {
             matches!(err, VersionError::UnknownVersion { .. }),
             "expected UnknownVersion for 26.99, got {err:?}"
         );
+    }
+
+    #[test]
+    fn strict_unknown_26_patch_fails() {
+        for ver in ["26.1.99", "26.2.99"] {
+            let v = MinecraftVersion::parse(ver).unwrap();
+            let err = VersionProfile::resolve_strict(&v).unwrap_err();
+            assert!(
+                matches!(err, VersionError::UnknownVersion { .. }),
+                "expected UnknownVersion for {ver}, got {err:?}"
+            );
+        }
     }
 
     #[test]

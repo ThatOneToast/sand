@@ -3,18 +3,37 @@
 //! Users explicitly register objectives and tick handlers; Sand collects them
 //! and emits the appropriate commands when building the datapack.
 //!
-//! # Pattern
+//! # Pattern — typed state registration
+//!
+//! Call `.register()` on any typed state variable to enroll it in the lifecycle
+//! registry. Then call [`define_registered_state`] once in your `load` function
+//! to emit all the `scoreboard objectives add …` commands.
 //!
 //! ```rust,ignore
-//! use sand_core::state::{ScoreVar, register_load_objective};
+//! use sand_core::state::{ScoreVar, Flag, Cooldown, Ticks};
+//! use sand_core::state::{define_registered_state, register_load_objective};
 //!
-//! static MANA: ScoreVar<i32> = ScoreVar::new("mana");
+//! static MANA:  ScoreVar<i32> = ScoreVar::new("mana");
+//! static ALIVE: Flag          = Flag::new("alive");
+//! static DASH:  Cooldown      = Cooldown::new("dash", Ticks::new(60));
 //!
 //! fn load() -> Vec<String> {
-//!     register_load_objective(MANA.objective_name(), "dummy");
-//!     drain_load_commands() // called once by the export pipeline
+//!     MANA.register();
+//!     ALIVE.register();
+//!     DASH.register();
+//!     define_registered_state() // emits all three objectives, sorted
 //! }
 //! ```
+//!
+//! Manual `.define()` continues to work. Choose one approach per objective:
+//! - Use `.register()` + [`define_registered_state`] for lifecycle-managed output.
+//! - Use `.define()` directly when you want a standalone command string.
+//!
+//! Note: `.define()` returns a command string independent of the registry.
+//! If you mix both approaches for the same objective, you must take care not to
+//! include both the manual command string and the lifecycle drain in the same
+//! load function — the registry deduplicates only among `.register()` calls,
+//! not between `.define()` strings and `.register()` output.
 
 use std::collections::BTreeMap;
 use std::sync::{Mutex, OnceLock};
@@ -129,6 +148,38 @@ pub fn drain_tick_commands() -> Vec<String> {
     let entries = std::mem::take(&mut *registry);
     // BTreeMap iteration is already sorted by key (handler id).
     entries.into_values().flatten().collect()
+}
+
+/// Emit and drain all `scoreboard objectives add …` commands for every state
+/// variable that was registered via `.register()`.
+///
+/// Call this **once** at the start of your datapack's `load` function to
+/// produce the objective definitions for all typed state variables enrolled in
+/// the lifecycle registry.
+///
+/// Commands are sorted by objective name for deterministic output.
+/// This drains the registry — subsequent calls return an empty `Vec` until new
+/// objectives are registered.
+///
+/// # Interoperability with manual `.define()`
+///
+/// `.define()` returns a command string without interacting with this registry.
+/// Registry deduplication applies only among `.register()` calls. Do not
+/// include both a manual `.define()` command string and the output of
+/// [`define_registered_state`] for the same objective in the same load
+/// function, or you will emit duplicate scoreboard definitions.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// fn load() -> Vec<String> {
+///     MANA.register();
+///     ALIVE.register();
+///     define_registered_state()
+/// }
+/// ```
+pub fn define_registered_state() -> Vec<String> {
+    drain_load_commands()
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -282,5 +333,204 @@ mod tests {
             second.is_empty(),
             "expected empty after drain, got: {second:?}"
         );
+    }
+
+    // ── define_registered_state tests ─────────────────────────────────────────
+
+    #[test]
+    fn define_registered_state_drains_load_registry() {
+        let _lock = test_lock();
+        drain_all();
+        register_load_objective("mana", "dummy");
+        register_load_objective("alive", "dummy");
+        let cmds = define_registered_state();
+        assert_eq!(cmds.len(), 2);
+        assert_eq!(cmds[0], "scoreboard objectives add alive dummy");
+        assert_eq!(cmds[1], "scoreboard objectives add mana dummy");
+    }
+
+    #[test]
+    fn define_registered_state_deduplicates_repeated_registration() {
+        let _lock = test_lock();
+        drain_all();
+        register_load_objective("dash", "dummy");
+        register_load_objective("dash", "dummy");
+        register_load_objective("dash", "dummy");
+        let cmds = define_registered_state();
+        assert_eq!(cmds, vec!["scoreboard objectives add dash dummy"]);
+    }
+
+    #[test]
+    fn define_registered_state_after_drain_returns_empty() {
+        let _lock = test_lock();
+        drain_all();
+        register_load_objective("blink", "dummy");
+        define_registered_state(); // first call drains
+        let second = define_registered_state();
+        assert!(
+            second.is_empty(),
+            "expected empty after drain, got: {second:?}"
+        );
+    }
+
+    #[test]
+    fn define_registered_state_with_no_registrations_returns_empty() {
+        let _lock = test_lock();
+        drain_all();
+        let cmds = define_registered_state();
+        assert!(
+            cmds.is_empty(),
+            "expected empty when nothing registered, got: {cmds:?}"
+        );
+    }
+
+    // ── typed state .register() tests ─────────────────────────────────────────
+
+    #[test]
+    fn score_var_register_enrolls_in_lifecycle() {
+        use crate::state::ScoreVar;
+        let _lock = test_lock();
+        drain_all();
+        static MANA: ScoreVar<i32> = ScoreVar::new("mana");
+        MANA.register();
+        let cmds = define_registered_state();
+        assert_eq!(cmds, vec!["scoreboard objectives add mana dummy"]);
+    }
+
+    #[test]
+    fn flag_register_enrolls_in_lifecycle() {
+        use crate::state::Flag;
+        let _lock = test_lock();
+        drain_all();
+        static ALIVE: Flag = Flag::new("alive");
+        ALIVE.register();
+        let cmds = define_registered_state();
+        assert_eq!(cmds, vec!["scoreboard objectives add alive dummy"]);
+    }
+
+    #[test]
+    fn timer_register_enrolls_in_lifecycle() {
+        use crate::state::{Ticks, Timer};
+        let _lock = test_lock();
+        drain_all();
+        static BLINK: Timer = Timer::new("blink_cd", Ticks::new(60));
+        BLINK.register();
+        let cmds = define_registered_state();
+        assert_eq!(cmds, vec!["scoreboard objectives add blink_cd dummy"]);
+    }
+
+    #[test]
+    fn cooldown_register_enrolls_in_lifecycle() {
+        use crate::state::{Cooldown, Ticks};
+        let _lock = test_lock();
+        drain_all();
+        static DASH: Cooldown = Cooldown::new("dash", Ticks::new(60));
+        DASH.register();
+        let cmds = define_registered_state();
+        assert_eq!(cmds, vec!["scoreboard objectives add dash dummy"]);
+    }
+
+    #[test]
+    fn multiple_typed_state_register_sorted_deduped() {
+        use crate::state::{Cooldown, Flag, ScoreVar, Ticks, Timer};
+        let _lock = test_lock();
+        drain_all();
+        static MANA: ScoreVar<i32> = ScoreVar::new("mana");
+        static ALIVE: Flag = Flag::new("alive");
+        static BLINK: Timer = Timer::new("blink_cd", Ticks::new(20));
+        static DASH: Cooldown = Cooldown::new("dash", Ticks::new(60));
+
+        DASH.register();
+        MANA.register();
+        ALIVE.register();
+        BLINK.register();
+        // register MANA a second time — must still produce one entry
+        MANA.register();
+
+        let cmds = define_registered_state();
+        assert_eq!(cmds.len(), 4, "expected 4 unique objectives, got: {cmds:?}");
+        assert_eq!(cmds[0], "scoreboard objectives add alive dummy");
+        assert_eq!(cmds[1], "scoreboard objectives add blink_cd dummy");
+        assert_eq!(cmds[2], "scoreboard objectives add dash dummy");
+        assert_eq!(cmds[3], "scoreboard objectives add mana dummy");
+    }
+
+    #[test]
+    fn repeated_lifecycle_registration_paths_dedupe() {
+        use crate::state::ScoreVar;
+        let _lock = test_lock();
+        drain_all();
+        static SCORE: ScoreVar<i32> = ScoreVar::new("points");
+
+        // Both calls write to the lifecycle registry and deduplicate.
+        SCORE.register();
+        register_load_objective("points", "dummy");
+
+        let cmds = define_registered_state();
+        assert_eq!(
+            cmds,
+            vec!["scoreboard objectives add points dummy"],
+            "identical lifecycle registrations must produce exactly one entry"
+        );
+    }
+
+    #[test]
+    fn game_state_register_enrolls_in_lifecycle() {
+        use crate::state::{GameState, TypedGameState};
+
+        #[derive(Clone, Copy, PartialEq, Eq)]
+        enum BossPhase {
+            Idle = 0,
+            Enraged = 1,
+        }
+
+        impl TypedGameState for BossPhase {
+            fn to_score(self) -> i32 {
+                self as i32
+            }
+
+            fn from_score(n: i32) -> Option<Self> {
+                match n {
+                    0 => Some(Self::Idle),
+                    1 => Some(Self::Enraged),
+                    _ => None,
+                }
+            }
+        }
+
+        let _lock = test_lock();
+        drain_all();
+        static PHASE: GameState<BossPhase> = GameState::new("boss_phase");
+        PHASE.register();
+        let cmds = define_registered_state();
+        assert_eq!(cmds, vec!["scoreboard objectives add boss_phase dummy"]);
+    }
+
+    #[test]
+    fn manual_define_returns_string_independent_of_registry() {
+        use crate::state::ScoreVar;
+        let _lock = test_lock();
+        drain_all();
+        static SCORE: ScoreVar<i32> = ScoreVar::new("pts");
+
+        // .define() returns a command string without touching the registry
+        let cmd = SCORE.define();
+        assert_eq!(cmd, "scoreboard objectives add pts dummy");
+
+        // Registry is still empty — .define() did not register anything
+        let registry_cmds = define_registered_state();
+        assert!(
+            registry_cmds.is_empty(),
+            "define() must not side-effect the registry: {registry_cmds:?}"
+        );
+
+        // Now register explicitly
+        SCORE.register();
+        let registry_cmds = define_registered_state();
+        assert_eq!(registry_cmds, vec!["scoreboard objectives add pts dummy"]);
+
+        // Both cmd and registry_cmds contain the same command — the user must
+        // choose one path; mixing both in a load function would duplicate output.
+        assert_eq!(cmd, registry_cmds[0]);
     }
 }

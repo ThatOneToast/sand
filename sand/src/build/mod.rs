@@ -17,7 +17,7 @@ use config::{cargo_target_dir, resolve_mc_version};
 use package::zip_dir;
 use records::ComponentRecord;
 use resourcepack::build_resourcepack;
-use validate::{validate_component_records_for_project, validate_namespace};
+use validate::validate_component_records_for_project;
 use write::{write_component, write_pack_mcmeta};
 
 pub fn run(release: bool, resourcepack: bool) -> Result<()> {
@@ -29,8 +29,6 @@ pub fn run(release: bool, resourcepack: bool) -> Result<()> {
     }
     let config: SandConfig = toml::from_str(&std::fs::read_to_string(&config_path)?)
         .context("failed to parse sand.toml")?;
-
-    validate_namespace(&config.pack.namespace)?;
 
     // Resolve mc_version ("latest" → actual version from Mojang manifest)
     let mc_version = resolve_mc_version(&config.pack.mc_version);
@@ -71,7 +69,7 @@ pub fn run(release: bool, resourcepack: bool) -> Result<()> {
     println!(
         "{} {} (Minecraft {}, pack_format {})...",
         "Building".cyan().bold(),
-        config.pack.namespace.white().bold(),
+        config.pack.namespace.as_str().white().bold(),
         mc_version.yellow(),
         pack_format.to_string().yellow()
     );
@@ -127,14 +125,14 @@ pub fn run(release: bool, resourcepack: bool) -> Result<()> {
 
     // 5. Validate every record before creating the output directory.  A build
     // must fail before it produces a partially valid datapack.
-    let dist = PathBuf::from("dist").join(&config.pack.namespace);
+    let dist = PathBuf::from("dist").join(config.pack.namespace.as_str());
     validate_component_records_for_project(&dist, &project_root, &records)?;
 
     // 6. Write pack.mcmeta
     std::fs::create_dir_all(&dist)?;
     write_pack_mcmeta(
         &dist,
-        &config.pack.namespace,
+        config.pack.namespace.as_str(),
         &config.pack.description,
         pack_format,
     )?;
@@ -148,12 +146,14 @@ pub fn run(release: bool, resourcepack: bool) -> Result<()> {
         "{} {} component(s) written to {}",
         "Done!".green().bold(),
         records.len().to_string().white().bold(),
-        format!("dist/{}/", config.pack.namespace).white().bold()
+        format!("dist/{}/", config.pack.namespace.as_str())
+            .white()
+            .bold()
     );
 
     // 8. Zip if --release, otherwise hint how to install manually.
     if release {
-        let zip_path = zip_dir(&dist, &config.pack.namespace)?;
+        let zip_path = zip_dir(&dist, config.pack.namespace.as_str())?;
         println!(
             "  {} {}",
             "zip:".dimmed(),
@@ -162,14 +162,18 @@ pub fn run(release: bool, resourcepack: bool) -> Result<()> {
         println!(
             "  {} drop {} into your world's datapacks/ folder",
             "install:".dimmed(),
-            format!("dist/{}.zip", config.pack.namespace).white().bold()
+            format!("dist/{}.zip", config.pack.namespace.as_str())
+                .white()
+                .bold()
         );
     } else {
         println!(
             "  {} copy the {} folder into your world's datapacks/ folder, \
              or run `sand build --release` to produce a zip",
             "install:".dimmed(),
-            format!("dist/{}/", config.pack.namespace).white().bold()
+            format!("dist/{}/", config.pack.namespace.as_str())
+                .white()
+                .bold()
         );
     }
 
@@ -211,6 +215,42 @@ mod tests {
             "content": content,
         }))
         .unwrap_or_else(|e| panic!("invalid test record ({dir}/{path}.{ext}): {e}"))
+    }
+
+    // ── sand.toml namespace validation at config parse time ───────────────────
+
+    fn parse_config(namespace: &str) -> Result<crate::config::SandConfig, toml::de::Error> {
+        let toml = format!(
+            "[pack]\nnamespace = {namespace:?}\ndescription = \"test\"\nmc_version = \"1.21\"\n"
+        );
+        toml::from_str(&toml)
+    }
+
+    #[test]
+    fn valid_config_namespace_parses() {
+        for ns in ["my_pack", "test-pack", "ns.v2", "a", "abc123"] {
+            assert!(
+                parse_config(ns).is_ok(),
+                "namespace '{ns}' should be valid in sand.toml"
+            );
+        }
+    }
+
+    #[test]
+    fn invalid_config_namespace_rejected_at_parse() {
+        for ns in [
+            "",
+            "MyPack",
+            "has space",
+            "upper/slash",
+            "UPPER",
+            "../escape",
+        ] {
+            assert!(
+                parse_config(ns).is_err(),
+                "namespace '{ns}' should be rejected when parsing sand.toml"
+            );
+        }
     }
 
     // ── Record validation ─────────────────────────────────────────────────────

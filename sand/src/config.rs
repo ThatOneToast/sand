@@ -1,5 +1,7 @@
 use serde::Deserialize;
 
+use crate::build::records::PackNamespace;
+
 #[derive(Deserialize)]
 pub struct SandConfig {
     pub pack: PackConfig,
@@ -10,7 +12,9 @@ pub struct SandConfig {
 
 #[derive(Deserialize)]
 pub struct PackConfig {
-    pub namespace: String,
+    /// Validated Minecraft namespace — rejected at parse time if it contains
+    /// uppercase letters, spaces, or other illegal characters.
+    pub namespace: PackNamespace,
     pub description: String,
     /// Minecraft version string. Use `"latest"` to always resolve to the
     /// current latest release from Mojang's version manifest.
@@ -36,7 +40,7 @@ pub struct ResourcePackConfig {
     /// Defaults to the pack description if omitted.
     pub description: Option<String>,
     /// Asset namespace. Defaults to `[pack].namespace` if omitted.
-    pub namespace: Option<String>,
+    pub namespace: Option<PackNamespace>,
     /// Resource pack format number. If omitted, derived automatically from
     /// `[pack].mc_version` using the bundled version table.
     pub resource_pack_format: Option<u32>,

@@ -1,8 +1,13 @@
-//! Player-data schema bootstrap (`systems-player-data` feature).
+//! Manual player-data schema helpers (`systems-player-data` feature).
 //!
 //! Provides a builder API for defining typed per-player data schemas backed
 //! by scoreboard objectives.  Storage schemas from [`SandStorage`] can also be
 //! attached for unified introspection and documentation.
+//!
+//! This module does **not** auto-register player data schemas or generate
+//! lifecycle wiring today.  Call [`PlayerSchema::define_all`] from your load
+//! function and [`PlayerSchema::init_player`] from a join or first-join handler.
+//! Automatic export/lifecycle wiring is future work tracked by #47 and #68.
 //!
 //! # Naming and namespacing
 //!

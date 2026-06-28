@@ -1,6 +1,9 @@
 # Player Data
 
 `PlayerSchema` groups scoreboard initialization and describes static storage schemas.
+It is a manual builder today: call `define_all()` from load and
+`init_player(selector)` from a join or first-join handler. Automatic lifecycle
+wiring is future work tracked by #47/#68.
 
 ```rust
 let schema = PlayerSchema::new("magic").score(&MANA, 100).flag(&HAS_WAND, false)

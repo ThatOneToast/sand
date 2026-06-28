@@ -19,7 +19,7 @@ const SAND_RESOURCE_EXPORT_RS_HBS: &str =
 pub fn run_resourcepack() -> Result<()> {
     // 1. Verify we're inside a Sand project.
     let config = load_config()?;
-    let namespace = &config.pack.namespace;
+    let namespace = config.pack.namespace.as_str();
     let description = config
         .resourcepack
         .as_ref()

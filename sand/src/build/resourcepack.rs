@@ -20,8 +20,8 @@ pub(super) fn build_resourcepack(
 
     let rp_cfg = config.resourcepack.as_ref();
     let rp_namespace = rp_cfg
-        .and_then(|c| c.namespace.as_deref())
-        .unwrap_or(&config.pack.namespace);
+        .and_then(|c| c.namespace.as_ref().map(|n| n.as_str()))
+        .unwrap_or(config.pack.namespace.as_str());
     let rp_description = rp_cfg
         .and_then(|c| c.description.as_deref())
         .unwrap_or(&config.pack.description);
@@ -126,7 +126,7 @@ pub(super) fn build_resourcepack(
     validate_resourcepack_records(&records)?;
 
     // Write pack.mcmeta for the resource pack.
-    let rp_dist_name = format!("{}-resources", config.pack.namespace);
+    let rp_dist_name = format!("{}-resources", config.pack.namespace.as_str());
     let rp_dist = PathBuf::from("dist").join(&rp_dist_name);
     std::fs::create_dir_all(&rp_dist)?;
     write_resourcepack_mcmeta(&rp_dist, rp_description, rp_format)?;

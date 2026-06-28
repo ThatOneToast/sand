@@ -13,8 +13,9 @@ categories = ["game-development", "data-structures"]
 
 [features]
 ## Track recent player damage via the `minecraft.custom:minecraft.damage_taken` stat.
-## Provides `DamageTracker` and `recently_damaged` helpers. Cannot report exact per-event
-## damage amounts (a vanilla datapack limitation); see the `systems::damage` module docs.
+## Provides `DamageTracker`, `DamageThreshold`, and `recently_damaged` helpers. Cannot
+## report exact per-event damage amounts (a vanilla datapack limitation); see the
+## `systems::damage` module docs.
 systems-damage = []
 
 ## Auto-generate scoreboard-tick commands for all `Cooldown` values registered via

@@ -12,3 +12,5 @@ Interaction entities, dialogs, item components, and advancement fields are espec
 The latest known version is `26.2` (`data_fmt=107`, `res_fmt=88`). Unknown future
 versions resolve to a conservative fallback profile: pack formats stay anchored
 to the latest known table entry, while unverified feature flags remain disabled.
+For `mc_version = "latest"`, Sand resolves through Mojang's manifest when
+available and falls back to the bundled latest-known version when offline.

@@ -21,6 +21,7 @@ hex = "0.4"
 heck = "0.5"
 thiserror = "2"
 dirs = "5"
+sand-version = { path = "../sand-version" }
 
 [features]
 integration-tests = []

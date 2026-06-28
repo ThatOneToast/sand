@@ -228,7 +228,7 @@ pub struct VersionProfile {
 }
 
 /// The latest version this table was last verified against.
-pub const LATEST_KNOWN: &str = "26.2";
+pub const LATEST_KNOWN: &str = sand_version::LATEST_KNOWN;
 
 // ── PackMetadata ──────────────────────────────────────────────────────────────
 
@@ -772,6 +772,11 @@ mod tests {
         assert!(!v.is_26_series());
         assert!(!v.is_legacy_series());
         assert!(!v.is_121_series());
+    }
+
+    #[test]
+    fn latest_known_uses_shared_version_anchor() {
+        assert_eq!(LATEST_KNOWN, sand_version::LATEST_KNOWN);
     }
 
     #[test]

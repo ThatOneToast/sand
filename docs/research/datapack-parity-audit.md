@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-06-23 (updated on `feat/final-event-registry-damage-parity`)
 **Audited by:** automated branch `feat/final-event-registry-damage-parity`  
-**Minecraft versions researched:** 1.19.0–1.21.11 (explicit), 26.x (conservative/unverified)
+**Minecraft versions researched:** 1.19.0–1.21.11 (explicit), 26.1.x and 26.2.x (explicit), future 26.x (conservative/unverified)
 
 > **Living document.** See also:
 > - `sand-components/src/advancement/trigger_coverage.rs` — per-trigger status table (51 triggers)
@@ -23,8 +23,11 @@
 | 1.21.0–1.21.1 | Known profile, data_fmt=48, res_fmt=34 |
 | 1.21.2–1.21.3 | Known profile, data_fmt=57, res_fmt=42 |
 | 1.21.4–1.21.5 | Known profile, data_fmt=61, res_fmt=46 |
-| 1.21.6+ | Known profile, data_fmt=61, res_fmt=46, dialogs=true |
-| 26.x | **Conservative fallback** — all features false, no mapped pack formats |
+| 1.21.6–1.21.8 | Known profile, data_fmt=80/81, res_fmt=63/64, dialogs=true |
+| 1.21.9–1.21.11 | Known profile, data_fmt=88/94, res_fmt=69/75, dialogs=true |
+| 26.1.x | Known profile, data_fmt=101, res_fmt=84, dialogs=true |
+| 26.2.x | Known profile, data_fmt=107, res_fmt=88, dialogs=true |
+| Future 26.x | **Conservative fallback** — latest known pack formats, feature flags false |
 
 ## 2. Sources Used
 
@@ -40,7 +43,8 @@ Version profiles live in `sand-core/src/version.rs::VersionProfile`.
 Resolution is via `VersionProfile::resolve(&MinecraftVersion)`.
 
 - **Known versions** → exact profile, `is_fallback: false`
-- **Unknown versions** (26.x, future 1.x) → conservative profile, `is_fallback: true`, **all features false**
+- **Latest known version is `26.2`** (`data_fmt=107`, `res_fmt=88`)
+- **Unknown versions** (future 26.x, future 1.x) → conservative profile, `is_fallback: true`, **version-sensitive features false**
 - **Strict mode**: `VersionProfile::resolve_strict()` returns `Err(VersionError::UnknownVersion)` for any fallback profile
 
 > **#13 status:** FIXED on this branch. Unknown 26.x and future 1.x no longer silently inherit the latest-known capabilities. All feature gates default to `false` for unverified versions. `resolve_strict()` added for CI/release use.
@@ -251,7 +255,7 @@ Not implemented. Out of scope for current Sand focus.
 | Damage tracking | `systems-damage` | ✅ (see below) |
 | Cooldowns | `systems-cooldowns` | ✅ |
 | Lifecycle (join/death/respawn) | `systems-lifecycle` | ✅ |
-| Player data (storage schemas) | `systems-player-data` | ✅ |
+| Player data helpers (manual `PlayerSchema`) | `systems-player-data` | ✅ |
 | Movement helpers | `systems-movement` | ✅ |
 | Inventory helpers | `systems-inventory` | ✅ |
 | Entity builders | `systems-entities` | ✅ |

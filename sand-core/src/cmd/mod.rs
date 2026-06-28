@@ -248,6 +248,49 @@ pub use _generated::*;
 mod tests {
     use crate::resource_ref::DialogRef;
 
+    const GENERATED_COMMANDS: &str = include_str!(concat!(env!("OUT_DIR"), "/commands.rs"));
+    const GENERATED_REGISTRIES: &str = include_str!(concat!(env!("OUT_DIR"), "/registries.rs"));
+    const GENERATED_BLOCK_STATES: &str = include_str!(concat!(env!("OUT_DIR"), "/block_states.rs"));
+
+    #[test]
+    fn generated_api_health_files_are_not_placeholders() {
+        for (name, contents) in [
+            ("commands.rs", GENERATED_COMMANDS),
+            ("registries.rs", GENERATED_REGISTRIES),
+            ("block_states.rs", GENERATED_BLOCK_STATES),
+        ] {
+            assert!(
+                !contents.trim().is_empty(),
+                "{name} should contain generated Rust API"
+            );
+            assert!(
+                !contents.contains("Generation failed"),
+                "{name} contains the non-strict codegen fallback placeholder"
+            );
+        }
+    }
+
+    #[test]
+    fn generated_api_health_has_representative_command_builders() {
+        for generated_symbol in [
+            "pub struct Say",
+            "pub fn say(",
+            "pub struct Tellraw",
+            "pub fn tellraw(",
+            "pub struct Give",
+            "pub fn give(",
+            "pub struct Function",
+            "pub fn function(",
+            "pub struct Damage",
+            "pub fn damage(",
+        ] {
+            assert!(
+                GENERATED_COMMANDS.contains(generated_symbol),
+                "commands.rs is missing representative generated builder `{generated_symbol}`"
+            );
+        }
+    }
+
     #[test]
     fn raw_escape_hatch_is_explicit() {
         assert_eq!(

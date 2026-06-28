@@ -251,7 +251,7 @@ Not implemented. Out of scope for current Sand focus.
 | Damage tracking | `systems-damage` | ✅ (see below) |
 | Cooldowns | `systems-cooldowns` | ✅ |
 | Lifecycle (join/death/respawn) | `systems-lifecycle` | ✅ |
-| Player data (storage schemas) | `systems-player-data` | ✅ |
+| Player data helpers (manual `PlayerSchema`) | `systems-player-data` | ✅ |
 | Movement helpers | `systems-movement` | ✅ |
 | Inventory helpers | `systems-inventory` | ✅ |
 | Entity builders | `systems-entities` | ✅ |

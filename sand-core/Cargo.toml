@@ -21,11 +21,12 @@ systems-damage = []
 ## `systems::cooldowns::register`. Adds a tick-tag entry handled by the export pipeline.
 systems-cooldowns = []
 
-## Lifecycle helpers for join, death, and respawn — initializes registered player-data
-## schemas on first join and re-initialises state on respawn.
+## Manual command-fragment helpers for join, death, and respawn lifecycle handlers.
 systems-lifecycle = []
 
-## Player-data schema bootstrap: registers data init functions for all `PlayerData` schemas.
+## Manual PlayerSchema builder helpers for grouping scoreboard-backed player state.
+## Current users call define_all() from load and init_player(selector) from join/first-join
+## handlers; automatic lifecycle wiring is future #47/#68 work.
 systems-player-data = ["systems-lifecycle"]
 
 ## Typed movement helpers: push-away shockwave, launch upward, speed boost, slow.

@@ -13,8 +13,8 @@
 //! |---|---|
 //! | `systems-damage` | Damage tracking via cumulative scoreboard stats |
 //! | `systems-cooldowns` | Auto-tick all registered cooldowns |
-//! | `systems-lifecycle` | Join/death/respawn lifecycle helpers |
-//! | `systems-player-data` | Player-data schema bootstrap (implies `systems-lifecycle`) |
+//! | `systems-lifecycle` | Manual join/death/respawn command-fragment helpers |
+//! | `systems-player-data` | Manual `PlayerSchema` builder helpers (implies `systems-lifecycle`) |
 //! | `systems-movement` | Typed push, launch, speed boost, and slow helpers |
 //! | `systems-inventory` | Typed inventory has/replace/clear/give helpers |
 //! | `systems-entities` | Typed interactable entity builder |

@@ -14,8 +14,10 @@ mc_version = "1.21.6"
 Known pack formats and feature flags are resolved through `VersionProfile`.
 The latest known version is `26.2` (`data_fmt=107`, `res_fmt=88`).
 
-Known 26.x profiles currently include `26.1.x` and `26.2.x`. Unknown future
-26.x entries and future 1.x minors use a conservative fallback: Sand keeps the
-latest known pack formats for structurally valid `pack.mcmeta` output, but
-marks the profile as fallback and disables version-sensitive capability flags
-until the version is verified.
+Known 26.x profiles currently include `26.1`, `26.1.2`, and `26.2`; the
+two-part forms are convenience inputs for verified table entries, not broad
+"any patch" ranges. Unknown future 26.x entries, including unverified patches
+such as `26.1.99` or `26.2.99`, and future 1.x minors use a conservative
+fallback: Sand keeps the latest known pack formats for structurally valid
+`pack.mcmeta` output, but marks the profile as fallback and disables
+version-sensitive capability flags until the version is verified.

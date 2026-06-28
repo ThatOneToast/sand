@@ -753,14 +753,17 @@ impl<T> StorageVar<T> {
 fn escape_snbt_string(value: &str) -> String {
     let mut out = String::with_capacity(value.len());
     for c in value.chars() {
+        let code = c as u32;
+        if code < 0x20 {
+            panic!(
+                "SNBT string contains control character U+{code:04X} which cannot be safely \
+                 represented in a Minecraft command string; strip or replace it before building \
+                 the command"
+            );
+        }
         match c {
             '\\' => out.push_str("\\\\"),
             '"' => out.push_str("\\\""),
-            '\n' => out.push_str("\\n"),
-            '\r' => out.push_str("\\r"),
-            '\t' => out.push_str("\\t"),
-            '\0' => out.push_str("\\u0000"),
-            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
             _ => out.push(c),
         }
     }
@@ -1139,68 +1142,40 @@ mod tests {
     }
 
     #[test]
-    fn snbt_string_control_chars_escaped() {
-        let rendered = SnbtValue::from("line1\nline2").to_string();
-        assert!(
-            !rendered.contains('\n'),
-            "newline must not appear literally: {rendered}"
-        );
-        assert!(
-            rendered.contains("\\n"),
-            "newline must be escaped as \\n: {rendered}"
-        );
-
-        let rendered = SnbtValue::from("col1\tcol2").to_string();
-        assert!(
-            !rendered.contains('\t'),
-            "tab must not appear literally: {rendered}"
-        );
-        assert!(
-            rendered.contains("\\t"),
-            "tab must be escaped as \\t: {rendered}"
-        );
-
-        let rendered = SnbtValue::from("a\rb").to_string();
-        assert!(
-            !rendered.contains('\r'),
-            "CR must not appear literally: {rendered}"
-        );
-        assert!(
-            rendered.contains("\\r"),
-            "CR must be escaped as \\r: {rendered}"
-        );
-
-        let rendered = SnbtValue::from("nul\0byte").to_string();
-        assert!(
-            !rendered.contains('\0'),
-            "NUL must not appear literally: {rendered}"
-        );
-        assert!(
-            rendered.contains("\\u0000"),
-            "NUL must be escaped: {rendered}"
-        );
+    #[should_panic]
+    fn snbt_string_newline_panics() {
+        let _ = SnbtValue::from("line1\nline2").to_string();
     }
 
     #[test]
-    fn snbt_compound_key_control_chars_escaped() {
-        let compound = SnbtCompound::new().field("key\nwith\nnewline", 1_i32);
-        let rendered = compound.to_string();
-        assert!(
-            !rendered.contains('\n'),
-            "newline must not appear literally in key: {rendered}"
-        );
+    #[should_panic]
+    fn snbt_string_tab_panics() {
+        let _ = SnbtValue::from("col1\tcol2").to_string();
     }
 
     #[test]
-    fn set_string_control_chars_escaped() {
-        let rendered = NAME.set_string("line1\nline2");
-        assert!(
-            !rendered.contains('\n'),
-            "newline must not appear literally in command: {rendered}"
-        );
-        assert!(
-            rendered.contains("\\n"),
-            "newline must be escaped: {rendered}"
-        );
+    #[should_panic]
+    fn snbt_string_carriage_return_panics() {
+        let _ = SnbtValue::from("a\rb").to_string();
+    }
+
+    #[test]
+    #[should_panic]
+    fn snbt_string_nul_panics() {
+        let _ = SnbtValue::from("nul\0byte").to_string();
+    }
+
+    #[test]
+    #[should_panic]
+    fn snbt_compound_key_newline_panics() {
+        let _ = SnbtCompound::new()
+            .field("key\nwith\nnewline", 1_i32)
+            .to_string();
+    }
+
+    #[test]
+    #[should_panic]
+    fn set_string_newline_panics() {
+        let _ = NAME.set_string("line1\nline2");
     }
 }

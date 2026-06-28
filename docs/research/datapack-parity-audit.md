@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-06-23 (updated on `feat/final-event-registry-damage-parity`)
 **Audited by:** automated branch `feat/final-event-registry-damage-parity`  
-**Minecraft versions researched:** 1.19.0–1.21.11 (explicit), 26.1.x and 26.2.x (explicit), future 26.x (conservative/unverified)
+**Minecraft versions researched:** 1.19.0–1.21.11 (explicit), verified 26.1 through 26.1.2 and 26.2 entries, future 26.x (conservative/unverified)
 
 > **Living document.** See also:
 > - `sand-components/src/advancement/trigger_coverage.rs` — per-trigger status table (51 triggers)
@@ -25,8 +25,8 @@
 | 1.21.4–1.21.5 | Known profile, data_fmt=61, res_fmt=46 |
 | 1.21.6–1.21.8 | Known profile, data_fmt=80/81, res_fmt=63/64, dialogs=true |
 | 1.21.9–1.21.11 | Known profile, data_fmt=88/94, res_fmt=69/75, dialogs=true |
-| 26.1.x | Known profile, data_fmt=101, res_fmt=84, dialogs=true |
-| 26.2.x | Known profile, data_fmt=107, res_fmt=88, dialogs=true |
+| 26.1 through 26.1.2 | Known profile, data_fmt=101, res_fmt=84, dialogs=true |
+| 26.2 | Known profile, data_fmt=107, res_fmt=88, dialogs=true |
 | Future 26.x | **Conservative fallback** — latest known pack formats, feature flags false |
 
 ## 2. Sources Used

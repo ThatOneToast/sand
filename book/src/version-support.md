@@ -11,5 +11,7 @@ assert!(profile.supports_feature("dialogs"));
 ```
 
 The latest known version is `26.2` (`data_fmt=107`, `res_fmt=88`). Known 26.x
-profiles currently include `26.1.x` and `26.2.x`; unknown future 26.x entries
-and future 1.x minors use conservative fallback capabilities until confirmed.
+profiles currently include `26.1`, `26.1.2`, and `26.2`; the two-part forms are
+convenience inputs for verified table entries, not broad "any patch" ranges.
+Unknown future 26.x entries and future 1.x minors use conservative fallback
+capabilities until confirmed.

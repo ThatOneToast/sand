@@ -10,4 +10,6 @@ let profile = VersionProfile::resolve(&MinecraftVersion::parse("1.21.6").unwrap(
 assert!(profile.supports_feature("dialogs"));
 ```
 
-Unknown future versions use conservative fallback capabilities until confirmed.
+The latest known version is `26.2` (`data_fmt=107`, `res_fmt=88`). Known 26.x
+profiles currently include `26.1.x` and `26.2.x`; unknown future 26.x entries
+and future 1.x minors use conservative fallback capabilities until confirmed.

@@ -47,6 +47,9 @@ jobs:
       - name: Format check
         run: cargo fmt --all -- --check
 
+      - name: Generated API health
+        run: SAND_STRICT_CODEGEN=1 cargo test -p sand-core generated_api_health --lib
+
       - name: Clippy
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 

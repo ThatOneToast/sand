@@ -1,7 +1,7 @@
 //! Minecraft version compatibility layer.
 //!
 //! Provides a single source of truth for version parsing, pack format lookup,
-//! and feature flags across the 1.21.x and 26.x Java Edition series.
+//! and feature flags across supported 1.x and 26.x Java Edition versions.
 //!
 //! # Quick start
 //! ```
@@ -25,7 +25,7 @@ use thiserror::Error;
 pub enum VersionError {
     /// The version string could not be parsed.
     #[error(
-        "Invalid version '{0}': expected '1.21', '1.21.4', '26', '26.1', '26.1.2', or 'latest'"
+        "Invalid version '{0}': expected examples like '1.19.4', '1.20.6', '1.21.11', '26', '26.2', '26.2.1', or 'latest'"
     )]
     ParseError(String),
     /// The version was parsed but is not in the known table.
@@ -50,7 +50,7 @@ pub enum VersionError {
 /// let a = MinecraftVersion::parse("1.21.4").unwrap();
 /// let b = MinecraftVersion::parse("26.1").unwrap();
 /// let c = MinecraftVersion::parse("latest").unwrap();
-/// assert!(a.is_121_series());
+/// assert!(a.is_legacy_series());
 /// assert!(b.is_26_series());
 /// assert!(c.is_latest());
 /// ```
@@ -68,7 +68,8 @@ enum VersionKind {
 impl MinecraftVersion {
     /// Parse a version string into a `MinecraftVersion`.
     ///
-    /// Accepted formats: `"1.21"`, `"1.21.4"`, `"26"`, `"26.1"`, `"26.1.2"`, `"latest"`.
+    /// Accepted formats include `"1.19.4"`, `"1.20.6"`, `"1.21.11"`,
+    /// `"26"`, `"26.2"`, `"26.2.1"`, and `"latest"`.
     pub fn parse(s: &str) -> Result<Self, VersionError> {
         if s == "latest" {
             return Ok(Self {
@@ -107,8 +108,17 @@ impl MinecraftVersion {
     }
 
     /// Returns `true` for the legacy `1.x` version series (e.g. `1.21.4`).
-    pub fn is_121_series(&self) -> bool {
+    pub fn is_legacy_series(&self) -> bool {
         matches!(self.kind, VersionKind::Specific { major: 1, .. })
+    }
+
+    /// Historical alias for [`MinecraftVersion::is_legacy_series`].
+    ///
+    /// The name predates Sand's broader 1.18+ and 1.19+ compatibility table.
+    /// New code should prefer [`MinecraftVersion::is_legacy_series`] when it
+    /// means "any supported legacy 1.x release" instead of specifically 1.21.
+    pub fn is_121_series(&self) -> bool {
+        self.is_legacy_series()
     }
 
     /// Returns `true` for the new `26.x` calendar series.
@@ -718,6 +728,7 @@ mod tests {
     fn parse_three_part_legacy() {
         let v = MinecraftVersion::parse("1.21.4").unwrap();
         assert_eq!(v.components(), Some((1, 21, 4)));
+        assert!(v.is_legacy_series());
         assert!(v.is_121_series());
     }
 
@@ -759,6 +770,7 @@ mod tests {
         let v = MinecraftVersion::parse("latest").unwrap();
         assert!(v.is_latest());
         assert!(!v.is_26_series());
+        assert!(!v.is_legacy_series());
         assert!(!v.is_121_series());
     }
 
@@ -1192,5 +1204,52 @@ mod tests {
         assert_eq!(p.resource_pack_format, 88);
         assert_eq!(p.data_pack_format, 107);
         assert!(p.is_fallback);
+    }
+
+    #[test]
+    fn version_docs_track_latest_known_profile() {
+        use std::{fs, path::Path};
+
+        let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let workspace = manifest_dir
+            .parent()
+            .expect("sand-core should live under the workspace root");
+        let docs = [
+            workspace.join("docs/version-support.md"),
+            workspace.join("book/src/version-support.md"),
+            workspace.join("docs/research/datapack-parity-audit.md"),
+            workspace.join("sand-resourcepack/src/lib.rs"),
+        ];
+        let latest = VersionProfile::resolve(&MinecraftVersion::parse(LATEST_KNOWN).unwrap())
+            .expect("LATEST_KNOWN must resolve");
+        let latest_line = format!("latest known version is `{LATEST_KNOWN}`");
+        let data_fmt = format!("data_fmt={}", latest.data_pack_format);
+        let res_fmt = format!("res_fmt={}", latest.resource_pack_format);
+
+        for path in docs {
+            let text = fs::read_to_string(&path)
+                .unwrap_or_else(|err| panic!("failed to read {}: {err}", path.display()));
+            let lower_text = text.to_ascii_lowercase();
+            assert!(
+                lower_text.contains(&latest_line),
+                "{} must mention {latest_line}",
+                path.display()
+            );
+            assert!(
+                text.contains(&data_fmt),
+                "{} must mention {data_fmt}",
+                path.display()
+            );
+            assert!(
+                text.contains(&res_fmt),
+                "{} must mention {res_fmt}",
+                path.display()
+            );
+            assert!(
+                lower_text.contains("conservative") && lower_text.contains("fallback"),
+                "{} must explain conservative fallback behavior",
+                path.display()
+            );
+        }
     }
 }

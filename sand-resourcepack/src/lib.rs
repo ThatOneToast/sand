@@ -140,10 +140,12 @@
 //!
 //! # Version support
 //!
-//! Currently targets Minecraft 1.21.11 (resource pack format 61). The
-//! [`resource_pack_format_for`] function maps any supported version string to
-//! the correct format number, with 61 used as the fallback for unknown or
-//! future versions.
+//! Resource-pack metadata follows `sand_core::version::VersionProfile`. The
+//! latest known version is `26.2` (`data_fmt=107`, `res_fmt=88`), and
+//! [`resource_pack_format_for`] maps supported version strings through the same
+//! version table. Unknown or future versions use a conservative fallback profile
+//! with the latest known pack formats so generated packs remain structurally
+//! valid while feature flags stay disabled until verified.
 
 pub mod component;
 pub mod components;

@@ -145,4 +145,34 @@ mod tests {
         assert!(matches!(current, Condition::Score { .. }));
         assert!(matches!(last, Condition::Score { .. }));
     }
+
+    #[cfg(feature = "systems-player-data")]
+    #[test]
+    fn prelude_exports_manual_player_schema_contract() {
+        static MANA: ScoreVar<i32> = ScoreVar::new("mana");
+        static HAS_WAND: Flag = Flag::new("has_wand");
+        static CAST_COOLDOWN: Cooldown = Cooldown::new("cast_cd", Ticks::seconds(3));
+
+        let schema = PlayerSchema::new("magic")
+            .score(&MANA, 100)
+            .flag(&HAS_WAND, false)
+            .cooldown(&CAST_COOLDOWN);
+
+        assert_eq!(schema.scoreboard_field_count(), 3);
+        assert_eq!(
+            schema.define_all(),
+            vec![
+                "scoreboard objectives add mana dummy",
+                "scoreboard objectives add has_wand dummy",
+                "scoreboard objectives add cast_cd dummy",
+            ]
+        );
+        assert_eq!(
+            schema.init_player("@s"),
+            vec![
+                "execute unless score @s mana matches -2147483648.. run scoreboard players set @s mana 100",
+                "execute unless score @s has_wand matches -2147483648.. run scoreboard players set @s has_wand 0",
+            ]
+        );
+    }
 }

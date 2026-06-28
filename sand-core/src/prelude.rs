@@ -25,8 +25,11 @@ pub use crate::Damage;
 #[allow(deprecated)]
 pub use crate::cmd::{
     Actionbar, Bossbar, BossbarColor, BossbarStyle, DamageAmount, DamageBuilder, DamageKind,
-    EntityTargets, Execute, Inventory, InventorySlot, PlayerTargets, Selector, SingleEntity,
-    SinglePlayer, SlotPattern, Title,
+    EntityTargets, Execute, Inventory, InventorySlot, Particle, ParticleSpread, PlayerTargets,
+    Selector, SingleEntity, SinglePlayer, SlotPattern, SoundSource, Title,
+};
+pub use crate::vfx::{
+    IntoParticleStep, IntoSoundStep, IntoVfxSelector, Vfx, VfxParticle, VfxSound, VfxStep,
 };
 
 // ── State variables ───────────────────────────────────────────────────────────
@@ -140,6 +143,22 @@ mod tests {
     #[test]
     fn prelude_exports_define_registered_state() {
         let _drain: fn() -> Vec<String> = define_registered_state;
+    }
+
+    #[test]
+    fn prelude_exports_vfx_types() {
+        let commands = Vfx::new("prelude")
+            .particle(VfxParticle::happy_villager().count(2))
+            .sound(VfxSound::new("minecraft:block.note_block.bell").source(SoundSource::Player))
+            .play_at(Selector::self_());
+
+        assert_eq!(
+            commands,
+            vec![
+                "execute at @s run particle minecraft:happy_villager ~0 ~0 ~0 0 0 0 0 2 force",
+                "execute at @s run playsound minecraft:block.note_block.bell player @s ~ ~ ~ 1 1",
+            ]
+        );
     }
 
     #[cfg(feature = "systems-damage")]

@@ -272,26 +272,30 @@ mod tests {
 
     #[test]
     fn generated_api_health_has_representative_command_builders() {
-        assert_eq!(super::say("health check").to_string(), "say health check");
+        assert_eq!(
+            super::_generated::say("health check").to_string(),
+            "say health check"
+        );
 
         assert!(
-            super::tellraw(super::Selector::self_(), super::Text::new("healthy"))
+            super::_generated::tellraw(super::Selector::self_(), super::Text::new("healthy"))
                 .to_string()
                 .starts_with("tellraw @s ")
         );
 
         assert_eq!(
-            super::give(super::Selector::self_(), "minecraft:diamond").to_string(),
+            super::_generated::give(super::Selector::self_(), "minecraft:diamond").to_string(),
             "give @s minecraft:diamond"
         );
 
         assert_eq!(
-            super::function(crate::ResourceLocation::new("example", "start").unwrap()).to_string(),
+            super::_generated::function(crate::ResourceLocation::new("example", "start").unwrap())
+                .to_string(),
             "function example:start"
         );
 
         assert_eq!(
-            super::damage(super::SingleEntity::self_(), 4.0).to_string(),
+            super::_generated::damage(super::SingleEntity::self_(), 4.0).to_string(),
             "damage @s 4"
         );
     }

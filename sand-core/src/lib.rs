@@ -69,6 +69,7 @@ pub mod resource_ref;
 pub mod state;
 pub mod systems;
 pub mod version;
+pub mod vfx;
 
 // ── Re-export the sand-components crate itself ────────────────────────────────
 
@@ -198,6 +199,9 @@ pub use state::{
 pub use state::{GameState, GameStateRef, TypedGameState};
 pub use state::{
     drain_load_commands, drain_tick_commands, register_load_objective, register_tick_handler,
+};
+pub use vfx::{
+    IntoParticleStep, IntoSoundStep, IntoVfxSelector, Vfx, VfxParticle, VfxSound, VfxStep,
 };
 
 // ── McFunction (sand-core-specific component) ─────────────────────────────────

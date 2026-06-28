@@ -41,3 +41,11 @@ fn public_api_tier_compile_test() {
     let t = trybuild::TestCases::new();
     t.pass("tests/cases/pass_public_api_tiers.rs");
 }
+
+#[test]
+fn recipe_fixture_compile_tests() {
+    let t = trybuild::TestCases::new();
+    t.pass("tests/cases/pass_recipe_basic_state.rs");
+    t.pass("tests/cases/pass_recipe_custom_item.rs");
+    t.pass("tests/cases/pass_recipe_advancement_event.rs");
+}

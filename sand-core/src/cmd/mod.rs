@@ -248,6 +248,54 @@ pub use _generated::*;
 mod tests {
     use crate::resource_ref::DialogRef;
 
+    const GENERATED_COMMANDS: &str = include_str!(concat!(env!("OUT_DIR"), "/commands.rs"));
+    const GENERATED_REGISTRIES: &str = include_str!(concat!(env!("OUT_DIR"), "/registries.rs"));
+    const GENERATED_BLOCK_STATES: &str = include_str!(concat!(env!("OUT_DIR"), "/block_states.rs"));
+
+    #[test]
+    fn generated_api_health_files_are_not_placeholders() {
+        for (name, contents) in [
+            ("commands.rs", GENERATED_COMMANDS),
+            ("registries.rs", GENERATED_REGISTRIES),
+            ("block_states.rs", GENERATED_BLOCK_STATES),
+        ] {
+            assert!(
+                !contents.trim().is_empty(),
+                "{name} should contain generated Rust API"
+            );
+            assert!(
+                !contents.contains("Generation failed"),
+                "{name} contains the non-strict codegen fallback placeholder"
+            );
+        }
+    }
+
+    #[test]
+    fn generated_api_health_has_representative_command_builders() {
+        assert_eq!(super::say("health check").to_string(), "say health check");
+
+        assert!(
+            super::tellraw(super::Selector::self_(), super::Text::new("healthy"))
+                .to_string()
+                .starts_with("tellraw @s ")
+        );
+
+        assert_eq!(
+            super::give(super::Selector::self_(), "minecraft:diamond").to_string(),
+            "give @s minecraft:diamond"
+        );
+
+        assert_eq!(
+            super::function(crate::ResourceLocation::new("example", "start").unwrap()).to_string(),
+            "function example:start"
+        );
+
+        assert_eq!(
+            super::damage(super::SingleEntity::self_(), 4.0).to_string(),
+            "damage @s 4"
+        );
+    }
+
     #[test]
     fn raw_escape_hatch_is_explicit() {
         assert_eq!(

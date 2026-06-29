@@ -50,6 +50,7 @@ thiserror = "2"
 inventory = "0.3"
 sand-commands = { path = "../sand-commands" }
 sand-components = { path = "../sand-components" }
+sand-version = { path = "../sand-version" }
 
 [build-dependencies]
 sand-build = { path = "../sand-build" }

@@ -15,3 +15,6 @@ profiles currently include `26.1`, `26.1.2`, and `26.2`; the two-part forms are
 convenience inputs for verified table entries, not broad "any patch" ranges.
 Unknown future 26.x entries and future 1.x minors use conservative fallback
 capabilities until confirmed.
+
+For `mc_version = "latest"`, Sand uses Mojang's manifest when it can be
+refreshed and falls back to the bundled latest-known version when offline.

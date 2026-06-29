@@ -27,6 +27,51 @@ pub fn tick_state() {
 
 State wrappers also produce typed conditions for execute chains.
 
+## Enum-backed gameplay states
+
+Use `GameState<S>` when a scoreboard value represents a finite gameplay phase
+instead of a free-form number:
+
+```rust,ignore
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum BossPhase {
+    Idle = 0,
+    Fighting = 1,
+    Enraged = 2,
+}
+
+impl TypedGameState for BossPhase {
+    fn to_score(self) -> i32 {
+        self as i32
+    }
+
+    fn from_score(score: i32) -> Option<Self> {
+        match score {
+            0 => Some(Self::Idle),
+            1 => Some(Self::Fighting),
+            2 => Some(Self::Enraged),
+            _ => None,
+        }
+    }
+}
+
+static PHASE: GameState<BossPhase> =
+    GameState::with_default_score("boss_phase", 0);
+
+PHASE.define();
+PHASE.of("@s").set(BossPhase::Enraged);
+PHASE.of("@s").reset();
+
+when(PHASE.of("@s").is(BossPhase::Fighting)).then_all([
+    cmd::tellraw(Selector::self_(), Text::new("Boss is fighting")),
+]);
+```
+
+`with_default_score` makes `reset()` write the declared default score. A state
+created with `GameState::new` has no default, so `reset()` clears the scoreboard
+entry. Use explicit discriminants for persistent state; reordering or renumbering
+variants changes the meaning of existing scoreboard values.
+
 ## Score comparisons and integer math
 
 Score entries can be compared and combined without raw command strings:

@@ -35,9 +35,9 @@ pub use crate::vfx::{
 // ── State variables ───────────────────────────────────────────────────────────
 
 pub use crate::state::{
-    BlockNbt, Cooldown, EntityNbt, Flag, FlagRef, NbtLocation, NbtPath, ScoreRef, ScoreVar,
-    SnbtCompound, SnbtValue, StorageField, StorageLocation, StorageSchema, StorageVar, Ticks,
-    Timer,
+    BlockNbt, Cooldown, EntityNbt, Flag, FlagRef, GameState, GameStateRef, NbtLocation, NbtPath,
+    ScoreRef, ScoreVar, SnbtCompound, SnbtValue, StorageField, StorageLocation, StorageSchema,
+    StorageVar, Ticks, Timer, TypedGameState,
 };
 
 // ── Lifecycle registry ────────────────────────────────────────────────────────
@@ -143,6 +143,32 @@ mod tests {
     #[test]
     fn prelude_exports_define_registered_state() {
         let _drain: fn() -> Vec<String> = define_registered_state;
+    }
+
+    #[test]
+    fn prelude_exports_typed_game_state() {
+        #[derive(Clone, Copy, PartialEq, Eq)]
+        enum Phase {
+            Idle = 0,
+        }
+
+        impl TypedGameState for Phase {
+            fn to_score(self) -> i32 {
+                self as i32
+            }
+
+            fn from_score(score: i32) -> Option<Self> {
+                match score {
+                    0 => Some(Self::Idle),
+                    _ => None,
+                }
+            }
+        }
+
+        static PHASE: GameState<Phase> = GameState::with_default_score("phase", 0);
+
+        let _state_ref: GameStateRef<'_, Phase> = PHASE.of("@s");
+        assert_eq!(PHASE.of("@s").reset(), "scoreboard players set @s phase 0");
     }
 
     #[test]

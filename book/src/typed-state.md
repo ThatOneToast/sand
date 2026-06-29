@@ -56,7 +56,7 @@ impl TypedGameState for BossPhase {
 }
 
 static PHASE: GameState<BossPhase> =
-    GameState::with_default("boss_phase", BossPhase::Idle);
+    GameState::with_default_score("boss_phase", 0);
 
 PHASE.define();
 PHASE.of("@s").set(BossPhase::Enraged);
@@ -67,7 +67,7 @@ when(PHASE.of("@s").is(BossPhase::Fighting)).then_all([
 ]);
 ```
 
-`with_default` makes `reset()` write the declared default variant. A state
+`with_default_score` makes `reset()` write the declared default score. A state
 created with `GameState::new` has no default, so `reset()` clears the scoreboard
 entry. Use explicit discriminants for persistent state; reordering or renumbering
 variants changes the meaning of existing scoreboard values.

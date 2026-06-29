@@ -100,16 +100,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "arcane_pack"
-version = "0.1.0"
-dependencies = [
- "sand-build",
- "sand-core",
- "sand-macros",
- "serde_json",
-]
-
-[[package]]
 name = "atomic-waker"
 version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1849,6 +1839,7 @@ dependencies = [
  "hex",
  "indicatif",
  "reqwest",
+ "sand-version",
  "serde",
  "serde_json",
  "sha1",
@@ -1882,6 +1873,7 @@ dependencies = [
  "sand-build",
  "sand-commands",
  "sand-components",
+ "sand-version",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -1922,6 +1914,10 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
 ]
+
+[[package]]
+name = "sand-version"
+version = "0.1.0"
 
 [[package]]
 name = "schannel"

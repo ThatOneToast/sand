@@ -1,14 +1,16 @@
 [package]
 name = "arcane_pack"
 description = "Arcane Pack — a complete dogfood datapack for Sand"
-version.workspace = true
-edition.workspace = true
-license.workspace = true
-repository.workspace = true
-homepage.workspace = true
-authors.workspace = true
-rust-version.workspace = true
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/ThatOneToast/sand"
+homepage = "https://github.com/ThatOneToast/sand"
+authors = ["Toast <ThatOneToast@proton.me>"]
+rust-version = "1.96.0"
 publish = false
+
+[workspace]
 
 [[bin]]
 name = "sand_export"

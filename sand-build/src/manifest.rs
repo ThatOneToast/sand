@@ -75,6 +75,15 @@ impl VersionManifest {
         fetch_or_cached_impl(version_str, policy, &cache_path, fetch_and_cache)
     }
 
+    /// Fetch Mojang's version manifest and update the cache.
+    ///
+    /// Unlike [`VersionManifest::fetch_or_cached`], this does not return a
+    /// cached manifest when the network refresh fails.
+    pub fn fetch_fresh() -> Result<Self> {
+        let cache_path = cache_dir()?.join("version_manifest_v2.json");
+        fetch_and_cache(&cache_path)
+    }
+
     /// Resolve a version string to a `VersionEntry`.
     ///
     /// Accepts `"latest"` (maps to latest release) or an explicit version id

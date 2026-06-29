@@ -26,6 +26,56 @@ pub fn tick_state() {
 }
 ```
 
+Enum-backed gameplay states use explicit scoreboard values while keeping callers
+on named Rust variants:
+
+```rust
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum BossPhase {
+    Idle = 0,
+    Fighting = 1,
+    Enraged = 2,
+}
+
+impl TypedGameState for BossPhase {
+    fn to_score(self) -> i32 {
+        self as i32
+    }
+
+    fn from_score(score: i32) -> Option<Self> {
+        match score {
+            0 => Some(Self::Idle),
+            1 => Some(Self::Fighting),
+            2 => Some(Self::Enraged),
+            _ => None,
+        }
+    }
+}
+
+static PHASE: GameState<BossPhase> =
+    GameState::with_default("boss_phase", BossPhase::Idle);
+
+#[component(Load)]
+pub fn load_phase() {
+    PHASE.define();
+}
+
+#[function]
+pub fn enrage_boss() {
+    PHASE.of("@s").set(BossPhase::Enraged);
+}
+
+#[function]
+pub fn reset_phase() {
+    PHASE.of("@s").reset();
+}
+```
+
+Use explicit discriminants for persistent player/world state. Reordering or
+renumbering variants changes the meaning of stored scoreboard values. `reset()`
+restores the configured default for `GameState::with_default`; `clear()` removes
+the score entry when you need Minecraft's missing-score behavior.
+
 For structured state, prefer `StorageSchema<T>` and typed fields:
 
 ```rust

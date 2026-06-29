@@ -23,7 +23,7 @@
 //!     }
 //! }
 //!
-//! static PHASE: GameState<BossPhase> = GameState::new("boss_phase");
+//! static PHASE: GameState<BossPhase> = GameState::with_default("boss_phase", BossPhase::Idle);
 //!
 //! // In your load function:
 //! let load_cmd = PHASE.define(); // "scoreboard objectives add boss_phase dummy"
@@ -35,6 +35,10 @@
 //! // Check state:
 //! let cond = PHASE.of("@s").is(BossPhase::Fighting);
 //! // Condition: if score @s boss_phase matches 1
+//!
+//! // Reset to the configured default:
+//! let reset_cmd = PHASE.of("@s").reset();
+//! // "scoreboard players set @s boss_phase 0"
 //!
 //! // Negative check:
 //! let not_cond = PHASE.of("@s").is_not(BossPhase::Idle);
@@ -91,6 +95,7 @@ pub trait TypedGameState: Copy + Eq + 'static {
 /// struct does not actually store or move a value of type `S`.
 pub struct GameState<S: TypedGameState> {
     name: &'static str,
+    default: Option<S>,
     _marker: PhantomData<fn() -> S>,
 }
 
@@ -102,6 +107,25 @@ impl<S: TypedGameState> GameState<S> {
     pub const fn new(name: &'static str) -> Self {
         Self {
             name,
+            default: None,
+            _marker: PhantomData,
+        }
+    }
+
+    /// Declare a new typed state variable with a reset/default variant.
+    ///
+    /// [`GameStateRef::reset`] restores this variant instead of clearing the
+    /// scoreboard entry. This keeps user-facing code free of magic scoreboard
+    /// integers while making the stored default explicit at the declaration.
+    ///
+    /// ```rust,ignore
+    /// static PHASE: GameState<BossPhase> =
+    ///     GameState::with_default("boss_phase", BossPhase::Idle);
+    /// ```
+    pub const fn with_default(name: &'static str, default: S) -> Self {
+        Self {
+            name,
+            default: Some(default),
             _marker: PhantomData,
         }
     }
@@ -111,6 +135,11 @@ impl<S: TypedGameState> GameState<S> {
     /// This is either `name` directly (≤16 chars) or a stable FNV-1a hash (>16 chars).
     pub fn objective_name(&self) -> String {
         objective_name(self.name)
+    }
+
+    /// Return the configured default variant, if this state has one.
+    pub fn default_state(&self) -> Option<S> {
+        self.default
     }
 
     /// `scoreboard objectives add <obj> dummy` — register the objective.
@@ -161,6 +190,27 @@ impl<'a, S: TypedGameState> GameStateRef<'a, S> {
             self.selector,
             self.state.objective_name(),
             variant.to_score()
+        )
+    }
+
+    /// Reset this selector's state.
+    ///
+    /// For states declared with [`GameState::with_default`], this writes the
+    /// configured default variant. For states declared with [`GameState::new`],
+    /// this clears the scoreboard entry with `scoreboard players reset`.
+    pub fn reset(&self) -> String {
+        match self.state.default_state() {
+            Some(default) => self.set(default),
+            None => self.clear(),
+        }
+    }
+
+    /// Clear this selector's scoreboard entry regardless of any default state.
+    pub fn clear(&self) -> String {
+        format!(
+            "scoreboard players reset {} {}",
+            self.selector,
+            self.state.objective_name()
         )
     }
 
@@ -223,6 +273,23 @@ mod tests {
     fn set_enraged() {
         let cmd = PHASE.of("@s").set(BossPhase::Enraged);
         assert_eq!(cmd, "scoreboard players set @s boss_phase 2");
+    }
+
+    #[test]
+    fn reset_without_default_clears_score() {
+        let cmd = PHASE.of("@s").reset();
+        assert_eq!(cmd, "scoreboard players reset @s boss_phase");
+    }
+
+    #[test]
+    fn clear_always_removes_score() {
+        let cmd = PHASE.of("@s").clear();
+        assert_eq!(cmd, "scoreboard players reset @s boss_phase");
+    }
+
+    #[test]
+    fn default_state_is_none_for_new_state() {
+        assert_eq!(PHASE.default_state(), None);
     }
 
     #[test]
@@ -306,6 +373,8 @@ mod tests {
     }
 
     static MENU: GameState<MenuState> = GameState::new("menu_state");
+    static MENU_WITH_DEFAULT: GameState<MenuState> =
+        GameState::with_default("menu_default", MenuState::MainMenu);
 
     #[test]
     fn menu_state_define() {
@@ -316,6 +385,23 @@ mod tests {
     fn menu_state_set_playing() {
         let cmd = MENU.of("@s").set(MenuState::Playing);
         assert_eq!(cmd, "scoreboard players set @s menu_state 1");
+    }
+
+    #[test]
+    fn with_default_records_default_variant() {
+        assert_eq!(MENU_WITH_DEFAULT.default_state(), Some(MenuState::MainMenu));
+    }
+
+    #[test]
+    fn reset_with_default_sets_default_variant() {
+        let cmd = MENU_WITH_DEFAULT.of("@s").reset();
+        assert_eq!(cmd, "scoreboard players set @s menu_default 0");
+    }
+
+    #[test]
+    fn clear_with_default_still_removes_score() {
+        let cmd = MENU_WITH_DEFAULT.of("@s").clear();
+        assert_eq!(cmd, "scoreboard players reset @s menu_default");
     }
 
     #[test]

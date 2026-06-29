@@ -27,7 +27,7 @@ impl TypedGameState for Phase {
     }
 }
 
-static PHASE: GameState<Phase> = GameState::with_default("phase", Phase::Idle);
+static PHASE: GameState<Phase> = GameState::with_default_score("phase", 0);
 
 PHASE.of("@s").set(Phase::Casting);
 PHASE.of("@s").reset(); // writes Idle's score
@@ -35,8 +35,8 @@ PHASE.of("@s").reset(); // writes Idle's score
 
 Explicit discriminants are the storage format. Treat renumbering variants as a
 state migration for live datapacks. `GameState::new` has no default, so
-`reset()` clears the score entry; `GameState::with_default` resets to the named
-variant.
+`reset()` clears the score entry; `GameState::with_default_score` resets to the
+declared default score.
 
 Score helpers cover common integer formulas without raw scoreboard strings:
 

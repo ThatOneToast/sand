@@ -165,7 +165,7 @@ mod tests {
             }
         }
 
-        static PHASE: GameState<Phase> = GameState::with_default("phase", Phase::Idle);
+        static PHASE: GameState<Phase> = GameState::with_default_score("phase", 0);
 
         let _state_ref: GameStateRef<'_, Phase> = PHASE.of("@s");
         assert_eq!(PHASE.of("@s").reset(), "scoreboard players set @s phase 0");

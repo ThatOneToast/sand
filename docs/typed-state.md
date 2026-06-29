@@ -53,7 +53,7 @@ impl TypedGameState for BossPhase {
 }
 
 static PHASE: GameState<BossPhase> =
-    GameState::with_default("boss_phase", BossPhase::Idle);
+    GameState::with_default_score("boss_phase", 0);
 
 #[component(Load)]
 pub fn load_phase() {
@@ -72,8 +72,9 @@ pub fn reset_phase() {
 ```
 
 Use explicit discriminants for persistent player/world state. Reordering or
-renumbering variants changes the meaning of stored scoreboard values. `reset()`
-restores the configured default for `GameState::with_default`; `clear()` removes
+renumbering variants changes the meaning of stored scoreboard values.
+`with_default_score` stores the default as the enum's scoreboard value so
+`reset()` can restore it without storing the enum type itself. `clear()` removes
 the score entry when you need Minecraft's missing-score behavior.
 
 For structured state, prefer `StorageSchema<T>` and typed fields:

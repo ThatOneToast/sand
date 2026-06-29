@@ -387,6 +387,8 @@ pub fn export_components_json(namespace: &str) -> String {
                 if let Some(trigger) = make_trigger() {
                     // Advancement-backed custom (SandEvent) event.
                     // Same entry/body split as the typed Advancement arm.
+                    validate_custom_sand_event_trigger(desc.path, &trigger);
+
                     let advancement_id = desc
                         .id_override
                         .map(|s| s.to_string())
@@ -1155,6 +1157,12 @@ fn sanitize_armor_tag(s: &str) -> String {
     raw.trim_matches('_').to_string()
 }
 
+fn validate_custom_sand_event_trigger(handler_path: &str, trigger: &crate::AdvancementTrigger) {
+    trigger.validate_for_target().unwrap_or_else(|diagnostic| {
+        panic!("cannot export custom SandEvent handler `{handler_path}`: {diagnostic}")
+    });
+}
+
 fn build_item_cond(
     slot: crate::function::ArmorSlot,
     item_id: Option<&str>,
@@ -1173,6 +1181,7 @@ mod tests {
     use serde_json::json;
 
     use super::{player_state_predicate_json, sand_player_state_predicate};
+    use crate::AdvancementTrigger;
     use crate::events::{PlayerSwimmingEvent, SandEvent};
 
     #[test]
@@ -1216,6 +1225,41 @@ mod tests {
         assert_eq!(
             sand_player_state_predicate("predicate __sand_local:__sand/player_on_fire"),
             Some(("__sand/player_on_fire", "is_on_fire"))
+        );
+    }
+
+    #[test]
+    fn custom_sand_event_advancement_trigger_validation_accepts_supported_trigger() {
+        super::validate_custom_sand_event_trigger("legacy_valid_event", &AdvancementTrigger::Tick);
+    }
+
+    #[test]
+    fn custom_sand_event_advancement_trigger_validation_rejects_invalid_trigger() {
+        let panic = std::panic::catch_unwind(|| {
+            super::validate_custom_sand_event_trigger(
+                "legacy_level_up",
+                &AdvancementTrigger::LeveledUp { level: None },
+            );
+        })
+        .expect_err("invalid legacy SandEvent advancement trigger should panic during export");
+
+        let message = panic
+            .downcast_ref::<String>()
+            .map(String::as_str)
+            .or_else(|| panic.downcast_ref::<&str>().copied())
+            .unwrap_or("<non-string panic>");
+
+        assert!(
+            message.contains("cannot export custom SandEvent handler `legacy_level_up`"),
+            "panic should name the legacy handler path, got: {message}"
+        );
+        assert!(
+            message.contains("minecraft:leveled_up"),
+            "panic should include the invalid trigger ID, got: {message}"
+        );
+        assert!(
+            message.contains("experience query"),
+            "panic should include the migration diagnostic, got: {message}"
         );
     }
 

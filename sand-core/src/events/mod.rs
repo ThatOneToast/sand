@@ -29,7 +29,7 @@
 //!
 //! | Type | When it fires | Required filters |
 //! |---|---|---|
-//! | [`OnJoinEvent`] | First tick each join session | — |
+//! | [`OnJoinEvent`] | First tick after load, or new player mid-session | — |
 //! | [`FirstJoinEvent`] | Very first join ever | — |
 //! | [`OnDeathEvent`] | Any death (mob, fall, void, `/kill`, …) | — |
 //! | [`OnRespawnEvent`] | Tick after respawning from death | — |
@@ -200,12 +200,18 @@ pub trait SandEvent {
 
 // ── Built-in event marker types ───────────────────────────────────────────────
 
-/// Fires on the first tick each time a player joins the server.
+/// Fires on the first tick after a server start, `/reload`, or when a new
+/// player joins mid-session.
 ///
 /// The preferred short name is [`sand_core::event::vanilla::OnJoin`](crate::event::vanilla::OnJoin).
 ///
-/// Implemented as an `Advancement + Tick` trigger that is immediately
-/// revoked — so it fires **once per join session**, not every tick.
+/// Implemented as a `JoinTick` scoreboard check: the `__sand_join` scoreboard
+/// objective is created and reset on `minecraft:load`; players whose score is
+/// not 1 trigger all handlers, after which their score is set to 1.
+///
+/// **Vanilla limitation:** mid-session disconnect → reconnect without a
+/// `/reload` does **not** re-fire because the player's score persists in
+/// `scoreboard.dat`. True per-login detection requires a mod or plugin.
 ///
 /// # Example
 ///

@@ -40,3 +40,9 @@ The guide owns long tutorials. Its current manual pages cover [inventory](../boo
 - [Testing](testing.md)
 - [Escape Hatches](escape-hatches.md)
 - [Examples](examples.md)
+
+## Agent-facing guides
+
+- [Typed state agent guide](agents/state-guide.md) — concise patterns for
+  `GameState<S>`, transitions, enter/exit hooks, per-state tick, lifecycle
+  registration, and the transition backend. Pairs with [Typed State](typed-state.md).

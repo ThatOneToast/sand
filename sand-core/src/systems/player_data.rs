@@ -6,10 +6,18 @@
 //! schemas from [`SandStorage`] can also be attached for unified introspection
 //! and documentation.
 //!
-//! This module does **not** auto-register player data schemas or generate
-//! lifecycle wiring today.  Call [`PlayerSchema::define_all`] from your load
-//! function and [`PlayerSchema::init_player`] from a join or first-join handler.
-//! Automatic export/lifecycle wiring is future work tracked by #47 and #68.
+//! # Phase 1 scope
+//!
+//! This is a **builder-only API**. It groups field definitions and generates
+//! setup commands, but does **not** auto-manage lifecycle wiring.
+//!
+//! You must:
+//! - Call [`PlayerSchema::define_all`] from your load function to define scoreboard objectives.
+//! - Call [`PlayerSchema::init_player`] from a join or first-join handler to set player defaults.
+//! - Wire timer/cooldown ticks and lifecycle manually using the underlying [`Timer`] and
+//!   [`Cooldown`] APIs (see their docs for tick management).
+//!
+//! Automatic export, lifecycle wiring, and higher-level field accessors are Phase 2+ work.
 //!
 //! # Naming and namespacing
 //!
@@ -211,6 +219,15 @@ impl PlayerSchema {
     }
 
     /// Register a [`Timer`] objective (define only; no per-player default).
+    ///
+    /// This method **only** defines/registers the timer's scoreboard objective.
+    /// It does **not** automatically start ticks or wire lifecycle events.
+    ///
+    /// To actually use the timer in gameplay, you must separately:
+    /// - Call the timer's tick methods during server ticks (e.g., in a `#[tick]` function).
+    /// - Manage timer lifecycle wiring (e.g., starting timers in events).
+    ///
+    /// See [`Timer`] for tick/lifecycle APIs.
     pub fn timer(mut self, timer: &Timer) -> Self {
         self.fields.push(FieldInit::TimerObj {
             obj: timer.objective_name(),
@@ -219,6 +236,15 @@ impl PlayerSchema {
     }
 
     /// Register a `Cooldown` objective (define only; no per-player default).
+    ///
+    /// This method **only** defines/registers the cooldown's scoreboard objective.
+    /// It does **not** automatically manage cooldown state or tick them down.
+    ///
+    /// To actually use the cooldown in gameplay, you must separately:
+    /// - Call the cooldown's tick methods during server ticks (e.g., in a `#[tick]` function).
+    /// - Manage cooldown lifecycle wiring (e.g., starting cooldowns on ability use).
+    ///
+    /// See [`Cooldown`] for tick/lifecycle APIs.
     pub fn cooldown(mut self, cd: &Cooldown) -> Self {
         self.fields.push(FieldInit::CooldownObj {
             obj: cd.objective_name(),

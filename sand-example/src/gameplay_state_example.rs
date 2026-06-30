@@ -7,7 +7,9 @@
 //! - explicit scoreboard discriminants and `with_default_score`
 //! - lifecycle-managed load setup via `.register()` + `define_registered_state()`
 //! - transitions (current state → next state) using typed conditions
-//! - "enter" and "exit" hooks built from `is_not(...).then_one(...)` pairing
+//! - "enter" hooks built from `is_not(...).then_one(...)`
+//! - "exit" hooks built from guarding the state being left before writing the
+//!   next state
 //! - per-state tick logic gated by `TypedExecute::as_players().when(...).run(...)`
 //! - tick-cost guidance (constant vs. `when`-guarded execute chains)
 //!
@@ -15,12 +17,13 @@
 //!
 //! 1. **Load** registers the `boss_phase` objective through the lifecycle
 //!    registry and emits the deterministic `scoreboard objectives add` line.
-//! 2. **Tick** runs once per game tick. Each
-//!    `TypedExecute::as_players().when(PHASE.is(V)).run(body)` lowers to a
+//! 2. **Tick** runs once per game tick. `#[component(Tick)]` starts in server
+//!    context, so `boss_tick` first establishes `execute as @a`. Each
+//!    `TypedExecute::as_players().when(PHASE.is(V)).run(body)` then lowers to a
 //!    single `execute as @a if score @s boss_phase matches <n> run <body>`
 //!    command, so the total per-tick cost is one execute per registered state
 //!    plus the body of the matching branch.
-//! 3. **transitions** are ordinary `#[function]` entries that read the
+//! 3. **Transitions** are ordinary `#[function]` entries that read the
 //!    current state with `PHASE.of("@s").is(...)` and write the new state
 //!    with `PHASE.of("@s").set(...)`. The `phase/enter_*` and `phase/exit_*`
 //!    helpers show the recommended way to express the "fired only on the tick
@@ -61,7 +64,7 @@
 //!    run <body>` line per state per tick. This is what the `boss_tick`
 //!    body uses. Cost is `O(N)` per player per tick, where `N` is the
 //!    number of *distinct* phase branches.
-//! 3. **Per-state *with hooks***: add one extra `unless` clause per state to
+//! 3. **Per-state *with hooks***: add one extra guarded execute per state to
 //!    detect a transition. Cost is `O(2N)` per player per tick. Only do this
 //!    for the states that have meaningful enter/exit logic.
 //! 4. **Avoid `is(...)` in tick when a `when/then_one` body would do**.
@@ -127,7 +130,8 @@ pub fn boss_load() {
 
 // -- Per-state tick -------------------------------------------------------
 
-/// Per-tick phase work. Each
+/// Per-tick phase work. `#[component(Tick)]` runs in server context, so
+/// player-scoped `@s` checks must be wrapped in `execute as @a` first. Each
 /// `TypedExecute::as_players().when(...).run(body)` lowers to a single
 /// `execute as @a if score @s boss_phase matches <n> run <body>` line, so
 /// the total per-tick cost is *one execute per registered state* plus the
@@ -218,15 +222,15 @@ pub fn on_enter_fighting() {
     PHASE.of("@s").set(BossPhase::Fighting);
 }
 
-/// Exit hook for the Enraged phase. Match the state being left before
-/// writing the new state so invalid calls stay silent.
+/// Exit hook for the Enraged phase. Guard on the state being left before
+/// running the exit body and writing the next state.
 #[function("boss_phases:phase/on_exit_enraged")]
 pub fn on_exit_enraged() {
     when(PHASE.of("@s").is(BossPhase::Enraged)).then_one(cmd::tellraw(
         Selector::self_(),
         Text::new("Boss calms down.").green(),
     ));
-    PHASE.of("@s").set(BossPhase::Fighting);
+    when(PHASE.of("@s").is(BossPhase::Enraged)).then_one(PHASE.of("@s").set(BossPhase::Fighting));
 }
 
 // -- Tests ----------------------------------------------------------------
@@ -317,7 +321,7 @@ mod tests {
     }
 
     #[test]
-    fn exit_hook_matches_enraged_before_setting_fighting() {
+    fn exit_hook_guards_the_state_being_left() {
         let _guard = dyn_fn_test_lock();
         let _ = drain_dyn_fns();
         let cmds = on_exit_enraged();
@@ -327,12 +331,12 @@ mod tests {
             .expect("expected tellraw body in exit hook");
         assert!(
             body.contains("if score @s boss_phase matches 2"),
-            "expected exit hook to use `if score … matches 2`, got: {body}"
+            "expected exit hook to guard on Enraged, got: {body}"
         );
         assert!(
             cmds.iter()
-                .any(|c| c == "scoreboard players set @s boss_phase 1"),
-            "expected exit hook to transition to Fighting, got {cmds:?}"
+                .any(|c| c == "execute if score @s boss_phase matches 2 run scoreboard players set @s boss_phase 1"),
+            "expected exit hook to guard the transition to Fighting, got {cmds:?}"
         );
     }
 

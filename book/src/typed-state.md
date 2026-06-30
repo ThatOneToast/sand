@@ -129,21 +129,36 @@ The `when(PHASE.is_not(Fighting))` clause lowers to
 `execute unless score @s boss_phase matches 1 run …`, so the body fires only
 when the player was *not* in Fighting the previous tick. The trailing
 `set(Fighting)` then commits the transition so subsequent ticks see the new
-state and the hook no longer fires. Exit hooks flip the guard around: match
-the state you are leaving with `is(previous_state)`, run the exit body, then
-write the next state.
+state and the hook no longer fires.
 
-The cost is one extra `execute unless` per state per tick — only add it to
+Exit hooks guard on the state being left so the exit body and the transition
+only run while the player is still in that state:
+
+```rust,ignore
+#[function("example:phase/on_exit_enraged")]
+pub fn on_exit_enraged() {
+    when(PHASE.of("@s").is(BossPhase::Enraged))
+        .then_one(cmd::tellraw(
+            Selector::self_(),
+            Text::new("Boss calms down.").green(),
+        ));
+    when(PHASE.of("@s").is(BossPhase::Enraged))
+        .then_one(PHASE.of("@s").set(BossPhase::Fighting));
+}
+```
+
+The cost is one extra guarded execute per state per tick — only add it to
 states that have meaningful enter/exit logic. Do not add it to every state;
 see the tick-cost guidance below.
 
 ## Per-state tick
 
 Run different logic in each state by gating the body with
-`TypedExecute::as_players().when(PHASE.is(V)).run(body)`. In a
-`#[component(Tick)]` function this keeps `@s` bound to each player. The
-body emits one `execute as @a if score @s boss_phase matches <n> run
-<body>` per state per tick:
+`TypedExecute::as_players().when(PHASE.is(V)).run(body)`. `#[component(Tick)]`
+starts in server context, so player-scoped `@s` checks need an explicit player
+executor. The body emits one
+`execute as @a if score @s boss_phase matches <n> run <body>` per state per
+tick:
 
 ```rust,ignore
 use sand_core::prelude::*;

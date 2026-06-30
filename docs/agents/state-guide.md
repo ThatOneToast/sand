@@ -76,10 +76,11 @@ pub fn on_enter_fighting() {
 - `is_not(target)` lowers to `unless score … matches <n>`, so the body
   fires only when the player was *not* in the target state the previous
   tick. The trailing `set(target)` commits the transition.
-- Exit hooks guard the current state instead:
-  `when(PHASE.of("@s").is(BossPhase::Enraged)).then_one(body); PHASE.of("@s").set(BossPhase::Fighting);`
+- For exit hooks, guard on the state being left, then guard the transition
+  write with that same `is(previous)` condition.
 - Use this only for states that have meaningful enter/exit logic. It
-  doubles the per-state tick cost for that state.
+  doubles the per-state tick cost for that state by adding one extra
+  guarded execute.
 
 ## Per-state tick: one `when` branch per state
 
@@ -98,9 +99,10 @@ pub fn boss_tick() {
 }
 ```
 
-- In a tick component, each branch lowers to one
-  `execute as @a if score @s boss_phase matches <n> run <body>` per tick.
-  Cost is `O(N)` per player per tick for `N`
+- `#[component(Tick)]` starts in server context. Use
+  `TypedExecute::as_players()` before relying on `@s` as a player.
+- Each branch lowers to one `execute as @a if score @s boss_phase matches
+  <n> run <body>` per tick. Cost is `O(N)` per player per tick for `N`
   branches.
 - If several states share a body, hoist the body out of the branches and
   gate only the parts that differ. Do not add `is_not` clauses to every

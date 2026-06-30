@@ -82,12 +82,15 @@ An *enter hook* is `when(PHASE.is_not(target)).then_one(body)` followed by
 `PHASE.set(target)`. The `unless` clause fires the body only on the tick the
 state actually changes, and the trailing `set` commits the transition so
 subsequent ticks see the new state and the hook no longer fires. *Exit
-hooks* follow the same shape with the previous state swapped in.
+hooks* instead guard on the state being left, then guard the transition write
+with that same `is(previous)` condition.
 
-A *per-state tick* is one `when(PHASE.is(V)).then_one(body)` per state. The
-per-tick cost is one `execute if score @s phase matches <n> run <body>` per
-player per branch. Add a second `unless` clause only for states that need
-hooks; the rest stay `O(N)`.
+A *per-state tick* is one `TypedExecute::as_players().when(PHASE.is(V))
+.run(body)` per state. `#[component(Tick)]` starts in server context, so this
+establishes the player executor before using `@s`. The per-tick cost is one
+`execute as @a if score @s phase matches <n> run <body>` per player per
+branch. Add a second guarded execute only for states that need hooks; the rest
+stay `O(N)`.
 
 See [Typed State](../typed-state.md) for the full discussion, the
 [transition backend table](../typed-state.md#transition-backend), the

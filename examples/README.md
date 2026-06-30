@@ -8,6 +8,7 @@ standalone crates; scaffold a project and paste the relevant code into
 
 - `basic_typed.rs` — typed function, load, and tick basics with `ScoreVar`, `#[component(Load)]`, `#[component(Tick)]`.
 - `state_and_conditions.rs` — scoreboard state, flags, cooldowns, and nested `all!`/`any!` conditions.
+- `gameplay_state.rs` — enum-backed `GameState<S>`, lifecycle registration, transitions, enter/exit hooks, and per-state ticks. Pairs with the [typed-state guide](../book/src/typed-state.md).
 - `dialogs.rs` — typed dialog component with a typed function command action.
 - `storage_nbt.rs` — typed `StorageVar<T>`, storage paths, and storage-backed conditions.
 - `datapack_components.rs` — typed datapack JSON components (dialogs, custom items).
@@ -31,6 +32,7 @@ cargo run -p sand -- build
 ## Testing
 
 Golden tests for the attribute-first authoring patterns live in
-`sand-example/src/attribute_golden.rs`. They assert exact command strings and
+`sand-example/src/attribute_golden.rs` and the per-feature example modules
+in `sand-example/src/*.rs`. They assert exact command strings and
 JSON output for typed state, conditions, execute chains, text, storage, raw
 interop, and dialog components.

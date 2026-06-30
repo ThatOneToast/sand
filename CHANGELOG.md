@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Documentation
+
+- Documented the typed gameplay state API surface (`GameState<S>`,
+  `TypedGameState`, lifecycle registry, transitions, enter/exit hooks,
+  per-state tick, tick-cost guidance, transition backend table). Added a
+  runnable, compile-tested `examples/gameplay_state.rs` example pack
+  mirrored under `sand-example/src/gameplay_state_example.rs`. Added a
+  concise agent-facing guide at `docs/agents/state-guide.md`. Resolves
+  issue #61.
+
 ## [0.1.0] - 2026-03-14
 
 Initial public release.

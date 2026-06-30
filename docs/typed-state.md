@@ -126,32 +126,37 @@ pub fn on_enter_fighting() {
 The `unless` clause fires the body only when the player was *not* in
 Fighting the previous tick. The trailing `set(Fighting)` then commits the
 transition so subsequent ticks see the new state and the hook no longer
-fires. Exit hooks follow the same pattern, with `is_not(previous_state)`
-swapped to match the state you are leaving. The cost is one extra
-`execute unless` per state per tick — only add it to states that have
-meaningful enter/exit logic.
+fires. Exit hooks flip the guard around: match the state you are leaving
+with `is(previous_state)`, run the exit body, then write the next state.
+The cost is one extra guarded execute per state per tick — only add it to
+states that have meaningful enter/exit logic.
 
 ## Per-state tick
 
 Run different logic in each state by gating the body with
-`when(PHASE.is(V)).then_one(body)`. The body emits one
-`execute if score @s boss_phase matches <n> run <body>` per state per tick:
+`TypedExecute::as_players().when(PHASE.is(V)).run(body)`. In a
+`#[component(Tick)]` function this keeps `@s` bound to each player. The
+body emits one `execute as @a if score @s boss_phase matches <n> run
+<body>` per state per tick:
 
 ```rust
 #[component(Tick)]
 pub fn boss_tick() {
-    when(PHASE.of("@s").is(BossPhase::Idle))
-        .then_one(Actionbar::show(
+    TypedExecute::as_players()
+        .when(PHASE.of("@s").is(BossPhase::Idle))
+        .run(Actionbar::show(
             Selector::self_(),
             Text::new("[Idle] regenerating").gray(),
         ));
-    when(PHASE.of("@s").is(BossPhase::Fighting))
-        .then_one(Actionbar::show(
+    TypedExecute::as_players()
+        .when(PHASE.of("@s").is(BossPhase::Fighting))
+        .run(Actionbar::show(
             Selector::self_(),
             Text::new("[Fighting] engage").red(),
         ));
-    when(PHASE.of("@s").is(BossPhase::Enraged))
-        .then_one(Actionbar::show(
+    TypedExecute::as_players()
+        .when(PHASE.of("@s").is(BossPhase::Enraged))
+        .run(Actionbar::show(
             Selector::self_(),
             Text::new("[Enraged] berserk").dark_red().bold(true),
         ));

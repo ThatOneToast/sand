@@ -129,8 +129,9 @@ The `when(PHASE.is_not(Fighting))` clause lowers to
 `execute unless score @s boss_phase matches 1 run …`, so the body fires only
 when the player was *not* in Fighting the previous tick. The trailing
 `set(Fighting)` then commits the transition so subsequent ticks see the new
-state and the hook no longer fires. Exit hooks follow the same pattern, with
-`is_not(previous_state)` swapped to match the state you are leaving.
+state and the hook no longer fires. Exit hooks flip the guard around: match
+the state you are leaving with `is(previous_state)`, run the exit body, then
+write the next state.
 
 The cost is one extra `execute unless` per state per tick — only add it to
 states that have meaningful enter/exit logic. Do not add it to every state;
@@ -139,8 +140,10 @@ see the tick-cost guidance below.
 ## Per-state tick
 
 Run different logic in each state by gating the body with
-`when(PHASE.is(V)).then_one(body)`. The body emits one
-`execute if score @s boss_phase matches <n> run <body>` per state per tick:
+`TypedExecute::as_players().when(PHASE.is(V)).run(body)`. In a
+`#[component(Tick)]` function this keeps `@s` bound to each player. The
+body emits one `execute as @a if score @s boss_phase matches <n> run
+<body>` per state per tick:
 
 ```rust,ignore
 use sand_core::prelude::*;
@@ -148,18 +151,21 @@ use sand_macros::component;
 
 #[component(Tick)]
 pub fn boss_tick() {
-    when(PHASE.of("@s").is(BossPhase::Idle))
-        .then_one(Actionbar::show(
+    TypedExecute::as_players()
+        .when(PHASE.of("@s").is(BossPhase::Idle))
+        .run(Actionbar::show(
             Selector::self_(),
             Text::new("[Idle] regenerating").gray(),
         ));
-    when(PHASE.of("@s").is(BossPhase::Fighting))
-        .then_one(Actionbar::show(
+    TypedExecute::as_players()
+        .when(PHASE.of("@s").is(BossPhase::Fighting))
+        .run(Actionbar::show(
             Selector::self_(),
             Text::new("[Fighting] engage").red(),
         ));
-    when(PHASE.of("@s").is(BossPhase::Enraged))
-        .then_one(Actionbar::show(
+    TypedExecute::as_players()
+        .when(PHASE.of("@s").is(BossPhase::Enraged))
+        .run(Actionbar::show(
             Selector::self_(),
             Text::new("[Enraged] berserk").dark_red().bold(true),
         ));

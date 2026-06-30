@@ -8,15 +8,16 @@
 //! - lifecycle-managed load setup via `.register()` + `define_registered_state()`
 //! - transitions (current state → next state) using typed conditions
 //! - "enter" and "exit" hooks built from `is_not(...).then_one(...)` pairing
-//! - per-state tick logic gated by `when(...is(...)).then_one(...)`
+//! - per-state tick logic gated by `TypedExecute::as_players().when(...).run(...)`
 //! - tick-cost guidance (constant vs. `when`-guarded execute chains)
 //!
 //! ## How it works
 //!
 //! 1. **Load** registers the `boss_phase` objective through the lifecycle
 //!    registry and emits the deterministic `scoreboard objectives add` line.
-//! 2. **Tick** runs once per game tick. Each `when(PHASE.is(V)).then_one(body)`
-//!    lowers to a single `execute if score @s boss_phase matches <n> run <body>`
+//! 2. **Tick** runs once per game tick. Each
+//!    `TypedExecute::as_players().when(PHASE.is(V)).run(body)` lowers to a
+//!    single `execute as @a if score @s boss_phase matches <n> run <body>`
 //!    command, so the total per-tick cost is one execute per registered state
 //!    plus the body of the matching branch.
 //! 3. **transitions** are ordinary `#[function]` entries that read the
@@ -54,8 +55,9 @@
 //!    state): one `scoreboard players operation / remove` per state variable,
 //!    regardless of how many variants you have. Use this for cooldowns,
 //!    timers, and regen ticks.
-//! 2. **Per-state work** (one `when(PHASE.is(...)).then_one(body)` per
-//!    registered state): one `execute if score @s boss_phase matches <n>
+//! 2. **Per-state work** (one
+//!    `TypedExecute::as_players().when(PHASE.is(...)).run(body)` per
+//!    registered state): one `execute as @a if score @s boss_phase matches <n>
 //!    run <body>` line per state per tick. This is what the `boss_tick`
 //!    body uses. Cost is `O(N)` per player per tick, where `N` is the
 //!    number of *distinct* phase branches.
@@ -125,28 +127,35 @@ pub fn boss_load() {
 
 // -- Per-state tick -------------------------------------------------------
 
-/// Per-tick phase work. Each `when(...).then_one(body)` lowers to a single
-/// `execute if score @s boss_phase matches <n> run <body>` line, so the
-/// total per-tick cost is *one execute per registered state* plus the body
-/// of the matching branch.
+/// Per-tick phase work. Each
+/// `TypedExecute::as_players().when(...).run(body)` lowers to a single
+/// `execute as @a if score @s boss_phase matches <n> run <body>` line, so
+/// the total per-tick cost is *one execute per registered state* plus the
+/// body of the matching branch.
 ///
 /// If you find yourself adding the same body to several phases, prefer
 /// promoting the work to an unconditional step in the tick function and
 /// gate only the parts that genuinely differ between states.
 #[component(Tick)]
 pub fn boss_tick() {
-    when(PHASE.of("@s").is(BossPhase::Idle)).then_one(Actionbar::show(
-        Selector::self_(),
-        Text::new("[Idle] regenerating").gray(),
-    ));
-    when(PHASE.of("@s").is(BossPhase::Fighting)).then_one(Actionbar::show(
-        Selector::self_(),
-        Text::new("[Fighting] engage").red(),
-    ));
-    when(PHASE.of("@s").is(BossPhase::Enraged)).then_one(Actionbar::show(
-        Selector::self_(),
-        Text::new("[Enraged] berserk").dark_red().bold(true),
-    ));
+    TypedExecute::as_players()
+        .when(PHASE.of("@s").is(BossPhase::Idle))
+        .run(Actionbar::show(
+            Selector::self_(),
+            Text::new("[Idle] regenerating").gray(),
+        ));
+    TypedExecute::as_players()
+        .when(PHASE.of("@s").is(BossPhase::Fighting))
+        .run(Actionbar::show(
+            Selector::self_(),
+            Text::new("[Fighting] engage").red(),
+        ));
+    TypedExecute::as_players()
+        .when(PHASE.of("@s").is(BossPhase::Enraged))
+        .run(Actionbar::show(
+            Selector::self_(),
+            Text::new("[Enraged] berserk").dark_red().bold(true),
+        ));
 }
 
 // -- Transitions ----------------------------------------------------------
@@ -209,11 +218,11 @@ pub fn on_enter_fighting() {
     PHASE.of("@s").set(BossPhase::Fighting);
 }
 
-/// Exit hook for the Enraged phase. Pair `is_not(current)` with the new
-/// state to fire only on the boundary tick.
+/// Exit hook for the Enraged phase. Match the state being left before
+/// writing the new state so invalid calls stay silent.
 #[function("boss_phases:phase/on_exit_enraged")]
 pub fn on_exit_enraged() {
-    when(PHASE.of("@s").is_not(BossPhase::Enraged)).then_one(cmd::tellraw(
+    when(PHASE.of("@s").is(BossPhase::Enraged)).then_one(cmd::tellraw(
         Selector::self_(),
         Text::new("Boss calms down.").green(),
     ));
@@ -308,7 +317,7 @@ mod tests {
     }
 
     #[test]
-    fn exit_hook_pairs_is_not_with_set() {
+    fn exit_hook_matches_enraged_before_setting_fighting() {
         let _guard = dyn_fn_test_lock();
         let _ = drain_dyn_fns();
         let cmds = on_exit_enraged();
@@ -317,8 +326,8 @@ mod tests {
             .find(|c| c.contains("Boss calms"))
             .expect("expected tellraw body in exit hook");
         assert!(
-            body.contains("unless score @s boss_phase matches 2"),
-            "expected exit hook to use `unless score … matches 2`, got: {body}"
+            body.contains("if score @s boss_phase matches 2"),
+            "expected exit hook to use `if score … matches 2`, got: {body}"
         );
         assert!(
             cmds.iter()
@@ -331,14 +340,15 @@ mod tests {
     fn per_state_tick_emits_three_guarded_chains() {
         let _guard = dyn_fn_test_lock();
         let _ = drain_dyn_fns();
-        // `when(PHASE.is(X)).then_one(body)` lowers to one
-        // `execute if score @s boss_phase matches <n> run <body>` line.
+        // `TypedExecute::as_players().when(PHASE.is(X)).run(body)` lowers to
+        // one `execute as @a if score @s boss_phase matches <n> run <body>`
+        // line.
         // The tick body has three branches, so we expect exactly three
         // such lines.
         let cmds = boss_tick();
         let guarded = cmds
             .iter()
-            .filter(|c| c.starts_with("execute if score @s boss_phase matches"))
+            .filter(|c| c.starts_with("execute as @a if score @s boss_phase matches"))
             .count();
         assert_eq!(
             guarded, 3,

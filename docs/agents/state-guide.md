@@ -59,7 +59,7 @@ Output:
 `PHASE.of(...)` takes `&str`. Use the string literal `"@a"` rather than
 `Selector::all_players()` (which is a struct, not a string).
 
-## Enter and exit hooks: pair `is_not` with `set`
+## Enter and exit hooks: `is_not` for enter, `is` for exit
 
 ```rust
 #[function("example:phase/on_enter_fighting")]
@@ -76,6 +76,8 @@ pub fn on_enter_fighting() {
 - `is_not(target)` lowers to `unless score … matches <n>`, so the body
   fires only when the player was *not* in the target state the previous
   tick. The trailing `set(target)` commits the transition.
+- Exit hooks guard the current state instead:
+  `when(PHASE.of("@s").is(BossPhase::Enraged)).then_one(body); PHASE.of("@s").set(BossPhase::Fighting);`
 - Use this only for states that have meaningful enter/exit logic. It
   doubles the per-state tick cost for that state.
 
@@ -84,17 +86,21 @@ pub fn on_enter_fighting() {
 ```rust
 #[component(Tick)]
 pub fn boss_tick() {
-    when(PHASE.of("@s").is(BossPhase::Idle))
-        .then_one(/* body */);
-    when(PHASE.of("@s").is(BossPhase::Fighting))
-        .then_one(/* body */);
-    when(PHASE.of("@s").is(BossPhase::Enraged))
-        .then_one(/* body */);
+    TypedExecute::as_players()
+        .when(PHASE.of("@s").is(BossPhase::Idle))
+        .run(/* body */);
+    TypedExecute::as_players()
+        .when(PHASE.of("@s").is(BossPhase::Fighting))
+        .run(/* body */);
+    TypedExecute::as_players()
+        .when(PHASE.of("@s").is(BossPhase::Enraged))
+        .run(/* body */);
 }
 ```
 
-- Each branch lowers to one `execute if score @s boss_phase matches <n>
-  run <body>` per tick. Cost is `O(N)` per player per tick for `N`
+- In a tick component, each branch lowers to one
+  `execute as @a if score @s boss_phase matches <n> run <body>` per tick.
+  Cost is `O(N)` per player per tick for `N`
   branches.
 - If several states share a body, hoist the body out of the branches and
   gate only the parts that differ. Do not add `is_not` clauses to every

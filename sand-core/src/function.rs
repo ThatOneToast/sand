@@ -264,12 +264,18 @@ pub enum EventDispatch {
     /// `__sand_death_init` load function (adds the `deathCount` objective).
     DeathTick,
 
-    /// Fires on the first tick after a player (re)joins the server.
+    /// Fires on the first tick after a server start, `/reload`, or when a new
+    /// player joins mid-session.
     ///
-    /// Sand generates a `__sand_join_check` tick function that detects players
-    /// who lack the `__sand_online` entity tag. Because entity tags are
-    /// removed when a player disconnects, the event re-fires on every login.
-    /// Handlers run before the `__sand_online` tag is applied.
+    /// Sand generates a `__sand_join_init` load function that creates the
+    /// `__sand_join` scoreboard objective and resets all scores on every load,
+    /// plus a `__sand_join_check` tick function that runs all handlers for
+    /// any online player whose `__sand_join` score is not 1, then sets the
+    /// score to 1.
+    ///
+    /// **Vanilla limitation:** mid-session disconnect → reconnect without a
+    /// `/reload` does **not** re-fire because the player's score persists in
+    /// `scoreboard.dat`. True per-login detection requires a mod or plugin.
     JoinTick,
 
     /// Fires on the tick after a player respawns from death.

@@ -99,7 +99,7 @@ pub fn on_eat_golden_apple(event: Event<AteGoldenAppleEvent>) {
 
 | Mode | How it fires |
 |---|---|
-| `#[event]` for `OnJoinEvent` | Tick tag check — every session join |
+| `#[event]` for `OnJoinEvent` | Scoreboard-backed tick check — after load/reload or new player |
 | `#[event]` for `FirstJoinEvent` | Tick advancement (no revoke) — once per player ever |
 | `#[event]` for `OnDeathEvent` / `OnRespawnEvent` | Death count scoreboard — tick-based |
 | `#[event]` for `PlayerLevelUpEvent` / `PlayerLevelsUp` | XP scoreboard/tick system — no advancement |

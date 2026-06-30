@@ -695,7 +695,10 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
 /// trigger fires. Without this, the advancement grants only once per player
 /// (until manually revoked).
 ///
-/// **Join detection pattern** — use `revoke = false` (default) and add this to
+/// **Join detection pattern** — use `revoke = true` for the standard
+/// Advancement + Tick approach, or use the built-in `Join` event type which
+/// handles scoreboard-backed detection automatically. For a manual
+/// advancement-based approach, use `revoke = false` (default) and add this to
 /// your `#[component(Load)]` to reset for every world load/reload:
 /// ```rust,ignore
 /// // Escape hatch: typed advancement revoke builder is not yet available.
@@ -708,8 +711,12 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
 ///
 /// ## `Join` — player enters the world
 ///
-/// Uses `minecraft:tick`. Fires once per player session (until revoked). The
-/// standard pattern for initialization logic.
+/// Uses a scoreboard-backed tick check (`JoinTick`). Fires after server start,
+/// `/reload`, or when a new player joins mid-session. The standard pattern
+/// for initialization logic.
+///
+/// **Note:** mid-session disconnect → reconnect does **not** re-fire (scoreboard
+/// limitation). True per-login detection requires a mod or plugin.
 ///
 /// ```rust,ignore
 /// static PLAYER_MANA: ScoreVar<i32> = ScoreVar::new("player_mana");
@@ -1271,11 +1278,12 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
 
     // ── Dispatch selection ────────────────────────────────────────────────────
     let dispatch_tokens = match event_type_name.as_str() {
-        // OnJoinEvent / OnJoin — entity-tag based join detection (fires once per session login)
+        // OnJoinEvent / OnJoin — scoreboard-backed join detection (fires after load/reload / new player mid-session)
         //
-        // Uses JoinTick dispatch: `__sand_join_check` detects players who lack the
-        // `__sand_online` tag (removed on disconnect) and fires all handlers before
-        // re-applying the tag. This avoids the Tick+revoke every-tick loop.
+        // Uses JoinTick dispatch: `__sand_join_check` runs handlers for any online
+        // player whose `__sand_join` score is not 1 (cleared on minecraft:load),
+        // then sets the score to 1. Vanilla limitation: mid-session disconnect
+        // → reconnect without /reload does not re-fire.
         "OnJoinEvent" | "OnJoin" => {
             quote! {
                 #preamble

@@ -199,9 +199,10 @@ matrix because they are traits or infrastructure, not callable event types:
   reward function runs on the tick the criterion is met, but the game processes
   advancements after most other game logic in that tick.
 
-- **`OnJoinEvent` vs `FirstJoinEvent`.** `OnJoinEvent` resets each session
-  (revoke-on-fire). `FirstJoinEvent` never revokes — it fires exactly once per
-  player for the lifetime of the datapack.
+- **`OnJoinEvent` vs `FirstJoinEvent`.** `OnJoinEvent` resets on every
+  `minecraft:load` (scoreboard reset) and fires once per load for each player.
+  `FirstJoinEvent` uses an advancement grant that is never revoked — it fires
+  exactly once per player for the lifetime of the datapack.
 
 - **`OnRespawnEvent` uses a tag, not a vanilla trigger.** Sand detects respawn
   via the `__sand_was_dead` entity tag placed on death and removed when the

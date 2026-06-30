@@ -23,7 +23,10 @@
 
 // ── Session ───────────────────────────────────────────────────────────────────
 
-/// Fires on the first tick each time a player joins (once per session).
+/// Fires on the first tick after server start, `/reload`, or new player mid-session.
+///
+/// **Vanilla limitation:** mid-session reconnect does not re-fire (scoreboard
+/// persisted). True per-login detection requires a mod or plugin.
 pub use crate::events::OnJoinEvent as OnJoin;
 
 /// Fires the very first time a player ever joins. Never fires again.

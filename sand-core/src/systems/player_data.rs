@@ -1,13 +1,23 @@
 //! Manual player-data schema helpers (`systems-player-data` feature).
 //!
 //! Provides a builder API for defining typed per-player data schemas backed
-//! by scoreboard objectives.  Storage schemas from [`SandStorage`] can also be
-//! attached for unified introspection and documentation.
+//! by scoreboard objectives. [`PlayerDataSchema`] is the user-facing name for
+//! this Phase 1 API; [`PlayerSchema`] remains as a compatible alias. Storage
+//! schemas from [`SandStorage`] can also be attached for unified introspection
+//! and documentation.
 //!
-//! This module does **not** auto-register player data schemas or generate
-//! lifecycle wiring today.  Call [`PlayerSchema::define_all`] from your load
-//! function and [`PlayerSchema::init_player`] from a join or first-join handler.
-//! Automatic export/lifecycle wiring is future work tracked by #47 and #68.
+//! # Phase 1 scope
+//!
+//! This is a **builder-only API**. It groups field definitions and generates
+//! setup commands, but does **not** auto-manage lifecycle wiring.
+//!
+//! You must:
+//! - Call [`PlayerSchema::define_all`] from your load function to define scoreboard objectives.
+//! - Call [`PlayerSchema::init_player`] from a join or first-join handler to set player defaults.
+//! - Wire timer/cooldown ticks and lifecycle manually using the underlying [`Timer`] and
+//!   [`Cooldown`] APIs (see their docs for tick management).
+//!
+//! Automatic export, lifecycle wiring, and higher-level field accessors are Phase 2+ work.
 //!
 //! # Naming and namespacing
 //!
@@ -61,14 +71,15 @@
 //! # Example
 //!
 //! ```rust,ignore
-//! use sand_core::state::{ScoreVar, Flag, Cooldown, Ticks};
-//! use sand_core::systems::player_data::PlayerSchema;
+//! use sand_core::state::{Cooldown, Flag, ScoreVar, Ticks, Timer};
+//! use sand_core::systems::player_data::PlayerDataSchema;
 //! use sand_macros::SandStorage;
 //!
 //! // Scoreboard statics (one per objective name):
 //! static MANA:      ScoreVar<i32> = ScoreVar::new("mana");
 //! static HAS_CELLS: Flag          = Flag::new("has_cells");
 //! static DASH_CD:   Cooldown      = Cooldown::new("dash", Ticks::seconds(3));
+//! static REGEN:     Timer         = Timer::new("regen", Ticks::seconds(2));
 //!
 //! // Storage schema for rich compound state:
 //! #[derive(SandStorage)]
@@ -78,11 +89,12 @@
 //!     pub tier: i32,
 //! }
 //!
-//! fn player_magic_schema() -> PlayerSchema {
-//!     PlayerSchema::new("magic")
+//! fn player_magic_schema() -> PlayerDataSchema {
+//!     PlayerDataSchema::new("magic")
 //!         .score(&MANA, 100)           // default mana = 100
 //!         .flag(&HAS_CELLS, false)     // has_cells starts false
 //!         .cooldown(&DASH_CD)          // cooldown objective — no default value
+//!         .timer(&REGEN)               // timer objective — no default value
 //!         .storage(PlayerMagic::SCHEMA) // attached for introspection
 //! }
 //!
@@ -93,13 +105,14 @@
 //! // schema.init_player("@s") → set defaults for new player
 //! ```
 
-use crate::state::{Cooldown, Flag, ScoreVar, StorageSchema};
+use crate::state::{Cooldown, Flag, ScoreVar, StorageSchema, Timer};
 
 // ── FieldInit ─────────────────────────────────────────────────────────────────
 
 enum FieldInit {
     Score { obj: String, default: i32 },
     Flag { obj: String, default: bool },
+    TimerObj { obj: String },
     CooldownObj { obj: String },
 }
 
@@ -108,6 +121,7 @@ impl FieldInit {
         match self {
             FieldInit::Score { obj, .. }
             | FieldInit::Flag { obj, .. }
+            | FieldInit::TimerObj { obj }
             | FieldInit::CooldownObj { obj } => {
                 format!("scoreboard objectives add {obj} dummy")
             }
@@ -125,6 +139,7 @@ impl FieldInit {
                     "execute unless score {selector} {obj} matches -2147483648.. run scoreboard players set {selector} {obj} {val}"
                 ))
             }
+            FieldInit::TimerObj { .. } => None,
             FieldInit::CooldownObj { .. } => None,
         }
     }
@@ -203,7 +218,33 @@ impl PlayerSchema {
         self
     }
 
+    /// Register a [`Timer`] objective (define only; no per-player default).
+    ///
+    /// This method **only** defines/registers the timer's scoreboard objective.
+    /// It does **not** automatically start ticks or wire lifecycle events.
+    ///
+    /// To actually use the timer in gameplay, you must separately:
+    /// - Call the timer's tick methods during server ticks (e.g., in a `#[tick]` function).
+    /// - Manage timer lifecycle wiring (e.g., starting timers in events).
+    ///
+    /// See [`Timer`] for tick/lifecycle APIs.
+    pub fn timer(mut self, timer: &Timer) -> Self {
+        self.fields.push(FieldInit::TimerObj {
+            obj: timer.objective_name(),
+        });
+        self
+    }
+
     /// Register a `Cooldown` objective (define only; no per-player default).
+    ///
+    /// This method **only** defines/registers the cooldown's scoreboard objective.
+    /// It does **not** automatically manage cooldown state or tick them down.
+    ///
+    /// To actually use the cooldown in gameplay, you must separately:
+    /// - Call the cooldown's tick methods during server ticks (e.g., in a `#[tick]` function).
+    /// - Manage cooldown lifecycle wiring (e.g., starting cooldowns on ability use).
+    ///
+    /// See [`Cooldown`] for tick/lifecycle APIs.
     pub fn cooldown(mut self, cd: &Cooldown) -> Self {
         self.fields.push(FieldInit::CooldownObj {
             obj: cd.objective_name(),
@@ -305,46 +346,57 @@ impl PlayerSchema {
         !self.storage_schemas.is_empty()
     }
 
-    /// The number of registered scoreboard-style fields (score + flag + cooldown).
+    /// The number of registered scoreboard-style fields
+    /// (score + flag + timer + cooldown).
     pub fn scoreboard_field_count(&self) -> usize {
         self.fields.len()
     }
 }
+
+/// User-facing alias for the Phase 1 player-scoped schema API.
+///
+/// `PlayerSchema` remains available for compatibility with earlier code and
+/// documentation, but new code can prefer `PlayerDataSchema` to better reflect
+/// that this groups per-player data fields under one schema.
+pub type PlayerDataSchema = PlayerSchema;
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::state::{Cooldown, Flag, ScoreVar, StorageSchema, Ticks};
+    use crate::state::{Cooldown, Flag, ScoreVar, StorageSchema, Ticks, Timer};
 
     static MANA: ScoreVar<i32> = ScoreVar::new("mana");
     static HAS_CELLS: Flag = Flag::new("has_cells");
+    static REGEN: Timer = Timer::new("regen", Ticks::new(40));
     static DASH: Cooldown = Cooldown::new("dash", Ticks::new(60));
 
     fn schema() -> PlayerSchema {
         PlayerSchema::new("test_pack")
             .score(&MANA, 100)
             .flag(&HAS_CELLS, false)
+            .timer(&REGEN)
             .cooldown(&DASH)
     }
 
     // ── existing tests (unchanged behavior) ─────────────────────────────────
 
     #[test]
-    fn define_all_generates_three_commands() {
+    fn define_all_generates_all_scoreboard_commands() {
         let cmds = schema().define_all();
-        assert_eq!(cmds.len(), 3);
+        assert_eq!(cmds.len(), 4);
         for cmd in &cmds {
             assert!(cmd.starts_with("scoreboard objectives add "), "got: {cmd}");
         }
         assert!(cmds[0].contains("mana"), "score obj: {}", cmds[0]);
         assert!(cmds[1].contains("has_cells"), "flag obj: {}", cmds[1]);
-        assert!(cmds[2].contains("dash"), "cd obj: {}", cmds[2]);
+        assert!(cmds[2].contains("regen"), "timer obj: {}", cmds[2]);
+        assert!(cmds[3].contains("dash"), "cd obj: {}", cmds[3]);
     }
 
     #[test]
-    fn init_player_skips_cooldown() {
+    fn init_player_skips_timer_and_cooldown() {
         let cmds = schema().init_player("@s");
         assert_eq!(cmds.len(), 2, "only score and flag have defaults");
     }
@@ -454,7 +506,7 @@ mod tests {
     #[test]
     fn scoreboard_field_count_excludes_storage() {
         let s = schema().storage(TEST_SCHEMA);
-        assert_eq!(s.scoreboard_field_count(), 3); // score + flag + cooldown only
+        assert_eq!(s.scoreboard_field_count(), 4); // score + flag + timer + cooldown only
     }
 
     #[test]
@@ -490,5 +542,15 @@ mod tests {
         let da = sa.define_all()[0].clone();
         let db = sb.define_all()[0].clone();
         assert_ne!(da, db, "distinct statics → distinct objectives");
+    }
+
+    #[test]
+    fn player_data_schema_alias_matches_player_schema() {
+        let schema: PlayerDataSchema = PlayerDataSchema::new("alias").timer(&REGEN);
+        assert_eq!(schema.name(), "alias");
+        assert_eq!(
+            schema.define_all(),
+            vec!["scoreboard objectives add regen dummy"]
+        );
     }
 }

@@ -50,7 +50,7 @@ pub use crate::state::define_registered_state;
 pub use crate::systems::damage::{DamageThreshold, DamageTracker, recently_damaged};
 
 #[cfg(feature = "systems-player-data")]
-pub use crate::systems::player_data::PlayerSchema;
+pub use crate::systems::player_data::{PlayerDataSchema, PlayerSchema};
 
 // ── Resource refs ─────────────────────────────────────────────────────────────
 
@@ -205,19 +205,22 @@ mod tests {
     fn prelude_exports_manual_player_schema_contract() {
         static MANA: ScoreVar<i32> = ScoreVar::new("mana");
         static HAS_WAND: Flag = Flag::new("has_wand");
+        static REGEN_TIMER: Timer = Timer::new("regen", Ticks::seconds(2));
         static CAST_COOLDOWN: Cooldown = Cooldown::new("cast_cd", Ticks::seconds(3));
 
-        let schema = PlayerSchema::new("magic")
+        let schema = PlayerDataSchema::new("magic")
             .score(&MANA, 100)
             .flag(&HAS_WAND, false)
+            .timer(&REGEN_TIMER)
             .cooldown(&CAST_COOLDOWN);
 
-        assert_eq!(schema.scoreboard_field_count(), 3);
+        assert_eq!(schema.scoreboard_field_count(), 4);
         assert_eq!(
             schema.define_all(),
             vec![
                 "scoreboard objectives add mana dummy",
                 "scoreboard objectives add has_wand dummy",
+                "scoreboard objectives add regen dummy",
                 "scoreboard objectives add cast_cd dummy",
             ]
         );

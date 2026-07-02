@@ -179,6 +179,20 @@ fn validate_structure_source_file(project_root: &Path, record: &ComponentRecord)
 }
 
 pub fn validate_resourcepack_records(records: &[ResourcePackRecord]) -> Result<()> {
+    validate_resourcepack_records_impl(records, None)
+}
+
+pub fn validate_resourcepack_records_for_project(
+    project_root: &std::path::Path,
+    records: &[ResourcePackRecord],
+) -> Result<()> {
+    validate_resourcepack_records_impl(records, Some(project_root))
+}
+
+fn validate_resourcepack_records_impl(
+    records: &[ResourcePackRecord],
+    project_root: Option<&std::path::Path>,
+) -> Result<()> {
     let mut paths = HashSet::new();
     for record in records {
         // RelativePackPath guarantees no traversal — check asset root prefix.
@@ -191,12 +205,101 @@ pub fn validate_resourcepack_records(records: &[ResourcePackRecord]) -> Result<(
         if !paths.insert(record.path.as_str()) {
             bail!("duplicate resource-pack output path '{}'", record.path);
         }
-        if record.content_type == ContentType::Json {
-            serde_json::from_str::<serde_json::Value>(&record.content).map_err(|e| {
-                anyhow::anyhow!("invalid resource-pack JSON '{}': {e}", record.path)
-            })?;
+        match record.content_type {
+            ContentType::Json => {
+                serde_json::from_str::<serde_json::Value>(&record.content).map_err(|e| {
+                    anyhow::anyhow!("invalid resource-pack JSON '{}': {e}", record.path)
+                })?;
+            }
+            ContentType::Copy => {
+                validate_resourcepack_copy_source_path(record.path.as_str(), &record.content)?;
+                if let Some(project_root) = project_root {
+                    validate_resourcepack_copy_source_file(project_root, record)?;
+                }
+            }
+            ContentType::Bytes => {
+                use base64::Engine as _;
+
+                base64::engine::general_purpose::STANDARD
+                    .decode(&record.content)
+                    .with_context(|| {
+                        format!(
+                            "invalid base64 bytes for resource-pack asset '{}'",
+                            record.path
+                        )
+                    })?;
+            }
         }
     }
+    Ok(())
+}
+
+fn validate_resourcepack_copy_source_path(asset_path: &str, source_path: &str) -> Result<()> {
+    if source_path.is_empty()
+        || source_path.contains('\0')
+        || Path::new(source_path).is_absolute()
+        || Path::new(source_path).components().any(|component| {
+            matches!(
+                component,
+                Component::ParentDir | Component::RootDir | Component::Prefix(_)
+            )
+        })
+    {
+        bail!(
+            "unsafe resource-pack copy source path '{source_path}' for asset '{asset_path}'; \
+             expected a project-root-relative file"
+        );
+    }
+    Ok(())
+}
+
+fn validate_resourcepack_copy_source_file(
+    project_root: &Path,
+    record: &ResourcePackRecord,
+) -> Result<()> {
+    let src = project_root.join(&record.content);
+    let canonical_project_root = project_root.canonicalize().with_context(|| {
+        format!(
+            "failed to canonicalize project root '{}'",
+            project_root.display()
+        )
+    })?;
+    let metadata = std::fs::metadata(&src).with_context(|| {
+        format!(
+            "resource-pack asset not found or unreadable before writing output: '{}'\n\
+             Make sure the file exists relative to your project root.",
+            src.display()
+        )
+    })?;
+    if !metadata.is_file() {
+        bail!(
+            "resource-pack asset is not a file: '{}'\n\
+             Make sure the source path points to a project-root-relative file.",
+            src.display()
+        );
+    }
+
+    let canonical_src = src.canonicalize().with_context(|| {
+        format!(
+            "resource-pack asset not found or unreadable before writing output: '{}'",
+            src.display()
+        )
+    })?;
+    if !canonical_src.starts_with(&canonical_project_root) {
+        bail!(
+            "resource-pack asset escapes the project root: '{}'\n\
+             Make sure the source path points to a project-root-relative file.",
+            src.display()
+        );
+    }
+
+    std::fs::File::open(&src).with_context(|| {
+        format!(
+            "resource-pack asset not readable before writing output: '{}'",
+            src.display()
+        )
+    })?;
+
     Ok(())
 }
 

@@ -7,7 +7,7 @@ use crate::config::SandConfig;
 
 use super::package::zip_dir;
 use super::records::ResourcePackRecord;
-use super::validate::validate_resourcepack_records;
+use super::validate::validate_resourcepack_records_for_project;
 use super::write::{write_resourcepack_mcmeta, write_rp_record};
 
 pub(super) fn build_resourcepack(
@@ -123,7 +123,8 @@ pub(super) fn build_resourcepack(
     let records: Vec<ResourcePackRecord> = serde_json::from_slice(&output.stdout)
         .context("failed to parse resource pack export JSON")?;
 
-    validate_resourcepack_records(&records)?;
+    let project_root = std::env::current_dir()?;
+    validate_resourcepack_records_for_project(&project_root, &records)?;
 
     // Write pack.mcmeta for the resource pack.
     let rp_dist_name = format!("{}-resources", config.pack.namespace.as_str());
@@ -132,7 +133,6 @@ pub(super) fn build_resourcepack(
     write_resourcepack_mcmeta(&rp_dist, rp_description, rp_format)?;
 
     // Write each resource pack record.
-    let project_root = std::env::current_dir()?;
     let mut written = 0usize;
     for record in &records {
         write_rp_record(&rp_dist, &project_root, record)?;

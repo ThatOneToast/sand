@@ -258,6 +258,12 @@ fn validate_resourcepack_copy_source_file(
     record: &ResourcePackRecord,
 ) -> Result<()> {
     let src = project_root.join(&record.content);
+    let canonical_project_root = project_root.canonicalize().with_context(|| {
+        format!(
+            "failed to canonicalize project root '{}'",
+            project_root.display()
+        )
+    })?;
     let metadata = std::fs::metadata(&src).with_context(|| {
         format!(
             "resource-pack asset not found or unreadable before writing output: '{}'\n\
@@ -268,6 +274,20 @@ fn validate_resourcepack_copy_source_file(
     if !metadata.is_file() {
         bail!(
             "resource-pack asset is not a file: '{}'\n\
+             Make sure the source path points to a project-root-relative file.",
+            src.display()
+        );
+    }
+
+    let canonical_src = src.canonicalize().with_context(|| {
+        format!(
+            "resource-pack asset not found or unreadable before writing output: '{}'",
+            src.display()
+        )
+    })?;
+    if !canonical_src.starts_with(&canonical_project_root) {
+        bail!(
+            "resource-pack asset escapes the project root: '{}'\n\
              Make sure the source path points to a project-root-relative file.",
             src.display()
         );

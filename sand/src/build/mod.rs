@@ -488,6 +488,33 @@ mod tests {
         assert!(validate_resourcepack_records_for_project(project_root, &[valid]).is_ok());
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn rejects_resourcepack_copy_source_symlink_escape_before_writing() {
+        let temp = tempfile::tempdir().unwrap();
+        let project_root = temp.path().join("project");
+        let outside_root = temp.path().join("outside");
+        std::fs::create_dir_all(project_root.join("assets/src")).unwrap();
+        std::fs::create_dir_all(&outside_root).unwrap();
+        std::fs::write(outside_root.join("leak.png"), b"secret").unwrap();
+
+        let link_path = project_root.join("assets/src/leak.png");
+        if std::os::unix::fs::symlink(outside_root.join("leak.png"), &link_path).is_err() {
+            return;
+        }
+
+        let record = resourcepack_record(
+            "assets/audit/textures/item/leak.png",
+            "copy",
+            "assets/src/leak.png",
+        );
+        let err = validate_resourcepack_records_for_project(&project_root, &[record]).unwrap_err();
+        assert!(
+            err.to_string().contains("escapes the project root"),
+            "symlink escapes should be rejected before writing: {err}"
+        );
+    }
+
     #[test]
     fn validates_resourcepack_bytes_before_writing() {
         let invalid = resourcepack_record(

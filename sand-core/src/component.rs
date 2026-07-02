@@ -85,15 +85,6 @@ pub fn export_components_json(namespace: &str) -> String {
         });
     }
 
-    // ── FunctionTagDescriptors ────────────────────────────────────────────────
-    for desc in inventory::iter::<FunctionTagDescriptor>() {
-        let fn_ref = format!("{}:{}", namespace, desc.function_path);
-        tag_map
-            .entry(desc.tag.to_string())
-            .or_default()
-            .push(fn_ref);
-    }
-
     // ── EventDescriptors + ArmorEventDescriptors ─────────────────────────────
     use crate::function::EventDispatch;
 
@@ -957,6 +948,17 @@ pub fn export_components_json(namespace: &str) -> String {
     let _dialog_callback_lock = dialog_callback_export_lock();
     drain_dialog_callbacks_into(&mut records, &mut tag_map, namespace);
 
+    // ── FunctionTagDescriptors ────────────────────────────────────────────────
+    // Append user-declared function tag entries after Sand-owned setup/dispatcher
+    // entries so load/tick infrastructure exists before user functions run.
+    for desc in inventory::iter::<FunctionTagDescriptor>() {
+        let fn_ref = format!("{}:{}", namespace, desc.function_path);
+        tag_map
+            .entry(desc.tag.to_string())
+            .or_default()
+            .push(fn_ref);
+    }
+
     // ── Finalize tag_map → records ────────────────────────────────────────────
     for (tag_rl, values) in tag_map {
         let (tag_ns, tag_path) = match tag_rl.split_once(':') {
@@ -964,9 +966,9 @@ pub fn export_components_json(namespace: &str) -> String {
             None => (namespace.to_string(), tag_rl.clone()),
         };
         // Registration can reach the same lifecycle tag through multiple
-        // framework paths. Preserve deterministic order while emitting each
-        // function reference only once.
-        let values: std::collections::BTreeSet<_> = values.into_iter().collect();
+        // framework paths. Preserve first-seen execution order while emitting
+        // each function reference only once.
+        let values = dedupe_preserve_order(values);
         let json = serde_json::json!({ "values": values });
         records.push(ComponentRecord {
             namespace: tag_ns,
@@ -1000,6 +1002,19 @@ pub fn export_components_json(namespace: &str) -> String {
     );
 
     serde_json::to_string_pretty(&records).unwrap()
+}
+
+fn dedupe_preserve_order(values: Vec<String>) -> Vec<String> {
+    let mut seen = std::collections::BTreeSet::new();
+    let mut deduped = Vec::with_capacity(values.len());
+
+    for value in values {
+        if seen.insert(value.clone()) {
+            deduped.push(value);
+        }
+    }
+
+    deduped
 }
 
 /// Returns the output path and entity-predicate flag for a Sand-owned player
@@ -1197,6 +1212,13 @@ mod tests {
     use crate::AdvancementTrigger;
     use crate::events::{PlayerSwimmingEvent, SandEvent};
 
+    inventory::submit! {
+        crate::function::FunctionTagDescriptor {
+            tag: "minecraft:load",
+            function_path: "__test_user_load_after_setup",
+        }
+    }
+
     #[test]
     fn player_state_events_use_predicate_flags() {
         let condition = match PlayerSwimmingEvent::dispatch() {
@@ -1273,6 +1295,48 @@ mod tests {
         assert!(
             message.contains("experience query"),
             "panic should include the migration diagnostic, got: {message}"
+        );
+    }
+
+    #[test]
+    fn function_tag_values_dedupe_without_sorting() {
+        let values = vec![
+            "pack:z".to_string(),
+            "pack:a".to_string(),
+            "pack:z".to_string(),
+            "pack:m".to_string(),
+        ];
+
+        assert_eq!(
+            super::dedupe_preserve_order(values),
+            vec![
+                "pack:z".to_string(),
+                "pack:a".to_string(),
+                "pack:m".to_string()
+            ]
+        );
+    }
+
+    #[test]
+    fn exported_load_tag_preserves_generated_insertion_order() {
+        let _lock = crate::state::registry::registry_test_lock();
+        let _ = crate::state::drain_load_commands();
+        let _ = crate::state::drain_tick_commands();
+        let _ = crate::state::score::drain_internal_score_setup();
+
+        let _ = crate::state::ScoreConst::<i32>::new("tag order setup", 7).ref_();
+        crate::state::register_load_objective("tag_order_lifecycle", "dummy");
+
+        let json_str = super::export_components_json("orderpack");
+        let records: Vec<serde_json::Value> = serde_json::from_str(&json_str).unwrap();
+
+        assert_eq!(
+            tag_values(&records, "minecraft:load"),
+            vec![
+                "orderpack:__sand_score_init".to_string(),
+                "orderpack:__sand_lifecycle_load".to_string(),
+                "orderpack:__test_user_load_after_setup".to_string(),
+            ]
         );
     }
 

@@ -218,6 +218,8 @@ inventory::collect!(ComponentFactory);
 /// Produced by `#[component(Tick)]`, `#[component(Load)]`, and
 /// `#[component(Tag = "ns:name")]`. During `sand build` all descriptors for
 /// the same `tag` are merged into a single tag JSON file:
+/// entries keep first registration/export order, and duplicate function refs
+/// are emitted only once.
 ///
 /// | Variant | `tag` value | Output file |
 /// |---|---|---|

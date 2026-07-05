@@ -137,8 +137,8 @@ impl DamageThreshold {
             ));
         }
 
-        let raw = (h * 10.0).round();
-        if !raw.is_finite() || raw > i32::MAX as f32 {
+        let raw = (f64::from(h) * 10.0).round();
+        if !raw.is_finite() || raw > f64::from(i32::MAX) {
             return Err(format!(
                 "invalid DamageThreshold::hearts({h:?}); value rounds to {raw:?} raw damage stat units, which exceeds the Minecraft scoreboard range"
             ));
@@ -521,7 +521,7 @@ mod tests {
 
     #[test]
     fn threshold_try_hearts_rejects_unrepresentable_values() {
-        for value in [300_000_000.0, f32::MAX] {
+        for value in [214_748_364.8, 300_000_000.0, f32::MAX] {
             let err = DamageThreshold::try_hearts(value).unwrap_err();
             assert!(
                 err.contains("exceeds the Minecraft scoreboard range"),
@@ -631,6 +631,13 @@ mod tests {
     fn current_damage_at_least_rejects_hearts_above_scoreboard_range() {
         let _ =
             DamageTracker::current_damage_at_least("@s", DamageThreshold::hearts(300_000_000.0));
+    }
+
+    #[test]
+    #[should_panic(expected = "exceeds the Minecraft scoreboard range")]
+    fn current_damage_at_least_rejects_boundary_hearts_above_scoreboard_range() {
+        let _ =
+            DamageTracker::current_damage_at_least("@s", DamageThreshold::hearts(214_748_364.8));
     }
 
     #[test]

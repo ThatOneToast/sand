@@ -137,7 +137,14 @@ impl DamageThreshold {
             ));
         }
 
-        let raw = (h * 10.0).round() as i32;
+        let raw = (h * 10.0).round();
+        if !raw.is_finite() || raw > i32::MAX as f32 {
+            return Err(format!(
+                "invalid DamageThreshold::hearts({h:?}); value rounds to {raw:?} raw damage stat units, which exceeds the Minecraft scoreboard range"
+            ));
+        }
+
+        let raw = raw as i32;
         if raw <= 0 {
             return Err(format!(
                 "invalid DamageThreshold::hearts({h:?}); value rounds to {raw} raw damage stat units, but threshold queries require at least 1"
@@ -513,6 +520,17 @@ mod tests {
     }
 
     #[test]
+    fn threshold_try_hearts_rejects_unrepresentable_values() {
+        for value in [300_000_000.0, f32::MAX] {
+            let err = DamageThreshold::try_hearts(value).unwrap_err();
+            assert!(
+                err.contains("exceeds the Minecraft scoreboard range"),
+                "error should mention scoreboard range: {err}"
+            );
+        }
+    }
+
+    #[test]
     fn threshold_try_raw_stat_rejects_zero_and_negative_values() {
         for value in [0, -1] {
             let err = DamageThreshold::try_raw_stat(value).unwrap_err();
@@ -606,6 +624,13 @@ mod tests {
     #[should_panic(expected = "rounds to 0 raw damage stat units")]
     fn current_damage_at_least_rejects_hearts_that_round_to_zero() {
         let _ = DamageTracker::current_damage_at_least("@s", DamageThreshold::hearts(0.01));
+    }
+
+    #[test]
+    #[should_panic(expected = "exceeds the Minecraft scoreboard range")]
+    fn current_damage_at_least_rejects_hearts_above_scoreboard_range() {
+        let _ =
+            DamageTracker::current_damage_at_least("@s", DamageThreshold::hearts(300_000_000.0));
     }
 
     #[test]

@@ -69,6 +69,25 @@ pub fn open_welcome_menu() {
 `__sand_local:` sentinel. Dialogs can also be opened from other dialog buttons using
 `DialogAction::open_dialog(DialogRef::local("other"))`.
 
+## Pause screen and Quick Actions
+
+Expose dialogs through vanilla dialog tags with `DialogTag`:
+
+```rust
+#[component]
+pub fn quick_actions_dialogs() -> DialogTag {
+    DialogTag::quick_actions().dialog(DialogRef::local("welcome"))
+}
+
+#[component]
+pub fn pause_screen_dialogs() -> DialogTag {
+    DialogTag::pause_screen_additions().dialog(DialogRef::local("welcome"))
+}
+```
+
+The helpers emit `data/minecraft/tags/dialog/quick_actions.json` and
+`data/minecraft/tags/dialog/pause_screen_additions.json`.
+
 ## Version support
 
 ```rust

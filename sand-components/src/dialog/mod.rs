@@ -277,6 +277,66 @@ impl IntoDialogRef for String {
     }
 }
 
+// ── DialogTag ────────────────────────────────────────────────────────────────
+
+/// A well-known vanilla dialog tag.
+///
+/// Dialog tags expose dialogs through Minecraft UI entry points such as the
+/// pause screen and Quick Actions. These helpers emit the vanilla tag files:
+///
+/// - `data/minecraft/tags/dialog/pause_screen_additions.json`
+/// - `data/minecraft/tags/dialog/quick_actions.json`
+#[derive(Debug, Clone)]
+pub struct DialogTag {
+    location: ResourceLocation,
+    replace: bool,
+    values: Vec<String>,
+}
+
+impl DialogTag {
+    /// Tag dialogs shown in the pause screen additions menu.
+    pub fn pause_screen_additions() -> Self {
+        Self::well_known("pause_screen_additions")
+    }
+
+    /// Tag dialogs shown by the Quick Actions key.
+    pub fn quick_actions() -> Self {
+        Self::well_known("quick_actions")
+    }
+
+    fn well_known(path: &str) -> Self {
+        Self {
+            location: ResourceLocation::minecraft(format!("dialog/{path}"))
+                .expect("well-known dialog tag path must be valid"),
+            replace: false,
+            values: Vec::new(),
+        }
+    }
+
+    /// Add a dialog entry to this tag.
+    pub fn dialog(mut self, dialog: impl IntoDialogRef) -> Self {
+        self.values.push(dialog.into_dialog_ref());
+        self
+    }
+
+    /// Add multiple dialog entries to this tag.
+    pub fn dialogs<I, D>(mut self, dialogs: I) -> Self
+    where
+        I: IntoIterator<Item = D>,
+        D: IntoDialogRef,
+    {
+        self.values
+            .extend(dialogs.into_iter().map(IntoDialogRef::into_dialog_ref));
+        self
+    }
+
+    /// Set whether this tag replaces lower-priority definitions.
+    pub fn replace(mut self, replace: bool) -> Self {
+        self.replace = replace;
+        self
+    }
+}
+
 // ── DialogBody ────────────────────────────────────────────────────────────────
 
 /// A dialog body element (text, item display, etc.).
@@ -689,6 +749,29 @@ impl DatapackComponent for Dialog {
     }
 }
 
+impl IntoDialogRef for &Dialog {
+    fn into_dialog_ref(self) -> String {
+        self.id.to_string()
+    }
+}
+
+impl DatapackComponent for DialogTag {
+    fn resource_location(&self) -> &ResourceLocation {
+        &self.location
+    }
+
+    fn to_json(&self) -> Value {
+        json!({
+            "replace": self.replace,
+            "values": self.values,
+        })
+    }
+
+    fn component_dir(&self) -> &'static str {
+        "tags"
+    }
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -750,6 +833,37 @@ mod tests {
         assert_eq!(d.resource_location().path(), "welcome");
         assert_eq!(d.component_dir(), "dialog");
         assert_eq!(d.file_extension(), "json");
+    }
+
+    #[test]
+    fn dialog_tag_helpers_emit_well_known_vanilla_paths() {
+        let pause = DialogTag::pause_screen_additions().dialog("example:welcome");
+        assert_eq!(pause.resource_location().namespace(), "minecraft");
+        assert_eq!(
+            pause.resource_location().path(),
+            "dialog/pause_screen_additions"
+        );
+        assert_eq!(pause.component_dir(), "tags");
+        assert_eq!(
+            pause.to_json(),
+            json!({
+                "replace": false,
+                "values": ["example:welcome"],
+            })
+        );
+
+        let quick = DialogTag::quick_actions()
+            .dialog(ResourceLocation::new("example", "settings").unwrap())
+            .replace(true);
+        assert_eq!(quick.resource_location().namespace(), "minecraft");
+        assert_eq!(quick.resource_location().path(), "dialog/quick_actions");
+        assert_eq!(
+            quick.to_json(),
+            json!({
+                "replace": true,
+                "values": ["example:settings"],
+            })
+        );
     }
 
     #[test]

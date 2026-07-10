@@ -216,7 +216,9 @@ pub use custom_item_ext::{CustomItemExt, CustomItemId};
 
 // ── Dialog builders ───────────────────────────────────────────────────────────
 
-pub use sand_components::dialog::{Dialog, DialogAction, DialogBody, DialogButton, DialogKind};
+pub use sand_components::dialog::{
+    Dialog, DialogAction, DialogBody, DialogButton, DialogKind, DialogTag,
+};
 
 pub use sand_components::{
     // Advancement

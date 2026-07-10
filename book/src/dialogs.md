@@ -48,6 +48,26 @@ pub fn open_welcome_menu() {
 }
 ```
 
+## Pause Screen And Quick Actions
+
+Use the well-known dialog tag helpers to expose dialogs through vanilla UI entry
+points:
+
+```rust
+#[component]
+pub fn quick_actions_dialogs() -> DialogTag {
+    DialogTag::quick_actions().dialog(DialogRef::local("welcome"))
+}
+
+#[component]
+pub fn pause_screen_dialogs() -> DialogTag {
+    DialogTag::pause_screen_additions().dialog(DialogRef::local("welcome"))
+}
+```
+
+These emit `data/minecraft/tags/dialog/quick_actions.json` and
+`data/minecraft/tags/dialog/pause_screen_additions.json`.
+
 ## Generated infrastructure
 
 When any `DialogAction::callback(...)` is used, Sand generates two extra functions:

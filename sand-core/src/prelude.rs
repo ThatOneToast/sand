@@ -83,7 +83,9 @@ pub use crate::event::{
 
 // ── Dialog builders ───────────────────────────────────────────────────────────
 
-pub use sand_components::dialog::{Dialog, DialogAction, DialogBody, DialogButton, DialogKind};
+pub use sand_components::dialog::{
+    Dialog, DialogAction, DialogBody, DialogButton, DialogKind, DialogTag,
+};
 
 // ── Item/component builders ──────────────────────────────────────────────────
 

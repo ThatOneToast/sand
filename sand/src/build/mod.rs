@@ -839,6 +839,23 @@ mod tests {
     }
 
     #[test]
+    fn dialog_tag_records_use_generic_tags_dir_and_dialog_path() {
+        let record: ComponentRecord = serde_json::from_value(serde_json::json!({
+            "namespace": "minecraft",
+            "dir": "tags",
+            "path": "dialog/quick_actions",
+            "ext": "json",
+            "content_type": "text",
+            "content": r#"{"replace":false,"values":["example:welcome"]}"#,
+        }))
+        .unwrap();
+
+        let temp = tempfile::tempdir().unwrap();
+        let dist = temp.path().join("dist/example");
+        assert!(validate_component_records_for_project(&dist, temp.path(), &[record]).is_ok());
+    }
+
+    #[test]
     fn writes_and_zips_structure_template_assets() {
         let temp = tempfile::tempdir().unwrap();
         let project_root = temp.path().join("project");

@@ -297,8 +297,8 @@ Available API:
 | `current_damage_at_least(sel, DamageThreshold)` | Condition: current delta ≥ threshold |
 | `last_damage_at_least(sel, DamageThreshold)` | Condition: last recorded delta ≥ threshold |
 | `clear_recent_damage(sel)` | Reset last-delta to 0 (**new**) |
-| `DamageThreshold::hearts(n)` | 1 heart = 10 stat units |
-| `DamageThreshold::raw_stat(n)` | Raw Minecraft stat units |
+| `DamageThreshold::hearts(n)` | 1 heart = 10 stat units; threshold queries require finite positive values that round to at least 1 stat unit |
+| `DamageThreshold::raw_stat(n)` | Raw Minecraft stat units; threshold queries require positive values |
 
 **Does NOT infer:** attacker, weapon, projectile owner, damage type, held item.
 For cause-specific logic, use advancement predicate events (`EntityHurtPlayer` with `DamagePredicate`).

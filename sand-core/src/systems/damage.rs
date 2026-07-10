@@ -67,9 +67,12 @@ pub const DAMAGE_HURT_AGE_OBJ: &str = "sd_dmg_hurt";
 /// Prefer [`DamageThreshold::hearts`] for user-facing values:
 /// - `1.0` heart = one full heart = 10 internal stat units
 /// - `0.5` hearts = half a heart = 5 stat units
+/// - threshold queries require a positive finite value that rounds to at least
+///   1 internal stat unit
 ///
 /// Use [`DamageThreshold::raw_stat`] only when you need to match the raw
-/// Minecraft scoreboard stat value directly.
+/// Minecraft scoreboard stat value directly. Threshold queries require a
+/// positive raw stat value.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum DamageThreshold {
     /// Number of hearts (1.0 = 1 heart = 10 stat units).
@@ -84,9 +87,25 @@ impl DamageThreshold {
         Self::Hearts(h)
     }
 
+    /// Fallible threshold in hearts.
+    ///
+    /// Values must be finite, greater than `0.0`, and round to at least
+    /// 1 raw Minecraft damage stat unit. One raw stat unit is 0.1 heart, so
+    /// values below 0.05 heart are not meaningful for `*_at_least` queries.
+    pub fn try_hearts(h: f32) -> Result<Self, String> {
+        Self::validate_hearts(h).map(|_| Self::Hearts(h))
+    }
+
     /// Raw scoreboard stat units — advanced use only.
     pub fn raw_stat(v: i32) -> Self {
         Self::RawStat(v)
+    }
+
+    /// Fallible raw scoreboard stat threshold.
+    ///
+    /// Values must be greater than zero for `*_at_least` queries.
+    pub fn try_raw_stat(v: i32) -> Result<Self, String> {
+        Self::validate_raw_stat(v).map(|_| Self::RawStat(v))
     }
 
     /// Convert to the raw Minecraft scoreboard stat integer used internally.
@@ -95,6 +114,54 @@ impl DamageThreshold {
             Self::Hearts(h) => (h * 10.0).round() as i32,
             Self::RawStat(v) => v,
         }
+    }
+
+    fn to_query_raw_stat(self, helper: &str) -> i32 {
+        match self {
+            Self::Hearts(h) => Self::validate_hearts(h)
+                .unwrap_or_else(|message| panic!("DamageTracker::{helper}: {message}")),
+            Self::RawStat(v) => Self::validate_raw_stat(v)
+                .unwrap_or_else(|message| panic!("DamageTracker::{helper}: {message}")),
+        }
+    }
+
+    fn validate_hearts(h: f32) -> Result<i32, String> {
+        if !h.is_finite() {
+            return Err(format!(
+                "invalid DamageThreshold::hearts({h:?}); threshold must be finite"
+            ));
+        }
+        if h <= 0.0 {
+            return Err(format!(
+                "invalid DamageThreshold::hearts({h:?}); threshold must be greater than 0.0 hearts"
+            ));
+        }
+
+        let raw = (f64::from(h) * 10.0).round();
+        if !raw.is_finite() || raw > f64::from(i32::MAX) {
+            return Err(format!(
+                "invalid DamageThreshold::hearts({h:?}); value rounds to {raw:?} raw damage stat units, which exceeds the Minecraft scoreboard range"
+            ));
+        }
+
+        let raw = raw as i32;
+        if raw <= 0 {
+            return Err(format!(
+                "invalid DamageThreshold::hearts({h:?}); value rounds to {raw} raw damage stat units, but threshold queries require at least 1"
+            ));
+        }
+
+        Ok(raw)
+    }
+
+    fn validate_raw_stat(v: i32) -> Result<i32, String> {
+        if v <= 0 {
+            return Err(format!(
+                "invalid DamageThreshold::raw_stat({v}); threshold queries require a positive raw damage stat value"
+            ));
+        }
+
+        Ok(v)
     }
 }
 
@@ -195,10 +262,11 @@ impl DamageTracker {
 
     /// Condition: `selector` took at least `threshold` damage this tick.
     pub fn current_damage_at_least(selector: &str, threshold: DamageThreshold) -> Condition {
+        let min_raw = threshold.to_query_raw_stat("current_damage_at_least");
         Condition::Score {
             selector: selector.to_string(),
             objective: DAMAGE_DELTA_OBJ.to_string(),
-            range: ScoreRange::Gte(threshold.to_raw_stat()),
+            range: ScoreRange::Gte(min_raw),
         }
     }
 
@@ -206,10 +274,11 @@ impl DamageTracker {
     ///
     /// Uses `sd_dmg_last`, which persists between damage events.
     pub fn last_damage_at_least(selector: &str, threshold: DamageThreshold) -> Condition {
+        let min_raw = threshold.to_query_raw_stat("last_damage_at_least");
         Condition::Score {
             selector: selector.to_string(),
             objective: DAMAGE_LAST_OBJ.to_string(),
-            range: ScoreRange::Gte(threshold.to_raw_stat()),
+            range: ScoreRange::Gte(min_raw),
         }
     }
 
@@ -432,6 +501,51 @@ mod tests {
         assert_eq!(DamageThreshold::raw_stat(42).to_raw_stat(), 42);
     }
 
+    #[test]
+    fn threshold_try_hearts_accepts_meaningful_values() {
+        assert_eq!(DamageThreshold::try_hearts(1.0).unwrap().to_raw_stat(), 10);
+        assert_eq!(DamageThreshold::try_hearts(0.5).unwrap().to_raw_stat(), 5);
+        assert_eq!(DamageThreshold::try_hearts(0.05).unwrap().to_raw_stat(), 1);
+    }
+
+    #[test]
+    fn threshold_try_hearts_rejects_invalid_values() {
+        for value in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY, -1.0, 0.0, 0.01] {
+            let err = DamageThreshold::try_hearts(value).unwrap_err();
+            assert!(
+                err.contains("DamageThreshold::hearts"),
+                "error should name hearts constructor: {err}"
+            );
+        }
+    }
+
+    #[test]
+    fn threshold_try_hearts_rejects_unrepresentable_values() {
+        for value in [214_748_364.8, 300_000_000.0, f32::MAX] {
+            let err = DamageThreshold::try_hearts(value).unwrap_err();
+            assert!(
+                err.contains("exceeds the Minecraft scoreboard range"),
+                "error should mention scoreboard range: {err}"
+            );
+        }
+    }
+
+    #[test]
+    fn threshold_try_raw_stat_rejects_zero_and_negative_values() {
+        for value in [0, -1] {
+            let err = DamageThreshold::try_raw_stat(value).unwrap_err();
+            assert!(
+                err.contains("DamageThreshold::raw_stat"),
+                "error should name raw stat constructor: {err}"
+            );
+        }
+    }
+
+    #[test]
+    fn threshold_try_raw_stat_accepts_positive_values() {
+        assert_eq!(DamageThreshold::try_raw_stat(42).unwrap().to_raw_stat(), 42);
+    }
+
     // ── Conditions ────────────────────────────────────────────────────────────
 
     #[test]
@@ -485,6 +599,57 @@ mod tests {
             } => assert_eq!(objective, DAMAGE_LAST_OBJ),
             other => panic!("unexpected: {other:?}"),
         }
+    }
+
+    #[test]
+    #[should_panic(expected = "DamageTracker::current_damage_at_least")]
+    fn current_damage_at_least_rejects_nan_hearts() {
+        let _ = DamageTracker::current_damage_at_least("@s", DamageThreshold::hearts(f32::NAN));
+    }
+
+    #[test]
+    #[should_panic(expected = "DamageTracker::current_damage_at_least")]
+    fn current_damage_at_least_rejects_infinite_hearts() {
+        let _ =
+            DamageTracker::current_damage_at_least("@s", DamageThreshold::hearts(f32::INFINITY));
+    }
+
+    #[test]
+    #[should_panic(expected = "DamageThreshold::hearts")]
+    fn current_damage_at_least_rejects_negative_hearts() {
+        let _ = DamageTracker::current_damage_at_least("@s", DamageThreshold::hearts(-1.0));
+    }
+
+    #[test]
+    #[should_panic(expected = "rounds to 0 raw damage stat units")]
+    fn current_damage_at_least_rejects_hearts_that_round_to_zero() {
+        let _ = DamageTracker::current_damage_at_least("@s", DamageThreshold::hearts(0.01));
+    }
+
+    #[test]
+    #[should_panic(expected = "exceeds the Minecraft scoreboard range")]
+    fn current_damage_at_least_rejects_hearts_above_scoreboard_range() {
+        let _ =
+            DamageTracker::current_damage_at_least("@s", DamageThreshold::hearts(300_000_000.0));
+    }
+
+    #[test]
+    #[should_panic(expected = "exceeds the Minecraft scoreboard range")]
+    fn current_damage_at_least_rejects_boundary_hearts_above_scoreboard_range() {
+        let _ =
+            DamageTracker::current_damage_at_least("@s", DamageThreshold::hearts(214_748_364.8));
+    }
+
+    #[test]
+    #[should_panic(expected = "DamageTracker::last_damage_at_least")]
+    fn last_damage_at_least_rejects_zero_raw_stat() {
+        let _ = DamageTracker::last_damage_at_least("@s", DamageThreshold::raw_stat(0));
+    }
+
+    #[test]
+    #[should_panic(expected = "DamageThreshold::raw_stat")]
+    fn last_damage_at_least_rejects_negative_raw_stat() {
+        let _ = DamageTracker::last_damage_at_least("@s", DamageThreshold::raw_stat(-1));
     }
 
     #[test]

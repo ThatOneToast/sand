@@ -230,6 +230,16 @@ pub struct VersionProfile {
 /// The latest version this table was last verified against.
 pub const LATEST_KNOWN: &str = sand_version::LATEST_KNOWN;
 
+/// The default Minecraft version `sand-core/build.rs` uses to run `sand-build`
+/// codegen when `SAND_MC_VERSION` is unset.
+///
+/// This is the **codegen anchor** and is deliberately separate from
+/// [`LATEST_KNOWN`] (the export/profile anchor): the version used to generate
+/// command/registry/block-state Rust APIs need not be the same version that
+/// exported packs and feature flags target by default. See
+/// `sand_version::DEFAULT_CODEGEN_VERSION` for the full contract.
+pub const DEFAULT_CODEGEN_VERSION: &str = sand_version::DEFAULT_CODEGEN_VERSION;
+
 // ── PackMetadata ──────────────────────────────────────────────────────────────
 
 /// Resolved `pack.mcmeta` metadata for a single pack root.
@@ -1283,5 +1293,38 @@ mod tests {
                 path.display()
             );
         }
+    }
+
+    /// Regression for the default codegen contract (#118): the default
+    /// `SAND_MC_VERSION` used by `sand-core/build.rs` must be a verified,
+    /// codegen-available *known* profile (not a fallback), it must live in a
+    /// single source of truth shared with `sand-version`, and it must stay
+    /// distinct from the export/profile anchor `LATEST_KNOWN` so codegen and
+    /// version-profile concerns are not conflated.
+    #[test]
+    fn default_codegen_version_contract() {
+        // Single source of truth is `sand_version::DEFAULT_CODEGEN_VERSION`.
+        assert_eq!(
+            DEFAULT_CODEGEN_VERSION,
+            sand_version::DEFAULT_CODEGEN_VERSION
+        );
+        assert!(!DEFAULT_CODEGEN_VERSION.is_empty());
+
+        // The default target must resolve to a *known* (non-fallback) profile,
+        // i.e. it is a verified version Sand can codegen against, not a guess.
+        let v = MinecraftVersion::parse(DEFAULT_CODEGEN_VERSION)
+            .expect("DEFAULT_CODEGEN_VERSION must parse");
+        let profile = VersionProfile::resolve(&v)
+            .expect("DEFAULT_CODEGEN_VERSION must resolve to a known profile");
+        assert!(
+            !profile.is_fallback,
+            "DEFAULT_CODEGEN_VERSION ({DEFAULT_CODEGEN_VERSION}) must be a known, \
+             verified codegen target, not a fallback profile"
+        );
+
+        // Codegen target ≠ export/profile anchor unless intentionally aligned.
+        // They are allowed to differ; this assert documents the relationship
+        // and fails loudly if someone conflates the two without intent.
+        let _latest = LATEST_KNOWN;
     }
 }

@@ -31,7 +31,7 @@ pub fn run(release: bool, resourcepack: bool) -> Result<()> {
     let config: SandConfig = toml::from_str(&std::fs::read_to_string(&config_path)?)
         .context("failed to parse sand.toml")?;
 
-    // Resolve mc_version ("latest" → actual version from Mojang manifest)
+    // Resolve mc_version ("latest" → bundled latest-known verified version)
     let mc_version = resolve_mc_version(&config.pack.mc_version);
 
     // Resolve pack format: explicit override in sand.toml wins; otherwise derive

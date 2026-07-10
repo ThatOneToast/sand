@@ -135,7 +135,7 @@ pub fn run(args: RunArgs) -> Result<()> {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-/// Resolve "latest" to the actual Mojang release version.
+/// Resolve "latest" to Sand's bundled latest-known verified version.
 fn resolve_mc_version(mc_version: &str) -> String {
     if mc_version == "latest" {
         sand_build::latest_release_version()

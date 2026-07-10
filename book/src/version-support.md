@@ -16,5 +16,7 @@ convenience inputs for verified table entries, not broad "any patch" ranges.
 Unknown future 26.x entries and future 1.x minors use conservative fallback
 capabilities until confirmed.
 
-For `mc_version = "latest"`, Sand uses Mojang's manifest when it can be
-refreshed and falls back to the bundled latest-known version when offline.
+For `mc_version = "latest"`, Sand uses the bundled latest-known version so
+build-time codegen and runtime/export metadata stay aligned. Pinned versions
+still resolve through Mojang's manifest when Sand needs server metadata for
+codegen.

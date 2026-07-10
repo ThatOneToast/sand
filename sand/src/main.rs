@@ -365,15 +365,15 @@ fn cmd_clean(also_cargo: bool, also_server: bool) -> Result<()> {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-/// Resolve the MC version: use the user-supplied value, or fetch the latest
-/// release from Mojang (falling back to the hardcoded default if offline).
+/// Resolve the MC version: use the user-supplied value, or the bundled
+/// latest-known verified version.
 fn resolve_mc_version(supplied: Option<String>) -> Result<String> {
     match supplied {
         Some(v) => Ok(v),
         None => {
             println!(
                 "{}",
-                "Fetching latest Minecraft version from Mojang...".dimmed()
+                "Using latest verified Minecraft version known to Sand...".dimmed()
             );
             Ok(sand_build::latest_release_version())
         }

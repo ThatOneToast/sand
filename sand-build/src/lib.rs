@@ -87,7 +87,7 @@ impl Drop for VersionCacheLock {
 
 /// Download and cache the vanilla server jar for `mc_version`, returning its path.
 ///
-/// Resolves `"latest"` to the current release via Mojang's version manifest.
+/// Resolves `"latest"` to Sand's bundled latest-known verified version.
 /// The jar is cached in `~/.sand/cache/<version>/server.jar` and SHA1-verified
 /// on every call; it is only re-downloaded when the checksum does not match.
 pub fn ensure_server_jar(mc_version: &str) -> Result<std::path::PathBuf> {
@@ -95,23 +95,13 @@ pub fn ensure_server_jar(mc_version: &str) -> Result<std::path::PathBuf> {
     download::ensure_server_jar(&version_id, &version_json_url)
 }
 
-/// Returns the latest stable Minecraft release version string by fetching
-/// Mojang's version manifest.
+/// Returns Sand's bundled latest-known verified Minecraft version.
 ///
-/// Falls back to Sand's bundled latest-known version if the manifest cannot be
-/// fetched (e.g. offline), so `"latest"` remains aligned with the verified
-/// version table used by `sand-core`.
+/// This keeps `"latest"` aligned with the verified version table used by
+/// `sand-core`, pack metadata, and version-sensitive feature flags. Pinned
+/// versions still resolve through Mojang's version manifest.
 pub fn latest_release_version() -> String {
-    latest_release_version_with(manifest::VersionManifest::fetch_fresh)
-}
-
-fn latest_release_version_with<F>(fetch_manifest: F) -> String
-where
-    F: FnOnce() -> Result<manifest::VersionManifest>,
-{
-    fetch_manifest()
-        .and_then(|m| m.resolve("latest").map(|e| e.id.clone()))
-        .unwrap_or_else(|_| latest_known_version().to_string())
+    latest_known_version().to_string()
 }
 
 fn latest_known_version() -> &'static str {
@@ -120,10 +110,9 @@ fn latest_known_version() -> &'static str {
 
 /// Resolve `mc_version` to a `(version_id, version_json_url)` pair.
 ///
-/// For `"latest"`, attempts a fresh manifest fetch and falls back to the
-/// bundled `sand_version::LATEST_KNOWN` anchor when the network is
-/// unavailable — so stale cached manifest data can never silently override
-/// the verified bundled anchor on refresh failure.
+/// For `"latest"`, uses the bundled `sand_version::LATEST_KNOWN` anchor so
+/// generated reports and `sand-core::VersionProfile` metadata resolve to the
+/// same concrete version.
 ///
 /// For pinned versions (e.g. `"1.21.4"`), uses the normal `PreferCache`
 /// policy (network only when the version is absent from cache).
@@ -135,11 +124,13 @@ fn resolve_version(mc_version: &str) -> Result<(String, String)> {
 
 /// Testable core of [`resolve_version`].
 ///
-/// `fetch_fresh` is called for `"latest"` resolution and falls back to
-/// `LATEST_KNOWN` on error. `fetch_cached` is called for pinned versions.
+/// `fetch_fresh` is retained for tests to prove `"latest"` does not consult
+/// Mojang's moving current release. `fetch_cached` is called with the final
+/// concrete version so the matching manifest entry can still be downloaded or
+/// read from cache.
 fn resolve_version_with<FF, FC>(
     mc_version: &str,
-    fetch_fresh: FF,
+    _fetch_fresh: FF,
     fetch_cached: FC,
 ) -> Result<(String, String)>
 where
@@ -147,10 +138,7 @@ where
     FC: FnOnce(&str) -> Result<manifest::VersionManifest>,
 {
     if mc_version == "latest" {
-        // For "latest", try a fresh manifest; if that fails, use the bundled
-        // anchor so stale cached manifests cannot bypass LATEST_KNOWN.
-        let version_id = latest_release_version_with(fetch_fresh);
-        // Now fetch the manifest entry for the resolved version id via cache.
+        let version_id = latest_known_version().to_string();
         let manifest = fetch_cached(&version_id)?;
         let entry = manifest.resolve(&version_id)?;
         Ok((entry.id.clone(), entry.url.clone()))
@@ -190,8 +178,8 @@ pub fn generate(mc_version: &str) -> Result<()> {
 /// Same as [`generate`] but writes output to an explicit directory instead of
 /// `$OUT_DIR`. Useful for integration tests and tooling.
 pub fn generate_to_dir(mc_version: &str, out_dir: &std::path::Path) -> Result<()> {
-    // 1. Resolve version. For "latest", fresh manifest fetch falls back to the
-    //    bundled LATEST_KNOWN anchor — stale cached manifests are never used.
+    // 1. Resolve version. For "latest", use the bundled LATEST_KNOWN anchor so
+    //    generated APIs and runtime version metadata stay aligned.
     let (version_id, version_json_url) = resolve_version(mc_version)?;
     let _lock = VersionCacheLock::acquire(&version_id)?;
 
@@ -209,8 +197,8 @@ pub fn generate_to_dir(mc_version: &str, out_dir: &std::path::Path) -> Result<()
 
 #[cfg(test)]
 mod tests {
+    use crate::Result;
     use crate::manifest::{LatestVersions, VersionEntry, VersionManifest};
-    use crate::{Error, Result};
 
     #[test]
     fn latest_known_fallback_uses_shared_version_anchor() {
@@ -218,24 +206,8 @@ mod tests {
     }
 
     #[test]
-    fn latest_release_falls_back_to_shared_anchor_on_refresh_error() {
-        let release = super::latest_release_version_with(|| {
-            Err(Error::Io(std::io::Error::new(
-                std::io::ErrorKind::ConnectionRefused,
-                "simulated refresh failure",
-            )))
-        });
-
-        assert_eq!(release, sand_version::LATEST_KNOWN);
-    }
-
-    #[test]
-    fn latest_release_uses_fresh_manifest_when_available() {
-        let release = super::latest_release_version_with(|| -> Result<VersionManifest> {
-            Ok(make_manifest("26.3"))
-        });
-
-        assert_eq!(release, "26.3");
+    fn latest_release_version_uses_shared_anchor() {
+        assert_eq!(super::latest_release_version(), sand_version::LATEST_KNOWN);
     }
 
     fn make_manifest(latest_release: &str) -> VersionManifest {
@@ -259,23 +231,16 @@ mod tests {
     // resolve_version_with() regression tests
     // -------------------------------------------------------------------------
 
-    /// Regression: when manifest refresh fails for "latest", resolve_version_with
-    /// must use LATEST_KNOWN, NOT a stale cached manifest's latest.release.
-    ///
-    /// Under the old RefreshLatest path, a stale cache like `{"latest":
-    /// {"release": "1.19.0"}}` would be returned on network failure, and the
-    /// caller would silently use "1.19.0". With the new path, LATEST_KNOWN is
-    /// always used instead.
+    /// Regression: `latest` must use LATEST_KNOWN, NOT a cached manifest's
+    /// latest.release.
     #[test]
-    fn resolve_version_latest_uses_bundled_anchor_on_refresh_failure() {
+    fn resolve_version_latest_uses_bundled_anchor_not_cached_latest() {
         let stale_release = "1.19.0"; // what the old code would have returned
 
         // The stale manifest says the latest is "1.19.0"; the "cache" is able to
-        // look up LATEST_KNOWN if asked (new code path), but must NOT be asked
-        // for the stale latest.release.
+        // look up LATEST_KNOWN if asked, but must NOT be asked for latest.release.
         let stale_manifest = {
             let mut m = make_manifest(stale_release);
-            // Inject LATEST_KNOWN so fetch_cached can resolve it after fallback.
             m.versions.push(crate::manifest::VersionEntry {
                 id: sand_version::LATEST_KNOWN.to_string(),
                 version_type: "release".to_string(),
@@ -289,14 +254,9 @@ mod tests {
 
         let (version_id, _url) = super::resolve_version_with(
             "latest",
-            // fetch_fresh fails (offline / network error)
             || -> Result<VersionManifest> {
-                Err(Error::Io(std::io::Error::new(
-                    std::io::ErrorKind::ConnectionRefused,
-                    "simulated network error",
-                )))
+                panic!("fetch_fresh must not be called for latest");
             },
-            // fetch_cached returns the stale manifest (contains both releases)
             move |_v| Ok(stale_manifest.clone()),
         )
         .unwrap();
@@ -312,12 +272,10 @@ mod tests {
         );
     }
 
-    /// Regression: stale cached latest.release does not override LATEST_KNOWN
-    /// even when the stale cached manifest is valid/parseable.
+    /// Regression: stale cached latest.release does not override LATEST_KNOWN.
     #[test]
     fn stale_cached_latest_does_not_override_bundled_anchor() {
         let stale_release = "1.19.0"; // older than LATEST_KNOWN
-        // Manifest containing the stale release AND LATEST_KNOWN (so lookup succeeds).
         let mut stale_manifest = make_manifest(stale_release);
         stale_manifest.versions.push(crate::manifest::VersionEntry {
             id: sand_version::LATEST_KNOWN.to_string(),
@@ -331,10 +289,7 @@ mod tests {
         let (version_id, _url) = super::resolve_version_with(
             "latest",
             || -> Result<VersionManifest> {
-                Err(Error::Io(std::io::Error::new(
-                    std::io::ErrorKind::ConnectionRefused,
-                    "simulated network error",
-                )))
+                panic!("fetch_fresh must not be called for latest");
             },
             move |_v| Ok(stale_manifest.clone()),
         )
@@ -351,22 +306,35 @@ mod tests {
         );
     }
 
-    /// Fresh manifest lookup still uses the fresh manifest release.
+    /// Fresh manifest latest.release must not override the verified bundled
+    /// latest-known anchor.
     #[test]
-    fn resolve_version_latest_uses_fresh_manifest_on_success() {
+    fn resolve_version_latest_ignores_newer_fresh_manifest_release() {
         let fresh_release = "26.9";
-        let fresh_manifest = make_manifest(fresh_release);
-        let cached_manifest = make_manifest(fresh_release);
+        let mut cached_manifest = make_manifest(fresh_release);
+        cached_manifest
+            .versions
+            .push(crate::manifest::VersionEntry {
+                id: sand_version::LATEST_KNOWN.to_string(),
+                version_type: "release".to_string(),
+                url: format!("https://example.com/{}.json", sand_version::LATEST_KNOWN),
+                sha1: "fake".to_string(),
+                time: String::new(),
+                release_time: String::new(),
+            });
 
         let (version_id, url) = super::resolve_version_with(
             "latest",
-            move || -> Result<VersionManifest> { Ok(fresh_manifest.clone()) },
+            move || -> Result<VersionManifest> {
+                panic!("fetch_fresh must not be called for latest");
+            },
             move |_v| Ok(cached_manifest.clone()),
         )
         .unwrap();
 
-        assert_eq!(version_id, fresh_release);
-        assert!(url.contains(fresh_release));
+        assert_ne!(version_id, fresh_release);
+        assert_eq!(version_id, sand_version::LATEST_KNOWN);
+        assert!(url.contains(sand_version::LATEST_KNOWN));
     }
 
     /// Explicit versions still resolve normally (via PreferCache path).

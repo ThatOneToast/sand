@@ -149,7 +149,7 @@ Available in `sand_core::event::trigger`:
 | `PlayerKilledEntityTrigger` | `minecraft:player_killed_entity` | `entity(predicate)`, `killing_blow(predicate)` |
 | `EntityKilledPlayerTrigger` | `minecraft:entity_killed_player` | `entity(predicate)`, `killing_blow(predicate)` |
 | `InventoryChangedTrigger` | `minecraft:inventory_changed` | `slots(predicate)`, `item(predicate)` |
-| `ItemObtainedTrigger` | `minecraft:crafted_item` | `item(predicate)` |
+| `ItemObtainedTrigger` (crafted items only) | `minecraft:crafted_item` | `item(predicate)` |
 | `ItemEnchantTrigger` | `minecraft:enchanted_item` | `item(predicate)`, `levels(predicate)` |
 | `RecipeUnlockedTrigger` | `minecraft:recipe_unlocked` | `new(recipe)` |
 | `MultiKillTrigger` | `minecraft:killed_by_crossbow` | `unique_entity_types(n)`, `victim(predicate)` |

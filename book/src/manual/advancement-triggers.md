@@ -1,6 +1,6 @@
 # Advancement Triggers
 
-Builders in `sand_core::event::trigger` create `AdvancementTrigger` values, including `UsingItemTrigger`, `ConsumeItemTrigger`, `ItemObtainedTrigger`, `RecipeUnlockedTrigger`, `PlayerInteractedWithEntityTrigger`, and `SummonedEntityTrigger`.
+Builders in `sand_core::event::trigger` create `AdvancementTrigger` values, including `UsingItemTrigger`, `ConsumeItemTrigger`, `ItemObtainedTrigger`, `RecipeUnlockedTrigger`, `PlayerInteractedWithEntityTrigger`, and `SummonedEntityTrigger`. `ItemObtainedTrigger` maps to `minecraft:crafted_item`, so it fires only when an item is crafted—not when an item is smelted or otherwise acquired.
 
 ```rust
 PlayerInteractedWithEntityTrigger::new()

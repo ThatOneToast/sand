@@ -96,8 +96,12 @@ pub use cmd::{
     ScoreCmp, SetBlock, SetBlockMode, SingleEntity, SinglePlayer, Sound, SoundSource, Storage,
     Title, TypedExecute,
 };
-pub use component::export_components_json;
-pub use component::{ComponentContent, ComponentRecord, DatapackComponent, IntoDatapack};
+pub use component::try_export_components;
+pub use component::try_export_components_json;
+pub use component::{
+    ComponentContent, ComponentExportError, ComponentRecord, DatapackComponent, ExportResult,
+    IntoDatapack,
+};
 pub use error::{Result, SandError};
 pub use event::handle::{EventHandle, RawEventHandle};
 pub use event::{

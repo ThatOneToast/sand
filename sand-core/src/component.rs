@@ -7,12 +7,13 @@ use serde::Serialize;
 // which now resolves to sand_components::ResourceLocation.
 
 pub use sand_components::component::{ComponentContent, DatapackComponent, IntoDatapack};
+pub use sand_components::error::SandError as ComponentExportError;
 
 // ── sand-core-specific types ──────────────────────────────────────────────────
 
 /// A serializable record of a datapack component for output during the build
 /// process.  Consumed by `sand-build` / the generated `sand_export` binary.
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct ComponentRecord {
     /// The namespace (e.g. `"my_pack"`).
     pub namespace: String,
@@ -28,18 +29,92 @@ pub struct ComponentRecord {
     pub content: String,
 }
 
-/// Collect all inventory-registered components and return them as a JSON string
-/// for consumption by `sand build`.  Called by the generated `sand_export` binary.
+/// Error returned by [`try_export_components`] when a registered component fails
+/// validation or serialization.
+pub type ExportResult<T> = std::result::Result<T, ComponentExportError>;
+
+/// Convert a single [`DatapackComponent`] into a [`ComponentRecord`],
+/// validating exactly once before any content is accepted.
 ///
-/// Iterates through all registered:
-/// - `FunctionDescriptor`s — `.mcfunction` files
-/// - `ComponentFactory`s — component JSON files
-/// - `FunctionTagDescriptor`s — function tag JSON files
-/// - `ArmorEventDescriptor`s — armor event handlers
-/// - `EventDescriptor`s — advancement-backed events
+/// - **Copy-backed components**: [`DatapackComponent::validate`] runs, and the
+///   source path is accepted only if validation passes.
+/// - **JSON/text components**: [`DatapackComponent::try_content`] runs — its
+///   default implementation calls `validate()` then `content()`, so validation
+///   happens exactly once.
 ///
-/// Returns a JSON string containing an array of [`ComponentRecord`] objects.
-pub fn export_components_json(namespace: &str) -> String {
+/// No separate `validate()` call is made for JSON/text components, avoiding
+/// double validation.
+fn component_to_record(comp: &dyn DatapackComponent) -> ExportResult<ComponentRecord> {
+    let rl = comp.resource_location().clone();
+    let kind = comp.component_dir().to_string();
+
+    let (content_type, content) = if let Some(path) = comp.copy_source_path() {
+        // Copy-backed: validate explicitly (no try_content needed).
+        comp.validate().map_err(|e| enrich_error(e, &rl, &kind))?;
+        ("copy", path.to_string())
+    } else {
+        // JSON/text: try_content() includes validate() + content extraction.
+        let content = comp
+            .try_content()
+            .map_err(|e| enrich_error(e, &rl, &kind))?;
+        match content {
+            ComponentContent::Json(v) => {
+                let text = serde_json::to_string_pretty(&v).map_err(|serde_err| {
+                    sand_components::error::SandError::ComponentValidation {
+                        location: rl.clone(),
+                        kind: kind.clone(),
+                        field: "<serialization>".to_string(),
+                        message: serde_err.to_string(),
+                    }
+                })?;
+                ("text", text)
+            }
+            ComponentContent::Text(t) => ("text", t),
+        }
+    };
+
+    Ok(ComponentRecord {
+        namespace: rl.namespace().to_string(),
+        dir: kind,
+        path: rl.path().to_string(),
+        ext: comp.file_extension().to_string(),
+        content_type: content_type.to_string(),
+        content,
+    })
+}
+
+fn enrich_error(
+    e: sand_components::error::SandError,
+    rl: &crate::resource_location::ResourceLocation,
+    kind: &str,
+) -> ComponentExportError {
+    match e {
+        sand_components::error::SandError::Serialization(serde_err) => {
+            sand_components::error::SandError::ComponentValidation {
+                location: rl.clone(),
+                kind: kind.to_string(),
+                field: "<serialization>".to_string(),
+                message: serde_err.to_string(),
+            }
+        }
+        other => other,
+    }
+}
+
+/// Collect all inventory-registered components into records, routing every
+/// `ComponentFactory` through the fallible [`component_to_record`] helper
+/// which validates all components (JSON, text, and copy-backed) before
+/// accepting their content.
+///
+/// Invalid components are rejected here — **before** any pack output is
+/// written — with a structured [`ComponentExportError`] that includes the
+/// resource location, component kind, and validation field when known.
+///
+/// This is the fallible companion to [`export_components_json`]. Most callers
+/// should use [`export_components_json`] (which panics on error with a clear
+/// diagnostic); tests and library code that need to handle errors should call
+/// this function or [`component_to_record`] directly.
+pub fn try_export_components(namespace: &str) -> ExportResult<Vec<ComponentRecord>> {
     use crate::function::{
         ArmorEventDescriptor, ArmorEventKind, ArmorSlot, ComponentFactory, EventDescriptor,
         FunctionDescriptor, FunctionTagDescriptor,
@@ -63,26 +138,11 @@ pub fn export_components_json(namespace: &str) -> String {
         });
     }
 
-    // ── ComponentFactories ────────────────────────────────────────────────────
+    // ── ComponentFactories (fallible boundary) ────────────────────────────────
     for factory in inventory::iter::<ComponentFactory>() {
         let comp = (factory.make)();
-        let rl = comp.resource_location();
-        let (content_type, content) = if let Some(path) = comp.copy_source_path() {
-            ("copy", path.to_string())
-        } else {
-            match comp.content() {
-                ComponentContent::Json(v) => ("text", serde_json::to_string_pretty(&v).unwrap()),
-                ComponentContent::Text(t) => ("text", t),
-            }
-        };
-        records.push(ComponentRecord {
-            namespace: rl.namespace().to_string(),
-            dir: comp.component_dir().to_string(),
-            path: rl.path().to_string(),
-            ext: comp.file_extension().to_string(),
-            content_type: content_type.to_string(),
-            content,
-        });
+        let record = component_to_record(comp.as_ref())?;
+        records.push(record);
     }
 
     // ── EventDescriptors + ArmorEventDescriptors ─────────────────────────────
@@ -1001,7 +1061,42 @@ pub fn export_components_json(namespace: &str) -> String {
         "BUG: unresolved __sand_local sentinel found in exported records"
     );
 
-    serde_json::to_string_pretty(&records).unwrap()
+    Ok(records)
+}
+
+/// Fallibly collect all inventory-registered components and return them as a
+/// JSON string for consumption by `sand build`.
+///
+/// This is the function the generated `sand_export` binary should call. On
+/// success it returns the JSON array of [`ComponentRecord`] objects as a
+/// `String`. On failure it returns a [`ComponentExportError`] carrying the
+/// resource location, component kind, and validation field — **no panic, no
+/// backtrace**. The caller is responsible for printing a diagnostic to stderr
+/// and exiting non-zero.
+///
+/// See [`try_export_components`] for the record-level fallible API.
+pub fn try_export_components_json(namespace: &str) -> ExportResult<String> {
+    let records = try_export_components(namespace)?;
+    serde_json::to_string_pretty(&records).map_err(sand_components::error::SandError::Serialization)
+}
+
+/// Collect all inventory-registered components and return them as a JSON string
+/// for consumption by `sand build`.
+///
+/// **Compatibility wrapper** — this function **panics** on component validation
+/// or serialization failure. It is retained for backward compatibility with
+/// direct callers that expect an infallible `String` return. The generated
+/// `sand_export` binary and all scaffold templates use
+/// [`try_export_components_json`] instead, which returns `Result` and exits
+/// non-zero without a panic backtrace.
+///
+/// Library code and tests that need to handle component errors should call
+/// [`try_export_components`] or [`try_export_components_json`] directly.
+pub fn export_components_json(namespace: &str) -> String {
+    match try_export_components_json(namespace) {
+        Ok(s) => s,
+        Err(e) => panic!("sand component export failed: {e}"),
+    }
 }
 
 fn dedupe_preserve_order(values: Vec<String>) -> Vec<String> {
@@ -1590,6 +1685,327 @@ mod tests {
         assert!(
             lines[2].contains("lc_zeta"),
             "third command must be lc_zeta, got: {lines:?}"
+        );
+    }
+
+    // ── Fallible component-to-record contract tests (#145) ─────────────────────
+    //
+    // All tests use `component_to_record` with local component values — no
+    // global `inventory::submit!` and no process-global atomic toggles that
+    // could affect other export tests running concurrently.
+
+    use super::component_to_record;
+    use sand_components::component::ComponentContent;
+    use sand_components::error::SandError;
+
+    fn test_rl(ns: &str, path: &str) -> crate::resource_location::ResourceLocation {
+        crate::resource_location::ResourceLocation::new(ns, path).unwrap()
+    }
+
+    // ── Validation call counter ─────────────────────────────────────────────────
+
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    /// A component that counts how many times `validate()` is called.
+    /// Shared counter lets tests assert exactly-once validation.
+    struct CountingJsonComponent {
+        loc: crate::resource_location::ResourceLocation,
+        counter: &'static AtomicUsize,
+    }
+    impl super::DatapackComponent for CountingJsonComponent {
+        fn resource_location(&self) -> &crate::resource_location::ResourceLocation {
+            &self.loc
+        }
+        fn to_json(&self) -> serde_json::Value {
+            serde_json::json!({"ok": true})
+        }
+        fn validate(&self) -> sand_components::error::Result<()> {
+            self.counter.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }
+        fn component_dir(&self) -> &'static str {
+            "test_count_json"
+        }
+    }
+
+    struct CountingCopyComponent {
+        loc: crate::resource_location::ResourceLocation,
+        source_path: String,
+        counter: &'static AtomicUsize,
+    }
+    impl super::DatapackComponent for CountingCopyComponent {
+        fn resource_location(&self) -> &crate::resource_location::ResourceLocation {
+            &self.loc
+        }
+        fn to_json(&self) -> serde_json::Value {
+            serde_json::Value::Null
+        }
+        fn copy_source_path(&self) -> Option<&str> {
+            Some(&self.source_path)
+        }
+        fn validate(&self) -> sand_components::error::Result<()> {
+            self.counter.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }
+        fn component_dir(&self) -> &'static str {
+            "test_count_copy"
+        }
+    }
+
+    #[test]
+    fn json_component_validates_exactly_once() {
+        static COUNT: AtomicUsize = AtomicUsize::new(0);
+        let comp = CountingJsonComponent {
+            loc: test_rl("test", "count_json"),
+            counter: &COUNT,
+        };
+        COUNT.store(0, Ordering::SeqCst);
+        component_to_record(&comp).expect("valid JSON component should succeed");
+        assert_eq!(
+            COUNT.load(Ordering::SeqCst),
+            1,
+            "JSON/text components must validate exactly once \
+             (try_content includes validation)"
+        );
+    }
+
+    #[test]
+    fn copy_component_validates_exactly_once() {
+        static COUNT: AtomicUsize = AtomicUsize::new(0);
+        let comp = CountingCopyComponent {
+            loc: test_rl("test", "count_copy"),
+            source_path: "structures/x.nbt".to_string(),
+            counter: &COUNT,
+        };
+        COUNT.store(0, Ordering::SeqCst);
+        component_to_record(&comp).expect("valid copy component should succeed");
+        assert_eq!(
+            COUNT.load(Ordering::SeqCst),
+            1,
+            "copy-backed components must validate exactly once"
+        );
+    }
+
+    // ── Test fixture components ─────────────────────────────────────────────────
+
+    struct ValidJsonComponent {
+        loc: crate::resource_location::ResourceLocation,
+    }
+    impl super::DatapackComponent for ValidJsonComponent {
+        fn resource_location(&self) -> &crate::resource_location::ResourceLocation {
+            &self.loc
+        }
+        fn to_json(&self) -> serde_json::Value {
+            serde_json::json!({"hello": "world"})
+        }
+        fn component_dir(&self) -> &'static str {
+            "test_json"
+        }
+    }
+
+    struct ValidTextComponent {
+        loc: crate::resource_location::ResourceLocation,
+    }
+    impl super::DatapackComponent for ValidTextComponent {
+        fn resource_location(&self) -> &crate::resource_location::ResourceLocation {
+            &self.loc
+        }
+        fn to_json(&self) -> serde_json::Value {
+            serde_json::Value::Null
+        }
+        fn content(&self) -> ComponentContent {
+            ComponentContent::Text("say hello from text component".to_string())
+        }
+        fn component_dir(&self) -> &'static str {
+            "function"
+        }
+        fn file_extension(&self) -> &'static str {
+            "mcfunction"
+        }
+    }
+
+    struct ValidCopyComponent {
+        loc: crate::resource_location::ResourceLocation,
+        source_path: String,
+    }
+    impl super::DatapackComponent for ValidCopyComponent {
+        fn resource_location(&self) -> &crate::resource_location::ResourceLocation {
+            &self.loc
+        }
+        fn to_json(&self) -> serde_json::Value {
+            serde_json::Value::Null
+        }
+        fn copy_source_path(&self) -> Option<&str> {
+            Some(&self.source_path)
+        }
+        fn component_dir(&self) -> &'static str {
+            "structure"
+        }
+        fn file_extension(&self) -> &'static str {
+            "nbt"
+        }
+    }
+
+    struct InvalidJsonComponent {
+        loc: crate::resource_location::ResourceLocation,
+    }
+    impl super::DatapackComponent for InvalidJsonComponent {
+        fn resource_location(&self) -> &crate::resource_location::ResourceLocation {
+            &self.loc
+        }
+        fn to_json(&self) -> serde_json::Value {
+            serde_json::json!({})
+        }
+        fn validate(&self) -> sand_components::error::Result<()> {
+            Err(SandError::ComponentValidation {
+                location: self.loc.clone(),
+                kind: "test_invalid_json".to_string(),
+                field: "test_field".to_string(),
+                message: "intentional JSON validation failure".to_string(),
+            })
+        }
+        fn component_dir(&self) -> &'static str {
+            "test_invalid_json"
+        }
+    }
+
+    struct InvalidCopyComponent {
+        loc: crate::resource_location::ResourceLocation,
+    }
+    impl super::DatapackComponent for InvalidCopyComponent {
+        fn resource_location(&self) -> &crate::resource_location::ResourceLocation {
+            &self.loc
+        }
+        fn to_json(&self) -> serde_json::Value {
+            serde_json::Value::Null
+        }
+        fn copy_source_path(&self) -> Option<&str> {
+            Some("structures/should_not_be_accepted.nbt")
+        }
+        fn validate(&self) -> sand_components::error::Result<()> {
+            Err(SandError::ComponentValidation {
+                location: self.loc.clone(),
+                kind: "test_invalid_copy".to_string(),
+                field: "source_check".to_string(),
+                message: "intentional copy-backed validation failure".to_string(),
+            })
+        }
+        fn component_dir(&self) -> &'static str {
+            "test_invalid_copy"
+        }
+    }
+
+    // ── Tests ───────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn component_to_record_valid_json_preserves_output() {
+        let comp = ValidJsonComponent {
+            loc: test_rl("test", "valid_json"),
+        };
+        let record = component_to_record(&comp).expect("valid JSON component should succeed");
+        assert_eq!(record.namespace, "test");
+        assert_eq!(record.dir, "test_json");
+        assert_eq!(record.path, "valid_json");
+        assert_eq!(record.ext, "json");
+        assert_eq!(record.content_type, "text");
+        assert!(record.content.contains("hello"));
+    }
+
+    #[test]
+    fn component_to_record_text_content_exports_correctly() {
+        let comp = ValidTextComponent {
+            loc: test_rl("test", "valid_text"),
+        };
+        let record = component_to_record(&comp).expect("valid text component should succeed");
+        assert_eq!(record.content_type, "text");
+        assert_eq!(record.content, "say hello from text component");
+    }
+
+    #[test]
+    fn component_to_record_valid_copy_exports_correctly() {
+        let comp = ValidCopyComponent {
+            loc: test_rl("test", "valid_copy"),
+            source_path: "structures/castle.nbt".to_string(),
+        };
+        let record = component_to_record(&comp).expect("valid copy component should succeed");
+        assert_eq!(record.content_type, "copy");
+        assert_eq!(record.content, "structures/castle.nbt");
+    }
+
+    #[test]
+    fn component_to_record_invalid_json_returns_err_with_context() {
+        let comp = InvalidJsonComponent {
+            loc: test_rl("test", "invalid_json"),
+        };
+        let err = component_to_record(&comp).expect_err("invalid JSON component must fail");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("test:invalid_json"),
+            "must include location: {msg}"
+        );
+        assert!(
+            msg.contains("test_invalid_json"),
+            "must include kind: {msg}"
+        );
+        assert!(msg.contains("test_field"), "must include field: {msg}");
+    }
+
+    #[test]
+    fn component_to_record_invalid_copy_returns_err_with_context() {
+        let comp = InvalidCopyComponent {
+            loc: test_rl("test", "invalid_copy"),
+        };
+        let err = component_to_record(&comp).expect_err("invalid copy component must fail");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("test:invalid_copy"),
+            "must include location: {msg}"
+        );
+        assert!(
+            msg.contains("test_invalid_copy"),
+            "must include kind: {msg}"
+        );
+        assert!(
+            !msg.contains("should_not_be_accepted"),
+            "source path must not be accepted when validation fails: {msg}"
+        );
+    }
+
+    #[test]
+    fn component_to_record_serialization_failure_never_becomes_null() {
+        struct FailingSerializationComponent {
+            loc: crate::resource_location::ResourceLocation,
+        }
+        impl super::DatapackComponent for FailingSerializationComponent {
+            fn resource_location(&self) -> &crate::resource_location::ResourceLocation {
+                &self.loc
+            }
+            fn to_json(&self) -> serde_json::Value {
+                serde_json::Value::Null
+            }
+            fn try_content(&self) -> sand_components::error::Result<ComponentContent> {
+                self.validate()?;
+                Err(SandError::Serialization(
+                    serde_json::from_str::<serde_json::Value>("not json").unwrap_err(),
+                ))
+            }
+            fn component_dir(&self) -> &'static str {
+                "test_ser_fail"
+            }
+        }
+
+        let comp = FailingSerializationComponent {
+            loc: test_rl("test", "ser_fail"),
+        };
+        let result = component_to_record(&comp);
+        assert!(
+            result.is_err(),
+            "serialization failure must return Err, not Value::Null"
+        );
+        let msg = result.unwrap_err().to_string();
+        assert!(
+            msg.contains("test:ser_fail") || msg.contains("serialization"),
+            "err: {msg}"
         );
     }
 }

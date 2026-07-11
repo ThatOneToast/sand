@@ -142,7 +142,13 @@ pub fn interop_example() {
 /// Invoked by the generated `sand_export` binary.
 #[doc(hidden)]
 pub fn __sand_export(namespace: &str) {
-    println!("{}", sand_core::export_components_json(namespace));
+    match sand_core::try_export_components_json(namespace) {
+        Ok(json) => println!("{json}"),
+        Err(e) => {
+            eprintln!("sand export failed: {e}");
+            std::process::exit(1);
+        }
+    }
 }
 
 // -- Tests -----------------------------------------------------------------

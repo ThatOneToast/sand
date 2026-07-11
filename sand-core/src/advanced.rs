@@ -8,7 +8,10 @@
 //! and generated-output machinery than ordinary packs need. Prefer typed
 //! builders from the prelude when they cover the use case.
 
-pub use crate::component::{ComponentContent, ComponentRecord, export_components_json};
+pub use crate::component::{
+    ComponentContent, ComponentRecord, export_components_json, try_export_components,
+    try_export_components_json,
+};
 pub use crate::function::{
     ComponentFactory, EventDescriptor, EventDispatch, EventPathEntry, FunctionDescriptor,
     FunctionPointerEntry, FunctionPointerTypeEntry, FunctionTagDescriptor, ScheduleDescriptor,

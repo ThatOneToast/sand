@@ -54,3 +54,4 @@ sand-version = { path = "../sand-version" }
 
 [build-dependencies]
 sand-build = { path = "../sand-build" }
+sand-version = { path = "../sand-version" }

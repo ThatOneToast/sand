@@ -230,6 +230,21 @@ pub struct DistancePredicate {
 }
 
 impl DistancePredicate {
+    pub fn validate_at(&self, path: &str) -> Result<(), String> {
+        for (name, range) in [
+            ("x", &self.x),
+            ("y", &self.y),
+            ("z", &self.z),
+            ("horizontal", &self.horizontal),
+            ("absolute", &self.absolute),
+        ] {
+            if let Some(range) = range {
+                range.validate_at(&format!("{path}.{name}"))?;
+            }
+        }
+        Ok(())
+    }
+
     pub fn new() -> Self {
         Self::default()
     }
@@ -292,6 +307,16 @@ pub struct EffectPredicate {
 }
 
 impl EffectPredicate {
+    pub fn validate_at(&self, path: &str) -> Result<(), String> {
+        if let Some(range) = &self.amplifier {
+            range.validate_at(&format!("{path}.amplifier"))?;
+        }
+        if let Some(range) = &self.duration {
+            range.validate_at(&format!("{path}.duration"))?;
+        }
+        Ok(())
+    }
+
     pub fn new() -> Self {
         Self::default()
     }
@@ -412,6 +437,16 @@ impl DamageTagEntry {
 }
 
 impl DamageSourcePredicate {
+    pub fn validate_at(&self, path: &str) -> Result<(), String> {
+        if let Some(entity) = &self.source_entity {
+            entity.validate_at(&format!("{path}.source_entity"))?;
+        }
+        if let Some(entity) = &self.direct_entity {
+            entity.validate_at(&format!("{path}.direct_entity"))?;
+        }
+        Ok(())
+    }
+
     pub fn new() -> Self {
         Self::default()
     }
@@ -477,6 +512,25 @@ pub struct DamagePredicate {
 }
 
 impl DamagePredicate {
+    pub fn validate_at(&self, path: &str) -> Result<(), String> {
+        if self._raw.is_some() {
+            return Ok(());
+        }
+        if let Some(range) = &self.dealt {
+            range.validate_at(&format!("{path}.dealt"))?;
+        }
+        if let Some(range) = &self.taken {
+            range.validate_at(&format!("{path}.taken"))?;
+        }
+        if let Some(entity) = &self.source_entity {
+            entity.validate_at(&format!("{path}.source_entity"))?;
+        }
+        if let Some(source) = &self.type_ {
+            source.validate_at(&format!("{path}.type"))?;
+        }
+        Ok(())
+    }
+
     pub fn new() -> Self {
         Self::default()
     }
@@ -1054,6 +1108,11 @@ impl EntityPredicate {
                 if let Some(item) = item {
                     item.validate_at(&format!("{path}.equipment.{name}"))?;
                 }
+            }
+        }
+        if let Some(effects) = &self.effects {
+            for (effect, predicate) in effects {
+                predicate.validate_at(&format!("{path}.effects.{effect}"))?;
             }
         }
         Ok(())

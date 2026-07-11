@@ -1238,6 +1238,8 @@ impl From<EntityPredicate> for Value {
 
 impl From<DamagePredicate> for Value {
     fn from(p: DamagePredicate) -> Value {
+        p.validate_at("predicate")
+            .unwrap_or_else(|e| panic!("predicate validation failed: {e}"));
         serde_json::to_value(p).unwrap_or_else(|e| panic!("predicate serialization failed: {e}"))
     }
 }

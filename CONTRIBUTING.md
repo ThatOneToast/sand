@@ -64,3 +64,17 @@ Staged goals:
 
 Do not require network-heavy Minecraft data regeneration in default CI unless
 the change is specifically about generated data.
+
+## Local codegen contract
+
+`sand-core/build.rs` runs `sand-build` codegen at build time to generate
+`commands.rs`, `registries.rs`, and `block_states.rs`. The default target is
+`sand_version::DEFAULT_CODEGEN_VERSION` (currently `1.21.11`), used when
+`SAND_MC_VERSION` is unset. This is the *codegen target*, deliberately separate
+from `sand_version::LATEST_KNOWN` (`26.2`), the *export/profile anchor*.
+
+A clean `cargo test -p sand-core --lib` works without environment variables
+when the default target is codegen-available (cached jar or network). If
+codegen fails, the build fails immediately with an actionable message. Set
+`SAND_ALLOW_PLACEHOLDER_CODEGEN=1` to compile with empty placeholder APIs
+(tests will fail). See `docs/version-support.md` for the full contract.

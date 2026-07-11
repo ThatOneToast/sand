@@ -472,7 +472,8 @@ macro_rules! any {
 /// Generated Minecraft registry enums (`Item`, `Block`, `EntityType`, etc.).
 ///
 /// Populated at build time by `sand-build` for the Minecraft version specified
-/// in the `SAND_MC_VERSION` environment variable (default: `1.21.11`).
+/// in the `SAND_MC_VERSION` environment variable (default:
+/// `sand_version::DEFAULT_CODEGEN_VERSION`, currently `1.21.11`).
 ///
 /// # Example
 /// ```rust,ignore

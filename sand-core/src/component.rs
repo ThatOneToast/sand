@@ -1,3 +1,5 @@
+#![allow(clippy::result_large_err)]
+
 use serde::Serialize;
 
 // ── Unified traits ────────────────────────────────────────────────────────────
@@ -7,12 +9,14 @@ use serde::Serialize;
 // which now resolves to sand_components::ResourceLocation.
 
 pub use sand_components::component::{ComponentContent, DatapackComponent, IntoDatapack};
+pub use sand_components::error::SandError as ComponentExportError;
+pub use sand_version::{ComponentFeature, VersionCaps};
 
 // ── sand-core-specific types ──────────────────────────────────────────────────
 
 /// A serializable record of a datapack component for output during the build
 /// process.  Consumed by `sand-build` / the generated `sand_export` binary.
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct ComponentRecord {
     /// The namespace (e.g. `"my_pack"`).
     pub namespace: String,
@@ -28,18 +32,132 @@ pub struct ComponentRecord {
     pub content: String,
 }
 
-/// Collect all inventory-registered components and return them as a JSON string
-/// for consumption by `sand build`.  Called by the generated `sand_export` binary.
+/// Error returned by [`try_export_components`] when a registered component fails
+/// validation or serialization.
+pub type ExportResult<T> = std::result::Result<T, ComponentExportError>;
+
+/// Version-aware export context — carries the resolved capability set and the
+/// requested version string for diagnostics.
+struct ExportCtx<'a> {
+    caps: &'a VersionCaps,
+    requested_version: &'a str,
+    is_fallback: bool,
+}
+
+/// Convert a single [`DatapackComponent`] into a [`ComponentRecord`],
+/// validating exactly once before any content is accepted, and checking
+/// version-gated features against the export context.
+fn component_to_record(
+    comp: &dyn DatapackComponent,
+    ctx: Option<&ExportCtx>,
+) -> ExportResult<ComponentRecord> {
+    let rl = comp.resource_location().clone();
+    let kind = comp.component_dir().to_string();
+
+    // Version-gate check: reject if a required feature is not supported.
+    if let Some(ctx) = ctx {
+        for feature in comp.required_features() {
+            if !ctx.caps.supports(*feature) {
+                return Err(sand_components::error::version_gating_error(
+                    &rl.to_string(),
+                    &kind,
+                    *feature,
+                    ctx.requested_version,
+                    ctx.is_fallback,
+                ));
+            }
+        }
+    }
+
+    let (content_type, content) = if let Some(path) = comp.copy_source_path() {
+        comp.validate().map_err(|e| enrich_error(e, &rl, &kind))?;
+        ("copy", path.to_string())
+    } else {
+        let content = comp
+            .try_content()
+            .map_err(|e| enrich_error(e, &rl, &kind))?;
+        match content {
+            ComponentContent::Json(v) => {
+                let text = serde_json::to_string_pretty(&v).map_err(|serde_err| {
+                    sand_components::error::SandError::ComponentValidation {
+                        location: rl.clone(),
+                        kind: kind.clone(),
+                        field: "<serialization>".to_string(),
+                        message: serde_err.to_string(),
+                    }
+                })?;
+                ("text", text)
+            }
+            ComponentContent::Text(t) => ("text", t),
+        }
+    };
+
+    Ok(ComponentRecord {
+        namespace: rl.namespace().to_string(),
+        dir: kind,
+        path: rl.path().to_string(),
+        ext: comp.file_extension().to_string(),
+        content_type: content_type.to_string(),
+        content,
+    })
+}
+
+fn enrich_error(
+    e: sand_components::error::SandError,
+    rl: &crate::resource_location::ResourceLocation,
+    kind: &str,
+) -> ComponentExportError {
+    match e {
+        sand_components::error::SandError::Serialization(serde_err) => {
+            sand_components::error::SandError::ComponentValidation {
+                location: rl.clone(),
+                kind: kind.to_string(),
+                field: "<serialization>".to_string(),
+                message: serde_err.to_string(),
+            }
+        }
+        other => other,
+    }
+}
+
+/// Collect all inventory-registered components into records, routing every
+/// `ComponentFactory` through the fallible [`component_to_record`] helper
+/// which validates all components (JSON, text, and copy-backed) before
+/// accepting their content.
 ///
-/// Iterates through all registered:
-/// - `FunctionDescriptor`s — `.mcfunction` files
-/// - `ComponentFactory`s — component JSON files
-/// - `FunctionTagDescriptor`s — function tag JSON files
-/// - `ArmorEventDescriptor`s — armor event handlers
-/// - `EventDescriptor`s — advancement-backed events
+/// This is the **unprofiled** compatibility path — no version-gating is
+/// performed. Use [`try_export_components_for_version`] when the target
+/// `VersionProfile` is known so that version-gated components are rejected
+/// before any pack output is written.
+pub fn try_export_components(namespace: &str) -> ExportResult<Vec<ComponentRecord>> {
+    try_export_components_impl(namespace, None)
+}
+
+/// Version-aware fallible export: collect all inventory-registered components,
+/// rejecting components and advancement-backed events that require features not
+/// available in the target [`VersionCaps`].
 ///
-/// Returns a JSON string containing an array of [`ComponentRecord`] objects.
-pub fn export_components_json(namespace: &str) -> String {
+/// The `requested_version` string and `is_fallback` flag are used for
+/// diagnostics only. Invalid components and unsupported version-gated
+/// components are rejected **before** any pack output is written.
+pub fn try_export_components_for_version(
+    namespace: &str,
+    caps: &VersionCaps,
+    requested_version: &str,
+    is_fallback: bool,
+) -> ExportResult<Vec<ComponentRecord>> {
+    let ctx = ExportCtx {
+        caps,
+        requested_version,
+        is_fallback,
+    };
+    try_export_components_impl(namespace, Some(&ctx))
+}
+
+fn try_export_components_impl(
+    namespace: &str,
+    ctx: Option<&ExportCtx>,
+) -> ExportResult<Vec<ComponentRecord>> {
     use crate::function::{
         ArmorEventDescriptor, ArmorEventKind, ArmorSlot, ComponentFactory, EventDescriptor,
         FunctionDescriptor, FunctionTagDescriptor,
@@ -63,26 +181,11 @@ pub fn export_components_json(namespace: &str) -> String {
         });
     }
 
-    // ── ComponentFactories ────────────────────────────────────────────────────
+    // ── ComponentFactories (fallible boundary) ────────────────────────────────
     for factory in inventory::iter::<ComponentFactory>() {
         let comp = (factory.make)();
-        let rl = comp.resource_location();
-        let (content_type, content) = if let Some(path) = comp.copy_source_path() {
-            ("copy", path.to_string())
-        } else {
-            match comp.content() {
-                ComponentContent::Json(v) => ("text", serde_json::to_string_pretty(&v).unwrap()),
-                ComponentContent::Text(t) => ("text", t),
-            }
-        };
-        records.push(ComponentRecord {
-            namespace: rl.namespace().to_string(),
-            dir: comp.component_dir().to_string(),
-            path: rl.path().to_string(),
-            ext: comp.file_extension().to_string(),
-            content_type: content_type.to_string(),
-            content,
-        });
+        let record = component_to_record(comp.as_ref(), ctx)?;
+        records.push(record);
     }
 
     // ── EventDescriptors + ArmorEventDescriptors ─────────────────────────────
@@ -172,12 +275,7 @@ pub fn export_components_json(namespace: &str) -> String {
 
                 // ── Advancement: trigger fires entry ──────────────────────────
                 let trigger = make_trigger();
-                trigger.validate_for_target().unwrap_or_else(|diagnostic| {
-                    panic!(
-                        "cannot export advancement event `{}`: {diagnostic}",
-                        desc.path
-                    )
-                });
+                check_event_trigger(&trigger, &advancement_id, desc.path, ctx)?;
                 let advancement = sand_components::Advancement::new(
                     advancement_id
                         .parse()
@@ -323,12 +421,11 @@ pub fn export_components_json(namespace: &str) -> String {
                 if let Some(trigger) = make_trigger() {
                     // Advancement-backed custom (SandEvent) event.
                     // Same entry/body split as the typed Advancement arm.
-                    validate_custom_sand_event_trigger(desc.path, &trigger);
-
                     let advancement_id = desc
                         .id_override
                         .map(|s| s.to_string())
                         .unwrap_or_else(|| format!("{}:{}", namespace, desc.path));
+                    check_event_trigger(&trigger, &advancement_id, desc.path, ctx)?;
 
                     let body_path = format!("{}/body", desc.path);
                     let body_fn_ref = format!("{namespace}:{body_path}");
@@ -1001,7 +1098,57 @@ pub fn export_components_json(namespace: &str) -> String {
         "BUG: unresolved __sand_local sentinel found in exported records"
     );
 
-    serde_json::to_string_pretty(&records).unwrap()
+    Ok(records)
+}
+
+/// Fallibly collect all inventory-registered components and return them as a
+/// JSON string for consumption by `sand build`.
+///
+/// This is the function the generated `sand_export` binary should call. On
+/// success it returns the JSON array of [`ComponentRecord`] objects as a
+/// `String`. On failure it returns a [`ComponentExportError`] carrying the
+/// resource location, component kind, and validation field — **no panic, no
+/// backtrace**. The caller is responsible for printing a diagnostic to stderr
+/// and exiting non-zero.
+///
+/// See [`try_export_components`] for the record-level fallible API.
+pub fn try_export_components_json(namespace: &str) -> ExportResult<String> {
+    let records = try_export_components(namespace)?;
+    serde_json::to_string_pretty(&records).map_err(sand_components::error::SandError::Serialization)
+}
+
+/// Version-aware fallible JSON export: collect all components and advancement-backed
+/// events, rejecting any that require features not available in the target version.
+///
+/// This is the function the generated `sand_export` binary should call when a
+/// target version is known. On failure it returns a [`ComponentExportError`]
+/// carrying the resource location, component kind, and version-gating context
+/// — no panic, no backtrace.
+pub fn try_export_components_json_for_version(
+    namespace: &str,
+    caps: &VersionCaps,
+    requested_version: &str,
+    is_fallback: bool,
+) -> ExportResult<String> {
+    let records =
+        try_export_components_for_version(namespace, caps, requested_version, is_fallback)?;
+    serde_json::to_string_pretty(&records).map_err(sand_components::error::SandError::Serialization)
+}
+
+/// Collect all inventory-registered components and return them as a JSON string
+/// for consumption by `sand build`.
+///
+/// **Compatibility wrapper** — this function **panics** on component validation
+/// or serialization failure. It is retained for backward compatibility with
+/// direct callers that expect an infallible `String` return. The generated
+/// `sand_export` binary and all scaffold templates use
+/// [`try_export_components_json`] or [`try_export_components_json_for_version`]
+/// instead.
+pub fn export_components_json(namespace: &str) -> String {
+    match try_export_components_json(namespace) {
+        Ok(s) => s,
+        Err(e) => panic!("sand component export failed: {e}"),
+    }
 }
 
 fn dedupe_preserve_order(values: Vec<String>) -> Vec<String> {
@@ -1185,10 +1332,141 @@ fn sanitize_armor_tag(s: &str) -> String {
     raw.trim_matches('_').to_string()
 }
 
-fn validate_custom_sand_event_trigger(handler_path: &str, trigger: &crate::AdvancementTrigger) {
-    trigger.validate_for_target().unwrap_or_else(|diagnostic| {
-        panic!("cannot export custom SandEvent handler `{handler_path}`: {diagnostic}")
-    });
+/// Validate an advancement trigger for the target version, returning a
+/// fallible error instead of panicking.
+///
+/// Checks both the existing `validate_for_target` (trigger ID availability)
+/// and the trigger coverage table's `since`/`removed_in` fields against the
+/// target version when a version context is provided.
+fn check_event_trigger(
+    trigger: &crate::AdvancementTrigger,
+    advancement_id: &str,
+    handler_path: &str,
+    ctx: Option<&ExportCtx>,
+) -> ExportResult<()> {
+    // Existing trigger-level validation (ID availability).
+    trigger.validate_for_target().map_err(|diagnostic| {
+        sand_components::error::SandError::ComponentValidation {
+            location: advancement_id.parse().unwrap_or_else(|_| {
+                sand_components::ResourceLocation::new("sand", "error").unwrap()
+            }),
+            kind: "advancement_event".to_string(),
+            field: "trigger".to_string(),
+            message: format!("cannot export advancement event `{handler_path}`: {diagnostic}"),
+        }
+    })?;
+
+    // Version-aware trigger availability check using TRIGGER_COVERAGE.
+    if let Some(ctx) = ctx {
+        let trigger_id = trigger.trigger_id();
+        if let Some(coverage) =
+            sand_components::advancement::trigger_coverage::find_coverage(trigger_id)
+        {
+            // A fallback profile is deliberately not an exact compatibility
+            // claim. Known vanilla triggers therefore require an exact profile
+            // even when their historical range appears to include the requested
+            // (unknown/future) version. Explicit custom/modded triggers remain
+            // the raw escape hatch below.
+            if ctx.is_fallback {
+                return Err(sand_components::error::SandError::VersionGating {
+                    location: advancement_id.to_string(),
+                    kind: format!("trigger `{trigger_id}`"),
+                    requested_version: ctx.requested_version.to_string(),
+                    is_fallback: true,
+                    feature_name: "known trigger coverage (exact profile required)".to_string(),
+                    fallback_note: " (fallback profile: select an exact known version or `mc_version = \"latest\"` to export known vanilla triggers)".to_string(),
+                });
+            }
+            if !coverage.since.is_empty() {
+                let req = parse_version_components(coverage.since);
+                let target = parse_version_components(ctx.requested_version);
+                if let (Some(req), Some(target)) = (req, target)
+                    && !is_version_gte(&target, &req)
+                {
+                    let fallback_note = if ctx.is_fallback {
+                        " (fallback profile: all features disabled; use an exact known \
+                         version or `mc_version = \"latest\"` to enable version-gated \
+                         features)"
+                    } else {
+                        ""
+                    };
+                    return Err(sand_components::error::SandError::VersionGating {
+                        location: advancement_id.to_string(),
+                        kind: format!(
+                            "trigger `{trigger_id}` (available since {since})",
+                            trigger_id = trigger_id,
+                            since = coverage.since
+                        ),
+                        requested_version: ctx.requested_version.to_string(),
+                        is_fallback: ctx.is_fallback,
+                        feature_name: format!("trigger since {since}", since = coverage.since),
+                        fallback_note: fallback_note.to_string(),
+                    });
+                }
+            }
+            if let Some(removed_in) = coverage.removed_in {
+                let removed = parse_version_components(removed_in);
+                let target = parse_version_components(ctx.requested_version);
+                if let (Some(removed), Some(target)) = (removed, target)
+                    && is_version_gte(&target, &removed)
+                {
+                    let fallback_note = if ctx.is_fallback {
+                        " (fallback profile)"
+                    } else {
+                        ""
+                    };
+                    return Err(sand_components::error::SandError::VersionGating {
+                        location: advancement_id.to_string(),
+                        kind: format!("trigger `{trigger_id}` (removed in {removed_in})"),
+                        requested_version: ctx.requested_version.to_string(),
+                        is_fallback: ctx.is_fallback,
+                        feature_name: format!(
+                            "trigger before {removed_in}",
+                            removed_in = removed_in
+                        ),
+                        fallback_note: fallback_note.to_string(),
+                    });
+                }
+            }
+        } else if !matches!(trigger, crate::AdvancementTrigger::Custom { .. }) {
+            // Typed triggers are Sand-owned and must have coverage metadata;
+            // accepting one without it would silently claim compatibility.
+            return Err(sand_components::error::SandError::VersionGating {
+                location: advancement_id.to_string(),
+                kind: format!("trigger `{trigger_id}`"),
+                requested_version: ctx.requested_version.to_string(),
+                is_fallback: ctx.is_fallback,
+                feature_name: "trigger coverage metadata".to_string(),
+                fallback_note: " (missing metadata is rejected conservatively; use AdvancementTrigger::Custom for intentional raw/modded triggers)".to_string(),
+            });
+        }
+    }
+
+    Ok(())
+}
+
+fn parse_version_components(s: &str) -> Option<(u32, u32, u32)> {
+    let parts: Vec<&str> = s.split('.').collect();
+    let major = parts.first()?.parse::<u32>().ok()?;
+    let minor = parts
+        .get(1)
+        .and_then(|p| p.parse::<u32>().ok())
+        .unwrap_or(0);
+    let patch = parts
+        .get(2)
+        .and_then(|p| p.parse::<u32>().ok())
+        .unwrap_or(0);
+    Some((major, minor, patch))
+}
+
+fn is_version_gte(target: &(u32, u32, u32), required: &(u32, u32, u32)) -> bool {
+    if target.0 != required.0 {
+        return target.0 > required.0;
+    }
+    if target.1 != required.1 {
+        return target.1 > required.1;
+    }
+    target.2 >= required.2
 }
 
 fn build_item_cond(
@@ -1265,37 +1543,118 @@ mod tests {
 
     #[test]
     fn custom_sand_event_advancement_trigger_validation_accepts_supported_trigger() {
-        super::validate_custom_sand_event_trigger("legacy_valid_event", &AdvancementTrigger::Tick);
+        let result = super::check_event_trigger(
+            &AdvancementTrigger::Tick,
+            "test:legacy_valid_event",
+            "legacy_valid_event",
+            None,
+        );
+        assert!(
+            result.is_ok(),
+            "supported trigger should pass: {:?}",
+            result.err()
+        );
     }
 
     #[test]
     fn custom_sand_event_advancement_trigger_validation_rejects_invalid_trigger() {
-        let panic = std::panic::catch_unwind(|| {
-            super::validate_custom_sand_event_trigger(
-                "legacy_level_up",
-                &AdvancementTrigger::LeveledUp { level: None },
-            );
-        })
-        .expect_err("invalid legacy SandEvent advancement trigger should panic during export");
+        let result = super::check_event_trigger(
+            &AdvancementTrigger::LeveledUp { level: None },
+            "test:legacy_level_up",
+            "legacy_level_up",
+            None,
+        );
+        let err = result.expect_err("invalid trigger should be rejected");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("cannot export advancement event `legacy_level_up`"),
+            "error should name the handler path, got: {msg}"
+        );
+        assert!(
+            msg.contains("minecraft:leveled_up"),
+            "error should include the invalid trigger ID, got: {msg}"
+        );
+        assert!(
+            msg.contains("experience query"),
+            "error should include the migration diagnostic, got: {msg}"
+        );
+    }
 
-        let message = panic
-            .downcast_ref::<String>()
-            .map(String::as_str)
-            .or_else(|| panic.downcast_ref::<&str>().copied())
-            .unwrap_or("<non-string panic>");
+    #[test]
+    fn event_trigger_gating_rejects_unsupported_and_fallback_profiles() {
+        let caps = VersionCaps::all_enabled();
+        let old_ctx = ExportCtx {
+            caps: &caps,
+            requested_version: "1.18.2",
+            is_fallback: false,
+        };
+        let unsupported = super::check_event_trigger(
+            &AdvancementTrigger::AllayDropItemOnBlock {
+                item: None,
+                location: None,
+            },
+            "test:allay_event",
+            "allay_event",
+            Some(&old_ctx),
+        )
+        .expect_err("allay trigger was introduced after 1.18.2");
+        assert!(
+            unsupported
+                .to_string()
+                .contains("minecraft:allay_drop_item_on_block")
+        );
+        assert!(unsupported.to_string().contains("1.18.2"));
 
-        assert!(
-            message.contains("cannot export custom SandEvent handler `legacy_level_up`"),
-            "panic should name the legacy handler path, got: {message}"
-        );
-        assert!(
-            message.contains("minecraft:leveled_up"),
-            "panic should include the invalid trigger ID, got: {message}"
-        );
-        assert!(
-            message.contains("experience query"),
-            "panic should include the migration diagnostic, got: {message}"
-        );
+        let fallback_ctx = ExportCtx {
+            caps: &caps,
+            requested_version: "999.0",
+            is_fallback: true,
+        };
+        let fallback = super::check_event_trigger(
+            &AdvancementTrigger::Tick,
+            "test:fallback_event",
+            "fallback_event",
+            Some(&fallback_ctx),
+        )
+        .expect_err("fallback profiles must not claim exact trigger support");
+        assert!(fallback.to_string().contains("fallback"));
+        assert!(fallback.to_string().contains("minecraft:tick"));
+    }
+
+    #[test]
+    fn event_trigger_gating_accepts_supported_and_custom_triggers() {
+        let caps = VersionCaps::all_enabled();
+        let exact_ctx = ExportCtx {
+            caps: &caps,
+            requested_version: "1.19",
+            is_fallback: false,
+        };
+        super::check_event_trigger(
+            &AdvancementTrigger::AllayDropItemOnBlock {
+                item: None,
+                location: None,
+            },
+            "test:allay_event",
+            "allay_event",
+            Some(&exact_ctx),
+        )
+        .expect("allay trigger should be valid in 1.19");
+
+        let fallback_ctx = ExportCtx {
+            caps: &caps,
+            requested_version: "999.0",
+            is_fallback: true,
+        };
+        super::check_event_trigger(
+            &AdvancementTrigger::Custom {
+                trigger: "examplemod:custom_trigger".to_string(),
+                conditions: None,
+            },
+            "test:custom_event",
+            "custom_event",
+            Some(&fallback_ctx),
+        )
+        .expect("explicit custom triggers remain a raw/modded escape hatch");
     }
 
     #[test]
@@ -1591,5 +1950,479 @@ mod tests {
             lines[2].contains("lc_zeta"),
             "third command must be lc_zeta, got: {lines:?}"
         );
+    }
+
+    // ── Fallible component-to-record contract tests (#145) ─────────────────────
+    //
+    // All tests use `component_to_record` with local component values — no
+    // global `inventory::submit!` and no process-global atomic toggles that
+    // could affect other export tests running concurrently.
+
+    use super::component_to_record;
+    use sand_components::component::ComponentContent;
+    use sand_components::error::SandError;
+
+    fn test_rl(ns: &str, path: &str) -> crate::resource_location::ResourceLocation {
+        crate::resource_location::ResourceLocation::new(ns, path).unwrap()
+    }
+
+    // ── Validation call counter ─────────────────────────────────────────────────
+
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    /// A component that counts how many times `validate()` is called.
+    /// Shared counter lets tests assert exactly-once validation.
+    struct CountingJsonComponent {
+        loc: crate::resource_location::ResourceLocation,
+        counter: &'static AtomicUsize,
+    }
+    impl super::DatapackComponent for CountingJsonComponent {
+        fn resource_location(&self) -> &crate::resource_location::ResourceLocation {
+            &self.loc
+        }
+        fn to_json(&self) -> serde_json::Value {
+            serde_json::json!({"ok": true})
+        }
+        fn validate(&self) -> sand_components::error::Result<()> {
+            self.counter.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }
+        fn component_dir(&self) -> &'static str {
+            "test_count_json"
+        }
+    }
+
+    struct CountingCopyComponent {
+        loc: crate::resource_location::ResourceLocation,
+        source_path: String,
+        counter: &'static AtomicUsize,
+    }
+    impl super::DatapackComponent for CountingCopyComponent {
+        fn resource_location(&self) -> &crate::resource_location::ResourceLocation {
+            &self.loc
+        }
+        fn to_json(&self) -> serde_json::Value {
+            serde_json::Value::Null
+        }
+        fn copy_source_path(&self) -> Option<&str> {
+            Some(&self.source_path)
+        }
+        fn validate(&self) -> sand_components::error::Result<()> {
+            self.counter.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }
+        fn component_dir(&self) -> &'static str {
+            "test_count_copy"
+        }
+    }
+
+    #[test]
+    fn json_component_validates_exactly_once() {
+        static COUNT: AtomicUsize = AtomicUsize::new(0);
+        let comp = CountingJsonComponent {
+            loc: test_rl("test", "count_json"),
+            counter: &COUNT,
+        };
+        COUNT.store(0, Ordering::SeqCst);
+        component_to_record(&comp, None).expect("valid JSON component should succeed");
+        assert_eq!(
+            COUNT.load(Ordering::SeqCst),
+            1,
+            "JSON/text components must validate exactly once \
+             (try_content includes validation)"
+        );
+    }
+
+    #[test]
+    fn copy_component_validates_exactly_once() {
+        static COUNT: AtomicUsize = AtomicUsize::new(0);
+        let comp = CountingCopyComponent {
+            loc: test_rl("test", "count_copy"),
+            source_path: "structures/x.nbt".to_string(),
+            counter: &COUNT,
+        };
+        COUNT.store(0, Ordering::SeqCst);
+        component_to_record(&comp, None).expect("valid copy component should succeed");
+        assert_eq!(
+            COUNT.load(Ordering::SeqCst),
+            1,
+            "copy-backed components must validate exactly once"
+        );
+    }
+
+    // ── Test fixture components ─────────────────────────────────────────────────
+
+    struct ValidJsonComponent {
+        loc: crate::resource_location::ResourceLocation,
+    }
+    impl super::DatapackComponent for ValidJsonComponent {
+        fn resource_location(&self) -> &crate::resource_location::ResourceLocation {
+            &self.loc
+        }
+        fn to_json(&self) -> serde_json::Value {
+            serde_json::json!({"hello": "world"})
+        }
+        fn component_dir(&self) -> &'static str {
+            "test_json"
+        }
+    }
+
+    struct ValidTextComponent {
+        loc: crate::resource_location::ResourceLocation,
+    }
+    impl super::DatapackComponent for ValidTextComponent {
+        fn resource_location(&self) -> &crate::resource_location::ResourceLocation {
+            &self.loc
+        }
+        fn to_json(&self) -> serde_json::Value {
+            serde_json::Value::Null
+        }
+        fn content(&self) -> ComponentContent {
+            ComponentContent::Text("say hello from text component".to_string())
+        }
+        fn component_dir(&self) -> &'static str {
+            "function"
+        }
+        fn file_extension(&self) -> &'static str {
+            "mcfunction"
+        }
+    }
+
+    struct ValidCopyComponent {
+        loc: crate::resource_location::ResourceLocation,
+        source_path: String,
+    }
+    impl super::DatapackComponent for ValidCopyComponent {
+        fn resource_location(&self) -> &crate::resource_location::ResourceLocation {
+            &self.loc
+        }
+        fn to_json(&self) -> serde_json::Value {
+            serde_json::Value::Null
+        }
+        fn copy_source_path(&self) -> Option<&str> {
+            Some(&self.source_path)
+        }
+        fn component_dir(&self) -> &'static str {
+            "structure"
+        }
+        fn file_extension(&self) -> &'static str {
+            "nbt"
+        }
+    }
+
+    struct InvalidJsonComponent {
+        loc: crate::resource_location::ResourceLocation,
+    }
+    impl super::DatapackComponent for InvalidJsonComponent {
+        fn resource_location(&self) -> &crate::resource_location::ResourceLocation {
+            &self.loc
+        }
+        fn to_json(&self) -> serde_json::Value {
+            serde_json::json!({})
+        }
+        fn validate(&self) -> sand_components::error::Result<()> {
+            Err(SandError::ComponentValidation {
+                location: self.loc.clone(),
+                kind: "test_invalid_json".to_string(),
+                field: "test_field".to_string(),
+                message: "intentional JSON validation failure".to_string(),
+            })
+        }
+        fn component_dir(&self) -> &'static str {
+            "test_invalid_json"
+        }
+    }
+
+    struct InvalidCopyComponent {
+        loc: crate::resource_location::ResourceLocation,
+    }
+    impl super::DatapackComponent for InvalidCopyComponent {
+        fn resource_location(&self) -> &crate::resource_location::ResourceLocation {
+            &self.loc
+        }
+        fn to_json(&self) -> serde_json::Value {
+            serde_json::Value::Null
+        }
+        fn copy_source_path(&self) -> Option<&str> {
+            Some("structures/should_not_be_accepted.nbt")
+        }
+        fn validate(&self) -> sand_components::error::Result<()> {
+            Err(SandError::ComponentValidation {
+                location: self.loc.clone(),
+                kind: "test_invalid_copy".to_string(),
+                field: "source_check".to_string(),
+                message: "intentional copy-backed validation failure".to_string(),
+            })
+        }
+        fn component_dir(&self) -> &'static str {
+            "test_invalid_copy"
+        }
+    }
+
+    // ── Tests ───────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn component_to_record_valid_json_preserves_output() {
+        let comp = ValidJsonComponent {
+            loc: test_rl("test", "valid_json"),
+        };
+        let record = component_to_record(&comp, None).expect("valid JSON component should succeed");
+        assert_eq!(record.namespace, "test");
+        assert_eq!(record.dir, "test_json");
+        assert_eq!(record.path, "valid_json");
+        assert_eq!(record.ext, "json");
+        assert_eq!(record.content_type, "text");
+        assert!(record.content.contains("hello"));
+    }
+
+    #[test]
+    fn component_to_record_text_content_exports_correctly() {
+        let comp = ValidTextComponent {
+            loc: test_rl("test", "valid_text"),
+        };
+        let record = component_to_record(&comp, None).expect("valid text component should succeed");
+        assert_eq!(record.content_type, "text");
+        assert_eq!(record.content, "say hello from text component");
+    }
+
+    #[test]
+    fn component_to_record_valid_copy_exports_correctly() {
+        let comp = ValidCopyComponent {
+            loc: test_rl("test", "valid_copy"),
+            source_path: "structures/castle.nbt".to_string(),
+        };
+        let record = component_to_record(&comp, None).expect("valid copy component should succeed");
+        assert_eq!(record.content_type, "copy");
+        assert_eq!(record.content, "structures/castle.nbt");
+    }
+
+    #[test]
+    fn component_to_record_invalid_json_returns_err_with_context() {
+        let comp = InvalidJsonComponent {
+            loc: test_rl("test", "invalid_json"),
+        };
+        let err = component_to_record(&comp, None).expect_err("invalid JSON component must fail");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("test:invalid_json"),
+            "must include location: {msg}"
+        );
+        assert!(
+            msg.contains("test_invalid_json"),
+            "must include kind: {msg}"
+        );
+        assert!(msg.contains("test_field"), "must include field: {msg}");
+    }
+
+    #[test]
+    fn component_to_record_invalid_copy_returns_err_with_context() {
+        let comp = InvalidCopyComponent {
+            loc: test_rl("test", "invalid_copy"),
+        };
+        let err = component_to_record(&comp, None).expect_err("invalid copy component must fail");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("test:invalid_copy"),
+            "must include location: {msg}"
+        );
+        assert!(
+            msg.contains("test_invalid_copy"),
+            "must include kind: {msg}"
+        );
+        assert!(
+            !msg.contains("should_not_be_accepted"),
+            "source path must not be accepted when validation fails: {msg}"
+        );
+    }
+
+    #[test]
+    fn component_to_record_serialization_failure_never_becomes_null() {
+        struct FailingSerializationComponent {
+            loc: crate::resource_location::ResourceLocation,
+        }
+        impl super::DatapackComponent for FailingSerializationComponent {
+            fn resource_location(&self) -> &crate::resource_location::ResourceLocation {
+                &self.loc
+            }
+            fn to_json(&self) -> serde_json::Value {
+                serde_json::Value::Null
+            }
+            fn try_content(&self) -> sand_components::error::Result<ComponentContent> {
+                self.validate()?;
+                Err(SandError::Serialization(
+                    serde_json::from_str::<serde_json::Value>("not json").unwrap_err(),
+                ))
+            }
+            fn component_dir(&self) -> &'static str {
+                "test_ser_fail"
+            }
+        }
+
+        let comp = FailingSerializationComponent {
+            loc: test_rl("test", "ser_fail"),
+        };
+        let result = component_to_record(&comp, None);
+        assert!(
+            result.is_err(),
+            "serialization failure must return Err, not Value::Null"
+        );
+        let msg = result.unwrap_err().to_string();
+        assert!(
+            msg.contains("test:ser_fail") || msg.contains("serialization"),
+            "err: {msg}"
+        );
+    }
+
+    // ── Version-aware gating tests (#147) ──────────────────────────────────────
+
+    use super::ExportCtx;
+    use sand_version::VersionCaps;
+
+    /// A component that requires dialogs.
+    struct DialogComponent {
+        loc: crate::resource_location::ResourceLocation,
+    }
+    impl super::DatapackComponent for DialogComponent {
+        fn resource_location(&self) -> &crate::resource_location::ResourceLocation {
+            &self.loc
+        }
+        fn to_json(&self) -> serde_json::Value {
+            serde_json::json!({})
+        }
+        fn component_dir(&self) -> &'static str {
+            "dialog"
+        }
+        fn required_features(&self) -> &'static [sand_version::ComponentFeature] {
+            &[sand_version::ComponentFeature::Dialogs]
+        }
+    }
+
+    #[test]
+    fn dialog_component_succeeds_when_dialogs_supported() {
+        let comp = DialogComponent {
+            loc: test_rl("test", "dialog_ok"),
+        };
+        let caps = VersionCaps::all_enabled();
+        let ctx = ExportCtx {
+            caps: &caps,
+            requested_version: "1.21.6",
+            is_fallback: false,
+        };
+        let record = component_to_record(&comp, Some(&ctx))
+            .expect("dialog should succeed when dialogs feature is supported");
+        assert_eq!(record.dir, "dialog");
+    }
+
+    #[test]
+    fn dialog_component_fails_when_dialogs_not_supported() {
+        let comp = DialogComponent {
+            loc: test_rl("test", "dialog_bad"),
+        };
+        let caps = VersionCaps::all_disabled();
+        let ctx = ExportCtx {
+            caps: &caps,
+            requested_version: "1.19.4",
+            is_fallback: false,
+        };
+        let err = component_to_record(&comp, Some(&ctx))
+            .expect_err("dialog should fail when dialogs feature is not supported");
+        let msg = err.to_string();
+        assert!(msg.contains("dialog"), "must include kind: {msg}");
+        assert!(msg.contains("dialogs"), "must include feature name: {msg}");
+        assert!(
+            msg.contains("1.19.4"),
+            "must include requested version: {msg}"
+        );
+    }
+
+    #[test]
+    fn version_gating_error_includes_fallback_note() {
+        let comp = DialogComponent {
+            loc: test_rl("test", "dialog_fallback"),
+        };
+        let caps = VersionCaps::all_disabled();
+        let ctx = ExportCtx {
+            caps: &caps,
+            requested_version: "999.0",
+            is_fallback: true,
+        };
+        let err =
+            component_to_record(&comp, Some(&ctx)).expect_err("should fail for fallback profile");
+        let msg = err.to_string();
+        assert!(msg.contains("fallback"), "must mention fallback: {msg}");
+        assert!(
+            msg.contains("999.0"),
+            "must include requested version: {msg}"
+        );
+    }
+
+    #[test]
+    fn unprofiled_export_does_not_gate_components() {
+        let comp = DialogComponent {
+            loc: test_rl("test", "dialog_unprofiled"),
+        };
+        // No ctx → no version gating
+        let record = component_to_record(&comp, None).expect("unprofiled export should not gate");
+        assert_eq!(record.dir, "dialog");
+    }
+
+    #[test]
+    fn resolve_export_caps_latest_enables_all_features() {
+        let resolved = crate::version::resolve_export_caps("latest").unwrap();
+        assert!(!resolved.is_fallback, "latest should be a known profile");
+        for feature in sand_version::ComponentFeature::ALL {
+            assert!(
+                resolved.caps.supports(*feature),
+                "latest should support {:?}",
+                feature
+            );
+        }
+    }
+
+    #[test]
+    fn resolve_export_caps_unknown_version_disables_all() {
+        let resolved = crate::version::resolve_export_caps("999.0").unwrap();
+        assert!(resolved.is_fallback, "unknown version should be fallback");
+        for feature in sand_version::ComponentFeature::ALL {
+            assert!(
+                !resolved.caps.supports(*feature),
+                "unknown version should not support {:?}",
+                feature
+            );
+        }
+    }
+
+    #[test]
+    fn resolve_export_caps_known_version_gates_correctly() {
+        // 1.19.4 supports damage_types and trim_assets but not dialogs or jukebox_songs.
+        let resolved = crate::version::resolve_export_caps("1.19.4").unwrap();
+        assert!(!resolved.is_fallback, "1.19.4 should be a known profile");
+        assert!(
+            resolved
+                .caps
+                .supports(sand_version::ComponentFeature::DamageTypes)
+        );
+        assert!(
+            resolved
+                .caps
+                .supports(sand_version::ComponentFeature::TrimAssets)
+        );
+        assert!(
+            !resolved
+                .caps
+                .supports(sand_version::ComponentFeature::Dialogs)
+        );
+        assert!(
+            !resolved
+                .caps
+                .supports(sand_version::ComponentFeature::JukeboxSongs)
+        );
+    }
+
+    #[test]
+    fn resolve_export_caps_rejects_malformed_version() {
+        let err = crate::version::resolve_export_caps("not-a-version")
+            .expect_err("malformed export version must not silently use a fallback");
+        assert!(err.to_string().contains("not-a-version"));
     }
 }

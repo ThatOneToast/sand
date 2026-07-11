@@ -47,6 +47,6 @@ let large_hit = DamageTracker::current_damage_at_least("@s", DamageThreshold::he
 let recent = DamageTracker::hurt_within("@s", Ticks::seconds(2));
 ```
 
-`not_damaged_this_tick`, `last_damage_at_least`, `current_damage_at_least`, and `hurt_within` are the normal query helpers. `DamageThreshold::hearts(1.0)` becomes 10 raw stat units; `raw_stat` is for advanced scoreboard work. Minecraft's damage-taken statistic is **not** `/damage` HP: one stat unit is 0.1 heart. In contrast, `DamageAmount::hearts(1.0)` emits two `/damage` HP.
+`not_damaged_this_tick`, `last_damage_at_least`, `current_damage_at_least`, and `hurt_within` are the normal query helpers. `DamageThreshold::hearts(1.0)` becomes 10 raw stat units; `raw_stat` is for advanced scoreboard work. Threshold queries require a positive finite heart value that rounds to at least 1 raw stat unit, or a positive raw stat value. Minecraft's damage-taken statistic is **not** `/damage` HP: one stat unit is 0.1 heart, so fractional heart thresholds are rounded to the nearest 0.1 heart. In contrast, `DamageAmount::hearts(1.0)` emits two `/damage` HP.
 
 <div class="sand-warning"><strong>Approximation.</strong> Multiple hits in one tick are summed; invulnerability frames can report no delta; source/type/attacker are not available from this statistic. Combine an advancement damage event for source-aware reactions. <code>recently_damaged</code>, <code>damaged_at_least</code>, and <code>delta_objective</code> are deprecated compatibility APIs.</div>

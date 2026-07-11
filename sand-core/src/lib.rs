@@ -96,8 +96,14 @@ pub use cmd::{
     ScoreCmp, SetBlock, SetBlockMode, SingleEntity, SinglePlayer, Sound, SoundSource, Storage,
     Title, TypedExecute,
 };
-pub use component::export_components_json;
-pub use component::{ComponentContent, ComponentRecord, DatapackComponent, IntoDatapack};
+pub use component::try_export_components;
+pub use component::try_export_components_for_version;
+pub use component::try_export_components_json;
+pub use component::try_export_components_json_for_version;
+pub use component::{
+    ComponentContent, ComponentExportError, ComponentRecord, DatapackComponent, ExportResult,
+    IntoDatapack,
+};
 pub use error::{Result, SandError};
 pub use event::handle::{EventHandle, RawEventHandle};
 pub use event::{
@@ -216,7 +222,9 @@ pub use custom_item_ext::{CustomItemExt, CustomItemId};
 
 // ── Dialog builders ───────────────────────────────────────────────────────────
 
-pub use sand_components::dialog::{Dialog, DialogAction, DialogBody, DialogButton, DialogKind};
+pub use sand_components::dialog::{
+    Dialog, DialogAction, DialogBody, DialogButton, DialogKind, DialogTag,
+};
 
 pub use sand_components::{
     // Advancement
@@ -466,7 +474,8 @@ macro_rules! any {
 /// Generated Minecraft registry enums (`Item`, `Block`, `EntityType`, etc.).
 ///
 /// Populated at build time by `sand-build` for the Minecraft version specified
-/// in the `SAND_MC_VERSION` environment variable (default: `1.21.11`).
+/// in the `SAND_MC_VERSION` environment variable (default:
+/// `sand_version::DEFAULT_CODEGEN_VERSION`, currently `1.21.11`).
 ///
 /// # Example
 /// ```rust,ignore

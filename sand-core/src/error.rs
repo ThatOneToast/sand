@@ -21,6 +21,33 @@ pub enum SandError {
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
 
+    /// A datapack component failed builder-invariant validation or serialization
+    /// during export. Includes the resource location, component kind/directory,
+    /// the field or validation path, and a diagnostic message.
+    #[error("component `{location}` ({kind}): {message} [field: {field}]")]
+    ComponentValidation {
+        location: sand_components::ResourceLocation,
+        kind: String,
+        field: String,
+        message: String,
+    },
+
+    /// A datapack component or generated event requires a feature not available in
+    /// the target Minecraft version.
+    #[error(
+        "component `{location}` ({kind}) requires feature `{feature_name}` \
+         which is not available in target Minecraft {requested_version}\
+         {fallback_note} — select a supported target or remove the component"
+    )]
+    VersionGating {
+        location: String,
+        kind: String,
+        requested_version: String,
+        is_fallback: bool,
+        feature_name: String,
+        fallback_note: String,
+    },
+
     /// Minecraft version string failed to parse (expected format: `major.minor` or `major.minor.patch`).
     #[error("Invalid Minecraft version '{0}': expected format major.minor or major.minor.patch")]
     InvalidVersion(String),
@@ -36,6 +63,32 @@ impl From<sand_components::SandError> for SandError {
             sand_components::SandError::InvalidPath(s) => SandError::InvalidPath(s),
             sand_components::SandError::Serialization(e) => SandError::Serialization(e),
             sand_components::SandError::Io(e) => SandError::Io(e),
+            sand_components::SandError::ComponentValidation {
+                location,
+                kind,
+                field,
+                message,
+            } => SandError::ComponentValidation {
+                location,
+                kind,
+                field,
+                message,
+            },
+            sand_components::SandError::VersionGating {
+                location,
+                kind,
+                requested_version,
+                is_fallback,
+                feature_name,
+                fallback_note,
+            } => SandError::VersionGating {
+                location,
+                kind,
+                requested_version,
+                is_fallback,
+                feature_name,
+                fallback_note,
+            },
         }
     }
 }

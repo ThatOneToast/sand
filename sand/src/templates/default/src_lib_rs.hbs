@@ -52,8 +52,27 @@ pub fn player_join() -> sand_core::Advancement {
 /// If you add components in separate modules, re-export them here with
 /// `pub use my_module::*;` to ensure they are also linked.
 #[doc(hidden)]
-pub fn __sand_export(namespace: &str) {
-    println!("{}", sand_core::export_components_json(namespace));
+pub fn __sand_export(namespace: &str, mc_version: &str) {
+    // Resolve the version profile and gate components against it.
+    let resolved = match sand_core::version::resolve_export_caps(mc_version) {
+        Ok(resolved) => resolved,
+        Err(e) => {
+            eprintln!("sand export failed: {e}");
+            std::process::exit(1);
+        }
+    };
+    match sand_core::try_export_components_json_for_version(
+        namespace,
+        &resolved.caps,
+        &resolved.version,
+        resolved.is_fallback,
+    ) {
+        Ok(json) => println!("{json}"),
+        Err(e) => {
+            eprintln!("sand export failed: {e}");
+            std::process::exit(1);
+        }
+    }
 }
 
 {{#if resourcepack}}

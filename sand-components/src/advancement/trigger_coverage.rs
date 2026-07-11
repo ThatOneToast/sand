@@ -108,6 +108,16 @@ pub fn trigger_metadata(id: &str) -> TriggerMetadata {
     }
 }
 
+/// Find the [`TriggerCoverage`] entry for a given trigger ID, if present.
+///
+/// Returns `None` for unknown/custom trigger IDs — those are allowed through
+/// the version gate (custom/modded escape hatch).
+pub fn find_coverage(trigger_id: &str) -> Option<&'static TriggerCoverage> {
+    TRIGGER_COVERAGE
+        .iter()
+        .find(|entry| entry.trigger_id == trigger_id)
+}
+
 // ── Coverage table ────────────────────────────────────────────────────────────
 
 /// Static coverage table for all known vanilla advancement triggers.

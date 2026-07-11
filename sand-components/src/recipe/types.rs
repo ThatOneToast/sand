@@ -51,6 +51,14 @@ impl Ingredient {
             alternatives: Vec::new(),
         }
     }
+
+    /// Returns `true` if this ingredient has no item, tag, or alternatives
+    /// (an invalid state that would fail serialization).
+    pub fn is_empty(&self) -> bool {
+        self.item.is_none()
+            && self.tag.is_none()
+            && (self.alternatives.is_empty() || self.alternatives.iter().all(|a| a.is_empty()))
+    }
 }
 
 impl Serialize for Ingredient {

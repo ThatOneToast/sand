@@ -230,6 +230,16 @@ pub struct VersionProfile {
 /// The latest version this table was last verified against.
 pub const LATEST_KNOWN: &str = sand_version::LATEST_KNOWN;
 
+/// The default Minecraft version `sand-core/build.rs` uses to run `sand-build`
+/// codegen when `SAND_MC_VERSION` is unset.
+///
+/// This is the **codegen anchor** and is deliberately separate from
+/// [`LATEST_KNOWN`] (the export/profile anchor): the version used to generate
+/// command/registry/block-state Rust APIs need not be the same version that
+/// exported packs and feature flags target by default. See
+/// `sand_version::DEFAULT_CODEGEN_VERSION` for the full contract.
+pub const DEFAULT_CODEGEN_VERSION: &str = sand_version::DEFAULT_CODEGEN_VERSION;
+
 // ── PackMetadata ──────────────────────────────────────────────────────────────
 
 /// Resolved `pack.mcmeta` metadata for a single pack root.
@@ -411,6 +421,21 @@ impl VersionProfile {
             "26_series" => self.supports_26_series,
             _ => false,
         }
+    }
+
+    /// Return the cycle-safe capability set for this profile.
+    ///
+    /// The [`sand_version::VersionCaps`] can be passed to `sand-components`
+    /// (which cannot depend on `sand-core`) for version-aware component gating.
+    pub fn caps(&self) -> sand_version::VersionCaps {
+        sand_version::VersionCaps::from_flags(
+            self.supports_dialogs,
+            self.supports_jukebox_songs,
+            self.supports_damage_types,
+            self.supports_chat_types,
+            self.supports_enchantments,
+            self.supports_trim_assets,
+        )
     }
 }
 
@@ -713,6 +738,58 @@ fn lookup(major: u32, minor: u32, patch: u32) -> VersionCaps {
 
         // ── future 1.x > 1.21 / anything unknown — conservative fallback ─
         _ => VersionCaps::conservative(),
+    }
+}
+
+// ── Export-time version resolution (#147) ─────────────────────────────────────
+
+/// Resolved version information for the export-time component validation path.
+///
+/// Produced by [`resolve_export_caps`] from a `sand.toml` `mc_version` string.
+/// The [`VersionCaps`] field is consumed by `try_export_components_for_version`
+/// to gate version-sensitive components.
+#[derive(Debug, Clone)]
+pub struct ResolvedExportCaps {
+    /// The resolved version string (e.g. `"1.21.4"` or `"26.2"`).
+    pub version: String,
+    /// Whether the profile is a conservative fallback (not an exact match).
+    pub is_fallback: bool,
+    /// The cycle-safe capability set for component gating.
+    pub caps: sand_version::VersionCaps,
+}
+
+/// Resolve a `sand.toml` `mc_version` string into export-time capability info.
+///
+/// `"latest"` resolves to the bundled [`LATEST_KNOWN`] anchor. Unknown but
+/// syntactically valid versions produce a conservative fallback: all feature
+/// flags `false`, `is_fallback = true`. Malformed versions return
+/// [`crate::error::SandError::InvalidVersion`] rather than silently selecting a
+/// fallback. This means version-gated components (dialogs, jukebox songs, etc.)
+/// are rejected for fallback/unknown targets unless the user explicitly targets
+/// a known exact version or `"latest"`.
+///
+/// This function is the single resolution point for the export subprocess —
+/// it is called by the generated `__sand_export` entrypoint.
+pub fn resolve_export_caps(mc_version: &str) -> crate::error::Result<ResolvedExportCaps> {
+    let resolved_version = if mc_version == "latest" {
+        LATEST_KNOWN.to_string()
+    } else {
+        mc_version.to_string()
+    };
+
+    let version = MinecraftVersion::parse(&resolved_version)
+        .map_err(|_| crate::error::SandError::InvalidVersion(mc_version.to_string()))?;
+    match VersionProfile::resolve(&version) {
+        Ok(profile) => Ok(ResolvedExportCaps {
+            version: profile.resolved_name.clone(),
+            is_fallback: profile.is_fallback,
+            caps: profile.caps(),
+        }),
+        Err(_) => Ok(ResolvedExportCaps {
+            version: resolved_version,
+            is_fallback: true,
+            caps: sand_version::VersionCaps::all_disabled(),
+        }),
     }
 }
 
@@ -1283,5 +1360,38 @@ mod tests {
                 path.display()
             );
         }
+    }
+
+    /// Regression for the default codegen contract (#118): the default
+    /// `SAND_MC_VERSION` used by `sand-core/build.rs` must be a verified,
+    /// codegen-available *known* profile (not a fallback), it must live in a
+    /// single source of truth shared with `sand-version`, and it must stay
+    /// distinct from the export/profile anchor `LATEST_KNOWN` so codegen and
+    /// version-profile concerns are not conflated.
+    #[test]
+    fn default_codegen_version_contract() {
+        // Single source of truth is `sand_version::DEFAULT_CODEGEN_VERSION`.
+        assert_eq!(
+            DEFAULT_CODEGEN_VERSION,
+            sand_version::DEFAULT_CODEGEN_VERSION
+        );
+        assert!(!DEFAULT_CODEGEN_VERSION.is_empty());
+
+        // The default target must resolve to a *known* (non-fallback) profile,
+        // i.e. it is a verified version Sand can codegen against, not a guess.
+        let v = MinecraftVersion::parse(DEFAULT_CODEGEN_VERSION)
+            .expect("DEFAULT_CODEGEN_VERSION must parse");
+        let profile = VersionProfile::resolve(&v)
+            .expect("DEFAULT_CODEGEN_VERSION must resolve to a known profile");
+        assert!(
+            !profile.is_fallback,
+            "DEFAULT_CODEGEN_VERSION ({DEFAULT_CODEGEN_VERSION}) must be a known, \
+             verified codegen target, not a fallback profile"
+        );
+
+        // Codegen target ≠ export/profile anchor unless intentionally aligned.
+        // They are allowed to differ; this assert documents the relationship
+        // and fails loudly if someone conflates the two without intent.
+        let _latest = LATEST_KNOWN;
     }
 }

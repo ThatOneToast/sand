@@ -31,7 +31,7 @@ pub fn run(release: bool, resourcepack: bool) -> Result<()> {
     let config: SandConfig = toml::from_str(&std::fs::read_to_string(&config_path)?)
         .context("failed to parse sand.toml")?;
 
-    // Resolve mc_version ("latest" → actual version from Mojang manifest)
+    // Resolve mc_version ("latest" → bundled latest-known verified version)
     let mc_version = resolve_mc_version(&config.pack.mc_version);
 
     // Resolve pack format: explicit override in sand.toml wins; otherwise derive
@@ -89,11 +89,13 @@ pub fn run(release: bool, resourcepack: bool) -> Result<()> {
         bail!("`cargo build` failed");
     }
 
-    // 3. Run the export binary
+    // 3. Run the export binary — pass the target mc_version via env var so the
+    //    subprocess can gate components against the resolved VersionProfile.
     let target_dir = cargo_target_dir()?;
     let profile = if release { "release" } else { "debug" };
     let binary = target_dir.join(profile).join("sand_export");
     let output = std::process::Command::new(&binary)
+        .env("SAND_EXPORT_MC_VERSION", &mc_version)
         .output()
         .with_context(|| format!("failed to run '{}'", binary.display()))?;
     if !output.status.success() {
@@ -199,6 +201,7 @@ mod tests {
     use super::validate::{
         component_output_path, validate_component_records, validate_component_records_for_project,
         validate_function_tag, validate_resourcepack_records,
+        validate_resourcepack_records_for_project,
     };
     use super::write::{write_component, write_pack_mcmeta, write_resourcepack_mcmeta};
     use sand_components::registry_coverage::REGISTRY_COVERAGE;
@@ -216,6 +219,15 @@ mod tests {
             "content": content,
         }))
         .unwrap_or_else(|e| panic!("invalid test record ({dir}/{path}.{ext}): {e}"))
+    }
+
+    fn resourcepack_record(path: &str, content_type: &str, content: &str) -> ResourcePackRecord {
+        serde_json::from_value(serde_json::json!({
+            "path": path,
+            "content_type": content_type,
+            "content": content,
+        }))
+        .unwrap_or_else(|e| panic!("invalid resource-pack test record ({path}): {e}"))
     }
 
     // ── sand.toml namespace validation at config parse time ───────────────────
@@ -422,6 +434,104 @@ mod tests {
             validate_resourcepack_records(&[rp_bad]).is_err(),
             "data/ paths must be rejected for resource pack records"
         );
+    }
+
+    #[test]
+    fn validates_resourcepack_copy_source_paths_before_writing() {
+        for bad_source in ["", "../escape.png", "/tmp/escape.png", "assets\0bad.png"] {
+            let record =
+                resourcepack_record("assets/audit/textures/item/test.png", "copy", bad_source);
+            let err = validate_resourcepack_records(&[record]).unwrap_err();
+            assert!(
+                err.to_string()
+                    .contains("unsafe resource-pack copy source path"),
+                "error should identify unsafe source path: {err}"
+            );
+        }
+    }
+
+    #[test]
+    fn validates_resourcepack_copy_source_files_before_writing() {
+        let temp = tempfile::tempdir().unwrap();
+        let project_root = temp.path();
+
+        let missing = resourcepack_record(
+            "assets/audit/textures/item/missing.png",
+            "copy",
+            "assets/src/missing.png",
+        );
+        let err = validate_resourcepack_records_for_project(project_root, &[missing]).unwrap_err();
+        assert!(
+            err.to_string().contains("resource-pack asset not found"),
+            "missing source should be reported before writing: {err}"
+        );
+
+        std::fs::create_dir_all(project_root.join("assets/src/dir.png")).unwrap();
+        let directory = resourcepack_record(
+            "assets/audit/textures/item/dir.png",
+            "copy",
+            "assets/src/dir.png",
+        );
+        let err =
+            validate_resourcepack_records_for_project(project_root, &[directory]).unwrap_err();
+        assert!(
+            err.to_string()
+                .contains("resource-pack asset is not a file"),
+            "directory source should be rejected before writing: {err}"
+        );
+
+        std::fs::create_dir_all(project_root.join("assets/src")).unwrap();
+        std::fs::write(project_root.join("assets/src/ok.png"), b"png").unwrap();
+        let valid = resourcepack_record(
+            "assets/audit/textures/item/ok.png",
+            "copy",
+            "assets/src/ok.png",
+        );
+        assert!(validate_resourcepack_records_for_project(project_root, &[valid]).is_ok());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rejects_resourcepack_copy_source_symlink_escape_before_writing() {
+        let temp = tempfile::tempdir().unwrap();
+        let project_root = temp.path().join("project");
+        let outside_root = temp.path().join("outside");
+        std::fs::create_dir_all(project_root.join("assets/src")).unwrap();
+        std::fs::create_dir_all(&outside_root).unwrap();
+        std::fs::write(outside_root.join("leak.png"), b"secret").unwrap();
+
+        let link_path = project_root.join("assets/src/leak.png");
+        if std::os::unix::fs::symlink(outside_root.join("leak.png"), &link_path).is_err() {
+            return;
+        }
+
+        let record = resourcepack_record(
+            "assets/audit/textures/item/leak.png",
+            "copy",
+            "assets/src/leak.png",
+        );
+        let err = validate_resourcepack_records_for_project(&project_root, &[record]).unwrap_err();
+        assert!(
+            err.to_string().contains("escapes the project root"),
+            "symlink escapes should be rejected before writing: {err}"
+        );
+    }
+
+    #[test]
+    fn validates_resourcepack_bytes_before_writing() {
+        let invalid = resourcepack_record(
+            "assets/audit/textures/item/bad.bin",
+            "bytes",
+            "not valid base64",
+        );
+        let err = validate_resourcepack_records(&[invalid]).unwrap_err();
+        assert!(
+            err.to_string().contains("invalid base64 bytes"),
+            "invalid bytes should fail during validation: {err}"
+        );
+
+        let valid = resourcepack_record("assets/audit/textures/item/ok.bin", "bytes", "cG5n");
+        assert!(validate_resourcepack_records(&[valid]).is_ok());
     }
 
     // ── Pack metadata and zip ─────────────────────────────────────────────────
@@ -728,6 +838,23 @@ mod tests {
         }))
         .unwrap();
         assert!(validate_component_records_for_project(&dist, &project_root, &[text_nbt]).is_err());
+    }
+
+    #[test]
+    fn dialog_tag_records_use_generic_tags_dir_and_dialog_path() {
+        let record: ComponentRecord = serde_json::from_value(serde_json::json!({
+            "namespace": "minecraft",
+            "dir": "tags",
+            "path": "dialog/quick_actions",
+            "ext": "json",
+            "content_type": "text",
+            "content": r#"{"replace":false,"values":["example:welcome"]}"#,
+        }))
+        .unwrap();
+
+        let temp = tempfile::tempdir().unwrap();
+        let dist = temp.path().join("dist/example");
+        assert!(validate_component_records_for_project(&dist, temp.path(), &[record]).is_ok());
     }
 
     #[test]

@@ -141,6 +141,10 @@ pub use recipe::{
     SmithingTransformRecipe, SmithingTrimRecipe, StonecuttingRecipe,
 };
 
+// ── Dialog ────────────────────────────────────────────────────────────────────
+
+pub use dialog::{Dialog, DialogAction, DialogBody, DialogButton, DialogKind, DialogTag};
+
 // ── Tag ───────────────────────────────────────────────────────────────────────
 
 pub use tag::Tag;

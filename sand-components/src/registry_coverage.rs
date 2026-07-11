@@ -381,11 +381,11 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
     RegistryCoverage {
         registry_key: "minecraft:dialog",
         datapack_dir: "dialog",
-        tag_dir: None,
+        tag_dir: Some("tags/dialog"),
         sand_module: Some("sand_components::dialog"),
         api_status: RegistryApiStatus::PartiallyImplemented,
         version_gate: Some("1.21.6"),
-        notes: "Dialog stub exists. cmd::show_dialog() works. Full dialog JSON serialization incomplete. See #16.",
+        notes: "Dialog builder and well-known pause_screen_additions/quick_actions tag helpers exist. Broader validation remains partial.",
     },
 ];
 

@@ -161,4 +161,8 @@ impl DatapackComponent for DamageType {
     fn component_dir(&self) -> &'static str {
         "damage_type"
     }
+
+    fn required_features(&self) -> &'static [sand_version::ComponentFeature] {
+        &[sand_version::ComponentFeature::DamageTypes]
+    }
 }

@@ -124,4 +124,8 @@ impl DatapackComponent for ChatType {
     fn component_dir(&self) -> &'static str {
         "chat_type"
     }
+
+    fn required_features(&self) -> &'static [sand_version::ComponentFeature] {
+        &[sand_version::ComponentFeature::ChatTypes]
+    }
 }

@@ -38,7 +38,8 @@ macro_rules! impl_into_value {
     ($ty:ty) => {
         impl From<$ty> for Value {
             fn from(p: $ty) -> Value {
-                serde_json::to_value(p).unwrap_or(Value::Null)
+                p.try_to_value()
+                    .unwrap_or_else(|e| panic!("event-filter predicate conversion failed: {e}"))
             }
         }
     };
@@ -102,6 +103,18 @@ pub struct ItemPredicate {
 }
 
 impl ItemPredicate {
+    pub fn validate_at(&self, path: &str) -> Result<(), String> {
+        if let Some(count) = &self.count {
+            validate_range_value(count, &format!("{path}.count"))?;
+        }
+        Ok(())
+    }
+
+    pub fn try_to_value(self) -> Result<Value, String> {
+        self.validate_at("event_filter")?;
+        serde_json::to_value(self).map_err(|error| error.to_string())
+    }
+
     /// Create a blank predicate (matches any item).
     pub fn new() -> Self {
         Self::default()
@@ -271,6 +284,24 @@ pub struct InventorySlots {
 }
 
 impl InventorySlots {
+    pub fn validate_at(&self, path: &str) -> Result<(), String> {
+        for (name, range) in [
+            ("occupied", &self.occupied),
+            ("full", &self.full),
+            ("empty", &self.empty),
+        ] {
+            if let Some(range) = range {
+                validate_range_value(range, &format!("{path}.{name}"))?;
+            }
+        }
+        Ok(())
+    }
+
+    pub fn try_to_value(self) -> Result<Value, String> {
+        self.validate_at("event_filter")?;
+        serde_json::to_value(self).map_err(|error| error.to_string())
+    }
+
     pub fn new() -> Self {
         Self::default()
     }
@@ -364,6 +395,22 @@ pub struct EntityPredicate {
 }
 
 impl EntityPredicate {
+    pub fn validate_at(&self, path: &str) -> Result<(), String> {
+        if self
+            .entity_type
+            .as_ref()
+            .is_some_and(|value| value.as_array().is_some_and(Vec::is_empty))
+        {
+            return Err(format!("{path}.type: matcher list must not be empty"));
+        }
+        Ok(())
+    }
+
+    pub fn try_to_value(self) -> Result<Value, String> {
+        self.validate_at("event_filter")?;
+        serde_json::to_value(self).map_err(|error| error.to_string())
+    }
+
     /// Create a blank predicate (matches any entity).
     pub fn new() -> Self {
         Self::default()
@@ -463,3 +510,61 @@ impl EntityPredicate {
 }
 
 impl_into_value!(EntityPredicate);
+
+fn validate_range_value(value: &Value, path: &str) -> Result<(), String> {
+    let Some(object) = value.as_object() else {
+        return Ok(());
+    };
+    let min = object.get("min").and_then(Value::as_f64);
+    let max = object.get("max").and_then(Value::as_f64);
+    if let (Some(min), Some(max)) = (min, max)
+        && min > max
+    {
+        return Err(format!("{path}: minimum {min} exceeds maximum {max}"));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn event_filter_ranges_validate_fallibly() {
+        assert!(
+            ItemPredicate::new()
+                .with_count_range(-2, 4)
+                .try_to_value()
+                .is_ok()
+        );
+        let error = ItemPredicate::new()
+            .with_count_range(4, 2)
+            .try_to_value()
+            .unwrap_err();
+        assert!(error.contains("event_filter.count"));
+
+        let slots_error = InventorySlots::new()
+            .with_occupied_range(8, 2)
+            .try_to_value()
+            .unwrap_err();
+        assert!(slots_error.contains("event_filter.occupied"));
+    }
+
+    #[test]
+    fn event_filter_nested_matcher_list_is_rejected() {
+        let error = EntityPredicate::new()
+            .with_type_any(&[])
+            .try_to_value()
+            .unwrap_err();
+        assert!(error.contains("event_filter.type"));
+    }
+
+    #[test]
+    fn event_filter_raw_values_remain_available() {
+        let value = ItemPredicate::new()
+            .with_predicates(serde_json::json!({"mymod:custom": {"x": 1}}))
+            .try_to_value()
+            .unwrap();
+        assert_eq!(value["predicates"]["mymod:custom"]["x"], 1);
+    }
+}

@@ -71,6 +71,14 @@ pub struct IntRange {
 }
 
 impl IntRange {
+    pub fn validate_at(&self, path: &str) -> Result<(), String> {
+        if let (Some(min), Some(max)) = (self.min, self.max)
+            && min > max
+        {
+            return Err(format!("{path}: minimum {min} exceeds maximum {max}"));
+        }
+        Ok(())
+    }
     /// Match exactly `n`.
     pub fn exact(n: i64) -> Self {
         Self {
@@ -144,6 +152,21 @@ pub struct FloatRange {
 }
 
 impl FloatRange {
+    pub fn validate_at(&self, path: &str) -> Result<(), String> {
+        for (name, value) in [("min", self.min), ("max", self.max)] {
+            if let Some(value) = value
+                && !value.is_finite()
+            {
+                return Err(format!("{path}.{name}: value must be finite"));
+            }
+        }
+        if let (Some(min), Some(max)) = (self.min, self.max)
+            && min > max
+        {
+            return Err(format!("{path}: minimum {min} exceeds maximum {max}"));
+        }
+        Ok(())
+    }
     /// Match at least `min`.
     pub fn at_least(min: f64) -> Self {
         Self {
@@ -207,6 +230,21 @@ pub struct DistancePredicate {
 }
 
 impl DistancePredicate {
+    pub fn validate_at(&self, path: &str) -> Result<(), String> {
+        for (name, range) in [
+            ("x", &self.x),
+            ("y", &self.y),
+            ("z", &self.z),
+            ("horizontal", &self.horizontal),
+            ("absolute", &self.absolute),
+        ] {
+            if let Some(range) = range {
+                range.validate_at(&format!("{path}.{name}"))?;
+            }
+        }
+        Ok(())
+    }
+
     pub fn new() -> Self {
         Self::default()
     }
@@ -269,6 +307,16 @@ pub struct EffectPredicate {
 }
 
 impl EffectPredicate {
+    pub fn validate_at(&self, path: &str) -> Result<(), String> {
+        if let Some(range) = &self.amplifier {
+            range.validate_at(&format!("{path}.amplifier"))?;
+        }
+        if let Some(range) = &self.duration {
+            range.validate_at(&format!("{path}.duration"))?;
+        }
+        Ok(())
+    }
+
     pub fn new() -> Self {
         Self::default()
     }
@@ -389,6 +437,16 @@ impl DamageTagEntry {
 }
 
 impl DamageSourcePredicate {
+    pub fn validate_at(&self, path: &str) -> Result<(), String> {
+        if let Some(entity) = &self.source_entity {
+            entity.validate_at(&format!("{path}.source_entity"))?;
+        }
+        if let Some(entity) = &self.direct_entity {
+            entity.validate_at(&format!("{path}.direct_entity"))?;
+        }
+        Ok(())
+    }
+
     pub fn new() -> Self {
         Self::default()
     }
@@ -454,6 +512,25 @@ pub struct DamagePredicate {
 }
 
 impl DamagePredicate {
+    pub fn validate_at(&self, path: &str) -> Result<(), String> {
+        if self._raw.is_some() {
+            return Ok(());
+        }
+        if let Some(range) = &self.dealt {
+            range.validate_at(&format!("{path}.dealt"))?;
+        }
+        if let Some(range) = &self.taken {
+            range.validate_at(&format!("{path}.taken"))?;
+        }
+        if let Some(entity) = &self.source_entity {
+            entity.validate_at(&format!("{path}.source_entity"))?;
+        }
+        if let Some(source) = &self.type_ {
+            source.validate_at(&format!("{path}.type"))?;
+        }
+        Ok(())
+    }
+
     pub fn new() -> Self {
         Self::default()
     }
@@ -539,6 +616,20 @@ pub struct LocationPredicate {
 }
 
 impl LocationPredicate {
+    pub fn validate_at(&self, path: &str) -> Result<(), String> {
+        if self._raw.is_some() {
+            return Ok(());
+        }
+        for (name, range) in [("x", &self.x), ("y", &self.y), ("z", &self.z)] {
+            if let Some(range) = range {
+                range.validate_at(&format!("{path}.{name}"))?;
+            }
+        }
+        if let Some(block) = &self.block {
+            block.validate_at(&format!("{path}.block"))?;
+        }
+        Ok(())
+    }
     pub fn new() -> Self {
         Self::default()
     }
@@ -640,6 +731,15 @@ pub struct BlockPredicate {
 }
 
 impl BlockPredicate {
+    pub fn validate_at(&self, path: &str) -> Result<(), String> {
+        if self._raw.is_some() {
+            return Ok(());
+        }
+        if self.blocks.as_ref().is_some_and(Vec::is_empty) {
+            return Err(format!("{path}.blocks: matcher list must not be empty"));
+        }
+        Ok(())
+    }
     pub fn new() -> Self {
         Self::default()
     }
@@ -727,6 +827,25 @@ pub struct ItemPredicate {
 }
 
 impl ItemPredicate {
+    pub fn validate_at(&self, path: &str) -> Result<(), String> {
+        if self._raw.is_some() {
+            return Ok(());
+        }
+        if self.items.as_ref().is_some_and(Vec::is_empty) {
+            return Err(format!("{path}.items: matcher list must not be empty"));
+        }
+        if let Some(count) = &self.count {
+            count.validate_at(&format!("{path}.count"))?;
+        }
+        if let Some(raw) = &self.raw_components
+            && !raw.as_value().is_object()
+        {
+            return Err(format!(
+                "{path}.components: raw component predicates must be a JSON object"
+            ));
+        }
+        Ok(())
+    }
     /// Match any item.
     pub fn new() -> Self {
         Self::default()
@@ -967,6 +1086,37 @@ impl EntityEquipment {
 }
 
 impl EntityPredicate {
+    pub fn validate_at(&self, path: &str) -> Result<(), String> {
+        if self._raw.is_some() {
+            return Ok(());
+        }
+        if matches!(&self.entity_type, Some(EntityTypeMatch::AnyOf(types)) if types.is_empty()) {
+            return Err(format!("{path}.type: matcher list must not be empty"));
+        }
+        if let Some(location) = &self.location {
+            location.validate_at(&format!("{path}.location"))?;
+        }
+        if let Some(equipment) = &self.equipment {
+            for (name, item) in [
+                ("head", &equipment.head),
+                ("chest", &equipment.chest),
+                ("legs", &equipment.legs),
+                ("feet", &equipment.feet),
+                ("mainhand", &equipment.mainhand),
+                ("offhand", &equipment.offhand),
+            ] {
+                if let Some(item) = item {
+                    item.validate_at(&format!("{path}.equipment.{name}"))?;
+                }
+            }
+        }
+        if let Some(effects) = &self.effects {
+            for (effect, predicate) in effects {
+                predicate.validate_at(&format!("{path}.effects.{effect}"))?;
+            }
+        }
+        Ok(())
+    }
     /// Match any entity.
     pub fn new() -> Self {
         Self::default()
@@ -1072,25 +1222,33 @@ impl Serialize for EntityPredicate {
 
 impl From<ItemPredicate> for Value {
     fn from(p: ItemPredicate) -> Value {
-        serde_json::to_value(p).unwrap_or(Value::Null)
+        p.validate_at("predicate")
+            .unwrap_or_else(|e| panic!("predicate validation failed: {e}"));
+        serde_json::to_value(p).unwrap_or_else(|e| panic!("predicate serialization failed: {e}"))
     }
 }
 
 impl From<EntityPredicate> for Value {
     fn from(p: EntityPredicate) -> Value {
-        serde_json::to_value(p).unwrap_or(Value::Null)
+        p.validate_at("predicate")
+            .unwrap_or_else(|e| panic!("predicate validation failed: {e}"));
+        serde_json::to_value(p).unwrap_or_else(|e| panic!("predicate serialization failed: {e}"))
     }
 }
 
 impl From<DamagePredicate> for Value {
     fn from(p: DamagePredicate) -> Value {
-        serde_json::to_value(p).unwrap_or(Value::Null)
+        p.validate_at("predicate")
+            .unwrap_or_else(|e| panic!("predicate validation failed: {e}"));
+        serde_json::to_value(p).unwrap_or_else(|e| panic!("predicate serialization failed: {e}"))
     }
 }
 
 impl From<LocationPredicate> for Value {
     fn from(p: LocationPredicate) -> Value {
-        serde_json::to_value(p).unwrap_or(Value::Null)
+        p.validate_at("predicate")
+            .unwrap_or_else(|e| panic!("predicate validation failed: {e}"));
+        serde_json::to_value(p).unwrap_or_else(|e| panic!("predicate serialization failed: {e}"))
     }
 }
 
@@ -1105,6 +1263,62 @@ mod tests {
     fn int_range_exact() {
         let r = IntRange::exact(5);
         assert_eq!(serde_json::to_value(r).unwrap(), json!(5));
+    }
+
+    #[test]
+    fn ranges_reject_inverted_and_non_finite_bounds() {
+        assert!(
+            IntRange {
+                min: None,
+                max: None
+            }
+            .validate_at("count")
+            .is_ok()
+        );
+        assert!(IntRange::exact(-3).validate_at("count").is_ok());
+        assert!(IntRange::at_most(4).validate_at("count").is_ok());
+        assert!(IntRange::between(2, 1).validate_at("count").is_err());
+        for value in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+            assert!(FloatRange::at_least(value).validate_at("distance").is_err());
+        }
+        assert!(
+            FloatRange::between(2.0, 1.0)
+                .validate_at("distance")
+                .is_err()
+        );
+        assert!(IntRange::at_least(-2).validate_at("count").is_ok());
+    }
+
+    #[test]
+    fn nested_predicates_report_their_field_path() {
+        let predicate = EntityPredicate::new()
+            .location(LocationPredicate::new().x(FloatRange::between(3.0, 1.0)));
+        let err = predicate
+            .validate_at("criteria.foo.conditions.player")
+            .unwrap_err();
+        assert!(err.contains("criteria.foo.conditions.player.location.x"));
+    }
+
+    #[test]
+    fn typed_empty_matchers_and_bad_raw_component_shape_fail() {
+        assert!(
+            BlockPredicate::new()
+                .blocks(vec![])
+                .validate_at("block")
+                .is_err()
+        );
+        assert!(
+            EntityPredicate::new()
+                .with_type_any(vec![])
+                .validate_at("entity")
+                .is_err()
+        );
+        assert!(
+            ItemPredicate::new()
+                .raw_components(RawJson::new(json!("not-an-object")))
+                .validate_at("item")
+                .is_err()
+        );
     }
 
     #[test]

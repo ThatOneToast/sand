@@ -6,7 +6,7 @@ use serde::Serialize;
 use serde::ser::{SerializeMap, Serializer};
 use serde_json::Value;
 
-use crate::component::DatapackComponent;
+use crate::component::{ComponentContent, DatapackComponent};
 use crate::predicates::{
     DamagePredicate, DistancePredicate, EffectPredicate, EntityPredicate, FloatRange, IntRange,
     ItemPredicate, LocationPredicate,
@@ -441,6 +441,19 @@ pub struct InventorySlotsPredicate {
 }
 
 impl InventorySlotsPredicate {
+    fn validate_at(&self, path: &str) -> Result<(), String> {
+        for (name, range) in [
+            ("occupied", &self.occupied),
+            ("full", &self.full),
+            ("empty", &self.empty),
+        ] {
+            if let Some(range) = range {
+                range.validate_at(&format!("{path}.{name}"))?;
+            }
+        }
+        Ok(())
+    }
+
     pub fn new() -> Self {
         Self::default()
     }
@@ -465,6 +478,267 @@ impl InventorySlotsPredicate {
 // ── AdvancementTrigger::trigger_id helper ─────────────────────────────────────
 
 impl AdvancementTrigger {
+    /// Validate stable predicate/range invariants for typed trigger conditions.
+    /// Raw/custom trigger conditions remain an explicit escape hatch.
+    pub(crate) fn validate_at(&self, path: &str) -> Result<(), String> {
+        let conditions = format!("{path}.conditions");
+        match self {
+            Self::PlayerKilledEntity {
+                entity,
+                killing_blow,
+            }
+            | Self::EntityKilledPlayer {
+                entity,
+                killing_blow,
+            }
+            | Self::KillMobNearSculkCatalyst {
+                entity,
+                killing_blow,
+            } => {
+                if let Some(entity) = entity {
+                    entity.validate_at(&format!("{conditions}.entity"))?;
+                }
+                if let Some(damage) = killing_blow {
+                    damage.validate_at(&format!("{conditions}.killing_blow"))?;
+                }
+            }
+            Self::PlayerHurtEntity { entity, damage }
+            | Self::EntityHurtPlayer { entity, damage } => {
+                if let Some(entity) = entity {
+                    entity.validate_at(&format!("{conditions}.entity"))?;
+                }
+                if let Some(damage) = damage {
+                    damage.validate_at(&format!("{conditions}.damage"))?;
+                }
+            }
+            Self::KilledByCrossbow {
+                unique_entity_types,
+                victims,
+            } => {
+                if let Some(range) = unique_entity_types {
+                    range.validate_at(&format!("{conditions}.unique_entity_types"))?;
+                }
+                if let Some(victims) = victims {
+                    for (index, victim) in victims.iter().enumerate() {
+                        victim.validate_at(&format!("{conditions}.victims[{index}]"))?;
+                    }
+                }
+            }
+            Self::ChanneledLightning {
+                victims: Some(victims),
+            } => {
+                for (index, victim) in victims.iter().enumerate() {
+                    victim.validate_at(&format!("{conditions}.victims[{index}]"))?;
+                }
+            }
+            Self::LightningStrike {
+                lightning,
+                bystander,
+            } => {
+                if let Some(entity) = lightning {
+                    entity.validate_at(&format!("{conditions}.lightning"))?;
+                }
+                if let Some(entity) = bystander {
+                    entity.validate_at(&format!("{conditions}.bystander"))?;
+                }
+            }
+            Self::InventoryChanged { slots, items } => {
+                if let Some(slots) = slots {
+                    slots.validate_at(&format!("{conditions}.slots"))?;
+                }
+                for (index, item) in items.iter().enumerate() {
+                    item.validate_at(&format!("{conditions}.items[{index}]"))?;
+                }
+            }
+            Self::LeveledUp { level } | Self::ConstructBeacon { level } => {
+                if let Some(level) = level {
+                    level.validate_at(&format!("{conditions}.level"))?;
+                }
+            }
+            Self::UsedEnderEye {
+                distance: Some(distance),
+            } => distance.validate_at(&format!("{conditions}.distance"))?,
+            Self::Location { location }
+            | Self::SleptInBed { location }
+            | Self::HeroOfTheVillage { location } => {
+                if let Some(location) = location {
+                    location.validate_at(&format!("{conditions}.location"))?;
+                }
+            }
+            Self::UsedItem { item }
+            | Self::ConsumeItem { item }
+            | Self::UsingItem { item }
+            | Self::CraftedItem { item }
+            | Self::FilledBucket { item }
+            | Self::ShotCrossbow { item }
+            | Self::UsedTotem { item } => {
+                if let Some(item) = item {
+                    item.validate_at(&format!("{conditions}.item"))?;
+                }
+            }
+            Self::EmptiedBucket { item, location }
+            | Self::AllayDropItemOnBlock { item, location }
+            | Self::ItemUsedOnBlock { item, location } => {
+                if let Some(item) = item {
+                    item.validate_at(&format!("{conditions}.item"))?;
+                }
+                if let Some(location) = location {
+                    location.validate_at(&format!("{conditions}.location"))?;
+                }
+            }
+            Self::ThrownItemPickedUp { item, entity }
+            | Self::PlayerInteractedWithEntity { item, entity }
+            | Self::TamedAnimalInteracted { item, entity } => {
+                if let Some(item) = item {
+                    item.validate_at(&format!("{conditions}.item"))?;
+                }
+                if let Some(entity) = entity {
+                    entity.validate_at(&format!("{conditions}.entity"))?;
+                }
+            }
+            Self::ItemDurabilityChanged {
+                item,
+                delta,
+                durability,
+            } => {
+                if let Some(item) = item {
+                    item.validate_at(&format!("{conditions}.item"))?;
+                }
+                if let Some(range) = delta {
+                    range.validate_at(&format!("{conditions}.delta"))?;
+                }
+                if let Some(range) = durability {
+                    range.validate_at(&format!("{conditions}.durability"))?;
+                }
+            }
+            Self::BeeNestDestroyed {
+                item,
+                num_bees_inside,
+                ..
+            } => {
+                if let Some(item) = item {
+                    item.validate_at(&format!("{conditions}.item"))?;
+                }
+                if let Some(range) = num_bees_inside {
+                    range.validate_at(&format!("{conditions}.num_bees_inside"))?;
+                }
+            }
+            Self::EnchantedItem { item, levels } => {
+                if let Some(item) = item {
+                    item.validate_at(&format!("{conditions}.item"))?;
+                }
+                if let Some(range) = levels {
+                    range.validate_at(&format!("{conditions}.levels"))?;
+                }
+            }
+            Self::BredAnimals {
+                parent,
+                partner,
+                child,
+            } => {
+                for (name, entity) in [("parent", parent), ("partner", partner), ("child", child)] {
+                    if let Some(entity) = entity {
+                        entity.validate_at(&format!("{conditions}.{name}"))?;
+                    }
+                }
+            }
+            Self::TamedAnimal { entity } | Self::SummonedEntity { entity } => {
+                if let Some(entity) = entity {
+                    entity.validate_at(&format!("{conditions}.entity"))?;
+                }
+            }
+            Self::FishingRodHooked { rod, entity, item } => {
+                if let Some(rod) = rod {
+                    rod.validate_at(&format!("{conditions}.rod"))?;
+                }
+                if let Some(entity) = entity {
+                    entity.validate_at(&format!("{conditions}.entity"))?;
+                }
+                if let Some(item) = item {
+                    item.validate_at(&format!("{conditions}.item"))?;
+                }
+            }
+            Self::VillagerTrade { item, villager } => {
+                if let Some(item) = item {
+                    item.validate_at(&format!("{conditions}.item"))?;
+                }
+                if let Some(villager) = villager {
+                    villager.validate_at(&format!("{conditions}.villager"))?;
+                }
+            }
+            Self::CuredZombieVillager { villager, zombie } => {
+                if let Some(entity) = villager {
+                    entity.validate_at(&format!("{conditions}.villager"))?;
+                }
+                if let Some(entity) = zombie {
+                    entity.validate_at(&format!("{conditions}.zombie"))?;
+                }
+            }
+            Self::PlacedBlock { item, location, .. } => {
+                if let Some(item) = item {
+                    item.validate_at(&format!("{conditions}.item"))?;
+                }
+                if let Some(location) = location {
+                    location.validate_at(&format!("{conditions}.location"))?;
+                }
+            }
+            Self::NetherTravel {
+                entered,
+                exited,
+                distance,
+            } => {
+                if let Some(location) = entered {
+                    location.validate_at(&format!("{conditions}.entered"))?;
+                }
+                if let Some(location) = exited {
+                    location.validate_at(&format!("{conditions}.exited"))?;
+                }
+                if let Some(distance) = distance {
+                    distance.validate_at(&format!("{conditions}.distance"))?;
+                }
+            }
+            Self::FallFromHeight {
+                distance,
+                start_position,
+            }
+            | Self::RideEntityInLava {
+                distance,
+                start_position,
+            } => {
+                if let Some(distance) = distance {
+                    distance.validate_at(&format!("{conditions}.distance"))?;
+                }
+                if let Some(location) = start_position {
+                    location.validate_at(&format!("{conditions}.start_position"))?;
+                }
+            }
+            Self::TargetHit {
+                signal_strength,
+                projectile,
+            } => {
+                if let Some(range) = signal_strength {
+                    range.validate_at(&format!("{conditions}.signal_strength"))?;
+                }
+                if let Some(entity) = projectile {
+                    entity.validate_at(&format!("{conditions}.projectile"))?;
+                }
+            }
+            Self::EffectsChanged { effects, source } => {
+                if let Some(effects) = effects {
+                    for (effect, predicate) in effects {
+                        predicate.validate_at(&format!("{conditions}.effects.{effect}"))?;
+                    }
+                }
+                if let Some(entity) = source {
+                    entity.validate_at(&format!("{conditions}.source"))?;
+                }
+            }
+            Self::Custom { .. } => {}
+            _ => {}
+        }
+        Ok(())
+    }
+
     /// Return the vanilla trigger ID selected by this typed trigger.
     pub fn trigger_id(&self) -> &str {
         match self {
@@ -1239,38 +1513,66 @@ impl DatapackComponent for Advancement {
         &self.location
     }
 
+    fn validate(&self) -> crate::error::Result<()> {
+        for (name, criterion) in &self.criteria {
+            let path = format!("criteria.{name}");
+            criterion.trigger.validate_at(&path).map_err(|message| {
+                crate::error::SandError::ComponentValidation {
+                    location: self.location.clone(),
+                    kind: "advancement".to_string(),
+                    field: path,
+                    message,
+                }
+            })?;
+        }
+        Ok(())
+    }
+
     fn to_json(&self) -> Value {
+        self.try_to_json()
+            .unwrap_or_else(|error| panic!("advancement serialization failed: {error}"))
+    }
+
+    fn try_content(&self) -> crate::error::Result<ComponentContent> {
+        self.validate()?;
+        self.try_to_json()
+            .map(ComponentContent::Json)
+            .map_err(crate::error::SandError::Serialization)
+    }
+
+    fn component_dir(&self) -> &'static str {
+        "advancement"
+    }
+}
+
+impl Advancement {
+    fn try_to_json(&self) -> Result<Value, serde_json::Error> {
         let mut map = serde_json::Map::new();
 
         if let Some(ref p) = self.parent {
             map.insert("parent".into(), Value::String(p.clone()));
         }
         if let Some(ref d) = self.display {
-            map.insert("display".into(), serde_json::to_value(d).unwrap());
+            map.insert("display".into(), serde_json::to_value(d)?);
         }
 
-        let criteria_map: serde_json::Map<String, Value> = self
-            .criteria
-            .iter()
-            .map(|(k, v)| (k.clone(), serde_json::to_value(v).unwrap()))
-            .collect();
+        let mut criteria_map = serde_json::Map::new();
+        for (name, criterion) in &self.criteria {
+            criteria_map.insert(name.clone(), serde_json::to_value(criterion)?);
+        }
         map.insert("criteria".into(), Value::Object(criteria_map));
 
         if let Some(ref reqs) = self.requirements {
-            map.insert("requirements".into(), serde_json::to_value(reqs).unwrap());
+            map.insert("requirements".into(), serde_json::to_value(reqs)?);
         }
         if let Some(ref r) = self.rewards {
-            map.insert("rewards".into(), serde_json::to_value(r).unwrap());
+            map.insert("rewards".into(), serde_json::to_value(r)?);
         }
         if self.sends_telemetry_data {
             map.insert("sends_telemetry_data".into(), Value::Bool(true));
         }
 
-        Value::Object(map)
-    }
-
-    fn component_dir(&self) -> &'static str {
-        "advancement"
+        Ok(Value::Object(map))
     }
 }
 
@@ -1770,4 +2072,60 @@ mod tests {
         },
         "minecraft:ride_entity_in_lava"
     );
+
+    #[test]
+    fn advancement_range_validation_retains_owner_and_criterion_path() {
+        let advancement = Advancement::new("test:bad_level".parse().unwrap()).criterion(
+            "level_up",
+            Criterion::new(AdvancementTrigger::LeveledUp {
+                level: Some(IntRange::between(10, 2)),
+            }),
+        );
+        let error = advancement.try_content().unwrap_err().to_string();
+        assert!(error.contains("test:bad_level"));
+        assert!(error.contains("criteria.level_up.conditions.level"));
+    }
+
+    #[test]
+    fn advancement_non_finite_range_is_rejected_before_serialization() {
+        let advancement = Advancement::new("test:bad_distance".parse().unwrap()).criterion(
+            "eye",
+            Criterion::new(AdvancementTrigger::UsedEnderEye {
+                distance: Some(FloatRange::at_least(f64::NAN)),
+            }),
+        );
+        let error = advancement.try_content().unwrap_err().to_string();
+        assert!(error.contains("criteria.eye.conditions.distance.min"));
+        assert!(error.contains("finite"));
+
+        let nested = Advancement::new("test:bad_damage".parse().unwrap()).criterion(
+            "hurt",
+            Criterion::new(AdvancementTrigger::PlayerHurtEntity {
+                entity: None,
+                damage: Some(DamagePredicate::new().dealt(FloatRange::at_most(f64::INFINITY))),
+            }),
+        );
+        let nested_error = nested.try_content().unwrap_err().to_string();
+        assert!(nested_error.contains("criteria.hurt.conditions.damage.dealt.max"));
+    }
+
+    #[test]
+    fn advancement_valid_and_custom_content_remain_compatible() {
+        let valid = Advancement::new("test:valid_level".parse().unwrap()).criterion(
+            "level",
+            Criterion::new(AdvancementTrigger::ConstructBeacon {
+                level: Some(IntRange::between(1, 4)),
+            }),
+        );
+        assert_eq!(valid.try_content().unwrap(), valid.content());
+
+        let custom = Advancement::new("test:custom".parse().unwrap()).criterion(
+            "custom",
+            Criterion::new(AdvancementTrigger::Custom {
+                trigger: "mymod:trigger".to_string(),
+                conditions: Some(RawJson::new(serde_json::json!({"anything": true}))),
+            }),
+        );
+        assert_eq!(custom.try_content().unwrap(), custom.content());
+    }
 }

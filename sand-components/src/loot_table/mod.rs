@@ -5,7 +5,7 @@ use serde::Serialize;
 use serde::ser::{SerializeMap, Serializer};
 use serde_json::Value;
 
-use crate::component::DatapackComponent;
+use crate::component::{ComponentContent, DatapackComponent};
 use crate::raw::RawJson;
 use crate::resource_location::ResourceLocation;
 
@@ -371,6 +371,79 @@ impl Serialize for LootCondition {
                 map.end()
             }
         }
+    }
+}
+
+impl LootCondition {
+    /// Validate stable condition invariants before a component embeds this JSON.
+    pub(crate) fn validate_at(&self, path: &str) -> Result<(), String> {
+        match self {
+            Self::AllOf { terms } | Self::AnyOf { terms } => {
+                if terms.is_empty() {
+                    return Err(format!("{path}.terms: must not be empty"));
+                }
+                for (index, term) in terms.iter().enumerate() {
+                    term.validate_at(&format!("{path}.terms[{index}]"))?;
+                }
+            }
+            Self::Inverted { term } => term.validate_at(&format!("{path}.term"))?,
+            Self::RandomChance { chance } => {
+                validate_probability(*chance, &format!("{path}.chance"))?
+            }
+            Self::TableBonus { chances, .. } => {
+                if chances.is_empty() {
+                    return Err(format!("{path}.chances: must not be empty"));
+                }
+                for (index, chance) in chances.iter().enumerate() {
+                    validate_probability(*chance, &format!("{path}.chances[{index}]"))?;
+                }
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+}
+
+impl LootEntry {
+    fn validate_at(&self, path: &str) -> Result<(), String> {
+        let conditions = match self {
+            Self::Item { conditions, .. }
+            | Self::Tag { conditions, .. }
+            | Self::LootTable { conditions, .. }
+            | Self::Dynamic { conditions, .. }
+            | Self::Empty { conditions, .. } => conditions,
+            Self::Group {
+                children,
+                conditions,
+            }
+            | Self::Alternatives {
+                children,
+                conditions,
+            }
+            | Self::Sequence {
+                children,
+                conditions,
+            } => {
+                for (index, child) in children.iter().enumerate() {
+                    child.validate_at(&format!("{path}.children[{index}]"))?;
+                }
+                conditions
+            }
+        };
+        for (index, condition) in conditions.iter().enumerate() {
+            condition.validate_at(&format!("{path}.conditions[{index}]"))?;
+        }
+        Ok(())
+    }
+}
+
+fn validate_probability(value: f64, path: &str) -> Result<(), String> {
+    if !value.is_finite() || !(0.0..=1.0).contains(&value) {
+        Err(format!(
+            "{path}: probability must be finite and between 0.0 and 1.0"
+        ))
+    } else {
+        Ok(())
     }
 }
 
@@ -1174,7 +1247,63 @@ impl DatapackComponent for LootTable {
         &self.location
     }
 
+    fn validate(&self) -> crate::error::Result<()> {
+        for (index, condition) in self.conditions.iter().enumerate() {
+            condition
+                .validate_at(&format!("conditions[{index}]"))
+                .map_err(|message| crate::error::SandError::ComponentValidation {
+                    location: self.location.clone(),
+                    kind: "loot_table".to_string(),
+                    field: format!("conditions[{index}]"),
+                    message,
+                })?;
+        }
+        for (pool_index, pool) in self.pools.iter().enumerate() {
+            for (condition_index, condition) in pool.conditions.iter().enumerate() {
+                let path = format!("pools[{pool_index}].conditions[{condition_index}]");
+                condition.validate_at(&path).map_err(|message| {
+                    crate::error::SandError::ComponentValidation {
+                        location: self.location.clone(),
+                        kind: "loot_table".to_string(),
+                        field: path,
+                        message,
+                    }
+                })?;
+            }
+            for (entry_index, entry) in pool.entries.iter().enumerate() {
+                let path = format!("pools[{pool_index}].entries[{entry_index}]");
+                entry.validate_at(&path).map_err(|message| {
+                    crate::error::SandError::ComponentValidation {
+                        location: self.location.clone(),
+                        kind: "loot_table".to_string(),
+                        field: path,
+                        message,
+                    }
+                })?;
+            }
+        }
+        Ok(())
+    }
+
     fn to_json(&self) -> Value {
+        self.try_to_json()
+            .unwrap_or_else(|error| panic!("loot table serialization failed: {error}"))
+    }
+
+    fn try_content(&self) -> crate::error::Result<ComponentContent> {
+        self.validate()?;
+        self.try_to_json()
+            .map(ComponentContent::Json)
+            .map_err(crate::error::SandError::Serialization)
+    }
+
+    fn component_dir(&self) -> &'static str {
+        "loot_table"
+    }
+}
+
+impl LootTable {
+    fn try_to_json(&self) -> Result<Value, serde_json::Error> {
         let mut map = serde_json::Map::new();
 
         if let Some(ref lt) = self.loot_type {
@@ -1184,28 +1313,75 @@ impl DatapackComponent for LootTable {
             map.insert("random_sequence".to_string(), Value::String(rs.clone()));
         }
         if !self.pools.is_empty() {
-            map.insert(
-                "pools".to_string(),
-                serde_json::to_value(&self.pools).unwrap(),
-            );
+            map.insert("pools".to_string(), serde_json::to_value(&self.pools)?);
         }
         if !self.functions.is_empty() {
             map.insert(
                 "functions".to_string(),
-                serde_json::to_value(&self.functions).unwrap(),
+                serde_json::to_value(&self.functions)?,
             );
         }
         if !self.conditions.is_empty() {
             map.insert(
                 "conditions".to_string(),
-                serde_json::to_value(&self.conditions).unwrap(),
+                serde_json::to_value(&self.conditions)?,
             );
         }
 
-        Value::Object(map)
+        Ok(Value::Object(map))
+    }
+}
+
+#[cfg(test)]
+mod validation_tests {
+    use super::{LootCondition, LootEntry, LootPool, LootTable};
+    use crate::component::DatapackComponent;
+
+    #[test]
+    fn probability_bounds_are_enforced_with_paths() {
+        for value in [0.0, 0.5, 1.0] {
+            assert!(
+                LootCondition::RandomChance { chance: value }
+                    .validate_at("conditions[1]")
+                    .is_ok()
+            );
+        }
+        for value in [-0.1, 1.1, f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+            let err = LootCondition::RandomChance { chance: value }
+                .validate_at("pools[0].conditions[1]")
+                .unwrap_err();
+            assert!(err.contains("pools[0].conditions[1].chance"));
+        }
     }
 
-    fn component_dir(&self) -> &'static str {
-        "loot_table"
+    #[test]
+    fn recursive_entry_failure_retains_owner_and_indices() {
+        let invalid = LootEntry::Item {
+            name: "minecraft:diamond".to_string(),
+            weight: None,
+            quality: None,
+            functions: Vec::new(),
+            conditions: vec![LootCondition::RandomChance { chance: -0.1 }],
+        };
+        let table = LootTable::new("test:recursive".parse().unwrap())
+            .pool(LootPool::new().entry(LootEntry::group(vec![invalid])));
+        let error = table.try_content().unwrap_err().to_string();
+        assert!(error.contains("test:recursive"));
+        assert!(error.contains("pools[0].entries[0].children[0].conditions[0].chance"));
+        assert!(error.contains("probability"));
+    }
+
+    #[test]
+    fn valid_recursive_loot_output_is_unchanged() {
+        let table = LootTable::new("test:valid_recursive".parse().unwrap()).pool(
+            LootPool::new().entry(LootEntry::Item {
+                name: "minecraft:diamond".to_string(),
+                weight: None,
+                quality: None,
+                functions: Vec::new(),
+                conditions: vec![LootCondition::RandomChance { chance: 0.5 }],
+            }),
+        );
+        assert_eq!(table.try_content().unwrap(), table.content());
     }
 }

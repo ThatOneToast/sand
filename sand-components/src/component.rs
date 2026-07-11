@@ -1,5 +1,7 @@
 use serde_json::Value;
 
+use sand_version::ComponentFeature;
+
 use crate::error::Result as SandResult;
 use crate::resource_location::ResourceLocation;
 
@@ -30,6 +32,14 @@ pub enum ComponentContent {
 /// New component implementations should override [`DatapackComponent::validate`]
 /// to enforce stable builder invariants. The default
 /// [`DatapackComponent::try_content`] calls `validate` and then `content`.
+///
+/// # Version-aware validation
+///
+/// Components that require a specific Minecraft feature (e.g. dialogs, jukebox
+/// songs) override [`DatapackComponent::required_features`] to declare their
+/// requirements. The export layer checks these against [`VersionCaps`] resolved
+/// from the target `VersionProfile` and rejects unsupported components before
+/// any pack output is written.
 pub trait DatapackComponent {
     /// The resource location that identifies this component within the datapack.
     fn resource_location(&self) -> &ResourceLocation;
@@ -50,9 +60,9 @@ pub trait DatapackComponent {
     /// export path can surface a structured [`SandError`] instead of panicking
     /// inside `to_json` / `content`.
     ///
-    /// Keep this focused on *stable builder invariants*. Do not validate
-    /// version-sensitive Minecraft schema details here until version-aware
-    /// validation ([#147]) is layered on top.
+    /// Keep this focused on *stable builder invariants*. Version-sensitive
+    /// gating is handled separately via [`required_features`](Self::required_features)
+    /// and the version-aware export path.
     fn validate(&self) -> SandResult<()> {
         Ok(())
     }
@@ -66,6 +76,21 @@ pub trait DatapackComponent {
     fn try_content(&self) -> SandResult<ComponentContent> {
         self.validate()?;
         Ok(self.content())
+    }
+
+    /// Declare the Minecraft feature requirements for this component.
+    ///
+    /// The default is an empty slice (no version-gated features required).
+    /// Override this to declare requirements such as
+    /// `[ComponentFeature::Dialogs]`. The export layer checks these against
+    /// [`VersionCaps`] and rejects unsupported components with a
+    /// [`SandError::VersionGating`] diagnostic before any pack output is written.
+    ///
+    /// Custom/modded components that don't map to a known feature should
+    /// return `&[]` — they remain possible; version gating applies only to
+    /// components that explicitly declare a known requirement.
+    fn required_features(&self) -> &'static [ComponentFeature] {
+        &[]
     }
 
     /// Project-root-relative source path to copy verbatim for binary assets.

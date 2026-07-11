@@ -274,8 +274,8 @@ fn generated_lib_rs_has_required_sand_exports() {
         "src/lib.rs must define __sand_export"
     );
     assert!(
-        content.contains("sand_core::try_export_components_json"),
-        "src/lib.rs must call try_export_components_json"
+        content.contains("sand_core::try_export_components_json_for_version"),
+        "src/lib.rs must call try_export_components_json_for_version"
     );
     assert!(
         content.contains("use sand_core::prelude::*"),

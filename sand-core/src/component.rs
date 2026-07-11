@@ -1,3 +1,5 @@
+#![allow(clippy::result_large_err)]
+
 use serde::Serialize;
 
 // ── Unified traits ────────────────────────────────────────────────────────────
@@ -8,6 +10,7 @@ use serde::Serialize;
 
 pub use sand_components::component::{ComponentContent, DatapackComponent, IntoDatapack};
 pub use sand_components::error::SandError as ComponentExportError;
+pub use sand_version::{ComponentFeature, VersionCaps};
 
 // ── sand-core-specific types ──────────────────────────────────────────────────
 
@@ -33,27 +36,43 @@ pub struct ComponentRecord {
 /// validation or serialization.
 pub type ExportResult<T> = std::result::Result<T, ComponentExportError>;
 
+/// Version-aware export context — carries the resolved capability set and the
+/// requested version string for diagnostics.
+struct ExportCtx<'a> {
+    caps: &'a VersionCaps,
+    requested_version: &'a str,
+    is_fallback: bool,
+}
+
 /// Convert a single [`DatapackComponent`] into a [`ComponentRecord`],
-/// validating exactly once before any content is accepted.
-///
-/// - **Copy-backed components**: [`DatapackComponent::validate`] runs, and the
-///   source path is accepted only if validation passes.
-/// - **JSON/text components**: [`DatapackComponent::try_content`] runs — its
-///   default implementation calls `validate()` then `content()`, so validation
-///   happens exactly once.
-///
-/// No separate `validate()` call is made for JSON/text components, avoiding
-/// double validation.
-fn component_to_record(comp: &dyn DatapackComponent) -> ExportResult<ComponentRecord> {
+/// validating exactly once before any content is accepted, and checking
+/// version-gated features against the export context.
+fn component_to_record(
+    comp: &dyn DatapackComponent,
+    ctx: Option<&ExportCtx>,
+) -> ExportResult<ComponentRecord> {
     let rl = comp.resource_location().clone();
     let kind = comp.component_dir().to_string();
 
+    // Version-gate check: reject if a required feature is not supported.
+    if let Some(ctx) = ctx {
+        for feature in comp.required_features() {
+            if !ctx.caps.supports(*feature) {
+                return Err(sand_components::error::version_gating_error(
+                    &rl.to_string(),
+                    &kind,
+                    *feature,
+                    ctx.requested_version,
+                    ctx.is_fallback,
+                ));
+            }
+        }
+    }
+
     let (content_type, content) = if let Some(path) = comp.copy_source_path() {
-        // Copy-backed: validate explicitly (no try_content needed).
         comp.validate().map_err(|e| enrich_error(e, &rl, &kind))?;
         ("copy", path.to_string())
     } else {
-        // JSON/text: try_content() includes validate() + content extraction.
         let content = comp
             .try_content()
             .map_err(|e| enrich_error(e, &rl, &kind))?;
@@ -106,15 +125,39 @@ fn enrich_error(
 /// which validates all components (JSON, text, and copy-backed) before
 /// accepting their content.
 ///
-/// Invalid components are rejected here — **before** any pack output is
-/// written — with a structured [`ComponentExportError`] that includes the
-/// resource location, component kind, and validation field when known.
-///
-/// This is the fallible companion to [`export_components_json`]. Most callers
-/// should use [`export_components_json`] (which panics on error with a clear
-/// diagnostic); tests and library code that need to handle errors should call
-/// this function or [`component_to_record`] directly.
+/// This is the **unprofiled** compatibility path — no version-gating is
+/// performed. Use [`try_export_components_for_version`] when the target
+/// `VersionProfile` is known so that version-gated components are rejected
+/// before any pack output is written.
 pub fn try_export_components(namespace: &str) -> ExportResult<Vec<ComponentRecord>> {
+    try_export_components_impl(namespace, None)
+}
+
+/// Version-aware fallible export: collect all inventory-registered components,
+/// rejecting components and advancement-backed events that require features not
+/// available in the target [`VersionCaps`].
+///
+/// The `requested_version` string and `is_fallback` flag are used for
+/// diagnostics only. Invalid components and unsupported version-gated
+/// components are rejected **before** any pack output is written.
+pub fn try_export_components_for_version(
+    namespace: &str,
+    caps: &VersionCaps,
+    requested_version: &str,
+    is_fallback: bool,
+) -> ExportResult<Vec<ComponentRecord>> {
+    let ctx = ExportCtx {
+        caps,
+        requested_version,
+        is_fallback,
+    };
+    try_export_components_impl(namespace, Some(&ctx))
+}
+
+fn try_export_components_impl(
+    namespace: &str,
+    ctx: Option<&ExportCtx>,
+) -> ExportResult<Vec<ComponentRecord>> {
     use crate::function::{
         ArmorEventDescriptor, ArmorEventKind, ArmorSlot, ComponentFactory, EventDescriptor,
         FunctionDescriptor, FunctionTagDescriptor,
@@ -141,7 +184,7 @@ pub fn try_export_components(namespace: &str) -> ExportResult<Vec<ComponentRecor
     // ── ComponentFactories (fallible boundary) ────────────────────────────────
     for factory in inventory::iter::<ComponentFactory>() {
         let comp = (factory.make)();
-        let record = component_to_record(comp.as_ref())?;
+        let record = component_to_record(comp.as_ref(), ctx)?;
         records.push(record);
     }
 
@@ -232,12 +275,7 @@ pub fn try_export_components(namespace: &str) -> ExportResult<Vec<ComponentRecor
 
                 // ── Advancement: trigger fires entry ──────────────────────────
                 let trigger = make_trigger();
-                trigger.validate_for_target().unwrap_or_else(|diagnostic| {
-                    panic!(
-                        "cannot export advancement event `{}`: {diagnostic}",
-                        desc.path
-                    )
-                });
+                check_event_trigger(&trigger, &advancement_id, desc.path, ctx)?;
                 let advancement = sand_components::Advancement::new(
                     advancement_id
                         .parse()
@@ -383,12 +421,11 @@ pub fn try_export_components(namespace: &str) -> ExportResult<Vec<ComponentRecor
                 if let Some(trigger) = make_trigger() {
                     // Advancement-backed custom (SandEvent) event.
                     // Same entry/body split as the typed Advancement arm.
-                    validate_custom_sand_event_trigger(desc.path, &trigger);
-
                     let advancement_id = desc
                         .id_override
                         .map(|s| s.to_string())
                         .unwrap_or_else(|| format!("{}:{}", namespace, desc.path));
+                    check_event_trigger(&trigger, &advancement_id, desc.path, ctx)?;
 
                     let body_path = format!("{}/body", desc.path);
                     let body_fn_ref = format!("{namespace}:{body_path}");
@@ -1080,6 +1117,24 @@ pub fn try_export_components_json(namespace: &str) -> ExportResult<String> {
     serde_json::to_string_pretty(&records).map_err(sand_components::error::SandError::Serialization)
 }
 
+/// Version-aware fallible JSON export: collect all components and advancement-backed
+/// events, rejecting any that require features not available in the target version.
+///
+/// This is the function the generated `sand_export` binary should call when a
+/// target version is known. On failure it returns a [`ComponentExportError`]
+/// carrying the resource location, component kind, and version-gating context
+/// — no panic, no backtrace.
+pub fn try_export_components_json_for_version(
+    namespace: &str,
+    caps: &VersionCaps,
+    requested_version: &str,
+    is_fallback: bool,
+) -> ExportResult<String> {
+    let records =
+        try_export_components_for_version(namespace, caps, requested_version, is_fallback)?;
+    serde_json::to_string_pretty(&records).map_err(sand_components::error::SandError::Serialization)
+}
+
 /// Collect all inventory-registered components and return them as a JSON string
 /// for consumption by `sand build`.
 ///
@@ -1087,11 +1142,8 @@ pub fn try_export_components_json(namespace: &str) -> ExportResult<String> {
 /// or serialization failure. It is retained for backward compatibility with
 /// direct callers that expect an infallible `String` return. The generated
 /// `sand_export` binary and all scaffold templates use
-/// [`try_export_components_json`] instead, which returns `Result` and exits
-/// non-zero without a panic backtrace.
-///
-/// Library code and tests that need to handle component errors should call
-/// [`try_export_components`] or [`try_export_components_json`] directly.
+/// [`try_export_components_json`] or [`try_export_components_json_for_version`]
+/// instead.
 pub fn export_components_json(namespace: &str) -> String {
     match try_export_components_json(namespace) {
         Ok(s) => s,
@@ -1280,10 +1332,115 @@ fn sanitize_armor_tag(s: &str) -> String {
     raw.trim_matches('_').to_string()
 }
 
-fn validate_custom_sand_event_trigger(handler_path: &str, trigger: &crate::AdvancementTrigger) {
-    trigger.validate_for_target().unwrap_or_else(|diagnostic| {
-        panic!("cannot export custom SandEvent handler `{handler_path}`: {diagnostic}")
-    });
+/// Validate an advancement trigger for the target version, returning a
+/// fallible error instead of panicking.
+///
+/// Checks both the existing `validate_for_target` (trigger ID availability)
+/// and the trigger coverage table's `since`/`removed_in` fields against the
+/// target version when a version context is provided.
+fn check_event_trigger(
+    trigger: &crate::AdvancementTrigger,
+    advancement_id: &str,
+    handler_path: &str,
+    ctx: Option<&ExportCtx>,
+) -> ExportResult<()> {
+    // Existing trigger-level validation (ID availability).
+    trigger.validate_for_target().map_err(|diagnostic| {
+        sand_components::error::SandError::ComponentValidation {
+            location: advancement_id.parse().unwrap_or_else(|_| {
+                sand_components::ResourceLocation::new("sand", "error").unwrap()
+            }),
+            kind: "advancement_event".to_string(),
+            field: "trigger".to_string(),
+            message: format!("cannot export advancement event `{handler_path}`: {diagnostic}"),
+        }
+    })?;
+
+    // Version-aware trigger availability check using TRIGGER_COVERAGE.
+    if let Some(ctx) = ctx {
+        let trigger_id = trigger.trigger_id();
+        if let Some(coverage) =
+            sand_components::advancement::trigger_coverage::find_coverage(trigger_id)
+        {
+            if !coverage.since.is_empty() {
+                let req = parse_version_components(coverage.since);
+                let target = parse_version_components(ctx.requested_version);
+                if let (Some(req), Some(target)) = (req, target)
+                    && !is_version_gte(&target, &req)
+                {
+                    let fallback_note = if ctx.is_fallback {
+                        " (fallback profile: all features disabled; use an exact known \
+                         version or `mc_version = \"latest\"` to enable version-gated \
+                         features)"
+                    } else {
+                        ""
+                    };
+                    return Err(sand_components::error::SandError::VersionGating {
+                        location: advancement_id.to_string(),
+                        kind: format!(
+                            "trigger `{trigger_id}` (available since {since})",
+                            trigger_id = trigger_id,
+                            since = coverage.since
+                        ),
+                        requested_version: ctx.requested_version.to_string(),
+                        is_fallback: ctx.is_fallback,
+                        feature_name: format!("trigger since {since}", since = coverage.since),
+                        fallback_note: fallback_note.to_string(),
+                    });
+                }
+            }
+            if let Some(removed_in) = coverage.removed_in {
+                let removed = parse_version_components(removed_in);
+                let target = parse_version_components(ctx.requested_version);
+                if let (Some(removed), Some(target)) = (removed, target)
+                    && is_version_gte(&target, &removed)
+                {
+                    let fallback_note = if ctx.is_fallback {
+                        " (fallback profile)"
+                    } else {
+                        ""
+                    };
+                    return Err(sand_components::error::SandError::VersionGating {
+                        location: advancement_id.to_string(),
+                        kind: format!("trigger `{trigger_id}` (removed in {removed_in})"),
+                        requested_version: ctx.requested_version.to_string(),
+                        is_fallback: ctx.is_fallback,
+                        feature_name: format!(
+                            "trigger before {removed_in}",
+                            removed_in = removed_in
+                        ),
+                        fallback_note: fallback_note.to_string(),
+                    });
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn parse_version_components(s: &str) -> Option<(u32, u32, u32)> {
+    let parts: Vec<&str> = s.split('.').collect();
+    let major = parts.first()?.parse::<u32>().ok()?;
+    let minor = parts
+        .get(1)
+        .and_then(|p| p.parse::<u32>().ok())
+        .unwrap_or(0);
+    let patch = parts
+        .get(2)
+        .and_then(|p| p.parse::<u32>().ok())
+        .unwrap_or(0);
+    Some((major, minor, patch))
+}
+
+fn is_version_gte(target: &(u32, u32, u32), required: &(u32, u32, u32)) -> bool {
+    if target.0 != required.0 {
+        return target.0 > required.0;
+    }
+    if target.1 != required.1 {
+        return target.1 > required.1;
+    }
+    target.2 >= required.2
 }
 
 fn build_item_cond(
@@ -1360,36 +1517,40 @@ mod tests {
 
     #[test]
     fn custom_sand_event_advancement_trigger_validation_accepts_supported_trigger() {
-        super::validate_custom_sand_event_trigger("legacy_valid_event", &AdvancementTrigger::Tick);
+        let result = super::check_event_trigger(
+            &AdvancementTrigger::Tick,
+            "test:legacy_valid_event",
+            "legacy_valid_event",
+            None,
+        );
+        assert!(
+            result.is_ok(),
+            "supported trigger should pass: {:?}",
+            result.err()
+        );
     }
 
     #[test]
     fn custom_sand_event_advancement_trigger_validation_rejects_invalid_trigger() {
-        let panic = std::panic::catch_unwind(|| {
-            super::validate_custom_sand_event_trigger(
-                "legacy_level_up",
-                &AdvancementTrigger::LeveledUp { level: None },
-            );
-        })
-        .expect_err("invalid legacy SandEvent advancement trigger should panic during export");
-
-        let message = panic
-            .downcast_ref::<String>()
-            .map(String::as_str)
-            .or_else(|| panic.downcast_ref::<&str>().copied())
-            .unwrap_or("<non-string panic>");
-
+        let result = super::check_event_trigger(
+            &AdvancementTrigger::LeveledUp { level: None },
+            "test:legacy_level_up",
+            "legacy_level_up",
+            None,
+        );
+        let err = result.expect_err("invalid trigger should be rejected");
+        let msg = err.to_string();
         assert!(
-            message.contains("cannot export custom SandEvent handler `legacy_level_up`"),
-            "panic should name the legacy handler path, got: {message}"
+            msg.contains("cannot export advancement event `legacy_level_up`"),
+            "error should name the handler path, got: {msg}"
         );
         assert!(
-            message.contains("minecraft:leveled_up"),
-            "panic should include the invalid trigger ID, got: {message}"
+            msg.contains("minecraft:leveled_up"),
+            "error should include the invalid trigger ID, got: {msg}"
         );
         assert!(
-            message.contains("experience query"),
-            "panic should include the migration diagnostic, got: {message}"
+            msg.contains("experience query"),
+            "error should include the migration diagnostic, got: {msg}"
         );
     }
 
@@ -1760,7 +1921,7 @@ mod tests {
             counter: &COUNT,
         };
         COUNT.store(0, Ordering::SeqCst);
-        component_to_record(&comp).expect("valid JSON component should succeed");
+        component_to_record(&comp, None).expect("valid JSON component should succeed");
         assert_eq!(
             COUNT.load(Ordering::SeqCst),
             1,
@@ -1778,7 +1939,7 @@ mod tests {
             counter: &COUNT,
         };
         COUNT.store(0, Ordering::SeqCst);
-        component_to_record(&comp).expect("valid copy component should succeed");
+        component_to_record(&comp, None).expect("valid copy component should succeed");
         assert_eq!(
             COUNT.load(Ordering::SeqCst),
             1,
@@ -1902,7 +2063,7 @@ mod tests {
         let comp = ValidJsonComponent {
             loc: test_rl("test", "valid_json"),
         };
-        let record = component_to_record(&comp).expect("valid JSON component should succeed");
+        let record = component_to_record(&comp, None).expect("valid JSON component should succeed");
         assert_eq!(record.namespace, "test");
         assert_eq!(record.dir, "test_json");
         assert_eq!(record.path, "valid_json");
@@ -1916,7 +2077,7 @@ mod tests {
         let comp = ValidTextComponent {
             loc: test_rl("test", "valid_text"),
         };
-        let record = component_to_record(&comp).expect("valid text component should succeed");
+        let record = component_to_record(&comp, None).expect("valid text component should succeed");
         assert_eq!(record.content_type, "text");
         assert_eq!(record.content, "say hello from text component");
     }
@@ -1927,7 +2088,7 @@ mod tests {
             loc: test_rl("test", "valid_copy"),
             source_path: "structures/castle.nbt".to_string(),
         };
-        let record = component_to_record(&comp).expect("valid copy component should succeed");
+        let record = component_to_record(&comp, None).expect("valid copy component should succeed");
         assert_eq!(record.content_type, "copy");
         assert_eq!(record.content, "structures/castle.nbt");
     }
@@ -1937,7 +2098,7 @@ mod tests {
         let comp = InvalidJsonComponent {
             loc: test_rl("test", "invalid_json"),
         };
-        let err = component_to_record(&comp).expect_err("invalid JSON component must fail");
+        let err = component_to_record(&comp, None).expect_err("invalid JSON component must fail");
         let msg = err.to_string();
         assert!(
             msg.contains("test:invalid_json"),
@@ -1955,7 +2116,7 @@ mod tests {
         let comp = InvalidCopyComponent {
             loc: test_rl("test", "invalid_copy"),
         };
-        let err = component_to_record(&comp).expect_err("invalid copy component must fail");
+        let err = component_to_record(&comp, None).expect_err("invalid copy component must fail");
         let msg = err.to_string();
         assert!(
             msg.contains("test:invalid_copy"),
@@ -1997,7 +2158,7 @@ mod tests {
         let comp = FailingSerializationComponent {
             loc: test_rl("test", "ser_fail"),
         };
-        let result = component_to_record(&comp);
+        let result = component_to_record(&comp, None);
         assert!(
             result.is_err(),
             "serialization failure must return Err, not Value::Null"
@@ -2006,6 +2167,152 @@ mod tests {
         assert!(
             msg.contains("test:ser_fail") || msg.contains("serialization"),
             "err: {msg}"
+        );
+    }
+
+    // ── Version-aware gating tests (#147) ──────────────────────────────────────
+
+    use super::ExportCtx;
+    use sand_version::VersionCaps;
+
+    /// A component that requires dialogs.
+    struct DialogComponent {
+        loc: crate::resource_location::ResourceLocation,
+    }
+    impl super::DatapackComponent for DialogComponent {
+        fn resource_location(&self) -> &crate::resource_location::ResourceLocation {
+            &self.loc
+        }
+        fn to_json(&self) -> serde_json::Value {
+            serde_json::json!({})
+        }
+        fn component_dir(&self) -> &'static str {
+            "dialog"
+        }
+        fn required_features(&self) -> &'static [sand_version::ComponentFeature] {
+            &[sand_version::ComponentFeature::Dialogs]
+        }
+    }
+
+    #[test]
+    fn dialog_component_succeeds_when_dialogs_supported() {
+        let comp = DialogComponent {
+            loc: test_rl("test", "dialog_ok"),
+        };
+        let caps = VersionCaps::all_enabled();
+        let ctx = ExportCtx {
+            caps: &caps,
+            requested_version: "1.21.6",
+            is_fallback: false,
+        };
+        let record = component_to_record(&comp, Some(&ctx))
+            .expect("dialog should succeed when dialogs feature is supported");
+        assert_eq!(record.dir, "dialog");
+    }
+
+    #[test]
+    fn dialog_component_fails_when_dialogs_not_supported() {
+        let comp = DialogComponent {
+            loc: test_rl("test", "dialog_bad"),
+        };
+        let caps = VersionCaps::all_disabled();
+        let ctx = ExportCtx {
+            caps: &caps,
+            requested_version: "1.19.4",
+            is_fallback: false,
+        };
+        let err = component_to_record(&comp, Some(&ctx))
+            .expect_err("dialog should fail when dialogs feature is not supported");
+        let msg = err.to_string();
+        assert!(msg.contains("dialog"), "must include kind: {msg}");
+        assert!(msg.contains("dialogs"), "must include feature name: {msg}");
+        assert!(
+            msg.contains("1.19.4"),
+            "must include requested version: {msg}"
+        );
+    }
+
+    #[test]
+    fn version_gating_error_includes_fallback_note() {
+        let comp = DialogComponent {
+            loc: test_rl("test", "dialog_fallback"),
+        };
+        let caps = VersionCaps::all_disabled();
+        let ctx = ExportCtx {
+            caps: &caps,
+            requested_version: "999.0",
+            is_fallback: true,
+        };
+        let err =
+            component_to_record(&comp, Some(&ctx)).expect_err("should fail for fallback profile");
+        let msg = err.to_string();
+        assert!(msg.contains("fallback"), "must mention fallback: {msg}");
+        assert!(
+            msg.contains("999.0"),
+            "must include requested version: {msg}"
+        );
+    }
+
+    #[test]
+    fn unprofiled_export_does_not_gate_components() {
+        let comp = DialogComponent {
+            loc: test_rl("test", "dialog_unprofiled"),
+        };
+        // No ctx → no version gating
+        let record = component_to_record(&comp, None).expect("unprofiled export should not gate");
+        assert_eq!(record.dir, "dialog");
+    }
+
+    #[test]
+    fn resolve_export_caps_latest_enables_all_features() {
+        let resolved = crate::version::resolve_export_caps("latest");
+        assert!(!resolved.is_fallback, "latest should be a known profile");
+        for feature in sand_version::ComponentFeature::ALL {
+            assert!(
+                resolved.caps.supports(*feature),
+                "latest should support {:?}",
+                feature
+            );
+        }
+    }
+
+    #[test]
+    fn resolve_export_caps_unknown_version_disables_all() {
+        let resolved = crate::version::resolve_export_caps("999.0");
+        assert!(resolved.is_fallback, "unknown version should be fallback");
+        for feature in sand_version::ComponentFeature::ALL {
+            assert!(
+                !resolved.caps.supports(*feature),
+                "unknown version should not support {:?}",
+                feature
+            );
+        }
+    }
+
+    #[test]
+    fn resolve_export_caps_known_version_gates_correctly() {
+        // 1.19.4 supports damage_types and trim_assets but not dialogs or jukebox_songs.
+        let resolved = crate::version::resolve_export_caps("1.19.4");
+        assert!(!resolved.is_fallback, "1.19.4 should be a known profile");
+        assert!(
+            resolved
+                .caps
+                .supports(sand_version::ComponentFeature::DamageTypes)
+        );
+        assert!(
+            resolved
+                .caps
+                .supports(sand_version::ComponentFeature::TrimAssets)
+        );
+        assert!(
+            !resolved
+                .caps
+                .supports(sand_version::ComponentFeature::Dialogs)
+        );
+        assert!(
+            !resolved
+                .caps
+                .supports(sand_version::ComponentFeature::JukeboxSongs)
         );
     }
 }

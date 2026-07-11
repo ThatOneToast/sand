@@ -5,5 +5,5 @@
 //! automatically via inventory — no manual registration needed.
 
 fn main() {
-    sand_example::__sand_export("hello_world");
+    sand_example::__sand_export("hello_world", "1.21.11");
 }

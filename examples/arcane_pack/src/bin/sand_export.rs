@@ -5,5 +5,5 @@
 //! automatically via inventory — no manual registration needed.
 
 fn main() {
-    arcane_pack::__sand_export("arcane");
+    arcane_pack::__sand_export("arcane", "1.21.11");
 }

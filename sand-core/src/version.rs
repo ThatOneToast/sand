@@ -422,6 +422,21 @@ impl VersionProfile {
             _ => false,
         }
     }
+
+    /// Return the cycle-safe capability set for this profile.
+    ///
+    /// The [`sand_version::VersionCaps`] can be passed to `sand-components`
+    /// (which cannot depend on `sand-core`) for version-aware component gating.
+    pub fn caps(&self) -> sand_version::VersionCaps {
+        sand_version::VersionCaps::from_flags(
+            self.supports_dialogs,
+            self.supports_jukebox_songs,
+            self.supports_damage_types,
+            self.supports_chat_types,
+            self.supports_enchantments,
+            self.supports_trim_assets,
+        )
+    }
 }
 
 struct VersionCaps {
@@ -723,6 +738,60 @@ fn lookup(major: u32, minor: u32, patch: u32) -> VersionCaps {
 
         // ── future 1.x > 1.21 / anything unknown — conservative fallback ─
         _ => VersionCaps::conservative(),
+    }
+}
+
+// ── Export-time version resolution (#147) ─────────────────────────────────────
+
+/// Resolved version information for the export-time component validation path.
+///
+/// Produced by [`resolve_export_caps`] from a `sand.toml` `mc_version` string.
+/// The [`VersionCaps`] field is consumed by `try_export_components_for_version`
+/// to gate version-sensitive components.
+pub struct ResolvedExportCaps {
+    /// The resolved version string (e.g. `"1.21.4"` or `"26.2"`).
+    pub version: String,
+    /// Whether the profile is a conservative fallback (not an exact match).
+    pub is_fallback: bool,
+    /// The cycle-safe capability set for component gating.
+    pub caps: sand_version::VersionCaps,
+}
+
+/// Resolve a `sand.toml` `mc_version` string into export-time capability info.
+///
+/// `"latest"` resolves to the bundled [`LATEST_KNOWN`] anchor. Unknown or
+/// unverified versions produce a conservative fallback: all feature flags
+/// `false`, `is_fallback = true`. This means version-gated components (dialogs,
+/// jukebox songs, etc.) are rejected for fallback/unknown targets unless the
+/// user explicitly targets a known exact version or `"latest"`.
+///
+/// This function is the single resolution point for the export subprocess —
+/// it is called by the generated `__sand_export` entrypoint.
+pub fn resolve_export_caps(mc_version: &str) -> ResolvedExportCaps {
+    let resolved_version = if mc_version == "latest" {
+        LATEST_KNOWN.to_string()
+    } else {
+        mc_version.to_string()
+    };
+
+    match MinecraftVersion::parse(&resolved_version) {
+        Ok(v) => match VersionProfile::resolve(&v) {
+            Ok(profile) => ResolvedExportCaps {
+                version: profile.resolved_name.clone(),
+                is_fallback: profile.is_fallback,
+                caps: profile.caps(),
+            },
+            Err(_) => ResolvedExportCaps {
+                version: resolved_version,
+                is_fallback: true,
+                caps: sand_version::VersionCaps::all_disabled(),
+            },
+        },
+        Err(_) => ResolvedExportCaps {
+            version: resolved_version,
+            is_fallback: true,
+            caps: sand_version::VersionCaps::all_disabled(),
+        },
     }
 }
 

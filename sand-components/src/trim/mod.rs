@@ -107,6 +107,10 @@ impl DatapackComponent for TrimMaterial {
     fn component_dir(&self) -> &'static str {
         "trim_material"
     }
+
+    fn required_features(&self) -> &'static [sand_version::ComponentFeature] {
+        &[sand_version::ComponentFeature::TrimAssets]
+    }
 }
 
 // ── TrimPattern ───────────────────────────────────────────────────────────────
@@ -177,5 +181,9 @@ impl DatapackComponent for TrimPattern {
 
     fn component_dir(&self) -> &'static str {
         "trim_pattern"
+    }
+
+    fn required_features(&self) -> &'static [sand_version::ComponentFeature] {
+        &[sand_version::ComponentFeature::TrimAssets]
     }
 }

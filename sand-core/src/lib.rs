@@ -97,7 +97,9 @@ pub use cmd::{
     Title, TypedExecute,
 };
 pub use component::try_export_components;
+pub use component::try_export_components_for_version;
 pub use component::try_export_components_json;
+pub use component::try_export_components_json_for_version;
 pub use component::{
     ComponentContent, ComponentExportError, ComponentRecord, DatapackComponent, ExportResult,
     IntoDatapack,

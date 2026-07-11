@@ -89,11 +89,13 @@ pub fn run(release: bool, resourcepack: bool) -> Result<()> {
         bail!("`cargo build` failed");
     }
 
-    // 3. Run the export binary
+    // 3. Run the export binary — pass the target mc_version via env var so the
+    //    subprocess can gate components against the resolved VersionProfile.
     let target_dir = cargo_target_dir()?;
     let profile = if release { "release" } else { "debug" };
     let binary = target_dir.join(profile).join("sand_export");
     let output = std::process::Command::new(&binary)
+        .env("SAND_EXPORT_MC_VERSION", &mc_version)
         .output()
         .with_context(|| format!("failed to run '{}'", binary.display()))?;
     if !output.status.success() {

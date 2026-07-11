@@ -274,8 +274,12 @@ fn generated_lib_rs_has_required_sand_exports() {
         "src/lib.rs must define __sand_export"
     );
     assert!(
-        content.contains("sand_core::try_export_components_json"),
-        "src/lib.rs must call try_export_components_json"
+        content.contains("sand_core::try_export_components_json_for_version"),
+        "src/lib.rs must call try_export_components_json_for_version"
+    );
+    assert!(
+        content.contains("resolve_export_caps"),
+        "src/lib.rs must resolve the transported export version"
     );
     assert!(
         content.contains("use sand_core::prelude::*"),
@@ -354,6 +358,10 @@ fn generated_sand_export_binary_calls_the_crate_export_fn() {
     assert!(
         content.contains("__sand_export"),
         "sand_export.rs must call __sand_export"
+    );
+    assert!(
+        content.contains("SAND_EXPORT_MC_VERSION"),
+        "sand_export.rs must read the version passed by sand build"
     );
     assert!(
         content.contains("my_pack"),

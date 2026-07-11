@@ -9,8 +9,9 @@
 //! builders from the prelude when they cover the use case.
 
 pub use crate::component::{
-    ComponentContent, ComponentRecord, export_components_json, try_export_components,
-    try_export_components_json,
+    ComponentContent, ComponentFeature, ComponentRecord, VersionCaps, export_components_json,
+    try_export_components, try_export_components_for_version, try_export_components_json,
+    try_export_components_json_for_version,
 };
 pub use crate::function::{
     ComponentFactory, EventDescriptor, EventDispatch, EventPathEntry, FunctionDescriptor,

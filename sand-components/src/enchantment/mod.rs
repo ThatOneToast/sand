@@ -235,4 +235,8 @@ impl DatapackComponent for Enchantment {
     fn component_dir(&self) -> &'static str {
         "enchantment"
     }
+
+    fn required_features(&self) -> &'static [sand_version::ComponentFeature] {
+        &[sand_version::ComponentFeature::Enchantments]
+    }
 }

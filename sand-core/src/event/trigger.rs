@@ -265,7 +265,9 @@ impl From<InventoryChangedTrigger> for AdvancementTrigger {
 
 // ─── ItemObtainedTrigger (CraftedItem) ──────────────────────────────────────
 
-/// Fires when the player obtains an item (crafting, smelting, etc.).
+/// Fires when the player crafts an item.
+///
+/// Maps to `minecraft:crafted_item`; it does not fire for smelting or other item acquisition.
 #[derive(Clone, Debug, Default)]
 pub struct ItemObtainedTrigger {
     item: Option<ItemPredicate>,
@@ -276,7 +278,7 @@ impl ItemObtainedTrigger {
         Self { item: None }
     }
 
-    /// Filter by the obtained item.
+    /// Filter by the crafted item.
     pub fn item(mut self, predicate: ItemPredicate) -> Self {
         self.item = Some(predicate);
         self

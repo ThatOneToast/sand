@@ -54,7 +54,13 @@ pub fn player_join() -> sand_core::Advancement {
 #[doc(hidden)]
 pub fn __sand_export(namespace: &str, mc_version: &str) {
     // Resolve the version profile and gate components against it.
-    let resolved = sand_core::version::resolve_export_caps(mc_version);
+    let resolved = match sand_core::version::resolve_export_caps(mc_version) {
+        Ok(resolved) => resolved,
+        Err(e) => {
+            eprintln!("sand export failed: {e}");
+            std::process::exit(1);
+        }
+    };
     match sand_core::try_export_components_json_for_version(
         namespace,
         &resolved.caps,

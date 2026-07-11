@@ -1362,6 +1362,21 @@ fn check_event_trigger(
         if let Some(coverage) =
             sand_components::advancement::trigger_coverage::find_coverage(trigger_id)
         {
+            // A fallback profile is deliberately not an exact compatibility
+            // claim. Known vanilla triggers therefore require an exact profile
+            // even when their historical range appears to include the requested
+            // (unknown/future) version. Explicit custom/modded triggers remain
+            // the raw escape hatch below.
+            if ctx.is_fallback {
+                return Err(sand_components::error::SandError::VersionGating {
+                    location: advancement_id.to_string(),
+                    kind: format!("trigger `{trigger_id}`"),
+                    requested_version: ctx.requested_version.to_string(),
+                    is_fallback: true,
+                    feature_name: "known trigger coverage (exact profile required)".to_string(),
+                    fallback_note: " (fallback profile: select an exact known version or `mc_version = \"latest\"` to export known vanilla triggers)".to_string(),
+                });
+            }
             if !coverage.since.is_empty() {
                 let req = parse_version_components(coverage.since);
                 let target = parse_version_components(ctx.requested_version);
@@ -1413,6 +1428,17 @@ fn check_event_trigger(
                     });
                 }
             }
+        } else if !matches!(trigger, crate::AdvancementTrigger::Custom { .. }) {
+            // Typed triggers are Sand-owned and must have coverage metadata;
+            // accepting one without it would silently claim compatibility.
+            return Err(sand_components::error::SandError::VersionGating {
+                location: advancement_id.to_string(),
+                kind: format!("trigger `{trigger_id}`"),
+                requested_version: ctx.requested_version.to_string(),
+                is_fallback: ctx.is_fallback,
+                feature_name: "trigger coverage metadata".to_string(),
+                fallback_note: " (missing metadata is rejected conservatively; use AdvancementTrigger::Custom for intentional raw/modded triggers)".to_string(),
+            });
         }
     }
 
@@ -1552,6 +1578,83 @@ mod tests {
             msg.contains("experience query"),
             "error should include the migration diagnostic, got: {msg}"
         );
+    }
+
+    #[test]
+    fn event_trigger_gating_rejects_unsupported_and_fallback_profiles() {
+        let caps = VersionCaps::all_enabled();
+        let old_ctx = ExportCtx {
+            caps: &caps,
+            requested_version: "1.18.2",
+            is_fallback: false,
+        };
+        let unsupported = super::check_event_trigger(
+            &AdvancementTrigger::AllayDropItemOnBlock {
+                item: None,
+                location: None,
+            },
+            "test:allay_event",
+            "allay_event",
+            Some(&old_ctx),
+        )
+        .expect_err("allay trigger was introduced after 1.18.2");
+        assert!(
+            unsupported
+                .to_string()
+                .contains("minecraft:allay_drop_item_on_block")
+        );
+        assert!(unsupported.to_string().contains("1.18.2"));
+
+        let fallback_ctx = ExportCtx {
+            caps: &caps,
+            requested_version: "999.0",
+            is_fallback: true,
+        };
+        let fallback = super::check_event_trigger(
+            &AdvancementTrigger::Tick,
+            "test:fallback_event",
+            "fallback_event",
+            Some(&fallback_ctx),
+        )
+        .expect_err("fallback profiles must not claim exact trigger support");
+        assert!(fallback.to_string().contains("fallback"));
+        assert!(fallback.to_string().contains("minecraft:tick"));
+    }
+
+    #[test]
+    fn event_trigger_gating_accepts_supported_and_custom_triggers() {
+        let caps = VersionCaps::all_enabled();
+        let exact_ctx = ExportCtx {
+            caps: &caps,
+            requested_version: "1.19",
+            is_fallback: false,
+        };
+        super::check_event_trigger(
+            &AdvancementTrigger::AllayDropItemOnBlock {
+                item: None,
+                location: None,
+            },
+            "test:allay_event",
+            "allay_event",
+            Some(&exact_ctx),
+        )
+        .expect("allay trigger should be valid in 1.19");
+
+        let fallback_ctx = ExportCtx {
+            caps: &caps,
+            requested_version: "999.0",
+            is_fallback: true,
+        };
+        super::check_event_trigger(
+            &AdvancementTrigger::Custom {
+                trigger: "examplemod:custom_trigger".to_string(),
+                conditions: None,
+            },
+            "test:custom_event",
+            "custom_event",
+            Some(&fallback_ctx),
+        )
+        .expect("explicit custom triggers remain a raw/modded escape hatch");
     }
 
     #[test]
@@ -2265,7 +2368,7 @@ mod tests {
 
     #[test]
     fn resolve_export_caps_latest_enables_all_features() {
-        let resolved = crate::version::resolve_export_caps("latest");
+        let resolved = crate::version::resolve_export_caps("latest").unwrap();
         assert!(!resolved.is_fallback, "latest should be a known profile");
         for feature in sand_version::ComponentFeature::ALL {
             assert!(
@@ -2278,7 +2381,7 @@ mod tests {
 
     #[test]
     fn resolve_export_caps_unknown_version_disables_all() {
-        let resolved = crate::version::resolve_export_caps("999.0");
+        let resolved = crate::version::resolve_export_caps("999.0").unwrap();
         assert!(resolved.is_fallback, "unknown version should be fallback");
         for feature in sand_version::ComponentFeature::ALL {
             assert!(
@@ -2292,7 +2395,7 @@ mod tests {
     #[test]
     fn resolve_export_caps_known_version_gates_correctly() {
         // 1.19.4 supports damage_types and trim_assets but not dialogs or jukebox_songs.
-        let resolved = crate::version::resolve_export_caps("1.19.4");
+        let resolved = crate::version::resolve_export_caps("1.19.4").unwrap();
         assert!(!resolved.is_fallback, "1.19.4 should be a known profile");
         assert!(
             resolved
@@ -2314,5 +2417,12 @@ mod tests {
                 .caps
                 .supports(sand_version::ComponentFeature::JukeboxSongs)
         );
+    }
+
+    #[test]
+    fn resolve_export_caps_rejects_malformed_version() {
+        let err = crate::version::resolve_export_caps("not-a-version")
+            .expect_err("malformed export version must not silently use a fallback");
+        assert!(err.to_string().contains("not-a-version"));
     }
 }

@@ -90,4 +90,8 @@ impl DatapackComponent for JukeboxSong {
     fn component_dir(&self) -> &'static str {
         "jukebox_song"
     }
+
+    fn required_features(&self) -> &'static [sand_version::ComponentFeature] {
+        &[sand_version::ComponentFeature::JukeboxSongs]
+    }
 }

@@ -744,6 +744,10 @@ impl DatapackComponent for Dialog {
         Dialog::to_json(self)
     }
 
+    fn required_features(&self) -> &'static [sand_version::ComponentFeature] {
+        &[sand_version::ComponentFeature::Dialogs]
+    }
+
     fn component_dir(&self) -> &'static str {
         "dialog"
     }

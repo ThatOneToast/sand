@@ -32,6 +32,22 @@ pub enum SandError {
         message: String,
     },
 
+    /// A datapack component or generated event requires a feature not available in
+    /// the target Minecraft version.
+    #[error(
+        "component `{location}` ({kind}) requires feature `{feature_name}` \
+         which is not available in target Minecraft {requested_version}\
+         {fallback_note} — select a supported target or remove the component"
+    )]
+    VersionGating {
+        location: String,
+        kind: String,
+        requested_version: String,
+        is_fallback: bool,
+        feature_name: String,
+        fallback_note: String,
+    },
+
     /// Minecraft version string failed to parse (expected format: `major.minor` or `major.minor.patch`).
     #[error("Invalid Minecraft version '{0}': expected format major.minor or major.minor.patch")]
     InvalidVersion(String),
@@ -57,6 +73,21 @@ impl From<sand_components::SandError> for SandError {
                 kind,
                 field,
                 message,
+            },
+            sand_components::SandError::VersionGating {
+                location,
+                kind,
+                requested_version,
+                is_fallback,
+                feature_name,
+                fallback_note,
+            } => SandError::VersionGating {
+                location,
+                kind,
+                requested_version,
+                is_fallback,
+                feature_name,
+                fallback_note,
             },
         }
     }

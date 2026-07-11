@@ -5,5 +5,11 @@
 //! automatically via inventory — no manual registration needed.
 
 fn main() {
-    arcane_pack::__sand_export("arcane");
+    let mc_version = std::env::var("SAND_EXPORT_MC_VERSION").unwrap_or_else(|_| {
+        eprintln!(
+            "sand export failed: SAND_EXPORT_MC_VERSION is missing; invoke this binary through `sand build`"
+        );
+        std::process::exit(1);
+    });
+    arcane_pack::__sand_export("arcane", &mc_version);
 }

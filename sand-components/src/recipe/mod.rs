@@ -112,4 +112,147 @@ mod tests {
             .to_json();
         assert_eq!(trim["addition"], json!("minecraft:amethyst_shard"));
     }
+
+    // ── ShapedRecipe fallible validation contract (#145) ────────────────────────
+
+    #[test]
+    fn valid_shaped_recipe_try_content_preserves_output() {
+        let recipe = ShapedRecipe::new(id("valid"))
+            .pattern(["PNP", "PPP", "IPI"])
+            .key('P', Ingredient::item("minecraft:oak_planks"))
+            .key('N', Ingredient::item("minecraft:netherite_ingot"))
+            .key('I', Ingredient::item("minecraft:iron_ingot"))
+            .result(RecipeResult::new("audit:result", 2));
+
+        // try_content() must succeed and produce the same output as to_json().
+        let content = recipe.try_content().expect("valid recipe should pass");
+        let json = match content {
+            crate::component::ComponentContent::Json(v) => v,
+            _ => panic!("expected JSON content"),
+        };
+        assert_eq!(json, recipe.to_json());
+
+        // Validate() must also succeed.
+        recipe.validate().expect("valid recipe should validate");
+    }
+
+    #[test]
+    fn empty_pattern_fails_validation() {
+        let recipe = ShapedRecipe::new(id("no_pattern"))
+            .key('X', Ingredient::item("minecraft:stone"))
+            .result(RecipeResult::new("audit:result", 1));
+        // pattern defaults to empty Vec — no need to call .pattern().
+
+        let err = recipe.validate().expect_err("empty pattern should fail");
+        assert!(err.to_string().contains("pattern"), "err: {err}");
+        assert!(err.to_string().contains("audit:no_pattern"), "err: {err}");
+        assert!(err.to_string().contains("recipe"), "err: {err}");
+    }
+
+    #[test]
+    fn empty_result_id_fails_validation() {
+        let recipe = ShapedRecipe::new(id("no_result"))
+            .pattern(["X"])
+            .key('X', Ingredient::item("minecraft:stone"))
+            .result(RecipeResult::new("", 1));
+
+        let err = recipe.validate().expect_err("empty result id should fail");
+        assert!(err.to_string().contains("result.id"), "err: {err}");
+    }
+
+    #[test]
+    fn zero_result_count_fails_validation() {
+        let recipe = ShapedRecipe::new(id("zero_count"))
+            .pattern(["X"])
+            .key('X', Ingredient::item("minecraft:stone"))
+            .result(RecipeResult::new("audit:result", 0));
+
+        let err = recipe.validate().expect_err("zero count should fail");
+        assert!(err.to_string().contains("result.count"), "err: {err}");
+    }
+
+    #[test]
+    fn missing_key_for_pattern_char_fails_validation() {
+        let recipe = ShapedRecipe::new(id("missing_key"))
+            .pattern(["XY"])
+            .key('X', Ingredient::item("minecraft:stone"))
+            .result(RecipeResult::new("audit:result", 1));
+
+        let err = recipe.validate().expect_err("missing key should fail");
+        assert!(err.to_string().contains("'Y'"), "err: {err}");
+        assert!(err.to_string().contains("key"), "err: {err}");
+    }
+
+    #[test]
+    fn unused_key_fails_validation() {
+        let recipe = ShapedRecipe::new(id("unused_key"))
+            .pattern(["X"])
+            .key('X', Ingredient::item("minecraft:stone"))
+            .key('Y', Ingredient::item("minecraft:dirt"))
+            .result(RecipeResult::new("audit:result", 1));
+
+        let err = recipe.validate().expect_err("unused key should fail");
+        assert!(err.to_string().contains("'Y'"), "err: {err}");
+    }
+
+    #[test]
+    fn empty_ingredient_fails_validation_not_panic() {
+        // Ingredient::empty() is crate-private so simulate via alternatives
+        // with an empty inner ingredient.
+        let empty_inner = Ingredient::alternatives([]);
+        let recipe = ShapedRecipe::new(id("empty_ing"))
+            .pattern(["X"])
+            .key('X', empty_inner)
+            .result(RecipeResult::new("audit:result", 1));
+
+        let err = recipe.validate().expect_err("empty ingredient should fail");
+        assert!(err.to_string().contains("ingredient"), "err: {err}");
+        assert!(err.to_string().contains("empty"), "err: {err}");
+    }
+
+    #[test]
+    fn try_content_on_invalid_recipe_returns_error_not_panic() {
+        let recipe = ShapedRecipe::new(id("invalid")).result(RecipeResult::new("audit:result", 1));
+
+        let result = recipe.try_content();
+        assert!(result.is_err(), "try_content must return Err, not panic");
+        let err = result.unwrap_err();
+        assert!(err.to_string().contains("audit:invalid"), "err: {err}");
+        assert!(err.to_string().contains("recipe"), "err: {err}");
+    }
+
+    #[test]
+    fn golden_valid_shaped_recipe_output_unchanged() {
+        let recipe = ShapedRecipe::new(id("golden"))
+            .pattern(["AAA", "BCB", "AAA"])
+            .key('A', Ingredient::item("minecraft:iron_ingot"))
+            .key('B', Ingredient::tag("minecraft:logs"))
+            .key('C', Ingredient::item("minecraft:diamond"))
+            .category("building")
+            .group("iron_frame")
+            .show_notification(false)
+            .result(RecipeResult::new("audit:iron_frame", 1));
+
+        let json = recipe.to_json();
+        assert_eq!(json["type"], json!("minecraft:crafting_shaped"));
+        assert_eq!(json["category"], json!("building"));
+        assert_eq!(json["group"], json!("iron_frame"));
+        assert_eq!(json["pattern"], json!(["AAA", "BCB", "AAA"]));
+        assert_eq!(json["key"]["A"], json!("minecraft:iron_ingot"));
+        assert_eq!(json["key"]["B"], json!("#minecraft:logs"));
+        assert_eq!(json["key"]["C"], json!("minecraft:diamond"));
+        assert_eq!(
+            json["result"],
+            json!({"id": "audit:iron_frame", "count": 1})
+        );
+        assert_eq!(json["show_notification"], json!(false));
+
+        // try_content must produce byte-identical JSON.
+        let content = recipe.try_content().unwrap();
+        let v = match content {
+            crate::component::ComponentContent::Json(v) => v,
+            _ => panic!("expected JSON"),
+        };
+        assert_eq!(v, json, "try_content output must match to_json output");
+    }
 }

@@ -271,6 +271,11 @@ impl<T> ScoreVar<T> {
         }
     }
 
+    /// Build an automatic export lifecycle descriptor for this variable.
+    pub const fn lifecycle(&self) -> crate::state::StateLifecycle {
+        crate::state::StateLifecycle::score(self.name)
+    }
+
     /// Return the actual scoreboard objective name used in commands.
     ///
     /// This is either `name` directly (≤16 chars) or a stable hash (>16 chars).

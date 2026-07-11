@@ -30,19 +30,15 @@
 //! }
 //! ```
 //!
-//! # Example — lifecycle registry
+//! # Example — automatic lifecycle
 //! ```rust,ignore
-//! use sand_core::state::{ScoreVar, Flag, Cooldown, Ticks, define_registered_state};
-//!
-//! static MANA: ScoreVar<i32> = ScoreVar::new("mana");
-//! static CASTING: Flag = Flag::new("casting");
-//! static DASH: Cooldown = Cooldown::new("dash", Ticks::new(60));
-//!
-//! fn load() -> Vec<String> {
-//!     MANA.register();
-//!     CASTING.register();
-//!     DASH.register();
-//!     define_registered_state() // emits all three objectives, sorted
+//! sand_core::sand_state! {
+//!     static MANA: ScoreVar<i32> = ScoreVar::new("mana") =>
+//!         MANA.lifecycle().default(100);
+//!     static CASTING: Flag = Flag::new("casting") =>
+//!         CASTING.lifecycle().default(0);
+//!     static DASH: Cooldown = Cooldown::new("dash", Ticks::new(60)) =>
+//!         DASH.lifecycle().default(0).auto_tick();
 //! }
 //! ```
 
@@ -57,8 +53,8 @@ pub mod typed_state;
 pub use cooldown::Cooldown;
 pub use flag::{Flag, FlagRef};
 pub use registry::{
-    define_registered_state, drain_load_commands, drain_tick_commands, register_load_objective,
-    register_tick_handler,
+    StateDescriptor, StateLifecycle, define_registered_state, drain_load_commands,
+    drain_tick_commands, register_load_objective, register_tick_handler,
 };
 pub use score::{ScoreConst, ScoreConstants, ScoreExpr, ScoreOperation, ScoreRef, ScoreVar};
 pub use storage::{

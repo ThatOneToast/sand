@@ -32,6 +32,12 @@ impl Timer {
         Self { name, duration }
     }
 
+    /// Build an automatic export lifecycle descriptor for this timer.
+    /// Call `.auto_tick()` on the result to opt into per-player ticking.
+    pub const fn lifecycle(&self) -> crate::state::StateLifecycle {
+        crate::state::StateLifecycle::score(self.name)
+    }
+
     /// Return the actual scoreboard objective name.
     pub fn objective_name(&self) -> String {
         super::score::objective_name(self.name)

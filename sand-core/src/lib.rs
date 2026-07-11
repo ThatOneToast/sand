@@ -204,11 +204,44 @@ pub use state::{
 };
 pub use state::{GameState, GameStateRef, TypedGameState};
 pub use state::{
-    drain_load_commands, drain_tick_commands, register_load_objective, register_tick_handler,
+    StateDescriptor, StateLifecycle, drain_load_commands, drain_tick_commands,
+    register_load_objective, register_tick_handler,
 };
 pub use vfx::{
     IntoParticleStep, IntoSoundStep, IntoVfxSelector, Vfx, VfxParticle, VfxSound, VfxStep,
 };
+
+/// Declare a typed state value and submit its automatic lifecycle descriptor.
+///
+/// Every entry uses the same [`StateLifecycle`] model available to callers of
+/// [`inventory::submit!`]. Timer and cooldown ticking is opt-in through
+/// `auto_tick`; defaults are initialized only for players missing a score.
+///
+/// ```rust,ignore
+/// sand_core::sand_state! {
+///     pub static MANA: ScoreVar<i32> = ScoreVar::new("mana") =>
+///         MANA.lifecycle().default(100);
+///     pub static DASH: Cooldown = Cooldown::new("dash", Ticks::seconds(3)) =>
+///         DASH.lifecycle().default(0).auto_tick();
+/// }
+/// ```
+#[macro_export]
+macro_rules! sand_state {
+    ($(
+        $(#[$meta:meta])*
+        $vis:vis static $name:ident : $ty:ty = $value:expr => $lifecycle:expr;
+    )+) => {
+        $(
+            $(#[$meta])*
+            $vis static $name: $ty = $value;
+            const _: () = {
+                $crate::inventory::submit! {
+                    $crate::StateDescriptor::new($lifecycle)
+                }
+            };
+        )+
+    };
+}
 
 // ── McFunction (sand-core-specific component) ─────────────────────────────────
 

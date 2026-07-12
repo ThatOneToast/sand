@@ -29,6 +29,7 @@
 
 - [Functions](manual/functions.md)
 - [Components](manual/components.md)
+- [Datapack Tags](manual/tags.md)
 - [Function References](manual/function-refs.md)
 - [Selectors](manual/selectors.md)
 - [Coordinates And Rotation](manual/coordinates.md)

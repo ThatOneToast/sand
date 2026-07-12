@@ -70,8 +70,8 @@ pub use predicates::{
     IntRange, ItemPredicate, LocationPredicate, Range,
 };
 pub use registry::{
-    BiomeId, BlockId, DamageTypeId, DimensionId, EnchantmentId, EntityTypeId, ItemId, StructureId,
-    TagId,
+    BiomeId, BlockId, DamageTypeId, DimensionId, EnchantmentId, EntityTypeId, FunctionId, ItemId,
+    StructureId, TagId,
 };
 pub use resource_location::{Identifier, PackNamespace, ResourceLocation};
 
@@ -147,7 +147,7 @@ pub use dialog::{Dialog, DialogAction, DialogBody, DialogButton, DialogKind, Dia
 
 // ── Tag ───────────────────────────────────────────────────────────────────────
 
-pub use tag::Tag;
+pub use tag::{Tag, TagEntry, TagRegistry, TypedTag};
 
 // ── Structure Templates ───────────────────────────────────────────────────────
 

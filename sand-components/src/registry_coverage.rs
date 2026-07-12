@@ -574,22 +574,22 @@ pub const TAG_COVERAGE: &[TagCoverage] = &[
         value_registry: "minecraft:block",
         datapack_dir: "tags/block",
         sand_module: Some("sand_components::tag"),
-        api_status: RegistryApiStatus::PartiallyImplemented,
-        notes: "Tag<Block> exists; string IDs remain available.",
+        api_status: RegistryApiStatus::FullyImplemented,
+        notes: "TypedTag<BlockId> enforces registry-safe values and paths; raw Tag remains available.",
     },
     TagCoverage {
         value_registry: "minecraft:item",
         datapack_dir: "tags/item",
         sand_module: Some("sand_components::tag"),
-        api_status: RegistryApiStatus::PartiallyImplemented,
-        notes: "Tag<Item> exists; string IDs remain available.",
+        api_status: RegistryApiStatus::FullyImplemented,
+        notes: "TypedTag<ItemId> enforces registry-safe values and paths; raw Tag remains available.",
     },
     TagCoverage {
         value_registry: "minecraft:entity_type",
         datapack_dir: "tags/entity_type",
-        sand_module: None,
-        api_status: RegistryApiStatus::Missing,
-        notes: "Use RawComponent or Tag<String>.",
+        sand_module: Some("sand_components::tag"),
+        api_status: RegistryApiStatus::FullyImplemented,
+        notes: "TypedTag<EntityTypeId> enforces registry-safe values and paths; raw Tag remains available.",
     },
     TagCoverage {
         value_registry: "minecraft:fluid",
@@ -597,6 +597,13 @@ pub const TAG_COVERAGE: &[TagCoverage] = &[
         sand_module: None,
         api_status: RegistryApiStatus::IntentionallyUnsupported,
         notes: "Use RawComponent if required.",
+    },
+    TagCoverage {
+        value_registry: "minecraft:function",
+        datapack_dir: "tags/function",
+        sand_module: Some("sand_components::tag"),
+        api_status: RegistryApiStatus::FullyImplemented,
+        notes: "TypedTag<FunctionId> supports required and optional function and tag references.",
     },
 ];
 

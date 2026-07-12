@@ -99,7 +99,7 @@ pub use sand_components::{
     ItemModifier, ItemPredicate, ItemRarity, LocationPredicate, LootCondition, LootEntry,
     LootFunction, LootPool, LootTable, LootTableType, Predicate, Rarity, RecipeResult,
     ShapedRecipe, ShapelessRecipe, SmithingTransformRecipe, SmithingTrimRecipe, StonecuttingRecipe,
-    Tag, ToolProperties, ToolRule,
+    Tag, TagEntry, TagRegistry, ToolProperties, ToolRule, TypedTag,
 };
 
 // ── Raw escape hatch types ────────────────────────────────────────────────────
@@ -109,8 +109,8 @@ pub use sand_components::{RawCommand, RawComponent, RawJson, RawSnbt};
 // ── Typed registry identifiers ────────────────────────────────────────────────
 
 pub use sand_components::{
-    BiomeId, BlockId, DamageTypeId, DimensionId, EffectId, EnchantmentId, EntityTypeId, ItemId,
-    PotionContents, PotionId, Range, StatusEffectInstance, StructureId, StructureTemplate,
+    BiomeId, BlockId, DamageTypeId, DimensionId, EffectId, EnchantmentId, EntityTypeId, FunctionId,
+    ItemId, PotionContents, PotionId, Range, StatusEffectInstance, StructureId, StructureTemplate,
     SuspiciousStewEffect, TagId,
 };
 

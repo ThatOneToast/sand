@@ -201,13 +201,26 @@ pub struct RecipeUnlockedTrigger {
 }
 
 impl RecipeUnlockedTrigger {
+    /// Legacy string compatibility constructor.
+    ///
+    /// Prefer [`Self::from_id`] for new code so malformed IDs fail before a
+    /// trigger value is constructed.
     pub fn new(recipe: impl Into<String>) -> Self {
         Self {
             recipe: recipe.into(),
         }
     }
 
+    /// Create a recipe-unlocked trigger builder from a validated recipe ID.
+    pub fn from_id(recipe: crate::ResourceLocation) -> Self {
+        Self {
+            recipe: recipe.to_string(),
+        }
+    }
+
     pub fn build(self) -> AdvancementTrigger {
+        // `from_id` validates at construction; `new` remains a raw compatibility
+        // path and is protected by Advancement's fallible export validation.
         AdvancementTrigger::RecipeUnlocked {
             recipe: self.recipe,
         }
@@ -545,9 +558,10 @@ mod tests {
 
     #[test]
     fn recipe_unlocked_uses_typed_variant() {
-        let t = RecipeUnlockedTrigger::new("minecraft:crafting_table").build();
+        let t = RecipeUnlockedTrigger::from_id("minecraft:crafting_table".parse().unwrap()).build();
         let v = serde_json::to_value(&t).unwrap();
         assert_eq!(v["trigger"], "minecraft:recipe_unlocked");
         assert_eq!(v["conditions"]["recipe"], "minecraft:crafting_table");
+        assert!("bad recipe".parse::<crate::ResourceLocation>().is_err());
     }
 }

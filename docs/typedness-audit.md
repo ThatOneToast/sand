@@ -294,9 +294,11 @@ Typed `EventBuilder` API wrapping `AdvancementEvent` with guard, state, reset,
 and visibility. `EventAdvancement` IDs become `ResourceLocation`.
 
 ### Phase 7 — Typed status effects
-Complete. `EffectId` covers vanilla variants plus `EffectId::custom(...)` for
-modded effects. `StatusEffectInstance`, `PotionContents`, `PotionId`, and
-`SuspiciousStewEffect` cover structured JSON/SNBT data. `sand_core::cmd`
+Complete. `StatusEffectId` and `PotionRegistryId` provide the shared validated
+registry path for dynamic/modded IDs. The enum-style `EffectId` and `PotionId`
+remain source-compatible vanilla conveniences and convert in both directions.
+`StatusEffectInstance`, `PotionContents`, and `SuspiciousStewEffect` cover
+structured JSON/SNBT data. `sand_core::cmd`
 provides typed `effect_give`, `effect_clear`, and `effect_clear_effect`; raw
 effect command syntax is explicit through compatibility/escape hatches.
 

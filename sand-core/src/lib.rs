@@ -356,6 +356,7 @@ pub use sand_components::{
     PlacedFeature,
     PotionContents,
     PotionId,
+    PotionRegistryId,
     // Predicate
     Predicate,
     Range,
@@ -370,6 +371,7 @@ pub use sand_components::{
     ShapelessRecipe,
     SmithingTransformRecipe,
     SmithingTrimRecipe,
+    StatusEffectId,
     StatusEffectInstance,
     StonecuttingRecipe,
     StructureId,

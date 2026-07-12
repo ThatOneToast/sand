@@ -16,10 +16,10 @@ pub struct EffectGive {
 }
 
 impl EffectGive {
-    pub fn new(selector: Selector, effect: EffectId) -> Self {
+    pub fn new(selector: Selector, effect: impl Into<EffectId>) -> Self {
         Self {
             selector,
-            effect,
+            effect: effect.into(),
             duration: None,
             amplifier: None,
             show_particles: true,
@@ -87,7 +87,7 @@ impl From<EffectGive> for String {
 }
 
 /// `effect give <selector> <effect>` with typed effect IDs.
-pub fn effect_give(selector: Selector, effect: EffectId) -> EffectGive {
+pub fn effect_give(selector: Selector, effect: impl Into<EffectId>) -> EffectGive {
     EffectGive::new(selector, effect)
 }
 
@@ -97,8 +97,8 @@ pub fn effect_clear(selector: Selector) -> String {
 }
 
 /// `effect clear <selector> <effect>` — clear one typed status effect.
-pub fn effect_clear_effect(selector: Selector, effect: EffectId) -> String {
-    format!("effect clear {selector} {effect}")
+pub fn effect_clear_effect(selector: Selector, effect: impl Into<EffectId>) -> String {
+    format!("effect clear {selector} {}", effect.into())
 }
 
 /// Explicit raw escape hatch for unsupported effect command syntax.
@@ -116,7 +116,7 @@ pub fn effect_give_raw(
 #[cfg(test)]
 mod tests {
     use sand_commands::Selector;
-    use sand_components::{EffectId, Ticks};
+    use sand_components::{EffectId, StatusEffectId, Ticks};
 
     use super::*;
 
@@ -125,6 +125,22 @@ mod tests {
         assert_eq!(
             effect_give(Selector::self_(), EffectId::Speed).to_string(),
             "effect give @s minecraft:speed"
+        );
+    }
+
+    #[test]
+    fn shared_registry_effect_id_uses_the_typed_command_path() {
+        let id = StatusEffectId::minecraft("speed").unwrap();
+        assert_eq!(
+            effect_give(Selector::self_(), id).seconds(5).to_string(),
+            "effect give @s minecraft:speed 5"
+        );
+        assert_eq!(
+            effect_clear_effect(
+                Selector::self_(),
+                StatusEffectId::minecraft("speed").unwrap()
+            ),
+            "effect clear @s minecraft:speed"
         );
     }
 

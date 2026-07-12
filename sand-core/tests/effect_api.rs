@@ -1,5 +1,8 @@
 use sand_core::cmd::{self, Selector};
-use sand_core::{EffectId, PotionContents, PotionId, Range, StatusEffectInstance, Ticks};
+use sand_core::{
+    EffectId, PotionContents, PotionId, PotionRegistryId, Range, StatusEffectId,
+    StatusEffectInstance, Ticks,
+};
 use serde_json::json;
 
 #[test]
@@ -39,6 +42,24 @@ fn typed_effect_data_uses_public_core_api() {
             }]
         })
     );
+}
+
+#[test]
+fn shared_registry_ids_and_compatibility_enums_share_the_public_api() {
+    let contents = PotionContents::new()
+        .potion(PotionRegistryId::minecraft("swiftness").unwrap())
+        .effect(StatusEffectInstance::new(
+            StatusEffectId::minecraft("speed").unwrap(),
+        ));
+    assert_eq!(contents.potion.unwrap().to_string(), "minecraft:swiftness");
+    assert_eq!(
+        contents.custom_effects[0].effect.to_string(),
+        "minecraft:speed"
+    );
+
+    // Existing enum-style imports and variants remain source compatible.
+    let _: StatusEffectId = EffectId::Speed.into();
+    let _: PotionRegistryId = PotionId::Swiftness.into();
 }
 
 #[test]

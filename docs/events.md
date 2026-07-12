@@ -45,8 +45,9 @@ Use `dispatch = "advancement"` only for compatibility with older unit-style
 custom event handlers. New custom advancement events should not need it.
 
 Event handlers can use the same typed effect APIs as ordinary functions:
-`EffectId` covers vanilla effects and `EffectId::custom("namespace:path")`
-covers modded effects. Use `StatusEffectInstance` when serializing structured
+`EffectId` keeps the enum-style vanilla conveniences. `StatusEffectId` is the
+shared resource-location-backed form for dynamic or modded IDs; both work with
+the normal command and component builders. Use `StatusEffectInstance` when serializing structured
 effect data into item components or predicates.
 
 ## Tracked transitions

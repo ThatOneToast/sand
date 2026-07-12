@@ -1,0 +1,4 @@
+[pack]
+namespace = "sand_audit"
+description = "Sand vanilla initial-load and reload audit fixture"
+mc_version = "1.21.4"

@@ -275,16 +275,23 @@ Not implemented. Out of scope for current Sand focus.
 | Clippy lints | ✅ `cargo clippy --workspace --all-targets --all-features` |
 | Component path golden tests | ✅ locked in `sand-core` |
 | Command string golden tests | ✅ 194 tests added on this branch |
-| Vanilla server reload | ⚠️ opt-in script only (`scripts/validate-vanilla-reload.sh`) |
+| Vanilla server reload | ✅ local stable/latest initial-load + actual reload; scheduled/manual workflow added |
 
-The vanilla reload harness is available but not run in default CI because it requires downloading a Minecraft server jar. Run it locally or in a scheduled CI job:
+The vanilla reload harness remains outside normal PR CI because it starts a
+real server. It runs through a scheduled/manual workflow and can be invoked
+locally; see [vanilla reload validation](../vanilla-reload-validation.md).
 
 ```sh
-cargo run -p sand -- build
-scripts/validate-vanilla-reload.sh --version 1.21.4 --pack dist/<namespace>
+cd sand-vanilla-audit
+SAND_MC_VERSION=1.21.4 SAND_STRICT_CODEGEN=1 cargo run -p sand -- build
+cd ..
+scripts/validate-vanilla-reload.sh --version 1.21.4 --pack sand-vanilla-audit/dist/sand_audit
 ```
 
-Last known full-validation result: **not yet run** (run it locally and record the result here).
+Last successful local validation: **2026-07-12**, Minecraft `1.21.4` and
+`26.2`, both with Java 25.0.3. Initial load, explicit reload-start marker,
+post-reload sentinel, and clean shutdown passed for both. The first hosted
+scheduled/manual run remains a post-merge step.
 
 ## 14b. DamageTracker Status (#18)
 
@@ -327,7 +334,7 @@ For cause-specific logic, use advancement predicate events (`EntityHurtPlayer` w
 
 All #10–#19 issues are now implemented. Follow-up work based on the registry/trigger audits:
 
-1. Run `scripts/validate-vanilla-reload.sh` against `1.21.4` and record result here.
+1. Run the first hosted scheduled/manual vanilla reload workflow after merge.
 2. Full dialog JSON serialization (`minecraft:dialog` registry — partial).
 3. Full loot table builder coverage (`minecraft:loot_table` — partial).
 4. Full item modifier coverage (`minecraft:item_modifier` — partial).
@@ -368,7 +375,7 @@ All #10–#19 issues are now implemented. Follow-up work based on the registry/t
 | Storage NBT | `data modify storage ...` | `sand-core::cmd::data` | `Storage` | ✅ | — | 12 golden tests | — | — |
 | Resource pack fonts | `assets/<ns>/font/*.json` | `sand-resourcepack` | HUD builders | ✅ | — | unicode tests | — | — |
 | Resource pack textures | `assets/<ns>/textures/...` | `sand-resourcepack` | asset copy | ✅ | — | build tests | — | — |
-| Vanilla reload validation | server `/reload` | `scripts/` | `validate-vanilla-reload.sh` | ⚠️ opt-in | Not in default CI | script smoke tests | Schedule CI job | Low |
+| Vanilla reload validation | server `/reload` | `scripts/` | `validate-vanilla-reload.sh` | ✅ scheduled/manual | Real startup + ordered reload sentinels | fake-process orchestration + local real runs | First hosted run post-merge | Low |
 | 26.x version profiles | — | `sand-core::version` | `VersionProfile` | ⚠️ conservative | No 26.x pack formats verified | `resolve_26_series` test | Map 26.x when Mojang publishes | High |
 | Loot table / item modifier | `loot_table/*.json` | none | none | ❌ | Not implemented | — | #17 | High |
 | Data-driven registries | `tags/`, damage_type, etc. | partial | partial | ⚠️ | Coverage incomplete | — | #18 | Medium |

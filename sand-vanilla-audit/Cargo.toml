@@ -1,0 +1,18 @@
+[package]
+name = "sand-vanilla-audit"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[[bin]]
+name = "sand_export"
+path = "src/bin/sand_export.rs"
+
+[dependencies]
+sand-core = { path = "../sand-core" }
+sand-macros = { path = "../sand-macros" }
+
+[build-dependencies]
+sand-build = { path = "../sand-build" }
+sand-version = { path = "../sand-version" }

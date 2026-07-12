@@ -28,16 +28,19 @@
 //! }
 //! ```
 //!
-//! Requires Java 21+ on `PATH` for the data generator.
+//! Requires a Java runtime new enough for the selected server on `PATH`
+//! (Java 21 for the stable baseline; Java 25 for Minecraft 26.2).
 
 mod cache;
 mod codegen;
 mod download;
 mod error;
 mod manifest;
+mod registry_fixture;
 mod report;
 
 pub use error::{Error, Result};
+pub use registry_fixture::refresh_registry_coverage_fixture;
 
 struct VersionCacheLock {
     path: std::path::PathBuf,
@@ -161,7 +164,7 @@ where
 ///    - `registries.rs` — enums for `Item`, `Block`, `EntityType`, etc.
 ///    - `block_states.rs` — typed block property structs and enums.
 ///
-/// Requires Java 21+ on `PATH`.
+/// Requires a Java runtime new enough for the selected Minecraft server.
 ///
 /// # Panics
 /// Panics if `OUT_DIR` is not set (i.e. called outside a Cargo build script).

@@ -1,0 +1,218 @@
+{
+  "minecraft_version": "26.2",
+  "provenance": "Mojang server data generator generated/reports/datapack.json",
+  "registries": [
+    {
+      "registry_id": "minecraft:advancement",
+      "datapack_dir": "advancement"
+    },
+    {
+      "registry_id": "minecraft:banner_pattern",
+      "datapack_dir": "banner_pattern"
+    },
+    {
+      "registry_id": "minecraft:cat_sound_variant",
+      "datapack_dir": "cat_sound_variant"
+    },
+    {
+      "registry_id": "minecraft:cat_variant",
+      "datapack_dir": "cat_variant"
+    },
+    {
+      "registry_id": "minecraft:chat_type",
+      "datapack_dir": "chat_type"
+    },
+    {
+      "registry_id": "minecraft:chicken_sound_variant",
+      "datapack_dir": "chicken_sound_variant"
+    },
+    {
+      "registry_id": "minecraft:chicken_variant",
+      "datapack_dir": "chicken_variant"
+    },
+    {
+      "registry_id": "minecraft:cow_sound_variant",
+      "datapack_dir": "cow_sound_variant"
+    },
+    {
+      "registry_id": "minecraft:cow_variant",
+      "datapack_dir": "cow_variant"
+    },
+    {
+      "registry_id": "minecraft:damage_type",
+      "datapack_dir": "damage_type"
+    },
+    {
+      "registry_id": "minecraft:dialog",
+      "datapack_dir": "dialog"
+    },
+    {
+      "registry_id": "minecraft:dimension",
+      "datapack_dir": "dimension"
+    },
+    {
+      "registry_id": "minecraft:dimension_type",
+      "datapack_dir": "dimension_type"
+    },
+    {
+      "registry_id": "minecraft:enchantment",
+      "datapack_dir": "enchantment"
+    },
+    {
+      "registry_id": "minecraft:enchantment_provider",
+      "datapack_dir": "enchantment_provider"
+    },
+    {
+      "registry_id": "minecraft:frog_variant",
+      "datapack_dir": "frog_variant"
+    },
+    {
+      "registry_id": "minecraft:function",
+      "datapack_dir": "function"
+    },
+    {
+      "registry_id": "minecraft:instrument",
+      "datapack_dir": "instrument"
+    },
+    {
+      "registry_id": "minecraft:item_modifier",
+      "datapack_dir": "item_modifier"
+    },
+    {
+      "registry_id": "minecraft:jukebox_song",
+      "datapack_dir": "jukebox_song"
+    },
+    {
+      "registry_id": "minecraft:loot_table",
+      "datapack_dir": "loot_table"
+    },
+    {
+      "registry_id": "minecraft:painting_variant",
+      "datapack_dir": "painting_variant"
+    },
+    {
+      "registry_id": "minecraft:pig_sound_variant",
+      "datapack_dir": "pig_sound_variant"
+    },
+    {
+      "registry_id": "minecraft:pig_variant",
+      "datapack_dir": "pig_variant"
+    },
+    {
+      "registry_id": "minecraft:predicate",
+      "datapack_dir": "predicate"
+    },
+    {
+      "registry_id": "minecraft:recipe",
+      "datapack_dir": "recipe"
+    },
+    {
+      "registry_id": "minecraft:sulfur_cube_archetype",
+      "datapack_dir": "sulfur_cube_archetype"
+    },
+    {
+      "registry_id": "minecraft:test_environment",
+      "datapack_dir": "test_environment"
+    },
+    {
+      "registry_id": "minecraft:test_instance",
+      "datapack_dir": "test_instance"
+    },
+    {
+      "registry_id": "minecraft:timeline",
+      "datapack_dir": "timeline"
+    },
+    {
+      "registry_id": "minecraft:trade_set",
+      "datapack_dir": "trade_set"
+    },
+    {
+      "registry_id": "minecraft:trial_spawner",
+      "datapack_dir": "trial_spawner"
+    },
+    {
+      "registry_id": "minecraft:trim_material",
+      "datapack_dir": "trim_material"
+    },
+    {
+      "registry_id": "minecraft:trim_pattern",
+      "datapack_dir": "trim_pattern"
+    },
+    {
+      "registry_id": "minecraft:villager_trade",
+      "datapack_dir": "villager_trade"
+    },
+    {
+      "registry_id": "minecraft:wolf_sound_variant",
+      "datapack_dir": "wolf_sound_variant"
+    },
+    {
+      "registry_id": "minecraft:wolf_variant",
+      "datapack_dir": "wolf_variant"
+    },
+    {
+      "registry_id": "minecraft:world_clock",
+      "datapack_dir": "world_clock"
+    },
+    {
+      "registry_id": "minecraft:worldgen/biome",
+      "datapack_dir": "worldgen/biome"
+    },
+    {
+      "registry_id": "minecraft:worldgen/configured_carver",
+      "datapack_dir": "worldgen/configured_carver"
+    },
+    {
+      "registry_id": "minecraft:worldgen/configured_feature",
+      "datapack_dir": "worldgen/configured_feature"
+    },
+    {
+      "registry_id": "minecraft:worldgen/density_function",
+      "datapack_dir": "worldgen/density_function"
+    },
+    {
+      "registry_id": "minecraft:worldgen/flat_level_generator_preset",
+      "datapack_dir": "worldgen/flat_level_generator_preset"
+    },
+    {
+      "registry_id": "minecraft:worldgen/multi_noise_biome_source_parameter_list",
+      "datapack_dir": "worldgen/multi_noise_biome_source_parameter_list"
+    },
+    {
+      "registry_id": "minecraft:worldgen/noise",
+      "datapack_dir": "worldgen/noise"
+    },
+    {
+      "registry_id": "minecraft:worldgen/noise_settings",
+      "datapack_dir": "worldgen/noise_settings"
+    },
+    {
+      "registry_id": "minecraft:worldgen/placed_feature",
+      "datapack_dir": "worldgen/placed_feature"
+    },
+    {
+      "registry_id": "minecraft:worldgen/processor_list",
+      "datapack_dir": "worldgen/processor_list"
+    },
+    {
+      "registry_id": "minecraft:worldgen/structure",
+      "datapack_dir": "worldgen/structure"
+    },
+    {
+      "registry_id": "minecraft:worldgen/structure_set",
+      "datapack_dir": "worldgen/structure_set"
+    },
+    {
+      "registry_id": "minecraft:worldgen/template_pool",
+      "datapack_dir": "worldgen/template_pool"
+    },
+    {
+      "registry_id": "minecraft:worldgen/world_preset",
+      "datapack_dir": "worldgen/world_preset"
+    },
+    {
+      "registry_id": "minecraft:zombie_nautilus_variant",
+      "datapack_dir": "zombie_nautilus_variant"
+    }
+  ]
+}

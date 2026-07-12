@@ -194,32 +194,35 @@ is the number of distinct branches.
 
 ## Lifecycle notes
 
-`.register()` enrolls a typed state variable in Sand's global lifecycle
-registry. `define_registered_state()` then drains the registry and emits a
-sorted list of `scoreboard objectives add …` commands. This is the
-lifecycle foundation introduced for #47.
+`sand_state!` declares the normal typed static and submits an immutable
+lifecycle descriptor that the export pipeline discovers without player action
+or a user-authored load/tick function.
 
 ```rust,ignore
-#[component(Load)]
-pub fn phase_load() {
-    let _ = PHASE.register();
-    let _ = MANA.register();
-    let _ = DASH.register();
-    define_registered_state();
+sand_state! {
+    static MANA: ScoreVar<i32> = ScoreVar::new("mana") =>
+        MANA.lifecycle().default(100);
+    static PHASE: GameState<BossPhase> = GameState::with_default_score("boss_phase", 0) =>
+        PHASE.lifecycle();
+    static DASH: Cooldown = Cooldown::new("dash", Ticks::seconds(3)) =>
+        DASH.lifecycle().default(0).auto_tick();
 }
 ```
 
 Notes:
 
-- The registry is deduplicated among `.register()` calls. Calling
-  `.register()` twice for the same variable is a no-op.
-- `.define()` returns a single command string and is independent of the
-  registry. Do not mix a manual `.define()` command with the
-  `define_registered_state()` drain in the same load function — the
-  deduplication only applies to `.register()` calls.
-- Output is sorted by objective name for determinism. The registry is
-  drained once per `define_registered_state()` call; subsequent calls
-  return an empty `Vec` until new state is registered.
+- Objective definitions are sorted and emitted through
+  `__sand_lifecycle_load`. Identical declarations from multiple modules
+  deduplicate; conflicting criteria, defaults, or tick policies fail export.
+- Defaults run from the generated tick path as each online player. Vanilla's
+  `execute unless score @s <objective> matches -2147483648..` detects a missing
+  score entry, so this is first-seen/tick-polled initialization—not an exact
+  join event—and existing progress is never overwritten on reload or rejoin.
+- Timer/cooldown `.auto_tick()` is explicit. Generated commands use
+  `execute as @a` and operate on `@s`; timers without the option stay manual.
+- `StateLifecycle` plus `inventory::submit!` is the equivalent non-macro path.
+  Existing `.define()`, `.tick()`, `.register()`, drain functions, and
+  `define_registered_state()` remain supported for manual wiring.
 
 ## Transition backend
 

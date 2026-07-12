@@ -29,6 +29,11 @@ impl Flag {
         Self { name }
     }
 
+    /// Build an automatic export lifecycle descriptor for this flag.
+    pub const fn lifecycle(&self) -> crate::state::StateLifecycle {
+        crate::state::StateLifecycle::score(self.name)
+    }
+
     /// Return the actual scoreboard objective name used in commands.
     pub fn objective_name(&self) -> String {
         objective_name(self.name)

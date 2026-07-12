@@ -185,34 +185,35 @@ step in the tick function and gate only the parts that genuinely differ
 between states. Per-state work scales `O(N)` per player per tick, where `N`
 is the number of distinct branches.
 
-## Lifecycle notes (issue #47)
+## Automatic lifecycle
 
-`.register()` enrolls a typed state variable in Sand's global lifecycle
-registry. `define_registered_state()` then drains the registry and emits a
-sorted list of `scoreboard objectives add …` commands. This is the
-lifecycle foundation introduced for #47.
+`sand_state!` declares the normal typed static and submits an immutable
+lifecycle descriptor that export discovers without a load/tick function.
 
 ```rust
-#[component(Load)]
-pub fn load_state() {
-    let _ = MANA.register();
-    let _ = CASTING.register();
-    let _ = DASH.register();
-    define_registered_state();
+sand_state! {
+    static MANA: ScoreVar<i32> = ScoreVar::new("mana") =>
+        MANA.lifecycle().default(100);
+    static PHASE: GameState<BossPhase> = GameState::with_default_score("boss_phase", 0) =>
+        PHASE.lifecycle();
+    static DASH: Cooldown = Cooldown::new("dash", Ticks::seconds(3)) =>
+        DASH.lifecycle().default(0).auto_tick();
 }
 ```
 
 Notes:
 
-- The registry deduplicates among `.register()` calls. Calling
-  `.register()` twice for the same variable is a no-op.
-- `.define()` returns a single command string and is independent of the
-  registry. Do not mix a manual `.define()` command with the
-  `define_registered_state()` drain in the same load function — the
-  deduplication only applies to `.register()` calls.
-- Output is sorted by objective name for determinism. The registry is
-  drained once per `define_registered_state()` call; subsequent calls
-  return an empty `Vec` until new state is registered.
+- Objective definitions are sorted and emitted through
+  `__sand_lifecycle_load`. Identical declarations deduplicate; conflicting
+  criteria, defaults, or tick policies fail export.
+- Defaults use vanilla missing-score detection:
+  `execute unless score @s <objective> matches -2147483648..`. They run as
+  online players from the generated tick path, so this is first-seen/tick-polled
+  initialization, not an exact join event. Existing progress is preserved.
+- Timer/cooldown `.auto_tick()` is explicit and uses per-player `@s` commands.
+- `StateLifecycle` plus `inventory::submit!` is the non-macro path. Manual
+  `.define()`, `.tick()`, `.register()`, drain functions, and
+  `define_registered_state()` remain supported.
 
 ## Transition backend (issue #48)
 

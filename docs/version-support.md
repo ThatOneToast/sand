@@ -49,6 +49,16 @@ SAND_MC_VERSION=1.21.4 cargo test -p sand-core --lib
 SAND_MC_VERSION=26.2 SAND_STRICT_CODEGEN=1 cargo test -p sand-core generated_api_health --lib
 ```
 
+Normal CI runs that strict health check twice: once for
+`sand_version::CI_STABLE_CODEGEN_VERSION` and once for
+`sand_version::LATEST_KNOWN`. The workflow resolves both values through the
+`codegen-ci-version` helper instead of copying version strings into YAML. It
+caches SHA-verified Minecraft jars and generated data under
+`~/.sand/cache/<version>/`; a cold cache therefore needs network access, while
+the version-aware cache key prevents one target's jar from being mistaken for
+another's. CI uses Java 21 for the stable `1.21.4` target and Java 25 for
+`26.2`, whose server bundler is compiled for Java class-file version 69.
+
 ### Codegen fallback contract
 
 - **Default** (no env set): codegen runs. If it fails (no cache + no network),

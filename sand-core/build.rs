@@ -60,8 +60,9 @@ fn main() {
                  The default codegen target is `sand_version::DEFAULT_CODEGEN_VERSION`\n\
                  (={DEFAULT_CODEGEN_VERSION}); override it with SAND_MC_VERSION=<version>.\n\
                  \n\
-                 Codegen requires Java 21+ on PATH and either network access to download\n\
-                 the Minecraft server jar or a cached jar in ~/.sand/cache/{version}/.\n\
+                 Codegen requires a Java runtime new enough for the selected Minecraft\n\
+                 server (Java 21 for the stable baseline; Java 25 for 26.2) and either\n\
+                 network access or a cached jar in ~/.sand/cache/{version}/.\n\
                  \n\
                  To compile sand-core with empty placeholder APIs (generated_api_health\n\
                  tests will fail), set SAND_ALLOW_PLACEHOLDER_CODEGEN=1."

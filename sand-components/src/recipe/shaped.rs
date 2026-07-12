@@ -140,22 +140,34 @@ impl DatapackComponent for ShapedRecipe {
                 message: "shaped recipe pattern must not be empty".to_string(),
             });
         }
-        if self.result.id.is_empty() {
+        if self.pattern.len() > 3 {
             return Err(SandError::ComponentValidation {
                 location: self.location.clone(),
                 kind: "recipe".to_string(),
-                field: "result.id".to_string(),
-                message: "shaped recipe result item id must not be empty".to_string(),
+                field: "pattern".to_string(),
+                message: "shaped recipe pattern must have at most 3 rows".to_string(),
             });
         }
-        if self.result.count == 0 {
+        let width = self.pattern[0].chars().count();
+        if width == 0 || width > 3 {
             return Err(SandError::ComponentValidation {
                 location: self.location.clone(),
                 kind: "recipe".to_string(),
-                field: "result.count".to_string(),
-                message: "shaped recipe result count must be at least 1".to_string(),
+                field: "pattern[0]".to_string(),
+                message: "shaped recipe rows must contain 1 to 3 columns".to_string(),
             });
         }
+        for (index, row) in self.pattern.iter().enumerate().skip(1) {
+            if row.chars().count() != width {
+                return Err(SandError::ComponentValidation {
+                    location: self.location.clone(),
+                    kind: "recipe".to_string(),
+                    field: format!("pattern[{index}]"),
+                    message: "shaped recipe rows must have equal widths".to_string(),
+                });
+            }
+        }
+        self.result.validate_at(&self.location, "result")?;
 
         let pattern_chars: std::collections::HashSet<char> = self
             .pattern
@@ -179,6 +191,15 @@ impl DatapackComponent for ShapedRecipe {
         }
 
         for ch in self.key.keys() {
+            if *ch == ' ' {
+                return Err(SandError::ComponentValidation {
+                    location: self.location.clone(),
+                    kind: "recipe".to_string(),
+                    field: "key[' ']".to_string(),
+                    message: "space is reserved for empty pattern slots and cannot be bound"
+                        .to_string(),
+                });
+            }
             if !pattern_chars.contains(ch) {
                 return Err(SandError::ComponentValidation {
                     location: self.location.clone(),
@@ -193,16 +214,7 @@ impl DatapackComponent for ShapedRecipe {
         }
 
         for (ch, ing) in &self.key {
-            if ing.is_empty() {
-                return Err(SandError::ComponentValidation {
-                    location: self.location.clone(),
-                    kind: "recipe".to_string(),
-                    field: format!("key['{ch}']"),
-                    message: "ingredient cannot be empty — use Ingredient::item(...) \
-                              or Ingredient::tag(...)"
-                        .to_string(),
-                });
-            }
+            ing.validate_at(&self.location, &format!("key['{ch}']"))?;
         }
 
         Ok(())

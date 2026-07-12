@@ -6,7 +6,41 @@ use serde::Serialize;
 use serde::ser::{SerializeMap, SerializeSeq, Serializer};
 
 use crate::error::{Result as SandResult, SandError};
+use crate::registry::{ItemId, TagId};
 use crate::resource_location::ResourceLocation;
+
+/// Converts a validated item identifier into the representation used by recipes.
+///
+/// Implemented for [`ItemId`] and [`ResourceLocation`]. `sand-core` also
+/// implements it for its generated vanilla `Item` enum without introducing a
+/// dependency from `sand-components` back to `sand-core`.
+pub trait IntoRecipeItemId {
+    fn into_recipe_item_id(self) -> ItemId;
+}
+
+impl IntoRecipeItemId for ItemId {
+    fn into_recipe_item_id(self) -> ItemId {
+        self
+    }
+}
+
+impl IntoRecipeItemId for &ItemId {
+    fn into_recipe_item_id(self) -> ItemId {
+        self.clone()
+    }
+}
+
+impl IntoRecipeItemId for ResourceLocation {
+    fn into_recipe_item_id(self) -> ItemId {
+        self.into()
+    }
+}
+
+impl IntoRecipeItemId for &ResourceLocation {
+    fn into_recipe_item_id(self) -> ItemId {
+        self.clone().into()
+    }
+}
 
 // ── Ingredient ───────────────────────────────────────────────────────────────
 
@@ -18,22 +52,51 @@ pub struct Ingredient {
 }
 
 impl Ingredient {
-    /// Creates an ingredient specified by a single item ID.
-    pub fn item(id: impl Display) -> Self {
+    /// Creates an item ingredient through Sand's validated item-ID boundary.
+    pub fn item_id(id: impl IntoRecipeItemId) -> Self {
+        Self::raw_item(id.into_recipe_item_id().to_string())
+    }
+
+    /// Creates an item-tag ingredient. The `ItemId` marker prevents block or
+    /// other registry tags from being passed accidentally.
+    pub fn item_tag(id: TagId<ItemId>) -> Self {
+        Self::raw_tag(id.to_string())
+    }
+
+    /// Creates an item ingredient from an unchecked compatibility string.
+    ///
+    /// Prefer [`Ingredient::item_id`]. This escape hatch remains available for
+    /// future or modded identifiers that cannot yet use Sand's typed registry.
+    pub fn raw_item(id: impl Into<String>) -> Self {
         Self {
-            item: Some(id.to_string()),
+            item: Some(id.into()),
             tag: None,
             alternatives: Vec::new(),
         }
     }
 
-    /// Creates an ingredient specified by an item tag (matches all items in the tag).
-    pub fn tag(id: impl Display) -> Self {
+    /// Creates an item-tag ingredient from an unchecked compatibility string.
+    /// Prefer [`Ingredient::item_tag`].
+    pub fn raw_tag(id: impl Into<String>) -> Self {
         Self {
             item: None,
-            tag: Some(id.to_string()),
+            tag: Some(id.into()),
             alternatives: Vec::new(),
         }
+    }
+
+    /// Legacy unchecked compatibility constructor. Prefer [`Ingredient::item_id`]
+    /// or make raw intent explicit with [`Ingredient::raw_item`].
+    #[doc(hidden)]
+    pub fn item(id: impl Display) -> Self {
+        Self::raw_item(id.to_string())
+    }
+
+    /// Legacy unchecked compatibility constructor. Prefer [`Ingredient::item_tag`]
+    /// or make raw intent explicit with [`Ingredient::raw_tag`].
+    #[doc(hidden)]
+    pub fn tag(id: impl Display) -> Self {
+        Self::raw_tag(id.to_string())
     }
 
     /// Creates an ingredient that matches any of the supplied alternatives.
@@ -128,12 +191,24 @@ pub struct RecipeResult {
 }
 
 impl RecipeResult {
-    /// Creates a new recipe result with the given item ID and quantity.
-    pub fn new(id: impl Display, count: u32) -> Self {
+    /// Creates a recipe result through Sand's validated item-ID boundary.
+    pub fn item(id: impl IntoRecipeItemId, count: u32) -> Self {
+        Self::raw(id.into_recipe_item_id().to_string(), count)
+    }
+
+    /// Creates a recipe result from an unchecked compatibility string.
+    pub fn raw(id: impl Into<String>, count: u32) -> Self {
         Self {
-            id: id.to_string(),
+            id: id.into(),
             count,
         }
+    }
+
+    /// Legacy unchecked compatibility constructor. Prefer [`RecipeResult::item`]
+    /// or make raw intent explicit with [`RecipeResult::raw`].
+    #[doc(hidden)]
+    pub fn new(id: impl Display, count: u32) -> Self {
+        Self::raw(id.to_string(), count)
     }
 
     pub(crate) fn validate_at(&self, location: &ResourceLocation, field: &str) -> SandResult<()> {
@@ -200,6 +275,7 @@ mod tests {
     use serde_json::json;
 
     use super::{Ingredient, RecipeResult};
+    use crate::registry::{ItemId, TagId};
 
     #[test]
     fn serializes_modern_ingredient_forms() {
@@ -226,6 +302,43 @@ mod tests {
         assert_eq!(
             serde_json::to_value(RecipeResult::new("powers:reinforced_shield", 1)).unwrap(),
             json!({ "id": "powers:reinforced_shield", "count": 1 })
+        );
+    }
+
+    #[test]
+    fn typed_item_tag_and_result_match_legacy_json() {
+        let item = ItemId::minecraft("oak_planks").unwrap();
+        assert_eq!(
+            serde_json::to_value(Ingredient::item_id(item)).unwrap(),
+            json!("minecraft:oak_planks")
+        );
+
+        let tag: TagId<ItemId> = TagId::minecraft("planks").unwrap();
+        assert_eq!(
+            serde_json::to_value(Ingredient::item_tag(tag)).unwrap(),
+            json!("#minecraft:planks")
+        );
+
+        let result = RecipeResult::item(ItemId::minecraft("diamond").unwrap(), 1);
+        assert_eq!(
+            serde_json::to_value(result).unwrap(),
+            json!({ "id": "minecraft:diamond", "count": 1 })
+        );
+    }
+
+    #[test]
+    fn explicit_raw_compatibility_paths_preserve_json() {
+        assert_eq!(
+            serde_json::to_value(Ingredient::raw_item("future:item")).unwrap(),
+            json!("future:item")
+        );
+        assert_eq!(
+            serde_json::to_value(Ingredient::raw_tag("future:tag")).unwrap(),
+            json!("#future:tag")
+        );
+        assert_eq!(
+            serde_json::to_value(RecipeResult::raw("future:result", 2)).unwrap(),
+            json!({ "id": "future:result", "count": 2 })
         );
     }
 }

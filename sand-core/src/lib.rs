@@ -334,6 +334,7 @@ pub use sand_components::{
     // Instrument / Jukebox
     Instrument,
     IntRange,
+    IntoRecipeItemId,
     InventorySlots,
     ItemComponent,
     ItemId,
@@ -530,6 +531,14 @@ macro_rules! any {
 #[allow(warnings)]
 pub mod generated {
     include!(concat!(env!("OUT_DIR"), "/registries.rs"));
+}
+
+impl sand_components::recipe::IntoRecipeItemId for generated::Item {
+    fn into_recipe_item_id(self) -> sand_components::registry::ItemId {
+        self.resource_location()
+            .parse()
+            .expect("generated vanilla item IDs are valid resource locations")
+    }
 }
 
 /// Generated block state property types.

@@ -48,4 +48,6 @@ fn recipe_fixture_compile_tests() {
     t.pass("tests/cases/pass_recipe_basic_state.rs");
     t.pass("tests/cases/pass_recipe_custom_item.rs");
     t.pass("tests/cases/pass_recipe_advancement_event.rs");
+    t.compile_fail("tests/cases/fail_recipe_block_tag.rs");
+    t.compile_fail("tests/cases/fail_recipe_raw_string_typed_path.rs");
 }

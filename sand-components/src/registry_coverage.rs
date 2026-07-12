@@ -8,8 +8,10 @@
 //! - Single source of truth for datapack component parity.
 //! - Makes gaps explicit: missing registries are listed as `Missing` rather
 //!   than silently absent from the codebase.
-//! - Enables future automation: scripts can compare this table against the
-//!   vanilla generated report to detect newly-added registries.
+//! - Checked-in fixtures compare this table against Mojang's generated
+//!   `datapack.json` report to detect newly-added or renamed registries.
+//! - Tag-only coverage lives in [`TAG_COVERAGE`] and never masquerades as a
+//!   vanilla registry identifier.
 //!
 //! # Usage
 //!
@@ -60,6 +62,20 @@ pub struct RegistryCoverage {
     /// Minecraft version gate for this registry (`None` = present in all Sand-supported versions).
     pub version_gate: Option<&'static str>,
     /// Notes about gaps, escape hatches, or follow-up issues.
+    pub notes: &'static str,
+}
+
+/// Coverage for a datapack tag directory and the registry its values belong to.
+///
+/// Tags are deliberately separate from [`RegistryCoverage`]: their value
+/// registry is a valid resource location, but a tag directory is not itself a
+/// vanilla data-driven registry.
+#[derive(Debug)]
+pub struct TagCoverage {
+    pub value_registry: &'static str,
+    pub datapack_dir: &'static str,
+    pub sand_module: Option<&'static str>,
+    pub api_status: RegistryApiStatus,
     pub notes: &'static str,
 }
 
@@ -222,42 +238,178 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         version_gate: Some("1.19"),
         notes: "ChatType, ChatDecoration. Introduced in 1.19.",
     },
-    // ── Tags ─────────────────────────────────────────────────────────────────
+    // ── Vanilla value registries with datapack elements ─────────────────────
     RegistryCoverage {
-        registry_key: "minecraft:block (tags)",
-        datapack_dir: "tags/block",
-        tag_dir: None,
-        sand_module: Some("sand_components::tag"),
-        api_status: RegistryApiStatus::PartiallyImplemented,
-        version_gate: None,
-        notes: "Tag<Block> exists. No built-in block ID enum yet; use string IDs.",
-    },
-    RegistryCoverage {
-        registry_key: "minecraft:item (tags)",
-        datapack_dir: "tags/item",
-        tag_dir: None,
-        sand_module: Some("sand_components::tag"),
-        api_status: RegistryApiStatus::PartiallyImplemented,
-        version_gate: None,
-        notes: "Tag<Item> exists. No built-in item ID enum yet; use string IDs.",
-    },
-    RegistryCoverage {
-        registry_key: "minecraft:entity_type (tags)",
-        datapack_dir: "tags/entity_type",
+        registry_key: "minecraft:cat_variant",
+        datapack_dir: "cat_variant",
         tag_dir: None,
         sand_module: None,
-        api_status: RegistryApiStatus::Missing,
-        version_gate: None,
-        notes: "Not implemented. Use RawComponent or Tag<String>.",
+        api_status: RegistryApiStatus::RawOnly,
+        version_gate: Some("1.21.5"),
+        notes: "No typed component builder. Use RawComponent. Follow-up: #201.",
     },
     RegistryCoverage {
-        registry_key: "minecraft:fluid (tags)",
-        datapack_dir: "tags/fluid",
+        registry_key: "minecraft:frog_variant",
+        datapack_dir: "frog_variant",
+        tag_dir: None,
+        sand_module: None,
+        api_status: RegistryApiStatus::RawOnly,
+        version_gate: Some("1.21.5"),
+        notes: "No typed component builder. Use RawComponent. Follow-up: #201.",
+    },
+    RegistryCoverage {
+        registry_key: "minecraft:trial_spawner",
+        datapack_dir: "trial_spawner",
+        tag_dir: None,
+        sand_module: None,
+        api_status: RegistryApiStatus::RawOnly,
+        version_gate: None,
+        notes: "No typed component builder. Use RawComponent.",
+    },
+    // ── Latest verified (26.2) data-driven registries ────────────────────────
+    RegistryCoverage {
+        registry_key: "minecraft:cat_sound_variant",
+        datapack_dir: "cat_sound_variant",
+        tag_dir: None,
+        sand_module: None,
+        api_status: RegistryApiStatus::RawOnly,
+        version_gate: Some("26.1"),
+        notes: "No typed component builder. Use RawComponent. Follow-up: #201.",
+    },
+    RegistryCoverage {
+        registry_key: "minecraft:chicken_sound_variant",
+        datapack_dir: "chicken_sound_variant",
+        tag_dir: None,
+        sand_module: None,
+        api_status: RegistryApiStatus::RawOnly,
+        version_gate: Some("26.1"),
+        notes: "No typed component builder. Use RawComponent. Follow-up: #201.",
+    },
+    RegistryCoverage {
+        registry_key: "minecraft:chicken_variant",
+        datapack_dir: "chicken_variant",
+        tag_dir: None,
+        sand_module: None,
+        api_status: RegistryApiStatus::RawOnly,
+        version_gate: Some("1.21.5"),
+        notes: "No typed component builder. Use RawComponent. Follow-up: #201.",
+    },
+    RegistryCoverage {
+        registry_key: "minecraft:cow_sound_variant",
+        datapack_dir: "cow_sound_variant",
+        tag_dir: None,
+        sand_module: None,
+        api_status: RegistryApiStatus::RawOnly,
+        version_gate: Some("26.1"),
+        notes: "No typed component builder. Use RawComponent. Follow-up: #201.",
+    },
+    RegistryCoverage {
+        registry_key: "minecraft:cow_variant",
+        datapack_dir: "cow_variant",
+        tag_dir: None,
+        sand_module: None,
+        api_status: RegistryApiStatus::RawOnly,
+        version_gate: Some("1.21.5"),
+        notes: "No typed component builder. Use RawComponent. Follow-up: #201.",
+    },
+    RegistryCoverage {
+        registry_key: "minecraft:pig_sound_variant",
+        datapack_dir: "pig_sound_variant",
+        tag_dir: None,
+        sand_module: None,
+        api_status: RegistryApiStatus::RawOnly,
+        version_gate: Some("26.1"),
+        notes: "No typed component builder. Use RawComponent. Follow-up: #201.",
+    },
+    RegistryCoverage {
+        registry_key: "minecraft:pig_variant",
+        datapack_dir: "pig_variant",
+        tag_dir: None,
+        sand_module: None,
+        api_status: RegistryApiStatus::RawOnly,
+        version_gate: Some("1.21.5"),
+        notes: "No typed component builder. Use RawComponent. Follow-up: #201.",
+    },
+    RegistryCoverage {
+        registry_key: "minecraft:sulfur_cube_archetype",
+        datapack_dir: "sulfur_cube_archetype",
         tag_dir: None,
         sand_module: None,
         api_status: RegistryApiStatus::IntentionallyUnsupported,
-        version_gate: None,
-        notes: "Fluid tags are rarely needed in datapacks. Use RawComponent if required.",
+        version_gate: Some("26.2"),
+        notes: "Explicit raw-only compatibility row; no typed API planned in #176.",
+    },
+    RegistryCoverage {
+        registry_key: "minecraft:test_environment",
+        datapack_dir: "test_environment",
+        tag_dir: None,
+        sand_module: None,
+        api_status: RegistryApiStatus::IntentionallyUnsupported,
+        version_gate: Some("1.21.5"),
+        notes: "Vanilla test framework data. Use RawComponent if required.",
+    },
+    RegistryCoverage {
+        registry_key: "minecraft:test_instance",
+        datapack_dir: "test_instance",
+        tag_dir: None,
+        sand_module: None,
+        api_status: RegistryApiStatus::IntentionallyUnsupported,
+        version_gate: Some("1.21.5"),
+        notes: "Vanilla test framework data. Use RawComponent if required.",
+    },
+    RegistryCoverage {
+        registry_key: "minecraft:timeline",
+        datapack_dir: "timeline",
+        tag_dir: None,
+        sand_module: None,
+        api_status: RegistryApiStatus::RawOnly,
+        version_gate: Some("1.21.5"),
+        notes: "No typed component builder. Use RawComponent.",
+    },
+    RegistryCoverage {
+        registry_key: "minecraft:trade_set",
+        datapack_dir: "trade_set",
+        tag_dir: None,
+        sand_module: None,
+        api_status: RegistryApiStatus::RawOnly,
+        version_gate: Some("26.1"),
+        notes: "No typed component builder. Use RawComponent.",
+    },
+    RegistryCoverage {
+        registry_key: "minecraft:villager_trade",
+        datapack_dir: "villager_trade",
+        tag_dir: None,
+        sand_module: None,
+        api_status: RegistryApiStatus::RawOnly,
+        version_gate: Some("26.1"),
+        notes: "No typed component builder. Use RawComponent.",
+    },
+    RegistryCoverage {
+        registry_key: "minecraft:wolf_sound_variant",
+        datapack_dir: "wolf_sound_variant",
+        tag_dir: None,
+        sand_module: None,
+        api_status: RegistryApiStatus::RawOnly,
+        version_gate: Some("1.21.5"),
+        notes: "No typed component builder. Use RawComponent. Follow-up: #201.",
+    },
+    RegistryCoverage {
+        registry_key: "minecraft:world_clock",
+        datapack_dir: "world_clock",
+        tag_dir: None,
+        sand_module: None,
+        api_status: RegistryApiStatus::RawOnly,
+        version_gate: Some("26.1"),
+        notes: "No typed component builder. Use RawComponent.",
+    },
+    RegistryCoverage {
+        registry_key: "minecraft:zombie_nautilus_variant",
+        datapack_dir: "zombie_nautilus_variant",
+        tag_dir: None,
+        sand_module: None,
+        api_status: RegistryApiStatus::RawOnly,
+        version_gate: Some("1.21.5"),
+        notes: "No typed component builder. Use RawComponent. Follow-up: #201.",
     },
     // ── Worldgen ─────────────────────────────────────────────────────────────
     RegistryCoverage {
@@ -333,6 +485,33 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         notes: "NoiseSettings struct exists. Full surface rule coverage is partial.",
     },
     RegistryCoverage {
+        registry_key: "minecraft:worldgen/flat_level_generator_preset",
+        datapack_dir: "worldgen/flat_level_generator_preset",
+        tag_dir: None,
+        sand_module: None,
+        api_status: RegistryApiStatus::RawOnly,
+        version_gate: None,
+        notes: "No typed component builder. Use RawComponent.",
+    },
+    RegistryCoverage {
+        registry_key: "minecraft:worldgen/multi_noise_biome_source_parameter_list",
+        datapack_dir: "worldgen/multi_noise_biome_source_parameter_list",
+        tag_dir: None,
+        sand_module: None,
+        api_status: RegistryApiStatus::RawOnly,
+        version_gate: None,
+        notes: "No typed component builder. Use RawComponent.",
+    },
+    RegistryCoverage {
+        registry_key: "minecraft:worldgen/world_preset",
+        datapack_dir: "worldgen/world_preset",
+        tag_dir: None,
+        sand_module: None,
+        api_status: RegistryApiStatus::RawOnly,
+        version_gate: None,
+        notes: "No typed component builder. Use RawComponent.",
+    },
+    RegistryCoverage {
         registry_key: "minecraft:worldgen/density_function",
         datapack_dir: "worldgen/density_function",
         tag_dir: None,
@@ -389,11 +568,231 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
     },
 ];
 
+/// Tag-only coverage, kept out of vanilla registry-ID drift comparisons.
+pub const TAG_COVERAGE: &[TagCoverage] = &[
+    TagCoverage {
+        value_registry: "minecraft:block",
+        datapack_dir: "tags/block",
+        sand_module: Some("sand_components::tag"),
+        api_status: RegistryApiStatus::PartiallyImplemented,
+        notes: "Tag<Block> exists; string IDs remain available.",
+    },
+    TagCoverage {
+        value_registry: "minecraft:item",
+        datapack_dir: "tags/item",
+        sand_module: Some("sand_components::tag"),
+        api_status: RegistryApiStatus::PartiallyImplemented,
+        notes: "Tag<Item> exists; string IDs remain available.",
+    },
+    TagCoverage {
+        value_registry: "minecraft:entity_type",
+        datapack_dir: "tags/entity_type",
+        sand_module: None,
+        api_status: RegistryApiStatus::Missing,
+        notes: "Use RawComponent or Tag<String>.",
+    },
+    TagCoverage {
+        value_registry: "minecraft:fluid",
+        datapack_dir: "tags/fluid",
+        sand_module: None,
+        api_status: RegistryApiStatus::IntentionallyUnsupported,
+        notes: "Use RawComponent if required.",
+    },
+];
+
+/// Exclusive upper version gates for registries removed or renamed by Mojang.
+///
+/// The table is currently empty because both checked profiles are additive.
+/// Keeping removals separate preserves the existing `version_gate` (introduced
+/// in) API while allowing a registry to remain valid for older fixtures.
+pub const REGISTRY_REMOVED_IN: &[(&str, &str)] = &[];
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde::Deserialize;
+    use std::collections::{BTreeMap, BTreeSet};
+
+    #[derive(Debug, Deserialize)]
+    struct Fixture {
+        minecraft_version: String,
+        provenance: String,
+        registries: Vec<FixtureRegistry>,
+    }
+
+    #[derive(Debug, Deserialize)]
+    struct FixtureRegistry {
+        registry_id: String,
+        datapack_dir: String,
+    }
+
+    fn parse_fixture(json: &str) -> Fixture {
+        serde_json::from_str(json).expect("checked-in registry fixture must parse")
+    }
+
+    fn version_parts(version: &str) -> Option<Vec<u32>> {
+        version.split('.').map(|part| part.parse().ok()).collect()
+    }
+
+    fn active_for(entry: &RegistryCoverage, version: &str, removals: &[(&str, &str)]) -> bool {
+        let introduced = entry.version_gate.is_none_or(|gate| {
+            version_parts(version).expect("fixture version must be numeric")
+                >= version_parts(gate).expect("coverage version gate must be numeric")
+        });
+        let not_removed = removals
+            .iter()
+            .find(|(id, _)| *id == entry.registry_key)
+            .is_none_or(|(_, removed_in)| {
+                version_parts(version).expect("fixture version must be numeric")
+                    < version_parts(removed_in).expect("removal gate must be numeric")
+            });
+        introduced && not_removed
+    }
+
+    fn valid_resource_location(id: &str) -> bool {
+        let Some((namespace, path)) = id.split_once(':') else {
+            return false;
+        };
+        !namespace.is_empty()
+            && !path.is_empty()
+            && namespace
+                .bytes()
+                .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b"_.-".contains(&b))
+            && path
+                .bytes()
+                .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b"_./-".contains(&b))
+    }
+
+    fn valid_dir(path: &str) -> bool {
+        !path.is_empty()
+            && !path.starts_with('/')
+            && !path
+                .split('/')
+                .any(|part| part.is_empty() || part == "." || part == "..")
+            && path
+                .bytes()
+                .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b"_./-".contains(&b))
+    }
+
+    fn drift_with_removals(
+        fixture: &Fixture,
+        coverage: &[RegistryCoverage],
+        removals: &[(&str, &str)],
+    ) -> Vec<String> {
+        let mut diagnostics = Vec::new();
+        let mut removal_ids = BTreeSet::new();
+        for (id, removed_in) in removals {
+            if !removal_ids.insert(*id) {
+                diagnostics.push(format!("duplicate removal gate: {id}"));
+            }
+            if version_parts(removed_in).is_none() {
+                diagnostics.push(format!("invalid removal version for {id}: {removed_in}"));
+            }
+            if !coverage.iter().any(|entry| entry.registry_key == *id) {
+                diagnostics.push(format!("removal gate has no RegistryCoverage entry: {id}"));
+            }
+        }
+        let mut fixture_ids: BTreeMap<&str, &str> = BTreeMap::new();
+        let mut previous = None;
+        for registry in &fixture.registries {
+            if previous.is_some_and(|id: &str| id >= registry.registry_id.as_str()) {
+                diagnostics.push(format!(
+                    "fixture registries are not strictly ordered at {}",
+                    registry.registry_id
+                ));
+            }
+            previous = Some(&registry.registry_id);
+            if fixture_ids
+                .insert(&registry.registry_id, &registry.datapack_dir)
+                .is_some()
+            {
+                diagnostics.push(format!(
+                    "duplicate fixture registry: {}",
+                    registry.registry_id
+                ));
+            }
+        }
+
+        let mut coverage_ids = BTreeSet::new();
+        for entry in coverage {
+            if !valid_resource_location(entry.registry_key) {
+                diagnostics.push(format!(
+                    "invalid registry resource location: {}",
+                    entry.registry_key
+                ));
+                continue;
+            }
+            if !valid_dir(entry.datapack_dir) {
+                diagnostics.push(format!(
+                    "invalid datapack directory for {}: {}",
+                    entry.registry_key, entry.datapack_dir
+                ));
+            }
+            if entry
+                .version_gate
+                .is_some_and(|gate| version_parts(gate).is_none())
+            {
+                diagnostics.push(format!(
+                    "invalid version gate for {}: {:?}",
+                    entry.registry_key, entry.version_gate
+                ));
+                continue;
+            }
+            if !active_for(entry, &fixture.minecraft_version, removals) {
+                continue;
+            }
+            if !coverage_ids.insert(entry.registry_key) {
+                diagnostics.push(format!(
+                    "duplicate RegistryCoverage entry: {}",
+                    entry.registry_key
+                ));
+            }
+            match fixture_ids.get(entry.registry_key) {
+                None => diagnostics.push(format!(
+                    "stale RegistryCoverage entry for {} in Minecraft {}",
+                    entry.registry_key, fixture.minecraft_version
+                )),
+                Some(dir) if *dir != entry.datapack_dir => diagnostics.push(format!(
+                    "datapack directory mismatch for {}: vanilla={}, Sand={}",
+                    entry.registry_key, dir, entry.datapack_dir
+                )),
+                Some(_) => {}
+            }
+        }
+
+        for registry in fixture_ids.keys() {
+            if !coverage_ids.contains(*registry) {
+                diagnostics.push(format!(
+                    "missing RegistryCoverage entry: {} -> data/<namespace>/{}",
+                    registry, fixture_ids[registry]
+                ));
+            }
+        }
+        diagnostics.sort();
+        diagnostics
+    }
+
+    fn drift(fixture: &Fixture, coverage: &[RegistryCoverage]) -> Vec<String> {
+        drift_with_removals(fixture, coverage, REGISTRY_REMOVED_IN)
+    }
+
+    fn test_row(
+        key: &'static str,
+        dir: &'static str,
+        gate: Option<&'static str>,
+    ) -> RegistryCoverage {
+        RegistryCoverage {
+            registry_key: key,
+            datapack_dir: dir,
+            tag_dir: None,
+            sand_module: None,
+            api_status: RegistryApiStatus::RawOnly,
+            version_gate: gate,
+            notes: "test",
+        }
+    }
 
     #[test]
     fn coverage_table_is_non_empty() {
@@ -404,10 +803,11 @@ mod tests {
     fn all_registry_keys_are_namespaced() {
         for entry in REGISTRY_COVERAGE {
             assert!(
-                entry.registry_key.contains(':'),
-                "registry_key must be namespaced: '{}'",
+                valid_resource_location(entry.registry_key),
+                "registry_key must be a resource location: '{}'",
                 entry.registry_key
             );
+            assert!(valid_dir(entry.datapack_dir));
         }
     }
 
@@ -437,11 +837,119 @@ mod tests {
     }
 
     #[test]
-    fn coverage_table_is_stable() {
+    fn checked_in_fixtures_match_coverage() {
+        for fixture in [
+            parse_fixture(include_str!("../fixtures/registry-coverage/1.21.4.json")),
+            parse_fixture(include_str!("../fixtures/registry-coverage/26.2.json")),
+        ] {
+            assert!(fixture.provenance.contains("datapack.json"));
+            assert_eq!(drift(&fixture, REGISTRY_COVERAGE), Vec::<String>::new());
+        }
+    }
+
+    #[test]
+    fn latest_fixture_tracks_latest_known() {
+        let fixture = parse_fixture(include_str!("../fixtures/registry-coverage/26.2.json"));
+        assert_eq!(fixture.minecraft_version, sand_version::LATEST_KNOWN);
+    }
+
+    #[test]
+    fn synthetic_drift_diagnostics_are_actionable() {
+        let fixture = parse_fixture(
+            r#"{"minecraft_version":"1.0","provenance":"test","registries":[{"registry_id":"minecraft:new","datapack_dir":"new"}]}"#,
+        );
         assert_eq!(
-            REGISTRY_COVERAGE.len(),
-            35,
-            "registry coverage table size changed — update this count when adding/removing entries"
+            drift(&fixture, &[]),
+            ["missing RegistryCoverage entry: minecraft:new -> data/<namespace>/new"]
+        );
+
+        let diagnostics = drift(&fixture, &[test_row("minecraft:old", "old", None)]);
+        assert!(
+            diagnostics
+                .iter()
+                .any(|d| d.contains("stale RegistryCoverage entry"))
+        );
+    }
+
+    #[test]
+    fn detects_directory_duplicates_invalid_ids_and_version_gates() {
+        let fixture = parse_fixture(
+            r#"{"minecraft_version":"26.2","provenance":"test","registries":[{"registry_id":"minecraft:ok","datapack_dir":"ok"}]}"#,
+        );
+        assert!(
+            drift(&fixture, &[test_row("minecraft:ok", "wrong", None)])
+                .iter()
+                .any(|d| d.contains("datapack directory mismatch"))
+        );
+        assert!(
+            drift(
+                &fixture,
+                &[
+                    test_row("minecraft:ok", "ok", None),
+                    test_row("minecraft:ok", "ok", None)
+                ]
+            )
+            .iter()
+            .any(|d| d.contains("duplicate RegistryCoverage"))
+        );
+        assert!(
+            drift(
+                &fixture,
+                &[test_row("minecraft:block (tags)", "tags/block", None)]
+            )
+            .iter()
+            .any(|d| d.contains("invalid registry resource location"))
+        );
+        assert!(
+            drift(&fixture, &[test_row("minecraft:ok", "ok", Some("future"))])
+                .iter()
+                .any(|d| d.contains("invalid version gate"))
+        );
+    }
+
+    #[test]
+    fn version_gates_and_explicit_non_typed_statuses_are_valid() {
+        let fixture =
+            parse_fixture(r#"{"minecraft_version":"1.0","provenance":"test","registries":[]}"#);
+        let gated = test_row("minecraft:future", "future", Some("2.0"));
+        assert!(drift(&fixture, &[gated]).is_empty());
+
+        let old_fixture = parse_fixture(
+            r#"{"minecraft_version":"1.0","provenance":"test","registries":[{"registry_id":"minecraft:old","datapack_dir":"old"}]}"#,
+        );
+        let new_fixture =
+            parse_fixture(r#"{"minecraft_version":"2.0","provenance":"test","registries":[]}"#);
+        let old = test_row("minecraft:old", "old", None);
+        assert!(drift_with_removals(&old_fixture, &[old], &[("minecraft:old", "2.0")]).is_empty());
+        let old = test_row("minecraft:old", "old", None);
+        assert!(drift_with_removals(&new_fixture, &[old], &[("minecraft:old", "2.0")]).is_empty());
+
+        for status in [
+            RegistryApiStatus::RawOnly,
+            RegistryApiStatus::PartiallyImplemented,
+            RegistryApiStatus::IntentionallyUnsupported,
+        ] {
+            let mut row = test_row("minecraft:ok", "ok", None);
+            row.api_status = status;
+            let present = parse_fixture(
+                r#"{"minecraft_version":"1.0","provenance":"test","registries":[{"registry_id":"minecraft:ok","datapack_dir":"ok"}]}"#,
+            );
+            assert!(drift(&present, &[row]).is_empty());
+        }
+    }
+
+    #[test]
+    fn tag_rows_are_separate_and_pseudo_ids_cannot_masquerade_as_registries() {
+        assert!(
+            TAG_COVERAGE
+                .iter()
+                .all(|tag| valid_resource_location(tag.value_registry))
+        );
+        assert!(TAG_COVERAGE.iter().all(|tag| valid_dir(tag.datapack_dir)));
+        assert!(
+            !REGISTRY_COVERAGE
+                .iter()
+                .any(|entry| entry.registry_key.contains("(tags)"))
         );
     }
 

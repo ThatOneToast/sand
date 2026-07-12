@@ -1,6 +1,6 @@
 use std::path::{Component, Path};
 
-use sand_components::registry_coverage::REGISTRY_COVERAGE;
+use sand_components::registry_coverage::{REGISTRY_COVERAGE, TAG_COVERAGE};
 use serde::Deserialize;
 
 // ── PackNamespace ─────────────────────────────────────────────────────────────
@@ -124,7 +124,8 @@ impl std::fmt::Display for ComponentDirectory {
 fn supported_component_dir(dir: &str) -> bool {
     REGISTRY_COVERAGE.iter().any(|entry| {
         entry.datapack_dir == dir || entry.tag_dir.is_some_and(|tag_dir| tag_dir == dir)
-    }) || matches!(dir, "tags" | "structure")
+    }) || TAG_COVERAGE.iter().any(|entry| entry.datapack_dir == dir)
+        || matches!(dir, "tags" | "structure")
 }
 
 // ── Typed extension for datapack components ───────────────────────────────────

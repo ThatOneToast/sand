@@ -65,6 +65,10 @@ Staged goals:
 Do not require network-heavy Minecraft data regeneration in default CI unless
 the change is specifically about generated data.
 
+Registry drift tests use checked-in Mojang report fixtures and require no
+network or Java. See [registry coverage drift fixtures](docs/registry-coverage.md)
+for provenance and the explicit maintenance refresh command.
+
 ## Local codegen contract
 
 `sand-core/build.rs` runs `sand-build` codegen at build time to generate

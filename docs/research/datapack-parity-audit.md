@@ -209,27 +209,33 @@ Fixed in PR merging `fix/datapack-output-validation-and-recipes`.
 
 ## 12. Tags and Data-Driven Registries
 
-A full registry coverage audit lives in `sand-components/src/registry_coverage.rs` (35 entries).
+A registry and tag coverage audit lives in
+`sand-components/src/registry_coverage.rs`. Its real-registry rows are checked
+offline against normalized Mojang `datapack.json` fixtures; tag-only rows are
+modeled separately. See [registry coverage drift fixtures](../registry-coverage.md).
 
 Quick summary:
 
 | Status | Registry count |
 |---|---|
 | FullyImplemented | 12 |
-| PartiallyImplemented | 8 |
-| Missing | 13 |
-| IntentionallyUnsupported | 1 |
+| PartiallyImplemented | 9 |
+| Missing | 10 |
+| RawOnly | 19 |
+| IntentionallyUnsupported | 3 |
 | VersionGated | 0 (gated entries are counted above by their api_status) |
 
 Key findings:
 - Function tags (`load`, `tick`, custom) — ✅
 - Item/block tags — ✅ partial (Tag type exists, no built-in ID enums yet)
 - Entity type tags — ❌ not implemented (use `RawComponent`)
-- Data-driven registries (worldgen, structure, density_function, etc.) — ❌ 9 missing worldgen registries
+- Data-driven registries without typed builders remain explicit `Missing` or `RawOnly` rows
 - Damage type registry — ✅ (1.19.4+)
 - All missing registries are documented with escape hatch notes in the coverage table
 
-> **#17 status:** COMPLETE on this branch. Registry coverage table with 35 entries. All gaps are explicitly documented with `Missing` status and escape hatch instructions. No registry is silently absent.
+> **#17 status:** COMPLETE. All known gaps are explicit coverage rows with
+> status and escape-hatch notes; #176 verifies the registry set against vanilla
+> fixtures rather than relying on a fixed table length.
 
 ## 13. Worldgen / Dialog / Resource Pack Status
 
@@ -314,7 +320,7 @@ For cause-specific logic, use advancement predicate events (`EntityHurtPlayer` w
 - **#11** — opt-in `scripts/validate-vanilla-reload.sh` harness
 - **#10** — this document
 - **#16** — 51 advancement trigger coverage + 5 new trigger variants + golden tests
-- **#17** — 35-entry registry coverage table + all gaps explicitly documented
+- **#17** — registry coverage table + all gaps explicitly documented
 - **#18** — DamageTracker `was_hurt`, `not_hurt_for`, `clear_recent_damage` + no-cause docs
 
 ### All originally planned issues complete

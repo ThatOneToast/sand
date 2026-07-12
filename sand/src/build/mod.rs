@@ -204,7 +204,7 @@ mod tests {
         validate_resourcepack_records_for_project,
     };
     use super::write::{write_component, write_pack_mcmeta, write_resourcepack_mcmeta};
-    use sand_components::registry_coverage::REGISTRY_COVERAGE;
+    use sand_components::registry_coverage::{REGISTRY_COVERAGE, TAG_COVERAGE};
 
     /// Construct a valid ComponentRecord from parts via JSON deserialization.
     ///
@@ -383,6 +383,10 @@ mod tests {
                 let tag_record = record(tag_dir, "sample", "json", "{}");
                 assert_eq!(tag_record.dir.as_str(), tag_dir);
             }
+        }
+        for entry in TAG_COVERAGE {
+            let tag_record = record(entry.datapack_dir, "sample", "json", "{}");
+            assert_eq!(tag_record.dir.as_str(), entry.datapack_dir);
         }
     }
 

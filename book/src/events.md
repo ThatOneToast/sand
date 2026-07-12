@@ -4,6 +4,47 @@ Events connect Rust functions to Minecraft gameplay triggers. Annotate a functio
 with `#[event]` and Sand generates the advancement JSON + reward function wire-up
 at build time.
 
+## Tracked transitions
+
+Start/stop sneaking is the proof event pair for Sand's reusable transition
+backend. Both handlers share one private tracker:
+
+```rust,ignore
+use sand_core::event::vanilla::{PlayerStartsSneaking, PlayerStopsSneaking};
+use sand_core::prelude::*;
+use sand_macros::event;
+
+#[event]
+fn sneak_started(event: Event<PlayerStartsSneaking>) {
+    cmd::tellraw(event.player(), Text::new("Sneaking started"));
+}
+
+#[event]
+fn sneak_stopped(event: Event<PlayerStopsSneaking>) {
+    cmd::tellraw(event.player(), Text::new("Sneaking stopped"));
+}
+```
+
+Sand samples vanilla's entity-predicate `flags.is_sneaking` value once per
+online player per tick. That entity-predicate flag is available throughout
+Sand's supported Java Edition target range. The first sample stores a baseline
+and fires nothing. Every handler for an edge runs before the shared previous
+value is updated, so handler order cannot suppress another handler.
+
+This is tick-polled reliability, not an exact key-input event. A reload keeps
+the scoreboard baseline and does not itself fire. Offline players are not
+sampled. On rejoin, retained tracker state is compared with the first new
+sample; if sneaking differs from the last observed online state, a transition
+can fire on that tick. Vanilla datapacks cannot observe state changes while a
+player is offline.
+
+Runtime cost for this proof tracker is three private scoreboard objectives, one
+predicate sample per online player per tick, transition comparisons for the
+registered edge kinds, and three baseline updates. Identical declarations and
+multiple handlers share that cost. Use the continuous `PlayerSneakEvent` for
+every-tick behavior, or raw/manual commands when custom sampling semantics are
+needed.
+
 ## XP level-up (`PlayerLevelUpEvent`)
 
 Sand provides a working `PlayerLevelUpEvent` backed by a generated
@@ -103,6 +144,7 @@ pub fn on_eat_golden_apple(event: Event<AteGoldenAppleEvent>) {
 | `#[event]` for `FirstJoinEvent` | Tick advancement (no revoke) — once per player ever |
 | `#[event]` for `OnDeathEvent` / `OnRespawnEvent` | Death count scoreboard — tick-based |
 | `#[event]` for `PlayerLevelUpEvent` / `PlayerLevelsUp` | XP scoreboard/tick system — no advancement |
+| `#[event]` for `PlayerStartsSneaking` / `PlayerStopsSneaking` | Shared predicate/score transition tracker |
 | `#[event]` with `Event<T>` | `T: AdvancementEvent` trigger + typed `Condition` guard |
 | `#[event]` for `HoldingItemEvent` / `CurrentlyWearingEvent` | Per-tick `execute if items` |
 

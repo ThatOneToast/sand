@@ -49,6 +49,36 @@ Event handlers can use the same typed effect APIs as ordinary functions:
 covers modded effects. Use `StatusEffectInstance` when serializing structured
 effect data into item components or predicates.
 
+## Tracked transitions
+
+`PlayerStartsSneaking` and `PlayerStopsSneaking` use the reusable tracked-state
+backend and the normal typed handler context:
+
+```rust
+#[event]
+pub fn on_start(event: Event<PlayerStartsSneaking>) {
+    cmd::say("sneaking started");
+}
+
+#[event]
+pub fn on_stop(event: Event<PlayerStopsSneaking>) {
+    cmd::say("sneaking stopped");
+}
+```
+
+The vanilla signal is an entity predicate with `flags.is_sneaking`. It is
+available throughout Sand's supported Java Edition target range and is sampled
+once per online player per tick, so reliability is tick-polled rather than an
+exact key event. First observation establishes the scoreboard baseline
+without firing. Reload preserves existing scores; rejoin can fire an edge when
+the first new sample differs from the player's last observed online state.
+Offline players are not sampled. All handlers sharing the tracker run before
+the previous value is updated.
+
+The proof tracker costs three private objectives, one predicate sample per
+player per tick, edge comparisons, and baseline updates. Continuous
+`PlayerSneakEvent` and raw/manual commands remain available for different semantics.
+
 Built-in tick/synthetic events can still use unit-style parameters while they
 remain on the legacy dispatch path:
 

@@ -17,6 +17,7 @@ pub mod gameplay_state_example;
 pub use gameplay_state_example::*;
 pub mod level_up_reward;
 pub mod state_ergonomics;
+pub mod tracked_sneaking_example;
 
 use sand_core::mcfunction;
 use sand_macros::{component, function, run_fn};

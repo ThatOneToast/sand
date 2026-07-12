@@ -95,6 +95,12 @@ pub use crate::events::BrewPotionEvent as PotionBrewed;
 
 // ── Tick-poll (continuous) ───────────────────────────────────────────────────
 
+/// Fires once when the player starts sneaking (tick-polled transition).
+pub use crate::events::PlayerStartSneakingEvent as PlayerStartsSneaking;
+
+/// Fires once when the player stops sneaking (tick-polled transition).
+pub use crate::events::PlayerStopSneakingEvent as PlayerStopsSneaking;
+
 /// Fires every tick the player is sneaking.
 pub use crate::events::PlayerSneakEvent as PlayerSneaking;
 

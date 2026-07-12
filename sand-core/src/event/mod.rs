@@ -221,8 +221,9 @@ pub trait EventPlayer {
 /// Zero-cost handler context for `#[event]`-annotated functions.
 ///
 /// Inside an `#[event]` handler, the generated code creates an `Event<E>`
-/// value that gives you access to context methods like [`player()`]. You
-/// never construct `Event<E>` manually — the `#[event]` macro generates it.
+/// value that gives you access to context methods like [`player()`]. It is
+/// shared by advancement-backed and generated tracked events. You never
+/// construct `Event<E>` manually — the `#[event]` macro generates it.
 ///
 /// ```rust,ignore
 /// use sand_macros::event;
@@ -238,11 +239,11 @@ pub trait EventPlayer {
 ///     MANA.add(event.player(), 25);
 /// }
 /// ```
-pub struct Event<E: AdvancementEvent> {
+pub struct Event<E> {
     _marker: PhantomData<E>,
 }
 
-impl<E: AdvancementEvent> Event<E> {
+impl<E> Event<E> {
     /// Construct the handler context value.
     ///
     /// Called by `#[event]`-generated code. Not normally called directly.
@@ -254,8 +255,8 @@ impl<E: AdvancementEvent> Event<E> {
 
     /// Returns `Selector::self_()` — the player who triggered the event.
     ///
-    /// In advancement-backed events, `@s` is the player at the time the
-    /// advancement reward function ran.
+    /// `@s` is the player selected by the advancement reward or generated
+    /// per-player dispatcher.
     pub fn player(&self) -> crate::cmd::Selector {
         crate::cmd::Selector::self_()
     }
@@ -264,7 +265,9 @@ impl<E: AdvancementEvent> Event<E> {
     pub fn subject(&self) -> crate::cmd::Selector {
         crate::cmd::Selector::self_()
     }
+}
 
+impl<E: AdvancementEvent> Event<E> {
     /// `scoreboard objectives add …` commands for every state variable this
     /// event declared via [`AdvancementEvent::state_defines`].
     ///
@@ -291,7 +294,7 @@ impl<E: AdvancementEvent> Event<E> {
     }
 }
 
-impl<E: AdvancementEvent> Default for Event<E> {
+impl<E> Default for Event<E> {
     fn default() -> Self {
         Self::context()
     }

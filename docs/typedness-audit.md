@@ -141,9 +141,9 @@ with an explicit `::raw(RawJson)` fallback on each type.
 
 | Symbol | Classification | Notes |
 |---|---|---|
-| `Ingredient` | **Mostly typed** | Item/tag IDs are raw strings |
-| `RecipeResult` | **Mostly typed** | Item ID is raw string |
-| `ShapedRecipe / ShapelessRecipe` | **Mostly typed** | Ingredient and result IDs are raw strings |
+| `Ingredient` | **Typed** | `item_id(ItemId/generated Item)` and `item_tag(TagId<ItemId>)`; explicit `raw_item`/`raw_tag` hatches |
+| `RecipeResult` | **Typed** | `item(ItemId/generated Item, count)` with explicit `raw` compatibility hatch |
+| `ShapedRecipe / ShapelessRecipe` | **Typed** | Shared typed ingredient and result identifiers preserve the vanilla JSON shape |
 | `CookingRecipe / SmithingRecipe / StonecuttingRecipe` | **Mostly typed** | Same |
 
 ---

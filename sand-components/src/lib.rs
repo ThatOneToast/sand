@@ -137,8 +137,8 @@ pub use predicate::Predicate;
 // ── Recipes ───────────────────────────────────────────────────────────────────
 
 pub use recipe::{
-    CookingRecipe, CookingType, Ingredient, RecipeResult, ShapedRecipe, ShapelessRecipe,
-    SmithingTransformRecipe, SmithingTrimRecipe, StonecuttingRecipe,
+    CookingRecipe, CookingType, Ingredient, IntoRecipeItemId, RecipeResult, ShapedRecipe,
+    ShapelessRecipe, SmithingTransformRecipe, SmithingTrimRecipe, StonecuttingRecipe,
 };
 
 // ── Dialog ────────────────────────────────────────────────────────────────────

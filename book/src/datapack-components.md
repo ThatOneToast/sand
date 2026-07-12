@@ -13,6 +13,23 @@ pub fn welcome_advancement() -> Advancement {
 Use typed builders for advancements, recipes, loot tables, predicates, tags,
 dialogs, and custom item data.
 
+Recipe item and tag identifiers use registry-specific types on the preferred
+path. Generated vanilla items work directly, while custom tags retain their
+item-registry marker:
+
+```rust
+use sand_core::{Ingredient, ItemId, RecipeResult, TagId, generated::Item};
+
+let diamond = Ingredient::item_id(Item::Diamond);
+let planks = Ingredient::item_tag(
+    TagId::<ItemId>::minecraft("planks").unwrap(),
+);
+let result = RecipeResult::item(Item::DiamondSword, 1);
+```
+
+Use `raw_item`, `raw_tag`, or `RecipeResult::raw` only as explicit compatibility
+escape hatches for identifiers Sand cannot model yet.
+
 Structure templates are binary `.nbt` assets and are copied into the datapack
 rather than generated as Rust data:
 

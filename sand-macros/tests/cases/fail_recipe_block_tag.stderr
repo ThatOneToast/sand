@@ -1,0 +1,15 @@
+error[E0308]: mismatched types
+ --> tests/cases/fail_recipe_block_tag.rs:5:34
+  |
+5 |     let _ = Ingredient::item_tag(block_tag);
+  |             -------------------- ^^^^^^^^^ expected `TagId<ItemId>`, found `TagId<BlockId>`
+  |             |
+  |             arguments to this function are incorrect
+  |
+  = note: expected struct `TagId<ItemId>`
+             found struct `TagId<BlockId>`
+note: associated function defined here
+ --> $WORKSPACE/sand-components/src/recipe/types.rs
+  |
+  |     pub fn item_tag(id: TagId<ItemId>) -> Self {
+  |            ^^^^^^^^

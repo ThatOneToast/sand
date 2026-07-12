@@ -1,0 +1,19 @@
+error[E0277]: the trait bound `&str: IntoRecipeItemId` is not satisfied
+ --> tests/cases/fail_recipe_raw_string_typed_path.rs:4:33
+  |
+4 |     let _ = Ingredient::item_id("minecraft:diamond");
+  |             ------------------- ^^^^^^^^^^^^^^^^^^^ the trait `IntoRecipeItemId` is not implemented for `&str`
+  |             |
+  |             required by a bound introduced by this call
+  |
+  = help: the following other types implement trait `IntoRecipeItemId`:
+            &ItemId
+            &ResourceLocation
+            ItemId
+            ResourceLocation
+            sand_core::generated::Item
+note: required by a bound in `Ingredient::item_id`
+ --> $WORKSPACE/sand-components/src/recipe/types.rs
+  |
+  |     pub fn item_id(id: impl IntoRecipeItemId) -> Self {
+  |                             ^^^^^^^^^^^^^^^^ required by this bound in `Ingredient::item_id`

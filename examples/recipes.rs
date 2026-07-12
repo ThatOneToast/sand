@@ -4,9 +4,8 @@
 //! stonecutting, and smithing.
 
 use sand_core::{
-    CookingRecipe, CookingType, Ingredient, RecipeResult, ShapedRecipe,
-    ShapelessRecipe, SmithingTransformRecipe, SmithingTrimRecipe,
-    StonecuttingRecipe,
+    CookingRecipe, CookingType, Ingredient, ItemId, RecipeResult, ShapedRecipe, ShapelessRecipe,
+    SmithingTransformRecipe, SmithingTrimRecipe, StonecuttingRecipe, TagId, generated::Item,
 };
 use sand_macros::component;
 
@@ -17,9 +16,9 @@ use sand_macros::component;
 pub fn diamond_hammer() -> ShapedRecipe {
     ShapedRecipe::new("my_pack:diamond_hammer".parse().unwrap())
         .pattern(vec!["DDD", " S ", " S "])
-        .key('D', Ingredient::item("minecraft:diamond"))
-        .key('S', Ingredient::item("minecraft:stick"))
-        .result(RecipeResult::new("minecraft:diamond_pickaxe", 1))
+        .key('D', Ingredient::item_id(Item::Diamond))
+        .key('S', Ingredient::item_id(Item::Stick))
+        .result(RecipeResult::item(Item::DiamondPickaxe, 1))
         .group("tools")
         .show_notification(true)
 }
@@ -93,9 +92,15 @@ pub fn custom_upgrade() -> SmithingTransformRecipe {
 #[component]
 pub fn custom_trim() -> SmithingTrimRecipe {
     SmithingTrimRecipe::new("my_pack:custom_trim".parse().unwrap())
-        .template(Ingredient::item("minecraft:coast_armor_trim_smithing_template"))
-        .base(Ingredient::tag("minecraft:trimmable_armor"))
-        .addition(Ingredient::tag("minecraft:trim_materials"))
+        .template(Ingredient::item_id(
+            ItemId::minecraft("coast_armor_trim_smithing_template").unwrap(),
+        ))
+        .base(Ingredient::item_tag(
+            TagId::<ItemId>::minecraft("trimmable_armor").unwrap(),
+        ))
+        .addition(Ingredient::item_tag(
+            TagId::<ItemId>::minecraft("trim_materials").unwrap(),
+        ))
 }
 
 // ── Recipe with tag ingredients ──────────────────────────────────────────────

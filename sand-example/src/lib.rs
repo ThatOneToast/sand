@@ -394,12 +394,12 @@ mod tests {
 
     #[test]
     fn shaped_recipe_json_output() {
-        use sand_core::{Ingredient, RecipeResult, ShapedRecipe};
+        use sand_core::{Ingredient, RecipeResult, ShapedRecipe, generated::Item};
         let recipe = ShapedRecipe::new("hello_world:diamond_sword".parse().unwrap())
             .pattern(["#", "D", "D"])
-            .key('#', Ingredient::item("minecraft:stick"))
-            .key('D', Ingredient::item("minecraft:diamond"))
-            .result(RecipeResult::new("minecraft:diamond_sword", 1))
+            .key('#', Ingredient::item_id(Item::Stick))
+            .key('D', Ingredient::item_id(Item::Diamond))
+            .result(RecipeResult::item(Item::DiamondSword, 1))
             .category("equipment");
         let json = recipe.to_json();
         assert_eq!(json["type"].as_str().unwrap(), "minecraft:crafting_shaped");

@@ -32,7 +32,7 @@ current level of type safety, and defines the planned migration path.
 | `AdvancementDisplay::title` | **Needs redesign** | Stores `Value`, accepts `impl Into<Value>` — should be `TextComponent` |
 | `AdvancementDisplay::description` | **Needs redesign** | Same as `title` |
 | `AdvancementDisplay::background` | **Mostly typed** | Raw `String` for texture path — acceptable as `ResourceLocation` |
-| `AdvancementTrigger` (all variants) | **Needs redesign** | Almost every condition field is `Option<Value>`; see table below |
+| `AdvancementTrigger` (all variants) | **Mostly typed** | Typed predicates plus validated associated constructors for resource-bearing variants; legacy string-field variants remain compatibility/raw paths |
 | `AdvancementRewards::recipes` | **Needs redesign** | `Vec<String>` — should be `Vec<ResourceLocation>` |
 | `AdvancementRewards::loot` | **Needs redesign** | `Vec<String>` — same |
 | `AdvancementRewards::function` | **Needs redesign** | `Option<String>` — should be `Option<ResourceLocation>` |

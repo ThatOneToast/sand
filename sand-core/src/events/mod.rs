@@ -612,9 +612,7 @@ impl SandEvent for ItemDurabilityChangeEvent {
 pub struct BrewPotionEvent;
 impl SandEvent for BrewPotionEvent {
     fn dispatch() -> SandEventDispatch {
-        SandEventDispatch::AdvancementTrigger(crate::AdvancementTrigger::BrewedPotion {
-            potion: None,
-        })
+        SandEventDispatch::AdvancementTrigger(crate::AdvancementTrigger::brewed_any_potion())
     }
 }
 
@@ -661,12 +659,9 @@ impl SandEvent for RecipeUnlockEvent {
 pub struct BlockPlaceEvent;
 impl SandEvent for BlockPlaceEvent {
     fn dispatch() -> SandEventDispatch {
-        SandEventDispatch::AdvancementTrigger(crate::AdvancementTrigger::PlacedBlock {
-            block: None,
-            item: None,
-            location: None,
-            state: None,
-        })
+        SandEventDispatch::AdvancementTrigger(crate::AdvancementTrigger::placed_block(
+            None, None, None, None,
+        ))
     }
 }
 
@@ -676,10 +671,7 @@ impl SandEvent for BlockPlaceEvent {
 pub struct EnterBlockEvent;
 impl SandEvent for EnterBlockEvent {
     fn dispatch() -> SandEventDispatch {
-        SandEventDispatch::AdvancementTrigger(crate::AdvancementTrigger::EnterBlock {
-            block: None,
-            state: None,
-        })
+        SandEventDispatch::AdvancementTrigger(crate::AdvancementTrigger::enter_block(None, None))
     }
 }
 
@@ -689,9 +681,7 @@ impl SandEvent for EnterBlockEvent {
 pub struct SlideDownBlockEvent;
 impl SandEvent for SlideDownBlockEvent {
     fn dispatch() -> SandEventDispatch {
-        SandEventDispatch::AdvancementTrigger(crate::AdvancementTrigger::SlideDownBlock {
-            block: None,
-        })
+        SandEventDispatch::AdvancementTrigger(crate::AdvancementTrigger::slide_down_block(None))
     }
 }
 
@@ -714,11 +704,9 @@ impl SandEvent for TargetHitEvent {
 pub struct BeeNestDestroyedEvent;
 impl SandEvent for BeeNestDestroyedEvent {
     fn dispatch() -> SandEventDispatch {
-        SandEventDispatch::AdvancementTrigger(crate::AdvancementTrigger::BeeNestDestroyed {
-            block: None,
-            item: None,
-            num_bees_inside: None,
-        })
+        SandEventDispatch::AdvancementTrigger(crate::AdvancementTrigger::bee_nest_destroyed(
+            None, None, None,
+        ))
     }
 }
 
@@ -738,10 +726,9 @@ impl SandEvent for BeeNestDestroyedEvent {
 pub struct ChangeDimensionEvent;
 impl SandEvent for ChangeDimensionEvent {
     fn dispatch() -> SandEventDispatch {
-        SandEventDispatch::AdvancementTrigger(crate::AdvancementTrigger::ChangedDimension {
-            from: None,
-            to: None,
-        })
+        SandEventDispatch::AdvancementTrigger(crate::AdvancementTrigger::changed_dimension(
+            None, None,
+        ))
     }
 }
 
@@ -873,10 +860,7 @@ impl PlayerLevelUpEvent {
 pub struct EffectsChangedEvent;
 impl SandEvent for EffectsChangedEvent {
     fn dispatch() -> SandEventDispatch {
-        SandEventDispatch::AdvancementTrigger(crate::AdvancementTrigger::EffectsChanged {
-            effects: None,
-            source: None,
-        })
+        SandEventDispatch::AdvancementTrigger(crate::AdvancementTrigger::effects_changed_any(None))
     }
 }
 

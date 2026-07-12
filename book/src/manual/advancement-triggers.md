@@ -10,3 +10,31 @@ PlayerInteractedWithEntityTrigger::new()
 ```
 
 Use typed predicates first; `RawJson` is an explicit escape hatch for a version field Sand does not model. See [Event Trigger Matrix](../reference/event-trigger-matrix.md).
+
+Resource-bearing trigger variants also provide typed constructors. These keep
+block, dimension, potion, effect, recipe, loot-table, and custom trigger IDs on
+validated registry/resource-location paths while preserving the same JSON:
+
+```rust
+use sand_core::{AdvancementTrigger, BlockId, DimensionId, PotionRegistryId};
+
+let placed = AdvancementTrigger::placed_block(
+    Some(BlockId::minecraft("stone")?),
+    None,
+    None,
+    None,
+);
+let changed_dimension = AdvancementTrigger::changed_dimension(
+    Some(DimensionId::minecraft("overworld")?),
+    Some(DimensionId::minecraft("the_nether")?),
+);
+let brewed = AdvancementTrigger::brewed_potion(
+    PotionRegistryId::minecraft("swiftness")?,
+);
+# Ok::<(), sand_core::SandError>(())
+```
+
+The public string-field enum variants remain compatibility/raw paths. Prefer
+the associated constructors for new code. `custom_trigger(ResourceLocation,
+Option<RawJson>)` validates the modded trigger ID while leaving its conditions
+intentionally opaque.

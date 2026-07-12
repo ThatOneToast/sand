@@ -62,12 +62,15 @@ mod tests {
     use super::*;
     use crate::state::Ticks;
 
+    static TEST_LOCK: Mutex<()> = Mutex::new(());
+
     fn make_cd(name: &'static str) -> Cooldown {
         Cooldown::new(name, Ticks::new(60))
     }
 
     #[test]
     fn register_and_snapshot() {
+        let _test_guard = TEST_LOCK.lock().expect("cooldown test lock poisoned");
         // Use a fresh state by draining first
         drain_cooldown_tick_commands();
 
@@ -80,6 +83,7 @@ mod tests {
 
     #[test]
     fn no_duplicates() {
+        let _test_guard = TEST_LOCK.lock().expect("cooldown test lock poisoned");
         drain_cooldown_tick_commands();
 
         let cd = make_cd("test_blink");

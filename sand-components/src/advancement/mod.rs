@@ -14,6 +14,17 @@ use crate::predicates::{
 use crate::raw::RawJson;
 use crate::resource_location::ResourceLocation;
 
+fn validate_resource_id(value: &str, path: &str) -> Result<(), String> {
+    value
+        .parse::<ResourceLocation>()
+        .map(|_| ())
+        .map_err(|_| format!("{path}: `{value}` must be a valid namespaced resource location"))
+}
+
+fn json_value<T: Serialize, E: serde::ser::Error>(value: &T) -> Result<Value, E> {
+    serde_json::to_value(value).map_err(E::custom)
+}
+
 // ── AdvancementFrame ──────────────────────────────────────────────────────────
 
 /// The visual frame style for an advancement in the advancement screen.
@@ -483,6 +494,44 @@ impl AdvancementTrigger {
     pub(crate) fn validate_at(&self, path: &str) -> Result<(), String> {
         let conditions = format!("{path}.conditions");
         match self {
+            Self::RecipeUnlocked { recipe } => {
+                validate_resource_id(recipe, &format!("{conditions}.recipe"))?;
+            }
+            Self::BrewedPotion {
+                potion: Some(potion),
+            } => {
+                validate_resource_id(potion, &format!("{conditions}.potion"))?;
+            }
+            Self::BeeNestDestroyed {
+                block: Some(block), ..
+            } => {
+                validate_resource_id(block, &format!("{conditions}.block"))?;
+            }
+            Self::PlacedBlock {
+                block: Some(block), ..
+            }
+            | Self::EnterBlock {
+                block: Some(block), ..
+            }
+            | Self::SlideDownBlock { block: Some(block) } => {
+                validate_resource_id(block, &format!("{conditions}.block"))?;
+            }
+            Self::ChangedDimension { from, to } => {
+                if let Some(from) = from {
+                    validate_resource_id(from, &format!("{conditions}.from"))?;
+                }
+                if let Some(to) = to {
+                    validate_resource_id(to, &format!("{conditions}.to"))?;
+                }
+            }
+            Self::PlayerGeneratesContainerLoot {
+                loot_table: Some(loot_table),
+            } => {
+                validate_resource_id(loot_table, &format!("{conditions}.loot_table"))?;
+            }
+            Self::Custom { trigger, .. } => {
+                validate_resource_id(trigger, &format!("{path}.trigger"))?;
+            }
             Self::PlayerKilledEntity {
                 entity,
                 killing_blow,
@@ -726,6 +775,7 @@ impl AdvancementTrigger {
             Self::EffectsChanged { effects, source } => {
                 if let Some(effects) = effects {
                     for (effect, predicate) in effects {
+                        validate_resource_id(effect, &format!("{conditions}.effects.{effect}"))?;
                         predicate.validate_at(&format!("{conditions}.effects.{effect}"))?;
                     }
                 }
@@ -733,7 +783,6 @@ impl AdvancementTrigger {
                     entity.validate_at(&format!("{conditions}.source"))?;
                 }
             }
-            Self::Custom { .. } => {}
             _ => {}
         }
         Ok(())
@@ -862,10 +911,10 @@ impl Serialize for AdvancementTrigger {
             } => {
                 let mut cond = serde_json::Map::new();
                 if let Some(e) = entity {
-                    cond.insert("entity".into(), serde_json::to_value(e).unwrap());
+                    cond.insert("entity".into(), json_value::<_, S::Error>(e)?);
                 }
                 if let Some(k) = killing_blow {
-                    cond.insert("killing_blow".into(), serde_json::to_value(k).unwrap());
+                    cond.insert("killing_blow".into(), json_value::<_, S::Error>(k)?);
                 }
                 if !cond.is_empty() {
                     map.serialize_entry("conditions", &Value::Object(cond))?;
@@ -876,10 +925,10 @@ impl Serialize for AdvancementTrigger {
             | AdvancementTrigger::EntityHurtPlayer { entity, damage } => {
                 let mut cond = serde_json::Map::new();
                 if let Some(e) = entity {
-                    cond.insert("entity".into(), serde_json::to_value(e).unwrap());
+                    cond.insert("entity".into(), json_value::<_, S::Error>(e)?);
                 }
                 if let Some(d) = damage {
-                    cond.insert("damage".into(), serde_json::to_value(d).unwrap());
+                    cond.insert("damage".into(), json_value::<_, S::Error>(d)?);
                 }
                 if !cond.is_empty() {
                     map.serialize_entry("conditions", &Value::Object(cond))?;
@@ -892,13 +941,10 @@ impl Serialize for AdvancementTrigger {
             } => {
                 let mut cond = serde_json::Map::new();
                 if let Some(u) = unique_entity_types {
-                    cond.insert(
-                        "unique_entity_types".into(),
-                        serde_json::to_value(u).unwrap(),
-                    );
+                    cond.insert("unique_entity_types".into(), json_value::<_, S::Error>(u)?);
                 }
                 if let Some(v) = victims {
-                    cond.insert("victims".into(), serde_json::to_value(v).unwrap());
+                    cond.insert("victims".into(), json_value::<_, S::Error>(v)?);
                 }
                 if !cond.is_empty() {
                     map.serialize_entry("conditions", &Value::Object(cond))?;
@@ -917,10 +963,10 @@ impl Serialize for AdvancementTrigger {
             } => {
                 let mut cond = serde_json::Map::new();
                 if let Some(l) = lightning {
-                    cond.insert("lightning".into(), serde_json::to_value(l).unwrap());
+                    cond.insert("lightning".into(), json_value::<_, S::Error>(l)?);
                 }
                 if let Some(b) = bystander {
-                    cond.insert("bystander".into(), serde_json::to_value(b).unwrap());
+                    cond.insert("bystander".into(), json_value::<_, S::Error>(b)?);
                 }
                 if !cond.is_empty() {
                     map.serialize_entry("conditions", &Value::Object(cond))?;
@@ -930,10 +976,10 @@ impl Serialize for AdvancementTrigger {
             AdvancementTrigger::InventoryChanged { slots, items } => {
                 let mut cond = serde_json::Map::new();
                 if let Some(s) = slots {
-                    cond.insert("slots".into(), serde_json::to_value(s).unwrap());
+                    cond.insert("slots".into(), json_value::<_, S::Error>(s)?);
                 }
                 if !items.is_empty() {
-                    cond.insert("items".into(), serde_json::to_value(items).unwrap());
+                    cond.insert("items".into(), json_value::<_, S::Error>(items)?);
                 }
                 if !cond.is_empty() {
                     map.serialize_entry("conditions", &Value::Object(cond))?;
@@ -959,10 +1005,10 @@ impl Serialize for AdvancementTrigger {
             AdvancementTrigger::EmptiedBucket { item, location } => {
                 let mut cond = serde_json::Map::new();
                 if let Some(i) = item {
-                    cond.insert("item".into(), serde_json::to_value(i).unwrap());
+                    cond.insert("item".into(), json_value::<_, S::Error>(i)?);
                 }
                 if let Some(l) = location {
-                    cond.insert("location".into(), serde_json::to_value(l).unwrap());
+                    cond.insert("location".into(), json_value::<_, S::Error>(l)?);
                 }
                 if !cond.is_empty() {
                     map.serialize_entry("conditions", &Value::Object(cond))?;
@@ -972,13 +1018,13 @@ impl Serialize for AdvancementTrigger {
             AdvancementTrigger::FishingRodHooked { rod, entity, item } => {
                 let mut cond = serde_json::Map::new();
                 if let Some(r) = rod {
-                    cond.insert("rod".into(), serde_json::to_value(r).unwrap());
+                    cond.insert("rod".into(), json_value::<_, S::Error>(r)?);
                 }
                 if let Some(e) = entity {
-                    cond.insert("entity".into(), serde_json::to_value(e).unwrap());
+                    cond.insert("entity".into(), json_value::<_, S::Error>(e)?);
                 }
                 if let Some(i) = item {
-                    cond.insert("item".into(), serde_json::to_value(i).unwrap());
+                    cond.insert("item".into(), json_value::<_, S::Error>(i)?);
                 }
                 if !cond.is_empty() {
                     map.serialize_entry("conditions", &Value::Object(cond))?;
@@ -988,10 +1034,10 @@ impl Serialize for AdvancementTrigger {
             AdvancementTrigger::ThrownItemPickedUp { item, entity } => {
                 let mut cond = serde_json::Map::new();
                 if let Some(i) = item {
-                    cond.insert("item".into(), serde_json::to_value(i).unwrap());
+                    cond.insert("item".into(), json_value::<_, S::Error>(i)?);
                 }
                 if let Some(e) = entity {
-                    cond.insert("entity".into(), serde_json::to_value(e).unwrap());
+                    cond.insert("entity".into(), json_value::<_, S::Error>(e)?);
                 }
                 if !cond.is_empty() {
                     map.serialize_entry("conditions", &Value::Object(cond))?;
@@ -1005,13 +1051,13 @@ impl Serialize for AdvancementTrigger {
             } => {
                 let mut cond = serde_json::Map::new();
                 if let Some(i) = item {
-                    cond.insert("item".into(), serde_json::to_value(i).unwrap());
+                    cond.insert("item".into(), json_value::<_, S::Error>(i)?);
                 }
                 if let Some(d) = delta {
-                    cond.insert("delta".into(), serde_json::to_value(d).unwrap());
+                    cond.insert("delta".into(), json_value::<_, S::Error>(d)?);
                 }
                 if let Some(d) = durability {
-                    cond.insert("durability".into(), serde_json::to_value(d).unwrap());
+                    cond.insert("durability".into(), json_value::<_, S::Error>(d)?);
                 }
                 if !cond.is_empty() {
                     map.serialize_entry("conditions", &Value::Object(cond))?;
@@ -1034,10 +1080,10 @@ impl Serialize for AdvancementTrigger {
                     cond.insert("block".into(), Value::String(b.clone()));
                 }
                 if let Some(i) = item {
-                    cond.insert("item".into(), serde_json::to_value(i).unwrap());
+                    cond.insert("item".into(), json_value::<_, S::Error>(i)?);
                 }
                 if let Some(n) = num_bees_inside {
-                    cond.insert("num_bees_inside".into(), serde_json::to_value(n).unwrap());
+                    cond.insert("num_bees_inside".into(), json_value::<_, S::Error>(n)?);
                 }
                 if !cond.is_empty() {
                     map.serialize_entry("conditions", &Value::Object(cond))?;
@@ -1047,10 +1093,10 @@ impl Serialize for AdvancementTrigger {
             AdvancementTrigger::EnchantedItem { item, levels } => {
                 let mut cond = serde_json::Map::new();
                 if let Some(i) = item {
-                    cond.insert("item".into(), serde_json::to_value(i).unwrap());
+                    cond.insert("item".into(), json_value::<_, S::Error>(i)?);
                 }
                 if let Some(l) = levels {
-                    cond.insert("levels".into(), serde_json::to_value(l).unwrap());
+                    cond.insert("levels".into(), json_value::<_, S::Error>(l)?);
                 }
                 if !cond.is_empty() {
                     map.serialize_entry("conditions", &Value::Object(cond))?;
@@ -1064,13 +1110,13 @@ impl Serialize for AdvancementTrigger {
             } => {
                 let mut cond = serde_json::Map::new();
                 if let Some(p) = parent {
-                    cond.insert("parent".into(), serde_json::to_value(p).unwrap());
+                    cond.insert("parent".into(), json_value::<_, S::Error>(p)?);
                 }
                 if let Some(p) = partner {
-                    cond.insert("partner".into(), serde_json::to_value(p).unwrap());
+                    cond.insert("partner".into(), json_value::<_, S::Error>(p)?);
                 }
                 if let Some(c) = child {
-                    cond.insert("child".into(), serde_json::to_value(c).unwrap());
+                    cond.insert("child".into(), json_value::<_, S::Error>(c)?);
                 }
                 if !cond.is_empty() {
                     map.serialize_entry("conditions", &Value::Object(cond))?;
@@ -1088,10 +1134,10 @@ impl Serialize for AdvancementTrigger {
             | AdvancementTrigger::TamedAnimalInteracted { item, entity } => {
                 let mut cond = serde_json::Map::new();
                 if let Some(i) = item {
-                    cond.insert("item".into(), serde_json::to_value(i).unwrap());
+                    cond.insert("item".into(), json_value::<_, S::Error>(i)?);
                 }
                 if let Some(e) = entity {
-                    cond.insert("entity".into(), serde_json::to_value(e).unwrap());
+                    cond.insert("entity".into(), json_value::<_, S::Error>(e)?);
                 }
                 if !cond.is_empty() {
                     map.serialize_entry("conditions", &Value::Object(cond))?;
@@ -1101,10 +1147,10 @@ impl Serialize for AdvancementTrigger {
             AdvancementTrigger::VillagerTrade { item, villager } => {
                 let mut cond = serde_json::Map::new();
                 if let Some(i) = item {
-                    cond.insert("item".into(), serde_json::to_value(i).unwrap());
+                    cond.insert("item".into(), json_value::<_, S::Error>(i)?);
                 }
                 if let Some(v) = villager {
-                    cond.insert("villager".into(), serde_json::to_value(v).unwrap());
+                    cond.insert("villager".into(), json_value::<_, S::Error>(v)?);
                 }
                 if !cond.is_empty() {
                     map.serialize_entry("conditions", &Value::Object(cond))?;
@@ -1114,10 +1160,10 @@ impl Serialize for AdvancementTrigger {
             AdvancementTrigger::CuredZombieVillager { villager, zombie } => {
                 let mut cond = serde_json::Map::new();
                 if let Some(v) = villager {
-                    cond.insert("villager".into(), serde_json::to_value(v).unwrap());
+                    cond.insert("villager".into(), json_value::<_, S::Error>(v)?);
                 }
                 if let Some(z) = zombie {
-                    cond.insert("zombie".into(), serde_json::to_value(z).unwrap());
+                    cond.insert("zombie".into(), json_value::<_, S::Error>(z)?);
                 }
                 if !cond.is_empty() {
                     map.serialize_entry("conditions", &Value::Object(cond))?;
@@ -1135,13 +1181,13 @@ impl Serialize for AdvancementTrigger {
                     cond.insert("block".into(), Value::String(b.clone()));
                 }
                 if let Some(i) = item {
-                    cond.insert("item".into(), serde_json::to_value(i).unwrap());
+                    cond.insert("item".into(), json_value::<_, S::Error>(i)?);
                 }
                 if let Some(l) = location {
-                    cond.insert("location".into(), serde_json::to_value(l).unwrap());
+                    cond.insert("location".into(), json_value::<_, S::Error>(l)?);
                 }
                 if let Some(s) = state {
-                    cond.insert("state".into(), serde_json::to_value(s).unwrap());
+                    cond.insert("state".into(), json_value::<_, S::Error>(s)?);
                 }
                 if !cond.is_empty() {
                     map.serialize_entry("conditions", &Value::Object(cond))?;
@@ -1154,7 +1200,7 @@ impl Serialize for AdvancementTrigger {
                     cond.insert("block".into(), Value::String(b.clone()));
                 }
                 if let Some(s) = state {
-                    cond.insert("state".into(), serde_json::to_value(s).unwrap());
+                    cond.insert("state".into(), json_value::<_, S::Error>(s)?);
                 }
                 if !cond.is_empty() {
                     map.serialize_entry("conditions", &Value::Object(cond))?;
@@ -1174,13 +1220,13 @@ impl Serialize for AdvancementTrigger {
             } => {
                 let mut cond = serde_json::Map::new();
                 if let Some(e) = entered {
-                    cond.insert("entered".into(), serde_json::to_value(e).unwrap());
+                    cond.insert("entered".into(), json_value::<_, S::Error>(e)?);
                 }
                 if let Some(e) = exited {
-                    cond.insert("exited".into(), serde_json::to_value(e).unwrap());
+                    cond.insert("exited".into(), json_value::<_, S::Error>(e)?);
                 }
                 if let Some(d) = distance {
-                    cond.insert("distance".into(), serde_json::to_value(d).unwrap());
+                    cond.insert("distance".into(), json_value::<_, S::Error>(d)?);
                 }
                 if !cond.is_empty() {
                     map.serialize_entry("conditions", &Value::Object(cond))?;
@@ -1213,10 +1259,10 @@ impl Serialize for AdvancementTrigger {
             } => {
                 let mut cond = serde_json::Map::new();
                 if let Some(d) = distance {
-                    cond.insert("distance".into(), serde_json::to_value(d).unwrap());
+                    cond.insert("distance".into(), json_value::<_, S::Error>(d)?);
                 }
                 if let Some(s) = start_position {
-                    cond.insert("start_position".into(), serde_json::to_value(s).unwrap());
+                    cond.insert("start_position".into(), json_value::<_, S::Error>(s)?);
                 }
                 if !cond.is_empty() {
                     map.serialize_entry("conditions", &Value::Object(cond))?;
@@ -1232,10 +1278,10 @@ impl Serialize for AdvancementTrigger {
             AdvancementTrigger::EffectsChanged { effects, source } => {
                 let mut cond = serde_json::Map::new();
                 if let Some(e) = effects {
-                    cond.insert("effects".into(), serde_json::to_value(e).unwrap());
+                    cond.insert("effects".into(), json_value::<_, S::Error>(e)?);
                 }
                 if let Some(s) = source {
-                    cond.insert("source".into(), serde_json::to_value(s).unwrap());
+                    cond.insert("source".into(), json_value::<_, S::Error>(s)?);
                 }
                 if !cond.is_empty() {
                     map.serialize_entry("conditions", &Value::Object(cond))?;
@@ -1254,10 +1300,10 @@ impl Serialize for AdvancementTrigger {
             } => {
                 let mut cond = serde_json::Map::new();
                 if let Some(s) = signal_strength {
-                    cond.insert("signal_strength".into(), serde_json::to_value(s).unwrap());
+                    cond.insert("signal_strength".into(), json_value::<_, S::Error>(s)?);
                 }
                 if let Some(p) = projectile {
-                    cond.insert("projectile".into(), serde_json::to_value(p).unwrap());
+                    cond.insert("projectile".into(), json_value::<_, S::Error>(p)?);
                 }
                 if !cond.is_empty() {
                     map.serialize_entry("conditions", &Value::Object(cond))?;
@@ -1285,10 +1331,10 @@ impl Serialize for AdvancementTrigger {
             AdvancementTrigger::AllayDropItemOnBlock { item, location } => {
                 let mut cond = serde_json::Map::new();
                 if let Some(i) = item {
-                    cond.insert("item".into(), serde_json::to_value(i).unwrap());
+                    cond.insert("item".into(), json_value::<_, S::Error>(i)?);
                 }
                 if let Some(l) = location {
-                    cond.insert("location".into(), serde_json::to_value(l).unwrap());
+                    cond.insert("location".into(), json_value::<_, S::Error>(l)?);
                 }
                 if !cond.is_empty() {
                     map.serialize_entry("conditions", &Value::Object(cond))?;
@@ -1303,10 +1349,10 @@ impl Serialize for AdvancementTrigger {
             } => {
                 let mut cond = serde_json::Map::new();
                 if let Some(e) = entity {
-                    cond.insert("entity".into(), serde_json::to_value(e).unwrap());
+                    cond.insert("entity".into(), json_value::<_, S::Error>(e)?);
                 }
                 if let Some(k) = killing_blow {
-                    cond.insert("killing_blow".into(), serde_json::to_value(k).unwrap());
+                    cond.insert("killing_blow".into(), json_value::<_, S::Error>(k)?);
                 }
                 if !cond.is_empty() {
                     map.serialize_entry("conditions", &Value::Object(cond))?;
@@ -1316,10 +1362,10 @@ impl Serialize for AdvancementTrigger {
             AdvancementTrigger::ItemUsedOnBlock { item, location } => {
                 let mut cond = serde_json::Map::new();
                 if let Some(i) = item {
-                    cond.insert("item".into(), serde_json::to_value(i).unwrap());
+                    cond.insert("item".into(), json_value::<_, S::Error>(i)?);
                 }
                 if let Some(l) = location {
-                    cond.insert("location".into(), serde_json::to_value(l).unwrap());
+                    cond.insert("location".into(), json_value::<_, S::Error>(l)?);
                 }
                 if !cond.is_empty() {
                     map.serialize_entry("conditions", &Value::Object(cond))?;
@@ -1332,10 +1378,10 @@ impl Serialize for AdvancementTrigger {
             } => {
                 let mut cond = serde_json::Map::new();
                 if let Some(s) = start_position {
-                    cond.insert("start_position".into(), serde_json::to_value(s).unwrap());
+                    cond.insert("start_position".into(), json_value::<_, S::Error>(s)?);
                 }
                 if let Some(d) = distance {
-                    cond.insert("distance".into(), serde_json::to_value(d).unwrap());
+                    cond.insert("distance".into(), json_value::<_, S::Error>(d)?);
                 }
                 if !cond.is_empty() {
                     map.serialize_entry("conditions", &Value::Object(cond))?;
@@ -1417,6 +1463,34 @@ impl AdvancementRewards {
         self.function = Some(func.into());
         self
     }
+
+    fn validate(&self) -> Result<(), (String, String)> {
+        if self.experience < 0 {
+            return Err((
+                "rewards.experience".into(),
+                "experience reward must be non-negative".into(),
+            ));
+        }
+        for (index, recipe) in self.recipes.iter().enumerate() {
+            validate_resource_id(recipe, &format!("rewards.recipes[{index}]"))
+                .map_err(split_validation_message)?;
+        }
+        for (index, loot) in self.loot.iter().enumerate() {
+            validate_resource_id(loot, &format!("rewards.loot[{index}]"))
+                .map_err(split_validation_message)?;
+        }
+        if let Some(function) = &self.function {
+            validate_resource_id(function, "rewards.function").map_err(split_validation_message)?;
+        }
+        Ok(())
+    }
+}
+
+fn split_validation_message(message: String) -> (String, String) {
+    message
+        .split_once(": ")
+        .map(|(path, detail)| (path.to_string(), detail.to_string()))
+        .unwrap_or_else(|| ("advancement".into(), message))
 }
 
 impl Default for AdvancementRewards {
@@ -1506,6 +1580,19 @@ impl Advancement {
         self.sends_telemetry_data = v;
         self
     }
+
+    fn validation_error(
+        &self,
+        field: impl Into<String>,
+        message: impl Into<String>,
+    ) -> crate::error::SandError {
+        crate::error::SandError::ComponentValidation {
+            location: self.location.clone(),
+            kind: "advancement".to_string(),
+            field: field.into(),
+            message: message.into(),
+        }
+    }
 }
 
 impl DatapackComponent for Advancement {
@@ -1514,16 +1601,84 @@ impl DatapackComponent for Advancement {
     }
 
     fn validate(&self) -> crate::error::Result<()> {
-        for (name, criterion) in &self.criteria {
-            let path = format!("criteria.{name}");
-            criterion.trigger.validate_at(&path).map_err(|message| {
-                crate::error::SandError::ComponentValidation {
-                    location: self.location.clone(),
-                    kind: "advancement".to_string(),
-                    field: path,
-                    message,
-                }
+        if self.criteria.is_empty() {
+            return Err(self.validation_error("criteria", "at least one criterion is required"));
+        }
+
+        if let Some(parent) = &self.parent {
+            validate_resource_id(parent, "parent")
+                .map_err(split_validation_message)
+                .map_err(|(field, message)| self.validation_error(field, message))?;
+        }
+        if let Some(display) = &self.display {
+            validate_resource_id(&display.icon.id, "display.icon.id")
+                .map_err(split_validation_message)
+                .map_err(|(field, message)| self.validation_error(field, message))?;
+            if let Some(background) = &display.background {
+                validate_resource_id(background, "display.background")
+                    .map_err(split_validation_message)
+                    .map_err(|(field, message)| self.validation_error(field, message))?;
+            }
+        }
+        if let Some(rewards) = &self.rewards {
+            rewards
+                .validate()
+                .map_err(|(field, message)| self.validation_error(field, message))?;
+        }
+
+        let mut criteria = self.criteria.iter().collect::<Vec<_>>();
+        criteria.sort_by_key(|(name, _)| *name);
+        for (name, criterion) in criteria {
+            ResourceLocation::new("sand", name).map_err(|_| {
+                self.validation_error(
+                    format!("criteria.{name}"),
+                    "criterion name must be non-empty and contain only [a-z0-9_./-]",
+                )
             })?;
+            let path = format!("criteria.{name}");
+            criterion
+                .trigger
+                .validate_at(&path)
+                .map_err(split_validation_message)
+                .map_err(|(field, message)| self.validation_error(field, message))?;
+        }
+
+        if let Some(requirements) = &self.requirements {
+            if requirements.is_empty() {
+                return Err(self.validation_error(
+                    "requirements",
+                    "requirements must contain at least one group",
+                ));
+            }
+            let mut referenced = std::collections::HashSet::new();
+            for (group_index, group) in requirements.iter().enumerate() {
+                if group.is_empty() {
+                    return Err(self.validation_error(
+                        format!("requirements[{group_index}]"),
+                        "requirement group must contain at least one criterion",
+                    ));
+                }
+                for (criterion_index, name) in group.iter().enumerate() {
+                    if !self.criteria.contains_key(name) {
+                        return Err(self.validation_error(
+                            format!("requirements[{group_index}][{criterion_index}]"),
+                            format!("references missing criterion `{name}`"),
+                        ));
+                    }
+                    referenced.insert(name.as_str());
+                }
+            }
+            if let Some(missing) = self
+                .criteria
+                .keys()
+                .filter(|name| !referenced.contains(name.as_str()))
+                .min()
+            {
+                return Err(self.validation_error(
+                    "requirements",
+                    format!("criterion `{missing}` is not referenced by any requirement group"),
+                ));
+            }
         }
         Ok(())
     }
@@ -1537,7 +1692,7 @@ impl DatapackComponent for Advancement {
         self.validate()?;
         self.try_to_json()
             .map(ComponentContent::Json)
-            .map_err(crate::error::SandError::Serialization)
+            .map_err(|error| self.validation_error("serialization", error.to_string()))
     }
 
     fn component_dir(&self) -> &'static str {
@@ -2127,5 +2282,212 @@ mod tests {
             }),
         );
         assert_eq!(custom.try_content().unwrap(), custom.content());
+    }
+
+    fn tick_advancement(path: &str) -> Advancement {
+        Advancement::new(format!("test:{path}").parse().unwrap())
+            .criterion("tick", Criterion::new(AdvancementTrigger::Tick))
+    }
+
+    #[test]
+    fn advancement_requires_criteria() {
+        let advancement = Advancement::new("test:empty".parse().unwrap());
+        let error = advancement.try_content().unwrap_err().to_string();
+        assert!(error.contains("test:empty"));
+        assert!(error.contains("field: criteria"));
+        assert!(error.contains("at least one criterion"));
+    }
+
+    #[test]
+    fn advancement_criterion_names_must_be_safe_and_nonempty() {
+        for name in ["", "has space", "UPPER", "bad\nname"] {
+            let advancement = Advancement::new("test:bad_name".parse().unwrap())
+                .criterion(name, Criterion::new(AdvancementTrigger::Tick));
+            let error = advancement.try_content().unwrap_err().to_string();
+            assert!(error.contains("criterion name"), "{error}");
+            assert!(error.contains("test:bad_name"), "{error}");
+        }
+    }
+
+    #[test]
+    fn advancement_requirements_must_be_nonempty_and_reference_criteria() {
+        let empty = tick_advancement("empty_requirements").requirements(Vec::new());
+        assert!(
+            empty
+                .try_content()
+                .unwrap_err()
+                .to_string()
+                .contains("field: requirements")
+        );
+
+        let empty_group = tick_advancement("empty_group").requirements(vec![Vec::new()]);
+        assert!(
+            empty_group
+                .try_content()
+                .unwrap_err()
+                .to_string()
+                .contains("field: requirements[0]")
+        );
+
+        let missing =
+            tick_advancement("missing_requirement").requirements(vec![vec!["missing".into()]]);
+        let error = missing.try_content().unwrap_err().to_string();
+        assert!(error.contains("field: requirements[0][0]"), "{error}");
+        assert!(error.contains("missing criterion `missing`"), "{error}");
+
+        let unreferenced = tick_advancement("unreferenced_requirement")
+            .criterion("other", Criterion::new(AdvancementTrigger::Impossible))
+            .requirements(vec![vec!["tick".into()]]);
+        let error = unreferenced.try_content().unwrap_err().to_string();
+        assert!(error.contains("field: requirements"), "{error}");
+        assert!(
+            error.contains("criterion `other` is not referenced"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn advancement_rejects_negative_experience_rewards() {
+        let advancement =
+            tick_advancement("negative_xp").rewards(AdvancementRewards::new().experience(-1));
+        let error = advancement.try_content().unwrap_err().to_string();
+        assert!(error.contains("field: rewards.experience"), "{error}");
+        assert!(error.contains("non-negative"), "{error}");
+    }
+
+    #[test]
+    fn advancement_validates_top_level_resource_references() {
+        let invalid_parent = tick_advancement("bad_parent").parent("not namespaced");
+        assert!(
+            invalid_parent
+                .try_content()
+                .unwrap_err()
+                .to_string()
+                .contains("field: parent")
+        );
+
+        let display =
+            AdvancementDisplay::new(AdvancementIcon::new("bad icon"), "Title", "Description");
+        let invalid_icon = tick_advancement("bad_icon").display(display);
+        assert!(
+            invalid_icon
+                .try_content()
+                .unwrap_err()
+                .to_string()
+                .contains("field: display.icon.id")
+        );
+
+        let display = AdvancementDisplay::new(
+            AdvancementIcon::new("minecraft:stone"),
+            "Title",
+            "Description",
+        )
+        .background("bad background");
+        let invalid_background = tick_advancement("bad_background").display(display);
+        assert!(
+            invalid_background
+                .try_content()
+                .unwrap_err()
+                .to_string()
+                .contains("field: display.background")
+        );
+    }
+
+    #[test]
+    fn advancement_validates_reward_resource_references() {
+        let rewards = [
+            AdvancementRewards::new().recipe("bad recipe"),
+            AdvancementRewards::new().loot("bad loot"),
+            AdvancementRewards::new().function("bad function"),
+        ];
+        let fields = ["rewards.recipes[0]", "rewards.loot[0]", "rewards.function"];
+        for (rewards, field) in rewards.into_iter().zip(fields) {
+            let error = tick_advancement("bad_reward")
+                .rewards(rewards)
+                .try_content()
+                .unwrap_err()
+                .to_string();
+            assert!(error.contains(&format!("field: {field}")), "{error}");
+        }
+    }
+
+    #[test]
+    fn advancement_validates_trigger_resource_reference_strings() {
+        let triggers = vec![
+            AdvancementTrigger::RecipeUnlocked {
+                recipe: "bad recipe".into(),
+            },
+            AdvancementTrigger::BrewedPotion {
+                potion: Some("bad potion".into()),
+            },
+            AdvancementTrigger::BeeNestDestroyed {
+                block: Some("bad block".into()),
+                item: None,
+                num_bees_inside: None,
+            },
+            AdvancementTrigger::PlacedBlock {
+                block: Some("bad block".into()),
+                item: None,
+                location: None,
+                state: None,
+            },
+            AdvancementTrigger::EnterBlock {
+                block: Some("bad block".into()),
+                state: None,
+            },
+            AdvancementTrigger::SlideDownBlock {
+                block: Some("bad block".into()),
+            },
+            AdvancementTrigger::ChangedDimension {
+                from: Some("bad dimension".into()),
+                to: None,
+            },
+            AdvancementTrigger::PlayerGeneratesContainerLoot {
+                loot_table: Some("bad loot".into()),
+            },
+            AdvancementTrigger::Custom {
+                trigger: "bad trigger".into(),
+                conditions: Some(RawJson::new(serde_json::json!({"opaque": true}))),
+            },
+        ];
+
+        for (index, trigger) in triggers.into_iter().enumerate() {
+            let error = Advancement::new(format!("test:bad_trigger_{index}").parse().unwrap())
+                .criterion("event", Criterion::new(trigger))
+                .try_content()
+                .unwrap_err()
+                .to_string();
+            assert!(
+                error.contains("valid namespaced resource location"),
+                "{error}"
+            );
+            assert!(error.contains("criteria.event"), "{error}");
+        }
+    }
+
+    #[test]
+    fn advancement_valid_resource_references_and_raw_conditions_are_preserved() {
+        let advancement = Advancement::new("mymod:advancement".parse().unwrap())
+            .parent("mymod:parent")
+            .display(
+                AdvancementDisplay::new(AdvancementIcon::new("mymod:icon"), "Title", "Description")
+                    .background("mymod:textures/gui/background.png"),
+            )
+            .criterion(
+                "custom/event",
+                Criterion::new(AdvancementTrigger::Custom {
+                    trigger: "mymod:custom_trigger".into(),
+                    conditions: Some(RawJson::new(serde_json::json!({"future": {"x": 1}}))),
+                }),
+            )
+            .requirements(vec![vec!["custom/event".into()]])
+            .rewards(
+                AdvancementRewards::new()
+                    .recipe("mymod:recipe")
+                    .loot("mymod:loot")
+                    .function("mymod:reward"),
+            );
+
+        assert_eq!(advancement.try_content().unwrap(), advancement.content());
     }
 }

@@ -2538,6 +2538,62 @@ mod tests {
         );
     }
 
+    #[test]
+    fn component_to_record_rejects_empty_item_modifier_with_owner_context() {
+        let modifier = sand_components::ItemModifier::new(test_rl("test", "empty_modifier"));
+        let error = component_to_record(&modifier, None)
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("test:empty_modifier"));
+        assert!(error.contains("item_modifier"));
+        assert!(error.contains("functions"));
+    }
+
+    #[test]
+    fn component_to_record_retains_nested_item_modifier_function_path() {
+        let modifier = sand_components::ItemModifier::new(test_rl("test", "bad_modifier"))
+            .function(sand_components::LootFunction::SetDamage {
+                damage: sand_components::NumberProvider::Uniform {
+                    min: 0.0,
+                    max: f64::INFINITY,
+                },
+                add: false,
+            });
+        let error = component_to_record(&modifier, None)
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("test:bad_modifier"));
+        assert!(error.contains("functions[0].damage.max"));
+        assert!(error.contains("finite"));
+    }
+
+    #[test]
+    fn component_to_record_preserves_item_modifier_root_shapes() {
+        let single = sand_components::ItemModifier::new(test_rl("test", "single_modifier"))
+            .function(sand_components::LootFunction::ExplosionDecay);
+        let single_record = component_to_record(&single, None).unwrap();
+        assert_eq!(single_record.namespace, "test");
+        assert_eq!(single_record.dir, "item_modifier");
+        assert_eq!(single_record.path, "single_modifier");
+        assert_eq!(single_record.ext, "json");
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&single_record.content).unwrap(),
+            serde_json::json!({"function": "minecraft:explosion_decay"})
+        );
+
+        let multiple = sand_components::ItemModifier::new(test_rl("test", "multi_modifier"))
+            .function(sand_components::LootFunction::ExplosionDecay)
+            .function(sand_components::LootFunction::FurnaceSmelt);
+        let multiple_record = component_to_record(&multiple, None).unwrap();
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&multiple_record.content).unwrap(),
+            serde_json::json!([
+                {"function": "minecraft:explosion_decay"},
+                {"function": "minecraft:furnace_smelt"}
+            ])
+        );
+    }
+
     // ── Version-aware gating tests (#147) ──────────────────────────────────────
 
     use super::ExportCtx;

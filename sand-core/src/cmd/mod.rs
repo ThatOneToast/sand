@@ -255,22 +255,58 @@ mod tests {
     const GENERATED_REGISTRIES: &str = include_str!(concat!(env!("OUT_DIR"), "/registries.rs"));
     const GENERATED_BLOCK_STATES: &str = include_str!(concat!(env!("OUT_DIR"), "/block_states.rs"));
 
+    fn generated_api_health(
+        commands: &str,
+        registries: &str,
+        block_states: &str,
+    ) -> Result<(), String> {
+        for (name, contents) in [
+            ("commands.rs", commands),
+            ("registries.rs", registries),
+            ("block_states.rs", block_states),
+        ] {
+            if contents.trim().is_empty() {
+                return Err(format!("{name} should contain generated Rust API"));
+            }
+            if contents.contains("Generation failed") {
+                return Err(format!("{name} contains a codegen fallback placeholder"));
+            }
+        }
+
+        for (contents, symbol, file) in [
+            (commands, "pub struct Say", "commands.rs"),
+            (commands, "pub fn say(", "commands.rs"),
+            (registries, "pub enum Item", "registries.rs"),
+            (registries, "pub enum Block", "registries.rs"),
+            (
+                block_states,
+                "pub struct OakDoorProperties",
+                "block_states.rs",
+            ),
+        ] {
+            if !contents.contains(symbol) {
+                return Err(format!("{file} is missing representative API `{symbol}`"));
+            }
+        }
+        Ok(())
+    }
+
     #[test]
     fn generated_api_health_files_are_not_placeholders() {
-        for (name, contents) in [
-            ("commands.rs", GENERATED_COMMANDS),
-            ("registries.rs", GENERATED_REGISTRIES),
-            ("block_states.rs", GENERATED_BLOCK_STATES),
-        ] {
-            assert!(
-                !contents.trim().is_empty(),
-                "{name} should contain generated Rust API"
-            );
-            assert!(
-                !contents.contains("Generation failed"),
-                "{name} contains the non-strict codegen fallback placeholder"
-            );
-        }
+        generated_api_health(
+            GENERATED_COMMANDS,
+            GENERATED_REGISTRIES,
+            GENERATED_BLOCK_STATES,
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn generated_api_health_rejects_empty_and_placeholder_files() {
+        assert!(generated_api_health("", "registries", "block states").is_err());
+        assert!(
+            generated_api_health("// Generation failed", "registries", "block states").is_err()
+        );
     }
 
     #[test]

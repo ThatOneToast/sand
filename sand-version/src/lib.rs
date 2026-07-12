@@ -17,6 +17,13 @@
 /// `sand-core` builds/tests — see [`DEFAULT_CODEGEN_VERSION`].
 pub const LATEST_KNOWN: &str = "26.2";
 
+/// The established generated-API CI baseline.
+///
+/// CI intentionally exercises this older, known-good codegen target as well
+/// as [`LATEST_KNOWN`] so support for the stable baseline cannot regress while
+/// the bundled version table advances.
+pub const CI_STABLE_CODEGEN_VERSION: &str = "1.21.4";
+
 /// The default Minecraft version `sand-core/build.rs` uses to run `sand-build`
 /// codegen when `SAND_MC_VERSION` is unset.
 ///
@@ -216,5 +223,25 @@ mod tests {
         assert!(!caps.supports(ComponentFeature::ChatTypes));
         assert!(caps.supports(ComponentFeature::Enchantments));
         assert!(!caps.supports(ComponentFeature::TrimAssets));
+    }
+
+    #[test]
+    fn codegen_ci_targets_are_explicit_verified_versions() {
+        assert_eq!(CI_STABLE_CODEGEN_VERSION, "1.21.4");
+        assert!(!LATEST_KNOWN.is_empty());
+        assert_ne!(CI_STABLE_CODEGEN_VERSION, "latest");
+        assert_ne!(LATEST_KNOWN, "latest");
+    }
+
+    #[test]
+    fn rust_workflow_resolves_codegen_targets_from_this_crate() {
+        let workflow = include_str!("../../.github/workflows/rust.yml");
+        assert!(workflow.contains("codegen-ci-version -- stable"));
+        assert!(workflow.contains("codegen-ci-version -- latest"));
+        assert!(workflow.contains("SAND_STRICT_CODEGEN: \"1\""));
+        assert!(workflow.contains("Generated API health (stable"));
+        assert!(workflow.contains("Generated API health (latest verified"));
+        assert!(workflow.contains("Set up Java 21 for stable codegen"));
+        assert!(workflow.contains("Set up Java 25 for latest verified codegen"));
     }
 }

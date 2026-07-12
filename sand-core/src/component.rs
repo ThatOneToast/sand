@@ -289,16 +289,7 @@ fn try_export_components_impl(
                         .function(format!("{namespace}:{}", desc.path)),
                 );
 
-                let content = serde_json::to_string_pretty(&advancement.to_json()).unwrap();
-                let rl = advancement.resource_location();
-                records.push(ComponentRecord {
-                    namespace: rl.namespace().to_string(),
-                    dir: advancement.component_dir().to_string(),
-                    path: rl.path().to_string(),
-                    ext: advancement.file_extension().to_string(),
-                    content_type: "text".to_string(),
-                    content,
-                });
+                records.push(component_to_record(&advancement, ctx)?);
             }
 
             // ── JoinTick ─────────────────────────────────────────────────────
@@ -482,16 +473,7 @@ fn try_export_components_impl(
                             .function(format!("{namespace}:{}", desc.path)),
                     );
 
-                    let content = serde_json::to_string_pretty(&advancement.to_json()).unwrap();
-                    let rl = advancement.resource_location();
-                    records.push(ComponentRecord {
-                        namespace: rl.namespace().to_string(),
-                        dir: advancement.component_dir().to_string(),
-                        path: rl.path().to_string(),
-                        ext: advancement.file_extension().to_string(),
-                        content_type: "text".to_string(),
-                        content,
-                    });
+                    records.push(component_to_record(&advancement, ctx)?);
                 } else if let Some(condition) = make_condition() {
                     // Tick-poll custom event — same as TickPoll.
                     records.push(ComponentRecord {
@@ -1739,8 +1721,11 @@ mod tests {
     use serde_json::json;
 
     use super::{player_state_predicate_json, sand_player_state_predicate};
-    use crate::AdvancementTrigger;
     use crate::events::{PlayerSwimmingEvent, SandEvent};
+    use crate::{
+        Advancement, AdvancementRewards, AdvancementTrigger, Criterion, DatapackComponent,
+        ResourceLocation,
+    };
 
     inventory::submit! {
         crate::function::FunctionTagDescriptor {
@@ -1805,6 +1790,34 @@ mod tests {
             result.is_ok(),
             "supported trigger should pass: {:?}",
             result.err()
+        );
+    }
+
+    #[test]
+    fn invalid_advancement_fails_at_component_record_boundary_with_owner_context() {
+        let advancement = Advancement::new(ResourceLocation::new("test", "invalid").unwrap());
+        let error = super::component_to_record(&advancement, None).unwrap_err();
+        let message = error.to_string();
+        assert!(message.contains("test:invalid"), "{message}");
+        assert!(message.contains("(advancement)"), "{message}");
+        assert!(message.contains("field: criteria"), "{message}");
+    }
+
+    #[test]
+    fn generated_event_advancement_json_remains_unchanged_through_fallible_export() {
+        let advancement = Advancement::new(ResourceLocation::new("test", "event").unwrap())
+            .criterion("event", Criterion::new(AdvancementTrigger::Tick))
+            .rewards(AdvancementRewards::new().function("test:event"));
+
+        let legacy = serde_json::to_string_pretty(&advancement.to_json()).unwrap();
+        let record = super::component_to_record(&advancement, None).unwrap();
+        assert_eq!(record.content, legacy);
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&record.content).unwrap(),
+            json!({
+                "criteria": {"event": {"trigger": "minecraft:tick"}},
+                "rewards": {"function": "test:event"}
+            })
         );
     }
 

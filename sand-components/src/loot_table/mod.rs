@@ -9,6 +9,8 @@ use crate::component::{ComponentContent, DatapackComponent};
 use crate::raw::RawJson;
 use crate::resource_location::ResourceLocation;
 
+mod validation;
+
 // ── LootTableType ────────────────────────────────────────────────────────────
 
 /// Represents the type of a Minecraft loot table (block, entity, chest, etc.).
@@ -371,79 +373,6 @@ impl Serialize for LootCondition {
                 map.end()
             }
         }
-    }
-}
-
-impl LootCondition {
-    /// Validate stable condition invariants before a component embeds this JSON.
-    pub(crate) fn validate_at(&self, path: &str) -> Result<(), String> {
-        match self {
-            Self::AllOf { terms } | Self::AnyOf { terms } => {
-                if terms.is_empty() {
-                    return Err(format!("{path}.terms: must not be empty"));
-                }
-                for (index, term) in terms.iter().enumerate() {
-                    term.validate_at(&format!("{path}.terms[{index}]"))?;
-                }
-            }
-            Self::Inverted { term } => term.validate_at(&format!("{path}.term"))?,
-            Self::RandomChance { chance } => {
-                validate_probability(*chance, &format!("{path}.chance"))?
-            }
-            Self::TableBonus { chances, .. } => {
-                if chances.is_empty() {
-                    return Err(format!("{path}.chances: must not be empty"));
-                }
-                for (index, chance) in chances.iter().enumerate() {
-                    validate_probability(*chance, &format!("{path}.chances[{index}]"))?;
-                }
-            }
-            _ => {}
-        }
-        Ok(())
-    }
-}
-
-impl LootEntry {
-    fn validate_at(&self, path: &str) -> Result<(), String> {
-        let conditions = match self {
-            Self::Item { conditions, .. }
-            | Self::Tag { conditions, .. }
-            | Self::LootTable { conditions, .. }
-            | Self::Dynamic { conditions, .. }
-            | Self::Empty { conditions, .. } => conditions,
-            Self::Group {
-                children,
-                conditions,
-            }
-            | Self::Alternatives {
-                children,
-                conditions,
-            }
-            | Self::Sequence {
-                children,
-                conditions,
-            } => {
-                for (index, child) in children.iter().enumerate() {
-                    child.validate_at(&format!("{path}.children[{index}]"))?;
-                }
-                conditions
-            }
-        };
-        for (index, condition) in conditions.iter().enumerate() {
-            condition.validate_at(&format!("{path}.conditions[{index}]"))?;
-        }
-        Ok(())
-    }
-}
-
-fn validate_probability(value: f64, path: &str) -> Result<(), String> {
-    if !value.is_finite() || !(0.0..=1.0).contains(&value) {
-        Err(format!(
-            "{path}: probability must be finite and between 0.0 and 1.0"
-        ))
-    } else {
-        Ok(())
     }
 }
 
@@ -1074,8 +1003,8 @@ impl LootTable {
     ///
     /// # Example
     /// ```rust,ignore
-    /// // Coal ore: fortune[0]=1, fortune[1]=1, fortune[2]=2, fortune[3]=3
-    /// LootTable::fortune_drop(loc, "minecraft:coal", "minecraft:fortune", &[1.0, 1.0, 2.0, 3.0])
+    /// // Probability of the entry passing at each Fortune level.
+    /// LootTable::fortune_drop(loc, "minecraft:coal", "minecraft:fortune", &[0.25, 0.5, 0.75, 1.0])
     /// ```
     pub fn fortune_drop(
         location: ResourceLocation,
@@ -1248,41 +1177,13 @@ impl DatapackComponent for LootTable {
     }
 
     fn validate(&self) -> crate::error::Result<()> {
-        for (index, condition) in self.conditions.iter().enumerate() {
-            condition
-                .validate_at(&format!("conditions[{index}]"))
-                .map_err(|message| crate::error::SandError::ComponentValidation {
-                    location: self.location.clone(),
-                    kind: "loot_table".to_string(),
-                    field: format!("conditions[{index}]"),
-                    message,
-                })?;
-        }
-        for (pool_index, pool) in self.pools.iter().enumerate() {
-            for (condition_index, condition) in pool.conditions.iter().enumerate() {
-                let path = format!("pools[{pool_index}].conditions[{condition_index}]");
-                condition.validate_at(&path).map_err(|message| {
-                    crate::error::SandError::ComponentValidation {
-                        location: self.location.clone(),
-                        kind: "loot_table".to_string(),
-                        field: path,
-                        message,
-                    }
-                })?;
-            }
-            for (entry_index, entry) in pool.entries.iter().enumerate() {
-                let path = format!("pools[{pool_index}].entries[{entry_index}]");
-                entry.validate_at(&path).map_err(|message| {
-                    crate::error::SandError::ComponentValidation {
-                        location: self.location.clone(),
-                        kind: "loot_table".to_string(),
-                        field: path,
-                        message,
-                    }
-                })?;
-            }
-        }
-        Ok(())
+        self.validate_table()
+            .map_err(|failure| crate::error::SandError::ComponentValidation {
+                location: self.location.clone(),
+                kind: "loot_table".to_string(),
+                field: failure.path,
+                message: failure.message,
+            })
     }
 
     fn to_json(&self) -> Value {
@@ -1334,7 +1235,9 @@ impl LootTable {
 
 #[cfg(test)]
 mod validation_tests {
-    use super::{LootCondition, LootEntry, LootPool, LootTable};
+    use super::{
+        LootCondition, LootEntry, LootFunction, LootPool, LootTable, LootTableType, NumberProvider,
+    };
     use crate::component::DatapackComponent;
 
     #[test]
@@ -1350,7 +1253,7 @@ mod validation_tests {
             let err = LootCondition::RandomChance { chance: value }
                 .validate_at("pools[0].conditions[1]")
                 .unwrap_err();
-            assert!(err.contains("pools[0].conditions[1].chance"));
+            assert!(err.path.contains("pools[0].conditions[1].chance"));
         }
     }
 
@@ -1383,5 +1286,93 @@ mod validation_tests {
             }),
         );
         assert_eq!(table.try_content().unwrap(), table.content());
+    }
+
+    #[test]
+    fn nested_function_failure_retains_owner_and_full_path() {
+        let invalid = LootEntry::Item {
+            name: "minecraft:diamond".to_string(),
+            weight: None,
+            quality: None,
+            functions: vec![LootFunction::SetCount {
+                count: NumberProvider::Constant(f64::NAN),
+                add: false,
+            }],
+            conditions: Vec::new(),
+        };
+        let table = LootTable::new("test:function_path".parse().unwrap())
+            .pool(LootPool::new().entry(invalid));
+        let error = table.try_content().unwrap_err().to_string();
+        assert!(error.contains("test:function_path"));
+        assert!(error.contains("pools[0].entries[0].functions[0].count"));
+        assert!(error.contains("finite"));
+    }
+
+    #[test]
+    fn explicit_empty_and_representative_helpers_preserve_valid_json() {
+        let empty = LootTable::new("test:empty".parse().unwrap()).loot_type(LootTableType::Empty);
+        assert_eq!(empty.try_content().unwrap(), empty.content());
+
+        let examples = [
+            LootTable::simple_block_drop("test:block".parse().unwrap(), "minecraft:stone", 1),
+            LootTable::entity_drop(
+                "test:entity".parse().unwrap(),
+                "minecraft:leather",
+                1,
+                2,
+                Some(1),
+            ),
+            LootTable::chest_loot(
+                "test:chest".parse().unwrap(),
+                [("minecraft:diamond", 2, 1, 3)],
+            ),
+            LootTable::fortune_drop(
+                "test:fortune".parse().unwrap(),
+                "minecraft:coal",
+                "minecraft:fortune",
+                &[0.5, 0.75, 1.0],
+            ),
+        ];
+        for table in examples {
+            assert_eq!(table.try_content().unwrap(), table.content());
+        }
+    }
+
+    #[test]
+    fn helper_invalid_counts_and_ranges_fail_at_owner_boundary() {
+        let zero = LootTable::simple_block_drop("test:zero".parse().unwrap(), "minecraft:stone", 0);
+        assert!(
+            zero.try_content()
+                .unwrap_err()
+                .to_string()
+                .contains("greater than zero")
+        );
+
+        let inverted = LootTable::entity_drop(
+            "test:inverted".parse().unwrap(),
+            "minecraft:leather",
+            3,
+            1,
+            None,
+        );
+        assert!(
+            inverted
+                .try_content()
+                .unwrap_err()
+                .to_string()
+                .contains("minimum")
+        );
+
+        let bad_weight = LootTable::chest_loot(
+            "test:weight".parse().unwrap(),
+            [("minecraft:diamond", 0, 1, 1)],
+        );
+        assert!(
+            bad_weight
+                .try_content()
+                .unwrap_err()
+                .to_string()
+                .contains("weight")
+        );
     }
 }

@@ -635,6 +635,13 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
 /// | `HeroOfTheVillageEvent` | Player achieves Hero of the Village |
 /// | `LightningStrikeEvent` | Lightning strikes near the player |
 ///
+/// ## Tracked transitions (fire once on an observed edge)
+///
+/// | Type | Transition |
+/// |---|---|
+/// | `PlayerStartSneakingEvent` | `flags.is_sneaking`: false → true |
+/// | `PlayerStopSneakingEvent` | `flags.is_sneaking`: true → false |
+///
 /// ## Tick-poll (fire every tick condition is true)
 ///
 /// | Type | Condition |
@@ -1278,6 +1285,50 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
 
     // ── Dispatch selection ────────────────────────────────────────────────────
     let dispatch_tokens = match event_type_name.as_str() {
+        "PlayerStartSneakingEvent" | "PlayerStartsSneaking" => {
+            quote! {
+                #preamble
+
+                ::sand_core::inventory::submit!(::sand_core::EventDescriptor {
+                    path: #fn_name_str,
+                    id_override: #id_override_tokens,
+                    make: #fn_make_ident,
+                    dispatch: ::sand_core::EventDispatch::Tracked(
+                        ::sand_core::TrackedTransition::new(
+                            "player_sneaking",
+                            ::sand_core::TrackedSource::BooleanCondition {
+                                description: "vanilla entity predicate flags.is_sneaking",
+                                condition: "predicate __sand_local:__sand/player_sneaking",
+                            },
+                            ::sand_core::TransitionKind::BecameTrue,
+                        )
+                    ),
+                });
+            }
+        }
+
+        "PlayerStopSneakingEvent" | "PlayerStopsSneaking" => {
+            quote! {
+                #preamble
+
+                ::sand_core::inventory::submit!(::sand_core::EventDescriptor {
+                    path: #fn_name_str,
+                    id_override: #id_override_tokens,
+                    make: #fn_make_ident,
+                    dispatch: ::sand_core::EventDispatch::Tracked(
+                        ::sand_core::TrackedTransition::new(
+                            "player_sneaking",
+                            ::sand_core::TrackedSource::BooleanCondition {
+                                description: "vanilla entity predicate flags.is_sneaking",
+                                condition: "predicate __sand_local:__sand/player_sneaking",
+                            },
+                            ::sand_core::TransitionKind::BecameFalse,
+                        )
+                    ),
+                });
+            }
+        }
+
         // OnJoinEvent / OnJoin — scoreboard-backed join detection (fires after load/reload / new player mid-session)
         //
         // Uses JoinTick dispatch: `__sand_join_check` runs handlers for any online

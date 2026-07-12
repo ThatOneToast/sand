@@ -347,6 +347,86 @@ pub enum EventDispatch {
     /// - `__sand_xp_delta` — current − previous
     /// - `__sand_xp_seen`  — 0 until first tick; prevents spurious fire on join
     XpLevelUp,
+
+    /// Reusable tick-polled previous/current transition detection.
+    ///
+    /// Handlers that name the same tracker and source share one generated
+    /// baseline and tracker function. Setup and ticking are contributed to the
+    /// automatic state lifecycle rather than a separate tick registry.
+    Tracked(TrackedTransition),
+}
+
+/// The value sampled by a tracked transition event.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TrackedSource {
+    /// A vanilla `execute if` condition, without the leading `if` keyword.
+    BooleanCondition {
+        description: &'static str,
+        condition: &'static str,
+    },
+    /// A per-player scoreboard value sampled from `@s`.
+    Score {
+        description: &'static str,
+        objective: &'static str,
+    },
+}
+
+impl TrackedSource {
+    pub const fn description(self) -> &'static str {
+        match self {
+            Self::BooleanCondition { description, .. } | Self::Score { description, .. } => {
+                description
+            }
+        }
+    }
+}
+
+/// Transition comparison applied to a tracked source.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum TransitionKind {
+    BecameTrue,
+    BecameFalse,
+    ScoreChanged,
+    ScoreIncreased,
+    ScoreDecreased,
+}
+
+impl TransitionKind {
+    /// Pure comparison model used by tests and non-export tooling.
+    pub const fn matches(self, previous: i32, current: i32, seen: bool) -> bool {
+        if !seen {
+            return false;
+        }
+        match self {
+            Self::BecameTrue => previous == 0 && current != 0,
+            Self::BecameFalse => previous != 0 && current == 0,
+            Self::ScoreChanged => previous != current,
+            Self::ScoreIncreased => current > previous,
+            Self::ScoreDecreased => current < previous,
+        }
+    }
+}
+
+/// Immutable transition tracker attached to an [`EventDescriptor`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TrackedTransition {
+    pub tracker_id: &'static str,
+    pub source: TrackedSource,
+    pub kind: TransitionKind,
+}
+
+impl TrackedTransition {
+    pub const fn new(
+        tracker_id: &'static str,
+        source: TrackedSource,
+        kind: TransitionKind,
+    ) -> Self {
+        Self {
+            tracker_id,
+            source,
+            kind,
+        }
+    }
 }
 
 /// Descriptor for a function registered via `#[sand_macros::event]`.
@@ -357,7 +437,7 @@ pub enum EventDispatch {
 /// - `path` — function resource location path (no namespace), e.g. `"on_join"`
 /// - `id_override` — optional full advancement ID override (advancement dispatch only)
 /// - `make` — factory that returns the Vec<String> of mcfunction commands
-/// - `dispatch` — whether to use an advancement trigger or the DeathTick tick loop
+/// - `dispatch` — advancement, special generated system, tick poll, or tracked transition
 pub struct EventDescriptor {
     pub path: &'static str,
     pub id_override: Option<&'static str>,

@@ -22,6 +22,7 @@ built-in event is added without updating both the constant and this matrix.
 | **Sand tick / predicate** | Sand evaluates a generated `execute if predicate` each tick per player. |
 | **Sand tick / selector** | Sand runs `execute as @a[gamemode=…]` or a similar selector each tick. |
 | **Sand tick / XP scoreboard** | Sand polls `experience query @s levels` via scoreboard and compares ticks. |
+| **Sand tick / tracked predicate** | Sand samples one predicate and compares private previous/current scoreboard state. |
 
 ---
 
@@ -32,6 +33,7 @@ built-in event is added without updating both the constant and this matrix.
 | **High** | Fires exactly once per vanilla action. |
 | **Medium** | Fires reliably but with a tick-boundary delay or minor edge case. |
 | **Tick-rate** | Fires every server tick while the condition holds. |
+| **Tick-edge** | Fires once on an observed tick-boundary transition; rapid changes within one tick can coalesce. |
 
 ---
 
@@ -125,6 +127,8 @@ These are advancement-backed and fire once per action.
 | `PlayerSleepEvent` | `sand_core::events::PlayerSleepEvent` | React when the player enters a bed | `minecraft:slept_in_bed` | Advancement (AfterFire) | High | Negligible | Fires on entering the bed, before the night-skip animation completes. |
 | `FallFromHeightEvent` | `sand_core::events::FallFromHeightEvent` | React when the player falls and lands | `minecraft:fall_from_height` | Advancement (AfterFire) | High | Negligible | No minimum distance filter on the built-in type; add a distance condition for fall-damage scenarios. |
 | `PlayerLevelUpEvent` | `sand_core::event::vanilla::PlayerLevelsUp` | React when the player gains an XP level | Sand XP scoreboard polling (`__sand_xp_lvl`, `__sand_xp_prev`, `__sand_xp_delta`) | Sand tick / XP scoreboard | Medium | High | **Not backed by a vanilla advancement trigger.** Vanilla has no `minecraft:leveled_up`. Sand detects level increases via per-tick scoreboard comparison. Level decreases do not fire. First tick after join only initializes baseline. `PlayerLevelUpEvent::level_delta("@s")` gives the delta. |
+| `PlayerStartSneakingEvent` | `sand_core::event::vanilla::PlayerStartsSneaking` | React once when sneaking starts | Entity predicate `flags.is_sneaking` + shared private scoreboard baseline | Sand tick / tracked predicate | Tick-edge | Low | First observation does not fire. Rejoin can fire if the first sample differs from the last observed online state. One predicate sample per player/tick. |
+| `PlayerStopSneakingEvent` | `sand_core::event::vanilla::PlayerStopsSneaking` | React once when sneaking stops | Same shared tracker as start sneaking | Sand tick / tracked predicate | Tick-edge | Low | All matching handlers dispatch before baseline update. Offline changes are not observable. |
 | `EffectsChangedEvent` | `sand_core::events::EffectsChangedEvent` | React when the player's potion effects change | `minecraft:effects_changed` | Advancement (AfterFire) | High | Negligible | Fires on any effect change (add, remove, amplify). No effect filter on the built-in type. |
 | `StartRidingEvent` | `sand_core::events::StartRidingEvent` | React when the player starts riding an entity | `minecraft:started_riding` | Advancement (AfterFire) | High | Negligible | No entity filter on the built-in type. |
 | `UseEnderEyeEvent` | `sand_core::events::UseEnderEyeEvent` | React when the player throws an ender eye | `minecraft:used_ender_eye` | Advancement (AfterFire) | High | Negligible | — |

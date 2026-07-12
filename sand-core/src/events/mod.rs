@@ -1123,6 +1123,17 @@ adv_event!(LightningStrikeEvent);
 // These use Sand-owned entity predicates. Predicate flags are stable datapack
 // schema, unlike raw player NBT selector fields.
 
+/// Fires once when a player changes from not sneaking to sneaking.
+///
+/// This is tick-polled from vanilla's `flags.is_sneaking` entity predicate.
+/// The first observed state establishes a baseline and does not fire.
+pub struct PlayerStartSneakingEvent;
+
+/// Fires once when a player changes from sneaking to not sneaking.
+///
+/// Uses the same shared tracker as [`PlayerStartSneakingEvent`].
+pub struct PlayerStopSneakingEvent;
+
 /// Fires every tick the player is sneaking / crouching (Shift held).
 ///
 /// Uses a generated `flags.is_sneaking` predicate.
@@ -1224,6 +1235,8 @@ player_event!(ArmorEquipEvent);
 player_event!(ArmorUnequipEvent);
 player_event!(HoldingItemEvent);
 player_event!(CurrentlyWearingEvent);
+player_event!(PlayerStartSneakingEvent);
+player_event!(PlayerStopSneakingEvent);
 player_event!(PlayerSneakEvent);
 player_event!(PlayerSprintEvent);
 player_event!(PlayerSwimmingEvent);
@@ -1298,6 +1311,8 @@ pub const BUILTIN_EVENT_NAMES: &[&str] = &[
     "CureZombieVillagerEvent",
     "LootContainerOpenEvent",
     // Tick-poll / continuous state
+    "PlayerStartSneakingEvent",
+    "PlayerStopSneakingEvent",
     "PlayerSneakEvent",
     "PlayerSprintEvent",
     "PlayerSwimmingEvent",

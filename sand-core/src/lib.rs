@@ -175,6 +175,8 @@ pub use events::{
     // Tick-poll state events
     PlayerSneakEvent,
     PlayerSprintEvent,
+    PlayerStartSneakingEvent,
+    PlayerStopSneakingEvent,
     PlayerSwimmingEvent,
     RecipeUnlockEvent,
     // Trait + dispatch
@@ -194,8 +196,11 @@ pub use function::{
     ArmorEventDescriptor, ArmorEventKind, ArmorSlot, ComponentFactory, EventDescriptor,
     EventDispatch, EventPathEntry, FunctionDescriptor, FunctionPointerEntry,
     FunctionPointerTypeEntry, FunctionTagDescriptor, IntoFunctionRef, ScheduleDescriptor,
-    TempScoreboard, drain_dyn_fns, register_dyn_fn, register_dyn_fn_dedup,
+    TempScoreboard, TrackedSource, TrackedTransition, TransitionKind, drain_dyn_fns,
+    register_dyn_fn, register_dyn_fn_dedup,
 };
+
+mod transition;
 pub use mc_version::McVersion;
 pub use resource_location::{Identifier, PackNamespace, ResourceLocation};
 pub use state::{

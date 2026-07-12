@@ -131,6 +131,16 @@ impl<S: TypedGameState> GameState<S> {
         }
     }
 
+    /// Build an automatic export lifecycle descriptor, carrying this typed
+    /// state's configured default when present.
+    pub const fn lifecycle(&self) -> crate::state::StateLifecycle {
+        let lifecycle = crate::state::StateLifecycle::score(self.name);
+        match self.default_score {
+            Some(default) => lifecycle.default(default),
+            None => lifecycle,
+        }
+    }
+
     /// Return the actual scoreboard objective name used in commands.
     ///
     /// This is either `name` directly (≤16 chars) or a stable FNV-1a hash (>16 chars).

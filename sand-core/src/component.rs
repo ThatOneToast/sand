@@ -995,12 +995,60 @@ fn try_export_components_impl(
             .push(format!("{namespace}:{path}"));
     }
 
-    // ── Lifecycle registry (register_load_objective / register_tick_handler) ──
-    // Must run after all factories so all explicit registrations are captured.
+    // ── Typed-state lifecycle ─────────────────────────────────────────────────
+    // Link-time declarations are rebuilt on every export. Manual registries are
+    // still drained after all factories so existing registration paths remain
+    // supported.
     {
-        let load_cmds = crate::state::drain_load_commands();
+        let automatic =
+            crate::state::registry::automatic_lifecycle().map_err(lifecycle_export_error)?;
+        let manual_load_cmds = crate::state::drain_load_commands();
+        let mut load_definitions: BTreeMap<String, (String, String)> = BTreeMap::new();
+
+        for command in automatic.load_commands.into_iter().chain(manual_load_cmds) {
+            let mut parts = command.split_whitespace();
+            let parsed = match (
+                parts.next(),
+                parts.next(),
+                parts.next(),
+                parts.next(),
+                parts.next(),
+            ) {
+                (
+                    Some("scoreboard"),
+                    Some("objectives"),
+                    Some("add"),
+                    Some(objective),
+                    Some(criterion),
+                ) if parts.next().is_none() => Some((objective.to_string(), criterion.to_string())),
+                _ => None,
+            };
+
+            if let Some((objective, criterion)) = parsed {
+                match load_definitions.get(&objective) {
+                    Some((existing, _)) if existing == &criterion => {}
+                    Some((existing, _)) => {
+                        return Err(lifecycle_export_error(format!(
+                            "conflicting objective `{objective}`: criterion `{existing}` versus `{criterion}`"
+                        )));
+                    }
+                    None => {
+                        load_definitions.insert(objective, (criterion, command));
+                    }
+                }
+            } else {
+                return Err(lifecycle_export_error(format!(
+                    "invalid registered load command `{command}`"
+                )));
+            }
+        }
+        let load_cmds: Vec<String> = load_definitions
+            .into_values()
+            .map(|(_, command)| command)
+            .collect();
         if !load_cmds.is_empty() {
             let path = "__sand_lifecycle_load";
+            ensure_private_lifecycle_path_available(&records, path)?;
             records.push(ComponentRecord {
                 namespace: namespace.to_string(),
                 dir: "function".to_string(),
@@ -1015,9 +1063,35 @@ fn try_export_components_impl(
                 .push(format!("{namespace}:{path}"));
         }
 
-        let tick_cmds = crate::state::drain_tick_commands();
+        let init_path = "__sand_lifecycle_init";
+        if !automatic.init_commands.is_empty() {
+            ensure_private_lifecycle_path_available(&records, init_path)?;
+            records.push(ComponentRecord {
+                namespace: namespace.to_string(),
+                dir: "function".to_string(),
+                path: init_path.to_string(),
+                ext: "mcfunction".to_string(),
+                content_type: "text".to_string(),
+                content: automatic.init_commands.join("\n"),
+            });
+        }
+
+        let mut tick_cmds = Vec::new();
+        if !automatic.init_commands.is_empty() {
+            tick_cmds.push(format!(
+                "execute as @a run function {namespace}:{init_path}"
+            ));
+        }
+        tick_cmds.extend(
+            automatic
+                .tick_commands
+                .into_iter()
+                .map(|command| format!("execute as @a run {command}")),
+        );
+        tick_cmds.extend(crate::state::drain_tick_commands());
         if !tick_cmds.is_empty() {
             let path = "__sand_lifecycle_tick";
+            ensure_private_lifecycle_path_available(&records, path)?;
             records.push(ComponentRecord {
                 namespace: namespace.to_string(),
                 dir: "function".to_string(),
@@ -1098,7 +1172,49 @@ fn try_export_components_impl(
         "BUG: unresolved __sand_local sentinel found in exported records"
     );
 
+    for path in [
+        "__sand_lifecycle_load",
+        "__sand_lifecycle_init",
+        "__sand_lifecycle_tick",
+    ] {
+        if records
+            .iter()
+            .filter(|record| record.dir == "function" && record.path == path)
+            .count()
+            > 1
+        {
+            return Err(lifecycle_export_error(format!(
+                "generated private function `{path}` collides with a later generated function"
+            )));
+        }
+    }
+
     Ok(records)
+}
+
+fn ensure_private_lifecycle_path_available(
+    records: &[ComponentRecord],
+    path: &str,
+) -> ExportResult<()> {
+    if records
+        .iter()
+        .any(|record| record.dir == "function" && record.path == path)
+    {
+        return Err(lifecycle_export_error(format!(
+            "generated private function `{path}` collides with a user or component function"
+        )));
+    }
+    Ok(())
+}
+
+fn lifecycle_export_error(message: impl Into<String>) -> ComponentExportError {
+    ComponentExportError::ComponentValidation {
+        location: sand_components::ResourceLocation::new("sand", "lifecycle")
+            .expect("fixed lifecycle resource location is valid"),
+        kind: "state_lifecycle".to_string(),
+        field: "declarations".to_string(),
+        message: message.into(),
+    }
 }
 
 /// Fallibly collect all inventory-registered components and return them as a

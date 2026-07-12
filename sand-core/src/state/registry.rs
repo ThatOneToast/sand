@@ -1,9 +1,10 @@
-//! Global opt-in lifecycle registry for load and tick wiring.
+//! Automatic declarations and the legacy manual lifecycle registry.
 //!
-//! Users explicitly register objectives and tick handlers; Sand collects them
-//! and emits the appropriate commands when building the datapack.
+//! [`StateLifecycle`] descriptors submitted at link time are rebuilt on every
+//! export. The manual registration and drain APIs remain available as an escape
+//! hatch and for compatibility.
 //!
-//! # Pattern — typed state registration
+//! # Pattern — manual typed state registration
 //!
 //! Call `.register()` on any typed state variable to enroll it in the lifecycle
 //! registry. Then call [`define_registered_state`] once in your `load` function
@@ -38,6 +39,8 @@
 use std::collections::BTreeMap;
 use std::sync::{Mutex, OnceLock};
 
+use super::score::objective_name;
+
 // ── Internal storage types ────────────────────────────────────────────────────
 
 /// An objective registered for definition on datapack load.
@@ -52,6 +55,137 @@ pub struct LoadEntry {
 pub struct TickEntry {
     pub id: String,
     pub commands: Vec<String>,
+}
+
+/// One automatically exported typed-state lifecycle declaration.
+///
+/// This is the non-macro model behind [`crate::sand_state!`]. Submit a
+/// descriptor with [`inventory::submit!`](crate::inventory::submit) when a
+/// project wants declaration-time discovery without using the convenience
+/// macro.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StateLifecycle {
+    objective: &'static str,
+    criterion: &'static str,
+    default: Option<i32>,
+    auto_tick: bool,
+}
+
+impl StateLifecycle {
+    /// Declare a dummy scoreboard-backed state objective.
+    pub const fn score(objective: &'static str) -> Self {
+        Self {
+            objective,
+            criterion: "dummy",
+            default: None,
+            auto_tick: false,
+        }
+    }
+
+    /// Override the vanilla scoreboard criterion.
+    pub const fn criterion(mut self, criterion: &'static str) -> Self {
+        self.criterion = criterion;
+        self
+    }
+
+    /// Initialize players that do not yet have a score, without overwriting
+    /// existing progress.
+    pub const fn default(mut self, value: i32) -> Self {
+        self.default = Some(value);
+        self
+    }
+
+    /// Opt this state into per-player countdown ticking.
+    pub const fn auto_tick(mut self) -> Self {
+        self.auto_tick = true;
+        self
+    }
+}
+
+/// Link-time descriptor for an automatically managed state declaration.
+pub struct StateDescriptor {
+    pub lifecycle: StateLifecycle,
+}
+
+impl StateDescriptor {
+    pub const fn new(lifecycle: StateLifecycle) -> Self {
+        Self { lifecycle }
+    }
+}
+
+inventory::collect!(StateDescriptor);
+
+/// Deterministic automatic lifecycle output built afresh for each export.
+#[derive(Debug, Default, PartialEq, Eq)]
+pub(crate) struct AutomaticLifecycle {
+    pub load_commands: Vec<String>,
+    pub init_commands: Vec<String>,
+    pub tick_commands: Vec<String>,
+}
+
+/// Resolve link-time state declarations without mutating the manual registry.
+///
+/// Identical declarations deduplicate. Any criterion, default, or auto-tick
+/// disagreement for the same resolved objective is returned as a contextual
+/// error instead of silently choosing one definition.
+pub(crate) fn automatic_lifecycle() -> Result<AutomaticLifecycle, String> {
+    automatic_lifecycle_from(
+        inventory::iter::<StateDescriptor>().map(|descriptor| descriptor.lifecycle.clone()),
+    )
+}
+
+fn automatic_lifecycle_from(
+    declarations: impl IntoIterator<Item = StateLifecycle>,
+) -> Result<AutomaticLifecycle, String> {
+    let mut states: BTreeMap<String, (&'static str, Option<i32>, bool)> = BTreeMap::new();
+    let mut declarations: Vec<_> = declarations.into_iter().collect();
+    declarations.sort_by_key(|declaration| {
+        (
+            objective_name(declaration.objective),
+            declaration.criterion,
+            declaration.default,
+            declaration.auto_tick,
+        )
+    });
+
+    for declaration in declarations {
+        let objective = objective_name(declaration.objective);
+        let definition = (
+            declaration.criterion,
+            declaration.default,
+            declaration.auto_tick,
+        );
+        match states.get(&objective) {
+            Some(existing) if existing == &definition => {}
+            Some(existing) => {
+                return Err(format!(
+                    "conflicting automatic state `{objective}`: first declaration has criterion `{}`, default {:?}, auto_tick {}; conflicting declaration has criterion `{}`, default {:?}, auto_tick {}",
+                    existing.0, existing.1, existing.2, definition.0, definition.1, definition.2
+                ));
+            }
+            None => {
+                states.insert(objective, definition);
+            }
+        }
+    }
+
+    let mut output = AutomaticLifecycle::default();
+    for (objective, (criterion, default, auto_tick)) in states {
+        output
+            .load_commands
+            .push(format!("scoreboard objectives add {objective} {criterion}"));
+        if let Some(default) = default {
+            output.init_commands.push(format!(
+                "execute unless score @s {objective} matches -2147483648.. run scoreboard players set @s {objective} {default}"
+            ));
+        }
+        if auto_tick {
+            output.tick_commands.push(format!(
+                "execute if score @s {objective} matches 1.. run scoreboard players remove @s {objective} 1"
+            ));
+        }
+    }
+    Ok(output)
 }
 
 // ── Registry accessors ────────────────────────────────────────────────────────
@@ -532,5 +666,48 @@ mod tests {
         // Both cmd and registry_cmds contain the same command — the user must
         // choose one path; mixing both in a load function would duplicate output.
         assert_eq!(cmd, registry_cmds[0]);
+    }
+
+    #[test]
+    fn automatic_declarations_sort_dedupe_and_generate_player_safe_commands() {
+        let output = automatic_lifecycle_from([
+            StateLifecycle::score("z_timer").default(0).auto_tick(),
+            StateLifecycle::score("alpha").default(100),
+            StateLifecycle::score("z_timer").default(0).auto_tick(),
+        ])
+        .unwrap();
+
+        assert_eq!(
+            output.load_commands,
+            vec![
+                "scoreboard objectives add alpha dummy",
+                "scoreboard objectives add z_timer dummy",
+            ]
+        );
+        assert_eq!(
+            output.init_commands,
+            vec![
+                "execute unless score @s alpha matches -2147483648.. run scoreboard players set @s alpha 100",
+                "execute unless score @s z_timer matches -2147483648.. run scoreboard players set @s z_timer 0",
+            ]
+        );
+        assert_eq!(
+            output.tick_commands,
+            vec![
+                "execute if score @s z_timer matches 1.. run scoreboard players remove @s z_timer 1"
+            ]
+        );
+    }
+
+    #[test]
+    fn automatic_conflicts_report_all_lifecycle_options() {
+        let err = automatic_lifecycle_from([
+            StateLifecycle::score("mana").default(100),
+            StateLifecycle::score("mana").default(0),
+        ])
+        .unwrap_err();
+        assert!(err.contains("conflicting automatic state `mana`"));
+        assert!(err.contains("default Some(100)"));
+        assert!(err.contains("default Some(0)"));
     }
 }

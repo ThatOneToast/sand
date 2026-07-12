@@ -12,6 +12,7 @@ use crate::predicates::{
     ItemPredicate, LocationPredicate,
 };
 use crate::raw::RawJson;
+use crate::registry::{BlockId, DimensionId, PotionRegistryId, StatusEffectId};
 use crate::resource_location::ResourceLocation;
 
 fn validate_resource_id(value: &str, path: &str) -> Result<(), String> {
@@ -174,8 +175,11 @@ impl Serialize for AdvancementDisplay {
 /// Represents a trigger condition for an advancement criterion.
 ///
 /// Each variant uses typed predicate structs from [`sand_components::predicates`]
-/// instead of raw `serde_json::Value`.  The [`Custom`](AdvancementTrigger::Custom)
-/// variant provides a named escape hatch for modded triggers.
+/// instead of raw `serde_json::Value`. Prefer the typed associated constructors
+/// for variants whose public fields remain strings for source compatibility.
+/// The [`Custom`](AdvancementTrigger::Custom) variant is the legacy raw shape;
+/// [`AdvancementTrigger::custom_trigger`] is the validated normal path for
+/// custom/modded triggers.
 ///
 /// # Escape hatch
 ///
@@ -489,6 +493,117 @@ impl InventorySlotsPredicate {
 // ── AdvancementTrigger::trigger_id helper ─────────────────────────────────────
 
 impl AdvancementTrigger {
+    /// Create a recipe-unlocked trigger from a validated recipe reference.
+    pub fn recipe_unlocked(recipe: ResourceLocation) -> Self {
+        Self::RecipeUnlocked {
+            recipe: recipe.to_string(),
+        }
+    }
+
+    /// Create a brewed-potion trigger using the shared potion registry ID.
+    pub fn brewed_potion(potion: impl Into<PotionRegistryId>) -> Self {
+        Self::BrewedPotion {
+            potion: Some(potion.into().to_string()),
+        }
+    }
+
+    /// Create an unfiltered brewed-potion trigger.
+    pub fn brewed_any_potion() -> Self {
+        Self::BrewedPotion { potion: None }
+    }
+
+    /// Create a bee-nest-destroyed trigger with typed block identity.
+    pub fn bee_nest_destroyed(
+        block: Option<BlockId>,
+        item: Option<ItemPredicate>,
+        num_bees_inside: Option<IntRange>,
+    ) -> Self {
+        Self::BeeNestDestroyed {
+            block: block.map(|id| id.to_string()),
+            item,
+            num_bees_inside,
+        }
+    }
+
+    /// Create a placed-block trigger with typed block identity.
+    pub fn placed_block(
+        block: Option<BlockId>,
+        item: Option<ItemPredicate>,
+        location: Option<LocationPredicate>,
+        state: Option<HashMap<String, String>>,
+    ) -> Self {
+        Self::PlacedBlock {
+            block: block.map(|id| id.to_string()),
+            item,
+            location,
+            state,
+        }
+    }
+
+    /// Create an enter-block trigger with typed block identity.
+    pub fn enter_block(block: Option<BlockId>, state: Option<HashMap<String, String>>) -> Self {
+        Self::EnterBlock {
+            block: block.map(|id| id.to_string()),
+            state,
+        }
+    }
+
+    /// Create a dimension-change trigger with typed dimension identities.
+    pub fn changed_dimension(from: Option<DimensionId>, to: Option<DimensionId>) -> Self {
+        Self::ChangedDimension {
+            from: from.map(|id| id.to_string()),
+            to: to.map(|id| id.to_string()),
+        }
+    }
+
+    /// Create a slide-down-block trigger with typed block identity.
+    pub fn slide_down_block(block: Option<BlockId>) -> Self {
+        Self::SlideDownBlock {
+            block: block.map(|id| id.to_string()),
+        }
+    }
+
+    /// Create a container-loot trigger from a validated loot-table reference.
+    pub fn player_generates_container_loot(loot_table: Option<ResourceLocation>) -> Self {
+        Self::PlayerGeneratesContainerLoot {
+            loot_table: loot_table.map(|id| id.to_string()),
+        }
+    }
+
+    /// Create an effects-changed trigger with typed status-effect map keys.
+    pub fn effects_changed<I, E>(effects: I, source: Option<EntityPredicate>) -> Self
+    where
+        I: IntoIterator<Item = (E, EffectPredicate)>,
+        E: Into<StatusEffectId>,
+    {
+        let effects = effects
+            .into_iter()
+            .map(|(id, predicate)| (id.into().to_string(), predicate))
+            .collect::<HashMap<_, _>>();
+        Self::EffectsChanged {
+            effects: (!effects.is_empty()).then_some(effects),
+            source,
+        }
+    }
+
+    /// Create an unfiltered effects-changed trigger.
+    pub fn effects_changed_any(source: Option<EntityPredicate>) -> Self {
+        Self::EffectsChanged {
+            effects: None,
+            source,
+        }
+    }
+
+    /// Create a custom/modded trigger with a validated trigger ID.
+    ///
+    /// The conditions remain an explicit opaque [`RawJson`] escape hatch.
+    pub fn custom_trigger(trigger: ResourceLocation, conditions: Option<RawJson>) -> Self {
+        Self::Custom {
+            trigger: trigger.to_string(),
+            conditions,
+        }
+    }
+
     /// Validate stable predicate/range invariants for typed trigger conditions.
     /// Raw/custom trigger conditions remain an explicit escape hatch.
     pub(crate) fn validate_at(&self, path: &str) -> Result<(), String> {
@@ -2489,5 +2604,136 @@ mod tests {
             );
 
         assert_eq!(advancement.try_content().unwrap(), advancement.content());
+    }
+
+    #[test]
+    fn typed_trigger_reference_constructors_preserve_vanilla_json() {
+        let typed_and_legacy = [
+            (
+                AdvancementTrigger::recipe_unlocked("test:recipe".parse().unwrap()),
+                AdvancementTrigger::RecipeUnlocked {
+                    recipe: "test:recipe".into(),
+                },
+            ),
+            (
+                AdvancementTrigger::brewed_potion(crate::PotionId::Swiftness),
+                AdvancementTrigger::BrewedPotion {
+                    potion: Some("minecraft:swiftness".into()),
+                },
+            ),
+            (
+                AdvancementTrigger::bee_nest_destroyed(
+                    Some(BlockId::minecraft("bee_nest").unwrap()),
+                    None,
+                    None,
+                ),
+                AdvancementTrigger::BeeNestDestroyed {
+                    block: Some("minecraft:bee_nest".into()),
+                    item: None,
+                    num_bees_inside: None,
+                },
+            ),
+            (
+                AdvancementTrigger::placed_block(
+                    Some(BlockId::minecraft("stone").unwrap()),
+                    None,
+                    None,
+                    None,
+                ),
+                AdvancementTrigger::PlacedBlock {
+                    block: Some("minecraft:stone".into()),
+                    item: None,
+                    location: None,
+                    state: None,
+                },
+            ),
+            (
+                AdvancementTrigger::enter_block(Some(BlockId::minecraft("water").unwrap()), None),
+                AdvancementTrigger::EnterBlock {
+                    block: Some("minecraft:water".into()),
+                    state: None,
+                },
+            ),
+            (
+                AdvancementTrigger::changed_dimension(
+                    Some(DimensionId::minecraft("overworld").unwrap()),
+                    Some(DimensionId::minecraft("the_nether").unwrap()),
+                ),
+                AdvancementTrigger::ChangedDimension {
+                    from: Some("minecraft:overworld".into()),
+                    to: Some("minecraft:the_nether".into()),
+                },
+            ),
+            (
+                AdvancementTrigger::slide_down_block(Some(
+                    BlockId::minecraft("honey_block").unwrap(),
+                )),
+                AdvancementTrigger::SlideDownBlock {
+                    block: Some("minecraft:honey_block".into()),
+                },
+            ),
+            (
+                AdvancementTrigger::player_generates_container_loot(Some(
+                    "test:chests/reward".parse().unwrap(),
+                )),
+                AdvancementTrigger::PlayerGeneratesContainerLoot {
+                    loot_table: Some("test:chests/reward".into()),
+                },
+            ),
+            (
+                AdvancementTrigger::custom_trigger(
+                    "mymod:future_trigger".parse().unwrap(),
+                    Some(RawJson::new(serde_json::json!({"future": true}))),
+                ),
+                AdvancementTrigger::Custom {
+                    trigger: "mymod:future_trigger".into(),
+                    conditions: Some(RawJson::new(serde_json::json!({"future": true}))),
+                },
+            ),
+        ];
+
+        for (typed, legacy) in typed_and_legacy {
+            assert_eq!(
+                serde_json::to_value(typed).unwrap(),
+                serde_json::to_value(legacy).unwrap()
+            );
+        }
+    }
+
+    #[test]
+    fn effects_changed_constructor_uses_typed_status_effect_keys() {
+        let typed = AdvancementTrigger::effects_changed(
+            [(
+                crate::EffectId::Speed,
+                EffectPredicate::new().amplifier(IntRange::exact(1)),
+            )],
+            None,
+        );
+        assert_eq!(
+            serde_json::to_value(typed).unwrap(),
+            serde_json::json!({
+                "trigger": "minecraft:effects_changed",
+                "conditions": {
+                    "effects": {
+                        "minecraft:speed": {"amplifier": 1}
+                    }
+                }
+            })
+        );
+
+        let unfiltered = AdvancementTrigger::effects_changed_any(None);
+        assert_eq!(
+            serde_json::to_value(unfiltered).unwrap(),
+            serde_json::json!({"trigger": "minecraft:effects_changed"})
+        );
+    }
+
+    #[test]
+    fn typed_trigger_ids_reject_malformed_resource_locations_at_construction() {
+        assert!("bad recipe".parse::<ResourceLocation>().is_err());
+        assert!(BlockId::minecraft("bad block").is_err());
+        assert!(DimensionId::minecraft("bad dimension").is_err());
+        assert!(PotionRegistryId::minecraft("bad potion").is_err());
+        assert!(StatusEffectId::minecraft("bad effect").is_err());
     }
 }

@@ -8,6 +8,7 @@ publish = false
 [[bin]]
 name = "sand_export"
 path = "src/bin/sand_export.rs"
+doc = false
 
 [dependencies]
 sand-core = { path = "../sand-core" }

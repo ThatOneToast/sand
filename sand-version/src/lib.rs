@@ -24,6 +24,10 @@ pub const LATEST_KNOWN: &str = "26.2";
 /// the bundled version table advances.
 pub const CI_STABLE_CODEGEN_VERSION: &str = "1.21.4";
 
+/// Java runtimes required by the verified vanilla-server validation matrix.
+pub const CI_STABLE_JAVA_VERSION: &str = "21";
+pub const CI_LATEST_JAVA_VERSION: &str = "25";
+
 /// The default Minecraft version `sand-core/build.rs` uses to run `sand-build`
 /// codegen when `SAND_MC_VERSION` is unset.
 ///
@@ -243,5 +247,18 @@ mod tests {
         assert!(workflow.contains("Generated API health (latest verified"));
         assert!(workflow.contains("Set up Java 21 for stable codegen"));
         assert!(workflow.contains("Set up Java 25 for latest verified codegen"));
+    }
+
+    #[test]
+    fn vanilla_reload_workflow_uses_verified_matrix_source() {
+        let workflow = include_str!("../../.github/workflows/vanilla-reload.yml");
+        assert!(workflow.contains("--bin vanilla-reload-matrix"));
+        assert!(workflow.contains("fromJSON(needs.versions.outputs.matrix)"));
+        assert!(workflow.contains("actions/upload-artifact@v4"));
+        assert!(workflow.contains("target/vanilla-reload/${{ matrix.version }}/latest.log"));
+        assert!(!CI_STABLE_CODEGEN_VERSION.is_empty());
+        assert!(!LATEST_KNOWN.is_empty());
+        assert_eq!(CI_STABLE_JAVA_VERSION, "21");
+        assert_eq!(CI_LATEST_JAVA_VERSION, "25");
     }
 }

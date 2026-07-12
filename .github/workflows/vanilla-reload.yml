@@ -1,0 +1,101 @@
+name: Vanilla reload
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 7 * * 0"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vanilla-reload-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  versions:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.value }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Resolve verified version and Java matrix
+        id: matrix
+        shell: bash
+        run: echo "value=$(cargo run --quiet -p sand-version --bin vanilla-reload-matrix)" >> "$GITHUB_OUTPUT"
+
+  validate:
+    needs: versions
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.versions.outputs.matrix) }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        run: rustup show active-toolchain
+
+      - name: Set up Java ${{ matrix.java }} for Minecraft ${{ matrix.version }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ matrix.java }}
+          distribution: temurin
+
+      - name: Cache Cargo inputs
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-vanilla-reload-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-vanilla-reload-cargo-
+
+      - name: Cache verified Minecraft data
+        uses: actions/cache@v4
+        with:
+          path: ~/.sand/cache
+          key: ${{ runner.os }}-sand-minecraft-${{ matrix.version }}
+          restore-keys: |
+            ${{ runner.os }}-sand-minecraft-
+
+      - name: Prepare artifact directories
+        run: mkdir -p "target/vanilla-reload/${{ matrix.version }}" sand-vanilla-audit/dist
+
+      - name: Ensure SHA-verified server jar
+        run: cargo run --quiet -p sand-build --bin ensure-server-jar -- "${{ matrix.version }}"
+
+      - name: Build representative audit pack
+        working-directory: sand-vanilla-audit
+        env:
+          SAND_MC_VERSION: ${{ matrix.version }}
+          SAND_STRICT_CODEGEN: "1"
+        run: cargo run -p sand -- build
+
+      - name: Validate initial load and reload
+        run: |
+          scripts/validate-vanilla-reload.sh \
+            --version "${{ matrix.version }}" \
+            --pack sand-vanilla-audit/dist/sand_audit \
+            --output "target/vanilla-reload/${{ matrix.version }}"
+
+      - name: Write validation summary
+        if: success()
+        run: |
+          echo "### Minecraft ${{ matrix.version }} / Java ${{ matrix.java }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Initial load, actual reload, and clean shutdown passed." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vanilla-reload-${{ matrix.target }}-${{ matrix.version }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            target/vanilla-reload/${{ matrix.version }}/latest.log
+            sand-vanilla-audit/dist/sand_audit

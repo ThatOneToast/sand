@@ -1917,6 +1917,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "sand-vanilla-audit"
+version = "0.1.0"
+dependencies = [
+ "sand-build",
+ "sand-core",
+ "sand-macros",
+ "sand-version",
+]
+
+[[package]]
 name = "sand-version"
 version = "0.1.0"
 

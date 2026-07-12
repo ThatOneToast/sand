@@ -32,7 +32,9 @@ pub fn run(release: bool, resourcepack: bool) -> Result<()> {
         .context("failed to parse sand.toml")?;
 
     // Resolve mc_version ("latest" → bundled latest-known verified version)
-    let mc_version = resolve_mc_version(&config.pack.mc_version);
+    let configured_version =
+        std::env::var("SAND_MC_VERSION").unwrap_or_else(|_| config.pack.mc_version.clone());
+    let mc_version = resolve_mc_version(&configured_version);
 
     // Resolve pack format: explicit override in sand.toml wins; otherwise derive
     // from the version profile.  If the version is not in the known table the
@@ -575,6 +577,19 @@ mod tests {
         assert!(zip.by_name("pack.mcmeta").is_ok());
         assert!(zip.by_name("data/audit/function/load.mcfunction").is_ok());
         assert!(zip.by_name("assets/audit/models/item/test.json").is_err());
+    }
+
+    #[test]
+    fn modern_datapack_metadata_includes_required_format_bounds() {
+        let temp = tempfile::tempdir().unwrap();
+        write_pack_mcmeta(temp.path(), "audit", "modern", 107).unwrap();
+        let metadata: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(temp.path().join("pack.mcmeta")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(metadata["pack"]["pack_format"], 107);
+        assert_eq!(metadata["pack"]["min_format"], 107);
+        assert_eq!(metadata["pack"]["max_format"], 107);
     }
 
     // ── Component output path computation ─────────────────────────────────────

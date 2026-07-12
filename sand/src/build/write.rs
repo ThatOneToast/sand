@@ -13,12 +13,18 @@ pub fn write_pack_mcmeta(
     pack_format: u32,
 ) -> Result<()> {
     let _ = namespace; // available for future use
-    let mcmeta = serde_json::json!({
-        "pack": {
-            "pack_format": pack_format,
-            "description": description,
-        }
+    let mut pack = serde_json::json!({
+        "pack_format": pack_format,
+        "description": description,
     });
+    // Vanilla requires explicit supported-format bounds for modern packs.
+    // Retain pack_format for older tooling while pinning this generated pack
+    // to the exact verified profile used by Sand.
+    if pack_format > 81 {
+        pack["min_format"] = pack_format.into();
+        pack["max_format"] = pack_format.into();
+    }
+    let mcmeta = serde_json::json!({ "pack": pack });
     std::fs::write(
         dist.join("pack.mcmeta"),
         serde_json::to_string_pretty(&mcmeta)?,

@@ -64,6 +64,11 @@ jobs:
       - name: Format check
         run: cargo fmt --all -- --check
 
+      - name: Vanilla harness orchestration tests
+        run: |
+          bash -n scripts/validate-vanilla-reload.sh
+          python3 -m unittest scripts.tests.test_vanilla_reload_harness
+
       - name: Generated API health (stable ${{ steps.codegen-versions.outputs.stable }})
         env:
           SAND_MC_VERSION: ${{ steps.codegen-versions.outputs.stable }}

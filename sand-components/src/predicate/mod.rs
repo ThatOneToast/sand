@@ -29,12 +29,12 @@ impl DatapackComponent for Predicate {
     }
 
     fn validate(&self) -> crate::error::Result<()> {
-        self.condition.validate_at("predicate").map_err(|message| {
+        self.condition.validate_at("predicate").map_err(|failure| {
             crate::error::SandError::ComponentValidation {
                 location: self.location.clone(),
                 kind: "predicate".to_string(),
-                field: "predicate".to_string(),
-                message,
+                field: failure.path,
+                message: failure.message,
             }
         })
     }

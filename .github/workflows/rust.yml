@@ -8,7 +8,6 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  SAND_MC_VERSION: "1.21.4"
 
 jobs:
   check:
@@ -20,7 +19,7 @@ jobs:
       - name: Install Rust toolchain
         run: rustup show active-toolchain
 
-      - name: Set up Java 21
+      - name: Set up Java 21 for stable codegen
         uses: actions/setup-java@v4
         with:
           java-version: "21"
@@ -44,11 +43,44 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-build-
 
+      - name: Resolve verified codegen targets
+        id: codegen-versions
+        shell: bash
+        run: |
+          stable="$(cargo run --quiet -p sand-version --bin codegen-ci-version -- stable)"
+          latest="$(cargo run --quiet -p sand-version --bin codegen-ci-version -- latest)"
+          echo "stable=$stable" >> "$GITHUB_OUTPUT"
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+          echo "cache-key=$stable-$latest" >> "$GITHUB_OUTPUT"
+
+      - name: Cache verified Minecraft data
+        uses: actions/cache@v4
+        with:
+          path: ~/.sand/cache
+          key: ${{ runner.os }}-sand-minecraft-${{ steps.codegen-versions.outputs.cache-key }}
+          restore-keys: |
+            ${{ runner.os }}-sand-minecraft-
+
       - name: Format check
         run: cargo fmt --all -- --check
 
-      - name: Generated API health
-        run: SAND_STRICT_CODEGEN=1 cargo test -p sand-core generated_api_health --lib
+      - name: Generated API health (stable ${{ steps.codegen-versions.outputs.stable }})
+        env:
+          SAND_MC_VERSION: ${{ steps.codegen-versions.outputs.stable }}
+          SAND_STRICT_CODEGEN: "1"
+        run: cargo test -p sand-core generated_api_health --lib
+
+      - name: Set up Java 25 for latest verified codegen
+        uses: actions/setup-java@v4
+        with:
+          java-version: "25"
+          distribution: "temurin"
+
+      - name: Generated API health (latest verified ${{ steps.codegen-versions.outputs.latest }})
+        env:
+          SAND_MC_VERSION: ${{ steps.codegen-versions.outputs.latest }}
+          SAND_STRICT_CODEGEN: "1"
+        run: cargo test -p sand-core generated_api_health --lib
 
       - name: Clippy
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings

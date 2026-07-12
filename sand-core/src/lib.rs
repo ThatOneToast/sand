@@ -329,6 +329,7 @@ pub use sand_components::{
     EquippableProperties,
     FloatRange,
     FoodProperties,
+    FunctionId,
     Ingredient,
     // Instrument / Jukebox
     Instrument,
@@ -376,13 +377,16 @@ pub use sand_components::{
     SuspiciousStewEffect,
     // Tag
     Tag,
+    TagEntry,
     TagId,
+    TagRegistry,
     Ticks,
     ToolProperties,
     ToolRule,
     // Trim
     TrimMaterial,
     TrimPattern,
+    TypedTag,
     // Wolf
     WolfVariant,
 };

@@ -328,7 +328,9 @@ become `TextComponent`.
 Typed biome/dimension/feature builders replacing `Value` fields.
 
 ### Phase 13 — Recipes, tags, and remaining components
-`Tag<ItemId>`, `Tag<BlockId>`, typed recipe ingredients/results.
+`TypedTag<T>` now covers item, block, entity-type, and function tags while the
+legacy raw `Tag` remains available. Typed recipe ingredient/result migration is
+tracked separately.
 
 ### Phase 14–16 — Examples, docs, final cleanup
 

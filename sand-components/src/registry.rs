@@ -116,6 +116,11 @@ registry_id! {
 }
 
 registry_id! {
+    /// Typed Minecraft function identifier (e.g. `minecraft:load` or `mypack:tick`).
+    FunctionId
+}
+
+registry_id! {
     /// Typed Minecraft enchantment identifier (e.g. `minecraft:sharpness` or `mymod:arcane`).
     EnchantmentId
 }

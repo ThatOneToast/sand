@@ -321,9 +321,11 @@ impl EffectPredicate {
         Self::default()
     }
 
-    pub fn has(effect: EffectId) -> Self {
+    /// Match an effect using either the enum-style [`EffectId`] or the shared
+    /// resource-location-backed [`crate::StatusEffectId`].
+    pub fn has(effect: impl Into<EffectId>) -> Self {
         Self {
-            effect: Some(effect),
+            effect: Some(effect.into()),
             ..Default::default()
         }
     }
@@ -1172,10 +1174,10 @@ impl EntityPredicate {
     }
 
     /// Require an active status effect (by effect ID).
-    pub fn effect(mut self, effect_id: EffectId, pred: EffectPredicate) -> Self {
+    pub fn effect(mut self, effect_id: impl Into<EffectId>, pred: EffectPredicate) -> Self {
         self.effects
             .get_or_insert_with(std::collections::BTreeMap::new)
-            .insert(effect_id.to_string(), pred.without_effect());
+            .insert(effect_id.into().to_string(), pred.without_effect());
         self
     }
 
@@ -1449,6 +1451,22 @@ mod tests {
         assert_eq!(
             serde_json::to_value(&pred).unwrap(),
             json!({"mymod:arcane_burn": {"duration": {"max": 100}}})
+        );
+    }
+
+    #[test]
+    fn shared_status_effect_id_uses_existing_typed_predicate_paths() {
+        let effect = crate::StatusEffectId::minecraft("speed").unwrap();
+        let single = EffectPredicate::has(effect.clone()).amplifier(IntRange::exact(1));
+        assert_eq!(
+            serde_json::to_value(single).unwrap(),
+            json!({"minecraft:speed": {"amplifier": 1}})
+        );
+
+        let entity = EntityPredicate::new().effect(effect, EffectPredicate::new());
+        assert_eq!(
+            serde_json::to_value(entity).unwrap()["effects"]["minecraft:speed"],
+            json!({})
         );
     }
 

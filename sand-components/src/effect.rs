@@ -4,6 +4,7 @@ use std::str::FromStr;
 use serde::{Serialize, Serializer, ser::SerializeMap};
 
 use crate::error::Result;
+use crate::registry::{PotionRegistryId, StatusEffectId};
 use crate::resource_location::ResourceLocation;
 
 /// A duration expressed in Minecraft game ticks (20 ticks = 1 second).
@@ -163,6 +164,18 @@ vanilla_registry_enum! {
     }
 }
 
+impl From<EffectId> for StatusEffectId {
+    fn from(id: EffectId) -> Self {
+        id.as_resource_location().into()
+    }
+}
+
+impl From<StatusEffectId> for EffectId {
+    fn from(id: StatusEffectId) -> Self {
+        Self::from_resource_location(id.into())
+    }
+}
+
 vanilla_registry_enum! {
     /// Typed Minecraft potion identifier.
     PotionId {
@@ -211,6 +224,18 @@ vanilla_registry_enum! {
     }
 }
 
+impl From<PotionId> for PotionRegistryId {
+    fn from(id: PotionId) -> Self {
+        id.as_resource_location().into()
+    }
+}
+
+impl From<PotionRegistryId> for PotionId {
+    fn from(id: PotionRegistryId) -> Self {
+        Self::from_resource_location(id.into())
+    }
+}
+
 /// Structured status effect instance for item components and datapack JSON.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StatusEffectInstance {
@@ -223,9 +248,11 @@ pub struct StatusEffectInstance {
 }
 
 impl StatusEffectInstance {
-    pub fn new(effect: EffectId) -> Self {
+    /// Create an effect instance from either the enum-style [`EffectId`] or
+    /// shared resource-location-backed [`StatusEffectId`].
+    pub fn new(effect: impl Into<EffectId>) -> Self {
         Self {
-            effect,
+            effect: effect.into(),
             duration: None,
             amplifier: 0,
             ambient: false,
@@ -327,8 +354,10 @@ impl PotionContents {
         Self::default()
     }
 
-    pub fn potion(mut self, potion: PotionId) -> Self {
-        self.potion = Some(potion);
+    /// Set the base potion using either the enum-style [`PotionId`] or shared
+    /// resource-location-backed [`PotionRegistryId`].
+    pub fn potion(mut self, potion: impl Into<PotionId>) -> Self {
+        self.potion = Some(potion.into());
         self
     }
 
@@ -375,11 +404,14 @@ pub struct SuspiciousStewEffect {
 }
 
 impl SuspiciousStewEffect {
-    pub fn new(effect: EffectId, duration: Ticks) -> Self {
-        Self { effect, duration }
+    pub fn new(effect: impl Into<EffectId>, duration: Ticks) -> Self {
+        Self {
+            effect: effect.into(),
+            duration,
+        }
     }
 
-    pub fn seconds(effect: EffectId, seconds: u32) -> Self {
+    pub fn seconds(effect: impl Into<EffectId>, seconds: u32) -> Self {
         Self::new(effect, Ticks::seconds(seconds))
     }
 
@@ -414,6 +446,37 @@ mod tests {
         assert_eq!(
             serde_json::to_value(id).unwrap(),
             json!("mymod:arcane_burn")
+        );
+    }
+
+    #[test]
+    fn compatibility_ids_convert_to_shared_registry_ids() {
+        let effect: StatusEffectId = EffectId::Speed.into();
+        let potion: PotionRegistryId = PotionId::LongSwiftness.into();
+        assert_eq!(effect.to_string(), "minecraft:speed");
+        assert_eq!(potion.to_string(), "minecraft:long_swiftness");
+
+        let effect_compat: EffectId = effect.into();
+        let potion_compat: PotionId = potion.into();
+        assert_eq!(effect_compat.to_string(), "minecraft:speed");
+        assert_eq!(potion_compat.to_string(), "minecraft:long_swiftness");
+    }
+
+    #[test]
+    fn shared_registry_ids_work_in_existing_effect_builders() {
+        let effect = StatusEffectInstance::new(StatusEffectId::minecraft("speed").unwrap());
+        let potion = PotionContents::new()
+            .potion(PotionRegistryId::minecraft("swiftness").unwrap())
+            .effect(effect);
+        assert_eq!(
+            serde_json::to_value(potion).unwrap(),
+            json!({
+                "potion": "minecraft:swiftness",
+                "custom_effects": [{
+                    "id": "minecraft:speed",
+                    "amplifier": 0
+                }]
+            })
         );
     }
 

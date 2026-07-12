@@ -145,6 +145,23 @@ registry_id! {
     StructureId
 }
 
+registry_id! {
+    /// Resource-location-backed Minecraft status-effect identifier.
+    ///
+    /// This is the shared registry form used for dynamic, generated, and modded
+    /// IDs. [`crate::EffectId`] remains available as the enum-style vanilla
+    /// convenience and converts to and from this type.
+    StatusEffectId
+}
+
+registry_id! {
+    /// Resource-location-backed Minecraft potion identifier.
+    ///
+    /// The `PotionRegistryId` name deliberately avoids colliding with the
+    /// existing enum-style [`crate::PotionId`] compatibility API.
+    PotionRegistryId
+}
+
 // ── TagId<T> ─────────────────────────────────────────────────────────────────
 
 /// A typed tag identifier scoped to a specific registry kind `T`.
@@ -256,6 +273,20 @@ mod tests {
         let rl = ResourceLocation::new("mymod", "sword").unwrap();
         let id: ItemId = rl.into();
         assert_eq!(id.to_string(), "mymod:sword");
+    }
+
+    #[test]
+    fn status_effect_and_potion_registry_ids_validate_and_serialize() {
+        let effect = StatusEffectId::minecraft("speed").unwrap();
+        let potion: PotionRegistryId = "mymod:arcane_brew".parse().unwrap();
+        assert_eq!(effect.to_string(), "minecraft:speed");
+        assert_eq!(potion.to_string(), "mymod:arcane_brew");
+        assert_eq!(
+            serde_json::to_value(effect).unwrap(),
+            serde_json::json!("minecraft:speed")
+        );
+        assert!("not namespaced".parse::<StatusEffectId>().is_err());
+        assert!("minecraft:bad path".parse::<PotionRegistryId>().is_err());
     }
 
     #[test]

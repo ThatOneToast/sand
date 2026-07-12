@@ -2,7 +2,8 @@
 
 use serde_json::Value;
 
-use crate::component::DatapackComponent;
+use crate::component::{ComponentContent, DatapackComponent};
+use crate::error::{Result as SandResult, SandError};
 use crate::resource_location::ResourceLocation;
 
 use super::types::{CookingType, Ingredient, RecipeResult};
@@ -72,6 +73,34 @@ impl CookingRecipe {
         self.group = Some(g.into());
         self
     }
+
+    fn try_build_json(&self) -> SandResult<Value> {
+        let mut map = serde_json::Map::new();
+        map.insert(
+            "type".into(),
+            Value::String(self.recipe_type.type_str().into()),
+        );
+        if let Some(category) = &self.category {
+            map.insert("category".into(), Value::String(category.clone()));
+        }
+        if let Some(group) = &self.group {
+            map.insert("group".into(), Value::String(group.clone()));
+        }
+        map.insert(
+            "ingredient".into(),
+            serde_json::to_value(&self.ingredient).map_err(SandError::from)?,
+        );
+        map.insert(
+            "result".into(),
+            serde_json::to_value(&self.result).map_err(SandError::from)?,
+        );
+        map.insert(
+            "experience".into(),
+            serde_json::to_value(self.experience).map_err(SandError::from)?,
+        );
+        map.insert("cookingtime".into(), Value::from(self.cooking_time));
+        Ok(Value::Object(map))
+    }
 }
 
 impl DatapackComponent for CookingRecipe {
@@ -79,41 +108,45 @@ impl DatapackComponent for CookingRecipe {
         &self.location
     }
 
+    fn validate(&self) -> SandResult<()> {
+        self.ingredient.validate_at(&self.location, "ingredient")?;
+        self.result.validate_at(&self.location, "result")?;
+        if !self.experience.is_finite() {
+            return Err(error(
+                &self.location,
+                "experience",
+                "cooking experience must be finite",
+            ));
+        }
+        if self.cooking_time == 0 {
+            return Err(error(
+                &self.location,
+                "cookingtime",
+                "cooking time must be at least 1 tick",
+            ));
+        }
+        Ok(())
+    }
     fn to_json(&self) -> Value {
-        let mut map = serde_json::Map::new();
-        map.insert(
-            "type".to_string(),
-            Value::String(self.recipe_type.type_str().to_string()),
-        );
-
-        if let Some(ref category) = self.category {
-            map.insert("category".to_string(), Value::String(category.clone()));
-        }
-        if let Some(ref group) = self.group {
-            map.insert("group".to_string(), Value::String(group.clone()));
-        }
-
-        map.insert(
-            "ingredient".to_string(),
-            serde_json::to_value(&self.ingredient).unwrap(),
-        );
-        map.insert(
-            "result".to_string(),
-            serde_json::to_value(&self.result).unwrap(),
-        );
-        map.insert(
-            "experience".to_string(),
-            serde_json::to_value(self.experience).unwrap(),
-        );
-        map.insert(
-            "cookingtime".to_string(),
-            serde_json::to_value(self.cooking_time).unwrap(),
-        );
-
-        Value::Object(map)
+        self.try_build_json().unwrap_or_else(|e| {
+            panic!("CookingRecipe::to_json() failed for {}: {e}", self.location)
+        })
+    }
+    fn try_content(&self) -> SandResult<ComponentContent> {
+        self.validate()?;
+        Ok(ComponentContent::Json(self.try_build_json()?))
     }
 
     fn component_dir(&self) -> &'static str {
         "recipe"
+    }
+}
+
+fn error(location: &ResourceLocation, field: &str, message: &str) -> SandError {
+    SandError::ComponentValidation {
+        location: location.clone(),
+        kind: "recipe".into(),
+        field: field.into(),
+        message: message.into(),
     }
 }

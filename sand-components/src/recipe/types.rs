@@ -5,6 +5,9 @@ use std::fmt::Display;
 use serde::Serialize;
 use serde::ser::{SerializeMap, SerializeSeq, Serializer};
 
+use crate::error::{Result as SandResult, SandError};
+use crate::resource_location::ResourceLocation;
+
 // ── Ingredient ───────────────────────────────────────────────────────────────
 
 /// Represents a recipe ingredient that can be specified by item ID or item tag.
@@ -59,6 +62,40 @@ impl Ingredient {
             && self.tag.is_none()
             && (self.alternatives.is_empty() || self.alternatives.iter().all(|a| a.is_empty()))
     }
+
+    pub(crate) fn validate_at(&self, location: &ResourceLocation, field: &str) -> SandResult<()> {
+        let forms = usize::from(self.item.is_some())
+            + usize::from(self.tag.is_some())
+            + usize::from(!self.alternatives.is_empty());
+        if forms > 1 {
+            return Err(validation(
+                location,
+                field,
+                "ingredient must use exactly one of item, tag, or alternatives",
+            ));
+        }
+        if self.item.as_deref().is_some_and(str::is_empty) {
+            return Err(validation(
+                location,
+                field,
+                "ingredient item id must not be empty",
+            ));
+        }
+        if self.tag.as_deref().is_some_and(str::is_empty) {
+            return Err(validation(
+                location,
+                field,
+                "ingredient tag id must not be empty",
+            ));
+        }
+        if self.item.is_none() && self.tag.is_none() && self.alternatives.is_empty() {
+            return Err(validation(location, field, "ingredient must not be empty"));
+        }
+        for (index, alternative) in self.alternatives.iter().enumerate() {
+            alternative.validate_at(location, &format!("{field}.alternatives[{index}]"))?;
+        }
+        Ok(())
+    }
 }
 
 impl Serialize for Ingredient {
@@ -97,6 +134,33 @@ impl RecipeResult {
             id: id.to_string(),
             count,
         }
+    }
+
+    pub(crate) fn validate_at(&self, location: &ResourceLocation, field: &str) -> SandResult<()> {
+        if self.id.is_empty() {
+            return Err(validation(
+                location,
+                &format!("{field}.id"),
+                "recipe result item id must not be empty",
+            ));
+        }
+        if self.count == 0 {
+            return Err(validation(
+                location,
+                &format!("{field}.count"),
+                "recipe result count must be at least 1",
+            ));
+        }
+        Ok(())
+    }
+}
+
+fn validation(location: &ResourceLocation, field: &str, message: &str) -> SandError {
+    SandError::ComponentValidation {
+        location: location.clone(),
+        kind: "recipe".to_string(),
+        field: field.to_string(),
+        message: message.to_string(),
     }
 }
 

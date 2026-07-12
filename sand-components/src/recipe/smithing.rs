@@ -2,7 +2,8 @@
 
 use serde_json::Value;
 
-use crate::component::DatapackComponent;
+use crate::component::{ComponentContent, DatapackComponent};
+use crate::error::{Result as SandResult, SandError};
 use crate::resource_location::ResourceLocation;
 
 use super::types::{Ingredient, RecipeResult};
@@ -64,6 +65,19 @@ impl SmithingTransformRecipe {
         self.group = Some(g.into());
         self
     }
+
+    fn try_build_json(&self) -> SandResult<Value> {
+        build_smithing_json(
+            "minecraft:smithing_transform",
+            self.group.as_ref(),
+            [
+                ("template", &self.template),
+                ("base", &self.base),
+                ("addition", &self.addition),
+            ],
+            Some(&self.result),
+        )
+    }
 }
 
 impl DatapackComponent for SmithingTransformRecipe {
@@ -71,35 +85,23 @@ impl DatapackComponent for SmithingTransformRecipe {
         &self.location
     }
 
+    fn validate(&self) -> SandResult<()> {
+        self.template.validate_at(&self.location, "template")?;
+        self.base.validate_at(&self.location, "base")?;
+        self.addition.validate_at(&self.location, "addition")?;
+        self.result.validate_at(&self.location, "result")
+    }
     fn to_json(&self) -> Value {
-        let mut map = serde_json::Map::new();
-        map.insert(
-            "type".to_string(),
-            Value::String("minecraft:smithing_transform".to_string()),
-        );
-
-        if let Some(ref group) = self.group {
-            map.insert("group".to_string(), Value::String(group.clone()));
-        }
-
-        map.insert(
-            "template".to_string(),
-            serde_json::to_value(&self.template).unwrap(),
-        );
-        map.insert(
-            "base".to_string(),
-            serde_json::to_value(&self.base).unwrap(),
-        );
-        map.insert(
-            "addition".to_string(),
-            serde_json::to_value(&self.addition).unwrap(),
-        );
-        map.insert(
-            "result".to_string(),
-            serde_json::to_value(&self.result).unwrap(),
-        );
-
-        Value::Object(map)
+        self.try_build_json().unwrap_or_else(|e| {
+            panic!(
+                "SmithingTransformRecipe::to_json() failed for {}: {e}",
+                self.location
+            )
+        })
+    }
+    fn try_content(&self) -> SandResult<ComponentContent> {
+        self.validate()?;
+        Ok(ComponentContent::Json(self.try_build_json()?))
     }
 
     fn component_dir(&self) -> &'static str {
@@ -153,6 +155,19 @@ impl SmithingTrimRecipe {
         self.group = Some(g.into());
         self
     }
+
+    fn try_build_json(&self) -> SandResult<Value> {
+        build_smithing_json(
+            "minecraft:smithing_trim",
+            self.group.as_ref(),
+            [
+                ("template", &self.template),
+                ("base", &self.base),
+                ("addition", &self.addition),
+            ],
+            None,
+        )
+    }
 }
 
 impl DatapackComponent for SmithingTrimRecipe {
@@ -160,34 +175,51 @@ impl DatapackComponent for SmithingTrimRecipe {
         &self.location
     }
 
+    fn validate(&self) -> SandResult<()> {
+        self.template.validate_at(&self.location, "template")?;
+        self.base.validate_at(&self.location, "base")?;
+        self.addition.validate_at(&self.location, "addition")
+    }
     fn to_json(&self) -> Value {
-        let mut map = serde_json::Map::new();
-        map.insert(
-            "type".to_string(),
-            Value::String("minecraft:smithing_trim".to_string()),
-        );
-
-        if let Some(ref group) = self.group {
-            map.insert("group".to_string(), Value::String(group.clone()));
-        }
-
-        map.insert(
-            "template".to_string(),
-            serde_json::to_value(&self.template).unwrap(),
-        );
-        map.insert(
-            "base".to_string(),
-            serde_json::to_value(&self.base).unwrap(),
-        );
-        map.insert(
-            "addition".to_string(),
-            serde_json::to_value(&self.addition).unwrap(),
-        );
-
-        Value::Object(map)
+        self.try_build_json().unwrap_or_else(|e| {
+            panic!(
+                "SmithingTrimRecipe::to_json() failed for {}: {e}",
+                self.location
+            )
+        })
+    }
+    fn try_content(&self) -> SandResult<ComponentContent> {
+        self.validate()?;
+        Ok(ComponentContent::Json(self.try_build_json()?))
     }
 
     fn component_dir(&self) -> &'static str {
         "recipe"
     }
+}
+
+fn build_smithing_json<'a>(
+    kind: &str,
+    group: Option<&String>,
+    ingredients: impl IntoIterator<Item = (&'a str, &'a Ingredient)>,
+    result: Option<&RecipeResult>,
+) -> SandResult<Value> {
+    let mut map = serde_json::Map::new();
+    map.insert("type".into(), Value::String(kind.into()));
+    if let Some(group) = group {
+        map.insert("group".into(), Value::String(group.clone()));
+    }
+    for (name, ingredient) in ingredients {
+        map.insert(
+            name.into(),
+            serde_json::to_value(ingredient).map_err(SandError::from)?,
+        );
+    }
+    if let Some(result) = result {
+        map.insert(
+            "result".into(),
+            serde_json::to_value(result).map_err(SandError::from)?,
+        );
+    }
+    Ok(Value::Object(map))
 }

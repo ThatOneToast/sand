@@ -2,7 +2,8 @@
 
 use serde_json::Value;
 
-use crate::component::DatapackComponent;
+use crate::component::{ComponentContent, DatapackComponent};
+use crate::error::{Result as SandResult, SandError};
 use crate::resource_location::ResourceLocation;
 
 use super::types::{Ingredient, RecipeResult};
@@ -54,6 +55,35 @@ impl ShapelessRecipe {
         self.group = Some(g.into());
         self
     }
+
+    fn try_build_json(&self) -> SandResult<Value> {
+        let mut map = serde_json::Map::new();
+        map.insert(
+            "type".into(),
+            Value::String("minecraft:crafting_shapeless".into()),
+        );
+        if let Some(category) = &self.category {
+            map.insert("category".into(), Value::String(category.clone()));
+        }
+        if let Some(group) = &self.group {
+            map.insert("group".into(), Value::String(group.clone()));
+        }
+        map.insert(
+            "ingredients".into(),
+            Value::Array(
+                self.ingredients
+                    .iter()
+                    .map(serde_json::to_value)
+                    .collect::<Result<_, _>>()
+                    .map_err(SandError::from)?,
+            ),
+        );
+        map.insert(
+            "result".into(),
+            serde_json::to_value(&self.result).map_err(SandError::from)?,
+        );
+        Ok(Value::Object(map))
+    }
 }
 
 impl DatapackComponent for ShapelessRecipe {
@@ -61,35 +91,51 @@ impl DatapackComponent for ShapelessRecipe {
         &self.location
     }
 
+    fn validate(&self) -> SandResult<()> {
+        if self.ingredients.is_empty() {
+            return Err(error(
+                &self.location,
+                "ingredients",
+                "shapeless recipe requires at least one ingredient",
+            ));
+        }
+        if self.ingredients.len() > 9 {
+            return Err(error(
+                &self.location,
+                "ingredients",
+                "shapeless recipe supports at most 9 ingredients",
+            ));
+        }
+        for (i, ingredient) in self.ingredients.iter().enumerate() {
+            ingredient.validate_at(&self.location, &format!("ingredients[{i}]"))?;
+        }
+        self.result.validate_at(&self.location, "result")
+    }
+
     fn to_json(&self) -> Value {
-        let mut map = serde_json::Map::new();
-        map.insert(
-            "type".to_string(),
-            Value::String("minecraft:crafting_shapeless".to_string()),
-        );
+        self.try_build_json().unwrap_or_else(|e| {
+            panic!(
+                "ShapelessRecipe::to_json() failed for {}: {e}",
+                self.location
+            )
+        })
+    }
 
-        if let Some(ref category) = self.category {
-            map.insert("category".to_string(), Value::String(category.clone()));
-        }
-        if let Some(ref group) = self.group {
-            map.insert("group".to_string(), Value::String(group.clone()));
-        }
-
-        let ingredients: Vec<Value> = self
-            .ingredients
-            .iter()
-            .map(|i| serde_json::to_value(i).unwrap())
-            .collect();
-        map.insert("ingredients".to_string(), Value::Array(ingredients));
-        map.insert(
-            "result".to_string(),
-            serde_json::to_value(&self.result).unwrap(),
-        );
-
-        Value::Object(map)
+    fn try_content(&self) -> SandResult<ComponentContent> {
+        self.validate()?;
+        Ok(ComponentContent::Json(self.try_build_json()?))
     }
 
     fn component_dir(&self) -> &'static str {
         "recipe"
+    }
+}
+
+fn error(location: &ResourceLocation, field: &str, message: &str) -> SandError {
+    SandError::ComponentValidation {
+        location: location.clone(),
+        kind: "recipe".into(),
+        field: field.into(),
+        message: message.into(),
     }
 }

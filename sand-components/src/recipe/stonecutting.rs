@@ -2,7 +2,8 @@
 
 use serde_json::Value;
 
-use crate::component::DatapackComponent;
+use crate::component::{ComponentContent, DatapackComponent};
+use crate::error::{Result as SandResult, SandError};
 use crate::resource_location::ResourceLocation;
 
 use super::types::{Ingredient, RecipeResult};
@@ -54,6 +55,27 @@ impl StonecuttingRecipe {
         self.group = Some(g.into());
         self
     }
+
+    fn try_build_json(&self) -> SandResult<Value> {
+        let mut map = serde_json::Map::new();
+        map.insert(
+            "type".into(),
+            Value::String("minecraft:stonecutting".into()),
+        );
+        if let Some(group) = &self.group {
+            map.insert("group".into(), Value::String(group.clone()));
+        }
+        map.insert(
+            "ingredient".into(),
+            serde_json::to_value(&self.ingredient).map_err(SandError::from)?,
+        );
+        map.insert(
+            "result".into(),
+            serde_json::to_value(&self.result).map_err(SandError::from)?,
+        );
+        map.insert("count".into(), Value::from(self.count));
+        Ok(Value::Object(map))
+    }
 }
 
 impl DatapackComponent for StonecuttingRecipe {
@@ -61,34 +83,41 @@ impl DatapackComponent for StonecuttingRecipe {
         &self.location
     }
 
-    fn to_json(&self) -> Value {
-        let mut map = serde_json::Map::new();
-        map.insert(
-            "type".to_string(),
-            Value::String("minecraft:stonecutting".to_string()),
-        );
-
-        if let Some(ref group) = self.group {
-            map.insert("group".to_string(), Value::String(group.clone()));
+    fn validate(&self) -> SandResult<()> {
+        self.ingredient.validate_at(&self.location, "ingredient")?;
+        self.result.validate_at(&self.location, "result")?;
+        if self.count == 0 {
+            return Err(error(
+                &self.location,
+                "count",
+                "stonecutting result count must be at least 1",
+            ));
         }
-
-        map.insert(
-            "ingredient".to_string(),
-            serde_json::to_value(&self.ingredient).unwrap(),
-        );
-        map.insert(
-            "result".to_string(),
-            serde_json::to_value(&self.result).unwrap(),
-        );
-        map.insert(
-            "count".to_string(),
-            serde_json::to_value(self.count).unwrap(),
-        );
-
-        Value::Object(map)
+        Ok(())
+    }
+    fn to_json(&self) -> Value {
+        self.try_build_json().unwrap_or_else(|e| {
+            panic!(
+                "StonecuttingRecipe::to_json() failed for {}: {e}",
+                self.location
+            )
+        })
+    }
+    fn try_content(&self) -> SandResult<ComponentContent> {
+        self.validate()?;
+        Ok(ComponentContent::Json(self.try_build_json()?))
     }
 
     fn component_dir(&self) -> &'static str {
         "recipe"
+    }
+}
+
+fn error(location: &ResourceLocation, field: &str, message: &str) -> SandError {
+    SandError::ComponentValidation {
+        location: location.clone(),
+        kind: "recipe".into(),
+        field: field.into(),
+        message: message.into(),
     }
 }

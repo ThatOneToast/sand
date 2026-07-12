@@ -255,4 +255,141 @@ mod tests {
         };
         assert_eq!(v, json, "try_content output must match to_json output");
     }
+
+    #[test]
+    fn shaped_grid_invariants_are_contextual() {
+        let uneven = ShapedRecipe::new(id("uneven"))
+            .pattern(["XX", "X"])
+            .key('X', Ingredient::item("minecraft:stone"))
+            .result(result());
+        assert!(
+            uneven
+                .validate()
+                .unwrap_err()
+                .to_string()
+                .contains("pattern[1]")
+        );
+
+        let oversized = ShapedRecipe::new(id("oversized"))
+            .pattern(["XXXX"])
+            .key('X', Ingredient::item("minecraft:stone"))
+            .result(result());
+        assert!(
+            oversized
+                .validate()
+                .unwrap_err()
+                .to_string()
+                .contains("pattern[0]")
+        );
+
+        let space = ShapedRecipe::new(id("space"))
+            .pattern(["X"])
+            .key('X', Ingredient::item("minecraft:stone"))
+            .key(' ', Ingredient::item("minecraft:air"))
+            .result(result());
+        assert!(
+            space
+                .validate()
+                .unwrap_err()
+                .to_string()
+                .contains("key[' ']")
+        );
+    }
+
+    #[test]
+    fn shapeless_validates_count_nested_ingredients_and_result() {
+        let empty = ShapelessRecipe::new(id("empty_shapeless")).result(result());
+        assert!(
+            empty
+                .try_content()
+                .unwrap_err()
+                .to_string()
+                .contains("ingredients")
+        );
+
+        let nested = ShapelessRecipe::new(id("nested_shapeless"))
+            .ingredient(Ingredient::alternatives([Ingredient::alternatives([])]))
+            .result(result());
+        assert!(
+            nested
+                .try_content()
+                .unwrap_err()
+                .to_string()
+                .contains("ingredients[0].alternatives[0]")
+        );
+
+        let too_many = (0..10).fold(
+            ShapelessRecipe::new(id("too_many")).result(result()),
+            |recipe, _| recipe.ingredient(Ingredient::item("minecraft:stone")),
+        );
+        assert!(
+            too_many
+                .validate()
+                .unwrap_err()
+                .to_string()
+                .contains("at most 9")
+        );
+    }
+
+    #[test]
+    fn cooking_validates_required_fields_finite_experience_and_time() {
+        let missing = CookingRecipe::new(id("missing_cooking"), CookingType::Smelting);
+        assert!(
+            missing
+                .try_content()
+                .unwrap_err()
+                .to_string()
+                .contains("ingredient")
+        );
+        for experience in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+            let recipe = CookingRecipe::new(id("xp"), CookingType::Smelting)
+                .ingredient(Ingredient::item("minecraft:potato"))
+                .result(result())
+                .experience(experience);
+            assert!(
+                recipe
+                    .try_content()
+                    .unwrap_err()
+                    .to_string()
+                    .contains("experience")
+            );
+        }
+        let zero = CookingRecipe::new(id("time"), CookingType::Smelting)
+            .ingredient(Ingredient::item("minecraft:potato"))
+            .result(result())
+            .cooking_time(0);
+        assert!(
+            zero.validate()
+                .unwrap_err()
+                .to_string()
+                .contains("cookingtime")
+        );
+    }
+
+    #[test]
+    fn stonecutting_and_smithing_validate_each_required_field() {
+        let stone = StonecuttingRecipe::new(id("stone"))
+            .ingredient(Ingredient::item("minecraft:stone"))
+            .result(result())
+            .count(0);
+        assert!(
+            stone
+                .try_content()
+                .unwrap_err()
+                .to_string()
+                .contains("count")
+        );
+
+        let transform = SmithingTransformRecipe::new(id("transform_missing"));
+        assert!(
+            transform
+                .try_content()
+                .unwrap_err()
+                .to_string()
+                .contains("template")
+        );
+        let trim = SmithingTrimRecipe::new(id("trim_missing"))
+            .template(Ingredient::item("minecraft:template"));
+        assert!(trim.try_content().unwrap_err().to_string().contains("base"));
+    }
 }

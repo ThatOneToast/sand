@@ -196,6 +196,8 @@ fn try_export_components_impl(
     let mut death_tick_events: Vec<&EventDescriptor> = Vec::new();
     let mut respawn_tick_events: Vec<&EventDescriptor> = Vec::new();
     let mut xp_level_up_events: Vec<&EventDescriptor> = Vec::new();
+    let mut transition_handlers: Vec<crate::transition::TransitionHandler> = Vec::new();
+    let mut transition_private_metadata: BTreeMap<String, (String, String)> = BTreeMap::new();
     // (descriptor, condition_string)
     let mut tick_poll_events: Vec<(&EventDescriptor, String)> = Vec::new();
     // Shared armor watch map — populated by both EventDescriptor ArmorEquip/
@@ -362,6 +364,22 @@ fn try_export_components_impl(
                     content: commands.join("\n"),
                 });
                 xp_level_up_events.push(desc);
+            }
+
+            // ── Reusable tracked transition ──────────────────────────────────
+            EventDispatch::Tracked(transition) => {
+                records.push(ComponentRecord {
+                    namespace: namespace.to_string(),
+                    dir: "function".to_string(),
+                    path: desc.path.to_string(),
+                    ext: "mcfunction".to_string(),
+                    content_type: "text".to_string(),
+                    content: commands.join("\n"),
+                });
+                transition_handlers.push(crate::transition::TransitionHandler {
+                    path: desc.path.to_string(),
+                    transition: *transition,
+                });
             }
 
             // ── ArmorEquip ───────────────────────────────────────────────────
@@ -995,14 +1013,89 @@ fn try_export_components_impl(
             .push(format!("{namespace}:{path}"));
     }
 
-    // ── Typed-state lifecycle ─────────────────────────────────────────────────
+    // ── Tracked transitions + typed-state lifecycle ───────────────────────────
     // Link-time declarations are rebuilt on every export. Manual registries are
     // still drained after all factories so existing registration paths remain
     // supported.
     {
-        let automatic =
+        let mut transition_predicates = BTreeMap::new();
+        for handler in &transition_handlers {
+            if let crate::TrackedSource::BooleanCondition { condition, .. } =
+                handler.transition.source
+                && let Some((path, flag)) = sand_player_state_predicate(condition)
+            {
+                transition_predicates.insert(path, flag);
+            }
+        }
+        for (path, flag) in transition_predicates {
+            if !records
+                .iter()
+                .any(|record| record.dir == "predicate" && record.path == path)
+            {
+                records.push(ComponentRecord {
+                    namespace: namespace.to_string(),
+                    dir: "predicate".to_string(),
+                    path: path.to_string(),
+                    ext: "json".to_string(),
+                    content_type: "text".to_string(),
+                    content: serde_json::to_string_pretty(&player_state_predicate_json(flag))
+                        .unwrap(),
+                });
+            }
+        }
+
+        let transition_plan =
+            crate::transition::resolve_transition_plan(namespace, &transition_handlers)
+                .map_err(transition_export_error)?;
+        for generated in &transition_plan.functions {
+            transition_private_metadata.insert(
+                generated.path.clone(),
+                (generated.tracker_id.clone(), generated.source.clone()),
+            );
+            ensure_private_transition_path_available(
+                &records,
+                &generated.path,
+                &generated.tracker_id,
+                &generated.source,
+            )?;
+            records.push(ComponentRecord {
+                namespace: namespace.to_string(),
+                dir: "function".to_string(),
+                path: generated.path.clone(),
+                ext: "mcfunction".to_string(),
+                content_type: "text".to_string(),
+                content: generated.commands.join("\n"),
+            });
+        }
+
+        let mut automatic =
             crate::state::registry::automatic_lifecycle().map_err(lifecycle_export_error)?;
+        let transition_objectives = &transition_plan.private_objectives;
+        for command in &automatic.load_commands {
+            if let Some(objective) = command.split_whitespace().nth(3)
+                && let Some((tracker_id, source)) = transition_objectives.get(objective)
+            {
+                return Err(transition_export_error(format!(
+                    "tracker `{tracker_id}` source `{source}` generated private objective `{objective}`, which collides with an automatic state declaration"
+                )));
+            }
+        }
+        automatic
+            .load_commands
+            .extend(transition_plan.load_commands);
+        automatic
+            .tick_commands
+            .extend(transition_plan.tick_commands);
         let manual_load_cmds = crate::state::drain_load_commands();
+        for command in &manual_load_cmds {
+            if let Some(objective) = command.split_whitespace().nth(3)
+                && let Some((tracker_id, source)) = transition_objectives.get(objective)
+            {
+                return Err(transition_export_error(format!(
+                    "tracker `{tracker_id}` source `{source}` generated private objective `{objective}`, which collides with a manual lifecycle registration"
+                )));
+            }
+        }
         let mut load_definitions: BTreeMap<String, (String, String)> = BTreeMap::new();
 
         for command in automatic.load_commands.into_iter().chain(manual_load_cmds) {
@@ -1188,6 +1281,22 @@ fn try_export_components_impl(
             )));
         }
     }
+    let mut private_transition_paths = std::collections::BTreeSet::new();
+    for record in records
+        .iter()
+        .filter(|record| record.dir == "function" && record.path.starts_with("__sand_transition/"))
+    {
+        if !private_transition_paths.insert(record.path.as_str()) {
+            let (tracker_id, source) = transition_private_metadata
+                .get(&record.path)
+                .map(|(id, source)| (id.as_str(), source.as_str()))
+                .unwrap_or(("unknown", "unknown"));
+            return Err(transition_export_error(format!(
+                "tracker `{tracker_id}` source `{source}` generated private function `{}`, which collides with a later generated function",
+                record.path,
+            )));
+        }
+    }
 
     Ok(records)
 }
@@ -1215,6 +1324,33 @@ fn lifecycle_export_error(message: impl Into<String>) -> ComponentExportError {
         field: "declarations".to_string(),
         message: message.into(),
     }
+}
+
+fn transition_export_error(message: impl Into<String>) -> ComponentExportError {
+    ComponentExportError::ComponentValidation {
+        location: sand_components::ResourceLocation::new("sand", "transitions")
+            .expect("fixed transition resource location is valid"),
+        kind: "tracked_transition".to_string(),
+        field: "trackers".to_string(),
+        message: message.into(),
+    }
+}
+
+fn ensure_private_transition_path_available(
+    records: &[ComponentRecord],
+    path: &str,
+    tracker_id: &str,
+    source: &str,
+) -> ExportResult<()> {
+    if records
+        .iter()
+        .any(|record| record.dir == "function" && record.path == path)
+    {
+        return Err(transition_export_error(format!(
+            "tracker `{tracker_id}` source `{source}` generated private function `{path}`, which collides with a user or component function"
+        )));
+    }
+    Ok(())
 }
 
 /// Fallibly collect all inventory-registered components and return them as a

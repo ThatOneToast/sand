@@ -1,50 +1,4 @@
 error[E0277]: the trait bound `NotAnAdvancementEvent: AdvancementEvent` is not satisfied
- --> tests/cases/fail_event_generic_not_advancement.rs:6:1
-  |
-6 | #[event]
-  | ^^^^^^^^ unsatisfied trait bound
-  |
-help: the trait `AdvancementEvent` is not implemented for `NotAnAdvancementEvent`
- --> tests/cases/fail_event_generic_not_advancement.rs:4:1
-  |
-4 | pub struct NotAnAdvancementEvent;
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  = help: the following other types implement trait `AdvancementEvent`:
-            AnimalTamed
-            AnimalsBreed
-            AnyBlockPlaced
-            AnyItemConsumed
-            AnyItemCrafted
-            AnyItemEnchanted
-            BeeNestDestroyedEvent
-            BrewPotionEvent
-          and $N others
-note: required by a bound in `Event`
- --> $WORKSPACE/sand-core/src/event/mod.rs
-  |
-  | pub struct Event<E: AdvancementEvent> {
-  |                     ^^^^^^^^^^^^^^^^ required by this bound in `Event`
-  = note: this error originates in the attribute macro `event` (in Nightly builds, run with -Z macro-backtrace for more info)
-
-error[E0599]: the associated function or constant `context` exists for struct `Event<NotAnAdvancementEvent>`, but its trait bounds were not satisfied
- --> tests/cases/fail_event_generic_not_advancement.rs:6:1
-  |
-4 | pub struct NotAnAdvancementEvent;
-  | -------------------------------- doesn't satisfy `NotAnAdvancementEvent: AdvancementEvent`
-5 |
-6 | #[event]
-  | ^^^^^^^^ associated function or constant cannot be called on `Event<NotAnAdvancementEvent>` due to unsatisfied trait bounds
-  |
-  = note: the following trait bounds were not satisfied:
-          `NotAnAdvancementEvent: AdvancementEvent`
-note: the trait `AdvancementEvent` must be implemented
- --> $WORKSPACE/sand-core/src/event/mod.rs
-  |
-  | pub trait AdvancementEvent {
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^
-  = note: this error originates in the attribute macro `event` (in Nightly builds, run with -Z macro-backtrace for more info)
-
-error[E0277]: the trait bound `NotAnAdvancementEvent: AdvancementEvent` is not satisfied
  --> tests/cases/fail_event_generic_not_advancement.rs:7:25
   |
 7 | pub fn bad(event: Event<NotAnAdvancementEvent>) {
@@ -88,3 +42,11 @@ help: the trait `AdvancementEvent` is not implemented for `NotAnAdvancementEvent
             BrewPotionEvent
           and $N others
   = note: this error originates in the attribute macro `event` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused import: `sand_core::prelude`
+ --> tests/cases/fail_event_generic_not_advancement.rs:1:5
+  |
+1 | use sand_core::prelude::*;
+  |     ^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default

@@ -96,10 +96,11 @@ struct NewArgs {
 
     /// Use local path dependencies pointing into a Sand workspace checkout
     ///
-    /// By default, versioned crate deps are emitted (e.g. `sand-core = "0.1.0"`),
-    /// which produce portable projects without requiring a local Sand workspace.
-    /// Pass this flag if you are developing Sand itself and want Cargo to pick
-    /// up your in-tree changes without publishing.
+    /// By default, git dependencies against this repo's `main` branch are
+    /// emitted (e.g. `sand-core = { git = "https://github.com/ThatOneToast/sand", branch = "main" }`),
+    /// since Sand is not yet published to crates.io. Pass this flag if you
+    /// are developing Sand itself and want Cargo to pick up your in-tree
+    /// changes without pushing to `main`.
     #[arg(long)]
     path_deps: bool,
 }
@@ -124,10 +125,11 @@ struct InitArgs {
 
     /// Use local path dependencies pointing into a Sand workspace checkout
     ///
-    /// By default, versioned crate deps are emitted (e.g. `sand-core = "0.1.0"`),
-    /// which produce portable projects without requiring a local Sand workspace.
-    /// Pass this flag if you are developing Sand itself and want Cargo to pick
-    /// up your in-tree changes without publishing.
+    /// By default, git dependencies against this repo's `main` branch are
+    /// emitted (e.g. `sand-core = { git = "https://github.com/ThatOneToast/sand", branch = "main" }`),
+    /// since Sand is not yet published to crates.io. Pass this flag if you
+    /// are developing Sand itself and want Cargo to pick up your in-tree
+    /// changes without pushing to `main`.
     #[arg(long)]
     path_deps: bool,
 }

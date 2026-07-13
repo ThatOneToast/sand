@@ -21,9 +21,15 @@ const SAND_RESOURCE_EXPORT_RS_HBS: &str =
 // Embedded at compile time by sand/build.rs.
 pub(crate) const WORKSPACE_ROOT: &str = env!("SAND_WORKSPACE_ROOT");
 
-/// The Sand workspace version — used for versioned dependency strings in
-/// scaffolded projects so they don't require local workspace paths.
+/// The Sand workspace version — surfaced in scaffolded projects for
+/// diagnostics; no longer used to build dependency version strings, since
+/// Sand is not published to crates.io (see `SAND_GIT_URL`).
 const SAND_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+/// The Sand GitHub repository URL. Scaffolded projects that don't use
+/// `--path-deps` depend on this repo's `main` branch via a git dependency,
+/// since Sand has no crates.io release yet.
+const SAND_GIT_URL: &str = env!("CARGO_PKG_REPOSITORY");
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
@@ -52,9 +58,10 @@ pub struct ScaffoldOptions {
     /// When `true`, scaffolded `Cargo.toml` uses local `path = "..."` deps
     /// pointing into the Sand workspace (useful for Sand contributors).
     ///
-    /// When `false` (the default), versioned crate deps are emitted:
-    /// `sand-core = "0.1.0"`.  This produces portable projects that don't
-    /// require a local Sand workspace checkout to build.
+    /// When `false` (the default), git dependencies are emitted instead:
+    /// `sand-core = { git = "https://github.com/ThatOneToast/sand", branch = "main" }`.
+    /// Sand has no crates.io release yet, so this is the only dependency form
+    /// that resolves without a local Sand workspace checkout.
     pub use_path_deps: bool,
 }
 
@@ -142,6 +149,7 @@ pub fn write_scaffold_files(opts: &ScaffoldOptions) -> Result<()> {
         "resourcepack":           opts.resourcepack,
         "use_path_deps":          opts.use_path_deps,
         "sand_version":           SAND_VERSION,
+        "sand_git_url":           SAND_GIT_URL,
     });
 
     let hbs = build_handlebars();
@@ -286,6 +294,7 @@ mod tests {
             "resourcepack":           false,
             "use_path_deps":          false,
             "sand_version":           "0.1.0",
+            "sand_git_url":           "https://github.com/ThatOneToast/sand",
         });
 
         let hbs = build_handlebars();
@@ -323,13 +332,20 @@ mod tests {
         let lib_rs = std::fs::read_to_string(project_dir.join("src/lib.rs")).unwrap();
         assert!(lib_rs.contains("#[function]"));
         assert!(lib_rs.contains("Welcome to test_pack!"));
-        assert!(lib_rs.contains("#[component]"));
+        // Join detection uses Sand's native OnJoinEvent, not a hand-written
+        // advancement/tick #[component].
+        assert!(lib_rs.contains("#[event]"));
+        assert!(lib_rs.contains("OnJoinEvent"));
+        assert!(lib_rs.contains("Event<OnJoinEvent>"));
+        assert!(!lib_rs.contains("#[component]"));
+        assert!(!lib_rs.contains("AdvancementTrigger::Tick"));
         assert!(lib_rs.contains("__sand_export"));
         // Attribute-first: scaffold uses typed commands, not raw mcfunction!
         assert!(lib_rs.contains("use sand_core::prelude::*"));
         assert!(lib_rs.contains("cmd::tellraw("));
+        assert!(lib_rs.contains("cmd::call(hello_world)"));
         assert!(lib_rs.contains("Text::new("));
-        assert!(lib_rs.contains("Selector::all_players()"));
+        assert!(lib_rs.contains("Selector::self_()"));
         // No raw mcfunction usage in generated beginner code
         assert!(!lib_rs.contains("mcfunction!"));
         assert!(!lib_rs.contains("tellraw @"));
@@ -367,6 +383,7 @@ mod tests {
             "resourcepack":           true,
             "use_path_deps":          false,
             "sand_version":           "0.1.0",
+            "sand_git_url":           "https://github.com/ThatOneToast/sand",
         });
 
         let hbs = build_handlebars();
@@ -415,7 +432,8 @@ mod tests {
         assert!(cargo_toml.contains("sand-resourcepack"));
         assert!(cargo_toml.contains("features = [\"resourcepack\"]"));
         assert!(cargo_toml.contains("sand_resource_export"));
-        // Default scaffold emits versioned deps — no Sand crate should use path deps.
+        // Default scaffold emits git deps against main — no Sand crate should
+        // use path deps or a crates.io version (Sand isn't published there).
         assert!(
             !cargo_toml.contains("sand-core = { path"),
             "default scaffold must not contain path dep for sand-core"
@@ -431,7 +449,7 @@ mod tests {
     }
 
     #[test]
-    fn default_scaffold_emits_versioned_deps() {
+    fn default_scaffold_emits_git_deps() {
         let dir = tempfile::tempdir().unwrap();
         let project_dir = dir.path().join("ver_pack");
         std::fs::create_dir_all(project_dir.join("src/bin")).unwrap();
@@ -451,6 +469,7 @@ mod tests {
             "resourcepack":           false,
             "use_path_deps":          false,
             "sand_version":           "0.1.0",
+            "sand_git_url":           "https://github.com/ThatOneToast/sand",
         });
 
         let hbs = build_handlebars();
@@ -477,8 +496,16 @@ mod tests {
             "sand-build dep must be present"
         );
         assert!(
-            cargo_toml.contains("\"0.1.0\""),
-            "versioned deps must use the crate version"
+            cargo_toml.contains("git = \"https://github.com/ThatOneToast/sand\""),
+            "default scaffold must depend on the Sand GitHub repo — Sand is not on crates.io"
+        );
+        assert!(
+            cargo_toml.contains("branch = \"main\""),
+            "default scaffold must track the main branch, not a tag/rev"
+        );
+        assert!(
+            !cargo_toml.contains("sand-core   = \"") && !cargo_toml.contains("sand-core = \""),
+            "default scaffold must not emit a bare crates.io version string for sand-core"
         );
         assert!(
             !cargo_toml.contains("sand-core = { path"),
@@ -519,6 +546,7 @@ mod tests {
             "resourcepack":           false,
             "use_path_deps":          true,
             "sand_version":           "0.1.0",
+            "sand_git_url":           "https://github.com/ThatOneToast/sand",
         });
 
         let hbs = build_handlebars();

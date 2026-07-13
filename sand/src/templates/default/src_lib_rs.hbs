@@ -1,12 +1,13 @@
 //! # {{name}}
 //!
-//! A Minecraft {{mc_version}} datapack built with [Sand](https://crates.io/crates/sand).
+//! A Minecraft {{mc_version}} datapack built with [Sand](https://github.com/ThatOneToast/sand).
 
+use sand_core::events::OnJoinEvent;
 use sand_core::prelude::*;
 {{#if resourcepack}}
-use sand_macros::{component, function, hud_bar, hud_element, texture};
+use sand_macros::{event, function, hud_bar, hud_element, texture};
 {{else}}
-use sand_macros::{component, function};
+use sand_macros::{event, function};
 {{/if}}
 
 // -- State ------------------------------------------------------------------
@@ -15,30 +16,37 @@ static PLAYER_DATA: StorageVar<i32> = StorageVar::new("{{namespace}}:data", "pla
 
 // -- Functions -------------------------------------------------------------
 
-/// Broadcasts a welcome message to all players.
+/// Sends a welcome message to the joining player.
 ///
 /// Automatically written to `data/{{namespace}}/function/hello_world.mcfunction`
-/// by `sand build`.
+/// by `sand build`. Called from `on_join` below via a typed function
+/// reference (`cmd::call`), and callable directly with `/function {{namespace}}:hello_world`.
 #[function]
 pub fn hello_world() {
     cmd::tellraw(
-        Selector::all_players(),
+        Selector::self_(),
         Text::new("Welcome to {{name}}!").gold().bold(true),
     );
 }
 
-// -- Components ------------------------------------------------------------
+// -- Events ------------------------------------------------------------------
 
-/// Fires `{{namespace}}:hello_world` the first tick after a player joins.
+/// Runs `hello_world` for a player on the first tick after each server
+/// start/reload, and for any new player who joins mid-session.
 ///
-/// Automatically written to `data/{{namespace}}/advancement/player_join.json`
-/// by `sand build`.
-#[component]
-pub fn player_join() -> sand_core::Advancement {
-    use sand_core::{Advancement, AdvancementRewards, AdvancementTrigger, Criterion};
-    Advancement::new("{{namespace}}:player_join".parse().unwrap())
-        .criterion("tick", Criterion::new(AdvancementTrigger::Tick))
-        .rewards(AdvancementRewards::new().function("{{namespace}}:hello_world"))
+/// `OnJoinEvent` is Sand's built-in join event — `#[event]` generates the
+/// scoreboard-backed detection and per-player dispatch automatically; no
+/// hand-written advancement or tick component is needed. Vanilla
+/// limitation: a mid-session disconnect/reconnect does not re-fire this
+/// event, because the join flag persists in `scoreboard.dat` (see
+/// `sand_core::events::OnJoinEvent`'s docs). For a "first time ever" welcome
+/// instead, use `Event<FirstJoinEvent>`. See `sand_core::events` for the
+/// full built-in event list (deaths, respawns, item use, block placement,
+/// and more).
+#[event]
+pub fn on_join(event: Event<OnJoinEvent>) {
+    let _ = event;
+    cmd::call(hello_world);
 }
 
 // -- Datapack export hook -- required by `sand build`, do not remove -------

@@ -27,12 +27,12 @@ sand-resourcepack = { path = "{{sand_resourcepack_path}}" }
 sand-macros = { path = "{{sand_macros_path}}" }
 {{/if}}
 {{else}}
-sand-core   = "{{sand_version}}"
+sand-core   = { git = "{{sand_git_url}}", branch = "main" }
 {{#if resourcepack}}
-sand-macros = { version = "{{sand_version}}", features = ["resourcepack"] }
-sand-resourcepack = "{{sand_version}}"
+sand-macros = { git = "{{sand_git_url}}", branch = "main", features = ["resourcepack"] }
+sand-resourcepack = { git = "{{sand_git_url}}", branch = "main" }
 {{else}}
-sand-macros = "{{sand_version}}"
+sand-macros = { git = "{{sand_git_url}}", branch = "main" }
 {{/if}}
 {{/if}}
 serde_json = "1"
@@ -41,5 +41,5 @@ serde_json = "1"
 {{#if use_path_deps}}
 sand-build = { path = "{{sand_build_path}}" }
 {{else}}
-sand-build = "{{sand_version}}"
+sand-build = { git = "{{sand_git_url}}", branch = "main" }
 {{/if}}

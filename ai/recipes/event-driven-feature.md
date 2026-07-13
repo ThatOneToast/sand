@@ -1,8 +1,8 @@
 ---
 id: event-driven-feature
 capabilities:
-  - advancement-triggers
   - events-typed
+  - advancement-triggers
   - score-state
 minecraft:
   minimum: "1.18.0"
@@ -18,20 +18,51 @@ verification:
 
 ## Intent
 
-React to a gameplay event using an advancement trigger, with a typed
-function reward, and re-arm the detector by revoking the advancement. This
-is the standard pattern for "detect X and run a function" when no dedicated
-Sand systems helper exists for X (e.g. join detection —
-`systems-lifecycle`'s `lifecycle-events` capability wraps this exact pattern
-for join/death/respawn; reach for it first if it fits, and use this raw
-pattern for other trigger-shaped events it doesn't cover).
+React to a gameplay event with a typed handler. Sand ships a built-in event
+library (`sand_core::events`) covering joins, deaths, respawns, combat,
+item use, block placement, equipment changes, and more — reach for one of
+those with `#[event]` before hand-rolling an advancement. Only build a raw
+advancement-trigger-plus-revoke component when the event isn't in that
+built-in list and isn't expressible as a custom `AdvancementEvent`/`SandEvent`
+either.
 
 ## Required crates and features
 
-`sand-core`, `sand-macros`. No optional Cargo features required for the
-`minecraft:tick`-trigger pattern shown here.
+`sand-core`, `sand-macros`. No optional Cargo features required for either
+pattern shown here.
 
-## Code
+## Code — preferred: built-in typed event
+
+```rust
+use sand_core::events::OnJoinEvent;
+use sand_core::prelude::*;
+use sand_macros::{event, function};
+
+static VISITS: ScoreVar<i32> = ScoreVar::new("visits");
+
+#[function]
+pub fn welcome_back() {
+    VISITS.add(Selector::self_(), 1);
+    cmd::tellraw(Selector::self_(), Text::new("Welcome back").gold());
+}
+
+#[event]
+pub fn on_join(event: Event<OnJoinEvent>) {
+    let _ = event;
+    cmd::call(welcome_back);
+}
+```
+
+`#[event]` on a handler taking `Event<OnJoinEvent>` generates all detection
+and dispatch — no `#[component(Load)]`, advancement JSON, or manual
+`advancement revoke` call needed. See `sand_core::events`'s module docs for
+the full built-in list (`OnDeathEvent`, `OnRespawnEvent`, `ItemConsumeEvent`,
+`BlockPlaceEvent`, `ArmorEquipEvent`, `EntityKillEvent`, and ~40 more), and
+`sand_core::event::AdvancementEvent`/`sand_core::events::SandEvent` for
+defining your own typed event backed by a specific advancement trigger or
+tick condition.
+
+## Code — fallback: raw advancement trigger (only when no typed event fits)
 
 ```rust
 use sand_core::prelude::*;
@@ -45,55 +76,90 @@ pub fn on_load() {
 }
 
 #[component]
-pub fn detect_join() -> Advancement {
-    Advancement::new(ResourceLocation::new("my_pack", "detect_join").unwrap())
-        .criterion("joined", Criterion::new(AdvancementTrigger::Tick))
-        .rewards(AdvancementRewards::new().function("my_pack:on_player_join"))
+pub fn detect_custom_condition() -> Advancement {
+    Advancement::new(ResourceLocation::new("my_pack", "detect_custom_condition").unwrap())
+        .criterion("met", Criterion::new(AdvancementTrigger::Tick))
+        .rewards(AdvancementRewards::new().function("my_pack:on_custom_condition"))
 }
 
 #[function]
-pub fn on_player_join() {
+pub fn on_custom_condition() {
     VISITS.add(Selector::self_(), 1);
-    cmd::tellraw(Selector::self_(), Text::new("Welcome back").gold());
-    cmd::advancement_revoke_only(Selector::self_(), "my_pack:detect_join");
+    cmd::tellraw(Selector::self_(), Text::new("Condition met").gold());
+    cmd::advancement_revoke_only(Selector::self_(), "my_pack:detect_custom_condition");
 }
 ```
 
+This is the same mechanism the built-in events are generated from — use it
+directly only for a condition none of them cover (or implement
+`SandEvent`/`AdvancementEvent` on your own marker type and keep using
+`#[event]`, which gets you the same self-registration ergonomics).
+
 ## Expected generated resources
 
-- `data/my_pack/advancement/detect_join.json` — a `minecraft:tick`-triggered
-  advancement whose reward function is `on_player_join`.
-- `data/my_pack/function/on_player_join.mcfunction` — increments `visits`,
-  sends a message, then runs `advancement revoke @s only my_pack:detect_join`
-  to re-arm detection for the next login.
+**Built-in event (`OnJoinEvent`) version:**
+- `data/my_pack/function/on_join.mcfunction` — the handler body (`function
+  my_pack:welcome_back`).
+- `data/my_pack/function/__sand_join_check.mcfunction` — Sand-generated,
+  registered in `minecraft:tick`, dispatches to `on_join` for any online
+  player whose `__sand_join` score isn't `1`, then sets it.
+- `data/my_pack/function/__sand_join_init.mcfunction` — Sand-generated,
+  registered in `minecraft:load`, defines and resets the `__sand_join`
+  objective.
+
+**Raw advancement fallback version:**
+- `data/my_pack/advancement/detect_custom_condition.json` — a
+  `minecraft:tick`-triggered advancement whose reward function is
+  `on_custom_condition`.
+- `data/my_pack/function/on_custom_condition.mcfunction` — increments
+  `visits`, sends a message, then runs `advancement revoke @s only
+  my_pack:detect_custom_condition` to re-arm detection.
 - `data/my_pack/function/load.mcfunction` — defines the `visits` objective.
 
 ## Sand limitations
 
-None — advancement triggers and typed function refs are `implemented`.
+None — the built-in event library, advancement triggers, and typed function
+refs are all `implemented`.
 
 ## Vanilla limitations
 
-Advancement triggers fire on a condition check, not a rich event with a
-payload (`LIM-VAN-002` in `ai/known-limitations.md`). The
-`minecraft:tick`-trigger-plus-revoke pattern above is the standard vanilla
-idiom for detecting joins because there is no dedicated "on join" trigger;
-it works by re-arming every tick per player and firing exactly once per
-login, but it is a polling approximation, not a native event.
+`OnJoinEvent` fires on the first tick after each server start/reload, or for
+a new player mid-session — but a mid-session **disconnect → reconnect**
+without a `/reload` does **not** re-fire it, because the join flag persists
+in `scoreboard.dat` (see `sand_core::events::OnJoinEvent`'s docs). True
+per-login detection for reconnects requires a mod or plugin; it is not
+achievable in vanilla datapacks. For a "very first join, ever" welcome
+instead of "every session," use `Event<FirstJoinEvent>`.
+
+More generally, advancement triggers fire on a condition check, not a rich
+event with a payload (`LIM-VAN-002` in `ai/known-limitations.md`) — this
+applies to both the built-in events and the raw fallback pattern.
 
 ## Validation steps
 
 1. `cargo build`.
-2. `cargo run -p sand -- build`; read `dist/.../advancement/detect_join.json` and confirm the trigger/reward shape, and `on_player_join.mcfunction` for the revoke command.
-3. Not vanilla-reload-verified in this review — confirming the re-arm timing (exactly once per login, not once per tick) requires an actual server test.
+2. `cargo run -p sand -- build`; for the `OnJoinEvent` version, read
+   `dist/.../function/on_join.mcfunction`, `__sand_join_check.mcfunction`,
+   and `__sand_join_init.mcfunction`. For the raw fallback, read
+   `dist/.../advancement/detect_custom_condition.json` and
+   `on_custom_condition.mcfunction`.
+3. Verified against a real `sand new --path-deps && sand build` run with
+   network access (2026-07-12) for the `OnJoinEvent` pattern — confirmed
+   the three generated files above and their contents. The raw-advancement
+   fallback was compile-checked only, not re-verified against a live build
+   in this pass. Neither was vanilla-reload-verified (`LIM-VAL-001`).
 
 ## Common incorrect approaches
 
-- Omitting the `advancement_revoke_only` call — without it, the advancement
-  stays granted and `on_player_join` never fires again for that player.
-- Assuming `AdvancementTrigger::Tick` exposes any event payload — it's a
-  pure condition check; all context (who joined, what to do) has to come
-  from `Selector::self_()` and typed state you read/write yourself.
-- Reaching for a `systems-lifecycle` type without enabling that Cargo
-  feature — if the project doesn't need the fuller lifecycle helpers, this
-  raw advancement pattern needs no extra feature flags at all.
+- Hand-writing an advancement + `#[component(Load)]` + revoke call for join
+  detection — `OnJoinEvent` already generates this; duplicating it is dead
+  weight and easy to get subtly wrong (e.g. forgetting the revoke, or using
+  a tag instead of a scoreboard and getting the wrong persistence
+  semantics — see the vanilla-limitations note above).
+- Omitting `advancement_revoke_only` in the raw fallback pattern — without
+  it, the advancement stays granted and the reward function never fires
+  again for that player.
+- Assuming `AdvancementTrigger::Tick` or a built-in event exposes rich event
+  payload data — both are pure condition checks; all context has to come
+  from `Selector::self_()`/`event.player()` and typed state you read/write
+  yourself.

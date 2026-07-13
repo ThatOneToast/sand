@@ -32,7 +32,7 @@ current level of type safety, and defines the planned migration path.
 | `AdvancementDisplay::title` | **Needs redesign** | Stores `Value`, accepts `impl Into<Value>` — should be `TextComponent` |
 | `AdvancementDisplay::description` | **Needs redesign** | Same as `title` |
 | `AdvancementDisplay::background` | **Mostly typed** | Raw `String` for texture path — acceptable as `ResourceLocation` |
-| `AdvancementTrigger` (all variants) | **Mostly typed** | Typed predicates plus validated associated constructors for resource-bearing variants; legacy string-field variants remain compatibility/raw paths |
+| `AdvancementTrigger` (all variants) | **Mostly typed** | Typed predicates plus validated associated constructors for resource-bearing variants; legacy string-field variants remain compatibility/raw paths. `PlacedBlock`/`ItemUsedOnBlock` render through `render_for(caps)`, a fallible profile-aware boundary that selects the vanilla-correct `location_check`/`match_tool` condition schema per target instead of one unconditional `Serialize` shape (#232, #233) |
 | `AdvancementRewards::recipes` | **Needs redesign** | `Vec<String>` — should be `Vec<ResourceLocation>` |
 | `AdvancementRewards::loot` | **Needs redesign** | `Vec<String>` — same |
 | `AdvancementRewards::function` | **Needs redesign** | `Option<String>` — should be `Option<ResourceLocation>` |
@@ -233,10 +233,10 @@ with an explicit `::raw(RawJson)` fallback on each type.
 |---|---|---|
 | `AdvancementEvent` trait | **Mostly typed** | Trigger associated type is typed; guard returns `Option<Condition>` |
 | `Event<E>` | **Typed** | Zero-cost context; clean |
-| `EventId` | **Typed** | Clean enum |
+| `EventId` | **Typed** | `Explicit(ResourceLocation)`; `explicit()`/`try_explicit()` validate at construction. `EventBuilder::id(...)` / `EventConfig::advancement(...)` accept typed `ResourceLocation` and `impl IntoFunctionRef` on the normal path via `IntoEventId`, with raw `&str`/`String` remaining source-compatible but validated immediately rather than deferred to `resolve()` (#196) |
 | `EventReset` | **Typed** | Clean (with backward-compat aliases) |
 | `EventVisibility` | **Typed** | Clean enum |
-| `EventAdvancement` | **Mostly typed** | IDs are raw strings; should use `ResourceLocation` |
+| `EventAdvancement` | **Mostly typed** | `advancement_id`/`handler_function` are still raw `String` fields on the struct (`EventAdvancement::new(impl Into<String>, impl Into<String>)`); the newer `EventConfig::advancement(...)` / `EventBuilder::id(...)` path is fully typed — migrating `EventAdvancement` itself is tracked separately |
 
 ### `cmd/mod.rs`
 

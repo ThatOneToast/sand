@@ -288,7 +288,7 @@ fn generated_lib_rs_has_required_sand_exports() {
 }
 
 #[test]
-fn generated_lib_rs_has_starter_function_and_component() {
+fn generated_lib_rs_has_starter_function_and_event() {
     let (_tmp, project) = scaffold_in_tempdir("my_pack");
 
     let content = std::fs::read_to_string(project.join("src/lib.rs")).unwrap();
@@ -297,9 +297,19 @@ fn generated_lib_rs_has_starter_function_and_component() {
         content.contains("#[function]"),
         "src/lib.rs must have at least one #[function]"
     );
+    // Join detection uses Sand's native OnJoinEvent (#[event]), not a
+    // hand-written advancement/tick #[component].
     assert!(
-        content.contains("#[component]"),
-        "src/lib.rs must have at least one #[component]"
+        content.contains("#[event]"),
+        "src/lib.rs must have at least one #[event]"
+    );
+    assert!(
+        content.contains("Event<OnJoinEvent>"),
+        "starter join handler must use Sand's native OnJoinEvent"
+    );
+    assert!(
+        !content.contains("#[component]"),
+        "starter code should not hand-roll a join-detection advancement component"
     );
     assert!(
         content.contains("hello_world"),
@@ -536,19 +546,30 @@ mod end_to_end {
         );
         assert_file_contains(&hello_fn, "tellraw");
 
-        // Advancement output.
-        let advancement = data_ns.join("advancement/player_join.json");
+        // Join event output — `#[event] fn on_join(event: Event<OnJoinEvent>)`
+        // compiles to a plain function plus Sand's generated JoinTick
+        // scaffolding (no hand-written advancement JSON).
+        let on_join_fn = data_ns.join("function/on_join.mcfunction");
         assert!(
-            advancement.exists(),
-            "data/my_pack/advancement/player_join.json must be written by `sand build`"
+            on_join_fn.exists(),
+            "data/my_pack/function/on_join.mcfunction must be written by `sand build`"
         );
-        let adv_value: serde_json::Value =
-            serde_json::from_str(&std::fs::read_to_string(&advancement).unwrap())
-                .expect("player_join.json must be valid JSON");
-        // Advancement JSON must have a criteria section.
+        assert_file_contains(&on_join_fn, "function my_pack:hello_world");
+
+        let join_check_fn = data_ns.join("function/__sand_join_check.mcfunction");
         assert!(
-            adv_value.get("criteria").is_some(),
-            "player_join.json must have a 'criteria' field"
+            join_check_fn.exists(),
+            "data/my_pack/function/__sand_join_check.mcfunction \
+             (Sand's generated OnJoinEvent dispatcher) must be written by `sand build`"
         );
+        assert_file_contains(&join_check_fn, "my_pack:on_join");
+
+        let join_init_fn = data_ns.join("function/__sand_join_init.mcfunction");
+        assert!(
+            join_init_fn.exists(),
+            "data/my_pack/function/__sand_join_init.mcfunction \
+             (Sand's generated OnJoinEvent load hook) must be written by `sand build`"
+        );
+        assert_file_contains(&join_init_fn, "scoreboard objectives add __sand_join");
     }
 }

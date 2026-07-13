@@ -116,13 +116,35 @@ pub fn run_resourcepack() -> Result<()> {
 
 // ── Patching helpers ──────────────────────────────────────────────────────────
 
-/// Extract the version string from any `sand-* = "X.Y.Z"` or
+/// Extract the `(git_url, branch)` pair from any `sand-* = { git = "...",
+/// branch = "...", ... }` line in a `Cargo.toml` string, so a newly-added
+/// dep tracks the same repo/branch as the project's existing sand-* deps.
+fn extract_sand_git(cargo_toml: &str) -> Option<(String, String)> {
+    for line in cargo_toml.lines() {
+        let trimmed = line.trim_start();
+        if !trimmed.starts_with("sand-") || !trimmed.contains("git =") {
+            continue;
+        }
+        let git_url = extract_quoted_value(trimmed, "git = \"")?;
+        let branch =
+            extract_quoted_value(trimmed, "branch = \"").unwrap_or_else(|| "main".to_string());
+        return Some((git_url, branch));
+    }
+    None
+}
+
+/// Extract the version string from any legacy `sand-* = "X.Y.Z"` or
 /// `sand-* = { version = "X.Y.Z", ... }` line in a `Cargo.toml` string.
-/// Returns `None` if no versioned sand dep is found (e.g. path-dep-only project).
+/// Only present in projects scaffolded before Sand switched its default
+/// scaffold to git dependencies (Sand has never been published to
+/// crates.io, so a versioned dep here means an older, already-broken
+/// project — `sand add` matches its existing style rather than silently
+/// rewriting it).
 fn extract_sand_version(cargo_toml: &str) -> Option<String> {
     for line in cargo_toml.lines() {
         let trimmed = line.trim_start();
-        if !trimmed.starts_with("sand-") {
+        if !trimmed.starts_with("sand-") || trimmed.contains("git =") || trimmed.contains("path =")
+        {
             continue;
         }
         // Simple form: sand-foo = "1.2.3"
@@ -132,15 +154,20 @@ fn extract_sand_version(cargo_toml: &str) -> Option<String> {
                 return Some(rhs[1..rhs.len() - 1].to_string());
             }
             // Inline table form: sand-foo = { version = "1.2.3", ... }
-            if let Some(ver_start) = rhs.find("version = \"") {
-                let after = &rhs[ver_start + 11..];
-                if let Some(end) = after.find('"') {
-                    return Some(after[..end].to_string());
-                }
+            if let Some(version) = extract_quoted_value(rhs, "version = \"") {
+                return Some(version);
             }
         }
     }
     None
+}
+
+/// Find `prefix` in `s` and return the quoted value that follows it.
+fn extract_quoted_value(s: &str, prefix: &str) -> Option<String> {
+    let start = s.find(prefix)? + prefix.len();
+    let after = &s[start..];
+    let end = after.find('"')?;
+    Some(after[..end].to_string())
 }
 
 /// Add `sand-resourcepack` dep, `features = ["resourcepack"]` on sand-macros,
@@ -148,8 +175,11 @@ fn extract_sand_version(cargo_toml: &str) -> Option<String> {
 fn patch_cargo_toml(original: &str, namespace: &str) -> Result<()> {
     let _ = namespace; // reserved for future namespace-aware path derivation
 
-    // Detect whether the project uses path deps or versioned deps by checking
-    // whether any sand-* line contains `path =`.
+    // Match the dependency style already used by this project's sand-* deps:
+    // path (contributor workspace), git (the default since Sand has no
+    // crates.io release), or a legacy version string (pre-existing projects
+    // scaffolded before the git-dep default). Falls back to a git dep
+    // against this CLI's own repo/main if no sand-* dep line is found.
     let uses_path_deps = original
         .lines()
         .any(|l| l.trim_start().starts_with("sand-") && l.contains("path ="));
@@ -157,12 +187,14 @@ fn patch_cargo_toml(original: &str, namespace: &str) -> Result<()> {
     let sand_resourcepack_dep = if uses_path_deps {
         let path = format!("{}/sand-resourcepack", WORKSPACE_ROOT);
         format!("sand-resourcepack = {{ path = \"{path}\" }}")
-    } else {
-        // Derive the version from an existing sand-* dep so we don't mix crate
-        // versions when the CLI is newer than the project's deps.
-        let version =
-            extract_sand_version(original).unwrap_or_else(|| env!("CARGO_PKG_VERSION").to_string());
+    } else if let Some((git_url, branch)) = extract_sand_git(original) {
+        format!("sand-resourcepack = {{ git = \"{git_url}\", branch = \"{branch}\" }}")
+    } else if let Some(version) = extract_sand_version(original) {
+        // Legacy versioned dep found — match it rather than mixing styles.
         format!("sand-resourcepack = \"{version}\"")
+    } else {
+        let git_url = env!("CARGO_PKG_REPOSITORY");
+        format!("sand-resourcepack = {{ git = \"{git_url}\", branch = \"main\" }}")
     };
 
     let mut lines: Vec<String> = original.lines().map(String::from).collect();
@@ -381,4 +413,67 @@ fn load_config() -> Result<SandConfig> {
         bail!("sand.toml not found — run `sand add resourcepack` from your project root");
     }
     toml::from_str(&std::fs::read_to_string(path)?).context("failed to parse sand.toml")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const GIT_DEP_CARGO_TOML: &str = concat!(
+        "[package]\n",
+        "name = \"my_pack\"\n",
+        "version = \"0.1.0\"\n",
+        "\n",
+        "[dependencies]\n",
+        "sand-core   = { git = \"https://github.com/ThatOneToast/sand\", branch = \"main\" }\n",
+        "sand-macros = { git = \"https://github.com/ThatOneToast/sand\", branch = \"main\" }\n",
+        "serde_json = \"1\"\n",
+    );
+
+    const PATH_DEP_CARGO_TOML: &str = concat!(
+        "[package]\n",
+        "name = \"my_pack\"\n",
+        "version = \"0.1.0\"\n",
+        "\n",
+        "[dependencies]\n",
+        "sand-core   = { path = \"/workspace/sand-core\" }\n",
+        "sand-macros = { path = \"/workspace/sand-macros\" }\n",
+    );
+
+    const LEGACY_VERSION_CARGO_TOML: &str = concat!(
+        "[package]\n",
+        "name = \"my_pack\"\n",
+        "version = \"0.1.0\"\n",
+        "\n",
+        "[dependencies]\n",
+        "sand-core = \"0.1.0\"\n",
+        "sand-macros = \"0.1.0\"\n",
+    );
+
+    #[test]
+    fn extract_sand_git_reads_url_and_branch() {
+        let (url, branch) = extract_sand_git(GIT_DEP_CARGO_TOML).unwrap();
+        assert_eq!(url, "https://github.com/ThatOneToast/sand");
+        assert_eq!(branch, "main");
+    }
+
+    #[test]
+    fn extract_sand_git_returns_none_for_path_deps() {
+        assert!(extract_sand_git(PATH_DEP_CARGO_TOML).is_none());
+    }
+
+    #[test]
+    fn extract_sand_version_ignores_git_and_path_deps() {
+        assert!(extract_sand_version(GIT_DEP_CARGO_TOML).is_none());
+        assert!(extract_sand_version(PATH_DEP_CARGO_TOML).is_none());
+        assert_eq!(
+            extract_sand_version(LEGACY_VERSION_CARGO_TOML),
+            Some("0.1.0".to_string())
+        );
+    }
+
+    // patch_cargo_toml writes directly to "Cargo.toml" in the process's
+    // current directory, so it isn't exercised here to avoid clobbering the
+    // real file under test; the dependency-style selection it relies on is
+    // covered by the extract_sand_git/extract_sand_version tests above.
 }

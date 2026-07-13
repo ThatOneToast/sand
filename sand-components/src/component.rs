@@ -78,6 +78,27 @@ pub trait DatapackComponent {
         Ok(self.content())
     }
 
+    /// Version-profile-aware fallible content extraction.
+    ///
+    /// Some components (notably [`crate::advancement::Advancement`]) render
+    /// different JSON depending on the target Minecraft version — e.g. which
+    /// trigger-condition schema family a criterion uses. The default
+    /// implementation ignores `caps` and delegates to
+    /// [`try_content`](Self::try_content), which is correct for every
+    /// component that has no version-dependent output shape.
+    ///
+    /// `caps` is `None` on the unprofiled compatibility export path
+    /// ([`crate::component`]'s `try_export_components`-style callers); callers
+    /// that resolved a target [`sand_version::VersionCaps`] should pass
+    /// `Some(caps)` so profile-aware components can select the correct schema.
+    fn try_content_for(
+        &self,
+        caps: Option<&sand_version::VersionCaps>,
+    ) -> SandResult<ComponentContent> {
+        let _ = caps;
+        self.try_content()
+    }
+
     /// Declare the Minecraft feature requirements for this component.
     ///
     /// The default is an empty slice (no version-gated features required).

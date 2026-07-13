@@ -321,10 +321,13 @@ pub enum EventDispatch {
     /// Custom event dispatch for types implementing [`crate::events::SandEvent`].
     ///
     /// At build time, Sand calls `make_trigger()` and `make_condition()` to
-    /// determine which dispatch path to use. Exactly one must return `Some`.
+    /// determine which dispatch path to use. Exactly one must return `Some`;
+    /// the export pipeline panics with a diagnostic naming the handler path
+    /// and both factory methods if neither or both return `Some` (#121).
     ///
-    /// - `Some` from `make_trigger` → advancement-backed dispatch
-    /// - `Some` from `make_condition` → tick-poll dispatch
+    /// - `Some` from `make_trigger`, `None` from `make_condition` → advancement-backed dispatch
+    /// - `None` from `make_trigger`, `Some` from `make_condition` → tick-poll dispatch
+    /// - both `None` or both `Some` → rejected at export time
     Custom {
         /// Returns `Some(AdvancementTrigger)` when using advancement dispatch.
         make_trigger: fn() -> Option<crate::AdvancementTrigger>,

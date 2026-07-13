@@ -74,7 +74,7 @@ fn component_to_record(
         ("copy", path.to_string())
     } else {
         let content = comp
-            .try_content()
+            .try_content_for(ctx.map(|c| c.caps))
             .map_err(|e| enrich_error(e, &rl, &kind))?;
         match content {
             ComponentContent::Json(v) => {
@@ -427,70 +427,72 @@ fn try_export_components_impl(
                 make_condition,
                 revoke,
             } => {
-                if let Some(trigger) = make_trigger() {
-                    // Advancement-backed custom (SandEvent) event.
-                    // Same entry/body split as the typed Advancement arm.
-                    let advancement_id = desc
-                        .id_override
-                        .map(|s| s.to_string())
-                        .unwrap_or_else(|| format!("{}:{}", namespace, desc.path));
-                    check_event_trigger(&trigger, &advancement_id, desc.path, ctx)?;
+                // Evaluate both factories once so we can distinguish "neither
+                // returned Some" from "both returned Some" — see #121. A
+                // trigger silently winning over a condition (or vice versa)
+                // would export a working-looking datapack that doesn't match
+                // what the `SandEvent` impl actually declared.
+                match resolve_custom_dispatch_backend(make_trigger(), make_condition(), desc.path) {
+                    CustomDispatchBackend::Advancement(trigger) => {
+                        // Advancement-backed custom (SandEvent) event.
+                        // Same entry/body split as the typed Advancement arm.
+                        let advancement_id = desc
+                            .id_override
+                            .map(|s| s.to_string())
+                            .unwrap_or_else(|| format!("{}:{}", namespace, desc.path));
+                        check_event_trigger(&trigger, &advancement_id, desc.path, ctx)?;
 
-                    let body_path = format!("{}/body", desc.path);
-                    let body_fn_ref = format!("{namespace}:{body_path}");
+                        let body_path = format!("{}/body", desc.path);
+                        let body_fn_ref = format!("{namespace}:{body_path}");
 
-                    records.push(ComponentRecord {
-                        namespace: namespace.to_string(),
-                        dir: "function".to_string(),
-                        path: body_path,
-                        ext: "mcfunction".to_string(),
-                        content_type: "text".to_string(),
-                        content: commands.join("\n"),
-                    });
+                        records.push(ComponentRecord {
+                            namespace: namespace.to_string(),
+                            dir: "function".to_string(),
+                            path: body_path,
+                            ext: "mcfunction".to_string(),
+                            content_type: "text".to_string(),
+                            content: commands.join("\n"),
+                        });
 
-                    let mut entry: Vec<String> = Vec::new();
-                    if (revoke)() {
-                        entry.push(format!("advancement revoke @s only {advancement_id}"));
+                        let mut entry: Vec<String> = Vec::new();
+                        if (revoke)() {
+                            entry.push(format!("advancement revoke @s only {advancement_id}"));
+                        }
+                        entry.push(format!("function {body_fn_ref}"));
+                        records.push(ComponentRecord {
+                            namespace: namespace.to_string(),
+                            dir: "function".to_string(),
+                            path: desc.path.to_string(),
+                            ext: "mcfunction".to_string(),
+                            content_type: "text".to_string(),
+                            content: entry.join("\n"),
+                        });
+
+                        let advancement = sand_components::Advancement::new(
+                            advancement_id
+                                .parse()
+                                .expect("invalid advancement ID in custom #[event]"),
+                        )
+                        .criterion("event", sand_components::Criterion::new(trigger))
+                        .rewards(
+                            sand_components::AdvancementRewards::new()
+                                .function(format!("{namespace}:{}", desc.path)),
+                        );
+
+                        records.push(component_to_record(&advancement, ctx)?);
                     }
-                    entry.push(format!("function {body_fn_ref}"));
-                    records.push(ComponentRecord {
-                        namespace: namespace.to_string(),
-                        dir: "function".to_string(),
-                        path: desc.path.to_string(),
-                        ext: "mcfunction".to_string(),
-                        content_type: "text".to_string(),
-                        content: entry.join("\n"),
-                    });
-
-                    let advancement = sand_components::Advancement::new(
-                        advancement_id
-                            .parse()
-                            .expect("invalid advancement ID in custom #[event]"),
-                    )
-                    .criterion("event", sand_components::Criterion::new(trigger))
-                    .rewards(
-                        sand_components::AdvancementRewards::new()
-                            .function(format!("{namespace}:{}", desc.path)),
-                    );
-
-                    records.push(component_to_record(&advancement, ctx)?);
-                } else if let Some(condition) = make_condition() {
-                    // Tick-poll custom event — same as TickPoll.
-                    records.push(ComponentRecord {
-                        namespace: namespace.to_string(),
-                        dir: "function".to_string(),
-                        path: desc.path.to_string(),
-                        ext: "mcfunction".to_string(),
-                        content_type: "text".to_string(),
-                        content: commands.join("\n"),
-                    });
-                    tick_poll_events.push((desc, condition));
-                } else {
-                    panic!(
-                        "Custom SandEvent for handler `{}` returned None from both \
-                         make_trigger() and make_condition() — implement exactly one",
-                        desc.path
-                    );
+                    CustomDispatchBackend::TickPoll(condition) => {
+                        // Tick-poll custom event — same as TickPoll.
+                        records.push(ComponentRecord {
+                            namespace: namespace.to_string(),
+                            dir: "function".to_string(),
+                            path: desc.path.to_string(),
+                            ext: "mcfunction".to_string(),
+                            content_type: "text".to_string(),
+                            content: commands.join("\n"),
+                        });
+                        tick_poll_events.push((desc, condition));
+                    }
                 }
             }
         }
@@ -1566,6 +1568,47 @@ fn sanitize_armor_tag(s: &str) -> String {
     raw.trim_matches('_').to_string()
 }
 
+/// The resolved dispatch backend for a custom [`crate::events::SandEvent`],
+/// after enforcing that exactly one of `make_trigger()` / `make_condition()`
+/// returned `Some` (see #121).
+#[allow(clippy::large_enum_variant)]
+enum CustomDispatchBackend {
+    Advancement(crate::AdvancementTrigger),
+    TickPoll(String),
+}
+
+/// Resolve which dispatch backend a custom `SandEvent` uses, enforcing the
+/// documented `EventDispatch::Custom` contract: exactly one of `make_trigger()`
+/// / `make_condition()` must return `Some`.
+///
+/// Both factories are evaluated by the caller *before* this function runs, so
+/// this is a pure decision function — panicking here (rather than returning a
+/// `Result`) matches the existing "both `None`" precedent: this is a Rust-level
+/// authoring bug in the `SandEvent` impl, detected at export/codegen time, not
+/// a runtime datapack-validity issue.
+fn resolve_custom_dispatch_backend(
+    trigger: Option<crate::AdvancementTrigger>,
+    condition: Option<String>,
+    handler_path: &str,
+) -> CustomDispatchBackend {
+    match (trigger, condition) {
+        (Some(trigger), None) => CustomDispatchBackend::Advancement(trigger),
+        (None, Some(condition)) => CustomDispatchBackend::TickPoll(condition),
+        (None, None) => {
+            panic!(
+                "Custom SandEvent for handler `{handler_path}` returned None from both \
+                 make_trigger() and make_condition() — implement exactly one"
+            );
+        }
+        (Some(_), Some(_)) => {
+            panic!(
+                "Custom SandEvent for handler `{handler_path}` returned both a trigger from \
+                 make_trigger() and a condition from make_condition() — implement exactly one"
+            );
+        }
+    }
+}
+
 /// Validate an advancement trigger for the target version, returning a
 /// fallible error instead of panicking.
 ///
@@ -1793,6 +1836,71 @@ mod tests {
         );
     }
 
+    // ── Custom SandEvent dispatch backend validation (#121) ────────────────────
+
+    #[test]
+    fn custom_dispatch_backend_accepts_trigger_only() {
+        let backend = super::resolve_custom_dispatch_backend(
+            Some(AdvancementTrigger::Tick),
+            None,
+            "my_pack:on_thing",
+        );
+        assert!(matches!(
+            backend,
+            super::CustomDispatchBackend::Advancement(_)
+        ));
+    }
+
+    #[test]
+    fn custom_dispatch_backend_accepts_condition_only() {
+        let backend = super::resolve_custom_dispatch_backend(
+            None,
+            Some("score @s foo matches 1..".to_string()),
+            "my_pack:on_thing",
+        );
+        assert!(matches!(backend, super::CustomDispatchBackend::TickPoll(_)));
+    }
+
+    #[test]
+    #[should_panic(expected = "returned None from both make_trigger() and make_condition()")]
+    fn custom_dispatch_backend_rejects_neither_backend() {
+        super::resolve_custom_dispatch_backend(None, None, "my_pack:on_thing");
+    }
+
+    #[test]
+    #[should_panic(expected = "returned both a trigger from make_trigger()")]
+    fn custom_dispatch_backend_rejects_both_backends() {
+        super::resolve_custom_dispatch_backend(
+            Some(AdvancementTrigger::Tick),
+            Some("score @s foo matches 1..".to_string()),
+            "my_pack:on_thing",
+        );
+    }
+
+    #[test]
+    fn custom_dispatch_backend_both_backends_panic_names_handler_path() {
+        let result = std::panic::catch_unwind(|| {
+            super::resolve_custom_dispatch_backend(
+                Some(AdvancementTrigger::Tick),
+                Some("score @s foo matches 1..".to_string()),
+                "my_pack:on_elevator_placed",
+            )
+        });
+        let err = match result {
+            Ok(_) => panic!("expected panic, got Ok"),
+            Err(err) => err,
+        };
+        let message = err
+            .downcast_ref::<String>()
+            .cloned()
+            .or_else(|| err.downcast_ref::<&str>().map(|s| s.to_string()))
+            .unwrap_or_default();
+        assert!(message.contains("my_pack:on_elevator_placed"), "{message}");
+        assert!(message.contains("make_trigger()"), "{message}");
+        assert!(message.contains("make_condition()"), "{message}");
+        assert!(message.contains("exactly one"), "{message}");
+    }
+
     #[test]
     fn invalid_advancement_fails_at_component_record_boundary_with_owner_context() {
         let advancement = Advancement::new(ResourceLocation::new("test", "invalid").unwrap());
@@ -1816,6 +1924,7 @@ mod tests {
             serde_json::from_str::<serde_json::Value>(&record.content).unwrap(),
             json!({
                 "criteria": {"event": {"trigger": "minecraft:tick"}},
+                "requirements": [["event"]],
                 "rewards": {"function": "test:event"}
             })
         );

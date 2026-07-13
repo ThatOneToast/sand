@@ -1984,7 +1984,10 @@ fn json_val_to_snbt(v: &Value) -> String {
     }
 }
 
-fn snbt_compound_key(key: &str) -> String {
+/// Quote an SNBT compound key if it contains characters outside the
+/// unquoted-key charset. Shared with `crate::predicates` so item-component
+/// and predicate SNBT rendering don't drift on the same quoting rule.
+pub(crate) fn snbt_compound_key(key: &str) -> String {
     if key
         .chars()
         .all(|c| matches!(c, 'a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-' | '.'))
@@ -2185,20 +2188,28 @@ mod tests {
     fn item_predicate_with_custom_data() {
         let item = CustomItem::new("minecraft:diamond_sword").custom_data("inferno_blade");
         let pred = serde_json::to_value(item.item_predicate()).unwrap();
-        assert_eq!(pred["items"], "minecraft:diamond_sword");
-        assert!(
-            pred["components"]["minecraft:custom_data"]["inferno_blade"]
-                .as_bool()
-                .unwrap()
+        assert_eq!(
+            pred["items"],
+            serde_json::json!(["minecraft:diamond_sword"])
         );
+        // Partial-match predicate, not exact `components` equality — see #233.
+        assert_eq!(
+            pred["predicates"]["minecraft:custom_data"],
+            "{inferno_blade:1b}"
+        );
+        assert!(pred.get("components").is_none());
     }
 
     #[test]
     fn item_predicate_without_custom_data() {
         let item = CustomItem::new("minecraft:diamond_sword");
         let pred = serde_json::to_value(item.item_predicate()).unwrap();
-        assert_eq!(pred["items"], "minecraft:diamond_sword");
+        assert_eq!(
+            pred["items"],
+            serde_json::json!(["minecraft:diamond_sword"])
+        );
         assert!(pred.get("components").is_none());
+        assert!(pred.get("predicates").is_none());
     }
 
     #[test]

@@ -1,3 +1,4 @@
+#![allow(clippy::result_large_err)]
 //! Typed event model — strongly-typed advancement-backed event framework.
 //!
 //! # Core types
@@ -23,21 +24,95 @@ use std::marker::PhantomData;
 
 // ── Configuration enums ─────────────────────────────────────────────────────
 
+/// Converts a value into a validated event/advancement [`ResourceLocation`](crate::ResourceLocation).
+///
+/// Mirrors [`crate::function::IntoFunctionRef`]'s conversion table: a typed
+/// [`ResourceLocation`] value passes through unchanged (already validated at
+/// construction), while raw `&str`/`String` values are parsed and validated
+/// here, panicking with an actionable diagnostic on malformed input.
+///
+/// This keeps existing string call sites (`EventBuilder::id("my_pack:foo")`,
+/// `EventConfig::advancement("my_pack:foo", ...)`) source-compatible while
+/// making [`ResourceLocation`] the preferred, pre-validated normal path — see #196.
+/// Invalid explicit event IDs are rejected here, at the API boundary, rather
+/// than silently passed through to `resolve()`/export.
+pub trait IntoEventId {
+    /// Resolve to a validated [`ResourceLocation`](crate::ResourceLocation).
+    ///
+    /// # Panics
+    ///
+    /// Panics if a raw string value is not a valid `namespace:path` resource
+    /// location. Use [`EventId::try_explicit`] for a fallible alternative.
+    fn into_event_resource_location(self) -> crate::ResourceLocation;
+}
+
+impl IntoEventId for crate::ResourceLocation {
+    fn into_event_resource_location(self) -> crate::ResourceLocation {
+        self
+    }
+}
+
+impl IntoEventId for &crate::ResourceLocation {
+    fn into_event_resource_location(self) -> crate::ResourceLocation {
+        self.clone()
+    }
+}
+
+impl IntoEventId for &str {
+    fn into_event_resource_location(self) -> crate::ResourceLocation {
+        self.parse().unwrap_or_else(|_| {
+            panic!(
+                "invalid event/advancement resource location `{self}`: must be a valid \
+                 `namespace:path` resource location (e.g. `my_pack:on_elevator_placed`); \
+                 use EventId::try_explicit(...) for a fallible alternative"
+            )
+        })
+    }
+}
+
+impl IntoEventId for String {
+    fn into_event_resource_location(self) -> crate::ResourceLocation {
+        self.as_str().into_event_resource_location()
+    }
+}
+
 /// Controls how the advancement's resource-location ID is determined.
 #[derive(Clone, Debug)]
 pub enum EventId {
     /// Auto-generate from the event handler function path.
     Auto,
-    /// Use an explicit `namespace:path` resource location.
-    Explicit(&'static str),
+    /// Use an explicit, validated resource location.
+    Explicit(crate::ResourceLocation),
 }
 
 impl EventId {
+    /// Construct an explicit event ID from a typed [`ResourceLocation`](crate::ResourceLocation)
+    /// or a raw string.
+    ///
+    /// Raw strings are parsed and validated immediately; invalid input panics
+    /// with an actionable diagnostic rather than being silently accepted and
+    /// only failing later at export/`resolve()` time. Prefer passing an
+    /// already-validated `ResourceLocation` when one is available. Use
+    /// [`try_explicit`](Self::try_explicit) if you need a non-panicking path.
+    pub fn explicit(id: impl IntoEventId) -> Self {
+        Self::Explicit(id.into_event_resource_location())
+    }
+
+    /// Fallible explicit event ID constructor.
+    ///
+    /// Returns `Err` instead of panicking when `id` is not a valid
+    /// `namespace:path` resource location.
+    pub fn try_explicit(id: impl AsRef<str>) -> Result<Self, sand_components::SandError> {
+        id.as_ref()
+            .parse::<crate::ResourceLocation>()
+            .map(Self::Explicit)
+    }
+
     /// Resolve to a full `namespace:path` string.
     pub fn resolve(&self, namespace: &str, path: &str) -> String {
         match self {
             EventId::Auto => format!("{namespace}:{path}"),
-            EventId::Explicit(s) => s.to_string(),
+            EventId::Explicit(rl) => rl.to_string(),
         }
     }
 }
@@ -456,9 +531,35 @@ mod tests {
     #[test]
     fn event_id_explicit() {
         assert_eq!(
-            EventId::Explicit("custom:override").resolve("my_pack", "on_join"),
+            EventId::explicit("custom:override").resolve("my_pack", "on_join"),
             "custom:override"
         );
+    }
+
+    #[test]
+    fn event_id_explicit_accepts_typed_resource_location() {
+        let rl: crate::ResourceLocation = "custom:override".parse().unwrap();
+        assert_eq!(
+            EventId::explicit(rl).resolve("my_pack", "on_join"),
+            "custom:override"
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "invalid event/advancement resource location")]
+    fn event_id_explicit_panics_on_invalid_string() {
+        EventId::explicit("not a valid id!");
+    }
+
+    #[test]
+    fn event_id_try_explicit_rejects_invalid_id() {
+        assert!(EventId::try_explicit("not a valid id!").is_err());
+    }
+
+    #[test]
+    fn event_id_try_explicit_accepts_valid_id() {
+        let id = EventId::try_explicit("custom:override").unwrap();
+        assert_eq!(id.resolve("my_pack", "on_join"), "custom:override");
     }
 
     #[test]

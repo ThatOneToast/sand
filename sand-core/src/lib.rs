@@ -121,6 +121,7 @@ pub use event::{
     EventReset,
     EventVisibility,
     IntoEventAdvancement,
+    IntoEventId,
 };
 #[allow(deprecated)]
 pub use events::{

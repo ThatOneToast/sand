@@ -510,7 +510,10 @@ mod tests {
             .item(ItemPredicate::id("minecraft:golden_apple"))
             .build();
         let v = serde_json::to_value(&trigger).unwrap();
-        assert_eq!(v["conditions"]["item"]["items"], "minecraft:golden_apple");
+        assert_eq!(
+            v["conditions"]["item"]["items"],
+            serde_json::json!(["minecraft:golden_apple"])
+        );
     }
 
     #[test]
@@ -541,7 +544,7 @@ mod tests {
             .build();
         let v = serde_json::to_value(&trigger).unwrap();
         let items = &v["conditions"]["items"];
-        assert_eq!(items[0]["items"], "minecraft:diamond");
+        assert_eq!(items[0]["items"], serde_json::json!(["minecraft:diamond"]));
     }
 
     #[test]

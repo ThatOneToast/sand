@@ -31,9 +31,9 @@ pub use blocks::{
     BlockState, CloneBlocks, CloneMaskMode, CloneMode, Fill, FillMode, SetBlock, SetBlockMode,
 };
 pub use builtins::*;
-pub use error::{CommandError, CommandResult};
 pub use coord::{BlockPos, Coord, Rotation, Vec2, Vec3};
 pub use display::{Actionbar, Bossbar, BossbarColor, BossbarStyle, Title};
+pub use error::{CommandError, CommandResult};
 pub use execute::Execute;
 pub use execute_args::{Anchor, ItemSlot, NbtStoreKind, Swizzle};
 #[allow(deprecated)]

@@ -65,12 +65,7 @@ pub fn summon(entity_type: impl Into<String>, x: f64, y: f64, z: f64) -> String 
 
 /// Fallible [`summon`] — rejects non-finite coordinates and an empty/malformed
 /// entity type before producing command text.
-pub fn try_summon(
-    entity_type: impl Into<String>,
-    x: f64,
-    y: f64,
-    z: f64,
-) -> CommandResult<String> {
+pub fn try_summon(entity_type: impl Into<String>, x: f64, y: f64, z: f64) -> CommandResult<String> {
     let entity_type = entity_type.into();
     validate::resource_location_shape(&entity_type, "summon", "entity_type")?;
     validate::finite(x, "summon", "x")?;
@@ -1589,7 +1584,9 @@ mod tests {
 
     #[test]
     fn damage_try_run_rejects_non_finite_amount() {
-        let result = Damage::new().amount(DamageAmount::Fixed(f64::NAN)).try_run();
+        let result = Damage::new()
+            .amount(DamageAmount::Fixed(f64::NAN))
+            .try_run();
         assert!(result.is_err());
     }
 
@@ -1601,8 +1598,7 @@ mod tests {
         );
         assert!(try_attribute_base_set(Selector::self_(), "max_health", 10.0).is_err());
         assert!(
-            try_attribute_base_set(Selector::self_(), "minecraft:generic.max_health", 10.0)
-                .is_ok()
+            try_attribute_base_set(Selector::self_(), "minecraft:generic.max_health", 10.0).is_ok()
         );
     }
 

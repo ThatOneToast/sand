@@ -17,9 +17,12 @@ DOC_GLOBS = (
     "RELEASE.md",
     "Datapacks.md",
     "Milestones.md",
+    "AGENTS.md",
+    "llms.txt",
     "docs/**/*.md",
     "book/src/**/*.md",
     "examples/**/*.md",
+    "ai/**/*.md",
 )
 
 MARKDOWN_LINK = re.compile(r"(?<!!)\[[^\]]+\]\(([^)]+)\)")

@@ -9,6 +9,7 @@ use crate::error::{Result as SandResult, SandError};
 use crate::resource_location::ResourceLocation;
 
 use super::types::{Ingredient, RecipeResult};
+use sand_version::ComponentFeature;
 
 /// Represents a shaped crafting recipe where items must be placed in specific grid positions.
 pub struct ShapedRecipe {
@@ -30,10 +31,7 @@ impl ShapedRecipe {
             group: None,
             pattern: Vec::new(),
             key: HashMap::new(),
-            result: RecipeResult {
-                id: String::new(),
-                count: 1,
-            },
+            result: RecipeResult::empty(),
             show_notification: true,
         }
     }
@@ -236,5 +234,13 @@ impl DatapackComponent for ShapedRecipe {
 
     fn component_dir(&self) -> &'static str {
         "recipe"
+    }
+
+    fn required_features(&self) -> &'static [ComponentFeature] {
+        if self.result.has_components() {
+            &[ComponentFeature::ItemComponents]
+        } else {
+            &[]
+        }
     }
 }

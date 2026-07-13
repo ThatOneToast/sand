@@ -2746,4 +2746,78 @@ mod tests {
             .expect_err("malformed export version must not silently use a fallback");
         assert!(err.to_string().contains("not-a-version"));
     }
+
+    // ── Component-bearing recipe result version gating (#226) ─────────────────
+
+    fn elevator_recipe(
+        loc: crate::resource_location::ResourceLocation,
+    ) -> sand_components::recipe::ShapedRecipe {
+        let elevator = sand_components::CustomItem::new("minecraft:white_wool")
+            .custom_data("elevator_block_item")
+            .component(sand_components::ItemComponent::EnchantmentGlintOverride(
+                true,
+            ));
+        let result = sand_components::recipe::RecipeResult::custom_item(&elevator)
+            .expect("component-bearing custom item should convert to a recipe result");
+        sand_components::recipe::ShapedRecipe::new(loc)
+            .pattern(["X"])
+            .key(
+                'X',
+                sand_components::recipe::Ingredient::item("minecraft:white_wool"),
+            )
+            .result(result)
+    }
+
+    #[test]
+    fn component_bearing_recipe_result_rejected_when_item_components_unsupported() {
+        let recipe = elevator_recipe(test_rl("test", "elevator_gated"));
+        let caps = VersionCaps::all_disabled();
+        let ctx = ExportCtx {
+            caps: &caps,
+            requested_version: "1.19.4",
+            is_fallback: false,
+        };
+        let err = component_to_record(&recipe, Some(&ctx))
+            .expect_err("component-bearing recipe result must be gated on item_components");
+        let msg = err.to_string();
+        assert!(msg.contains("item_components"), "err: {msg}");
+        assert!(msg.contains("1.19.4"), "err: {msg}");
+    }
+
+    #[test]
+    fn component_bearing_recipe_result_accepted_when_item_components_supported() {
+        let recipe = elevator_recipe(test_rl("test", "elevator_ok"));
+        let caps = VersionCaps::all_enabled();
+        let ctx = ExportCtx {
+            caps: &caps,
+            requested_version: "1.21.4",
+            is_fallback: false,
+        };
+        let record = component_to_record(&recipe, Some(&ctx))
+            .expect("component-bearing recipe result should succeed when supported");
+        assert_eq!(record.dir, "recipe");
+        assert!(record.content.contains("elevator_block_item"));
+    }
+
+    #[test]
+    fn component_free_recipe_result_never_gated() {
+        let recipe = sand_components::recipe::ShapedRecipe::new(test_rl("test", "plain_recipe"))
+            .pattern(["X"])
+            .key(
+                'X',
+                sand_components::recipe::Ingredient::item("minecraft:stick"),
+            )
+            .result(sand_components::recipe::RecipeResult::raw(
+                "minecraft:diamond",
+                1,
+            ));
+        let caps = VersionCaps::all_disabled();
+        let ctx = ExportCtx {
+            caps: &caps,
+            requested_version: "1.18.1",
+            is_fallback: false,
+        };
+        component_to_record(&recipe, Some(&ctx))
+            .expect("component-free recipe results must never be version-gated");
+    }
 }

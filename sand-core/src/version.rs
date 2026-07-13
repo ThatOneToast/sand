@@ -435,6 +435,7 @@ impl VersionProfile {
             self.supports_chat_types,
             self.supports_enchantments,
             self.supports_trim_assets,
+            self.supports_item_components,
         )
     }
 }

@@ -80,6 +80,10 @@ pub enum ComponentFeature {
     Enchantments,
     /// Armor trim assets — trim material and trim pattern components (1.19.4+).
     TrimAssets,
+    /// Item data components — the 1.20.5+ component system (`minecraft:custom_data`,
+    /// `minecraft:item_name`, etc.). Gates component-bearing recipe results and
+    /// other JSON payloads that embed structured item components.
+    ItemComponents,
 }
 
 impl ComponentFeature {
@@ -92,6 +96,7 @@ impl ComponentFeature {
             Self::ChatTypes => "chat_types",
             Self::Enchantments => "enchantments",
             Self::TrimAssets => "trim_assets",
+            Self::ItemComponents => "item_components",
         }
     }
 
@@ -103,6 +108,7 @@ impl ComponentFeature {
         Self::ChatTypes,
         Self::Enchantments,
         Self::TrimAssets,
+        Self::ItemComponents,
     ];
 }
 
@@ -124,6 +130,7 @@ pub struct VersionCaps {
     supports_chat_types: bool,
     supports_enchantments: bool,
     supports_trim_assets: bool,
+    supports_item_components: bool,
 }
 
 impl VersionCaps {
@@ -139,6 +146,7 @@ impl VersionCaps {
             supports_chat_types: true,
             supports_enchantments: true,
             supports_trim_assets: true,
+            supports_item_components: true,
         }
     }
 
@@ -151,6 +159,7 @@ impl VersionCaps {
             supports_chat_types: false,
             supports_enchantments: false,
             supports_trim_assets: false,
+            supports_item_components: false,
         }
     }
 
@@ -163,12 +172,14 @@ impl VersionCaps {
             ComponentFeature::ChatTypes => self.supports_chat_types,
             ComponentFeature::Enchantments => self.supports_enchantments,
             ComponentFeature::TrimAssets => self.supports_trim_assets,
+            ComponentFeature::ItemComponents => self.supports_item_components,
         }
     }
 
     /// Create a `VersionCaps` from individual feature flags.
     ///
     /// Used by `sand-core::VersionProfile::caps()`.
+    #[allow(clippy::too_many_arguments)]
     pub fn from_flags(
         supports_dialogs: bool,
         supports_jukebox_songs: bool,
@@ -176,6 +187,7 @@ impl VersionCaps {
         supports_chat_types: bool,
         supports_enchantments: bool,
         supports_trim_assets: bool,
+        supports_item_components: bool,
     ) -> Self {
         Self {
             supports_dialogs,
@@ -184,6 +196,7 @@ impl VersionCaps {
             supports_chat_types,
             supports_enchantments,
             supports_trim_assets,
+            supports_item_components,
         }
     }
 }
@@ -216,17 +229,19 @@ mod tests {
         assert_eq!(ComponentFeature::ChatTypes.name(), "chat_types");
         assert_eq!(ComponentFeature::Enchantments.name(), "enchantments");
         assert_eq!(ComponentFeature::TrimAssets.name(), "trim_assets");
+        assert_eq!(ComponentFeature::ItemComponents.name(), "item_components");
     }
 
     #[test]
     fn from_flags_respects_individual_values() {
-        let caps = VersionCaps::from_flags(true, false, true, false, true, false);
+        let caps = VersionCaps::from_flags(true, false, true, false, true, false, true);
         assert!(caps.supports(ComponentFeature::Dialogs));
         assert!(!caps.supports(ComponentFeature::JukeboxSongs));
         assert!(caps.supports(ComponentFeature::DamageTypes));
         assert!(!caps.supports(ComponentFeature::ChatTypes));
         assert!(caps.supports(ComponentFeature::Enchantments));
         assert!(!caps.supports(ComponentFeature::TrimAssets));
+        assert!(caps.supports(ComponentFeature::ItemComponents));
     }
 
     #[test]

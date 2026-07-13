@@ -96,8 +96,8 @@ pub use sand_components::{
     CustomData, CustomItem, DamagePredicate, DamageSourcePredicate, DistancePredicate,
     EnchantmentEntry, EntityEquipment, EntityFlags, EntityPredicate, EquipmentSlot,
     EquipmentSlotGroup, EquippableProperties, FoodProperties, Ingredient, ItemComponent,
-    ItemModifier, ItemPredicate, ItemRarity, LocationPredicate, LootCondition, LootEntry,
-    LootFunction, LootPool, LootTable, LootTableType, Predicate, Rarity, RecipeResult,
+    ItemModifier, ItemPredicate, ItemRarity, ItemStackComponents, LocationPredicate, LootCondition,
+    LootEntry, LootFunction, LootPool, LootTable, LootTableType, Predicate, Rarity, RecipeResult,
     ShapedRecipe, ShapelessRecipe, SmithingTransformRecipe, SmithingTrimRecipe, StonecuttingRecipe,
     Tag, TagEntry, TagRegistry, ToolProperties, ToolRule, TypedTag,
 };

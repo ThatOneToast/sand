@@ -38,10 +38,11 @@
 
 use std::fmt;
 
-use serde_json::Value;
+use serde_json::{Map, Value};
 
 use crate::advancement::{Advancement, AdvancementRewards, AdvancementTrigger, Criterion};
 use crate::effect::{PotionContents, SuspiciousStewEffect};
+use crate::error::{Result as SandResult, SandError};
 use crate::predicates::ItemPredicate as TypedItemPredicate;
 use crate::raw::{RawComponent, RawSnbt};
 use crate::resource_location::ResourceLocation;
@@ -319,6 +320,22 @@ impl AttributeModifier {
             self.slot.as_str(),
         )
     }
+
+    /// Structured JSON form of this modifier, for recipe results and similar
+    /// JSON-based schemas. Same data as [`to_snbt`](Self::to_snbt), different target.
+    fn to_json(&self) -> Value {
+        let id = self
+            .id
+            .as_deref()
+            .unwrap_or_else(|| self.attribute.as_str());
+        serde_json::json!({
+            "id": id,
+            "type": self.attribute.as_str(),
+            "amount": self.amount,
+            "operation": self.operation.as_str(),
+            "slot": self.slot.as_str(),
+        })
+    }
 }
 
 // ── EnchantmentEntry ─────────────────────────────────────────────────────────
@@ -370,6 +387,23 @@ impl CustomData {
         match self {
             CustomData::Marker(key) => format!("{{{}:1b}}", snbt_compound_key(key)),
             CustomData::Raw(snbt) => snbt.to_string(),
+        }
+    }
+
+    /// Structured JSON form, when representable.
+    ///
+    /// `Marker` converts to `{key: true}`. `Raw` wraps arbitrary SNBT that
+    /// has no general SNBT→JSON conversion, so it returns `None` — callers
+    /// (e.g. recipe result conversion) must surface a clear error instead of
+    /// silently dropping or corrupting the raw payload.
+    fn to_json(&self) -> Option<Value> {
+        match self {
+            CustomData::Marker(key) => {
+                let mut map = Map::new();
+                map.insert(key.clone(), Value::Bool(true));
+                Some(Value::Object(map))
+            }
+            CustomData::Raw(_) => None,
         }
     }
 }
@@ -552,6 +586,14 @@ impl FoodProperties {
             self.nutrition, self.saturation, self.can_always_eat,
         )
     }
+
+    fn to_json(&self) -> Value {
+        serde_json::json!({
+            "nutrition": self.nutrition,
+            "saturation": self.saturation,
+            "can_always_eat": self.can_always_eat,
+        })
+    }
 }
 
 // ── ConsumableAnimation ───────────────────────────────────────────────────────
@@ -656,6 +698,23 @@ impl ConsumableProperties {
             self.has_consume_particles,
             sound_part,
         )
+    }
+
+    fn to_json(&self) -> Value {
+        let mut map = Map::new();
+        map.insert("consume_seconds".into(), Value::from(self.consume_seconds));
+        map.insert(
+            "animation".into(),
+            Value::String(self.animation.as_str().to_string()),
+        );
+        map.insert(
+            "has_consume_particles".into(),
+            Value::Bool(self.has_consume_particles),
+        );
+        if let Some(ref sound) = self.sound {
+            map.insert("sound".into(), Value::String(sound.clone()));
+        }
+        Value::Object(map)
     }
 }
 
@@ -790,6 +849,24 @@ impl EquippableProperties {
         }
         format!("{{{}}}", parts.join(","))
     }
+
+    fn to_json(&self) -> Value {
+        let mut map = Map::new();
+        map.insert("slot".into(), Value::String(self.slot.as_str().to_string()));
+        map.insert("dispensable".into(), Value::Bool(self.dispensable));
+        map.insert("swappable".into(), Value::Bool(self.swappable));
+        map.insert("damage_on_hurt".into(), Value::Bool(self.damage_on_hurt));
+        if let Some(ref s) = self.equip_sound {
+            map.insert("equip_sound".into(), Value::String(s.clone()));
+        }
+        if let Some(ref m) = self.model {
+            map.insert("model".into(), Value::String(m.clone()));
+        }
+        if let Some(ref e) = self.allowed_entities {
+            map.insert("allowed_entities".into(), Value::String(e.clone()));
+        }
+        Value::Object(map)
+    }
 }
 
 // ── ToolRule ──────────────────────────────────────────────────────────────────
@@ -846,6 +923,18 @@ impl ToolRule {
         }
         format!("{{{}}}", parts.join(","))
     }
+
+    fn to_json(&self) -> Value {
+        let mut map = Map::new();
+        map.insert("blocks".into(), Value::String(self.blocks.clone()));
+        if let Some(s) = self.speed {
+            map.insert("speed".into(), Value::from(s));
+        }
+        if let Some(c) = self.correct_for_drops {
+            map.insert("correct_for_drops".into(), Value::Bool(c));
+        }
+        Value::Object(map)
+    }
 }
 
 // ── ToolProperties ────────────────────────────────────────────────────────────
@@ -896,6 +985,14 @@ impl ToolProperties {
             self.damage_per_block,
         )
     }
+
+    fn to_json(&self) -> Value {
+        serde_json::json!({
+            "rules": self.rules.iter().map(ToolRule::to_json).collect::<Vec<_>>(),
+            "default_mining_speed": self.default_mining_speed,
+            "damage_per_block": self.damage_per_block,
+        })
+    }
 }
 
 impl Default for ToolProperties {
@@ -934,6 +1031,88 @@ impl DyedColor {
 
     fn to_decimal(self) -> i32 {
         ((self.r as i32) << 16) | ((self.g as i32) << 8) | (self.b as i32)
+    }
+
+    fn to_json(self) -> Value {
+        serde_json::json!({
+            "rgb": self.to_decimal(),
+            "show_in_tooltip": true,
+        })
+    }
+}
+
+// ── ItemStackComponents ──────────────────────────────────────────────────────
+
+/// A structured, JSON-serializable snapshot of an item's base ID and data
+/// components — Minecraft's *structured* component form (`{"minecraft:key":
+/// value}`), as opposed to the SNBT-based command item-stack syntax that
+/// [`CustomItem`]'s [`Display`](fmt::Display) impl produces.
+///
+/// Built once from [`CustomItem::stack_components`] and shared by every
+/// consumer that needs JSON components — currently [`RecipeResult`]
+/// (`recipe::RecipeResult::custom_item`) — without re-deriving or
+/// re-parsing `CustomItem`'s command-syntax string.
+///
+/// # Duplicate component keys
+///
+/// [`CustomItem`]'s typed fields can never collide (each typed component
+/// contributes at most one JSON key). A user-supplied
+/// [`RawComponent`](crate::raw::RawComponent) can collide with a typed
+/// component or with another raw component; the later entry wins, replacing
+/// the value at the key's original position, so iteration order stays
+/// deterministic regardless of which call inserted the winning value.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct ItemStackComponents {
+    base: String,
+    components: Vec<(String, Value)>,
+}
+
+impl ItemStackComponents {
+    /// The base Minecraft item ID (e.g. `"minecraft:white_wool"`).
+    pub fn base_item(&self) -> &str {
+        &self.base
+    }
+
+    /// The structured components, in deterministic (first-seen-position) order.
+    pub fn components(&self) -> &[(String, Value)] {
+        &self.components
+    }
+
+    /// `true` if this item has no data components — a bare base-item stack.
+    pub fn is_component_free(&self) -> bool {
+        self.components.is_empty()
+    }
+
+    /// Consume this value, returning the base item ID and its components.
+    pub fn into_parts(self) -> (String, Vec<(String, Value)>) {
+        (self.base, self.components)
+    }
+
+    fn insert(&mut self, key: impl Into<String>, value: Value) {
+        let key = key.into();
+        if let Some(existing) = self.components.iter_mut().find(|(k, _)| *k == key) {
+            existing.1 = value;
+        } else {
+            self.components.push((key, value));
+        }
+    }
+}
+
+/// Sentinel location used for [`SandError::ComponentValidation`] diagnostics
+/// raised while building [`ItemStackComponents`] — this conversion happens
+/// before the value is attached to any specific recipe/resource location, so
+/// the offending item base and component key are named in the message instead.
+fn item_stack_components_location() -> ResourceLocation {
+    ResourceLocation::new("sand", "custom_item")
+        .expect("fixed 'sand:custom_item' sentinel location is valid")
+}
+
+fn item_component_error(base: &str, key: &str, message: impl fmt::Display) -> SandError {
+    SandError::ComponentValidation {
+        location: item_stack_components_location(),
+        kind: "custom_item".to_string(),
+        field: format!("{base}[{key}]"),
+        message: message.to_string(),
     }
 }
 
@@ -1333,6 +1512,12 @@ impl CustomItem {
     /// also matches the `minecraft:custom_data` component.
     ///
     /// Use the result in advancement criteria, loot table conditions, or predicates.
+    /// The base Minecraft item ID this custom item is built on
+    /// (e.g. `"minecraft:white_wool"`), ignoring components.
+    pub fn base_id(&self) -> &str {
+        &self.base
+    }
+
     pub fn item_predicate(&self) -> TypedItemPredicate {
         let mut pred = TypedItemPredicate::id(&self.base);
         if let Some(key) = self.custom_data.as_ref().and_then(CustomData::marker_key) {
@@ -1531,6 +1716,240 @@ impl CustomItem {
 
         parts
     }
+
+    // ── Structured (JSON) components ─────────────────────────────────────────
+
+    /// Build the structured JSON-component view of this item.
+    ///
+    /// This mirrors [`collect_components`](Self::collect_components) field for
+    /// field, but targets Minecraft's structured component JSON schema
+    /// (`{"minecraft:key": value}`) instead of SNBT-based command syntax. It
+    /// is built directly from this item's typed state — never by parsing
+    /// [`Display`](fmt::Display)'s command item-stack string — so recipe
+    /// results, predicates, and commands all share one source of truth.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SandError::ComponentValidation`] if:
+    /// - [`custom_data`](Self::custom_data) was set via
+    ///   [`CustomItem::typed_custom_data`] with [`CustomData::Raw`] — arbitrary
+    ///   SNBT has no general SNBT→JSON conversion.
+    /// - A raw component (added via [`with_raw_component`](Self::with_raw_component))
+    ///   has a key that is not a valid resource location, or a value that does
+    ///   not parse as strict JSON (raw component values are SNBT intended for
+    ///   command syntax, and are only accepted here when they also happen to
+    ///   be valid JSON).
+    ///
+    /// Never silently drops or corrupts a component — every failure surfaces
+    /// as an `Err` naming the item's base ID and the offending component key.
+    pub fn stack_components(&self) -> SandResult<ItemStackComponents> {
+        let mut out = ItemStackComponents {
+            base: self.base.clone(),
+            components: Vec::new(),
+        };
+
+        // Identity
+        if let Some(ref data) = self.custom_data {
+            match data.to_json() {
+                Some(value) => out.insert("minecraft:custom_data", value),
+                None => {
+                    return Err(item_component_error(
+                        &self.base,
+                        "minecraft:custom_data",
+                        "raw SNBT custom_data has no general SNBT-to-JSON conversion; \
+                         use CustomItem::custom_data(...) (a marker) instead of \
+                         typed_custom_data(CustomData::raw(...)) if this item is used \
+                         as a recipe result",
+                    ));
+                }
+            }
+        }
+        if let Some(cmd) = self.custom_model_data {
+            out.insert(
+                "minecraft:custom_model_data",
+                serde_json::json!({ "floats": [cmd as f64] }),
+            );
+        }
+
+        // Display
+        if let Some(ref name) = self.custom_name {
+            out.insert("minecraft:custom_name", text_json_value(&self.base, name)?);
+        }
+        if let Some(ref name) = self.item_name {
+            out.insert("minecraft:item_name", text_json_value(&self.base, name)?);
+        }
+        if !self.lore.is_empty() {
+            let lines = self
+                .lore
+                .iter()
+                .map(|l| text_json_value(&self.base, l))
+                .collect::<SandResult<Vec<_>>>()?;
+            out.insert("minecraft:lore", Value::Array(lines));
+        }
+        if let Some(rarity) = self.rarity {
+            out.insert(
+                "minecraft:rarity",
+                Value::String(rarity.as_str().to_string()),
+            );
+        }
+        if let Some(glint) = self.enchantment_glint_override {
+            out.insert("minecraft:enchantment_glint_override", Value::Bool(glint));
+        }
+        if self.hide_additional_tooltip {
+            out.insert(
+                "minecraft:hide_additional_tooltip",
+                Value::Object(Map::new()),
+            );
+        }
+        if self.hide_tooltip {
+            out.insert("minecraft:hide_tooltip", Value::Object(Map::new()));
+        }
+
+        // Stack / durability
+        if let Some(size) = self.max_stack_size {
+            out.insert("minecraft:max_stack_size", Value::from(size));
+        }
+        if let Some(damage) = self.max_damage {
+            out.insert("minecraft:max_damage", Value::from(damage));
+        }
+        if let Some(damage) = self.damage {
+            out.insert("minecraft:damage", Value::from(damage));
+        }
+        if let Some(show_tooltip) = self.unbreakable {
+            out.insert(
+                "minecraft:unbreakable",
+                serde_json::json!({ "show_in_tooltip": show_tooltip }),
+            );
+        }
+        if let Some(cost) = self.repair_cost {
+            out.insert("minecraft:repair_cost", Value::from(cost));
+        }
+
+        // Combat / enchanting — direct id-to-level maps (matches the command
+        // syntax representation; see the note in collect_components above).
+        if !self.enchantments.is_empty() {
+            let mut map = Map::new();
+            for (id, lvl) in &self.enchantments {
+                map.insert(id.clone(), Value::from(*lvl));
+            }
+            out.insert("minecraft:enchantments", Value::Object(map));
+        }
+        if !self.stored_enchantments.is_empty() {
+            let mut map = Map::new();
+            for (id, lvl) in &self.stored_enchantments {
+                map.insert(id.clone(), Value::from(*lvl));
+            }
+            out.insert("minecraft:stored_enchantments", Value::Object(map));
+        }
+        if !self.attribute_modifiers.is_empty() {
+            let mods: Vec<Value> = self
+                .attribute_modifiers
+                .iter()
+                .map(AttributeModifier::to_json)
+                .collect();
+            out.insert("minecraft:attribute_modifiers", Value::Array(mods));
+        }
+
+        // Behaviour
+        if let Some(ref food) = self.food {
+            out.insert("minecraft:food", food.to_json());
+        }
+        if let Some(ref consumable) = self.consumable {
+            out.insert("minecraft:consumable", consumable.to_json());
+        }
+        if let Some(secs) = self.use_cooldown {
+            out.insert(
+                "minecraft:use_cooldown",
+                serde_json::json!({ "seconds": secs }),
+            );
+        }
+        if let Some(ref tool) = self.tool {
+            out.insert("minecraft:tool", tool.to_json());
+        }
+        if let Some(ref equippable) = self.equippable {
+            out.insert("minecraft:equippable", equippable.to_json());
+        }
+        if self.glider {
+            out.insert("minecraft:glider", Value::Object(Map::new()));
+        }
+        if self.fire_resistant {
+            out.insert("minecraft:fire_resistant", Value::Object(Map::new()));
+        }
+        if let Some(color) = self.dyed_color {
+            out.insert("minecraft:dyed_color", color.to_json());
+        }
+        if let Some(ref contents) = self.potion_contents {
+            let value = serde_json::to_value(contents).map_err(SandError::from)?;
+            out.insert("minecraft:potion_contents", value);
+        }
+        if !self.suspicious_stew_effects.is_empty() {
+            let value =
+                serde_json::to_value(&self.suspicious_stew_effects).map_err(SandError::from)?;
+            out.insert("minecraft:suspicious_stew_effects", value);
+        }
+
+        // Raw extras — only accepted when the key is a valid resource
+        // location and the value round-trips as strict JSON. Command-syntax
+        // SNBT (unquoted keys, `1b`/`2.0f` suffixes, etc.) is rejected with a
+        // clear error rather than silently dropped or mis-encoded.
+        for (key, value) in &self.extra_components {
+            let full_key = if key.contains(':') {
+                key.clone()
+            } else {
+                format!("minecraft:{key}")
+            };
+            let (namespace, path) = full_key.split_once(':').expect("':' just verified present");
+            if ResourceLocation::new(namespace, path).is_err() {
+                return Err(item_component_error(
+                    &self.base,
+                    &full_key,
+                    "raw component key is not a valid resource location",
+                ));
+            }
+            let parsed: Value = serde_json::from_str(value).map_err(|_| {
+                item_component_error(
+                    &self.base,
+                    &full_key,
+                    "raw component value is SNBT-only (command item-stack syntax) and \
+                     cannot be safely converted to structured recipe/JSON components; \
+                     use a typed ItemComponent, or supply a raw value that is also \
+                     valid JSON",
+                )
+            })?;
+            out.insert(full_key, parsed);
+        }
+
+        Ok(out)
+    }
+
+    /// Build a [`recipe::RecipeResult`](crate::recipe::RecipeResult) that produces
+    /// this item, preserving its base ID and every data component. `count` must
+    /// be at least 1 (validated by the recipe builder before export).
+    ///
+    /// Equivalent to [`recipe::RecipeResult::from_custom_item`], provided as a
+    /// method for callers that already have a `CustomItem` in hand.
+    pub fn recipe_result(&self, count: u32) -> SandResult<crate::recipe::RecipeResult> {
+        crate::recipe::RecipeResult::from_custom_item(self, count)
+    }
+}
+
+/// Parse a `CustomItem`-internal pre-serialized text-component JSON string
+/// (produced by `TextComponent`'s `Display`, e.g. `self.custom_name`) back
+/// into a `serde_json::Value`.
+///
+/// This is *not* a parse of `CustomItem::to_string()` (the SNBT-based command
+/// item-stack string) — each of these fields is already JSON text, stored
+/// verbatim from `TextComponent::to_string()`, which serializes via
+/// `to_json_value()` before formatting.
+fn text_json_value(base: &str, text_json: &str) -> SandResult<Value> {
+    serde_json::from_str(text_json).map_err(|_| {
+        item_component_error(
+            base,
+            "text_component",
+            "internal text component JSON failed to parse — this indicates a bug \
+             in TextComponent's JSON serialization",
+        )
+    })
 }
 
 /// Convert a JSON text component string to an SNBT compound for use in item components.
@@ -1806,5 +2225,113 @@ mod tests {
         let s = item.to_string();
         assert!(s.contains("dyed_color="));
         assert!(s.contains("rgb:"));
+    }
+
+    // ── stack_components (#226) ──────────────────────────────────────────────
+
+    #[test]
+    fn stack_components_base_only_is_component_free() {
+        let item = CustomItem::new("minecraft:stick");
+        let stack = item.stack_components().unwrap();
+        assert_eq!(stack.base_item(), "minecraft:stick");
+        assert!(stack.is_component_free());
+        assert!(stack.components().is_empty());
+    }
+
+    #[test]
+    fn stack_components_custom_data_marker_is_structured_json() {
+        let item = CustomItem::new("minecraft:white_wool").custom_data("elevator_block_item");
+        let stack = item.stack_components().unwrap();
+        let (_, value) = stack
+            .components()
+            .iter()
+            .find(|(k, _)| k == "minecraft:custom_data")
+            .expect("custom_data component present");
+        assert_eq!(value, &serde_json::json!({ "elevator_block_item": true }));
+    }
+
+    #[test]
+    fn stack_components_raw_snbt_custom_data_errors_instead_of_corrupting() {
+        let item = CustomItem::new("minecraft:stick")
+            .typed_custom_data(CustomData::raw(RawSnbt::new("{level:3}")));
+        let err = item
+            .stack_components()
+            .expect_err("raw SNBT custom_data has no general SNBT-to-JSON conversion");
+        assert!(err.to_string().contains("custom_data"));
+    }
+
+    #[test]
+    fn stack_components_preserve_item_name_glint_and_custom_model_data() {
+        let item = CustomItem::new("minecraft:white_wool")
+            .custom_data("elevator_block_item")
+            .component(ItemComponent::EnchantmentGlintOverride(true))
+            .item_name(
+                TextComponent::literal("Elevator Block")
+                    .bold(true)
+                    .color(ChatColor::Aqua),
+            )
+            .custom_model_data(7);
+        let stack = item.stack_components().unwrap();
+        assert_eq!(stack.base_item(), "minecraft:white_wool");
+
+        let get = |key: &str| {
+            stack
+                .components()
+                .iter()
+                .find(|(k, _)| k == key)
+                .map(|(_, v)| v.clone())
+        };
+        assert_eq!(
+            get("minecraft:custom_data"),
+            Some(serde_json::json!({ "elevator_block_item": true }))
+        );
+        assert_eq!(
+            get("minecraft:enchantment_glint_override"),
+            Some(serde_json::json!(true))
+        );
+        assert_eq!(
+            get("minecraft:custom_model_data"),
+            Some(serde_json::json!({ "floats": [7.0] }))
+        );
+        let item_name = get("minecraft:item_name").expect("item_name present");
+        assert_eq!(item_name["text"], "Elevator Block");
+        assert_eq!(item_name["bold"], true);
+        assert_eq!(item_name["color"], "aqua");
+    }
+
+    #[test]
+    fn stack_components_raw_component_valid_json_is_accepted() {
+        let item = CustomItem::new("minecraft:bow")
+            .with_raw_component(RawComponent::new("modded:widget", "{\"a\":1}"));
+        let stack = item.stack_components().unwrap();
+        let (_, value) = stack
+            .components()
+            .iter()
+            .find(|(k, _)| k == "modded:widget")
+            .expect("raw component present under its own namespaced key");
+        assert_eq!(value, &serde_json::json!({ "a": 1 }));
+    }
+
+    #[test]
+    fn stack_components_raw_component_snbt_only_value_errors_clearly() {
+        // `{items:[]}` is valid SNBT (unquoted keys) but not valid JSON — this
+        // must fail loudly rather than being silently dropped or mis-encoded.
+        let item = CustomItem::new("minecraft:bow")
+            .with_raw_component(RawComponent::new("bundle_contents", "{items:[]}"));
+        let err = item
+            .stack_components()
+            .expect_err("SNBT-only raw component values must not silently convert");
+        assert!(err.to_string().contains("bundle_contents"));
+    }
+
+    #[test]
+    fn recipe_result_method_matches_free_function_conversion() {
+        let elevator = CustomItem::new("minecraft:white_wool").custom_data("elevator_block_item");
+        let via_method = elevator.recipe_result(4).unwrap();
+        let via_free_fn = crate::recipe::RecipeResult::from_custom_item(&elevator, 4).unwrap();
+        assert_eq!(
+            serde_json::to_value(via_method).unwrap(),
+            serde_json::to_value(via_free_fn).unwrap()
+        );
     }
 }

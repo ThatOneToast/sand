@@ -1624,6 +1624,18 @@ impl CustomItem {
                 Err(err(key, &format!("must be a finite number, got `{v}`")))
             }
         };
+        // `AttributeModifier::amount` is stored and formatted as `f64` (see
+        // `AttributeModifier::to_snbt`'s `{amount}d` suffix) — validating it
+        // via an `as f32` cast would spuriously reject a finite f64 value
+        // outside f32's range (e.g. 1e300) as "non-finite", since the cast
+        // itself produces `f32::INFINITY`.
+        let finite_f64 = |key: &str, v: f64| -> SandResult<()> {
+            if v.is_finite() {
+                Ok(())
+            } else {
+                Err(err(key, &format!("must be a finite number, got `{v}`")))
+            }
+        };
         let snbt_safe_string = |key: &str, s: &str| -> SandResult<()> {
             if s.is_empty() {
                 return Err(err(key, "must not be empty"));
@@ -1691,7 +1703,7 @@ impl CustomItem {
         }
 
         for modifier in &self.attribute_modifiers {
-            finite("attribute_modifiers[amount]", modifier.amount as f32)?;
+            finite_f64("attribute_modifiers[amount]", modifier.amount)?;
             if let Some(ref id) = modifier.id {
                 snbt_safe_string("attribute_modifiers[id]", id)?;
             }
@@ -2669,6 +2681,21 @@ mod tests {
         );
         let err = item.validate().unwrap_err().to_string();
         assert!(err.contains("attribute_modifiers"), "{err}");
+    }
+
+    #[test]
+    fn validate_accepts_large_but_finite_attribute_amount() {
+        // Regression: `amount` is stored/formatted as f64 (`{amount}d` SNBT
+        // double); validating it via a lossy `as f32` cast would turn a
+        // large-but-finite f64 like 1e100 into f32::INFINITY and wrongly
+        // reject it. See #148 review follow-up.
+        let item = CustomItem::new("minecraft:stick").attribute(
+            AttributeType::AttackDamage,
+            1e100,
+            AttributeOperation::AddValue,
+            EquipmentSlotGroup::Mainhand,
+        );
+        assert!(item.validate().is_ok());
     }
 
     #[test]

@@ -1,3 +1,4 @@
+#![allow(clippy::result_large_err)]
 //! Fluent event builder — alternative to the `AdvancementEvent` trait.
 //!
 //! [`EventBuilder`] lets you describe an advancement-backed event as a value
@@ -43,7 +44,8 @@
 
 use crate::AdvancementTrigger;
 use crate::condition::Condition;
-use crate::event::{EventId, EventReset, EventVisibility};
+use crate::event::{EventId, EventReset, EventVisibility, IntoEventId};
+use crate::function::IntoFunctionRef;
 use crate::state::{Cooldown, Flag, ScoreVar, StorageField, StorageVar, Timer};
 
 // ── EventConfig ───────────────────────────────────────────────────────────────
@@ -74,23 +76,27 @@ impl EventConfig {
 
     /// Build the [`Advancement`](crate::Advancement) component for this event.
     ///
-    /// - `advancement_id` — full `namespace:path` for the advancement
-    /// - `reward_fn` — full `namespace:path` of the mcfunction to call
+    /// - `advancement_id` — the advancement's resource location. Accepts a
+    ///   typed [`ResourceLocation`](crate::ResourceLocation) (preferred,
+    ///   pre-validated) or a raw `&str`/`String`, which is parsed and
+    ///   validated here — invalid input panics with an actionable diagnostic
+    ///   instead of silently producing a malformed advancement/revoke command.
+    /// - `reward_fn` — the mcfunction to call. Accepts a
+    ///   [`FunctionRef`](crate::resource_ref::FunctionRef) (preferred), a
+    ///   [`ResourceLocation`](crate::ResourceLocation), or a raw `&str`/`String`
+    ///   via [`IntoFunctionRef`].
     pub fn advancement(
         &self,
-        advancement_id: impl Into<String>,
-        reward_fn: impl Into<String>,
+        advancement_id: impl IntoEventId,
+        reward_fn: impl IntoFunctionRef,
     ) -> crate::Advancement {
-        let id_str = advancement_id.into();
-        let rl: crate::ResourceLocation = id_str
-            .parse()
-            .expect("EventConfig::advancement: invalid resource location");
+        let rl = advancement_id.into_event_resource_location();
 
         // Visibility controls are reserved for future display attachment;
         // currently all event advancements are hidden (no display block).
         crate::Advancement::new(rl)
             .criterion("event", crate::Criterion::new(self.trigger_clone()))
-            .rewards(crate::AdvancementRewards::new().function(reward_fn))
+            .rewards(crate::AdvancementRewards::new().function(reward_fn.into_function_id()))
     }
 
     // ── Reward function prologue ──────────────────────────────────────────────
@@ -196,9 +202,24 @@ impl EventBuilder {
     ///
     /// If not set, the ID defaults to [`EventId::Auto`], which generates
     /// `namespace:path` from the event handler function name.
-    pub fn id(mut self, id: impl Into<String>) -> Self {
-        self.id = Some(EventId::Explicit(Box::leak(id.into().into_boxed_str())));
+    ///
+    /// Accepts a typed [`ResourceLocation`](crate::ResourceLocation)
+    /// (preferred, pre-validated) or a raw `&str`/`String`, which is parsed
+    /// and validated immediately — invalid input panics here rather than
+    /// producing a malformed ID later. Use [`EventBuilder::try_id`] for a
+    /// fallible alternative.
+    pub fn id(mut self, id: impl IntoEventId) -> Self {
+        self.id = Some(EventId::explicit(id));
         self
+    }
+
+    /// Fallible alternative to [`EventBuilder::id`].
+    ///
+    /// Returns `Err` instead of panicking when `id` is not a valid
+    /// `namespace:path` resource location.
+    pub fn try_id(mut self, id: impl AsRef<str>) -> Result<Self, sand_components::SandError> {
+        self.id = Some(EventId::try_explicit(id)?);
+        Ok(self)
     }
 
     /// Control when the advancement re-arms.
@@ -327,7 +348,7 @@ mod tests {
         );
         assert_eq!(
             json["criteria"]["event"]["conditions"]["item"]["items"],
-            "minecraft:golden_apple"
+            serde_json::json!(["minecraft:golden_apple"])
         );
         assert_eq!(
             json["rewards"]["function"].as_str().unwrap(),
@@ -508,9 +529,31 @@ mod tests {
             .build();
 
         match config.id {
-            EventId::Explicit(s) => assert_eq!(s, "my_pack:special_event"),
+            EventId::Explicit(rl) => assert_eq!(rl.to_string(), "my_pack:special_event"),
             EventId::Auto => panic!("expected Explicit, got Auto"),
         }
+    }
+
+    #[test]
+    fn explicit_id_accepts_typed_resource_location() {
+        let rl: crate::ResourceLocation = "my_pack:special_event".parse().unwrap();
+        let config = EventBuilder::new()
+            .trigger(AdvancementTrigger::Tick)
+            .id(rl)
+            .build();
+
+        match config.id {
+            EventId::Explicit(rl) => assert_eq!(rl.to_string(), "my_pack:special_event"),
+            EventId::Auto => panic!("expected Explicit, got Auto"),
+        }
+    }
+
+    #[test]
+    fn try_id_rejects_invalid_id() {
+        let result = EventBuilder::new()
+            .trigger(AdvancementTrigger::Tick)
+            .try_id("not a valid id!");
+        assert!(result.is_err());
     }
 
     #[test]

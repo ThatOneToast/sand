@@ -19,4 +19,10 @@ cargo doc --workspace --all-features --no-deps
 echo "=== mdBook ==="
 scripts/build-book.sh
 
+echo "=== AI resources ==="
+python3 scripts/check-ai-resources.py
+
+echo "=== Doc links ==="
+python3 scripts/check-docs.py
+
 echo "=== All checks passed ==="

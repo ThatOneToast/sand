@@ -1,0 +1,74 @@
+# Sand
+
+> Sand is a strongly-typed Rust framework for generating vanilla Minecraft
+> Java Edition datapacks (and optional resource packs). It emits normal
+> `data/<namespace>/...` datapack files — functions, tags, advancements,
+> predicates, recipes, loot tables, item modifiers, and 1.21+ item
+> components — via an attribute-first authoring model (`#[function]`,
+> `#[component(Load)]`, `#[component(Tick)]`), typed state, typed
+> conditions, typed execute chains, and generated typed command builders.
+> Raw commands and raw JSON/SNBT are explicit, deliberate escape hatches,
+> not the default authoring path.
+
+Sand is **alpha** software, not published to crates.io — build from
+workspace source (`cargo build -p sand --release`). Core attribute-first
+authoring (functions, load/tick, typed state/condition/execute/text,
+generated commands, scaffold) is stable. Events, dialogs, and resource-pack
+generation are alpha; `mcfunction!` and registry coverage for unreleased
+Minecraft versions are experimental. Verified Minecraft support spans
+1.18.0 through 26.2.0 (`sand-core/src/version.rs`); unknown/future versions
+fall back to conservative capabilities rather than erroring. Full detail:
+`ai/project-status.yaml`.
+
+## Authority
+
+Source and tests are authoritative over documentation. Where repository
+documents disagree, `AGENTS.md` and `ai/` reflect the source-verified,
+conservative status — see `ai/known-limitations.md` for specific
+documentation contradictions found and how they were resolved. Do not infer
+that an API, command, or capability exists from naming conventions; check
+the capability manifest or grep source first.
+
+## Key resources
+
+- [AGENTS.md](AGENTS.md) — operating rules for coding agents: authority
+  order, authoring model, task workflow, verification requirements.
+- [ai/project-status.yaml](ai/project-status.yaml) — machine-readable
+  repo-level status: version, maturity, CLI command status, test/validation
+  status, supported Minecraft range.
+- [ai/capability-manifest.yaml](ai/capability-manifest.yaml) —
+  machine-readable capability inventory (functions, state, events,
+  datapack components, systems, CLI, escape hatches) with stable IDs,
+  status, and evidence.
+- [ai/authoring-guide.md](ai/authoring-guide.md) — decision-oriented guide
+  for turning a user request into Sand code, including a vanilla-possible
+  decision tree and anti-hallucination rules.
+- [ai/known-limitations.md](ai/known-limitations.md) — consolidated vanilla
+  limitations, Sand API gaps, version-sensitive behavior, and documentation
+  contradictions, each with a stable ID.
+- [ai/recipes/](ai/recipes/README.md) — small, compiled, verified patterns:
+  basic pack, stateful system (state + cooldown + conditions), custom item,
+  event-driven feature, raw interop.
+- [book/src/introduction.md](book/src/introduction.md) — the full mdBook
+  user guide (tutorials, manual, recipes reference).
+- API documentation — generate locally with `cargo doc --workspace
+  --all-features --no-deps`; not hosted externally (not on crates.io/docs.rs
+  yet).
+- [docs/version-support.md](docs/version-support.md) and
+  [docs/version-capabilities.md](docs/version-capabilities.md) — Minecraft
+  version / pack_format / feature-flag detail.
+- [docs/testing.md](docs/testing.md) and
+  [docs/vanilla-reload-validation.md](docs/vanilla-reload-validation.md) —
+  how Sand's own test suite works, and the opt-in vanilla-server reload
+  harness (`scripts/validate-vanilla-reload.sh`) — note that passing
+  `cargo test` is not equivalent to vanilla-reload validation.
+
+## Warning
+
+Do not infer unsupported APIs from naming patterns, book prose, or other
+frameworks' conventions. If a capability's status in
+`ai/capability-manifest.yaml` is `partial`, `raw_only`, `experimental`, or
+`unknown`, say so explicitly rather than presenting it as fully supported.
+Some `examples/*.rs` files are stale reference text, not compiled or
+CI-checked (see `ai/known-limitations.md`, `LIM-DOC-005`) — prefer
+`ai/recipes/` for verified code.

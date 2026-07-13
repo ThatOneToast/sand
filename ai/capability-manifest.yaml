@@ -1,0 +1,496 @@
+# Sand capability manifest — machine-readable capability inventory.
+#
+# Handwritten and reviewed alongside source (not code-generated). Do not
+# treat absence of a capability id as evidence it doesn't exist — search
+# source before assuming a gap. For exhaustive per-registry / per-trigger
+# detail, this file points at the two Rust-owned coverage tables instead of
+# duplicating them:
+#   - sand-components/src/registry_coverage.rs  (REGISTRY_COVERAGE, TAG_COVERAGE)
+#   - sand-components/src/advancement/trigger_coverage.rs (TRIGGER_COVERAGE)
+#
+# Status enum: implemented | partial | experimental | raw_only | planned |
+#              intentionally_unsupported | vanilla_impossible | unknown
+schema_version: 1
+last_reviewed: "2026-07-12"
+
+capabilities:
+
+  - id: functions
+    name: "Typed functions"
+    category: authoring-core
+    intent: "Register a Rust function as a generated .mcfunction file."
+    status: implemented
+    stability: stable
+    crates: [sand-macros, sand-core]
+    entry_points: ["#[function]"]
+    preferred_api: "sand_macros::function"
+    minecraft: {minimum: "1.18.0", maximum_verified: "26.2.0"}
+    examples: ["examples/basic_typed.rs"]
+    evidence: ["sand-macros/src/lib.rs", "sand-core/src/function.rs"]
+
+  - id: load-tick-components
+    name: "Load and tick components"
+    category: authoring-core
+    intent: "Auto-register a function into minecraft:load or minecraft:tick function tags, or a custom tag."
+    status: implemented
+    stability: stable
+    crates: [sand-macros, sand-core]
+    entry_points: ["#[component(Load)]", "#[component(Tick)]", "#[component(Tag = \"ns:name\")]"]
+    minecraft: {minimum: "1.18.0", maximum_verified: "26.2.0"}
+    examples: ["examples/basic_typed.rs", "examples/state_and_conditions.rs"]
+    evidence: ["sand-macros/src/lib.rs", "sand-core/src/state (register_load_objective, register_tick_handler)"]
+
+  - id: selectors
+    name: "Typed selectors"
+    category: authoring-core
+    intent: "Build target selectors (@s, @a, @e[...], etc.) with typed arguments."
+    status: implemented
+    stability: stable
+    crates: [sand-commands]
+    preferred_api: "sand_commands::Selector"
+    minecraft: {minimum: "1.18.0", maximum_verified: "26.2.0"}
+    evidence: ["sand-commands/src (Selector)"]
+
+  - id: typed-commands
+    name: "Generated typed command builders"
+    category: authoring-core
+    intent: "Call vanilla commands (advancement, recipe, give, playsound, particle, etc.) through typed Rust builders instead of strings."
+    status: implemented
+    stability: stable
+    crates: [sand-commands, sand-core]
+    entry_points: ["sand_core::prelude::cmd::*"]
+    minecraft: {minimum: "1.18.0", maximum_verified: "26.2.0"}
+    sand_limitations: "Generated from commands.json per codegen version; a command added in a newer Minecraft version than the codegen target may not have a typed builder yet — check sand-commands generated modules before assuming support."
+    evidence: ["sand-commands/src", "sand-build (codegen from commands.json)"]
+
+  - id: execute-chains
+    name: "Typed execute chains"
+    category: authoring-core
+    intent: "Build /execute chains (as/at/if/unless/positioned/store/run) with typed sub-commands."
+    status: implemented
+    stability: stable
+    crates: [sand-core]
+    preferred_api: "sand_core::prelude::{TypedExecute, ExecuteExt}"
+    minecraft: {minimum: "1.18.0", maximum_verified: "26.2.0"}
+    evidence: ["sand-core/src/cmd/typed_execute.rs", "sand-core/src/execute_when.rs"]
+
+  - id: conditions
+    name: "Typed conditions"
+    category: authoring-core
+    intent: "Compose boolean conditions for execute if/unless without hand-writing predicate JSON."
+    status: implemented
+    stability: stable
+    crates: [sand-core]
+    preferred_api: "sand_core::prelude::{Condition, all!, any!}"
+    minecraft: {minimum: "1.18.0", maximum_verified: "26.2.0"}
+    evidence: ["sand-core/src/condition.rs"]
+    documentation: ["docs/conditions.md"]
+
+  - id: text-and-ui
+    name: "Typed text and UI (tellraw, actionbar, title, bossbar)"
+    category: authoring-core
+    intent: "Compose chat components and send actionbar/title/bossbar messages with typed styling."
+    status: implemented
+    stability: stable
+    crates: [sand-core, sand-commands]
+    preferred_api: "sand_core::prelude::{Text, Actionbar, Title, Bossbar}"
+    minecraft: {minimum: "1.18.0", maximum_verified: "26.2.0"}
+    evidence: ["sand-core/src/cmd", "sand-commands/src (Text, TextComponent)"]
+    documentation: ["docs/typed-commands.md", "book/src/manual/text-and-ui.md"]
+
+  - id: score-state
+    name: "Scoreboard-backed typed state"
+    category: state
+    intent: "Persist an integer value per-entity via a scoreboard objective, with typed read/write helpers."
+    status: implemented
+    stability: stable
+    crates: [sand-core]
+    preferred_api: "sand_core::prelude::ScoreVar<T>"
+    minecraft: {minimum: "1.18.0", maximum_verified: "26.2.0"}
+    evidence: ["sand-core/src/state/score.rs"]
+
+  - id: flags
+    name: "Boolean flags"
+    category: state
+    intent: "Persist a boolean per-entity, built on a scoreboard objective."
+    status: implemented
+    stability: stable
+    crates: [sand-core]
+    preferred_api: "sand_core::prelude::Flag"
+    evidence: ["sand-core/src/state/flag.rs"]
+
+  - id: timers
+    name: "Timers"
+    category: state
+    intent: "Countdown/elapsed-time tracking driven by tick components."
+    status: implemented
+    stability: stable
+    crates: [sand-core]
+    preferred_api: "sand_core::prelude::Timer"
+    evidence: ["sand-core/src/state/timer.rs"]
+
+  - id: cooldowns
+    name: "Cooldowns"
+    category: state
+    intent: "Per-entity action cooldown with auto-tick decrement."
+    status: implemented
+    stability: stable
+    crates: [sand-core]
+    cargo_features: ["systems-cooldowns"]
+    preferred_api: "sand_core::prelude::Cooldown"
+    evidence: ["sand-core/src/state/cooldown.rs", "sand-core/src/systems/cooldowns.rs"]
+    documentation: ["book/src/recipes/shockwave-shield.md"]
+
+  - id: storage
+    name: "Typed NBT storage"
+    category: state
+    intent: "Read/write command storage (NBT) with typed schemas instead of raw data commands."
+    status: implemented
+    stability: stable
+    crates: [sand-core, sand-macros]
+    preferred_api: "sand_core::prelude::StorageVar<T>"
+    advanced_api: "#[derive(SandStorage)] for custom schemas"
+    evidence: ["sand-core/src/state/storage.rs", "sand-macros (SandStorage derive)"]
+    documentation: ["docs/storage-nbt.md"]
+
+  - id: player-data
+    name: "Player-data schema bootstrap"
+    category: state
+    intent: "Bootstrap a per-player persistent data schema on join, built on typed storage."
+    status: implemented
+    stability: alpha
+    crates: [sand-core]
+    cargo_features: ["systems-player-data"]
+    entry_points: ["implies systems-lifecycle"]
+    preferred_api: "sand_core::prelude::{PlayerDataSchema, PlayerSchema}"
+    evidence: ["sand-core/src/systems/player_data.rs", "sand-core/Cargo.toml features"]
+
+  - id: lifecycle-events
+    name: "Join / death / respawn lifecycle helpers"
+    category: events
+    intent: "Hook player join, death, and respawn without hand-written advancement/scoreboard plumbing."
+    status: implemented
+    stability: alpha
+    crates: [sand-core]
+    cargo_features: ["systems-lifecycle"]
+    evidence: ["sand-core/src/systems/lifecycle.rs"]
+    examples: ["examples/player_join.rs"]
+
+  - id: events-typed
+    name: "Typed event system (advancement-backed triggers)"
+    category: events
+    intent: "Define custom event triggers backed by advancements, with typed function-reference dispatch."
+    status: partial
+    stability: alpha
+    crates: [sand-core]
+    preferred_api: "sand_core::prelude (crate::event::*)"
+    sand_limitations: >
+      Functional but rustdocs still being refined (ROADMAP.md). Do not assume
+      every advancement trigger exposes typed event payload values — check
+      trigger_coverage.rs's EventWrapperStatus (Supported/Partial/None) per
+      trigger before relying on payload data.
+    evidence: ["sand-core/src/event/{builder,handle,mod,trigger,vanilla}.rs"]
+    documentation: ["docs/events.md", "book/src/events.md", "book/src/reference/event-trigger-matrix.md"]
+
+  - id: advancement-triggers
+    name: "Advancement triggers"
+    category: events
+    intent: "Use vanilla advancement trigger conditions (item_used_on_block, enter_block, tick, etc.) as typed predicates."
+    status: implemented
+    stability: stable
+    crates: [sand-components]
+    preferred_api: "sand_components::advancement::AdvancementTrigger"
+    minecraft: {minimum: "1.18.0", maximum_verified: "26.2.0"}
+    sand_limitations: >
+      1 of 51 known vanilla trigger IDs (minecraft:leveled_up) is
+      intentionally_unsupported (not a real vanilla registry entry as of
+      1.21.11; generates a migration diagnostic pointing to tick-based XP
+      polling). All others are FullyImplemented. Full per-trigger status:
+      sand-components/src/advancement/trigger_coverage.rs (TRIGGER_COVERAGE,
+      53 rows). Do not assume a trigger exists by name pattern — check that
+      table first.
+    evidence: ["sand-components/src/advancement/trigger_coverage.rs"]
+
+  - id: custom-items
+    name: "Custom items"
+    category: items
+    intent: "Define a 1.21+ data-component custom item (food, equipment, tools, durability, enchantments) with a stable identity marker."
+    status: implemented
+    stability: stable
+    crates: [sand-core, sand-components]
+    minecraft: {minimum: "1.20.5", maximum_verified: "26.2.0", version_notes: "Full item-component model requires 1.20.5+/1.21+; use a custom_data marker component as identity, not name/lore."}
+    preferred_api: "sand_core::prelude (CustomItem via sand_components::item)"
+    evidence: ["sand-components/src/item/mod.rs", "sand-core/src/custom_item_ext.rs"]
+    examples: ["ai/recipes/custom-item.md (verified 2026-07-12)"]
+    documentation: ["book/src/manual/custom-items.md"]
+    known_limitations_ref: "LIM-DOC-005: examples/custom_items.rs is stale/does not compile — do not use it as a reference"
+
+  - id: item-events
+    name: "Item-use events"
+    category: items
+    intent: "Trigger a typed function when a custom item is used, backed by advancement item_used_on_block/used_totem etc."
+    status: implemented
+    stability: alpha
+    crates: [sand-core]
+    evidence: ["sand-core/src/custom_item_ext.rs (on_use_fn, on_kill_fn, on_trigger_fn)"]
+    documentation: ["book/src/manual/item-events.md", "book/src/recipes/magic-wand.md"]
+
+  - id: inventory
+    name: "Typed inventory helpers"
+    category: systems
+    intent: "Check/replace/clear/give items in player inventories with a unified typed slot model."
+    status: implemented
+    stability: alpha
+    crates: [sand-core]
+    cargo_features: ["systems-inventory"]
+    preferred_api: "sand_core::prelude (ItemSlot, Inventory helpers)"
+    evidence: ["sand-core/src/systems/inventory.rs"]
+    documentation: ["book/src/manual/inventory.md", "book/src/manual/slots.md"]
+    examples: ["book/src/recipes/inventory-quest-check.md"]
+
+  - id: movement
+    name: "Typed movement helpers"
+    category: systems
+    intent: "Push, launch, speed-boost, or slow entities with typed velocity helpers instead of raw /execute + data merge."
+    status: implemented
+    stability: alpha
+    crates: [sand-core]
+    cargo_features: ["systems-movement"]
+    evidence: ["sand-core/src/systems/movement.rs"]
+    examples: ["book/src/recipes/shockwave-shield.md"]
+
+  - id: entities-interactables
+    name: "Typed interactable entities"
+    category: systems
+    intent: "Build a tagged interaction hitbox entity that triggers a function on interact."
+    status: implemented
+    stability: alpha
+    crates: [sand-core]
+    cargo_features: ["systems-entities"]
+    evidence: ["sand-core/src/systems/entities.rs"]
+    examples: ["book/src/recipes/interactable-altar.md"]
+
+  - id: damage-tracking
+    name: "Damage tracking"
+    category: systems
+    intent: "Track cumulative/recent damage taken per entity via scoreboard stats, with threshold helpers."
+    status: implemented
+    stability: alpha
+    crates: [sand-core]
+    cargo_features: ["systems-damage"]
+    preferred_api: "sand_core::prelude::{DamageTracker, DamageThreshold, recently_damaged}"
+    evidence: ["sand-core/src/systems/damage.rs"]
+    examples: ["book/src/recipes/damage-reactive-ability.md"]
+    documentation: ["docs/damage.md"]
+
+  - id: damage-type-registry
+    name: "Damage type registry (JSON component)"
+    category: datapack-components
+    intent: "Define a custom minecraft:damage_type datapack entry (scaling, effects, death message type)."
+    status: implemented
+    stability: stable
+    crates: [sand-components]
+    minecraft: {minimum: "1.19.4", maximum_verified: "26.2.0"}
+    preferred_api: "sand_components::damage_type"
+    evidence: ["sand-components/src/registry_coverage.rs (minecraft:damage_type row)"]
+
+  - id: recipes
+    name: "Recipe registry"
+    category: datapack-components
+    intent: "Define all standard vanilla recipe types (shaped, shapeless, smelting/blasting/smoking, campfire, smithing_transform, smithing_trim, stonecutting)."
+    status: implemented
+    stability: stable
+    crates: [sand-components]
+    preferred_api: "sand_components::recipe"
+    evidence: ["sand-components/src/recipe", "sand-components/src/registry_coverage.rs (minecraft:recipe row)"]
+    examples: ["examples/recipes.rs"]
+
+  - id: predicates
+    name: "Predicate registry"
+    category: datapack-components
+    intent: "Define minecraft:predicate entries (entity, item, damage predicates)."
+    status: partial
+    stability: alpha
+    crates: [sand-components]
+    preferred_api: "sand_components::predicate"
+    sand_limitations: "EntityPredicate, ItemPredicate, DamagePredicate are typed. Location, weather, and time predicate variants are partial — use RawJson via Predicate::raw for uncovered shapes."
+    raw_escape_hatch: "sand_components::raw::RawJson"
+    evidence: ["sand-components/src/registry_coverage.rs (minecraft:predicate row)", "sand-components/src/predicates.rs"]
+
+  - id: loot-tables
+    name: "Loot table registry"
+    category: datapack-components
+    intent: "Define minecraft:loot_table entries (pools, entries, functions)."
+    status: partial
+    stability: alpha
+    crates: [sand-components]
+    preferred_api: "sand_components::loot_table"
+    sand_limitations: "LootTable/LootPool/LootEntry exist and are validated before export (#222), but complex pool conditions and some entry types are missing. Tracked: issue #17."
+    raw_escape_hatch: "sand_components::raw::RawComponent"
+    evidence: ["sand-components/src/loot_table/mod.rs", "sand-components/src/registry_coverage.rs (minecraft:loot_table row)"]
+    examples: ["examples/loot_tables.rs"]
+
+  - id: item-modifiers
+    name: "Item modifier registry"
+    category: datapack-components
+    intent: "Define minecraft:item_modifier entries (set_count, set_components, enchant_randomly, etc.)."
+    status: partial
+    stability: alpha
+    crates: [sand-components]
+    preferred_api: "sand_components::item_modifier"
+    sand_limitations: "SetCount, SetComponents, EnchantRandomly implemented and validated before export (#223); full vanilla modifier set is incomplete."
+    raw_escape_hatch: "sand_components::raw::RawComponent"
+    evidence: ["sand-components/src/item_modifier", "sand-components/src/registry_coverage.rs (minecraft:item_modifier row)"]
+
+  - id: tags
+    name: "Data-driven tags"
+    category: datapack-components
+    intent: "Define tags/<registry>/*.json for block, item, entity_type, function, and other taggable registries."
+    status: implemented
+    stability: stable
+    crates: [sand-components]
+    preferred_api: "sand_components::tag (TypedTag<T>)"
+    sand_limitations: "TypedTag<BlockId|ItemId|EntityTypeId|FunctionId> is fully typed. Other taggable registries (fluid, damage_type, dimension_type, worldgen/*, enchantment) exist only as raw Tag / RawComponent — see TAG_COVERAGE in registry_coverage.rs."
+    evidence: ["sand-components/src/tag/mod.rs", "sand-components/src/registry_coverage.rs (TAG_COVERAGE)"]
+
+  - id: dialogs
+    name: "Dialog registry"
+    category: datapack-components
+    intent: "Define minecraft:dialog entries and register them in pause_screen_additions/quick_actions tags."
+    status: partial
+    stability: experimental
+    crates: [sand-components]
+    minecraft: {minimum: "1.21.6", maximum_verified: "26.2.0", version_notes: "Dialogs introduced in 1.21.6 pack_format 80."}
+    preferred_api: "sand_components::dialog"
+    sand_limitations: "Dialog builder and well-known tag helpers exist; broader schema validation remains partial. Dialog command/export ergonomics called out as experimental in ROADMAP.md."
+    raw_escape_hatch: "sand_components::raw::RawComponent"
+    evidence: ["sand-components/src/dialog/mod.rs", "sand-components/src/registry_coverage.rs (minecraft:dialog row)"]
+    examples: ["examples/dialogs.rs"]
+
+  - id: structure-templates
+    name: "Structure templates"
+    category: datapack-components
+    intent: "Ship a pre-built .nbt structure file as a copy-backed datapack component."
+    status: implemented
+    stability: stable
+    crates: [sand-components]
+    preferred_api: "sand_components::structure_template::StructureTemplate"
+    sand_limitations: "Sand copies an existing .nbt file into the datapack; it does not generate or edit structure NBT content. Author structures in-game or with external tools."
+    evidence: ["sand-components/src/structure_template.rs"]
+
+  - id: worldgen-registries
+    name: "Worldgen registries (biome, dimension, placed_feature, noise_settings)"
+    category: datapack-components
+    intent: "Define custom biomes, dimensions, placed features, and noise settings."
+    status: partial
+    stability: experimental
+    crates: [sand-components]
+    preferred_api: "sand_components::worldgen::{biome, dimension, placed_feature, noise_settings}"
+    sand_limitations: "Basic struct fields covered; spawn costs/mob-spawning rules, dragon fight, placement modifiers, and surface rules are partial. configured_feature, structure, structure_set, processor_list, template_pool, density_function, noise, configured_carver, and dimension_type have no typed module at all (Missing) — use RawComponent."
+    raw_escape_hatch: "sand_components::raw::RawComponent"
+    evidence: ["sand-components/src/worldgen", "sand-components/src/registry_coverage.rs (worldgen/* rows)"]
+
+  - id: resource-pack
+    name: "Resource pack generation"
+    category: resourcepack
+    intent: "Generate an accompanying resource pack (textures, sprites, layout, pack_format) alongside the datapack."
+    status: partial
+    stability: alpha
+    crates: [sand-resourcepack]
+    entry_points: ["sand add resourcepack"]
+    sand_limitations: "Functional but requires manual asset setup (ROADMAP.md); called out as an experimental area."
+    evidence: ["sand-resourcepack/src", "sand/src/add_cmd.rs"]
+    documentation: ["book/src/resource-packs-and-hud.md"]
+
+  - id: hud-workflows
+    name: "HUD workflows"
+    category: resourcepack
+    intent: "Custom HUD elements via resource-pack-backed bossbar/UI sprites."
+    status: experimental
+    stability: experimental
+    crates: [sand-resourcepack, sand-core]
+    documentation: ["book/src/resource-packs-and-hud.md"]
+
+  - id: raw-commands
+    name: "Raw command escape hatch"
+    category: escape-hatches
+    intent: "Emit a literal vanilla command string when no typed builder covers it."
+    status: implemented
+    stability: stable
+    crates: [sand-core]
+    preferred_api: "cmd::raw(\"...\")"
+    advanced_api: "mcfunction! macro for raw command collections (experimental, advanced tooling)"
+    evidence: ["sand-core/src/cmd (raw)", "sand-core/src/cmd/fn_macros.rs (mcfunction!)"]
+    documentation: ["docs/escape-hatches.md", "docs/raw-command-audit.md"]
+
+  - id: raw-json-snbt
+    name: "Raw JSON / SNBT escape hatch"
+    category: escape-hatches
+    intent: "Embed raw JSON or SNBT where a typed component/predicate/item-modifier field is missing or incomplete."
+    status: implemented
+    stability: stable
+    crates: [sand-components]
+    preferred_api: "sand_components::raw::{RawJson, RawSnbt, RawComponent}"
+    evidence: ["sand-components/src/raw.rs"]
+    documentation: ["docs/escape-hatches.md"]
+
+  - id: version-profiles
+    name: "Minecraft version profiles"
+    category: versioning
+    intent: "Resolve a requested Minecraft version to pack formats and feature-support flags."
+    status: implemented
+    stability: stable
+    crates: [sand-core, sand-version]
+    preferred_api: "sand_core::prelude::{MinecraftVersion, VersionProfile}"
+    minecraft: {minimum: "1.18.0", maximum_verified: "26.2.0"}
+    sand_limitations: "Unknown/future versions silently fall back to conservative capabilities via resolve(); use resolve_strict() to reject them instead."
+    evidence: ["sand-core/src/version.rs", "sand-version/src/lib.rs"]
+    documentation: ["docs/version-capabilities.md", "docs/version-support.md"]
+
+  - id: cli-scaffold
+    name: "CLI: new / init"
+    category: cli
+    intent: "Scaffold a new attribute-first Sand project (sand new) or initialize one in the current directory (sand init)."
+    status: implemented
+    stability: stable
+    crates: [sand]
+    evidence: ["sand/src/main.rs (cmd_new, cmd_init)", "sand/src/scaffold.rs"]
+
+  - id: cli-build
+    name: "CLI: build"
+    category: cli
+    intent: "Compile the project and export a datapack (and optional resource pack) to dist/."
+    status: implemented
+    stability: stable
+    crates: [sand]
+    evidence: ["sand/src/build/mod.rs"]
+
+  - id: cli-run
+    name: "CLI: run"
+    category: cli
+    intent: "Build then launch a local vanilla server jar with the datapack installed, for manual testing."
+    status: implemented
+    stability: stable
+    crates: [sand]
+    evidence: ["sand/src/run_cmd.rs"]
+
+  - id: cli-join
+    name: "CLI: join"
+    category: cli
+    intent: "Join the dev server (--local via Prism Launcher per --help text)."
+    status: unknown
+    stability: unknown
+    crates: [sand]
+    sand_limitations: "sand.toml is parsed but the --local branch is an unimplemented no-op (TODO). Do not tell users this command works."
+    evidence: ["sand/src/join_cmd.rs:17-19"]
+
+  - id: cli-validate
+    name: "CLI/script: vanilla reload validation"
+    category: cli
+    intent: "Confirm a built datapack actually loads in a real vanilla server (not just that Rust tests pass)."
+    status: implemented
+    stability: experimental
+    crates: [sand-build]
+    entry_points: ["scripts/validate-vanilla-reload.sh"]
+    sand_limitations: "Opt-in, not run by default cargo test/CI gate discovered in this review; requires network access to fetch a server jar and a local Java 21+ runtime."
+    evidence: ["scripts/validate-vanilla-reload.sh", "scripts/vanilla_reload_harness.py", "docs/vanilla-reload-validation.md"]

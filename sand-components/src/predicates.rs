@@ -676,6 +676,27 @@ impl LocationPredicate {
         self.z = Some(r);
         self
     }
+
+    /// True if this predicate has no fields set (matches any location).
+    ///
+    /// Used by version-aware advancement trigger rendering to decide whether
+    /// a `minecraft:location_check` wrapper condition should be emitted at all.
+    pub(crate) fn is_empty(&self) -> bool {
+        self._raw.is_none()
+            && self.biome.is_none()
+            && self.dimension.is_none()
+            && self.feature.is_none()
+            && self.smokey.is_none()
+            && self.block.is_none()
+            && self.x.is_none()
+            && self.y.is_none()
+            && self.z.is_none()
+    }
+
+    /// True if a `block` sub-predicate is already set (typed or raw).
+    pub(crate) fn has_block(&self) -> bool {
+        self._raw.is_some() || self.block.is_some()
+    }
 }
 
 impl Serialize for LocationPredicate {
@@ -846,6 +867,13 @@ impl ItemPredicate {
                 "{path}.components: raw component predicates must be a JSON object"
             ));
         }
+        if let Some(raw) = &self.raw_predicates
+            && !raw.as_value().is_object()
+        {
+            return Err(format!(
+                "{path}.predicates: raw sub-predicates must be a JSON object"
+            ));
+        }
         Ok(())
     }
     /// Match any item.
@@ -896,25 +924,58 @@ impl ItemPredicate {
         self
     }
 
-    /// Require a named key in the item's `custom_data` component to be truthy.
+    /// Require a named key in the item's `custom_data` component to be present and truthy.
     ///
     /// This is the primary way to detect Sand custom items tagged with `.custom_data("key")`.
+    ///
+    /// This lowers to a **partial** NBT match against `minecraft:custom_data` under
+    /// the vanilla `predicates` bag (`predicates.minecraft:custom_data = "{key:1b,...}"`),
+    /// not an exact `components` equality check. Partial matching means the item may
+    /// carry additional custom-data keys added by other packs/mods and still match —
+    /// this is the correct semantics for "is this a Sand custom item of kind X", since
+    /// exact `components` equality would reject any item whose `custom_data` differs by
+    /// even one unrelated key.
+    ///
+    /// Calling this multiple times ANDs the keys together into one partial-match compound.
     pub fn custom_data_key(mut self, key: impl Into<String>) -> Self {
         self.custom_data_keys.push(key.into());
         self
     }
 
-    /// Add raw component predicates as an explicit escape hatch.
+    /// Add raw **exact-match** component predicates as an explicit escape hatch.
+    ///
+    /// Values under `components` must equal the item's component data exactly.
+    /// Prefer [`custom_data_key`](Self::custom_data_key) or
+    /// [`raw_predicates`](Self::raw_predicates) for partial matching.
     pub fn raw_components(mut self, v: RawJson) -> Self {
         self.raw_components = Some(v);
         self
     }
 
-    /// Add raw sub-predicates as an explicit escape hatch.
+    /// Add raw **partial-match** sub-predicates as an explicit escape hatch.
+    ///
+    /// Merged into the same `predicates` bag as [`custom_data_key`](Self::custom_data_key).
+    /// The value must be a JSON object mapping predicate condition IDs
+    /// (e.g. `"minecraft:enchantments"`) to their predicate payload.
     pub fn raw_predicates(mut self, v: RawJson) -> Self {
         self.raw_predicates = Some(v);
         self
     }
+}
+
+/// Render custom-data marker keys as a partial-match SNBT compound,
+/// e.g. `["elevator"]` → `{elevator:1b}`. Namespaced marker keys (e.g.
+/// `arcane:dash_wand`) are quoted via `crate::item::snbt_compound_key` — the
+/// same helper `sand_components::item` uses for exact-match `custom_data`
+/// SNBT — so marker keys round-trip as valid SNBT instead of producing an
+/// ambiguous bare `:` token.
+fn custom_data_partial_snbt(keys: &[String]) -> String {
+    let body = keys
+        .iter()
+        .map(|k| format!("{}:1b", crate::item::snbt_compound_key(k)))
+        .collect::<Vec<_>>()
+        .join(",");
+    format!("{{{body}}}")
 }
 
 impl Serialize for ItemPredicate {
@@ -924,38 +985,31 @@ impl Serialize for ItemPredicate {
         }
         let mut map = serializer.serialize_map(None)?;
         if let Some(ref v) = self.items {
-            if v.len() == 1 {
-                map.serialize_entry("items", &v[0])?;
-            } else {
-                map.serialize_entry("items", v)?;
-            }
+            map.serialize_entry("items", v)?;
         }
         if let Some(ref v) = self.count {
             map.serialize_entry("count", v)?;
         }
-        // Build components object from typed data + raw fallback
+        if let Some(ref raw_c) = self.raw_components {
+            map.serialize_entry("components", raw_c)?;
+        }
+        // Build the partial-match `predicates` bag from typed custom-data keys + raw fallback.
         let has_custom_data = !self.custom_data_keys.is_empty();
-        let has_raw_components = self.raw_components.is_some();
-        if has_custom_data || has_raw_components {
-            let mut comp_map: serde_json::Map<String, Value> = serde_json::Map::new();
+        let has_raw_predicates = self.raw_predicates.is_some();
+        if has_custom_data || has_raw_predicates {
+            let mut pred_map: serde_json::Map<String, Value> = serde_json::Map::new();
             if has_custom_data {
-                let mut cd = serde_json::Map::new();
-                for key in &self.custom_data_keys {
-                    cd.insert(key.clone(), Value::Bool(true));
-                }
-                comp_map.insert("minecraft:custom_data".to_string(), Value::Object(cd));
+                let snbt = custom_data_partial_snbt(&self.custom_data_keys);
+                pred_map.insert("minecraft:custom_data".to_string(), Value::String(snbt));
             }
-            if let Some(ref raw_c) = self.raw_components
-                && let Value::Object(obj) = raw_c.as_value()
+            if let Some(ref raw_p) = self.raw_predicates
+                && let Value::Object(obj) = raw_p.as_value()
             {
                 for (k, v) in obj {
-                    comp_map.insert(k.clone(), v.clone());
+                    pred_map.insert(k.clone(), v.clone());
                 }
             }
-            map.serialize_entry("components", &Value::Object(comp_map))?;
-        }
-        if let Some(ref v) = self.raw_predicates {
-            map.serialize_entry("predicates", v)?;
+            map.serialize_entry("predicates", &Value::Object(pred_map))?;
         }
         map.end()
     }
@@ -1348,7 +1402,7 @@ mod tests {
     fn item_predicate_id_only() {
         let p = ItemPredicate::id("minecraft:diamond");
         let v = serde_json::to_value(&p).unwrap();
-        assert_eq!(v["items"], "minecraft:diamond");
+        assert_eq!(v["items"], json!(["minecraft:diamond"]));
     }
 
     #[test]
@@ -1362,7 +1416,39 @@ mod tests {
     fn item_predicate_custom_data_key() {
         let p = ItemPredicate::id("minecraft:diamond_sword").custom_data_key("my_sword");
         let v = serde_json::to_value(&p).unwrap();
-        assert_eq!(v["components"]["minecraft:custom_data"]["my_sword"], true);
+        // Partial NBT match, not exact `components` equality — see #233/#232.
+        assert_eq!(v["predicates"]["minecraft:custom_data"], "{my_sword:1b}");
+        assert!(v.get("components").is_none());
+    }
+
+    #[test]
+    fn item_predicate_custom_data_key_multiple_keys_and() {
+        let p = ItemPredicate::id("minecraft:white_wool")
+            .custom_data_key("elevator")
+            .custom_data_key("floor");
+        let v = serde_json::to_value(&p).unwrap();
+        assert_eq!(
+            v["predicates"]["minecraft:custom_data"],
+            "{elevator:1b,floor:1b}"
+        );
+    }
+
+    #[test]
+    fn item_predicate_raw_predicates_merges_with_custom_data() {
+        let p = ItemPredicate::id("minecraft:bow")
+            .custom_data_key("enchanted_bow")
+            .raw_predicates(RawJson::new(
+                json!({"minecraft:enchantments": {"levels": {"min": 1}}}),
+            ));
+        let v = serde_json::to_value(&p).unwrap();
+        assert_eq!(
+            v["predicates"]["minecraft:custom_data"],
+            "{enchanted_bow:1b}"
+        );
+        assert_eq!(
+            v["predicates"]["minecraft:enchantments"]["levels"]["min"],
+            1
+        );
     }
 
     #[test]
@@ -1401,7 +1487,10 @@ mod tests {
         let ep = EntityPredicate::type_("minecraft:player")
             .equipment(EntityEquipment::new().feet(ItemPredicate::id("minecraft:diamond_boots")));
         let v = serde_json::to_value(&ep).unwrap();
-        assert_eq!(v["equipment"]["feet"]["items"], "minecraft:diamond_boots");
+        assert_eq!(
+            v["equipment"]["feet"]["items"],
+            json!(["minecraft:diamond_boots"])
+        );
     }
 
     #[test]

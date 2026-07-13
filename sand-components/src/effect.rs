@@ -397,8 +397,13 @@ impl PotionContents {
 }
 
 /// Suspicious stew effect entry.
+///
+/// Vanilla's `minecraft:suspicious_stew_effects` component uses the field
+/// name `id` for the effect identifier (matching `to_snbt()` below); the JSON
+/// (`Serialize`) form is renamed to match so both representations agree — see #148.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct SuspiciousStewEffect {
+    #[serde(rename = "id")]
     pub effect: EffectId,
     pub duration: Ticks,
 }
@@ -530,7 +535,7 @@ mod tests {
         let effect = SuspiciousStewEffect::seconds(EffectId::NightVision, 7);
         assert_eq!(
             serde_json::to_value(&effect).unwrap(),
-            json!({"effect": "minecraft:night_vision", "duration": 140})
+            json!({"id": "minecraft:night_vision", "duration": 140})
         );
         assert_eq!(
             effect.to_snbt(),

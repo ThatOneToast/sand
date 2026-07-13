@@ -1008,6 +1008,34 @@ impl AdvancementTrigger {
 
 impl Serialize for AdvancementTrigger {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        // `PlacedBlock` and `ItemUsedOnBlock` render through the same modern
+        // `location_check`/`match_tool` lowering used by `render_for(None)` —
+        // see #232/#233. This compatibility `Serialize` impl (used directly by
+        // tests, `Criterion`, and any caller that doesn't route through
+        // `render_for`) must never fall back to the old unfiltered flat
+        // `conditions.block`/`conditions.item` shape, or it would silently
+        // reintroduce the bug those issues fixed. The pre-item-component
+        // legacy shape remains reachable only through the explicit
+        // `render_for(Some(&caps))` profile-gated path.
+        match self {
+            AdvancementTrigger::PlacedBlock {
+                block,
+                item,
+                location,
+                state,
+            } => {
+                let value = render_placed_block_modern(block, item, location, state)
+                    .map_err(serde::ser::Error::custom)?;
+                return value.serialize(serializer);
+            }
+            AdvancementTrigger::ItemUsedOnBlock { item, location } => {
+                let value = render_item_used_on_block_modern(item, location)
+                    .map_err(serde::ser::Error::custom)?;
+                return value.serialize(serializer);
+            }
+            _ => {}
+        }
+
         let mut map = serializer.serialize_map(None)?;
         map.serialize_entry("trigger", self.trigger_id())?;
 
@@ -1285,28 +1313,8 @@ impl Serialize for AdvancementTrigger {
                 }
             }
 
-            AdvancementTrigger::PlacedBlock {
-                block,
-                item,
-                location,
-                state,
-            } => {
-                let mut cond = serde_json::Map::new();
-                if let Some(b) = block {
-                    cond.insert("block".into(), Value::String(b.clone()));
-                }
-                if let Some(i) = item {
-                    cond.insert("item".into(), json_value::<_, S::Error>(i)?);
-                }
-                if let Some(l) = location {
-                    cond.insert("location".into(), json_value::<_, S::Error>(l)?);
-                }
-                if let Some(s) = state {
-                    cond.insert("state".into(), json_value::<_, S::Error>(s)?);
-                }
-                if !cond.is_empty() {
-                    map.serialize_entry("conditions", &Value::Object(cond))?;
-                }
+            AdvancementTrigger::PlacedBlock { .. } => {
+                unreachable!("PlacedBlock is handled by the early return above")
             }
 
             AdvancementTrigger::EnterBlock { block, state } => {
@@ -1474,17 +1482,8 @@ impl Serialize for AdvancementTrigger {
                 }
             }
 
-            AdvancementTrigger::ItemUsedOnBlock { item, location } => {
-                let mut cond = serde_json::Map::new();
-                if let Some(i) = item {
-                    cond.insert("item".into(), json_value::<_, S::Error>(i)?);
-                }
-                if let Some(l) = location {
-                    cond.insert("location".into(), json_value::<_, S::Error>(l)?);
-                }
-                if !cond.is_empty() {
-                    map.serialize_entry("conditions", &Value::Object(cond))?;
-                }
+            AdvancementTrigger::ItemUsedOnBlock { .. } => {
+                unreachable!("ItemUsedOnBlock is handled by the early return above")
             }
 
             AdvancementTrigger::RideEntityInLava {
@@ -1512,6 +1511,253 @@ impl Serialize for AdvancementTrigger {
 
         map.end()
     }
+}
+
+// ── Version-aware rendering (#232, #233) ───────────────────────────────────────
+
+impl AdvancementTrigger {
+    /// Render this trigger's `{"trigger": ..., "conditions": ...}` JSON for a
+    /// specific Minecraft version's predicate schema.
+    ///
+    /// Most trigger variants have one stable JSON representation across every
+    /// Sand-supported target and simply delegate to [`Serialize`]. Two
+    /// variants — [`AdvancementTrigger::PlacedBlock`] and
+    /// [`AdvancementTrigger::ItemUsedOnBlock`] — additionally filter by the
+    /// item used to place/interact with the block. Minecraft's modern
+    /// (1.20.5+ item-component era) schema expresses that filter as a
+    /// `conditions.location` array of `minecraft:location_check` /
+    /// `minecraft:match_tool` loot conditions, not the direct `block`/`item`
+    /// fields this crate used to emit. Emitting the direct fields makes the
+    /// generated advancement fire unconditionally in-game — see #233.
+    ///
+    /// `caps` is `None` on the unprofiled compatibility export path, which is
+    /// treated the same as a fully item-component-capable modern profile
+    /// (matching the `VersionCaps::all_enabled()` convention used elsewhere
+    /// in Sand). Targets that predate the item-component system
+    /// (`ComponentFeature::ItemComponents` unsupported) keep the legacy flat
+    /// shape, since their vanilla schema never had `location_check`/`match_tool`
+    /// wrapping for these triggers.
+    ///
+    /// This never silently drops a filter: if a caller supplies both the
+    /// trigger-level `block`/`state` shorthand *and* a `location` predicate
+    /// that already sets `block`, rendering fails with an actionable
+    /// [`SandError`](crate::error::SandError) instead of picking one silently.
+    pub fn render_for(
+        &self,
+        caps: Option<&sand_version::VersionCaps>,
+    ) -> crate::error::Result<Value> {
+        let modern =
+            caps.is_none_or(|c| c.supports(sand_version::ComponentFeature::ItemComponents));
+
+        match self {
+            AdvancementTrigger::PlacedBlock {
+                block,
+                item,
+                location,
+                state,
+            } if modern => render_placed_block_modern(block, item, location, state),
+
+            AdvancementTrigger::ItemUsedOnBlock { item, location } if modern => {
+                render_item_used_on_block_modern(item, location)
+            }
+
+            // Pre-item-component targets never had `location_check`/`match_tool`
+            // wrapping for these two triggers — preserve the historical flat shape
+            // rather than emitting a schema the target version never supported.
+            AdvancementTrigger::PlacedBlock {
+                block,
+                item,
+                location,
+                state,
+            } => Ok(render_placed_block_legacy(block, item, location, state)),
+
+            AdvancementTrigger::ItemUsedOnBlock { item, location } => {
+                Ok(render_item_used_on_block_legacy(item, location))
+            }
+
+            _ => serde_json::to_value(self).map_err(crate::error::SandError::Serialization),
+        }
+    }
+}
+
+/// Pre-item-component-era flat rendering for [`AdvancementTrigger::PlacedBlock`],
+/// preserved only for targets where `render_for` determines the modern
+/// `location_check`/`match_tool` schema is unsupported. Not used by the
+/// compatibility `Serialize` impl, which always renders the modern (correct)
+/// shape — see the `Serialize for AdvancementTrigger` impl's doc comment.
+fn render_placed_block_legacy(
+    block: &Option<String>,
+    item: &Option<ItemPredicate>,
+    location: &Option<LocationPredicate>,
+    state: &Option<HashMap<String, String>>,
+) -> Value {
+    let mut cond = serde_json::Map::new();
+    if let Some(b) = block {
+        cond.insert("block".to_string(), Value::String(b.clone()));
+    }
+    if let Some(i) = item {
+        cond.insert(
+            "item".to_string(),
+            serde_json::to_value(i).unwrap_or(Value::Null),
+        );
+    }
+    if let Some(l) = location {
+        cond.insert(
+            "location".to_string(),
+            serde_json::to_value(l).unwrap_or(Value::Null),
+        );
+    }
+    if let Some(s) = state {
+        cond.insert(
+            "state".to_string(),
+            serde_json::to_value(s).unwrap_or(Value::Null),
+        );
+    }
+
+    let mut map = serde_json::Map::new();
+    map.insert(
+        "trigger".to_string(),
+        Value::String("minecraft:placed_block".to_string()),
+    );
+    if !cond.is_empty() {
+        map.insert("conditions".to_string(), Value::Object(cond));
+    }
+    Value::Object(map)
+}
+
+/// Pre-item-component-era flat rendering for [`AdvancementTrigger::ItemUsedOnBlock`].
+/// See [`render_placed_block_legacy`] for when this is used.
+fn render_item_used_on_block_legacy(
+    item: &Option<ItemPredicate>,
+    location: &Option<LocationPredicate>,
+) -> Value {
+    let mut cond = serde_json::Map::new();
+    if let Some(i) = item {
+        cond.insert(
+            "item".to_string(),
+            serde_json::to_value(i).unwrap_or(Value::Null),
+        );
+    }
+    if let Some(l) = location {
+        cond.insert(
+            "location".to_string(),
+            serde_json::to_value(l).unwrap_or(Value::Null),
+        );
+    }
+
+    let mut map = serde_json::Map::new();
+    map.insert(
+        "trigger".to_string(),
+        Value::String("minecraft:item_used_on_block".to_string()),
+    );
+    if !cond.is_empty() {
+        map.insert("conditions".to_string(), Value::Object(cond));
+    }
+    Value::Object(map)
+}
+
+/// Build the `minecraft:location_check` / `minecraft:match_tool` condition
+/// array shared by [`AdvancementTrigger::PlacedBlock`] and
+/// [`AdvancementTrigger::ItemUsedOnBlock`]'s modern rendering.
+fn render_location_and_item_conditions(
+    trigger_id: &str,
+    location: &Option<LocationPredicate>,
+    item: &Option<ItemPredicate>,
+    block_shorthand: Option<&String>,
+    state_shorthand: &Option<HashMap<String, String>>,
+) -> crate::error::Result<Vec<Value>> {
+    let mut loc = location.clone().unwrap_or_default();
+
+    if block_shorthand.is_some() || state_shorthand.is_some() {
+        if loc.has_block() {
+            return Err(crate::error::SandError::ComponentValidation {
+                location: ResourceLocation::new("sand", "advancement_trigger")
+                    .expect("static resource location is always valid"),
+                kind: trigger_id.to_string(),
+                field: "conditions.block".to_string(),
+                message: "both the direct `block`/`state` shorthand and an explicit \
+                    `location` predicate that may already set `block` (a typed `block`, \
+                    or a `LocationPredicate::raw(...)` escape hatch whose contents Sand \
+                    cannot inspect) were set; specify the block filter in exactly one place"
+                    .to_string(),
+            });
+        }
+        let mut bp = crate::predicates::BlockPredicate::new();
+        if let Some(block) = block_shorthand {
+            bp = bp.blocks(vec![block.clone()]);
+        }
+        if let Some(state) = state_shorthand {
+            bp = bp.state(state.clone());
+        }
+        loc = loc.block(bp);
+    }
+
+    let mut conditions = Vec::new();
+    if !loc.is_empty() {
+        conditions.push(serde_json::json!({
+            "condition": "minecraft:location_check",
+            "predicate": loc,
+        }));
+    }
+    if let Some(item) = item {
+        conditions.push(serde_json::json!({
+            "condition": "minecraft:match_tool",
+            "predicate": item,
+        }));
+    }
+    Ok(conditions)
+}
+
+fn render_placed_block_modern(
+    block: &Option<String>,
+    item: &Option<ItemPredicate>,
+    location: &Option<LocationPredicate>,
+    state: &Option<HashMap<String, String>>,
+) -> crate::error::Result<Value> {
+    let conditions = render_location_and_item_conditions(
+        "minecraft:placed_block",
+        location,
+        item,
+        block.as_ref(),
+        state,
+    )?;
+
+    let mut map = serde_json::Map::new();
+    map.insert(
+        "trigger".to_string(),
+        Value::String("minecraft:placed_block".to_string()),
+    );
+    if !conditions.is_empty() {
+        let mut cond = serde_json::Map::new();
+        cond.insert("location".to_string(), Value::Array(conditions));
+        map.insert("conditions".to_string(), Value::Object(cond));
+    }
+    Ok(Value::Object(map))
+}
+
+fn render_item_used_on_block_modern(
+    item: &Option<ItemPredicate>,
+    location: &Option<LocationPredicate>,
+) -> crate::error::Result<Value> {
+    let conditions = render_location_and_item_conditions(
+        "minecraft:item_used_on_block",
+        location,
+        item,
+        None,
+        &None,
+    )?;
+
+    let mut map = serde_json::Map::new();
+    map.insert(
+        "trigger".to_string(),
+        Value::String("minecraft:item_used_on_block".to_string()),
+    );
+    if !conditions.is_empty() {
+        let mut cond = serde_json::Map::new();
+        cond.insert("location".to_string(), Value::Array(conditions));
+        map.insert("conditions".to_string(), Value::Object(cond));
+    }
+    Ok(Value::Object(map))
 }
 
 // ── Criterion ─────────────────────────────────────────────────────────────────
@@ -1799,15 +2045,20 @@ impl DatapackComponent for Advancement {
     }
 
     fn to_json(&self) -> Value {
-        self.try_to_json()
+        self.try_to_json_for(None)
             .unwrap_or_else(|error| panic!("advancement serialization failed: {error}"))
     }
 
     fn try_content(&self) -> crate::error::Result<ComponentContent> {
+        self.try_content_for(None)
+    }
+
+    fn try_content_for(
+        &self,
+        caps: Option<&sand_version::VersionCaps>,
+    ) -> crate::error::Result<ComponentContent> {
         self.validate()?;
-        self.try_to_json()
-            .map(ComponentContent::Json)
-            .map_err(|error| self.validation_error("serialization", error.to_string()))
+        self.try_to_json_for(caps).map(ComponentContent::Json)
     }
 
     fn component_dir(&self) -> &'static str {
@@ -1816,27 +2067,67 @@ impl DatapackComponent for Advancement {
 }
 
 impl Advancement {
-    fn try_to_json(&self) -> Result<Value, serde_json::Error> {
+    /// Serialize this advancement's JSON, rendering each criterion's trigger
+    /// through [`AdvancementTrigger::render_for`] for the given profile.
+    ///
+    /// `caps` is `None` on the compatibility path, treated the same as a
+    /// fully-capable modern profile — see [`AdvancementTrigger::render_for`].
+    fn try_to_json_for(
+        &self,
+        caps: Option<&sand_version::VersionCaps>,
+    ) -> crate::error::Result<Value> {
         let mut map = serde_json::Map::new();
 
         if let Some(ref p) = self.parent {
             map.insert("parent".into(), Value::String(p.clone()));
         }
         if let Some(ref d) = self.display {
-            map.insert("display".into(), serde_json::to_value(d)?);
+            map.insert(
+                "display".into(),
+                serde_json::to_value(d).map_err(crate::error::SandError::Serialization)?,
+            );
         }
 
         let mut criteria_map = serde_json::Map::new();
         for (name, criterion) in &self.criteria {
-            criteria_map.insert(name.clone(), serde_json::to_value(criterion)?);
+            let trigger_json = criterion.trigger.render_for(caps).map_err(|error| {
+                self.validation_error(format!("criteria.{name}"), error.to_string())
+            })?;
+            criteria_map.insert(name.clone(), trigger_json);
         }
         map.insert("criteria".into(), Value::Object(criteria_map));
 
-        if let Some(ref reqs) = self.requirements {
-            map.insert("requirements".into(), serde_json::to_value(reqs)?);
-        }
+        // Always emit `requirements`. Minecraft treats a missing/empty `requirements`
+        // array as "no criteria required", which makes the advancement fire
+        // unconditionally regardless of how restrictive the criteria conditions are
+        // (see #233). When the caller hasn't supplied an explicit group layout, derive
+        // a single AND-group covering every defined criterion — the correct default
+        // for the common single- and multi-criterion "all must complete" case.
+        let requirements: Vec<Vec<String>> = match &self.requirements {
+            Some(reqs) => reqs.clone(),
+            None => {
+                let mut names: Vec<String> = self.criteria.keys().cloned().collect();
+                names.sort();
+                // `validate()` rejects zero-criteria advancements, but `to_json()`/
+                // `content()` are documented infallible escape hatches that can be
+                // called without validating first — don't synthesize a structurally
+                // invalid single empty requirement group (`[[]]`) in that case.
+                if names.is_empty() {
+                    vec![]
+                } else {
+                    vec![names]
+                }
+            }
+        };
+        map.insert(
+            "requirements".into(),
+            serde_json::to_value(&requirements).map_err(crate::error::SandError::Serialization)?,
+        );
         if let Some(ref r) = self.rewards {
-            map.insert("rewards".into(), serde_json::to_value(r)?);
+            map.insert(
+                "rewards".into(),
+                serde_json::to_value(r).map_err(crate::error::SandError::Serialization)?,
+            );
         }
         if self.sends_telemetry_data {
             map.insert("sends_telemetry_data".into(), Value::Bool(true));
@@ -1869,7 +2160,10 @@ mod tests {
         };
         let v = serde_json::to_value(&t).unwrap();
         assert_eq!(v["trigger"], "minecraft:consume_item");
-        assert_eq!(v["conditions"]["item"]["items"], "minecraft:golden_apple");
+        assert_eq!(
+            v["conditions"]["item"]["items"],
+            serde_json::json!(["minecraft:golden_apple"])
+        );
     }
 
     #[test]
@@ -1918,7 +2212,10 @@ mod tests {
             items: vec![ItemPredicate::id("minecraft:diamond")],
         };
         let v = serde_json::to_value(&t).unwrap();
-        assert_eq!(v["conditions"]["items"][0]["items"], "minecraft:diamond");
+        assert_eq!(
+            v["conditions"]["items"][0]["items"],
+            serde_json::json!(["minecraft:diamond"])
+        );
     }
 
     #[test]
@@ -2698,6 +2995,249 @@ mod tests {
                 serde_json::to_value(legacy).unwrap()
             );
         }
+    }
+
+    // ── Version-aware placed_block rendering golden tests (#232, #233) ────────
+
+    fn elevator_wool_item_predicate() -> ItemPredicate {
+        ItemPredicate::id("minecraft:white_wool").custom_data_key("elevator")
+    }
+
+    #[test]
+    fn placed_block_modern_render_matches_vanilla_location_check_and_match_tool() {
+        let trigger = AdvancementTrigger::placed_block(
+            Some(BlockId::minecraft("white_wool").unwrap()),
+            Some(elevator_wool_item_predicate()),
+            None,
+            None,
+        );
+
+        let v = trigger
+            .render_for(Some(&sand_version::VersionCaps::all_enabled()))
+            .unwrap();
+
+        assert_eq!(v["trigger"], "minecraft:placed_block");
+        let location = v["conditions"]["location"]
+            .as_array()
+            .expect("conditions.location must be an array");
+        assert_eq!(location.len(), 2);
+
+        assert_eq!(location[0]["condition"], "minecraft:location_check");
+        assert_eq!(
+            location[0]["predicate"]["block"]["blocks"],
+            serde_json::json!(["minecraft:white_wool"])
+        );
+
+        assert_eq!(location[1]["condition"], "minecraft:match_tool");
+        assert_eq!(
+            location[1]["predicate"]["items"],
+            serde_json::json!(["minecraft:white_wool"])
+        );
+        assert_eq!(
+            location[1]["predicate"]["predicates"]["minecraft:custom_data"],
+            "{elevator:1b}"
+        );
+
+        // Regression guard for #233: the old flat shape must be gone.
+        assert!(v["conditions"].get("block").is_none());
+        assert!(v["conditions"].get("item").is_none());
+    }
+
+    #[test]
+    fn placed_block_modern_render_block_only_has_no_match_tool_condition() {
+        let trigger = AdvancementTrigger::placed_block(
+            Some(BlockId::minecraft("white_wool").unwrap()),
+            None,
+            None,
+            None,
+        );
+        let v = trigger.render_for(None).unwrap();
+        let location = v["conditions"]["location"].as_array().unwrap();
+        assert_eq!(location.len(), 1);
+        assert_eq!(location[0]["condition"], "minecraft:location_check");
+    }
+
+    #[test]
+    fn placed_block_modern_render_item_only_has_no_location_check_condition() {
+        let trigger = AdvancementTrigger::placed_block(
+            None,
+            Some(elevator_wool_item_predicate()),
+            None,
+            None,
+        );
+        let v = trigger.render_for(None).unwrap();
+        let location = v["conditions"]["location"].as_array().unwrap();
+        assert_eq!(location.len(), 1);
+        assert_eq!(location[0]["condition"], "minecraft:match_tool");
+    }
+
+    #[test]
+    fn placed_block_unfiltered_emits_no_conditions() {
+        let trigger = AdvancementTrigger::placed_block(None, None, None, None);
+        let v = trigger.render_for(None).unwrap();
+        assert!(v.get("conditions").is_none());
+    }
+
+    #[test]
+    fn placed_block_render_for_no_profile_defaults_to_modern() {
+        let trigger = AdvancementTrigger::placed_block(
+            Some(BlockId::minecraft("white_wool").unwrap()),
+            None,
+            None,
+            None,
+        );
+        let no_profile = trigger.render_for(None).unwrap();
+        let modern = trigger
+            .render_for(Some(&sand_version::VersionCaps::all_enabled()))
+            .unwrap();
+        assert_eq!(no_profile, modern);
+    }
+
+    #[test]
+    fn placed_block_render_for_legacy_profile_keeps_flat_shape() {
+        let trigger = AdvancementTrigger::placed_block(
+            Some(BlockId::minecraft("white_wool").unwrap()),
+            Some(elevator_wool_item_predicate()),
+            None,
+            None,
+        );
+        let v = trigger
+            .render_for(Some(&sand_version::VersionCaps::all_disabled()))
+            .unwrap();
+        // Pre-item-component targets never had `location_check`/`match_tool`
+        // wrapping for this trigger — output must keep the historical flat shape.
+        // Note this intentionally diverges from `Serialize`/`render_for(None)`,
+        // which always render the modern (correct) shape by default; the legacy
+        // shape is reachable only by explicitly passing pre-item-component caps.
+        assert_eq!(v["conditions"]["block"], "minecraft:white_wool");
+        assert!(v["conditions"]["item"].is_object());
+        assert!(v["conditions"].get("location").is_none());
+    }
+
+    #[test]
+    fn placed_block_serialize_never_uses_legacy_flat_shape() {
+        // Regression guard for the "Criterion::Serialize latent trap" found in
+        // review: the plain `Serialize` impl (used by `Criterion` and any
+        // direct `serde_json::to_value` caller) must always render the modern,
+        // correct schema — never silently fall back to the pre-#233 shape.
+        let trigger = AdvancementTrigger::placed_block(
+            Some(BlockId::minecraft("white_wool").unwrap()),
+            Some(elevator_wool_item_predicate()),
+            None,
+            None,
+        );
+        let via_serialize = serde_json::to_value(&trigger).unwrap();
+        let via_render_for_none = trigger.render_for(None).unwrap();
+        assert_eq!(via_serialize, via_render_for_none);
+        assert!(via_serialize["conditions"]["location"].is_array());
+        assert!(via_serialize["conditions"].get("block").is_none());
+        assert!(via_serialize["conditions"].get("item").is_none());
+    }
+
+    #[test]
+    fn criterion_serialize_uses_modern_placed_block_shape() {
+        let trigger = AdvancementTrigger::placed_block(
+            Some(BlockId::minecraft("white_wool").unwrap()),
+            None,
+            None,
+            None,
+        );
+        let criterion = Criterion::new(trigger);
+        let v = serde_json::to_value(&criterion).unwrap();
+        assert!(v["conditions"]["location"].is_array());
+    }
+
+    #[test]
+    fn item_used_on_block_modern_render_uses_location_check_and_match_tool() {
+        let trigger = AdvancementTrigger::ItemUsedOnBlock {
+            item: Some(elevator_wool_item_predicate()),
+            location: Some(LocationPredicate::new().biome("minecraft:plains")),
+        };
+        let v = trigger.render_for(None).unwrap();
+        let location = v["conditions"]["location"].as_array().unwrap();
+        assert_eq!(location.len(), 2);
+        assert_eq!(location[0]["condition"], "minecraft:location_check");
+        assert_eq!(location[0]["predicate"]["biome"], "minecraft:plains");
+        assert_eq!(location[1]["condition"], "minecraft:match_tool");
+    }
+
+    #[test]
+    fn placed_block_render_rejects_conflicting_block_shorthand_and_location_block() {
+        let trigger = AdvancementTrigger::PlacedBlock {
+            block: Some("minecraft:white_wool".into()),
+            item: None,
+            location: Some(LocationPredicate::new().block(
+                crate::predicates::BlockPredicate::new().blocks(vec!["minecraft:dirt".into()]),
+            )),
+            state: None,
+        };
+        let error = trigger.render_for(None).unwrap_err().to_string();
+        assert!(error.contains("block"), "{error}");
+    }
+
+    #[test]
+    fn placed_block_regression_dirt_and_plain_wool_are_structurally_excluded() {
+        // Reproduces the #233 scenario: the generated predicate must only match
+        // the exact block id and carry the custom-data partial-match condition,
+        // so unrelated placements (dirt) and the un-tagged base item (plain
+        // white wool with no `elevator` custom_data) cannot satisfy it.
+        let trigger = AdvancementTrigger::placed_block(
+            Some(BlockId::minecraft("white_wool").unwrap()),
+            Some(elevator_wool_item_predicate()),
+            None,
+            None,
+        );
+        let v = trigger.render_for(None).unwrap();
+        let location = v["conditions"]["location"].as_array().unwrap();
+        let blocks = location[0]["predicate"]["block"]["blocks"]
+            .as_array()
+            .unwrap();
+        assert_eq!(blocks, &[Value::String("minecraft:white_wool".into())]);
+        assert_ne!(blocks[0], "minecraft:dirt");
+        // The match_tool predicate requires the `elevator` custom_data marker,
+        // which plain (untagged) white wool does not carry.
+        assert_eq!(
+            location[1]["predicate"]["predicates"]["minecraft:custom_data"],
+            "{elevator:1b}"
+        );
+    }
+
+    // ── requirements auto-derivation (#233) ────────────────────────────────────
+
+    #[test]
+    fn advancement_requirements_auto_derived_single_criterion() {
+        let advancement = Advancement::new("test:single".parse().unwrap())
+            .criterion(
+                "event",
+                Criterion::new(AdvancementTrigger::placed_block(
+                    Some(BlockId::minecraft("white_wool").unwrap()),
+                    None,
+                    None,
+                    None,
+                )),
+            )
+            .rewards(AdvancementRewards::new().function("test:reward"));
+        let json = advancement.to_json();
+        assert_eq!(json["requirements"], serde_json::json!([["event"]]));
+    }
+
+    #[test]
+    fn advancement_requirements_auto_derived_multi_criterion_is_one_and_group() {
+        let advancement = Advancement::new("test:multi".parse().unwrap())
+            .criterion("a", Criterion::new(AdvancementTrigger::Tick))
+            .criterion("b", Criterion::new(AdvancementTrigger::Impossible));
+        let json = advancement.to_json();
+        assert_eq!(json["requirements"], serde_json::json!([["a", "b"]]));
+    }
+
+    #[test]
+    fn advancement_explicit_requirements_are_preserved_when_set() {
+        let advancement = Advancement::new("test:explicit".parse().unwrap())
+            .criterion("a", Criterion::new(AdvancementTrigger::Tick))
+            .criterion("b", Criterion::new(AdvancementTrigger::Impossible))
+            .requirements(vec![vec!["a".into()], vec!["b".into()]]);
+        let json = advancement.to_json();
+        assert_eq!(json["requirements"], serde_json::json!([["a"], ["b"]]));
     }
 
     #[test]

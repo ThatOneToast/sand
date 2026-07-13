@@ -144,9 +144,11 @@ fn custom_item_predicate_uses_typed_custom_data_marker() {
     let item = CustomItem::new("minecraft:stick").id("arcane:dash_wand");
     let pred = serde_json::to_value(item.item_predicate()).unwrap();
 
-    assert_eq!(pred["items"], "minecraft:stick");
+    assert_eq!(pred["items"], serde_json::json!(["minecraft:stick"]));
+    // Partial-match predicate, not exact `components` equality — see #233.
     assert_eq!(
-        pred["components"]["minecraft:custom_data"]["arcane:dash_wand"],
-        true
+        pred["predicates"]["minecraft:custom_data"],
+        "{\"arcane:dash_wand\":1b}"
     );
+    assert!(pred.get("components").is_none());
 }

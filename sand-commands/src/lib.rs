@@ -15,6 +15,7 @@ pub mod blocks;
 pub mod builtins;
 pub mod coord;
 pub mod display;
+pub mod error;
 pub mod execute;
 pub mod execute_args;
 pub mod inventory;
@@ -24,6 +25,7 @@ pub mod scoreboard;
 pub mod selector;
 pub mod sound;
 pub mod text;
+pub mod validate;
 
 pub use blocks::{
     BlockState, CloneBlocks, CloneMaskMode, CloneMode, Fill, FillMode, SetBlock, SetBlockMode,
@@ -31,6 +33,7 @@ pub use blocks::{
 pub use builtins::*;
 pub use coord::{BlockPos, Coord, Rotation, Vec2, Vec3};
 pub use display::{Actionbar, Bossbar, BossbarColor, BossbarStyle, Title};
+pub use error::{CommandError, CommandResult};
 pub use execute::Execute;
 pub use execute_args::{Anchor, ItemSlot, NbtStoreKind, Swizzle};
 #[allow(deprecated)]

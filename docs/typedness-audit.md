@@ -105,6 +105,7 @@ with an explicit `::raw(RawJson)` fallback on each type.
 | `CustomItem::component()` | **Typed** | Primary component API |
 | `CustomItem::item_predicate()` | **Typed** | Returns typed `ItemPredicate` |
 | `CustomItem::raw_component()` | **Raw hatch** | Deprecated string-key compatibility API; prefer `RawComponent` |
+| `CustomItem::validate()` / `try_to_string()` | **Fallible boundary** | Checks numeric invariants (stack size, damage, repair cost, enchantment levels, finite floats, `PotionContents::custom_color` range) and string invariants (non-empty, quote/backslash-free ids/sounds/models) before formatting; `Display`/`Into<String>` remain intentionally infallible raw escape hatches (#148) |
 
 ---
 
@@ -190,11 +191,11 @@ with an explicit `::raw(RawJson)` fallback on each type.
 | `NbtValue::Raw(String)` | **Raw hatch** | Named `Raw` — explicit; good |
 | `DataTarget` | **Typed** | Clean enum |
 | `Scoreboard / Objective / ScoreHolder` | **Mostly typed** | Names are raw strings |
-| `builtins::*` | **Mostly typed** | Most take `impl Into<String>` for IDs (entity type, item, etc.) |
+| `builtins::*` | **Mostly typed** | Most take `impl Into<String>` for IDs (entity type, item, etc.); the highest-priority helpers (summon/tp/tag/team/gamemode/difficulty/effect/function/schedule/damage/attribute/give/kick) now have validated `try_*` counterparts returning `CommandResult<String>`, with the infallible originals documented as raw/unchecked escape hatches (#170) |
 | `sand_core::cmd::effect_give()` | **Typed** | Uses `EffectId` and builder options for duration, amplifier, particles |
-| `sand_commands::effect_give()` | **Raw hatch** | Low-level compatibility helper; prefer `sand_core::cmd::effect_give()` |
-| `summon()` | **Mostly typed** | Entity type is `impl Into<String>` |
-| `gamemode()` | **Typed** | Uses `GameMode` enum — good |
+| `sand_commands::effect_give()` | **Raw hatch** | Low-level compatibility helper; prefer `sand_core::cmd::effect_give()`. `try_effect_give()`/`try_effect_give_hidden()` validate the effect id shape on this raw path (#170) |
+| `summon()` | **Mostly typed** | Entity type is `impl Into<String>`; `try_summon()` validates the entity-type shape and rejects non-finite coordinates (#170) |
+| `gamemode()` | **Typed** | Uses `GameMode` enum — good. `builtins::gamemode(mode: impl Into<String>, ...)` (a separate, lower-level raw-string helper) has a validated `try_gamemode()` counterpart (#170) |
 
 ---
 

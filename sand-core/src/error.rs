@@ -51,6 +51,17 @@ pub enum SandError {
     /// Minecraft version string failed to parse (expected format: `major.minor` or `major.minor.patch`).
     #[error("Invalid Minecraft version '{0}': expected format major.minor or major.minor.patch")]
     InvalidVersion(String),
+
+    /// A `sand-commands` free-function command helper rejected its input
+    /// (see `sand_commands::builtins`'s `try_*` helpers and [`sand_commands::CommandError`]).
+    ///
+    /// `sand-commands` cannot depend on `sand-core`/`sand-components` (the
+    /// dependency direction runs the other way), so it defines its own
+    /// crate-local error type; this bridges it into `SandError` so code that
+    /// mixes `sand_core::Result`-returning calls with `sand_commands::try_*`
+    /// helpers can use `?` across both without a manual `.map_err(...)`.
+    #[error(transparent)]
+    Command(#[from] sand_commands::CommandError),
 }
 
 /// Convenience type alias for `Result<T, SandError>`.
@@ -90,5 +101,34 @@ impl From<sand_components::SandError> for SandError {
                 fallback_note,
             },
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn command_error_composes_with_sand_result_via_question_mark() {
+        // A function mixing sand_core::Result-returning calls with
+        // sand_commands::builtins::try_* must be able to use `?` across both
+        // without a manual .map_err(...) — see the #170 review follow-up.
+        fn build() -> Result<String> {
+            let s =
+                sand_commands::builtins::try_tp(sand_commands::Selector::self_(), 0.0, 0.0, 0.0)?;
+            Ok(s)
+        }
+        assert_eq!(build().unwrap(), "tp @s 0 0 0");
+
+        fn build_invalid() -> Result<String> {
+            let s = sand_commands::builtins::try_tp(
+                sand_commands::Selector::self_(),
+                f64::NAN,
+                0.0,
+                0.0,
+            )?;
+            Ok(s)
+        }
+        assert!(matches!(build_invalid(), Err(SandError::Command(_))));
     }
 }

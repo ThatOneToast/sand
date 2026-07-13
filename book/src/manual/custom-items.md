@@ -27,3 +27,34 @@ let crossbow = CustomItem::new("minecraft:crossbow").with_raw_component(
     RawComponent::new("enchantments", r#"{"minecraft:quick_charge":10}"#),
 );
 ```
+
+## Validation
+
+`CustomItem`'s `Display`/`Into<String>` impls remain fully infallible — they
+never validate, so malformed numeric or string state (a non-finite attribute
+amount, a zero-level enchantment, an empty raw resource-id string) formats
+as-is and can silently emit item-component SNBT Minecraft rejects at
+command-dispatch time. This is a deliberate, documented raw escape hatch, not
+the recommended path.
+
+Prefer `CustomItem::validate()` or `CustomItem::try_to_string()` at
+command-generation boundaries:
+
+```rust
+let item = CustomItem::new("minecraft:diamond_sword").max_stack_size(0);
+
+// Fails with a Sand diagnostic naming the item base and the invalid field —
+// never reaches cmd::give / a generated .mcfunction line.
+let result = item.try_to_string();
+assert!(result.is_err());
+```
+
+`validate()`/`try_to_string()` check numeric invariants (`max_stack_size` in
+`1..=99`, non-negative `max_damage`/`damage`/`repair_cost`, `damage <=
+max_damage`, non-zero enchantment levels, finite attribute amounts/consume
+seconds/tool speeds/use-cooldown, a 24-bit `PotionContents::custom_color`)
+and string invariants (non-empty, quote/backslash-free enchantment ids,
+attribute ids, sounds, models, tool-rule block strings, and a non-empty
+`custom_data` marker key). `stack_components()` (used for recipe results)
+calls `validate()` internally, so an invalid `CustomItem` used as a recipe
+result also fails before JSON is written.

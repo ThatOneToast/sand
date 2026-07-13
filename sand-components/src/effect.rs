@@ -16,12 +16,21 @@ impl Ticks {
         Self(ticks)
     }
 
+    /// Convert seconds to ticks (`seconds * 20`).
+    ///
+    /// Saturates at `u32::MAX` instead of panicking (debug builds) or
+    /// silently wrapping (release builds) on overflow — see #148. A duration
+    /// large enough to saturate is already far beyond any meaningful game
+    /// duration, so clamping is safe and avoids a build-profile-dependent
+    /// footgun for a `const fn` used in `static` contexts.
     pub const fn seconds(seconds: u32) -> Self {
-        Self(seconds * 20)
+        Self(seconds.saturating_mul(20))
     }
 
+    /// Convert minutes to ticks (`minutes * 1200`). See [`seconds`](Self::seconds)
+    /// for the overflow-saturation policy.
     pub const fn minutes(minutes: u32) -> Self {
-        Self(minutes * 1200)
+        Self(minutes.saturating_mul(1200))
     }
 
     pub const fn get(self) -> u32 {
@@ -528,6 +537,25 @@ mod tests {
             contents.to_snbt(),
             "{potion:\"minecraft:long_swiftness\",custom_color:5614335,custom_effects:[{id:\"minecraft:haste\",duration:100}]}"
         );
+    }
+
+    #[test]
+    fn potion_contents_empty_is_intentionally_permitted() {
+        // An empty `minecraft:potion_contents` component (`{}`) is a valid
+        // vanilla payload Sand does not reject — locking in current behavior
+        // per #148's empty-PotionContents policy note.
+        assert_eq!(PotionContents::new().to_snbt(), "{}");
+    }
+
+    #[test]
+    fn ticks_seconds_and_minutes_saturate_instead_of_overflowing() {
+        // #148: previously plain `u32` multiplication, which panics in debug
+        // builds and silently wraps in release builds on overflow.
+        assert_eq!(Ticks::seconds(u32::MAX).get(), u32::MAX);
+        assert_eq!(Ticks::minutes(u32::MAX).get(), u32::MAX);
+        // Normal values are unaffected.
+        assert_eq!(Ticks::seconds(5).get(), 100);
+        assert_eq!(Ticks::minutes(2).get(), 2400);
     }
 
     #[test]

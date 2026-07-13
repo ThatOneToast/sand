@@ -24,6 +24,24 @@ fn typed_custom_name_lore_model_rarity_and_give_command() {
 }
 
 #[test]
+fn invalid_custom_item_reports_a_sand_diagnostic_before_reaching_give() {
+    // #148 command-facing regression: `cmd::give` accepts `impl Into<String>`,
+    // and `CustomItem`'s `Into<String>`/`Display` remain intentionally
+    // infallible raw escape hatches (documented on those impls) — so passing
+    // an invalid `CustomItem` straight to `cmd::give` still silently produces
+    // malformed command text. The validated path is `try_to_string()`, which
+    // must fail with a Sand diagnostic *before* any `/give` line is built.
+    let invalid = CustomItem::new("minecraft:stick").max_stack_size(0);
+
+    let result: Result<String, _> = invalid
+        .try_to_string()
+        .map(|item_str| cmd::give(Selector::all_players(), item_str).to_string());
+
+    let err = result.expect_err("invalid CustomItem must not reach cmd::give");
+    assert!(err.to_string().contains("max_stack_size"), "{err}");
+}
+
+#[test]
 fn typed_enchantments_and_attribute_modifiers() {
     let item = CustomItem::new("minecraft:diamond_sword")
         .component(ItemComponent::enchantment(

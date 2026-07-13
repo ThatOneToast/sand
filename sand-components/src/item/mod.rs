@@ -1582,6 +1582,206 @@ impl CustomItem {
             .rewards(AdvancementRewards::new().function(reward_fn))
     }
 
+    // ── Validation (#148) ─────────────────────────────────────────────────────
+
+    /// Validate numeric invariants and string/resource-id shape before this
+    /// item is formatted into command text.
+    ///
+    /// `Display`/`Into<String>` remain fully infallible (see their docs) for
+    /// backward compatibility, so command-facing call sites that want a Sand
+    /// diagnostic instead of silently-malformed SNBT should call
+    /// [`try_to_string`](Self::try_to_string) — or this method directly —
+    /// before formatting. [`stack_components`](Self::stack_components) also
+    /// calls this internally.
+    ///
+    /// Checks:
+    /// - `max_stack_size` is in `1..=99` (vanilla's item stack limit);
+    /// - `max_damage`/`damage`/`repair_cost` are non-negative, and
+    ///   `damage <= max_damage` when both are set;
+    /// - enchantment/stored-enchantment levels are non-zero, and their raw
+    ///   string ids (from [`CustomItem::enchantment`]/
+    ///   [`CustomItem::stored_enchantment`]) are non-empty and don't contain
+    ///   `"`/`\` (which would break the emitted SNBT string);
+    /// - `AttributeModifier::amount` is finite, and its `id`/custom
+    ///   [`AttributeType::Custom`] string are non-empty and quote/backslash-free;
+    /// - `ConsumableProperties::consume_seconds` is finite and non-negative,
+    ///   and its `sound` is non-empty and quote/backslash-free;
+    /// - `EquippableProperties::{equip_sound,model,allowed_entities}` are
+    ///   non-empty and quote/backslash-free;
+    /// - `ToolRule::blocks` is non-empty and quote/backslash-free, and
+    ///   `ToolRule::speed`/`ToolProperties::default_mining_speed` are finite;
+    /// - `use_cooldown` is finite and non-negative;
+    /// - `FoodProperties::saturation` is finite;
+    /// - `CustomData::Marker` keys are non-empty (empty keys would emit
+    ///   invalid SNBT `{:1b}`);
+    /// - `PotionContents::custom_color` is a 24-bit RGB value (`0x000000..=0xFFFFFF`).
+    pub fn validate(&self) -> SandResult<()> {
+        let err = |key: &str, message: &str| item_component_error(&self.base, key, message);
+        let finite = |key: &str, v: f32| -> SandResult<()> {
+            if v.is_finite() {
+                Ok(())
+            } else {
+                Err(err(key, &format!("must be a finite number, got `{v}`")))
+            }
+        };
+        let snbt_safe_string = |key: &str, s: &str| -> SandResult<()> {
+            if s.is_empty() {
+                return Err(err(key, "must not be empty"));
+            }
+            if s.contains('"') || s.contains('\\') {
+                return Err(err(
+                    key,
+                    &format!(
+                        "must not contain `\"` or `\\` (unescaped in emitted SNBT), got `{s}`"
+                    ),
+                ));
+            }
+            Ok(())
+        };
+
+        if let Some(size) = self.max_stack_size
+            && !(1..=99).contains(&size)
+        {
+            return Err(err(
+                "max_stack_size",
+                &format!("must be in 1..=99 (vanilla's item stack limit), got {size}"),
+            ));
+        }
+        if let Some(max_damage) = self.max_damage
+            && max_damage < 0
+        {
+            return Err(err(
+                "max_damage",
+                &format!("must be non-negative, got {max_damage}"),
+            ));
+        }
+        if let Some(damage) = self.damage {
+            if damage < 0 {
+                return Err(err(
+                    "damage",
+                    &format!("must be non-negative, got {damage}"),
+                ));
+            }
+            if let Some(max_damage) = self.max_damage
+                && damage > max_damage
+            {
+                return Err(err(
+                    "damage",
+                    &format!("must not exceed max_damage ({max_damage}), got {damage}"),
+                ));
+            }
+        }
+        if let Some(cost) = self.repair_cost
+            && cost < 0
+        {
+            return Err(err(
+                "repair_cost",
+                &format!("must be non-negative, got {cost}"),
+            ));
+        }
+
+        for (id, level) in self.enchantments.iter().chain(&self.stored_enchantments) {
+            snbt_safe_string("enchantments[id]", id)?;
+            if *level == 0 {
+                return Err(err(
+                    "enchantments[level]",
+                    &format!("level must be non-zero, got 0 for `{id}`"),
+                ));
+            }
+        }
+
+        for modifier in &self.attribute_modifiers {
+            finite("attribute_modifiers[amount]", modifier.amount as f32)?;
+            if let Some(ref id) = modifier.id {
+                snbt_safe_string("attribute_modifiers[id]", id)?;
+            }
+            if let AttributeType::Custom(ref custom) = modifier.attribute {
+                snbt_safe_string("attribute_modifiers[attribute]", custom)?;
+            }
+        }
+
+        if let Some(ref food) = self.food {
+            finite("food[saturation]", food.saturation)?;
+        }
+
+        if let Some(ref consumable) = self.consumable {
+            finite("consumable[consume_seconds]", consumable.consume_seconds)?;
+            if consumable.consume_seconds < 0.0 {
+                return Err(err(
+                    "consumable[consume_seconds]",
+                    &format!("must be non-negative, got {}", consumable.consume_seconds),
+                ));
+            }
+            if let Some(ref sound) = consumable.sound {
+                snbt_safe_string("consumable[sound]", sound)?;
+            }
+        }
+
+        if let Some(secs) = self.use_cooldown {
+            finite("use_cooldown", secs)?;
+            if secs < 0.0 {
+                return Err(err(
+                    "use_cooldown",
+                    &format!("must be non-negative, got {secs}"),
+                ));
+            }
+        }
+
+        if let Some(ref tool) = self.tool {
+            finite("tool[default_mining_speed]", tool.default_mining_speed)?;
+            for rule in &tool.rules {
+                snbt_safe_string("tool[rule.blocks]", &rule.blocks)?;
+                if let Some(speed) = rule.speed {
+                    finite("tool[rule.speed]", speed)?;
+                }
+            }
+        }
+
+        if let Some(ref equippable) = self.equippable {
+            if let Some(ref s) = equippable.equip_sound {
+                snbt_safe_string("equippable[equip_sound]", s)?;
+            }
+            if let Some(ref m) = equippable.model {
+                snbt_safe_string("equippable[model]", m)?;
+            }
+            if let Some(ref e) = equippable.allowed_entities {
+                snbt_safe_string("equippable[allowed_entities]", e)?;
+            }
+        }
+
+        if let Some(CustomData::Marker(ref key)) = self.custom_data
+            && key.is_empty()
+        {
+            return Err(err("custom_data", "marker key must not be empty"));
+        }
+
+        if let Some(ref contents) = self.potion_contents
+            && let Some(color) = contents.custom_color
+            && color > 0x00FF_FFFF
+        {
+            return Err(err(
+                "potion_contents[custom_color]",
+                &format!("must be a 24-bit RGB value in 0x000000..=0xFFFFFF, got {color:#x}"),
+            ));
+        }
+
+        Ok(())
+    }
+
+    /// Fallible alternative to [`Display`]/[`Into<String>`] — validates this
+    /// item (see [`validate`](Self::validate)) before formatting it as an
+    /// item-component command-argument string.
+    ///
+    /// Prefer this over `.to_string()`/`.into()` at command-generation
+    /// boundaries (e.g. before [`cmd::give`](crate::component)-style call
+    /// sites) so malformed numeric/string state fails with a Sand diagnostic
+    /// instead of silently producing command text Minecraft rejects at
+    /// dispatch time.
+    pub fn try_to_string(&self) -> SandResult<String> {
+        self.validate()?;
+        Ok(self.to_string())
+    }
+
     // ── Component string generation ───────────────────────────────────────────
 
     fn collect_components(&self) -> Vec<String> {
@@ -1743,6 +1943,8 @@ impl CustomItem {
     /// Never silently drops or corrupts a component — every failure surfaces
     /// as an `Err` naming the item's base ID and the offending component key.
     pub fn stack_components(&self) -> SandResult<ItemStackComponents> {
+        self.validate()?;
+
         let mut out = ItemStackComponents {
             base: self.base.clone(),
             components: Vec::new(),
@@ -1998,6 +2200,15 @@ pub(crate) fn snbt_compound_key(key: &str) -> String {
     }
 }
 
+/// Formats this item as an item-component command-argument string.
+///
+/// **This does not validate** — see [`CustomItem::validate`]. Malformed
+/// numeric/string state (e.g. a non-finite `AttributeModifier::amount`, an
+/// empty enchantment id) is formatted as-is, which can produce SNBT
+/// Minecraft rejects at command-dispatch time. Prefer
+/// [`CustomItem::try_to_string`] at command-generation boundaries; this
+/// infallible impl remains available for callers that accept that risk
+/// (e.g. already-validated items, or exploratory/test code).
 impl fmt::Display for CustomItem {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let components = self.collect_components();
@@ -2011,6 +2222,9 @@ impl fmt::Display for CustomItem {
 
 /// Allows passing a `CustomItem` directly to [`cmd::give`](crate::cmd) and any
 /// other function accepting `impl Into<String>`.
+///
+/// **This does not validate** — see [`fmt::Display`]'s doc comment above and
+/// [`CustomItem::try_to_string`].
 impl From<CustomItem> for String {
     fn from(item: CustomItem) -> String {
         item.to_string()
@@ -2344,5 +2558,252 @@ mod tests {
             serde_json::to_value(via_method).unwrap(),
             serde_json::to_value(via_free_fn).unwrap()
         );
+    }
+
+    // ── #148: CustomItem::validate() / try_to_string() ─────────────────────────
+
+    #[test]
+    fn validate_accepts_the_documented_inferno_blade_example() {
+        let item = CustomItem::new("minecraft:diamond_sword")
+            .custom_data("inferno_blade")
+            .custom_name(TextComponent::literal("Inferno Blade").color(ChatColor::Red))
+            .enchantment("minecraft:fire_aspect", 2)
+            .attribute(
+                AttributeType::AttackDamage,
+                10.0,
+                AttributeOperation::AddValue,
+                EquipmentSlotGroup::Mainhand,
+            )
+            .custom_model_data(1001)
+            .max_stack_size(1)
+            .rarity(ItemRarity::Rare);
+        assert!(item.validate().is_ok());
+        assert!(item.try_to_string().is_ok());
+    }
+
+    #[test]
+    fn validate_rejects_zero_max_stack_size() {
+        let item = CustomItem::new("minecraft:stick").max_stack_size(0);
+        let err = item.validate().unwrap_err().to_string();
+        assert!(err.contains("max_stack_size"), "{err}");
+    }
+
+    #[test]
+    fn validate_rejects_max_stack_size_above_vanilla_limit() {
+        let item = CustomItem::new("minecraft:stick").max_stack_size(100);
+        assert!(item.validate().is_err());
+    }
+
+    #[test]
+    fn validate_accepts_max_stack_size_at_vanilla_limit() {
+        let item = CustomItem::new("minecraft:stick").max_stack_size(99);
+        assert!(item.validate().is_ok());
+    }
+
+    #[test]
+    fn validate_rejects_negative_max_damage_and_damage() {
+        assert!(
+            CustomItem::new("minecraft:stick")
+                .max_damage(-1)
+                .validate()
+                .is_err()
+        );
+        assert!(
+            CustomItem::new("minecraft:stick")
+                .damage(-1)
+                .validate()
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn validate_rejects_damage_exceeding_max_damage() {
+        let item = CustomItem::new("minecraft:stick").max_damage(10).damage(20);
+        let err = item.validate().unwrap_err().to_string();
+        assert!(err.contains("damage"), "{err}");
+    }
+
+    #[test]
+    fn validate_rejects_negative_repair_cost() {
+        assert!(
+            CustomItem::new("minecraft:stick")
+                .repair_cost(-1)
+                .validate()
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn validate_rejects_zero_enchantment_level() {
+        let item = CustomItem::new("minecraft:stick").enchantment("minecraft:sharpness", 0);
+        let err = item.validate().unwrap_err().to_string();
+        assert!(err.contains("level"), "{err}");
+    }
+
+    #[test]
+    fn validate_rejects_empty_enchantment_id() {
+        let item = CustomItem::new("minecraft:stick").enchantment("", 1);
+        assert!(item.validate().is_err());
+    }
+
+    #[test]
+    fn validate_rejects_enchantment_id_with_embedded_quote() {
+        let item = CustomItem::new("minecraft:stick").enchantment("mod:sharp\"ness", 1);
+        assert!(item.validate().is_err());
+    }
+
+    #[test]
+    fn validate_rejects_zero_stored_enchantment_level() {
+        let item = CustomItem::new("minecraft:enchanted_book")
+            .stored_enchantment("minecraft:sharpness", 0);
+        assert!(item.validate().is_err());
+    }
+
+    #[test]
+    fn validate_rejects_non_finite_attribute_amount() {
+        let item = CustomItem::new("minecraft:stick").attribute(
+            AttributeType::AttackDamage,
+            f64::NAN,
+            AttributeOperation::AddValue,
+            EquipmentSlotGroup::Mainhand,
+        );
+        let err = item.validate().unwrap_err().to_string();
+        assert!(err.contains("attribute_modifiers"), "{err}");
+    }
+
+    #[test]
+    fn validate_rejects_attribute_modifier_id_with_embedded_quote() {
+        let item = CustomItem::new("minecraft:stick").component(ItemComponent::attribute_modifier(
+            AttributeModifier::new(AttributeType::AttackDamage)
+                .amount(1.0)
+                .id("mod:bad\"id"),
+        ));
+        assert!(item.validate().is_err());
+    }
+
+    #[test]
+    fn validate_rejects_empty_custom_attribute_type() {
+        let item = CustomItem::new("minecraft:stick").attribute(
+            AttributeType::Custom(String::new()),
+            1.0,
+            AttributeOperation::AddValue,
+            EquipmentSlotGroup::Mainhand,
+        );
+        assert!(item.validate().is_err());
+    }
+
+    #[test]
+    fn validate_rejects_non_finite_consume_seconds() {
+        let item =
+            CustomItem::new("minecraft:stick").consumable(ConsumableProperties::new(f32::NAN));
+        assert!(item.validate().is_err());
+    }
+
+    #[test]
+    fn validate_rejects_negative_consume_seconds() {
+        let item = CustomItem::new("minecraft:stick").consumable(ConsumableProperties::new(-1.0));
+        assert!(item.validate().is_err());
+    }
+
+    #[test]
+    fn validate_rejects_empty_consumable_sound() {
+        let item =
+            CustomItem::new("minecraft:stick").consumable(ConsumableProperties::new(1.0).sound(""));
+        assert!(item.validate().is_err());
+    }
+
+    #[test]
+    fn validate_rejects_non_finite_use_cooldown() {
+        let item = CustomItem::new("minecraft:stick").use_cooldown(f32::INFINITY);
+        assert!(item.validate().is_err());
+    }
+
+    #[test]
+    fn validate_rejects_negative_use_cooldown() {
+        let item = CustomItem::new("minecraft:stick").use_cooldown(-1.0);
+        assert!(item.validate().is_err());
+    }
+
+    #[test]
+    fn validate_rejects_empty_equippable_strings() {
+        let item = CustomItem::new("minecraft:stick")
+            .equippable(EquippableProperties::new(EquipmentSlot::Head).equip_sound(""));
+        assert!(item.validate().is_err());
+    }
+
+    #[test]
+    fn validate_rejects_non_finite_tool_rule_speed() {
+        let item = CustomItem::new("minecraft:stick").tool(
+            ToolProperties::new()
+                .rule(ToolRule::new("#minecraft:pickaxe_mineable").speed(f32::NAN)),
+        );
+        assert!(item.validate().is_err());
+    }
+
+    #[test]
+    fn validate_rejects_empty_tool_rule_blocks() {
+        let item =
+            CustomItem::new("minecraft:stick").tool(ToolProperties::new().rule(ToolRule::new("")));
+        assert!(item.validate().is_err());
+    }
+
+    #[test]
+    fn validate_rejects_non_finite_default_mining_speed() {
+        let item = CustomItem::new("minecraft:stick")
+            .tool(ToolProperties::new().default_mining_speed(f32::NAN));
+        assert!(item.validate().is_err());
+    }
+
+    #[test]
+    fn validate_rejects_non_finite_food_saturation() {
+        let item = CustomItem::new("minecraft:stick").food(FoodProperties::new(4, f32::NAN));
+        assert!(item.validate().is_err());
+    }
+
+    #[test]
+    fn validate_rejects_empty_custom_data_marker_key() {
+        let item = CustomItem::new("minecraft:stick").custom_data("");
+        assert!(item.validate().is_err());
+    }
+
+    #[test]
+    fn validate_rejects_custom_color_above_24_bit_range() {
+        let item = CustomItem::new("minecraft:potion")
+            .potion_contents(PotionContents::new().custom_color(0x0100_0000));
+        let err = item.validate().unwrap_err().to_string();
+        assert!(err.contains("custom_color"), "{err}");
+    }
+
+    #[test]
+    fn validate_accepts_custom_color_at_24_bit_max() {
+        let item = CustomItem::new("minecraft:potion")
+            .potion_contents(PotionContents::new().custom_color(0x00FF_FFFF));
+        assert!(item.validate().is_ok());
+    }
+
+    #[test]
+    fn try_to_string_surfaces_validation_error_instead_of_bad_snbt() {
+        let item = CustomItem::new("minecraft:stick").max_stack_size(0);
+        let err = item.try_to_string().unwrap_err();
+        assert!(err.to_string().contains("max_stack_size"));
+    }
+
+    #[test]
+    fn stack_components_rejects_invalid_numeric_state_before_recipe_output() {
+        // Regression: stack_components() previously only checked raw
+        // component/custom_data shape, not the numeric invariants validate()
+        // now enforces — an invalid CustomItem used as a recipe result must
+        // fail before JSON is written, not silently emit `max_stack_size=0`.
+        let item = CustomItem::new("minecraft:stick").max_stack_size(0);
+        assert!(item.stack_components().is_err());
+    }
+
+    #[test]
+    fn display_and_into_string_remain_infallible_for_invalid_state() {
+        // Documented raw escape hatch: Display/Into<String> never validate,
+        // so this must not panic even though the item is invalid.
+        let item = CustomItem::new("minecraft:stick").max_stack_size(0);
+        let s: String = item.into();
+        assert!(s.contains("max_stack_size=0"));
     }
 }

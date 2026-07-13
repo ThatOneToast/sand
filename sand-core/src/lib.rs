@@ -342,6 +342,7 @@ pub use sand_components::{
     ItemModifier,
     ItemPredicate,
     ItemRarity,
+    ItemStackComponents,
     JukeboxSong,
     LocationPredicate,
     // Loot table

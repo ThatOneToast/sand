@@ -7,6 +7,7 @@ use crate::error::{Result as SandResult, SandError};
 use crate::resource_location::ResourceLocation;
 
 use super::types::{Ingredient, RecipeResult};
+use sand_version::ComponentFeature;
 
 /// Represents a stonecutter recipe for cutting stone blocks into other shapes.
 pub struct StonecuttingRecipe {
@@ -24,10 +25,7 @@ impl StonecuttingRecipe {
             location,
             group: None,
             ingredient: Ingredient::empty(),
-            result: RecipeResult {
-                id: String::new(),
-                count: 1,
-            },
+            result: RecipeResult::empty(),
             count: 1,
         }
     }
@@ -110,6 +108,14 @@ impl DatapackComponent for StonecuttingRecipe {
 
     fn component_dir(&self) -> &'static str {
         "recipe"
+    }
+
+    fn required_features(&self) -> &'static [ComponentFeature] {
+        if self.result.has_components() {
+            &[ComponentFeature::ItemComponents]
+        } else {
+            &[]
+        }
     }
 }
 

@@ -7,6 +7,7 @@ use crate::error::{Result as SandResult, SandError};
 use crate::resource_location::ResourceLocation;
 
 use super::types::{Ingredient, RecipeResult};
+use sand_version::ComponentFeature;
 
 // ── SmithingTransformRecipe ───────────────────────────────────────────────────
 
@@ -29,10 +30,7 @@ impl SmithingTransformRecipe {
             template: Ingredient::empty(),
             base: Ingredient::empty(),
             addition: Ingredient::empty(),
-            result: RecipeResult {
-                id: String::new(),
-                count: 1,
-            },
+            result: RecipeResult::empty(),
         }
     }
 
@@ -106,6 +104,14 @@ impl DatapackComponent for SmithingTransformRecipe {
 
     fn component_dir(&self) -> &'static str {
         "recipe"
+    }
+
+    fn required_features(&self) -> &'static [ComponentFeature] {
+        if self.result.has_components() {
+            &[ComponentFeature::ItemComponents]
+        } else {
+            &[]
+        }
     }
 }
 

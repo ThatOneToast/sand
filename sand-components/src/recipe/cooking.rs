@@ -7,6 +7,7 @@ use crate::error::{Result as SandResult, SandError};
 use crate::resource_location::ResourceLocation;
 
 use super::types::{CookingType, Ingredient, RecipeResult};
+use sand_version::ComponentFeature;
 
 /// Represents a cooking recipe (smelting, blasting, smoking, or campfire cooking).
 pub struct CookingRecipe {
@@ -29,10 +30,7 @@ impl CookingRecipe {
             category: None,
             group: None,
             ingredient: Ingredient::empty(),
-            result: RecipeResult {
-                id: String::new(),
-                count: 1,
-            },
+            result: RecipeResult::empty(),
             experience: 0.0,
             cooking_time: 200,
         }
@@ -139,6 +137,14 @@ impl DatapackComponent for CookingRecipe {
 
     fn component_dir(&self) -> &'static str {
         "recipe"
+    }
+
+    fn required_features(&self) -> &'static [ComponentFeature] {
+        if self.result.has_components() {
+            &[ComponentFeature::ItemComponents]
+        } else {
+            &[]
+        }
     }
 }
 

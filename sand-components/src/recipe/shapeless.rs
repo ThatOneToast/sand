@@ -7,6 +7,7 @@ use crate::error::{Result as SandResult, SandError};
 use crate::resource_location::ResourceLocation;
 
 use super::types::{Ingredient, RecipeResult};
+use sand_version::ComponentFeature;
 
 /// Represents a shapeless crafting recipe where ingredient order and position don't matter.
 pub struct ShapelessRecipe {
@@ -25,10 +26,7 @@ impl ShapelessRecipe {
             category: None,
             group: None,
             ingredients: Vec::new(),
-            result: RecipeResult {
-                id: String::new(),
-                count: 1,
-            },
+            result: RecipeResult::empty(),
         }
     }
 
@@ -128,6 +126,14 @@ impl DatapackComponent for ShapelessRecipe {
 
     fn component_dir(&self) -> &'static str {
         "recipe"
+    }
+
+    fn required_features(&self) -> &'static [ComponentFeature] {
+        if self.result.has_components() {
+            &[ComponentFeature::ItemComponents]
+        } else {
+            &[]
+        }
     }
 }
 

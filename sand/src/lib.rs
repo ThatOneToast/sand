@@ -12,6 +12,8 @@ pub mod build;
 #[doc(hidden)]
 pub mod config;
 #[doc(hidden)]
+pub mod console;
+#[doc(hidden)]
 pub mod join_cmd;
 #[doc(hidden)]
 pub mod pack_format;

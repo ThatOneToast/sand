@@ -50,6 +50,10 @@ enum Commands {
         /// Skip `sand build`; use whatever is already in dist/
         #[arg(long)]
         no_build: bool,
+        /// Stream the Minecraft server's raw, unfiltered log instead of
+        /// Sand's filtered console
+        #[arg(long)]
+        verbose: bool,
     },
     /// **Requires Prism Launcher**
     /// Either join the local dev server started by `sand run` or join the sand-dev world with the datapack + optional resource pack
@@ -176,10 +180,12 @@ fn run() -> Result<()> {
             ram,
             offline,
             no_build,
+            verbose,
         } => run_cmd::run(run_cmd::RunArgs {
             ram,
             offline,
             no_build,
+            verbose,
         }),
         Commands::Join { local } => join_cmd::run(join_cmd::JoinArgs { local }),
         Commands::Clean { cargo, server } => cmd_clean(cargo, server),

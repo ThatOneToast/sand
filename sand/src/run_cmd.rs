@@ -13,6 +13,9 @@ pub struct RunArgs {
     pub offline: bool,
     /// Skip `sand build`; use whatever is already in dist/.
     pub no_build: bool,
+    /// Stream the Minecraft server's raw, unfiltered log instead of Sand's
+    /// filtered console.
+    pub verbose: bool,
 }
 
 pub fn run(args: RunArgs) -> Result<()> {
@@ -116,18 +119,27 @@ pub fn run(args: RunArgs) -> Result<()> {
     );
 
     let ram = &args.ram;
-    let status = std::process::Command::new("java")
+    let mut command = std::process::Command::new("java");
+    command
         .arg(format!("-Xmx{ram}"))
         .arg(format!("-Xms{ram}"))
         .arg("-jar")
         .arg(&jar_path)
         .arg("nogui")
-        .current_dir(&server_dir)
-        .status()
-        .context("failed to start Java — make sure Java 21+ is on your PATH (`java -version`)")?;
+        .current_dir(&server_dir);
 
-    if !status.success() {
-        bail!("server exited with status {status}");
+    let outcome = crate::console::run_server(command, args.verbose, &mc_version)?;
+
+    if !outcome.exit_status.success() {
+        let log_path = server_dir.join("logs").join("latest.log");
+        if log_path.exists() {
+            bail!(
+                "server exited with status {} — see {} for the full log",
+                outcome.exit_status,
+                log_path.display()
+            );
+        }
+        bail!("server exited with status {}", outcome.exit_status);
     }
 
     Ok(())

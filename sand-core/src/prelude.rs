@@ -63,6 +63,14 @@ pub use crate::resource_ref::{
 
 pub use crate::version::{MinecraftVersion, VersionProfile};
 
+// ── Entity queries and execution-scoped contexts ──────────────────────────────
+
+pub use crate::entity::{
+    AnyEntity, EntityContext, EntityKind, EntityQueries, EntityQuery, EntityScope, PlayerContext,
+    PlayerKind, PlayerQueries, PlayerQuery, Relation, RelationQuery, ScopedEntityRef,
+    SingleEntityQuery, SinglePlayerQuery,
+};
+
 // ── Function refs (IntoFunctionRef trait) ──────────────────────────────────────
 
 pub use crate::function::IntoFunctionRef;

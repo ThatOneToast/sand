@@ -137,6 +137,33 @@ impl MinecraftVersion {
             VersionKind::Latest => None,
         }
     }
+
+    /// Returns `true` if this version is at least `major.minor.patch`.
+    ///
+    /// `latest` always satisfies a historical minimum (it resolves to the
+    /// newest known version). Calendar `26.x` versions compare greater than
+    /// any legacy `1.x` minimum by ordinary numeric ordering, since Mojang's
+    /// calendar series is always newer than the legacy series it succeeded.
+    ///
+    /// # Examples
+    /// ```
+    /// use sand_core::version::MinecraftVersion;
+    ///
+    /// let v = MinecraftVersion::parse("1.21.4").unwrap();
+    /// assert!(v.is_at_least(1, 20, 2));
+    /// assert!(!v.is_at_least(1, 21, 5));
+    ///
+    /// let v26 = MinecraftVersion::parse("26.1").unwrap();
+    /// assert!(v26.is_at_least(1, 21, 2));
+    ///
+    /// assert!(MinecraftVersion::parse("latest").unwrap().is_at_least(1, 99, 0));
+    /// ```
+    pub fn is_at_least(&self, major: u32, minor: u32, patch: u32) -> bool {
+        match self.components() {
+            Some(v) => v >= (major, minor, patch),
+            None => true,
+        }
+    }
 }
 
 impl fmt::Display for MinecraftVersion {

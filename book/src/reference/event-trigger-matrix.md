@@ -111,7 +111,7 @@ These are advancement-backed and fire once per action.
 
 | Event type | Preferred import | User intent | Vanilla mechanism | Dispatch | Reliability | Cost | Caveats |
 |---|---|---|---|---|---|---|---|
-| `BlockPlaceEvent` | `sand_core::event::vanilla::AnyBlockPlaced` | React when the player places a block | `minecraft:placed_block` | Advancement (AfterFire) | High | Negligible | No block filter on the built-in type. |
+| `BlockPlaceEvent` | `sand_core::event::vanilla::AnyBlockPlaced` | React when the player places a block | `minecraft:placed_block` | Advancement (AfterFire) | High | Negligible | No block filter on the built-in type. For a filtered custom `SandEvent` built directly on `AdvancementTrigger::placed_block(...)`/`ItemUsedOnBlock`, filtering renders per-profile through `AdvancementSchemaFamily` — see [Advancement Triggers](../manual/advancement-triggers.md#version-aware-rendering-placed_block-and-item_used_on_block). Vanilla-load-verified on 26.2; semantic (fires-only-for-matches) verification is not yet automated. |
 | `EnterBlockEvent` | `sand_core::events::EnterBlockEvent` | React when the player enters a block (water, honey) | `minecraft:enter_block` | Advancement (AfterFire) | High | Negligible | Fires when the player's hitbox overlaps a block, not on movement. |
 | `SlideDownBlockEvent` | `sand_core::events::SlideDownBlockEvent` | React when the player slides down a honey block wall | `minecraft:slide_down_block` | Advancement (AfterFire) | High | Negligible | — |
 | `TargetHitEvent` | `sand_core::events::TargetHitEvent` | React when a target block is hit near the player | `minecraft:target_hit` | Advancement (AfterFire) | High | Negligible | "Near the player" is defined by vanilla; use signal-strength condition for precision. |

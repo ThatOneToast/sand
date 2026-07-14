@@ -8,6 +8,8 @@ use serde_json::Value;
 
 use crate::error::{Result as SandResult, SandError};
 use crate::item::CustomItem;
+use crate::item::matcher::{ItemMatcher, ItemMatcherConsumer};
+use crate::item::stack::ItemStack;
 use crate::registry::{ItemId, TagId};
 use crate::resource_location::ResourceLocation;
 
@@ -230,6 +232,76 @@ impl Serialize for Ingredient {
         Err(serde::ser::Error::custom(
             "recipe ingredient cannot be empty",
         ))
+    }
+}
+
+// ── ItemMatcher / ItemStack conversions (#229) ──────────────────────────────
+
+/// Fallible conversion into a recipe [`Ingredient`].
+///
+/// Vanilla recipe ingredients match only by item ID or item tag in every
+/// Minecraft version Sand targets — there is no component predicate in the
+/// ingredient schema. A matcher that constrains anything beyond item ID
+/// ([`ItemMatcher::has_component_constraints`]) always fails here rather than
+/// silently degrading to base-item-only matching, matching
+/// [`Ingredient::custom_item`]'s existing behavior.
+pub trait TryIntoIngredient {
+    fn try_into_ingredient(&self) -> SandResult<Ingredient>;
+}
+
+impl TryIntoIngredient for ItemMatcher {
+    fn try_into_ingredient(&self) -> SandResult<Ingredient> {
+        if self.has_component_constraints() {
+            return Err(SandError::ComponentValidation {
+                location: ResourceLocation::new("sand", "recipe_ingredient")
+                    .expect("fixed 'sand:recipe_ingredient' sentinel location is valid"),
+                kind: ItemMatcherConsumer::RecipeIngredient.label(),
+                field: "ingredient".to_string(),
+                message: "this matcher constrains item data components (custom data, \
+                    enchantments, damage, or a raw component/predicate), but vanilla recipe \
+                    ingredients match only by item ID or tag in every Minecraft version Sand \
+                    targets. Converting this matcher would silently degrade it to matching \
+                    any item of the same base type. Use an item-ID-only ItemMatcher for the \
+                    ingredient, and verify component identity elsewhere (e.g. a function \
+                    that runs after crafting)."
+                    .to_string(),
+            });
+        }
+        match self.items() {
+            [] => Err(SandError::ComponentValidation {
+                location: ResourceLocation::new("sand", "recipe_ingredient")
+                    .expect("fixed 'sand:recipe_ingredient' sentinel location is valid"),
+                kind: ItemMatcherConsumer::RecipeIngredient.label(),
+                field: "ingredient".to_string(),
+                message: "matcher has no item IDs to convert into an ingredient".to_string(),
+            }),
+            [single] => Ok(Ingredient::raw_item(single.clone())),
+            multiple => Ok(Ingredient::alternatives(
+                multiple.iter().cloned().map(Ingredient::raw_item),
+            )),
+        }
+    }
+}
+
+/// Fallible conversion into a component-bearing recipe [`RecipeResult`].
+///
+/// Preserves every representable typed/raw data component the source
+/// [`ItemStack`] carries — never reduces it to its base item ID alone. See
+/// [`ItemStack::stack_components`] for what can fail (e.g. a raw component
+/// whose value has no general SNBT-to-JSON conversion).
+pub trait TryIntoRecipeResult {
+    fn try_into_recipe_result(&self, count: u32) -> SandResult<RecipeResult>;
+}
+
+impl TryIntoRecipeResult for ItemStack {
+    fn try_into_recipe_result(&self, count: u32) -> SandResult<RecipeResult> {
+        let stack = self.stack_components()?;
+        let (id, components) = stack.into_parts();
+        Ok(RecipeResult {
+            id,
+            count,
+            components,
+        })
     }
 }
 
@@ -590,5 +662,81 @@ mod tests {
             serde_json::to_value(Ingredient::item("minecraft:white_wool")).unwrap(),
             json!("minecraft:white_wool")
         );
+    }
+
+    // ── ItemMatcher / ItemStack conversions (#229) ───────────────────────────
+
+    use super::{TryIntoIngredient, TryIntoRecipeResult};
+    use crate::item::matcher::ItemMatcher;
+    use crate::item::stack::ItemStack;
+
+    #[test]
+    fn item_id_only_matcher_converts_to_ingredient() {
+        let matcher = ItemMatcher::item(ItemId::minecraft("oak_planks").unwrap());
+        let ingredient = matcher.try_into_ingredient().unwrap();
+        assert_eq!(
+            serde_json::to_value(ingredient).unwrap(),
+            json!("minecraft:oak_planks")
+        );
+    }
+
+    #[test]
+    fn multi_item_matcher_converts_to_alternatives() {
+        let matcher = ItemMatcher::any_of([
+            ItemId::minecraft("oak_planks").unwrap(),
+            ItemId::minecraft("spruce_planks").unwrap(),
+        ]);
+        let ingredient = matcher.try_into_ingredient().unwrap();
+        assert_eq!(
+            serde_json::to_value(ingredient).unwrap(),
+            json!(["minecraft:oak_planks", "minecraft:spruce_planks"])
+        );
+    }
+
+    #[test]
+    fn component_constrained_matcher_never_silently_becomes_base_item_ingredient() {
+        let matcher = ItemMatcher::item(ItemId::minecraft("white_wool").unwrap())
+            .custom_data_partial("elevator_block_item");
+        let err = matcher
+            .try_into_ingredient()
+            .expect_err("component-constrained matcher must not convert to an ingredient");
+        let msg = err.to_string();
+        assert!(msg.contains("recipe ingredient"));
+        assert!(msg.contains("component"));
+    }
+
+    #[test]
+    fn item_stack_converts_to_component_bearing_recipe_result() {
+        use crate::item::{CustomData, ItemComponent};
+
+        let stack = ItemStack::new(ItemId::minecraft("white_wool").unwrap()).component(
+            ItemComponent::CustomData(CustomData::marker("elevator_block_item")),
+        );
+        let result = stack.try_into_recipe_result(1).unwrap();
+        let value = serde_json::to_value(&result).unwrap();
+        assert_eq!(value["id"], "minecraft:white_wool");
+        assert_eq!(
+            value["components"]["minecraft:custom_data"],
+            json!({ "elevator_block_item": true })
+        );
+    }
+
+    #[test]
+    fn item_stack_recipe_result_matches_equivalent_custom_item_result() {
+        use crate::item::{CustomData, ItemComponent};
+
+        let stack = ItemStack::new(ItemId::minecraft("white_wool").unwrap()).component(
+            ItemComponent::CustomData(CustomData::marker("elevator_block_item")),
+        );
+        let via_stack = stack.try_into_recipe_result(1).unwrap();
+        let via_custom_item = RecipeResult::custom_item(&elevator_base_only()).unwrap();
+        assert_eq!(
+            serde_json::to_value(&via_stack).unwrap(),
+            serde_json::to_value(&via_custom_item).unwrap()
+        );
+    }
+
+    fn elevator_base_only() -> CustomItem {
+        CustomItem::new("minecraft:white_wool").custom_data("elevator_block_item")
     }
 }

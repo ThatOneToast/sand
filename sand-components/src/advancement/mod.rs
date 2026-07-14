@@ -1689,23 +1689,13 @@ impl AdvancementTrigger {
 /// Build the actionable diagnostic for requesting an item filter on
 /// [`AdvancementSchemaFamily::Legacy`], where this crate has no verified,
 /// correct representation.
+///
+/// Delegates to the shared [`crate::item::matcher::ItemMatcher`] conversion
+/// diagnostic (#229) rather than maintaining a second, advancement-only copy
+/// of the same capability check and message — this is the seam
+/// [`AdvancementItemConsumer`]'s doc comment describes #229 integrating with.
 fn unsupported_legacy_item_filter(consumer: AdvancementItemConsumer) -> crate::error::SandError {
-    crate::error::SandError::ComponentValidation {
-        location: ResourceLocation::new("sand", "advancement_trigger")
-            .expect("static resource location is always valid"),
-        kind: consumer.trigger_id().to_string(),
-        field: "conditions.item".to_string(),
-        message: format!(
-            "`{}` item filtering for this target's pre-item-component profile is not \
-             implemented — Sand's item predicate model only renders the 1.20.5+ \
-             `components`/`predicates` schema, which older profiles do not recognize. \
-             Target a supported item-component profile (every currently-supported 1.20.5+ \
-             and 26.x profile), drop the item filter and rely on the block/location \
-             condition only, or use `AdvancementTrigger::Custom`/raw JSON with a \
-             manually-verified legacy predicate shape.",
-            consumer.trigger_id()
-        ),
-    }
+    crate::item::matcher::unsupported_legacy_item_filter(consumer.into())
 }
 
 /// Pre-item-component-era flat rendering for [`AdvancementTrigger::PlacedBlock`],
@@ -3153,6 +3143,84 @@ mod tests {
         // Regression guard for #233: the old flat shape must be gone.
         assert!(v["conditions"].get("block").is_none());
         assert!(v["conditions"].get("item").is_none());
+    }
+
+    // ── ItemMatcher integration (#229) ─────────────────────────────────────────
+
+    #[test]
+    fn item_matcher_renders_identical_predicate_to_hand_built_item_predicate() {
+        use crate::item::matcher::ItemMatcher;
+
+        let matcher = ItemMatcher::item(crate::registry::ItemId::minecraft("white_wool").unwrap())
+            .custom_data_partial("elevator");
+        let via_matcher = matcher
+            .try_into_advancement_predicate(
+                AdvancementItemConsumer::PlacedBlockTool,
+                Some(&sand_version::VersionCaps::all_enabled()),
+            )
+            .unwrap();
+
+        assert_eq!(
+            serde_json::to_value(&via_matcher).unwrap(),
+            serde_json::to_value(elevator_wool_item_predicate()).unwrap()
+        );
+    }
+
+    #[test]
+    fn item_matcher_predicate_drives_the_same_placed_block_modern_rendering() {
+        use crate::item::matcher::ItemMatcher;
+
+        let matcher = ItemMatcher::item(crate::registry::ItemId::minecraft("white_wool").unwrap())
+            .custom_data_partial("elevator");
+        let predicate = matcher
+            .try_into_advancement_predicate(AdvancementItemConsumer::PlacedBlockTool, None)
+            .unwrap();
+
+        let trigger = AdvancementTrigger::placed_block(
+            Some(BlockId::minecraft("white_wool").unwrap()),
+            Some(predicate),
+            None,
+            None,
+        );
+        let v = trigger
+            .render_for(Some(&sand_version::VersionCaps::all_enabled()))
+            .unwrap();
+
+        let location = v["conditions"]["location"].as_array().unwrap();
+        assert_eq!(location[1]["condition"], "minecraft:match_tool");
+        assert_eq!(
+            location[1]["predicate"]["predicates"]["minecraft:custom_data"],
+            "{elevator:1b}"
+        );
+    }
+
+    #[test]
+    fn item_matcher_on_legacy_profile_fails_with_the_same_diagnostic_as_placed_block() {
+        use crate::item::matcher::ItemMatcher;
+
+        let matcher = ItemMatcher::item(crate::registry::ItemId::minecraft("white_wool").unwrap())
+            .custom_data_partial("elevator");
+        let matcher_err = matcher
+            .try_into_advancement_predicate(
+                AdvancementItemConsumer::PlacedBlockTool,
+                Some(&sand_version::VersionCaps::all_disabled()),
+            )
+            .unwrap_err()
+            .to_string();
+
+        let trigger_err = AdvancementTrigger::placed_block(
+            Some(BlockId::minecraft("white_wool").unwrap()),
+            Some(elevator_wool_item_predicate()),
+            None,
+            None,
+        )
+        .render_for(Some(&sand_version::VersionCaps::all_disabled()))
+        .unwrap_err()
+        .to_string();
+
+        assert!(matcher_err.contains("pre-item-component"));
+        assert!(trigger_err.contains("pre-item-component"));
+        assert!(trigger_err.contains("minecraft:placed_block"));
     }
 
     #[test]

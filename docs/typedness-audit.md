@@ -1,7 +1,7 @@
 # Typedness Audit — Sand Datapack Framework
 
 > Phase 1 of the typed-API migration.  
-> Last updated: 2026-06-23
+> Last updated: 2026-07-14
 
 This document catalogs every public API across the Sand workspace, classifies its
 current level of type safety, and defines the planned migration path.
@@ -106,6 +106,23 @@ with an explicit `::raw(RawJson)` fallback on each type.
 | `CustomItem::item_predicate()` | **Typed** | Returns typed `ItemPredicate` |
 | `CustomItem::raw_component()` | **Raw hatch** | Deprecated string-key compatibility API; prefer `RawComponent` |
 | `CustomItem::validate()` / `try_to_string()` | **Fallible boundary** | Checks numeric invariants (stack size, damage, repair cost, enchantment levels, finite floats, `PotionContents::custom_color` range) and string invariants (non-empty, quote/backslash-free ids/sounds/models) before formatting; `Display`/`Into<String>` remain intentionally infallible raw escape hatches (#148) |
+
+---
+
+### `item/stack.rs`, `item/matcher.rs`, `item/definition.rs` (#229)
+
+Phase 1 of #229's shared item model. `ItemLocation` (typed entity/block accessors)
+and `ItemSnapshot` (event-time capture) are explicitly **not** implemented yet —
+see the follow-up phase noted in each type's module doc comment.
+
+| Symbol | Classification | Notes |
+|---|---|---|
+| `ItemStack` | **Typed** | Concrete stack: typed `ItemId`, validated count (`1..=99`), typed `ItemComponent`s via `.component()`, explicit `.raw_component(RawComponent)` escape hatch. Thin wrapper over `CustomItem`'s existing component engine — reuses `CustomItem::validate`/`stack_components` rather than re-implementing them. |
+| `ItemMatcher` | **Typed** | Detection semantics, distinct from `ItemStack`. Distinguishes exact (`custom_data_exact`, `raw_components_exact`) from partial (`custom_data_partial`, `raw_predicates_partial`) matching as separate methods rather than one overloaded call. `enchantment`/`enchantment_levels`/`damage_range` render into the existing `predicates::ItemPredicate`'s `predicates` bag. |
+| `ItemMatcher::try_render_for` | **Fallible boundary** | The single consumer- and version-profile-aware conversion seam (`ItemMatcherConsumer`: `Advancement`, `Predicate`, `RecipeIngredient`, `InventoryCondition`, `LootCondition`) into `predicates::ItemPredicate`. Rejects (does not weaken) component constraints on pre-1.20.5 profiles and raw-SNBT exact custom-data — same `SandError::ComponentValidation` error model PR #237 established for advancement item filters. `AdvancementTrigger::render_for`'s legacy-item-filter rejection now delegates to this same function (`item::matcher::unsupported_legacy_item_filter`) instead of duplicating the check. |
+| `CustomItemDefinition` | **Typed** | Reusable identity (`base_item` + `custom_data` marker + always-present components) that produces a consistent `.stack()`, `.matcher()`, `.try_item_predicate()`, and `.try_recipe_result()` — one source of truth instead of repeating the base item ID/marker per API. Not const-constructible (mirrors `CustomItem`, which owns `String`/`Vec` state); use a plain function or `std::sync::LazyLock` for a static instance. |
+| `TryIntoIngredient` (for `ItemMatcher`) | **Fallible boundary** | Always errors if the matcher has any component constraint (mirrors `Ingredient::custom_item`'s existing "always error" behavior — vanilla ingredients can't match by component); converts an item-ID-only matcher to `Ingredient::raw_item`/`Ingredient::alternatives`. |
+| `TryIntoRecipeResult` (for `ItemStack`) | **Typed** | Preserves every representable component via `ItemStack::stack_components`; same fallibility as `CustomItem`'s existing `RecipeResult::from_custom_item`. |
 
 ---
 

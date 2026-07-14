@@ -342,23 +342,6 @@ impl TickEventDispatch {
             Some(combined) => TickExecutionPlans::Plans(combined.to_execute_plans(false)),
         }
     }
-
-    /// Render this dispatch as execute clause-list plans.
-    ///
-    /// An unconditional dispatch produces one empty plan. Conditions with
-    /// alternatives produce one plan per alternative; the exporter emits every
-    /// plan, so overlapping alternatives may invoke a handler more than once
-    /// in a tick.
-    pub fn render_plans(&self) -> Vec<String> {
-        match self.combined_condition() {
-            None => vec![String::new()],
-            Some(condition) => condition
-                .to_execute_plans(false)
-                .into_iter()
-                .map(|plan| plan.join(" "))
-                .collect(),
-        }
-    }
 }
 
 impl From<TickEventDispatch> for SandEventDispatch {

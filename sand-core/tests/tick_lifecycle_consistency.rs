@@ -76,9 +76,19 @@ sand_core::inventory::submit! {
 fn conflicting_grouped_lifecycle_definitions_fail_export() {
     let error = sand_core::try_export_components("consistency")
         .expect_err("conflicting lifecycle definitions must be rejected");
+    let message = error.to_string();
     assert!(
-        error
-            .to_string()
-            .contains("handlers for SandEvent `SharedEvent` disagree on dispatch or setup")
+        message.contains("conflicting SandEvent definitions"),
+        "got: {message}"
+    );
+    assert!(message.contains("SharedEvent"), "got: {message}");
+    assert!(
+        message.contains("first_shared_event_handler")
+            && message.contains("conflicting_shared_event_handler"),
+        "got: {message}"
+    );
+    assert!(
+        message.contains("setup()"),
+        "error should say setup() differed, not dispatch(): {message}"
     );
 }

@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **sand-components**: `item::stack::ItemStack`, `item::matcher::ItemMatcher`, and
+  `item::definition::CustomItemDefinition` — a shared foundation for item identity
+  (phase 1 of #229). `ItemStack` is a typed, component-bearing concrete stack
+  (typed `ItemId`, validated `1..=99` count, `CustomItem`'s existing component
+  model, and an explicit `RawComponent` escape hatch). `ItemMatcher` is a
+  separate detection type distinguishing exact (`custom_data_exact`,
+  `raw_components_exact`) from partial (`custom_data_partial`,
+  `raw_predicates_partial`) matching, plus typed `enchantment`/`damage_range`
+  helpers, and converts to `predicates::ItemPredicate` through a single
+  consumer- and `VersionCaps`-aware seam (`ItemMatcher::try_render_for`,
+  `ItemMatcherConsumer`) that rejects rather than weakens unsupported
+  component constraints — generalizing the `AdvancementItemConsumer` seam PR
+  #237 introduced as this work's documented precursor.
+  `CustomItemDefinition` ties one base item ID and `custom_data` marker to
+  consistent `.stack()`/`.matcher()`/`.try_item_predicate()`/`.try_recipe_result()`
+  output, so a custom item's identity never has to be repeated per API.
+  New `TryIntoIngredient`/`TryIntoRecipeResult` traits integrate `ItemMatcher`/
+  `ItemStack` with the existing `Ingredient`/`RecipeResult` recipe types
+  without changing their public API, and `AdvancementTrigger::render_for`'s
+  legacy-item-filter rejection now delegates to the same shared diagnostic
+  function instead of duplicating it. `ItemLocation` (typed entity/block
+  accessors) and `ItemSnapshot` (event-time capture) remain follow-up work —
+  see `docs/typedness-audit.md`. Refs #229.
 - **sand-core**: `entity` module — cardinality-aware `EntityQuery`/`PlayerQuery`
   builders on top of the existing typed selector arity wrappers, an
   execution-scoped `EntityContext<K>` (`@s` handle) passed into `.each(...)`,

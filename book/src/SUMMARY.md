@@ -44,6 +44,7 @@
 - [Derive SandStorage](manual/derive-sand-storage.md)
 - [Player Data](manual/player-data.md)
 - [Custom Items](manual/custom-items.md)
+- [Item Stacks And Matchers](manual/item-stack-matcher.md)
 - [Item Events](manual/item-events.md)
 - [Inventory](manual/inventory.md)
 - [Slots And Equipment](manual/slots.md)

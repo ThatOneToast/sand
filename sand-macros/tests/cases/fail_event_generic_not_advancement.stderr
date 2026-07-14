@@ -1,14 +1,15 @@
-error[E0277]: the trait bound `NotAnAdvancementEvent: AdvancementEvent` is not satisfied
+error[E0277]: `NotAnAdvancementEvent` is used as `Event<NotAnAdvancementEvent>` but does not implement `AdvancementEvent`
  --> tests/cases/fail_event_generic_not_advancement.rs:7:25
   |
 7 | pub fn bad(event: Event<NotAnAdvancementEvent>) {
-  |                         ^^^^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+  |                         ^^^^^^^^^^^^^^^^^^^^^ `Event<T>` requires `T: AdvancementEvent`
   |
 help: the trait `AdvancementEvent` is not implemented for `NotAnAdvancementEvent`
  --> tests/cases/fail_event_generic_not_advancement.rs:4:1
   |
 4 | pub struct NotAnAdvancementEvent;
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  = note: AdvancementEvent is a stateless marker for a single vanilla advancement trigger; for custom tick-polled or lifecycle-owned dispatch, implement `SandEvent` (sand_core::events::SandEvent) instead
   = help: the following other types implement trait `AdvancementEvent`:
             AnimalTamed
             AnimalsBreed
@@ -20,17 +21,18 @@ help: the trait `AdvancementEvent` is not implemented for `NotAnAdvancementEvent
             BrewPotionEvent
           and $N others
 
-error[E0277]: the trait bound `NotAnAdvancementEvent: AdvancementEvent` is not satisfied
+error[E0277]: `NotAnAdvancementEvent` is used as `Event<NotAnAdvancementEvent>` but does not implement `AdvancementEvent`
  --> tests/cases/fail_event_generic_not_advancement.rs:6:1
   |
 6 | #[event]
-  | ^^^^^^^^ unsatisfied trait bound
+  | ^^^^^^^^ `Event<T>` requires `T: AdvancementEvent`
   |
 help: the trait `AdvancementEvent` is not implemented for `NotAnAdvancementEvent`
  --> tests/cases/fail_event_generic_not_advancement.rs:4:1
   |
 4 | pub struct NotAnAdvancementEvent;
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  = note: AdvancementEvent is a stateless marker for a single vanilla advancement trigger; for custom tick-polled or lifecycle-owned dispatch, implement `SandEvent` (sand_core::events::SandEvent) instead
   = help: the following other types implement trait `AdvancementEvent`:
             AnimalTamed
             AnimalsBreed

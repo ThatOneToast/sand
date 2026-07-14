@@ -108,7 +108,7 @@ impl ScoreRange {
 ///
 /// Nested `Any` inside `All` is automatically distributed into multiple execute
 /// commands by [`execute_commands`](Condition::execute_commands).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Condition {
     /// `if score <selector> <objective> matches <range>`
     Score {
@@ -140,6 +140,17 @@ pub enum Condition {
     All(Vec<Condition>),
     /// At least one sub-condition must hold (generates one execute per sub-condition).
     Any(Vec<Condition>),
+    /// Explicit raw escape hatch: `if/unless <fragment>` verbatim.
+    ///
+    /// The fragment must be a valid Minecraft `execute if`/`unless` sub-command
+    /// *without* the leading `if`/`unless` keyword, e.g. `"score @s sync_jumps < @s jumps"`
+    /// or `"predicate my_pack:some_predicate"`.
+    ///
+    /// This is an intentionally explicit escape hatch — there is no `From<&str>`/
+    /// `From<String>` impl for `Condition`, so raw fragments never enter a typed
+    /// condition chain silently. Prefer the typed constructors above; reach for
+    /// `Condition::raw` only when no typed equivalent exists yet.
+    Raw(String),
 }
 
 impl Condition {
@@ -188,6 +199,37 @@ impl Condition {
             location: location.into(),
             path: path.into(),
         }
+    }
+
+    /// Explicit raw `execute if/unless` fragment escape hatch.
+    ///
+    /// The fragment is used verbatim **after** the `if`/`unless` keyword,
+    /// which is added automatically when rendering — do not include it
+    /// yourself. Use this only when no typed condition constructor covers
+    /// your case.
+    ///
+    /// ```rust,ignore
+    /// let c = Condition::raw("score @s sync_jumps < @s jumps");
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// Panics if `fragment` already starts with a leading `if `/`unless `
+    /// keyword — that would render as a malformed doubled keyword (e.g.
+    /// `"if if score ..."`). This is checked eagerly, at construction, rather
+    /// than silently accepted and only visible in generated datapack output.
+    pub fn raw(fragment: impl Into<String>) -> Self {
+        let fragment = fragment.into();
+        let trimmed = fragment.trim_start();
+        assert!(
+            !trimmed.starts_with("if ")
+                && !trimmed.starts_with("unless ")
+                && trimmed != "if"
+                && trimmed != "unless",
+            "Condition::raw fragment must not include a leading `if`/`unless` keyword — it is \
+             added automatically when rendering: {fragment:?}"
+        );
+        Condition::Raw(fragment)
     }
 }
 
@@ -327,6 +369,10 @@ impl Condition {
             Condition::StorageExists { location, path } => {
                 let kw = if_kw(negated);
                 vec![vec![format!("{kw} data storage {location} {path}")]]
+            }
+            Condition::Raw(fragment) => {
+                let kw = if_kw(negated);
+                vec![vec![format!("{kw} {fragment}")]]
             }
 
             // Not: flip the negated flag and delegate
@@ -718,6 +764,78 @@ mod tests {
             4,
             "cross product of two Any(2) should be 4: got {cmds:?}"
         );
+    }
+
+    #[test]
+    fn raw_condition_if() {
+        let c = Condition::raw("score @s sync_jumps < @s jumps");
+        let plans = c.to_execute_plans(false);
+        assert_eq!(plans, vec![vec!["if score @s sync_jumps < @s jumps"]]);
+    }
+
+    #[test]
+    fn raw_condition_unless() {
+        let c = Condition::raw("entity @s[tag=busy]");
+        let plans = c.to_execute_plans(true);
+        assert_eq!(plans, vec![vec!["unless entity @s[tag=busy]"]]);
+    }
+
+    #[test]
+    fn raw_condition_composes_with_typed() {
+        let c = Condition::all([
+            score("@s", "mana", ScoreRange::Gte(25)),
+            Condition::raw("score @s sync_jumps < @s jumps"),
+        ]);
+        let cmds = c.execute_commands(false, "say ok");
+        assert_eq!(cmds.len(), 1);
+        assert!(cmds[0].contains("if score @s mana"), "got: {}", cmds[0]);
+        assert!(
+            cmds[0].contains("if score @s sync_jumps < @s jumps"),
+            "got: {}",
+            cmds[0]
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "must not include a leading `if`/`unless` keyword")]
+    fn raw_condition_rejects_embedded_if_keyword() {
+        Condition::raw("if score @s x matches 1");
+    }
+
+    #[test]
+    #[should_panic(expected = "must not include a leading `if`/`unless` keyword")]
+    fn raw_condition_rejects_embedded_unless_keyword() {
+        Condition::raw("unless score @s x matches 1");
+    }
+
+    #[test]
+    fn raw_condition_permits_fragments_merely_containing_the_word_if() {
+        // Only a *leading* if/unless keyword is rejected — "iffy" or an
+        // embedded "if" elsewhere in the fragment must not false-positive.
+        let c = Condition::raw("score @s iffy_score matches 1");
+        assert_eq!(
+            c.to_execute_plans(false),
+            vec![vec!["if score @s iffy_score matches 1"]]
+        );
+    }
+
+    // ── Empty Condition::all([])/any([]) rendering ────────────────────────────
+
+    #[test]
+    fn empty_all_renders_as_single_vacuously_true_plan() {
+        // All([]) is a vacuous AND — always true — and must render as one
+        // plan with zero clauses (an unconditional execute), not zero plans.
+        let c = Condition::all([]);
+        assert_eq!(c.to_execute_plans(false), vec![Vec::<String>::new()]);
+    }
+
+    #[test]
+    fn empty_any_renders_as_zero_plans() {
+        // Any([]) is a vacuous OR — always false / unsatisfiable — and must
+        // render as zero plans (never matches), not one vacuous plan.
+        let c = Condition::any([]);
+        let plans: Vec<Vec<String>> = c.to_execute_plans(false);
+        assert!(plans.is_empty(), "expected zero plans, got: {plans:?}");
     }
 
     #[test]

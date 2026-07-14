@@ -1687,6 +1687,10 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 &format!("__sand_event_{}_type_id", fn_name),
                 proc_macro2::Span::call_site(),
             );
+            let type_name_ident = proc_macro2::Ident::new(
+                &format!("__sand_event_{}_type_name", fn_name),
+                proc_macro2::Span::call_site(),
+            );
             let setup_ident = proc_macro2::Ident::new(
                 &format!("__sand_event_{}_setup", fn_name),
                 proc_macro2::Span::call_site(),
@@ -1757,6 +1761,12 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
 
                 #[doc(hidden)]
                 #[allow(dead_code)]
+                fn #type_name_ident() -> &'static str {
+                    ::std::stringify!(#dispatch_type_tokens)
+                }
+
+                #[doc(hidden)]
+                #[allow(dead_code)]
                 fn #setup_ident() -> ::sand_core::events::EventSetup {
                     <#dispatch_type_tokens as ::sand_core::events::SandEvent>::setup()
                 }
@@ -1771,6 +1781,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                         make_tick: #tick_ident,
                         revoke: #revoke_ident,
                         event_type_id: #type_id_ident,
+                        event_type_name: #type_name_ident,
                         make_setup: #setup_ident,
                     },
                 });

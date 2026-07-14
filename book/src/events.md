@@ -80,8 +80,10 @@ deduplicates the detector: one shared generated tick function and one copy of
 generated dispatch function — not one detector per handler.
 
 Generic `SandEvent` families (e.g. `ElevatorUsed<GoUp>` vs `ElevatorUsed<GoDown>`)
-each get a distinct, stable generated identity per concrete monomorphization,
-derived from `TypeId`, so two instantiations never collide or merge detectors.
+are grouped by `TypeId` only within the exporting Rust process, so concrete
+instantiations never merge detectors. Generated resource paths instead use a
+deterministic hash of the event type's canonical macro spelling; adding,
+removing, or reordering handlers does not rename them.
 
 ## Tracked transitions
 

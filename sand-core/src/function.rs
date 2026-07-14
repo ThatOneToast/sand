@@ -340,7 +340,7 @@ pub enum EventDispatch {
         make_tick: fn() -> Option<crate::events::TickEventDispatch>,
         /// Whether to revoke the advancement after firing (advancement dispatch only).
         revoke: fn() -> bool,
-        /// Stable identity of the `SandEvent` type this handler subscribes to.
+        /// In-process identity of the `SandEvent` type this handler subscribes to.
         ///
         /// Used to deduplicate setup (objectives, detector/synchronization
         /// functions) across multiple handlers of the same event — see
@@ -348,6 +348,9 @@ pub enum EventDispatch {
         /// monomorphizations (e.g. `ElevatorUsed<GoUp>` vs `ElevatorUsed<GoDown>`)
         /// produce distinct `TypeId`s and are never merged.
         event_type_id: fn() -> std::any::TypeId,
+        /// Canonical type spelling used for deterministic generated resource paths.
+        /// This is separate from `event_type_id`, which is only meaningful in-process.
+        event_type_name: fn() -> &'static str,
         /// Returns the event's lifecycle setup (objectives, pre/post-observation
         /// commands). Only meaningful for tick-poll dispatch; ignored for
         /// advancement dispatch.

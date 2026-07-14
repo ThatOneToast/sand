@@ -16,6 +16,8 @@ use std::any::TypeId;
 /// Stand-in for a user's `SandEvent` marker type — never constructed, only
 /// used for its `TypeId`.
 struct PlayerJumpEvent;
+struct EveryTickEvent;
+struct EitherTagEvent;
 
 fn jump_dispatch() -> Option<TickEventDispatch> {
     Some(
@@ -40,6 +42,37 @@ fn jump_setup() -> EventSetup {
 
 fn jump_event_type_id() -> TypeId {
     TypeId::of::<PlayerJumpEvent>()
+}
+
+fn every_tick_dispatch() -> Option<TickEventDispatch> {
+    Some(TickEventDispatch::default().as_players().every_tick())
+}
+
+fn either_tag_dispatch() -> Option<TickEventDispatch> {
+    Some(
+        TickEventDispatch::default()
+            .as_players()
+            .when(sand_core::condition::Condition::any([
+                sand_core::condition::Condition::raw("entity @s[tag=alpha]"),
+                sand_core::condition::Condition::raw("entity @s[tag=beta]"),
+            ])),
+    )
+}
+
+fn every_tick_event_type_id() -> TypeId {
+    TypeId::of::<EveryTickEvent>()
+}
+
+fn either_tag_event_type_id() -> TypeId {
+    TypeId::of::<EitherTagEvent>()
+}
+
+fn every_tick_event_type_name() -> &'static str {
+    "EveryTickEvent"
+}
+
+fn either_tag_event_type_name() -> &'static str {
+    "EitherTagEvent"
 }
 
 fn handler_a_body() -> Vec<String> {
@@ -71,6 +104,7 @@ sand_core::inventory::submit! {
             make_tick: jump_dispatch,
             revoke: revoke_true,
             event_type_id: jump_event_type_id,
+            event_type_name: || "PlayerJumpEvent",
             make_setup: jump_setup,
         },
     }
@@ -87,7 +121,42 @@ sand_core::inventory::submit! {
             make_tick: jump_dispatch,
             revoke: revoke_true,
             event_type_id: jump_event_type_id,
+            event_type_name: || "PlayerJumpEvent",
             make_setup: jump_setup,
+        },
+    }
+}
+
+sand_core::inventory::submit! {
+    EventDescriptor {
+        path: "on_every_tick",
+        id_override: None,
+        make: || vec!["say every tick".to_string()],
+        dispatch: EventDispatch::Custom {
+            make_trigger: no_trigger,
+            make_condition: no_condition,
+            make_tick: every_tick_dispatch,
+            revoke: revoke_true,
+            event_type_id: every_tick_event_type_id,
+            event_type_name: every_tick_event_type_name,
+            make_setup: sand_core::events::EventSetup::none,
+        },
+    }
+}
+
+sand_core::inventory::submit! {
+    EventDescriptor {
+        path: "on_either_tag",
+        id_override: None,
+        make: || vec!["say either tag".to_string()],
+        dispatch: EventDispatch::Custom {
+            make_trigger: no_trigger,
+            make_condition: no_condition,
+            make_tick: either_tag_dispatch,
+            revoke: revoke_true,
+            event_type_id: either_tag_event_type_id,
+            event_type_name: either_tag_event_type_name,
+            make_setup: sand_core::events::EventSetup::none,
         },
     }
 }
@@ -128,9 +197,14 @@ fn two_handlers_on_same_event_share_one_detector() {
     let records = records();
     let tick_tag = tag_values(&records, "minecraft:tick");
 
-    let generated_checks: Vec<&String> = tick_tag
-        .iter()
-        .filter(|f| f.contains("__sand_event_check"))
+    let generated_checks: Vec<&serde_json::Value> = function_records(&records)
+        .into_iter()
+        .filter(|record| {
+            record["content"]
+                .as_str()
+                .unwrap_or_default()
+                .contains("sync_jumps < @s jumps")
+        })
         .collect();
     assert_eq!(
         generated_checks.len(),
@@ -212,4 +286,38 @@ fn both_handler_bodies_are_reachable_from_the_shared_dispatch() {
     let content = dispatch_fn["content"].as_str().unwrap_or_default();
     assert!(content.contains("jumppack:on_jump_a"));
     assert!(content.contains("jumppack:on_jump_b"));
+}
+
+#[test]
+fn unconditional_tick_dispatch_is_exported() {
+    let records = records();
+    let check = function_records(&records)
+        .into_iter()
+        .find(|r| {
+            r["content"].as_str() == Some("execute as @a at @s run function jumppack:on_every_tick")
+        })
+        .expect("unconditional tick dispatch must be wired into a check function");
+    assert!(
+        check["path"]
+            .as_str()
+            .unwrap_or_default()
+            .starts_with("__sand_event_check/")
+    );
+}
+
+#[test]
+fn multi_plan_tick_dispatch_emits_each_alternative() {
+    let records = records();
+    let check = function_records(&records)
+        .into_iter()
+        .find(|r| {
+            r["content"]
+                .as_str()
+                .unwrap_or_default()
+                .contains("jumppack:on_either_tag")
+        })
+        .expect("multi-plan tick dispatch must be wired into a check function");
+    let content = check["content"].as_str().unwrap_or_default();
+    assert!(content.contains("if entity @s[tag=alpha]"));
+    assert!(content.contains("if entity @s[tag=beta]"));
 }

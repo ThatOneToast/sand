@@ -103,8 +103,8 @@
 //! point for advanced custom events: typed tick dispatch built from the same
 //! [`Condition`](crate::condition::Condition) IR used everywhere else, event-owned
 //! lifecycle (setup objectives, pre/post-observation commands via
-//! [`SandEvent::setup`]), and generic event families with distinct, stable
-//! per-monomorphization identity. Implement [`AdvancementEvent`](crate::event::AdvancementEvent)
+//! [`SandEvent::setup`]), and generic event families with distinct concrete
+//! identities. Implement [`AdvancementEvent`](crate::event::AdvancementEvent)
 //! instead when your event maps to exactly one vanilla advancement trigger and
 //! needs no owned lifecycle — that is the lighter-weight, common case.
 //!
@@ -173,7 +173,7 @@ pub enum TickScope {
 /// Returned by [`SandEvent::setup`]. When multiple `#[event]` handlers
 /// subscribe to the same event type, Sand deduplicates the setup so
 /// objectives and detector/synchronization functions are emitted once.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct EventSetup {
     /// `scoreboard objectives add …` (or other init) commands, run once from
     /// `minecraft:load`.
@@ -302,6 +302,23 @@ impl TickEventDispatch {
             return None;
         }
         Some(plans[0].join(" "))
+    }
+
+    /// Render this dispatch as execute clause-list plans.
+    ///
+    /// An unconditional dispatch produces one empty plan. Conditions with
+    /// alternatives produce one plan per alternative; the exporter emits every
+    /// plan, so overlapping alternatives may invoke a handler more than once
+    /// in a tick.
+    pub fn render_plans(&self) -> Vec<String> {
+        match self.combined_condition() {
+            None => vec![String::new()],
+            Some(condition) => condition
+                .to_execute_plans(false)
+                .into_iter()
+                .map(|plan| plan.join(" "))
+                .collect(),
+        }
     }
 }
 
@@ -442,7 +459,7 @@ pub trait SandEvent {
     /// before `post_observation`).
     ///
     /// When several `#[event]` handlers subscribe to the same event type,
-    /// Sand deduplicates setup by the event's generated identity so
+    /// Sand deduplicates setup by the event's in-process type identity so
     /// objectives and detector functions are only emitted once.
     fn setup() -> EventSetup {
         EventSetup::none()

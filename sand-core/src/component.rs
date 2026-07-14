@@ -208,6 +208,7 @@ fn try_export_components_impl(
         std::any::TypeId,
         crate::events::TickEventDispatch,
         crate::events::EventSetup,
+        &'static str,
     )> = Vec::new();
     // Shared armor watch map — populated by both EventDescriptor ArmorEquip/
     // ArmorUnequip dispatch and the legacy ArmorEventDescriptor entries.
@@ -437,6 +438,7 @@ fn try_export_components_impl(
                 make_tick,
                 revoke,
                 event_type_id,
+                event_type_name,
                 make_setup,
             } => {
                 // Evaluate all factories once so we can distinguish "none
@@ -523,7 +525,13 @@ fn try_export_components_impl(
                             content_type: "text".to_string(),
                             content: commands.join("\n"),
                         });
-                        tick_lifecycle_events.push((desc, event_type_id(), tick, make_setup()));
+                        tick_lifecycle_events.push((
+                            desc,
+                            event_type_id(),
+                            tick,
+                            make_setup(),
+                            event_type_name(),
+                        ));
                     }
                 }
             }
@@ -816,7 +824,7 @@ fn try_export_components_impl(
 
     // ── Structured tick-lifecycle SandEvent aggregation ───────────────────────
     //
-    // Groups handlers by event_type_id (stable per monomorphization — distinct
+    // Groups handlers by event_type_id (in-process per monomorphization — distinct
     // generic instantiations such as `ElevatorUsed<GoUp>` vs
     // `ElevatorUsed<GoDown>` never merge). Each group shares one generated
     // dispatch function (calling every handler body) and one detection line,
@@ -830,26 +838,35 @@ fn try_export_components_impl(
     if !tick_lifecycle_events.is_empty() {
         struct LifecycleGroup<'a> {
             type_id: std::any::TypeId,
+            type_name: &'static str,
             setup: &'a crate::events::EventSetup,
-            clauses: Option<String>,
+            plans: Vec<String>,
             handler_paths: Vec<&'static str>,
         }
         let mut groups: Vec<LifecycleGroup> = Vec::new();
-        for (desc, type_id, tick, setup) in &tick_lifecycle_events {
+        for (desc, type_id, tick, setup, type_name) in &tick_lifecycle_events {
             if let Some(group) = groups.iter_mut().find(|g| g.type_id == *type_id) {
+                let plans = tick.render_plans();
+                if group.type_name != *type_name || group.plans != plans || group.setup != setup {
+                    return Err(lifecycle_export_error(format!(
+                        "handlers for SandEvent `{}` disagree on dispatch or setup (including `{}`)",
+                        group.type_name, desc.path
+                    )));
+                }
                 group.handler_paths.push(desc.path);
             } else {
                 groups.push(LifecycleGroup {
                     type_id: *type_id,
+                    type_name,
                     setup,
-                    clauses: tick.render_clauses(),
+                    plans: tick.render_plans(),
                     handler_paths: vec![desc.path],
                 });
             }
         }
 
         for group in &groups {
-            let key = fnv1a_hex(group.handler_paths.join(","));
+            let key = fnv1a_hex(group.type_name);
 
             if !group.setup.objectives.is_empty() {
                 let init_path = format!("__sand_event_setup/{key}");
@@ -867,22 +884,11 @@ fn try_export_components_impl(
                     .push(format!("{namespace}:{init_path}"));
             }
 
-            let Some(clauses) = &group.clauses else {
-                // No conditions declared, or the combined condition expanded
-                // into more than one OR-alternative execute plan (not yet
-                // supported here) — skip detection wiring for this group
-                // rather than emitting a malformed `execute` fragment.
-                continue;
-            };
-
             let mut tick_cmds: Vec<String> = Vec::new();
             tick_cmds.extend(group.setup.pre_observation.iter().cloned());
 
-            if group.handler_paths.len() == 1 {
-                tick_cmds.push(format!(
-                    "execute as @a {clauses} at @s run function {namespace}:{}",
-                    group.handler_paths[0]
-                ));
+            let dispatch_target = if group.handler_paths.len() == 1 {
+                format!("{namespace}:{}", group.handler_paths[0])
             } else {
                 // Multiple handlers on the same event: fan out from one
                 // generated dispatch function so the detection line itself is
@@ -901,8 +907,16 @@ fn try_export_components_impl(
                     content_type: "text".to_string(),
                     content: dispatch_cmds.join("\n"),
                 });
+                format!("{namespace}:{dispatch_path}")
+            };
+            for clauses in &group.plans {
+                let clauses = if clauses.is_empty() {
+                    String::new()
+                } else {
+                    format!(" {clauses}")
+                };
                 tick_cmds.push(format!(
-                    "execute as @a {clauses} at @s run function {namespace}:{dispatch_path}"
+                    "execute as @a{clauses} at @s run function {dispatch_target}"
                 ));
             }
 
@@ -1712,7 +1726,7 @@ fn sanitize_armor_tag(s: &str) -> String {
 
 /// FNV-1a hash of a string, rendered as lowercase hex — used to derive stable,
 /// deterministic generated function paths (e.g. for tick-lifecycle event
-/// groups) from handler-path identity rather than run-order.
+/// groups) from canonical event identity rather than handler ordering.
 fn fnv1a_hex(input: impl AsRef<str>) -> String {
     let mut h: u32 = 2_166_136_261;
     for b in input.as_ref().bytes() {

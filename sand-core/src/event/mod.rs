@@ -189,6 +189,13 @@ pub enum EventVisibility {
 ///     fn visibility() -> EventVisibility { EventVisibility::Hidden }
 /// }
 /// ```
+#[diagnostic::on_unimplemented(
+    message = "`{Self}` is used as `Event<{Self}>` but does not implement `AdvancementEvent`",
+    label = "`Event<T>` requires `T: AdvancementEvent`",
+    note = "AdvancementEvent is a stateless marker for a single vanilla advancement trigger; \
+            for custom tick-polled or lifecycle-owned dispatch, implement `SandEvent` \
+            (sand_core::events::SandEvent) instead"
+)]
 pub trait AdvancementEvent {
     /// The trigger type for this event — must convert into [`AdvancementTrigger`].
     type Trigger: Into<AdvancementTrigger>;

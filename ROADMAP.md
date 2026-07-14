@@ -44,7 +44,9 @@ emerging 26.x series. Capability decisions flow through `VersionProfile`.
 
 - `mcfunction!` macro — available but positioned as advanced tooling, not the
   beginner path.
-- Event system — functional but event rustdocs still being refined.
+- Event system — `AdvancementEvent`/`SandEvent` split formalized (typed tick
+  dispatch, owned lifecycle/setup, generic event identity); chained/composed
+  event graphs (#240) and participant-rich contexts (#230) not yet implemented.
 - Resource pack generation — functional but requires manual setup.
 - crates.io publishing — not yet available; build from workspace.
 

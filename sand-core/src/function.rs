@@ -329,12 +329,29 @@ pub enum EventDispatch {
     /// - `None` from `make_trigger`, `Some` from `make_condition` → tick-poll dispatch
     /// - both `None` or both `Some` → rejected at export time
     Custom {
-        /// Returns `Some(AdvancementTrigger)` when using advancement dispatch.
+        /// Returns `Some(AdvancementTrigger)` when using legacy `AdvancementTrigger` dispatch.
         make_trigger: fn() -> Option<crate::AdvancementTrigger>,
-        /// Returns `Some(condition_string)` when using tick-poll dispatch.
+        /// Returns `Some(condition_string)` when using legacy `TickCondition` dispatch.
         make_condition: fn() -> Option<String>,
+        /// Returns `Some(TickEventDispatch)` when using the structured, typed
+        /// `SandEventDispatch::tick()` builder. Mutually exclusive with
+        /// `make_trigger`/`make_condition` — exactly one of the three factories
+        /// returns `Some`.
+        make_tick: fn() -> Option<crate::events::TickEventDispatch>,
         /// Whether to revoke the advancement after firing (advancement dispatch only).
         revoke: fn() -> bool,
+        /// Stable identity of the `SandEvent` type this handler subscribes to.
+        ///
+        /// Used to deduplicate setup (objectives, detector/synchronization
+        /// functions) across multiple handlers of the same event — see
+        /// [`crate::events::SandEvent::setup`]. Distinct generic
+        /// monomorphizations (e.g. `ElevatorUsed<GoUp>` vs `ElevatorUsed<GoDown>`)
+        /// produce distinct `TypeId`s and are never merged.
+        event_type_id: fn() -> std::any::TypeId,
+        /// Returns the event's lifecycle setup (objectives, pre/post-observation
+        /// commands). Only meaningful for tick-poll dispatch; ignored for
+        /// advancement dispatch.
+        make_setup: fn() -> crate::events::EventSetup,
     },
 
     /// Tick-backed XP level-up detection.

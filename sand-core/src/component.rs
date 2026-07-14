@@ -200,6 +200,15 @@ fn try_export_components_impl(
     let mut transition_private_metadata: BTreeMap<String, (String, String)> = BTreeMap::new();
     // (descriptor, condition_string)
     let mut tick_poll_events: Vec<(&EventDescriptor, String)> = Vec::new();
+    // Structured tick-dispatch SandEvents with owned lifecycle (setup/sync).
+    // Grouped by event_type_id below so multiple handlers of the same event
+    // share one detector/synchronization function — see SandEvent::setup().
+    let mut tick_lifecycle_events: Vec<(
+        &EventDescriptor,
+        std::any::TypeId,
+        crate::events::TickEventDispatch,
+        crate::events::EventSetup,
+    )> = Vec::new();
     // Shared armor watch map — populated by both EventDescriptor ArmorEquip/
     // ArmorUnequip dispatch and the legacy ArmorEventDescriptor entries.
     // (slot, item_id, custom_data_snbt, Vec<(is_equip, path)>)
@@ -425,14 +434,22 @@ fn try_export_components_impl(
             EventDispatch::Custom {
                 make_trigger,
                 make_condition,
+                make_tick,
                 revoke,
+                event_type_id,
+                make_setup,
             } => {
-                // Evaluate both factories once so we can distinguish "neither
-                // returned Some" from "both returned Some" — see #121. A
-                // trigger silently winning over a condition (or vice versa)
+                // Evaluate all factories once so we can distinguish "none
+                // returned Some" from "more than one returned Some" — see
+                // #121. One dispatch strategy silently winning over another
                 // would export a working-looking datapack that doesn't match
                 // what the `SandEvent` impl actually declared.
-                match resolve_custom_dispatch_backend(make_trigger(), make_condition(), desc.path) {
+                match resolve_custom_dispatch_backend(
+                    make_trigger(),
+                    make_condition(),
+                    make_tick(),
+                    desc.path,
+                ) {
                     CustomDispatchBackend::Advancement(trigger) => {
                         // Advancement-backed custom (SandEvent) event.
                         // Same entry/body split as the typed Advancement arm.
@@ -492,6 +509,21 @@ fn try_export_components_impl(
                             content: commands.join("\n"),
                         });
                         tick_poll_events.push((desc, condition));
+                    }
+                    CustomDispatchBackend::TickLifecycle(tick) => {
+                        // Structured tick dispatch — handler body emitted now;
+                        // the shared detector/setup is aggregated below, grouped
+                        // by event_type_id so multiple handlers of the same
+                        // event share one detector and one copy of setup().
+                        records.push(ComponentRecord {
+                            namespace: namespace.to_string(),
+                            dir: "function".to_string(),
+                            path: desc.path.to_string(),
+                            ext: "mcfunction".to_string(),
+                            content_type: "text".to_string(),
+                            content: commands.join("\n"),
+                        });
+                        tick_lifecycle_events.push((desc, event_type_id(), tick, make_setup()));
                     }
                 }
             }
@@ -780,6 +812,116 @@ fn try_export_components_impl(
             .entry("minecraft:tick".to_string())
             .or_default()
             .push(format!("{namespace}:{tick_path}"));
+    }
+
+    // ── Structured tick-lifecycle SandEvent aggregation ───────────────────────
+    //
+    // Groups handlers by event_type_id (stable per monomorphization — distinct
+    // generic instantiations such as `ElevatorUsed<GoUp>` vs
+    // `ElevatorUsed<GoDown>` never merge). Each group shares one generated
+    // dispatch function (calling every handler body) and one detection line,
+    // so N handlers on the same event never duplicate the detector or setup.
+    //
+    // Ordering within the generated tick function is: pre_observation commands,
+    // then the detection execute line, then post_observation commands — always
+    // run unconditionally after detection so tracked/synchronized state
+    // advances even on ticks where the condition didn't match (required for
+    // delta-tracking events like a jump-count sync).
+    if !tick_lifecycle_events.is_empty() {
+        struct LifecycleGroup<'a> {
+            type_id: std::any::TypeId,
+            setup: &'a crate::events::EventSetup,
+            clauses: Option<String>,
+            handler_paths: Vec<&'static str>,
+        }
+        let mut groups: Vec<LifecycleGroup> = Vec::new();
+        for (desc, type_id, tick, setup) in &tick_lifecycle_events {
+            if let Some(group) = groups.iter_mut().find(|g| g.type_id == *type_id) {
+                group.handler_paths.push(desc.path);
+            } else {
+                groups.push(LifecycleGroup {
+                    type_id: *type_id,
+                    setup,
+                    clauses: tick.render_clauses(),
+                    handler_paths: vec![desc.path],
+                });
+            }
+        }
+
+        for group in &groups {
+            let key = fnv1a_hex(group.handler_paths.join(","));
+
+            if !group.setup.objectives.is_empty() {
+                let init_path = format!("__sand_event_setup/{key}");
+                records.push(ComponentRecord {
+                    namespace: namespace.to_string(),
+                    dir: "function".to_string(),
+                    path: init_path.clone(),
+                    ext: "mcfunction".to_string(),
+                    content_type: "text".to_string(),
+                    content: group.setup.objectives.join("\n"),
+                });
+                tag_map
+                    .entry("minecraft:load".to_string())
+                    .or_default()
+                    .push(format!("{namespace}:{init_path}"));
+            }
+
+            let Some(clauses) = &group.clauses else {
+                // No conditions declared, or the combined condition expanded
+                // into more than one OR-alternative execute plan (not yet
+                // supported here) — skip detection wiring for this group
+                // rather than emitting a malformed `execute` fragment.
+                continue;
+            };
+
+            let mut tick_cmds: Vec<String> = Vec::new();
+            tick_cmds.extend(group.setup.pre_observation.iter().cloned());
+
+            if group.handler_paths.len() == 1 {
+                tick_cmds.push(format!(
+                    "execute as @a {clauses} at @s run function {namespace}:{}",
+                    group.handler_paths[0]
+                ));
+            } else {
+                // Multiple handlers on the same event: fan out from one
+                // generated dispatch function so the detection line itself is
+                // emitted exactly once.
+                let dispatch_path = format!("__sand_event_dispatch/{key}");
+                let dispatch_cmds: Vec<String> = group
+                    .handler_paths
+                    .iter()
+                    .map(|path| format!("function {namespace}:{path}"))
+                    .collect();
+                records.push(ComponentRecord {
+                    namespace: namespace.to_string(),
+                    dir: "function".to_string(),
+                    path: dispatch_path.clone(),
+                    ext: "mcfunction".to_string(),
+                    content_type: "text".to_string(),
+                    content: dispatch_cmds.join("\n"),
+                });
+                tick_cmds.push(format!(
+                    "execute as @a {clauses} at @s run function {namespace}:{dispatch_path}"
+                ));
+            }
+
+            tick_cmds.extend(group.setup.post_observation.iter().cloned());
+
+            let check_path = format!("__sand_event_check/{key}");
+            records.push(ComponentRecord {
+                namespace: namespace.to_string(),
+                dir: "function".to_string(),
+                path: check_path.clone(),
+                ext: "mcfunction".to_string(),
+                content_type: "text".to_string(),
+                content: tick_cmds.join("\n"),
+            });
+            tag_map
+                .entry("minecraft:tick".to_string())
+                .or_default()
+                .push(format!("{namespace}:{check_path}"));
+        }
     }
 
     // ── Armor check aggregation ───────────────────────────────────────────────
@@ -1568,42 +1710,60 @@ fn sanitize_armor_tag(s: &str) -> String {
     raw.trim_matches('_').to_string()
 }
 
+/// FNV-1a hash of a string, rendered as lowercase hex — used to derive stable,
+/// deterministic generated function paths (e.g. for tick-lifecycle event
+/// groups) from handler-path identity rather than run-order.
+fn fnv1a_hex(input: impl AsRef<str>) -> String {
+    let mut h: u32 = 2_166_136_261;
+    for b in input.as_ref().bytes() {
+        h ^= b as u32;
+        h = h.wrapping_mul(16_777_619);
+    }
+    format!("{h:08x}")
+}
+
 /// The resolved dispatch backend for a custom [`crate::events::SandEvent`],
-/// after enforcing that exactly one of `make_trigger()` / `make_condition()`
-/// returned `Some` (see #121).
+/// after enforcing that exactly one of `make_trigger()` / `make_condition()` /
+/// `make_tick()` returned `Some` (see #121).
 #[allow(clippy::large_enum_variant)]
 enum CustomDispatchBackend {
     Advancement(crate::AdvancementTrigger),
+    /// Legacy single-fragment tick-poll condition (no lifecycle/setup).
     TickPoll(String),
+    /// Structured, typed tick dispatch with lifecycle/setup support.
+    TickLifecycle(crate::events::TickEventDispatch),
 }
 
 /// Resolve which dispatch backend a custom `SandEvent` uses, enforcing the
 /// documented `EventDispatch::Custom` contract: exactly one of `make_trigger()`
-/// / `make_condition()` must return `Some`.
+/// / `make_condition()` / `make_tick()` must return `Some`.
 ///
-/// Both factories are evaluated by the caller *before* this function runs, so
-/// this is a pure decision function — panicking here (rather than returning a
-/// `Result`) matches the existing "both `None`" precedent: this is a Rust-level
-/// authoring bug in the `SandEvent` impl, detected at export/codegen time, not
-/// a runtime datapack-validity issue.
+/// All three factories are evaluated by the caller *before* this function
+/// runs, so this is a pure decision function — panicking here (rather than
+/// returning a `Result`) matches the existing "both `None`" precedent: this is
+/// a Rust-level authoring bug in the `SandEvent` impl, detected at
+/// export/codegen time, not a runtime datapack-validity issue.
 fn resolve_custom_dispatch_backend(
     trigger: Option<crate::AdvancementTrigger>,
     condition: Option<String>,
+    tick: Option<crate::events::TickEventDispatch>,
     handler_path: &str,
 ) -> CustomDispatchBackend {
-    match (trigger, condition) {
-        (Some(trigger), None) => CustomDispatchBackend::Advancement(trigger),
-        (None, Some(condition)) => CustomDispatchBackend::TickPoll(condition),
-        (None, None) => {
+    match (trigger, condition, tick) {
+        (Some(trigger), None, None) => CustomDispatchBackend::Advancement(trigger),
+        (None, Some(condition), None) => CustomDispatchBackend::TickPoll(condition),
+        (None, None, Some(tick)) => CustomDispatchBackend::TickLifecycle(tick),
+        (None, None, None) => {
             panic!(
-                "Custom SandEvent for handler `{handler_path}` returned None from both \
-                 make_trigger() and make_condition() — implement exactly one"
+                "Custom SandEvent for handler `{handler_path}` returned None from \
+                 make_trigger(), make_condition(), and make_tick() — implement exactly one \
+                 dispatch strategy from SandEvent::dispatch()"
             );
         }
-        (Some(_), Some(_)) => {
+        _ => {
             panic!(
-                "Custom SandEvent for handler `{handler_path}` returned both a trigger from \
-                 make_trigger() and a condition from make_condition() — implement exactly one"
+                "Custom SandEvent for handler `{handler_path}` returned more than one dispatch \
+                 strategy (make_trigger/make_condition/make_tick) — implement exactly one"
             );
         }
     }
@@ -1779,7 +1939,8 @@ mod tests {
 
     #[test]
     fn player_state_events_use_predicate_flags() {
-        let condition = match PlayerSwimmingEvent::dispatch() {
+        let dispatch: crate::events::SandEventDispatch = PlayerSwimmingEvent::dispatch();
+        let condition = match dispatch {
             crate::events::SandEventDispatch::TickCondition(condition) => condition,
             _ => panic!("player swimming must be tick-polled"),
         };
@@ -1843,6 +2004,7 @@ mod tests {
         let backend = super::resolve_custom_dispatch_backend(
             Some(AdvancementTrigger::Tick),
             None,
+            None,
             "my_pack:on_thing",
         );
         assert!(matches!(
@@ -1856,23 +2018,41 @@ mod tests {
         let backend = super::resolve_custom_dispatch_backend(
             None,
             Some("score @s foo matches 1..".to_string()),
+            None,
             "my_pack:on_thing",
         );
         assert!(matches!(backend, super::CustomDispatchBackend::TickPoll(_)));
     }
 
     #[test]
-    #[should_panic(expected = "returned None from both make_trigger() and make_condition()")]
-    fn custom_dispatch_backend_rejects_neither_backend() {
-        super::resolve_custom_dispatch_backend(None, None, "my_pack:on_thing");
+    fn custom_dispatch_backend_accepts_tick_only() {
+        let backend = super::resolve_custom_dispatch_backend(
+            None,
+            None,
+            Some(crate::events::TickEventDispatch::default()),
+            "my_pack:on_thing",
+        );
+        assert!(matches!(
+            backend,
+            super::CustomDispatchBackend::TickLifecycle(_)
+        ));
     }
 
     #[test]
-    #[should_panic(expected = "returned both a trigger from make_trigger()")]
+    #[should_panic(
+        expected = "returned None from make_trigger(), make_condition(), and make_tick()"
+    )]
+    fn custom_dispatch_backend_rejects_neither_backend() {
+        super::resolve_custom_dispatch_backend(None, None, None, "my_pack:on_thing");
+    }
+
+    #[test]
+    #[should_panic(expected = "returned more than one dispatch strategy")]
     fn custom_dispatch_backend_rejects_both_backends() {
         super::resolve_custom_dispatch_backend(
             Some(AdvancementTrigger::Tick),
             Some("score @s foo matches 1..".to_string()),
+            None,
             "my_pack:on_thing",
         );
     }
@@ -1883,6 +2063,7 @@ mod tests {
             super::resolve_custom_dispatch_backend(
                 Some(AdvancementTrigger::Tick),
                 Some("score @s foo matches 1..".to_string()),
+                None,
                 "my_pack:on_elevator_placed",
             )
         });
@@ -1896,8 +2077,10 @@ mod tests {
             .or_else(|| err.downcast_ref::<&str>().map(|s| s.to_string()))
             .unwrap_or_default();
         assert!(message.contains("my_pack:on_elevator_placed"), "{message}");
-        assert!(message.contains("make_trigger()"), "{message}");
-        assert!(message.contains("make_condition()"), "{message}");
+        assert!(
+            message.contains("more than one dispatch strategy"),
+            "{message}"
+        );
         assert!(message.contains("exactly one"), "{message}");
     }
 

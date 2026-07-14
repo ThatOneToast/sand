@@ -140,6 +140,17 @@ pub enum Condition {
     All(Vec<Condition>),
     /// At least one sub-condition must hold (generates one execute per sub-condition).
     Any(Vec<Condition>),
+    /// Explicit raw escape hatch: `if/unless <fragment>` verbatim.
+    ///
+    /// The fragment must be a valid Minecraft `execute if`/`unless` sub-command
+    /// *without* the leading `if`/`unless` keyword, e.g. `"score @s sync_jumps < @s jumps"`
+    /// or `"predicate my_pack:some_predicate"`.
+    ///
+    /// This is an intentionally explicit escape hatch — there is no `From<&str>`/
+    /// `From<String>` impl for `Condition`, so raw fragments never enter a typed
+    /// condition chain silently. Prefer the typed constructors above; reach for
+    /// `Condition::raw` only when no typed equivalent exists yet.
+    Raw(String),
 }
 
 impl Condition {
@@ -188,6 +199,19 @@ impl Condition {
             location: location.into(),
             path: path.into(),
         }
+    }
+
+    /// Explicit raw `execute if/unless` fragment escape hatch.
+    ///
+    /// The fragment is used verbatim after the `if`/`unless` keyword — it is
+    /// **not** validated beyond being a non-empty string. Use this only when
+    /// no typed condition constructor covers your case.
+    ///
+    /// ```rust,ignore
+    /// let c = Condition::raw("score @s sync_jumps < @s jumps");
+    /// ```
+    pub fn raw(fragment: impl Into<String>) -> Self {
+        Condition::Raw(fragment.into())
     }
 }
 
@@ -327,6 +351,10 @@ impl Condition {
             Condition::StorageExists { location, path } => {
                 let kw = if_kw(negated);
                 vec![vec![format!("{kw} data storage {location} {path}")]]
+            }
+            Condition::Raw(fragment) => {
+                let kw = if_kw(negated);
+                vec![vec![format!("{kw} {fragment}")]]
             }
 
             // Not: flip the negated flag and delegate
@@ -717,6 +745,36 @@ mod tests {
             cmds.len(),
             4,
             "cross product of two Any(2) should be 4: got {cmds:?}"
+        );
+    }
+
+    #[test]
+    fn raw_condition_if() {
+        let c = Condition::raw("score @s sync_jumps < @s jumps");
+        let plans = c.to_execute_plans(false);
+        assert_eq!(plans, vec![vec!["if score @s sync_jumps < @s jumps"]]);
+    }
+
+    #[test]
+    fn raw_condition_unless() {
+        let c = Condition::raw("entity @s[tag=busy]");
+        let plans = c.to_execute_plans(true);
+        assert_eq!(plans, vec![vec!["unless entity @s[tag=busy]"]]);
+    }
+
+    #[test]
+    fn raw_condition_composes_with_typed() {
+        let c = Condition::all([
+            score("@s", "mana", ScoreRange::Gte(25)),
+            Condition::raw("score @s sync_jumps < @s jumps"),
+        ]);
+        let cmds = c.execute_commands(false, "say ok");
+        assert_eq!(cmds.len(), 1);
+        assert!(cmds[0].contains("if score @s mana"), "got: {}", cmds[0]);
+        assert!(
+            cmds[0].contains("if score @s sync_jumps < @s jumps"),
+            "got: {}",
+            cmds[0]
         );
     }
 

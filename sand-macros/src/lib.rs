@@ -1675,8 +1675,20 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 &format!("__sand_event_{}_condition", fn_name),
                 proc_macro2::Span::call_site(),
             );
+            let tick_ident = proc_macro2::Ident::new(
+                &format!("__sand_event_{}_tick", fn_name),
+                proc_macro2::Span::call_site(),
+            );
             let revoke_ident = proc_macro2::Ident::new(
                 &format!("__sand_event_{}_revoke", fn_name),
+                proc_macro2::Span::call_site(),
+            );
+            let type_id_ident = proc_macro2::Ident::new(
+                &format!("__sand_event_{}_type_id", fn_name),
+                proc_macro2::Span::call_site(),
+            );
+            let setup_ident = proc_macro2::Ident::new(
+                &format!("__sand_event_{}_setup", fn_name),
                 proc_macro2::Span::call_site(),
             );
 
@@ -1686,11 +1698,14 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 #[doc(hidden)]
                 #[allow(dead_code)]
                 fn #trigger_ident() -> ::std::option::Option<::sand_core::AdvancementTrigger> {
-                    match <#dispatch_type_tokens as ::sand_core::events::SandEvent>::dispatch() {
+                    let dispatch: ::sand_core::events::SandEventDispatch =
+                        <#dispatch_type_tokens as ::sand_core::events::SandEvent>::dispatch().into();
+                    match dispatch {
                         ::sand_core::events::SandEventDispatch::AdvancementTrigger(t) => {
                             ::std::option::Option::Some(t)
                         }
-                        ::sand_core::events::SandEventDispatch::TickCondition(_) => {
+                        ::sand_core::events::SandEventDispatch::TickCondition(_)
+                        | ::sand_core::events::SandEventDispatch::Tick(_) => {
                             ::std::option::Option::None
                         }
                     }
@@ -1699,11 +1714,30 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 #[doc(hidden)]
                 #[allow(dead_code)]
                 fn #cond_ident() -> ::std::option::Option<::std::string::String> {
-                    match <#dispatch_type_tokens as ::sand_core::events::SandEvent>::dispatch() {
+                    let dispatch: ::sand_core::events::SandEventDispatch =
+                        <#dispatch_type_tokens as ::sand_core::events::SandEvent>::dispatch().into();
+                    match dispatch {
                         ::sand_core::events::SandEventDispatch::TickCondition(s) => {
                             ::std::option::Option::Some(s)
                         }
-                        ::sand_core::events::SandEventDispatch::AdvancementTrigger(_) => {
+                        ::sand_core::events::SandEventDispatch::AdvancementTrigger(_)
+                        | ::sand_core::events::SandEventDispatch::Tick(_) => {
+                            ::std::option::Option::None
+                        }
+                    }
+                }
+
+                #[doc(hidden)]
+                #[allow(dead_code)]
+                fn #tick_ident() -> ::std::option::Option<::sand_core::events::TickEventDispatch> {
+                    let dispatch: ::sand_core::events::SandEventDispatch =
+                        <#dispatch_type_tokens as ::sand_core::events::SandEvent>::dispatch().into();
+                    match dispatch {
+                        ::sand_core::events::SandEventDispatch::Tick(t) => {
+                            ::std::option::Option::Some(t)
+                        }
+                        ::sand_core::events::SandEventDispatch::AdvancementTrigger(_)
+                        | ::sand_core::events::SandEventDispatch::TickCondition(_) => {
                             ::std::option::Option::None
                         }
                     }
@@ -1715,6 +1749,18 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                     <#dispatch_type_tokens as ::sand_core::events::SandEvent>::revoke()
                 }
 
+                #[doc(hidden)]
+                #[allow(dead_code)]
+                fn #type_id_ident() -> ::std::any::TypeId {
+                    ::std::any::TypeId::of::<#dispatch_type_tokens>()
+                }
+
+                #[doc(hidden)]
+                #[allow(dead_code)]
+                fn #setup_ident() -> ::sand_core::events::EventSetup {
+                    <#dispatch_type_tokens as ::sand_core::events::SandEvent>::setup()
+                }
+
                 ::sand_core::inventory::submit!(::sand_core::EventDescriptor {
                     path: #fn_name_str,
                     id_override: #id_override_tokens,
@@ -1722,7 +1768,10 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                     dispatch: ::sand_core::EventDispatch::Custom {
                         make_trigger: #trigger_ident,
                         make_condition: #cond_ident,
+                        make_tick: #tick_ident,
                         revoke: #revoke_ident,
+                        event_type_id: #type_id_ident,
+                        make_setup: #setup_ident,
                     },
                 });
             }

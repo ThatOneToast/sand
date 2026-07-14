@@ -97,34 +97,219 @@
 //! }
 //! ```
 //!
-//! # Legacy: `SandEvent` (tick-poll and backward compatibility)
+//! # `SandEvent`: advanced custom events
 //!
-//! Implement [`SandEvent`] only when you need a custom tick-condition dispatch
-//! or are migrating existing code. New advancement-backed events should use
-//! [`AdvancementEvent`](crate::event::AdvancementEvent) instead.
+//! [`SandEvent`] is not a legacy fallback — it is Sand's primary extension
+//! point for advanced custom events: typed tick dispatch built from the same
+//! [`Condition`](crate::condition::Condition) IR used everywhere else, event-owned
+//! lifecycle (setup objectives, pre/post-observation commands via
+//! [`SandEvent::setup`]), and generic event families with distinct, stable
+//! per-monomorphization identity. Implement [`AdvancementEvent`](crate::event::AdvancementEvent)
+//! instead when your event maps to exactly one vanilla advancement trigger and
+//! needs no owned lifecycle — that is the lighter-weight, common case.
 //!
 //! ```rust,ignore
-//! use sand_core::events::{SandEvent, SandEventDispatch};
-//! use sand_core::AdvancementTrigger;
+//! use sand_core::events::{EventSetup, SandEvent, SandEventDispatch};
+//! use sand_core::prelude::*;
 //!
-//! /// Fires when a player picks up an item.
-//! pub struct ItemPickupEvent;
+//! static JUMPS: ScoreVar<i32> = ScoreVar::new("jumps");
+//! static SYNC_JUMPS: ScoreVar<i32> = ScoreVar::new("sync_jumps");
 //!
-//! impl SandEvent for ItemPickupEvent {
+//! pub struct PlayerJumpEvent;
+//!
+//! impl SandEvent for PlayerJumpEvent {
 //!     fn dispatch() -> SandEventDispatch {
-//!         SandEventDispatch::AdvancementTrigger(
-//!             AdvancementTrigger::PickedUpItem { item: None }
-//!         )
+//!         SandEventDispatch::tick()
+//!             .as_players()
+//!             .when(SYNC_JUMPS.of("@s").lt_score(JUMPS.of("@s")))
+//!             .into()
+//!     }
+//!
+//!     fn setup() -> EventSetup {
+//!         EventSetup {
+//!             objectives: vec![
+//!                 "scoreboard objectives add jumps minecraft.custom:minecraft.jump".into(),
+//!                 "scoreboard objectives add sync_jumps dummy".into(),
+//!             ],
+//!             pre_observation: vec![],
+//!             // Runs unconditionally after detection each tick, so the sync
+//!             // score never overwrites the value being compared against
+//!             // before it's observed.
+//!             post_observation: vec![
+//!                 "scoreboard players operation @a sync_jumps = @a jumps".into(),
+//!             ],
+//!         }
 //!     }
 //! }
 //!
 //! #[event]
-//! pub fn on_pickup(event: Event<ItemPickupEvent>) {
-//!     cmd::say("Picked something up!");
+//! pub fn on_jump(event: PlayerJumpEvent) {
+//!     cmd::say("Jumped!");
 //! }
 //! ```
+//!
+//! Simple advancement-backed or single-fragment tick-poll `SandEvent` impls
+//! remain supported via [`SandEventDispatch::AdvancementTrigger`] and
+//! [`SandEventDispatch::TickCondition`] — both lower into the same normalized
+//! IR as [`SandEventDispatch::tick()`] (see [`SandEventDispatch::normalize`]).
 
 // ── Custom event API ──────────────────────────────────────────────────────────
+
+/// Execution scope for a structured [`TickEventDispatch`].
+///
+/// Currently only per-player polling is supported; more scopes (e.g. arbitrary
+/// entity queries) are a natural extension point for #240-style composition.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum TickScope {
+    /// Evaluated as each online player (`execute as @a ... at @s run ...`).
+    #[default]
+    Players,
+}
+
+/// Lifecycle resources a [`SandEvent`] owns: objectives to create at load time,
+/// commands to run before each observation, and commands to run after a
+/// successful observation (e.g. synchronizing a delta-tracking score).
+///
+/// Returned by [`SandEvent::setup`]. When multiple `#[event]` handlers
+/// subscribe to the same event type, Sand deduplicates the setup so
+/// objectives and detector/synchronization functions are emitted once.
+#[derive(Debug, Clone, Default)]
+pub struct EventSetup {
+    /// `scoreboard objectives add …` (or other init) commands, run once from
+    /// `minecraft:load`.
+    pub objectives: Vec<String>,
+    /// Commands that must run before the observation/detection check each
+    /// tick (e.g. snapshotting a value).
+    pub pre_observation: Vec<String>,
+    /// Commands that must run after a successful or completed observation
+    /// each tick (e.g. copying the current score into a synchronized score).
+    ///
+    /// These run unconditionally after the detection line(s), regardless of
+    /// whether the condition matched this tick, so tracked state always
+    /// advances — see [`TickEventDispatch`] for the ordering guarantee.
+    pub post_observation: Vec<String>,
+}
+
+impl EventSetup {
+    /// An empty setup — no objectives or lifecycle commands.
+    pub fn none() -> Self {
+        Self::default()
+    }
+}
+
+/// Structured, typed tick-poll dispatch definition.
+///
+/// Built via [`SandEventDispatch::tick`]. Conditions are composed from the
+/// same [`Condition`](crate::condition::Condition) IR used throughout Sand
+/// (score comparisons, flags, predicates, entity checks, and the explicit
+/// [`Condition::raw`] escape hatch) rather than hand-formatted strings.
+///
+/// ```rust,ignore
+/// use sand_core::events::{SandEvent, SandEventDispatch};
+/// use sand_core::state::ScoreVar;
+///
+/// static JUMPS: ScoreVar<i32> = ScoreVar::new("jumps");
+/// static SYNC_JUMPS: ScoreVar<i32> = ScoreVar::new("sync_jumps");
+///
+/// pub struct PlayerJumpEvent;
+///
+/// impl SandEvent for PlayerJumpEvent {
+///     fn dispatch() -> SandEventDispatch {
+///         SandEventDispatch::tick()
+///             .as_players()
+///             .when(SYNC_JUMPS.of("@s").lt_score(JUMPS.of("@s")))
+///     }
+/// }
+/// ```
+#[derive(Debug, Clone, Default)]
+pub struct TickEventDispatch {
+    /// The execution scope handlers are dispatched under.
+    pub scope: TickScope,
+    /// Positive conditions — all must hold (ANDed).
+    pub when: Vec<crate::condition::Condition>,
+    /// Negative conditions — none may hold (ANDed as `unless`).
+    pub unless: Vec<crate::condition::Condition>,
+}
+
+impl TickEventDispatch {
+    /// Evaluate as each online player. Currently the only supported scope;
+    /// present for API clarity and forward-compatibility with future scopes.
+    pub fn as_players(mut self) -> Self {
+        self.scope = TickScope::Players;
+        self
+    }
+
+    /// Add a positive condition — the event fires only while this holds.
+    ///
+    /// Multiple calls are ANDed together.
+    pub fn when(mut self, condition: impl Into<crate::condition::Condition>) -> Self {
+        self.when.push(condition.into());
+        self
+    }
+
+    /// Ergonomic alias for [`when`](Self::when).
+    pub fn if_(self, condition: impl Into<crate::condition::Condition>) -> Self {
+        self.when(condition)
+    }
+
+    /// Add a negative condition — the event does not fire while this holds.
+    ///
+    /// Multiple calls are ANDed together (i.e. every `unless` condition must
+    /// fail to hold).
+    pub fn unless(mut self, condition: impl Into<crate::condition::Condition>) -> Self {
+        self.unless.push(condition.into());
+        self
+    }
+
+    /// No-op cadence marker: the event is checked every tick.
+    ///
+    /// Present so dispatch definitions can be explicit about cadence; there
+    /// is currently no other supported cadence.
+    pub fn every_tick(self) -> Self {
+        self
+    }
+
+    /// Combine `when`/`unless` into a single [`Condition`](crate::condition::Condition),
+    /// or `None` if no conditions were declared.
+    pub fn combined_condition(&self) -> Option<crate::condition::Condition> {
+        if self.when.is_empty() && self.unless.is_empty() {
+            return None;
+        }
+        let mut combined = if self.when.is_empty() {
+            crate::condition::Condition::all([])
+        } else {
+            crate::condition::Condition::all(self.when.clone())
+        };
+        for u in &self.unless {
+            combined = combined.and_not(u.clone());
+        }
+        Some(combined)
+    }
+
+    /// Render this dispatch's combined condition to a single `if/unless …`
+    /// clause-list fragment (without the leading `execute` keyword), suitable
+    /// for splicing into an `execute <clauses> at @s run …` command.
+    ///
+    /// Returns `None` if no conditions were declared, or if the combined
+    /// condition expands into more than one OR-alternative execute plan
+    /// (i.e. a top-level `Any`/`.unless` combination that cannot collapse
+    /// into a single chained clause list) — that case is not yet supported by
+    /// the tick-dispatch lifecycle codegen.
+    pub fn render_clauses(&self) -> Option<String> {
+        let combined = self.combined_condition()?;
+        let plans = combined.to_execute_plans(false);
+        if plans.len() != 1 {
+            return None;
+        }
+        Some(plans[0].join(" "))
+    }
+}
+
+impl From<TickEventDispatch> for SandEventDispatch {
+    fn from(tick: TickEventDispatch) -> Self {
+        SandEventDispatch::Tick(tick)
+    }
+}
 
 /// How a custom [`SandEvent`] is dispatched at runtime.
 ///
@@ -147,7 +332,59 @@ pub enum SandEventDispatch {
     /// - `"items entity @s mainhand minecraft:diamond_sword"` — holding a sword
     /// - `"score @s my_flag matches 1"` — scoreboard flag is set
     /// - `"predicate my_pack:some_predicate"` — custom predicate
+    ///
+    /// This is the simple, single-fragment form. Prefer
+    /// [`SandEventDispatch::tick`] for typed conditions built from Sand's
+    /// [`Condition`](crate::condition::Condition) IR, or when the event needs
+    /// owned lifecycle resources via [`SandEvent::setup`].
     TickCondition(String),
+
+    /// Structured, typed tick-poll dispatch. See [`TickEventDispatch`].
+    Tick(TickEventDispatch),
+}
+
+/// Normalized internal representation of a [`SandEventDispatch`], used by the
+/// export pipeline and by tests asserting on lowering behavior.
+///
+/// Every `SandEventDispatch` variant — including the legacy `AdvancementTrigger`
+/// and `TickCondition` compatibility constructors — lowers into one of these
+/// two shapes, so the exporter has a single normalized IR to consume rather
+/// than juggling multiple representations.
+#[allow(clippy::large_enum_variant)]
+pub enum NormalizedEventDispatch {
+    /// Advancement-backed dispatch.
+    Advancement(crate::AdvancementTrigger),
+    /// Tick-poll dispatch, always in the structured [`TickEventDispatch`] shape.
+    Tick(TickEventDispatch),
+}
+
+impl SandEventDispatch {
+    /// Construct a structured, typed tick-poll dispatch builder.
+    ///
+    /// ```rust,ignore
+    /// SandEventDispatch::tick()
+    ///     .as_players()
+    ///     .when(SYNC_JUMPS.of("@s").lt_score(JUMPS.of("@s")))
+    /// ```
+    pub fn tick() -> TickEventDispatch {
+        TickEventDispatch::default()
+    }
+
+    /// Lower this dispatch into the normalized internal IR.
+    ///
+    /// - `AdvancementTrigger(t)` → `Advancement(t)` unchanged.
+    /// - `TickCondition(s)` → `Tick(...)` with `s` carried as a single
+    ///   [`Condition::raw`](crate::condition::Condition::raw) `when` clause.
+    /// - `Tick(t)` → `Tick(t)` unchanged.
+    pub fn normalize(self) -> NormalizedEventDispatch {
+        match self {
+            SandEventDispatch::AdvancementTrigger(t) => NormalizedEventDispatch::Advancement(t),
+            SandEventDispatch::TickCondition(s) => NormalizedEventDispatch::Tick(
+                TickEventDispatch::default().when(crate::condition::Condition::raw(s)),
+            ),
+            SandEventDispatch::Tick(t) => NormalizedEventDispatch::Tick(t),
+        }
+    }
 }
 
 /// Implement this trait on your own type to define a custom Sand event.
@@ -179,9 +416,37 @@ pub enum SandEventDispatch {
 ///     cmd::say("Picked something up!");
 /// }
 /// ```
+#[diagnostic::on_unimplemented(
+    message = "`{Self}` is used as a bare `#[event]` handler parameter but does not implement `SandEvent`",
+    label = "bare marker parameters require `T: SandEvent`",
+    note = "AdvancementEvent-backed events are stateless triggers handled through `Event<T>` \
+            (see sand_core::event::AdvancementEvent); SandEvent-backed events define custom \
+            tick/advancement dispatch and lifecycle via `impl SandEvent for {Self}`"
+)]
 pub trait SandEvent {
     /// Return the dispatch strategy for this event type.
-    fn dispatch() -> SandEventDispatch;
+    ///
+    /// Returns `impl Into<SandEventDispatch>` so both the plain enum
+    /// constructors (`SandEventDispatch::AdvancementTrigger(...)`) and the
+    /// typed [`SandEventDispatch::tick()`] builder chain (which yields a bare
+    /// [`TickEventDispatch`]) can be returned directly, without an explicit
+    /// `.into()` at every call site.
+    fn dispatch() -> impl Into<SandEventDispatch>;
+
+    /// Lifecycle resources this event owns: objectives, pre-observation, and
+    /// post-observation commands.
+    ///
+    /// Defaults to [`EventSetup::none`]. Override for events that need to
+    /// create scoreboard objectives or run commands around detection — see
+    /// [`EventSetup`] for the ordering guarantee (detection always runs
+    /// before `post_observation`).
+    ///
+    /// When several `#[event]` handlers subscribe to the same event type,
+    /// Sand deduplicates setup by the event's generated identity so
+    /// objectives and detector functions are only emitted once.
+    fn setup() -> EventSetup {
+        EventSetup::none()
+    }
 
     /// Whether to revoke the advancement after it fires.
     ///
@@ -1026,7 +1291,8 @@ macro_rules! adv_event {
         impl crate::event::AdvancementEvent for $ty {
             type Trigger = crate::AdvancementTrigger;
             fn trigger() -> Self::Trigger {
-                <$ty as SandEvent>::dispatch().into_trigger().unwrap()
+                let dispatch: SandEventDispatch = <$ty as SandEvent>::dispatch().into();
+                dispatch.into_trigger().unwrap()
             }
         }
         impl crate::event::EventPlayer for $ty {}
@@ -1040,6 +1306,7 @@ impl SandEventDispatch {
         match self {
             SandEventDispatch::AdvancementTrigger(t) => Some(t),
             SandEventDispatch::TickCondition(_) => None,
+            SandEventDispatch::Tick(_) => None,
         }
     }
 }
@@ -1390,5 +1657,115 @@ mod tests {
     #[test]
     fn builtin_event_names_is_non_empty() {
         assert!(!super::BUILTIN_EVENT_NAMES.is_empty());
+    }
+
+    // ── TickEventDispatch / EventSetup lifecycle ──────────────────────────────
+
+    #[test]
+    fn tick_dispatch_when_renders_single_clause() {
+        let d = SandEventDispatch::tick()
+            .as_players()
+            .when(crate::condition::Condition::raw(
+                "score @s sync_jumps < @s jumps",
+            ));
+        assert_eq!(
+            d.render_clauses().as_deref(),
+            Some("if score @s sync_jumps < @s jumps")
+        );
+    }
+
+    #[test]
+    fn tick_dispatch_when_and_unless_are_ordered_and_anded() {
+        let d = SandEventDispatch::tick()
+            .as_players()
+            .when(crate::condition::Condition::raw(
+                "score @s sync_jumps < @s jumps",
+            ))
+            .unless(crate::condition::Condition::raw(
+                "score @s is_dead matches 1",
+            ));
+        let rendered = d.render_clauses().unwrap();
+        assert!(rendered.contains("if score @s sync_jumps < @s jumps"));
+        assert!(rendered.contains("unless score @s is_dead matches 1"));
+        // `when` clause must precede `unless` clause.
+        assert!(
+            rendered.find("if score @s sync_jumps").unwrap()
+                < rendered.find("unless score @s is_dead").unwrap()
+        );
+    }
+
+    #[test]
+    fn tick_dispatch_if_alias_matches_when() {
+        let a = SandEventDispatch::tick()
+            .if_(crate::condition::Condition::raw("score @s a matches 1"))
+            .render_clauses();
+        let b = SandEventDispatch::tick()
+            .when(crate::condition::Condition::raw("score @s a matches 1"))
+            .render_clauses();
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn tick_dispatch_no_conditions_renders_none() {
+        let d = SandEventDispatch::tick().as_players();
+        assert_eq!(d.render_clauses(), None);
+    }
+
+    #[test]
+    fn dispatch_tick_builder_converts_into_sand_event_dispatch() {
+        struct Jump;
+        impl SandEvent for Jump {
+            fn dispatch() -> SandEventDispatch {
+                SandEventDispatch::tick()
+                    .as_players()
+                    .when(crate::condition::Condition::raw(
+                        "score @s sync_jumps < @s jumps",
+                    ))
+                    .into()
+            }
+        }
+        let dispatch: SandEventDispatch = Jump::dispatch();
+        match dispatch.normalize() {
+            NormalizedEventDispatch::Tick(t) => {
+                assert_eq!(
+                    t.render_clauses().as_deref(),
+                    Some("if score @s sync_jumps < @s jumps")
+                );
+            }
+            NormalizedEventDispatch::Advancement(_) => panic!("expected Tick"),
+        }
+    }
+
+    #[test]
+    fn legacy_tick_condition_normalizes_to_structured_tick() {
+        let dispatch = SandEventDispatch::TickCondition("entity @s[tag=ready]".into());
+        match dispatch.normalize() {
+            NormalizedEventDispatch::Tick(t) => {
+                assert_eq!(
+                    t.render_clauses().as_deref(),
+                    Some("if entity @s[tag=ready]")
+                );
+            }
+            NormalizedEventDispatch::Advancement(_) => panic!("expected Tick"),
+        }
+    }
+
+    #[test]
+    fn legacy_advancement_trigger_normalizes_unchanged() {
+        let dispatch = SandEventDispatch::AdvancementTrigger(crate::AdvancementTrigger::Tick);
+        match dispatch.normalize() {
+            NormalizedEventDispatch::Advancement(t) => {
+                assert_eq!(t.trigger_id(), "minecraft:tick");
+            }
+            NormalizedEventDispatch::Tick(_) => panic!("expected Advancement"),
+        }
+    }
+
+    #[test]
+    fn event_setup_default_is_empty() {
+        let setup = EventSetup::none();
+        assert!(setup.objectives.is_empty());
+        assert!(setup.pre_observation.is_empty());
+        assert!(setup.post_observation.is_empty());
     }
 }

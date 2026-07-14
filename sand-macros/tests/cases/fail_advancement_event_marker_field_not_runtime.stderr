@@ -1,0 +1,5 @@
+error[E0609]: no field `previous_jumps` on type `Event<JumpDelta>`
+  --> tests/cases/fail_advancement_event_marker_field_not_runtime.rs:25:19
+   |
+25 |     let _ = event.previous_jumps;
+   |                   ^^^^^^^^^^^^^^ unknown field

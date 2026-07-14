@@ -1012,7 +1012,7 @@ fn try_export_components_impl(
                                 ));
                             } else {
                                 tick_cmds.push(format!(
-                                    "execute as @a {} at @s run function {dispatch_ref}",
+                                    "execute as @a at @s {} run function {dispatch_ref}",
                                     clauses.join(" ")
                                 ));
                             }

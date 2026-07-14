@@ -57,9 +57,10 @@ struct PlayerJumpEvent;
 
 fn jump_dispatch() -> Option<TickEventDispatch> {
     Some(
-        TickEventDispatch::default()
-            .as_players()
-            .when(Condition::raw("score @s sync_jumps < @s jumps")),
+        TickEventDispatch::default().as_players().when(
+            Condition::raw("block ~ ~-1 ~ minecraft:iron_block")
+                .and(Condition::raw("score @s sync_jumps < @s jumps")),
+        ),
     )
 }
 
@@ -358,6 +359,24 @@ fn detection_runs_before_synchronization() {
     assert!(
         detect_pos < sync_pos,
         "detection must run before the synchronizing post_observation command: {content:?}"
+    );
+}
+
+#[test]
+fn conditional_dispatch_sets_player_position_before_position_sensitive_clauses() {
+    let records = records();
+    let key = expected_key(jump_event_type_name());
+    let content = function_content(&records, &format!("__sand_event_check/{key}"));
+
+    assert!(
+        content.contains(
+            "execute as @a at @s if block ~ ~-1 ~ minecraft:iron_block if score @s sync_jumps < @s jumps run function"
+        ),
+        "position-sensitive clauses must be evaluated after `at @s`: {content:?}"
+    );
+    assert!(
+        !content.contains("execute as @a if block ~ ~-1 ~ minecraft:iron_block at @s"),
+        "position-sensitive clauses must not precede `at @s`: {content:?}"
     );
 }
 

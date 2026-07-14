@@ -104,7 +104,10 @@ pub use instrument::Instrument;
 
 // ── Item ──────────────────────────────────────────────────────────────────────
 
+pub use item::definition::CustomItemDefinition;
+pub use item::matcher::{IntoItemMatcher, ItemMatcher, ItemMatcherConsumer, TryIntoItemPredicate};
 pub use item::predicates::InventorySlots;
+pub use item::stack::{IntoItemStack, ItemStack, MAX_STACK_SIZE};
 pub use item::{
     AttributeId, AttributeModifier, AttributeOperation, AttributeType, ConsumableAnimation,
     ConsumableProperties, CustomData, CustomItem, DyedColor, EnchantmentEntry, EquipmentSlot,
@@ -139,6 +142,7 @@ pub use predicate::Predicate;
 pub use recipe::{
     CookingRecipe, CookingType, Ingredient, IntoRecipeItemId, RecipeResult, ShapedRecipe,
     ShapelessRecipe, SmithingTransformRecipe, SmithingTrimRecipe, StonecuttingRecipe,
+    TryIntoIngredient, TryIntoRecipeResult,
 };
 
 // ── Dialog ────────────────────────────────────────────────────────────────────

@@ -44,6 +44,45 @@ pub fn audit_advancement() -> Advancement {
         .rewards(AdvancementRewards::new().function("sand_audit:audit_command"))
 }
 
+/// Real-vanilla load/reload coverage for the #231/#232 `placed_block` fix:
+/// proves the `conditions.location` / `minecraft:location_check` /
+/// `minecraft:match_tool` JSON this crate now generates for a block +
+/// custom-data-filtered item is accepted by a real server, not merely
+/// structurally correct per the golden tests in `sand-components`.
+///
+/// This only proves the document loads/reloads cleanly — it does not prove
+/// the criterion fires only for matching placements in gameplay (that
+/// requires a real client-driven positive/negative test; see
+/// `docs/vanilla-reload-validation.md`).
+#[component]
+pub fn audit_placed_block_filtered() -> Advancement {
+    Advancement::new("sand_audit:placed_block_filtered".parse().unwrap())
+        .criterion(
+            "event",
+            Criterion::new(AdvancementTrigger::placed_block(
+                Some(BlockId::minecraft("white_wool").unwrap()),
+                Some(ItemPredicate::id("minecraft:white_wool").custom_data_key("elevator")),
+                None,
+                None,
+            )),
+        )
+        .rewards(AdvancementRewards::new().function("sand_audit:audit_command"))
+}
+
+/// Same coverage as [`audit_placed_block_filtered`] for `item_used_on_block`.
+#[component]
+pub fn audit_item_used_on_block_filtered() -> Advancement {
+    Advancement::new("sand_audit:item_used_on_block_filtered".parse().unwrap())
+        .criterion(
+            "event",
+            Criterion::new(AdvancementTrigger::ItemUsedOnBlock {
+                item: Some(ItemPredicate::id("minecraft:white_wool").custom_data_key("elevator")),
+                location: None,
+            }),
+        )
+        .rewards(AdvancementRewards::new().function("sand_audit:audit_command"))
+}
+
 #[component]
 pub fn audit_recipe() -> ShapedRecipe {
     ShapedRecipe::new("sand_audit:diamond".parse().unwrap())

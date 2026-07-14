@@ -12,6 +12,34 @@
 //! - New Minecraft triggers can be added here first (as `Missing`), then
 //!   promoted once the typed variant and tests are in place.
 //!
+//! # Evidence tiers (#232)
+//!
+//! `golden_json_tested` alone does not prove a trigger's condition schema is
+//! correct for every supported Minecraft profile — see #231, where
+//! `minecraft:placed_block`/`minecraft:item_used_on_block` had passing golden
+//! tests for years while silently firing unconditionally in real gameplay.
+//! [`TriggerCoverage`] tracks three independent, increasingly strong levels
+//! of evidence:
+//!
+//! 1. `golden_json_tested` — a fixed-input/fixed-output serialization test
+//!    exists. Proves Sand's *current* output is stable, not that it matches
+//!    vanilla's schema.
+//! 2. `vanilla_load_tested_profiles` — the JSON was loaded and `reload`-tested
+//!    against a real vanilla server (`sand-vanilla-audit` +
+//!    `scripts/validate-vanilla-reload.sh`); proves it parses, not that the
+//!    criterion fires correctly.
+//! 3. `semantic_runtime_tested_profiles` — a real, client-driven gameplay
+//!    test proved the criterion fires only for matching events and not for
+//!    non-matching ones, for the listed profiles. This is the only tier that
+//!    proves in-game correctness, and it is empty for every trigger in this
+//!    table today — no automation in this repository can currently issue a
+//!    real client-originated action (block placement, item use, etc.); see
+//!    `docs/vanilla-reload-validation.md`.
+//!
+//! Do not treat `FullyImplemented` API status, `golden_json_tested`, or a
+//! non-empty `vanilla_load_tested_profiles` as proof of semantic runtime
+//! correctness — only `semantic_runtime_tested_profiles` is.
+//!
 //! # How to use
 //!
 //! ```
@@ -72,6 +100,20 @@ pub struct TriggerCoverage {
     pub event_wrapper: EventWrapperStatus,
     /// Whether at least one golden JSON test exists.
     pub golden_json_tested: bool,
+    /// Minecraft profiles (version strings, e.g. `"26.2"`) whose generated
+    /// JSON for this trigger has been loaded and `reload`-tested against a
+    /// real vanilla server via the vanilla audit harness
+    /// (`sand-vanilla-audit`, `scripts/validate-vanilla-reload.sh`).
+    /// Proves the document parses and the server accepts it — NOT that the
+    /// criterion fires with the intended semantics in gameplay.
+    pub vanilla_load_tested_profiles: &'static [&'static str],
+    /// Minecraft profiles whose criterion has been proven, via a real
+    /// gameplay-driven positive/negative test, to fire only for matching
+    /// events and not for non-matching ones. Empty unless real client-driven
+    /// semantic verification has actually been performed — see
+    /// `docs/vanilla-reload-validation.md` for why this differs from
+    /// `vanilla_load_tested_profiles`.
+    pub semantic_runtime_tested_profiles: &'static [&'static str],
     /// Notes about limitations, version differences, or escape hatches.
     pub notes: &'static str,
 }
@@ -131,6 +173,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::None,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "Fires when an allay drops an item on a note block. AdvancementTrigger::AllayDropItemOnBlock.",
     },
     TriggerCoverage {
@@ -140,6 +184,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::None,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "Fires when a player avoids triggering a sculk sensor. No conditions. AdvancementTrigger::AvoidVibration.",
     },
     TriggerCoverage {
@@ -149,6 +195,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::None,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "AdvancementTrigger::BeeNestDestroyed.",
     },
     TriggerCoverage {
@@ -158,6 +206,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::Supported,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "AdvancementTrigger::BredAnimals. vanilla::AnimalsBreed event.",
     },
     TriggerCoverage {
@@ -167,6 +217,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::Supported,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "AdvancementTrigger::BrewedPotion. vanilla::PotionBrewed event.",
     },
     TriggerCoverage {
@@ -176,6 +228,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::Supported,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "AdvancementTrigger::ChangedDimension. vanilla::DimensionChanged event.",
     },
     TriggerCoverage {
@@ -185,6 +239,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::None,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "AdvancementTrigger::ChanneledLightning.",
     },
     TriggerCoverage {
@@ -194,6 +250,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::None,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "AdvancementTrigger::ConstructBeacon.",
     },
     TriggerCoverage {
@@ -203,6 +261,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::Supported,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "AdvancementTrigger::ConsumeItem. vanilla::AnyItemConsumed event.",
     },
     TriggerCoverage {
@@ -212,6 +272,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::Supported,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "AdvancementTrigger::CraftedItem. vanilla::AnyItemCrafted event.",
     },
     TriggerCoverage {
@@ -221,6 +283,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::None,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "AdvancementTrigger::CuredZombieVillager.",
     },
     TriggerCoverage {
@@ -230,6 +294,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::None,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "AdvancementTrigger::EffectsChanged.",
     },
     TriggerCoverage {
@@ -239,6 +305,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::Supported,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "AdvancementTrigger::EnchantedItem. vanilla::AnyItemEnchanted event.",
     },
     TriggerCoverage {
@@ -248,6 +316,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::None,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "AdvancementTrigger::EnterBlock.",
     },
     TriggerCoverage {
@@ -257,6 +327,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::Supported,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "AdvancementTrigger::EntityHurtPlayer. vanilla::EntityDamagesPlayer event. Does NOT infer attacker.",
     },
     TriggerCoverage {
@@ -266,6 +338,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::Supported,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "AdvancementTrigger::EntityKilledPlayer. vanilla::PlayerKill event.",
     },
     TriggerCoverage {
@@ -275,6 +349,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::None,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "AdvancementTrigger::FallFromHeight.",
     },
     TriggerCoverage {
@@ -284,6 +360,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::None,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "AdvancementTrigger::FilledBucket.",
     },
     TriggerCoverage {
@@ -293,6 +371,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::None,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "AdvancementTrigger::FishingRodHooked.",
     },
     TriggerCoverage {
@@ -302,6 +382,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::None,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "AdvancementTrigger::HeroOfTheVillage.",
     },
     TriggerCoverage {
@@ -311,6 +393,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::None,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "Never fires. Used for parent-only advancements. AdvancementTrigger::Impossible.",
     },
     TriggerCoverage {
@@ -320,6 +404,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::None,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "AdvancementTrigger::InventoryChanged.",
     },
     TriggerCoverage {
@@ -329,6 +415,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::None,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "AdvancementTrigger::ItemDurabilityChanged.",
     },
     TriggerCoverage {
@@ -338,7 +426,13 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::None,
         golden_json_tested: true,
-        notes: "Player right-clicks a block with item. AdvancementTrigger::ItemUsedOnBlock.",
+        vanilla_load_tested_profiles: &["26.2"],
+        semantic_runtime_tested_profiles: &[],
+        notes: "Player right-clicks a block with item. AdvancementTrigger::ItemUsedOnBlock. \
+            Filtering renders through AdvancementSchemaFamily-aware conditions.location \
+            (#231/#232); real-vanilla load/reload verified on 26.2 via sand-vanilla-audit. \
+            Semantic (does-it-actually-fire-correctly) verification requires a real \
+            client-driven test, not yet automated — see docs/vanilla-reload-validation.md.",
     },
     TriggerCoverage {
         trigger_id: "minecraft:kill_mob_near_sculk_catalyst",
@@ -347,6 +441,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::None,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "AdvancementTrigger::KillMobNearSculkCatalyst.",
     },
     TriggerCoverage {
@@ -356,6 +452,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::None,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "AdvancementTrigger::KilledByCrossbow.",
     },
     TriggerCoverage {
@@ -365,6 +463,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::IntentionallyUnsupported,
         event_wrapper: EventWrapperStatus::None,
         golden_json_tested: false,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "minecraft:leveled_up is not in the vanilla trigger registry. Kept only for source compatibility; generation fails with an XP polling migration diagnostic.",
     },
     TriggerCoverage {
@@ -374,6 +474,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::None,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "AdvancementTrigger::LightningStrike.",
     },
     TriggerCoverage {
@@ -383,6 +485,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::Partial,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "AdvancementTrigger::Location. Tick-polled player-state events use this.",
     },
     TriggerCoverage {
@@ -392,6 +496,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::None,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "AdvancementTrigger::NetherTravel.",
     },
     TriggerCoverage {
@@ -401,7 +507,13 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::Supported,
         golden_json_tested: true,
-        notes: "AdvancementTrigger::PlacedBlock. vanilla::AnyBlockPlaced event.",
+        vanilla_load_tested_profiles: &["26.2"],
+        semantic_runtime_tested_profiles: &[],
+        notes: "AdvancementTrigger::PlacedBlock. vanilla::AnyBlockPlaced event. Filtering renders \
+            through AdvancementSchemaFamily-aware conditions.location (#231/#232); \
+            real-vanilla load/reload verified on 26.2 via sand-vanilla-audit. Semantic \
+            (does-it-actually-fire-correctly) verification requires a real client-driven \
+            test, not yet automated — see docs/vanilla-reload-validation.md.",
     },
     TriggerCoverage {
         trigger_id: "minecraft:player_generates_container_loot",
@@ -410,6 +522,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::None,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "AdvancementTrigger::PlayerGeneratesContainerLoot.",
     },
     TriggerCoverage {
@@ -419,6 +533,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::Supported,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "AdvancementTrigger::PlayerHurtEntity. vanilla::PlayerDamagesEntity event.",
     },
     TriggerCoverage {
@@ -428,6 +544,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::Supported,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "AdvancementTrigger::PlayerInteractedWithEntity. Used by systems-entities interaction builder.",
     },
     TriggerCoverage {
@@ -437,6 +555,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::Supported,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "AdvancementTrigger::PlayerKilledEntity. vanilla::EntityKill event.",
     },
     TriggerCoverage {
@@ -446,6 +566,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::None,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "AdvancementTrigger::RecipeUnlocked.",
     },
     TriggerCoverage {
@@ -455,6 +577,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::None,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "AdvancementTrigger::RideEntityInLava.",
     },
     TriggerCoverage {
@@ -464,6 +588,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::Supported,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "AdvancementTrigger::ShotCrossbow. vanilla::CrossbowShot event.",
     },
     TriggerCoverage {
@@ -473,6 +599,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::None,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "AdvancementTrigger::SleptInBed.",
     },
     TriggerCoverage {
@@ -482,6 +610,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::None,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "AdvancementTrigger::SlideDownBlock.",
     },
     TriggerCoverage {
@@ -491,6 +621,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::None,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "AdvancementTrigger::StartedRiding. No conditions.",
     },
     TriggerCoverage {
@@ -500,6 +632,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::Supported,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "AdvancementTrigger::SummonedEntity. vanilla::EntitySummoned event.",
     },
     TriggerCoverage {
@@ -509,6 +643,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::Supported,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "AdvancementTrigger::TamedAnimal. vanilla::AnimalTamed event.",
     },
     TriggerCoverage {
@@ -518,6 +654,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::None,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "AdvancementTrigger::TargetHit.",
     },
     TriggerCoverage {
@@ -527,6 +665,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::Supported,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "Fires every tick. Used for join/first-join detection with revoke. vanilla::OnJoin, FirstJoin.",
     },
     TriggerCoverage {
@@ -536,6 +676,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::None,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "AdvancementTrigger::ThrownItemPickedUp.",
     },
     TriggerCoverage {
@@ -545,6 +687,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::None,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "AdvancementTrigger::UsedEnderEye.",
     },
     TriggerCoverage {
@@ -554,6 +698,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::None,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "Fires when an item finishes being used (right-click release). AdvancementTrigger::UsedItem.",
     },
     TriggerCoverage {
@@ -563,6 +709,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::None,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "AdvancementTrigger::UsedTotem.",
     },
     TriggerCoverage {
@@ -572,6 +720,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::Partial,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "Fires every tick while player is actively using an item. Tick-polled state events use this.",
     },
     TriggerCoverage {
@@ -581,6 +731,8 @@ pub const TRIGGER_COVERAGE: &[TriggerCoverage] = &[
         api_status: TriggerApiStatus::FullyImplemented,
         event_wrapper: EventWrapperStatus::None,
         golden_json_tested: true,
+        vanilla_load_tested_profiles: &[],
+        semantic_runtime_tested_profiles: &[],
         notes: "AdvancementTrigger::VillagerTrade.",
     },
 ];
@@ -607,6 +759,25 @@ mod tests {
                 "trigger_id must be namespaced: '{}'",
                 entry.trigger_id
             );
+        }
+    }
+
+    #[test]
+    fn placed_block_and_item_used_on_block_have_real_vanilla_load_evidence() {
+        // #231/#232: these are the two triggers whose filtering was fixed by
+        // AdvancementSchemaFamily-aware rendering. Lock in that the coverage
+        // table records real vanilla server evidence for it (not merely a
+        // golden JSON assertion) — see sand-vanilla-audit's
+        // `audit_placed_block_filtered`/`audit_item_used_on_block_filtered`.
+        for trigger_id in ["minecraft:placed_block", "minecraft:item_used_on_block"] {
+            let entry = find_coverage(trigger_id).unwrap();
+            assert!(
+                entry.vanilla_load_tested_profiles.contains(&"26.2"),
+                "{trigger_id} should record 26.2 vanilla-load evidence"
+            );
+            // Semantic (real gameplay firing) verification is intentionally not
+            // claimed — see #231/#232 PR notes on client-automation limitations.
+            assert!(entry.semantic_runtime_tested_profiles.is_empty());
         }
     }
 

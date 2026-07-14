@@ -18,6 +18,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reference to an entity across relationship traversal via a collision-safe
   temporary tag. Framework infrastructure for #228–#230; resolves #227.
 
+### Fixed
+
+- **sand-components**: `AdvancementTrigger::render_for` now maps the target
+  profile to an explicit `AdvancementSchemaFamily` in one place instead of an
+  inline capability check, and rejects an item filter on
+  `AdvancementSchemaFamily::Legacy` (pre-1.20.5 profiles) with an actionable
+  diagnostic instead of emitting a modern `components`/`predicates` shape
+  those profiles don't recognize. Item-predicate conversion is now tagged
+  with an `AdvancementItemConsumer` for richer diagnostics. `sand-vanilla-audit`
+  gained `placed_block`/`item_used_on_block` fixtures exercising the fixed
+  `conditions.location`/`minecraft:location_check`/`minecraft:match_tool`
+  shape, verified against a real Minecraft 26.2 server (load + reload).
+  `trigger_coverage::TriggerCoverage` now tracks `vanilla_load_tested_profiles`
+  and `semantic_runtime_tested_profiles` separately from `golden_json_tested`.
+  Refs #231, #232 — real client-driven semantic (fires-only-for-matches)
+  verification remains unautomated; see `docs/vanilla-reload-validation.md`.
+
 ### Documentation
 
 - Documented the typed gameplay state API surface (`GameState<S>`,

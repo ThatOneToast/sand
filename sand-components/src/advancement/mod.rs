@@ -1513,7 +1513,94 @@ impl Serialize for AdvancementTrigger {
     }
 }
 
-// ── Version-aware rendering (#232, #233) ───────────────────────────────────────
+// ── Schema families (#232) ─────────────────────────────────────────────────────
+
+/// Which vanilla advancement condition/predicate schema a target Minecraft
+/// profile expects.
+///
+/// This is the single place that maps a [`sand_version::VersionCaps`] profile
+/// to a rendering strategy — trigger rendering matches on this enum instead
+/// of comparing capability flags or version strings inline. See
+/// [`AdvancementTrigger::render_for`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AdvancementSchemaFamily {
+    /// Pre item-component era (pre-1.20.5). [`AdvancementTrigger::PlacedBlock`]
+    /// and [`AdvancementTrigger::ItemUsedOnBlock`] render through the
+    /// historical flat `conditions.block`/`conditions.item` shape here.
+    ///
+    /// **Known limitation:** unlike the modern family below, this flat shape
+    /// has *not* been verified against a real pre-1.20.5 vanilla server.
+    /// Historical research for #231/#232 found no authoritative evidence
+    /// that `placed_block`/`item_used_on_block` ever accepted flat
+    /// `conditions.block`/`conditions.item` fields at any version — the
+    /// `location`/`location_check`/`match_tool` composition these triggers
+    /// use predates the 1.20.5 item-component overhaul by years. It is
+    /// possible this family has the same "filter silently ignored" defect
+    /// #231 fixed for the modern family. This PR does not change legacy
+    /// output without verified proof (existing supported-profile output is
+    /// preserved per project policy), and does not implement the
+    /// pre-component item-predicate schema (`tag`/`nbt`-based matching) that
+    /// would be needed to correctly filter `item` on this family — that is
+    /// full item-model work owned by #229. Filed as a follow-up: verify
+    /// `placed_block`/`item_used_on_block` semantics on a real pre-1.20.5
+    /// server and, if broken, apply the same `location`/`match_tool` fix
+    /// used for the modern family here.
+    Legacy,
+    /// 1.20.5+ item-component era (includes every currently-supported 26.x
+    /// profile). `PlacedBlock`/`ItemUsedOnBlock` render through
+    /// `conditions.location` wrapping `minecraft:location_check` (block) and
+    /// `minecraft:match_tool` (item), with item predicates using the
+    /// `components` (exact)/`predicates` (partial) keys. Verified against a
+    /// real, manually-confirmed-working Minecraft 26.2 JSON document — see
+    /// `placed_block_modern_render_matches_vanilla_location_check_and_match_tool`.
+    LocationConditionItemComponents,
+}
+
+impl AdvancementSchemaFamily {
+    /// Map a target profile's capabilities to its advancement schema family.
+    ///
+    /// `caps` is `None` on the unprofiled compatibility export path, treated
+    /// the same as a fully item-component-capable modern profile (matching
+    /// the `VersionCaps::all_enabled()` convention used elsewhere in Sand).
+    pub fn for_caps(caps: Option<&sand_version::VersionCaps>) -> Self {
+        if caps.is_none_or(|c| c.supports(sand_version::ComponentFeature::ItemComponents)) {
+            Self::LocationConditionItemComponents
+        } else {
+            Self::Legacy
+        }
+    }
+}
+
+/// Which advancement trigger/field a rendered [`ItemPredicate`] is being
+/// converted for.
+///
+/// This is a narrowly-scoped, advancement-rendering-internal analog of the
+/// consumer-aware matcher conversion the full shared item model (#229) will
+/// eventually own. It exists so diagnostics can name the exact trigger/field
+/// an unsupported item-predicate conversion was requested for, and so #229
+/// has a documented seam to integrate with rather than needing to redesign
+/// advancement export.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AdvancementItemConsumer {
+    /// The tool/item filter for [`AdvancementTrigger::PlacedBlock`], rendered
+    /// as a `minecraft:match_tool` condition in the modern schema family.
+    PlacedBlockTool,
+    /// The tool/item filter for [`AdvancementTrigger::ItemUsedOnBlock`],
+    /// rendered as a `minecraft:match_tool` condition in the modern schema family.
+    ItemUsedOnBlockTool,
+}
+
+impl AdvancementItemConsumer {
+    /// The vanilla trigger ID this consumer belongs to, for diagnostics.
+    pub const fn trigger_id(self) -> &'static str {
+        match self {
+            Self::PlacedBlockTool => "minecraft:placed_block",
+            Self::ItemUsedOnBlockTool => "minecraft:item_used_on_block",
+        }
+    }
+}
+
+// ── Version-aware rendering (#231, #232, #233) ─────────────────────────────────
 
 impl AdvancementTrigger {
     /// Render this trigger's `{"trigger": ..., "conditions": ...}` JSON for a
@@ -1523,60 +1610,101 @@ impl AdvancementTrigger {
     /// Sand-supported target and simply delegate to [`Serialize`]. Two
     /// variants — [`AdvancementTrigger::PlacedBlock`] and
     /// [`AdvancementTrigger::ItemUsedOnBlock`] — additionally filter by the
-    /// item used to place/interact with the block. Minecraft's modern
+    /// item used to place/interact with the block, and render differently
+    /// per [`AdvancementSchemaFamily`]. Minecraft's modern
     /// (1.20.5+ item-component era) schema expresses that filter as a
     /// `conditions.location` array of `minecraft:location_check` /
     /// `minecraft:match_tool` loot conditions, not the direct `block`/`item`
     /// fields this crate used to emit. Emitting the direct fields makes the
-    /// generated advancement fire unconditionally in-game — see #233.
-    ///
-    /// `caps` is `None` on the unprofiled compatibility export path, which is
-    /// treated the same as a fully item-component-capable modern profile
-    /// (matching the `VersionCaps::all_enabled()` convention used elsewhere
-    /// in Sand). Targets that predate the item-component system
-    /// (`ComponentFeature::ItemComponents` unsupported) keep the legacy flat
-    /// shape, since their vanilla schema never had `location_check`/`match_tool`
-    /// wrapping for these triggers.
+    /// generated advancement fire unconditionally in-game — see #231/#233.
     ///
     /// This never silently drops a filter: if a caller supplies both the
     /// trigger-level `block`/`state` shorthand *and* a `location` predicate
     /// that already sets `block`, rendering fails with an actionable
     /// [`SandError`](crate::error::SandError) instead of picking one silently.
+    /// Likewise, requesting an item filter on [`AdvancementSchemaFamily::Legacy`]
+    /// fails with an actionable error instead of emitting an item-component-era
+    /// JSON shape (`components`/`predicates`) that legacy profiles don't
+    /// recognize — see [`AdvancementSchemaFamily::Legacy`]'s docs.
     pub fn render_for(
         &self,
         caps: Option<&sand_version::VersionCaps>,
     ) -> crate::error::Result<Value> {
-        let modern =
-            caps.is_none_or(|c| c.supports(sand_version::ComponentFeature::ItemComponents));
+        let family = AdvancementSchemaFamily::for_caps(caps);
 
-        match self {
-            AdvancementTrigger::PlacedBlock {
-                block,
-                item,
-                location,
-                state,
-            } if modern => render_placed_block_modern(block, item, location, state),
+        match (self, family) {
+            (
+                AdvancementTrigger::PlacedBlock {
+                    block,
+                    item,
+                    location,
+                    state,
+                },
+                AdvancementSchemaFamily::LocationConditionItemComponents,
+            ) => render_placed_block_modern(block, item, location, state),
 
-            AdvancementTrigger::ItemUsedOnBlock { item, location } if modern => {
-                render_item_used_on_block_modern(item, location)
-            }
+            (
+                AdvancementTrigger::ItemUsedOnBlock { item, location },
+                AdvancementSchemaFamily::LocationConditionItemComponents,
+            ) => render_item_used_on_block_modern(item, location),
 
             // Pre-item-component targets never had `location_check`/`match_tool`
-            // wrapping for these two triggers — preserve the historical flat shape
-            // rather than emitting a schema the target version never supported.
-            AdvancementTrigger::PlacedBlock {
-                block,
-                item,
-                location,
-                state,
-            } => Ok(render_placed_block_legacy(block, item, location, state)),
+            // wrapping verified for these two triggers, and this crate has no
+            // pre-component item-predicate model — reject an item filter with
+            // an actionable diagnostic rather than emit a schema shape the
+            // target version doesn't recognize (see `AdvancementSchemaFamily::Legacy`).
+            (
+                AdvancementTrigger::PlacedBlock { item: Some(_), .. },
+                AdvancementSchemaFamily::Legacy,
+            ) => Err(unsupported_legacy_item_filter(
+                AdvancementItemConsumer::PlacedBlockTool,
+            )),
+            (
+                AdvancementTrigger::ItemUsedOnBlock { item: Some(_), .. },
+                AdvancementSchemaFamily::Legacy,
+            ) => Err(unsupported_legacy_item_filter(
+                AdvancementItemConsumer::ItemUsedOnBlockTool,
+            )),
 
-            AdvancementTrigger::ItemUsedOnBlock { item, location } => {
-                Ok(render_item_used_on_block_legacy(item, location))
-            }
+            (
+                AdvancementTrigger::PlacedBlock {
+                    block,
+                    location,
+                    state,
+                    ..
+                },
+                AdvancementSchemaFamily::Legacy,
+            ) => Ok(render_placed_block_legacy(block, location, state)),
+
+            (
+                AdvancementTrigger::ItemUsedOnBlock { location, .. },
+                AdvancementSchemaFamily::Legacy,
+            ) => Ok(render_item_used_on_block_legacy(location)),
 
             _ => serde_json::to_value(self).map_err(crate::error::SandError::Serialization),
         }
+    }
+}
+
+/// Build the actionable diagnostic for requesting an item filter on
+/// [`AdvancementSchemaFamily::Legacy`], where this crate has no verified,
+/// correct representation.
+fn unsupported_legacy_item_filter(consumer: AdvancementItemConsumer) -> crate::error::SandError {
+    crate::error::SandError::ComponentValidation {
+        location: ResourceLocation::new("sand", "advancement_trigger")
+            .expect("static resource location is always valid"),
+        kind: consumer.trigger_id().to_string(),
+        field: "conditions.item".to_string(),
+        message: format!(
+            "`{}` item filtering for this target's pre-item-component profile is not \
+             implemented — Sand's item predicate model only renders the 1.20.5+ \
+             `components`/`predicates` schema, which older profiles do not recognize. \
+             Target a supported item-component profile (every currently-supported 1.20.5+ \
+             and 26.x profile), drop the item filter and rely on the block/location \
+             condition only, or use `AdvancementTrigger::Custom`/raw JSON with a \
+             manually-verified legacy predicate shape.",
+            consumer.trigger_id()
+        ),
     }
 }
 
@@ -1587,19 +1715,12 @@ impl AdvancementTrigger {
 /// shape — see the `Serialize for AdvancementTrigger` impl's doc comment.
 fn render_placed_block_legacy(
     block: &Option<String>,
-    item: &Option<ItemPredicate>,
     location: &Option<LocationPredicate>,
     state: &Option<HashMap<String, String>>,
 ) -> Value {
     let mut cond = serde_json::Map::new();
     if let Some(b) = block {
         cond.insert("block".to_string(), Value::String(b.clone()));
-    }
-    if let Some(i) = item {
-        cond.insert(
-            "item".to_string(),
-            serde_json::to_value(i).unwrap_or(Value::Null),
-        );
     }
     if let Some(l) = location {
         cond.insert(
@@ -1627,17 +1748,8 @@ fn render_placed_block_legacy(
 
 /// Pre-item-component-era flat rendering for [`AdvancementTrigger::ItemUsedOnBlock`].
 /// See [`render_placed_block_legacy`] for when this is used.
-fn render_item_used_on_block_legacy(
-    item: &Option<ItemPredicate>,
-    location: &Option<LocationPredicate>,
-) -> Value {
+fn render_item_used_on_block_legacy(location: &Option<LocationPredicate>) -> Value {
     let mut cond = serde_json::Map::new();
-    if let Some(i) = item {
-        cond.insert(
-            "item".to_string(),
-            serde_json::to_value(i).unwrap_or(Value::Null),
-        );
-    }
     if let Some(l) = location {
         cond.insert(
             "location".to_string(),
@@ -1660,7 +1772,7 @@ fn render_item_used_on_block_legacy(
 /// array shared by [`AdvancementTrigger::PlacedBlock`] and
 /// [`AdvancementTrigger::ItemUsedOnBlock`]'s modern rendering.
 fn render_location_and_item_conditions(
-    trigger_id: &str,
+    consumer: AdvancementItemConsumer,
     location: &Option<LocationPredicate>,
     item: &Option<ItemPredicate>,
     block_shorthand: Option<&String>,
@@ -1673,7 +1785,7 @@ fn render_location_and_item_conditions(
             return Err(crate::error::SandError::ComponentValidation {
                 location: ResourceLocation::new("sand", "advancement_trigger")
                     .expect("static resource location is always valid"),
-                kind: trigger_id.to_string(),
+                kind: consumer.trigger_id().to_string(),
                 field: "conditions.block".to_string(),
                 message: "both the direct `block`/`state` shorthand and an explicit \
                     `location` predicate that may already set `block` (a typed `block`, \
@@ -1715,7 +1827,7 @@ fn render_placed_block_modern(
     state: &Option<HashMap<String, String>>,
 ) -> crate::error::Result<Value> {
     let conditions = render_location_and_item_conditions(
-        "minecraft:placed_block",
+        AdvancementItemConsumer::PlacedBlockTool,
         location,
         item,
         block.as_ref(),
@@ -1740,7 +1852,7 @@ fn render_item_used_on_block_modern(
     location: &Option<LocationPredicate>,
 ) -> crate::error::Result<Value> {
     let conditions = render_location_and_item_conditions(
-        "minecraft:item_used_on_block",
+        AdvancementItemConsumer::ItemUsedOnBlockTool,
         location,
         item,
         None,
@@ -3094,10 +3206,27 @@ mod tests {
     }
 
     #[test]
-    fn placed_block_render_for_legacy_profile_keeps_flat_shape() {
+    fn schema_family_for_caps_maps_correctly() {
+        assert_eq!(
+            AdvancementSchemaFamily::for_caps(None),
+            AdvancementSchemaFamily::LocationConditionItemComponents,
+            "no profile is treated as the fully-capable modern profile"
+        );
+        assert_eq!(
+            AdvancementSchemaFamily::for_caps(Some(&sand_version::VersionCaps::all_enabled())),
+            AdvancementSchemaFamily::LocationConditionItemComponents,
+        );
+        assert_eq!(
+            AdvancementSchemaFamily::for_caps(Some(&sand_version::VersionCaps::all_disabled())),
+            AdvancementSchemaFamily::Legacy,
+        );
+    }
+
+    #[test]
+    fn placed_block_render_for_legacy_profile_keeps_flat_shape_for_block_only() {
         let trigger = AdvancementTrigger::placed_block(
             Some(BlockId::minecraft("white_wool").unwrap()),
-            Some(elevator_wool_item_predicate()),
+            None,
             None,
             None,
         );
@@ -3110,8 +3239,42 @@ mod tests {
         // which always render the modern (correct) shape by default; the legacy
         // shape is reachable only by explicitly passing pre-item-component caps.
         assert_eq!(v["conditions"]["block"], "minecraft:white_wool");
-        assert!(v["conditions"]["item"].is_object());
+        assert!(v["conditions"].get("item").is_none());
         assert!(v["conditions"].get("location").is_none());
+    }
+
+    #[test]
+    fn placed_block_render_for_legacy_profile_rejects_item_filter() {
+        // Sand has no verified pre-item-component item-predicate schema (#229
+        // territory), so requesting an item filter on a legacy profile must fail
+        // with an actionable diagnostic instead of emitting a modern-era
+        // `components`/`predicates` shape the target version won't recognize.
+        let trigger = AdvancementTrigger::placed_block(
+            Some(BlockId::minecraft("white_wool").unwrap()),
+            Some(elevator_wool_item_predicate()),
+            None,
+            None,
+        );
+        let error = trigger
+            .render_for(Some(&sand_version::VersionCaps::all_disabled()))
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("minecraft:placed_block"));
+        assert!(error.contains("pre-item-component"));
+    }
+
+    #[test]
+    fn item_used_on_block_render_for_legacy_profile_rejects_item_filter() {
+        let trigger = AdvancementTrigger::ItemUsedOnBlock {
+            item: Some(elevator_wool_item_predicate()),
+            location: None,
+        };
+        let error = trigger
+            .render_for(Some(&sand_version::VersionCaps::all_disabled()))
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("minecraft:item_used_on_block"));
+        assert!(error.contains("pre-item-component"));
     }
 
     #[test]

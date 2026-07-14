@@ -13,10 +13,33 @@ predicate, recipe, loot table, item modifier, scoreboard commands, and a
 dialog on the latest 26.x target. It avoids broad legacy examples whose
 runtime behavior is unrelated to this loader check.
 
+`audit_placed_block_filtered` / `audit_item_used_on_block_filtered`
+(added for #231/#232) additionally cover the version-aware
+`conditions.location` / `minecraft:location_check` / `minecraft:match_tool`
+rendering for a block + custom-data-filtered item — this is the shape that
+was previously silently ignored by vanilla (#231). Running this harness
+against 26.2 with these fixtures confirms the exact generated JSON parses and
+survives a `reload` on a real server.
+
 The harness starts with no players. Vanilla parses every generated function
 and component, and load functions run, but player-dependent tick/event paths
 are not behaviorally exercised. This is loader/reload validation, not gameplay
 simulation or exhaustive component parity.
+
+**This harness cannot prove advancement criteria fire with the correct
+semantics.** It starts the server with `max-players=1` and never connects a
+player (`enable-rcon=false`, no bot/protocol client exists in this
+repository), so it can prove a document *loads*, never that
+`minecraft:placed_block`/`minecraft:item_used_on_block` (or any other
+trigger) actually fires only for matching in-game actions and not for
+non-matching ones. Proving that requires a real Minecraft client capable of
+issuing an actual block-placement/item-use packet — server-side commands
+(`setblock`, `advancement grant`, RCON) cannot originate the internal event
+these criteria hook into. `sand_components::advancement::trigger_coverage`
+tracks this distinction explicitly via
+`vanilla_load_tested_profiles` (what this harness proves) versus
+`semantic_runtime_tested_profiles` (what it does not) — do not treat one as
+evidence of the other.
 
 ## Synchronization and signals
 

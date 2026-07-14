@@ -340,14 +340,29 @@ pub enum EventDispatch {
         make_tick: fn() -> Option<crate::events::TickEventDispatch>,
         /// Whether to revoke the advancement after firing (advancement dispatch only).
         revoke: fn() -> bool,
-        /// Stable identity of the `SandEvent` type this handler subscribes to.
+        /// In-process grouping identity of the `SandEvent` type this handler
+        /// subscribes to.
         ///
-        /// Used to deduplicate setup (objectives, detector/synchronization
-        /// functions) across multiple handlers of the same event — see
-        /// [`crate::events::SandEvent::setup`]. Distinct generic
-        /// monomorphizations (e.g. `ElevatorUsed<GoUp>` vs `ElevatorUsed<GoDown>`)
-        /// produce distinct `TypeId`s and are never merged.
+        /// `TypeId` is appropriate for distinguishing concrete types —
+        /// including distinct generic monomorphizations such as
+        /// `ElevatorUsed<GoUp>` vs `ElevatorUsed<GoDown>` — **within the
+        /// current export process**, and is used to group/deduplicate setup
+        /// and detector evaluation across multiple handlers of the same
+        /// event. It is **not** a stable identifier across compiler versions
+        /// or builds and must never be used to derive generated resource
+        /// paths — see the sibling `event_type_name` field for that.
         event_type_id: fn() -> std::any::TypeId,
+        /// Canonical concrete type name (`std::any::type_name::<T>()`) of the
+        /// `SandEvent` type this handler subscribes to.
+        ///
+        /// Used as the input to a deterministic resource-key derivation for
+        /// generated detector/setup/dispatch function paths, so the same
+        /// concrete event type always produces the same generated paths
+        /// regardless of how many handlers subscribe to it, their
+        /// registration order, or inventory/link order. Distinct generic
+        /// monomorphizations produce distinct canonical names and therefore
+        /// distinct keys.
+        event_type_name: fn() -> &'static str,
         /// Returns the event's lifecycle setup (objectives, pre/post-observation
         /// commands). Only meaningful for tick-poll dispatch; ignored for
         /// advancement dispatch.

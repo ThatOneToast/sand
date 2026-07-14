@@ -79,14 +79,22 @@ fn main() {
 
     let dispatch_up: SandEventDispatch = ElevatorUsed::<GoUp>::dispatch().into();
     let dispatch_down: SandEventDispatch = ElevatorUsed::<GoDown>::dispatch().into();
-    let clauses_up = match dispatch_up.normalize() {
-        sand_core::events::NormalizedEventDispatch::Tick(t) => t.render_clauses().unwrap(),
-        _ => panic!("expected Tick"),
-    };
-    let clauses_down = match dispatch_down.normalize() {
-        sand_core::events::NormalizedEventDispatch::Tick(t) => t.render_clauses().unwrap(),
-        _ => panic!("expected Tick"),
-    };
+    fn single_plan_clauses(d: SandEventDispatch) -> Vec<String> {
+        match d.normalize() {
+            sand_core::events::NormalizedEventDispatch::Tick(t) => match t.execution_plans() {
+                sand_core::events::TickExecutionPlans::Plans(plans) => {
+                    assert_eq!(plans.len(), 1);
+                    plans.into_iter().next().unwrap()
+                }
+                sand_core::events::TickExecutionPlans::Unconditional => {
+                    panic!("expected a conditional plan")
+                }
+            },
+            _ => panic!("expected Tick"),
+        }
+    }
+    let clauses_up = single_plan_clauses(dispatch_up).join(" ");
+    let clauses_down = single_plan_clauses(dispatch_down).join(" ");
     assert!(clauses_up.contains("used_elevator_up"));
     assert!(clauses_down.contains("used_elevator_down"));
     assert_ne!(clauses_up, clauses_down);

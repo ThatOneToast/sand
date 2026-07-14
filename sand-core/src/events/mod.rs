@@ -159,7 +159,7 @@
 ///
 /// Currently only per-player polling is supported; more scopes (e.g. arbitrary
 /// entity queries) are a natural extension point for #240-style composition.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum TickScope {
     /// Evaluated as each online player (`execute as @a ... at @s run ...`).
     #[default]
@@ -173,7 +173,7 @@ pub enum TickScope {
 /// Returned by [`SandEvent::setup`]. When multiple `#[event]` handlers
 /// subscribe to the same event type, Sand deduplicates the setup so
 /// objectives and detector/synchronization functions are emitted once.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct EventSetup {
     /// `scoreboard objectives add …` (or other init) commands, run once from
     /// `minecraft:load`.
@@ -194,6 +194,49 @@ impl EventSetup {
     /// An empty setup — no objectives or lifecycle commands.
     pub fn none() -> Self {
         Self::default()
+    }
+}
+
+/// Explicit result of expanding a [`TickEventDispatch`]'s conditions into
+/// concrete `execute` clause plans.
+///
+/// This exists specifically so "no conditions were declared" and "the
+/// condition expands into more than one OR-alternative execute plan" can
+/// never be conflated into a single `None` — every caller must handle both
+/// cases explicitly.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TickExecutionPlans {
+    /// No `when`/`unless` conditions were declared. The event dispatches
+    /// unconditionally every tick — no `if`/`unless` clauses at all, e.g.
+    /// `execute as @a at @s run function ...`.
+    Unconditional,
+    /// One or more OR-alternative execute plans. Each inner `Vec<String>` is
+    /// an ordered list of `if`/`unless` clause strings (e.g.
+    /// `"if score @s mana matches 25.."`) to chain into one `execute`
+    /// command.
+    ///
+    /// More than one entry means the underlying condition can match through
+    /// multiple alternative branches (e.g. a top-level `Any`). Because more
+    /// than one plan can match the same subject on the same tick, callers
+    /// dispatching from multiple plans must apply an explicit
+    /// once-per-subject-per-tick policy rather than invoking the handler
+    /// once per matching plan.
+    Plans(Vec<Vec<String>>),
+}
+
+impl TickExecutionPlans {
+    /// `true` if this is [`Unconditional`](Self::Unconditional).
+    pub fn is_unconditional(&self) -> bool {
+        matches!(self, Self::Unconditional)
+    }
+
+    /// The OR-alternative plans, or an empty slice for
+    /// [`Unconditional`](Self::Unconditional).
+    pub fn plans(&self) -> &[Vec<String>] {
+        match self {
+            Self::Unconditional => &[],
+            Self::Plans(p) => p,
+        }
     }
 }
 
@@ -221,7 +264,7 @@ impl EventSetup {
 ///     }
 /// }
 /// ```
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct TickEventDispatch {
     /// The execution scope handlers are dispatched under.
     pub scope: TickScope,
@@ -270,7 +313,7 @@ impl TickEventDispatch {
     }
 
     /// Combine `when`/`unless` into a single [`Condition`](crate::condition::Condition),
-    /// or `None` if no conditions were declared.
+    /// or `None` if no conditions were declared (dispatch is unconditional).
     pub fn combined_condition(&self) -> Option<crate::condition::Condition> {
         if self.when.is_empty() && self.unless.is_empty() {
             return None;
@@ -286,22 +329,18 @@ impl TickEventDispatch {
         Some(combined)
     }
 
-    /// Render this dispatch's combined condition to a single `if/unless …`
-    /// clause-list fragment (without the leading `execute` keyword), suitable
-    /// for splicing into an `execute <clauses> at @s run …` command.
+    /// Expand this dispatch's conditions into explicit [`TickExecutionPlans`].
     ///
-    /// Returns `None` if no conditions were declared, or if the combined
-    /// condition expands into more than one OR-alternative execute plan
-    /// (i.e. a top-level `Any`/`.unless` combination that cannot collapse
-    /// into a single chained clause list) — that case is not yet supported by
-    /// the tick-dispatch lifecycle codegen.
-    pub fn render_clauses(&self) -> Option<String> {
-        let combined = self.combined_condition()?;
-        let plans = combined.to_execute_plans(false);
-        if plans.len() != 1 {
-            return None;
+    /// Unlike a bare `Option<String>`, this never conflates "no conditions —
+    /// dispatch unconditionally" with "the condition expanded into more than
+    /// one OR-alternative execute plan." Callers must handle both
+    /// [`TickExecutionPlans::Unconditional`] and every entry of
+    /// [`TickExecutionPlans::Plans`] explicitly.
+    pub fn execution_plans(&self) -> TickExecutionPlans {
+        match self.combined_condition() {
+            None => TickExecutionPlans::Unconditional,
+            Some(combined) => TickExecutionPlans::Plans(combined.to_execute_plans(false)),
         }
-        Some(plans[0].join(" "))
     }
 }
 
@@ -1662,15 +1701,15 @@ mod tests {
     // ── TickEventDispatch / EventSetup lifecycle ──────────────────────────────
 
     #[test]
-    fn tick_dispatch_when_renders_single_clause() {
+    fn tick_dispatch_when_renders_single_plan() {
         let d = SandEventDispatch::tick()
             .as_players()
             .when(crate::condition::Condition::raw(
                 "score @s sync_jumps < @s jumps",
             ));
         assert_eq!(
-            d.render_clauses().as_deref(),
-            Some("if score @s sync_jumps < @s jumps")
+            d.execution_plans(),
+            TickExecutionPlans::Plans(vec![vec!["if score @s sync_jumps < @s jumps".to_string()]])
         );
     }
 
@@ -1684,31 +1723,85 @@ mod tests {
             .unless(crate::condition::Condition::raw(
                 "score @s is_dead matches 1",
             ));
-        let rendered = d.render_clauses().unwrap();
-        assert!(rendered.contains("if score @s sync_jumps < @s jumps"));
-        assert!(rendered.contains("unless score @s is_dead matches 1"));
+        let plans = d.execution_plans();
+        let TickExecutionPlans::Plans(plans) = plans else {
+            panic!("expected Plans");
+        };
+        assert_eq!(plans.len(), 1);
+        let clauses = &plans[0];
+        assert_eq!(clauses.len(), 2);
         // `when` clause must precede `unless` clause.
-        assert!(
-            rendered.find("if score @s sync_jumps").unwrap()
-                < rendered.find("unless score @s is_dead").unwrap()
-        );
+        assert_eq!(clauses[0], "if score @s sync_jumps < @s jumps");
+        assert_eq!(clauses[1], "unless score @s is_dead matches 1");
     }
 
     #[test]
     fn tick_dispatch_if_alias_matches_when() {
         let a = SandEventDispatch::tick()
             .if_(crate::condition::Condition::raw("score @s a matches 1"))
-            .render_clauses();
+            .execution_plans();
         let b = SandEventDispatch::tick()
             .when(crate::condition::Condition::raw("score @s a matches 1"))
-            .render_clauses();
+            .execution_plans();
         assert_eq!(a, b);
     }
 
     #[test]
-    fn tick_dispatch_no_conditions_renders_none() {
+    fn tick_dispatch_no_conditions_is_explicitly_unconditional() {
         let d = SandEventDispatch::tick().as_players();
-        assert_eq!(d.render_clauses(), None);
+        assert_eq!(d.execution_plans(), TickExecutionPlans::Unconditional);
+        assert!(d.execution_plans().is_unconditional());
+    }
+
+    #[test]
+    fn tick_dispatch_every_tick_is_unconditional() {
+        let d = SandEventDispatch::tick().as_players().every_tick();
+        assert_eq!(d.execution_plans(), TickExecutionPlans::Unconditional);
+    }
+
+    #[test]
+    fn tick_dispatch_unless_only_is_not_unconditional() {
+        // A dispatch with only `.unless(...)` must still render a real
+        // condition, not collapse to Unconditional.
+        let d = SandEventDispatch::tick()
+            .as_players()
+            .unless(crate::condition::Condition::raw("score @s busy matches 1"));
+        let plans = d.execution_plans();
+        assert!(!plans.is_unconditional());
+        assert_eq!(
+            plans,
+            TickExecutionPlans::Plans(vec![vec!["unless score @s busy matches 1".to_string()]])
+        );
+    }
+
+    #[test]
+    fn tick_dispatch_or_condition_yields_multiple_plans() {
+        let d = SandEventDispatch::tick().as_players().when(
+            crate::condition::Condition::raw("score @s a matches 1")
+                .or(crate::condition::Condition::raw("score @s b matches 1")),
+        );
+        let plans = d.execution_plans();
+        assert_eq!(
+            plans,
+            TickExecutionPlans::Plans(vec![
+                vec!["if score @s a matches 1".to_string()],
+                vec!["if score @s b matches 1".to_string()],
+            ])
+        );
+    }
+
+    #[test]
+    fn tick_dispatch_empty_any_condition_yields_zero_plans_not_unconditional() {
+        // A `when(Condition::any([]))` is a declared-but-unsatisfiable
+        // condition (vacuous OR) — it must render as `Plans(vec![])` (never
+        // fires), which is distinct from `Unconditional` (always fires).
+        let d = SandEventDispatch::tick()
+            .as_players()
+            .when(crate::condition::Condition::any([]));
+        let plans = d.execution_plans();
+        assert!(!plans.is_unconditional());
+        assert_eq!(plans, TickExecutionPlans::Plans(vec![]));
+        assert!(plans.plans().is_empty());
     }
 
     #[test]
@@ -1728,8 +1821,10 @@ mod tests {
         match dispatch.normalize() {
             NormalizedEventDispatch::Tick(t) => {
                 assert_eq!(
-                    t.render_clauses().as_deref(),
-                    Some("if score @s sync_jumps < @s jumps")
+                    t.execution_plans(),
+                    TickExecutionPlans::Plans(vec![vec![
+                        "if score @s sync_jumps < @s jumps".to_string()
+                    ]])
                 );
             }
             NormalizedEventDispatch::Advancement(_) => panic!("expected Tick"),
@@ -1742,8 +1837,8 @@ mod tests {
         match dispatch.normalize() {
             NormalizedEventDispatch::Tick(t) => {
                 assert_eq!(
-                    t.render_clauses().as_deref(),
-                    Some("if entity @s[tag=ready]")
+                    t.execution_plans(),
+                    TickExecutionPlans::Plans(vec![vec!["if entity @s[tag=ready]".to_string()]])
                 );
             }
             NormalizedEventDispatch::Advancement(_) => panic!("expected Tick"),

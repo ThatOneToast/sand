@@ -108,7 +108,7 @@ impl ScoreRange {
 ///
 /// Nested `Any` inside `All` is automatically distributed into multiple execute
 /// commands by [`execute_commands`](Condition::execute_commands).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Condition {
     /// `if score <selector> <objective> matches <range>`
     Score {
@@ -203,15 +203,33 @@ impl Condition {
 
     /// Explicit raw `execute if/unless` fragment escape hatch.
     ///
-    /// The fragment is used verbatim after the `if`/`unless` keyword — it is
-    /// **not** validated beyond being a non-empty string. Use this only when
-    /// no typed condition constructor covers your case.
+    /// The fragment is used verbatim **after** the `if`/`unless` keyword,
+    /// which is added automatically when rendering — do not include it
+    /// yourself. Use this only when no typed condition constructor covers
+    /// your case.
     ///
     /// ```rust,ignore
     /// let c = Condition::raw("score @s sync_jumps < @s jumps");
     /// ```
+    ///
+    /// # Panics
+    ///
+    /// Panics if `fragment` already starts with a leading `if `/`unless `
+    /// keyword — that would render as a malformed doubled keyword (e.g.
+    /// `"if if score ..."`). This is checked eagerly, at construction, rather
+    /// than silently accepted and only visible in generated datapack output.
     pub fn raw(fragment: impl Into<String>) -> Self {
-        Condition::Raw(fragment.into())
+        let fragment = fragment.into();
+        let trimmed = fragment.trim_start();
+        assert!(
+            !trimmed.starts_with("if ")
+                && !trimmed.starts_with("unless ")
+                && trimmed != "if"
+                && trimmed != "unless",
+            "Condition::raw fragment must not include a leading `if`/`unless` keyword — it is \
+             added automatically when rendering: {fragment:?}"
+        );
+        Condition::Raw(fragment)
     }
 }
 
@@ -776,6 +794,48 @@ mod tests {
             "got: {}",
             cmds[0]
         );
+    }
+
+    #[test]
+    #[should_panic(expected = "must not include a leading `if`/`unless` keyword")]
+    fn raw_condition_rejects_embedded_if_keyword() {
+        Condition::raw("if score @s x matches 1");
+    }
+
+    #[test]
+    #[should_panic(expected = "must not include a leading `if`/`unless` keyword")]
+    fn raw_condition_rejects_embedded_unless_keyword() {
+        Condition::raw("unless score @s x matches 1");
+    }
+
+    #[test]
+    fn raw_condition_permits_fragments_merely_containing_the_word_if() {
+        // Only a *leading* if/unless keyword is rejected — "iffy" or an
+        // embedded "if" elsewhere in the fragment must not false-positive.
+        let c = Condition::raw("score @s iffy_score matches 1");
+        assert_eq!(
+            c.to_execute_plans(false),
+            vec![vec!["if score @s iffy_score matches 1"]]
+        );
+    }
+
+    // ── Empty Condition::all([])/any([]) rendering ────────────────────────────
+
+    #[test]
+    fn empty_all_renders_as_single_vacuously_true_plan() {
+        // All([]) is a vacuous AND — always true — and must render as one
+        // plan with zero clauses (an unconditional execute), not zero plans.
+        let c = Condition::all([]);
+        assert_eq!(c.to_execute_plans(false), vec![Vec::<String>::new()]);
+    }
+
+    #[test]
+    fn empty_any_renders_as_zero_plans() {
+        // Any([]) is a vacuous OR — always false / unsatisfiable — and must
+        // render as zero plans (never matches), not one vacuous plan.
+        let c = Condition::any([]);
+        let plans: Vec<Vec<String>> = c.to_execute_plans(false);
+        assert!(plans.is_empty(), "expected zero plans, got: {plans:?}");
     }
 
     #[test]

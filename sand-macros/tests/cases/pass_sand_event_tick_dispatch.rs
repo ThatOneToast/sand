@@ -54,8 +54,12 @@ fn main() {
             } = descriptor.dispatch
             {
                 let tick = make_tick().expect("typed tick dispatch should be registered");
-                let clauses = tick.render_clauses().expect("clauses should render");
-                assert!(clauses.contains("if score @s mtst_sync_jumps < @s mtst_jumps"));
+                let plans = tick.execution_plans();
+                let sand_core::events::TickExecutionPlans::Plans(plans) = plans else {
+                    panic!("expected Plans, got Unconditional");
+                };
+                assert_eq!(plans.len(), 1);
+                assert_eq!(plans[0], vec!["if score @s mtst_sync_jumps < @s mtst_jumps".to_string()]);
 
                 let setup = make_setup();
                 assert_eq!(setup.objectives.len(), 2);

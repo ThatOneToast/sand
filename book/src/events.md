@@ -77,11 +77,30 @@ hatch `Condition::raw("...")` for fragments with no typed equivalent yet.
 When several `#[event]` handlers subscribe to the same `SandEvent` type, Sand
 deduplicates the detector: one shared generated tick function and one copy of
 `setup()`'s objectives, with all handler bodies fanned out from a single
-generated dispatch function — not one detector per handler.
+generated dispatch function (handler paths sorted, so output doesn't depend on
+registration order) — not one detector per handler. If two handlers claim to
+subscribe to the same event type but their `dispatch()`/`setup()` results
+actually differ, export fails with a diagnostic rather than silently picking
+one definition.
 
 Generic `SandEvent` families (e.g. `ElevatorUsed<GoUp>` vs `ElevatorUsed<GoDown>`)
-each get a distinct, stable generated identity per concrete monomorphization,
-derived from `TypeId`, so two instantiations never collide or merge detectors.
+each get a distinct identity per concrete monomorphization. Two separate
+identity concepts are involved, deliberately kept apart:
+
+- `TypeId` distinguishes concrete event types — including distinct generic
+  monomorphizations — **during one export process**. It is used only for
+  in-process grouping/deduplication and is *not* a stable identifier across
+  compiler versions or builds.
+- Generated datapack resource paths (the detector, setup, and dispatch
+  function names) use a deterministic key derived from the canonical concrete
+  event type identity (`std::any::type_name::<T>()`), not from `TypeId` and
+  not from the set of subscribed handler paths — so adding, removing, or
+  reordering handlers never renames an event's generated resources.
+
+Conditions that expand into more than one OR-alternative execute plan (e.g. a
+top-level `Any`) emit one detection line per plan, guarded so at most one
+dispatch happens per player per tick even if more than one plan matches on the
+same tick.
 
 ## Tracked transitions
 

@@ -56,6 +56,7 @@ pub mod component;
 pub mod components;
 pub mod condition;
 pub mod custom_item_ext;
+pub mod entity;
 pub mod error;
 pub mod event;
 pub mod events;

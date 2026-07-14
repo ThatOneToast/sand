@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **sand-core**: `entity` module — cardinality-aware `EntityQuery`/`PlayerQuery`
+  builders on top of the existing typed selector arity wrappers, an
+  execution-scoped `EntityContext<K>` (`@s` handle) passed into `.each(...)`,
+  typed traversal of vanilla `execute on <relation>` relationships (owner,
+  leasher, target, vehicle, controller, attacker, origin, passengers) gated
+  against `VersionProfile`, and `EntityScope::bind` for preserving a working
+  reference to an entity across relationship traversal via a collision-safe
+  temporary tag. Framework infrastructure for #228–#230; resolves #227.
+
 ### Documentation
 
 - Documented the typed gameplay state API surface (`GameState<S>`,

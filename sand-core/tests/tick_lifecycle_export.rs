@@ -54,6 +54,8 @@ fn empty_setup() -> EventSetup {
 // ── PlayerJumpEvent: two handlers sharing one detector, delta-sync ordering ──
 
 struct PlayerJumpEvent;
+struct EveryTickEvent;
+struct EitherTagEvent;
 
 fn jump_dispatch() -> Option<TickEventDispatch> {
     Some(
@@ -542,4 +544,38 @@ fn repeated_export_produces_identical_output() {
         first, second,
         "repeated exports of the same registered events must be byte-identical"
     );
+}
+
+#[test]
+fn unconditional_tick_dispatch_is_exported() {
+    let records = records();
+    let check = function_records(&records)
+        .into_iter()
+        .find(|r| {
+            r["content"].as_str() == Some("execute as @a at @s run function jumppack:on_every_tick")
+        })
+        .expect("unconditional tick dispatch must be wired into a check function");
+    assert!(
+        check["path"]
+            .as_str()
+            .unwrap_or_default()
+            .starts_with("__sand_event_check/")
+    );
+}
+
+#[test]
+fn multi_plan_tick_dispatch_emits_each_alternative() {
+    let records = records();
+    let check = function_records(&records)
+        .into_iter()
+        .find(|r| {
+            r["content"]
+                .as_str()
+                .unwrap_or_default()
+                .contains("jumppack:on_either_tag")
+        })
+        .expect("multi-plan tick dispatch must be wired into a check function");
+    let content = check["content"].as_str().unwrap_or_default();
+    assert!(content.contains("if entity @s[tag=alpha]"));
+    assert!(content.contains("if entity @s[tag=beta]"));
 }

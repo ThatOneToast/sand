@@ -103,8 +103,8 @@
 //! point for advanced custom events: typed tick dispatch built from the same
 //! [`Condition`](crate::condition::Condition) IR used everywhere else, event-owned
 //! lifecycle (setup objectives, pre/post-observation commands via
-//! [`SandEvent::setup`]), and generic event families with distinct, stable
-//! per-monomorphization identity. Implement [`AdvancementEvent`](crate::event::AdvancementEvent)
+//! [`SandEvent::setup`]), and generic event families with distinct concrete
+//! identities. Implement [`AdvancementEvent`](crate::event::AdvancementEvent)
 //! instead when your event maps to exactly one vanilla advancement trigger and
 //! needs no owned lifecycle — that is the lighter-weight, common case.
 //!
@@ -342,6 +342,23 @@ impl TickEventDispatch {
             Some(combined) => TickExecutionPlans::Plans(combined.to_execute_plans(false)),
         }
     }
+
+    /// Render this dispatch as execute clause-list plans.
+    ///
+    /// An unconditional dispatch produces one empty plan. Conditions with
+    /// alternatives produce one plan per alternative; the exporter emits every
+    /// plan, so overlapping alternatives may invoke a handler more than once
+    /// in a tick.
+    pub fn render_plans(&self) -> Vec<String> {
+        match self.combined_condition() {
+            None => vec![String::new()],
+            Some(condition) => condition
+                .to_execute_plans(false)
+                .into_iter()
+                .map(|plan| plan.join(" "))
+                .collect(),
+        }
+    }
 }
 
 impl From<TickEventDispatch> for SandEventDispatch {
@@ -481,7 +498,7 @@ pub trait SandEvent {
     /// before `post_observation`).
     ///
     /// When several `#[event]` handlers subscribe to the same event type,
-    /// Sand deduplicates setup by the event's generated identity so
+    /// Sand deduplicates setup by the event's in-process type identity so
     /// objectives and detector functions are only emitted once.
     fn setup() -> EventSetup {
         EventSetup::none()

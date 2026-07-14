@@ -214,6 +214,7 @@ fn try_export_components_impl(
         &'static str,
         crate::events::TickEventDispatch,
         crate::events::EventSetup,
+        &'static str,
     )> = Vec::new();
     // Shared armor watch map — populated by both EventDescriptor ArmorEquip/
     // ArmorUnequip dispatch and the legacy ArmorEventDescriptor entries.

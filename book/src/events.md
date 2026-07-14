@@ -4,6 +4,104 @@ Events connect Rust functions to Minecraft gameplay triggers. Annotate a functio
 with `#[event]` and Sand generates the advancement JSON + reward function wire-up
 at build time.
 
+## The canonical split: `AdvancementEvent` vs `SandEvent`
+
+Sand has two event abstractions, chosen for different jobs:
+
+```text
+AdvancementEvent
+- one vanilla advancement trigger
+- stateless marker — Sand never constructs an instance of T
+- handled through Event<T>
+- no marker fields as runtime values
+
+SandEvent
+- advanced custom event
+- typed tick polling and custom dispatch (SandEventDispatch::tick())
+- lifecycle-owned setup and observation (SandEvent::setup())
+- generic event families with distinct, stable per-monomorphization identity
+- future composition and richer contexts (#240 / #230)
+```
+
+Use `AdvancementEvent` when your event maps to exactly one vanilla advancement
+trigger — it's the lightweight, common case (see the sections below). Reach for
+`SandEvent` when you need a typed tick condition, owned lifecycle resources
+(objectives, pre/post-observation commands), or a generic event family.
+
+### Typed `SandEvent` tick dispatch
+
+`SandEventDispatch::tick()` builds a structured, typed condition instead of a
+hand-formatted string, reusing the same `Condition`/`ScoreVar` IR used
+everywhere else in Sand:
+
+```rust,ignore
+use sand_core::events::{EventSetup, SandEvent, SandEventDispatch};
+use sand_core::prelude::*;
+
+static JUMPS: ScoreVar<i32> = ScoreVar::new("jumps");
+static SYNC_JUMPS: ScoreVar<i32> = ScoreVar::new("sync_jumps");
+
+pub struct PlayerJumpEvent;
+
+impl SandEvent for PlayerJumpEvent {
+    fn dispatch() -> SandEventDispatch {
+        SandEventDispatch::tick()
+            .as_players()
+            .when(SYNC_JUMPS.of("@s").lt_score(JUMPS.of("@s")))
+            .into()
+    }
+
+    fn setup() -> EventSetup {
+        EventSetup {
+            objectives: vec![
+                "scoreboard objectives add jumps minecraft.custom:minecraft.jump".into(),
+                "scoreboard objectives add sync_jumps dummy".into(),
+            ],
+            pre_observation: vec![],
+            // Runs unconditionally after detection, every tick — so the
+            // synchronized score never gets ahead of the value being
+            // compared against (detect-then-sync ordering).
+            post_observation: vec![
+                "scoreboard players operation @a sync_jumps = @a jumps".into(),
+            ],
+        }
+    }
+}
+```
+
+`.when(...)`/`.unless(...)` accept anything that converts into a `Condition` —
+score comparisons, flags, predicates, entity checks — or the explicit escape
+hatch `Condition::raw("...")` for fragments with no typed equivalent yet.
+`.if_(...)` is an alias for `.when(...)`.
+
+When several `#[event]` handlers subscribe to the same `SandEvent` type, Sand
+deduplicates the detector: one shared generated tick function and one copy of
+`setup()`'s objectives, with all handler bodies fanned out from a single
+generated dispatch function (handler paths sorted, so output doesn't depend on
+registration order) — not one detector per handler. If two handlers claim to
+subscribe to the same event type but their `dispatch()`/`setup()` results
+actually differ, export fails with a diagnostic rather than silently picking
+one definition.
+
+Generic `SandEvent` families (e.g. `ElevatorUsed<GoUp>` vs `ElevatorUsed<GoDown>`)
+each get a distinct identity per concrete monomorphization. Two separate
+identity concepts are involved, deliberately kept apart:
+
+- `TypeId` distinguishes concrete event types — including distinct generic
+  monomorphizations — **during one export process**. It is used only for
+  in-process grouping/deduplication and is *not* a stable identifier across
+  compiler versions or builds.
+- Generated datapack resource paths (the detector, setup, and dispatch
+  function names) use a deterministic key derived from the canonical concrete
+  event type identity (`std::any::type_name::<T>()`), not from `TypeId` and
+  not from the set of subscribed handler paths — so adding, removing, or
+  reordering handlers never renames an event's generated resources.
+
+Conditions that expand into more than one OR-alternative execute plan (e.g. a
+top-level `Any`) emit one detection line per plan, guarded so at most one
+dispatch happens per player per tick even if more than one plan matches on the
+same tick.
+
 ## Tracked transitions
 
 Start/stop sneaking is the proof event pair for Sand's reusable transition
@@ -258,7 +356,8 @@ Sand ships 50+ event types in `sand_core::events`. The most common:
 - `HoldingItemEvent` / `CurrentlyWearingEvent` — per-tick item checks
 - `ItemConsumeEvent` — eating/drinking
 - Custom advancement events: implement `AdvancementEvent` and handle `Event<T>`
-- Legacy/custom tick-poll events: implement `SandEvent`
+- Custom tick-polled or lifecycle-owned events: implement `SandEvent` (see
+  [The canonical split](#the-canonical-split-advancementevent-vs-sandevent) above)
 
 `Event<T>` is the typed handler context; use `event.player()` for the player selector. `AdvancementEvent` is the architecture for typed advancement triggers, while custom-item extension events and `Interactable` generate the same advancement-plus-reward-function shape. Damage events add source-aware advancement criteria; `UsingItemTrigger` and `SummonedEntityTrigger` cover their vanilla trigger semantics.
 

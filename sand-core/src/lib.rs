@@ -1,4 +1,10 @@
-#![allow(deprecated)] // Compatibility exports intentionally retain deprecated APIs.
+#![allow(deprecated)]
+// Compatibility exports intentionally retain deprecated APIs.
+// `SandEvent::dispatch` impls returning the concrete `SandEventDispatch` (rather than
+// the trait's `impl Into<SandEventDispatch>`) is the expected, common case and is
+// intentionally more specific — not a hazard here since `SandEvent::dispatch` is never
+// called through a generic bound that relies on the opaque return type being non-refinable.
+#![allow(refining_impl_trait)]
 
 //! # sand-core
 //!
@@ -147,6 +153,8 @@ pub use events::{
     EntityDamagePlayerEvent,
     // Kill / combat
     EntityKillEvent,
+    // Trait + dispatch
+    EventSetup,
     FallFromHeightEvent,
     FirstJoinEvent,
     FishingEvent,
@@ -161,6 +169,7 @@ pub use events::{
     ItemPickedUpEvent,
     LightningStrikeEvent,
     LootContainerOpenEvent,
+    NormalizedEventDispatch,
     OnDeathEvent,
     // Session events
     OnJoinEvent,
@@ -181,7 +190,6 @@ pub use events::{
     PlayerStopSneakingEvent,
     PlayerSwimmingEvent,
     RecipeUnlockEvent,
-    // Trait + dispatch
     SandEvent,
     SandEventDispatch,
     ShotCrossbowEvent,
@@ -190,6 +198,8 @@ pub use events::{
     SummonEntityEvent,
     TameAnimalEvent,
     TargetHitEvent,
+    TickEventDispatch,
+    TickScope,
     TotemActivateEvent,
     UseEnderEyeEvent,
     VillagerTradeEvent,

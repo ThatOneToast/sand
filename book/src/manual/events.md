@@ -1,6 +1,16 @@
 # Events
 
-Sand events are mostly advancement-backed: a typed trigger becomes advancement JSON, and its reward points to a generated function. The handler receives `Event<T>` and `event.player()` is the triggering player (`@s` in the reward function).
+Sand has two event abstractions: `AdvancementEvent` — a stateless marker for one
+vanilla advancement trigger, handled through `Event<T>` — and `SandEvent`, the
+primary extension mechanism for advanced custom events with typed tick dispatch
+and owned lifecycle (setup objectives, pre/post-observation commands). See
+[Events](../events.md#the-canonical-split-advancementevent-vs-sandevent) for the
+full split and a typed tick-dispatch example.
+
+This page focuses on the common `AdvancementEvent` case: a typed trigger becomes
+advancement JSON, and its reward points to a generated function. The handler
+receives `Event<T>` and `event.player()` is the triggering player (`@s` in the
+reward function).
 
 ## Minimal example: using an item
 

@@ -71,7 +71,9 @@ pub use sand_commands::{
 // Sound
 pub use sand_commands::{Sound, SoundSource};
 // Text components
-pub use sand_commands::{ChatColor, ClickEvent, HoverEvent, Text, TextComponent};
+pub use sand_commands::{
+    ChatColor, ClickEvent, EntityHoverId, HoverEvent, IntoTextEntityType, Text, TextComponent,
+};
 // NBT types — owned by sand-commands
 pub use sand_commands::{DataModify, DataTarget, NbtValue, data_modify};
 // Scoreboard types — owned by sand-commands

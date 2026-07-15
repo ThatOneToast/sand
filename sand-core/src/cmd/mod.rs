@@ -40,8 +40,8 @@ mod typed_execute;
 
 // ── Re-exports from sand-commands ─────────────────────────────────────────────
 
-/// The `Build` trait: every command builder implements `build(&self) -> String`.
-pub use sand_commands::Build;
+/// Command construction and the shared profile-aware validation boundary.
+pub use sand_commands::{Build, CommandProfile, RawCommand, RenderCommand, Validate};
 
 /// Trait for types resolving to a `function <id>` command.
 pub use crate::function::IntoFunctionRef;
@@ -78,8 +78,8 @@ pub use sand_commands::{DataModify, DataTarget, NbtValue, data_modify};
 // Note: &Storage satisfies Objective::load_from's `impl Into<String>` parameter
 // via the `From<&Storage> for String` impl in mod data.
 pub use sand_commands::{
-    DisplaySlot, Objective, ScoreCmp, ScoreHolder, ScoreOp, ScoreboardPlayersOperation,
-    scoreboard_players_operation,
+    DisplaySlot, Objective, ObjectiveName, ScoreCmp, ScoreHolder, ScoreOp,
+    ScoreboardPlayersOperation, scoreboard_players_operation,
 };
 // NOTE: sand_commands::builtins::* is intentionally NOT re-exported here because
 // sand-core provides its own generated command builders (see _generated below)
@@ -218,14 +218,18 @@ pub fn return_cmd(value: i32) -> String {
 /// Prefer typed builders for normal datapack code. Use this for interop with
 /// other datapacks, modded commands, snapshot-only syntax, future features not
 /// modeled by Sand yet, or focused debugging.
-pub fn raw(command: impl Into<String>) -> String {
-    command.into()
+pub fn raw(command: impl Into<String>) -> sand_commands::RawCommand {
+    sand_commands::RawCommand::new(command)
 }
 
 /// A typed Minecraft command that can be serialized to a command string.
 ///
 /// All command builders generated from the Minecraft command tree implement
-/// this trait. It is also implemented by [`Execute`] for chaining.
+/// this compatibility marker. It is distinct from [`RenderCommand`], the
+/// fallible profile-aware validation contract implemented by migrated typed
+/// command foundations. New handwritten builders should prefer
+/// [`RenderCommand`]; generated marker commands are conservatively checked at
+/// the function export boundary.
 ///
 /// Since [`Command`] requires [`std::fmt::Display`], you can use command
 /// builders directly in [`crate::mcfunction!`]:

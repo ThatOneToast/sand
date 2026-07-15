@@ -1,0 +1,14 @@
+error[E0277]: the trait bound `EntityTarget<One>: From<sand_core::cmd::Selector>` is not satisfied
+ --> tests/cases/fail_selector_implicit_narrowing.rs:8:40
+  |
+8 |     needs_one(Selector::all_entities().into());
+  |                                        ^^^^ the trait `From<sand_core::cmd::Selector>` is not implemented for `EntityTarget<One>`
+  |
+help: the trait `From<sand_core::cmd::Selector>` is not implemented for `EntityTarget<One>`
+      but trait `From<PlayerTarget<One>>` is implemented for it
+ --> $WORKSPACE/sand-commands/src/selector.rs
+  |
+  | impl From<SinglePlayer> for SingleEntity {
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  = help: for that trait implementation, expected `PlayerTarget<One>`, found `sand_core::cmd::Selector`
+  = note: required for `sand_core::cmd::Selector` to implement `Into<EntityTarget<One>>`

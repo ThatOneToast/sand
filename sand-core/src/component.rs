@@ -120,6 +120,26 @@ fn enrich_error(
     }
 }
 
+fn xp_score_commands() -> Vec<String> {
+    vec![
+        "execute as @a store result score @s __sand_xp_lvl run experience query @s levels"
+            .to_string(),
+        "execute as @a unless score @s __sand_xp_seen matches 1 \
+         run scoreboard players operation @s __sand_xp_prev = @s __sand_xp_lvl"
+            .to_string(),
+        "scoreboard players set @a __sand_xp_seen 1".to_string(),
+        "execute as @a run scoreboard players operation @s __sand_xp_delta = @s __sand_xp_lvl"
+            .to_string(),
+        "execute as @a run scoreboard players operation @s __sand_xp_delta -= @s __sand_xp_prev"
+            .to_string(),
+    ]
+}
+
+fn xp_advance_command() -> String {
+    "execute as @a run scoreboard players operation @s __sand_xp_prev = @s __sand_xp_lvl"
+        .to_string()
+}
+
 /// Collect all inventory-registered components into records, routing every
 /// `ComponentFactory` through the fallible [`component_to_record`] helper
 /// which validates all components (JSON, text, and copy-backed) before
@@ -804,24 +824,11 @@ fn try_export_components_impl(
                 )
             })
             .collect();
-        let mut xp_cmds = vec![
-            // Step 1 — snapshot
-            "execute as @a store result score @s __sand_xp_lvl run experience query @s levels"
-                .to_string(),
-            // Step 2 — first-tick baseline
-            "execute as @a unless score @s __sand_xp_seen matches 1 \
-             run scoreboard players operation @s __sand_xp_prev = @s __sand_xp_lvl"
-                .to_string(),
-            "scoreboard players set @a __sand_xp_seen 1".to_string(),
-            // Step 3 — delta = current − prev
-            "scoreboard players operation @a __sand_xp_delta = @a __sand_xp_lvl".to_string(),
-            "scoreboard players operation @a __sand_xp_delta -= @a __sand_xp_prev".to_string(),
-        ];
+        let mut xp_cmds = xp_score_commands();
         // Step 4 — fire handlers
         xp_cmds.extend(handler_cmds);
         // Step 5 — advance prev
-        xp_cmds
-            .push("scoreboard players operation @a __sand_xp_prev = @a __sand_xp_lvl".to_string());
+        xp_cmds.push(xp_advance_command());
 
         records.push(ComponentRecord {
             namespace: namespace.to_string(),
@@ -1555,12 +1562,17 @@ fn try_export_components_impl(
     // ── FunctionTagDescriptors ────────────────────────────────────────────────
     // Append user-declared function tag entries after Sand-owned setup/dispatcher
     // entries so load/tick infrastructure exists before user functions run.
-    for desc in inventory::iter::<FunctionTagDescriptor>() {
-        let fn_ref = format!("{}:{}", namespace, desc.function_path);
-        tag_map
-            .entry(desc.tag.to_string())
-            .or_default()
-            .push(fn_ref);
+    let mut user_tag_entries: Vec<(String, String)> = inventory::iter::<FunctionTagDescriptor>()
+        .map(|desc| {
+            (
+                desc.tag.to_string(),
+                format!("{}:{}", namespace, desc.function_path),
+            )
+        })
+        .collect();
+    sort_function_tag_entries(&mut user_tag_entries);
+    for (tag, function) in user_tag_entries {
+        tag_map.entry(tag).or_default().push(function);
     }
 
     // ── Finalize tag_map → records ────────────────────────────────────────────
@@ -1638,7 +1650,47 @@ fn try_export_components_impl(
         }
     }
 
+    // Validate every collected function before accepting any record. Typed
+    // command builders and generated framework commands share this final
+    // boundary. Explicit `cmd::raw` lines bypass typed construction but still
+    // receive conservative file-integrity/foundational checks here.
+    let command_profile = sand_commands::CommandProfile::new(
+        ctx.map_or(sand_version::LATEST_KNOWN, |ctx| ctx.requested_version),
+        ctx.is_some_and(|ctx| ctx.is_fallback),
+    );
+    validate_function_records(&mut records, &command_profile)?;
+
     Ok(records)
+}
+
+fn validate_function_records(
+    records: &mut [ComponentRecord],
+    command_profile: &sand_commands::CommandProfile,
+) -> ExportResult<()> {
+    for record in records
+        .iter_mut()
+        .filter(|record| record.ext == "mcfunction")
+    {
+        let location =
+            sand_components::ResourceLocation::new(record.namespace.clone(), record.path.clone())?;
+        let mut validated = Vec::new();
+        for (index, line) in record.content.lines().enumerate() {
+            let line = sand_commands::render::validate_collected_line(line, command_profile)
+                .map_err(|error| ComponentExportError::ComponentValidation {
+                    location: location.clone(),
+                    kind: "function".to_string(),
+                    field: format!("commands[{index}].{}", error.field),
+                    message: format!(
+                        "{} (Minecraft profile {})",
+                        error,
+                        command_profile.requested_version()
+                    ),
+                })?;
+            validated.push(line);
+        }
+        record.content = validated.join("\n");
+    }
+    Ok(())
 }
 
 fn ensure_private_lifecycle_path_available(
@@ -1754,6 +1806,14 @@ fn dedupe_preserve_order(values: Vec<String>) -> Vec<String> {
     }
 
     deduped
+}
+
+fn sort_function_tag_entries(entries: &mut [(String, String)]) {
+    entries.sort_by(|(left_tag, left_function), (right_tag, right_function)| {
+        left_tag
+            .cmp(right_tag)
+            .then_with(|| left_function.cmp(right_function))
+    });
 }
 
 /// Returns the output path and entity-predicate flag for a Sand-owned player
@@ -2394,6 +2454,60 @@ mod tests {
     }
 
     #[test]
+    fn function_validation_fails_before_records_are_accepted_with_owner_context() {
+        let mut records = vec![super::ComponentRecord {
+            namespace: "audit".to_string(),
+            dir: "function".to_string(),
+            path: "invalid_selector".to_string(),
+            ext: "mcfunction".to_string(),
+            content_type: "text".to_string(),
+            content: "say valid\nkill @e[limit=-1]".to_string(),
+        }];
+        let profile = sand_commands::CommandProfile::new("1.21.11", false);
+        let error = super::validate_function_records(&mut records, &profile)
+            .expect_err("malformed typed output must fail before export")
+            .to_string();
+        assert!(error.contains("audit:invalid_selector"), "{error}");
+        assert!(error.contains("commands[1].limit"), "{error}");
+        assert!(error.contains("1.21.11"), "{error}");
+        assert_eq!(records[0].content, "say valid\nkill @e[limit=-1]");
+    }
+
+    #[test]
+    fn explicit_raw_function_line_preserves_unmodelled_syntax() {
+        let mut records = vec![super::ComponentRecord {
+            namespace: "audit".to_string(),
+            dir: "function".to_string(),
+            path: "raw".to_string(),
+            ext: "mcfunction".to_string(),
+            content_type: "text".to_string(),
+            content: "modded command syntax".to_string(),
+        }];
+        super::validate_function_records(
+            &mut records,
+            &sand_commands::CommandProfile::unprofiled(),
+        )
+        .unwrap();
+        assert_eq!(records[0].content, "modded command syntax");
+    }
+
+    #[test]
+    fn xp_score_operations_are_lowered_per_player() {
+        let commands = super::xp_score_commands();
+        assert!(
+            commands
+                .iter()
+                .all(|command| !command.contains("operation @a"))
+        );
+        assert!(commands.contains(&"execute as @a run scoreboard players operation @s __sand_xp_delta = @s __sand_xp_lvl".to_string()));
+        assert!(commands.contains(&"execute as @a run scoreboard players operation @s __sand_xp_delta -= @s __sand_xp_prev".to_string()));
+        assert_eq!(
+            super::xp_advance_command(),
+            "execute as @a run scoreboard players operation @s __sand_xp_prev = @s __sand_xp_lvl"
+        );
+    }
+
+    #[test]
     fn player_state_events_use_predicate_flags() {
         let dispatch: crate::events::SandEventDispatch = PlayerSwimmingEvent::dispatch();
         let condition = match dispatch {
@@ -2695,6 +2809,24 @@ mod tests {
     }
 
     #[test]
+    fn user_function_tag_entries_sort_deterministically() {
+        let mut entries = vec![
+            ("minecraft:tick".to_string(), "pack:z".to_string()),
+            ("minecraft:load".to_string(), "pack:m".to_string()),
+            ("minecraft:load".to_string(), "pack:a".to_string()),
+        ];
+        super::sort_function_tag_entries(&mut entries);
+        assert_eq!(
+            entries,
+            vec![
+                ("minecraft:load".to_string(), "pack:a".to_string()),
+                ("minecraft:load".to_string(), "pack:m".to_string()),
+                ("minecraft:tick".to_string(), "pack:z".to_string()),
+            ]
+        );
+    }
+
+    #[test]
     fn exported_load_tag_preserves_generated_insertion_order() {
         let _lock = crate::state::registry::registry_test_lock();
         let _ = crate::state::drain_load_commands();
@@ -2702,7 +2834,7 @@ mod tests {
         let _ = crate::state::score::drain_internal_score_setup();
 
         let _ = crate::state::ScoreConst::<i32>::new("tag order setup", 7).ref_();
-        crate::state::register_load_objective("tag_order_lifecycle", "dummy");
+        crate::state::register_load_objective("tag_order_life", "dummy");
 
         let json_str = super::export_components_json("orderpack");
         let records: Vec<serde_json::Value> = serde_json::from_str(&json_str).unwrap();

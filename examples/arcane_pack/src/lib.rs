@@ -87,8 +87,8 @@ pub fn load() {
 /// Per-tick logic: decrement cooldowns, show actionbar status.
 #[component(Tick)]
 pub fn tick() {
-    DASH.tick(Selector::all_players());
-    FIREBALL.tick(Selector::all_players());
+    DASH.tick_all_players();
+    FIREBALL.tick_all_players();
 
     // Show "Dash ready" when the player has enough mana and dash is off cooldown.
     TypedExecute::as_players()

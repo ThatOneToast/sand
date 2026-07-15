@@ -38,7 +38,7 @@ fn load_commands() -> Vec<String> {
 
 fn tick_commands() -> Vec<String> {
     let mut cmds = mcfunction![
-        DASH_CD.tick("@a");
+        DASH_CD.tick_all_players();
         MANA.add("@a", 1);
     ];
 

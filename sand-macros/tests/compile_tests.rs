@@ -6,6 +6,7 @@ fn compile_tests() {
     t.pass("tests/cases/pass_plain_stmts.rs");
     t.pass("tests/cases/pass_attribute_typed.rs");
     t.pass("tests/cases/pass_public_api_tiers.rs");
+    t.pass("tests/cases/pass_canonical_command_foundations.rs");
     t.pass("tests/cases/pass_component.rs");
     t.pass("tests/cases/pass_component_dialog.rs");
     t.pass("tests/cases/pass_event_generic.rs");
@@ -26,6 +27,8 @@ fn compile_tests() {
     t.compile_fail("tests/cases/fail_event_generic_not_advancement.rs");
     t.compile_fail("tests/cases/fail_damage_event_non_damage.rs");
     t.compile_fail("tests/cases/fail_damage_direct_many_targets.rs");
+    t.compile_fail("tests/cases/fail_selector_implicit_narrowing.rs");
+    t.compile_fail("tests/cases/fail_scoreboard_string_operation.rs");
     t.compile_fail("tests/cases/fail_event_too_many_params.rs");
     t.compile_fail("tests/cases/fail_advancement_event_marker_field_not_runtime.rs");
     t.pass("tests/cases/pass_run_fn.rs");

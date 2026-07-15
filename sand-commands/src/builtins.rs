@@ -635,7 +635,7 @@ pub fn try_damage(
 /// All safe constructors produce [`Fixed`](DamageAmount::Fixed) — a concrete
 /// hit-point value that maps directly to the vanilla `damage` command. Score-backed
 /// or per-event amounts are not yet supported; if you need them, track damage via
-/// [`sand_core::systems::damage::DamageTracker`] and emit the value from a scoreboard
+/// Sand's typed damage tracker and emit the value from a scoreboard
 /// operation instead.
 ///
 /// # Migration note
@@ -1132,7 +1132,7 @@ mod tests {
     #[test]
     fn damage_test() {
         assert_eq!(
-            damage(Selector::self_(), 5.0, "minecraft:generic"),
+            damage(SingleEntity::self_(), 5.0, "minecraft:generic"),
             "damage @s 5 minecraft:generic"
         );
     }
@@ -1571,9 +1571,9 @@ mod tests {
 
     #[test]
     fn try_damage_rejects_non_finite_amount_and_bad_type() {
-        assert!(try_damage(Selector::self_(), f64::NAN, "minecraft:generic").is_err());
-        assert!(try_damage(Selector::self_(), 5.0, "generic").is_err());
-        assert!(try_damage(Selector::self_(), 5.0, "minecraft:generic").is_ok());
+        assert!(try_damage(SingleEntity::self_(), f64::NAN, "minecraft:generic").is_err());
+        assert!(try_damage(SingleEntity::self_(), 5.0, "generic").is_err());
+        assert!(try_damage(SingleEntity::self_(), 5.0, "minecraft:generic").is_ok());
     }
 
     #[test]
@@ -1634,6 +1634,7 @@ mod tests {
     #[test]
     fn command_error_message_identifies_helper_and_field() {
         let err = try_tp(Selector::self_(), f64::NAN, 0.0, 0.0).unwrap_err();
+        assert_eq!(err.code, "command.tp.invalid_x");
         let msg = err.to_string();
         assert!(msg.contains("tp"), "{msg}");
         assert!(msg.contains('x'), "{msg}");

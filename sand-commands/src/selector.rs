@@ -3,6 +3,10 @@
 use std::fmt;
 use std::marker::PhantomData;
 
+use crate::error::{CommandError, CommandResult};
+use crate::render::{CommandProfile, RenderCommand, Validate};
+use crate::validate;
+
 // ── Public types ──────────────────────────────────────────────────────────────
 
 /// An entity/player selector for use in Minecraft commands.
@@ -22,6 +26,7 @@ use std::marker::PhantomData;
 /// assert_eq!(Selector::self_().to_string(), "@s");
 /// ```
 #[derive(Debug, Clone)]
+#[must_use = "selectors do nothing until passed to a command"]
 pub struct Selector {
     base: TargetBase,
     args: Vec<SelectorArg>,
@@ -48,6 +53,8 @@ pub enum TargetBase {
     Self_,
     RandomPlayer,
     Player(String),
+    /// Explicit unchecked selector syntax for advanced/modded grammar.
+    Raw(String),
 }
 
 /// Marker for selector wrappers that are statically known to select one target.
@@ -60,6 +67,7 @@ pub enum Many {}
 
 /// Entity selector with statically modeled arity.
 #[derive(Debug, Clone)]
+#[must_use = "targets do nothing until passed to a command"]
 pub struct EntityTarget<A> {
     raw: Selector,
     _arity: PhantomData<A>,
@@ -67,21 +75,22 @@ pub struct EntityTarget<A> {
 
 /// Player selector with statically modeled arity.
 #[derive(Debug, Clone)]
+#[must_use = "targets do nothing until passed to a command"]
 pub struct PlayerTarget<A> {
     raw: Selector,
     _arity: PhantomData<A>,
 }
 
-/// Exactly one entity target.
+/// An entity target that resolves to at most one entity.
 pub type SingleEntity = EntityTarget<One>;
 
-/// One or more entity targets.
+/// An entity target that may resolve to zero or more entities.
 pub type EntityTargets = EntityTarget<Many>;
 
-/// Exactly one player target.
+/// A player target that resolves to at most one player.
 pub type SinglePlayer = PlayerTarget<One>;
 
-/// One or more player targets.
+/// A player target that may resolve to zero or more players.
 pub type PlayerTargets = PlayerTarget<Many>;
 
 impl<A> EntityTarget<A> {
@@ -149,10 +158,22 @@ impl<A> EntityTarget<A> {
     }
 }
 
+impl<A> Validate for EntityTarget<A> {
+    fn validate(&self, profile: &CommandProfile) -> CommandResult<()> {
+        self.raw.validate(profile)
+    }
+}
+
+impl<A> RenderCommand for EntityTarget<A> {
+    fn render_unchecked(&self, _profile: &CommandProfile) -> String {
+        self.to_string()
+    }
+}
+
 impl EntityTargets {
     /// `@e` — all entities.
     pub fn all() -> Self {
-        Self::from(Selector::all_entities())
+        Self::from_selector(Selector::all_entities())
     }
 
     /// `@e[distance=..<radius>]` — all entities within a radius of the executor.
@@ -161,22 +182,37 @@ impl EntityTargets {
     }
 
     /// Add `limit=1` and convert to a single-entity target.
-    pub fn limit(mut self, n: i32) -> SingleEntity {
+    pub fn limit(mut self, n: i32) -> CommandResult<SingleEntity> {
+        if n != 1 {
+            return Err(CommandError::new(
+                "EntityTargets::limit",
+                "limit",
+                format!("single-entity narrowing requires `limit=1`, got `{n}`"),
+            ));
+        }
         self.raw = self.raw.limit(n);
-        SingleEntity::from(self.raw)
+        Ok(SingleEntity::from_selector(self.raw))
     }
 
     /// Pick the nearest matching entity as a single target.
     pub fn nearest(mut self) -> SingleEntity {
         self.raw = self.raw.sort(SortOrder::Nearest).limit(1);
-        SingleEntity::from(self.raw)
+        SingleEntity::from_selector(self.raw)
     }
 }
 
 impl SingleEntity {
     /// `@s` — the current executor as a single entity.
     pub fn self_() -> Self {
-        Self::from(Selector::self_())
+        Self::from_selector(Selector::self_())
+    }
+
+    /// Explicit unchecked single-entity selector syntax.
+    ///
+    /// This opts out of Sand's cardinality proof. Use only when advanced or
+    /// modded syntax guarantees zero or one result.
+    pub fn raw(selector: impl Into<String>) -> Self {
+        Self::from_selector(Selector::raw(selector))
     }
 }
 
@@ -216,39 +252,63 @@ impl<A> PlayerTarget<A> {
     }
 }
 
+impl<A> Validate for PlayerTarget<A> {
+    fn validate(&self, profile: &CommandProfile) -> CommandResult<()> {
+        self.raw.validate(profile)
+    }
+}
+
+impl<A> RenderCommand for PlayerTarget<A> {
+    fn render_unchecked(&self, _profile: &CommandProfile) -> String {
+        self.to_string()
+    }
+}
+
 impl PlayerTargets {
     /// `@a` — all players.
     pub fn all() -> Self {
-        Self::from(Selector::all_players())
+        Self::from_selector(Selector::all_players())
     }
 
     /// Add `limit=1` and convert to a single-player target.
-    pub fn limit(mut self, n: i32) -> SinglePlayer {
+    pub fn limit(mut self, n: i32) -> CommandResult<SinglePlayer> {
+        if n != 1 {
+            return Err(CommandError::new(
+                "PlayerTargets::limit",
+                "limit",
+                format!("single-player narrowing requires `limit=1`, got `{n}`"),
+            ));
+        }
         self.raw = self.raw.limit(n);
-        SinglePlayer::from(self.raw)
+        Ok(SinglePlayer::from_selector(self.raw))
     }
 
     /// Pick the nearest matching player as a single target.
     pub fn nearest(mut self) -> SinglePlayer {
         self.raw = self.raw.sort(SortOrder::Nearest).limit(1);
-        SinglePlayer::from(self.raw)
+        SinglePlayer::from_selector(self.raw)
     }
 }
 
 impl SinglePlayer {
     /// `@s` — the current executor as a single player.
     pub fn self_() -> Self {
-        Self::from(Selector::self_())
+        Self::from_selector(Selector::self_())
     }
 
     /// `@p` — the nearest player.
     pub fn nearest() -> Self {
-        Self::from(Selector::nearest_player())
+        Self::from_selector(Selector::nearest_player())
+    }
+
+    /// Explicit unchecked single-player selector syntax.
+    pub fn raw(selector: impl Into<String>) -> Self {
+        Self::from_selector(Selector::raw(selector))
     }
 }
 
-impl From<Selector> for SingleEntity {
-    fn from(raw: Selector) -> Self {
+impl SingleEntity {
+    fn from_selector(raw: Selector) -> Self {
         Self {
             raw,
             _arity: PhantomData,
@@ -256,8 +316,8 @@ impl From<Selector> for SingleEntity {
     }
 }
 
-impl From<Selector> for EntityTargets {
-    fn from(raw: Selector) -> Self {
+impl EntityTargets {
+    fn from_selector(raw: Selector) -> Self {
         Self {
             raw,
             _arity: PhantomData,
@@ -265,8 +325,8 @@ impl From<Selector> for EntityTargets {
     }
 }
 
-impl From<Selector> for SinglePlayer {
-    fn from(raw: Selector) -> Self {
+impl SinglePlayer {
+    fn from_selector(raw: Selector) -> Self {
         Self {
             raw,
             _arity: PhantomData,
@@ -274,24 +334,57 @@ impl From<Selector> for SinglePlayer {
     }
 }
 
-impl From<Selector> for PlayerTargets {
-    fn from(raw: Selector) -> Self {
+impl PlayerTargets {
+    fn from_selector(raw: Selector) -> Self {
         Self {
             raw,
             _arity: PhantomData,
         }
+    }
+}
+
+impl TryFrom<Selector> for SingleEntity {
+    type Error = CommandError;
+    fn try_from(raw: Selector) -> CommandResult<Self> {
+        raw.validate_single("SingleEntity")?;
+        Ok(Self::from_selector(raw))
+    }
+}
+
+impl TryFrom<Selector> for EntityTargets {
+    type Error = CommandError;
+    fn try_from(raw: Selector) -> CommandResult<Self> {
+        raw.validate(&CommandProfile::unprofiled())?;
+        Ok(Self::from_selector(raw))
+    }
+}
+
+impl TryFrom<Selector> for SinglePlayer {
+    type Error = CommandError;
+    fn try_from(raw: Selector) -> CommandResult<Self> {
+        raw.validate_player("SinglePlayer")?;
+        raw.validate_single("SinglePlayer")?;
+        Ok(Self::from_selector(raw))
+    }
+}
+
+impl TryFrom<Selector> for PlayerTargets {
+    type Error = CommandError;
+    fn try_from(raw: Selector) -> CommandResult<Self> {
+        raw.validate_player("PlayerTargets")?;
+        Ok(Self::from_selector(raw))
     }
 }
 
 impl From<SinglePlayer> for SingleEntity {
     fn from(player: SinglePlayer) -> Self {
-        SingleEntity::from(player.raw)
+        SingleEntity::from_selector(player.raw)
     }
 }
 
 impl From<PlayerTargets> for EntityTargets {
     fn from(players: PlayerTargets) -> Self {
-        EntityTargets::from(players.raw)
+        EntityTargets::from_selector(players.raw)
     }
 }
 
@@ -441,6 +534,18 @@ impl Selector {
     pub fn player(name: impl Into<String>) -> Self {
         Self {
             base: TargetBase::Player(name.into()),
+            args: vec![],
+        }
+    }
+
+    /// Wrap advanced selector syntax without typed validation.
+    ///
+    /// Prefer the typed builder methods for normal selectors. Raw selectors
+    /// are preserved verbatim and should be limited to syntax Sand cannot yet
+    /// model.
+    pub fn raw(selector: impl Into<String>) -> Self {
+        Self {
+            base: TargetBase::Raw(selector.into()),
             args: vec![],
         }
     }
@@ -612,6 +717,7 @@ impl fmt::Display for Selector {
             TargetBase::Self_ => "@s",
             TargetBase::RandomPlayer => "@r",
             TargetBase::Player(n) => return write!(f, "{n}"),
+            TargetBase::Raw(raw) => return write!(f, "{raw}"),
         };
         if self.args.is_empty() {
             write!(f, "{base}")
@@ -625,6 +731,404 @@ impl fmt::Display for Selector {
             write!(f, "{base}[{args}]")
         }
     }
+}
+
+impl Selector {
+    pub(crate) fn is_statically_single(&self) -> bool {
+        !matches!(self.base, TargetBase::Raw(_))
+            && (matches!(
+                self.base,
+                TargetBase::NearestPlayer
+                    | TargetBase::Self_
+                    | TargetBase::RandomPlayer
+                    | TargetBase::Player(_)
+            ) || self
+                .args
+                .iter()
+                .any(|arg| matches!(arg, SelectorArg::Limit(1))))
+    }
+
+    fn validate_single(&self, helper: &'static str) -> CommandResult<()> {
+        self.validate(&CommandProfile::unprofiled())?;
+        if self.is_statically_single() {
+            Ok(())
+        } else {
+            Err(CommandError::new(
+                helper,
+                "selector",
+                "target may match multiple entities; add `limit=1` or use a many-target type",
+            ))
+        }
+    }
+
+    fn validate_player(&self, helper: &'static str) -> CommandResult<()> {
+        self.validate(&CommandProfile::unprofiled())?;
+        if matches!(
+            self.base,
+            TargetBase::AllPlayers
+                | TargetBase::NearestPlayer
+                | TargetBase::Self_
+                | TargetBase::RandomPlayer
+                | TargetBase::Player(_)
+        ) {
+            Ok(())
+        } else {
+            Err(CommandError::new(
+                helper,
+                "selector",
+                "selector is not statically player-targeting",
+            ))
+        }
+    }
+}
+
+impl Validate for Selector {
+    fn validate(&self, _profile: &CommandProfile) -> CommandResult<()> {
+        if let TargetBase::Raw(_) = self.base {
+            if !self.args.is_empty() {
+                return Err(CommandError::new(
+                    "Selector",
+                    "arguments",
+                    "raw selectors cannot be combined with typed arguments",
+                ));
+            }
+            return Ok(());
+        }
+        if let TargetBase::Player(ref name) = self.base {
+            if !self.args.is_empty() {
+                return Err(CommandError::new(
+                    "Selector",
+                    "arguments",
+                    "literal player names cannot be combined with selector arguments",
+                ));
+            }
+            if name.is_empty()
+                || name.len() > 16
+                || !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+            {
+                return Err(CommandError::new(
+                    "Selector",
+                    "player_name",
+                    format!("must be 1..=16 ASCII letters, digits, or `_`, got `{name}`"),
+                ));
+            }
+        }
+
+        let mut singleton_keys = std::collections::BTreeSet::new();
+        let mut positive_type = false;
+        for arg in &self.args {
+            let (key, value): (&str, Option<&str>) = match arg {
+                SelectorArg::Tag(v) | SelectorArg::NotTag(v) => {
+                    validate_optional_token(v, "tag")?;
+                    ("tag*", None)
+                }
+                SelectorArg::Team(v) | SelectorArg::NotTeam(v) => {
+                    validate_optional_token(v, "team")?;
+                    ("team*", None)
+                }
+                SelectorArg::Name(v) | SelectorArg::NotName(v) => ("name*", Some(v)),
+                SelectorArg::Type(v) => {
+                    if positive_type {
+                        return Err(CommandError::new(
+                            "Selector",
+                            "type",
+                            "duplicate positive `type` arguments are contradictory",
+                        ));
+                    }
+                    positive_type = true;
+                    validate::resource_location_shape(
+                        v.strip_prefix('#').unwrap_or(v),
+                        "Selector",
+                        "type",
+                    )?;
+                    ("type+", None)
+                }
+                SelectorArg::NotType(v) => {
+                    validate::resource_location_shape(
+                        v.strip_prefix('#').unwrap_or(v),
+                        "Selector",
+                        "type",
+                    )?;
+                    ("type-", None)
+                }
+                SelectorArg::Limit(v) => {
+                    if !matches!(self.base, TargetBase::AllPlayers | TargetBase::AllEntities) {
+                        return Err(CommandError::new(
+                            "Selector",
+                            "limit",
+                            "`limit` is only applicable to `@a` and `@e` selector bases",
+                        ));
+                    }
+                    if *v <= 0 {
+                        return Err(CommandError::new(
+                            "Selector",
+                            "limit",
+                            format!("selector limits must be greater than zero, got `{v}`"),
+                        ));
+                    }
+                    ("limit", None)
+                }
+                SelectorArg::Sort(_) => {
+                    if !matches!(self.base, TargetBase::AllPlayers | TargetBase::AllEntities) {
+                        return Err(CommandError::new(
+                            "Selector",
+                            "sort",
+                            "`sort` is only applicable to `@a` and `@e` selector bases",
+                        ));
+                    }
+                    ("sort", None)
+                }
+                SelectorArg::Distance(v) => {
+                    validate_range(v, "distance", true)?;
+                    ("distance", None)
+                }
+                SelectorArg::Level(v) => {
+                    validate_range(v, "level", false)?;
+                    ("level", None)
+                }
+                SelectorArg::XRotation(v) => {
+                    validate_range(v, "x_rotation", true)?;
+                    ("x_rotation", None)
+                }
+                SelectorArg::YRotation(v) => {
+                    validate_range(v, "y_rotation", true)?;
+                    ("y_rotation", None)
+                }
+                SelectorArg::Gamemode(v) => {
+                    if !matches!(
+                        v.strip_prefix('!').unwrap_or(v),
+                        "survival" | "creative" | "adventure" | "spectator"
+                    ) {
+                        return Err(CommandError::new(
+                            "Selector",
+                            "gamemode",
+                            format!("unknown vanilla gamemode `{v}`"),
+                        ));
+                    }
+                    ("gamemode", None)
+                }
+                SelectorArg::Scores(v) => {
+                    validate_scores(v)?;
+                    ("scores", None)
+                }
+                SelectorArg::Nbt(v) => {
+                    validate_snbt_compound(v)?;
+                    ("nbt", None)
+                }
+                SelectorArg::Predicate(v) => {
+                    validate::resource_location_shape(
+                        v.strip_prefix('!').unwrap_or(v),
+                        "Selector",
+                        "predicate",
+                    )?;
+                    ("predicate", None)
+                }
+                SelectorArg::X(v) => {
+                    validate::finite(*v, "Selector", "x")?;
+                    ("x", None)
+                }
+                SelectorArg::Y(v) => {
+                    validate::finite(*v, "Selector", "y")?;
+                    ("y", None)
+                }
+                SelectorArg::Z(v) => {
+                    validate::finite(*v, "Selector", "z")?;
+                    ("z", None)
+                }
+                SelectorArg::Dx(v) => {
+                    validate::finite(*v, "Selector", "dx")?;
+                    ("dx", None)
+                }
+                SelectorArg::Dy(v) => {
+                    validate::finite(*v, "Selector", "dy")?;
+                    ("dy", None)
+                }
+                SelectorArg::Dz(v) => {
+                    validate::finite(*v, "Selector", "dz")?;
+                    ("dz", None)
+                }
+            };
+            if let Some(v) = value {
+                validate::no_whitespace_or_control(v, "Selector", key)?;
+            }
+            if !key.ends_with('*')
+                && !key.ends_with('-')
+                && !key.ends_with('+')
+                && !singleton_keys.insert(key)
+            {
+                return Err(CommandError::new(
+                    "Selector",
+                    "arguments",
+                    format!("duplicate `{key}` argument"),
+                ));
+            }
+        }
+        Ok(())
+    }
+}
+
+impl RenderCommand for Selector {
+    fn render_unchecked(&self, _profile: &CommandProfile) -> String {
+        self.to_string()
+    }
+}
+
+fn validate_range(value: &str, field: &'static str, allow_float: bool) -> CommandResult<()> {
+    validate::non_empty(value, "Selector", field)?;
+    let parse = |part: &str| -> CommandResult<Option<f64>> {
+        if part.is_empty() {
+            return Ok(None);
+        }
+        let n = part.parse::<f64>().map_err(|_| {
+            CommandError::new("Selector", field, format!("invalid range bound `{part}`"))
+        })?;
+        validate::finite(n, "Selector", field)?;
+        if !allow_float && n.fract() != 0.0 {
+            return Err(CommandError::new(
+                "Selector",
+                field,
+                "range requires integer bounds",
+            ));
+        }
+        Ok(Some(n))
+    };
+    let (min, max) = if let Some((a, b)) = value.split_once("..") {
+        if b.contains("..") {
+            return Err(CommandError::new(
+                "Selector",
+                field,
+                "range contains more than one `..`",
+            ));
+        }
+        (parse(a)?, parse(b)?)
+    } else {
+        let exact = parse(value)?;
+        (exact, exact)
+    };
+    if min.is_none() && max.is_none() {
+        return Err(CommandError::new(
+            "Selector",
+            field,
+            "range must contain at least one bound",
+        ));
+    }
+    if let (Some(a), Some(b)) = (min, max)
+        && a > b
+    {
+        return Err(CommandError::new(
+            "Selector",
+            field,
+            format!("range lower bound `{a}` exceeds upper bound `{b}`"),
+        ));
+    }
+    if matches!(field, "distance" | "level")
+        && (min.is_some_and(|v| v < 0.0) || max.is_some_and(|v| v < 0.0))
+    {
+        return Err(CommandError::new(
+            "Selector",
+            field,
+            format!("{field} cannot be negative"),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_optional_token(value: &str, field: &'static str) -> CommandResult<()> {
+    if value.chars().any(|c| c.is_whitespace() || c.is_control()) {
+        Err(CommandError::new(
+            "Selector",
+            field,
+            format!("must not contain whitespace or control characters, got `{value}`"),
+        ))
+    } else {
+        Ok(())
+    }
+}
+
+fn validate_snbt_compound(value: &str) -> CommandResult<()> {
+    validate::non_empty(value, "Selector", "nbt")?;
+    if !(value.starts_with('{') && value.ends_with('}')) {
+        return Err(CommandError::new(
+            "Selector",
+            "nbt",
+            "typed NBT filters must be an SNBT compound wrapped in `{...}`",
+        ));
+    }
+    if value.contains(['\0', '\n', '\r']) {
+        return Err(CommandError::new(
+            "Selector",
+            "nbt",
+            "SNBT selector fragments must remain on one command line",
+        ));
+    }
+    let mut delimiters = Vec::new();
+    let mut quote = None;
+    let mut escaped = false;
+    for character in value.chars() {
+        if let Some(delimiter) = quote {
+            if escaped {
+                escaped = false;
+            } else if character == '\\' {
+                escaped = true;
+            } else if character == delimiter {
+                quote = None;
+            }
+            continue;
+        }
+        match character {
+            '\'' | '"' => quote = Some(character),
+            '{' | '[' => delimiters.push(character),
+            '}' if delimiters.pop() == Some('{') => {}
+            ']' if delimiters.pop() == Some('[') => {}
+            '}' | ']' => {
+                return Err(CommandError::new(
+                    "Selector",
+                    "nbt",
+                    "SNBT selector fragment has an unmatched closing delimiter",
+                ));
+            }
+            _ => {}
+        }
+    }
+    if quote.is_some() || !delimiters.is_empty() {
+        return Err(CommandError::new(
+            "Selector",
+            "nbt",
+            "SNBT selector fragment has unbalanced quotes or delimiters",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_scores(value: &str) -> CommandResult<()> {
+    validate::non_empty(value, "Selector", "scores")?;
+    let mut objectives = std::collections::BTreeSet::new();
+    for entry in value.split(',') {
+        let Some((objective, range)) = entry.split_once('=') else {
+            return Err(CommandError::new(
+                "Selector",
+                "scores",
+                format!("expected `objective=range`, got `{entry}`"),
+            ));
+        };
+        validate::no_whitespace_or_control(objective, "Selector", "scores.objective")?;
+        if objective.len() > 16 {
+            return Err(CommandError::new(
+                "Selector",
+                "scores.objective",
+                format!("objective `{objective}` exceeds 16 characters"),
+            ));
+        }
+        if !objectives.insert(objective) {
+            return Err(CommandError::new(
+                "Selector",
+                "scores",
+                format!("duplicate objective `{objective}`"),
+            ));
+        }
+        validate_range(range, "scores.range", false)?;
+    }
+    Ok(())
 }
 
 // ── GameMode ──────────────────────────────────────────────────────────────────
@@ -802,5 +1306,77 @@ mod tests {
 
         let s = Selector::all_players().not_name("Notch");
         assert_eq!(s.to_string(), "@a[name=!Notch]");
+    }
+
+    #[test]
+    fn validation_rejects_invalid_limits_ranges_and_names() {
+        assert!(Selector::all_players().limit(0).try_build().is_err());
+        assert!(
+            Selector::all_entities()
+                .distance_range(5.0, 1.0)
+                .try_build()
+                .is_err()
+        );
+        assert!(
+            Selector::all_entities()
+                .distance_max(f64::NAN)
+                .try_build()
+                .is_err()
+        );
+        assert!(Selector::player("").try_build().is_err());
+        assert!(Selector::player("has space").try_build().is_err());
+        assert!(
+            Selector::all_entities()
+                .distance_max(-1.0)
+                .try_build()
+                .is_err()
+        );
+        assert!(Selector::all_players().level("-1..").try_build().is_err());
+        assert!(
+            Selector::all_entities()
+                .nbt("{broken:[1,2}")
+                .try_build()
+                .is_err()
+        );
+        assert!(
+            Selector::all_entities()
+                .gamemode("!creative")
+                .try_build()
+                .is_ok()
+        );
+        assert!(
+            Selector::all_entities()
+                .predicate("!pack:ready")
+                .try_build()
+                .is_ok()
+        );
+        assert!(
+            Selector::all_entities()
+                .entity_type("#pack:mobs")
+                .try_build()
+                .is_ok()
+        );
+        assert!(Selector::all_entities().tag("").try_build().is_ok());
+        assert!(Selector::self_().limit(1).try_build().is_err());
+    }
+
+    #[test]
+    fn narrowing_is_fallible_and_safe_widening_remains_infallible() {
+        assert!(SingleEntity::try_from(Selector::all_entities()).is_err());
+        assert!(SinglePlayer::try_from(Selector::all_entities().limit(1)).is_err());
+        assert!(SingleEntity::try_from(Selector::all_entities().limit(1)).is_ok());
+        assert!(EntityTargets::all().limit(2).is_err());
+        let entity: SingleEntity = SinglePlayer::self_().into();
+        assert_eq!(entity.to_string(), "@s");
+    }
+
+    #[test]
+    fn raw_selector_escape_hatch_remains_verbatim() {
+        assert_eq!(
+            Selector::raw("@e[modded_filter={x:1}]")
+                .try_build()
+                .unwrap(),
+            "@e[modded_filter={x:1}]"
+        );
     }
 }

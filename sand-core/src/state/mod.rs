@@ -26,7 +26,7 @@
 //! }
 //!
 //! fn tick() -> Vec<String> {
-//!     vec![DASH.tick("@a")]
+//!     vec![DASH.tick_all_players()]
 //! }
 //! ```
 //!

@@ -136,7 +136,7 @@
 //!             // score never overwrites the value being compared against
 //!             // before it's observed.
 //!             post_observation: vec![
-//!                 "scoreboard players operation @a sync_jumps = @a jumps".into(),
+//!                 "execute as @a run scoreboard players operation @s sync_jumps = @s jumps".into(),
 //!             ],
 //!         }
 //!     }

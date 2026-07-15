@@ -74,7 +74,9 @@ fn jump_setup() -> EventSetup {
             "scoreboard objectives add sync_jumps dummy".to_string(),
         ],
         pre_observation: vec![],
-        post_observation: vec!["scoreboard players operation @a sync_jumps = @a jumps".to_string()],
+        post_observation: vec![
+            "execute as @a run scoreboard players operation @s sync_jumps = @s jumps".to_string(),
+        ],
     }
 }
 
@@ -362,7 +364,7 @@ fn detection_runs_before_synchronization() {
         .find("if score @s sync_jumps < @s jumps")
         .expect("detection clause must be present");
     let sync_pos = content
-        .find("scoreboard players operation @a sync_jumps = @a jumps")
+        .find("execute as @a run scoreboard players operation @s sync_jumps = @s jumps")
         .expect("post_observation sync command must be present");
     assert!(
         detect_pos < sync_pos,

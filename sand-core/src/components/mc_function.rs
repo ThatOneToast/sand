@@ -69,6 +69,12 @@ impl IntoCommands for Vec<&str> {
     }
 }
 
+impl IntoCommands for sand_commands::RawCommand {
+    fn into_commands(self) -> Vec<String> {
+        vec![self.into_inner()]
+    }
+}
+
 impl<T: crate::cmd::Command> IntoCommands for T {
     fn into_commands(self) -> Vec<String> {
         vec![self.to_string()]

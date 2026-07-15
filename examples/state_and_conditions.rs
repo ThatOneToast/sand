@@ -18,7 +18,7 @@ pub fn load_state() {
 
 #[component(Tick)]
 pub fn tick_state() {
-    DASH.tick(Selector::all_players());
+    DASH.tick_all_players();
 }
 
 #[function]

@@ -1970,10 +1970,13 @@ fn tick_event_export_error(message: impl Into<String>) -> ComponentExportError {
 /// nested references always resolve), inheriting the current `@s`/position —
 /// never re-issuing `execute as @a`.
 ///
-/// Root nodes' `pre_observation`/`post_observation` stay in the tick-check
-/// wrapper (run unconditionally every tick regardless of detection);
-/// chained nodes have no such wrapper, so their own `pre_observation`/
-/// `post_observation` run here instead, around handler/child dispatch.
+/// This function never contains lifecycle (`pre_observation`/
+/// `post_observation`) commands, for either roots or chained nodes. Root
+/// lifecycle stays in the tick-check wrapper (run unconditionally every tick
+/// regardless of detection, established by the caller). A chained node's own
+/// lifecycle is wrapped around *its* condition test by its parent — see
+/// [`build_child_edge`] — so it always observes before testing and always
+/// advances after testing, whether or not its condition matched.
 ///
 /// Safe to call at most once per node without memoization: this phase
 /// supports only one parent per event, so the graph is a forest and every
@@ -1990,16 +1993,8 @@ fn build_dispatch_function(
     let node = &graph.nodes[name];
     let key = tick_event_resource_key(node.type_name);
     let children = graph.children_of(name);
-    let is_chained = matches!(
-        node.origin,
-        crate::events::graph::NodeOrigin::Chained { .. }
-    );
 
-    let needs_wrapper = node.handlers.len() != 1
-        || !children.is_empty()
-        || self_guard.is_some()
-        || (is_chained
-            && (!node.setup.pre_observation.is_empty() || !node.setup.post_observation.is_empty()));
+    let needs_wrapper = node.handlers.len() != 1 || !children.is_empty() || self_guard.is_some();
 
     if !needs_wrapper {
         return format!("{namespace}:{}", node.handlers[0]);
@@ -2009,78 +2004,17 @@ fn build_dispatch_function(
     if let Some(guard) = self_guard {
         cmds.push(format!("scoreboard players set @s {guard} 1"));
     }
-    if is_chained {
-        cmds.extend(node.setup.pre_observation.iter().cloned());
-    }
     for handler in &node.handlers {
         cmds.push(format!("function {namespace}:{handler}"));
     }
     for edge in &children {
-        let child_ref = build_dispatch_function(
-            &edge.child,
+        cmds.push(build_child_edge(
+            edge,
             graph,
             namespace,
-            None,
             guarded_children,
             records,
-        );
-        match edge.execution_plans() {
-            crate::events::TickExecutionPlans::Unconditional => {
-                cmds.push(format!("function {child_ref}"));
-            }
-            crate::events::TickExecutionPlans::Plans(plans) if plans.len() <= 1 => {
-                if let Some(plan) = plans.into_iter().next() {
-                    if plan.is_empty() {
-                        cmds.push(format!("function {child_ref}"));
-                    } else {
-                        cmds.push(format!(
-                            "execute {} run function {child_ref}",
-                            plan.join(" ")
-                        ));
-                    }
-                }
-                // else: an explicit `Any([])`-shaped edge condition can never
-                // hold — no dead wiring emitted for an unreachable edge.
-            }
-            crate::events::TickExecutionPlans::Plans(plans) => {
-                // More than one OR-alternative plan means this child could be
-                // reached more than once from the same parent invocation.
-                // Coalesce via a per-child, per-player guard reset right
-                // before evaluating the plans, mirroring the root
-                // self-detection guard.
-                guarded_children.insert(edge.child.clone());
-                let child_key = tick_event_resource_key(&edge.child);
-                let guard = format!("se_{child_key}_g");
-                cmds.push(format!("scoreboard players set @s {guard} 0"));
-
-                let edge_path = format!("__sand_event_edge/{child_key}");
-                let edge_ref = format!("{namespace}:{edge_path}");
-                records.push(ComponentRecord {
-                    namespace: namespace.to_string(),
-                    dir: "function".to_string(),
-                    path: edge_path,
-                    ext: "mcfunction".to_string(),
-                    content_type: "text".to_string(),
-                    content: [
-                        format!("scoreboard players set @s {guard} 1"),
-                        format!("function {child_ref}"),
-                    ]
-                    .join("\n"),
-                });
-
-                for plan in &plans {
-                    let mut clauses = vec![format!("unless score @s {guard} matches 1")];
-                    clauses.extend(plan.iter().cloned());
-                    cmds.push(format!(
-                        "execute {} run function {edge_ref}",
-                        clauses.join(" ")
-                    ));
-                }
-            }
-        }
-    }
-    if is_chained {
-        cmds.extend(node.setup.post_observation.iter().cloned());
+        ));
     }
 
     let dispatch_path = format!("__sand_event_dispatch/{key}");
@@ -2093,6 +2027,134 @@ fn build_dispatch_function(
         content: cmds.join("\n"),
     });
     format!("{namespace}:{dispatch_path}")
+}
+
+/// Build the call line a parent uses to reach one child edge, and — when the
+/// child owns lifecycle commands — the dedicated `__sand_event_observe/<child>`
+/// function that wraps its condition test between `pre_observation` and
+/// `post_observation`.
+///
+/// The required per-invocation order for a chained child is always:
+/// `pre_observation` → condition test → handler/descendant dispatch if
+/// matched → `post_observation`, with `post_observation` reached whether or
+/// not the condition matched (mirroring the tick-lifecycle contract for
+/// roots). A child with no lifecycle commands has no such ordering concern,
+/// so it keeps the direct (no-wrapper) call shape.
+fn build_child_edge(
+    edge: &crate::events::graph::EventEdge,
+    graph: &crate::events::graph::EventGraph,
+    namespace: &str,
+    guarded_children: &mut std::collections::BTreeSet<String>,
+    records: &mut Vec<ComponentRecord>,
+) -> String {
+    let child_node = &graph.nodes[&edge.child];
+    let child_ref = build_dispatch_function(
+        &edge.child,
+        graph,
+        namespace,
+        None,
+        guarded_children,
+        records,
+    );
+    let has_lifecycle = !child_node.setup.pre_observation.is_empty()
+        || !child_node.setup.post_observation.is_empty();
+
+    // Build the condition-gated dispatch line(s) that reach `dispatch_ref`,
+    // shared by both the no-lifecycle (emitted directly into the caller's
+    // command list) and lifecycle (emitted into the observe function body)
+    // shapes.
+    let conditional_dispatch_lines = |dispatch_ref: &str,
+                                      guarded_children: &mut std::collections::BTreeSet<String>,
+                                      records: &mut Vec<ComponentRecord>|
+     -> Vec<String> {
+        match edge.execution_plans() {
+            crate::events::TickExecutionPlans::Unconditional => {
+                vec![format!("function {dispatch_ref}")]
+            }
+            crate::events::TickExecutionPlans::Plans(plans) if plans.len() <= 1 => plans
+                .into_iter()
+                .next()
+                .map(|plan| {
+                    if plan.is_empty() {
+                        format!("function {dispatch_ref}")
+                    } else {
+                        format!("execute {} run function {dispatch_ref}", plan.join(" "))
+                    }
+                })
+                .into_iter()
+                .collect(),
+            // else: an explicit `Any([])`-shaped edge condition can never
+            // hold — no dead wiring emitted for an unreachable edge.
+            crate::events::TickExecutionPlans::Plans(plans) => {
+                // More than one OR-alternative plan means this child could be
+                // reached more than once from the same parent invocation.
+                // Coalesce via a per-child, per-player guard reset right
+                // before evaluating the plans, mirroring the root
+                // self-detection guard.
+                guarded_children.insert(edge.child.clone());
+                let child_key = tick_event_resource_key(&edge.child);
+                let guard = format!("se_{child_key}_g");
+
+                let edge_path = format!("__sand_event_edge/{child_key}");
+                let edge_ref = format!("{namespace}:{edge_path}");
+                records.push(ComponentRecord {
+                    namespace: namespace.to_string(),
+                    dir: "function".to_string(),
+                    path: edge_path,
+                    ext: "mcfunction".to_string(),
+                    content_type: "text".to_string(),
+                    content: [
+                        format!("scoreboard players set @s {guard} 1"),
+                        format!("function {dispatch_ref}"),
+                    ]
+                    .join("\n"),
+                });
+
+                let mut lines = vec![format!("scoreboard players set @s {guard} 0")];
+                for plan in &plans {
+                    let mut clauses = vec![format!("unless score @s {guard} matches 1")];
+                    clauses.extend(plan.iter().cloned());
+                    lines.push(format!(
+                        "execute {} run function {edge_ref}",
+                        clauses.join(" ")
+                    ));
+                }
+                lines
+            }
+        }
+    };
+
+    if !has_lifecycle {
+        // No ordering concern — the condition test (and any multi-plan
+        // guard) can be emitted directly into the parent's own command list,
+        // exactly as before.
+        return conditional_dispatch_lines(&child_ref, guarded_children, records).join("\n");
+    }
+
+    // The child owns pre_observation/post_observation: wrap the condition
+    // test in a dedicated observe function so post_observation is always
+    // structurally reached after a condition attempt, matched or not — never
+    // only inside a function reached solely on success.
+    let child_key = tick_event_resource_key(&edge.child);
+    let mut observe_cmds: Vec<String> = Vec::new();
+    observe_cmds.extend(child_node.setup.pre_observation.iter().cloned());
+    observe_cmds.extend(conditional_dispatch_lines(
+        &child_ref,
+        guarded_children,
+        records,
+    ));
+    observe_cmds.extend(child_node.setup.post_observation.iter().cloned());
+
+    let observe_path = format!("__sand_event_observe/{child_key}");
+    records.push(ComponentRecord {
+        namespace: namespace.to_string(),
+        dir: "function".to_string(),
+        path: observe_path.clone(),
+        ext: "mcfunction".to_string(),
+        content_type: "text".to_string(),
+        content: observe_cmds.join("\n"),
+    });
+    format!("function {namespace}:{observe_path}")
 }
 
 /// The resolved dispatch backend for a custom [`crate::events::SandEvent`],

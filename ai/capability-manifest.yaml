@@ -11,7 +11,7 @@
 # Status enum: implemented | partial | experimental | raw_only | planned |
 #              intentionally_unsupported | vanilla_impossible | unknown
 schema_version: 1
-last_reviewed: "2026-07-12"
+last_reviewed: "2026-07-15"
 
 capabilities:
 
@@ -198,6 +198,46 @@ capabilities:
       join detection with a raw advancement).
     evidence: ["sand-core/src/events/mod.rs (BUILTIN_EVENT_NAMES)", "sand-core/src/event/{builder,handle,mod,trigger,vanilla}.rs", "sand-macros/src/lib.rs (#[event])"]
     documentation: ["docs/events.md", "book/src/events.md", "book/src/reference/event-trigger-matrix.md"]
+
+  - id: sandevent-chained-dispatch
+    name: "Same-cycle chained SandEvent dispatch"
+    category: events
+    intent: "Declare that a custom SandEvent fires only from another SandEvent's successful dispatch cycle (same tick, same execution subject/position), reusing the parent's detector instead of independently re-polling it."
+    status: partial
+    stability: alpha
+    crates: [sand-core, sand-macros]
+    entry_points: ["SandEventDispatch::chain::<Parent>()"]
+    preferred_api: "SandEventDispatch::chain::<Parent>().when(...).unless(...).if_(...) inside a SandEvent::dispatch() impl"
+    sand_limitations: >
+      First scoped phase of #240 — chain dispatch graphs. Implemented: one
+      direct parent per event (the graph is a forest; direct and indirect
+      cycles are rejected at export time with a readable diagnostic path,
+      never a panic); the parent's detector/setup is generated and shared
+      exactly once regardless of how many direct #[event] handlers and chain
+      children subscribe to it, even when the parent has no direct handler
+      of its own; the child inherits the parent's player @s and position (no
+      re-issued `execute as @a`); deterministic handler/child-edge fan-out
+      ordering; distinct concrete identity for generic child families (e.g.
+      ElevatorUsed<GoUp> vs ElevatorUsed<GoDown>); multi-plan child
+      conditions are coalesced with a per-player guard so a child fires at
+      most once per parent invocation; a chained child's own
+      pre_observation/post_observation run around its condition test on
+      every parent invocation (post_observation always reached, whether or
+      not the condition matched) via a dedicated observe function, at every
+      chain depth. Both structured `SandEventDispatch::tick()` and legacy
+      `SandEventDispatch::TickCondition` parents are supported and resolve
+      to the same graph node/detector regardless of which constructor was
+      used. Advancement-backed SandEvent parents are explicitly rejected
+      (export error naming the child/parent), not silently approximated —
+      their reward-function codegen path does not yet provide a compatible
+      player execution context. Deferred to later phases of #240 (not yet
+      exposed as partial APIs): `while_<E>()` continuous/held-state events,
+      `after_all(...)`/`after_any(...)` multi-parent joins, bounded
+      `.within(...)` time windows, cross-tick correlation, participant-rich
+      execution contexts (#230), and arbitrary non-player entity execution
+      scopes.
+    evidence: ["sand-core/src/events/mod.rs (ChainEventDispatch, SandEventDispatch::chain, SandEventDispatch::Chain)", "sand-core/src/events/graph.rs (EventGraph, EventNode, NodeOrigin, discover_node, cycle detection)", "sand-core/src/component.rs (build_dispatch_function, build_child_edge)", "sand-macros/src/lib.rs (#[event] make_chain descriptor factory)", "sand-core/tests/event_chain_export.rs", "sand-core/tests/event_chain_legacy_tick_condition_parent.rs", "sand-core/tests/event_chain_child_lifecycle.rs", "sand-core/tests/event_chain_cycle.rs", "sand-core/tests/event_chain_advancement_parent_rejected.rs", "sand-macros/tests/cases/pass_sand_event_chain_dispatch.rs", "sand-macros/tests/cases/fail_sand_event_chain_non_sand_event_parent.rs"]
+    documentation: ["book/src/events.md (Composing SandEvents: same-cycle chained dispatch)"]
 
   - id: advancement-triggers
     name: "Advancement triggers"

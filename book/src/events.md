@@ -172,6 +172,72 @@ reaches) always completes before the parent's own `post_observation`, so a
 child relying on a delta-tracking parent condition (e.g. the jump-count sync)
 never observes already-synchronized state.
 
+### Child lifecycle ordering
+
+A chained child can own its own `EventSetup` lifecycle, exactly like a root
+`SandEvent`. For each successful parent occurrence, a child performs
+pre-observation, evaluates its chain conditions, optionally dispatches its
+handlers and descendants, and then performs post-observation:
+
+```text
+child pre_observation
+child condition evaluation
+child handler and descendant dispatch, if matched
+child post_observation
+```
+
+Post-observation runs after **every** child observation attempt, not only a
+successful child dispatch — the same "advance synchronized state every
+cycle" contract that already applies to a root's own `pre_observation`/
+`post_observation`. This matters whenever a child's own condition depends on
+state its `pre_observation` prepares, or whenever its `post_observation`
+must advance a delta-tracking score regardless of whether the condition
+matched this cycle:
+
+```rust,ignore
+pub struct Child;
+
+impl SandEvent for Child {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        SandEventDispatch::chain::<Parent>()
+            .when(SYNC.of("@s").lt_score(CURRENT.of("@s")))
+    }
+
+    fn setup() -> EventSetup {
+        EventSetup {
+            pre_observation: vec![
+                "scoreboard players operation @s current = @s source".into(),
+            ],
+            post_observation: vec![
+                "scoreboard players operation @s sync = @s current".into(),
+            ],
+            ..EventSetup::none()
+        }
+    }
+}
+```
+
+A child with lifecycle commands gets a dedicated `__sand_event_observe/<child>`
+function wrapping its condition test between `pre_observation` and
+`post_observation`; the parent calls it unconditionally, and the condition
+test (single-plan, multi-plan-guarded, or unconditional) lives inside it:
+
+```mcfunction
+# __sand_event_observe/<child>
+scoreboard players operation @s current = @s source
+execute if score @s sync < @s current run function pack:__sand_event_dispatch/<child>
+scoreboard players operation @s sync = @s current
+```
+
+Do not assume lifecycle setup commands execute only after the child
+condition succeeds — `post_observation` is a standalone command in the
+observe function, not embedded inside the `execute ... run function` line,
+so it is structurally reached whether or not the condition holds at
+runtime. A child with no lifecycle commands keeps the simpler direct-call
+shape (no observe function) shown earlier in this section. This ordering
+applies at every chain depth: each chained node's lifecycle is tied to each
+invocation of its own parent, not to the global tick independently.
+
 ### Limitations in this phase
 
 This is the first, same-cycle-only phase of chained dispatch (#240). Not yet

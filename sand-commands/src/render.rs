@@ -28,10 +28,103 @@ pub fn validate_collected_line(line: &str, _profile: &CommandProfile) -> Command
         return Ok(line.to_string());
     }
 
-    for token in line.split_ascii_whitespace() {
-        let bare = token
-            .trim_matches(|c: char| matches!(c, ',' | ']' | '[' | '(' | ')'))
-            .trim_start_matches(['~', '^']);
+    // This is deliberately a fallback boundary: typed `RenderCommand` values
+    // have already validated their own structure. Do not search arbitrary
+    // collected text, which may contain JSON, SNBT, macros, or raw/modded
+    // syntax. Only validate operands whose command position is known.
+    validate_known_command(&tokenize_command(line)?)?;
+    Ok(line.to_string())
+}
+
+fn tokenize_command(line: &str) -> CommandResult<Vec<&str>> {
+    let mut tokens = Vec::new();
+    let mut start = None;
+    let mut quoted = false;
+    let mut escaped = false;
+    let mut depth = 0usize;
+    for (index, character) in line.char_indices() {
+        if quoted {
+            if escaped {
+                escaped = false;
+            } else if character == '\\' {
+                escaped = true;
+            } else if character == '"' {
+                quoted = false;
+            }
+            continue;
+        }
+        match character {
+            '"' => quoted = true,
+            '[' | '{' | '(' => depth += 1,
+            ']' | '}' | ')' => depth = depth.saturating_sub(1),
+            character if character.is_ascii_whitespace() && depth == 0 => {
+                if let Some(start) = start.take() {
+                    tokens.push(&line[start..index]);
+                }
+            }
+            _ if start.is_none() => start = Some(index),
+            _ => {}
+        }
+    }
+    if quoted || depth != 0 {
+        // Arbitrary raw syntax may have grammar Sand does not model; leave it
+        // intact rather than interpreting it as a known command.
+        return Ok(vec![]);
+    }
+    if let Some(start) = start {
+        tokens.push(&line[start..]);
+    }
+    Ok(tokens)
+}
+
+fn validate_known_command(tokens: &[&str]) -> CommandResult<()> {
+    match tokens {
+        ["kill", selector, ..] => validate_rendered_selector(selector),
+        ["tp" | "teleport", target, rest @ ..] => {
+            validate_rendered_selector(target)?;
+            validate_finite_tokens(rest)
+        }
+        ["scoreboard", ..] => validate_known_scoreboard_syntax(tokens),
+        ["execute", rest @ ..] => validate_execute_syntax(rest),
+        ["function", id, ..] if !id.starts_with('$') => crate::validate::resource_location_shape(
+            id.strip_prefix('#').unwrap_or(id),
+            "function",
+            "id",
+        )
+        .map(|_| ()),
+        _ => Ok(()),
+    }
+}
+
+fn validate_execute_syntax(tokens: &[&str]) -> CommandResult<()> {
+    for window in tokens.windows(4) {
+        if (window[0] == "if" || window[0] == "unless") && window[1] == "score" {
+            validate_rendered_selector(window[2])?;
+            let holder = window[2];
+            if matches!(holder, "@a" | "@e")
+                || ((holder.starts_with("@a[") || holder.starts_with("@e["))
+                    && !holder.contains("limit=1"))
+            {
+                return Err(CommandError::new(
+                    "execute_score_condition",
+                    "holder",
+                    format!(
+                        "score condition holder `{holder}` may resolve to multiple entities; execute as the targets and use `@s`"
+                    ),
+                ));
+            }
+            validate_objective_token(window[3], "objective")?;
+        }
+    }
+    if let Some(run) = tokens.iter().position(|token| *token == "run") {
+        validate_known_command(&tokens[run + 1..])?;
+    }
+    Ok(())
+}
+
+fn validate_finite_tokens(tokens: &[&str]) -> CommandResult<()> {
+    for token in tokens {
+        let bare = token.trim_start_matches(['~', '^']);
         if matches!(
             bare,
             "NaN" | "nan" | "inf" | "+inf" | "-inf" | "Infinity" | "+Infinity" | "-Infinity"
@@ -43,86 +136,54 @@ pub fn validate_collected_line(line: &str, _profile: &CommandProfile) -> Command
             ));
         }
     }
-    validate_rendered_selectors(line)?;
-    validate_known_scoreboard_syntax(line)?;
-    validate_function_references(line)?;
-    Ok(line.to_string())
+    Ok(())
 }
 
-fn validate_rendered_selectors(line: &str) -> CommandResult<()> {
-    let bytes = line.as_bytes();
-    let mut i = 0;
-    while i + 1 < bytes.len() {
-        if bytes[i] == b'@' && matches!(bytes[i + 1], b'a' | b'e' | b'p' | b's' | b'r') {
-            i += 2;
-            if bytes.get(i) == Some(&b'[') {
-                let start = i + 1;
-                let mut depth = 1usize;
-                let mut quoted = false;
-                i += 1;
-                while i < bytes.len() && depth > 0 {
-                    match bytes[i] {
-                        b'"' if i == 0 || bytes[i - 1] != b'\\' => quoted = !quoted,
-                        b'[' | b'{' if !quoted => depth += 1,
-                        b']' | b'}' if !quoted => depth -= 1,
-                        _ => {}
-                    }
-                    i += 1;
-                }
-                if depth != 0 {
-                    return Err(CommandError::new(
-                        "Selector",
-                        "arguments",
-                        "unclosed selector argument list",
-                    ));
-                }
-                let args = &line[start..i - 1];
-                for arg in split_top_level(args) {
-                    let Some((key, value)) = arg.split_once('=') else {
-                        return Err(CommandError::new(
-                            "Selector",
-                            "arguments",
-                            format!("expected `key=value`, got `{arg}`"),
-                        ));
-                    };
-                    if key == "limit" {
-                        let limit = value.parse::<i32>().map_err(|_| {
-                            CommandError::new(
-                                "Selector",
-                                "limit",
-                                format!("invalid integer `{value}`"),
-                            )
-                        })?;
-                        if limit <= 0 {
-                            return Err(CommandError::new(
-                                "Selector",
-                                "limit",
-                                format!("selector limits must be greater than zero, got `{limit}`"),
-                            ));
-                        }
-                    }
-                    for numeric in ["x", "y", "z", "dx", "dy", "dz"] {
-                        if key == numeric {
-                            let number = value.parse::<f64>().map_err(|_| {
-                                CommandError::new(
-                                    "Selector",
-                                    numeric,
-                                    format!("invalid number `{value}`"),
-                                )
-                            })?;
-                            if !number.is_finite() {
-                                return Err(CommandError::new(
-                                    "Selector",
-                                    numeric,
-                                    "must be finite",
-                                ));
-                            }
-                        }
-                    }
-                }
+fn validate_rendered_selector(selector: &str) -> CommandResult<()> {
+    if !selector.starts_with('@') {
+        return Ok(());
+    }
+    let Some(base) = selector.as_bytes().get(1) else {
+        return Ok(());
+    };
+    if !matches!(base, b'a' | b'e' | b'p' | b's' | b'r') || selector.len() == 2 {
+        return Ok(());
+    }
+    let Some(args) = selector
+        .strip_prefix("@a[")
+        .or_else(|| selector.strip_prefix("@e["))
+        .or_else(|| selector.strip_prefix("@p["))
+        .or_else(|| selector.strip_prefix("@s["))
+        .or_else(|| selector.strip_prefix("@r["))
+    else {
+        return Ok(());
+    };
+    let Some(args) = args.strip_suffix(']') else {
+        return Err(CommandError::new(
+            "Selector",
+            "arguments",
+            "unclosed selector argument list",
+        ));
+    };
+    for arg in split_top_level(args) {
+        let Some((key, value)) = arg.split_once('=') else {
+            return Err(CommandError::new(
+                "Selector",
+                "arguments",
+                format!("expected `key=value`, got `{arg}`"),
+            ));
+        };
+        if key == "limit" {
+            let limit = value.parse::<i32>().map_err(|_| {
+                CommandError::new("Selector", "limit", format!("invalid integer `{value}`"))
+            })?;
+            if limit <= 0 {
+                return Err(CommandError::new(
+                    "Selector",
+                    "limit",
+                    format!("selector limits must be greater than zero, got `{limit}`"),
+                ));
             }
-        } else {
-            i += 1;
         }
     }
     Ok(())
@@ -150,31 +211,26 @@ fn split_top_level(value: &str) -> Vec<&str> {
     result
 }
 
-fn validate_known_scoreboard_syntax(line: &str) -> CommandResult<()> {
-    let tokens: Vec<&str> = line.split_ascii_whitespace().collect();
+fn validate_known_scoreboard_syntax(tokens: &[&str]) -> CommandResult<()> {
     for window in tokens.windows(6) {
         if window[0] == "scoreboard" && window[1] == "players" && window[2] == "operation" {
             validate_objective_token(window[4], "target_objective")?;
         }
     }
-    if let Some(operation) = line.find("scoreboard players operation ") {
-        let operation = &line[operation..];
-        let tokens: Vec<&str> = operation.split_ascii_whitespace().collect();
-        if tokens.len() >= 8 {
-            let source = tokens[6];
-            validate_objective_token(tokens[7], "source_objective")?;
-            if matches!(source, "@a" | "@e")
-                || ((source.starts_with("@a[") || source.starts_with("@e["))
-                    && !source.contains("limit=1"))
-            {
-                return Err(CommandError::new(
-                    "scoreboard_players_operation",
-                    "source",
-                    format!(
-                        "source `{source}` may resolve to multiple score holders; execute per entity and use `@s`"
-                    ),
-                ));
-            }
+    if tokens.starts_with(&["scoreboard", "players", "operation"]) && tokens.len() >= 8 {
+        let source = tokens[6];
+        validate_objective_token(tokens[7], "source_objective")?;
+        if matches!(source, "@a" | "@e")
+            || ((source.starts_with("@a[") || source.starts_with("@e["))
+                && !source.contains("limit=1"))
+        {
+            return Err(CommandError::new(
+                "scoreboard_players_operation",
+                "source",
+                format!(
+                    "source `{source}` may resolve to multiple score holders; execute per entity and use `@s`"
+                ),
+            ));
         }
     }
     for window in tokens.windows(5) {
@@ -214,20 +270,6 @@ fn validate_objective_token(value: &str, field: &'static str) -> CommandResult<(
     } else {
         Ok(())
     }
-}
-
-fn validate_function_references(line: &str) -> CommandResult<()> {
-    let tokens: Vec<&str> = line.split_ascii_whitespace().collect();
-    for pair in tokens.windows(2) {
-        if pair[0] == "function" && !pair[1].starts_with('$') {
-            crate::validate::resource_location_shape(
-                pair[1].strip_prefix('#').unwrap_or(pair[1]),
-                "function",
-                "id",
-            )?;
-        }
-    }
-    Ok(())
 }
 
 /// Validate a typed command value against the active Minecraft profile.
@@ -283,5 +325,18 @@ mod tests {
             validate_collected_line("modded command syntax", &profile).unwrap(),
             "modded command syntax"
         );
+    }
+
+    #[test]
+    fn collected_validation_does_not_scan_data_or_raw_syntax() {
+        let profile = CommandProfile::new("1.21.11", false);
+        for line in [
+            r#"tellraw @a {"text":"example @e[limit=-1]"}"#,
+            r#"data modify storage pack:test message set value "function not_a_resource_location""#,
+            "say function plain-text",
+            r#"modded command {payload:\"@e[limit=-1] scoreboard players operation @a a = @a b\"}"#,
+        ] {
+            assert_eq!(validate_collected_line(line, &profile).unwrap(), line);
+        }
     }
 }

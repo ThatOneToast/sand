@@ -2492,6 +2492,30 @@ mod tests {
     }
 
     #[test]
+    fn function_validation_preserves_data_shaped_like_commands() {
+        let content = concat!(
+            "tellraw @a {\"text\":\"example @e[limit=-1]\"}\n",
+            "data modify storage audit:messages message set value \"function not_a_resource_location\"\n",
+            "say function plain-text\n",
+            "modded command {payload:\"scoreboard players operation @s a = @a b\"}",
+        );
+        let mut records = vec![super::ComponentRecord {
+            namespace: "audit".to_string(),
+            dir: "function".to_string(),
+            path: "raw_data".to_string(),
+            ext: "mcfunction".to_string(),
+            content_type: "text".to_string(),
+            content: content.to_string(),
+        }];
+        super::validate_function_records(
+            &mut records,
+            &sand_commands::CommandProfile::unprofiled(),
+        )
+        .unwrap();
+        assert_eq!(records[0].content, content);
+    }
+
+    #[test]
     fn xp_score_operations_are_lowered_per_player() {
         let commands = super::xp_score_commands();
         assert!(

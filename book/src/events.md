@@ -102,6 +102,175 @@ top-level `Any`) emit one detection line per plan, guarded so at most one
 dispatch happens per player per tick even if more than one plan matches on the
 same tick.
 
+## Composing SandEvents: same-cycle chained dispatch
+
+`SandEventDispatch::tick()` detects an event independently — its own
+condition, polled every tick. `SandEventDispatch::chain::<Parent>()` instead
+declares that an event fires **only from `Parent`'s successful dispatch
+cycle**: same execution subject (`@s`), same position, same tick. The child
+reuses `Parent`'s detector rather than independently re-polling it.
+
+```text
+SandEvent::tick()
+- detects an event independently, polled every tick.
+
+SandEvent::chain::<Parent>()
+- evaluates only when Parent's detector fires this cycle.
+- reuses Parent's detector — no duplicate polling.
+- inherits Parent's player execution context (@s, position).
+```
+
+```rust,ignore
+use sand_core::condition::Condition;
+use sand_core::events::{SandEvent, SandEventDispatch};
+
+pub struct JumpedOnElevator;
+
+impl SandEvent for JumpedOnElevator {
+    fn dispatch() -> SandEventDispatch {
+        SandEventDispatch::chain::<PlayerJumpEvent>()
+            .when(Condition::raw("block ~ ~-1 ~ minecraft:white_wool"))
+            .into()
+    }
+}
+```
+
+`Parent` (here `PlayerJumpEvent`) does **not** need a direct `#[event]`
+handler of its own — Sand discovers it recursively from the chain reference
+and still generates its detector/setup. `.when(...)`/`.unless(...)`/`.if_(...)`
+work exactly as they do on `SandEventDispatch::tick()`, built from the same
+typed `Condition` IR.
+
+Generated output for the example above: the parent's dispatch function fans
+out to its own direct handlers first, then to each child edge, in
+deterministic order (handler paths sorted, then child edges sorted by
+canonical child type name):
+
+```mcfunction
+# __sand_event_dispatch/<parent key>
+function mypack:on_jump
+execute if block ~ ~-1 ~ minecraft:white_wool run function mypack:on_jumped_on_elevator
+```
+
+No `execute as @a` is re-issued for the child — it inherits the current `@s`
+and position from the parent's own detection line. A child with no
+conditions is called unconditionally (no `execute if`/`unless` wrapper); a
+child whose conditions expand into more than one OR-alternative plan gets a
+per-player coalescing guard (mirroring the guard used for a root's own
+multi-plan detection) so it fires at most once per parent invocation, even if
+more than one of its plans matches the same tick.
+
+Chains can nest to arbitrary depth (`A -> B -> C`) and one parent can have
+several children — including several concrete instantiations of a generic
+event family (`ElevatorUsed<GoUp>` / `ElevatorUsed<GoDown>`), each keeping its
+own distinct identity, condition, and generated dispatch resource, while
+sharing the same parent detector.
+
+A parent's `pre_observation`/`post_observation` still run every tick,
+unconditionally, around detection — child dispatch (and everything it
+reaches) always completes before the parent's own `post_observation`, so a
+child relying on a delta-tracking parent condition (e.g. the jump-count sync)
+never observes already-synchronized state.
+
+### Child lifecycle ordering
+
+A chained child can own its own `EventSetup` lifecycle, exactly like a root
+`SandEvent`. For each successful parent occurrence, a child performs
+pre-observation, evaluates its chain conditions, optionally dispatches its
+handlers and descendants, and then performs post-observation:
+
+```text
+child pre_observation
+child condition evaluation
+child handler and descendant dispatch, if matched
+child post_observation
+```
+
+Post-observation runs after **every** child observation attempt, not only a
+successful child dispatch — the same "advance synchronized state every
+cycle" contract that already applies to a root's own `pre_observation`/
+`post_observation`. This matters whenever a child's own condition depends on
+state its `pre_observation` prepares, or whenever its `post_observation`
+must advance a delta-tracking score regardless of whether the condition
+matched this cycle:
+
+```rust,ignore
+pub struct Child;
+
+impl SandEvent for Child {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        SandEventDispatch::chain::<Parent>()
+            .when(SYNC.of("@s").lt_score(CURRENT.of("@s")))
+    }
+
+    fn setup() -> EventSetup {
+        EventSetup {
+            pre_observation: vec![
+                "scoreboard players operation @s current = @s source".into(),
+            ],
+            post_observation: vec![
+                "scoreboard players operation @s sync = @s current".into(),
+            ],
+            ..EventSetup::none()
+        }
+    }
+}
+```
+
+A child with lifecycle commands gets a dedicated `__sand_event_observe/<child>`
+function wrapping its condition test between `pre_observation` and
+`post_observation`; the parent calls it unconditionally, and the condition
+test (single-plan, multi-plan-guarded, or unconditional) lives inside it:
+
+```mcfunction
+# __sand_event_observe/<child>
+scoreboard players operation @s current = @s source
+execute if score @s sync < @s current run function pack:__sand_event_dispatch/<child>
+scoreboard players operation @s sync = @s current
+```
+
+Do not assume lifecycle setup commands execute only after the child
+condition succeeds — `post_observation` is a standalone command in the
+observe function, not embedded inside the `execute ... run function` line,
+so it is structurally reached whether or not the condition holds at
+runtime. A child with no lifecycle commands keeps the simpler direct-call
+shape (no observe function) shown earlier in this section. This ordering
+applies at every chain depth: each chained node's lifecycle is tied to each
+invocation of its own parent, not to the global tick independently.
+
+### Limitations in this phase
+
+This is the first, same-cycle-only phase of chained dispatch (#240). Not yet
+implemented, and tracked as future phases of the same issue:
+
+- `while_<E>()` (continuous/held-state events)
+- `after_all(...)` / `after_any(...)` (multi-parent joins)
+- bounded `.within(...)` time windows
+- cross-tick correlation
+- participant-rich execution contexts (#230)
+- arbitrary (non-player) entity execution scopes
+
+Each event may currently have **at most one** direct parent. A dependency
+cycle (`A -> A`, or an indirect cycle like `A -> B -> C -> A`) is rejected at
+export time with a diagnostic naming the full cycle path — never silently
+truncated or panicked on.
+
+Structured `SandEventDispatch::tick()` and legacy `SandEventDispatch::TickCondition`
+parents are supported — both normalize into the same tick-lifecycle shape and
+are discovered identically, so a parent resolves to exactly one generated
+detector regardless of which constructor it used. Advancement-backed parents
+are rejected in this phase: `AdvancementTrigger` dispatch normalizes into a
+separate `Advancement` shape, and its reward-function generation path does
+not yet provide a player execution context compatible with same-cycle child
+dispatch:
+
+```text
+SandEvent `JumpedOnElevator` cannot chain from `SomeAdvancementBackedEvent`:
+parent dispatch scope does not provide a player execution context
+(advancement-backed SandEvent parents are not yet supported by chained
+dispatch — see #240)
+```
+
 ## Tracked transitions
 
 Start/stop sneaking is the proof event pair for Sand's reusable transition

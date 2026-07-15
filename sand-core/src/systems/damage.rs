@@ -42,6 +42,7 @@
 //! }
 //! ```
 
+use crate::cmd::SingleEntity;
 use crate::condition::{Condition, ScoreRange};
 use crate::state::{ScoreVar, Ticks};
 
@@ -194,7 +195,7 @@ impl DamageTracker {
         ]
     }
 
-    /// Update all damage tracking state for `selector` (call every tick).
+    /// Update damage tracking for one entity (call every tick).
     ///
     /// Algorithm (in order):
     /// 1. `delta = stat`
@@ -203,8 +204,19 @@ impl DamageTracker {
     /// 4. If `delta > 0`: `hurt_age = 0`
     /// 5. Unless `delta > 0`: `hurt_age += 1`
     /// 6. `prev = stat`
-    pub fn tick(selector: impl std::fmt::Display) -> Vec<String> {
-        let sel = selector.to_string();
+    pub fn tick(target: SingleEntity) -> Vec<String> {
+        Self::tick_selector(target.to_string())
+    }
+
+    /// Explicit unchecked compatibility path for selector syntax Sand cannot
+    /// model. Passing a multi-entity selector produces invalid scoreboard
+    /// operation sources; prefer [`tick`](Self::tick) or
+    /// [`tick_players`](Self::tick_players).
+    pub fn tick_raw(selector: impl std::fmt::Display) -> Vec<String> {
+        Self::tick_selector(selector.to_string())
+    }
+
+    fn tick_selector(sel: String) -> Vec<String> {
         vec![
             // 1+2: delta = stat - prev
             format!(
@@ -235,9 +247,20 @@ impl DamageTracker {
         ]
     }
 
-    /// Shorthand: `tick("@a")` — tick all online players.
+    /// Tick every online player independently.
+    ///
+    /// Scoreboard operation sources must resolve to one holder, so this lowers
+    /// through `execute as @a` and uses `@s` on both sides of each operation.
     pub fn tick_players() -> Vec<String> {
-        Self::tick("@a")
+        Self::tick(SingleEntity::self_())
+            .into_iter()
+            .map(|command| {
+                command.strip_prefix("execute as @s").map_or_else(
+                    || format!("execute as @a run {command}"),
+                    |rest| format!("execute as @a{rest}"),
+                )
+            })
+            .collect()
     }
 
     // ── Conditions ────────────────────────────────────────────────────────────
@@ -427,18 +450,18 @@ mod tests {
 
     #[test]
     fn tick_produces_six_commands_in_correct_order() {
-        let cmds = DamageTracker::tick("@a");
+        let cmds = DamageTracker::tick(SingleEntity::self_());
         assert_eq!(cmds.len(), 6, "expected 6 tick commands: {cmds:?}");
 
         // 1: delta = stat
         assert!(
-            cmds[0].contains(&format!("{DAMAGE_DELTA_OBJ} = @a {DAMAGE_STAT_OBJ}")),
+            cmds[0].contains(&format!("{DAMAGE_DELTA_OBJ} = @s {DAMAGE_STAT_OBJ}")),
             "step 1 delta=stat: {}",
             cmds[0]
         );
         // 2: delta -= prev
         assert!(
-            cmds[1].contains(&format!("{DAMAGE_DELTA_OBJ} -= @a {DAMAGE_PREV_OBJ}")),
+            cmds[1].contains(&format!("{DAMAGE_DELTA_OBJ} -= @s {DAMAGE_PREV_OBJ}")),
             "step 2 delta-=prev: {}",
             cmds[1]
         );
@@ -468,15 +491,27 @@ mod tests {
         );
         // 6: prev = stat (MUST be last)
         assert!(
-            cmds[5].contains(&format!("{DAMAGE_PREV_OBJ} = @a {DAMAGE_STAT_OBJ}")),
+            cmds[5].contains(&format!("{DAMAGE_PREV_OBJ} = @s {DAMAGE_STAT_OBJ}")),
             "step 6 prev=stat: {}",
             cmds[5]
         );
     }
 
     #[test]
-    fn tick_players_is_tick_at_a() {
-        assert_eq!(DamageTracker::tick_players(), DamageTracker::tick("@a"));
+    fn tick_players_uses_single_holder_operations() {
+        let commands = DamageTracker::tick_players();
+        assert!(
+            commands
+                .iter()
+                .all(|command| command.starts_with("execute as @a"))
+        );
+        assert!(
+            commands
+                .iter()
+                .all(|command| !command.contains("operation @a"))
+        );
+        assert!(commands[0].contains("operation @s"));
+        assert!(commands[0].contains("= @s"));
     }
 
     // ── DamageThreshold unit conversion ──────────────────────────────────────

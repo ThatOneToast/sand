@@ -71,9 +71,9 @@ pub fn ec_tick() {
     // Must run before any damage-dependent event logic
     DamageTracker::tick_players();
 
-    SATURATION_COOLDOWN.tick(Selector::all_players());
-    REGEN_COOLDOWN.tick(Selector::all_players());
-    AOE_DMG_COOLDOWN.tick(Selector::all_players());
+    SATURATION_COOLDOWN.tick_all_players();
+    REGEN_COOLDOWN.tick_all_players();
+    AOE_DMG_COOLDOWN.tick_all_players();
 }
 
 // ── Event: AOE damage reflect on hit ─────────────────────────────────────────

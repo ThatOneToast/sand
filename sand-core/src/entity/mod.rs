@@ -16,6 +16,7 @@
 //!     .within_blocks(15.0)
 //!     .sort(SortOrder::Nearest)
 //!     .limit(1)
+//!     .expect("a positive limit is valid")
 //!     .each(|entity| vec![entity.add_tag("observed")]);
 //!
 //! assert!(cmds[0].starts_with("execute as @e["));

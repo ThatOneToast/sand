@@ -7,10 +7,15 @@
 
 use std::fmt;
 
+use crate::error::{CommandError, CommandResult};
+use crate::render::{CommandProfile, RenderCommand, Validate};
+use crate::validate;
+
 // ── Coord ─────────────────────────────────────────────────────────────────────
 
 /// A single coordinate value: absolute, relative (`~`), or local (`^`).
 #[derive(Debug, Clone, PartialEq)]
+#[must_use = "coordinates do nothing until passed to a command"]
 pub enum Coord {
     /// Absolute world coordinate.
     Absolute(f64),
@@ -84,6 +89,21 @@ impl fmt::Display for Coord {
     }
 }
 
+impl Validate for Coord {
+    fn validate(&self, _profile: &CommandProfile) -> CommandResult<()> {
+        let value = match self {
+            Self::Absolute(value) | Self::Relative(value) | Self::Local(value) => *value,
+        };
+        validate::finite(value, "Coord", "value").map(|_| ())
+    }
+}
+
+impl RenderCommand for Coord {
+    fn render_unchecked(&self, _profile: &CommandProfile) -> String {
+        self.to_string()
+    }
+}
+
 // ── BlockPos ──────────────────────────────────────────────────────────────────
 
 /// Integer/relative block position used in commands like `setblock`, `fill`.
@@ -97,6 +117,7 @@ impl fmt::Display for Coord {
 /// assert_eq!(BlockPos::above(3).to_string(), "~ ~3 ~");
 /// ```
 #[derive(Debug, Clone)]
+#[must_use = "positions do nothing until passed to a command"]
 pub struct BlockPos {
     pub x: Coord,
     pub y: Coord,
@@ -136,10 +157,34 @@ impl fmt::Display for BlockPos {
     }
 }
 
+impl Validate for BlockPos {
+    fn validate(&self, profile: &CommandProfile) -> CommandResult<()> {
+        validate_triplet(&self.x, &self.y, &self.z, "BlockPos", profile)?;
+        for (field, coord) in [("x", &self.x), ("y", &self.y), ("z", &self.z)] {
+            let value = coord_value(coord);
+            if value.fract() != 0.0 {
+                return Err(CommandError::new(
+                    "BlockPos",
+                    field,
+                    format!("integer block coordinates cannot contain fractional value `{value}`"),
+                ));
+            }
+        }
+        Ok(())
+    }
+}
+
+impl RenderCommand for BlockPos {
+    fn render_unchecked(&self, _profile: &CommandProfile) -> String {
+        self.to_string()
+    }
+}
+
 // ── Vec3 ──────────────────────────────────────────────────────────────────────
 
 /// Floating-point position used in commands like `tp`, `summon`, `particle`.
 #[derive(Debug, Clone)]
+#[must_use = "positions do nothing until passed to a command"]
 pub struct Vec3 {
     pub x: Coord,
     pub y: Coord,
@@ -171,10 +216,23 @@ impl fmt::Display for Vec3 {
     }
 }
 
+impl Validate for Vec3 {
+    fn validate(&self, profile: &CommandProfile) -> CommandResult<()> {
+        validate_triplet(&self.x, &self.y, &self.z, "Vec3", profile)
+    }
+}
+
+impl RenderCommand for Vec3 {
+    fn render_unchecked(&self, _profile: &CommandProfile) -> String {
+        self.to_string()
+    }
+}
+
 // ── Vec2 ──────────────────────────────────────────────────────────────────────
 
 /// 2D column position (X Z), used in `locatebiome` etc.
 #[derive(Debug, Clone)]
+#[must_use = "positions do nothing until passed to a command"]
 pub struct Vec2 {
     pub x: Coord,
     pub z: Coord,
@@ -196,10 +254,36 @@ impl fmt::Display for Vec2 {
     }
 }
 
+impl Validate for Vec2 {
+    fn validate(&self, profile: &CommandProfile) -> CommandResult<()> {
+        self.x
+            .validate(profile)
+            .map_err(|e| e.with_context("Vec2.x"))?;
+        self.z
+            .validate(profile)
+            .map_err(|e| e.with_context("Vec2.z"))?;
+        if matches!(self.x, Coord::Local(_)) || matches!(self.z, Coord::Local(_)) {
+            return Err(CommandError::new(
+                "Vec2",
+                "coordinate_system",
+                "two-dimensional column positions do not accept local (`^`) coordinates",
+            ));
+        }
+        Ok(())
+    }
+}
+
+impl RenderCommand for Vec2 {
+    fn render_unchecked(&self, _profile: &CommandProfile) -> String {
+        self.to_string()
+    }
+}
+
 // ── Rotation ──────────────────────────────────────────────────────────────────
 
 /// Yaw + pitch rotation (`yaw pitch`), used in `tp` and `execute rotated`.
 #[derive(Debug, Clone)]
+#[must_use = "rotations do nothing until passed to a command"]
 pub struct Rotation {
     pub yaw: Coord,
     pub pitch: Coord,
@@ -227,6 +311,63 @@ impl fmt::Display for Rotation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{} {}", self.yaw, self.pitch)
     }
+}
+
+impl Validate for Rotation {
+    fn validate(&self, profile: &CommandProfile) -> CommandResult<()> {
+        self.yaw
+            .validate(profile)
+            .map_err(|e| e.with_context("Rotation.yaw"))?;
+        self.pitch
+            .validate(profile)
+            .map_err(|e| e.with_context("Rotation.pitch"))?;
+        if matches!(self.yaw, Coord::Local(_)) || matches!(self.pitch, Coord::Local(_)) {
+            return Err(CommandError::new(
+                "Rotation",
+                "coordinate_system",
+                "rotations accept absolute or relative (`~`) angles, not local (`^`) coordinates",
+            ));
+        }
+        Ok(())
+    }
+}
+
+impl RenderCommand for Rotation {
+    fn render_unchecked(&self, _profile: &CommandProfile) -> String {
+        self.to_string()
+    }
+}
+
+fn coord_value(coord: &Coord) -> f64 {
+    match coord {
+        Coord::Absolute(value) | Coord::Relative(value) | Coord::Local(value) => *value,
+    }
+}
+
+fn validate_triplet(
+    x: &Coord,
+    y: &Coord,
+    z: &Coord,
+    helper: &'static str,
+    profile: &CommandProfile,
+) -> CommandResult<()> {
+    for (field, coord) in [("x", x), ("y", y), ("z", z)] {
+        coord
+            .validate(profile)
+            .map_err(|e| e.with_context(format!("{helper}.{field}")))?;
+    }
+    let local_count = [x, y, z]
+        .into_iter()
+        .filter(|coord| matches!(coord, Coord::Local(_)))
+        .count();
+    if local_count != 0 && local_count != 3 {
+        return Err(CommandError::new(
+            helper,
+            "coordinate_system",
+            "local (`^`) coordinates cannot be mixed with absolute or relative (`~`) coordinates",
+        ));
+    }
+    Ok(())
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -263,5 +404,30 @@ mod tests {
     fn rotation() {
         assert_eq!(Rotation::here().to_string(), "~ ~");
         assert_eq!(Rotation::absolute(90.0, 0.0).to_string(), "90 0");
+    }
+
+    #[test]
+    fn validation_rejects_non_finite_and_mixed_coordinates() {
+        assert!(Coord::abs(f64::NAN).try_build().is_err());
+        assert!(
+            Vec3::new(Coord::local(), Coord::rel(), Coord::local())
+                .try_build()
+                .is_err()
+        );
+        assert!(
+            Rotation::new(Coord::local(), Coord::local())
+                .try_build()
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn block_positions_require_integral_values() {
+        assert!(
+            BlockPos::new(Coord::abs(1.5), Coord::abs(2), Coord::abs(3))
+                .try_build()
+                .is_err()
+        );
+        assert_eq!(BlockPos::absolute(1, 2, 3).try_build().unwrap(), "1 2 3");
     }
 }

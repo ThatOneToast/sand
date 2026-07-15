@@ -16,7 +16,7 @@ pub fn arcane_load() {
 
 #[component(Tick)]
 pub fn arcane_tick() {
-    ARCANE_DASH.tick(Selector::all_players());
+    ARCANE_DASH.tick_all_players();
     TypedExecute::as_players()
         .when(all![ARCANE_MANA.of("@s").gte(25), ARCANE_DASH.ready("@s"),])
         .run(Actionbar::show(

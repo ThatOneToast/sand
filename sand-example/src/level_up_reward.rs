@@ -13,7 +13,7 @@
 //!
 //! ```text
 //! load  →  lvl_load:   SOULS.define(), REWARD_CD.define()
-//! tick  →  lvl_tick:   REWARD_CD.tick(@a)
+//! tick  →  lvl_tick:   REWARD_CD.tick_all_players()
 //! event →  on_level_up: [REWARD_CD ready?] → lvl_grant_reward
 //! fn    →  lvl_grant_reward: SOULS += 1, REWARD_CD.start, actionbar "+1 soul"
 //! ```
@@ -56,7 +56,7 @@ pub fn lvl_load() {
 /// Decrements the burst-collapse cooldown every game tick for all online players.
 #[component(Tick)]
 pub fn lvl_tick() {
-    REWARD_CD.tick(Selector::all_players());
+    REWARD_CD.tick_all_players();
 }
 
 // ── Event: level-up reward ────────────────────────────────────────────────────

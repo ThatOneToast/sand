@@ -1,0 +1,15 @@
+error[E0308]: arguments to this function are incorrect
+ --> tests/cases/fail_scoreboard_string_operation.rs:6:13
+  |
+6 |     let _ = scoreboard_players_operation("@s", "mana", ScoreOp::Set, "@a", "other");
+  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ ----  ------                ----  ------- expected `ObjectiveName`, found `&str`
+  |                                          |     |                     |
+  |                                          |     |                     expected `ScoreHolder`, found `&str`
+  |                                          |     expected `ObjectiveName`, found `&str`
+  |                                          expected `ScoreHolder`, found `&str`
+  |
+note: function defined here
+ --> $WORKSPACE/sand-commands/src/scoreboard.rs
+  |
+  | pub fn scoreboard_players_operation(
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^

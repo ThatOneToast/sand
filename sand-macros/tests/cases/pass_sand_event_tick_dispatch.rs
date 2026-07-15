@@ -28,7 +28,7 @@ impl SandEvent for PlayerJumpEvent {
             ],
             pre_observation: vec![],
             post_observation: vec![
-                "scoreboard players operation @a mtst_sync_jumps = @a mtst_jumps".to_string(),
+                "execute as @a run scoreboard players operation @s mtst_sync_jumps = @s mtst_jumps".to_string(),
             ],
         }
     }

@@ -19,75 +19,220 @@
 use std::fmt;
 
 use crate::Build;
+use crate::RawCommand;
 use crate::coord::{BlockPos, Rotation, Vec3};
+use crate::error::{CommandError, CommandResult};
 use crate::execute_args::{Anchor, ItemSlot, NbtStoreKind, Swizzle};
 #[allow(deprecated)]
 use crate::inventory::SlotPattern;
 use crate::nbt::DataTarget;
+use crate::render::{CommandProfile, RenderCommand, Validate};
 use crate::scoreboard::{ScoreCmp, ScoreHolder};
 use crate::selector::Selector;
+use crate::validate;
 
 /// Builder for the `execute` command chain.
 ///
 /// Call builder methods to add sub-commands, then call [`run`](Execute::run) or
 /// [`run_raw`](Execute::run_raw) to complete the command.
 #[derive(Debug, Clone, Default)]
+#[must_use = "execute builders must be completed with `run`, `try_run`, or `run_raw`"]
 pub struct Execute {
     parts: Vec<String>,
+    checks: Vec<ExecuteCheck>,
+}
+
+#[derive(Debug, Clone)]
+enum ExecuteCheck {
+    Selector {
+        index: usize,
+        kind: &'static str,
+        value: Selector,
+    },
+    Vec3 {
+        index: usize,
+        kind: &'static str,
+        value: Vec3,
+    },
+    BlockPos {
+        index: usize,
+        kind: &'static str,
+        value: BlockPos,
+    },
+    Rotation {
+        index: usize,
+        kind: &'static str,
+        value: Rotation,
+    },
+    Slot {
+        index: usize,
+        kind: &'static str,
+        value: ItemSlot,
+    },
+    Finite {
+        index: usize,
+        kind: &'static str,
+        field: &'static str,
+        value: f64,
+    },
+    Resource {
+        index: usize,
+        kind: &'static str,
+        field: &'static str,
+        value: String,
+        allow_tag: bool,
+    },
+    Holder {
+        index: usize,
+        kind: &'static str,
+        value: ScoreHolder,
+    },
+    SingleHolder {
+        index: usize,
+        kind: &'static str,
+        value: ScoreHolder,
+    },
+    Objective {
+        index: usize,
+        kind: &'static str,
+        value: String,
+    },
+    ScoreRange {
+        index: usize,
+        kind: &'static str,
+        value: String,
+    },
 }
 
 impl Execute {
     /// Create a new `Execute` builder with no sub-commands.
     pub fn new() -> Self {
-        Self { parts: vec![] }
+        Self {
+            parts: vec![],
+            checks: vec![],
+        }
+    }
+
+    fn next_index(&self) -> usize {
+        self.parts.len()
+    }
+
+    fn check_selector(&mut self, kind: &'static str, value: &Selector) {
+        self.checks.push(ExecuteCheck::Selector {
+            index: self.next_index(),
+            kind,
+            value: value.clone(),
+        });
+    }
+
+    fn check_vec3(&mut self, kind: &'static str, value: &Vec3) {
+        self.checks.push(ExecuteCheck::Vec3 {
+            index: self.next_index(),
+            kind,
+            value: value.clone(),
+        });
+    }
+
+    fn check_block_pos(&mut self, kind: &'static str, value: &BlockPos) {
+        self.checks.push(ExecuteCheck::BlockPos {
+            index: self.next_index(),
+            kind,
+            value: value.clone(),
+        });
+    }
+
+    fn check_objective(&mut self, kind: &'static str, value: &str) {
+        self.checks.push(ExecuteCheck::Objective {
+            index: self.next_index(),
+            kind,
+            value: value.to_string(),
+        });
+    }
+
+    fn check_resource(
+        &mut self,
+        kind: &'static str,
+        field: &'static str,
+        value: &str,
+        allow_tag: bool,
+    ) {
+        self.checks.push(ExecuteCheck::Resource {
+            index: self.next_index(),
+            kind,
+            field,
+            value: value.to_string(),
+            allow_tag,
+        });
+    }
+
+    fn check_single_holder(&mut self, kind: &'static str, value: impl Into<String>) -> String {
+        let value = value.into();
+        self.checks.push(ExecuteCheck::SingleHolder {
+            index: self.next_index(),
+            kind,
+            value: ScoreHolder::from_compat(value.clone()),
+        });
+        value
     }
 
     // ── Context sub-commands ──────────────────────────────────────────────────
 
     /// `as <selector>` — change the executing entity.
     pub fn as_(mut self, selector: Selector) -> Self {
+        self.check_selector("as", &selector);
         self.parts.push(format!("as {selector}"));
         self
     }
 
     /// `at <selector>` — change position and rotation to match the selected entity.
     pub fn at(mut self, selector: Selector) -> Self {
+        self.check_selector("at", &selector);
         self.parts.push(format!("at {selector}"));
         self
     }
 
     /// `positioned <pos>` — change execution position to the given coordinates.
     pub fn positioned(mut self, pos: Vec3) -> Self {
+        self.check_vec3("positioned", &pos);
         self.parts.push(format!("positioned {pos}"));
         self
     }
 
     /// `positioned as <selector>` — change position to match the selected entity.
     pub fn positioned_as(mut self, selector: Selector) -> Self {
+        self.check_selector("positioned_as", &selector);
         self.parts.push(format!("positioned as {selector}"));
         self
     }
 
     /// `rotated <rotation>` — change execution rotation.
     pub fn rotated(mut self, rotation: Rotation) -> Self {
+        self.checks.push(ExecuteCheck::Rotation {
+            index: self.next_index(),
+            kind: "rotated",
+            value: rotation.clone(),
+        });
         self.parts.push(format!("rotated {rotation}"));
         self
     }
 
     /// `rotated as <selector>` — change rotation to match the selected entity.
     pub fn rotated_as(mut self, selector: Selector) -> Self {
+        self.check_selector("rotated_as", &selector);
         self.parts.push(format!("rotated as {selector}"));
         self
     }
 
     /// `facing <pos>` — rotate execution to face a position in the world.
     pub fn facing(mut self, pos: Vec3) -> Self {
+        self.check_vec3("facing", &pos);
         self.parts.push(format!("facing {pos}"));
         self
     }
 
     /// `facing entity <selector> <anchor>` — rotate execution to face an entity's anchor point.
     pub fn facing_entity(mut self, selector: Selector, anchor: Anchor) -> Self {
+        self.check_selector("facing_entity", &selector);
         self.parts
             .push(format!("facing entity {selector} {anchor}"));
         self
@@ -95,7 +240,9 @@ impl Execute {
 
     /// `in <dimension>` — change dimension for subsequent commands.
     pub fn in_(mut self, dimension: impl Into<String>) -> Self {
-        self.parts.push(format!("in {}", dimension.into()));
+        let dimension = dimension.into();
+        self.check_resource("in", "dimension", &dimension, false);
+        self.parts.push(format!("in {dimension}"));
         self
     }
 
@@ -126,7 +273,9 @@ impl Execute {
 
     /// `summon <entity_type>` — summon an entity and execute as it immediately.
     pub fn summon(mut self, entity_type: impl Into<String>) -> Self {
-        self.parts.push(format!("summon {}", entity_type.into()));
+        let entity_type = entity_type.into();
+        self.check_resource("summon", "entity_type", &entity_type, false);
+        self.parts.push(format!("summon {entity_type}"));
         self
     }
 
@@ -134,12 +283,14 @@ impl Execute {
 
     /// `if entity <selector>` — execute only if the selector matches at least one entity.
     pub fn if_entity(mut self, selector: Selector) -> Self {
+        self.check_selector("if_entity", &selector);
         self.parts.push(format!("if entity {selector}"));
         self
     }
 
     /// `unless entity <selector>` — execute only if the selector matches NO entities.
     pub fn unless_entity(mut self, selector: Selector) -> Self {
+        self.check_selector("unless_entity", &selector);
         self.parts.push(format!("unless entity {selector}"));
         self
     }
@@ -166,11 +317,24 @@ impl Execute {
         b: Selector,
         b_obj: impl Into<String>,
     ) -> Self {
-        self.parts.push(format!(
-            "if score {a} {} = {b} {}",
-            a_obj.into(),
-            b_obj.into()
-        ));
+        self.check_selector("if_score.left", &a);
+        self.check_selector("if_score.right", &b);
+        self.checks.push(ExecuteCheck::SingleHolder {
+            index: self.next_index(),
+            kind: "if_score.left",
+            value: ScoreHolder::entity(a.clone()),
+        });
+        self.checks.push(ExecuteCheck::SingleHolder {
+            index: self.next_index(),
+            kind: "if_score.right",
+            value: ScoreHolder::entity(b.clone()),
+        });
+        let a_obj = a_obj.into();
+        let b_obj = b_obj.into();
+        self.check_objective("if_score.left", &a_obj);
+        self.check_objective("if_score.right", &b_obj);
+        self.parts
+            .push(format!("if score {a} {a_obj} = {b} {b_obj}",));
         self
     }
 
@@ -182,8 +346,22 @@ impl Execute {
         secondary_selector: Selector,
         secondary: impl Into<String>,
     ) -> Self {
+        self.check_selector("unless_score.left", &primary_selector);
+        self.check_selector("unless_score.right", &secondary_selector);
+        self.checks.push(ExecuteCheck::SingleHolder {
+            index: self.next_index(),
+            kind: "unless_score.left",
+            value: ScoreHolder::entity(primary_selector.clone()),
+        });
+        self.checks.push(ExecuteCheck::SingleHolder {
+            index: self.next_index(),
+            kind: "unless_score.right",
+            value: ScoreHolder::entity(secondary_selector.clone()),
+        });
         let primary = primary.into();
         let secondary = secondary.into();
+        self.check_objective("unless_score.left", &primary);
+        self.check_objective("unless_score.right", &secondary);
         self.parts.push(format!(
             "unless score {primary_selector} {primary} = {secondary_selector} {secondary}"
         ));
@@ -192,12 +370,14 @@ impl Execute {
 
     /// `if block <pos> <block>` — execute only if the block at `pos` matches.
     pub fn if_block(mut self, pos: BlockPos, block: impl Into<String>) -> Self {
+        self.check_block_pos("if_block", &pos);
         self.parts.push(format!("if block {pos} {}", block.into()));
         self
     }
 
     /// `unless block <pos> <block>` — execute only if the block at `pos` does NOT match.
     pub fn unless_block(mut self, pos: BlockPos, block: impl Into<String>) -> Self {
+        self.check_block_pos("unless_block", &pos);
         self.parts
             .push(format!("unless block {pos} {}", block.into()));
         self
@@ -212,12 +392,17 @@ impl Execute {
         objective: impl Into<String>,
         range: impl Into<String>,
     ) -> Self {
-        self.parts.push(format!(
-            "if score {} {} matches {}",
-            holder.into(),
-            objective.into(),
-            range.into()
-        ));
+        let holder = self.check_single_holder("if_score_matches", holder);
+        let objective = objective.into();
+        let range = range.into();
+        self.check_objective("if_score_matches", &objective);
+        self.checks.push(ExecuteCheck::ScoreRange {
+            index: self.next_index(),
+            kind: "if_score_matches",
+            value: range.clone(),
+        });
+        self.parts
+            .push(format!("if score {holder} {objective} matches {range}",));
         self
     }
 
@@ -228,12 +413,17 @@ impl Execute {
         objective: impl Into<String>,
         range: impl Into<String>,
     ) -> Self {
-        self.parts.push(format!(
-            "unless score {} {} matches {}",
-            holder.into(),
-            objective.into(),
-            range.into()
-        ));
+        let holder = self.check_single_holder("unless_score_matches", holder);
+        let objective = objective.into();
+        let range = range.into();
+        self.check_objective("unless_score_matches", &objective);
+        self.checks.push(ExecuteCheck::ScoreRange {
+            index: self.next_index(),
+            kind: "unless_score_matches",
+            value: range.clone(),
+        });
+        self.parts
+            .push(format!("unless score {holder} {objective} matches {range}",));
         self
     }
 
@@ -246,13 +436,14 @@ impl Execute {
         b: impl Into<String>,
         b_obj: impl Into<String>,
     ) -> Self {
-        self.parts.push(format!(
-            "if score {} {} {cmp} {} {}",
-            a.into(),
-            a_obj.into(),
-            b.into(),
-            b_obj.into()
-        ));
+        let a = self.check_single_holder("if_score_compare.left", a);
+        let b = self.check_single_holder("if_score_compare.right", b);
+        let a_obj = a_obj.into();
+        let b_obj = b_obj.into();
+        self.check_objective("if_score_compare.left", &a_obj);
+        self.check_objective("if_score_compare.right", &b_obj);
+        self.parts
+            .push(format!("if score {a} {a_obj} {cmp} {b} {b_obj}",));
         self
     }
 
@@ -265,13 +456,14 @@ impl Execute {
         b: impl Into<String>,
         b_obj: impl Into<String>,
     ) -> Self {
-        self.parts.push(format!(
-            "unless score {} {} {cmp} {} {}",
-            a.into(),
-            a_obj.into(),
-            b.into(),
-            b_obj.into()
-        ));
+        let a = self.check_single_holder("unless_score_compare.left", a);
+        let b = self.check_single_holder("unless_score_compare.right", b);
+        let a_obj = a_obj.into();
+        let b_obj = b_obj.into();
+        self.check_objective("unless_score_compare.left", &a_obj);
+        self.check_objective("unless_score_compare.right", &b_obj);
+        self.parts
+            .push(format!("unless score {a} {a_obj} {cmp} {b} {b_obj}",));
         self
     }
 
@@ -391,6 +583,7 @@ impl Execute {
 
     /// `if data entity <selector> <path>` — continue if entity NBT has a value at `path`.
     pub fn if_data_entity(mut self, selector: Selector, path: impl Into<String>) -> Self {
+        self.check_selector("if_data_entity", &selector);
         self.parts
             .push(format!("if data entity {selector} {}", path.into()));
         self
@@ -398,6 +591,7 @@ impl Execute {
 
     /// `unless data entity <selector> <path>` — skip if entity NBT has a value at `path`.
     pub fn unless_data_entity(mut self, selector: Selector, path: impl Into<String>) -> Self {
+        self.check_selector("unless_data_entity", &selector);
         self.parts
             .push(format!("unless data entity {selector} {}", path.into()));
         self
@@ -405,6 +599,7 @@ impl Execute {
 
     /// `if data block <pos> <path>` — continue if block NBT has a value at `path`.
     pub fn if_data_block(mut self, pos: BlockPos, path: impl Into<String>) -> Self {
+        self.check_block_pos("if_data_block", &pos);
         self.parts
             .push(format!("if data block {pos} {}", path.into()));
         self
@@ -412,6 +607,7 @@ impl Execute {
 
     /// `unless data block <pos> <path>` — skip if block NBT has a value at `path`.
     pub fn unless_data_block(mut self, pos: BlockPos, path: impl Into<String>) -> Self {
+        self.check_block_pos("unless_data_block", &pos);
         self.parts
             .push(format!("unless data block {pos} {}", path.into()));
         self
@@ -419,8 +615,10 @@ impl Execute {
 
     /// `if data storage <source> <path>` — continue if storage has a value at `path`.
     pub fn if_data_storage(mut self, source: impl Into<String>, path: impl Into<String>) -> Self {
+        let source = source.into();
+        self.check_resource("if_data_storage", "storage", &source, false);
         self.parts
-            .push(format!("if data storage {} {}", source.into(), path.into()));
+            .push(format!("if data storage {source} {}", path.into()));
         self
     }
 
@@ -430,11 +628,10 @@ impl Execute {
         source: impl Into<String>,
         path: impl Into<String>,
     ) -> Self {
-        self.parts.push(format!(
-            "unless data storage {} {}",
-            source.into(),
-            path.into()
-        ));
+        let source = source.into();
+        self.check_resource("unless_data_storage", "storage", &source, false);
+        self.parts
+            .push(format!("unless data storage {source} {}", path.into(),));
         self
     }
 
@@ -442,39 +639,48 @@ impl Execute {
 
     /// `if biome <pos> <biome>` — continue if the biome at `pos` matches (1.19.4+).
     pub fn if_biome(mut self, pos: BlockPos, biome: impl Into<String>) -> Self {
-        self.parts.push(format!("if biome {pos} {}", biome.into()));
+        let biome = biome.into();
+        self.check_block_pos("if_biome", &pos);
+        self.check_resource("if_biome", "biome", &biome, true);
+        self.parts.push(format!("if biome {pos} {biome}"));
         self
     }
 
     /// `unless biome <pos> <biome>` — skip if the biome at `pos` matches.
     pub fn unless_biome(mut self, pos: BlockPos, biome: impl Into<String>) -> Self {
-        self.parts
-            .push(format!("unless biome {pos} {}", biome.into()));
+        let biome = biome.into();
+        self.check_block_pos("unless_biome", &pos);
+        self.check_resource("unless_biome", "biome", &biome, true);
+        self.parts.push(format!("unless biome {pos} {biome}"));
         self
     }
 
     /// `if dimension <dimension>` — continue if executing in the given dimension (1.21+).
     pub fn if_dimension(mut self, dimension: impl Into<String>) -> Self {
-        self.parts
-            .push(format!("if dimension {}", dimension.into()));
+        let dimension = dimension.into();
+        self.check_resource("if_dimension", "dimension", &dimension, false);
+        self.parts.push(format!("if dimension {dimension}"));
         self
     }
 
     /// `unless dimension <dimension>` — skip if executing in the given dimension (1.21+).
     pub fn unless_dimension(mut self, dimension: impl Into<String>) -> Self {
-        self.parts
-            .push(format!("unless dimension {}", dimension.into()));
+        let dimension = dimension.into();
+        self.check_resource("unless_dimension", "dimension", &dimension, false);
+        self.parts.push(format!("unless dimension {dimension}"));
         self
     }
 
     /// `if loaded <pos>` — continue only if the chunk at `pos` is fully loaded.
     pub fn if_loaded(mut self, pos: BlockPos) -> Self {
+        self.check_block_pos("if_loaded", &pos);
         self.parts.push(format!("if loaded {pos}"));
         self
     }
 
     /// `unless loaded <pos>` — skip if the chunk at `pos` is NOT fully loaded.
     pub fn unless_loaded(mut self, pos: BlockPos) -> Self {
+        self.check_block_pos("unless_loaded", &pos);
         self.parts.push(format!("unless loaded {pos}"));
         self
     }
@@ -486,6 +692,12 @@ impl Execute {
         slot: ItemSlot,
         item: impl Into<String>,
     ) -> Self {
+        self.check_selector("if_items_entity", &selector);
+        self.checks.push(ExecuteCheck::Slot {
+            index: self.next_index(),
+            kind: "if_items_entity",
+            value: slot.clone(),
+        });
         self.parts
             .push(format!("if items entity {selector} {slot} {}", item.into()));
         self
@@ -498,6 +710,12 @@ impl Execute {
         slot: ItemSlot,
         item: impl Into<String>,
     ) -> Self {
+        self.check_selector("unless_items_entity", &selector);
+        self.checks.push(ExecuteCheck::Slot {
+            index: self.next_index(),
+            kind: "unless_items_entity",
+            value: slot.clone(),
+        });
         self.parts.push(format!(
             "unless items entity {selector} {slot} {}",
             item.into()
@@ -512,6 +730,12 @@ impl Execute {
         slot: ItemSlot,
         item: impl Into<String>,
     ) -> Self {
+        self.check_block_pos("if_items_block", &pos);
+        self.checks.push(ExecuteCheck::Slot {
+            index: self.next_index(),
+            kind: "if_items_block",
+            value: slot.clone(),
+        });
         self.parts
             .push(format!("if items block {pos} {slot} {}", item.into()));
         self
@@ -524,6 +748,12 @@ impl Execute {
         slot: ItemSlot,
         item: impl Into<String>,
     ) -> Self {
+        self.check_block_pos("unless_items_block", &pos);
+        self.checks.push(ExecuteCheck::Slot {
+            index: self.next_index(),
+            kind: "unless_items_block",
+            value: slot.clone(),
+        });
         self.parts
             .push(format!("unless items block {pos} {slot} {}", item.into()));
         self
@@ -531,8 +761,9 @@ impl Execute {
 
     /// `if predicate <predicate>` — execute if a loot table predicate evaluates to true.
     pub fn if_predicate(mut self, predicate: impl Into<String>) -> Self {
-        self.parts
-            .push(format!("if predicate {}", predicate.into()));
+        let predicate = predicate.into();
+        self.check_resource("if_predicate", "predicate", &predicate, false);
+        self.parts.push(format!("if predicate {predicate}"));
         self
     }
 
@@ -548,7 +779,7 @@ impl Execute {
     ///
     /// Accepts any type that converts to [`ItemSlot`], including the deprecated
     /// [`InventorySlot`](crate::inventory::InventorySlot) and
-    /// [`SlotPattern`](crate::inventory::SlotPattern) types.
+    /// [`SlotPattern`] types.
     pub fn if_items(
         mut self,
         selector: Selector,
@@ -556,6 +787,12 @@ impl Execute {
         item: impl Into<String>,
     ) -> Self {
         let slot = slot.into();
+        self.check_selector("if_items", &selector);
+        self.checks.push(ExecuteCheck::Slot {
+            index: self.next_index(),
+            kind: "if_items",
+            value: slot.clone(),
+        });
         self.parts
             .push(format!("if items entity {selector} {slot} {}", item.into()));
         self
@@ -569,6 +806,12 @@ impl Execute {
         item: impl Into<String>,
     ) -> Self {
         let slot = slot.into();
+        self.check_selector("unless_items", &selector);
+        self.checks.push(ExecuteCheck::Slot {
+            index: self.next_index(),
+            kind: "unless_items",
+            value: slot.clone(),
+        });
         self.parts.push(format!(
             "unless items entity {selector} {slot} {}",
             item.into()
@@ -590,6 +833,12 @@ impl Execute {
         item: impl Into<String>,
     ) -> Self {
         let slot = ItemSlot::from(pattern);
+        self.check_selector("if_items_pattern", &selector);
+        self.checks.push(ExecuteCheck::Slot {
+            index: self.next_index(),
+            kind: "if_items_pattern",
+            value: slot.clone(),
+        });
         self.parts
             .push(format!("if items entity {selector} {slot} {}", item.into()));
         self
@@ -609,6 +858,12 @@ impl Execute {
         item: impl Into<String>,
     ) -> Self {
         let slot = ItemSlot::from(pattern);
+        self.check_selector("unless_items_pattern", &selector);
+        self.checks.push(ExecuteCheck::Slot {
+            index: self.next_index(),
+            kind: "unless_items_pattern",
+            value: slot.clone(),
+        });
         self.parts.push(format!(
             "unless items entity {selector} {slot} {}",
             item.into()
@@ -620,8 +875,19 @@ impl Execute {
 
     /// `store result score <holder> <objective>` — capture the `run` result into a score.
     pub fn store_result_score(mut self, holder: ScoreHolder, objective: impl Into<String>) -> Self {
+        let objective = objective.into();
+        self.checks.push(ExecuteCheck::Holder {
+            index: self.next_index(),
+            kind: "store_result_score",
+            value: holder.clone(),
+        });
+        self.checks.push(ExecuteCheck::Objective {
+            index: self.next_index(),
+            kind: "store_result_score",
+            value: objective.clone(),
+        });
         self.parts
-            .push(format!("store result score {holder} {}", objective.into()));
+            .push(format!("store result score {holder} {objective}"));
         self
     }
 
@@ -631,8 +897,19 @@ impl Execute {
         holder: ScoreHolder,
         objective: impl Into<String>,
     ) -> Self {
+        let objective = objective.into();
+        self.checks.push(ExecuteCheck::Holder {
+            index: self.next_index(),
+            kind: "store_success_score",
+            value: holder.clone(),
+        });
+        self.checks.push(ExecuteCheck::Objective {
+            index: self.next_index(),
+            kind: "store_success_score",
+            value: objective.clone(),
+        });
         self.parts
-            .push(format!("store success score {holder} {}", objective.into()));
+            .push(format!("store success score {holder} {objective}"));
         self
     }
 
@@ -644,6 +921,12 @@ impl Execute {
         kind: NbtStoreKind,
         scale: f64,
     ) -> Self {
+        self.checks.push(ExecuteCheck::Finite {
+            index: self.next_index(),
+            kind: "store_result_nbt",
+            field: "scale",
+            value: scale,
+        });
         self.parts.push(format!(
             "store result {} {} {kind} {scale}",
             target,
@@ -660,6 +943,12 @@ impl Execute {
         kind: NbtStoreKind,
         scale: f64,
     ) -> Self {
+        self.checks.push(ExecuteCheck::Finite {
+            index: self.next_index(),
+            kind: "store_success_nbt",
+            field: "scale",
+            value: scale,
+        });
         self.parts.push(format!(
             "store success {} {} {kind} {scale}",
             target,
@@ -698,14 +987,25 @@ impl Execute {
 
     // ── Terminal ──────────────────────────────────────────────────────────────
 
-    /// `run <command>` — finalize the execute chain and run the given command.
+    /// Compatibility renderer for `run <command>`.
     ///
-    /// Accepts any value implementing [`fmt::Display`] — including all [`Build`]
-    /// types (which implement `Display`), generated `Command` types, raw `&str`,
-    /// and owned `String`s.
+    /// This retains the historical infallible string API. Prefer [`try_run`](Self::try_run)
+    /// for typed terminal commands; exported compatibility output is validated
+    /// again with function context before files are accepted.
     pub fn run(mut self, cmd: impl fmt::Display) -> String {
         self.parts.push(format!("run {cmd}"));
         format!("execute {}", self.parts.join(" "))
+    }
+
+    /// Validate the whole execute chain and a typed terminal command before
+    /// rendering. Errors identify the failing execute subcommand.
+    pub fn try_run(self, cmd: &impl RenderCommand) -> CommandResult<String> {
+        let profile = CommandProfile::unprofiled();
+        self.validate(&profile)?;
+        let cmd = cmd
+            .render(&profile)
+            .map_err(|e| e.with_context("Execute::run command"))?;
+        Ok(format!("{} run {cmd}", self.build()))
     }
 
     /// Like [`run`](Execute::run) but more explicit about accepting raw strings.
@@ -714,10 +1014,168 @@ impl Execute {
         format!("execute {}", self.parts.join(" "))
     }
 
+    /// Validate the typed execute chain, then append an explicitly raw terminal
+    /// command. The raw text bypasses typed grammar modeling but must remain one
+    /// `.mcfunction`-safe line without a leading slash.
+    pub fn try_run_raw(self, cmd: RawCommand) -> CommandResult<String> {
+        let profile = CommandProfile::unprofiled();
+        self.validate(&profile)?;
+        let cmd = cmd.as_str();
+        if cmd.contains(['\0', '\n', '\r']) || cmd.trim_start().starts_with('/') {
+            return Err(CommandError::new(
+                "Execute::try_run_raw",
+                "command",
+                "raw terminal commands must be a single line without a leading `/`",
+            ));
+        }
+        Ok(format!("{} run {cmd}", self.build()))
+    }
+
     /// Run a named function: `execute ... run function <namespace:path>`.
     pub fn run_fn(mut self, function: impl fmt::Display) -> String {
         self.parts.push(format!("run function {function}"));
         format!("execute {}", self.parts.join(" "))
+    }
+}
+
+impl Validate for Execute {
+    fn validate(&self, profile: &CommandProfile) -> CommandResult<()> {
+        if self.parts.is_empty() {
+            return Err(CommandError::new(
+                "Execute",
+                "subcommands",
+                "execute chains require at least one subcommand",
+            ));
+        }
+        for check in &self.checks {
+            let (index, kind, result) = match check {
+                ExecuteCheck::Selector { index, kind, value } => {
+                    (*index, *kind, value.validate(profile))
+                }
+                ExecuteCheck::Vec3 { index, kind, value } => {
+                    (*index, *kind, value.validate(profile))
+                }
+                ExecuteCheck::BlockPos { index, kind, value } => {
+                    (*index, *kind, value.validate(profile))
+                }
+                ExecuteCheck::Rotation { index, kind, value } => {
+                    (*index, *kind, value.validate(profile))
+                }
+                ExecuteCheck::Slot { index, kind, value } => {
+                    (*index, *kind, value.validate(profile))
+                }
+                ExecuteCheck::Finite {
+                    index,
+                    kind,
+                    field,
+                    value,
+                } => (
+                    *index,
+                    *kind,
+                    validate::finite(*value, "Execute", field).map(|_| ()),
+                ),
+                ExecuteCheck::Resource {
+                    index,
+                    kind,
+                    field,
+                    value,
+                    allow_tag,
+                } => (
+                    *index,
+                    *kind,
+                    validate::resource_location_shape(
+                        if *allow_tag {
+                            value.strip_prefix('#').unwrap_or(value)
+                        } else {
+                            value
+                        },
+                        "Execute",
+                        field,
+                    )
+                    .map(|_| ()),
+                ),
+                ExecuteCheck::Holder { index, kind, value } => {
+                    (*index, *kind, value.validate(profile))
+                }
+                ExecuteCheck::SingleHolder { index, kind, value } => {
+                    (*index, *kind, value.validate_single(profile))
+                }
+                ExecuteCheck::Objective { index, kind, value } => {
+                    let result = validate::no_whitespace_or_control(value, "Execute", "objective")
+                        .and_then(|_| {
+                            if value.len() <= 16 {
+                                Ok(value.as_str())
+                            } else {
+                                Err(CommandError::new(
+                                    "Execute",
+                                    "objective",
+                                    "objective names cannot exceed 16 characters",
+                                ))
+                            }
+                        })
+                        .map(|_| ());
+                    (*index, *kind, result)
+                }
+                ExecuteCheck::ScoreRange { index, kind, value } => {
+                    (*index, *kind, validate_score_range(value))
+                }
+            };
+            result.map_err(|e| e.with_context(format!("Execute subcommand {index} `{kind}`")))?;
+        }
+        Ok(())
+    }
+}
+
+fn validate_score_range(value: &str) -> CommandResult<()> {
+    validate::non_empty(value, "Execute", "score_range")?;
+    let parse = |bound: &str| -> CommandResult<Option<i32>> {
+        if bound.is_empty() {
+            Ok(None)
+        } else {
+            bound.parse::<i32>().map(Some).map_err(|_| {
+                CommandError::new(
+                    "Execute",
+                    "score_range",
+                    format!("invalid integer bound `{bound}`"),
+                )
+            })
+        }
+    };
+    let (min, max) = if let Some((min, max)) = value.split_once("..") {
+        if max.contains("..") {
+            return Err(CommandError::new(
+                "Execute",
+                "score_range",
+                "range contains more than one `..`",
+            ));
+        }
+        (parse(min)?, parse(max)?)
+    } else {
+        let exact = parse(value)?;
+        (exact, exact)
+    };
+    if min.is_none() && max.is_none() {
+        return Err(CommandError::new(
+            "Execute",
+            "score_range",
+            "range must contain at least one bound",
+        ));
+    }
+    if let (Some(min), Some(max)) = (min, max)
+        && min > max
+    {
+        return Err(CommandError::new(
+            "Execute",
+            "score_range",
+            format!("range lower bound `{min}` exceeds upper bound `{max}`"),
+        ));
+    }
+    Ok(())
+}
+
+impl RenderCommand for Execute {
+    fn render_unchecked(&self, _profile: &CommandProfile) -> String {
+        self.build()
     }
 }
 
@@ -838,6 +1296,19 @@ mod tests {
         assert_eq!(
             s,
             "execute if dimension minecraft:the_nether run say nether"
+        );
+
+        assert!(
+            Execute::new()
+                .if_dimension("the_nether")
+                .try_run_raw(RawCommand::new("say no"))
+                .is_err()
+        );
+        assert!(
+            Execute::new()
+                .if_biome(BlockPos::here(), "#minecraft:is_overworld")
+                .try_run_raw(RawCommand::new("say yes"))
+                .is_ok()
         );
     }
 
@@ -975,6 +1446,81 @@ mod tests {
         assert_eq!(
             s,
             "execute unless block ~ ~ ~ minecraft:air run say blocked"
+        );
+    }
+
+    #[test]
+    fn try_build_reports_execute_subcommand_context() {
+        let execute = Execute::new().positioned(Vec3::absolute(f64::NAN, 0.0, 0.0));
+        let error = execute.try_build().unwrap_err().to_string();
+        assert!(
+            error.contains("Execute subcommand 0 `positioned`"),
+            "{error}"
+        );
+        assert!(error.contains("finite"), "{error}");
+    }
+
+    #[test]
+    fn try_build_rejects_invalid_slot_and_scale() {
+        assert!(
+            Execute::new()
+                .if_items(Selector::self_(), ItemSlot::Hotbar(9), "minecraft:stone")
+                .try_build()
+                .is_err()
+        );
+        assert!(
+            Execute::new()
+                .store_result_nbt(
+                    DataTarget::Entity(Selector::self_()),
+                    "x",
+                    NbtStoreKind::Double,
+                    f64::INFINITY
+                )
+                .try_build()
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn try_build_validates_score_holders_objectives_and_ranges() {
+        let profile = CommandProfile::unprofiled();
+        let many = Execute::new().if_score_matches("@a", "mana", "1..");
+        let error = many.render(&profile).unwrap_err().to_string();
+        assert!(error.contains("if_score_matches"), "{error}");
+        assert!(error.contains("exactly one holder"), "{error}");
+
+        assert!(
+            Execute::new()
+                .if_score_matches("@s", "objective_is_too_long", "1..")
+                .render(&profile)
+                .is_err()
+        );
+        assert!(
+            Execute::new()
+                .if_score_matches("@s", "mana", "5..1")
+                .render(&profile)
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn try_run_raw_preserves_advanced_syntax_but_validates_the_chain() {
+        let command = Execute::new()
+            .as_(Selector::all_players())
+            .try_run_raw(RawCommand::new("modded command syntax"))
+            .unwrap();
+        assert_eq!(command, "execute as @a run modded command syntax");
+        assert!(
+            Execute::new()
+                .as_(Selector::all_players().limit(0))
+                .try_run_raw(RawCommand::new("modded command syntax"))
+                .is_err()
+        );
+        assert!(
+            Execute::new()
+                .as_(Selector::all_players())
+                .try_run_raw(RawCommand::new("/say no"))
+                .is_err()
         );
     }
 }

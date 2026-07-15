@@ -47,7 +47,7 @@ pub fn tick_state() -> Vec<String> {
     cmds.extend(MANA.clamp("@a", 0, 100));
 
     // Tick blink timer and cooldown for all players
-    cmds.push(BLINK_TIMER.tick("@a"));
+    cmds.push(BLINK_TIMER.tick_all_players());
     cmds.push(DASH.tick_all_players());
 
     cmds

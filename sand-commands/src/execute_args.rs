@@ -11,6 +11,9 @@
 
 use std::fmt;
 
+use crate::error::{CommandError, CommandResult};
+use crate::render::{CommandProfile, RenderCommand, Validate};
+
 // ── Anchor ────────────────────────────────────────────────────────────────────
 
 /// Entity anchor point for `execute anchored` and `execute facing entity`.
@@ -118,6 +121,7 @@ impl fmt::Display for NbtStoreKind {
 /// Unlike [`InventorySlot`](crate::inventory::InventorySlot), `ItemSlot` supports
 /// wildcard variants that match any slot in a category.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[must_use = "slots do nothing until passed to a command"]
 pub enum ItemSlot {
     // ── Armor ─────────────────────────────────────────────────────────────────
     /// `armor.head` — the helmet slot.
@@ -172,7 +176,7 @@ pub enum ItemSlot {
     AnyVillager,
 
     // ── Raw ───────────────────────────────────────────────────────────────────
-    /// A raw slot string for slots not covered by the above variants.
+    /// An unchecked raw slot string for slots not covered by the above variants.
     Raw(String),
 }
 
@@ -201,6 +205,38 @@ impl fmt::Display for ItemSlot {
             ItemSlot::Raw(s) => s.as_str().into(),
         };
         write!(f, "{s}")
+    }
+}
+
+impl ItemSlot {
+    /// Explicit raw slot syntax for modded or future slot families.
+    pub fn raw(value: impl Into<String>) -> Self {
+        Self::Raw(value.into())
+    }
+}
+
+impl Validate for ItemSlot {
+    fn validate(&self, _profile: &CommandProfile) -> CommandResult<()> {
+        let invalid = match self {
+            Self::Hotbar(n) if *n > 8 => Some(("hotbar", *n, 8)),
+            Self::Inventory(n) if *n > 26 => Some(("inventory", *n, 26)),
+            Self::Container(n) if *n > 53 => Some(("container", *n, 53)),
+            _ => None,
+        };
+        if let Some((family, value, max)) = invalid {
+            return Err(CommandError::new(
+                "ItemSlot",
+                "index",
+                format!("{family} slot index must be 0..={max}, got `{value}`"),
+            ));
+        }
+        Ok(())
+    }
+}
+
+impl RenderCommand for ItemSlot {
+    fn render_unchecked(&self, _profile: &CommandProfile) -> String {
+        self.to_string()
     }
 }
 
@@ -248,5 +284,16 @@ mod tests {
         assert_eq!(ItemSlot::AnyHorse.to_string(), "horse.*");
         assert_eq!(ItemSlot::AnyVillager.to_string(), "villager.*");
         assert_eq!(ItemSlot::Raw("custom.*".into()).to_string(), "custom.*");
+    }
+
+    #[test]
+    fn item_slot_validation_is_shared() {
+        assert!(ItemSlot::Hotbar(9).try_build().is_err());
+        assert!(ItemSlot::Inventory(27).try_build().is_err());
+        assert!(ItemSlot::Container(54).try_build().is_err());
+        assert_eq!(
+            ItemSlot::raw("modded.slot").try_build().unwrap(),
+            "modded.slot"
+        );
     }
 }

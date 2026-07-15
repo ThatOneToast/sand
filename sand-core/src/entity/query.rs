@@ -112,15 +112,16 @@ impl EntityQuery<Many> {
     pub fn sort(self, order: SortOrder) -> Self {
         let selector = self.target.into_selector().sort(order);
         Self {
-            target: EntityTargets::from(selector),
+            target: EntityTargets::try_from(selector)
+                .expect("sorting a validated entity target preserves its category"),
         }
     }
 
     /// `limit=<n>` — narrow to at most `n` entities, and to [`One`] cardinality.
-    pub fn limit(self, n: i32) -> EntityQuery<One> {
-        EntityQuery {
-            target: self.target.limit(n),
-        }
+    pub fn limit(self, n: i32) -> sand_commands::CommandResult<EntityQuery<One>> {
+        Ok(EntityQuery {
+            target: self.target.limit(n)?,
+        })
     }
 
     /// Sort by nearest and narrow to the single nearest entity.
@@ -213,15 +214,16 @@ impl PlayerQuery<Many> {
     pub fn sort(self, order: SortOrder) -> Self {
         let selector = self.target.into_selector().sort(order);
         Self {
-            target: PlayerTargets::from(selector),
+            target: PlayerTargets::try_from(selector)
+                .expect("sorting a validated player target preserves its category"),
         }
     }
 
     /// `limit=<n>` — narrow to at most `n` players, and to [`One`] cardinality.
-    pub fn limit(self, n: i32) -> PlayerQuery<One> {
-        PlayerQuery {
-            target: self.target.limit(n),
-        }
+    pub fn limit(self, n: i32) -> sand_commands::CommandResult<PlayerQuery<One>> {
+        Ok(PlayerQuery {
+            target: self.target.limit(n)?,
+        })
     }
 
     /// Sort by nearest and narrow to the single nearest player.
@@ -297,6 +299,7 @@ mod tests {
             .within_blocks(15.0)
             .sort(SortOrder::Nearest)
             .limit(1)
+            .unwrap()
             .each(|entity| vec![entity.add_tag("observed")]);
 
         assert_eq!(cmds.len(), 1);

@@ -99,9 +99,9 @@ pub use sand_components::dialog::SAND_DIALOG_TRIGGER;
 pub use cmd::{
     Actionbar, BlockState, Bossbar, BossbarColor, BossbarStyle, CloneBlocks, CloneMaskMode,
     CloneMode, Command, ConditionedExecute, Cooldown, EntityTargets, ExecuteExt, Fill, FillMode,
-    ItemSlot, NbtStoreKind, NbtValue, Objective, ParticleEffect, ParticleSpread, PlayerTargets,
-    ScoreCmp, SetBlock, SetBlockMode, SingleEntity, SinglePlayer, Sound, SoundSource, Storage,
-    Title, TypedExecute,
+    ItemSlot, NbtStoreKind, NbtValue, Objective, ObjectiveName, ParticleEffect, ParticleSpread,
+    PlayerTargets, RawCommand, RenderCommand, ScoreCmp, ScoreHolder, SetBlock, SetBlockMode,
+    SingleEntity, SinglePlayer, Sound, SoundSource, Storage, Title, TypedExecute, Validate,
 };
 pub use component::try_export_components;
 pub use component::try_export_components_for_version;
@@ -376,7 +376,6 @@ pub use sand_components::{
     Range,
     Rarity,
     // Raw escape hatch types
-    RawCommand,
     RawComponent,
     RawJson,
     RawSnbt,

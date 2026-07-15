@@ -17,7 +17,7 @@ pub fn load_spells() {
 
 #[component(Tick)]
 pub fn tick_spells() {
-    FIREBALL.tick(Selector::all_players());
+    FIREBALL.tick_all_players();
 }
 
 #[function]

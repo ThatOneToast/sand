@@ -2,7 +2,7 @@
 //!
 //! # Slot taxonomy (unified)
 //!
-//! [`ItemSlot`](crate::execute_args::ItemSlot) is the canonical slot type used by both
+//! [`ItemSlot`] is the canonical slot type used by both
 //! inventory operations and `execute if items` checks. All [`Inventory`] methods accept
 //! `impl Into<ItemSlot>` so you can pass an `ItemSlot` directly:
 //!
@@ -31,7 +31,7 @@ use crate::selector::Selector;
 
 /// A specific inventory slot in a player or entity.
 ///
-/// Deprecated: use [`ItemSlot`](crate::execute_args::ItemSlot) instead.
+/// Deprecated: use [`ItemSlot`] instead.
 /// All [`Inventory`] methods now accept `impl Into<ItemSlot>`.
 #[deprecated(note = "use `ItemSlot` from `sand_commands::execute_args` instead")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -114,7 +114,7 @@ impl From<InventorySlot> for ItemSlot {
 
 /// A slot pattern for wildcard `execute if items` checks (1.20.5+).
 ///
-/// Deprecated: use [`ItemSlot`](crate::execute_args::ItemSlot) wildcard variants
+/// Deprecated: use [`ItemSlot`] wildcard variants
 /// (`ItemSlot::AnyHotbar`, `ItemSlot::AnyArmor`, etc.) instead.
 #[deprecated(note = "use `ItemSlot` wildcard variants instead (e.g. `ItemSlot::AnyHotbar`)")]
 #[allow(deprecated)]

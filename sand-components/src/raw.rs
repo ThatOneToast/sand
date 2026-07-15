@@ -142,7 +142,9 @@ impl fmt::Display for RawSnbt {
 /// A raw Minecraft command string used as an explicit escape hatch.
 ///
 /// Prefer generated typed command builders.  Use this for commands not yet
-/// modelled in Sand's API or for one-off experiments.
+/// modelled in Sand's API or for one-off experiments. The text bypasses typed
+/// construction, while export still enforces single-line file integrity and
+/// conservative checks for malformed foundational syntax.
 ///
 /// # Example
 /// ```rust
@@ -151,32 +153,12 @@ impl fmt::Display for RawSnbt {
 /// let cmd = RawCommand::new("say Hello from raw command");
 /// assert_eq!(cmd.as_str(), "say Hello from raw command");
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct RawCommand(String);
-
-impl RawCommand {
-    /// Wrap a raw command string as an explicit escape hatch.
-    pub fn new(s: impl Into<String>) -> Self {
-        Self(s.into())
-    }
-
-    /// Access the inner command string.
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
-impl From<RawCommand> for String {
-    fn from(r: RawCommand) -> Self {
-        r.0
-    }
-}
-
-impl fmt::Display for RawCommand {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.0)
-    }
-}
+/// Compatibility path for the canonical command escape hatch.
+///
+/// The type is defined by `sand-commands`; this re-export keeps existing
+/// `sand_components::raw::RawCommand` code source-compatible without a second
+/// representation or conversion layer.
+pub use sand_commands::RawCommand;
 
 // ── RawComponent ──────────────────────────────────────────────────────────────
 

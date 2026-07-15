@@ -54,12 +54,50 @@ pub const CI_LATEST_JAVA_VERSION: &str = "25";
 /// target is codegen-available in the default local and CI environments.
 pub const DEFAULT_CODEGEN_VERSION: &str = "1.21.11";
 
+/// Cycle-safe command rendering context shared by `sand-commands` and
+/// `sand-core`.
+///
+/// This deliberately carries only version identity today. Command families
+/// can add narrowly-scoped capability flags as their vanilla syntax diverges;
+/// callers should not infer support merely from the version string.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CommandProfile {
+    requested_version: String,
+    is_fallback: bool,
+}
+
+impl CommandProfile {
+    /// Construct a command profile for a resolved Minecraft target.
+    pub fn new(requested_version: impl Into<String>, is_fallback: bool) -> Self {
+        Self {
+            requested_version: requested_version.into(),
+            is_fallback,
+        }
+    }
+
+    /// Compatibility profile used by direct command rendering without project
+    /// configuration. Exporters should pass the project's resolved profile.
+    pub fn unprofiled() -> Self {
+        Self::new(LATEST_KNOWN, false)
+    }
+
+    /// Version requested by the project.
+    pub fn requested_version(&self) -> &str {
+        &self.requested_version
+    }
+
+    /// Whether resolution used Sand's conservative fallback profile.
+    pub fn is_fallback(&self) -> bool {
+        self.is_fallback
+    }
+}
+
 // ── Component capability identifiers ───────────────────────────────────────────
 
 /// A Minecraft datapack component feature that may be gated by version.
 ///
 /// Components declare their requirements via
-/// [`DatapackComponent::required_features`](sand_components::component::DatapackComponent::required_features),
+/// `DatapackComponent::required_features`,
 /// and the export layer checks them against [`VersionCaps`] resolved from the
 /// target `VersionProfile`.
 ///

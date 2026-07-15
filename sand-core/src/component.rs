@@ -1024,6 +1024,7 @@ fn try_export_components_impl(
                     &graph,
                     namespace,
                     self_guard.as_deref(),
+                    true,
                     &mut guarded_children,
                     &mut records,
                 ))
@@ -1984,6 +1985,7 @@ fn build_dispatch_function(
     graph: &crate::events::graph::EventGraph,
     namespace: &str,
     self_guard: Option<&str>,
+    include_chained_lifecycle: bool,
     guarded_children: &mut std::collections::BTreeSet<String>,
     records: &mut Vec<ComponentRecord>,
 ) -> String {
@@ -1998,7 +2000,8 @@ fn build_dispatch_function(
     let needs_wrapper = node.handlers.len() != 1
         || !children.is_empty()
         || self_guard.is_some()
-        || (is_chained
+        || (include_chained_lifecycle
+            && is_chained
             && (!node.setup.pre_observation.is_empty() || !node.setup.post_observation.is_empty()));
 
     if !needs_wrapper {
@@ -2009,27 +2012,44 @@ fn build_dispatch_function(
     if let Some(guard) = self_guard {
         cmds.push(format!("scoreboard players set @s {guard} 1"));
     }
-    if is_chained {
+    if include_chained_lifecycle && is_chained {
         cmds.extend(node.setup.pre_observation.iter().cloned());
     }
     for handler in &node.handlers {
         cmds.push(format!("function {namespace}:{handler}"));
     }
     for edge in &children {
-        let child_ref = build_dispatch_function(
-            &edge.child,
-            graph,
-            namespace,
-            None,
-            guarded_children,
-            records,
-        );
         match edge.execution_plans() {
             crate::events::TickExecutionPlans::Unconditional => {
+                let child_ref = build_dispatch_function(
+                    &edge.child,
+                    graph,
+                    namespace,
+                    None,
+                    true,
+                    guarded_children,
+                    records,
+                );
                 cmds.push(format!("function {child_ref}"));
             }
             crate::events::TickExecutionPlans::Plans(plans) if plans.len() <= 1 => {
+                // A chained child's observation lifecycle runs for every parent
+                // dispatch, not only after its edge condition succeeds.  Put it
+                // around the inline edge evaluation so conditions can depend on
+                // values refreshed by `pre_observation`, and `post_observation`
+                // still runs when the condition is false.
+                let child = &graph.nodes[&edge.child];
+                cmds.extend(child.setup.pre_observation.iter().cloned());
                 if let Some(plan) = plans.into_iter().next() {
+                    let child_ref = build_dispatch_function(
+                        &edge.child,
+                        graph,
+                        namespace,
+                        None,
+                        false,
+                        guarded_children,
+                        records,
+                    );
                     if plan.is_empty() {
                         cmds.push(format!("function {child_ref}"));
                     } else {
@@ -2041,6 +2061,7 @@ fn build_dispatch_function(
                 }
                 // else: an explicit `Any([])`-shaped edge condition can never
                 // hold — no dead wiring emitted for an unreachable edge.
+                cmds.extend(child.setup.post_observation.iter().cloned());
             }
             crate::events::TickExecutionPlans::Plans(plans) => {
                 // More than one OR-alternative plan means this child could be
@@ -2049,6 +2070,17 @@ fn build_dispatch_function(
                 // before evaluating the plans, mirroring the root
                 // self-detection guard.
                 guarded_children.insert(edge.child.clone());
+                let child = &graph.nodes[&edge.child];
+                cmds.extend(child.setup.pre_observation.iter().cloned());
+                let child_ref = build_dispatch_function(
+                    &edge.child,
+                    graph,
+                    namespace,
+                    None,
+                    false,
+                    guarded_children,
+                    records,
+                );
                 let child_key = tick_event_resource_key(&edge.child);
                 let guard = format!("se_{child_key}_g");
                 cmds.push(format!("scoreboard players set @s {guard} 0"));
@@ -2076,10 +2108,11 @@ fn build_dispatch_function(
                         clauses.join(" ")
                     ));
                 }
+                cmds.extend(child.setup.post_observation.iter().cloned());
             }
         }
     }
-    if is_chained {
+    if include_chained_lifecycle && is_chained {
         cmds.extend(node.setup.post_observation.iter().cloned());
     }
 

@@ -147,6 +147,56 @@ sand_core::inventory::submit! {
     }
 }
 
+// ── LifecycleCondChild: setup surrounds conditional edge evaluation ────────
+
+struct LifecycleCondChild;
+
+fn lifecycle_cond_chain() -> Option<ChainEventDispatch> {
+    Some(ChainEventDispatch {
+        parent_type_id,
+        parent_type_name,
+        parent_dispatch: || sand_core::events::SandEventDispatch::Tick(parent_dispatch().unwrap()),
+        parent_setup,
+        when: vec![Condition::raw("score @s child_ready matches 1")],
+        unless: vec![],
+    })
+}
+
+fn lifecycle_cond_child_type_id() -> TypeId {
+    TypeId::of::<LifecycleCondChild>()
+}
+fn lifecycle_cond_child_type_name() -> &'static str {
+    std::any::type_name::<LifecycleCondChild>()
+}
+fn lifecycle_cond_child_setup() -> EventSetup {
+    EventSetup {
+        objectives: vec![],
+        pre_observation: vec!["scoreboard players set @s child_ready 1".to_string()],
+        post_observation: vec!["scoreboard players set @s child_ready 0".to_string()],
+    }
+}
+fn on_lifecycle_cond_child_body() -> Vec<String> {
+    vec!["say child lifecycle condition passed".to_string()]
+}
+
+sand_core::inventory::submit! {
+    EventDescriptor {
+        path: "on_lifecycle_cond_child",
+        id_override: None,
+        make: on_lifecycle_cond_child_body,
+        dispatch: EventDispatch::Custom {
+            make_trigger: no_trigger,
+            make_condition: no_condition,
+            make_tick: no_tick,
+            make_chain: lifecycle_cond_chain,
+            revoke: revoke_true,
+            event_type_id: lifecycle_cond_child_type_id,
+            event_type_name: lifecycle_cond_child_type_name,
+            make_setup: lifecycle_cond_child_setup,
+        },
+    }
+}
+
 // ── UnconditionalChild: chains from ParentEvent with no when/unless ────────
 
 struct UnconditionalChild;
@@ -502,6 +552,31 @@ fn child_condition_inherits_at_s_without_execute_as() {
         "child edge must not re-issue `execute as @a` — inherit the current subject: {line:?}"
     );
     assert!(line.trim_start().starts_with("execute if") || line.contains(" if "));
+}
+
+#[test]
+fn conditional_child_lifecycle_surrounds_edge_evaluation() {
+    let records = records();
+    let key = expected_key(parent_type_name());
+    let content = function_content(&records, &format!("__sand_event_dispatch/{key}"));
+
+    let pre = content
+        .find("scoreboard players set @s child_ready 1")
+        .expect("child pre_observation must be emitted");
+    let condition = content
+        .find("if score @s child_ready matches 1")
+        .expect("child condition must be emitted");
+    let handler = content
+        .find("function chainpack:on_lifecycle_cond_child")
+        .expect("child handler must be emitted");
+    let post = content
+        .find("scoreboard players set @s child_ready 0")
+        .expect("child post_observation must be emitted");
+
+    assert!(
+        pre < condition && condition < handler && handler < post,
+        "{content:?}"
+    );
 }
 
 #[test]

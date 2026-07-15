@@ -14,6 +14,9 @@ fn no_trigger() -> Option<sand_core::AdvancementTrigger> {
 fn no_condition() -> Option<String> {
     None
 }
+fn no_chain() -> Option<sand_core::events::ChainEventDispatch> {
+    None
+}
 
 fn dispatch() -> Option<TickEventDispatch> {
     Some(TickEventDispatch::default().as_players().every_tick())
@@ -47,6 +50,7 @@ sand_core::inventory::submit! {
             make_trigger: no_trigger,
             make_condition: no_condition,
             make_tick: dispatch,
+            make_chain: no_chain,
             revoke: || true,
             event_type_id: shared_type_id,
             event_type_name: shared_type_name,
@@ -64,6 +68,7 @@ sand_core::inventory::submit! {
             make_trigger: no_trigger,
             make_condition: no_condition,
             make_tick: dispatch,
+            make_chain: no_chain,
             revoke: || true,
             event_type_id: shared_type_id,
             event_type_name: shared_type_name,

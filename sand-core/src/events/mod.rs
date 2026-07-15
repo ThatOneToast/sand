@@ -153,6 +153,9 @@
 //! [`SandEventDispatch::TickCondition`] — both lower into the same normalized
 //! IR as [`SandEventDispatch::tick()`] (see [`SandEventDispatch::normalize`]).
 
+/// Event dependency graph construction for same-cycle chained dispatch (#240).
+pub mod graph;
+
 // ── Custom event API ──────────────────────────────────────────────────────────
 
 /// Execution scope for a structured [`TickEventDispatch`].
@@ -350,6 +353,115 @@ impl From<TickEventDispatch> for SandEventDispatch {
     }
 }
 
+/// Structured, typed same-cycle chained dispatch definition.
+///
+/// Built via [`SandEventDispatch::chain`]. Declares that this event is
+/// evaluated only from its parent [`SandEvent`]'s successful dispatch cycle —
+/// same execution subject (`@s`), same position, same tick — rather than
+/// independently re-detecting the parent's condition.
+///
+/// The parent is identified by function-pointer factories rather than a
+/// constructed value so the parent marker type never needs to be
+/// instantiated and generic parent/child families keep distinct identities.
+/// See the `#[event]` macro, which supplies these factories automatically
+/// from a `SandEvent::dispatch() -> SandEventDispatch::chain::<Parent>()`
+/// call — you should not need to construct this struct's function pointers
+/// by hand.
+///
+/// ```rust,ignore
+/// use sand_core::events::{SandEvent, SandEventDispatch};
+/// use sand_core::condition::Condition;
+///
+/// pub struct JumpedOnElevator;
+///
+/// impl SandEvent for JumpedOnElevator {
+///     fn dispatch() -> SandEventDispatch {
+///         SandEventDispatch::chain::<PlayerJumpEvent>()
+///             .when(Condition::raw("block ~ ~-1 ~ minecraft:white_wool"))
+///             .into()
+///     }
+/// }
+/// ```
+pub struct ChainEventDispatch {
+    /// In-process grouping identity of the parent `SandEvent` type. Not
+    /// stable across builds; used only to locate/merge the parent node
+    /// during graph discovery.
+    pub parent_type_id: fn() -> std::any::TypeId,
+    /// Canonical concrete type name of the parent `SandEvent` type, used as
+    /// input to the same deterministic resource-key derivation as
+    /// tick-lifecycle events.
+    pub parent_type_name: fn() -> &'static str,
+    /// Returns the parent's own `dispatch()`, normalized through
+    /// `Into<SandEventDispatch>`, without constructing the parent marker
+    /// type.
+    pub parent_dispatch: fn() -> SandEventDispatch,
+    /// Returns the parent's own `setup()`.
+    pub parent_setup: fn() -> EventSetup,
+    /// Positive conditions — all must hold (ANDed) for this child to fire
+    /// once its parent's detector succeeds.
+    pub when: Vec<crate::condition::Condition>,
+    /// Negative conditions — none may hold.
+    pub unless: Vec<crate::condition::Condition>,
+}
+
+impl ChainEventDispatch {
+    /// Add a positive condition — the child fires only while this holds, in
+    /// addition to the parent having fired this cycle.
+    ///
+    /// Multiple calls are ANDed together.
+    pub fn when(mut self, condition: impl Into<crate::condition::Condition>) -> Self {
+        self.when.push(condition.into());
+        self
+    }
+
+    /// Ergonomic alias for [`when`](Self::when).
+    pub fn if_(self, condition: impl Into<crate::condition::Condition>) -> Self {
+        self.when(condition)
+    }
+
+    /// Add a negative condition — the child does not fire while this holds.
+    ///
+    /// Multiple calls are ANDed together (i.e. every `unless` condition must
+    /// fail to hold).
+    pub fn unless(mut self, condition: impl Into<crate::condition::Condition>) -> Self {
+        self.unless.push(condition.into());
+        self
+    }
+
+    /// Combine `when`/`unless` into a single [`Condition`](crate::condition::Condition),
+    /// or `None` if no conditions were declared (the child fires
+    /// unconditionally whenever its parent fires).
+    pub fn combined_condition(&self) -> Option<crate::condition::Condition> {
+        if self.when.is_empty() && self.unless.is_empty() {
+            return None;
+        }
+        let mut combined = if self.when.is_empty() {
+            crate::condition::Condition::all([])
+        } else {
+            crate::condition::Condition::all(self.when.clone())
+        };
+        for u in &self.unless {
+            combined = combined.and_not(u.clone());
+        }
+        Some(combined)
+    }
+
+    /// Expand this child's conditions into explicit [`TickExecutionPlans`],
+    /// same shape as [`TickEventDispatch::execution_plans`].
+    pub fn execution_plans(&self) -> TickExecutionPlans {
+        match self.combined_condition() {
+            None => TickExecutionPlans::Unconditional,
+            Some(combined) => TickExecutionPlans::Plans(combined.to_execute_plans(false)),
+        }
+    }
+}
+
+impl From<ChainEventDispatch> for SandEventDispatch {
+    fn from(chain: ChainEventDispatch) -> Self {
+        SandEventDispatch::Chain(chain)
+    }
+}
+
 /// How a custom [`SandEvent`] is dispatched at runtime.
 ///
 /// Returned by [`SandEvent::dispatch`]. Sand inspects this at build time to
@@ -380,6 +492,10 @@ pub enum SandEventDispatch {
 
     /// Structured, typed tick-poll dispatch. See [`TickEventDispatch`].
     Tick(TickEventDispatch),
+
+    /// Structured, same-cycle chained dispatch. See [`ChainEventDispatch`]
+    /// and [`SandEventDispatch::chain`].
+    Chain(ChainEventDispatch),
 }
 
 /// Normalized internal representation of a [`SandEventDispatch`], used by the
@@ -387,7 +503,7 @@ pub enum SandEventDispatch {
 ///
 /// Every `SandEventDispatch` variant — including the legacy `AdvancementTrigger`
 /// and `TickCondition` compatibility constructors — lowers into one of these
-/// two shapes, so the exporter has a single normalized IR to consume rather
+/// shapes, so the exporter has a single normalized IR to consume rather
 /// than juggling multiple representations.
 #[allow(clippy::large_enum_variant)]
 pub enum NormalizedEventDispatch {
@@ -395,6 +511,8 @@ pub enum NormalizedEventDispatch {
     Advancement(crate::AdvancementTrigger),
     /// Tick-poll dispatch, always in the structured [`TickEventDispatch`] shape.
     Tick(TickEventDispatch),
+    /// Same-cycle chained dispatch. See [`ChainEventDispatch`].
+    Chain(ChainEventDispatch),
 }
 
 impl SandEventDispatch {
@@ -409,12 +527,36 @@ impl SandEventDispatch {
         TickEventDispatch::default()
     }
 
+    /// Construct a structured, same-cycle chained dispatch builder.
+    ///
+    /// Declares that this event evaluates only from `Parent`'s successful
+    /// dispatch cycle, inheriting its execution subject and position, rather
+    /// than independently re-detecting `Parent`'s condition. `Parent` need
+    /// not have any direct `#[event]` handler of its own — only a `SandEvent`
+    /// impl.
+    ///
+    /// ```rust,ignore
+    /// SandEventDispatch::chain::<PlayerJumpEvent>()
+    ///     .when(Condition::raw("block ~ ~-1 ~ minecraft:white_wool"))
+    /// ```
+    pub fn chain<P: SandEvent + 'static>() -> ChainEventDispatch {
+        ChainEventDispatch {
+            parent_type_id: std::any::TypeId::of::<P>,
+            parent_type_name: std::any::type_name::<P>,
+            parent_dispatch: || P::dispatch().into(),
+            parent_setup: P::setup,
+            when: Vec::new(),
+            unless: Vec::new(),
+        }
+    }
+
     /// Lower this dispatch into the normalized internal IR.
     ///
     /// - `AdvancementTrigger(t)` → `Advancement(t)` unchanged.
     /// - `TickCondition(s)` → `Tick(...)` with `s` carried as a single
     ///   [`Condition::raw`](crate::condition::Condition::raw) `when` clause.
     /// - `Tick(t)` → `Tick(t)` unchanged.
+    /// - `Chain(c)` → `Chain(c)` unchanged.
     pub fn normalize(self) -> NormalizedEventDispatch {
         match self {
             SandEventDispatch::AdvancementTrigger(t) => NormalizedEventDispatch::Advancement(t),
@@ -422,6 +564,7 @@ impl SandEventDispatch {
                 TickEventDispatch::default().when(crate::condition::Condition::raw(s)),
             ),
             SandEventDispatch::Tick(t) => NormalizedEventDispatch::Tick(t),
+            SandEventDispatch::Chain(c) => NormalizedEventDispatch::Chain(c),
         }
     }
 }
@@ -1346,6 +1489,7 @@ impl SandEventDispatch {
             SandEventDispatch::AdvancementTrigger(t) => Some(t),
             SandEventDispatch::TickCondition(_) => None,
             SandEventDispatch::Tick(_) => None,
+            SandEventDispatch::Chain(_) => None,
         }
     }
 }
@@ -1828,6 +1972,7 @@ mod tests {
                 );
             }
             NormalizedEventDispatch::Advancement(_) => panic!("expected Tick"),
+            NormalizedEventDispatch::Chain(_) => panic!("expected Tick"),
         }
     }
 
@@ -1842,6 +1987,7 @@ mod tests {
                 );
             }
             NormalizedEventDispatch::Advancement(_) => panic!("expected Tick"),
+            NormalizedEventDispatch::Chain(_) => panic!("expected Tick"),
         }
     }
 
@@ -1853,6 +1999,7 @@ mod tests {
                 assert_eq!(t.trigger_id(), "minecraft:tick");
             }
             NormalizedEventDispatch::Tick(_) => panic!("expected Advancement"),
+            NormalizedEventDispatch::Chain(_) => panic!("expected Advancement"),
         }
     }
 

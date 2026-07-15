@@ -1,6 +1,6 @@
 # Known limitations
 
-Consolidated, reviewed 2026-07-12. Each entry has a stable ID, so other files
+Consolidated, reviewed 2026-07-15. Each entry has a stable ID, so other files
 and PRs can reference it (`[[LIM-XXX-NNN]]`). This file summarizes; it does
 not replace the detailed source docs it cites — follow the evidence links for
 depth.
@@ -154,6 +154,21 @@ Vanilla supports the behavior; Sand's typed coverage is incomplete.
   a complete, playable resource pack without further authoring.
   Affects: `resource-pack`, `hud-workflows`.
   Evidence: `ROADMAP.md`, `book/src/resource-packs-and-hud.md`.
+
+- **LIM-EXP-004** — Same-cycle chained `SandEvent` dispatch
+  (`SandEventDispatch::chain::<Parent>()`) is the first scoped phase of
+  #240. Only one direct parent per event is supported (no `after_all`/
+  `after_any` multi-parent joins), and advancement-backed `SandEvent`
+  parents are explicitly rejected — their reward-function codegen path does
+  not yet provide a player execution context compatible with same-cycle
+  child dispatch. Continuous/held-state `while_<E>()` events, bounded
+  `.within(...)` time windows, cross-tick correlation, participant-rich
+  execution contexts (#230), and arbitrary non-player entity execution
+  scopes are not implemented and are not exposed as partial APIs.
+  Affects: `sandevent-chained-dispatch`.
+  Evidence: `sand-core/src/events/graph.rs`, `book/src/events.md`
+  (Composing SandEvents: same-cycle chained dispatch — Limitations in this
+  phase).
 
 ## Validation gaps
 

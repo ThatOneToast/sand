@@ -215,6 +215,17 @@ fn try_export_components_impl(
         crate::events::TickEventDispatch,
         crate::events::EventSetup,
     )> = Vec::new();
+    // Same-cycle chained SandEvents (#240) — a child event whose dispatch()
+    // is `SandEventDispatch::chain::<Parent>()`. Merged into the same event
+    // graph as `tick_lifecycle_events` below so a parent referenced only by
+    // chain children still gets its detector/setup generated.
+    let mut chain_events: Vec<(
+        &EventDescriptor,
+        std::any::TypeId,
+        &'static str,
+        crate::events::ChainEventDispatch,
+        crate::events::EventSetup,
+    )> = Vec::new();
     // Shared armor watch map — populated by both EventDescriptor ArmorEquip/
     // ArmorUnequip dispatch and the legacy ArmorEventDescriptor entries.
     // (slot, item_id, custom_data_snbt, Vec<(is_equip, path)>)
@@ -441,6 +452,7 @@ fn try_export_components_impl(
                 make_trigger,
                 make_condition,
                 make_tick,
+                make_chain,
                 revoke,
                 event_type_id,
                 event_type_name,
@@ -455,6 +467,7 @@ fn try_export_components_impl(
                     make_trigger(),
                     make_condition(),
                     make_tick(),
+                    make_chain(),
                     desc.path,
                 ) {
                     CustomDispatchBackend::Advancement(trigger) => {
@@ -506,7 +519,21 @@ fn try_export_components_impl(
                         records.push(component_to_record(&advancement, ctx)?);
                     }
                     CustomDispatchBackend::TickPoll(condition) => {
-                        // Tick-poll custom event — same as TickPoll.
+                        // Legacy single-fragment `SandEventDispatch::TickCondition`
+                        // custom event. Normalized into the same structured
+                        // `TickEventDispatch` shape as `SandEventDispatch::tick()`
+                        // (matching `SandEventDispatch::normalize()` exactly) and
+                        // fed into the same event graph discovery as structured
+                        // tick events — not the unrelated legacy `tick_poll_events`
+                        // aggregation (bare `EventDispatch::TickPoll`, e.g.
+                        // `HoldingItemEvent`/`CurrentlyWearingEvent`, which have no
+                        // `SandEvent`/chain-parent concept). A concrete SandEvent
+                        // type must resolve to exactly one graph node — and
+                        // therefore one generated detector — regardless of
+                        // whether its dispatch() used the structured builder or
+                        // this compatibility constructor, so a legacy parent
+                        // referenced by a chain child never gets a second,
+                        // independent detector (#240 follow-up).
                         records.push(ComponentRecord {
                             namespace: namespace.to_string(),
                             dir: "function".to_string(),
@@ -515,7 +542,14 @@ fn try_export_components_impl(
                             content_type: "text".to_string(),
                             content: commands.join("\n"),
                         });
-                        tick_poll_events.push((desc, condition));
+                        tick_lifecycle_events.push((
+                            desc,
+                            event_type_id(),
+                            event_type_name(),
+                            crate::events::TickEventDispatch::default()
+                                .when(crate::condition::Condition::raw(condition)),
+                            make_setup(),
+                        ));
                     }
                     CustomDispatchBackend::TickLifecycle(tick) => {
                         // Structured tick dispatch — handler body emitted now;
@@ -535,6 +569,27 @@ fn try_export_components_impl(
                             event_type_id(),
                             event_type_name(),
                             tick,
+                            make_setup(),
+                        ));
+                    }
+                    CustomDispatchBackend::Chain(chain) => {
+                        // Same-cycle chained dispatch (#240) — handler body
+                        // emitted now; the child node (and its parent chain,
+                        // discovered recursively) is resolved into the event
+                        // graph below.
+                        records.push(ComponentRecord {
+                            namespace: namespace.to_string(),
+                            dir: "function".to_string(),
+                            path: desc.path.to_string(),
+                            ext: "mcfunction".to_string(),
+                            content_type: "text".to_string(),
+                            content: commands.join("\n"),
+                        });
+                        chain_events.push((
+                            desc,
+                            event_type_id(),
+                            event_type_name(),
+                            chain,
                             make_setup(),
                         ));
                     }
@@ -827,65 +882,58 @@ fn try_export_components_impl(
             .push(format!("{namespace}:{tick_path}"));
     }
 
-    // ── Structured tick-lifecycle SandEvent aggregation ───────────────────────
+    // ── Structured tick-lifecycle + same-cycle chained SandEvent graph ────────
     //
-    // Groups handlers by event_type_id — an in-process TypeId used only to
+    // Builds the event dependency graph (#240): direct `#[event]` handlers on
+    // tick-lifecycle or chain-backed SandEvents, plus recursively-discovered
+    // chain parents (a parent referenced only by a chain child still gets a
+    // node — its detector/setup is generated even with no direct handler).
+    // Nodes are grouped by event_type_id — an in-process TypeId used only to
     // group/dedupe descriptors belonging to the same concrete SandEvent type
     // during this export run (distinct generic monomorphizations such as
     // `ElevatorUsed<GoUp>` vs `ElevatorUsed<GoDown>` never merge). TypeId is
     // NOT a stable cross-build identifier, so it is never used to derive
     // generated resource paths — see `tick_event_resource_key` below.
     //
-    // Each group shares one generated dispatch function (calling every
-    // handler body) and one detection wiring, so N handlers on the same event
-    // never duplicate the detector or setup. All descriptors in a group are
-    // validated to carry identical dispatch()/setup() output (#121-style
-    // "don't silently pick one of several conflicting definitions").
-    //
-    // Ordering within the generated tick function is: pre_observation commands,
-    // then the detection execute line(s), then post_observation commands —
-    // always run unconditionally after detection so tracked/synchronized state
-    // advances even on ticks where the condition didn't match (required for
-    // delta-tracking events like a jump-count sync).
-    if !tick_lifecycle_events.is_empty() {
-        struct LifecycleGroup<'a> {
-            type_id: std::any::TypeId,
-            type_name: &'static str,
-            setup: &'a crate::events::EventSetup,
-            tick: &'a crate::events::TickEventDispatch,
-            handler_paths: Vec<&'static str>,
-        }
-        let mut groups: Vec<LifecycleGroup> = Vec::new();
+    // This phase supports at most one parent per event, so the graph is
+    // always a forest (every node has zero or one incoming chain edge) —
+    // cycles are rejected by a parent-pointer walk during discovery.
+    if !tick_lifecycle_events.is_empty() || !chain_events.is_empty() {
+        let mut resolved: BTreeMap<std::any::TypeId, crate::events::graph::EventNode> =
+            BTreeMap::new();
+
         for (desc, type_id, type_name, tick, setup) in &tick_lifecycle_events {
-            if let Some(group) = groups.iter_mut().find(|g| g.type_id == *type_id) {
-                if group.tick != tick || group.setup != setup {
-                    return Err(tick_event_export_error(format!(
-                        "conflicting SandEvent definitions for `{type_name}`: handler(s) {:?} and \
-                         handler `{}` returned different dispatch()/setup() results for the same \
-                         event type ({}) — every handler subscribing to one SandEvent must observe \
-                         identical dispatch()/setup() output",
-                        group.handler_paths,
-                        desc.path,
-                        describe_lifecycle_conflict(group.tick, tick, group.setup, setup),
-                    )));
-                }
-                group.handler_paths.push(desc.path);
-            } else {
-                groups.push(LifecycleGroup {
-                    type_id: *type_id,
-                    type_name,
-                    setup,
-                    tick,
-                    handler_paths: vec![desc.path],
-                });
-            }
+            crate::events::graph::discover_node(
+                *type_id,
+                type_name,
+                crate::events::NormalizedEventDispatch::Tick(tick.clone()),
+                setup.clone(),
+                desc.path,
+                &mut resolved,
+            )
+            .map_err(|e| tick_event_export_error(e.0))?;
         }
-        // Deterministic emission order and deterministic fan-out order —
-        // independent of inventory/link registration order.
-        groups.sort_by_key(|g| g.type_name);
-        for group in &mut groups {
-            group.handler_paths.sort_unstable();
+        for (desc, type_id, type_name, chain, setup) in chain_events {
+            crate::events::graph::discover_node(
+                type_id,
+                type_name,
+                crate::events::NormalizedEventDispatch::Chain(chain),
+                setup,
+                desc.path,
+                &mut resolved,
+            )
+            .map_err(|e| tick_event_export_error(e.0))?;
         }
+        for node in resolved.values_mut() {
+            node.handlers.sort_unstable();
+        }
+
+        let graph = crate::events::graph::EventGraph {
+            nodes: resolved
+                .into_values()
+                .map(|n| (n.type_name.to_string(), n))
+                .collect(),
+        };
 
         // Deterministic resource key derived from the canonical concrete
         // event type name, not from TypeId (not stable across builds) and
@@ -894,44 +942,114 @@ fn try_export_components_impl(
         // collision between two distinct event types is caught rather than
         // silently merging their detectors.
         let mut key_registry: BTreeMap<String, &'static str> = BTreeMap::new();
-        for group in &groups {
-            let key = tick_event_resource_key(group.type_name);
-            if let Some(existing) = key_registry.insert(key.clone(), group.type_name)
-                && existing != group.type_name
+        for node in graph.nodes.values() {
+            let key = tick_event_resource_key(node.type_name);
+            if let Some(existing) = key_registry.insert(key.clone(), node.type_name)
+                && existing != node.type_name
             {
                 return Err(tick_event_export_error(format!(
                     "generated resource key collision: event types `{existing}` and `{}` both \
                      hash to key `{key}` — rename one of the event types to avoid colliding \
                      generated detector/setup paths",
-                    group.type_name
+                    node.type_name
                 )));
             }
         }
 
-        for group in &groups {
-            let key = tick_event_resource_key(group.type_name);
-            let plans = group.tick.execution_plans();
+        // Some built-in SandEvent types (e.g. `PlayerSneakEvent`) still use
+        // the legacy `TickCondition` constructor with a Sand-owned entity
+        // predicate condition string. Their raw condition now lives inside
+        // the node's own `when`/`unless` clauses (see the `CustomDispatchBackend::TickPoll`
+        // arm above), so scan root nodes for it here and emit the internal
+        // predicate JSON exactly as the pre-#240-follow-up `TickPoll`
+        // aggregation did — only the generation site moved, not the output.
+        let mut state_predicates: BTreeMap<&'static str, &'static str> = BTreeMap::new();
+        for root in graph.roots() {
+            let crate::events::graph::NodeOrigin::Root(tick) = &root.origin else {
+                continue;
+            };
+            for cond in tick.when.iter().chain(tick.unless.iter()) {
+                if let crate::condition::Condition::Raw(s) = cond
+                    && let Some((path, flag)) = sand_player_state_predicate(s)
+                {
+                    state_predicates.insert(path, flag);
+                }
+            }
+        }
+        for (path, flag) in state_predicates {
+            if !records
+                .iter()
+                .any(|r| r.dir == "predicate" && r.path == path)
+            {
+                records.push(ComponentRecord {
+                    namespace: namespace.to_string(),
+                    dir: "predicate".to_string(),
+                    path: path.to_string(),
+                    ext: "json".to_string(),
+                    content_type: "text".to_string(),
+                    content: serde_json::to_string_pretty(&player_state_predicate_json(flag))
+                        .unwrap(),
+                });
+            }
+        }
 
-            // More than one OR-alternative plan means more than one plan can
-            // match the same subject on the same tick. Coalesce via a
-            // per-event, per-player "already fired this tick" guard reset
-            // every tick before detection, rather than silently allowing
-            // duplicate handler invocations.
+        // Nodes whose key needs a `se_{key}_g` per-player coalescing guard
+        // objective, discovered while building dispatch functions below
+        // (populated before setup is emitted, since setup is emitted after).
+        let mut guarded_children: std::collections::BTreeSet<String> =
+            std::collections::BTreeSet::new();
+
+        // Build every node's dispatch function up front (recursing from
+        // roots down through children — safe without memoization since each
+        // node has at most one parent, so this visits each node exactly
+        // once), collecting the root -> dispatch_ref mapping used below.
+        let mut root_dispatch_ref: BTreeMap<String, String> = BTreeMap::new();
+        let mut root_self_guard: BTreeMap<String, Option<String>> = BTreeMap::new();
+        for root in graph.roots() {
+            let crate::events::graph::NodeOrigin::Root(tick) = &root.origin else {
+                unreachable!("roots() only yields Root-origin nodes");
+            };
+            let plans = tick.execution_plans();
             let needs_guard = matches!(&plans, TickExecutionPlans::Plans(p) if p.len() > 1);
-            let guard_objective = needs_guard.then(|| format!("se_{key}_f"));
+            let key = tick_event_resource_key(root.type_name);
+            let self_guard = needs_guard.then(|| format!("se_{key}_f"));
 
-            // Dedup exact-duplicate objective commands within one EventSetup
-            // (e.g. authored twice by mistake) while preserving first-seen
-            // order — `scoreboard objectives add` is idempotent but a
-            // duplicate line is pure noise in generated output.
+            let dispatch_reachable = match &plans {
+                TickExecutionPlans::Unconditional => true,
+                TickExecutionPlans::Plans(p) => !p.is_empty(),
+            };
+            let dispatch_ref = if dispatch_reachable {
+                Some(build_dispatch_function(
+                    root.type_name,
+                    &graph,
+                    namespace,
+                    self_guard.as_deref(),
+                    &mut guarded_children,
+                    &mut records,
+                ))
+            } else {
+                None
+            };
+            root_dispatch_ref.insert(root.type_name.to_string(), dispatch_ref.unwrap_or_default());
+            root_self_guard.insert(root.type_name.to_string(), self_guard);
+        }
+
+        // Emit setup (objectives, + a `_g` guard objective for any node that
+        // is chained-to via more than one OR-alternative edge condition) for
+        // every node exactly once.
+        for node in graph.nodes.values() {
+            let key = tick_event_resource_key(node.type_name);
             let mut setup_cmds: Vec<String> = Vec::new();
-            for cmd in &group.setup.objectives {
+            for cmd in &node.setup.objectives {
                 if !setup_cmds.contains(cmd) {
                     setup_cmds.push(cmd.clone());
                 }
             }
-            if let Some(guard) = &guard_objective {
+            if let Some(Some(guard)) = root_self_guard.get(node.type_name) {
                 setup_cmds.push(format!("scoreboard objectives add {guard} dummy"));
+            }
+            if guarded_children.contains(node.type_name) {
+                setup_cmds.push(format!("scoreboard objectives add se_{key}_g dummy"));
             }
             if !setup_cmds.is_empty() {
                 let init_path = format!("__sand_event_setup/{key}");
@@ -948,53 +1066,32 @@ fn try_export_components_impl(
                     .or_default()
                     .push(format!("{namespace}:{init_path}"));
             }
+        }
 
-            // An explicit `Any([])`-shaped condition renders zero execute
-            // plans — it can never hold. Don't wire up a detector or a
-            // dispatch/fan-out function that could never be reached; still
-            // honor pre/post_observation, which run every tick regardless of
-            // detection per the EventSetup contract.
-            let dispatch_reachable = match &plans {
-                TickExecutionPlans::Unconditional => true,
-                TickExecutionPlans::Plans(p) => !p.is_empty(),
+        // Emit the tick-check wiring for every root: pre_observation, then
+        // the detection execute line(s) calling the dispatch function built
+        // above, then post_observation — unconditionally, regardless of
+        // whether detection matched this tick, so tracked/synchronized state
+        // always advances (required for delta-tracking events).
+        for root in graph.roots() {
+            let crate::events::graph::NodeOrigin::Root(tick) = &root.origin else {
+                unreachable!("roots() only yields Root-origin nodes");
             };
+            let plans = tick.execution_plans();
+            let self_guard = root_self_guard.get(root.type_name).and_then(|g| g.clone());
+            let key = tick_event_resource_key(root.type_name);
 
             let mut tick_cmds: Vec<String> = Vec::new();
-            tick_cmds.extend(group.setup.pre_observation.iter().cloned());
+            tick_cmds.extend(root.setup.pre_observation.iter().cloned());
 
-            if dispatch_reachable {
-                if let Some(guard) = &guard_objective {
+            let dispatch_ref = root_dispatch_ref
+                .get(root.type_name)
+                .cloned()
+                .unwrap_or_default();
+            if !dispatch_ref.is_empty() {
+                if let Some(guard) = &self_guard {
                     tick_cmds.push(format!("scoreboard players set @a {guard} 0"));
                 }
-
-                // Direct single-handler call when no wrapper is needed;
-                // otherwise a generated dispatch function (guard-set line,
-                // if any, followed by every handler body in sorted order).
-                let dispatch_ref = if group.handler_paths.len() == 1 && guard_objective.is_none() {
-                    format!("{namespace}:{}", group.handler_paths[0])
-                } else {
-                    let dispatch_path = format!("__sand_event_dispatch/{key}");
-                    let mut dispatch_cmds: Vec<String> = Vec::new();
-                    if let Some(guard) = &guard_objective {
-                        dispatch_cmds.push(format!("scoreboard players set @s {guard} 1"));
-                    }
-                    dispatch_cmds.extend(
-                        group
-                            .handler_paths
-                            .iter()
-                            .map(|path| format!("function {namespace}:{path}")),
-                    );
-                    records.push(ComponentRecord {
-                        namespace: namespace.to_string(),
-                        dir: "function".to_string(),
-                        path: dispatch_path.clone(),
-                        ext: "mcfunction".to_string(),
-                        content_type: "text".to_string(),
-                        content: dispatch_cmds.join("\n"),
-                    });
-                    format!("{namespace}:{dispatch_path}")
-                };
-
                 match &plans {
                     TickExecutionPlans::Unconditional => {
                         tick_cmds.push(format!("execute as @a at @s run function {dispatch_ref}"));
@@ -1002,7 +1099,7 @@ fn try_export_components_impl(
                     TickExecutionPlans::Plans(plans) => {
                         for plan in plans {
                             let mut clauses: Vec<String> = Vec::new();
-                            if let Some(guard) = &guard_objective {
+                            if let Some(guard) = &self_guard {
                                 clauses.push(format!("unless score @s {guard} matches 1"));
                             }
                             clauses.extend(plan.iter().cloned());
@@ -1021,7 +1118,7 @@ fn try_export_components_impl(
                 }
             }
 
-            tick_cmds.extend(group.setup.post_observation.iter().cloned());
+            tick_cmds.extend(root.setup.post_observation.iter().cloned());
 
             if !tick_cmds.is_empty() {
                 let check_path = format!("__sand_event_check/{key}");
@@ -1857,24 +1954,6 @@ fn tick_event_resource_key(canonical_type_name: &str) -> String {
 /// Human-readable description of which part of two `SandEvent` definitions
 /// for the same event type differ, for the conflicting-descriptor export
 /// error.
-fn describe_lifecycle_conflict(
-    a_tick: &crate::events::TickEventDispatch,
-    b_tick: &crate::events::TickEventDispatch,
-    a_setup: &crate::events::EventSetup,
-    b_setup: &crate::events::EventSetup,
-) -> String {
-    let dispatch_differs = a_tick != b_tick;
-    let setup_differs = a_setup != b_setup;
-    match (dispatch_differs, setup_differs) {
-        (true, true) => "both dispatch() and setup() differ".to_string(),
-        (true, false) => "dispatch() (tick scope/when/unless conditions) differs".to_string(),
-        (false, true) => {
-            "setup() (objectives/pre_observation/post_observation) differs".to_string()
-        }
-        (false, false) => "definitions are structurally equal (internal error)".to_string(),
-    }
-}
-
 fn tick_event_export_error(message: impl Into<String>) -> ComponentExportError {
     ComponentExportError::ComponentValidation {
         location: sand_components::ResourceLocation::new("sand", "events")
@@ -1885,23 +1964,225 @@ fn tick_event_export_error(message: impl Into<String>) -> ComponentExportError {
     }
 }
 
+/// Build (or reuse the sole handler as) `name`'s dispatch function: direct
+/// `#[event]` handler calls (sorted), then child edges (sorted by canonical
+/// child name, recursing into each child's own dispatch function first so
+/// nested references always resolve), inheriting the current `@s`/position —
+/// never re-issuing `execute as @a`.
+///
+/// This function never contains lifecycle (`pre_observation`/
+/// `post_observation`) commands, for either roots or chained nodes. Root
+/// lifecycle stays in the tick-check wrapper (run unconditionally every tick
+/// regardless of detection, established by the caller). A chained node's own
+/// lifecycle is wrapped around *its* condition test by its parent — see
+/// [`build_child_edge`] — so it always observes before testing and always
+/// advances after testing, whether or not its condition matched.
+///
+/// Safe to call at most once per node without memoization: this phase
+/// supports only one parent per event, so the graph is a forest and every
+/// node is reached from exactly one call site (its unique parent, or a
+/// top-level call for roots).
+fn build_dispatch_function(
+    name: &str,
+    graph: &crate::events::graph::EventGraph,
+    namespace: &str,
+    self_guard: Option<&str>,
+    guarded_children: &mut std::collections::BTreeSet<String>,
+    records: &mut Vec<ComponentRecord>,
+) -> String {
+    let node = &graph.nodes[name];
+    let key = tick_event_resource_key(node.type_name);
+    let children = graph.children_of(name);
+
+    let needs_wrapper = node.handlers.len() != 1 || !children.is_empty() || self_guard.is_some();
+
+    if !needs_wrapper {
+        return format!("{namespace}:{}", node.handlers[0]);
+    }
+
+    let mut cmds: Vec<String> = Vec::new();
+    if let Some(guard) = self_guard {
+        cmds.push(format!("scoreboard players set @s {guard} 1"));
+    }
+    for handler in &node.handlers {
+        cmds.push(format!("function {namespace}:{handler}"));
+    }
+    for edge in &children {
+        cmds.push(build_child_edge(
+            edge,
+            graph,
+            namespace,
+            guarded_children,
+            records,
+        ));
+    }
+
+    let dispatch_path = format!("__sand_event_dispatch/{key}");
+    records.push(ComponentRecord {
+        namespace: namespace.to_string(),
+        dir: "function".to_string(),
+        path: dispatch_path.clone(),
+        ext: "mcfunction".to_string(),
+        content_type: "text".to_string(),
+        content: cmds.join("\n"),
+    });
+    format!("{namespace}:{dispatch_path}")
+}
+
+/// Build the call line a parent uses to reach one child edge, and — when the
+/// child owns lifecycle commands — the dedicated `__sand_event_observe/<child>`
+/// function that wraps its condition test between `pre_observation` and
+/// `post_observation`.
+///
+/// The required per-invocation order for a chained child is always:
+/// `pre_observation` → condition test → handler/descendant dispatch if
+/// matched → `post_observation`, with `post_observation` reached whether or
+/// not the condition matched (mirroring the tick-lifecycle contract for
+/// roots). A child with no lifecycle commands has no such ordering concern,
+/// so it keeps the direct (no-wrapper) call shape.
+fn build_child_edge(
+    edge: &crate::events::graph::EventEdge,
+    graph: &crate::events::graph::EventGraph,
+    namespace: &str,
+    guarded_children: &mut std::collections::BTreeSet<String>,
+    records: &mut Vec<ComponentRecord>,
+) -> String {
+    let child_node = &graph.nodes[&edge.child];
+    let child_ref = build_dispatch_function(
+        &edge.child,
+        graph,
+        namespace,
+        None,
+        guarded_children,
+        records,
+    );
+    let has_lifecycle = !child_node.setup.pre_observation.is_empty()
+        || !child_node.setup.post_observation.is_empty();
+
+    // Build the condition-gated dispatch line(s) that reach `dispatch_ref`,
+    // shared by both the no-lifecycle (emitted directly into the caller's
+    // command list) and lifecycle (emitted into the observe function body)
+    // shapes.
+    let conditional_dispatch_lines = |dispatch_ref: &str,
+                                      guarded_children: &mut std::collections::BTreeSet<String>,
+                                      records: &mut Vec<ComponentRecord>|
+     -> Vec<String> {
+        match edge.execution_plans() {
+            crate::events::TickExecutionPlans::Unconditional => {
+                vec![format!("function {dispatch_ref}")]
+            }
+            crate::events::TickExecutionPlans::Plans(plans) if plans.len() <= 1 => plans
+                .into_iter()
+                .next()
+                .map(|plan| {
+                    if plan.is_empty() {
+                        format!("function {dispatch_ref}")
+                    } else {
+                        format!("execute {} run function {dispatch_ref}", plan.join(" "))
+                    }
+                })
+                .into_iter()
+                .collect(),
+            // else: an explicit `Any([])`-shaped edge condition can never
+            // hold — no dead wiring emitted for an unreachable edge.
+            crate::events::TickExecutionPlans::Plans(plans) => {
+                // More than one OR-alternative plan means this child could be
+                // reached more than once from the same parent invocation.
+                // Coalesce via a per-child, per-player guard reset right
+                // before evaluating the plans, mirroring the root
+                // self-detection guard.
+                guarded_children.insert(edge.child.clone());
+                let child_key = tick_event_resource_key(&edge.child);
+                let guard = format!("se_{child_key}_g");
+
+                let edge_path = format!("__sand_event_edge/{child_key}");
+                let edge_ref = format!("{namespace}:{edge_path}");
+                records.push(ComponentRecord {
+                    namespace: namespace.to_string(),
+                    dir: "function".to_string(),
+                    path: edge_path,
+                    ext: "mcfunction".to_string(),
+                    content_type: "text".to_string(),
+                    content: [
+                        format!("scoreboard players set @s {guard} 1"),
+                        format!("function {dispatch_ref}"),
+                    ]
+                    .join("\n"),
+                });
+
+                let mut lines = vec![format!("scoreboard players set @s {guard} 0")];
+                for plan in &plans {
+                    let mut clauses = vec![format!("unless score @s {guard} matches 1")];
+                    clauses.extend(plan.iter().cloned());
+                    lines.push(format!(
+                        "execute {} run function {edge_ref}",
+                        clauses.join(" ")
+                    ));
+                }
+                lines
+            }
+        }
+    };
+
+    if !has_lifecycle {
+        // No ordering concern — the condition test (and any multi-plan
+        // guard) can be emitted directly into the parent's own command list,
+        // exactly as before.
+        return conditional_dispatch_lines(&child_ref, guarded_children, records).join("\n");
+    }
+
+    // The child owns pre_observation/post_observation: wrap the condition
+    // test in a dedicated observe function so post_observation is always
+    // structurally reached after a condition attempt, matched or not — never
+    // only inside a function reached solely on success.
+    let child_key = tick_event_resource_key(&edge.child);
+    let mut observe_cmds: Vec<String> = Vec::new();
+    observe_cmds.extend(child_node.setup.pre_observation.iter().cloned());
+    observe_cmds.extend(conditional_dispatch_lines(
+        &child_ref,
+        guarded_children,
+        records,
+    ));
+    observe_cmds.extend(child_node.setup.post_observation.iter().cloned());
+
+    let observe_path = format!("__sand_event_observe/{child_key}");
+    records.push(ComponentRecord {
+        namespace: namespace.to_string(),
+        dir: "function".to_string(),
+        path: observe_path.clone(),
+        ext: "mcfunction".to_string(),
+        content_type: "text".to_string(),
+        content: observe_cmds.join("\n"),
+    });
+    format!("function {namespace}:{observe_path}")
+}
+
 /// The resolved dispatch backend for a custom [`crate::events::SandEvent`],
 /// after enforcing that exactly one of `make_trigger()` / `make_condition()` /
 /// `make_tick()` returned `Some` (see #121).
 #[allow(clippy::large_enum_variant)]
 enum CustomDispatchBackend {
     Advancement(crate::AdvancementTrigger),
-    /// Legacy single-fragment tick-poll condition (no lifecycle/setup).
+    /// Legacy single-fragment `SandEventDispatch::TickCondition` string.
+    ///
+    /// Normalized into the same structured `TickEventDispatch` shape as
+    /// [`TickLifecycle`](Self::TickLifecycle) (matching
+    /// `SandEventDispatch::normalize()`) and fed into the same event graph
+    /// discovery, so a legacy parent shares exactly one generated detector
+    /// with any structured-`tick()` sibling handlers and same-cycle chain
+    /// children — never a second, independent detector.
     TickPoll(String),
     /// Structured, typed tick dispatch with lifecycle/setup support.
     TickLifecycle(crate::events::TickEventDispatch),
+    /// Structured, same-cycle chained dispatch (#240).
+    Chain(crate::events::ChainEventDispatch),
 }
 
 /// Resolve which dispatch backend a custom `SandEvent` uses, enforcing the
 /// documented `EventDispatch::Custom` contract: exactly one of `make_trigger()`
-/// / `make_condition()` / `make_tick()` must return `Some`.
+/// / `make_condition()` / `make_tick()` / `make_chain()` must return `Some`.
 ///
-/// All three factories are evaluated by the caller *before* this function
+/// All four factories are evaluated by the caller *before* this function
 /// runs, so this is a pure decision function — panicking here (rather than
 /// returning a `Result`) matches the existing "both `None`" precedent: this is
 /// a Rust-level authoring bug in the `SandEvent` impl, detected at
@@ -1910,23 +2191,35 @@ fn resolve_custom_dispatch_backend(
     trigger: Option<crate::AdvancementTrigger>,
     condition: Option<String>,
     tick: Option<crate::events::TickEventDispatch>,
+    chain: Option<crate::events::ChainEventDispatch>,
     handler_path: &str,
 ) -> CustomDispatchBackend {
-    match (trigger, condition, tick) {
-        (Some(trigger), None, None) => CustomDispatchBackend::Advancement(trigger),
-        (None, Some(condition), None) => CustomDispatchBackend::TickPoll(condition),
-        (None, None, Some(tick)) => CustomDispatchBackend::TickLifecycle(tick),
-        (None, None, None) => {
+    let some_count = [
+        trigger.is_some(),
+        condition.is_some(),
+        tick.is_some(),
+        chain.is_some(),
+    ]
+    .iter()
+    .filter(|b| **b)
+    .count();
+    match (trigger, condition, tick, chain, some_count) {
+        (Some(trigger), None, None, None, 1) => CustomDispatchBackend::Advancement(trigger),
+        (None, Some(condition), None, None, 1) => CustomDispatchBackend::TickPoll(condition),
+        (None, None, Some(tick), None, 1) => CustomDispatchBackend::TickLifecycle(tick),
+        (None, None, None, Some(chain), 1) => CustomDispatchBackend::Chain(chain),
+        (_, _, _, _, 0) => {
             panic!(
                 "Custom SandEvent for handler `{handler_path}` returned None from \
-                 make_trigger(), make_condition(), and make_tick() — implement exactly one \
-                 dispatch strategy from SandEvent::dispatch()"
+                 make_trigger(), make_condition(), make_tick(), and make_chain() — implement \
+                 exactly one dispatch strategy from SandEvent::dispatch()"
             );
         }
         _ => {
             panic!(
                 "Custom SandEvent for handler `{handler_path}` returned more than one dispatch \
-                 strategy (make_trigger/make_condition/make_tick) — implement exactly one"
+                 strategy (make_trigger/make_condition/make_tick/make_chain) — implement exactly \
+                 one"
             );
         }
     }
@@ -2168,6 +2461,7 @@ mod tests {
             Some(AdvancementTrigger::Tick),
             None,
             None,
+            None,
             "my_pack:on_thing",
         );
         assert!(matches!(
@@ -2182,6 +2476,7 @@ mod tests {
             None,
             Some("score @s foo matches 1..".to_string()),
             None,
+            None,
             "my_pack:on_thing",
         );
         assert!(matches!(backend, super::CustomDispatchBackend::TickPoll(_)));
@@ -2193,6 +2488,7 @@ mod tests {
             None,
             None,
             Some(crate::events::TickEventDispatch::default()),
+            None,
             "my_pack:on_thing",
         );
         assert!(matches!(
@@ -2203,10 +2499,10 @@ mod tests {
 
     #[test]
     #[should_panic(
-        expected = "returned None from make_trigger(), make_condition(), and make_tick()"
+        expected = "returned None from make_trigger(), make_condition(), make_tick(), and make_chain()"
     )]
     fn custom_dispatch_backend_rejects_neither_backend() {
-        super::resolve_custom_dispatch_backend(None, None, None, "my_pack:on_thing");
+        super::resolve_custom_dispatch_backend(None, None, None, None, "my_pack:on_thing");
     }
 
     #[test]
@@ -2215,6 +2511,7 @@ mod tests {
         super::resolve_custom_dispatch_backend(
             Some(AdvancementTrigger::Tick),
             Some("score @s foo matches 1..".to_string()),
+            None,
             None,
             "my_pack:on_thing",
         );
@@ -2226,6 +2523,7 @@ mod tests {
             super::resolve_custom_dispatch_backend(
                 Some(AdvancementTrigger::Tick),
                 Some("score @s foo matches 1..".to_string()),
+                None,
                 None,
                 "my_pack:on_elevator_placed",
             )

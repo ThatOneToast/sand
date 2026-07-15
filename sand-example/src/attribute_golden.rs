@@ -18,7 +18,7 @@ pub fn golden_load() {
 
 #[component(Tick)]
 pub fn golden_tick() {
-    GOLDEN_DASH.tick(Selector::all_players());
+    GOLDEN_DASH.tick_all_players();
     TypedExecute::as_players()
         .when(all![
             GOLDEN_MANA.of("@s").gte(25),
@@ -109,7 +109,7 @@ mod tests {
         assert_eq!(
             golden_tick(),
             vec![
-                "execute if score @a golden_dash matches 1.. run scoreboard players remove @a golden_dash 1",
+                "execute as @a if score @s golden_dash matches 1.. run scoreboard players remove @s golden_dash 1",
                 "execute as @a if score @s golden_mana matches 25.. if score @s golden_dash matches 0 if score @s golden_casting matches 0 run title @s actionbar {\"bold\":true,\"color\":\"aqua\",\"text\":\"Dash ready\"}",
                 "execute as @a if score @s golden_mana matches 25.. if data storage golden:settings players.self.mana if score @s golden_casting matches 0 run title @s actionbar {\"bold\":true,\"color\":\"aqua\",\"text\":\"Dash ready\"}",
             ]

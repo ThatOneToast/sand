@@ -126,6 +126,7 @@ fn passengers_relation_is_many_cardinality_and_iterates_via_each() {
     let cmds = EntityQuery::entities()
         .entity_type("minecraft:boat")
         .limit(1)
+        .expect("a positive limit is valid")
         .each(|boat| {
             boat.passengers()
                 .each(&profile, |passenger| vec![passenger.add_tag("aboard")])

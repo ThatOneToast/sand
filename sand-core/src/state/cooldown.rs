@@ -19,7 +19,7 @@ use crate::state::timer::Ticks;
 /// static DASH: Cooldown = Cooldown::new("dash", Ticks::new(60));
 ///
 /// let load_cmds = vec![DASH.define()];
-/// let tick_cmds = vec![DASH.tick("@a")];
+/// let tick_cmds = vec![DASH.tick_all_players()];
 ///
 /// // Condition: cooldown is ready (score == 0)
 /// let cond = DASH.ready("@s");
@@ -139,7 +139,10 @@ impl Cooldown {
     ///
     /// Convenience for placing in a `#[component(Tick)]` function.
     pub fn tick_all_players(&self) -> String {
-        self.tick("@a")
+        let obj = self.objective_name();
+        format!(
+            "execute as @a if score @s {obj} matches 1.. run scoreboard players remove @s {obj} 1"
+        )
     }
 
     /// Alias for [`guard`](Cooldown::guard) — guards if the cooldown is NOT ready.
@@ -266,7 +269,10 @@ mod tests {
 
     #[test]
     fn tick_all_players() {
-        assert_eq!(DASH.tick_all_players(), DASH.tick("@a"));
+        assert_eq!(
+            DASH.tick_all_players(),
+            "execute as @a if score @s dash matches 1.. run scoreboard players remove @s dash 1"
+        );
     }
 
     #[test]

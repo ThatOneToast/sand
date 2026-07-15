@@ -37,7 +37,17 @@ assert!(try_tag_add(Selector::self_(), "").is_err());
 assert!(try_tag_add(Selector::self_(), "ready").is_ok());
 ```
 
-`CommandError` names the helper and the invalid field/reason. Prefer the
-`try_*` path at command-generation boundaries where input isn't already
-known-valid (e.g. values threaded from user-facing config or another
-system), and the infallible helpers for literals you control directly.
+`CommandError` names the helper and invalid field/reason. The shared
+`RenderCommand` boundary additionally covers selectors, coordinates, item
+slots, score holders/objectives, scoreboard operations, and foundational
+execute arguments. Sand validates those typed values structurally. At final
+export, every collected command receives single-line integrity validation;
+only confidently recognized top-level commands receive additional
+argument-position-aware fallback checks. Failures include the owning function,
+command index, and Minecraft profile.
+
+Prefer `try_*` wherever an older free function still returns `String`. Use
+`cmd::raw(...)` only for syntax Sand does not model. Unknown advanced, macro,
+and modded syntax remains verbatim after single-line integrity checks. The
+fallback validator does not search raw JSON, SNBT, or literal text for
+command-shaped substrings.

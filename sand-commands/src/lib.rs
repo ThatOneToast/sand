@@ -2,7 +2,10 @@
 
 //! Typed Minecraft command builders.
 //!
-//! Every command type implements [`Build`], which provides:
+//! Historical command builders implement [`Build`] for deterministic string
+//! compatibility. Migrated typed foundations additionally implement
+//! [`RenderCommand`], whose fallible profile-aware path is the normal choice
+//! for new APIs. [`Build`] provides:
 //! - `build(&self) -> String` — the canonical serialization method
 //! - `Clone` — required supertrait, derived on every type
 //! - `ToString` — automatic via `Display`, which each type also implements
@@ -21,6 +24,8 @@ pub mod execute_args;
 pub mod inventory;
 pub mod nbt;
 pub mod particles;
+pub mod raw;
+pub mod render;
 pub mod scoreboard;
 pub mod selector;
 pub mod sound;
@@ -44,9 +49,11 @@ pub use inventory::{Inventory, InventorySlot, SlotPattern};
 pub type Slot = ItemSlot;
 pub use nbt::{DataModify, DataTarget, NbtValue, data_modify};
 pub use particles::{Particle, ParticleBuilder, ParticleEffect, ParticleSpread};
+pub use raw::RawCommand;
+pub use render::{CommandProfile, RenderCommand, Validate};
 pub use scoreboard::{
-    DisplaySlot, Objective, ScoreCmp, ScoreHolder, ScoreOp, ScoreboardPlayersOperation,
-    scoreboard_players_operation,
+    DisplaySlot, Objective, ObjectiveName, ScoreCmp, ScoreHolder, ScoreOp,
+    ScoreboardPlayersOperation, scoreboard_players_operation,
 };
 pub use selector::{
     EntityTarget, EntityTargets, GameMode, Many, One, PlayerTarget, PlayerTargets, Selector,
@@ -57,10 +64,12 @@ pub use text::{ChatColor, ClickEvent, HoverEvent, Text, TextComponent};
 
 // ── Build trait ───────────────────────────────────────────────────────────────
 
-/// The core trait for all Minecraft command builders.
+/// Compatibility serialization trait for Minecraft command builders.
 ///
-/// Every type that represents a Minecraft command or produces a command string
-/// implements this trait. Implementors are required to satisfy:
+/// Existing builders use this infallible trait to preserve stable output.
+/// New typed APIs that accept user-controlled values should also implement
+/// [`RenderCommand`] so validation occurs before rendering. Implementors are
+/// required to satisfy:
 ///
 /// - [`Clone`] — required supertrait, derived via `#[derive(Clone)]`
 ///

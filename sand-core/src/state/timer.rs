@@ -18,7 +18,7 @@ pub use sand_components::Ticks;
 /// let cmds = vec![
 ///     BLINK.define(),
 ///     BLINK.start("@s"),
-///     BLINK.tick("@a"),
+///     BLINK.tick_all_players(),
 /// ];
 /// ```
 pub struct Timer {
@@ -73,6 +73,14 @@ impl Timer {
         let obj = self.objective_name();
         format!(
             "execute if score {selector} {obj} matches 1.. run scoreboard players remove {selector} {obj} 1"
+        )
+    }
+
+    /// Decrement this timer independently for every online player.
+    pub fn tick_all_players(&self) -> String {
+        let obj = self.objective_name();
+        format!(
+            "execute as @a if score @s {obj} matches 1.. run scoreboard players remove @s {obj} 1"
         )
     }
 
@@ -163,9 +171,17 @@ mod tests {
 
     #[test]
     fn timer_tick() {
-        let cmd = BLINK.tick("@a");
+        let cmd = BLINK.tick("@s");
         assert!(cmd.contains("matches 1.."), "got: {cmd}");
-        assert!(cmd.contains("remove @a blink_cd 1"), "got: {cmd}");
+        assert!(cmd.contains("remove @s blink_cd 1"), "got: {cmd}");
+    }
+
+    #[test]
+    fn timer_tick_all_players_is_per_player_safe() {
+        assert_eq!(
+            BLINK.tick_all_players(),
+            "execute as @a if score @s blink_cd matches 1.. run scoreboard players remove @s blink_cd 1"
+        );
     }
 
     #[test]

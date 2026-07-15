@@ -70,7 +70,9 @@ fn parent_setup() -> EventSetup {
             "scoreboard objectives add sync_p dummy".to_string(),
         ],
         pre_observation: vec![],
-        post_observation: vec!["scoreboard players operation @a sync_p = @a cur_p".to_string()],
+        post_observation: vec![
+            "execute as @a run scoreboard players operation @s sync_p = @s cur_p".to_string(),
+        ],
     }
 }
 
@@ -605,7 +607,7 @@ fn child_dispatch_runs_before_parent_post_observation() {
         .find("run function chainpack:__sand_event_dispatch")
         .expect("detection line calling dispatch must be present");
     let sync_pos = content
-        .find("scoreboard players operation @a sync_p = @a cur_p")
+        .find("execute as @a run scoreboard players operation @s sync_p = @s cur_p")
         .expect("post_observation sync command must be present");
     assert!(
         detect_pos < sync_pos,

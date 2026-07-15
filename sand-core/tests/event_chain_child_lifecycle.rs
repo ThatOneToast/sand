@@ -67,7 +67,8 @@ fn parent_setup() -> EventSetup {
         objectives: vec!["scoreboard objectives add parent_flag dummy".to_string()],
         pre_observation: vec![],
         post_observation: vec![
-            "scoreboard players operation @a parent_post = @a parent_flag".to_string(),
+            "execute as @a run scoreboard players operation @s parent_post = @s parent_flag"
+                .to_string(),
         ],
     }
 }
@@ -701,7 +702,7 @@ fn parent_post_observation_still_runs_after_child_lifecycle_dispatch() {
         .find("run function chainlifecyclepack:__sand_event_dispatch")
         .expect("detection line calling dispatch must be present");
     let sync_pos = content
-        .find("scoreboard players operation @a parent_post = @a parent_flag")
+        .find("execute as @a run scoreboard players operation @s parent_post = @s parent_flag")
         .expect("post_observation sync command must be present");
     assert!(
         detect_pos < sync_pos,

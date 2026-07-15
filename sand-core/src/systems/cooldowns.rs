@@ -28,10 +28,10 @@ static REGISTERED: Mutex<Vec<String>> = Mutex::new(Vec::new());
 
 /// Register a cooldown for automatic ticking by the export pipeline.
 ///
-/// Each registered cooldown will have `cooldown.tick("@a")` included in the
+/// Each registered cooldown will have `cooldown.tick_all_players()` included in the
 /// generated tick function. Duplicate objective names are deduplicated.
 pub fn register_cooldown(cd: &Cooldown) {
-    let cmd = cd.tick("@a");
+    let cmd = cd.tick_all_players();
     let mut guard = REGISTERED.lock().expect("cooldown registry poisoned");
     if !guard.contains(&cmd) {
         guard.push(cmd);

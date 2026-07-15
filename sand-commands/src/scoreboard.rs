@@ -16,8 +16,11 @@ use std::borrow::Cow;
 use std::fmt;
 
 use crate::Build;
+use crate::error::{CommandError, CommandResult};
+use crate::render::{CommandProfile, RenderCommand, Validate};
 use crate::selector::Selector;
 use crate::text::TextComponent;
+use crate::validate;
 
 // ── ScoreHolder ───────────────────────────────────────────────────────────────
 
@@ -38,12 +41,22 @@ use crate::text::TextComponent;
 /// assert_eq!(everyone.to_string(), "*");
 /// ```
 #[derive(Debug, Clone)]
-pub struct ScoreHolder(String);
+enum ScoreHolderKind {
+    Entity(Selector),
+    Fake(String),
+    All,
+    Raw(String),
+    Compat(String),
+}
+
+#[derive(Debug, Clone)]
+#[must_use = "score holders do nothing until passed to a scoreboard command"]
+pub struct ScoreHolder(ScoreHolderKind);
 
 impl ScoreHolder {
     /// Create a score holder from an entity selector.
     pub fn entity(selector: Selector) -> Self {
-        ScoreHolder(selector.to_string())
+        ScoreHolder(ScoreHolderKind::Entity(selector))
     }
 
     /// Create a score holder from a named fake player.
@@ -51,23 +64,173 @@ impl ScoreHolder {
     /// Convention: prefix with `#` (e.g. `"#const"`, `"#zero"`) to distinguish
     /// from real player names.
     pub fn fake(name: impl Into<String>) -> Self {
-        ScoreHolder(name.into())
+        ScoreHolder(ScoreHolderKind::Fake(name.into()))
     }
 
     /// `*` — all score holders with any score in this objective.
     pub fn all() -> Self {
-        ScoreHolder("*".into())
+        ScoreHolder(ScoreHolderKind::All)
     }
 
     /// `@s` — score holder for the entity executing the command.
     pub fn self_() -> Self {
         ScoreHolder::entity(Selector::self_())
     }
+
+    /// Explicit unchecked score-holder syntax.
+    pub fn raw(value: impl Into<String>) -> Self {
+        ScoreHolder(ScoreHolderKind::Raw(value.into()))
+    }
+
+    pub(crate) fn is_single(&self) -> bool {
+        match &self.0 {
+            ScoreHolderKind::Entity(selector) => selector.is_statically_single(),
+            ScoreHolderKind::Raw(_) | ScoreHolderKind::Fake(_) => true,
+            ScoreHolderKind::All | ScoreHolderKind::Compat(_) => false,
+        }
+    }
+
+    pub(crate) fn validate_single(&self, profile: &CommandProfile) -> CommandResult<()> {
+        self.validate(profile)?;
+        if self.is_single() {
+            Ok(())
+        } else {
+            Err(CommandError::new(
+                "ScoreHolder",
+                "holder",
+                "score conditions require exactly one holder; use a typed single target, `@s`, or a fake player",
+            ))
+        }
+    }
+
+    pub(crate) fn from_compat(value: String) -> Self {
+        match value.as_str() {
+            "@s" => Self::entity(Selector::self_()),
+            "@p" => Self::entity(Selector::nearest_player()),
+            "@r" => Self::entity(Selector::random_player()),
+            "@a" => Self::entity(Selector::all_players()),
+            "@e" => Self::entity(Selector::all_entities()),
+            "*" => Self::all(),
+            value if value.starts_with('@') => {
+                ScoreHolder(ScoreHolderKind::Compat(value.to_string()))
+            }
+            _ => Self::fake(value),
+        }
+    }
 }
 
 impl fmt::Display for ScoreHolder {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
+        match &self.0 {
+            ScoreHolderKind::Entity(selector) => selector.fmt(f),
+            ScoreHolderKind::Fake(value)
+            | ScoreHolderKind::Raw(value)
+            | ScoreHolderKind::Compat(value) => f.write_str(value),
+            ScoreHolderKind::All => f.write_str("*"),
+        }
+    }
+}
+
+impl Validate for ScoreHolder {
+    fn validate(&self, profile: &CommandProfile) -> CommandResult<()> {
+        match &self.0 {
+            ScoreHolderKind::Entity(selector) => selector.validate(profile),
+            ScoreHolderKind::Fake(value) => {
+                validate::no_whitespace_or_control(value, "ScoreHolder", "fake_player")?;
+                if value.starts_with('@') || value == "*" {
+                    return Err(CommandError::new(
+                        "ScoreHolder",
+                        "fake_player",
+                        format!("`{value}` is selector/wildcard syntax, not a literal fake player"),
+                    ));
+                }
+                if value.len() > 40 {
+                    return Err(CommandError::new(
+                        "ScoreHolder",
+                        "fake_player",
+                        format!(
+                            "score-holder names cannot exceed 40 characters, got {}",
+                            value.len()
+                        ),
+                    ));
+                }
+                Ok(())
+            }
+            ScoreHolderKind::Compat(value) => {
+                validate::no_whitespace_or_control(value, "ScoreHolder", "holder")?;
+                Err(CommandError::new(
+                    "ScoreHolder",
+                    "holder",
+                    "legacy selector strings cannot prove single-holder cardinality; use a typed target or explicit `ScoreHolder::raw`",
+                ))
+            }
+            ScoreHolderKind::All | ScoreHolderKind::Raw(_) => Ok(()),
+        }
+    }
+}
+
+impl RenderCommand for ScoreHolder {
+    fn render_unchecked(&self, _profile: &CommandProfile) -> String {
+        self.to_string()
+    }
+}
+
+impl From<Selector> for ScoreHolder {
+    fn from(selector: Selector) -> Self {
+        Self::entity(selector)
+    }
+}
+
+/// Validated Minecraft scoreboard objective name.
+#[derive(Debug, Clone)]
+#[must_use = "objective names do nothing until passed to a scoreboard command"]
+pub struct ObjectiveName(Cow<'static, str>);
+
+impl ObjectiveName {
+    /// Const-compatible name used by static objectives. Validation occurs at
+    /// the fallible render/export boundary.
+    pub const fn new(name: &'static str) -> Self {
+        Self(Cow::Borrowed(name))
+    }
+
+    /// Construct and immediately validate a runtime name.
+    pub fn try_dynamic(name: impl Into<String>) -> CommandResult<Self> {
+        let name = Self(Cow::Owned(name.into()));
+        name.validate(&CommandProfile::unprofiled())?;
+        Ok(name)
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl fmt::Display for ObjectiveName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl Validate for ObjectiveName {
+    fn validate(&self, _profile: &CommandProfile) -> CommandResult<()> {
+        validate::no_whitespace_or_control(&self.0, "ObjectiveName", "name")?;
+        if self.0.len() > 16 {
+            return Err(CommandError::new(
+                "ObjectiveName",
+                "name",
+                format!(
+                    "objective names cannot exceed 16 characters, got {}",
+                    self.0.len()
+                ),
+            ));
+        }
+        Ok(())
+    }
+}
+
+impl RenderCommand for ObjectiveName {
+    fn render_unchecked(&self, _profile: &CommandProfile) -> String {
+        self.to_string()
     }
 }
 
@@ -165,12 +328,13 @@ impl fmt::Display for ScoreCmp {
 
 /// Result of [`scoreboard_players_operation`]. Implements [`Build`].
 #[derive(Debug, Clone)]
+#[must_use = "command builders must be rendered or collected"]
 pub struct ScoreboardPlayersOperation {
-    targets: String,
-    target_objective: String,
+    targets: ScoreHolder,
+    target_objective: ObjectiveName,
     op: ScoreOp,
-    source: String,
-    source_objective: String,
+    source: ScoreHolder,
+    source_objective: ObjectiveName,
 }
 
 impl fmt::Display for ScoreboardPlayersOperation {
@@ -189,6 +353,37 @@ impl Build for ScoreboardPlayersOperation {
     }
 }
 
+impl Validate for ScoreboardPlayersOperation {
+    fn validate(&self, profile: &CommandProfile) -> CommandResult<()> {
+        self.targets
+            .validate(profile)
+            .map_err(|e| e.with_context("scoreboard operation target"))?;
+        self.target_objective
+            .validate(profile)
+            .map_err(|e| e.with_context("scoreboard operation target objective"))?;
+        self.source
+            .validate(profile)
+            .map_err(|e| e.with_context("scoreboard operation source"))?;
+        self.source_objective
+            .validate(profile)
+            .map_err(|e| e.with_context("scoreboard operation source objective"))?;
+        if !self.source.is_single() {
+            return Err(CommandError::new(
+                "scoreboard_players_operation",
+                "source",
+                "the source must resolve to exactly one score holder; use `execute as <targets>` and `@s` for per-entity operations",
+            ));
+        }
+        Ok(())
+    }
+}
+
+impl RenderCommand for ScoreboardPlayersOperation {
+    fn render_unchecked(&self, _profile: &CommandProfile) -> String {
+        self.to_string()
+    }
+}
+
 impl From<ScoreboardPlayersOperation> for String {
     fn from(v: ScoreboardPlayersOperation) -> Self {
         v.build()
@@ -197,20 +392,23 @@ impl From<ScoreboardPlayersOperation> for String {
 
 /// `scoreboard players operation <targets> <targetObjective> <op> <source> <sourceObjective>`
 ///
-/// Performs integer arithmetic between two scores in-place.
+/// Performs integer arithmetic between two scores in-place. `targets` may
+/// address multiple score holders, but vanilla requires `source` to resolve to
+/// exactly one holder. For per-player copies or arithmetic, execute as the
+/// player set and use `@s` for both operands.
 pub fn scoreboard_players_operation(
-    targets: impl Into<String>,
-    target_objective: impl Into<String>,
+    targets: ScoreHolder,
+    target_objective: ObjectiveName,
     op: ScoreOp,
-    source: impl Into<String>,
-    source_objective: impl Into<String>,
+    source: ScoreHolder,
+    source_objective: ObjectiveName,
 ) -> ScoreboardPlayersOperation {
     ScoreboardPlayersOperation {
-        targets: targets.into(),
-        target_objective: target_objective.into(),
+        targets,
+        target_objective,
         op,
-        source: source.into(),
-        source_objective: source_objective.into(),
+        source,
+        source_objective,
     }
 }
 
@@ -253,27 +451,37 @@ impl fmt::Display for DisplaySlot {
 /// static COOLDOWN:    Objective = Objective::new("inferno_cd");
 /// ```
 pub struct Objective {
-    name: Cow<'static, str>,
+    name: ObjectiveName,
 }
 
 impl Objective {
     /// Const-compatible constructor for `static`/`const` declarations.
     pub const fn new(name: &'static str) -> Self {
         Self {
-            name: Cow::Borrowed(name),
+            name: ObjectiveName::new(name),
         }
     }
 
-    /// Create an objective with a runtime-determined name.
+    /// Compatibility constructor for a runtime-determined name.
+    ///
+    /// Validation is deferred until fallible rendering/export. Prefer
+    /// [`try_dynamic`](Self::try_dynamic) when handling user input.
     pub fn dynamic(name: impl Into<String>) -> Self {
         Self {
-            name: Cow::Owned(name.into()),
+            name: ObjectiveName(Cow::Owned(name.into())),
         }
+    }
+
+    /// Fallible runtime constructor for normal user-provided objective names.
+    pub fn try_dynamic(name: impl Into<String>) -> CommandResult<Self> {
+        Ok(Self {
+            name: ObjectiveName::try_dynamic(name)?,
+        })
     }
 
     /// Return the objective name as a string.
     pub fn name(&self) -> &str {
-        &self.name
+        self.name.as_str()
     }
 
     // ── Load from storage ──────────────────────────────────────────────────
@@ -654,12 +862,57 @@ mod tests {
     #[test]
     fn scoreboard_players_operation_build() {
         use crate::Build;
-        let op = scoreboard_players_operation("@s", "mana", ScoreOp::Add, "@s", "regen");
+        let op = scoreboard_players_operation(
+            ScoreHolder::self_(),
+            ObjectiveName::new("mana"),
+            ScoreOp::Add,
+            ScoreHolder::self_(),
+            ObjectiveName::new("regen"),
+        );
         assert_eq!(
             op.build(),
             "scoreboard players operation @s mana += @s regen"
         );
         let s: String = op.into();
         assert_eq!(s, "scoreboard players operation @s mana += @s regen");
+    }
+
+    #[test]
+    fn objective_and_holder_validation() {
+        assert!(ObjectiveName::try_dynamic("").is_err());
+        assert!(ObjectiveName::try_dynamic("has space").is_err());
+        assert!(ObjectiveName::try_dynamic("seventeen_chars_x").is_err());
+        assert!(ScoreHolder::fake("fake holder").try_build().is_err());
+        assert!(ScoreHolder::fake("@a").try_build().is_err());
+        assert_eq!(ScoreHolder::fake("#total").try_build().unwrap(), "#total");
+        assert_eq!(
+            ScoreHolder::raw("@e[modded_single=true]")
+                .try_build()
+                .unwrap(),
+            "@e[modded_single=true]"
+        );
+    }
+
+    #[test]
+    fn operation_rejects_multi_holder_source() {
+        let operation = scoreboard_players_operation(
+            ScoreHolder::self_(),
+            ObjectiveName::new("mana"),
+            ScoreOp::Set,
+            ScoreHolder::entity(Selector::all_players()),
+            ObjectiveName::new("other"),
+        );
+        let error = operation.try_build().unwrap_err().to_string();
+        assert!(error.contains("source"), "{error}");
+        assert!(error.contains("exactly one"), "{error}");
+
+        let limit_ten = scoreboard_players_operation(
+            ScoreHolder::self_(),
+            ObjectiveName::new("mana"),
+            ScoreOp::Set,
+            ScoreHolder::entity(Selector::all_players().limit(10)),
+            ObjectiveName::new("other"),
+        );
+        assert!(limit_ten.try_build().is_err());
     }
 }

@@ -320,24 +320,30 @@ pub enum EventDispatch {
 
     /// Custom event dispatch for types implementing [`crate::events::SandEvent`].
     ///
-    /// At build time, Sand calls `make_trigger()` and `make_condition()` to
-    /// determine which dispatch path to use. Exactly one must return `Some`;
-    /// the export pipeline panics with a diagnostic naming the handler path
-    /// and both factory methods if neither or both return `Some` (#121).
+    /// At build time, Sand calls `make_trigger()`, `make_condition()`,
+    /// `make_tick()`, and `make_chain()` to determine which dispatch path to
+    /// use. Exactly one must return `Some`; the export pipeline rejects the
+    /// export with a diagnostic naming the handler path and all four factory
+    /// methods if zero or more than one return `Some` (#121).
     ///
-    /// - `Some` from `make_trigger`, `None` from `make_condition` → advancement-backed dispatch
-    /// - `None` from `make_trigger`, `Some` from `make_condition` → tick-poll dispatch
-    /// - both `None` or both `Some` → rejected at export time
+    /// - `Some` from `make_trigger` only → advancement-backed dispatch
+    /// - `Some` from `make_condition` only → tick-poll dispatch
+    /// - `Some` from `make_tick` only → structured tick-lifecycle dispatch
+    /// - `Some` from `make_chain` only → same-cycle chained dispatch (#240)
+    /// - zero or more than one `Some` → rejected at export time
     Custom {
         /// Returns `Some(AdvancementTrigger)` when using legacy `AdvancementTrigger` dispatch.
         make_trigger: fn() -> Option<crate::AdvancementTrigger>,
         /// Returns `Some(condition_string)` when using legacy `TickCondition` dispatch.
         make_condition: fn() -> Option<String>,
         /// Returns `Some(TickEventDispatch)` when using the structured, typed
-        /// `SandEventDispatch::tick()` builder. Mutually exclusive with
-        /// `make_trigger`/`make_condition` — exactly one of the three factories
-        /// returns `Some`.
+        /// `SandEventDispatch::tick()` builder. Mutually exclusive with the
+        /// other three factories — exactly one returns `Some`.
         make_tick: fn() -> Option<crate::events::TickEventDispatch>,
+        /// Returns `Some(ChainEventDispatch)` when using
+        /// `SandEventDispatch::chain::<Parent>()`. Mutually exclusive with
+        /// the other three factories — exactly one returns `Some`.
+        make_chain: fn() -> Option<crate::events::ChainEventDispatch>,
         /// Whether to revoke the advancement after firing (advancement dispatch only).
         revoke: fn() -> bool,
         /// In-process grouping identity of the `SandEvent` type this handler

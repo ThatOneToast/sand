@@ -14,6 +14,8 @@ fn compile_tests() {
     t.pass("tests/cases/pass_event_generic_used_dash_wand.rs");
     t.pass("tests/cases/pass_sand_event_tick_dispatch.rs");
     t.pass("tests/cases/pass_sand_event_generic_family.rs");
+    t.pass("tests/cases/pass_sand_event_chain_dispatch.rs");
+    t.compile_fail("tests/cases/fail_sand_event_chain_non_sand_event_parent.rs");
     t.compile_fail("tests/cases/fail_with_params.rs");
     t.compile_fail("tests/cases/fail_empty_body.rs");
     t.compile_fail("tests/cases/fail_raw_string.rs");

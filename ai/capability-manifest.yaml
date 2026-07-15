@@ -62,7 +62,7 @@ capabilities:
     preferred_api: "sand_commands::{Validate, RenderCommand, CommandProfile}"
     raw_escape_hatch: "sand_core::cmd::raw and sand_commands::RawCommand"
     minecraft: {minimum: "1.18.0", maximum_verified: "26.2.0"}
-    sand_limitations: "The shared boundary currently models selectors/targets, coordinates, item slots, scoreboard holders/objectives/operations, and foundational Execute arguments. Other command families migrate incrementally; collected output also receives conservative foundational validation at export."
+    sand_limitations: "The shared boundary currently models selectors/targets, coordinates, item slots, scoreboard holders/objectives/operations, and foundational Execute arguments. Other command families migrate incrementally. Collected strings always receive line-integrity validation; only confidently recognized top-level commands and exact argument positions receive additional fallback checks, so unknown/macro/modded syntax remains untouched."
     evidence: ["sand-commands/src/render.rs", "sand-core/src/component.rs"]
 
   - id: typed-commands

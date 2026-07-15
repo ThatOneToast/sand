@@ -1651,9 +1651,10 @@ fn try_export_components_impl(
     }
 
     // Validate every collected function before accepting any record. Typed
-    // command builders and generated framework commands share this final
-    // boundary. Explicit `cmd::raw` lines bypass typed construction but still
-    // receive conservative file-integrity/foundational checks here.
+    // commands validate structurally before rendering; this final string
+    // boundary always enforces line integrity and only inspects argument
+    // positions in confidently recognized top-level command grammar. Explicit
+    // `cmd::raw`, macro, unknown, and modded syntax otherwise remains verbatim.
     let command_profile = sand_commands::CommandProfile::new(
         ctx.map_or(sand_version::LATEST_KNOWN, |ctx| ctx.requested_version),
         ctx.is_some_and(|ctx| ctx.is_fallback),
@@ -2474,21 +2475,54 @@ mod tests {
     }
 
     #[test]
-    fn explicit_raw_function_line_preserves_unmodelled_syntax() {
+    fn explicit_raw_function_lines_preserve_literal_and_unmodelled_syntax() {
+        let content = [
+            r#"tellraw @a {"text":"example @e[limit=-1]"}"#,
+            r#"tellraw @a {"text":"function not_a_resource_location"}"#,
+            r#"data modify storage pack:test message set value "function not_a_resource_location""#,
+            r#"data modify storage pack:test value set value {message:"@e[limit=-1]"}"#,
+            "say function plain-text",
+            "say scoreboard players operation @s a = @a b",
+            r#"custom_command "@e[limit=-1]""#,
+            "modded command syntax",
+            r#"tellraw @a {"text":"escaped \"@e[limit=-1]\"","extra":[{"text":"function invalid"}]}"#,
+            r#"$data modify storage pack:test value set value "$(payload)""#,
+        ]
+        .join("\n");
         let mut records = vec![super::ComponentRecord {
             namespace: "audit".to_string(),
             dir: "function".to_string(),
             path: "raw".to_string(),
             ext: "mcfunction".to_string(),
             content_type: "text".to_string(),
-            content: "modded command syntax".to_string(),
+            content: content.clone(),
         }];
         super::validate_function_records(
             &mut records,
             &sand_commands::CommandProfile::unprofiled(),
         )
         .unwrap();
-        assert_eq!(records[0].content, "modded command syntax");
+        assert_eq!(records[0].content, content);
+    }
+
+    #[test]
+    fn recognized_invalid_function_retains_export_context() {
+        let mut records = vec![super::ComponentRecord {
+            namespace: "audit".to_string(),
+            dir: "function".to_string(),
+            path: "invalid_function".to_string(),
+            ext: "mcfunction".to_string(),
+            content_type: "text".to_string(),
+            content: "say valid\nfunction not_a_resource_location".to_string(),
+        }];
+        let profile = sand_commands::CommandProfile::new("1.21.11", false);
+        let error = super::validate_function_records(&mut records, &profile)
+            .expect_err("recognized malformed function command must fail before export")
+            .to_string();
+        assert!(error.contains("audit:invalid_function"), "{error}");
+        assert!(error.contains("commands[1].id"), "{error}");
+        assert!(error.contains("not_a_resource_location"), "{error}");
+        assert!(error.contains("1.21.11"), "{error}");
     }
 
     #[test]

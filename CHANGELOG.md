@@ -12,7 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A shared profile-aware fallible command validation/rendering boundary with
   pre-write function diagnostics, canonical fallible selector narrowing, and
   validated coordinate, slot, score-holder, objective, operation, and execute
-  foundations.
+  foundations. Typed values validate structurally; the final collected-string
+  fallback always checks line integrity and only inspects confidently
+  recognized top-level command argument positions, preserving literal
+  JSON/SNBT plus unknown, macro, and modded syntax.
 
 - **sand-components**: `item::stack::ItemStack`, `item::matcher::ItemMatcher`, and
   `item::definition::CustomItemDefinition` — a shared foundation for item identity

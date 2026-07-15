@@ -117,9 +117,12 @@ Vanilla supports the behavior; Sand's typed coverage is incomplete.
 - **LIM-API-009** — The profile-aware `RenderCommand` boundary currently has
   structural implementations for selectors/targets, coordinates, item slots,
   scoreboard holders/objectives/operations, and foundational `Execute`
-  arguments. Other command families still migrate incrementally; the export
-  boundary applies conservative foundational checks to collected function
-  lines in the meantime.
+  arguments. Other command families still migrate incrementally. The export
+  boundary always checks collected function-line integrity and applies deeper
+  fallback validation only to confidently recognized top-level commands and
+  exact argument positions. It deliberately preserves unknown, macro, modded,
+  and command-shaped literal JSON/SNBT content rather than speculatively
+  parsing it.
   Affects: `command-validation`, `typed-commands`.
   Workaround: prefer typed builders and their `try_*`/`RenderCommand` paths;
   use `cmd::raw` only for advanced vanilla or modded syntax Sand does not model.

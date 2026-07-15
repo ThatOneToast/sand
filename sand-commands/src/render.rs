@@ -6,10 +6,25 @@ pub use sand_version::CommandProfile;
 
 /// Validate a collected command line and return the exact text to write.
 ///
-/// Collected lines receive conservative foundational checks, including lines
-/// introduced through raw compatibility APIs. Raw builders bypass structural
-/// typed validation but never bypass `.mcfunction` file-integrity checks.
-pub fn validate_collected_line(line: &str, _profile: &CommandProfile) -> CommandResult<String> {
+/// Collected lines always receive `.mcfunction` line-integrity checks. A small
+/// set of known top-level commands receives additional argument-position-aware
+/// validation; unknown, macro, and modded commands remain verbatim.
+pub fn validate_collected_line(line: &str, profile: &CommandProfile) -> CommandResult<String> {
+    validate_line_integrity(line)?;
+    let trimmed = line.trim_start();
+    if trimmed.is_empty() || trimmed.starts_with('#') || trimmed.starts_with('$') {
+        return Ok(line.to_string());
+    }
+
+    let Some(tokens) = tokenize_top_level(line) else {
+        // An incomplete tokenizer model must never make raw syntax unexportable.
+        return Ok(line.to_string());
+    };
+    validate_known_command(line, &tokens, profile)?;
+    Ok(line.to_string())
+}
+
+fn validate_line_integrity(line: &str) -> CommandResult<()> {
     if line.contains(['\0', '\n', '\r']) {
         return Err(CommandError::new(
             "command_line",
@@ -24,153 +39,327 @@ pub fn validate_collected_line(line: &str, _profile: &CommandProfile) -> Command
             "commands in `.mcfunction` files must not start with `/`",
         ));
     }
-    if line.trim().is_empty() || line.trim_start().starts_with('#') {
-        return Ok(line.to_string());
-    }
-
-    // This is deliberately a fallback boundary: typed `RenderCommand` values
-    // have already validated their own structure. Do not search arbitrary
-    // collected text, which may contain JSON, SNBT, macros, or raw/modded
-    // syntax. Only validate operands whose command position is known.
-    validate_known_command(&tokenize_command(line)?)?;
-    Ok(line.to_string())
+    Ok(())
 }
 
-fn tokenize_command(line: &str) -> CommandResult<Vec<&str>> {
+#[derive(Debug, Clone, Copy)]
+struct TopLevelToken<'a> {
+    text: &'a str,
+    start: usize,
+}
+
+/// Split only on whitespace outside quotes and balanced structured arguments.
+/// Returning `None` means the input uses structure this conservative tokenizer
+/// cannot prove; callers must preserve the raw line after integrity checks.
+fn tokenize_top_level(line: &str) -> Option<Vec<TopLevelToken<'_>>> {
     let mut tokens = Vec::new();
     let mut start = None;
-    let mut quoted = false;
+    let mut quote = None;
     let mut escaped = false;
-    let mut depth = 0usize;
+    let mut delimiters = Vec::new();
+
     for (index, character) in line.char_indices() {
-        if quoted {
+        if let Some(delimiter) = quote {
             if escaped {
                 escaped = false;
             } else if character == '\\' {
                 escaped = true;
-            } else if character == '"' {
-                quoted = false;
+            } else if character == delimiter {
+                quote = None;
             }
             continue;
         }
+
         match character {
-            '"' => quoted = true,
-            '[' | '{' | '(' => depth += 1,
-            ']' | '}' | ')' => depth = depth.saturating_sub(1),
-            character if character.is_ascii_whitespace() && depth == 0 => {
-                if let Some(start) = start.take() {
-                    tokens.push(&line[start..index]);
+            '\'' | '"' => {
+                start.get_or_insert(index);
+                quote = Some(character);
+            }
+            '{' | '[' | '(' => {
+                start.get_or_insert(index);
+                delimiters.push(character);
+            }
+            '}' | ']' | ')' => {
+                let expected = match character {
+                    '}' => '{',
+                    ']' => '[',
+                    ')' => '(',
+                    _ => unreachable!(),
+                };
+                if delimiters.pop() != Some(expected) {
+                    return None;
                 }
             }
-            _ if start.is_none() => start = Some(index),
-            _ => {}
+            c if c.is_ascii_whitespace() && delimiters.is_empty() => {
+                if let Some(token_start) = start.take() {
+                    tokens.push(TopLevelToken {
+                        text: &line[token_start..index],
+                        start: token_start,
+                    });
+                }
+            }
+            _ => {
+                start.get_or_insert(index);
+            }
         }
     }
-    if quoted || depth != 0 {
-        // Arbitrary raw syntax may have grammar Sand does not model; leave it
-        // intact rather than interpreting it as a known command.
-        return Ok(vec![]);
+
+    if quote.is_some() || !delimiters.is_empty() {
+        return None;
     }
-    if let Some(start) = start {
-        tokens.push(&line[start..]);
+    if let Some(token_start) = start {
+        tokens.push(TopLevelToken {
+            text: &line[token_start..],
+            start: token_start,
+        });
     }
-    Ok(tokens)
+    Some(tokens)
 }
 
-fn validate_known_command(tokens: &[&str]) -> CommandResult<()> {
-    match tokens {
-        ["kill", selector, ..] => validate_rendered_selector(selector),
-        ["tp" | "teleport", target, rest @ ..] => {
-            validate_rendered_selector(target)?;
-            validate_finite_tokens(rest)
-        }
-        ["scoreboard", ..] => validate_known_scoreboard_syntax(tokens),
-        ["execute", rest @ ..] => validate_execute_syntax(rest),
-        ["function", id, ..] if !id.starts_with('$') => crate::validate::resource_location_shape(
-            id.strip_prefix('#').unwrap_or(id),
-            "function",
-            "id",
-        )
-        .map(|_| ()),
+fn validate_known_command(
+    line: &str,
+    tokens: &[TopLevelToken<'_>],
+    profile: &CommandProfile,
+) -> CommandResult<()> {
+    let Some(command) = tokens.first().map(|token| token.text) else {
+        return Ok(());
+    };
+    match command {
+        "function" => validate_function_command(tokens),
+        "scoreboard" => validate_scoreboard_command(tokens),
+        "execute" => validate_execute_command(line, tokens, profile),
+        "kill" | "tellraw" => validate_selector_at(tokens, 1),
         _ => Ok(()),
     }
 }
 
-fn validate_execute_syntax(tokens: &[&str]) -> CommandResult<()> {
-    for window in tokens.windows(4) {
-        if (window[0] == "if" || window[0] == "unless") && window[1] == "score" {
-            validate_rendered_selector(window[2])?;
-            let holder = window[2];
-            if matches!(holder, "@a" | "@e")
-                || ((holder.starts_with("@a[") || holder.starts_with("@e["))
-                    && !holder.contains("limit=1"))
-            {
-                return Err(CommandError::new(
-                    "execute_score_condition",
-                    "holder",
-                    format!(
-                        "score condition holder `{holder}` may resolve to multiple entities; execute as the targets and use `@s`"
-                    ),
-                ));
+fn split_top_level(value: &str) -> Option<Vec<&str>> {
+    let mut result = Vec::new();
+    let mut start = 0;
+    let mut quote = None;
+    let mut escaped = false;
+    let mut delimiters = Vec::new();
+    for (index, character) in value.char_indices() {
+        if let Some(delimiter) = quote {
+            if escaped {
+                escaped = false;
+            } else if character == '\\' {
+                escaped = true;
+            } else if character == delimiter {
+                quote = None;
             }
-            validate_objective_token(window[3], "objective")?;
+            continue;
+        }
+        match character {
+            '\'' | '"' => quote = Some(character),
+            '{' | '[' | '(' => delimiters.push(character),
+            '}' | ']' | ')' => {
+                let expected = match character {
+                    '}' => '{',
+                    ']' => '[',
+                    ')' => '(',
+                    _ => unreachable!(),
+                };
+                if delimiters.pop() != Some(expected) {
+                    return None;
+                }
+            }
+            ',' if delimiters.is_empty() => {
+                result.push(&value[start..index]);
+                start = index + 1;
+            }
+            _ => {}
         }
     }
-    if let Some(run) = tokens.iter().position(|token| *token == "run") {
-        validate_known_command(&tokens[run + 1..])?;
+    if quote.is_some() || !delimiters.is_empty() {
+        return None;
+    }
+    result.push(&value[start..]);
+    Some(result)
+}
+
+fn validate_scoreboard_command(tokens: &[TopLevelToken<'_>]) -> CommandResult<()> {
+    if token_is(tokens, 1, "objectives") && token_is(tokens, 2, "add") {
+        let objective = required_token(tokens, 3, "scoreboard", "objective")?;
+        return validate_objective_token(objective, "objective");
+    }
+    if !(token_is(tokens, 1, "players") && token_is(tokens, 2, "operation")) {
+        return Ok(());
+    }
+
+    let target = required_token(tokens, 3, "scoreboard_players_operation", "target")?;
+    let target_objective = required_token(
+        tokens,
+        4,
+        "scoreboard_players_operation",
+        "target_objective",
+    )?;
+    let source = required_token(tokens, 6, "scoreboard_players_operation", "source")?;
+    let source_objective = required_token(
+        tokens,
+        7,
+        "scoreboard_players_operation",
+        "source_objective",
+    )?;
+    validate_selector_token_if_present(target)?;
+    validate_objective_token(target_objective, "target_objective")?;
+    validate_single_score_holder(source, "scoreboard_players_operation", "source")?;
+    validate_objective_token(source_objective, "source_objective")?;
+    Ok(())
+}
+
+fn validate_execute_command(
+    line: &str,
+    tokens: &[TopLevelToken<'_>],
+    profile: &CommandProfile,
+) -> CommandResult<()> {
+    let run_index = tokens
+        .iter()
+        .enumerate()
+        .skip(1)
+        .find_map(|(index, token)| (token.text == "run").then_some(index));
+    let subcommand_end = run_index.unwrap_or(tokens.len());
+    let mut index = 1;
+    while index < subcommand_end {
+        match tokens[index].text {
+            "as" | "at" => {
+                validate_selector_at(tokens, index + 1)?;
+                index += 2;
+            }
+            "if" | "unless" if token_is(tokens, index + 1, "entity") => {
+                validate_selector_at(tokens, index + 2)?;
+                index += 3;
+            }
+            "if" | "unless" if token_is(tokens, index + 1, "score") => {
+                index = validate_execute_score(tokens, index)?;
+            }
+            // The fallback intentionally stops at syntax it cannot model with
+            // confidence, but a top-level `run` still safely delimits the
+            // nested command. Typed Execute retains structural validation.
+            _ => break,
+        }
+    }
+    if let Some(run_index) = run_index {
+        required_token(tokens, run_index + 1, "execute", "run")?;
+        validate_collected_line(&line[tokens[run_index + 1].start..], profile)?;
     }
     Ok(())
 }
 
-fn validate_finite_tokens(tokens: &[&str]) -> CommandResult<()> {
-    for token in tokens {
-        let bare = token.trim_start_matches(['~', '^']);
-        if matches!(
-            bare,
-            "NaN" | "nan" | "inf" | "+inf" | "-inf" | "Infinity" | "+Infinity" | "-Infinity"
-        ) {
-            return Err(CommandError::new(
-                "command_line",
-                "number",
-                format!("non-finite numeric token `{bare}`"),
-            ));
-        }
+fn validate_execute_score(tokens: &[TopLevelToken<'_>], index: usize) -> CommandResult<usize> {
+    let holder = required_token(tokens, index + 2, "execute_score_condition", "holder")?;
+    let objective = required_token(tokens, index + 3, "execute_score_condition", "objective")?;
+    validate_single_score_holder(holder, "execute_score_condition", "holder")?;
+    validate_objective_token(objective, "objective")?;
+
+    if token_is(tokens, index + 4, "matches") {
+        required_token(tokens, index + 5, "execute_score_condition", "range")?;
+        return Ok(index + 6);
+    }
+
+    let source = required_token(tokens, index + 5, "execute_score_condition", "source")?;
+    let source_objective = required_token(
+        tokens,
+        index + 6,
+        "execute_score_condition",
+        "source_objective",
+    )?;
+    validate_single_score_holder(source, "execute_score_condition", "source")?;
+    validate_objective_token(source_objective, "source_objective")?;
+    Ok(index + 7)
+}
+
+fn validate_function_command(tokens: &[TopLevelToken<'_>]) -> CommandResult<()> {
+    let id = required_token(tokens, 1, "function", "id")?;
+    if id.contains("$(") {
+        return Ok(());
+    }
+    crate::validate::resource_location_shape(id.strip_prefix('#').unwrap_or(id), "function", "id")?;
+    Ok(())
+}
+
+fn validate_objective_token(value: &str, field: &'static str) -> CommandResult<()> {
+    if value.is_empty()
+        || value.len() > 16
+        || matches!(value, "\"\"" | "''")
+        || value.chars().any(|c| c.is_whitespace() || c.is_control())
+    {
+        Err(CommandError::new(
+            "scoreboard",
+            field,
+            format!("invalid objective name `{value}`"),
+        ))
+    } else {
+        Ok(())
+    }
+}
+
+fn validate_selector_at(tokens: &[TopLevelToken<'_>], index: usize) -> CommandResult<()> {
+    let selector = required_token(tokens, index, "command", "target")?;
+    validate_selector_token_if_present(selector)
+}
+
+fn validate_selector_token_if_present(token: &str) -> CommandResult<()> {
+    if !token.starts_with('@') {
+        return Ok(());
+    }
+    validate_selector_token(token).map(|_| ())
+}
+
+fn validate_single_score_holder(
+    holder: &str,
+    helper: &'static str,
+    field: &'static str,
+) -> CommandResult<()> {
+    let limit = if holder.starts_with('@') {
+        selector_limit(holder)?
+    } else {
+        None
+    };
+    if matches!(holder, "@a" | "@e")
+        || ((holder.starts_with("@a[") || holder.starts_with("@e[")) && limit != Some(1))
+    {
+        return Err(CommandError::new(
+            helper,
+            field,
+            format!(
+                "score holder `{holder}` may resolve to multiple entities; execute as the targets and use `@s`"
+            ),
+        ));
     }
     Ok(())
 }
 
-fn validate_rendered_selector(selector: &str) -> CommandResult<()> {
-    if !selector.starts_with('@') {
-        return Ok(());
+fn validate_selector_token(token: &str) -> CommandResult<Option<&str>> {
+    let bytes = token.as_bytes();
+    if bytes.len() < 2 || bytes[0] != b'@' || !matches!(bytes[1], b'a' | b'e' | b'p' | b's' | b'r')
+    {
+        return Err(CommandError::new(
+            "Selector",
+            "base",
+            format!("invalid selector base `{token}`"),
+        ));
     }
-    let Some(base) = selector.as_bytes().get(1) else {
-        return Ok(());
-    };
-    if !matches!(base, b'a' | b'e' | b'p' | b's' | b'r') || selector.len() == 2 {
-        return Ok(());
+    if bytes.len() == 2 {
+        return Ok(None);
     }
-    let Some(args) = selector
-        .strip_prefix("@a[")
-        .or_else(|| selector.strip_prefix("@e["))
-        .or_else(|| selector.strip_prefix("@p["))
-        .or_else(|| selector.strip_prefix("@s["))
-        .or_else(|| selector.strip_prefix("@r["))
-    else {
-        return Ok(());
-    };
-    let Some(args) = args.strip_suffix(']') else {
+    if bytes[2] != b'[' || !token.ends_with(']') {
         return Err(CommandError::new(
             "Selector",
             "arguments",
-            "unclosed selector argument list",
+            format!("invalid selector argument list `{token}`"),
         ));
-    };
-    for arg in split_top_level(args) {
-        let Some((key, value)) = arg.split_once('=') else {
+    }
+
+    let arguments = &token[3..token.len() - 1];
+    for argument in split_top_level(arguments).ok_or_else(|| {
+        CommandError::new("Selector", "arguments", "unbalanced selector arguments")
+    })? {
+        let Some((key, value)) = argument.split_once('=') else {
             return Err(CommandError::new(
                 "Selector",
                 "arguments",
-                format!("expected `key=value`, got `{arg}`"),
+                format!("expected `key=value`, got `{argument}`"),
             ));
         };
         if key == "limit" {
@@ -185,91 +374,60 @@ fn validate_rendered_selector(selector: &str) -> CommandResult<()> {
                 ));
             }
         }
-    }
-    Ok(())
-}
-
-fn split_top_level(value: &str) -> Vec<&str> {
-    let mut result = Vec::new();
-    let mut start = 0;
-    let mut depth = 0usize;
-    let mut quoted = false;
-    let bytes = value.as_bytes();
-    for (i, byte) in bytes.iter().copied().enumerate() {
-        match byte {
-            b'"' if i == 0 || bytes[i - 1] != b'\\' => quoted = !quoted,
-            b'{' | b'[' if !quoted => depth += 1,
-            b'}' | b']' if !quoted => depth = depth.saturating_sub(1),
-            b',' if !quoted && depth == 0 => {
-                result.push(&value[start..i]);
-                start = i + 1;
+        if matches!(key, "x" | "y" | "z" | "dx" | "dy" | "dz") {
+            let field = match key {
+                "x" => "x",
+                "y" => "y",
+                "z" => "z",
+                "dx" => "dx",
+                "dy" => "dy",
+                "dz" => "dz",
+                _ => unreachable!(),
+            };
+            let number = value.parse::<f64>().map_err(|_| {
+                CommandError::new("Selector", field, format!("invalid number `{value}`"))
+            })?;
+            if !number.is_finite() {
+                return Err(CommandError::new("Selector", field, "must be finite"));
             }
-            _ => {}
         }
     }
-    result.push(&value[start..]);
-    result
+    Ok(Some(arguments))
 }
 
-fn validate_known_scoreboard_syntax(tokens: &[&str]) -> CommandResult<()> {
-    for window in tokens.windows(6) {
-        if window[0] == "scoreboard" && window[1] == "players" && window[2] == "operation" {
-            validate_objective_token(window[4], "target_objective")?;
+fn selector_limit(token: &str) -> CommandResult<Option<i32>> {
+    let Some(arguments) = validate_selector_token(token)? else {
+        return Ok(None);
+    };
+    for argument in split_top_level(arguments).unwrap_or_default() {
+        if let Some(value) = argument.strip_prefix("limit=") {
+            return value.parse::<i32>().map(Some).map_err(|_| {
+                CommandError::new("Selector", "limit", format!("invalid integer `{value}`"))
+            });
         }
     }
-    if tokens.starts_with(&["scoreboard", "players", "operation"]) && tokens.len() >= 8 {
-        let source = tokens[6];
-        validate_objective_token(tokens[7], "source_objective")?;
-        if matches!(source, "@a" | "@e")
-            || ((source.starts_with("@a[") || source.starts_with("@e["))
-                && !source.contains("limit=1"))
-        {
-            return Err(CommandError::new(
-                "scoreboard_players_operation",
-                "source",
-                format!(
-                    "source `{source}` may resolve to multiple score holders; execute per entity and use `@s`"
-                ),
-            ));
-        }
-    }
-    for window in tokens.windows(5) {
-        if (window[0] == "if" || window[0] == "unless") && window[1] == "score" {
-            let holder = window[2];
-            if matches!(holder, "@a" | "@e")
-                || ((holder.starts_with("@a[") || holder.starts_with("@e["))
-                    && !holder.contains("limit=1"))
-            {
-                return Err(CommandError::new(
-                    "execute_score_condition",
-                    "holder",
-                    format!(
-                        "score condition holder `{holder}` may resolve to multiple entities; execute as the targets and use `@s`"
-                    ),
-                ));
-            }
-            validate_objective_token(window[3], "objective")?;
-        }
-    }
-    if tokens.starts_with(&["scoreboard", "objectives", "add"]) && tokens.len() >= 4 {
-        validate_objective_token(tokens[3], "objective")?;
-    }
-    Ok(())
+    Ok(None)
 }
 
-fn validate_objective_token(value: &str, field: &'static str) -> CommandResult<()> {
-    if value.is_empty()
-        || value.len() > 16
-        || value.chars().any(|c| c.is_whitespace() || c.is_control())
-    {
-        Err(CommandError::new(
-            "scoreboard",
+fn token_is(tokens: &[TopLevelToken<'_>], index: usize, expected: &str) -> bool {
+    tokens
+        .get(index)
+        .is_some_and(|token| token.text == expected)
+}
+
+fn required_token<'a>(
+    tokens: &'a [TopLevelToken<'a>],
+    index: usize,
+    helper: &'static str,
+    field: &'static str,
+) -> CommandResult<&'a str> {
+    tokens.get(index).map(|token| token.text).ok_or_else(|| {
+        CommandError::new(
+            helper,
             field,
-            format!("invalid objective name `{value}`"),
-        ))
-    } else {
-        Ok(())
-    }
+            format!("missing required `{field}` argument"),
+        )
+    })
 }
 
 /// Validate a typed command value against the active Minecraft profile.
@@ -304,13 +462,43 @@ mod tests {
     use super::*;
 
     #[test]
-    fn collected_validation_rejects_foundational_malformed_output() {
+    fn collected_validation_preserves_literal_raw_and_modded_content() {
         let profile = CommandProfile::new("1.21.11", false);
+        let valid = [
+            r#"tellraw @a {"text":"example @e[limit=-1]"}"#,
+            r#"tellraw @a {"text":"function not_a_resource_location"}"#,
+            r#"data modify storage pack:test message set value "function not_a_resource_location""#,
+            r#"data modify storage pack:test value set value {message:"@e[limit=-1]"}"#,
+            "say function plain-text",
+            "say scoreboard players operation @s a = @a b",
+            r#"custom_command "@e[limit=-1]""#,
+            "modded command syntax",
+            r#"tellraw @a {"text":"quoted \"@e[limit=-1]\"","extra":[{"text":"function bad"}]}"#,
+            r#"data modify storage pack:test value set value {message:'literal "function bad" and @e[limit=-1]',nested:{values:[1,2,{text:"scoreboard players operation"}]}}"#,
+            r#"$data modify storage pack:test value set value "$(payload)""#,
+            "tp @s NaN 0 0",
+            "scoreboard players operation @s total += #constant constants",
+            "execute if score #constant constants matches 1 run say valid",
+        ];
+        for line in valid {
+            assert_eq!(
+                validate_collected_line(line, &profile).unwrap(),
+                line,
+                "line must survive unchanged: {line}"
+            );
+        }
+    }
+
+    #[test]
+    fn collected_validation_rejects_confidently_recognized_malformed_output() {
+        let profile = CommandProfile::new("1.21.11", false);
+        assert!(validate_collected_line("/kill @s", &profile).is_err());
         assert!(validate_collected_line("kill @e[limit=-1]", &profile).is_err());
-        assert!(validate_collected_line("tp @s NaN 0 0", &profile).is_err());
+        assert!(validate_collected_line("scoreboard objectives add \"\"", &profile).is_err());
         assert!(
             validate_collected_line("scoreboard players operation @s a = @a b", &profile).is_err()
         );
+        assert!(validate_collected_line("function not_a_resource_location", &profile).is_err());
         assert!(
             validate_collected_line("execute if score @a mana matches 1.. run say no", &profile)
                 .is_err()
@@ -321,6 +509,8 @@ mod tests {
     fn collected_raw_text_still_obeys_file_integrity() {
         let profile = CommandProfile::unprofiled();
         assert!(validate_collected_line("/say no", &profile).is_err());
+        assert!(validate_collected_line("say no\r", &profile).is_err());
+        assert!(validate_collected_line("say no\0", &profile).is_err());
         assert_eq!(
             validate_collected_line("modded command syntax", &profile).unwrap(),
             "modded command syntax"
@@ -328,15 +518,40 @@ mod tests {
     }
 
     #[test]
-    fn collected_validation_does_not_scan_data_or_raw_syntax() {
-        let profile = CommandProfile::new("1.21.11", false);
+    fn execute_recursion_only_validates_the_nested_top_level_command() {
+        let profile = CommandProfile::unprofiled();
         for line in [
-            r#"tellraw @a {"text":"example @e[limit=-1]"}"#,
-            r#"data modify storage pack:test message set value "function not_a_resource_location""#,
-            "say function plain-text",
-            r#"modded command {payload:\"@e[limit=-1] scoreboard players operation @a a = @a b\"}"#,
+            "execute as @s run function pack:valid",
+            "execute as @s run say function plain-text",
+            r#"execute as @s run tellraw @a {"text":"@e[limit=-1] function invalid"}"#,
+            r#"execute as @s run data modify storage pack:test value set value {message:"@e[limit=-1]"}"#,
+            "execute future_extension value run custom_command @e[limit=-1]",
         ] {
             assert_eq!(validate_collected_line(line, &profile).unwrap(), line);
         }
+        assert!(
+            validate_collected_line(
+                "execute as @s run function not_a_resource_location",
+                &profile
+            )
+            .is_err()
+        );
+        assert!(
+            validate_collected_line(
+                "execute positioned ~ ~ ~ run function not_a_resource_location",
+                &profile
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn tokenizer_keeps_quoted_and_structured_arguments_whole() {
+        let line = r#"tellraw @a {"text":"escaped \" quote","extra":[{"text":"two words"}]}"#;
+        let tokens = tokenize_top_level(line).unwrap();
+        assert_eq!(tokens.len(), 3);
+        assert_eq!(tokens[0].text, "tellraw");
+        assert_eq!(tokens[1].text, "@a");
+        assert_eq!(tokens[2].text, &line[tokens[2].start..]);
     }
 }

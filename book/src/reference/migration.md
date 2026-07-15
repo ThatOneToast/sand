@@ -19,5 +19,7 @@ typed target model cannot represent.
 Use `cmd::raw(...)`, `Selector::raw(...)`, or `ItemSlot::raw(...)` only for
 syntax the typed model does not cover. Raw command lines bypass typed grammar
 construction, but still must be safe single `.mcfunction` lines without a
-leading slash; the export boundary also rejects recognizably malformed
-foundational syntax.
+leading slash. The export boundary performs additional checks only for
+confidently recognized top-level commands and exact argument positions; it
+preserves unknown, macro, and modded syntax and command-shaped literal
+JSON/SNBT text.

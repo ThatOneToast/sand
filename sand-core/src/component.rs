@@ -2506,6 +2506,56 @@ mod tests {
     }
 
     #[test]
+    fn typed_text_events_survive_the_command_export_validation_boundary() {
+        let entity_type = sand_components::EntityTypeId::minecraft("zombie").unwrap();
+        let entity_id =
+            sand_commands::EntityHoverId::parse("123e4567-e89b-12d3-a456-426614174000").unwrap();
+        let text = sand_commands::Text::new("Inspect")
+            .gold()
+            .click_change_page(0)
+            .hover_entity_with_id(
+                entity_type,
+                entity_id,
+                sand_commands::Text::new("Undead").red(),
+            );
+        let command = format!("tellraw @s {text}");
+        let mut records = vec![super::ComponentRecord {
+            namespace: "audit".to_string(),
+            dir: "function".to_string(),
+            path: "typed_text_events".to_string(),
+            ext: "mcfunction".to_string(),
+            content_type: "text".to_string(),
+            content: command.clone(),
+        }];
+
+        super::validate_function_records(
+            &mut records,
+            &sand_commands::CommandProfile::new("1.21.11", false),
+        )
+        .unwrap();
+
+        assert_eq!(records[0].content, command);
+        let json = records[0]
+            .content
+            .strip_prefix("tellraw @s ")
+            .expect("validated tellraw prefix must be preserved");
+        let value: serde_json::Value = serde_json::from_str(json).unwrap();
+        assert_eq!(
+            value["clickEvent"],
+            serde_json::json!({"action": "change_page", "value": 0})
+        );
+        assert_eq!(
+            value["hoverEvent"],
+            serde_json::json!({
+                "action": "show_entity",
+                "type": "minecraft:zombie",
+                "id": "123e4567-e89b-12d3-a456-426614174000",
+                "name": {"text": "Undead", "color": "red"},
+            })
+        );
+    }
+
+    #[test]
     fn recognized_invalid_function_retains_export_context() {
         let mut records = vec![super::ComponentRecord {
             namespace: "audit".to_string(),

@@ -107,9 +107,11 @@ capabilities:
     status: implemented
     stability: stable
     crates: [sand-core, sand-commands]
-    preferred_api: "sand_core::prelude::{Text, Actionbar, Title, Bossbar}"
+    preferred_api: "sand_core::prelude::{Text, TextComponent, EntityTypeId, EntityHoverId, Actionbar, Title, Bossbar}"
+    raw_escape_hatch: "Text::raw_json and TextComponent::hover_entity_raw"
+    sand_limitations: "Click and hover builders serialize the modeled Minecraft JSON event shapes. Entity types and optional UUIDs have typed normal paths; item hover IDs/counts and page bounds retain compatibility behavior and are not yet validated by the text builder."
     minecraft: {minimum: "1.18.0", maximum_verified: "26.2.0"}
-    evidence: ["sand-core/src/cmd", "sand-commands/src (Text, TextComponent)"]
+    evidence: ["sand-core/src/cmd", "sand-commands/src/text.rs", "sand-components/src/registry.rs"]
     documentation: ["docs/typed-commands.md", "book/src/manual/text-and-ui.md"]
 
   - id: score-state

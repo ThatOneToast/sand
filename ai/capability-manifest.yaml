@@ -47,9 +47,23 @@ capabilities:
     status: implemented
     stability: stable
     crates: [sand-commands]
-    preferred_api: "sand_commands::Selector"
+    preferred_api: "sand_commands::{Selector, EntityTarget, PlayerTarget}"
+    sand_limitations: "Typed selector arguments, target category, and arity narrowing validate before export. Selector::raw remains an explicit unchecked grammar escape hatch for syntax Sand does not model."
     minecraft: {minimum: "1.18.0", maximum_verified: "26.2.0"}
     evidence: ["sand-commands/src (Selector)"]
+
+  - id: command-validation
+    name: "Fallible command validation and rendering"
+    category: authoring-core
+    intent: "Validate typed command structure against the active Minecraft profile before accepting generated mcfunction content."
+    status: partial
+    stability: alpha
+    crates: [sand-commands, sand-core, sand-version]
+    preferred_api: "sand_commands::{Validate, RenderCommand, CommandProfile}"
+    raw_escape_hatch: "sand_core::cmd::raw and sand_commands::RawCommand"
+    minecraft: {minimum: "1.18.0", maximum_verified: "26.2.0"}
+    sand_limitations: "The shared boundary currently models selectors/targets, coordinates, item slots, scoreboard holders/objectives/operations, and foundational Execute arguments. Other command families migrate incrementally; collected output also receives conservative foundational validation at export."
+    evidence: ["sand-commands/src/render.rs", "sand-core/src/component.rs"]
 
   - id: typed-commands
     name: "Generated typed command builders"

@@ -62,7 +62,7 @@ impl SandEvent for PlayerJumpEvent {
             // synchronized score never gets ahead of the value being
             // compared against (detect-then-sync ordering).
             post_observation: vec![
-                "scoreboard players operation @a sync_jumps = @a jumps".into(),
+                "execute as @a run scoreboard players operation @s sync_jumps = @s jumps".into(),
             ],
         }
     }

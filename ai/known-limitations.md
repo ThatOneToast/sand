@@ -114,6 +114,17 @@ Vanilla supports the behavior; Sand's typed coverage is incomplete.
   Affects: `tags`.
   Evidence: `sand-components/src/registry_coverage.rs` (`TAG_COVERAGE`).
 
+- **LIM-API-009** — The profile-aware `RenderCommand` boundary currently has
+  structural implementations for selectors/targets, coordinates, item slots,
+  scoreboard holders/objectives/operations, and foundational `Execute`
+  arguments. Other command families still migrate incrementally; the export
+  boundary applies conservative foundational checks to collected function
+  lines in the meantime.
+  Affects: `command-validation`, `typed-commands`.
+  Workaround: prefer typed builders and their `try_*`/`RenderCommand` paths;
+  use `cmd::raw` only for advanced vanilla or modded syntax Sand does not model.
+  Evidence: `sand-commands/src/render.rs`, `sand-core/src/component.rs`.
+
 ## Version-sensitive behavior
 
 - **LIM-VER-001** — `VersionProfile::resolve()` never fails for an

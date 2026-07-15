@@ -553,6 +553,12 @@ impl sand_components::recipe::IntoRecipeItemId for generated::Item {
     }
 }
 
+impl sand_commands::IntoTextEntityType for generated::EntityType {
+    fn into_text_entity_type(self) -> String {
+        self.resource_location().to_owned()
+    }
+}
+
 /// Generated block state property types.
 ///
 /// Each block with configurable state properties gets a typed `*Properties`

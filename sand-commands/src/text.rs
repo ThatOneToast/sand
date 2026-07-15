@@ -19,7 +19,9 @@
 //! let _cmd = format!("tellraw @a {msg}");
 //! ```
 
-use std::fmt;
+use std::{fmt, str::FromStr};
+
+use crate::error::{CommandError, CommandResult};
 
 // ── ChatColor ─────────────────────────────────────────────────────────────────
 
@@ -81,7 +83,10 @@ pub enum ClickEvent {
     OpenUrl(String),
     /// Copy text to the clipboard.
     CopyToClipboard(String),
-    /// Turn to a book page (book items only).
+    /// Emit `change_page` with a numeric page value (written books only).
+    ///
+    /// The value is serialized unchanged. Minecraft book pages are normally
+    /// one-indexed, but Sand retains page `0` for backward compatibility.
     ChangePage(u32),
 }
 
@@ -90,14 +95,86 @@ pub enum ClickEvent {
 pub enum HoverEvent {
     /// Show another text component as a tooltip.
     ShowText(Box<TextComponent>),
-    /// Show an item tooltip.
+    /// Show an item tooltip using a raw item registry string and optional count.
+    ///
+    /// This existing compatibility representation does not validate the item
+    /// ID. The count is omitted from JSON when it is [`None`].
     ShowItem { id: String, count: Option<u32> },
-    /// Show an entity tooltip.
+    /// Show a legacy entity tooltip using raw strings, including a plain name.
+    ///
+    /// New code should use [`TextComponent::hover_entity`] or
+    /// [`TextComponent::hover_entity_with_id`] so the entity type is typed, the
+    /// optional UUID is validated, and the name remains a styled component.
     ShowEntity {
         name: String,
         entity_type: String,
         id: Option<String>,
     },
+}
+
+/// Conversion implemented by Sand's typed entity registry identifiers.
+///
+/// [`TextComponent::hover_entity`] accepts this trait instead of an arbitrary
+/// string. `sand_components::EntityTypeId` validates manually constructed IDs,
+/// while `sand_core::generated::EntityType` supplies generated IDs. Use
+/// [`TextComponent::hover_entity_raw`] only when an untyped compatibility
+/// escape hatch is required.
+pub trait IntoTextEntityType {
+    /// Convert the validated entity registry identifier to its resource location.
+    fn into_text_entity_type(self) -> String;
+}
+
+/// A validated UUID for a Minecraft `show_entity` hover tooltip.
+///
+/// Parsing is fallible and accepts only canonical hyphenated UUID text. It
+/// never panics for user input.
+///
+/// ```
+/// use sand_commands::EntityHoverId;
+///
+/// let id = EntityHoverId::parse("123e4567-e89b-12d3-a456-426614174000")?;
+/// assert_eq!(id.to_string(), "123e4567-e89b-12d3-a456-426614174000");
+/// # Ok::<(), sand_commands::CommandError>(())
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct EntityHoverId(String);
+
+impl EntityHoverId {
+    /// Parse a canonical hyphenated UUID (`8-4-4-4-12` hexadecimal digits).
+    ///
+    /// Returns a [`CommandError`] naming the `id` field when the input has the
+    /// wrong length, hyphen placement, or contains non-hexadecimal digits.
+    pub fn parse(value: impl Into<String>) -> CommandResult<Self> {
+        let value = value.into();
+        let valid = value.len() == 36
+            && value.bytes().enumerate().all(|(index, byte)| match index {
+                8 | 13 | 18 | 23 => byte == b'-',
+                _ => byte.is_ascii_hexdigit(),
+            });
+        if valid {
+            Ok(Self(value))
+        } else {
+            Err(CommandError::new(
+                "EntityHoverId::parse",
+                "id",
+                format!("must be a canonical hyphenated UUID, got `{value}`"),
+            ))
+        }
+    }
+}
+
+impl fmt::Display for EntityHoverId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl FromStr for EntityHoverId {
+    type Err = CommandError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        Self::parse(value)
+    }
 }
 
 // ── TextComponent internals ────────────────────────────────────────────────────
@@ -115,6 +192,16 @@ enum TextContent {
         with: Vec<TextComponent>,
     },
     Keybind(String),
+}
+
+#[derive(Debug, Clone)]
+enum TextHoverEvent {
+    Public(HoverEvent),
+    ShowEntityText {
+        name: Box<TextComponent>,
+        entity_type: String,
+        id: Option<String>,
+    },
 }
 
 // ── TextComponent ─────────────────────────────────────────────────────────────
@@ -146,7 +233,7 @@ pub struct TextComponent {
     obfuscated: Option<bool>,
     insertion: Option<String>,
     click_event: Option<ClickEvent>,
-    hover_event: Option<HoverEvent>,
+    hover_event: Option<TextHoverEvent>,
     extra: Vec<TextComponent>,
 }
 
@@ -379,19 +466,108 @@ impl TextComponent {
         self
     }
 
+    /// Emit a `change_page` click event for a page inside a written book.
+    ///
+    /// Minecraft only applies this click action in book contexts and normally
+    /// treats pages as one-indexed. The value is serialized unchanged, including
+    /// `0`, to preserve the existing event model's compatibility behavior.
+    ///
+    /// ```
+    /// use sand_commands::Text;
+    /// let text = Text::new("Next").click_change_page(2);
+    /// assert!(text.to_string().contains(r#""action":"change_page""#));
+    /// ```
+    pub fn click_change_page(mut self, page: u32) -> Self {
+        self.click_event = Some(ClickEvent::ChangePage(page));
+        self
+    }
+
     // ── Hover events ──────────────────────────────────────────────────────────
 
     /// Show another `TextComponent` as a tooltip on hover.
     pub fn hover_text(mut self, text: TextComponent) -> Self {
-        self.hover_event = Some(HoverEvent::ShowText(Box::new(text)));
+        self.hover_event = Some(TextHoverEvent::Public(HoverEvent::ShowText(Box::new(text))));
         self
     }
 
-    /// Show an item tooltip on hover.
+    /// Show an item tooltip on hover using the existing raw item-ID path.
+    ///
+    /// The resulting `show_item` JSON omits `count`. The item registry string is
+    /// retained verbatim for compatibility and is not validated by this builder.
     pub fn hover_item(mut self, item_id: impl Into<String>) -> Self {
-        self.hover_event = Some(HoverEvent::ShowItem {
+        self.hover_event = Some(TextHoverEvent::Public(HoverEvent::ShowItem {
             id: item_id.into(),
             count: None,
+        }));
+        self
+    }
+
+    /// Show an item tooltip with an explicit stack count on hover.
+    ///
+    /// The item registry string and count are serialized unchanged. Item-ID and
+    /// stack-size validation belong to the broader text validation work tracked
+    /// in #152; this builder exposes the count-bearing shape already modeled by
+    /// [`HoverEvent::ShowItem`] without changing the count-free output.
+    pub fn hover_item_with_count(mut self, item_id: impl Into<String>, count: u32) -> Self {
+        self.hover_event = Some(TextHoverEvent::Public(HoverEvent::ShowItem {
+            id: item_id.into(),
+            count: Some(count),
+        }));
+        self
+    }
+
+    /// Show an entity tooltip without a UUID on hover.
+    ///
+    /// The entity type must be one of Sand's typed registry identifiers. The
+    /// displayed name remains a full text component, so styling and translation
+    /// data are preserved.
+    pub fn hover_entity(
+        mut self,
+        entity_type: impl IntoTextEntityType,
+        name: TextComponent,
+    ) -> Self {
+        self.hover_event = Some(TextHoverEvent::ShowEntityText {
+            name: Box::new(name),
+            entity_type: entity_type.into_text_entity_type(),
+            id: None,
+        });
+        self
+    }
+
+    /// Show an entity tooltip with a validated UUID on hover.
+    ///
+    /// Parse user-provided UUID text with [`EntityHoverId::parse`] first. The
+    /// styled `name` is serialized as a complete text component.
+    pub fn hover_entity_with_id(
+        mut self,
+        entity_type: impl IntoTextEntityType,
+        id: EntityHoverId,
+        name: TextComponent,
+    ) -> Self {
+        self.hover_event = Some(TextHoverEvent::ShowEntityText {
+            name: Box::new(name),
+            entity_type: entity_type.into_text_entity_type(),
+            id: Some(id.to_string()),
+        });
+        self
+    }
+
+    /// Show an entity tooltip using unchecked raw entity type and UUID strings.
+    ///
+    /// Prefer [`Self::hover_entity`] or [`Self::hover_entity_with_id`]. This is
+    /// an explicit compatibility escape hatch for legacy or version-specific
+    /// values Sand cannot model. Neither raw string is validated; the styled
+    /// `name` is still serialized as a complete text component.
+    pub fn hover_entity_raw(
+        mut self,
+        entity_type: impl Into<String>,
+        id: Option<String>,
+        name: TextComponent,
+    ) -> Self {
+        self.hover_event = Some(TextHoverEvent::ShowEntityText {
+            name: Box::new(name),
+            entity_type: entity_type.into(),
+            id,
         });
         self
     }
@@ -461,22 +637,37 @@ impl TextComponent {
         }
         if let Some(ev) = &self.hover_event {
             obj["hoverEvent"] = match ev {
-                HoverEvent::ShowText(t) => {
+                TextHoverEvent::Public(HoverEvent::ShowText(t)) => {
                     serde_json::json!({"action": "show_text", "contents": t.to_json_value()})
                 }
-                HoverEvent::ShowItem { id, count } => {
+                TextHoverEvent::Public(HoverEvent::ShowItem { id, count }) => {
                     let mut h = serde_json::json!({"action": "show_item", "id": id});
                     if let Some(c) = count {
                         h["count"] = serde_json::json!(c);
                     }
                     h
                 }
-                HoverEvent::ShowEntity {
+                TextHoverEvent::Public(HoverEvent::ShowEntity {
+                    name,
+                    entity_type,
+                    id,
+                }) => {
+                    let mut h = serde_json::json!({"action": "show_entity", "name": name, "type": entity_type});
+                    if let Some(i) = id {
+                        h["id"] = serde_json::json!(i);
+                    }
+                    h
+                }
+                TextHoverEvent::ShowEntityText {
                     name,
                     entity_type,
                     id,
                 } => {
-                    let mut h = serde_json::json!({"action": "show_entity", "name": name, "type": entity_type});
+                    let mut h = serde_json::json!({
+                        "action": "show_entity",
+                        "name": name.to_json_value(),
+                        "type": entity_type,
+                    });
                     if let Some(i) = id {
                         h["id"] = serde_json::json!(i);
                     }
@@ -504,6 +695,15 @@ impl fmt::Display for TextComponent {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[derive(Clone, Copy)]
+    struct Zombie;
+
+    impl IntoTextEntityType for Zombie {
+        fn into_text_entity_type(self) -> String {
+            "minecraft:zombie".to_owned()
+        }
+    }
 
     #[test]
     fn chat_color_display() {
@@ -699,6 +899,27 @@ mod tests {
         assert!(s.contains("\"copy_to_clipboard\""), "got: {s}");
     }
 
+    #[test]
+    fn click_change_page_preserves_page_zero_styling_and_siblings() {
+        let value: serde_json::Value = serde_json::from_str(
+            &Text::new("Next page")
+                .gold()
+                .click_change_page(0)
+                .then(Text::new("!").bold(true))
+                .to_string(),
+        )
+        .unwrap();
+        assert_eq!(
+            value["clickEvent"],
+            serde_json::json!({"action": "change_page", "value": 0})
+        );
+        assert_eq!(value["color"], "gold");
+        assert_eq!(
+            value["extra"][0],
+            serde_json::json!({"text": "!", "bold": true})
+        );
+    }
+
     // ── New: hover events ─────────────────────────────────────────────────────
 
     #[test]
@@ -717,6 +938,103 @@ mod tests {
         let s = t.to_string();
         assert!(s.contains("\"show_item\""), "got: {s}");
         assert!(s.contains("minecraft:diamond"), "got: {s}");
+    }
+
+    #[test]
+    fn hover_item_with_count() {
+        let value: serde_json::Value = serde_json::from_str(
+            &Text::new("Items")
+                .hover_item_with_count("minecraft:diamond", 3)
+                .to_string(),
+        )
+        .unwrap();
+        assert_eq!(
+            value["hoverEvent"],
+            serde_json::json!({
+                "action": "show_item",
+                "id": "minecraft:diamond",
+                "count": 3,
+            })
+        );
+    }
+
+    #[test]
+    fn hover_item_with_count_preserves_component_fields() {
+        let value: serde_json::Value = serde_json::from_str(
+            &Text::new("Items")
+                .blue()
+                .hover_item_with_count("example:component_bearing_item", 64)
+                .then(Text::new(" available").italic(true))
+                .to_string(),
+        )
+        .unwrap();
+        assert_eq!(value["color"], "blue");
+        assert_eq!(value["hoverEvent"]["id"], "example:component_bearing_item");
+        assert_eq!(value["hoverEvent"]["count"], 64);
+        assert_eq!(value["extra"][0]["italic"], true);
+    }
+
+    #[test]
+    fn hover_entity_uses_typed_id_and_text_name() {
+        let id = EntityHoverId::parse("123e4567-e89b-12d3-a456-426614174000").unwrap();
+        let value: serde_json::Value = serde_json::from_str(
+            &Text::new("Zombie")
+                .hover_entity_with_id(Zombie, id, Text::new("Undead").red())
+                .to_string(),
+        )
+        .unwrap();
+        assert_eq!(
+            value["hoverEvent"],
+            serde_json::json!({
+                "action": "show_entity",
+                "type": "minecraft:zombie",
+                "id": "123e4567-e89b-12d3-a456-426614174000",
+                "name": {"text": "Undead", "color": "red"},
+            })
+        );
+    }
+
+    #[test]
+    fn hover_entity_without_id_omits_id() {
+        let value: serde_json::Value = serde_json::from_str(
+            &Text::new("Zombie")
+                .hover_entity(Zombie, Text::new("Undead"))
+                .to_string(),
+        )
+        .unwrap();
+        assert_eq!(
+            value["hoverEvent"],
+            serde_json::json!({
+                "action": "show_entity",
+                "type": "minecraft:zombie",
+                "name": {"text": "Undead"},
+            })
+        );
+    }
+
+    #[test]
+    fn entity_hover_id_rejects_malformed_uuid() {
+        let error = EntityHoverId::parse("not-a-uuid").unwrap_err();
+        assert_eq!(error.helper, "EntityHoverId::parse");
+        assert_eq!(error.field, "id");
+        assert!(error.message.contains("canonical hyphenated UUID"));
+    }
+
+    #[test]
+    fn hover_entity_raw_preserves_unchecked_advanced_values() {
+        let value: serde_json::Value = serde_json::from_str(
+            &Text::new("Custom")
+                .hover_entity_raw(
+                    "modded:future/entity",
+                    Some("version-specific-id".to_owned()),
+                    Text::new("Advanced").light_purple(),
+                )
+                .to_string(),
+        )
+        .unwrap();
+        assert_eq!(value["hoverEvent"]["type"], "modded:future/entity");
+        assert_eq!(value["hoverEvent"]["id"], "version-specific-id");
+        assert_eq!(value["hoverEvent"]["name"]["color"], "light_purple");
     }
 
     // ── New: insertion ────────────────────────────────────────────────────────

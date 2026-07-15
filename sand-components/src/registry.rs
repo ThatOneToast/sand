@@ -115,6 +115,18 @@ registry_id! {
     EntityTypeId
 }
 
+impl sand_commands::IntoTextEntityType for EntityTypeId {
+    fn into_text_entity_type(self) -> String {
+        self.to_string()
+    }
+}
+
+impl sand_commands::IntoTextEntityType for &EntityTypeId {
+    fn into_text_entity_type(self) -> String {
+        self.to_string()
+    }
+}
+
 registry_id! {
     /// Typed Minecraft function identifier (e.g. `minecraft:load` or `mypack:tick`).
     FunctionId
@@ -330,5 +342,16 @@ mod tests {
     fn dimension_id_minecraft() {
         let id = DimensionId::minecraft("overworld").unwrap();
         assert_eq!(id.to_string(), "minecraft:overworld");
+    }
+
+    #[test]
+    fn entity_type_id_builds_typed_text_hover() {
+        let text = sand_commands::Text::new("Inspect").hover_entity(
+            EntityTypeId::minecraft("zombie").unwrap(),
+            sand_commands::Text::new("Undead"),
+        );
+        let value: serde_json::Value = serde_json::from_str(&text.to_string()).unwrap();
+        assert_eq!(value["hoverEvent"]["type"], "minecraft:zombie");
+        assert_eq!(value["hoverEvent"]["name"]["text"], "Undead");
     }
 }

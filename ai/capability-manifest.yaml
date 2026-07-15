@@ -185,7 +185,7 @@ capabilities:
     crates: [sand-core, sand-macros]
     entry_points: ["#[event]"]
     preferred_api: "sand_core::events::* (OnJoinEvent, FirstJoinEvent, OnDeathEvent, OnRespawnEvent, ArmorEquipEvent, ItemConsumeEvent, BlockPlaceEvent, EntityKillEvent, ...) with Event<T>::player()"
-    advanced_api: "Implement sand_core::event::AdvancementEvent or sand_core::events::SandEvent on a marker type for custom triggers; sand_core::prelude (crate::event::*) for lower-level handle/trigger/builder access"
+    advanced_api: "Implement sand_core::event::AdvancementEvent or sand_core::events::SandEvent on a marker type for custom triggers; sand_core::prelude (crate::event::*) for lower-level handle/trigger/builder access. See the sandevent-chained-dispatch capability for chaining a child SandEvent from a parent's same-cycle dispatch."
     sand_limitations: >
       Functional but rustdocs still being refined (ROADMAP.md). Do not assume
       every advancement trigger exposes typed event payload values — check

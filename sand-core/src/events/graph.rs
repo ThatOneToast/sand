@@ -8,9 +8,18 @@
 //! is always a forest (no node has more than one incoming chain edge),
 //! which makes cycle detection a simple parent-pointer walk.
 //!
-//! Not part of the graph: `TickPoll`/`AdvancementTrigger`-backed events,
-//! which are dispatched through their own pre-existing codegen paths and
-//! never chained from.
+//! Every player-scoped custom tick detector goes through this graph as a
+//! [`NodeOrigin::Root`] node — both `SandEventDispatch::tick()` and the
+//! legacy `SandEventDispatch::TickCondition` compatibility constructor
+//! normalize into the same [`TickEventDispatch`] shape and are discovered
+//! identically, so a concrete `SandEvent` type resolves to exactly one node
+//! (and one generated detector) regardless of which constructor its
+//! `dispatch()` used. Advancement-backed `SandEvent`s are dispatched through
+//! their own pre-existing reward-function codegen path, are never added to
+//! this graph, and are explicitly rejected as a chain parent (see
+//! [`discover`]). The unrelated bare `EventDispatch::TickPoll` used by
+//! built-ins like `HoldingItemEvent`/`CurrentlyWearingEvent` (which have no
+//! `SandEvent`/chain-parent concept) is also not part of this graph.
 
 use std::any::TypeId;
 use std::collections::BTreeMap;

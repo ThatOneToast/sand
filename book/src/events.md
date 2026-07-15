@@ -189,12 +189,14 @@ cycle (`A -> A`, or an indirect cycle like `A -> B -> C -> A`) is rejected at
 export time with a diagnostic naming the full cycle path — never silently
 truncated or panicked on.
 
-Only tick-lifecycle `SandEvent` parents (or legacy `TickCondition`/
-`AdvancementTrigger` dispatch that normalizes into the same tick-lifecycle
-shape) are supported as chain parents in this phase. An advancement-backed
-`SandEvent` parent is rejected explicitly, since its reward-function
-generation path does not yet provide a player execution context compatible
-with same-cycle child dispatch:
+Structured `SandEventDispatch::tick()` and legacy `SandEventDispatch::TickCondition`
+parents are supported — both normalize into the same tick-lifecycle shape and
+are discovered identically, so a parent resolves to exactly one generated
+detector regardless of which constructor it used. Advancement-backed parents
+are rejected in this phase: `AdvancementTrigger` dispatch normalizes into a
+separate `Advancement` shape, and its reward-function generation path does
+not yet provide a player execution context compatible with same-cycle child
+dispatch:
 
 ```text
 SandEvent `JumpedOnElevator` cannot chain from `SomeAdvancementBackedEvent`:

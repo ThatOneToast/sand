@@ -519,7 +519,21 @@ fn try_export_components_impl(
                         records.push(component_to_record(&advancement, ctx)?);
                     }
                     CustomDispatchBackend::TickPoll(condition) => {
-                        // Tick-poll custom event — same as TickPoll.
+                        // Legacy single-fragment `SandEventDispatch::TickCondition`
+                        // custom event. Normalized into the same structured
+                        // `TickEventDispatch` shape as `SandEventDispatch::tick()`
+                        // (matching `SandEventDispatch::normalize()` exactly) and
+                        // fed into the same event graph discovery as structured
+                        // tick events — not the unrelated legacy `tick_poll_events`
+                        // aggregation (bare `EventDispatch::TickPoll`, e.g.
+                        // `HoldingItemEvent`/`CurrentlyWearingEvent`, which have no
+                        // `SandEvent`/chain-parent concept). A concrete SandEvent
+                        // type must resolve to exactly one graph node — and
+                        // therefore one generated detector — regardless of
+                        // whether its dispatch() used the structured builder or
+                        // this compatibility constructor, so a legacy parent
+                        // referenced by a chain child never gets a second,
+                        // independent detector (#240 follow-up).
                         records.push(ComponentRecord {
                             namespace: namespace.to_string(),
                             dir: "function".to_string(),
@@ -528,7 +542,14 @@ fn try_export_components_impl(
                             content_type: "text".to_string(),
                             content: commands.join("\n"),
                         });
-                        tick_poll_events.push((desc, condition));
+                        tick_lifecycle_events.push((
+                            desc,
+                            event_type_id(),
+                            event_type_name(),
+                            crate::events::TickEventDispatch::default()
+                                .when(crate::condition::Condition::raw(condition)),
+                            make_setup(),
+                        ));
                     }
                     CustomDispatchBackend::TickLifecycle(tick) => {
                         // Structured tick dispatch — handler body emitted now;
@@ -932,6 +953,43 @@ fn try_export_components_impl(
                      generated detector/setup paths",
                     node.type_name
                 )));
+            }
+        }
+
+        // Some built-in SandEvent types (e.g. `PlayerSneakEvent`) still use
+        // the legacy `TickCondition` constructor with a Sand-owned entity
+        // predicate condition string. Their raw condition now lives inside
+        // the node's own `when`/`unless` clauses (see the `CustomDispatchBackend::TickPoll`
+        // arm above), so scan root nodes for it here and emit the internal
+        // predicate JSON exactly as the pre-#240-follow-up `TickPoll`
+        // aggregation did — only the generation site moved, not the output.
+        let mut state_predicates: BTreeMap<&'static str, &'static str> = BTreeMap::new();
+        for root in graph.roots() {
+            let crate::events::graph::NodeOrigin::Root(tick) = &root.origin else {
+                continue;
+            };
+            for cond in tick.when.iter().chain(tick.unless.iter()) {
+                if let crate::condition::Condition::Raw(s) = cond
+                    && let Some((path, flag)) = sand_player_state_predicate(s)
+                {
+                    state_predicates.insert(path, flag);
+                }
+            }
+        }
+        for (path, flag) in state_predicates {
+            if !records
+                .iter()
+                .any(|r| r.dir == "predicate" && r.path == path)
+            {
+                records.push(ComponentRecord {
+                    namespace: namespace.to_string(),
+                    dir: "predicate".to_string(),
+                    path: path.to_string(),
+                    ext: "json".to_string(),
+                    content_type: "text".to_string(),
+                    content: serde_json::to_string_pretty(&player_state_predicate_json(flag))
+                        .unwrap(),
+                });
             }
         }
 
@@ -2043,7 +2101,14 @@ fn build_dispatch_function(
 #[allow(clippy::large_enum_variant)]
 enum CustomDispatchBackend {
     Advancement(crate::AdvancementTrigger),
-    /// Legacy single-fragment tick-poll condition (no lifecycle/setup).
+    /// Legacy single-fragment `SandEventDispatch::TickCondition` string.
+    ///
+    /// Normalized into the same structured `TickEventDispatch` shape as
+    /// [`TickLifecycle`](Self::TickLifecycle) (matching
+    /// `SandEventDispatch::normalize()`) and fed into the same event graph
+    /// discovery, so a legacy parent shares exactly one generated detector
+    /// with any structured-`tick()` sibling handlers and same-cycle chain
+    /// children — never a second, independent detector.
     TickPoll(String),
     /// Structured, typed tick dispatch with lifecycle/setup support.
     TickLifecycle(crate::events::TickEventDispatch),

@@ -60,7 +60,9 @@ pub use selector::{
     SingleEntity, SinglePlayer, SortOrder, TargetBase,
 };
 pub use sound::{Sound, SoundSource};
-pub use text::{ChatColor, ClickEvent, HoverEvent, Text, TextComponent};
+pub use text::{
+    ChatColor, ClickEvent, EntityHoverId, HoverEvent, IntoTextEntityType, Text, TextComponent,
+};
 
 // ── Build trait ───────────────────────────────────────────────────────────────
 

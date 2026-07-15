@@ -51,3 +51,37 @@ Prefer `try_*` wherever an older free function still returns `String`. Use
 and modded syntax remains verbatim after single-line integrity checks. The
 fallback validator does not search raw JSON, SNBT, or literal text for
 command-shaped substrings.
+
+## Text click and hover events
+
+`TextComponent` exposes typed builders for book page links, item stacks, and
+entity tooltips as well as the usual command, URL, and text-hover actions:
+
+```rust
+use sand_core::prelude::*;
+
+let next = Text::new("Next page").click_change_page(2);
+
+let zombie = EntityTypeId::minecraft("zombie")?;
+let uuid = EntityHoverId::parse("123e4567-e89b-12d3-a456-426614174000")?;
+let entity = Text::new("Inspect")
+    .hover_entity_with_id(zombie, uuid, Text::new("Undead").red());
+
+let stack = Text::new("Reward")
+    .hover_item_with_count("minecraft:diamond", 3);
+# Ok::<(), Box<dyn std::error::Error>>(())
+```
+
+`change_page` is only meaningful inside book text; Sand serializes page `0`
+without rejecting it, but written-book pages are normally one-indexed. Item
+hover counts are emitted only when supplied, so the existing count-free shape
+is unchanged. Entity hover names are full styled text components, entity types
+use typed registry IDs, and supplied entity UUIDs must first be parsed as an
+`EntityHoverId`.
+
+`hover_entity_raw` is the explicit compatibility escape hatch for legacy,
+version-specific, or otherwise unmodeled entity type and UUID values. It does
+not validate those raw strings; prefer `hover_entity` or
+`hover_entity_with_id` for normal authoring. The final command export boundary
+still validates line integrity and recognized command arguments for text
+commands, just as it does for other collected commands.

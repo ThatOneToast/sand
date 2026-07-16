@@ -276,11 +276,12 @@ impl From<InventoryChangedTrigger> for AdvancementTrigger {
     }
 }
 
-// ─── ItemObtainedTrigger (CraftedItem) ──────────────────────────────────────
+// ─── ItemObtainedTrigger (legacy crafted-result filter) ─────────────────────
 
-/// Fires when the player crafts an item.
-///
-/// Maps to `minecraft:crafted_item`; it does not fire for smelting or other item acquisition.
+/// Source-compatibility builder for the removed `minecraft:crafted_item`
+/// trigger. Both filtered and unfiltered forms fail target-aware export on
+/// verified current profiles. Use [`AdvancementTrigger::RecipeCrafted`] with
+/// a concrete recipe ID for current vanilla.
 #[derive(Clone, Debug, Default)]
 pub struct ItemObtainedTrigger {
     item: Option<ItemPredicate>,
@@ -298,7 +299,10 @@ impl ItemObtainedTrigger {
     }
 
     pub fn build(self) -> AdvancementTrigger {
-        AdvancementTrigger::CraftedItem { item: self.item }
+        match self.item {
+            None => AdvancementTrigger::CraftedItem { item: None },
+            Some(item) => AdvancementTrigger::CraftedItem { item: Some(item) },
+        }
     }
 }
 
@@ -381,7 +385,7 @@ impl From<UsingItemTrigger> for AdvancementTrigger {
     }
 }
 
-// ─── MultiKillTrigger (KilledByCrossbow) ────────────────────────────────────
+// ─── MultiKillTrigger (KilledByArrow) ───────────────────────────────────────
 
 /// Fires when the player kills multiple unique entity types with a crossbow.
 #[derive(Clone, Debug, Default)]
@@ -411,8 +415,9 @@ impl MultiKillTrigger {
     }
 
     pub fn build(self) -> AdvancementTrigger {
-        AdvancementTrigger::KilledByCrossbow {
+        AdvancementTrigger::KilledByArrow {
             unique_entity_types: self.unique_entity_types,
+            fired_from_weapon: Some(ItemPredicate::id("minecraft:crossbow")),
             victims: self.victims,
         }
     }

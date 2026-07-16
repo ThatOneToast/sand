@@ -162,6 +162,8 @@ impl ComponentFeature {
 /// explicitly targets a known exact profile.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VersionCaps {
+    requested_version: String,
+    is_fallback: bool,
     supports_dialogs: bool,
     supports_jukebox_songs: bool,
     supports_damage_types: bool,
@@ -178,6 +180,8 @@ impl VersionCaps {
     /// callers retain their prior behavior.
     pub fn all_enabled() -> Self {
         Self {
+            requested_version: LATEST_KNOWN.to_string(),
+            is_fallback: false,
             supports_dialogs: true,
             supports_jukebox_songs: true,
             supports_damage_types: true,
@@ -191,6 +195,8 @@ impl VersionCaps {
     /// Create a `VersionCaps` where all features are disabled (fallback policy).
     pub fn all_disabled() -> Self {
         Self {
+            requested_version: "1.18".to_string(),
+            is_fallback: true,
             supports_dialogs: false,
             supports_jukebox_songs: false,
             supports_damage_types: false,
@@ -214,9 +220,11 @@ impl VersionCaps {
         }
     }
 
-    /// Create a `VersionCaps` from individual feature flags.
+    /// Create an unprofiled `VersionCaps` from individual feature flags.
     ///
-    /// Used by `sand-core::VersionProfile::caps()`.
+    /// This compatibility constructor retains the pre-profile API. Schema
+    /// consumers treat it as the latest known target, matching unprofiled
+    /// component export behavior.
     #[allow(clippy::too_many_arguments)]
     pub fn from_flags(
         supports_dialogs: bool,
@@ -227,7 +235,38 @@ impl VersionCaps {
         supports_trim_assets: bool,
         supports_item_components: bool,
     ) -> Self {
+        Self::from_profile_flags(
+            LATEST_KNOWN,
+            false,
+            supports_dialogs,
+            supports_jukebox_songs,
+            supports_damage_types,
+            supports_chat_types,
+            supports_enchantments,
+            supports_trim_assets,
+            supports_item_components,
+        )
+    }
+
+    /// Create a `VersionCaps` for a concrete resolved target profile.
+    ///
+    /// Used by `sand-core::VersionProfile::caps()` so schema consumers can
+    /// distinguish targets that share the same feature flags.
+    #[allow(clippy::too_many_arguments)]
+    pub fn from_profile_flags(
+        requested_version: impl Into<String>,
+        is_fallback: bool,
+        supports_dialogs: bool,
+        supports_jukebox_songs: bool,
+        supports_damage_types: bool,
+        supports_chat_types: bool,
+        supports_enchantments: bool,
+        supports_trim_assets: bool,
+        supports_item_components: bool,
+    ) -> Self {
         Self {
+            requested_version: requested_version.into(),
+            is_fallback,
             supports_dialogs,
             supports_jukebox_songs,
             supports_damage_types,
@@ -236,6 +275,38 @@ impl VersionCaps {
             supports_trim_assets,
             supports_item_components,
         }
+    }
+
+    /// Version requested by the project that produced these capabilities.
+    pub fn requested_version(&self) -> &str {
+        &self.requested_version
+    }
+
+    /// Whether the version resolver used conservative fallback capabilities.
+    pub fn is_fallback(&self) -> bool {
+        self.is_fallback
+    }
+
+    /// Compare the requested target with a concrete Minecraft release.
+    ///
+    /// `latest` resolves to [`LATEST_KNOWN`]. Unknown/fallback targets return
+    /// `false`; callers must not infer schema support from a fallback profile.
+    pub fn is_at_least(&self, major: u32, minor: u32, patch: u32) -> bool {
+        if self.is_fallback {
+            return false;
+        }
+        let value = if self.requested_version == "latest" {
+            LATEST_KNOWN
+        } else {
+            &self.requested_version
+        };
+        let mut parts = value.split('.').map(|part| part.parse::<u32>());
+        let Some(Ok(actual_major)) = parts.next() else {
+            return false;
+        };
+        let actual_minor = parts.next().transpose().ok().flatten().unwrap_or(0);
+        let actual_patch = parts.next().transpose().ok().flatten().unwrap_or(0);
+        (actual_major, actual_minor, actual_patch) >= (major, minor, patch)
     }
 }
 
@@ -280,6 +351,20 @@ mod tests {
         assert!(caps.supports(ComponentFeature::Enchantments));
         assert!(!caps.supports(ComponentFeature::TrimAssets));
         assert!(caps.supports(ComponentFeature::ItemComponents));
+        assert_eq!(caps.requested_version(), LATEST_KNOWN);
+        assert!(!caps.is_fallback());
+    }
+
+    #[test]
+    fn profiled_caps_compare_versions_without_guessing_for_fallbacks() {
+        let stable = VersionCaps::from_profile_flags(
+            "1.21.4", false, false, true, true, true, true, true, true,
+        );
+        assert!(stable.is_at_least(1, 20, 5));
+        assert!(!stable.is_at_least(26, 2, 0));
+
+        let fallback = VersionCaps::all_disabled();
+        assert!(!fallback.is_at_least(1, 0, 0));
     }
 
     #[test]

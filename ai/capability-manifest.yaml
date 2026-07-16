@@ -200,11 +200,11 @@ capabilities:
     stability: alpha
     crates: [sand-core, sand-macros]
     entry_points: ["#[event]"]
-    preferred_api: "sand_core::events::* (OnJoinEvent, FirstJoinEvent, OnDeathEvent, OnRespawnEvent, ArmorEquipEvent, ItemConsumeEvent, BlockPlaceEvent, EntityKillEvent, ...) with Event<T>::player()"
+    preferred_api: "Use Event<T>::player() for AdvancementEvent-backed and generated tracked events; use a concrete unit marker handler for tick-only SandEvent types. Built-ins live under sand_core::events::* (OnJoinEvent, FirstJoinEvent, OnDeathEvent, OnRespawnEvent, ArmorEquipEvent, ItemConsumeEvent, BlockPlaceEvent, EntityKillEvent, ...)."
     advanced_api: "Implement sand_core::event::AdvancementEvent or sand_core::events::SandEvent on a marker type for custom triggers; sand_core::prelude (crate::event::*) for lower-level handle/trigger/builder access. See the sandevent-chained-dispatch capability for chaining a child SandEvent from a parent's same-cycle dispatch."
     sand_limitations: >
-      Functional but rustdocs still being refined (ROADMAP.md). Do not assume
-      every advancement trigger exposes typed event payload values — check
+      Do not assume every advancement trigger exposes typed event payload
+      values — Event<T> is runtime context, not a constructed T. Check
       trigger_coverage.rs's EventWrapperStatus (Supported/Partial/None) per
       trigger before relying on payload data. Prefer a built-in event type
       from sand_core::events (BUILTIN_EVENT_NAMES lists all of them) over
@@ -213,7 +213,7 @@ capabilities:
       for exactly this reason (fixed 2026-07-12; it previously hand-rolled
       join detection with a raw advancement).
     evidence: ["sand-core/src/events/mod.rs (BUILTIN_EVENT_NAMES)", "sand-core/src/event/{builder,handle,mod,trigger,vanilla}.rs", "sand-macros/src/lib.rs (#[event])"]
-    documentation: ["docs/events.md", "book/src/events.md", "book/src/reference/event-trigger-matrix.md"]
+    documentation: ["docs/events.md", "book/src/manual/events.md", "book/src/reference/event-trigger-matrix.md"]
 
   - id: sandevent-chained-dispatch
     name: "Same-cycle chained SandEvent dispatch"
@@ -253,7 +253,7 @@ capabilities:
       execution contexts (#230), and arbitrary non-player entity execution
       scopes.
     evidence: ["sand-core/src/events/mod.rs (ChainEventDispatch, SandEventDispatch::chain, SandEventDispatch::Chain)", "sand-core/src/events/graph.rs (EventGraph, EventNode, NodeOrigin, discover_node, cycle detection)", "sand-core/src/component.rs (build_dispatch_function, build_child_edge)", "sand-macros/src/lib.rs (#[event] make_chain descriptor factory)", "sand-core/tests/event_chain_export.rs", "sand-core/tests/event_chain_legacy_tick_condition_parent.rs", "sand-core/tests/event_chain_child_lifecycle.rs", "sand-core/tests/event_chain_cycle.rs", "sand-core/tests/event_chain_advancement_parent_rejected.rs", "sand-macros/tests/cases/pass_sand_event_chain_dispatch.rs", "sand-macros/tests/cases/fail_sand_event_chain_non_sand_event_parent.rs"]
-    documentation: ["book/src/events.md (Composing SandEvents: same-cycle chained dispatch)"]
+    documentation: ["book/src/manual/events.md (Same-cycle chaining and roadmap boundary)"]
 
   - id: advancement-triggers
     name: "Advancement triggers"

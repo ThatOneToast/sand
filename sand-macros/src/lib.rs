@@ -11,9 +11,10 @@
 //!   automatically registered via `inventory` at link time.
 //! - **`#[component]`** — registers a datapack component (advancement, recipe,
 //!   loot table, etc.) or hooks a function into `Tick`/`Load`/custom tags.
-//! - **`#[event]`** — wires a handler function to a Minecraft advancement trigger
-//!   or tick-poll event. The handler parameter must be `Event<T>` where
-//!   `T: AdvancementEvent`. Use `event.player()` to access `@s`.
+//! - **`#[event]`** — wires a handler function to either a stateless
+//!   `AdvancementEvent` (`Event<T>` handler context) or an advanced custom
+//!   `SandEvent` (concrete marker parameter). See [`event`] for the canonical
+//!   split.
 //! - **`#[schedule]`** — defines a function that runs for N ticks (with an
 //!   optional interval), triggered at runtime via generated `_start`/`_stop` functions.
 //! - **`#[item]`** — reads a `CustomItem`-returning function and generates a typed
@@ -537,430 +538,108 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
 
 /// Turns a function into a Sand event handler.
 ///
-/// The primary typed form is `Event<T>`, where `T: AdvancementEvent`.
-/// Built-in legacy/tick events can still use the event type directly as the
-/// single parameter.
+/// Sand has two event-definition families:
 ///
-/// # Syntax
+/// - `AdvancementEvent` is a stateless definition of one vanilla advancement
+///   trigger. Its handler receives `Event<T>`, a generated runtime context that
+///   exposes the triggering player; Sand does not construct `T` or copy fields
+///   declared on `T` into the context.
+/// - `SandEvent` defines advanced custom dispatch such as typed tick polling,
+///   owned observation lifecycle, generic event families, and same-cycle
+///   chaining. Current `SandEvent` handlers use the concrete marker type as
+///   their single parameter.
 ///
-/// ```rust,ignore
-/// #[event]
-/// pub fn handler(event: Event<MyAdvancementEvent>) { /* body */ }
-///
-/// // Legacy/tick built-in events can use unit-style parameters:
-/// #[event]
-/// pub fn on_join(event: OnJoinEvent) { /* body */ }
-///
-/// // With filters (required for some event types):
-/// #[event(slot = Head, item = "minecraft:diamond_helmet")]
-/// pub fn handler(event: ArmorEquipEvent) { /* body */ }
-/// ```
-///
-/// # Built-in event types
-///
-/// ## Session / lifecycle
-///
-/// | Type | When it fires | Notes |
-/// |---|---|---|
-/// | `OnJoinEvent` | First tick after each server start/reload, or new player mid-session | Scoreboard-based; mid-session reconnect not re-fired (vanilla limit) |
-/// | `FirstJoinEvent` | Very first join ever | Advancement never revoked |
-/// | `OnDeathEvent` | Any death (mob, fall, void, `/kill`, …) | deathCount scoreboard |
-/// | `OnRespawnEvent` | Tick after respawning from death | Tag `__sand_was_dead` + spectator check |
-///
-/// ## Equipment (tick-based state transitions)
-///
-/// | Type | Filters |
-/// |---|---|
-/// | `ArmorEquipEvent` | `slot` (required), `item`, `custom_data` |
-/// | `ArmorUnequipEvent` | `slot` (required), `item`, `custom_data` |
-/// | `HoldingItemEvent` | `item` (required), `slot` (Mainhand/Offhand) |
-/// | `CurrentlyWearingEvent` | `slot` (required), `item` (required) |
-///
-/// ## Kill / combat
-///
-/// | Type | Trigger |
-/// |---|---|
-/// | `EntityKillEvent` | Player kills any entity |
-/// | `PlayerKillEvent` | Player is killed by any entity |
-/// | `PlayerDamageEntityEvent` | Player deals damage to any entity |
-/// | `EntityDamagePlayerEvent` | Any entity deals damage to the player |
-/// | `ShotCrossbowEvent` | Player shoots a crossbow |
-/// | `ChanneledLightningEvent` | Player channels trident lightning |
-///
-/// ## Items
-///
-/// | Type | Trigger |
-/// |---|---|
-/// | `ItemConsumeEvent` | Player eats/drinks any item |
-/// | `ItemCraftEvent` | Player crafts any item |
-/// | `ItemEnchantEvent` | Player enchants any item |
-/// | `BucketFillEvent` | Player fills a bucket |
-/// | `BucketEmptyEvent` | Player empties a bucket (1.17+) |
-/// | `FishingEvent` | Fishing rod hooks something |
-/// | `ItemPickedUpEvent` | A thrown item is picked up |
-/// | `ItemDurabilityChangeEvent` | An item loses durability |
-/// | `BrewPotionEvent` | Player brews a potion |
-/// | `TotemActivateEvent` | Player activates a totem of undying |
-/// | `RecipeUnlockEvent` | Player unlocks any recipe |
-///
-/// ## Blocks / world
-///
-/// | Type | Trigger |
-/// |---|---|
-/// | `BlockPlaceEvent` | Player places any block |
-/// | `EnterBlockEvent` | Player enters a block (water, honey, …) |
-/// | `SlideDownBlockEvent` | Player slides down a block (honey wall, etc.) |
-/// | `TargetHitEvent` | A target block is hit by a projectile |
-/// | `BeeNestDestroyedEvent` | Player destroys a bee nest/hive |
-///
-/// ## Player state
-///
-/// | Type | Trigger |
-/// |---|---|
-/// | `ChangeDimensionEvent` | Player changes dimension |
-/// | `PlayerSleepEvent` | Player sleeps in a bed |
-/// | `FallFromHeightEvent` | Player falls and lands |
-/// | `PlayerLevelUpEvent` | Player levels up |
-/// | `EffectsChangedEvent` | Player's effects change |
-/// | `StartRidingEvent` | Player starts riding an entity |
-/// | `UseEnderEyeEvent` | Player uses an ender eye |
-/// | `TameAnimalEvent` | Player tames an animal |
-/// | `BreedAnimalsEvent` | Player breeds animals |
-/// | `SummonEntityEvent` | Player summons an entity |
-/// | `InteractWithEntityEvent` | Player right-clicks any entity |
-/// | `VillagerTradeEvent` | Player trades with a villager |
-/// | `ConstructBeaconEvent` | Player builds/upgrades a beacon |
-/// | `CureZombieVillagerEvent` | Player cures a zombie villager |
-/// | `LootContainerOpenEvent` | Player opens a loot container |
-/// | `HeroOfTheVillageEvent` | Player achieves Hero of the Village |
-/// | `LightningStrikeEvent` | Lightning strikes near the player |
-///
-/// ## Tracked transitions (fire once on an observed edge)
-///
-/// | Type | Transition |
-/// |---|---|
-/// | `PlayerStartSneakingEvent` | `flags.is_sneaking`: false → true |
-/// | `PlayerStopSneakingEvent` | `flags.is_sneaking`: true → false |
-///
-/// ## Tick-poll (fire every tick condition is true)
-///
-/// | Type | Condition |
-/// |---|---|
-/// | `PlayerSneakEvent` | Player is crouching/sneaking |
-/// | `PlayerSprintEvent` | Player is sprinting |
-/// | `PlayerSwimmingEvent` | Player is in swimming animation |
-/// | `PlayerFlyingEvent` | Player is flying (Creative/Spectator) |
-/// | `PlayerOnFireEvent` | Player is burning |
-/// | `PlayerInCreativeEvent` | Player is in Creative mode |
-/// | `PlayerInAdventureEvent` | Player is in Adventure mode |
-/// | `PlayerInSpectatorEvent` | Player is in Spectator mode |
-///
-/// # Custom events
-///
-/// Implement `sand_core::event::AdvancementEvent` on your type, then handle
-/// `Event<T>`:
+/// # Advancement-backed event
 ///
 /// ```rust,ignore
 /// use sand_core::prelude::*;
-/// use sand_core::event::trigger::ConsumeItemTrigger;
-/// use sand_components::ItemPredicate;
+/// use sand_macros::event;
 ///
-/// pub struct MyEvent;
-/// impl AdvancementEvent for MyEvent {
+/// pub struct AteGoldenApple;
+///
+/// impl AdvancementEvent for AteGoldenApple {
 ///     type Trigger = ConsumeItemTrigger;
+///
 ///     fn trigger() -> Self::Trigger {
-///         ConsumeItemTrigger::new().item(ItemPredicate::id("minecraft:golden_apple"))
+///         ConsumeItemTrigger::new()
+///             .item(ItemPredicate::id("minecraft:golden_apple"))
 ///     }
 /// }
 ///
 /// #[event]
-/// pub fn on_use(event: Event<MyEvent>) {
-///     cmd::say("Used something!");
+/// pub fn on_ate(event: Event<AteGoldenApple>) {
+///     cmd::tellraw(event.player(), Text::new("Golden apple eaten"));
 /// }
 /// ```
 ///
-/// `SandEvent` remains available for compatibility and custom tick-poll events.
+/// `Event<AteGoldenApple>` is the runtime handler context. `AteGoldenApple`
+/// remains a type-level trigger definition; ordinary Rust fields on it would
+/// not be event-time values.
 ///
-/// # Optional attribute
-///
-/// `#[event(id = "ns:override/path")]` overrides the advancement resource
-/// location (advancement dispatch only).
-///
-/// # Options
+/// # Advanced custom event
 ///
 /// ```rust,ignore
-/// #[event]                                             // basic
-/// #[event(id = "my_pack:custom/id")]                   // override advancement ID
-/// #[event(slot = Head, item = "minecraft:diamond_helmet")]
-/// #[event(dispatch = "advancement")]                   // compatibility only
-/// ```
+/// use sand_core::events::{EventSetup, SandEvent, SandEventDispatch};
+/// use sand_core::prelude::*;
+/// use sand_macros::event;
 ///
-/// ## `revoke = true`
+/// static JUMPS: ScoreVar<i32> = ScoreVar::new("jumps");
+/// static PREVIOUS_JUMPS: ScoreVar<i32> = ScoreVar::new("previous_jumps");
 ///
-/// Prepends `advancement revoke @s only <id>` as the first command in the
-/// generated function, so the advancement can fire again the next time the
-/// trigger fires. Without this, the advancement grants only once per player
-/// (until manually revoked).
+/// pub struct PlayerJumped;
 ///
-/// **Join detection pattern** — use `revoke = true` for the standard
-/// Advancement + Tick approach, or use the built-in `Join` event type which
-/// handles scoreboard-backed detection automatically. For a manual
-/// advancement-based approach, use `revoke = false` (default) and add this to
-/// your `#[component(Load)]` to reset for every world load/reload:
-/// ```rust,ignore
-/// // Escape hatch: typed advancement revoke builder is not yet available.
-/// cmd::raw("advancement revoke @a only my_pack:on_join");
-/// ```
+/// impl SandEvent for PlayerJumped {
+///     fn dispatch() -> SandEventDispatch {
+///         SandEventDispatch::tick()
+///             .as_players()
+///             .when(PREVIOUS_JUMPS.of("@s").lt_score(JUMPS.of("@s")))
+///             .into()
+///     }
 ///
-/// # Event types
+///     fn setup() -> EventSetup {
+///         EventSetup {
+///             objectives: vec![
+///                 "scoreboard objectives add jumps minecraft.custom:minecraft.jump".into(),
+///                 "scoreboard objectives add previous_jumps dummy".into(),
+///             ],
+///             pre_observation: vec![],
+///             post_observation: vec![
+///                 "execute as @a run scoreboard players operation @s previous_jumps = @s jumps"
+///                     .into(),
+///             ],
+///         }
+///     }
+/// }
 ///
-/// ---
-///
-/// ## `Join` — player enters the world
-///
-/// Uses a scoreboard-backed tick check (`JoinTick`). Fires after server start,
-/// `/reload`, or when a new player joins mid-session. The standard pattern
-/// for initialization logic.
-///
-/// **Note:** mid-session disconnect → reconnect does **not** re-fire (scoreboard
-/// limitation). True per-login detection requires a mod or plugin.
-///
-/// ```rust,ignore
-/// static PLAYER_MANA: ScoreVar<i32> = ScoreVar::new("player_mana");
-///
-/// #[event(Join)]
-/// pub fn on_join() {
-///     PLAYER_MANA.set(Selector::self_(), 100);
-///     cmd::say("Welcome!");
+/// #[event]
+/// pub fn on_jump(_event: PlayerJumped) {
+///     cmd::say("Jumped!");
 /// }
 /// ```
 ///
-/// ---
-///
-/// ## `Death` — a player is killed
-///
-/// Fires when an entity kills the player. Optional filters:
-/// - `entity = "minecraft:zombie"` — only when killed by this entity type
-/// - `killing_blow = "minecraft:arrow"` — only when killed by this damage type
-///
-/// ```rust,ignore
-/// // Any death
-/// #[event(Death, revoke = true)]
-/// pub fn on_death() { cmd::say("A player died!"); }
-///
-/// // Only zombie kills
-/// #[event(Death { entity = "minecraft:zombie" }, revoke = true)]
-/// pub fn on_zombie_death() { cmd::give(Selector::self_(), "minecraft:apple").count(1); }
-///
-/// // Complex predicate — pass a raw JSON object (must start with `{`)
-/// #[event(Death { killing_blow = r#"{"direct_entity":{"type":"minecraft:arrow"}}"# })]
-/// pub fn on_arrow_death() { }
-/// ```
-///
-/// ---
-///
-/// ## `Kill` — player kills an entity
-///
-/// Fires when the player kills something. Same filters as `Death`.
-///
-/// ```rust,ignore
-/// #[event(Kill { entity = "minecraft:skeleton" }, revoke = true)]
-/// pub fn on_skeleton_kill() { cmd::give(Selector::self_(), "minecraft:bone").count(1); }
-/// ```
-///
-/// ---
-///
-/// ## `BlockPlaced` — player places a block
-///
-/// Fires when a block is placed. Optional filters:
-/// - `block = "minecraft:diamond_ore"` — specific block ID
-/// - `item = "minecraft:diamond_ore"` — item used to place (pass raw JSON for predicates)
-///
-/// ```rust,ignore
-/// #[event(BlockPlaced { block = "minecraft:tnt" }, revoke = true)]
-/// pub fn on_tnt_placed() { cmd::say("TNT placed!"); }
-/// ```
-///
-/// ---
-///
-/// ## `ItemUsed` — player finishes using an item (right-click complete)
-///
-/// Fires when an item use action completes (e.g. eating, drinking, shooting).
-/// Optional filter: `item = "minecraft:bow"`.
-///
-/// ```rust,ignore
-/// #[event(ItemUsed { item = "minecraft:crossbow" }, revoke = true)]
-/// pub fn on_crossbow_fire() { }
-/// ```
-///
-/// ---
-///
-/// ## `ItemConsumed` — player consumes a food or potion
-///
-/// ```rust,ignore
-/// #[event(ItemConsumed { item = "minecraft:golden_apple" }, revoke = true)]
-/// pub fn on_golden_apple() { cmd::say("Golden apple consumed!"); }
-/// ```
-///
-/// ---
-///
-/// ## `UsingItem` — player is actively holding right-click on an item
-///
-/// Fires every tick the player is mid-use (e.g. drawing a bow).
-///
-/// ```rust,ignore
-/// #[event(UsingItem { item = "minecraft:bow" })]
-/// pub fn on_bow_draw() { }
-/// ```
-///
-/// ---
-///
-/// ## `RecipeUnlocked` — player unlocks a recipe
-///
-/// `recipe` is required and must be a full resource location.
-///
-/// ```rust,ignore
-/// #[event(RecipeUnlocked { recipe = "minecraft:diamond_sword" }, revoke = true)]
-/// pub fn on_diamond_sword_recipe() { cmd::give(Selector::self_(), "minecraft:diamond").count(1); }
-/// ```
-///
-/// ---
-///
-/// ## `EnterBlock` — player steps inside a block
-///
-/// Optional filter: `block = "minecraft:water"`.
-///
-/// ```rust,ignore
-/// #[event(EnterBlock { block = "minecraft:lava" }, revoke = true)]
-/// pub fn on_enter_lava() { cmd::say("Lava!"); }
-/// ```
-///
-/// ---
-///
-/// ## `EnchantedItem` — player enchants an item
-///
-/// Optional filters: `item`, `levels` (raw JSON predicates).
-///
-/// ```rust,ignore
-/// #[event(EnchantedItem, revoke = true)]
-/// pub fn on_enchant() { }
-/// ```
-///
-/// ---
-///
-/// ## `TamedAnimal` — player tames an animal
-///
-/// Optional filter: `entity = "minecraft:wolf"`.
-///
-/// ```rust,ignore
-/// #[event(TamedAnimal { entity = "minecraft:wolf" }, revoke = true)]
-/// pub fn on_wolf_tamed() { cmd::give(Selector::self_(), "minecraft:bone").count(5); }
-/// ```
-///
-/// ---
-///
-/// ## `SummonedEntity` — player summons an entity
-///
-/// ```rust,ignore
-/// #[event(SummonedEntity { entity = "minecraft:wither" }, revoke = true)]
-/// pub fn on_wither_summon() { cmd::say("Wither summoned!"); }
-/// ```
-///
-/// ---
-///
-/// ## `BredAnimals` — player breeds two animals
-///
-/// Optional filters: `parent`, `partner`, `child` (entity type strings or JSON predicates).
-///
-/// ```rust,ignore
-/// #[event(BredAnimals { child = "minecraft:cow" }, revoke = true)]
-/// pub fn on_breed_cow() { }
-/// ```
-///
-/// ---
-///
-/// ## `InteractEntity` — player right-clicks an entity
-///
-/// Optional filters: `entity`, `item`.
-///
-/// ```rust,ignore
-/// #[event(InteractEntity { entity = "minecraft:villager" }, revoke = true)]
-/// pub fn on_villager_interact() { }
-/// ```
-///
-/// ---
-///
-/// ## `Location` — player reaches a location
-///
-/// Optional filter: `location` — a raw JSON location predicate.
-///
-/// ```rust,ignore
-/// #[event(Location { location = r#"{"biome":"minecraft:desert"}"# }, revoke = true)]
-/// pub fn on_desert_enter() { cmd::say("You entered the desert!"); }
-/// ```
-///
-/// ---
-///
-/// ## `NetherTravel` — player travels through the nether
-///
-/// Optional filters: `entered`, `exited`, `distance` (raw JSON predicates).
-///
-/// ```rust,ignore
-/// #[event(NetherTravel, revoke = true)]
-/// pub fn on_nether_travel() { }
-/// ```
-///
-/// ---
-///
-/// ## `InventoryChanged` — player's inventory contents change
-///
-/// Optional filter: `items` — a **JSON array string** of item predicates.
-/// Each entry is `{"id":"minecraft:..."}` or a richer predicate.
-///
-/// ```rust,ignore
-/// // Fire when player picks up any diamond
-/// #[event(InventoryChanged { items = r#"[{"id":"minecraft:diamond"}]"# }, revoke = true)]
-/// pub fn on_get_diamond() { cmd::say("You got a diamond!"); }
-///
-/// // No filter — fires on any inventory change
-/// #[event(InventoryChanged, revoke = true)]
-/// pub fn on_any_inventory_change() { }
-/// ```
-///
-/// ---
-///
-/// ## `Custom` — any Minecraft advancement trigger by ID
-///
-/// Use for triggers not covered by the named variants, or version-specific ones.
-/// `trigger` is required; `conditions` is an optional raw JSON object string.
-///
-/// ```rust,ignore
-/// // Bare trigger, no conditions
-/// #[event(Custom { trigger = "minecraft:tick" })]
-/// pub fn on_tick_custom() { }
-///
-/// // With a JSON conditions object
-/// #[event(Custom {
-///     trigger = "minecraft:player_interacted_with_entity",
-///     conditions = r#"{"player":{"gamemode":"survival"}}"#
-/// }, revoke = true)]
-/// pub fn on_survival_interact() { }
-/// ```
-///
-/// ---
-///
-/// ## `Tick` / `Impossible`
-///
-/// Raw triggers. `Tick` fires every tick (use `Join` instead for join
-/// detection). `Impossible` never fires — useful as a placeholder.
-///
-/// ```rust,ignore
-/// #[event(Tick)]
-/// pub fn every_tick_once() { }   // fires once, then stays granted
-///
-/// #[event(Impossible)]
-/// pub fn never_fires() { }
-/// ```
+/// `SandEventDispatch::chain::<Parent>()` also supports implemented
+/// same-cycle parent-to-child dispatch. It reuses the parent's detector and
+/// preserves that cycle's player and position. Persistent `while_<E>()`,
+/// multi-parent `after_any`/`after_all`, bounded `.within(...)`
+/// correlation, advancement-backed graph parents, and participant-rich
+/// contexts are planned; they are not accepted by this macro today.
+///
+/// Generic `SandEvent` definitions are supported and each concrete
+/// monomorphization has distinct dispatch identity. A `#[event]` handler must
+/// still name a constructible concrete marker parameter; use a unit adapter
+/// type when the generic definition itself stores `PhantomData`.
+///
+/// # Attributes
+///
+/// `#[event]` takes exactly one handler parameter. Flat attributes such as
+/// `id = "namespace:path"`, `slot = Head`, `item = "minecraft:stick"`,
+/// and `custom_data = "{key:1b}"` are supported where the selected event
+/// family uses them. `dispatch = "advancement"` is retained only as a
+/// compatibility selector for older unit-style advancement handlers; new
+/// advancement events should use `Event<T>`.
+///
+/// Reset behavior belongs to `AdvancementEvent::reset()` (or the compatibility
+/// `SandEvent::revoke()` hook), not to an event attribute.
 #[proc_macro_attribute]
 pub fn event(attr: TokenStream, item: TokenStream) -> TokenStream {
     let func = parse_macro_input!(item as ItemFn);

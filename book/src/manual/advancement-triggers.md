@@ -2,7 +2,10 @@
 
 Builders in `sand_core::event::trigger` create `AdvancementTrigger` values,
 including `UsingItemTrigger`, `ConsumeItemTrigger`, `RecipeUnlockedTrigger`,
-`PlayerInteractedWithEntityTrigger`, and `SummonedEntityTrigger`.
+`PlayerInteractedWithEntityTrigger`, `SummonedEntityTrigger`, and
+`MultiKillTrigger`. The current multi-kill builder emits the registered
+`minecraft:killed_by_arrow` trigger; the removed
+`minecraft:killed_by_crossbow` name is not used.
 `ItemObtainedTrigger` remains only for source compatibility: it maps to the
 removed `minecraft:crafted_item` ID and target-aware export rejects it on the
 verified current profiles. For crafting, construct

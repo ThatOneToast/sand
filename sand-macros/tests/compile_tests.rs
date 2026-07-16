@@ -13,6 +13,7 @@ fn compile_tests() {
     t.pass("tests/cases/pass_event_level_up.rs");
     t.pass("tests/cases/pass_damage_event.rs");
     t.pass("tests/cases/pass_event_generic_used_dash_wand.rs");
+    t.pass("tests/cases/pass_canonical_event_docs.rs");
     t.pass("tests/cases/pass_sand_event_tick_dispatch.rs");
     t.pass("tests/cases/pass_sand_event_generic_family.rs");
     t.pass("tests/cases/pass_sand_event_chain_dispatch.rs");

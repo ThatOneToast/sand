@@ -1,132 +1,231 @@
 # Events
 
-Events connect Rust functions to Minecraft gameplay triggers. Custom
-advancement-backed events use `Event<T>` as the handler context, with `T`
-implementing `AdvancementEvent`.
+Sand has two event-definition families. Choose them by how Minecraft detects the
+event, not by the handler's name.
+
+| Family | Use it for | Handler parameter |
+|---|---|---|
+| `AdvancementEvent` | One vanilla advancement trigger | `Event<T>` |
+| `SandEvent` | Typed tick observation, owned lifecycle, generic definitions, and same-cycle chaining | A concrete unit marker |
+
+## AdvancementEvent: one stateless vanilla trigger
+
+An `AdvancementEvent` type defines one trigger plus optional reset, guard, ID,
+visibility, and state declarations. It is a stateless definition: Sand never
+constructs `T`.
 
 ```rust
-use sand_core::event::trigger::ConsumeItemTrigger;
-use sand_core::events::OnJoinEvent;
 use sand_core::prelude::*;
-use sand_components::ItemPredicate;
-use sand_macros::{event, function};
+use sand_macros::event;
 
-static MANA: ScoreVar<i32> = ScoreVar::new("mana");
+pub struct AteGoldenApple;
 
-pub struct AteGoldenAppleEvent;
-
-impl AdvancementEvent for AteGoldenAppleEvent {
+impl AdvancementEvent for AteGoldenApple {
     type Trigger = ConsumeItemTrigger;
 
     fn trigger() -> Self::Trigger {
         ConsumeItemTrigger::new()
             .item(ItemPredicate::id("minecraft:golden_apple"))
     }
+}
 
-    fn guard() -> Option<Condition> {
-        Some(MANA.of("@s").lt(100))
+#[event]
+pub fn on_ate(event: Event<AteGoldenApple>) {
+    cmd::tellraw(event.player(), Text::new("Golden apple eaten").gold());
+}
+```
+
+`Event<AteGoldenApple>` is the generated runtime context. It currently exposes
+the triggering player/subject and common context helpers; it does not contain an
+`AteGoldenApple` value. Declaring ordinary Rust fields on the marker does not
+make those fields event-time data. Read runtime state through typed Sand state
+or through context handles explicitly documented for that event family.
+
+Use `DamageEvent<T>` only when `T: DamageAdvancementEvent` and the handler
+needs damage-specific helpers. Reset behavior belongs to
+`AdvancementEvent::reset()`; it is not configured with an event attribute.
+
+## SandEvent: advanced custom dispatch
+
+A `SandEvent` owns a custom dispatch plan. `SandEventDispatch::tick()` uses
+Sand's typed `Condition` IR, and `SandEvent::setup()` owns objectives plus
+commands that run before and after observation.
+
+```rust
+use sand_core::events::{EventSetup, SandEvent, SandEventDispatch};
+use sand_core::prelude::*;
+use sand_macros::event;
+
+static JUMPS: ScoreVar<i32> = ScoreVar::new("jumps");
+static PREVIOUS_JUMPS: ScoreVar<i32> = ScoreVar::new("previous_jumps");
+
+pub struct PlayerJumped;
+
+impl SandEvent for PlayerJumped {
+    fn dispatch() -> SandEventDispatch {
+        SandEventDispatch::tick()
+            .as_players()
+            .when(PREVIOUS_JUMPS.of("@s").lt_score(JUMPS.of("@s")))
+            .into()
     }
-}
 
-#[event]
-pub fn on_ate_golden_apple(event: Event<AteGoldenAppleEvent>) {
-    MANA.add(event.player(), 10);
-    cmd::effect_give(event.player(), EffectId::Regeneration).seconds(5);
-    cmd::call(golden_apple_reward);
-}
-
-#[function]
-pub fn golden_apple_reward() {
-    cmd::tellraw(Selector::self_(), Text::new("+10 mana").gold());
-}
-```
-
-Use `dispatch = "advancement"` only for compatibility with older unit-style
-custom event handlers. New custom advancement events should not need it.
-
-Event handlers can use the same typed effect APIs as ordinary functions:
-`EffectId` keeps the enum-style vanilla conveniences. `StatusEffectId` is the
-shared resource-location-backed form for dynamic or modded IDs; both work with
-the normal command and component builders. Use `StatusEffectInstance` when serializing structured
-effect data into item components or predicates.
-
-## Tracked transitions
-
-`PlayerStartsSneaking` and `PlayerStopsSneaking` use the reusable tracked-state
-backend and the normal typed handler context:
-
-```rust
-#[event]
-pub fn on_start(event: Event<PlayerStartsSneaking>) {
-    cmd::say("sneaking started");
-}
-
-#[event]
-pub fn on_stop(event: Event<PlayerStopsSneaking>) {
-    cmd::say("sneaking stopped");
-}
-```
-
-The vanilla signal is an entity predicate with `flags.is_sneaking`. It is
-available throughout Sand's supported Java Edition target range and is sampled
-once per online player per tick, so reliability is tick-polled rather than an
-exact key event. First observation establishes the scoreboard baseline
-without firing. Reload preserves existing scores; rejoin can fire an edge when
-the first new sample differs from the player's last observed online state.
-Offline players are not sampled. All handlers sharing the tracker run before
-the previous value is updated.
-
-The proof tracker costs three private objectives, one predicate sample per
-player per tick, edge comparisons, and baseline updates. Continuous
-`PlayerSneakEvent` and raw/manual commands remain available for different semantics.
-
-Built-in tick/synthetic events can still use unit-style parameters while they
-remain on the legacy dispatch path:
-
-```rust
-#[event]
-pub fn on_join(event: OnJoinEvent) {
-    cmd::tellraw(event.player(), Text::new("Welcome").green());
-}
-```
-
-## Damage Events
-
-Use `DamageEvent<T>` when `T: DamageAdvancementEvent` and the handler needs
-damage-specific helpers:
-
-```rust
-pub struct EnhancedCellsDamagedEvent;
-
-impl AdvancementEvent for EnhancedCellsDamagedEvent {
-    type Trigger = AdvancementTrigger;
-
-    fn trigger() -> Self::Trigger {
-        AdvancementTrigger::EntityHurtPlayer {
-            entity: None,
-            damage: None,
+    fn setup() -> EventSetup {
+        EventSetup {
+            objectives: vec![
+                "scoreboard objectives add jumps minecraft.custom:minecraft.jump".into(),
+                "scoreboard objectives add previous_jumps dummy".into(),
+            ],
+            pre_observation: vec![],
+            post_observation: vec![
+                "execute as @a run scoreboard players operation @s previous_jumps = @s jumps"
+                    .into(),
+            ],
         }
     }
 }
 
-impl DamageAdvancementEvent for EnhancedCellsDamagedEvent {}
-
 #[event]
-pub fn on_damaged(event: DamageEvent<EnhancedCellsDamagedEvent>) {
-    event
-        .reflect_damage()
-        .to(EntityTargets::nearby(5.0).excluding_players().excluding_self())
-        .amount(DamageAmount::fixed(4.0))
-        .damage_type(DamageKind::Generic)
-        .run();
+pub fn on_jump(_event: PlayerJumped) {
+    cmd::say("Jumped!");
 }
 ```
 
-`Event<T>` still works for ordinary advancement handlers. `DamageEvent<T>` is
-restricted to damage-capable events, so damage-only helpers are not available in
-non-damage contexts.
+The handler parameter is the concrete `SandEvent` marker, not `Event<T>`.
+Subscribed markers must therefore be constructible as unit values. Conditions
+may use `.when(...)`, `.unless(...)`, or `.if_(...)`; use
+`Condition::raw(...)` only as the explicit escape hatch when a typed condition
+does not exist.
 
-Vanilla advancement rewards do not expose exact damage amount. Reflected damage
-uses explicit fixed amounts unless a future tracker is enabled.
+Several handlers for the same concrete event share one detector and one setup.
+Sand sorts generated fan-out, and conflicting definitions for the same event
+identity fail export instead of silently choosing one.
 
-Current typed trigger builders also include `UsingItemTrigger`, `ItemObtainedTrigger`, `PlayerInteractedWithEntityTrigger`, `SummonedEntityTrigger`, and `RecipeUnlockedTrigger`. Their predicates lower to advancement JSON and reward a generated function. Not every gameplay action is an advancement trigger; use a tick/scoreboard system where vanilla lacks one. The [events guide](../book/src/events.md) and [trigger reference](../book/src/manual/advancement-triggers.md) cover the full model.
+### Generic SandEvent definitions
+
+Generic definitions are supported. Each concrete monomorphization has distinct
+in-process and generated-resource identity. If the generic type stores
+`PhantomData` or other fields, subscribe through a concrete unit adapter:
+
+```rust
+use sand_core::condition::Condition;
+use sand_core::events::{SandEvent, SandEventDispatch};
+use sand_core::prelude::*;
+use sand_macros::event;
+use std::marker::PhantomData;
+
+pub trait Direction {
+    const TAG: &'static str;
+}
+pub struct Up;
+impl Direction for Up {
+    const TAG: &'static str = "up";
+}
+
+pub struct ElevatorUsed<D: Direction>(PhantomData<D>);
+
+impl<D: Direction> SandEvent for ElevatorUsed<D> {
+    fn dispatch() -> SandEventDispatch {
+        SandEventDispatch::tick()
+            .as_players()
+            .when(Condition::raw(format!("entity @s[tag=elevator_{}]", D::TAG)))
+            .into()
+    }
+}
+
+pub struct ElevatorGoingUp;
+impl SandEvent for ElevatorGoingUp {
+    fn dispatch() -> SandEventDispatch {
+        ElevatorUsed::<Up>::dispatch()
+    }
+}
+
+#[event]
+pub fn on_elevator_up(_event: ElevatorGoingUp) {
+    cmd::say("Going up");
+}
+```
+
+The adapter preserves the generic definition's dispatch while giving generated
+handler code a constructible unit marker. Runtime values do not come from the
+generic marker's Rust fields.
+
+## Same-cycle chaining available today
+
+A child `SandEvent` can dispatch from a tick-backed parent's successful cycle:
+
+```rust
+use sand_core::condition::Condition;
+use sand_core::events::{SandEvent, SandEventDispatch};
+use sand_core::prelude::*;
+use sand_macros::event;
+
+pub struct PlayerJumped;
+
+impl SandEvent for PlayerJumped {
+    fn dispatch() -> SandEventDispatch {
+        SandEventDispatch::tick()
+            .as_players()
+            .when(Condition::raw("entity @s[tag=jumped_this_tick]"))
+            .into()
+    }
+}
+
+pub struct JumpedOnElevator;
+
+impl SandEvent for JumpedOnElevator {
+    fn dispatch() -> SandEventDispatch {
+        SandEventDispatch::chain::<PlayerJumped>()
+            .when(Condition::raw("block ~ ~-1 ~ minecraft:white_wool"))
+            .into()
+    }
+}
+
+#[event]
+pub fn on_elevator_jump(_event: JumpedOnElevator) {
+    cmd::say("Elevator jump");
+}
+```
+
+The child reuses the parent's detector and inherits the same player `@s`,
+position, and tick. A parent does not need its own direct handler. Chains may
+nest, one parent may have several children, cycles are rejected, and
+multi-plan conditions are coalesced per player. Child observation lifecycle
+runs around each child condition attempt.
+
+This is the implemented same-cycle phase, not general event correlation.
+Current limits are tracked as `LIM-EXP-004`:
+
+- one direct parent per child;
+- tick-backed structured or compatibility-condition parents only;
+- no persistent held-state `while_<E>()`;
+- no multi-parent `after_any` or `after_all`;
+- no bounded `.within(...)` window or cross-tick correlation;
+- no advancement-backed graph parents;
+- no participant-rich contexts or arbitrary non-player scopes.
+
+Those names describe planned roadmap phases, not callable APIs.
+
+## Built-in events
+
+Built-in advancement-backed and generated tracked events use a special
+name-dispatched macro path with the same `Event<T>` runtime context. They do
+not necessarily implement `AdvancementEvent`, so only use the context methods
+documented for that built-in type:
+
+```rust
+use sand_core::events::OnJoinEvent;
+use sand_core::prelude::*;
+use sand_macros::event;
+
+#[event]
+pub fn on_join(event: Event<OnJoinEvent>) {
+    cmd::tellraw(event.player(), Text::new("Welcome").green());
+}
+```
+
+Continuous tick-only built-ins such as `PlayerSneakEvent` implement
+`SandEvent` and use their concrete unit marker as the handler parameter.
+
+See [Advancement Events](advancement-events.md) for the lightweight family and
+the [mdBook event chapter](../book/src/manual/events.md) for the same canonical
+model in the user guide.

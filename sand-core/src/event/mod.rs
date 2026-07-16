@@ -165,17 +165,19 @@ pub enum EventVisibility {
 
 // ── AdvancementEvent trait ──────────────────────────────────────────────────
 
-/// Marker trait for events backed by a Minecraft advancement trigger.
+/// Stateless definition trait for events backed by one Minecraft advancement
+/// trigger.
 ///
 /// Implement this on your event type to define how it fires, how its
 /// advancement ID is derived, whether it re-arms, and any typed guard
 /// condition. Handle the event with `#[event] fn handler(event: Event<T>)`.
+/// Sand never constructs `T`: fields declared on the definition type are not
+/// runtime event data and are not exposed by `Event<T>`.
 ///
 /// # Example
 ///
 /// ```rust,ignore
-/// use sand_core::event::{AdvancementEvent, EventId, EventReset, EventVisibility};
-/// use sand_core::AdvancementTrigger;
+/// use sand_core::prelude::*;
 ///
 /// pub struct DrankHoney;
 ///
@@ -300,12 +302,16 @@ pub trait EventPlayer {
 
 // ── Event<E> — handler context ───────────────────────────────────────────────
 
-/// Zero-cost handler context for `#[event]`-annotated functions.
+/// Zero-cost runtime context for `#[event]`-annotated advancement handlers.
 ///
 /// Inside an `#[event]` handler, the generated code creates an `Event<E>`
-/// value that gives you access to context methods like [`player()`]. It is
+/// value that gives you access to context methods like [`Event::player`]. It is
 /// shared by advancement-backed and generated tracked events. You never
 /// construct `Event<E>` manually — the `#[event]` macro generates it.
+/// The context contains no instance of `E`; ordinary fields on the marker type
+/// are not captured Minecraft values. Event-time data must come from context
+/// handles explicitly provided by Sand or from typed state queried in the
+/// handler.
 ///
 /// ```rust,ignore
 /// use sand_macros::event;

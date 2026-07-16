@@ -1,5 +1,4 @@
-//! Built-in Sand event types and the legacy [`SandEvent`] trait for custom
-//! tick-poll or compatibility events.
+//! Built-in event types and the advanced [`SandEvent`] custom-event trait.
 //!
 //! New custom advancement-backed events should implement
 //! [`AdvancementEvent`](crate::event::AdvancementEvent) and use
@@ -8,7 +7,7 @@
 //! ```rust,ignore
 //! use sand_core::prelude::*;
 //! use sand_core::event::trigger::ConsumeItemTrigger;
-//! use sand_components::ItemPredicate;
+//! use sand_macros::event;
 //!
 //! pub struct AteGoldenAppleEvent;
 //!
@@ -80,7 +79,7 @@
 //! ```rust,ignore
 //! use sand_core::event::trigger::ConsumeItemTrigger;
 //! use sand_core::prelude::*;
-//! use sand_components::ItemPredicate;
+//! use sand_macros::event;
 //!
 //! pub struct AteGoldenAppleEvent;
 //!
@@ -111,6 +110,7 @@
 //! ```rust,ignore
 //! use sand_core::events::{EventSetup, SandEvent, SandEventDispatch};
 //! use sand_core::prelude::*;
+//! use sand_macros::event;
 //!
 //! static JUMPS: ScoreVar<i32> = ScoreVar::new("jumps");
 //! static SYNC_JUMPS: ScoreVar<i32> = ScoreVar::new("sync_jumps");
@@ -143,10 +143,22 @@
 //! }
 //!
 //! #[event]
-//! pub fn on_jump(event: PlayerJumpEvent) {
+//! pub fn on_jump(_event: PlayerJumpEvent) {
 //!     cmd::say("Jumped!");
 //! }
 //! ```
+//!
+//! Unlike `Event<T>`, a bare `SandEvent` parameter is the concrete marker
+//! value generated for the handler. Keep subscribed markers constructible as
+//! unit types. Generic `SandEvent` definitions are supported, with distinct
+//! identity for each concrete monomorphization; use a concrete unit adapter
+//! when a generic definition stores `PhantomData` or other fields.
+//!
+//! [`SandEventDispatch::chain`] implements same-cycle parent-to-child chaining
+//! for tick-backed `SandEvent`s. Persistent `while_<E>()`, multi-parent
+//! `after_any`/`after_all`, bounded `.within(...)` correlation,
+//! advancement-backed graph parents, and participant-rich contexts are future
+//! work and are not current APIs.
 //!
 //! Simple advancement-backed or single-fragment tick-poll `SandEvent` impls
 //! remain supported via [`SandEventDispatch::AdvancementTrigger`] and
@@ -248,7 +260,8 @@ impl TickExecutionPlans {
 /// Built via [`SandEventDispatch::tick`]. Conditions are composed from the
 /// same [`Condition`](crate::condition::Condition) IR used throughout Sand
 /// (score comparisons, flags, predicates, entity checks, and the explicit
-/// [`Condition::raw`] escape hatch) rather than hand-formatted strings.
+/// [`Condition::raw`](crate::condition::Condition::raw) escape hatch) rather
+/// than hand-formatted strings.
 ///
 /// ```rust,ignore
 /// use sand_core::events::{SandEvent, SandEventDispatch};
@@ -571,31 +584,35 @@ impl SandEventDispatch {
 
 /// Implement this trait on your own type to define a custom Sand event.
 ///
-/// Your type is used as the phantom parameter in an `#[event]` handler
-/// function. Sand inspects [`dispatch`](Self::dispatch) at build time to
-/// emit the appropriate datapack files.
+/// Your concrete type is the single parameter of a custom `#[event]` handler.
+/// Sand inspects [`dispatch`](Self::dispatch) at build time to emit the
+/// appropriate datapack files. This differs from an advancement-backed
+/// [`Event<T>`](crate::event::Event) context: a bare `SandEvent` marker is
+/// constructed by generated handler code, so subscribed markers should be
+/// constructible unit types.
 ///
 /// # Example
 ///
 /// ```rust,ignore
 /// use sand_core::events::{SandEvent, SandEventDispatch};
 /// use sand_core::prelude::*;
-/// use sand_core::AdvancementTrigger;
+/// use sand_macros::event;
 ///
-/// /// Fires when a player picks up any item.
-/// pub struct ItemPickupEvent;
+/// /// Fires while the player has the `ready` tag.
+/// pub struct PlayerReady;
 ///
-/// impl SandEvent for ItemPickupEvent {
+/// impl SandEvent for PlayerReady {
 ///     fn dispatch() -> SandEventDispatch {
-///         SandEventDispatch::AdvancementTrigger(
-///             AdvancementTrigger::PickedUpItem { item: None }
-///         )
+///         SandEventDispatch::tick()
+///             .as_players()
+///             .when(Condition::raw("entity @s[tag=ready]"))
+///             .into()
 ///     }
 /// }
 ///
 /// #[event]
-/// pub fn on_item_pickup(event: ItemPickupEvent) {
-///     cmd::say("Picked something up!");
+/// pub fn on_ready(_event: PlayerReady) {
+///     cmd::say("Ready!");
 /// }
 /// ```
 #[diagnostic::on_unimplemented(
@@ -1581,6 +1598,10 @@ pub struct PlayerStopSneakingEvent;
 ///
 /// # Example
 /// ```rust,ignore
+/// use sand_core::events::PlayerSneakEvent;
+/// use sand_core::prelude::*;
+/// use sand_macros::event;
+///
 /// #[event]
 /// pub fn while_sneaking(event: PlayerSneakEvent) {
 ///     cmd::particle(Particle::Smoke, event.player());

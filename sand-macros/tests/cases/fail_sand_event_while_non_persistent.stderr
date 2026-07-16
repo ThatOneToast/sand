@@ -1,0 +1,28 @@
+error[E0277]: `OccurrenceOnly` cannot be used with `while_::<E>()` because it does not implement `PersistentSandEvent`
+  --> tests/cases/fail_sand_event_while_non_persistent.rs:20:59
+   |
+20 |     let _ = SandEventDispatch::chain::<Parent>().while_::<OccurrenceOnly>();
+   |                                                  ------   ^^^^^^^^^^^^^^ this event type has no explicit persistent-state representation
+   |                                                  |
+   |                                                  required by a bound introduced by this call
+   |
+help: the trait `PersistentSandEvent` is not implemented for `OccurrenceOnly`
+  --> tests/cases/fail_sand_event_while_non_persistent.rs:12:1
+   |
+12 | struct OccurrenceOnly;
+   | ^^^^^^^^^^^^^^^^^^^^^
+   = note: `SandEvent` dispatch describes when an event fires; implement `PersistentSandEvent` only when the type can also provide a directly queryable current condition
+   = help: the following other types implement trait `PersistentSandEvent`:
+             PlayerFlyingEvent
+             PlayerInAdventureEvent
+             PlayerInCreativeEvent
+             PlayerInSpectatorEvent
+             PlayerOnFire
+             PlayerSneakEvent
+             PlayerSprintEvent
+             PlayerSwimming
+note: required by a bound in `ChainEventDispatch::while_`
+  --> $WORKSPACE/sand-core/src/events/mod.rs
+   |
+   |     pub fn while_<E: PersistentSandEvent + 'static>(mut self) -> Self {
+   |                      ^^^^^^^^^^^^^^^^^^^ required by this bound in `ChainEventDispatch::while_`

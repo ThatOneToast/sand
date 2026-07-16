@@ -36,6 +36,7 @@ fn a_dispatch() -> sand_core::events::SandEventDispatch {
         parent_type_name: std::any::type_name::<CycleC>,
         parent_dispatch: c_dispatch,
         parent_setup: EventSetup::none,
+        persistent: vec![],
         when: vec![],
         unless: vec![],
     })
@@ -46,6 +47,7 @@ fn b_dispatch() -> sand_core::events::SandEventDispatch {
         parent_type_name: std::any::type_name::<CycleA>,
         parent_dispatch: a_dispatch,
         parent_setup: EventSetup::none,
+        persistent: vec![],
         when: vec![],
         unless: vec![],
     })
@@ -56,6 +58,7 @@ fn c_dispatch() -> sand_core::events::SandEventDispatch {
         parent_type_name: std::any::type_name::<CycleB>,
         parent_dispatch: b_dispatch,
         parent_setup: EventSetup::none,
+        persistent: vec![],
         when: vec![],
         unless: vec![],
     })

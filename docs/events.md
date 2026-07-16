@@ -6,7 +6,7 @@ event, not by the handler's name.
 | Family | Use it for | Handler parameter |
 |---|---|---|
 | `AdvancementEvent` | One vanilla advancement trigger | `Event<T>` |
-| `SandEvent` | Typed tick observation, owned lifecycle, generic definitions, and same-cycle chaining | A concrete unit marker |
+| `SandEvent` | Typed tick observation, lifecycle, generic definitions, same-cycle chaining, and explicit persistent conditions | A concrete unit marker |
 
 ## AdvancementEvent: one stateless vanilla trigger
 
@@ -149,13 +149,13 @@ The adapter preserves the generic definition's dispatch while giving generated
 handler code a constructible unit marker. Runtime values do not come from the
 generic marker's Rust fields.
 
-## Same-cycle chaining available today
+## Same-cycle and persistent composition available today
 
 A child `SandEvent` can dispatch from a tick-backed parent's successful cycle:
 
 ```rust
 use sand_core::condition::Condition;
-use sand_core::events::{SandEvent, SandEventDispatch};
+use sand_core::events::{PlayerSneakEvent, SandEvent, SandEventDispatch};
 use sand_core::prelude::*;
 use sand_macros::event;
 
@@ -175,6 +175,7 @@ pub struct JumpedOnElevator;
 impl SandEvent for JumpedOnElevator {
     fn dispatch() -> SandEventDispatch {
         SandEventDispatch::chain::<PlayerJumped>()
+            .while_::<PlayerSneakEvent>()
             .when(Condition::raw("block ~ ~-1 ~ minecraft:white_wool"))
             .into()
     }
@@ -187,9 +188,30 @@ pub fn on_elevator_jump(_event: JumpedOnElevator) {
 ```
 
 The child reuses the parent's detector and inherits the same player `@s`,
-position, and tick. A parent does not need its own direct handler. Chains may
-nest, one parent may have several children, cycles are rejected, and
-multi-plan conditions are coalesced per player. Child observation lifecycle
+position, and tick. `while_::<PlayerSneakEvent>()` is different from the
+same-cycle parent: it queries whether that player is currently sneaking when
+the child edge is evaluated. `PlayerSneakEvent` does not need to fire, and its
+detector or lifecycle is not invoked. The current condition is usable on the
+first observation; there is no transition-baseline suppression.
+
+Persistent state is explicit. A type must implement `PersistentSandEvent`;
+ordinary tick events, transitions such as `PlayerStartSneakingEvent`, and
+advancement events do not become persistent merely because they are events.
+Custom persistent providers must return an independently valid condition and
+an empty `SandEvent::setup()`; shared objectives or other prerequisites belong
+in typed state lifecycle. Export rejects a provider setup instead of silently
+omitting it.
+The built-in persistent states currently include sneaking, sprinting, swimming,
+flying, on-fire, and Creative/Adventure/Spectator mode. Multiple `while_`
+requirements are ANDed and compose with `.when(...)` and `.unless(...)`.
+
+Evaluation remains per player with inherited `@s` and position, so one
+player's state cannot satisfy another player's edge. The live condition is
+tested after the same-cycle parent's direct handlers and before that parent's
+post-observation lifecycle; handler mutations are therefore visible at the
+child boundary. A parent does not need its own direct handler. Chains may nest,
+one parent may have several children, mixed dependency cycles are rejected,
+and multi-plan conditions are coalesced per player. Child observation lifecycle
 runs around each child condition attempt.
 
 This is the implemented same-cycle phase, not general event correlation.
@@ -197,7 +219,6 @@ Current limits are tracked as `LIM-EXP-004`:
 
 - one direct parent per child;
 - tick-backed structured or compatibility-condition parents only;
-- no persistent held-state `while_<E>()`;
 - no multi-parent `after_any` or `after_all`;
 - no bounded `.within(...)` window or cross-tick correlation;
 - no advancement-backed graph parents;

@@ -2289,138 +2289,26 @@ fn resolve_custom_dispatch_backend(
 /// Validate an advancement trigger for the target version, returning a
 /// fallible error instead of panicking.
 ///
-/// Checks both the existing `validate_for_target` (trigger ID availability)
-/// and the trigger coverage table's `since`/`removed_in` fields against the
-/// target version when a version context is provided.
+/// Delegates to the same target-aware validator used by ordinary advancement
+/// export so event wrappers cannot drift from component behavior.
 fn check_event_trigger(
     trigger: &crate::AdvancementTrigger,
     advancement_id: &str,
     handler_path: &str,
     ctx: Option<&ExportCtx>,
 ) -> ExportResult<()> {
-    // Existing trigger-level validation (ID availability).
-    trigger.validate_for_target().map_err(|diagnostic| {
-        sand_components::error::SandError::ComponentValidation {
-            location: advancement_id.parse().unwrap_or_else(|_| {
-                sand_components::ResourceLocation::new("sand", "error").unwrap()
-            }),
-            kind: "advancement_event".to_string(),
-            field: "trigger".to_string(),
-            message: format!("cannot export advancement event `{handler_path}`: {diagnostic}"),
-        }
-    })?;
-
-    // Version-aware trigger availability check using TRIGGER_COVERAGE.
-    if let Some(ctx) = ctx {
-        let trigger_id = trigger.trigger_id();
-        if let Some(coverage) =
-            sand_components::advancement::trigger_coverage::find_coverage(trigger_id)
-        {
-            // A fallback profile is deliberately not an exact compatibility
-            // claim. Known vanilla triggers therefore require an exact profile
-            // even when their historical range appears to include the requested
-            // (unknown/future) version. Explicit custom/modded triggers remain
-            // the raw escape hatch below.
-            if ctx.is_fallback {
-                return Err(sand_components::error::SandError::VersionGating {
-                    location: advancement_id.to_string(),
-                    kind: format!("trigger `{trigger_id}`"),
-                    requested_version: ctx.requested_version.to_string(),
-                    is_fallback: true,
-                    feature_name: "known trigger coverage (exact profile required)".to_string(),
-                    fallback_note: " (fallback profile: select an exact known version or `mc_version = \"latest\"` to export known vanilla triggers)".to_string(),
-                });
-            }
-            if !coverage.since.is_empty() {
-                let req = parse_version_components(coverage.since);
-                let target = parse_version_components(ctx.requested_version);
-                if let (Some(req), Some(target)) = (req, target)
-                    && !is_version_gte(&target, &req)
-                {
-                    let fallback_note = if ctx.is_fallback {
-                        " (fallback profile: all features disabled; use an exact known \
-                         version or `mc_version = \"latest\"` to enable version-gated \
-                         features)"
-                    } else {
-                        ""
-                    };
-                    return Err(sand_components::error::SandError::VersionGating {
-                        location: advancement_id.to_string(),
-                        kind: format!(
-                            "trigger `{trigger_id}` (available since {since})",
-                            trigger_id = trigger_id,
-                            since = coverage.since
-                        ),
-                        requested_version: ctx.requested_version.to_string(),
-                        is_fallback: ctx.is_fallback,
-                        feature_name: format!("trigger since {since}", since = coverage.since),
-                        fallback_note: fallback_note.to_string(),
-                    });
-                }
-            }
-            if let Some(removed_in) = coverage.removed_in {
-                let removed = parse_version_components(removed_in);
-                let target = parse_version_components(ctx.requested_version);
-                if let (Some(removed), Some(target)) = (removed, target)
-                    && is_version_gte(&target, &removed)
-                {
-                    let fallback_note = if ctx.is_fallback {
-                        " (fallback profile)"
-                    } else {
-                        ""
-                    };
-                    return Err(sand_components::error::SandError::VersionGating {
-                        location: advancement_id.to_string(),
-                        kind: format!("trigger `{trigger_id}` (removed in {removed_in})"),
-                        requested_version: ctx.requested_version.to_string(),
-                        is_fallback: ctx.is_fallback,
-                        feature_name: format!(
-                            "trigger before {removed_in}",
-                            removed_in = removed_in
-                        ),
-                        fallback_note: fallback_note.to_string(),
-                    });
-                }
-            }
-        } else if !matches!(trigger, crate::AdvancementTrigger::Custom { .. }) {
-            // Typed triggers are Sand-owned and must have coverage metadata;
-            // accepting one without it would silently claim compatibility.
-            return Err(sand_components::error::SandError::VersionGating {
-                location: advancement_id.to_string(),
-                kind: format!("trigger `{trigger_id}`"),
-                requested_version: ctx.requested_version.to_string(),
-                is_fallback: ctx.is_fallback,
-                feature_name: "trigger coverage metadata".to_string(),
-                fallback_note: " (missing metadata is rejected conservatively; use AdvancementTrigger::Custom for intentional raw/modded triggers)".to_string(),
-            });
-        }
-    }
-
-    Ok(())
-}
-
-fn parse_version_components(s: &str) -> Option<(u32, u32, u32)> {
-    let parts: Vec<&str> = s.split('.').collect();
-    let major = parts.first()?.parse::<u32>().ok()?;
-    let minor = parts
-        .get(1)
-        .and_then(|p| p.parse::<u32>().ok())
-        .unwrap_or(0);
-    let patch = parts
-        .get(2)
-        .and_then(|p| p.parse::<u32>().ok())
-        .unwrap_or(0);
-    Some((major, minor, patch))
-}
-
-fn is_version_gte(target: &(u32, u32, u32), required: &(u32, u32, u32)) -> bool {
-    if target.0 != required.0 {
-        return target.0 > required.0;
-    }
-    if target.1 != required.1 {
-        return target.1 > required.1;
-    }
-    target.2 >= required.2
+    trigger
+        .validate_for_caps(ctx.map(|context| context.caps))
+        .map_err(
+            |diagnostic| sand_components::error::SandError::ComponentValidation {
+                location: advancement_id.parse().unwrap_or_else(|_| {
+                    sand_components::ResourceLocation::new("sand", "error").unwrap()
+                }),
+                kind: "advancement_event".to_string(),
+                field: "trigger".to_string(),
+                message: format!("cannot export advancement event `{handler_path}`: {diagnostic}"),
+            },
+        )
 }
 
 fn build_item_cond(
@@ -2822,9 +2710,13 @@ mod tests {
 
     #[test]
     fn event_trigger_gating_rejects_unsupported_and_fallback_profiles() {
-        let caps = VersionCaps::all_enabled();
+        let old_caps = crate::version::VersionProfile::resolve(
+            &crate::version::MinecraftVersion::parse("1.18.2").unwrap(),
+        )
+        .unwrap()
+        .caps();
         let old_ctx = ExportCtx {
-            caps: &caps,
+            caps: &old_caps,
             requested_version: "1.18.2",
             is_fallback: false,
         };
@@ -2845,8 +2737,13 @@ mod tests {
         );
         assert!(unsupported.to_string().contains("1.18.2"));
 
+        let fallback_caps = crate::version::VersionProfile::resolve(
+            &crate::version::MinecraftVersion::parse("999.0").unwrap(),
+        )
+        .unwrap()
+        .caps();
         let fallback_ctx = ExportCtx {
-            caps: &caps,
+            caps: &fallback_caps,
             requested_version: "999.0",
             is_fallback: true,
         };
@@ -3812,5 +3709,39 @@ mod tests {
         };
         component_to_record(&recipe, Some(&ctx))
             .expect("component-free recipe results must never be version-gated");
+    }
+
+    #[test]
+    fn advancement_export_uses_the_resolved_target_profile() {
+        let advancement = sand_components::Advancement::new(test_rl("test", "profiled_trigger"))
+            .criterion(
+                "kill",
+                sand_components::Criterion::new(
+                    sand_components::AdvancementTrigger::PlayerKilledEntity {
+                        entity: Some(sand_components::EntityPredicate::type_("minecraft:zombie")),
+                        killing_blow: None,
+                    },
+                ),
+            );
+
+        let stable = crate::version::resolve_export_caps("1.21.4").unwrap();
+        let stable_ctx = ExportCtx {
+            caps: &stable.caps,
+            requested_version: "1.21.4",
+            is_fallback: stable.is_fallback,
+        };
+        let stable_record = component_to_record(&advancement, Some(&stable_ctx)).unwrap();
+        assert!(stable_record.content.contains("\"type\""));
+        assert!(!stable_record.content.contains("minecraft:entity_type"));
+
+        let latest = crate::version::resolve_export_caps("26.2").unwrap();
+        let latest_ctx = ExportCtx {
+            caps: &latest.caps,
+            requested_version: "26.2",
+            is_fallback: latest.is_fallback,
+        };
+        let latest_record = component_to_record(&advancement, Some(&latest_ctx)).unwrap();
+        assert!(latest_record.content.contains("minecraft:entity_type"));
+        assert_ne!(stable_record.content, latest_record.content);
     }
 }

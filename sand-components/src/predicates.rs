@@ -488,6 +488,37 @@ impl DamageSourcePredicate {
         self.direct_entity = Some(Box::new(ep));
         self
     }
+
+    pub(crate) fn render_for_advancement(
+        &self,
+        caps: Option<&sand_version::VersionCaps>,
+    ) -> Result<Value, String> {
+        if self.is_explosion.is_some()
+            || self.is_fire.is_some()
+            || self.is_magic.is_some()
+            || self.is_projectile.is_some()
+            || self.is_lightning.is_some()
+            || self.bypasses_armor.is_some()
+            || self.bypasses_invulnerability.is_some()
+            || self.bypasses_magic.is_some()
+        {
+            return Err(
+                "legacy damage-source boolean fields have no verified representation in the selected advancement schema; use DamageSourcePredicate::tag(...) or a version-verified raw DamagePredicate instead"
+                    .into(),
+            );
+        }
+        let mut value = serde_json::to_value(self).map_err(|error| error.to_string())?;
+        let object = value
+            .as_object_mut()
+            .expect("typed damage-source predicates serialize as objects");
+        if let Some(entity) = &self.source_entity {
+            object.insert("source_entity".into(), entity.render_for_advancement(caps)?);
+        }
+        if let Some(entity) = &self.direct_entity {
+            object.insert("direct_entity".into(), entity.render_for_advancement(caps)?);
+        }
+        Ok(value)
+    }
 }
 
 // ── DamagePredicate ───────────────────────────────────────────────────────────
@@ -564,6 +595,26 @@ impl DamagePredicate {
     pub fn type_(mut self, dsp: DamageSourcePredicate) -> Self {
         self.type_ = Some(dsp);
         self
+    }
+
+    pub(crate) fn render_for_advancement(
+        &self,
+        caps: Option<&sand_version::VersionCaps>,
+    ) -> Result<Value, String> {
+        if let Some(raw) = &self._raw {
+            return Ok(raw.as_value().clone());
+        }
+        let mut value = serde_json::to_value(self).map_err(|error| error.to_string())?;
+        let object = value
+            .as_object_mut()
+            .expect("typed damage predicates serialize as objects");
+        if let Some(entity) = &self.source_entity {
+            object.insert("source_entity".into(), entity.render_for_advancement(caps)?);
+        }
+        if let Some(source) = &self.type_ {
+            object.insert("type".into(), source.render_for_advancement(caps)?);
+        }
+        Ok(value)
     }
 }
 
@@ -696,6 +747,66 @@ impl LocationPredicate {
     /// True if a `block` sub-predicate is already set (typed or raw).
     pub(crate) fn has_block(&self) -> bool {
         self._raw.is_some() || self.block.is_some()
+    }
+
+    pub(crate) fn is_raw(&self) -> bool {
+        self._raw.is_some()
+    }
+
+    /// Render the location-predicate codec used by advancement consumers.
+    ///
+    /// The compatibility `Serialize` shape predates the current vanilla codec:
+    /// current profiles use `biomes` and nest coordinates under `position`.
+    /// Raw predicates remain verbatim and are therefore user-owned.
+    pub(crate) fn render_for_advancement(
+        &self,
+        caps: Option<&sand_version::VersionCaps>,
+    ) -> Result<Value, String> {
+        if let Some(raw) = &self._raw {
+            return Ok(raw.as_value().clone());
+        }
+        if let Some(caps) = caps
+            && !caps.is_at_least(1, 21, 4)
+        {
+            return Err(format!(
+                "typed location filters have no verified advancement-predicate lowering for target {}; target Minecraft 1.21.4+ or use LocationPredicate::raw(...) with profile-verified JSON",
+                caps.requested_version()
+            ));
+        }
+        if let Some(feature) = &self.feature {
+            return Err(format!(
+                "typed location field `feature` (`{feature}`) has no verified representation in the current advancement location-predicate codec; use LocationPredicate::raw(...) with version-verified JSON"
+            ));
+        }
+        let mut object = serde_json::Map::new();
+        if let Some(biome) = &self.biome {
+            object.insert("biomes".into(), Value::String(biome.clone()));
+        }
+        if let Some(dimension) = &self.dimension {
+            object.insert("dimension".into(), Value::String(dimension.clone()));
+        }
+        if let Some(smokey) = self.smokey {
+            object.insert("smokey".into(), Value::Bool(smokey));
+        }
+        if let Some(block) = &self.block {
+            object.insert(
+                "block".into(),
+                serde_json::to_value(block).map_err(|error| error.to_string())?,
+            );
+        }
+        let mut position = serde_json::Map::new();
+        for (name, range) in [("x", &self.x), ("y", &self.y), ("z", &self.z)] {
+            if let Some(range) = range {
+                position.insert(
+                    name.into(),
+                    serde_json::to_value(range).map_err(|error| error.to_string())?,
+                );
+            }
+        }
+        if !position.is_empty() {
+            object.insert("position".into(), Value::Object(position));
+        }
+        Ok(Value::Object(object))
     }
 }
 
@@ -874,6 +985,17 @@ impl ItemPredicate {
                 "{path}.predicates: raw sub-predicates must be a JSON object"
             ));
         }
+        if !self.custom_data_keys.is_empty()
+            && self.raw_predicates.as_ref().is_some_and(|raw| {
+                raw.as_value()
+                    .as_object()
+                    .is_some_and(|object| object.contains_key("minecraft:custom_data"))
+            })
+        {
+            return Err(format!(
+                "{path}.predicates.minecraft:custom_data: raw predicate collides with typed custom_data_key filters; combine the partial match in one representation instead of overwriting a requested filter"
+            ));
+        }
         Ok(())
     }
     /// Match any item.
@@ -960,6 +1082,34 @@ impl ItemPredicate {
     pub fn raw_predicates(mut self, v: RawJson) -> Self {
         self.raw_predicates = Some(v);
         self
+    }
+
+    pub(crate) fn is_raw(&self) -> bool {
+        self._raw.is_some()
+    }
+
+    pub(crate) fn has_component_constraints(&self) -> bool {
+        !self.custom_data_keys.is_empty()
+            || self.raw_components.is_some()
+            || self.raw_predicates.is_some()
+    }
+
+    pub(crate) fn render_for_advancement(
+        &self,
+        caps: Option<&sand_version::VersionCaps>,
+    ) -> Result<Value, String> {
+        self.validate_at("item predicate")?;
+        if !self.is_raw()
+            && self.has_component_constraints()
+            && caps
+                .is_some_and(|caps| !caps.supports(sand_version::ComponentFeature::ItemComponents))
+        {
+            return Err(
+                "item-component matching is unavailable for this target profile; remove the component constraint, target Minecraft 1.20.5+, or use ItemPredicate::raw(...) with manually verified legacy JSON"
+                    .into(),
+            );
+        }
+        serde_json::to_value(self).map_err(|error| error.to_string())
     }
 }
 
@@ -1243,6 +1393,76 @@ impl EntityPredicate {
                 .insert(effect.to_string(), pred.without_effect());
         }
         self
+    }
+
+    /// Render an entity predicate for an advancement entity consumer.
+    ///
+    /// Minecraft 26.2 moved typed entity sub-predicates to namespaced keys
+    /// (`minecraft:entity_type`, `minecraft:location`, ...). Earlier active
+    /// profiles use the historical unnamespaced keys. Raw predicates are
+    /// preserved verbatim because their compatibility is user-owned.
+    pub(crate) fn render_for_advancement(
+        &self,
+        caps: Option<&sand_version::VersionCaps>,
+    ) -> Result<Value, String> {
+        if let Some(raw) = &self._raw {
+            return Ok(raw.as_value().clone());
+        }
+        let namespaced = caps.is_none_or(|caps| caps.is_at_least(26, 2, 0));
+        let key = |legacy: &'static str, modern: &'static str| {
+            if namespaced { modern } else { legacy }
+        };
+        let mut object = serde_json::Map::new();
+        if let Some(entity_type) = &self.entity_type {
+            object.insert(
+                key("type", "minecraft:entity_type").into(),
+                serde_json::to_value(entity_type).map_err(|error| error.to_string())?,
+            );
+        }
+        if let Some(nbt) = &self.nbt {
+            object.insert(
+                key("nbt", "minecraft:nbt").into(),
+                Value::String(nbt.clone()),
+            );
+        }
+        if let Some(location) = &self.location {
+            object.insert(
+                key("location", "minecraft:location").into(),
+                location.render_for_advancement(caps)?,
+            );
+        }
+        if let Some(flags) = &self.flags {
+            object.insert(
+                key("flags", "minecraft:flags").into(),
+                serde_json::to_value(flags).map_err(|error| error.to_string())?,
+            );
+        }
+        if let Some(equipment) = &self.equipment {
+            let mut rendered = serde_json::Map::new();
+            for (slot, item) in [
+                ("head", &equipment.head),
+                ("chest", &equipment.chest),
+                ("legs", &equipment.legs),
+                ("feet", &equipment.feet),
+                ("mainhand", &equipment.mainhand),
+                ("offhand", &equipment.offhand),
+            ] {
+                if let Some(item) = item {
+                    rendered.insert(slot.into(), item.render_for_advancement(caps)?);
+                }
+            }
+            object.insert(
+                key("equipment", "minecraft:equipment").into(),
+                Value::Object(rendered),
+            );
+        }
+        if let Some(effects) = &self.effects {
+            object.insert(
+                key("effects", "minecraft:effects").into(),
+                serde_json::to_value(effects).map_err(|error| error.to_string())?,
+            );
+        }
+        Ok(Value::Object(object))
     }
 }
 

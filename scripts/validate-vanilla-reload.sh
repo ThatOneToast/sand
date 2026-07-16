@@ -13,6 +13,8 @@ Options:
   --jar <path>       SHA-verified server jar (default: Sand cache)
   --output <path>    Persistent diagnostics directory
   --timeout <secs>   Per-phase timeout (default: 120)
+  --op-player <name> Pre-authorize an offline-mode player as an operator
+  --client-command   Run the remaining argv as a gameplay client after startup
   --help             Show this help
 
 The default jar is ~/.sand/cache/<version>/server.jar. Set SAND_JAR_CACHE to
@@ -26,6 +28,8 @@ PACK=""
 JAR=""
 OUTPUT=""
 TIMEOUT="${SAND_SERVER_TIMEOUT:-120}"
+OP_PLAYER=""
+CLIENT_COMMAND=()
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --version) VERSION="${2:?}"; shift 2 ;;
@@ -33,6 +37,8 @@ while [[ $# -gt 0 ]]; do
         --jar) JAR="${2:?}"; shift 2 ;;
         --output) OUTPUT="${2:?}"; shift 2 ;;
         --timeout) TIMEOUT="${2:?}"; shift 2 ;;
+        --op-player) OP_PLAYER="${2:?}"; shift 2 ;;
+        --client-command) shift; CLIENT_COMMAND=("$@"); break ;;
         --help|-h) usage; exit 0 ;;
         *) echo "error: unknown option '$1'" >&2; usage; exit 2 ;;
     esac
@@ -61,4 +67,6 @@ args=(
     --timeout "$TIMEOUT"
 )
 [[ -z "$OUTPUT" ]] || args+=(--output "$OUTPUT")
+[[ -z "$OP_PLAYER" ]] || args+=(--op-player "$OP_PLAYER")
+[[ ${#CLIENT_COMMAND[@]} -eq 0 ]] || args+=(--client-command "${CLIENT_COMMAND[@]}")
 exec python3 "${args[@]}"

@@ -221,6 +221,12 @@ pub enum AdvancementTrigger {
         unique_entity_types: Option<IntRange>,
         victims: Option<Vec<EntityPredicate>>,
     },
+    /// Player kills one or more entities with a projectile weapon.
+    KilledByArrow {
+        unique_entity_types: Option<IntRange>,
+        fired_from_weapon: Option<ItemPredicate>,
+        victims: Option<Vec<EntityPredicate>>,
+    },
     /// A lightning bolt hits an entity the player summoned with a trident.
     ChanneledLightning {
         victims: Option<Vec<EntityPredicate>>,
@@ -252,6 +258,12 @@ pub enum AdvancementTrigger {
     CraftedItem {
         item: Option<ItemPredicate>,
     },
+    /// Player completes a recipe. Vanilla exposes recipe and ingredient
+    /// predicates, not the crafted result item.
+    RecipeCrafted {
+        recipe_id: String,
+        ingredients: Vec<ItemPredicate>,
+    },
     /// Player fills a bucket.
     FilledBucket {
         item: Option<ItemPredicate>,
@@ -271,6 +283,16 @@ pub enum AdvancementTrigger {
     },
     /// A thrown item is picked up by an entity.
     ThrownItemPickedUp {
+        item: Option<ItemPredicate>,
+        entity: Option<EntityPredicate>,
+    },
+    /// A thrown item is picked up by a non-player entity.
+    ThrownItemPickedUpByEntity {
+        item: Option<ItemPredicate>,
+        entity: Option<EntityPredicate>,
+    },
+    /// A thrown item is picked up by the player.
+    ThrownItemPickedUpByPlayer {
         item: Option<ItemPredicate>,
         entity: Option<EntityPredicate>,
     },
@@ -612,6 +634,15 @@ impl AdvancementTrigger {
             Self::RecipeUnlocked { recipe } => {
                 validate_resource_id(recipe, &format!("{conditions}.recipe"))?;
             }
+            Self::RecipeCrafted {
+                recipe_id,
+                ingredients,
+            } => {
+                validate_resource_id(recipe_id, &format!("{conditions}.recipe_id"))?;
+                for (index, item) in ingredients.iter().enumerate() {
+                    item.validate_at(&format!("{conditions}.ingredients[{index}]"))?;
+                }
+            }
             Self::BrewedPotion {
                 potion: Some(potion),
             } => {
@@ -688,6 +719,23 @@ impl AdvancementTrigger {
                     }
                 }
             }
+            Self::KilledByArrow {
+                unique_entity_types,
+                fired_from_weapon,
+                victims,
+            } => {
+                if let Some(range) = unique_entity_types {
+                    range.validate_at(&format!("{conditions}.unique_entity_types"))?;
+                }
+                if let Some(item) = fired_from_weapon {
+                    item.validate_at(&format!("{conditions}.fired_from_weapon"))?;
+                }
+                if let Some(victims) = victims {
+                    for (index, victim) in victims.iter().enumerate() {
+                        victim.validate_at(&format!("{conditions}.victims[{index}]"))?;
+                    }
+                }
+            }
             Self::ChanneledLightning {
                 victims: Some(victims),
             } => {
@@ -751,6 +799,8 @@ impl AdvancementTrigger {
                 }
             }
             Self::ThrownItemPickedUp { item, entity }
+            | Self::ThrownItemPickedUpByEntity { item, entity }
+            | Self::ThrownItemPickedUpByPlayer { item, entity }
             | Self::PlayerInteractedWithEntity { item, entity }
             | Self::TamedAnimalInteracted { item, entity } => {
                 if let Some(item) = item {
@@ -929,15 +979,23 @@ impl AdvancementTrigger {
             AdvancementTrigger::PlayerHurtEntity { .. } => "minecraft:player_hurt_entity",
             AdvancementTrigger::EntityHurtPlayer { .. } => "minecraft:entity_hurt_player",
             AdvancementTrigger::KilledByCrossbow { .. } => "minecraft:killed_by_crossbow",
+            AdvancementTrigger::KilledByArrow { .. } => "minecraft:killed_by_arrow",
             AdvancementTrigger::ChanneledLightning { .. } => "minecraft:channeled_lightning",
             AdvancementTrigger::LightningStrike { .. } => "minecraft:lightning_strike",
             AdvancementTrigger::CraftedItem { .. } => "minecraft:crafted_item",
+            AdvancementTrigger::RecipeCrafted { .. } => "minecraft:recipe_crafted",
             AdvancementTrigger::FilledBucket { .. } => "minecraft:filled_bucket",
             AdvancementTrigger::EmptiedBucket { .. } => "minecraft:emptied_bucket",
             AdvancementTrigger::FishingRodHooked { .. } => "minecraft:fishing_rod_hooked",
             AdvancementTrigger::ShotCrossbow { .. } => "minecraft:shot_crossbow",
             AdvancementTrigger::UsedTotem { .. } => "minecraft:used_totem",
             AdvancementTrigger::ThrownItemPickedUp { .. } => "minecraft:thrown_item_picked_up",
+            AdvancementTrigger::ThrownItemPickedUpByEntity { .. } => {
+                "minecraft:thrown_item_picked_up_by_entity"
+            }
+            AdvancementTrigger::ThrownItemPickedUpByPlayer { .. } => {
+                "minecraft:thrown_item_picked_up_by_player"
+            }
             AdvancementTrigger::ItemDurabilityChanged { .. } => "minecraft:item_durability_changed",
             AdvancementTrigger::BrewedPotion { .. } => "minecraft:brewed_potion",
             AdvancementTrigger::BeeNestDestroyed { .. } => "minecraft:bee_nest_destroyed",
@@ -976,16 +1034,80 @@ impl AdvancementTrigger {
     /// This intentionally fails before an advancement JSON file is emitted for
     /// IDs known to be absent from the vanilla registry.
     pub fn validate_for_target(&self) -> Result<(), String> {
-        let metadata = crate::advancement::trigger_coverage::trigger_metadata(self.trigger_id());
-        if metadata.supported {
-            Ok(())
-        } else {
-            Err(format!(
+        self.validate_for_caps(None)
+    }
+
+    /// Validate this typed trigger's ID and version range for a resolved
+    /// target. Raw [`AdvancementTrigger::Custom`] values bypass Sand-owned
+    /// compatibility claims and remain user-owned.
+    pub fn validate_for_caps(
+        &self,
+        caps: Option<&sand_version::VersionCaps>,
+    ) -> Result<(), String> {
+        if matches!(self, Self::Custom { .. }) {
+            return Ok(());
+        }
+        let metadata =
+            crate::advancement::trigger_coverage::trigger_metadata_for(self.trigger_id(), caps);
+        if !metadata.supported {
+            return Err(format!(
                 "advancement trigger `{}` is not available for Sand's supported Minecraft targets. {}",
                 self.trigger_id(),
                 metadata.diagnostic.unwrap_or("choose a supported trigger")
-            ))
+            ));
         }
+
+        let Some(caps) = caps else {
+            return Ok(());
+        };
+        if caps.is_fallback() {
+            return Err(format!(
+                "advancement trigger `{}` requires an exact known Minecraft profile; `{}` resolved to conservative fallback capabilities. Select an exact known version or `latest`, or use AdvancementTrigger::Custom with user-verified raw compatibility",
+                self.trigger_id(),
+                caps.requested_version()
+            ));
+        }
+        let coverage = crate::advancement::trigger_coverage::find_coverage(self.trigger_id())
+            .ok_or_else(|| {
+                format!(
+                    "typed advancement trigger `{}` has no trigger-coverage metadata; use AdvancementTrigger::Custom only for intentional raw/modded compatibility",
+                    self.trigger_id()
+                )
+            })?;
+        if matches!(
+            coverage.api_status,
+            crate::advancement::trigger_coverage::TriggerApiStatus::Missing
+                | crate::advancement::trigger_coverage::TriggerApiStatus::RawOnly
+                | crate::advancement::trigger_coverage::TriggerApiStatus::IntentionallyUnsupported
+        ) {
+            return Err(format!(
+                "advancement trigger `{}` is not available through Sand's typed API for target {}; use AdvancementTrigger::Custom only with profile-verified raw conditions",
+                self.trigger_id(),
+                caps.requested_version()
+            ));
+        }
+        if let Some((major, minor, patch)) = parse_trigger_version(coverage.since)
+            && !caps.is_at_least(major, minor, patch)
+        {
+            return Err(format!(
+                "advancement trigger `{}` is available since Minecraft {}, but the selected target is {}",
+                self.trigger_id(),
+                coverage.since,
+                caps.requested_version()
+            ));
+        }
+        if let Some(removed_in) = coverage.removed_in
+            && let Some((major, minor, patch)) = parse_trigger_version(removed_in)
+            && caps.is_at_least(major, minor, patch)
+        {
+            return Err(format!(
+                "advancement trigger `{}` was removed in Minecraft {}, but the selected target is {}",
+                self.trigger_id(),
+                removed_in,
+                caps.requested_version()
+            ));
+        }
+        Ok(())
     }
 
     // ── Convenience constructors ──────────────────────────────────────────────
@@ -1002,6 +1124,14 @@ impl AdvancementTrigger {
                 .collect(),
         }
     }
+}
+
+fn parse_trigger_version(value: &str) -> Option<(u32, u32, u32)> {
+    let mut parts = value.split('.');
+    let major = parts.next()?.parse().ok()?;
+    let minor = parts.next().unwrap_or("0").parse().ok()?;
+    let patch = parts.next().unwrap_or("0").parse().ok()?;
+    Some((major, minor, patch))
 }
 
 // ── Serialize ─────────────────────────────────────────────────────────────────
@@ -1024,12 +1154,12 @@ impl Serialize for AdvancementTrigger {
                 location,
                 state,
             } => {
-                let value = render_placed_block_modern(block, item, location, state)
+                let value = render_placed_block_modern(block, item, location, state, None)
                     .map_err(serde::ser::Error::custom)?;
                 return value.serialize(serializer);
             }
             AdvancementTrigger::ItemUsedOnBlock { item, location } => {
-                let value = render_item_used_on_block_modern(item, location)
+                let value = render_item_used_on_block_modern(item, location, None)
                     .map_err(serde::ser::Error::custom)?;
                 return value.serialize(serializer);
             }
@@ -1094,6 +1224,29 @@ impl Serialize for AdvancementTrigger {
                 }
             }
 
+            AdvancementTrigger::KilledByArrow {
+                unique_entity_types,
+                fired_from_weapon,
+                victims,
+            } => {
+                let mut cond = serde_json::Map::new();
+                if let Some(value) = unique_entity_types {
+                    cond.insert(
+                        "unique_entity_types".into(),
+                        json_value::<_, S::Error>(value)?,
+                    );
+                }
+                if let Some(item) = fired_from_weapon {
+                    cond.insert("fired_from_weapon".into(), json_value::<_, S::Error>(item)?);
+                }
+                if let Some(victims) = victims {
+                    cond.insert("victims".into(), json_value::<_, S::Error>(victims)?);
+                }
+                if !cond.is_empty() {
+                    map.serialize_entry("conditions", &Value::Object(cond))?;
+                }
+            }
+
             AdvancementTrigger::ChanneledLightning { victims } => {
                 if let Some(v) = victims {
                     map.serialize_entry("conditions", &serde_json::json!({ "victims": v }))?;
@@ -1131,6 +1284,23 @@ impl Serialize for AdvancementTrigger {
 
             AdvancementTrigger::RecipeUnlocked { recipe } => {
                 map.serialize_entry("conditions", &serde_json::json!({ "recipe": recipe }))?;
+            }
+
+            AdvancementTrigger::RecipeCrafted {
+                recipe_id,
+                ingredients,
+            } => {
+                let mut cond = serde_json::Map::new();
+                cond.insert("recipe_id".into(), Value::String(recipe_id.clone()));
+                if !ingredients.is_empty() {
+                    cond.insert(
+                        "ingredients".into(),
+                        json_value::<_, S::Error>(ingredients)?,
+                    );
+                }
+                if !cond.is_empty() {
+                    map.serialize_entry("conditions", &Value::Object(cond))?;
+                }
             }
 
             AdvancementTrigger::UsedItem { item }
@@ -1174,7 +1344,9 @@ impl Serialize for AdvancementTrigger {
                 }
             }
 
-            AdvancementTrigger::ThrownItemPickedUp { item, entity } => {
+            AdvancementTrigger::ThrownItemPickedUp { item, entity }
+            | AdvancementTrigger::ThrownItemPickedUpByEntity { item, entity }
+            | AdvancementTrigger::ThrownItemPickedUpByPlayer { item, entity } => {
                 let mut cond = serde_json::Map::new();
                 if let Some(i) = item {
                     cond.insert("item".into(), json_value::<_, S::Error>(i)?);
@@ -1551,9 +1723,12 @@ pub enum AdvancementSchemaFamily {
     /// `conditions.location` wrapping `minecraft:location_check` (block) and
     /// `minecraft:match_tool` (item), with item predicates using the
     /// `components` (exact)/`predicates` (partial) keys. Verified against a
-    /// real, manually-confirmed-working Minecraft 26.2 JSON document — see
-    /// `placed_block_modern_render_matches_vanilla_location_check_and_match_tool`.
+    /// real Minecraft 1.21.4 and 26.2 servers. A protocol-client fixture also
+    /// verifies placement/item-use match and non-match semantics on 1.21.4.
     LocationConditionItemComponents,
+    /// Minecraft 26.2+ retains the modern location-condition/item-component
+    /// trigger shape and additionally namespaces entity sub-predicate keys.
+    NamespacedEntityPredicates,
 }
 
 impl AdvancementSchemaFamily {
@@ -1563,11 +1738,39 @@ impl AdvancementSchemaFamily {
     /// the same as a fully item-component-capable modern profile (matching
     /// the `VersionCaps::all_enabled()` convention used elsewhere in Sand).
     pub fn for_caps(caps: Option<&sand_version::VersionCaps>) -> Self {
-        if caps.is_none_or(|c| c.supports(sand_version::ComponentFeature::ItemComponents)) {
-            Self::LocationConditionItemComponents
-        } else {
+        let Some(caps) = caps else {
+            return Self::NamespacedEntityPredicates;
+        };
+        if !caps.supports(sand_version::ComponentFeature::ItemComponents) {
             Self::Legacy
+        } else if caps.is_at_least(26, 2, 0) {
+            Self::NamespacedEntityPredicates
+        } else {
+            Self::LocationConditionItemComponents
         }
+    }
+
+    fn uses_modern_location_conditions(self) -> bool {
+        !matches!(self, Self::Legacy)
+    }
+}
+
+#[derive(Debug, Clone)]
+struct AdvancementPredicateConsumer {
+    trigger_id: String,
+    field: &'static str,
+}
+
+impl AdvancementPredicateConsumer {
+    fn new(trigger_id: impl Into<String>, field: &'static str) -> Self {
+        Self {
+            trigger_id: trigger_id.into(),
+            field,
+        }
+    }
+
+    fn label(&self) -> String {
+        format!("`{}.conditions.{}`", self.trigger_id, self.field)
     }
 }
 
@@ -1588,6 +1791,9 @@ pub enum AdvancementItemConsumer {
     /// The tool/item filter for [`AdvancementTrigger::ItemUsedOnBlock`],
     /// rendered as a `minecraft:match_tool` condition in the modern schema family.
     ItemUsedOnBlockTool,
+    /// Item dropped by an allay onto a block; uses the same modern
+    /// `location_check`/`match_tool` consumer shape.
+    AllayDropItemOnBlockTool,
 }
 
 impl AdvancementItemConsumer {
@@ -1596,6 +1802,7 @@ impl AdvancementItemConsumer {
         match self {
             Self::PlacedBlockTool => "minecraft:placed_block",
             Self::ItemUsedOnBlockTool => "minecraft:item_used_on_block",
+            Self::AllayDropItemOnBlockTool => "minecraft:allay_drop_item_on_block",
         }
     }
 }
@@ -1606,12 +1813,13 @@ impl AdvancementTrigger {
     /// Render this trigger's `{"trigger": ..., "conditions": ...}` JSON for a
     /// specific Minecraft version's predicate schema.
     ///
-    /// Most trigger variants have one stable JSON representation across every
-    /// Sand-supported target and simply delegate to [`Serialize`]. Two
-    /// variants — [`AdvancementTrigger::PlacedBlock`] and
-    /// [`AdvancementTrigger::ItemUsedOnBlock`] — additionally filter by the
-    /// item used to place/interact with the block, and render differently
-    /// per [`AdvancementSchemaFamily`]. Minecraft's modern
+    /// Every typed trigger is validated and lowered through the selected
+    /// [`AdvancementSchemaFamily`]. Variants that consume item, entity,
+    /// location, or damage predicates use consumer-aware conversion so nested
+    /// schemas follow the target profile too. In particular,
+    /// [`AdvancementTrigger::PlacedBlock`] and
+    /// [`AdvancementTrigger::ItemUsedOnBlock`] render differently across the
+    /// legacy and modern families. Minecraft's modern
     /// (1.20.5+ item-component era) schema expresses that filter as a
     /// `conditions.location` array of `minecraft:location_check` /
     /// `minecraft:match_tool` loot conditions, not the direct `block`/`item`
@@ -1630,58 +1838,71 @@ impl AdvancementTrigger {
         &self,
         caps: Option<&sand_version::VersionCaps>,
     ) -> crate::error::Result<Value> {
+        self.validate_for_caps(caps).map_err(|message| {
+            predicate_render_error(
+                AdvancementPredicateConsumer::new(self.trigger_id(), "trigger"),
+                message,
+            )
+        })?;
+        if matches!(self, Self::Custom { .. }) {
+            return serde_json::to_value(self).map_err(crate::error::SandError::Serialization);
+        }
         let family = AdvancementSchemaFamily::for_caps(caps);
-
-        match (self, family) {
-            (
-                AdvancementTrigger::PlacedBlock {
-                    block,
-                    item,
-                    location,
-                    state,
-                },
-                AdvancementSchemaFamily::LocationConditionItemComponents,
-            ) => render_placed_block_modern(block, item, location, state),
-
-            (
-                AdvancementTrigger::ItemUsedOnBlock { item, location },
-                AdvancementSchemaFamily::LocationConditionItemComponents,
-            ) => render_item_used_on_block_modern(item, location),
-
-            // Pre-item-component targets never had `location_check`/`match_tool`
-            // wrapping verified for these two triggers, and this crate has no
-            // pre-component item-predicate model — reject an item filter with
-            // an actionable diagnostic rather than emit a schema shape the
-            // target version doesn't recognize (see `AdvancementSchemaFamily::Legacy`).
-            (
-                AdvancementTrigger::PlacedBlock { item: Some(_), .. },
-                AdvancementSchemaFamily::Legacy,
-            ) => Err(unsupported_legacy_item_filter(
-                AdvancementItemConsumer::PlacedBlockTool,
-            )),
-            (
-                AdvancementTrigger::ItemUsedOnBlock { item: Some(_), .. },
-                AdvancementSchemaFamily::Legacy,
-            ) => Err(unsupported_legacy_item_filter(
-                AdvancementItemConsumer::ItemUsedOnBlockTool,
-            )),
-
-            (
-                AdvancementTrigger::PlacedBlock {
-                    block,
-                    location,
-                    state,
-                    ..
-                },
-                AdvancementSchemaFamily::Legacy,
-            ) => Ok(render_placed_block_legacy(block, location, state)),
-
-            (
-                AdvancementTrigger::ItemUsedOnBlock { location, .. },
-                AdvancementSchemaFamily::Legacy,
-            ) => Ok(render_item_used_on_block_legacy(location)),
-
-            _ => serde_json::to_value(self).map_err(crate::error::SandError::Serialization),
+        match self {
+            AdvancementTrigger::PlacedBlock {
+                block,
+                item,
+                location,
+                state,
+            } if family.uses_modern_location_conditions() => {
+                render_placed_block_modern(block, item, location, state, caps)
+            }
+            AdvancementTrigger::ItemUsedOnBlock { item, location }
+                if family.uses_modern_location_conditions() =>
+            {
+                render_item_used_on_block_modern(item, location, caps)
+            }
+            AdvancementTrigger::PlacedBlock { item: Some(_), .. }
+                if matches!(family, AdvancementSchemaFamily::Legacy) =>
+            {
+                Err(unsupported_legacy_item_filter(
+                    AdvancementItemConsumer::PlacedBlockTool,
+                ))
+            }
+            AdvancementTrigger::ItemUsedOnBlock { item: Some(_), .. }
+                if matches!(family, AdvancementSchemaFamily::Legacy) =>
+            {
+                Err(unsupported_legacy_item_filter(
+                    AdvancementItemConsumer::ItemUsedOnBlockTool,
+                ))
+            }
+            AdvancementTrigger::PlacedBlock {
+                block,
+                location,
+                state,
+                ..
+            } => {
+                if location.as_ref().is_some_and(|location| !location.is_raw()) {
+                    return Err(predicate_render_error(
+                        AdvancementPredicateConsumer::new("minecraft:placed_block", "location"),
+                        "typed location filters have no verified lowering for this legacy advancement schema; use direct block/state fields, target Minecraft 1.21.4+, or use LocationPredicate::raw(...) with profile-verified JSON",
+                    ));
+                }
+                Ok(render_placed_block_legacy(block, location, state))
+            }
+            AdvancementTrigger::ItemUsedOnBlock { location, .. } => {
+                if location.as_ref().is_some_and(|location| !location.is_raw()) {
+                    return Err(predicate_render_error(
+                        AdvancementPredicateConsumer::new(
+                            "minecraft:item_used_on_block",
+                            "location",
+                        ),
+                        "typed location filters have no verified lowering for this legacy advancement schema; target Minecraft 1.21.4+ or use LocationPredicate::raw(...) with profile-verified JSON",
+                    ));
+                }
+                Ok(render_item_used_on_block_legacy(location))
+            }
+            _ => render_profiled_trigger(self, caps),
         }
     }
 }
@@ -1696,6 +1917,382 @@ impl AdvancementTrigger {
 /// [`AdvancementItemConsumer`]'s doc comment describes #229 integrating with.
 fn unsupported_legacy_item_filter(consumer: AdvancementItemConsumer) -> crate::error::SandError {
     crate::item::matcher::unsupported_legacy_item_filter(consumer.into())
+}
+
+fn predicate_render_error(
+    consumer: AdvancementPredicateConsumer,
+    message: impl Into<String>,
+) -> crate::error::SandError {
+    crate::error::SandError::ComponentValidation {
+        location: ResourceLocation::new("sand", "advancement_predicate")
+            .expect("static resource location is valid"),
+        kind: "advancement trigger predicate".into(),
+        field: consumer.label(),
+        message: message.into(),
+    }
+}
+
+fn render_advancement_item(
+    item: &ItemPredicate,
+    caps: Option<&sand_version::VersionCaps>,
+    consumer: AdvancementPredicateConsumer,
+) -> crate::error::Result<Value> {
+    item.render_for_advancement(caps)
+        .map_err(|message| predicate_render_error(consumer, message))
+}
+
+fn render_advancement_location(
+    location: &LocationPredicate,
+    caps: Option<&sand_version::VersionCaps>,
+    consumer: AdvancementPredicateConsumer,
+) -> crate::error::Result<Value> {
+    location
+        .render_for_advancement(caps)
+        .map_err(|message| predicate_render_error(consumer, message))
+}
+
+fn render_advancement_entity_predicate(
+    entity: &EntityPredicate,
+    caps: Option<&sand_version::VersionCaps>,
+    consumer: AdvancementPredicateConsumer,
+) -> crate::error::Result<Value> {
+    entity
+        .render_for_advancement(caps)
+        .map_err(|message| predicate_render_error(consumer, message))
+}
+
+fn render_advancement_entity_condition(
+    entity: &EntityPredicate,
+    caps: Option<&sand_version::VersionCaps>,
+    consumer: AdvancementPredicateConsumer,
+) -> crate::error::Result<Value> {
+    Ok(serde_json::json!([{
+        "condition": "minecraft:entity_properties",
+        "entity": "this",
+        "predicate": render_advancement_entity_predicate(entity, caps, consumer)?,
+    }]))
+}
+
+fn render_advancement_damage(
+    damage: &DamagePredicate,
+    caps: Option<&sand_version::VersionCaps>,
+    consumer: AdvancementPredicateConsumer,
+) -> crate::error::Result<Value> {
+    damage
+        .render_for_advancement(caps)
+        .map_err(|message| predicate_render_error(consumer, message))
+}
+
+fn conditions_object(value: &mut Value) -> &mut serde_json::Map<String, Value> {
+    value
+        .as_object_mut()
+        .expect("typed advancement trigger serializes as an object")
+        .entry("conditions")
+        .or_insert_with(|| Value::Object(serde_json::Map::new()))
+        .as_object_mut()
+        .expect("typed advancement conditions serialize as an object")
+}
+
+fn render_profiled_trigger(
+    trigger: &AdvancementTrigger,
+    caps: Option<&sand_version::VersionCaps>,
+) -> crate::error::Result<Value> {
+    let mut value =
+        serde_json::to_value(trigger).map_err(crate::error::SandError::Serialization)?;
+    let id = trigger.trigger_id();
+
+    macro_rules! replace_item {
+        ($conditions:expr, $field:literal, $item:expr) => {
+            if let Some(item) = $item {
+                $conditions.insert(
+                    $field.into(),
+                    render_advancement_item(
+                        item,
+                        caps,
+                        AdvancementPredicateConsumer::new(id, $field),
+                    )?,
+                );
+            }
+        };
+    }
+    macro_rules! replace_entity {
+        ($conditions:expr, $field:literal, $entity:expr) => {
+            if let Some(entity) = $entity {
+                $conditions.insert(
+                    $field.into(),
+                    render_advancement_entity_condition(
+                        entity,
+                        caps,
+                        AdvancementPredicateConsumer::new(id, $field),
+                    )?,
+                );
+            }
+        };
+    }
+    macro_rules! replace_location {
+        ($conditions:expr, $field:literal, $location:expr) => {
+            if let Some(location) = $location {
+                $conditions.insert(
+                    $field.into(),
+                    render_advancement_location(
+                        location,
+                        caps,
+                        AdvancementPredicateConsumer::new(id, $field),
+                    )?,
+                );
+            }
+        };
+    }
+
+    let conditions = conditions_object(&mut value);
+    match trigger {
+        AdvancementTrigger::PlayerKilledEntity {
+            entity,
+            killing_blow,
+        }
+        | AdvancementTrigger::EntityKilledPlayer {
+            entity,
+            killing_blow,
+        }
+        | AdvancementTrigger::KillMobNearSculkCatalyst {
+            entity,
+            killing_blow,
+        } => {
+            replace_entity!(conditions, "entity", entity);
+            if let Some(damage) = killing_blow {
+                conditions.insert(
+                    "killing_blow".into(),
+                    render_advancement_damage(
+                        damage,
+                        caps,
+                        AdvancementPredicateConsumer::new(id, "killing_blow"),
+                    )?,
+                );
+            }
+        }
+        AdvancementTrigger::PlayerHurtEntity { entity, damage }
+        | AdvancementTrigger::EntityHurtPlayer { entity, damage } => {
+            replace_entity!(conditions, "entity", entity);
+            if let Some(damage) = damage {
+                conditions.insert(
+                    "damage".into(),
+                    render_advancement_damage(
+                        damage,
+                        caps,
+                        AdvancementPredicateConsumer::new(id, "damage"),
+                    )?,
+                );
+            }
+        }
+        AdvancementTrigger::KilledByCrossbow { victims, .. }
+        | AdvancementTrigger::ChanneledLightning { victims } => {
+            if let Some(victims) = victims {
+                conditions.insert(
+                    "victims".into(),
+                    Value::Array(
+                        victims
+                            .iter()
+                            .map(|entity| {
+                                render_advancement_entity_condition(
+                                    entity,
+                                    caps,
+                                    AdvancementPredicateConsumer::new(id, "victims"),
+                                )
+                            })
+                            .collect::<crate::error::Result<Vec<_>>>()?,
+                    ),
+                );
+            }
+        }
+        AdvancementTrigger::LightningStrike {
+            lightning,
+            bystander,
+        } => {
+            replace_entity!(conditions, "lightning", lightning);
+            replace_entity!(conditions, "bystander", bystander);
+        }
+        AdvancementTrigger::InventoryChanged { items, .. } => {
+            if !items.is_empty() {
+                conditions.insert(
+                    "items".into(),
+                    Value::Array(
+                        items
+                            .iter()
+                            .map(|item| {
+                                render_advancement_item(
+                                    item,
+                                    caps,
+                                    AdvancementPredicateConsumer::new(id, "items"),
+                                )
+                            })
+                            .collect::<crate::error::Result<Vec<_>>>()?,
+                    ),
+                );
+            }
+        }
+        AdvancementTrigger::RecipeCrafted { ingredients, .. } => {
+            if !ingredients.is_empty() {
+                conditions.insert(
+                    "ingredients".into(),
+                    Value::Array(
+                        ingredients
+                            .iter()
+                            .map(|item| {
+                                render_advancement_item(
+                                    item,
+                                    caps,
+                                    AdvancementPredicateConsumer::new(id, "ingredients"),
+                                )
+                            })
+                            .collect::<crate::error::Result<Vec<_>>>()?,
+                    ),
+                );
+            }
+        }
+        AdvancementTrigger::KilledByArrow {
+            fired_from_weapon,
+            victims,
+            ..
+        } => {
+            replace_item!(conditions, "fired_from_weapon", fired_from_weapon);
+            if let Some(victims) = victims {
+                conditions.insert(
+                    "victims".into(),
+                    Value::Array(
+                        victims
+                            .iter()
+                            .map(|entity| {
+                                render_advancement_entity_condition(
+                                    entity,
+                                    caps,
+                                    AdvancementPredicateConsumer::new(id, "victims"),
+                                )
+                            })
+                            .collect::<crate::error::Result<Vec<_>>>()?,
+                    ),
+                );
+            }
+        }
+        AdvancementTrigger::UsedItem { item }
+        | AdvancementTrigger::ConsumeItem { item }
+        | AdvancementTrigger::UsingItem { item }
+        | AdvancementTrigger::CraftedItem { item }
+        | AdvancementTrigger::FilledBucket { item }
+        | AdvancementTrigger::ShotCrossbow { item }
+        | AdvancementTrigger::UsedTotem { item } => replace_item!(conditions, "item", item),
+        AdvancementTrigger::EmptiedBucket { item, location } => {
+            replace_item!(conditions, "item", item);
+            replace_location!(conditions, "location", location);
+        }
+        AdvancementTrigger::ThrownItemPickedUp { item, entity }
+        | AdvancementTrigger::ThrownItemPickedUpByEntity { item, entity }
+        | AdvancementTrigger::ThrownItemPickedUpByPlayer { item, entity }
+        | AdvancementTrigger::PlayerInteractedWithEntity { item, entity }
+        | AdvancementTrigger::TamedAnimalInteracted { item, entity } => {
+            replace_item!(conditions, "item", item);
+            replace_entity!(conditions, "entity", entity);
+        }
+        AdvancementTrigger::ItemDurabilityChanged { item, .. }
+        | AdvancementTrigger::BeeNestDestroyed { item, .. }
+        | AdvancementTrigger::EnchantedItem { item, .. } => {
+            replace_item!(conditions, "item", item)
+        }
+        AdvancementTrigger::BredAnimals {
+            parent,
+            partner,
+            child,
+        } => {
+            replace_entity!(conditions, "parent", parent);
+            replace_entity!(conditions, "partner", partner);
+            replace_entity!(conditions, "child", child);
+        }
+        AdvancementTrigger::TamedAnimal { entity }
+        | AdvancementTrigger::SummonedEntity { entity } => {
+            replace_entity!(conditions, "entity", entity)
+        }
+        AdvancementTrigger::FishingRodHooked { rod, entity, item } => {
+            replace_item!(conditions, "rod", rod);
+            replace_entity!(conditions, "entity", entity);
+            replace_item!(conditions, "item", item);
+        }
+        AdvancementTrigger::VillagerTrade { item, villager } => {
+            replace_item!(conditions, "item", item);
+            replace_entity!(conditions, "villager", villager);
+        }
+        AdvancementTrigger::CuredZombieVillager { villager, zombie } => {
+            replace_entity!(conditions, "villager", villager);
+            replace_entity!(conditions, "zombie", zombie);
+        }
+        AdvancementTrigger::Location { location }
+        | AdvancementTrigger::SleptInBed { location }
+        | AdvancementTrigger::HeroOfTheVillage { location } => {
+            if let Some(location) = location {
+                let entity = EntityPredicate::new().location(location.clone());
+                conditions.remove("location");
+                conditions.insert(
+                    "player".into(),
+                    render_advancement_entity_condition(
+                        &entity,
+                        caps,
+                        AdvancementPredicateConsumer::new(id, "player"),
+                    )?,
+                );
+            }
+        }
+        AdvancementTrigger::NetherTravel {
+            entered, exited, ..
+        } => {
+            replace_location!(conditions, "entered", entered);
+            replace_location!(conditions, "exited", exited);
+        }
+        AdvancementTrigger::FallFromHeight { start_position, .. }
+        | AdvancementTrigger::RideEntityInLava { start_position, .. } => {
+            replace_location!(conditions, "start_position", start_position)
+        }
+        AdvancementTrigger::TargetHit {
+            projectile: Some(projectile),
+            ..
+        } => {
+            conditions.insert(
+                "projectile".into(),
+                render_advancement_entity_condition(
+                    projectile,
+                    caps,
+                    AdvancementPredicateConsumer::new(id, "projectile"),
+                )?,
+            );
+        }
+        AdvancementTrigger::EffectsChanged {
+            source: Some(source),
+            ..
+        } => {
+            conditions.insert(
+                "source".into(),
+                render_advancement_entity_condition(
+                    source,
+                    caps,
+                    AdvancementPredicateConsumer::new(id, "source"),
+                )?,
+            );
+        }
+        AdvancementTrigger::AllayDropItemOnBlock { item, location } => {
+            return render_location_condition_trigger(
+                "minecraft:allay_drop_item_on_block",
+                item,
+                location,
+                caps,
+            );
+        }
+        _ => {}
+    }
+
+    if conditions.is_empty() {
+        value
+            .as_object_mut()
+            .expect("trigger object")
+            .remove("conditions");
+    }
+    Ok(value)
 }
 
 /// Pre-item-component-era flat rendering for [`AdvancementTrigger::PlacedBlock`],
@@ -1767,6 +2364,7 @@ fn render_location_and_item_conditions(
     item: &Option<ItemPredicate>,
     block_shorthand: Option<&String>,
     state_shorthand: &Option<HashMap<String, String>>,
+    caps: Option<&sand_version::VersionCaps>,
 ) -> crate::error::Result<Vec<Value>> {
     let mut loc = location.clone().unwrap_or_default();
 
@@ -1796,15 +2394,25 @@ fn render_location_and_item_conditions(
 
     let mut conditions = Vec::new();
     if !loc.is_empty() {
+        let predicate = render_advancement_location(
+            &loc,
+            caps,
+            AdvancementPredicateConsumer::new(consumer.trigger_id(), "location"),
+        )?;
         conditions.push(serde_json::json!({
             "condition": "minecraft:location_check",
-            "predicate": loc,
+            "predicate": predicate,
         }));
     }
     if let Some(item) = item {
+        let predicate = render_advancement_item(
+            item,
+            caps,
+            AdvancementPredicateConsumer::new(consumer.trigger_id(), "item"),
+        )?;
         conditions.push(serde_json::json!({
             "condition": "minecraft:match_tool",
-            "predicate": item,
+            "predicate": predicate,
         }));
     }
     Ok(conditions)
@@ -1815,6 +2423,7 @@ fn render_placed_block_modern(
     item: &Option<ItemPredicate>,
     location: &Option<LocationPredicate>,
     state: &Option<HashMap<String, String>>,
+    caps: Option<&sand_version::VersionCaps>,
 ) -> crate::error::Result<Value> {
     let conditions = render_location_and_item_conditions(
         AdvancementItemConsumer::PlacedBlockTool,
@@ -1822,6 +2431,7 @@ fn render_placed_block_modern(
         item,
         block.as_ref(),
         state,
+        caps,
     )?;
 
     let mut map = serde_json::Map::new();
@@ -1840,6 +2450,7 @@ fn render_placed_block_modern(
 fn render_item_used_on_block_modern(
     item: &Option<ItemPredicate>,
     location: &Option<LocationPredicate>,
+    caps: Option<&sand_version::VersionCaps>,
 ) -> crate::error::Result<Value> {
     let conditions = render_location_and_item_conditions(
         AdvancementItemConsumer::ItemUsedOnBlockTool,
@@ -1847,6 +2458,7 @@ fn render_item_used_on_block_modern(
         item,
         None,
         &None,
+        caps,
     )?;
 
     let mut map = serde_json::Map::new();
@@ -1860,6 +2472,29 @@ fn render_item_used_on_block_modern(
         map.insert("conditions".to_string(), Value::Object(cond));
     }
     Ok(Value::Object(map))
+}
+
+fn render_location_condition_trigger(
+    trigger_id: &'static str,
+    item: &Option<ItemPredicate>,
+    location: &Option<LocationPredicate>,
+    caps: Option<&sand_version::VersionCaps>,
+) -> crate::error::Result<Value> {
+    let consumer = match trigger_id {
+        "minecraft:allay_drop_item_on_block" => AdvancementItemConsumer::AllayDropItemOnBlockTool,
+        _ => unreachable!("location-condition trigger consumer must be registered"),
+    };
+    let conditions =
+        render_location_and_item_conditions(consumer, location, item, None, &None, caps)?;
+    let mut value = serde_json::Map::new();
+    value.insert("trigger".into(), Value::String(trigger_id.into()));
+    if !conditions.is_empty() {
+        value.insert(
+            "conditions".into(),
+            serde_json::json!({ "location": conditions }),
+        );
+    }
+    Ok(Value::Object(value))
 }
 
 // ── Criterion ─────────────────────────────────────────────────────────────────
@@ -2245,7 +2880,8 @@ impl Advancement {
 mod tests {
     use super::*;
     use crate::predicates::{
-        DamagePredicate, EntityPredicate, FloatRange, IntRange, ItemPredicate, LocationPredicate,
+        DamagePredicate, DamageSourcePredicate, EntityPredicate, FloatRange, IntRange,
+        ItemPredicate, LocationPredicate,
     };
 
     #[test]
@@ -2369,7 +3005,7 @@ mod tests {
             );
         let json = adv.to_json();
         assert_eq!(
-            json["criteria"]["killed_dragon"]["conditions"]["entity"]["type"],
+            json["criteria"]["killed_dragon"]["conditions"]["entity"][0]["predicate"]["minecraft:entity_type"],
             "minecraft:ender_dragon"
         );
         assert_eq!(json["rewards"]["experience"], 1000);
@@ -3105,6 +3741,24 @@ mod tests {
         ItemPredicate::id("minecraft:white_wool").custom_data_key("elevator")
     }
 
+    fn caps_1_21_4() -> sand_version::VersionCaps {
+        sand_version::VersionCaps::from_profile_flags(
+            "1.21.4", false, false, true, true, true, true, true, true,
+        )
+    }
+
+    fn caps_1_18_2() -> sand_version::VersionCaps {
+        sand_version::VersionCaps::from_profile_flags(
+            "1.18.2", false, false, false, false, false, false, false, false,
+        )
+    }
+
+    fn caps_1_20_4() -> sand_version::VersionCaps {
+        sand_version::VersionCaps::from_profile_flags(
+            "1.20.4", false, false, false, true, true, false, true, false,
+        )
+    }
+
     #[test]
     fn placed_block_modern_render_matches_vanilla_location_check_and_match_tool() {
         let trigger = AdvancementTrigger::placed_block(
@@ -3203,7 +3857,7 @@ mod tests {
         let matcher_err = matcher
             .try_into_advancement_predicate(
                 AdvancementItemConsumer::PlacedBlockTool,
-                Some(&sand_version::VersionCaps::all_disabled()),
+                Some(&caps_1_18_2()),
             )
             .unwrap_err()
             .to_string();
@@ -3214,7 +3868,7 @@ mod tests {
             None,
             None,
         )
-        .render_for(Some(&sand_version::VersionCaps::all_disabled()))
+        .render_for(Some(&caps_1_18_2()))
         .unwrap_err()
         .to_string();
 
@@ -3277,15 +3931,19 @@ mod tests {
     fn schema_family_for_caps_maps_correctly() {
         assert_eq!(
             AdvancementSchemaFamily::for_caps(None),
-            AdvancementSchemaFamily::LocationConditionItemComponents,
+            AdvancementSchemaFamily::NamespacedEntityPredicates,
             "no profile is treated as the fully-capable modern profile"
         );
         assert_eq!(
             AdvancementSchemaFamily::for_caps(Some(&sand_version::VersionCaps::all_enabled())),
+            AdvancementSchemaFamily::NamespacedEntityPredicates,
+        );
+        assert_eq!(
+            AdvancementSchemaFamily::for_caps(Some(&caps_1_21_4())),
             AdvancementSchemaFamily::LocationConditionItemComponents,
         );
         assert_eq!(
-            AdvancementSchemaFamily::for_caps(Some(&sand_version::VersionCaps::all_disabled())),
+            AdvancementSchemaFamily::for_caps(Some(&caps_1_18_2())),
             AdvancementSchemaFamily::Legacy,
         );
     }
@@ -3298,9 +3956,7 @@ mod tests {
             None,
             None,
         );
-        let v = trigger
-            .render_for(Some(&sand_version::VersionCaps::all_disabled()))
-            .unwrap();
+        let v = trigger.render_for(Some(&caps_1_18_2())).unwrap();
         // Pre-item-component targets never had `location_check`/`match_tool`
         // wrapping for this trigger — output must keep the historical flat shape.
         // Note this intentionally diverges from `Serialize`/`render_for(None)`,
@@ -3324,7 +3980,7 @@ mod tests {
             None,
         );
         let error = trigger
-            .render_for(Some(&sand_version::VersionCaps::all_disabled()))
+            .render_for(Some(&caps_1_20_4()))
             .unwrap_err()
             .to_string();
         assert!(error.contains("minecraft:placed_block"));
@@ -3338,7 +3994,7 @@ mod tests {
             location: None,
         };
         let error = trigger
-            .render_for(Some(&sand_version::VersionCaps::all_disabled()))
+            .render_for(Some(&caps_1_20_4()))
             .unwrap_err()
             .to_string();
         assert!(error.contains("minecraft:item_used_on_block"));
@@ -3388,8 +4044,295 @@ mod tests {
         let location = v["conditions"]["location"].as_array().unwrap();
         assert_eq!(location.len(), 2);
         assert_eq!(location[0]["condition"], "minecraft:location_check");
-        assert_eq!(location[0]["predicate"]["biome"], "minecraft:plains");
+        assert_eq!(location[0]["predicate"]["biomes"], "minecraft:plains");
         assert_eq!(location[1]["condition"], "minecraft:match_tool");
+    }
+
+    #[test]
+    fn entity_conditions_render_as_loot_conditions_for_each_schema_family() {
+        let trigger = AdvancementTrigger::PlayerKilledEntity {
+            entity: Some(EntityPredicate::type_("minecraft:ender_dragon")),
+            killing_blow: None,
+        };
+        let stable = trigger.render_for(Some(&caps_1_21_4())).unwrap();
+        assert_eq!(
+            stable["conditions"]["entity"][0]["predicate"]["type"],
+            "minecraft:ender_dragon"
+        );
+        assert_eq!(
+            stable["conditions"]["entity"][0]["condition"],
+            "minecraft:entity_properties"
+        );
+
+        let latest = trigger
+            .render_for(Some(&sand_version::VersionCaps::all_enabled()))
+            .unwrap();
+        assert_eq!(
+            latest["conditions"]["entity"][0]["predicate"]["minecraft:entity_type"],
+            "minecraft:ender_dragon"
+        );
+        assert!(
+            latest["conditions"]["entity"][0]["predicate"]
+                .get("type")
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn location_intent_uses_player_entity_context_and_current_location_shape() {
+        let trigger = AdvancementTrigger::Location {
+            location: Some(
+                LocationPredicate::new()
+                    .biome("minecraft:plains")
+                    .y(FloatRange::at_least(64.0)),
+            ),
+        };
+        let stable = trigger.render_for(Some(&caps_1_21_4())).unwrap();
+        let predicate = &stable["conditions"]["player"][0]["predicate"]["location"];
+        assert_eq!(predicate["biomes"], "minecraft:plains");
+        assert_eq!(predicate["position"]["y"]["min"], 64.0);
+        assert!(stable["conditions"].get("location").is_none());
+
+        let latest = trigger.render_for(None).unwrap();
+        assert_eq!(
+            latest["conditions"]["player"][0]["predicate"]["minecraft:location"]["biomes"],
+            "minecraft:plains"
+        );
+    }
+
+    #[test]
+    fn allay_drop_uses_location_and_match_tool_consumers() {
+        let trigger = AdvancementTrigger::AllayDropItemOnBlock {
+            item: Some(ItemPredicate::id("minecraft:cake")),
+            location: Some(
+                LocationPredicate::new().block(
+                    crate::predicates::BlockPredicate::new()
+                        .blocks(vec!["minecraft:note_block".into()]),
+                ),
+            ),
+        };
+        let value = trigger.render_for(Some(&caps_1_21_4())).unwrap();
+        let conditions = value["conditions"]["location"].as_array().unwrap();
+        assert_eq!(conditions[0]["condition"], "minecraft:location_check");
+        assert_eq!(conditions[1]["condition"], "minecraft:match_tool");
+        assert!(value["conditions"].get("item").is_none());
+    }
+
+    #[test]
+    fn non_placement_component_item_filter_rejects_legacy_profile() {
+        let trigger = AdvancementTrigger::ConsumeItem {
+            item: Some(elevator_wool_item_predicate()),
+        };
+        let error = trigger
+            .render_for(Some(&caps_1_18_2()))
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("minecraft:consume_item"), "{error}");
+        assert!(error.contains("item-component"), "{error}");
+    }
+
+    #[test]
+    fn nested_equipment_component_filter_rejects_legacy_profile() {
+        let trigger = AdvancementTrigger::PlayerKilledEntity {
+            entity: Some(EntityPredicate::type_("minecraft:zombie").equipment(
+                crate::predicates::EntityEquipment::new().head(elevator_wool_item_predicate()),
+            )),
+            killing_blow: None,
+        };
+        let error = trigger
+            .render_for(Some(&caps_1_18_2()))
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("minecraft:player_killed_entity"), "{error}");
+        assert!(error.contains("item-component"), "{error}");
+    }
+
+    #[test]
+    fn unverified_damage_source_boole_fail_instead_of_weakening() {
+        let trigger = AdvancementTrigger::PlayerHurtEntity {
+            entity: None,
+            damage: Some(
+                DamagePredicate::new().type_(DamageSourcePredicate::new().is_projectile(true)),
+            ),
+        };
+        let error = trigger
+            .render_for(Some(&caps_1_21_4()))
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("minecraft:player_hurt_entity"), "{error}");
+        assert!(error.contains("damage-source boolean"), "{error}");
+    }
+
+    #[test]
+    fn raw_item_predicate_is_preserved_verbatim() {
+        let raw_predicate = serde_json::json!({"legacy": {"user_owned": true}});
+        let trigger = AdvancementTrigger::ConsumeItem {
+            item: Some(ItemPredicate::raw(RawJson::new(raw_predicate.clone()))),
+        };
+        let rendered = trigger.render_for(Some(&caps_1_21_4())).unwrap();
+        assert_eq!(rendered["conditions"]["item"], raw_predicate);
+    }
+
+    #[test]
+    fn raw_custom_conditions_preserve_every_json_kind_on_fallback_profiles() {
+        for conditions in [
+            serde_json::json!([1, 2]),
+            serde_json::json!("opaque"),
+            serde_json::json!(null),
+        ] {
+            let trigger = AdvancementTrigger::Custom {
+                trigger: "minecraft:tick".into(),
+                conditions: Some(RawJson::new(conditions.clone())),
+            };
+            let rendered = trigger
+                .render_for(Some(&sand_version::VersionCaps::all_disabled()))
+                .unwrap();
+            assert_eq!(rendered["conditions"], conditions);
+        }
+    }
+
+    #[test]
+    fn nested_raw_predicates_are_preserved_verbatim() {
+        let raw_entity = serde_json::json!({"future:entity": {"value": 1}});
+        let entity_trigger = AdvancementTrigger::PlayerKilledEntity {
+            entity: Some(EntityPredicate::raw(RawJson::new(raw_entity.clone()))),
+            killing_blow: None,
+        };
+        assert_eq!(
+            entity_trigger.render_for(Some(&caps_1_21_4())).unwrap()["conditions"]["entity"][0]["predicate"],
+            raw_entity
+        );
+
+        let raw_location = serde_json::json!({"future:location": true});
+        let location_trigger = AdvancementTrigger::Location {
+            location: Some(LocationPredicate::raw(RawJson::new(raw_location.clone()))),
+        };
+        assert_eq!(
+            location_trigger.render_for(Some(&caps_1_21_4())).unwrap()["conditions"]["player"][0]["predicate"]
+                ["location"],
+            raw_location
+        );
+
+        let raw_damage = serde_json::json!({"future:damage": {"value": 2}});
+        let damage_trigger = AdvancementTrigger::PlayerHurtEntity {
+            entity: None,
+            damage: Some(DamagePredicate::raw(RawJson::new(raw_damage.clone()))),
+        };
+        assert_eq!(
+            damage_trigger.render_for(Some(&caps_1_21_4())).unwrap()["conditions"]["damage"],
+            raw_damage
+        );
+    }
+
+    #[test]
+    fn legacy_typed_location_filters_fail_but_raw_remains_user_owned() {
+        let typed = AdvancementTrigger::Location {
+            location: Some(LocationPredicate::new().biome("minecraft:plains")),
+        };
+        let error = typed
+            .render_for(Some(&caps_1_18_2()))
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("no verified"), "{error}");
+
+        let raw = AdvancementTrigger::Location {
+            location: Some(LocationPredicate::raw(RawJson::new(
+                serde_json::json!({"biome": "minecraft:plains"}),
+            ))),
+        };
+        assert!(raw.render_for(Some(&caps_1_18_2())).is_ok());
+    }
+
+    #[test]
+    fn unfiltered_location_condition_triggers_emit_no_conditions() {
+        for trigger in [
+            AdvancementTrigger::ItemUsedOnBlock {
+                item: None,
+                location: None,
+            },
+            AdvancementTrigger::AllayDropItemOnBlock {
+                item: None,
+                location: None,
+            },
+        ] {
+            let rendered = trigger.render_for(Some(&caps_1_21_4())).unwrap();
+            assert!(rendered.get("conditions").is_none(), "{rendered}");
+        }
+    }
+
+    #[test]
+    fn current_replacement_triggers_render_deterministically_for_both_profiles() {
+        let triggers = [
+            AdvancementTrigger::KilledByArrow {
+                unique_entity_types: Some(IntRange::at_least(2)),
+                fired_from_weapon: Some(ItemPredicate::id("minecraft:crossbow")),
+                victims: Some(vec![EntityPredicate::type_("minecraft:phantom")]),
+            },
+            AdvancementTrigger::RecipeCrafted {
+                recipe_id: "minecraft:decorated_pot".into(),
+                ingredients: vec![ItemPredicate::id("minecraft:brick")],
+            },
+            AdvancementTrigger::ThrownItemPickedUpByEntity {
+                item: Some(ItemPredicate::id("minecraft:cookie")),
+                entity: Some(EntityPredicate::type_("minecraft:allay")),
+            },
+            AdvancementTrigger::ThrownItemPickedUpByPlayer {
+                item: Some(ItemPredicate::id("minecraft:cookie")),
+                entity: Some(EntityPredicate::type_("minecraft:allay")),
+            },
+        ];
+        for caps in [caps_1_21_4(), sand_version::VersionCaps::all_enabled()] {
+            for trigger in &triggers {
+                let first = trigger.render_for(Some(&caps)).unwrap();
+                let second = trigger.render_for(Some(&caps)).unwrap();
+                assert_eq!(first, second);
+                assert_eq!(first["trigger"], trigger.trigger_id());
+            }
+        }
+    }
+
+    #[test]
+    fn trigger_version_ranges_apply_to_components_and_preserve_custom_escape_hatch() {
+        let too_new = AdvancementTrigger::AllayDropItemOnBlock {
+            item: None,
+            location: None,
+        };
+        assert!(too_new.render_for(Some(&caps_1_18_2())).is_err());
+
+        let legacy_crossbow = AdvancementTrigger::KilledByCrossbow {
+            unique_entity_types: None,
+            victims: None,
+        };
+        assert!(legacy_crossbow.render_for(Some(&caps_1_18_2())).is_ok());
+        assert!(legacy_crossbow.render_for(Some(&caps_1_21_4())).is_err());
+
+        let custom_known_id = AdvancementTrigger::Custom {
+            trigger: "minecraft:tick".into(),
+            conditions: None,
+        };
+        assert!(
+            custom_known_id
+                .render_for(Some(&sand_version::VersionCaps::all_disabled()))
+                .is_ok()
+        );
+    }
+
+    #[test]
+    fn invalid_typed_trigger_is_rejected_but_custom_escape_hatch_is_preserved() {
+        let typed = AdvancementTrigger::CraftedItem { item: None };
+        assert!(typed.render_for(Some(&caps_1_21_4())).is_err());
+
+        let raw = AdvancementTrigger::Custom {
+            trigger: "minecraft:crafted_item".into(),
+            conditions: Some(RawJson::new(serde_json::json!({"future": true}))),
+        };
+        assert_eq!(
+            raw.render_for(Some(&caps_1_21_4())).unwrap(),
+            serde_json::json!({
+                "trigger": "minecraft:crafted_item",
+                "conditions": {"future": true}
+            })
+        );
     }
 
     #[test]

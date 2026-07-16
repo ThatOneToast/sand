@@ -128,6 +128,21 @@ Vanilla supports the behavior; Sand's typed coverage is incomplete.
   use `cmd::raw` only for advanced vanilla or modded syntax Sand does not model.
   Evidence: `sand-commands/src/render.rs`, `sand-core/src/component.rs`.
 
+- **LIM-API-010** — Advancement-trigger coverage is partial across the
+  verified 1.21.4 and 26.2 registries: 50 current registry IDs have typed
+  variants, eight current IDs require `AdvancementTrigger::Custom`, and six legacy
+  source-compatibility variants are rejected because their IDs exist in
+  neither verified registry. Typed location, entity, damage, and item
+  predicates are profile-rendered where verified; unverified legacy
+  damage-source booleans and unsupported location `feature` filters fail with
+  diagnostics instead of being silently ignored. Raw/custom compatibility is
+  user-owned because Sand cannot semantically validate arbitrary JSON.
+  Affects: `advancement-triggers`.
+  Workaround: check `TRIGGER_COVERAGE`; use `Custom`/`RawJson` only with JSON
+  verified for the exact target profile.
+  Evidence: `sand-components/src/advancement/trigger_coverage.rs`,
+  `sand-components/fixtures/trigger-coverage/`.
+
 ## Version-sensitive behavior
 
 - **LIM-VER-001** — `VersionProfile::resolve()` never fails for an
@@ -203,6 +218,17 @@ Vanilla supports the behavior; Sand's typed coverage is incomplete.
   unverified until re-run and cross-checked against `registry_coverage.rs`.
   Affects: `cli-validate`.
   Evidence: `docs/research/datapack-parity-audit.md`.
+
+- **LIM-VAL-003** — Real-server load/reload evidence proves that advancement
+  JSON parses, not that a filtered criterion has the requested gameplay
+  semantics. A connected protocol-client fixture provides positive, negative,
+  final-item-in-stack, and revoke/reset re-fire evidence for `placed_block`
+  and `item_used_on_block` on 1.21.4. Other triggers and the 26.2 profile have
+  no automated semantic-runtime evidence and must not inherit that claim from
+  snapshots or reload success.
+  Affects: `advancement-triggers`, `cli-validate`.
+  Evidence: `docs/vanilla-reload-validation.md`,
+  `sand-components/src/advancement/trigger_coverage.rs`.
 
 ## Documentation and status contradictions found during audit (2026-07-12)
 

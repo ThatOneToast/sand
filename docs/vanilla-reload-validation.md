@@ -13,33 +13,37 @@ predicate, recipe, loot table, item modifier, scoreboard commands, and a
 dialog on the latest 26.x target. It avoids broad legacy examples whose
 runtime behavior is unrelated to this loader check.
 
-`audit_placed_block_filtered` / `audit_item_used_on_block_filtered`
+`audit_placed_block_filtered`, `audit_item_used_on_block_filtered`, and the
+profiled trigger-predicate matrix
 (added for #231/#232) additionally cover the version-aware
 `conditions.location` / `minecraft:location_check` / `minecraft:match_tool`
 rendering for a block + custom-data-filtered item — this is the shape that
 was previously silently ignored by vanilla (#231). Running this harness
-against 26.2 with these fixtures confirms the exact generated JSON parses and
-survives a `reload` on a real server.
+against 1.21.4 and 26.2 with these fixtures confirms the exact generated JSON
+parses and survives a `reload` on a real server. The matrix exercises direct
+entity predicates, nested locations and damage-source entities, player-location
+lowering, non-placement item predicates, and the allay location/tool consumer.
 
-The harness starts with no players. Vanilla parses every generated function
-and component, and load functions run, but player-dependent tick/event paths
-are not behaviorally exercised. This is loader/reload validation, not gameplay
-simulation or exhaustive component parity.
+The default harness starts with no players. Vanilla parses every generated
+function and component, and load functions run, but player-dependent
+tick/event paths are not behaviorally exercised. This is loader/reload
+validation, not gameplay simulation or exhaustive component parity.
 
-**This harness cannot prove advancement criteria fire with the correct
-semantics.** It starts the server with `max-players=1` and never connects a
-player (`enable-rcon=false`, no bot/protocol client exists in this
-repository), so it can prove a document *loads*, never that
-`minecraft:placed_block`/`minecraft:item_used_on_block` (or any other
-trigger) actually fires only for matching in-game actions and not for
-non-matching ones. Proving that requires a real Minecraft client capable of
-issuing an actual block-placement/item-use packet — server-side commands
-(`setblock`, `advancement grant`, RCON) cannot originate the internal event
-these criteria hook into. `sand_components::advancement::trigger_coverage`
-tracks this distinction explicitly via
-`vanilla_load_tested_profiles` (what this harness proves) versus
-`semantic_runtime_tested_profiles` (what it does not) — do not treat one as
-evidence of the other.
+Load/reload success alone cannot prove advancement criteria fire with the
+correct semantics. `scripts/validate-vanilla-semantics.sh` adds a real
+1.21.4 protocol client and executes actual placement and block-use packets.
+Its deterministic fixture verifies that unrelated blocks and ordinary base
+items do not match, marked custom items do match, the final item in a stack
+still matches, and reward-function revoke/reset permits a second firing. Both
+`minecraft:placed_block` and `minecraft:item_used_on_block` are exercised.
+Server-side commands prepare the arena and inventory only; they do not grant
+the tested advancements or synthesize the triggering actions.
+
+The semantic client currently supports 1.21.4 only. No semantic claim is made
+for 26.2 or for triggers outside those two cases.
+`sand_components::advancement::trigger_coverage` tracks this distinction via
+`vanilla_load_tested_profiles` and `semantic_runtime_tested_profiles`; do not
+treat one as evidence of the other.
 
 ## Synchronization and signals
 
@@ -58,7 +62,8 @@ Each phase has its own bounded timeout:
 
 Initial and reload log segments are scanned independently for focused
 datapack/component parsing failures, missing functions/tags, incompatible pack
-metadata, server-thread errors, and fatal exceptions. Failure diagnostics name
+metadata, worker-thread `Couldn't parse data file` errors, server-thread errors,
+and fatal exceptions. Failure diagnostics name
 the Minecraft version and phase, print matched lines, and retain the log,
 isolated server directory, and generated pack path. Cleanup always stops,
 terminates, or kills and reaps the child process as needed.
@@ -77,11 +82,15 @@ scripts/validate-vanilla-reload.sh \
   --version 1.21.4 \
   --pack sand-vanilla-audit/dist/sand_audit \
   --output target/vanilla-reload/1.21.4
+
+# Optional gameplay semantics for placed_block and item_used_on_block:
+scripts/validate-vanilla-semantics.sh sand-vanilla-audit/dist/sand_audit
 ```
 
 `SAND_JAR_CACHE` may override the default `~/.sand/cache` root. The stable
 `1.21.4` server requires Java 21; the latest verified `26.2` server requires
-Java 25.
+Java 25. The optional semantic fixture additionally requires Node.js 22 or
+newer and npm; it runs `npm ci` against the checked-in lockfile on every run.
 
 ## Scheduled/manual workflow
 

@@ -964,9 +964,9 @@ impl SandEvent for ItemConsumeEvent {
     }
 }
 
-/// Fires when the player crafts any item.
-///
-/// Maps to `minecraft:crafted_item`.
+/// Compatibility marker for the removed `minecraft:crafted_item` trigger.
+/// Target-aware export rejects it with a migration diagnostic because current
+/// vanilla's `minecraft:recipe_crafted` requires a concrete recipe ID.
 pub struct ItemCraftEvent;
 impl SandEvent for ItemCraftEvent {
     fn dispatch() -> SandEventDispatch {
@@ -999,9 +999,13 @@ impl SandEvent for BucketFillEvent {
     }
 }
 
-/// Fires when the player empties any bucket. (Added in MC 1.17.)
+/// Legacy compatibility marker for bucket-empty detection.
 ///
-/// Maps to `minecraft:emptied_bucket`.
+/// The historical `minecraft:emptied_bucket` ID is absent from Sand's
+/// verified vanilla registries. Export fails with a migration diagnostic
+/// rather than silently emitting an event that never loads. There is no exact
+/// current advancement-trigger replacement; use an explicitly documented
+/// polling/correlation strategy when approximate detection is acceptable.
 pub struct BucketEmptyEvent;
 impl SandEvent for BucketEmptyEvent {
     fn dispatch() -> SandEventDispatch {
@@ -1026,16 +1030,19 @@ impl SandEvent for FishingEvent {
     }
 }
 
-/// Fires when a thrown item is picked up by any entity.
+/// Fires when the player picks up a thrown item.
 ///
-/// Maps to `minecraft:thrown_item_picked_up`.
+/// Maps to `minecraft:thrown_item_picked_up_by_player`. Use the typed trigger
+/// variant ending in `ByEntity` for non-player pickup criteria.
 pub struct ItemPickedUpEvent;
 impl SandEvent for ItemPickedUpEvent {
     fn dispatch() -> SandEventDispatch {
-        SandEventDispatch::AdvancementTrigger(crate::AdvancementTrigger::ThrownItemPickedUp {
-            item: None,
-            entity: None,
-        })
+        SandEventDispatch::AdvancementTrigger(
+            crate::AdvancementTrigger::ThrownItemPickedUpByPlayer {
+                item: None,
+                entity: None,
+            },
+        )
     }
 }
 

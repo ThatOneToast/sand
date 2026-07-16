@@ -1,3 +1,4 @@
+import json
 import os
 import subprocess
 import sys
@@ -24,6 +25,8 @@ if scenario == "exit_before_start":
     raise SystemExit(4)
 if scenario == "initial_error":
     emit("[Server thread/ERROR]: Failed to load datapack sand")
+if scenario == "data_file_parse_error":
+    emit("[Worker-Main-1/ERROR]: Couldn't parse data file 'sand:bad' from 'sand:advancement/bad.json': unknown trigger")
 emit('[Server thread/INFO]: Done (0.123s)! For help, type "help"')
 for raw in sys.stdin:
     command = raw.strip()
@@ -64,13 +67,12 @@ class HarnessTests(unittest.TestCase):
     def tearDown(self):
         self.temp.cleanup()
 
-    def run_harness(self, scenario="success", timeout="0.5"):
+    def run_harness(self, scenario="success", timeout="0.5", extra_args=None):
         output = self.root / f"output-{scenario}"
         commands = self.root / f"commands-{scenario}.txt"
         env = os.environ.copy()
         env.update(FAKE_SCENARIO=scenario, FAKE_COMMANDS=str(commands))
-        result = subprocess.run(
-            [
+        argv = [
                 sys.executable,
                 str(HARNESS),
                 "--version", "test",
@@ -79,7 +81,10 @@ class HarnessTests(unittest.TestCase):
                 "--java", str(self.java),
                 "--output", str(output),
                 "--timeout", timeout,
-            ],
+            ]
+        argv.extend(extra_args or [])
+        result = subprocess.run(
+            argv,
             text=True,
             capture_output=True,
             env=env,
@@ -95,6 +100,38 @@ class HarnessTests(unittest.TestCase):
         self.assertTrue(sent.endswith("stop\n"))
         self.assertIn("reload-complete=ok shutdown=ok", result.stdout)
         self.assertTrue((output / "latest.log").is_file())
+
+    def test_client_command_receives_server_environment_and_offline_op(self):
+        client = self.root / "client.py"
+        client.write_text(
+            "import os\n"
+            "assert os.environ['SAND_SERVER_HOST'] == '127.0.0.1'\n"
+            "assert int(os.environ['SAND_SERVER_PORT']) > 0\n"
+            "assert os.environ['SAND_MC_VERSION'] == 'test'\n",
+            encoding="utf-8",
+        )
+        result, output, _ = self.run_harness(
+            extra_args=[
+                "--op-player",
+                "SandAuditBot",
+                "--client-command",
+                sys.executable,
+                str(client),
+            ]
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        ops = json.loads((output / "server" / "ops.json").read_text(encoding="utf-8"))
+        self.assertEqual(ops[0]["name"], "SandAuditBot")
+        self.assertEqual(ops[0]["uuid"], "3f9b60e3-1394-31e4-b9eb-9e18400e0cda")
+
+    def test_client_failure_is_phase_specific(self):
+        client = self.root / "client_fail.py"
+        client.write_text("raise SystemExit(7)\n", encoding="utf-8")
+        result, _, _ = self.run_harness(
+            extra_args=["--client-command", sys.executable, str(client)]
+        )
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("phase=semantic-client", result.stderr)
 
     def test_startup_timeout_is_phase_specific_and_process_is_reaped(self):
         result, output, _ = self.run_harness("no_start", "0.2")
@@ -114,6 +151,12 @@ class HarnessTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn("phase=initial-load", result.stderr)
         self.assertIn("Failed to load datapack", result.stderr)
+
+    def test_worker_data_file_parse_error_is_detected(self):
+        result, _, _ = self.run_harness("data_file_parse_error")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("phase=initial-load", result.stderr)
+        self.assertIn("Couldn't parse data file", result.stderr)
 
     def test_missing_reload_start_marker_fails(self):
         result, _, _ = self.run_harness("no_reload_start", "0.2")

@@ -455,7 +455,9 @@ impl VersionProfile {
     /// The [`sand_version::VersionCaps`] can be passed to `sand-components`
     /// (which cannot depend on `sand-core`) for version-aware component gating.
     pub fn caps(&self) -> sand_version::VersionCaps {
-        sand_version::VersionCaps::from_flags(
+        sand_version::VersionCaps::from_profile_flags(
+            self.requested.to_string(),
+            self.is_fallback,
             self.supports_dialogs,
             self.supports_jukebox_songs,
             self.supports_damage_types,

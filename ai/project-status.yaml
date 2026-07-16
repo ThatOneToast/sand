@@ -92,12 +92,15 @@ test_and_validation_status:
     status: opt_in_manual
     note: >
       scripts/validate-vanilla-reload.sh drives a real vanilla server and
-      checks /reload succeeds. It is NOT part of default `cargo test` and
-      requires a downloaded server jar (network + Java). Passing Rust tests
-      does not imply a datapack was reload-validated against vanilla.
-    last_local_run_claimed_in_docs: "2026-07-12 (docs/research/datapack-parity-audit.md, unverified by this review)"
+      checks initial load and /reload, including explicit detection of vanilla
+      "Couldn't parse data file" worker errors. It is NOT part of default
+      `cargo test` and requires a downloaded server jar (network + Java).
+      Passing it proves parsing, not trigger semantics; the separate 1.21.4
+      protocol-client fixture verifies placement and item-use semantics.
+    last_local_run: "2026-07-15: profile load/reload passed on 1.21.4 and 26.2; semantic placement/item-use fixture passed on 1.21.4"
     evidence:
       - scripts/validate-vanilla-reload.sh
+      - scripts/validate-vanilla-semantics.sh
       - docs/vanilla-reload-validation.md
   doc_link_validation:
     status: implemented

@@ -196,6 +196,20 @@ impl ItemMatcher {
         {
             return Err(unsupported_legacy_item_filter(consumer));
         }
+        if self
+            .exact_raw_components
+            .as_ref()
+            .is_some_and(|raw| !raw.as_value().is_object())
+        {
+            return Err(invalid_raw_filter(consumer, "components"));
+        }
+        if self
+            .partial_raw_predicates
+            .as_ref()
+            .is_some_and(|raw| !raw.as_value().is_object())
+        {
+            return Err(invalid_raw_filter(consumer, "predicates"));
+        }
 
         let mut pred = ItemPredicate::new();
         for item in &self.items {
@@ -210,6 +224,16 @@ impl ItemMatcher {
 
         let mut exact_components = serde_json::Map::new();
         if let Some(ref data) = self.exact_custom_data {
+            if self.exact_raw_components.as_ref().is_some_and(|raw| {
+                raw.as_value()
+                    .as_object()
+                    .is_some_and(|object| object.contains_key("minecraft:custom_data"))
+            }) {
+                return Err(overlapping_raw_filter(
+                    consumer,
+                    "components.minecraft:custom_data",
+                ));
+            }
             let json = data
                 .to_json()
                 .ok_or_else(|| unsupported_raw_custom_data(consumer))?;
@@ -227,6 +251,25 @@ impl ItemMatcher {
         }
 
         let mut partial_predicates = serde_json::Map::new();
+        if let Some(raw) = &self.partial_raw_predicates
+            && let Some(object) = raw.as_value().as_object()
+        {
+            for (key, typed_present) in [
+                (
+                    "minecraft:custom_data",
+                    !self.partial_custom_data_keys.is_empty(),
+                ),
+                ("minecraft:enchantments", !self.enchantments.is_empty()),
+                ("minecraft:damage", self.damage_range.is_some()),
+            ] {
+                if typed_present && object.contains_key(key) {
+                    return Err(overlapping_raw_filter(
+                        consumer,
+                        &format!("predicates.{key}"),
+                    ));
+                }
+            }
+        }
         if !self.enchantments.is_empty() {
             let arr: Vec<Value> = self
                 .enchantments
@@ -412,6 +455,30 @@ fn unsupported_raw_custom_data(consumer: ItemMatcherConsumer) -> SandError {
     }
 }
 
+fn overlapping_raw_filter(consumer: ItemMatcherConsumer, field: &str) -> SandError {
+    SandError::ComponentValidation {
+        location: item_matcher_location(),
+        kind: consumer.label(),
+        field: field.to_string(),
+        message: format!(
+            "{} supplies both a typed filter and a raw value for `{field}`; the raw value would overwrite and silently weaken the typed request. Combine the constraint in one representation.",
+            consumer.label()
+        ),
+    }
+}
+
+fn invalid_raw_filter(consumer: ItemMatcherConsumer, field: &str) -> SandError {
+    SandError::ComponentValidation {
+        location: item_matcher_location(),
+        kind: consumer.label(),
+        field: field.to_string(),
+        message: format!(
+            "{} supplied raw `{field}` as a non-object JSON value; item predicate `{field}` must be an object and cannot be dropped or broadened",
+            consumer.label()
+        ),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -465,6 +532,53 @@ mod tests {
             json["predicates"]["minecraft:custom_data"],
             "{special_bow:1b}"
         );
+    }
+
+    #[test]
+    fn raw_partial_custom_data_cannot_overwrite_typed_partial_filter() {
+        let matcher = ItemMatcher::item(id("bow"))
+            .custom_data_partial("special_bow")
+            .raw_predicates_partial(RawJson::new(serde_json::json!({
+                "minecraft:custom_data": "{other:1b}"
+            })));
+        let error = matcher
+            .try_render_for(ItemMatcherConsumer::Predicate, Some(&modern_caps()))
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("overwrite"), "{error}");
+        assert!(error.contains("minecraft:custom_data"), "{error}");
+    }
+
+    #[test]
+    fn raw_exact_custom_data_cannot_overwrite_typed_exact_filter() {
+        let matcher = ItemMatcher::item(id("bow"))
+            .custom_data_exact(CustomData::marker("special_bow"))
+            .raw_components_exact(RawJson::new(serde_json::json!({
+                "minecraft:custom_data": {"other": true}
+            })));
+        let error = matcher
+            .try_render_for(ItemMatcherConsumer::Predicate, Some(&modern_caps()))
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("overwrite"), "{error}");
+        assert!(error.contains("minecraft:custom_data"), "{error}");
+    }
+
+    #[test]
+    fn non_object_raw_filters_fail_instead_of_disappearing() {
+        for matcher in [
+            ItemMatcher::item(id("bow"))
+                .raw_components_exact(RawJson::new(serde_json::json!(["invalid"]))),
+            ItemMatcher::item(id("bow"))
+                .raw_predicates_partial(RawJson::new(serde_json::json!("invalid"))),
+        ] {
+            let error = matcher
+                .try_render_for(ItemMatcherConsumer::Predicate, Some(&modern_caps()))
+                .unwrap_err()
+                .to_string();
+            assert!(error.contains("non-object"), "{error}");
+            assert!(error.contains("cannot be dropped"), "{error}");
+        }
     }
 
     #[test]

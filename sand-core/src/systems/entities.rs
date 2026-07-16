@@ -222,7 +222,12 @@ mod tests {
         let v = adv.to_json();
         // Entity predicate should filter by nbt tag
         let entity_cond = &v["criteria"]["interacted"]["conditions"]["entity"];
-        assert!(entity_cond.is_object(), "entity condition should be set");
+        assert_eq!(
+            entity_cond[0]["condition"], "minecraft:entity_properties",
+            "entity condition should use the advancement entity consumer"
+        );
+        assert_eq!(entity_cond[0]["entity"], "this");
+        assert!(entity_cond[0]["predicate"]["minecraft:nbt"].is_string());
     }
 
     #[test]

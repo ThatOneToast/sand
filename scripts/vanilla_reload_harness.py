@@ -4,15 +4,19 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
 import os
 import queue
 import re
 import shutil
+import socket
 import subprocess
 import sys
 import tempfile
 import threading
 import time
+import uuid
 from pathlib import Path
 
 STARTUP = re.compile(r"Done \([^)]+\)! For help")
@@ -24,7 +28,7 @@ ERROR_PATTERNS = [
     for pattern in (
         r"Failed to load (?:datapack|data packs?)",
         r"(?:Could not|Couldn't|Failed to) load (?:recipe|loot table|predicate|advancement|function|tag|item modifier)",
-        r"(?:Could not|Failed to) parse",
+        r"(?:Could not|Couldn't|Failed to) parse",
         r"Unknown (?:command|function|tag)",
         r"JsonParseException|DatapackLoadFailedException",
         r"incompatible.*pack(?:_format| format)",
@@ -53,6 +57,21 @@ class ServerHarness:
         self.events: queue.Queue[str] = queue.Queue()
         self.process: subprocess.Popen[str] | None = None
         self.reader: threading.Thread | None = None
+        self.client_cwd = Path.cwd()
+        self.port = self._available_port()
+
+    @staticmethod
+    def _available_port() -> int:
+        with socket.socket() as listener:
+            listener.bind(("127.0.0.1", 0))
+            return int(listener.getsockname()[1])
+
+    @staticmethod
+    def _offline_uuid(player: str) -> str:
+        digest = bytearray(hashlib.md5(f"OfflinePlayer:{player}".encode()).digest())
+        digest[6] = (digest[6] & 0x0F) | 0x30
+        digest[8] = (digest[8] & 0x3F) | 0x80
+        return str(uuid.UUID(bytes=bytes(digest)))
 
     def prepare(self) -> None:
         if self.output.exists() and self.args.output:
@@ -62,6 +81,20 @@ class ServerHarness:
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copytree(pack, destination)
         (self.server / "eula.txt").write_text("eula=true\n", encoding="utf-8")
+        if self.args.op_player:
+            (self.server / "ops.json").write_text(
+                json.dumps(
+                    [
+                        {
+                            "uuid": self._offline_uuid(self.args.op_player),
+                            "name": self.args.op_player,
+                            "level": 4,
+                            "bypassesPlayerLimit": True,
+                        }
+                    ]
+                ),
+                encoding="utf-8",
+            )
         (self.server / "server.properties").write_text(
             "\n".join(
                 [
@@ -69,6 +102,7 @@ class ServerHarness:
                     "online-mode=false",
                     "max-players=1",
                     "enable-rcon=false",
+                    f"server-port={self.port}",
                     "spawn-npcs=false",
                     "spawn-animals=false",
                     "spawn-monsters=false",
@@ -162,6 +196,44 @@ class ServerHarness:
         if self.reader:
             self.reader.join(timeout=2)
 
+    def run_client(self) -> None:
+        if not self.args.client_command:
+            return
+        env = os.environ.copy()
+        env["SAND_SERVER_HOST"] = "127.0.0.1"
+        env["SAND_SERVER_PORT"] = str(self.port)
+        env["SAND_MC_VERSION"] = self.args.version
+        try:
+            result = subprocess.run(
+                self.args.client_command,
+                cwd=self.client_cwd,
+                env=env,
+                text=True,
+                capture_output=True,
+                timeout=self.args.timeout,
+            )
+        except subprocess.TimeoutExpired as error:
+            output = (error.stdout or "") + (error.stderr or "")
+            raise ValidationFailure(
+                "semantic-client",
+                f"client timed out after {self.args.timeout}s",
+                output.splitlines(),
+            ) from error
+        if result.stdout:
+            print(result.stdout, end="" if result.stdout.endswith("\n") else "\n")
+        if result.stderr:
+            print(
+                result.stderr,
+                file=sys.stderr,
+                end="" if result.stderr.endswith("\n") else "\n",
+            )
+        if result.returncode != 0:
+            raise ValidationFailure(
+                "semantic-client",
+                f"client stopped with code {result.returncode}",
+                [line for line in (result.stdout + result.stderr).splitlines() if line],
+            )
+
     def run(self) -> None:
         self.prepare()
         self.start()
@@ -170,6 +242,16 @@ class ServerHarness:
             initial_errors = self.errors(0, startup + 1)
             if initial_errors:
                 raise ValidationFailure("initial-load", "datapack errors during startup", initial_errors)
+
+            client_offset = len(self.lines)
+            self.run_client()
+            client_errors = self.errors(client_offset, len(self.lines))
+            if client_errors:
+                raise ValidationFailure(
+                    "semantic-client",
+                    "datapack/server errors during client execution",
+                    client_errors,
+                )
 
             reload_offset = len(self.lines)
             self.send(f"say {RELOAD_SUBMITTED}")
@@ -204,6 +286,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--output")
     parser.add_argument("--timeout", type=float, default=120)
     parser.add_argument("--java", default="java", help=argparse.SUPPRESS)
+    parser.add_argument("--op-player")
+    parser.add_argument("--client-command", nargs=argparse.REMAINDER)
     return parser.parse_args(argv)
 
 

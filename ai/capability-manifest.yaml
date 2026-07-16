@@ -259,20 +259,26 @@ capabilities:
     name: "Advancement triggers"
     category: events
     intent: "Use vanilla advancement trigger conditions (item_used_on_block, enter_block, tick, etc.) as typed predicates."
-    status: implemented
+    status: partial
     stability: stable
     crates: [sand-components]
     preferred_api: "sand_components::advancement::AdvancementTrigger"
     minecraft: {minimum: "1.18.0", maximum_verified: "26.2.0"}
     sand_limitations: >
-      1 of 51 known vanilla trigger IDs (minecraft:leveled_up) is
-      intentionally_unsupported (not a real vanilla registry entry as of
-      1.21.11; generates a migration diagnostic pointing to tick-based XP
-      polling). All others are FullyImplemented. Full per-trigger status:
-      sand-components/src/advancement/trigger_coverage.rs (TRIGGER_COVERAGE,
-      53 rows). Do not assume a trigger exists by name pattern — check that
-      table first.
-    evidence: ["sand-components/src/advancement/trigger_coverage.rs"]
+      The typed enum covers 50 current registry trigger IDs. Eight current
+      registry IDs have no typed variant, and six legacy
+      source-compatibility variants name IDs absent from both verified
+      registries and are rejected by target-aware export. Predicate schemas
+      are rendered through the resolved profile; unsupported typed fields fail
+      rather than being dropped, while Custom/RawJson remains a user-owned
+      compatibility escape hatch. Typed API, schema-golden, vanilla-load, and
+      semantic-runtime evidence are separate fields in TRIGGER_COVERAGE (64
+      rows). placed_block and item_used_on_block have client-driven positive,
+      negative, final-stack, and revoke/re-fire evidence on 1.21.4. See
+      LIM-API-010 and LIM-VAL-003.
+    evidence: ["sand-components/src/advancement/trigger_coverage.rs", "sand-components/fixtures/trigger-coverage/1.21.4.json", "sand-components/fixtures/trigger-coverage/26.2.json", "sand-components/src/advancement/mod.rs", "sand-vanilla-audit/src/lib.rs", "scripts/validate-vanilla-semantics.sh", "scripts/vanilla-semantic-client/client.cjs"]
+    documentation: ["docs/vanilla-reload-validation.md", "docs/typedness-audit.md"]
+    known_limitations_ref: "LIM-API-010, LIM-VAL-003"
 
   - id: custom-items
     name: "Custom items"

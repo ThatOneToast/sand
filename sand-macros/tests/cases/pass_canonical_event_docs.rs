@@ -2,7 +2,8 @@
 
 // Compile contract for the canonical public event documentation (#116):
 // AdvancementEvent + Event<T>, typed SandEvent dispatch/lifecycle, a generic
-// SandEvent family subscribed through a unit adapter, and same-cycle chaining.
+// SandEvent family subscribed through a unit adapter, same-cycle single- and
+// multi-parent composition, and persistent conditions.
 use sand_core::condition::Condition;
 use sand_core::events::{
     EventSetup, OnJoinEvent, PlayerSneakEvent, PlayerStartSneakingEvent, SandEvent,
@@ -124,6 +125,37 @@ pub fn on_elevator_jump(_event: JumpedOnElevator) {
     cmd::say("Elevator jump");
 }
 
+pub struct JumpedOrUsedElevator;
+
+impl SandEvent for JumpedOrUsedElevator {
+    fn dispatch() -> SandEventDispatch {
+        SandEventDispatch::after_any::<(PlayerJumped, ElevatorGoingUp)>()
+            .while_::<PlayerSneakEvent>()
+            .unless(Condition::entity("@s[tag=blocked]"))
+            .into()
+    }
+}
+
+#[event]
+pub fn on_jump_or_elevator(_event: JumpedOrUsedElevator) {
+    cmd::say("Jumped or used elevator");
+}
+
+pub struct JumpedAndUsedElevator;
+
+impl SandEvent for JumpedAndUsedElevator {
+    fn dispatch() -> SandEventDispatch {
+        SandEventDispatch::after_all::<(PlayerJumped, ElevatorGoingUp)>()
+            .when(Condition::entity("@s[tag=ready]"))
+            .into()
+    }
+}
+
+#[event]
+pub fn on_jump_and_elevator(_event: JumpedAndUsedElevator) {
+    cmd::say("Jumped and used elevator");
+}
+
 fn main() {
     assert!(!on_ate().is_empty());
     assert!(!on_join().is_empty());
@@ -131,4 +163,6 @@ fn main() {
     assert!(!on_jump().is_empty());
     assert!(!on_elevator_up().is_empty());
     assert!(!on_elevator_jump().is_empty());
+    assert!(!on_jump_or_elevator().is_empty());
+    assert!(!on_jump_and_elevator().is_empty());
 }

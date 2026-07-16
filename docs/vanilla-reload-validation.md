@@ -49,15 +49,25 @@ dispatch, and returning true permits another firing. This is single-player
 semantic evidence; multiplayer isolation remains structural command-generation
 evidence rather than a two-client runtime claim.
 
+The Phase 4 fixture also drives two independent score-delta parents. Separate
+A-only and B-only stimuli prove both `after_any` paths; repeated A proves one
+parent cannot satisfy `after_all`; atomic A/B and B/A functions prove
+order-independent `after_all` success and at-most-once `after_any` coalescing.
+Idle checks between stimuli prove reset and no stale next-tick occurrence.
+This is single-player 1.21.4 semantic evidence. Per-subject multiplayer safety
+and 26.2 gameplay semantics remain structural and load/reload evidence,
+respectively.
+
 The semantic client currently supports 1.21.4 only. No semantic claim is made
 for 26.2, for advancement triggers outside those two cases, or for persistent
 providers other than current sneaking.
 For advancement triggers,
 `sand_components::advancement::trigger_coverage` tracks this distinction via
 `vanilla_load_tested_profiles` and `semantic_runtime_tested_profiles`. The
-persistent-composition evidence boundary is recorded under capability
-`sandevent-persistent-conditions` and `LIM-VAL-004`; do not treat one evidence
-level as another.
+persistent and multi-parent composition evidence boundaries are recorded under
+capabilities `sandevent-persistent-conditions` and
+`sandevent-multi-parent-composition`, plus `LIM-VAL-004` and `LIM-VAL-005`; do
+not treat one evidence level as another.
 
 ## Synchronization and signals
 
@@ -97,7 +107,8 @@ scripts/validate-vanilla-reload.sh \
   --pack sand-vanilla-audit/dist/sand_audit \
   --output target/vanilla-reload/1.21.4
 
-# Optional gameplay semantics for placement, item use, and persistent sneaking:
+# Optional gameplay semantics for placement, item use, persistent sneaking,
+# and multi-parent same-cycle composition:
 scripts/validate-vanilla-semantics.sh sand-vanilla-audit/dist/sand_audit
 ```
 

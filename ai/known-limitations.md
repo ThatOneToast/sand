@@ -178,21 +178,25 @@ Vanilla supports the behavior; Sand's typed coverage is incomplete.
   Affects: `resource-pack`, `hud-workflows`.
   Evidence: `ROADMAP.md`, `book/src/resource-packs-and-hud.md`.
 
-- **LIM-EXP-004** — Same-cycle chained `SandEvent` dispatch and explicit
-  persistent `while_<E>()` conditions are the first two scoped phases of
-  #240. Persistent conditions are currently player-scoped, directly
-  queryable states; they are evaluated live at the child boundary and do not
-  invoke another event detector or transition lifecycle. Only one direct
-  occurrence parent per event is supported (no `after_all`/
-  `after_any` multi-parent joins), and advancement-backed `SandEvent`
-  parents are explicitly rejected — their reward-function codegen path does
+- **LIM-EXP-004** — Same-cycle single- and multi-parent `SandEvent` dispatch
+  and explicit persistent `while_<E>()` conditions are the implemented
+  composition phases of #240. Multi-parent groups support two through eight
+  typed parents, at most one `after_any` and one `after_all` group per child,
+  conjunctive clauses, deterministic per-subject occurrence staging, and
+  at-most-once any-group coalescing. Persistent conditions are currently
+  player-scoped, directly queryable states; they are evaluated live at the
+  child boundary and do not invoke another event detector or transition
+  lifecycle. Advancement-backed `SandEvent` parents are explicitly rejected —
+  their reward-function codegen path does
   not yet provide a player execution context compatible with same-cycle
   child dispatch. Bounded `.within(...)` time windows, cross-tick
   correlation, participant-rich execution contexts (#230), and arbitrary
   non-player entity execution scopes are not implemented and are not exposed
   as partial APIs.
-  Affects: `sandevent-chained-dispatch`, `sandevent-persistent-conditions`.
-  Evidence: `sand-core/src/events/graph.rs`, `book/src/manual/events.md`
+  Affects: `sandevent-chained-dispatch`, `sandevent-persistent-conditions`,
+  `sandevent-multi-parent-composition`.
+  Evidence: `sand-core/src/events/graph.rs`, `sand-core/src/component.rs`,
+  `book/src/manual/events.md`
   (Same-cycle and persistent composition).
 
 ## Validation gaps
@@ -234,6 +238,19 @@ Vanilla supports the behavior; Sand's typed coverage is incomplete.
   Affects: `sandevent-persistent-conditions`, `cli-validate`.
   Evidence: `sand-vanilla-audit/src/lib.rs`,
   `scripts/vanilla-semantic-client/client.cjs`.
+
+- **LIM-VAL-005** — Multi-parent same-cycle composition has real single-player
+  1.21.4 protocol-client evidence for either-parent matching, both-parent
+  at-most-once coalescing, all-parent positive/negative matching, reverse
+  atomic parent order, repeated-one-parent rejection, reset, and no stale
+  next-tick occurrence. Per-subject scoreboard structure proves isolation, but
+  no two-client runtime test currently verifies multiplayer behavior. 26.2 has
+  real load/reload evidence only; that does not prove gameplay semantics.
+  Affects: `sandevent-multi-parent-composition`, `cli-validate`.
+  Evidence: `sand-core/tests/event_multi_parent_export.rs`,
+  `sand-vanilla-audit/src/lib.rs`,
+  `scripts/vanilla-semantic-client/client.cjs`,
+  `docs/vanilla-reload-validation.md`.
 
 ## Documentation and status contradictions found during audit (2026-07-12)
 

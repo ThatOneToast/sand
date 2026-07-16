@@ -40,6 +40,10 @@ pub fn semantic_item_used_reward() {
 
 static SEMANTIC_OCCURRENCE: ScoreVar<i32> = ScoreVar::new("sand_sem_occ");
 static SEMANTIC_OBSERVED: ScoreVar<i32> = ScoreVar::new("sand_sem_prev");
+static SEMANTIC_MULTI_A: ScoreVar<i32> = ScoreVar::new("sand_mp_a");
+static SEMANTIC_MULTI_A_OBSERVED: ScoreVar<i32> = ScoreVar::new("sand_mp_ap");
+static SEMANTIC_MULTI_B: ScoreVar<i32> = ScoreVar::new("sand_mp_b");
+static SEMANTIC_MULTI_B_OBSERVED: ScoreVar<i32> = ScoreVar::new("sand_mp_bp");
 
 /// Client-controlled occurrence used to prove persistent composition against a
 /// real server. Increasing `sand_sem_occ` creates one parent occurrence.
@@ -80,6 +84,114 @@ impl SandEvent for SemanticOccurrenceWhileSneaking {
 #[event]
 pub fn semantic_occurrence_while_sneaking(_event: SemanticOccurrenceWhileSneaking) {
     cmd::raw(r#"tellraw @s {"text":"__SAND_SEMANTIC_WHILE_SNEAKING__"}"#)
+}
+
+/// Independently controlled score-delta parent A for real-server
+/// `after_any`/`after_all` verification.
+pub struct SemanticMultiParentA;
+
+impl SandEvent for SemanticMultiParentA {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        SandEventDispatch::tick().as_players().when(
+            SEMANTIC_MULTI_A_OBSERVED
+                .of("@s")
+                .lt_score(SEMANTIC_MULTI_A.of("@s")),
+        )
+    }
+
+    fn setup() -> EventSetup {
+        EventSetup {
+            objectives: vec![
+                "scoreboard objectives add sand_mp_a dummy".into(),
+                "scoreboard objectives add sand_mp_ap dummy".into(),
+            ],
+            pre_observation: vec![],
+            post_observation: vec![
+                "execute as @a run scoreboard players operation @s sand_mp_ap = @s sand_mp_a"
+                    .into(),
+            ],
+        }
+    }
+}
+
+/// Independently controlled score-delta parent B for real-server
+/// `after_any`/`after_all` verification.
+pub struct SemanticMultiParentB;
+
+impl SandEvent for SemanticMultiParentB {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        SandEventDispatch::tick().as_players().when(
+            SEMANTIC_MULTI_B_OBSERVED
+                .of("@s")
+                .lt_score(SEMANTIC_MULTI_B.of("@s")),
+        )
+    }
+
+    fn setup() -> EventSetup {
+        EventSetup {
+            objectives: vec![
+                "scoreboard objectives add sand_mp_b dummy".into(),
+                "scoreboard objectives add sand_mp_bp dummy".into(),
+            ],
+            pre_observation: vec![],
+            post_observation: vec![
+                "execute as @a run scoreboard players operation @s sand_mp_bp = @s sand_mp_b"
+                    .into(),
+            ],
+        }
+    }
+}
+
+pub struct SemanticAfterAny;
+
+impl SandEvent for SemanticAfterAny {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        SandEventDispatch::after_any::<(SemanticMultiParentA, SemanticMultiParentB)>()
+    }
+}
+
+pub struct SemanticAfterAll;
+
+impl SandEvent for SemanticAfterAll {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        SandEventDispatch::after_all::<(SemanticMultiParentA, SemanticMultiParentB)>()
+    }
+}
+
+#[event]
+pub fn semantic_after_any(_event: SemanticAfterAny) {
+    cmd::raw(r#"tellraw @s {"text":"__SAND_SEMANTIC_AFTER_ANY__"}"#)
+}
+
+#[event]
+pub fn semantic_after_all(_event: SemanticAfterAll) {
+    cmd::raw(r#"tellraw @s {"text":"__SAND_SEMANTIC_AFTER_ALL__"}"#)
+}
+
+#[function]
+pub fn semantic_multi_fire_a() {
+    cmd::raw("scoreboard players add @s sand_mp_a 1")
+}
+
+#[function]
+pub fn semantic_multi_fire_b() {
+    cmd::raw("scoreboard players add @s sand_mp_b 1")
+}
+
+/// Atomically advances both parents in A-then-B command order. The event
+/// coordinator observes both deltas in one later dispatch cycle.
+#[function]
+pub fn semantic_multi_fire_ab() {
+    cmd::raw("scoreboard players add @s sand_mp_a 1");
+    cmd::raw("scoreboard players add @s sand_mp_b 1")
+}
+
+/// The reverse atomic order proves tuple/stimulus order does not affect
+/// same-cycle coalescing.
+#[function]
+pub fn semantic_multi_fire_ba() {
+    cmd::raw("scoreboard players add @s sand_mp_b 1");
+    cmd::raw("scoreboard players add @s sand_mp_a 1")
 }
 
 #[event]

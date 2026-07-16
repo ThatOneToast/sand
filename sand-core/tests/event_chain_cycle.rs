@@ -4,7 +4,10 @@
 //! registrations are process-global and a rejected export must not pollute
 //! other export tests in this crate.
 
-use sand_core::events::{ChainEventDispatch, EventSetup, TickEventDispatch};
+use sand_core::events::{
+    ChainEventDispatch, EventSetup, SameCycleEventDependency, SameCycleEventRequirement,
+    SandEventDispatch, TickEventDispatch,
+};
 use sand_core::{AdvancementTrigger, EventDescriptor, EventDispatch};
 use std::any::TypeId;
 
@@ -24,6 +27,19 @@ fn empty_setup() -> EventSetup {
     EventSetup::none()
 }
 
+fn after(
+    event_type_id: fn() -> TypeId,
+    event_type_name: fn() -> &'static str,
+    event_dispatch: fn() -> SandEventDispatch,
+) -> Vec<SameCycleEventRequirement> {
+    vec![SameCycleEventRequirement::After(SameCycleEventDependency {
+        event_type_id,
+        event_type_name,
+        event_dispatch,
+        event_setup: EventSetup::none,
+    })]
+}
+
 // ── Indirect cycle: A -> B -> C -> A ────────────────────────────────────────
 
 struct CycleA;
@@ -32,10 +48,11 @@ struct CycleC;
 
 fn a_dispatch() -> sand_core::events::SandEventDispatch {
     sand_core::events::SandEventDispatch::Chain(ChainEventDispatch {
-        parent_type_id: TypeId::of::<CycleC>,
-        parent_type_name: std::any::type_name::<CycleC>,
-        parent_dispatch: c_dispatch,
-        parent_setup: EventSetup::none,
+        occurrence: after(
+            TypeId::of::<CycleC>,
+            std::any::type_name::<CycleC>,
+            c_dispatch,
+        ),
         persistent: vec![],
         when: vec![],
         unless: vec![],
@@ -43,10 +60,11 @@ fn a_dispatch() -> sand_core::events::SandEventDispatch {
 }
 fn b_dispatch() -> sand_core::events::SandEventDispatch {
     sand_core::events::SandEventDispatch::Chain(ChainEventDispatch {
-        parent_type_id: TypeId::of::<CycleA>,
-        parent_type_name: std::any::type_name::<CycleA>,
-        parent_dispatch: a_dispatch,
-        parent_setup: EventSetup::none,
+        occurrence: after(
+            TypeId::of::<CycleA>,
+            std::any::type_name::<CycleA>,
+            a_dispatch,
+        ),
         persistent: vec![],
         when: vec![],
         unless: vec![],
@@ -54,10 +72,11 @@ fn b_dispatch() -> sand_core::events::SandEventDispatch {
 }
 fn c_dispatch() -> sand_core::events::SandEventDispatch {
     sand_core::events::SandEventDispatch::Chain(ChainEventDispatch {
-        parent_type_id: TypeId::of::<CycleB>,
-        parent_type_name: std::any::type_name::<CycleB>,
-        parent_dispatch: b_dispatch,
-        parent_setup: EventSetup::none,
+        occurrence: after(
+            TypeId::of::<CycleB>,
+            std::any::type_name::<CycleB>,
+            b_dispatch,
+        ),
         persistent: vec![],
         when: vec![],
         unless: vec![],

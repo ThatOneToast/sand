@@ -620,10 +620,11 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
 /// `SandEventDispatch::chain::<Parent>()` also supports implemented
 /// same-cycle parent-to-child dispatch. It reuses the parent's detector and
 /// preserves that cycle's player and position. Chained children can add an
-/// explicit persistent condition with `.while_::<E>()`. Multi-parent
-/// `after_any`/`after_all`, bounded `.within(...)`
+/// explicit persistent condition with `.while_::<E>()`. Typed two- through
+/// eight-parent `after_any::<(...)>()` and `after_all::<(...)>()` clauses are
+/// also supported and coalesced per subject. Bounded `.within(...)`
 /// correlation, advancement-backed graph parents, and participant-rich
-/// contexts are planned; they are not accepted by this macro today.
+/// contexts remain planned; they are not accepted by this macro today.
 ///
 /// Generic `SandEvent` definitions are supported and each concrete
 /// monomorphization has distinct dispatch identity. A `#[event]` handler must

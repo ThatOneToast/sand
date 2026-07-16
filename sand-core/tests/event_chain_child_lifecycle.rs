@@ -22,9 +22,26 @@
 //! `__sand_event_observe/<child>` function, at every chain depth.
 
 use sand_core::condition::Condition;
-use sand_core::events::{ChainEventDispatch, EventSetup, TickEventDispatch};
+use sand_core::events::{
+    ChainEventDispatch, EventSetup, SameCycleEventDependency, SameCycleEventRequirement,
+    SandEventDispatch, TickEventDispatch,
+};
 use sand_core::{EventDescriptor, EventDispatch};
 use std::any::TypeId;
+
+fn after(
+    event_type_id: fn() -> TypeId,
+    event_type_name: fn() -> &'static str,
+    event_dispatch: fn() -> SandEventDispatch,
+    event_setup: fn() -> EventSetup,
+) -> Vec<SameCycleEventRequirement> {
+    vec![SameCycleEventRequirement::After(SameCycleEventDependency {
+        event_type_id,
+        event_type_name,
+        event_dispatch,
+        event_setup,
+    })]
+}
 
 fn expected_key(canonical_type_name: &str) -> String {
     let mut h: u32 = 2_166_136_261;
@@ -121,10 +138,12 @@ fn single_plan_child_setup() -> EventSetup {
 }
 fn single_plan_child_chain() -> Option<ChainEventDispatch> {
     Some(ChainEventDispatch {
-        parent_type_id,
-        parent_type_name,
-        parent_dispatch: parent_chain_dispatch,
-        parent_setup,
+        occurrence: after(
+            parent_type_id,
+            parent_type_name,
+            parent_chain_dispatch,
+            parent_setup,
+        ),
         persistent: vec![],
         when: vec![Condition::raw("score @s sync < @s current")],
         unless: vec![],
@@ -172,10 +191,12 @@ fn unconditional_lifecycle_child_setup() -> EventSetup {
 }
 fn unconditional_lifecycle_child_chain() -> Option<ChainEventDispatch> {
     Some(ChainEventDispatch {
-        parent_type_id,
-        parent_type_name,
-        parent_dispatch: parent_chain_dispatch,
-        parent_setup,
+        occurrence: after(
+            parent_type_id,
+            parent_type_name,
+            parent_chain_dispatch,
+            parent_setup,
+        ),
         persistent: vec![],
         when: vec![],
         unless: vec![],
@@ -223,10 +244,12 @@ fn multi_plan_lifecycle_child_setup() -> EventSetup {
 }
 fn multi_plan_lifecycle_child_chain() -> Option<ChainEventDispatch> {
     Some(ChainEventDispatch {
-        parent_type_id,
-        parent_type_name,
-        parent_dispatch: parent_chain_dispatch,
-        parent_setup,
+        occurrence: after(
+            parent_type_id,
+            parent_type_name,
+            parent_chain_dispatch,
+            parent_setup,
+        ),
         persistent: vec![],
         when: vec![
             Condition::raw("score @s mp_a matches 1").or(Condition::raw("score @s mp_b matches 1")),
@@ -276,10 +299,12 @@ fn unsatisfiable_lifecycle_child_setup() -> EventSetup {
 }
 fn unsatisfiable_lifecycle_child_chain() -> Option<ChainEventDispatch> {
     Some(ChainEventDispatch {
-        parent_type_id,
-        parent_type_name,
-        parent_dispatch: parent_chain_dispatch,
-        parent_setup,
+        occurrence: after(
+            parent_type_id,
+            parent_type_name,
+            parent_chain_dispatch,
+            parent_setup,
+        ),
         persistent: vec![],
         when: vec![Condition::any([])],
         unless: vec![],
@@ -370,12 +395,12 @@ fn nested_b_setup() -> EventSetup {
 }
 fn nested_b_chain() -> Option<ChainEventDispatch> {
     Some(ChainEventDispatch {
-        parent_type_id: nested_a_type_id,
-        parent_type_name: nested_a_type_name,
-        parent_dispatch: || {
-            sand_core::events::SandEventDispatch::Tick(nested_a_dispatch().unwrap())
-        },
-        parent_setup: nested_a_setup,
+        occurrence: after(
+            nested_a_type_id,
+            nested_a_type_name,
+            || sand_core::events::SandEventDispatch::Tick(nested_a_dispatch().unwrap()),
+            nested_a_setup,
+        ),
         persistent: vec![],
         when: vec![Condition::raw("score @s b_cond matches 1")],
         unless: vec![],
@@ -420,10 +445,12 @@ fn nested_c_setup() -> EventSetup {
 }
 fn nested_c_chain() -> Option<ChainEventDispatch> {
     Some(ChainEventDispatch {
-        parent_type_id: nested_b_type_id,
-        parent_type_name: nested_b_type_name,
-        parent_dispatch: || sand_core::events::SandEventDispatch::Chain(nested_b_chain().unwrap()),
-        parent_setup: nested_b_setup,
+        occurrence: after(
+            nested_b_type_id,
+            nested_b_type_name,
+            || sand_core::events::SandEventDispatch::Chain(nested_b_chain().unwrap()),
+            nested_b_setup,
+        ),
         persistent: vec![],
         when: vec![Condition::raw("score @s c_cond matches 1")],
         unless: vec![],

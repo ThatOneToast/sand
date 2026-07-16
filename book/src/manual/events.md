@@ -5,7 +5,7 @@ Sand has two event-definition families:
 | Family | Purpose | Handler parameter |
 |---|---|---|
 | `AdvancementEvent` | Lightweight, stateless wrapper around one vanilla advancement trigger | `Event<T>` |
-| `SandEvent` | Advanced custom dispatch, lifecycle, generic definitions, same-cycle chaining, and explicit persistent conditions | Concrete unit marker |
+| `SandEvent` | Advanced custom dispatch, lifecycle, generic definitions, same-cycle composition, and explicit persistent conditions | Concrete unit marker |
 
 ## AdvancementEvent and `Event<T>`
 
@@ -151,9 +151,32 @@ impl SandEvent for JumpedOnElevator {
             .into()
     }
 }
+
+pub struct JumpedOrUsedElevator;
+
+impl SandEvent for JumpedOrUsedElevator {
+    fn dispatch() -> SandEventDispatch {
+        SandEventDispatch::after_any::<(PlayerJumped, ElevatorGoingUp)>()
+            .while_::<PlayerSneakEvent>()
+            .unless(Condition::entity("@s[tag=blocked]"))
+            .into()
+    }
+}
 ```
 
-`chain::<PlayerJumped>()` means the parent fired in this dispatch cycle.
+`chain::<PlayerJumped>()` means the parent fired in this dispatch cycle. It is
+the concise form of `compose().after::<PlayerJumped>()`.
+`after_any::<(A, B)>()` means at least one listed parent fired, while
+`after_all::<(A, B)>()` means every listed parent fired. These typed tuples
+support two through eight concrete `SandEvent` types. Multiple parents firing
+an `after_any` group still dispatch the child at most once for that player in
+the cycle; one repeated `after_all` parent cannot stand in for a missing
+distinct parent.
+
+A definition may declare at most one `after_any` group and one `after_all`
+group. Duplicate parents and repeated groups are errors. Separate occurrence
+clauses are conjunctive: `after::<A>()`, `after_any::<(B, C)>()`, and
+`after_all::<(D, E)>()` together mean `A AND (B OR C) AND D AND E`.
 `while_::<PlayerSneakEvent>()` independently queries current sneaking state at
 the child boundary; it does not wait for a sneaking occurrence or invoke the
 sneaking event's detector. The query is available on first observation and is
@@ -170,13 +193,22 @@ Custom providers must be directly queryable with an empty `SandEvent::setup()`;
 put shared resource initialization in typed state lifecycle. A non-empty
 provider setup is an export error naming the child and provider.
 
-The current graph supports one same-cycle parent per child, nested chains,
-deterministic fan-out, mixed-edge cycle diagnostics, and per-player coalescing.
-Advancement-backed graph parents are rejected.
+Occurrence-only providers are subscribed and their detector/setup is emitted
+once. Persistent-only providers remain unsubscribed. Multi-parent graphs use
+per-player occurrence marks that reset at the start of the generated event
+cycle, followed by canonical root-check order and topological composed-child
+order. Marks and coalescing guards use inherited `@s`, so subjects cannot
+cross-satisfy dependencies. Tuple order and handler registration order do not
+change generated output.
+Post-observation lifecycle runs after downstream composed dependents, including
+mixed graphs where an immediate single-parent child feeds a staged join.
 
-Multi-parent `after_any`/`after_all`, bounded `.within(...)` correlation,
-participant-rich contexts, and arbitrary
-non-player scopes are planned phases, not current APIs.
+Nested and mixed `after`/`after_any`/`after_all`/`while` cycles are rejected
+with readable labeled paths. `.when(...)` and `.unless(...)` are evaluated at
+the child boundary alongside live persistent conditions. Advancement-backed
+graph parents, bounded `.within(...)` correlation, cross-tick correlation,
+participant-rich contexts, and arbitrary non-player scopes remain planned;
+they are not current APIs.
 
 For generated-output and lifecycle details, see the focused
 [events reference](../../../docs/events.md). For trigger construction, continue

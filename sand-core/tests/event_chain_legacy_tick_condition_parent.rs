@@ -11,9 +11,26 @@
 //! node/detector, shared by its direct handlers and its chain children, and
 //! that ordinary legacy tick events with no children remain unaffected.
 
-use sand_core::events::{ChainEventDispatch, EventSetup};
+use sand_core::events::{
+    ChainEventDispatch, EventSetup, SameCycleEventDependency, SameCycleEventRequirement,
+    SandEventDispatch,
+};
 use sand_core::{EventDescriptor, EventDispatch};
 use std::any::TypeId;
+
+fn after(
+    event_type_id: fn() -> TypeId,
+    event_type_name: fn() -> &'static str,
+    event_dispatch: fn() -> SandEventDispatch,
+    event_setup: fn() -> EventSetup,
+) -> Vec<SameCycleEventRequirement> {
+    vec![SameCycleEventRequirement::After(SameCycleEventDependency {
+        event_type_id,
+        event_type_name,
+        event_dispatch,
+        event_setup,
+    })]
+}
 
 fn no_trigger() -> Option<sand_core::AdvancementTrigger> {
     None
@@ -99,12 +116,16 @@ struct LegacyChild;
 
 fn legacy_child_chain() -> Option<ChainEventDispatch> {
     Some(ChainEventDispatch {
-        parent_type_id: legacy_parent_type_id,
-        parent_type_name: legacy_parent_type_name,
-        parent_dispatch: || {
-            sand_core::events::SandEventDispatch::TickCondition(legacy_parent_condition().unwrap())
-        },
-        parent_setup: legacy_parent_setup,
+        occurrence: after(
+            legacy_parent_type_id,
+            legacy_parent_type_name,
+            || {
+                sand_core::events::SandEventDispatch::TickCondition(
+                    legacy_parent_condition().unwrap(),
+                )
+            },
+            legacy_parent_setup,
+        ),
         persistent: vec![],
         when: vec![sand_core::condition::Condition::raw(
             "score @s legchild matches 1",
@@ -164,10 +185,12 @@ struct LegacyOrphanChild;
 
 fn legacy_orphan_child_chain() -> Option<ChainEventDispatch> {
     Some(ChainEventDispatch {
-        parent_type_id: legacy_orphan_parent_type_id,
-        parent_type_name: legacy_orphan_parent_type_name,
-        parent_dispatch: legacy_orphan_parent_dispatch,
-        parent_setup: EventSetup::none,
+        occurrence: after(
+            legacy_orphan_parent_type_id,
+            legacy_orphan_parent_type_name,
+            legacy_orphan_parent_dispatch,
+            EventSetup::none,
+        ),
         persistent: vec![],
         when: vec![],
         unless: vec![],

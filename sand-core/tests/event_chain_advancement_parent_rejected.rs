@@ -4,7 +4,10 @@
 //! approximation. Isolated in its own test binary since `inventory`
 //! registrations are process-global.
 
-use sand_core::events::{ChainEventDispatch, EventSetup, TickEventDispatch};
+use sand_core::events::{
+    ChainEventDispatch, EventSetup, SameCycleEventDependency, SameCycleEventRequirement,
+    TickEventDispatch,
+};
 use sand_core::{AdvancementTrigger, EventDescriptor, EventDispatch};
 use std::any::TypeId;
 
@@ -40,10 +43,12 @@ struct ChildOfAdvancementParent;
 
 fn child_chain() -> Option<ChainEventDispatch> {
     Some(ChainEventDispatch {
-        parent_type_id: advancement_parent_type_id,
-        parent_type_name: advancement_parent_type_name,
-        parent_dispatch: advancement_parent_dispatch,
-        parent_setup: EventSetup::none,
+        occurrence: vec![SameCycleEventRequirement::After(SameCycleEventDependency {
+            event_type_id: advancement_parent_type_id,
+            event_type_name: advancement_parent_type_name,
+            event_dispatch: advancement_parent_dispatch,
+            event_setup: EventSetup::none,
+        })],
         persistent: vec![],
         when: vec![],
         unless: vec![],

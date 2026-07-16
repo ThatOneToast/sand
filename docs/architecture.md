@@ -17,3 +17,29 @@ Build flow:
 2. `sand-core` and `sand-commands` expose typed APIs over those generated types.
 3. `sand-macros` registers functions and components.
 4. `sand build` writes datapack/resource-pack output.
+
+## Event dependency graph
+
+Custom `SandEvent` definitions are normalized into an export-time graph in
+`sand-core/src/events/graph.rs`. The graph keeps single-parent `after`,
+multi-parent `after_any`/`after_all`, and persistent `while` dependencies as
+distinct IR rather than anonymous command conditions. Canonical concrete Rust
+type names supply deterministic graph and generated-resource identity;
+`TypeId` is used only for in-process grouping and collision checks.
+
+Single-parent edges retain their immediate inherited-subject fan-out.
+Multi-parent graphs add a generated cycle coordinator: it clears only the
+required per-player occurrence marks, invokes root checks in canonical order,
+then evaluates composed nodes in deterministic occurrence-topological order.
+An event detector/setup is emitted once even when several children or groups
+reuse it. Occurrence marks are set on inherited `@s` before dependent checks;
+persistent-only providers are queried live and remain unsubscribed.
+Post-observation lifecycle is deferred until dependent composed nodes finish;
+mixed immediate/staged intermediates use a per-subject attempted-observation
+mark so post-observation still runs after a failed child condition attempt.
+
+Graph discovery rejects duplicate parents/groups, incompatible scopes,
+canonical/generated identity collisions, and direct or mixed cycles with edge
+labels. Bounded cross-tick correlation, advancement-backed graph parents, and
+participant context propagation are later roadmap phases and are not modeled
+as implemented behavior here.

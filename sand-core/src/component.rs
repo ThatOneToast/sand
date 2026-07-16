@@ -893,7 +893,7 @@ fn try_export_components_impl(
     //
     // Builds the event dependency graph (#240): direct `#[event]` handlers on
     // tick-lifecycle or chain-backed SandEvents, plus recursively-discovered
-    // chain parents (a parent referenced only by a chain child still gets a
+    // occurrence parents (a parent referenced only by a child still gets a
     // node — its detector/setup is generated even with no direct handler).
     // Nodes are grouped by event_type_id — an in-process TypeId used only to
     // group/dedupe descriptors belonging to the same concrete SandEvent type
@@ -902,9 +902,10 @@ fn try_export_components_impl(
     // NOT a stable cross-build identifier, so it is never used to derive
     // generated resource paths — see `tick_event_resource_key` below.
     //
-    // This phase supports at most one parent per event, so the graph is
-    // always a forest (every node has zero or one incoming chain edge) —
-    // cycles are rejected by a parent-pointer walk during discovery.
+    // Single-parent `after` edges retain their established immediate fan-out
+    // path. Multi-parent compositions use per-subject occurrence marks and a
+    // deterministic staged coordinator; all dependency forms participate in
+    // readable cycle validation.
     if !tick_lifecycle_events.is_empty() || !chain_events.is_empty() {
         let mut resolved: BTreeMap<std::any::TypeId, crate::events::graph::EventNode> =
             BTreeMap::new();
@@ -948,6 +949,11 @@ fn try_export_components_impl(
         graph
             .validate_dependencies()
             .map_err(|e| tick_event_export_error(e.0))?;
+        let staged_events = graph
+            .staged_events()
+            .map_err(|e| tick_event_export_error(e.0))?;
+        let has_staged_composition = !staged_events.is_empty();
+        let occurrence_marked = graph.occurrence_marked_nodes();
 
         // Deterministic resource key derived from the canonical concrete
         // event type name, not from TypeId (not stable across builds) and
@@ -978,6 +984,8 @@ fn try_export_components_impl(
         // predicate JSON exactly as the pre-#240-follow-up `TickPoll`
         // aggregation did — only the generation site moved, not the output.
         let mut state_predicates: BTreeMap<&'static str, &'static str> = BTreeMap::new();
+        let mut root_checks = Vec::new();
+        let mut deferred_root_post_observation = Vec::new();
         for root in graph.roots() {
             let crate::events::graph::NodeOrigin::Root(tick) = &root.origin else {
                 continue;
@@ -992,6 +1000,11 @@ fn try_export_components_impl(
             .flat_map(|parent| graph.children_of(parent))
         {
             for dependency in edge.persistent {
+                collect_sand_player_state_predicates(&dependency.condition, &mut state_predicates);
+            }
+        }
+        for staged in &staged_events {
+            for dependency in &staged.persistent {
                 collect_sand_player_state_predicates(&dependency.condition, &mut state_predicates);
             }
         }
@@ -1018,10 +1031,9 @@ fn try_export_components_impl(
         let mut guarded_children: std::collections::BTreeSet<String> =
             std::collections::BTreeSet::new();
 
-        // Build every node's dispatch function up front (recursing from
-        // roots down through children — safe without memoization since each
-        // node has at most one parent, so this visits each node exactly
-        // once), collecting the root -> dispatch_ref mapping used below.
+        // Build root and immediate single-parent dispatch functions up front.
+        // Multi-parent nodes are emitted once in deterministic topological
+        // order below, so shared parents never duplicate their detectors.
         let mut root_dispatch_ref: BTreeMap<String, String> = BTreeMap::new();
         let mut root_self_guard: BTreeMap<String, Option<String>> = BTreeMap::new();
         for root in graph.roots() {
@@ -1043,6 +1055,7 @@ fn try_export_components_impl(
                     &graph,
                     namespace,
                     self_guard.as_deref(),
+                    &occurrence_marked,
                     &mut guarded_children,
                     &mut records,
                 ))
@@ -1051,6 +1064,76 @@ fn try_export_components_impl(
             };
             root_dispatch_ref.insert(root.type_name.to_string(), dispatch_ref.unwrap_or_default());
             root_self_guard.insert(root.type_name.to_string(), self_guard);
+        }
+
+        let mut staged_evaluations = Vec::new();
+        for staged in &staged_events {
+            let edge = staged.condition_edge();
+            let commands = build_child_edge(
+                &edge,
+                &graph,
+                namespace,
+                &occurrence_marked,
+                ChildPostObservation::DeferredByOccurrence,
+                &mut guarded_children,
+                &mut records,
+            );
+            let key = tick_event_resource_key(&staged.child);
+            let path = format!("__sand_event_multi_eval/{key}");
+            records.push(ComponentRecord {
+                namespace: namespace.to_string(),
+                dir: "function".to_string(),
+                path: path.clone(),
+                ext: "mcfunction".to_string(),
+                content_type: "text".to_string(),
+                content: commands,
+            });
+            staged_evaluations.push((staged.clone(), format!("{namespace}:{path}")));
+        }
+
+        let staged_by_child: BTreeMap<String, crate::events::graph::StagedEvent> = staged_events
+            .iter()
+            .map(|staged| (staged.child.clone(), staged.clone()))
+            .collect();
+        let deferred_attempt_marked: std::collections::BTreeSet<String> = graph
+            .nodes
+            .values()
+            .filter_map(|node| match &node.origin {
+                crate::events::graph::NodeOrigin::Chained { occurrence, .. }
+                    if matches!(
+                        occurrence.as_slice(),
+                        [crate::events::graph::OccurrenceDependency::After(_)]
+                    ) && occurrence_marked.contains(node.type_name)
+                        && !node.setup.post_observation.is_empty() =>
+                {
+                    Some(node.type_name.to_string())
+                }
+                _ => None,
+            })
+            .collect();
+        let mut deferred_post_refs = BTreeMap::new();
+        for name in graph
+            .occurrence_topological_nodes()
+            .map_err(|e| tick_event_export_error(e.0))?
+        {
+            let node = &graph.nodes[&name];
+            if node.setup.post_observation.is_empty()
+                || (!staged_by_child.contains_key(&name)
+                    && !deferred_attempt_marked.contains(&name))
+            {
+                continue;
+            }
+            let key = tick_event_resource_key(&name);
+            let path = format!("__sand_event_multi_post/{key}");
+            records.push(ComponentRecord {
+                namespace: namespace.to_string(),
+                dir: "function".to_string(),
+                path: path.clone(),
+                ext: "mcfunction".to_string(),
+                content_type: "text".to_string(),
+                content: node.setup.post_observation.join("\n"),
+            });
+            deferred_post_refs.insert(name, format!("{namespace}:{path}"));
         }
 
         // Emit setup (objectives, + a `_g` guard objective for any node that
@@ -1069,6 +1152,47 @@ fn try_export_components_impl(
             }
             if guarded_children.contains(node.type_name) {
                 setup_cmds.push(format!("scoreboard objectives add se_{key}_g dummy"));
+            }
+            if occurrence_marked.contains(node.type_name) {
+                let objective = format!("se_{key}_o");
+                if let Some(owner) = setup_objective_owner(&graph, &objective) {
+                    return Err(tick_event_export_error(format!(
+                        "generated occurrence-state identity collision for event `{}`: setup for `{owner}` already declares reserved objective `{objective}`",
+                        node.type_name,
+                    )));
+                }
+                setup_cmds.push(format!("scoreboard objectives add {objective} dummy"));
+            }
+            if deferred_attempt_marked.contains(node.type_name) {
+                let objective = format!("se_{key}_c");
+                if let Some(owner) = setup_objective_owner(&graph, &objective) {
+                    return Err(tick_event_export_error(format!(
+                        "generated occurrence-state identity collision for event `{}`: setup for `{owner}` already declares reserved objective `{objective}`",
+                        node.type_name,
+                    )));
+                }
+                setup_cmds.push(format!("scoreboard objectives add {objective} dummy"));
+            }
+            if staged_events.iter().any(|staged| {
+                staged.child == node.type_name
+                    && staged.occurrence.iter().any(|dependency| {
+                        matches!(
+                            dependency,
+                            crate::events::graph::OccurrenceDependency::AfterAny(_)
+                        )
+                    })
+            }) {
+                let objective = format!("se_{key}_m");
+                if let Some(owner) = setup_objective_owner(&graph, &objective) {
+                    return Err(tick_event_export_error(format!(
+                        "generated occurrence-state identity collision for event `{}`: setup for `{owner}` already declares reserved objective `{objective}`",
+                        node.type_name,
+                    )));
+                }
+                let guard = format!("scoreboard objectives add {objective} dummy");
+                if !setup_cmds.contains(&guard) {
+                    setup_cmds.push(guard);
+                }
             }
             if !setup_cmds.is_empty() {
                 let init_path = format!("__sand_event_setup/{key}");
@@ -1109,7 +1233,13 @@ fn try_export_components_impl(
                 .unwrap_or_default();
             if !dispatch_ref.is_empty() {
                 if let Some(guard) = &self_guard {
-                    tick_cmds.push(format!("scoreboard players set @a {guard} 0"));
+                    if has_staged_composition {
+                        tick_cmds.push(format!(
+                            "execute as @a run scoreboard players set @s {guard} 0"
+                        ));
+                    } else {
+                        tick_cmds.push(format!("scoreboard players set @a {guard} 0"));
+                    }
                 }
                 match &plans {
                     TickExecutionPlans::Unconditional => {
@@ -1137,7 +1267,11 @@ fn try_export_components_impl(
                 }
             }
 
-            tick_cmds.extend(root.setup.post_observation.iter().cloned());
+            if has_staged_composition {
+                deferred_root_post_observation.extend(root.setup.post_observation.iter().cloned());
+            } else {
+                tick_cmds.extend(root.setup.post_observation.iter().cloned());
+            }
 
             if !tick_cmds.is_empty() {
                 let check_path = format!("__sand_event_check/{key}");
@@ -1149,11 +1283,92 @@ fn try_export_components_impl(
                     content_type: "text".to_string(),
                     content: tick_cmds.join("\n"),
                 });
-                tag_map
-                    .entry("minecraft:tick".to_string())
-                    .or_default()
-                    .push(format!("{namespace}:{check_path}"));
+                let check_ref = format!("{namespace}:{check_path}");
+                if has_staged_composition {
+                    root_checks.push(check_ref);
+                } else {
+                    tag_map
+                        .entry("minecraft:tick".to_string())
+                        .or_default()
+                        .push(check_ref);
+                }
             }
+        }
+
+        if has_staged_composition {
+            let mut coordinator = Vec::new();
+            for name in &occurrence_marked {
+                let key = tick_event_resource_key(name);
+                coordinator.push(format!(
+                    "execute as @a run scoreboard players set @s se_{key}_o 0"
+                ));
+            }
+            for (staged, _) in &staged_evaluations {
+                if staged.occurrence.iter().any(|dependency| {
+                    matches!(
+                        dependency,
+                        crate::events::graph::OccurrenceDependency::AfterAny(_)
+                    )
+                }) {
+                    let key = tick_event_resource_key(&staged.child);
+                    coordinator.push(format!(
+                        "execute as @a run scoreboard players set @s se_{key}_m 0"
+                    ));
+                }
+            }
+            for name in &deferred_attempt_marked {
+                let key = tick_event_resource_key(name);
+                coordinator.push(format!(
+                    "execute as @a run scoreboard players set @s se_{key}_c 0"
+                ));
+            }
+            coordinator.extend(
+                root_checks
+                    .iter()
+                    .map(|check_ref| format!("function {check_ref}")),
+            );
+            for (staged, evaluation_ref) in staged_evaluations {
+                coordinator.extend(build_staged_occurrence_lines(
+                    &staged,
+                    &evaluation_ref,
+                    namespace,
+                    &mut records,
+                ));
+            }
+            for name in graph
+                .occurrence_topological_nodes()
+                .map_err(|e| tick_event_export_error(e.0))?
+                .into_iter()
+                .rev()
+            {
+                let Some(post_ref) = deferred_post_refs.get(&name) else {
+                    continue;
+                };
+                if let Some(staged) = staged_by_child.get(&name) {
+                    coordinator.push(build_staged_post_observation_line(staged, post_ref));
+                } else {
+                    let key = tick_event_resource_key(&name);
+                    coordinator.push(format!(
+                        "execute as @a at @s if score @s se_{key}_c matches 1 run function {post_ref}"
+                    ));
+                }
+            }
+            coordinator.extend(deferred_root_post_observation);
+
+            let coordinator_path = "__sand_event_cycle";
+            ensure_private_lifecycle_path_available(&records, coordinator_path)?;
+            records.push(ComponentRecord {
+                namespace: namespace.to_string(),
+                dir: "function".to_string(),
+                path: coordinator_path.to_string(),
+                ext: "mcfunction".to_string(),
+                content_type: "text".to_string(),
+                content: coordinator.join("\n"),
+            });
+            tag_map
+                .entry("minecraft:tick".to_string())
+                .or_default()
+                .push(format!("{namespace}:{coordinator_path}"));
         }
     }
 
@@ -2071,6 +2286,34 @@ fn tick_event_export_error(message: impl Into<String>) -> ComponentExportError {
     }
 }
 
+fn command_declares_objective(command: &str, objective: &str) -> bool {
+    let mut parts = command.split_whitespace();
+    matches!(
+        (parts.next(), parts.next(), parts.next(), parts.next()),
+        (Some("scoreboard"), Some("objectives"), Some("add"), Some(name)) if name == objective
+    )
+}
+
+fn setup_objective_owner<'a>(
+    graph: &'a crate::events::graph::EventGraph,
+    objective: &str,
+) -> Option<&'a str> {
+    graph.nodes.values().find_map(|node| {
+        node.setup
+            .objectives
+            .iter()
+            .any(|command| command_declares_objective(command, objective))
+            .then_some(node.type_name)
+    })
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ChildPostObservation {
+    Inline,
+    DeferredByOccurrence,
+    DeferredByAttempt,
+}
+
 /// Build (or reuse the sole handler as) `name`'s dispatch function: direct
 /// `#[event]` handler calls (sorted), then child edges (sorted by canonical
 /// child name, recursing into each child's own dispatch function first so
@@ -2085,15 +2328,16 @@ fn tick_event_export_error(message: impl Into<String>) -> ComponentExportError {
 /// [`build_child_edge`] — so it always observes before testing and always
 /// advances after testing, whether or not its condition matched.
 ///
-/// Safe to call at most once per node without memoization: this phase
-/// supports only one parent per event, so the graph is a forest and every
-/// node is reached from exactly one call site (its unique parent, or a
-/// top-level call for roots).
+/// The caller invokes this once for each root or staged child. Recursion only
+/// follows immediate single-parent edges; multi-parent nodes are separate
+/// staged roots, which prevents shared-parent traversal from duplicating a
+/// detector or dispatch resource.
 fn build_dispatch_function(
     name: &str,
     graph: &crate::events::graph::EventGraph,
     namespace: &str,
     self_guard: Option<&str>,
+    occurrence_marked: &std::collections::BTreeSet<String>,
     guarded_children: &mut std::collections::BTreeSet<String>,
     records: &mut Vec<ComponentRecord>,
 ) -> String {
@@ -2101,13 +2345,20 @@ fn build_dispatch_function(
     let key = tick_event_resource_key(node.type_name);
     let children = graph.children_of(name);
 
-    let needs_wrapper = node.handlers.len() != 1 || !children.is_empty() || self_guard.is_some();
+    let records_occurrence = occurrence_marked.contains(name);
+    let needs_wrapper = node.handlers.len() != 1
+        || !children.is_empty()
+        || self_guard.is_some()
+        || records_occurrence;
 
     if !needs_wrapper {
         return format!("{namespace}:{}", node.handlers[0]);
     }
 
     let mut cmds: Vec<String> = Vec::new();
+    if records_occurrence {
+        cmds.push(format!("scoreboard players set @s se_{key}_o 1"));
+    }
     if let Some(guard) = self_guard {
         cmds.push(format!("scoreboard players set @s {guard} 1"));
     }
@@ -2115,10 +2366,20 @@ fn build_dispatch_function(
         cmds.push(format!("function {namespace}:{handler}"));
     }
     for edge in &children {
+        let child_node = &graph.nodes[&edge.child];
+        let post_observation = if occurrence_marked.contains(&edge.child)
+            && !child_node.setup.post_observation.is_empty()
+        {
+            ChildPostObservation::DeferredByAttempt
+        } else {
+            ChildPostObservation::Inline
+        };
         cmds.push(build_child_edge(
             edge,
             graph,
             namespace,
+            occurrence_marked,
+            post_observation,
             guarded_children,
             records,
         ));
@@ -2151,6 +2412,8 @@ fn build_child_edge(
     edge: &crate::events::graph::EventEdge,
     graph: &crate::events::graph::EventGraph,
     namespace: &str,
+    occurrence_marked: &std::collections::BTreeSet<String>,
+    post_observation: ChildPostObservation,
     guarded_children: &mut std::collections::BTreeSet<String>,
     records: &mut Vec<ComponentRecord>,
 ) -> String {
@@ -2160,6 +2423,7 @@ fn build_child_edge(
         graph,
         namespace,
         None,
+        occurrence_marked,
         guarded_children,
         records,
     );
@@ -2245,12 +2509,17 @@ fn build_child_edge(
     let child_key = tick_event_resource_key(&edge.child);
     let mut observe_cmds: Vec<String> = Vec::new();
     observe_cmds.extend(child_node.setup.pre_observation.iter().cloned());
+    if post_observation == ChildPostObservation::DeferredByAttempt {
+        observe_cmds.push(format!("scoreboard players set @s se_{child_key}_c 1"));
+    }
     observe_cmds.extend(conditional_dispatch_lines(
         &child_ref,
         guarded_children,
         records,
     ));
-    observe_cmds.extend(child_node.setup.post_observation.iter().cloned());
+    if post_observation == ChildPostObservation::Inline {
+        observe_cmds.extend(child_node.setup.post_observation.iter().cloned());
+    }
 
     let observe_path = format!("__sand_event_observe/{child_key}");
     records.push(ComponentRecord {
@@ -2262,6 +2531,109 @@ fn build_child_edge(
         content: observe_cmds.join("\n"),
     });
     format!("function {namespace}:{observe_path}")
+}
+
+fn build_staged_post_observation_line(
+    staged: &crate::events::graph::StagedEvent,
+    post_ref: &str,
+) -> String {
+    if staged.occurrence.iter().any(|dependency| {
+        matches!(
+            dependency,
+            crate::events::graph::OccurrenceDependency::AfterAny(_)
+        )
+    }) {
+        let child_key = tick_event_resource_key(&staged.child);
+        return format!(
+            "execute as @a at @s if score @s se_{child_key}_m matches 1 run function {post_ref}"
+        );
+    }
+
+    let mut clauses = Vec::new();
+    for dependency in &staged.occurrence {
+        match dependency {
+            crate::events::graph::OccurrenceDependency::After(parent) => {
+                let key = tick_event_resource_key(parent.type_name);
+                clauses.push(format!("if score @s se_{key}_o matches 1"));
+            }
+            crate::events::graph::OccurrenceDependency::AfterAll(parents) => {
+                clauses.extend(parents.iter().map(|parent| {
+                    let key = tick_event_resource_key(parent.type_name);
+                    format!("if score @s se_{key}_o matches 1")
+                }));
+            }
+            crate::events::graph::OccurrenceDependency::AfterAny(_) => unreachable!(),
+        }
+    }
+    format!(
+        "execute as @a at @s {} run function {post_ref}",
+        clauses.join(" ")
+    )
+}
+
+fn build_staged_occurrence_lines(
+    staged: &crate::events::graph::StagedEvent,
+    evaluation_ref: &str,
+    namespace: &str,
+    records: &mut Vec<ComponentRecord>,
+) -> Vec<String> {
+    let mut required = Vec::new();
+    let mut any_parents = Vec::new();
+    for dependency in &staged.occurrence {
+        match dependency {
+            crate::events::graph::OccurrenceDependency::After(parent) => {
+                let key = tick_event_resource_key(parent.type_name);
+                required.push(format!("if score @s se_{key}_o matches 1"));
+            }
+            crate::events::graph::OccurrenceDependency::AfterAll(parents) => {
+                for parent in parents {
+                    let key = tick_event_resource_key(parent.type_name);
+                    required.push(format!("if score @s se_{key}_o matches 1"));
+                }
+            }
+            crate::events::graph::OccurrenceDependency::AfterAny(parents) => {
+                any_parents.extend(parents.iter());
+            }
+        }
+    }
+
+    if any_parents.is_empty() {
+        return vec![format!(
+            "execute as @a at @s {} run function {evaluation_ref}",
+            required.join(" ")
+        )];
+    }
+
+    let child_key = tick_event_resource_key(&staged.child);
+    let guard = format!("se_{child_key}_m");
+    let gate_path = format!("__sand_event_multi_gate/{child_key}");
+    let gate_ref = format!("{namespace}:{gate_path}");
+    records.push(ComponentRecord {
+        namespace: namespace.to_string(),
+        dir: "function".to_string(),
+        path: gate_path,
+        ext: "mcfunction".to_string(),
+        content_type: "text".to_string(),
+        content: [
+            format!("scoreboard players set @s {guard} 1"),
+            format!("function {evaluation_ref}"),
+        ]
+        .join("\n"),
+    });
+
+    any_parents
+        .into_iter()
+        .map(|parent| {
+            let parent_key = tick_event_resource_key(parent.type_name);
+            let mut clauses = vec![format!("unless score @s {guard} matches 1")];
+            clauses.extend(required.clone());
+            clauses.push(format!("if score @s se_{parent_key}_o matches 1"));
+            format!(
+                "execute as @a at @s {} run function {gate_ref}",
+                clauses.join(" ")
+            )
+        })
+        .collect()
 }
 
 /// The resolved dispatch backend for a custom [`crate::events::SandEvent`],

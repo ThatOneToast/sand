@@ -1,0 +1,28 @@
+error[E0277]: `NotAnEvent` is used as a bare `#[event]` handler parameter but does not implement `SandEvent`
+  --> tests/cases/fail_sand_event_after_all_non_event.rs:13:44
+   |
+13 |     let _ = SandEventDispatch::after_all::<(Parent, NotAnEvent)>();
+   |                                            ^^^^^^^^^^^^^^^^^^^^ bare marker parameters require `T: SandEvent`
+   |
+help: the trait `SandEvent` is not implemented for `NotAnEvent`
+  --> tests/cases/fail_sand_event_after_all_non_event.rs:10:1
+   |
+10 | struct NotAnEvent;
+   | ^^^^^^^^^^^^^^^^^
+   = note: AdvancementEvent-backed events are stateless triggers handled through `Event<T>` (see sand_core::event::AdvancementEvent); SandEvent-backed events define custom tick/advancement dispatch and lifecycle via `impl SandEvent for NotAnEvent`
+   = help: the following other types implement trait `SandEvent`:
+             AnimalTamed
+             AnimalsBreed
+             AnyBlockPlaced
+             AnyItemConsumed
+             AnyItemCrafted
+             AnyItemEnchanted
+             BeeNestDestroyedEvent
+             BrewPotionEvent
+           and $N others
+   = note: required for `(Parent, NotAnEvent)` to implement `SameCycleEventGroup`
+note: required by a bound in `SandEventDispatch::after_all`
+  --> $WORKSPACE/sand-core/src/events/mod.rs
+   |
+   |     pub fn after_all<G: SameCycleEventGroup>() -> ChainEventDispatch {
+   |                         ^^^^^^^^^^^^^^^^^^^ required by this bound in `SandEventDispatch::after_all`

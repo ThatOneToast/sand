@@ -20,6 +20,7 @@ let itemUsedMatches = 0;
 let whileSneakingMatches = 0;
 let afterAnyMatches = 0;
 let afterAllMatches = 0;
+let withinMatches = 0;
 let interactionSequence = 0;
 let completed = false;
 
@@ -29,11 +30,12 @@ bot.on("messagestr", (message) => {
   if (message.includes("__SAND_SEMANTIC_WHILE_SNEAKING__")) whileSneakingMatches += 1;
   if (message.includes("__SAND_SEMANTIC_AFTER_ANY__")) afterAnyMatches += 1;
   if (message.includes("__SAND_SEMANTIC_AFTER_ALL__")) afterAllMatches += 1;
+  if (message.includes("__SAND_SEMANTIC_WITHIN__")) withinMatches += 1;
 });
 
 function fail(message) {
   throw new Error(
-    `${message} (placed=${placedMatches}, item_used=${itemUsedMatches}, while_sneaking=${whileSneakingMatches}, after_any=${afterAnyMatches}, after_all=${afterAllMatches})`,
+    `${message} (placed=${placedMatches}, item_used=${itemUsedMatches}, while_sneaking=${whileSneakingMatches}, after_any=${afterAnyMatches}, after_all=${afterAllMatches}, within=${withinMatches})`,
   );
 }
 
@@ -114,6 +116,21 @@ async function assertMultiParent(expectedAny, expectedAll, label) {
   if (afterAnyMatches !== expectedAny || afterAllMatches !== expectedAll) {
     fail(`${label}: expected after_any=${expectedAny}, after_all=${expectedAll}`);
   }
+}
+
+async function assertWithin(expected, label) {
+  await waitTicks(5);
+  if (withinMatches !== expected) {
+    fail(`${label}: expected within=${expected}`);
+  }
+}
+
+// Fires a scoreboard-driven stimulus without the standard `command()` 20-tick
+// pacing, so two stimuli can land close enough together to exercise a small
+// (5-tick) bounded correlation window.
+async function tightCommand(commandText, ticks) {
+  bot.chat(`/${commandText}`);
+  await waitTicks(ticks);
 }
 
 function setSneaking(state) {
@@ -266,8 +283,40 @@ bot.once("spawn", async () => {
       "reverse atomic parent order must preserve any/all behavior",
     );
 
+    // Phase 5 (#240): bounded `.within(...)` correlation. SemanticOccurrence
+    // is the current trigger (sand_sem_occ), SemanticMultiParentA is the
+    // 5-tick bounded prior event (sand_mp_a). Reset both delta-tracked
+    // parents and let any lingering age from the after_any/after_all block
+    // above decay well past the window before asserting a clean baseline.
+    await command("scoreboard players set @s sand_sem_occ 0");
+    await command("scoreboard players set @s sand_sem_prev 0");
+    await command("scoreboard players set @s sand_mp_a 0");
+    await command("scoreboard players set @s sand_mp_ap 0");
+    await waitTicks(30);
+
+    await tightCommand("scoreboard players add @s sand_sem_occ 1", 5);
+    await assertWithin(0, "current fires without a recent prior occurrence must not match");
+
+    await tightCommand("scoreboard players add @s sand_mp_a 1", 2);
+    await tightCommand("scoreboard players add @s sand_sem_occ 1", 5);
+    await assertWithin(1, "prior fired one to two ticks before current must match within the window");
+
+    await tightCommand("scoreboard players add @s sand_mp_a 1", 2);
+    await tightCommand("scoreboard players add @s sand_sem_occ 1", 5);
+    await assertWithin(
+      2,
+      "a later prior occurrence refreshes the window for a second current firing",
+    );
+
+    await waitTicks(30);
+    await tightCommand("scoreboard players add @s sand_sem_occ 1", 5);
+    await assertWithin(
+      2,
+      "current firing long after the last prior occurrence (window expired) must not match",
+    );
+
     console.log(
-      `PASSED semantic gameplay: placed=${placedMatches} item_used=${itemUsedMatches} while_sneaking=${whileSneakingMatches} after_any=${afterAnyMatches} after_all=${afterAllMatches}`,
+      `PASSED semantic gameplay: placed=${placedMatches} item_used=${itemUsedMatches} while_sneaking=${whileSneakingMatches} after_any=${afterAnyMatches} after_all=${afterAllMatches} within=${withinMatches}`,
     );
     completed = true;
     bot.end("semantic audit complete");

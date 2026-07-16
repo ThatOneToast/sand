@@ -149,7 +149,7 @@ The adapter preserves the generic definition's dispatch while giving generated
 handler code a constructible unit marker. Runtime values do not come from the
 generic marker's Rust fields.
 
-## Same-cycle and persistent composition available today
+## Same-cycle, persistent, and bounded composition available today
 
 A child `SandEvent` can dispatch from a tick-backed parent's successful cycle:
 
@@ -244,6 +244,65 @@ The built-in persistent states currently include sneaking, sprinting, swimming,
 flying, on-fire, and Creative/Adventure/Spectator mode. Multiple `while_`
 requirements are ANDed and compose with `.when(...)` and `.unless(...)`.
 
+`within::<E>(TickWindow::new(N)?)` is bounded cross-tick correlation: `E` must
+have fired for the inherited subject during the current cycle **or** within
+the previous `N - 1` completed tick boundaries.
+
+```rust
+use sand_core::events::{SandEvent, SandEventDispatch, TickWindow};
+use sand_core::prelude::*;
+use sand_macros::event;
+
+pub struct SwitchPulled;
+impl SandEvent for SwitchPulled {
+    fn dispatch() -> SandEventDispatch {
+        SandEventDispatch::tick().as_players().into()
+    }
+}
+
+pub struct EnteredVault;
+impl SandEvent for EnteredVault {
+    fn dispatch() -> SandEventDispatch {
+        SandEventDispatch::tick().as_players().into()
+    }
+}
+
+pub struct VaultOpenedAfterSwitch;
+impl SandEvent for VaultOpenedAfterSwitch {
+    fn dispatch() -> SandEventDispatch {
+        SandEventDispatch::compose()
+            .after::<EnteredVault>()
+            .within::<SwitchPulled>(TickWindow::new(20).expect("nonzero, in range"))
+            .into()
+    }
+}
+
+#[event]
+pub fn on_vault_opened(_event: VaultOpenedAfterSwitch) {
+    cmd::say("Vault opened within 20 ticks of the switch");
+}
+```
+
+Internally, Sand tracks one exact per-subject age (ticks elapsed since `E`
+last fired, reset to `0` the cycle `E` fires) shared by every child and window
+referencing that parent — each child's resolved condition just compares that
+one age against its own `N - 1`, so distinct windows on the same parent never
+need distinct or lossy state. `N = 1` is therefore identical to
+`after::<E>()`: only a same-cycle occurrence satisfies it. A parent firing on
+the current tick always satisfies `within` regardless of its prior age — the
+age is refreshed to `0` before any staged child reads it, using the same
+per-subject occurrence mark that same-cycle composition already establishes.
+A later parent occurrence always refreshes the window; a bounded parent
+occurrence never directly dispatches the child, and repeated parent
+occurrences refresh state rather than queueing deliveries. `TickWindow`
+rejects `0` and windows above 24,000 ticks (20 minutes) — it is a bounded
+correlation window, not a session/persistence mechanism, and age state is not
+reset on player disconnect/reconnect or `/reload` (it behaves like existing
+`Cooldown`/`Timer` scoreboard state). Distinct concrete parent types compose
+conjunctively with `within`, same as `after`/`after_any`/`after_all`; a
+repeated `.within` call for the same parent and window is deduplicated, and a
+conflicting window for the same parent is rejected at export.
+
 Evaluation remains per player with inherited `@s` and position. For the
 single-parent path, the live condition is tested after that parent's direct
 handlers and before its post-observation lifecycle. Multi-parent children are
@@ -256,11 +315,13 @@ observation lifecycle runs around each child condition attempt;
 post-observation is deferred through downstream staged dependents, including
 mixed graphs with an immediate single-parent intermediate.
 
-This is the implemented same-cycle phase, not general event correlation.
-Current limits are tracked as `LIM-EXP-004`:
+This is the implemented same-cycle, persistent, and bounded-correlation
+composition surface, not general event correlation. Current limits are
+tracked as `LIM-EXP-004`:
 
 - tick-backed structured or compatibility-condition parents only;
-- no bounded `.within(...)` window or cross-tick correlation;
+- bounded correlation is capped at 24,000 ticks (`TickWindow::MAX_TICKS`) —
+  not an unbounded historical event log or session mechanism;
 - no advancement-backed graph parents;
 - no participant-rich contexts or arbitrary non-player scopes.
 

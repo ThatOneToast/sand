@@ -2,6 +2,8 @@
 
 use serde::Serialize;
 
+use crate::events::graph::tick_event_resource_key;
+
 // ── Unified traits ────────────────────────────────────────────────────────────
 // Re-export the canonical definitions from sand-components so the entire
 // workspace shares ONE set of traits.  All builders in sand-components already
@@ -954,6 +956,7 @@ fn try_export_components_impl(
             .map_err(|e| tick_event_export_error(e.0))?;
         let has_staged_composition = !staged_events.is_empty();
         let occurrence_marked = graph.occurrence_marked_nodes();
+        let bounded_parents = graph.bounded_parents();
 
         // Deterministic resource key derived from the canonical concrete
         // event type name, not from TypeId (not stable across builds) and
@@ -1163,6 +1166,20 @@ fn try_export_components_impl(
                 }
                 setup_cmds.push(format!("scoreboard objectives add {objective} dummy"));
             }
+            if bounded_parents.contains(node.type_name) {
+                // One shared per-subject age objective per bounded parent,
+                // regardless of how many children or distinct `.within(...)`
+                // windows read it — see `EventGraph::bounded_parents` and
+                // `BoundedDependency::resolve`.
+                let objective = format!("se_{key}_wa");
+                if let Some(owner) = setup_objective_owner(&graph, &objective) {
+                    return Err(tick_event_export_error(format!(
+                        "generated occurrence-state identity collision for event `{}`: setup for `{owner}` already declares reserved objective `{objective}`",
+                        node.type_name,
+                    )));
+                }
+                setup_cmds.push(format!("scoreboard objectives add {objective} dummy"));
+            }
             if deferred_attempt_marked.contains(node.type_name) {
                 let objective = format!("se_{key}_c");
                 if let Some(owner) = setup_objective_owner(&graph, &objective) {
@@ -1327,6 +1344,25 @@ fn try_export_components_impl(
                     .iter()
                     .map(|check_ref| format!("function {check_ref}")),
             );
+            // Bounded (`.within`) age-counter maintenance: exactly one shared
+            // per-subject age update per bounded parent, run once root
+            // detectors above have committed this tick's `se_{key}_o` mark
+            // and before any staged evaluation reads it. Refresh always wins
+            // over increment (mutually exclusive `if`/`unless` branches), so
+            // a parent firing on the current tick unconditionally resets its
+            // age to 0 regardless of the prior age — this is what makes a
+            // window of 1 tick behave identically to `after::<E>()`, and
+            // guarantees no staged child ever observes a stale age computed
+            // before this tick's occurrence was known.
+            for name in &bounded_parents {
+                let key = tick_event_resource_key(name);
+                coordinator.push(format!(
+                    "execute as @a if score @s se_{key}_o matches 1 run scoreboard players set @s se_{key}_wa 0"
+                ));
+                coordinator.push(format!(
+                    "execute as @a unless score @s se_{key}_o matches 1 run scoreboard players add @s se_{key}_wa 1"
+                ));
+            }
             for (staged, evaluation_ref) in staged_evaluations {
                 coordinator.extend(build_staged_occurrence_lines(
                     &staged,
@@ -2244,33 +2280,6 @@ fn sanitize_armor_tag(s: &str) -> String {
         })
         .collect();
     raw.trim_matches('_').to_string()
-}
-
-/// FNV-1a hash of a string, rendered as lowercase hex — used to derive stable,
-/// deterministic generated function paths.
-fn fnv1a_hex(input: impl AsRef<str>) -> String {
-    let mut h: u32 = 2_166_136_261;
-    for b in input.as_ref().bytes() {
-        h ^= b as u32;
-        h = h.wrapping_mul(16_777_619);
-    }
-    format!("{h:08x}")
-}
-
-/// Deterministic generated resource key for a tick-lifecycle `SandEvent`
-/// group, derived from the canonical concrete event type name
-/// (`std::any::type_name::<T>()`).
-///
-/// This is intentionally **not** derived from `TypeId` (not stable across
-/// compiler versions/builds) and **not** from the subscribed handler path
-/// list (would rename the generated detector/setup whenever a handler is
-/// added, removed, or re-registered in a different order). The same concrete
-/// event type always produces the same key, and distinct generic
-/// monomorphizations (different canonical type names) always produce
-/// different keys — see the caller for the collision guard against 32-bit
-/// hash collisions between two distinct type names.
-fn tick_event_resource_key(canonical_type_name: &str) -> String {
-    fnv1a_hex(canonical_type_name)
 }
 
 /// Human-readable description of which part of two `SandEvent` definitions

@@ -46,10 +46,10 @@ emerging 26.x series. Capability decisions flow through `VersionProfile`.
   beginner path.
 - Event system — `AdvancementEvent`/`SandEvent` split formalized, with typed
   tick dispatch, lifecycle/setup, generic identity, deterministic single- and
-  multi-parent same-cycle composition (`after`, `after_any`, `after_all`), and
-  explicit player-scoped persistent `while_<E>()` conditions. Bounded
-  correlation and advancement-parent phases of #240 and participant contexts
-  #230 remain.
+  multi-parent same-cycle composition (`after`, `after_any`, `after_all`),
+  explicit player-scoped persistent `while_<E>()` conditions, and bounded
+  cross-tick correlation (`within::<E>(TickWindow)`). Advancement-parent
+  graph composition (#240) and participant contexts (#230) remain.
 - Resource pack generation — functional but requires manual setup.
 - crates.io publishing — not yet available; build from workspace.
 

@@ -247,10 +247,10 @@ capabilities:
       (export error naming the child/parent), not silently approximated —
       their reward-function codegen path does not yet provide a compatible
       player execution context. Multi-parent same-cycle groups are covered by
-      sandevent-multi-parent-composition. Deferred to later phases of #240:
-      bounded `.within(...)` time windows, cross-tick correlation,
-      participant-rich execution contexts (#230), and arbitrary non-player
-      entity execution scopes.
+      sandevent-multi-parent-composition. Bounded `.within(...)` cross-tick
+      correlation is covered by sandevent-bounded-correlation. Deferred to
+      later phases of #240: participant-rich execution contexts (#230) and
+      arbitrary non-player entity execution scopes.
     evidence: ["sand-core/src/events/mod.rs (ChainEventDispatch, SandEventDispatch::chain, SandEventDispatch::Chain)", "sand-core/src/events/graph.rs (EventGraph, EventNode, NodeOrigin, discover_node, cycle detection)", "sand-core/src/component.rs (build_dispatch_function, build_child_edge)", "sand-macros/src/lib.rs (#[event] make_chain descriptor factory)", "sand-core/tests/event_chain_export.rs", "sand-core/tests/event_chain_legacy_tick_condition_parent.rs", "sand-core/tests/event_chain_child_lifecycle.rs", "sand-core/tests/event_chain_cycle.rs", "sand-core/tests/event_chain_advancement_parent_rejected.rs", "sand-macros/tests/cases/pass_sand_event_chain_dispatch.rs", "sand-macros/tests/cases/fail_sand_event_chain_non_sand_event_parent.rs"]
     documentation: ["book/src/manual/events.md (Same-cycle and persistent composition)"]
 
@@ -283,12 +283,65 @@ capabilities:
       parents change atomically, parent-order independence, repeated-one-parent
       rejection, and no stale occurrence on the following tick. Multiplayer
       isolation remains structural rather than a two-client runtime claim.
-      Bounded `.within(...)`, cross-tick correlation, advancement-backed graph
-      parents, participant contexts, and arbitrary non-player scopes remain
+      Bounded `.within(...)` cross-tick correlation is covered by
+      sandevent-bounded-correlation. Advancement-backed graph parents,
+      participant contexts, and arbitrary non-player scopes remain
       unimplemented. Real semantic runtime evidence must be tracked separately
       from export and vanilla reload evidence.
     evidence: ["sand-core/src/events/mod.rs (SameCycleEventGroup, SameCycleEventRequirement, compose/after/after_any/after_all)", "sand-core/src/events/graph.rs (OccurrenceDependency, staged topological composition, validation)", "sand-core/src/component.rs (__sand_event_cycle occurrence-state lowering and detector reuse)", "sand-core/tests/event_multi_parent_export.rs", "sand-core/tests/event_multi_parent_occurrence_collision.rs", "sand-core/src/events/graph.rs (multi-parent graph tests)", "sand-macros/tests/cases/pass_sand_event_multi_parent_dispatch.rs", "sand-macros/tests/cases/fail_sand_event_after_any_empty.rs", "sand-macros/tests/cases/fail_sand_event_after_any_arity_nine.rs", "sand-macros/tests/cases/fail_sand_event_after_all_non_event.rs", "sand-vanilla-audit/src/lib.rs (SemanticAfterAny/SemanticAfterAll)", "scripts/vanilla-semantic-client/client.cjs"]
     documentation: ["docs/events.md", "book/src/manual/events.md", "docs/architecture.md"]
+
+  - id: sandevent-bounded-correlation
+    name: "Bounded cross-tick SandEvent correlation"
+    category: events
+    intent: "Require a typed parent SandEvent to have fired for the same inherited subject during the current cycle or within a bounded number of prior completed tick boundaries, without an unbounded historical event log."
+    status: partial
+    stability: alpha
+    crates: [sand-core, sand-macros]
+    entry_points: ["ChainEventDispatch::within::<E>(TickWindow)", "TickWindow::new(u32)"]
+    preferred_api: "SandEventDispatch::compose().after::<Current>().within::<Prior>(TickWindow::new(N)?) inside SandEvent::dispatch(); combine with while_, when, and unless as needed"
+    sand_limitations: >
+      Phase 5 of #240. `within::<E>(TickWindow::new(N)?)` holds when `E` fired
+      for the same subject during the current cycle or within the previous
+      `N - 1` completed tick boundaries: tracking an integer age (ticks since
+      `E` last fired, reset to 0 the cycle `E` fires), the window holds while
+      `age <= N - 1`. `N = 1` is therefore identical to `after::<E>()`. A new
+      occurrence always refreshes the window regardless of remaining age; a
+      bounded parent occurrence never directly dispatches the child — the
+      child still coalesces per existing same-cycle rules, and repeated parent
+      occurrences refresh state rather than queueing deliveries. `TickWindow`
+      rejects 0 and windows above 24,000 ticks (20 minutes); it is not a
+      session/persistence mechanism. Distinct concrete parent types compose
+      conjunctively; a repeated `.within` call for the same parent and window
+      is deduplicated, a conflicting window for the same parent is rejected.
+      The bounded parent's own detector/setup is generated and shared exactly
+      once regardless of how many children or distinct windows reference it —
+      distinct windows against the same parent share one exact per-subject age
+      objective (`se_{key}_wa`) rather than one lossy objective per window.
+      Age-counter maintenance runs once per bounded parent per tick, after
+      that tick's root detectors commit their occurrence marks and before any
+      staged child reads the counter, so a parent firing on the current tick
+      always satisfies `within` regardless of prior age, and no child ever
+      observes a stale age. Self-dependencies, advancement-backed parents,
+      incompatible scopes, and direct/indirect mixed-edge cycles (including
+      cycles through `while`/`after`/`after_any`/`after_all` edges) are
+      rejected with a readable diagnostic path. State is keyed to `@s` (never
+      a broad `@a`/`@e` selector for the mutating operation) so it cannot
+      cross subjects; per Sand's existing scoreboard-state contract, age state
+      is not reset on player disconnect/reconnect or `/reload` (it persists in
+      `scoreboard.dat` like `Cooldown`/`Timer`/`DamageTracker` state), and
+      simply continues aging for players who never trigger the parent again —
+      this is documented, not silently stronger than vanilla guarantees.
+      Generated command shape, objective dedup, coordinator ordering, and
+      cycle diagnostics have automated export/unit evidence. A real 1.21.4
+      protocol-client fixture is prepared (SemanticWithin) proving the
+      "clearly within," "refreshes," and "clearly expired" cases, but was not
+      executed as part of this change (no live server in the authoring
+      environment) — see LIM-VAL-006. Advancement-backed graph parents,
+      participant contexts, and arbitrary non-player scopes remain
+      unimplemented (Phase 6+).
+    evidence: ["sand-core/src/events/mod.rs (TickWindow, TickWindowError, BoundedEventDependency, ChainEventDispatch::within)", "sand-core/src/events/graph.rs (BoundedDependency, bounded resolution/validation, bounded_parents)", "sand-core/src/component.rs (se_{key}_wa age-counter setup and coordinator maintenance)", "sand-core/tests/event_chain_within_export.rs", "sand-core/src/events/graph.rs (bounded graph tests)", "sand-macros/tests/cases/pass_sand_event_within_dispatch.rs", "sand-macros/tests/cases/fail_sand_event_within_non_sand_event_parent.rs", "sand-vanilla-audit/src/lib.rs (SemanticWithin)", "scripts/vanilla-semantic-client/client.cjs"]
+    documentation: ["docs/events.md", "book/src/manual/events.md", "docs/architecture.md", "docs/vanilla-reload-validation.md"]
 
   - id: sandevent-persistent-conditions
     name: "Persistent SandEvent conditions"

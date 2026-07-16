@@ -189,12 +189,12 @@ Vanilla supports the behavior; Sand's typed coverage is incomplete.
   lifecycle. Advancement-backed `SandEvent` parents are explicitly rejected —
   their reward-function codegen path does
   not yet provide a player execution context compatible with same-cycle
-  child dispatch. Bounded `.within(...)` time windows, cross-tick
-  correlation, participant-rich execution contexts (#230), and arbitrary
-  non-player entity execution scopes are not implemented and are not exposed
-  as partial APIs.
+  child dispatch. Bounded `within::<E>(TickWindow)` cross-tick correlation
+  (Phase 5 of #240) is now implemented — see `sandevent-bounded-correlation`.
+  Participant-rich execution contexts (#230) and arbitrary non-player entity
+  execution scopes are not implemented and are not exposed as partial APIs.
   Affects: `sandevent-chained-dispatch`, `sandevent-persistent-conditions`,
-  `sandevent-multi-parent-composition`.
+  `sandevent-multi-parent-composition`, `sandevent-bounded-correlation`.
   Evidence: `sand-core/src/events/graph.rs`, `sand-core/src/component.rs`,
   `book/src/manual/events.md`
   (Same-cycle and persistent composition).
@@ -248,6 +248,25 @@ Vanilla supports the behavior; Sand's typed coverage is incomplete.
   real load/reload evidence only; that does not prove gameplay semantics.
   Affects: `sandevent-multi-parent-composition`, `cli-validate`.
   Evidence: `sand-core/tests/event_multi_parent_export.rs`,
+  `sand-vanilla-audit/src/lib.rs`,
+  `scripts/vanilla-semantic-client/client.cjs`,
+  `docs/vanilla-reload-validation.md`.
+
+- **LIM-VAL-006** — Bounded `.within(...)` cross-tick correlation (Phase 5 of
+  #240) has deterministic, exact boundary evidence only from `sand-core`
+  unit/export tests (the generated `matches ..N-1` condition, age-counter
+  ordering, and objective dedup) — those tests assert exact generated command
+  text, not live server timing. A real 1.21.4 protocol-client fixture
+  (`SemanticWithin`) is prepared and exercises the "clearly within,"
+  "refreshes," and "clearly expired" cases, but has not been run against a
+  live server as part of landing this feature (no server available in the
+  authoring environment); do not treat it as executed runtime evidence until
+  someone runs `scripts/validate-vanilla-semantics.sh` against it. 26.2 has no
+  semantic-runtime claim at all. Two-client multiplayer isolation remains
+  structural (per-`@s` command generation), not a two-client runtime test.
+  Affects: `sandevent-bounded-correlation`, `cli-validate`.
+  Evidence: `sand-core/src/events/graph.rs`,
+  `sand-core/tests/event_chain_within_export.rs`,
   `sand-vanilla-audit/src/lib.rs`,
   `scripts/vanilla-semantic-client/client.cjs`,
   `docs/vanilla-reload-validation.md`.

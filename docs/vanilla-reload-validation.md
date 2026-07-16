@@ -58,6 +58,23 @@ This is single-player 1.21.4 semantic evidence. Per-subject multiplayer safety
 and 26.2 gameplay semantics remain structural and load/reload evidence,
 respectively.
 
+The Phase 5 fixture (`SemanticWithin`) chains `SemanticOccurrence` as the
+current trigger and `SemanticMultiParentA` as a bounded prior event with a
+5-tick window. The sequence resets both delta-tracked parents and lets any
+lingering age from the Phase 4 block above decay well past the window before
+asserting a clean baseline, then proves: a current occurrence without a
+recent prior does not match; a prior occurrence one to two ticks before the
+current one does match; a second, later prior occurrence refreshes the
+window for a further current firing; and a current occurrence long after the
+window has elapsed does not match. Because the client drives this over a live
+network connection rather than a tick-exact harness, it demonstrates the
+"clearly within," "refreshes," and "clearly expired" cases rather than the
+exact single-tick `age == N - 1` vs. `age == N` boundary — that boundary is
+proven precisely by the deterministic `sand-core` unit and export tests
+(`sand-core/src/events/graph.rs`, `sand-core/tests/event_chain_within_export.rs`),
+which assert the exact generated `matches ..N-1` condition and coordinator
+ordering rather than timing a real server.
+
 The semantic client currently supports 1.21.4 only. No semantic claim is made
 for 26.2, for advancement triggers outside those two cases, or for persistent
 providers other than current sneaking.
@@ -67,7 +84,14 @@ For advancement triggers,
 persistent and multi-parent composition evidence boundaries are recorded under
 capabilities `sandevent-persistent-conditions` and
 `sandevent-multi-parent-composition`, plus `LIM-VAL-004` and `LIM-VAL-005`; do
-not treat one evidence level as another.
+not treat one evidence level as another. Bounded correlation evidence is
+recorded under a new `sandevent-bounded-correlation` capability and
+`LIM-VAL-006` (see `ai/capability-manifest.yaml` /
+`ai/known-limitations.md`) — like Phase 3/4, this fixture is prepared and
+exercised manually against a real server outside pull-request CI; a PR-time
+run was not performed as part of this change (no live Minecraft server is
+available in the authoring environment), and the evidence entry reflects that
+until someone runs `scripts/validate-vanilla-semantics.sh` against it.
 
 ## Synchronization and signals
 

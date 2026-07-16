@@ -18,6 +18,8 @@ const bot = mineflayer.createBot({ host, port, username, version, auth: "offline
 let placedMatches = 0;
 let itemUsedMatches = 0;
 let whileSneakingMatches = 0;
+let afterAnyMatches = 0;
+let afterAllMatches = 0;
 let interactionSequence = 0;
 let completed = false;
 
@@ -25,11 +27,13 @@ bot.on("messagestr", (message) => {
   if (message.includes("__SAND_SEMANTIC_PLACED__")) placedMatches += 1;
   if (message.includes("__SAND_SEMANTIC_ITEM_USED__")) itemUsedMatches += 1;
   if (message.includes("__SAND_SEMANTIC_WHILE_SNEAKING__")) whileSneakingMatches += 1;
+  if (message.includes("__SAND_SEMANTIC_AFTER_ANY__")) afterAnyMatches += 1;
+  if (message.includes("__SAND_SEMANTIC_AFTER_ALL__")) afterAllMatches += 1;
 });
 
 function fail(message) {
   throw new Error(
-    `${message} (placed=${placedMatches}, item_used=${itemUsedMatches}, while_sneaking=${whileSneakingMatches})`,
+    `${message} (placed=${placedMatches}, item_used=${itemUsedMatches}, while_sneaking=${whileSneakingMatches}, after_any=${afterAnyMatches}, after_all=${afterAllMatches})`,
   );
 }
 
@@ -102,6 +106,13 @@ async function assertWhileSneaking(expected, label) {
   await waitTicks(5);
   if (whileSneakingMatches !== expected) {
     fail(`${label}: expected while_sneaking=${expected}`);
+  }
+}
+
+async function assertMultiParent(expectedAny, expectedAll, label) {
+  await waitTicks(5);
+  if (afterAnyMatches !== expectedAny || afterAllMatches !== expectedAll) {
+    fail(`${label}: expected after_any=${expectedAny}, after_all=${expectedAll}`);
   }
 }
 
@@ -216,8 +227,47 @@ bot.once("spawn", async () => {
     await assertWhileSneaking(3, "re-entering true state must allow repeated firing");
     setSneaking(false);
 
+    await command("scoreboard players set @s sand_mp_a 0");
+    await command("scoreboard players set @s sand_mp_ap 0");
+    await command("scoreboard players set @s sand_mp_b 0");
+    await command("scoreboard players set @s sand_mp_bp 0");
+    await assertMultiParent(0, 0, "neither multi-parent occurrence must not fire");
+
+    await command("function sand_audit:semantic_multi_fire_a");
+    await assertMultiParent(1, 0, "parent A alone must satisfy any but not all");
+    await waitTicks(10);
+    await assertMultiParent(1, 0, "parent A must not remain visible in a later cycle");
+
+    await command("function sand_audit:semantic_multi_fire_a");
+    await assertMultiParent(
+      2,
+      0,
+      "repeating parent A must not substitute for missing parent B",
+    );
+
+    await command("function sand_audit:semantic_multi_fire_b");
+    await assertMultiParent(3, 0, "parent B alone must satisfy any but not all");
+    await waitTicks(10);
+    await assertMultiParent(3, 0, "parent B must not remain visible in a later cycle");
+
+    await command("function sand_audit:semantic_multi_fire_ab");
+    await assertMultiParent(
+      4,
+      1,
+      "both parents in one cycle must satisfy all and coalesce any to one dispatch",
+    );
+    await waitTicks(10);
+    await assertMultiParent(4, 1, "both-parent marks must reset before the next cycle");
+
+    await command("function sand_audit:semantic_multi_fire_ba");
+    await assertMultiParent(
+      5,
+      2,
+      "reverse atomic parent order must preserve any/all behavior",
+    );
+
     console.log(
-      `PASSED semantic gameplay: placed=${placedMatches} item_used=${itemUsedMatches} while_sneaking=${whileSneakingMatches}`,
+      `PASSED semantic gameplay: placed=${placedMatches} item_used=${itemUsedMatches} while_sneaking=${whileSneakingMatches} after_any=${afterAnyMatches} after_all=${afterAllMatches}`,
     );
     completed = true;
     bot.end("semantic audit complete");

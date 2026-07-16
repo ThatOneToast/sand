@@ -46,4 +46,4 @@ uses. Lower-level export hooks live under `sand_core::advanced`; compatibility
 exports remain available for older code but are not the preferred starting
 point.
 
-Useful guide entry points: [getting started](book/src/getting-started.md), [custom items](book/src/manual/custom-items.md), [events](book/src/events.md), [version capabilities](book/src/version-capabilities.md), and [full project tutorials](book/src/recipes/shockwave-shield.md).
+Useful guide entry points: [getting started](book/src/getting-started.md), [custom items](book/src/manual/custom-items.md), [events](book/src/manual/events.md), [version capabilities](book/src/version-capabilities.md), and [full project tutorials](book/src/recipes/shockwave-shield.md).

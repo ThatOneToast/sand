@@ -166,12 +166,6 @@ Vanilla supports the behavior; Sand's typed coverage is incomplete.
 
 ## Experimental areas
 
-- **LIM-EXP-001** — Event system is functional but its rustdocs are still
-  being actively refined; treat undocumented event payload behavior as
-  unverified rather than assuming it mirrors trigger names.
-  Affects: `events-typed`.
-  Evidence: `ROADMAP.md` (Not Yet Stable).
-
 - **LIM-EXP-002** — `mcfunction!` macro is explicitly positioned as advanced
   tooling, not the beginner authoring path; prefer `#[function]` +
   `#[component]` for new pack code.
@@ -195,9 +189,8 @@ Vanilla supports the behavior; Sand's typed coverage is incomplete.
   execution contexts (#230), and arbitrary non-player entity execution
   scopes are not implemented and are not exposed as partial APIs.
   Affects: `sandevent-chained-dispatch`.
-  Evidence: `sand-core/src/events/graph.rs`, `book/src/events.md`
-  (Composing SandEvents: same-cycle chained dispatch — Limitations in this
-  phase).
+  Evidence: `sand-core/src/events/graph.rs`, `book/src/manual/events.md`
+  (Same-cycle chaining and roadmap boundary).
 
 ## Validation gaps
 
@@ -233,15 +226,18 @@ Vanilla supports the behavior; Sand's typed coverage is incomplete.
 ## Documentation and status contradictions found during audit (2026-07-12)
 
 - **LIM-DOC-001** — `book/src/SUMMARY.md` does not link
-  `book/src/events.md`, `book/src/version-capabilities.md`,
+  `book/src/version-capabilities.md`,
   `book/src/getting-started.md`, `book/src/typed-state.md`, and roughly a
   dozen other top-level `book/src/*.md` files, even though they are actively
   edited (some as recently as the same day as this review) and are linked
   from `README.md` and other docs. Several of these orphan files have a
   same-named counterpart under `docs/` with materially different content
   (confirmed for `typed-state.md` and `version-capabilities.md`), so two
-  independently maintained versions of the same topic exist and only one
-  (`docs/`) is reachable from the rendered mdBook navigation. Do not assume
+  independently maintained versions of some topics exist and only one
+  (`docs/`) is reachable from the rendered mdBook navigation. The former
+  orphan `book/src/events.md` now points to the navigation-linked
+  `book/src/manual/events.md`; do not assume the same repair has been made for
+  other top-level pages. Do not assume
   `book/src/*.md` content is current or canonical solely because the file
   exists — check whether it's reachable from `SUMMARY.md`, and prefer
   `docs/` for these overlapping topics until reconciled.

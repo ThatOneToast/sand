@@ -98,8 +98,9 @@ test_and_validation_status:
       scheduled/workflow-dispatch GitHub Actions workflow runs both verified
       profiles. Passing reload proves parsing, not gameplay semantics; the
       separate 1.21.4 protocol-client fixture verifies placement, item-use,
-      and single-player persistent sneaking composition semantics.
-    last_local_run: "2026-07-16: profile load/reload passed on 1.21.4 and 26.2; semantic placement/item-use and persistent sneaking fixture passed on 1.21.4"
+      single-player persistent sneaking composition, and multi-parent
+      after_any/after_all same-cycle semantics.
+    last_local_run: "2026-07-16: profile load/reload passed on 1.21.4 and 26.2; semantic placement/item-use, persistent sneaking, and multi-parent after_any/after_all fixture passed on 1.21.4"
     evidence:
       - scripts/validate-vanilla-reload.sh
       - scripts/validate-vanilla-semantics.sh

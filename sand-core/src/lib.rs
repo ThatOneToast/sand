@@ -174,6 +174,8 @@ pub use events::{
     // Session events
     OnJoinEvent,
     OnRespawnEvent,
+    PersistentEventCondition,
+    PersistentSandEvent,
     PlayerDamageEntityEvent,
     PlayerFlyingEvent,
     PlayerInAdventureEvent,

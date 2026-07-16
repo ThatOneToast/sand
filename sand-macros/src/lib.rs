@@ -545,9 +545,9 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
 ///   exposes the triggering player; Sand does not construct `T` or copy fields
 ///   declared on `T` into the context.
 /// - `SandEvent` defines advanced custom dispatch such as typed tick polling,
-///   owned observation lifecycle, generic event families, and same-cycle
-///   chaining. Current `SandEvent` handlers use the concrete marker type as
-///   their single parameter.
+///   owned observation lifecycle, generic event families, same-cycle chaining,
+///   and explicit persistent conditions. Current `SandEvent` handlers use the
+///   concrete marker type as their single parameter.
 ///
 /// # Advancement-backed event
 ///
@@ -619,8 +619,9 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
 ///
 /// `SandEventDispatch::chain::<Parent>()` also supports implemented
 /// same-cycle parent-to-child dispatch. It reuses the parent's detector and
-/// preserves that cycle's player and position. Persistent `while_<E>()`,
-/// multi-parent `after_any`/`after_all`, bounded `.within(...)`
+/// preserves that cycle's player and position. Chained children can add an
+/// explicit persistent condition with `.while_::<E>()`. Multi-parent
+/// `after_any`/`after_all`, bounded `.within(...)`
 /// correlation, advancement-backed graph parents, and participant-rich
 /// contexts are planned; they are not accepted by this macro today.
 ///
@@ -975,10 +976,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                     dispatch: ::sand_core::EventDispatch::Tracked(
                         ::sand_core::TrackedTransition::new(
                             "player_sneaking",
-                            ::sand_core::TrackedSource::BooleanCondition {
-                                description: "vanilla entity predicate flags.is_sneaking",
-                                condition: "predicate __sand_local:__sand/player_sneaking",
-                            },
+                            ::sand_core::events::PLAYER_SNEAKING_TRACKED_SOURCE,
                             ::sand_core::TransitionKind::BecameTrue,
                         )
                     ),
@@ -997,10 +995,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                     dispatch: ::sand_core::EventDispatch::Tracked(
                         ::sand_core::TrackedTransition::new(
                             "player_sneaking",
-                            ::sand_core::TrackedSource::BooleanCondition {
-                                description: "vanilla entity predicate flags.is_sneaking",
-                                condition: "predicate __sand_local:__sand/player_sneaking",
-                            },
+                            ::sand_core::events::PLAYER_SNEAKING_TRACKED_SOURCE,
                             ::sand_core::TransitionKind::BecameFalse,
                         )
                     ),

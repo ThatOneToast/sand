@@ -105,6 +105,7 @@ fn legacy_child_chain() -> Option<ChainEventDispatch> {
             sand_core::events::SandEventDispatch::TickCondition(legacy_parent_condition().unwrap())
         },
         parent_setup: legacy_parent_setup,
+        persistent: vec![],
         when: vec![sand_core::condition::Condition::raw(
             "score @s legchild matches 1",
         )],
@@ -167,6 +168,7 @@ fn legacy_orphan_child_chain() -> Option<ChainEventDispatch> {
         parent_type_name: legacy_orphan_parent_type_name,
         parent_dispatch: legacy_orphan_parent_dispatch,
         parent_setup: EventSetup::none,
+        persistent: vec![],
         when: vec![],
         unless: vec![],
     })

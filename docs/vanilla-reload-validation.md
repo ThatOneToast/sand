@@ -31,7 +31,8 @@ validation, not gameplay simulation or exhaustive component parity.
 
 Load/reload success alone cannot prove advancement criteria fire with the
 correct semantics. `scripts/validate-vanilla-semantics.sh` adds a real
-1.21.4 protocol client and executes actual placement and block-use packets.
+1.21.4 protocol client and executes actual placement, block-use, and player
+sneaking state packets.
 Its deterministic fixture verifies that unrelated blocks and ordinary base
 items do not match, marked custom items do match, the final item in a stack
 still matches, and reward-function revoke/reset permits a second firing. Both
@@ -39,11 +40,24 @@ still matches, and reward-function revoke/reset permits a second firing. Both
 Server-side commands prepare the arena and inventory only; they do not grant
 the tested advancements or synthesize the triggering actions.
 
+The same client also drives the Phase 3 persistent-composition fixture. A
+score increase supplies the independent parent occurrence while real player
+sneaking packets change the persistent state. The sequence proves a false
+state rejects the child, becoming true without a parent does not fire, true
+and remaining true admit later parent occurrences, becoming false stops
+dispatch, and returning true permits another firing. This is single-player
+semantic evidence; multiplayer isolation remains structural command-generation
+evidence rather than a two-client runtime claim.
+
 The semantic client currently supports 1.21.4 only. No semantic claim is made
-for 26.2 or for triggers outside those two cases.
+for 26.2, for advancement triggers outside those two cases, or for persistent
+providers other than current sneaking.
+For advancement triggers,
 `sand_components::advancement::trigger_coverage` tracks this distinction via
-`vanilla_load_tested_profiles` and `semantic_runtime_tested_profiles`; do not
-treat one as evidence of the other.
+`vanilla_load_tested_profiles` and `semantic_runtime_tested_profiles`. The
+persistent-composition evidence boundary is recorded under capability
+`sandevent-persistent-conditions` and `LIM-VAL-004`; do not treat one evidence
+level as another.
 
 ## Synchronization and signals
 
@@ -83,7 +97,7 @@ scripts/validate-vanilla-reload.sh \
   --pack sand-vanilla-audit/dist/sand_audit \
   --output target/vanilla-reload/1.21.4
 
-# Optional gameplay semantics for placed_block and item_used_on_block:
+# Optional gameplay semantics for placement, item use, and persistent sneaking:
 scripts/validate-vanilla-semantics.sh sand-vanilla-audit/dist/sand_audit
 ```
 

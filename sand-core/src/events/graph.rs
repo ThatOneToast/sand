@@ -25,7 +25,19 @@ use std::any::TypeId;
 use std::collections::BTreeMap;
 
 use crate::condition::Condition;
-use crate::events::{EventSetup, NormalizedEventDispatch, TickEventDispatch, TickExecutionPlans};
+use crate::events::{
+    EventSetup, NormalizedEventDispatch, TickEventDispatch, TickExecutionPlans, TickScope,
+};
+
+/// A resolved persistent-state requirement. This is a dependency for graph
+/// validation and condition lowering, never an occurrence-producing edge.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PersistentDependency {
+    pub type_id: TypeId,
+    pub type_name: &'static str,
+    pub scope: TickScope,
+    pub condition: Condition,
+}
 
 /// A node's own detection mechanism.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -39,6 +51,9 @@ pub enum NodeOrigin {
     Chained {
         /// Canonical type name of the parent node.
         parent: String,
+        /// Explicit persistent state requirements, sorted and deduplicated by
+        /// canonical concrete type name.
+        persistent: Vec<PersistentDependency>,
         /// Positive conditions — all must hold (ANDed).
         when: Vec<Condition>,
         /// Negative conditions — none may hold.
@@ -67,6 +82,7 @@ pub struct EventNode {
 pub struct EventEdge {
     pub parent: String,
     pub child: String,
+    pub persistent: Vec<PersistentDependency>,
     pub when: Vec<Condition>,
     pub unless: Vec<Condition>,
 }
@@ -76,13 +92,19 @@ impl EventEdge {
     /// same semantics as [`TickEventDispatch::execution_plans`] /
     /// `ChainEventDispatch::execution_plans`.
     pub fn execution_plans(&self) -> TickExecutionPlans {
-        if self.when.is_empty() && self.unless.is_empty() {
+        if self.persistent.is_empty() && self.when.is_empty() && self.unless.is_empty() {
             return TickExecutionPlans::Unconditional;
         }
-        let mut combined = if self.when.is_empty() {
+        let mut positive: Vec<Condition> = self
+            .persistent
+            .iter()
+            .map(|dependency| dependency.condition.clone())
+            .collect();
+        positive.extend(self.when.clone());
+        let mut combined = if positive.is_empty() {
             Condition::all([])
         } else {
-            Condition::all(self.when.clone())
+            Condition::all(positive)
         };
         for u in &self.unless {
             combined = combined.and_not(u.clone());
@@ -117,11 +139,13 @@ impl EventGraph {
             .filter_map(|n| match &n.origin {
                 NodeOrigin::Chained {
                     parent: p,
+                    persistent,
                     when,
                     unless,
                 } if p == parent => Some(EventEdge {
                     parent: parent.to_string(),
                     child: n.type_name.to_string(),
+                    persistent: persistent.clone(),
                     when: when.clone(),
                     unless: unless.clone(),
                 }),
@@ -130,6 +154,51 @@ impl EventGraph {
             .collect();
         out.sort_by(|a, b| a.child.cmp(&b.child));
         out
+    }
+
+    /// Validate the combined occurrence and persistent dependency topology.
+    ///
+    /// Occurrence edges remain the code-generation forest. Persistent edges
+    /// are read-only constraints, but cycles involving them are rejected so a
+    /// type cannot recursively define its current state through its consumers.
+    pub fn validate_dependencies(&self) -> Result<(), GraphError> {
+        let mut persistent_registry: BTreeMap<
+            &'static str,
+            (TypeId, TickScope, Condition, &'static str),
+        > = BTreeMap::new();
+        for node in self.nodes.values() {
+            let NodeOrigin::Chained { persistent, .. } = &node.origin else {
+                continue;
+            };
+            for dependency in persistent {
+                match persistent_registry.get(dependency.type_name) {
+                    Some((type_id, scope, condition, first_child))
+                        if *type_id != dependency.type_id
+                            || *scope != dependency.scope
+                            || *condition != dependency.condition =>
+                    {
+                        return Err(GraphError(format!(
+                            "persistent event identity collision for `{}`: children `{first_child}` and `{}` resolved the same canonical name to incompatible type identities or conditions",
+                            dependency.type_name, node.type_name
+                        )));
+                    }
+                    Some(_) => {}
+                    None => {
+                        persistent_registry.insert(
+                            dependency.type_name,
+                            (
+                                dependency.type_id,
+                                dependency.scope,
+                                dependency.condition.clone(),
+                                node.type_name,
+                            ),
+                        );
+                    }
+                }
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -228,8 +297,63 @@ fn discover(
                 return Err(e);
             }
 
+            let mut persistent_by_name: BTreeMap<&'static str, PersistentDependency> =
+                BTreeMap::new();
+            for dependency in c.persistent {
+                let dependency_type_id = (dependency.event_type_id)();
+                let dependency_type_name = (dependency.event_type_name)();
+                let resolved_condition = (dependency.make_condition)();
+                if dependency_type_id == type_id || dependency_type_name == type_name {
+                    visiting.pop();
+                    return Err(GraphError(format!(
+                        "SandEvent `{type_name}` has an invalid persistent self-dependency through `while_::<{dependency_type_name}>()`"
+                    )));
+                }
+                if resolved_condition.scope != TickScope::Players {
+                    visiting.pop();
+                    return Err(GraphError(format!(
+                        "SandEvent `{type_name}` cannot evaluate persistent state `{dependency_type_name}`: the child inherits player scope but the persistent condition requires {:?}",
+                        resolved_condition.scope
+                    )));
+                }
+                let dependency_setup = (dependency.event_setup)();
+                if dependency_setup != EventSetup::none() {
+                    visiting.pop();
+                    return Err(GraphError(format!(
+                        "SandEvent `{type_name}` cannot evaluate persistent state `{dependency_type_name}`: its SandEvent::setup() is non-empty, but `while_` requires a directly queryable condition and never runs provider detector lifecycle; provision shared resources through typed state lifecycle or return an independently valid condition"
+                    )));
+                }
+                let mut topology = vec![(type_id, type_name, "root")];
+                validate_definition_topology(
+                    dependency_type_id,
+                    dependency_type_name,
+                    (dependency.event_dispatch)().normalize(),
+                    "while",
+                    &mut topology,
+                )?;
+                let resolved = PersistentDependency {
+                    type_id: dependency_type_id,
+                    type_name: dependency_type_name,
+                    scope: resolved_condition.scope,
+                    condition: resolved_condition.condition,
+                };
+                match persistent_by_name.get(dependency_type_name) {
+                    Some(existing) if existing != &resolved => {
+                        visiting.pop();
+                        return Err(GraphError(format!(
+                            "SandEvent `{type_name}` received conflicting persistent definitions for `{dependency_type_name}`"
+                        )));
+                    }
+                    Some(_) => {}
+                    None => {
+                        persistent_by_name.insert(dependency_type_name, resolved);
+                    }
+                }
+            }
+
             NodeOrigin::Chained {
                 parent: parent_type_name.to_string(),
+                persistent: persistent_by_name.into_values().collect(),
                 when: c.when,
                 unless: c.unless,
             }
@@ -247,6 +371,65 @@ fn discover(
             handlers: Vec::new(),
         },
     );
+    Ok(())
+}
+
+/// Validate a referenced event definition's dependency topology without
+/// subscribing it or generating its detector. This keeps graph validity
+/// independent of whether the persistent provider happens to have a handler.
+fn validate_definition_topology(
+    type_id: TypeId,
+    type_name: &'static str,
+    dispatch: NormalizedEventDispatch,
+    incoming_kind: &'static str,
+    path: &mut Vec<(TypeId, &'static str, &'static str)>,
+) -> Result<(), GraphError> {
+    if path
+        .iter()
+        .any(|(existing_id, _, _)| *existing_id == type_id)
+    {
+        let start = path
+            .iter()
+            .position(|(existing_id, _, _)| *existing_id == type_id)
+            .expect("the repeated type was just found");
+        let mut rendered = path[start].1.to_string();
+        for (_, name, kind) in path.iter().skip(start + 1) {
+            rendered.push_str(&format!(" -[{kind}]-> {name}"));
+        }
+        rendered.push_str(&format!(" -[{incoming_kind}]-> {type_name}"));
+        return Err(GraphError(format!(
+            "SandEvent dependency cycle:\n{rendered}"
+        )));
+    }
+
+    if let Some((_, _, first_kind)) = path.iter().find(|(existing_id, existing_name, _)| {
+        *existing_id != type_id && *existing_name == type_name
+    }) {
+        return Err(GraphError(format!(
+            "canonical event identity collision for `{type_name}` while validating persistent topology: the `{first_kind}` and `{incoming_kind}` dependencies resolve that name to distinct concrete event types"
+        )));
+    }
+
+    path.push((type_id, type_name, incoming_kind));
+    if let NormalizedEventDispatch::Chain(chain) = dispatch {
+        validate_definition_topology(
+            (chain.parent_type_id)(),
+            (chain.parent_type_name)(),
+            (chain.parent_dispatch)().normalize(),
+            "after",
+            path,
+        )?;
+        for persistent in chain.persistent {
+            validate_definition_topology(
+                (persistent.event_type_id)(),
+                (persistent.event_type_name)(),
+                (persistent.event_dispatch)().normalize(),
+                "while",
+                path,
+            )?;
+        }
+    }
+    path.pop();
     Ok(())
 }
 
@@ -271,11 +454,32 @@ fn validate_consistent(
         (
             NodeOrigin::Chained {
                 parent,
+                persistent,
                 when,
                 unless,
             },
             NormalizedEventDispatch::Chain(c),
-        ) => parent.as_str() == (c.parent_type_name)() && when == &c.when && unless == &c.unless,
+        ) => {
+            let mut incoming: Vec<PersistentDependency> = c
+                .persistent
+                .iter()
+                .map(|dependency| {
+                    let condition = (dependency.make_condition)();
+                    PersistentDependency {
+                        type_id: (dependency.event_type_id)(),
+                        type_name: (dependency.event_type_name)(),
+                        scope: condition.scope,
+                        condition: condition.condition,
+                    }
+                })
+                .collect();
+            incoming.sort_by_key(|dependency| dependency.type_name);
+            incoming.dedup_by(|left, right| left == right);
+            parent.as_str() == (c.parent_type_name)()
+                && persistent == &incoming
+                && when == &c.when
+                && unless == &c.unless
+        }
         _ => false,
     };
     if !consistent {
@@ -306,11 +510,20 @@ fn cycle_error(visiting: &[&'static str], repeated: &'static str) -> GraphError 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::events::{ChainEventDispatch, SandEvent, SandEventDispatch};
+    use crate::events::{
+        ChainEventDispatch, PersistentEventCondition, PersistentSandEvent, SandEvent,
+        SandEventDispatch,
+    };
 
     struct A;
     struct B;
     struct C;
+    struct PersistentA;
+    struct PersistentB;
+    struct PersistentLeaf;
+    struct SetupPersistent;
+    struct CollisionA;
+    struct CollisionB;
 
     impl SandEvent for A {
         fn dispatch() -> impl Into<SandEventDispatch> {
@@ -325,6 +538,58 @@ mod tests {
     impl SandEvent for C {
         fn dispatch() -> impl Into<SandEventDispatch> {
             SandEventDispatch::chain::<B>()
+        }
+    }
+    impl SandEvent for PersistentA {
+        fn dispatch() -> impl Into<SandEventDispatch> {
+            SandEventDispatch::chain::<A>().while_::<PersistentB>()
+        }
+    }
+    impl PersistentSandEvent for PersistentA {
+        fn persistent_condition() -> PersistentEventCondition {
+            PersistentEventCondition::players(Condition::entity("@s[tag=a]"))
+        }
+    }
+    impl SandEvent for PersistentB {
+        fn dispatch() -> impl Into<SandEventDispatch> {
+            SandEventDispatch::chain::<PersistentA>()
+        }
+    }
+    impl PersistentSandEvent for PersistentB {
+        fn persistent_condition() -> PersistentEventCondition {
+            PersistentEventCondition::players(Condition::entity("@s[tag=b]"))
+        }
+    }
+    impl SandEvent for PersistentLeaf {
+        fn dispatch() -> impl Into<SandEventDispatch> {
+            SandEventDispatch::tick().as_players()
+        }
+    }
+    impl PersistentSandEvent for PersistentLeaf {
+        fn persistent_condition() -> PersistentEventCondition {
+            PersistentEventCondition::players(Condition::entity("@s[tag=leaf]"))
+        }
+    }
+    impl SandEvent for SetupPersistent {
+        fn dispatch() -> impl Into<SandEventDispatch> {
+            SandEventDispatch::tick().as_players()
+        }
+
+        fn setup() -> EventSetup {
+            EventSetup {
+                objectives: vec!["scoreboard objectives add needs_setup dummy".into()],
+                pre_observation: vec![],
+                post_observation: vec![],
+            }
+        }
+    }
+    impl PersistentSandEvent for SetupPersistent {
+        fn persistent_condition() -> PersistentEventCondition {
+            PersistentEventCondition::players(Condition::Score {
+                selector: "@s".into(),
+                objective: "needs_setup".into(),
+                range: crate::condition::ScoreRange::Eq(1),
+            })
         }
     }
 
@@ -430,6 +695,7 @@ mod tests {
             parent_type_name: std::any::type_name::<B>,
             parent_dispatch: b_dispatch,
             parent_setup: EventSetup::none,
+            persistent: Vec::new(),
             when: Vec::new(),
             unless: Vec::new(),
         };
@@ -484,5 +750,102 @@ mod tests {
         let a_children = graph.children_of(std::any::type_name::<A>());
         assert_eq!(a_children.len(), 1);
         assert_eq!(a_children[0].child, std::any::type_name::<B>());
+    }
+
+    #[test]
+    fn persistent_edge_is_distinct_and_deduplicated() {
+        let mut resolved = BTreeMap::new();
+        let dispatch = SandEventDispatch::chain::<A>()
+            .while_::<PersistentLeaf>()
+            .while_::<PersistentLeaf>();
+        discover_node(
+            TypeId::of::<B>(),
+            std::any::type_name::<B>(),
+            NormalizedEventDispatch::Chain(dispatch),
+            EventSetup::none(),
+            "on_b",
+            &mut resolved,
+        )
+        .unwrap();
+        let graph = as_graph(resolved);
+        let edge = graph
+            .children_of(std::any::type_name::<A>())
+            .pop()
+            .expect("edge exists");
+        assert_eq!(edge.persistent.len(), 1);
+        assert_eq!(
+            edge.persistent[0].type_name,
+            std::any::type_name::<PersistentLeaf>()
+        );
+    }
+
+    #[test]
+    fn direct_persistent_self_dependency_is_rejected() {
+        let mut resolved = BTreeMap::new();
+        let err = discover_node(
+            TypeId::of::<PersistentA>(),
+            std::any::type_name::<PersistentA>(),
+            NormalizedEventDispatch::Chain(SandEventDispatch::chain::<A>().while_::<PersistentA>()),
+            EventSetup::none(),
+            "on_a",
+            &mut resolved,
+        )
+        .unwrap_err();
+        assert!(err.0.contains("persistent self-dependency"));
+        assert!(err.0.contains("PersistentA"));
+    }
+
+    #[test]
+    fn indirect_persistent_cycle_is_rejected() {
+        let mut resolved = BTreeMap::new();
+        let err = discover_node(
+            TypeId::of::<PersistentA>(),
+            std::any::type_name::<PersistentA>(),
+            PersistentA::dispatch().into().normalize(),
+            EventSetup::none(),
+            "on_a",
+            &mut resolved,
+        )
+        .unwrap_err();
+        assert!(err.0.contains("dependency cycle"));
+        assert!(err.0.contains("PersistentA") && err.0.contains("PersistentB"));
+        assert!(err.0.contains("-[while]->") && err.0.contains("-[after]->"));
+    }
+
+    #[test]
+    fn persistent_provider_with_detector_setup_is_rejected() {
+        let mut resolved = BTreeMap::new();
+        let err = discover_node(
+            TypeId::of::<B>(),
+            std::any::type_name::<B>(),
+            NormalizedEventDispatch::Chain(
+                SandEventDispatch::chain::<A>().while_::<SetupPersistent>(),
+            ),
+            EventSetup::none(),
+            "on_b",
+            &mut resolved,
+        )
+        .unwrap_err();
+        assert!(err.0.contains(std::any::type_name::<B>()));
+        assert!(err.0.contains(std::any::type_name::<SetupPersistent>()));
+        assert!(err.0.contains("setup() is non-empty"));
+    }
+
+    #[test]
+    fn provider_only_topology_reports_canonical_identity_collisions() {
+        let colliding_name = "test::SamePersistentProvider";
+        let mut path = vec![(TypeId::of::<CollisionA>(), colliding_name, "root")];
+        let err = validate_definition_topology(
+            TypeId::of::<CollisionB>(),
+            colliding_name,
+            tick_root(),
+            "while",
+            &mut path,
+        )
+        .unwrap_err();
+
+        assert!(err.0.contains("canonical event identity collision"));
+        assert!(err.0.contains(colliding_name));
+        assert!(!err.0.contains("dependency cycle"));
     }
 }

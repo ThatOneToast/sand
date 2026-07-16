@@ -247,13 +247,43 @@ capabilities:
       (export error naming the child/parent), not silently approximated —
       their reward-function codegen path does not yet provide a compatible
       player execution context. Deferred to later phases of #240 (not yet
-      exposed as partial APIs): `while_<E>()` continuous/held-state events,
-      `after_all(...)`/`after_any(...)` multi-parent joins, bounded
+      exposed as partial APIs): `after_all(...)`/`after_any(...)` multi-parent joins, bounded
       `.within(...)` time windows, cross-tick correlation, participant-rich
       execution contexts (#230), and arbitrary non-player entity execution
       scopes.
     evidence: ["sand-core/src/events/mod.rs (ChainEventDispatch, SandEventDispatch::chain, SandEventDispatch::Chain)", "sand-core/src/events/graph.rs (EventGraph, EventNode, NodeOrigin, discover_node, cycle detection)", "sand-core/src/component.rs (build_dispatch_function, build_child_edge)", "sand-macros/src/lib.rs (#[event] make_chain descriptor factory)", "sand-core/tests/event_chain_export.rs", "sand-core/tests/event_chain_legacy_tick_condition_parent.rs", "sand-core/tests/event_chain_child_lifecycle.rs", "sand-core/tests/event_chain_cycle.rs", "sand-core/tests/event_chain_advancement_parent_rejected.rs", "sand-macros/tests/cases/pass_sand_event_chain_dispatch.rs", "sand-macros/tests/cases/fail_sand_event_chain_non_sand_event_parent.rs"]
-    documentation: ["book/src/manual/events.md (Same-cycle chaining and roadmap boundary)"]
+    documentation: ["book/src/manual/events.md (Same-cycle and persistent composition)"]
+
+  - id: sandevent-persistent-conditions
+    name: "Persistent SandEvent conditions"
+    category: events
+    intent: "Require a chained child event to observe an explicitly represented persistent state at the child dispatch boundary, without treating that state as a same-cycle occurrence."
+    status: partial
+    stability: alpha
+    crates: [sand-core, sand-macros]
+    entry_points: ["PersistentSandEvent", "PersistentEventCondition", "ChainEventDispatch::while_::<E>()"]
+    preferred_api: "SandEventDispatch::chain::<Parent>().while_::<PersistentState>().when(...).unless(...)"
+    sand_limitations: >
+      Phase 3 of #240. Persistent state is an explicit opt-in contract and is
+      evaluated live under the inherited player @s and position when the child
+      edge is considered. It does not require the persistent event to fire,
+      does not invoke its detector/setup, and is available on first
+      observation. Multiple requirements are conjunctive and deduplicated;
+      ordinary when/unless conditions compose through the same Condition IR.
+      Built-in support covers current sneaking, sprinting, swimming, flying,
+      on-fire, and Creative/Adventure/Spectator mode. Occurrence-only,
+      transition, advancement, configurable item/equipment, and non-player
+      state types do not implement the contract. Custom providers must have an
+      empty SandEvent::setup() and independently provision prerequisites (for
+      example through typed state lifecycle); non-empty setup is rejected with
+      a child/provider diagnostic. Parent handlers run before
+      child edges, so their mutations are visible to the live state query.
+      Generated shape and multiplayer command scoping are tested. A real 1.21.4
+      protocol-client fixture proves positive, negative, remaining-true,
+      becoming-false, and repeated-firing sneaking cases for one player;
+      two-player isolation and the other providers remain structural evidence.
+    evidence: ["sand-core/src/events/mod.rs (PersistentSandEvent, PersistentEventCondition, ChainEventDispatch::while_)", "sand-core/src/events/graph.rs (PersistentDependency, provider setup validation, and mixed-edge validation)", "sand-core/src/component.rs (persistent condition lowering and recursive predicate reuse)", "sand-core/tests/event_chain_while_export.rs", "sand-core/tests/event_chain_while_provider_reuse.rs", "sand-core/tests/event_chain_identity_collision.rs", "sand-macros/tests/cases/pass_sand_event_while_dispatch.rs", "sand-macros/tests/cases/fail_sand_event_while_non_persistent.rs", "sand-vanilla-audit/src/lib.rs (SemanticOccurrenceWhileSneaking)", "scripts/vanilla-semantic-client/client.cjs"]
+    documentation: ["docs/events.md", "book/src/manual/events.md", "docs/vanilla-reload-validation.md"]
 
   - id: advancement-triggers
     name: "Advancement triggers"

@@ -935,12 +935,19 @@ fn try_export_components_impl(
             node.handlers.sort_unstable();
         }
 
-        let graph = crate::events::graph::EventGraph {
-            nodes: resolved
-                .into_values()
-                .map(|n| (n.type_name.to_string(), n))
-                .collect(),
-        };
+        let mut nodes = BTreeMap::new();
+        for node in resolved.into_values() {
+            if let Some(existing) = nodes.insert(node.type_name.to_string(), node) {
+                return Err(tick_event_export_error(format!(
+                    "canonical event identity collision: distinct Rust event types resolve to `{}`; rename one type so generated event resources cannot overwrite each other",
+                    existing.type_name
+                )));
+            }
+        }
+        let graph = crate::events::graph::EventGraph { nodes };
+        graph
+            .validate_dependencies()
+            .map_err(|e| tick_event_export_error(e.0))?;
 
         // Deterministic resource key derived from the canonical concrete
         // event type name, not from TypeId (not stable across builds) and
@@ -976,11 +983,16 @@ fn try_export_components_impl(
                 continue;
             };
             for cond in tick.when.iter().chain(tick.unless.iter()) {
-                if let crate::condition::Condition::Raw(s) = cond
-                    && let Some((path, flag)) = sand_player_state_predicate(s)
-                {
-                    state_predicates.insert(path, flag);
-                }
+                collect_sand_player_state_predicates(cond, &mut state_predicates);
+            }
+        }
+        for edge in graph
+            .nodes
+            .keys()
+            .flat_map(|parent| graph.children_of(parent))
+        {
+            for dependency in edge.persistent {
+                collect_sand_player_state_predicates(&dependency.condition, &mut state_predicates);
             }
         }
         for (path, flag) in state_predicates {
@@ -1837,6 +1849,40 @@ fn sand_player_state_predicate(condition: &str) -> Option<(&'static str, &'stati
     }
 }
 
+fn collect_sand_player_state_predicates(
+    condition: &crate::condition::Condition,
+    predicates: &mut std::collections::BTreeMap<&'static str, &'static str>,
+) {
+    match condition {
+        crate::condition::Condition::Predicate(path) => {
+            if let Some((predicate_path, flag)) =
+                sand_player_state_predicate(&format!("predicate {path}"))
+            {
+                predicates.insert(predicate_path, flag);
+            }
+        }
+        crate::condition::Condition::Raw(fragment) => {
+            if let Some((predicate_path, flag)) = sand_player_state_predicate(fragment) {
+                predicates.insert(predicate_path, flag);
+            }
+        }
+        crate::condition::Condition::Not(inner) => {
+            collect_sand_player_state_predicates(inner, predicates);
+        }
+        crate::condition::Condition::All(conditions)
+        | crate::condition::Condition::Any(conditions) => {
+            for condition in conditions {
+                collect_sand_player_state_predicates(condition, predicates);
+            }
+        }
+        crate::condition::Condition::Score { .. }
+        | crate::condition::Condition::ScoreCompare { .. }
+        | crate::condition::Condition::Flag { .. }
+        | crate::condition::Condition::Entity(_)
+        | crate::condition::Condition::StorageExists { .. } => {}
+    }
+}
+
 fn player_state_predicate_json(flag: &str) -> serde_json::Value {
     serde_json::json!({
         "condition": "minecraft:entity_properties",
@@ -2328,7 +2374,10 @@ fn build_item_cond(
 mod tests {
     use serde_json::json;
 
-    use super::{player_state_predicate_json, sand_player_state_predicate};
+    use super::{
+        collect_sand_player_state_predicates, player_state_predicate_json,
+        sand_player_state_predicate,
+    };
     use crate::events::{PlayerSwimmingEvent, SandEvent};
     use crate::{
         Advancement, AdvancementRewards, AdvancementTrigger, Criterion, DatapackComponent,
@@ -2529,6 +2578,26 @@ mod tests {
                 condition.replace("__sand_local:", "audit:")
             ),
             "execute as @a if predicate audit:__sand/player_swimming at @s run function audit:while_swimming"
+        );
+    }
+
+    #[test]
+    fn nested_persistent_conditions_collect_sand_owned_predicates() {
+        let condition = crate::condition::Condition::all([
+            crate::condition::Condition::entity("@s[tag=ready]"),
+            !crate::condition::Condition::any([
+                crate::condition::Condition::predicate("__sand_local:__sand/player_sneaking"),
+                crate::condition::Condition::predicate("__sand_local:__sand/player_sprinting"),
+            ]),
+        ]);
+        let mut predicates = std::collections::BTreeMap::new();
+        collect_sand_player_state_predicates(&condition, &mut predicates);
+        assert_eq!(
+            predicates,
+            std::collections::BTreeMap::from([
+                ("__sand/player_sneaking", "is_sneaking"),
+                ("__sand/player_sprinting", "is_sprinting"),
+            ])
         );
     }
 

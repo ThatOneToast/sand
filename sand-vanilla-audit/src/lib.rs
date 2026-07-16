@@ -1,6 +1,7 @@
 //! Small deterministic datapack used only by vanilla load/reload validation.
 
 use sand_core::event::vanilla::{PlayerStartsSneaking, PlayerStopsSneaking};
+use sand_core::events::{EventSetup, PlayerSneakEvent, SandEvent, SandEventDispatch};
 use sand_core::prelude::*;
 use sand_core::sand_state;
 use sand_core::{FloatRange, IntRange, NumberProvider};
@@ -35,6 +36,50 @@ pub fn semantic_placed_reward() {
 pub fn semantic_item_used_reward() {
     cmd::raw("advancement revoke @s only sand_audit:semantic_item_used_on_block");
     cmd::raw(r#"tellraw @s {"text":"__SAND_SEMANTIC_ITEM_USED__"}"#)
+}
+
+static SEMANTIC_OCCURRENCE: ScoreVar<i32> = ScoreVar::new("sand_sem_occ");
+static SEMANTIC_OBSERVED: ScoreVar<i32> = ScoreVar::new("sand_sem_prev");
+
+/// Client-controlled occurrence used to prove persistent composition against a
+/// real server. Increasing `sand_sem_occ` creates one parent occurrence.
+pub struct SemanticOccurrence;
+
+impl SandEvent for SemanticOccurrence {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        SandEventDispatch::tick().as_players().when(
+            SEMANTIC_OBSERVED
+                .of("@s")
+                .lt_score(SEMANTIC_OCCURRENCE.of("@s")),
+        )
+    }
+
+    fn setup() -> EventSetup {
+        EventSetup {
+            objectives: vec![
+                "scoreboard objectives add sand_sem_occ dummy".into(),
+                "scoreboard objectives add sand_sem_prev dummy".into(),
+            ],
+            pre_observation: vec![],
+            post_observation: vec![
+                "execute as @a run scoreboard players operation @s sand_sem_prev = @s sand_sem_occ"
+                    .into(),
+            ],
+        }
+    }
+}
+
+pub struct SemanticOccurrenceWhileSneaking;
+
+impl SandEvent for SemanticOccurrenceWhileSneaking {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        SandEventDispatch::chain::<SemanticOccurrence>().while_::<PlayerSneakEvent>()
+    }
+}
+
+#[event]
+pub fn semantic_occurrence_while_sneaking(_event: SemanticOccurrenceWhileSneaking) {
+    cmd::raw(r#"tellraw @s {"text":"__SAND_SEMANTIC_WHILE_SNEAKING__"}"#)
 }
 
 #[event]

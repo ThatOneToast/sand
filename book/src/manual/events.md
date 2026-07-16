@@ -5,7 +5,7 @@ Sand has two event-definition families:
 | Family | Purpose | Handler parameter |
 |---|---|---|
 | `AdvancementEvent` | Lightweight, stateless wrapper around one vanilla advancement trigger | `Event<T>` |
-| `SandEvent` | Advanced custom dispatch, lifecycle, generic definitions, and same-cycle chaining | Concrete unit marker |
+| `SandEvent` | Advanced custom dispatch, lifecycle, generic definitions, same-cycle chaining, and explicit persistent conditions | Concrete unit marker |
 
 ## AdvancementEvent and `Event<T>`
 
@@ -130,7 +130,7 @@ pub fn on_elevator_up(_event: ElevatorGoingUp) {
 }
 ```
 
-## Same-cycle chaining and roadmap boundary
+## Same-cycle and persistent composition
 
 `SandEventDispatch::chain::<Parent>()` is implemented for tick-backed parent
 events. The child is evaluated only after its parent matches, reuses the
@@ -139,25 +139,43 @@ from the `PlayerJumped` definition above:
 
 ```rust
 use sand_core::condition::Condition;
-use sand_core::events::{SandEvent, SandEventDispatch};
+use sand_core::events::{PlayerSneakEvent, SandEvent, SandEventDispatch};
 
 pub struct JumpedOnElevator;
 
 impl SandEvent for JumpedOnElevator {
     fn dispatch() -> SandEventDispatch {
         SandEventDispatch::chain::<PlayerJumped>()
+            .while_::<PlayerSneakEvent>()
             .when(Condition::raw("block ~ ~-1 ~ minecraft:white_wool"))
             .into()
     }
 }
 ```
 
-The current graph supports one parent per child, nested chains, deterministic
-fan-out, cycle diagnostics, and per-player coalescing. Advancement-backed graph
-parents are rejected.
+`chain::<PlayerJumped>()` means the parent fired in this dispatch cycle.
+`while_::<PlayerSneakEvent>()` independently queries current sneaking state at
+the child boundary; it does not wait for a sneaking occurrence or invoke the
+sneaking event's detector. The query is available on first observation and is
+evaluated under the inherited player `@s` and position. Parent handlers run
+before child edges, so their state mutations are visible to the persistent
+query.
 
-Persistent `while_<E>()`, multi-parent `after_any`/`after_all`, bounded
-`.within(...)` correlation, participant-rich contexts, and arbitrary
+Only types that explicitly implement `PersistentSandEvent` can be used with
+`while_`. Current built-ins cover sneaking, sprinting, swimming, flying,
+on-fire, and Creative/Adventure/Spectator mode. Transition, advancement, and
+ordinary occurrence events are rejected. Multiple persistent requirements are
+ANDed with `.when(...)` and `.unless(...)` conditions.
+Custom providers must be directly queryable with an empty `SandEvent::setup()`;
+put shared resource initialization in typed state lifecycle. A non-empty
+provider setup is an export error naming the child and provider.
+
+The current graph supports one same-cycle parent per child, nested chains,
+deterministic fan-out, mixed-edge cycle diagnostics, and per-player coalescing.
+Advancement-backed graph parents are rejected.
+
+Multi-parent `after_any`/`after_all`, bounded `.within(...)` correlation,
+participant-rich contexts, and arbitrary
 non-player scopes are planned phases, not current APIs.
 
 For generated-output and lifecycle details, see the focused

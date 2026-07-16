@@ -44,9 +44,10 @@ emerging 26.x series. Capability decisions flow through `VersionProfile`.
 
 - `mcfunction!` macro — available but positioned as advanced tooling, not the
   beginner path.
-- Event system — `AdvancementEvent`/`SandEvent` split formalized (typed tick
-  dispatch, owned lifecycle/setup, generic event identity); chained/composed
-  event graphs (#240) and participant-rich contexts (#230) not yet implemented.
+- Event system — `AdvancementEvent`/`SandEvent` split formalized, with typed
+  tick dispatch, lifecycle/setup, generic identity, same-cycle chaining, and
+  explicit player-scoped persistent `while_<E>()` conditions. Multi-parent and
+  bounded correlation phases of #240 and participant contexts #230 remain.
 - Resource pack generation — functional but requires manual setup.
 - crates.io publishing — not yet available; build from workspace.
 

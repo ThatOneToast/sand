@@ -5,7 +5,8 @@
 // SandEvent family subscribed through a unit adapter, and same-cycle chaining.
 use sand_core::condition::Condition;
 use sand_core::events::{
-    EventSetup, OnJoinEvent, PlayerStartSneakingEvent, SandEvent, SandEventDispatch,
+    EventSetup, OnJoinEvent, PlayerSneakEvent, PlayerStartSneakingEvent, SandEvent,
+    SandEventDispatch,
 };
 use sand_core::prelude::*;
 use sand_macros::event;
@@ -112,6 +113,7 @@ pub struct JumpedOnElevator;
 impl SandEvent for JumpedOnElevator {
     fn dispatch() -> SandEventDispatch {
         SandEventDispatch::chain::<PlayerJumped>()
+            .while_::<PlayerSneakEvent>()
             .when(Condition::raw("block ~ ~-1 ~ minecraft:white_wool"))
             .into()
     }

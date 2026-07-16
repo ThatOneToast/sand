@@ -155,8 +155,9 @@
 //! when a generic definition stores `PhantomData` or other fields.
 //!
 //! [`SandEventDispatch::chain`] implements same-cycle parent-to-child chaining
-//! for tick-backed `SandEvent`s. Persistent `while_<E>()`, multi-parent
-//! `after_any`/`after_all`, bounded `.within(...)` correlation,
+//! for tick-backed `SandEvent`s. A chained child can additionally require an
+//! explicitly persistent event state with [`ChainEventDispatch::while_`].
+//! Multi-parent `after_any`/`after_all`, bounded `.within(...)` correlation,
 //! advancement-backed graph parents, and participant-rich contexts are future
 //! work and are not current APIs.
 //!
@@ -179,6 +180,74 @@ pub enum TickScope {
     /// Evaluated as each online player (`execute as @a ... at @s run ...`).
     #[default]
     Players,
+}
+
+/// A directly queryable persistent event condition.
+///
+/// Unlike [`TickEventDispatch`], this value describes current truth, not an
+/// independently firing occurrence detector. The condition is evaluated at a
+/// chained child's dispatch boundary under the inherited player `@s` and
+/// position. It does not run the provider event's detector or lifecycle.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PersistentEventCondition {
+    pub(crate) scope: TickScope,
+    pub(crate) condition: crate::condition::Condition,
+}
+
+impl PersistentEventCondition {
+    /// Define a condition that is safe to evaluate as the inherited player.
+    ///
+    /// Prefer typed [`Condition`](crate::condition::Condition) constructors.
+    /// A [`Condition::raw`](crate::condition::Condition::raw) value remains an
+    /// explicit compatibility escape hatch whose target-version semantics are
+    /// user-owned when Sand cannot validate the fragment.
+    pub fn players(condition: impl Into<crate::condition::Condition>) -> Self {
+        Self {
+            scope: TickScope::Players,
+            condition: condition.into(),
+        }
+    }
+
+    /// The execution scope required by this condition.
+    pub fn scope(&self) -> TickScope {
+        self.scope
+    }
+}
+
+/// Explicit opt-in contract for event types that represent persistent state.
+///
+/// Implementing [`SandEvent`] alone is intentionally insufficient: a tick
+/// event may represent an occurrence or transition rather than a state that
+/// remains true. Only types with a direct current-state representation should
+/// implement this trait.
+///
+/// A provider must keep [`SandEvent::setup()`] empty. `while_` never runs a
+/// provider detector or observation lifecycle, so objectives and other
+/// prerequisites must be provisioned independently (for example through
+/// typed state lifecycle). Export rejects a non-empty provider setup and names
+/// both the child and provider rather than silently omitting it.
+#[diagnostic::on_unimplemented(
+    message = "`{Self}` cannot be used with `while_::<E>()` because it does not implement `PersistentSandEvent`",
+    label = "this event type has no explicit persistent-state representation",
+    note = "`SandEvent` dispatch describes when an event fires; implement `PersistentSandEvent` only when the type can also provide a directly queryable current condition"
+)]
+pub trait PersistentSandEvent: SandEvent {
+    /// Return the current-state condition for this event type.
+    fn persistent_condition() -> PersistentEventCondition;
+}
+
+/// One typed persistent-state dependency attached to a chained event.
+pub struct PersistentEventDependency {
+    #[doc(hidden)]
+    pub event_type_id: fn() -> std::any::TypeId,
+    #[doc(hidden)]
+    pub event_type_name: fn() -> &'static str,
+    #[doc(hidden)]
+    pub event_dispatch: fn() -> SandEventDispatch,
+    #[doc(hidden)]
+    pub event_setup: fn() -> EventSetup,
+    #[doc(hidden)]
+    pub make_condition: fn() -> PersistentEventCondition,
 }
 
 /// Lifecycle resources a [`SandEvent`] owns: objectives to create at load time,
@@ -410,6 +479,9 @@ pub struct ChainEventDispatch {
     pub parent_dispatch: fn() -> SandEventDispatch,
     /// Returns the parent's own `setup()`.
     pub parent_setup: fn() -> EventSetup,
+    /// Persistent current-state requirements, kept distinct from the
+    /// same-cycle occurrence parent and from ordinary anonymous conditions.
+    pub persistent: Vec<PersistentEventDependency>,
     /// Positive conditions — all must hold (ANDed) for this child to fire
     /// once its parent's detector succeeds.
     pub when: Vec<crate::condition::Condition>,
@@ -418,6 +490,39 @@ pub struct ChainEventDispatch {
 }
 
 impl ChainEventDispatch {
+    /// Require `E`'s persistent state to be true when this child is considered.
+    ///
+    /// This does not require `E` to have fired in the same cycle and does not
+    /// invoke `E`'s detector. Multiple calls are conjunctive and duplicate
+    /// requirements for the same concrete type are deduplicated at export.
+    ///
+    /// ```rust,no_run
+    /// use sand_core::events::{
+    ///     PlayerSneakEvent, SandEvent, SandEventDispatch,
+    /// };
+    ///
+    /// struct ParentOccurrence;
+    /// impl SandEvent for ParentOccurrence {
+    ///     fn dispatch() -> impl Into<SandEventDispatch> {
+    ///         SandEventDispatch::tick().as_players()
+    ///     }
+    /// }
+    ///
+    /// let child = SandEventDispatch::chain::<ParentOccurrence>()
+    ///     .while_::<PlayerSneakEvent>();
+    /// # let _: SandEventDispatch = child.into();
+    /// ```
+    pub fn while_<E: PersistentSandEvent + 'static>(mut self) -> Self {
+        self.persistent.push(PersistentEventDependency {
+            event_type_id: std::any::TypeId::of::<E>,
+            event_type_name: std::any::type_name::<E>,
+            event_dispatch: || E::dispatch().into(),
+            event_setup: E::setup,
+            make_condition: E::persistent_condition,
+        });
+        self
+    }
+
     /// Add a positive condition — the child fires only while this holds, in
     /// addition to the parent having fired this cycle.
     ///
@@ -558,6 +663,7 @@ impl SandEventDispatch {
             parent_type_name: std::any::type_name::<P>,
             parent_dispatch: || P::dispatch().into(),
             parent_setup: P::setup,
+            persistent: Vec::new(),
             when: Vec::new(),
             unless: Vec::new(),
         }
@@ -1592,6 +1698,15 @@ pub struct PlayerStartSneakingEvent;
 /// Uses the same shared tracker as [`PlayerStartSneakingEvent`].
 pub struct PlayerStopSneakingEvent;
 
+/// Shared current-state source used by both sneaking transitions and
+/// persistent composition. Kept public only for proc-macro expansion.
+#[doc(hidden)]
+pub const PLAYER_SNEAKING_TRACKED_SOURCE: crate::TrackedSource =
+    crate::TrackedSource::BooleanCondition {
+        description: "vanilla entity predicate flags.is_sneaking",
+        condition: "predicate __sand_local:__sand/player_sneaking",
+    };
+
 /// Fires every tick the player is sneaking / crouching (Shift held).
 ///
 /// Uses a generated `flags.is_sneaking` predicate.
@@ -1610,7 +1725,25 @@ pub struct PlayerStopSneakingEvent;
 pub struct PlayerSneakEvent;
 impl SandEvent for PlayerSneakEvent {
     fn dispatch() -> SandEventDispatch {
-        SandEventDispatch::TickCondition("predicate __sand_local:__sand/player_sneaking".into())
+        let crate::TrackedSource::BooleanCondition { condition, .. } =
+            PLAYER_SNEAKING_TRACKED_SOURCE
+        else {
+            unreachable!("the shared sneaking source is boolean")
+        };
+        SandEventDispatch::TickCondition(condition.into())
+    }
+}
+impl PersistentSandEvent for PlayerSneakEvent {
+    fn persistent_condition() -> PersistentEventCondition {
+        let crate::TrackedSource::BooleanCondition { condition, .. } =
+            PLAYER_SNEAKING_TRACKED_SOURCE
+        else {
+            unreachable!("the shared sneaking source is boolean")
+        };
+        let predicate = condition
+            .strip_prefix("predicate ")
+            .expect("the shared sneaking source is a predicate condition");
+        PersistentEventCondition::players(crate::condition::Condition::predicate(predicate))
     }
 }
 
@@ -1623,6 +1756,13 @@ impl SandEvent for PlayerSprintEvent {
         SandEventDispatch::TickCondition("predicate __sand_local:__sand/player_sprinting".into())
     }
 }
+impl PersistentSandEvent for PlayerSprintEvent {
+    fn persistent_condition() -> PersistentEventCondition {
+        PersistentEventCondition::players(crate::condition::Condition::predicate(
+            "__sand_local:__sand/player_sprinting",
+        ))
+    }
+}
 
 /// Fires every tick the player is swimming (swimming animation active, 1.13+).
 ///
@@ -1631,6 +1771,13 @@ pub struct PlayerSwimmingEvent;
 impl SandEvent for PlayerSwimmingEvent {
     fn dispatch() -> SandEventDispatch {
         SandEventDispatch::TickCondition("predicate __sand_local:__sand/player_swimming".into())
+    }
+}
+impl PersistentSandEvent for PlayerSwimmingEvent {
+    fn persistent_condition() -> PersistentEventCondition {
+        PersistentEventCondition::players(crate::condition::Condition::predicate(
+            "__sand_local:__sand/player_swimming",
+        ))
     }
 }
 
@@ -1643,6 +1790,13 @@ impl SandEvent for PlayerFlyingEvent {
         SandEventDispatch::TickCondition("entity @s[nbt={abilities:{flying:1b}}]".into())
     }
 }
+impl PersistentSandEvent for PlayerFlyingEvent {
+    fn persistent_condition() -> PersistentEventCondition {
+        PersistentEventCondition::players(crate::condition::Condition::entity(
+            "@s[nbt={abilities:{flying:1b}}]",
+        ))
+    }
+}
 
 /// Fires every tick the player is on fire.
 ///
@@ -1653,12 +1807,26 @@ impl SandEvent for PlayerOnFireEvent {
         SandEventDispatch::TickCondition("predicate __sand_local:__sand/player_on_fire".into())
     }
 }
+impl PersistentSandEvent for PlayerOnFireEvent {
+    fn persistent_condition() -> PersistentEventCondition {
+        PersistentEventCondition::players(crate::condition::Condition::predicate(
+            "__sand_local:__sand/player_on_fire",
+        ))
+    }
+}
 
 /// Fires every tick the player is in a Creative-mode gamemode.
 pub struct PlayerInCreativeEvent;
 impl SandEvent for PlayerInCreativeEvent {
     fn dispatch() -> SandEventDispatch {
         SandEventDispatch::TickCondition("entity @s[gamemode=creative]".into())
+    }
+}
+impl PersistentSandEvent for PlayerInCreativeEvent {
+    fn persistent_condition() -> PersistentEventCondition {
+        PersistentEventCondition::players(crate::condition::Condition::entity(
+            "@s[gamemode=creative]",
+        ))
     }
 }
 
@@ -1669,12 +1837,26 @@ impl SandEvent for PlayerInAdventureEvent {
         SandEventDispatch::TickCondition("entity @s[gamemode=adventure]".into())
     }
 }
+impl PersistentSandEvent for PlayerInAdventureEvent {
+    fn persistent_condition() -> PersistentEventCondition {
+        PersistentEventCondition::players(crate::condition::Condition::entity(
+            "@s[gamemode=adventure]",
+        ))
+    }
+}
 
 /// Fires every tick the player is in Spectator mode.
 pub struct PlayerInSpectatorEvent;
 impl SandEvent for PlayerInSpectatorEvent {
     fn dispatch() -> SandEventDispatch {
         SandEventDispatch::TickCondition("entity @s[gamemode=spectator]".into())
+    }
+}
+impl PersistentSandEvent for PlayerInSpectatorEvent {
+    fn persistent_condition() -> PersistentEventCondition {
+        PersistentEventCondition::players(crate::condition::Condition::entity(
+            "@s[gamemode=spectator]",
+        ))
     }
 }
 

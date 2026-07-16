@@ -130,7 +130,7 @@ pub fn on_elevator_up(_event: ElevatorGoingUp) {
 }
 ```
 
-## Same-cycle and persistent composition
+## Same-cycle, persistent, and bounded composition
 
 `SandEventDispatch::chain::<Parent>()` is implemented for tick-backed parent
 events. The child is evaluated only after its parent matches, reuses the
@@ -203,12 +203,46 @@ change generated output.
 Post-observation lifecycle runs after downstream composed dependents, including
 mixed graphs where an immediate single-parent child feeds a staged join.
 
-Nested and mixed `after`/`after_any`/`after_all`/`while` cycles are rejected
-with readable labeled paths. `.when(...)` and `.unless(...)` are evaluated at
-the child boundary alongside live persistent conditions. Advancement-backed
-graph parents, bounded `.within(...)` correlation, cross-tick correlation,
-participant-rich contexts, and arbitrary non-player scopes remain planned;
-they are not current APIs.
+`within::<E>(TickWindow::new(N)?)` is bounded cross-tick correlation: `E` must
+have fired for the inherited subject during the current cycle **or** within
+the previous `N - 1` completed tick boundaries.
+
+```rust
+use sand_core::events::{SandEvent, SandEventDispatch, TickWindow};
+
+pub struct VaultOpenedAfterSwitch;
+impl SandEvent for VaultOpenedAfterSwitch {
+    fn dispatch() -> SandEventDispatch {
+        SandEventDispatch::compose()
+            .after::<ElevatorGoingUp>()
+            .within::<PlayerJumped>(TickWindow::new(20).expect("nonzero, in range"))
+            .into()
+    }
+}
+```
+
+Sand tracks one exact per-subject age (ticks since `E` last fired, reset to
+`0` the cycle `E` fires) shared by every child and window referencing that
+parent, so `N = 1` behaves identically to `after::<E>()`, a parent firing on
+the current tick always satisfies `within` regardless of prior age, and a
+later occurrence always refreshes the window rather than queueing a
+delivery. `TickWindow` rejects `0` and windows above 24,000 ticks — bounded
+correlation is not a session/persistence mechanism. The age update runs under
+`execute as @a`, so it only advances for online players and pauses while a
+player is offline; the underlying score is not reset by disconnect/reconnect
+or `/reload` (same persistence as `Cooldown`/`Timer` state), so a returning
+player resumes aging rather than restarting it. The increment is also
+guarded to stop at `TickWindow::MAX_TICKS` so a permanently-idle parent's age
+can never overflow the signed 32-bit scoreboard value and wrap negative — a
+saturated age is already permanently expired for every valid window. The
+bounded parent's detector/setup is generated once regardless of how many
+children or distinct windows read it.
+
+Nested and mixed `after`/`after_any`/`after_all`/`while`/`within` cycles are
+rejected with readable labeled paths. `.when(...)` and `.unless(...)` are
+evaluated at the child boundary alongside live persistent and bounded
+conditions. Advancement-backed graph parents, participant-rich contexts, and
+arbitrary non-player scopes remain planned; they are not current APIs.
 
 For generated-output and lifecycle details, see the focused
 [events reference](../../../docs/events.md). For trigger construction, continue

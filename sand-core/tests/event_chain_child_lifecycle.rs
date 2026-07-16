@@ -145,6 +145,7 @@ fn single_plan_child_chain() -> Option<ChainEventDispatch> {
             parent_setup,
         ),
         persistent: vec![],
+        bounded: vec![],
         when: vec![Condition::raw("score @s sync < @s current")],
         unless: vec![],
     })
@@ -198,6 +199,7 @@ fn unconditional_lifecycle_child_chain() -> Option<ChainEventDispatch> {
             parent_setup,
         ),
         persistent: vec![],
+        bounded: vec![],
         when: vec![],
         unless: vec![],
     })
@@ -251,6 +253,7 @@ fn multi_plan_lifecycle_child_chain() -> Option<ChainEventDispatch> {
             parent_setup,
         ),
         persistent: vec![],
+        bounded: vec![],
         when: vec![
             Condition::raw("score @s mp_a matches 1").or(Condition::raw("score @s mp_b matches 1")),
         ],
@@ -306,6 +309,7 @@ fn unsatisfiable_lifecycle_child_chain() -> Option<ChainEventDispatch> {
             parent_setup,
         ),
         persistent: vec![],
+        bounded: vec![],
         when: vec![Condition::any([])],
         unless: vec![],
     })
@@ -402,6 +406,7 @@ fn nested_b_chain() -> Option<ChainEventDispatch> {
             nested_a_setup,
         ),
         persistent: vec![],
+        bounded: vec![],
         when: vec![Condition::raw("score @s b_cond matches 1")],
         unless: vec![],
     })
@@ -452,6 +457,7 @@ fn nested_c_chain() -> Option<ChainEventDispatch> {
             nested_b_setup,
         ),
         persistent: vec![],
+        bounded: vec![],
         when: vec![Condition::raw("score @s c_cond matches 1")],
         unless: vec![],
     })

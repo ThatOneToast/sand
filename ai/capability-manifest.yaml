@@ -222,13 +222,13 @@ capabilities:
     status: partial
     stability: alpha
     crates: [sand-core, sand-macros]
-    entry_points: ["SandEventDispatch::chain::<Parent>()"]
-    preferred_api: "SandEventDispatch::chain::<Parent>().when(...).unless(...).if_(...) inside a SandEvent::dispatch() impl"
+    entry_points: ["SandEventDispatch::chain::<Parent>()", "SandEventDispatch::compose().after::<Parent>()"]
+    preferred_api: "SandEventDispatch::chain::<Parent>().when(...).unless(...).if_(...) inside a SandEvent::dispatch() impl; use compose().after::<Parent>() when combining several occurrence clauses"
     sand_limitations: >
-      First scoped phase of #240 — chain dispatch graphs. Implemented: one
-      direct parent per event (the graph is a forest; direct and indirect
-      cycles are rejected at export time with a readable diagnostic path,
-      never a panic); the parent's detector/setup is generated and shared
+      Same-cycle chain dispatch graphs. Implemented: typed single-parent
+      occurrence clauses; direct and indirect mixed-edge cycles are rejected
+      at export time with a readable diagnostic path, never a panic; the
+      parent's detector/setup is generated and shared
       exactly once regardless of how many direct #[event] handlers and chain
       children subscribe to it, even when the parent has no direct handler
       of its own; the child inherits the parent's player @s and position (no
@@ -246,13 +246,49 @@ capabilities:
       used. Advancement-backed SandEvent parents are explicitly rejected
       (export error naming the child/parent), not silently approximated —
       their reward-function codegen path does not yet provide a compatible
-      player execution context. Deferred to later phases of #240 (not yet
-      exposed as partial APIs): `after_all(...)`/`after_any(...)` multi-parent joins, bounded
-      `.within(...)` time windows, cross-tick correlation, participant-rich
-      execution contexts (#230), and arbitrary non-player entity execution
-      scopes.
+      player execution context. Multi-parent same-cycle groups are covered by
+      sandevent-multi-parent-composition. Deferred to later phases of #240:
+      bounded `.within(...)` time windows, cross-tick correlation,
+      participant-rich execution contexts (#230), and arbitrary non-player
+      entity execution scopes.
     evidence: ["sand-core/src/events/mod.rs (ChainEventDispatch, SandEventDispatch::chain, SandEventDispatch::Chain)", "sand-core/src/events/graph.rs (EventGraph, EventNode, NodeOrigin, discover_node, cycle detection)", "sand-core/src/component.rs (build_dispatch_function, build_child_edge)", "sand-macros/src/lib.rs (#[event] make_chain descriptor factory)", "sand-core/tests/event_chain_export.rs", "sand-core/tests/event_chain_legacy_tick_condition_parent.rs", "sand-core/tests/event_chain_child_lifecycle.rs", "sand-core/tests/event_chain_cycle.rs", "sand-core/tests/event_chain_advancement_parent_rejected.rs", "sand-macros/tests/cases/pass_sand_event_chain_dispatch.rs", "sand-macros/tests/cases/fail_sand_event_chain_non_sand_event_parent.rs"]
     documentation: ["book/src/manual/events.md (Same-cycle and persistent composition)"]
+
+  - id: sandevent-multi-parent-composition
+    name: "Multi-parent same-cycle SandEvent composition"
+    category: events
+    intent: "Require any or all of several typed SandEvent parents to have fired for one inherited subject during the current event cycle, with deterministic at-most-once coalescing and detector reuse."
+    status: partial
+    stability: alpha
+    crates: [sand-core, sand-macros]
+    entry_points: ["SandEventDispatch::compose()", "ChainEventDispatch::after::<E>()", "ChainEventDispatch::after_any::<(A, B)>()", "ChainEventDispatch::after_all::<(A, B)>()", "SandEventDispatch::after_any::<(A, B)>()", "SandEventDispatch::after_all::<(A, B)>()"]
+    preferred_api: "SandEventDispatch::after_any::<(A, B)>() or SandEventDispatch::after_all::<(A, B)>() inside SandEvent::dispatch(); use compose() to combine occurrence clauses with while_, when, and unless"
+    sand_limitations: >
+      Phase 4 of #240. `after_any` and `after_all` accept tuples of two through
+      eight concrete SandEvent types. All occurrence clauses are conjunctive;
+      disjunction applies only within one `after_any` tuple. A definition may
+      contain at most one any-group and one all-group. Duplicate parents,
+      repeated groups, empty/unsupported tuple arities, self-dependencies,
+      incompatible scopes, identity collisions, and direct/indirect mixed-edge
+      cycles are rejected. Occurrence-only parents are subscribed and each
+      detector/setup is emitted once; persistent-only providers remain
+      unsubscribed. Required occurrence marks reset each event cycle, are keyed
+      to inherited player @s, are established before deterministic topological
+      child evaluation, and cannot cross subjects or ticks. `after_any`
+      coalesces several matching parents to at most one child dispatch per
+      subject per cycle; `after_all` requires every distinct parent. Generated
+      command shape and subject isolation have automated export evidence. A
+      real 1.21.4 protocol-client fixture proves each any-parent positive path,
+      all-parent positive/negative paths, at-most-once coalescing when both
+      parents change atomically, parent-order independence, repeated-one-parent
+      rejection, and no stale occurrence on the following tick. Multiplayer
+      isolation remains structural rather than a two-client runtime claim.
+      Bounded `.within(...)`, cross-tick correlation, advancement-backed graph
+      parents, participant contexts, and arbitrary non-player scopes remain
+      unimplemented. Real semantic runtime evidence must be tracked separately
+      from export and vanilla reload evidence.
+    evidence: ["sand-core/src/events/mod.rs (SameCycleEventGroup, SameCycleEventRequirement, compose/after/after_any/after_all)", "sand-core/src/events/graph.rs (OccurrenceDependency, staged topological composition, validation)", "sand-core/src/component.rs (__sand_event_cycle occurrence-state lowering and detector reuse)", "sand-core/tests/event_multi_parent_export.rs", "sand-core/tests/event_multi_parent_occurrence_collision.rs", "sand-core/src/events/graph.rs (multi-parent graph tests)", "sand-macros/tests/cases/pass_sand_event_multi_parent_dispatch.rs", "sand-macros/tests/cases/fail_sand_event_after_any_empty.rs", "sand-macros/tests/cases/fail_sand_event_after_any_arity_nine.rs", "sand-macros/tests/cases/fail_sand_event_after_all_non_event.rs", "sand-vanilla-audit/src/lib.rs (SemanticAfterAny/SemanticAfterAll)", "scripts/vanilla-semantic-client/client.cjs"]
+    documentation: ["docs/events.md", "book/src/manual/events.md", "docs/architecture.md"]
 
   - id: sandevent-persistent-conditions
     name: "Persistent SandEvent conditions"

@@ -6,7 +6,7 @@ event, not by the handler's name.
 | Family | Use it for | Handler parameter |
 |---|---|---|
 | `AdvancementEvent` | One vanilla advancement trigger | `Event<T>` |
-| `SandEvent` | Typed tick observation, lifecycle, generic definitions, same-cycle chaining, and explicit persistent conditions | A concrete unit marker |
+| `SandEvent` | Typed tick observation, lifecycle, generic definitions, same-cycle composition, and explicit persistent conditions | A concrete unit marker |
 
 ## AdvancementEvent: one stateless vanilla trigger
 
@@ -185,14 +185,53 @@ impl SandEvent for JumpedOnElevator {
 pub fn on_elevator_jump(_event: JumpedOnElevator) {
     cmd::say("Elevator jump");
 }
+
+pub struct JumpedOrUsedElevator;
+
+impl SandEvent for JumpedOrUsedElevator {
+    fn dispatch() -> SandEventDispatch {
+        SandEventDispatch::after_any::<(PlayerJumped, ElevatorGoingUp)>()
+            .while_::<PlayerSneakEvent>()
+            .unless(Condition::entity("@s[tag=blocked]"))
+            .into()
+    }
+}
 ```
 
-The child reuses the parent's detector and inherits the same player `@s`,
-position, and tick. `while_::<PlayerSneakEvent>()` is different from the
-same-cycle parent: it queries whether that player is currently sneaking when
-the child edge is evaluated. `PlayerSneakEvent` does not need to fire, and its
-detector or lifecycle is not invoked. The current condition is usable on the
-first observation; there is no transition-baseline suppression.
+Same-cycle occurrence clauses have distinct meanings:
+
+- `chain::<A>()` and `compose().after::<A>()` require `A` to have fired for
+  the inherited subject during the current event cycle. `chain::<A>()` remains
+  the concise single-parent spelling.
+- `after_any::<(A, B)>()` requires at least one listed parent. If several fire
+  in the cycle, the child is coalesced to at most one dispatch for that
+  subject.
+- `after_all::<(A, B)>()` requires every distinct listed parent. Repeating one
+  parent cannot substitute for another.
+
+`after_any` and `after_all` accept typed tuples of two through eight concrete
+`SandEvent` types. A definition may contain at most one group of each kind;
+duplicate parents and repeated groups are rejected. All declared occurrence
+clauses are conjunctive, so
+`chain::<A>().after_any::<(B, C)>().after_all::<(D, E)>()` means
+`A AND (B OR C) AND D AND E`. Additional `.when(...)`, `.unless(...)`, and
+`while_::<State>()` requirements are also conjunctive.
+
+Occurrence parents reuse their detectors, including parents referenced only by
+a composition. When a graph contains a multi-parent clause, Sand resets the
+needed per-player occurrence marks, runs root checks in canonical deterministic
+order, and then evaluates composed children in deterministic topological order.
+Marks are set before dependent evaluation and do not survive the cycle. The
+generated scoreboard reads, writes, resets, and coalescing guards operate as
+the inherited player `@s`; one player's occurrence cannot satisfy another
+player's child. Registration and tuple order do not affect the generated
+ordering.
+
+`while_::<PlayerSneakEvent>()` is different from every `after` form: it queries
+whether that player is currently sneaking when the child is evaluated.
+`PlayerSneakEvent` does not need to fire, and its detector or lifecycle is not
+invoked. The current condition is usable on the first observation; there is no
+transition-baseline suppression.
 
 Persistent state is explicit. A type must implement `PersistentSandEvent`;
 ordinary tick events, transitions such as `PlayerStartSneakingEvent`, and
@@ -205,26 +244,25 @@ The built-in persistent states currently include sneaking, sprinting, swimming,
 flying, on-fire, and Creative/Adventure/Spectator mode. Multiple `while_`
 requirements are ANDed and compose with `.when(...)` and `.unless(...)`.
 
-Evaluation remains per player with inherited `@s` and position, so one
-player's state cannot satisfy another player's edge. The live condition is
-tested after the same-cycle parent's direct handlers and before that parent's
-post-observation lifecycle; handler mutations are therefore visible at the
-child boundary. A parent does not need its own direct handler. Chains may nest,
-one parent may have several children, mixed dependency cycles are rejected,
-and multi-plan conditions are coalesced per player. Child observation lifecycle
-runs around each child condition attempt.
+Evaluation remains per player with inherited `@s` and position. For the
+single-parent path, the live condition is tested after that parent's direct
+handlers and before its post-observation lifecycle. Multi-parent children are
+tested after their required root occurrence marks have been established and
+before parent post-observation lifecycle advances tracked state. A
+parent does not need its own direct handler. Compositions may nest, one parent
+may have several children or groups, mixed dependency cycles are rejected with
+labeled paths, and multi-plan conditions are coalesced per player. Child
+observation lifecycle runs around each child condition attempt;
+post-observation is deferred through downstream staged dependents, including
+mixed graphs with an immediate single-parent intermediate.
 
 This is the implemented same-cycle phase, not general event correlation.
 Current limits are tracked as `LIM-EXP-004`:
 
-- one direct parent per child;
 - tick-backed structured or compatibility-condition parents only;
-- no multi-parent `after_any` or `after_all`;
 - no bounded `.within(...)` window or cross-tick correlation;
 - no advancement-backed graph parents;
 - no participant-rich contexts or arbitrary non-player scopes.
-
-Those names describe planned roadmap phases, not callable APIs.
 
 ## Built-in events
 

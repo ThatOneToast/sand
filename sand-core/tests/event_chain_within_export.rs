@@ -43,6 +43,45 @@ impl SandEvent for OtherCurrent {
     }
 }
 
+struct RootA;
+struct RootB;
+
+impl SandEvent for RootA {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        SandEventDispatch::tick()
+            .as_players()
+            .when(Condition::raw("score @s p5_root_a matches 1.."))
+    }
+}
+impl SandEvent for RootB {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        SandEventDispatch::tick()
+            .as_players()
+            .when(Condition::raw("score @s p5_root_b matches 1.."))
+    }
+}
+
+/// A bounded parent that is itself staged (composed via `after_any`), not a
+/// root or immediate single-`after` fast-path node. Its own occurrence mark
+/// is only set when ITS OWN staged evaluation runs, not merely once root
+/// detectors have finished — the age-counter update for it must be emitted
+/// after that specific evaluation, never in the flat root-adjacent block.
+struct StagedParent;
+impl SandEvent for StagedParent {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        SandEventDispatch::after_any::<(RootA, RootB)>()
+    }
+}
+
+struct BoundedOnStagedParent;
+impl SandEvent for BoundedOnStagedParent {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        SandEventDispatch::compose()
+            .after::<CurrentEvent>()
+            .within::<StagedParent>(TickWindow::new(7).unwrap())
+    }
+}
+
 struct ShortWindowChild;
 struct LongWindowChild;
 struct WithWhileChild;
@@ -152,6 +191,11 @@ submit_handler!(
     "say after_any_within"
 );
 submit_handler!(ProviderOnlyChild, "on_provider_only", "say provider_only");
+submit_handler!(
+    BoundedOnStagedParent,
+    "on_bounded_on_staged_parent",
+    "say bounded_on_staged_parent"
+);
 
 fn current_tick() -> Option<TickEventDispatch> {
     match CurrentEvent::dispatch().into() {
@@ -226,6 +270,51 @@ sand_core::inventory::submit! {
         },
     }
 }
+
+macro_rules! submit_root {
+    ($event:ty, $path:literal, $body:literal) => {
+        const _: () = {
+            fn tick() -> Option<TickEventDispatch> {
+                match <$event as SandEvent>::dispatch().into() {
+                    SandEventDispatch::Tick(tick) => Some(tick),
+                    _ => None,
+                }
+            }
+            fn type_id() -> TypeId {
+                TypeId::of::<$event>()
+            }
+            fn type_name() -> &'static str {
+                std::any::type_name::<$event>()
+            }
+            fn body() -> Vec<String> {
+                vec![$body.to_string()]
+            }
+            fn setup() -> EventSetup {
+                <$event as SandEvent>::setup()
+            }
+            sand_core::inventory::submit! {
+                EventDescriptor {
+                    path: $path,
+                    id_override: None,
+                    make: body,
+                    dispatch: EventDispatch::Custom {
+                        make_trigger: no_trigger,
+                        make_condition: no_condition,
+                        make_tick: tick,
+                        make_chain: no_chain,
+                        revoke: revoke_true,
+                        event_type_id: type_id,
+                        event_type_name: type_name,
+                        make_setup: setup,
+                    },
+                }
+            }
+        };
+    };
+}
+
+submit_root!(RootA, "on_root_a", "say root_a");
+submit_root!(RootB, "on_root_b", "say root_b");
 
 fn key(type_name: &str) -> String {
     let mut hash: u32 = 2_166_136_261;
@@ -370,4 +459,59 @@ fn repeated_export_is_identical() {
     let first = sand_core::try_export_components_json("withinpack").unwrap();
     let second = sand_core::try_export_components_json("withinpack").unwrap();
     assert_eq!(first, second);
+}
+
+/// Regression test: a bounded parent that is itself staged (composed via
+/// `after_any`, not a root or immediate single-`after` fast-path node) must
+/// have its age-counter update run *after* its own staged evaluation call —
+/// never in the flat block placed right after `root_checks`, since that
+/// parent's occurrence mark is not committed until its own evaluation runs.
+#[test]
+fn age_update_for_a_staged_bounded_parent_runs_after_its_own_evaluation_not_after_root_checks() {
+    let records = records();
+    let cycle = function(&records, "__sand_event_cycle");
+    let staged_parent_key = key(std::any::type_name::<StagedParent>());
+    let bounded_child_key = key(std::any::type_name::<BoundedOnStagedParent>());
+
+    let refresh_line = format!(
+        "execute as @a if score @s se_{staged_parent_key}_o matches 1 run scoreboard players set @s se_{staged_parent_key}_wa 0"
+    );
+    let increment_line = format!(
+        "execute as @a unless score @s se_{staged_parent_key}_o matches 1 run scoreboard players add @s se_{staged_parent_key}_wa 1"
+    );
+    assert!(cycle.contains(&refresh_line), "{cycle}");
+    assert!(cycle.contains(&increment_line), "{cycle}");
+
+    // StagedParent's own evaluation (an after_any gate over RootA/RootB) must
+    // run, and its result must be committed, before the age update reads it.
+    let staged_parent_gate_position = cycle
+        .find(&format!("__sand_event_multi_gate/{staged_parent_key}"))
+        .or_else(|| cycle.find(&format!("__sand_event_multi_eval/{staged_parent_key}")))
+        .expect("StagedParent's own staged evaluation is emitted");
+    let refresh_position = cycle.find(&refresh_line).unwrap();
+    assert!(
+        staged_parent_gate_position < refresh_position,
+        "age update for a staged bounded parent must run after that parent's own evaluation: {cycle}"
+    );
+
+    // The bounded child's own evaluation must run after the age update, so it
+    // never reads a stale (pre-refresh) age for this tick.
+    let child_eval_position = cycle
+        .find(&format!("__sand_event_multi_eval/{bounded_child_key}"))
+        .expect("bounded child evaluation is emitted");
+    assert!(
+        refresh_position < child_eval_position,
+        "bounded child must read the age counter only after it has been updated this tick: {cycle}"
+    );
+
+    let child_eval = function(
+        &records,
+        &format!("__sand_event_multi_eval/{bounded_child_key}"),
+    );
+    assert!(
+        child_eval.contains(&format!(
+            "if score @s se_{staged_parent_key}_wa matches ..6"
+        )),
+        "window 7 -> age <= 6: {child_eval}"
+    );
 }

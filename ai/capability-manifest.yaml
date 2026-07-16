@@ -318,11 +318,17 @@ capabilities:
       once regardless of how many children or distinct windows reference it —
       distinct windows against the same parent share one exact per-subject age
       objective (`se_{key}_wa`) rather than one lossy objective per window.
-      Age-counter maintenance runs once per bounded parent per tick, after
-      that tick's root detectors commit their occurrence marks and before any
-      staged child reads the counter, so a parent firing on the current tick
-      always satisfies `within` regardless of prior age, and no child ever
-      observes a stale age. Self-dependencies, advancement-backed parents,
+      Age-counter maintenance runs exactly once per bounded parent per tick,
+      placed at the point that specific parent's own occurrence for this tick
+      is fully committed — immediately after root-detector dispatch for a
+      root or immediate-single-`after`-fast-path parent, or immediately after
+      that parent's own staged evaluation call when the bounded parent is
+      itself composed via `after_any`/`after_all`/`while_`/`within` — and
+      always before any dependent staged child reads the counter. This
+      guarantees a parent firing on the current tick always satisfies
+      `within` regardless of prior age, and no child ever observes a stale
+      age, even when the bounded parent is itself staged. Self-dependencies,
+      advancement-backed parents,
       incompatible scopes, and direct/indirect mixed-edge cycles (including
       cycles through `while`/`after`/`after_any`/`after_all` edges) are
       rejected with a readable diagnostic path. State is keyed to `@s` (never

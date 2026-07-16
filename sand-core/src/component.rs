@@ -1345,23 +1345,40 @@ fn try_export_components_impl(
                     .map(|check_ref| format!("function {check_ref}")),
             );
             // Bounded (`.within`) age-counter maintenance: exactly one shared
-            // per-subject age update per bounded parent, run once root
-            // detectors above have committed this tick's `se_{key}_o` mark
-            // and before any staged evaluation reads it. Refresh always wins
-            // over increment (mutually exclusive `if`/`unless` branches), so
-            // a parent firing on the current tick unconditionally resets its
+            // per-subject age update per bounded parent, run once that
+            // parent's own occurrence for this tick is fully committed and
+            // before any staged evaluation reads it. Refresh always wins over
+            // increment (mutually exclusive `if`/`unless` branches), so a
+            // parent firing on the current tick unconditionally resets its
             // age to 0 regardless of the prior age — this is what makes a
             // window of 1 tick behave identically to `after::<E>()`, and
             // guarantees no staged child ever observes a stale age computed
             // before this tick's occurrence was known.
-            for name in &bounded_parents {
+            //
+            // A bounded parent that is itself a root (or reached only through
+            // the immediate single-`after` fast path folded into a root's own
+            // dispatch tree) has its `se_{key}_o` mark fully committed the
+            // moment `root_checks` above finishes, so its age update belongs
+            // here. A bounded parent that is itself staged (its own
+            // `after_any`/`after_all`/`while_`/`within` clauses) only gets its
+            // mark set when ITS OWN staged evaluation call below runs — for
+            // those, the age update is emitted inline in the topological loop
+            // immediately after that specific evaluation, never here.
+            let staged_child_names: std::collections::BTreeSet<String> =
+                staged_by_child.keys().cloned().collect();
+            let bounded_age_update = |name: &str| -> [String; 2] {
                 let key = tick_event_resource_key(name);
-                coordinator.push(format!(
-                    "execute as @a if score @s se_{key}_o matches 1 run scoreboard players set @s se_{key}_wa 0"
-                ));
-                coordinator.push(format!(
-                    "execute as @a unless score @s se_{key}_o matches 1 run scoreboard players add @s se_{key}_wa 1"
-                ));
+                [
+                    format!(
+                        "execute as @a if score @s se_{key}_o matches 1 run scoreboard players set @s se_{key}_wa 0"
+                    ),
+                    format!(
+                        "execute as @a unless score @s se_{key}_o matches 1 run scoreboard players add @s se_{key}_wa 1"
+                    ),
+                ]
+            };
+            for name in bounded_parents.difference(&staged_child_names) {
+                coordinator.extend(bounded_age_update(name));
             }
             for (staged, evaluation_ref) in staged_evaluations {
                 coordinator.extend(build_staged_occurrence_lines(
@@ -1370,6 +1387,9 @@ fn try_export_components_impl(
                     namespace,
                     &mut records,
                 ));
+                if bounded_parents.contains(&staged.child) {
+                    coordinator.extend(bounded_age_update(&staged.child));
+                }
             }
             for name in graph
                 .occurrence_topological_nodes()

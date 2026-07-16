@@ -44,6 +44,7 @@ fn child_chain() -> Option<ChainEventDispatch> {
         parent_type_name: advancement_parent_type_name,
         parent_dispatch: advancement_parent_dispatch,
         parent_setup: EventSetup::none,
+        persistent: vec![],
         when: vec![],
         unless: vec![],
     })

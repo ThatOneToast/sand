@@ -178,29 +178,32 @@ Vanilla supports the behavior; Sand's typed coverage is incomplete.
   Affects: `resource-pack`, `hud-workflows`.
   Evidence: `ROADMAP.md`, `book/src/resource-packs-and-hud.md`.
 
-- **LIM-EXP-004** — Same-cycle chained `SandEvent` dispatch
-  (`SandEventDispatch::chain::<Parent>()`) is the first scoped phase of
-  #240. Only one direct parent per event is supported (no `after_all`/
+- **LIM-EXP-004** — Same-cycle chained `SandEvent` dispatch and explicit
+  persistent `while_<E>()` conditions are the first two scoped phases of
+  #240. Persistent conditions are currently player-scoped, directly
+  queryable states; they are evaluated live at the child boundary and do not
+  invoke another event detector or transition lifecycle. Only one direct
+  occurrence parent per event is supported (no `after_all`/
   `after_any` multi-parent joins), and advancement-backed `SandEvent`
   parents are explicitly rejected — their reward-function codegen path does
   not yet provide a player execution context compatible with same-cycle
-  child dispatch. Continuous/held-state `while_<E>()` events, bounded
-  `.within(...)` time windows, cross-tick correlation, participant-rich
-  execution contexts (#230), and arbitrary non-player entity execution
-  scopes are not implemented and are not exposed as partial APIs.
-  Affects: `sandevent-chained-dispatch`.
+  child dispatch. Bounded `.within(...)` time windows, cross-tick
+  correlation, participant-rich execution contexts (#230), and arbitrary
+  non-player entity execution scopes are not implemented and are not exposed
+  as partial APIs.
+  Affects: `sandevent-chained-dispatch`, `sandevent-persistent-conditions`.
   Evidence: `sand-core/src/events/graph.rs`, `book/src/manual/events.md`
-  (Same-cycle chaining and roadmap boundary).
+  (Same-cycle and persistent composition).
 
 ## Validation gaps
 
 - **LIM-VAL-001** — Passing `cargo test --workspace` (including golden
   export tests) is evidence the generated JSON/mcfunction *shape* is
   correct, not that a vanilla server successfully loads the datapack.
-  Vanilla-reload validation (`scripts/validate-vanilla-reload.sh`) is opt-in,
-  requires network access and a local Java 21+ runtime, and is not part of
-  the default `cargo test` run or the checked-in CI config discovered during
-  this review.
+  Vanilla-reload validation (`scripts/validate-vanilla-reload.sh`) is not part
+  of the default `cargo test` run. Local runs require cached server jars and
+  Java 21/25; the checked-in scheduled/workflow-dispatch action covers the
+  verified profiles separately from pull-request CI.
   Affects: `cli-validate`.
   Evidence: `scripts/validate-vanilla-reload.sh`, `docs/vanilla-reload-validation.md`.
 
@@ -222,6 +225,15 @@ Vanilla supports the behavior; Sand's typed coverage is incomplete.
   Affects: `advancement-triggers`, `cli-validate`.
   Evidence: `docs/vanilla-reload-validation.md`,
   `sand-components/src/advancement/trigger_coverage.rs`.
+
+- **LIM-VAL-004** — Persistent `while_<E>()` has real single-player runtime
+  evidence only for current sneaking on Minecraft 1.21.4. The other supported
+  persistent providers, Minecraft 26.2 semantics, and two-player isolation
+  remain structural export/unit evidence; reload success does not upgrade
+  those claims.
+  Affects: `sandevent-persistent-conditions`, `cli-validate`.
+  Evidence: `sand-vanilla-audit/src/lib.rs`,
+  `scripts/vanilla-semantic-client/client.cjs`.
 
 ## Documentation and status contradictions found during audit (2026-07-12)
 

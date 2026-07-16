@@ -17,17 +17,19 @@ if (!port || version !== "1.21.4") {
 const bot = mineflayer.createBot({ host, port, username, version, auth: "offline" });
 let placedMatches = 0;
 let itemUsedMatches = 0;
+let whileSneakingMatches = 0;
 let interactionSequence = 0;
 let completed = false;
 
 bot.on("messagestr", (message) => {
   if (message.includes("__SAND_SEMANTIC_PLACED__")) placedMatches += 1;
   if (message.includes("__SAND_SEMANTIC_ITEM_USED__")) itemUsedMatches += 1;
+  if (message.includes("__SAND_SEMANTIC_WHILE_SNEAKING__")) whileSneakingMatches += 1;
 });
 
 function fail(message) {
   throw new Error(
-    `${message} (placed=${placedMatches}, item_used=${itemUsedMatches})`,
+    `${message} (placed=${placedMatches}, item_used=${itemUsedMatches}, while_sneaking=${whileSneakingMatches})`,
   );
 }
 
@@ -96,6 +98,23 @@ async function assertCounts(expectedPlaced, expectedItemUsed, label) {
   }
 }
 
+async function assertWhileSneaking(expected, label) {
+  await waitTicks(5);
+  if (whileSneakingMatches !== expected) {
+    fail(`${label}: expected while_sneaking=${expected}`);
+  }
+}
+
+function setSneaking(state) {
+  // Send the exact 1.21.4 client action packet. Using a raw packet here keeps
+  // the semantic stimulus unambiguous and independent of Mineflayer physics.
+  bot._client.write("entity_action", {
+    entityId: bot.entity.id,
+    actionId: state ? 0 : 1,
+    jumpBoost: 0,
+  });
+}
+
 bot.once("spawn", async () => {
   try {
     await commandUntil(
@@ -107,8 +126,10 @@ bot.once("spawn", async () => {
       await command(`fill ${baseX - 5} 79 ${baseZ - 5} ${baseX + 5} 85 ${baseZ + 5} air`);
       await command(`fill ${baseX - 5} 78 ${baseZ - 5} ${baseX + 5} 78 ${baseZ + 5} stone`);
     }
+    // Mineflayer may briefly report an interpolated pre-teleport position;
+    // the packet-driven assertions below still target and verify exact blocks.
     const atTestPosition = async () =>
-      bot.entity.position.distanceTo(new Vec3(baseX + 0.5, 79, baseZ + 0.5)) < 0.25;
+      bot.entity.position.distanceTo(new Vec3(baseX + 0.5, 79, baseZ + 0.5)) < 1.5;
     await commandUntil(
       `tp @s ${baseX + 0.5} 79 ${baseZ + 0.5}`,
       atTestPosition,
@@ -174,8 +195,29 @@ bot.once("spawn", async () => {
     await useAt(baseX + 2, baseZ + 3);
     await assertCounts(2, 2, "final used item must fire after revoke/reset");
 
+    await command("scoreboard players set @s sand_sem_occ 0");
+    await command("scoreboard players set @s sand_sem_prev 0");
+    setSneaking(true);
+    await waitTicks(10);
+    await assertWhileSneaking(0, "state becoming true without a parent occurrence must not fire");
+    await command("scoreboard players add @s sand_sem_occ 1");
+    await assertWhileSneaking(1, "first parent observation while true must fire once");
+    await command("scoreboard players add @s sand_sem_occ 1");
+    await assertWhileSneaking(2, "state remaining true must allow a later parent occurrence");
+
+    setSneaking(false);
+    await waitTicks(10);
+    await command("scoreboard players add @s sand_sem_occ 1");
+    await assertWhileSneaking(2, "state becoming false must stop child dispatch");
+
+    setSneaking(true);
+    await waitTicks(10);
+    await command("scoreboard players add @s sand_sem_occ 1");
+    await assertWhileSneaking(3, "re-entering true state must allow repeated firing");
+    setSneaking(false);
+
     console.log(
-      `PASSED semantic gameplay: placed=${placedMatches} item_used=${itemUsedMatches}`,
+      `PASSED semantic gameplay: placed=${placedMatches} item_used=${itemUsedMatches} while_sneaking=${whileSneakingMatches}`,
     );
     completed = true;
     bot.end("semantic audit complete");

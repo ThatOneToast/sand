@@ -19,11 +19,13 @@ fn compile_tests() {
     t.pass("tests/cases/pass_sand_event_chain_dispatch.rs");
     t.pass("tests/cases/pass_sand_event_while_dispatch.rs");
     t.pass("tests/cases/pass_sand_event_multi_parent_dispatch.rs");
+    t.pass("tests/cases/pass_sand_event_within_dispatch.rs");
     t.compile_fail("tests/cases/fail_sand_event_chain_non_sand_event_parent.rs");
     t.compile_fail("tests/cases/fail_sand_event_while_non_persistent.rs");
     t.compile_fail("tests/cases/fail_sand_event_after_any_empty.rs");
     t.compile_fail("tests/cases/fail_sand_event_after_all_non_event.rs");
     t.compile_fail("tests/cases/fail_sand_event_after_any_arity_nine.rs");
+    t.compile_fail("tests/cases/fail_sand_event_within_non_sand_event_parent.rs");
     t.compile_fail("tests/cases/fail_with_params.rs");
     t.compile_fail("tests/cases/fail_empty_body.rs");
     t.compile_fail("tests/cases/fail_raw_string.rs");

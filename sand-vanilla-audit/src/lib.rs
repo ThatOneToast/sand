@@ -1,7 +1,7 @@
 //! Small deterministic datapack used only by vanilla load/reload validation.
 
 use sand_core::event::vanilla::{PlayerStartsSneaking, PlayerStopsSneaking};
-use sand_core::events::{EventSetup, PlayerSneakEvent, SandEvent, SandEventDispatch};
+use sand_core::events::{EventSetup, PlayerSneakEvent, SandEvent, SandEventDispatch, TickWindow};
 use sand_core::prelude::*;
 use sand_core::sand_state;
 use sand_core::{FloatRange, IntRange, NumberProvider};
@@ -166,6 +166,25 @@ pub fn semantic_after_any(_event: SemanticAfterAny) {
 #[event]
 pub fn semantic_after_all(_event: SemanticAfterAll) {
     cmd::raw(r#"tellraw @s {"text":"__SAND_SEMANTIC_AFTER_ALL__"}"#)
+}
+
+/// Phase 5 (#240) bounded correlation: `SemanticOccurrence` is the current
+/// trigger, `SemanticMultiParentA` is the bounded prior event. A 5-tick
+/// window is small enough for deterministic real-server timing while still
+/// distinguishing "recent" from "stale".
+pub struct SemanticWithin;
+
+impl SandEvent for SemanticWithin {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        SandEventDispatch::compose()
+            .after::<SemanticOccurrence>()
+            .within::<SemanticMultiParentA>(TickWindow::new(5).expect("valid window"))
+    }
+}
+
+#[event]
+pub fn semantic_within(_event: SemanticWithin) {
+    cmd::raw(r#"tellraw @s {"text":"__SAND_SEMANTIC_WITHIN__"}"#)
 }
 
 #[function]

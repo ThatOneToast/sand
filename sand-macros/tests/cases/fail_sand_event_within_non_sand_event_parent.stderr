@@ -1,0 +1,29 @@
+error[E0277]: `NotASandEvent` is used as a bare `#[event]` handler parameter but does not implement `SandEvent`
+  --> tests/cases/fail_sand_event_within_non_sand_event_parent.rs:22:23
+   |
+22 |             .within::<NotASandEvent>(TickWindow::new(20).unwrap())
+   |              ------   ^^^^^^^^^^^^^ bare marker parameters require `T: SandEvent`
+   |              |
+   |              required by a bound introduced by this call
+   |
+help: the trait `SandEvent` is not implemented for `NotASandEvent`
+  --> tests/cases/fail_sand_event_within_non_sand_event_parent.rs:6:1
+   |
+ 6 | pub struct NotASandEvent;
+   | ^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: AdvancementEvent-backed events are stateless triggers handled through `Event<T>` (see sand_core::event::AdvancementEvent); SandEvent-backed events define custom tick/advancement dispatch and lifecycle via `impl SandEvent for NotASandEvent`
+   = help: the following other types implement trait `SandEvent`:
+             AnimalTamed
+             AnimalsBreed
+             AnyBlockPlaced
+             AnyItemConsumed
+             AnyItemCrafted
+             AnyItemEnchanted
+             BeeNestDestroyedEvent
+             BrewPotionEvent
+           and $N others
+note: required by a bound in `ChainEventDispatch::within`
+  --> $WORKSPACE/sand-core/src/events/mod.rs
+   |
+   |     pub fn within<E: SandEvent + 'static>(mut self, window: TickWindow) -> Self {
+   |                      ^^^^^^^^^ required by this bound in `ChainEventDispatch::within`

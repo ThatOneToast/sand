@@ -135,6 +135,7 @@ fn single_cond_chain() -> Option<ChainEventDispatch> {
             parent_setup,
         ),
         persistent: vec![],
+        bounded: vec![],
         when: vec![Condition::raw("block ~ ~-1 ~ minecraft:white_wool")],
         unless: vec![],
     })
@@ -182,6 +183,7 @@ fn unconditional_chain() -> Option<ChainEventDispatch> {
             parent_setup,
         ),
         persistent: vec![],
+        bounded: vec![],
         when: vec![],
         unless: vec![],
     })
@@ -229,6 +231,7 @@ fn or_cond_chain() -> Option<ChainEventDispatch> {
             parent_setup,
         ),
         persistent: vec![],
+        bounded: vec![],
         when: vec![
             Condition::raw("score @s a matches 1").or(Condition::raw("score @s b matches 1")),
         ],
@@ -280,6 +283,7 @@ fn distinct_a_chain() -> Option<ChainEventDispatch> {
             parent_setup,
         ),
         persistent: vec![],
+        bounded: vec![],
         when: vec![Condition::raw("tag @s distinct_a")],
         unless: vec![],
     })
@@ -293,6 +297,7 @@ fn distinct_b_chain() -> Option<ChainEventDispatch> {
             parent_setup,
         ),
         persistent: vec![],
+        bounded: vec![],
         when: vec![Condition::raw("tag @s distinct_b")],
         unless: vec![],
     })
@@ -389,6 +394,7 @@ fn orphan_child_chain() -> Option<ChainEventDispatch> {
             orphan_parent_setup,
         ),
         persistent: vec![],
+        bounded: vec![],
         when: vec![],
         unless: vec![],
     })

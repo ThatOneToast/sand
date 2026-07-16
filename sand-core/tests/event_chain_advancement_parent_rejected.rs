@@ -50,6 +50,7 @@ fn child_chain() -> Option<ChainEventDispatch> {
             event_setup: EventSetup::none,
         })],
         persistent: vec![],
+        bounded: vec![],
         when: vec![],
         unless: vec![],
     })

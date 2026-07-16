@@ -24,10 +24,10 @@
 use std::any::TypeId;
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::condition::Condition;
+use crate::condition::{Condition, ScoreRange};
 use crate::events::{
     EventSetup, NormalizedEventDispatch, SameCycleEventDependency, SameCycleEventRequirement,
-    TickEventDispatch, TickExecutionPlans, TickScope,
+    TickEventDispatch, TickExecutionPlans, TickScope, TickWindow,
 };
 
 /// A resolved persistent-state requirement. This is a dependency for graph
@@ -38,6 +38,39 @@ pub struct PersistentDependency {
     pub type_name: &'static str,
     pub scope: TickScope,
     pub condition: Condition,
+}
+
+/// A resolved bounded cross-tick correlation requirement (`.within(...)`).
+///
+/// `condition` is the fully resolved `age <= window.ticks() - 1` score check
+/// against the parent's shared per-subject age objective (the internal
+/// `_wa` objective, keyed the same way as every other generated event
+/// resource, emitted by the exporter) — computed once here so every
+/// edge/staged-child consumer reuses the same [`Condition`] shape as
+/// `persistent`, rather than re-deriving the objective name at each lowering
+/// site.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BoundedDependency {
+    pub type_id: TypeId,
+    pub type_name: &'static str,
+    pub window: TickWindow,
+    pub condition: Condition,
+}
+
+impl BoundedDependency {
+    fn resolve(type_id: TypeId, type_name: &'static str, window: TickWindow) -> Self {
+        let key = tick_event_resource_key(type_name);
+        Self {
+            type_id,
+            type_name,
+            window,
+            condition: Condition::Score {
+                selector: "@s".to_string(),
+                objective: format!("se_{key}_wa"),
+                range: ScoreRange::Lte(window.ticks() as i32 - 1),
+            },
+        }
+    }
 }
 
 /// One resolved same-cycle parent identity.
@@ -107,6 +140,11 @@ pub enum NodeOrigin {
         /// Explicit persistent state requirements, sorted and deduplicated by
         /// canonical concrete type name.
         persistent: Vec<PersistentDependency>,
+        /// Bounded cross-tick correlation requirements, sorted and
+        /// deduplicated by canonical concrete type name. A node with any
+        /// bounded dependency is always staged through the tick coordinator
+        /// — see [`EventGraph::has_staged_composition`].
+        bounded: Vec<BoundedDependency>,
         /// Positive conditions — all must hold (ANDed).
         when: Vec<Condition>,
         /// Negative conditions — none may hold.
@@ -136,6 +174,7 @@ pub struct EventEdge {
     pub parent: String,
     pub child: String,
     pub persistent: Vec<PersistentDependency>,
+    pub bounded: Vec<BoundedDependency>,
     pub when: Vec<Condition>,
     pub unless: Vec<Condition>,
 }
@@ -146,6 +185,7 @@ pub struct StagedEvent {
     pub child: String,
     pub occurrence: Vec<OccurrenceDependency>,
     pub persistent: Vec<PersistentDependency>,
+    pub bounded: Vec<BoundedDependency>,
     pub when: Vec<Condition>,
     pub unless: Vec<Condition>,
 }
@@ -156,6 +196,7 @@ impl StagedEvent {
             parent: String::new(),
             child: self.child.clone(),
             persistent: self.persistent.clone(),
+            bounded: self.bounded.clone(),
             when: self.when.clone(),
             unless: self.unless.clone(),
         }
@@ -167,13 +208,22 @@ impl EventEdge {
     /// same semantics as [`TickEventDispatch::execution_plans`] /
     /// `ChainEventDispatch::execution_plans`.
     pub fn execution_plans(&self) -> TickExecutionPlans {
-        if self.persistent.is_empty() && self.when.is_empty() && self.unless.is_empty() {
+        if self.persistent.is_empty()
+            && self.bounded.is_empty()
+            && self.when.is_empty()
+            && self.unless.is_empty()
+        {
             return TickExecutionPlans::Unconditional;
         }
         let mut positive: Vec<Condition> = self
             .persistent
             .iter()
             .map(|dependency| dependency.condition.clone())
+            .chain(
+                self.bounded
+                    .iter()
+                    .map(|dependency| dependency.condition.clone()),
+            )
             .collect();
         positive.extend(self.when.clone());
         let mut combined = if positive.is_empty() {
@@ -207,6 +257,12 @@ impl EventGraph {
 
     /// Direct children chained from `parent`, sorted by canonical child
     /// name — deterministic regardless of registration order.
+    ///
+    /// A node with any bounded (`.within`) dependency never takes this
+    /// immediate fast path, even when its occurrence shape is a single
+    /// `After` — it always goes through the staged coordinator, since the
+    /// per-subject age counter it reads is only current there (see
+    /// [`has_staged_composition`](Self::has_staged_composition)).
     pub fn children_of(&self, parent: &str) -> Vec<EventEdge> {
         let mut out: Vec<EventEdge> = self
             .nodes
@@ -215,12 +271,15 @@ impl EventGraph {
                 NodeOrigin::Chained {
                     occurrence,
                     persistent,
+                    bounded,
                     when,
                     unless,
-                } if matches!(occurrence.as_slice(), [OccurrenceDependency::After(p)] if p.type_name == parent) => Some(EventEdge {
+                } if bounded.is_empty()
+                    && matches!(occurrence.as_slice(), [OccurrenceDependency::After(p)] if p.type_name == parent) => Some(EventEdge {
                     parent: parent.to_string(),
                     child: n.type_name.to_string(),
                     persistent: persistent.clone(),
+                    bounded: Vec::new(),
                     when: when.clone(),
                     unless: unless.clone(),
                 }),
@@ -234,12 +293,12 @@ impl EventGraph {
     /// Whether this graph requires tick-local occurrence staging.
     pub fn has_staged_composition(&self) -> bool {
         self.nodes.values().any(|node| {
-            matches!(&node.origin, NodeOrigin::Chained { occurrence, .. }
-                if !matches!(occurrence.as_slice(), [OccurrenceDependency::After(_)]))
+            matches!(&node.origin, NodeOrigin::Chained { occurrence, bounded, .. }
+                if !matches!(occurrence.as_slice(), [OccurrenceDependency::After(_)]) || !bounded.is_empty())
         })
     }
 
-    /// Multi-clause/multi-parent children in deterministic occurrence
+    /// Multi-clause/multi-parent/bounded children in deterministic occurrence
     /// topological order.
     pub fn staged_events(&self) -> Result<Vec<StagedEvent>, GraphError> {
         let order = self.occurrence_topological_order()?;
@@ -254,13 +313,17 @@ impl EventGraph {
                 NodeOrigin::Chained {
                     occurrence,
                     persistent,
+                    bounded,
                     when,
                     unless,
-                } if !matches!(occurrence.as_slice(), [OccurrenceDependency::After(_)]) => {
+                } if !matches!(occurrence.as_slice(), [OccurrenceDependency::After(_)])
+                    || !bounded.is_empty() =>
+                {
                     Some(StagedEvent {
                         child: node.type_name.to_string(),
                         occurrence: occurrence.clone(),
                         persistent: persistent.clone(),
+                        bounded: bounded.clone(),
                         when: when.clone(),
                         unless: unless.clone(),
                     })
@@ -276,16 +339,23 @@ impl EventGraph {
         Ok(staged)
     }
 
-    /// Nodes whose per-subject occurrence is consumed by a staged clause.
-    /// Leaf staged children are omitted until another staged dependency names
-    /// them as a parent.
+    /// Nodes whose per-subject occurrence is consumed by a staged clause or
+    /// read by a bounded age counter. Leaf staged children are omitted until
+    /// another staged dependency names them as a parent.
     pub fn occurrence_marked_nodes(&self) -> BTreeSet<String> {
         let mut marked = BTreeSet::new();
         for node in self.nodes.values() {
-            let NodeOrigin::Chained { occurrence, .. } = &node.origin else {
+            let NodeOrigin::Chained {
+                occurrence,
+                bounded,
+                ..
+            } = &node.origin
+            else {
                 continue;
             };
-            if matches!(occurrence.as_slice(), [OccurrenceDependency::After(_)]) {
+            let is_staged = !matches!(occurrence.as_slice(), [OccurrenceDependency::After(_)])
+                || !bounded.is_empty();
+            if !is_staged {
                 continue;
             }
             for clause in occurrence {
@@ -296,8 +366,33 @@ impl EventGraph {
                         .map(|parent| parent.type_name.to_string()),
                 );
             }
+            marked.extend(
+                bounded
+                    .iter()
+                    .map(|dependency| dependency.type_name.to_string()),
+            );
         }
         marked
+    }
+
+    /// Canonical names of parents referenced by at least one bounded
+    /// (`.within`) dependency, in deterministic order. Each needs exactly one
+    /// shared per-subject age-tracking objective (`se_{key}_wa`) regardless
+    /// of how many children or distinct windows reference it — see
+    /// [`BoundedDependency`].
+    pub fn bounded_parents(&self) -> BTreeSet<String> {
+        let mut parents = BTreeSet::new();
+        for node in self.nodes.values() {
+            let NodeOrigin::Chained { bounded, .. } = &node.origin else {
+                continue;
+            };
+            parents.extend(
+                bounded
+                    .iter()
+                    .map(|dependency| dependency.type_name.to_string()),
+            );
+        }
+        parents
     }
 
     /// Every graph node in canonical same-cycle occurrence order.
@@ -310,7 +405,12 @@ impl EventGraph {
             self.nodes.keys().map(|name| (name.clone(), 0)).collect();
         let mut outgoing: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
         for node in self.nodes.values() {
-            let NodeOrigin::Chained { occurrence, .. } = &node.origin else {
+            let NodeOrigin::Chained {
+                occurrence,
+                bounded,
+                ..
+            } = &node.origin
+            else {
                 continue;
             };
             let mut unique = BTreeSet::new();
@@ -318,6 +418,9 @@ impl EventGraph {
                 for parent in clause.parents() {
                     unique.insert(parent.type_name.to_string());
                 }
+            }
+            for dependency in bounded {
+                unique.insert(dependency.type_name.to_string());
             }
             *indegree
                 .get_mut(node.type_name)
@@ -400,9 +503,62 @@ impl EventGraph {
             }
         }
 
+        // Bounded dependencies deliberately allow distinct windows on the
+        // same canonical parent to coexist (each child's resolved condition
+        // encodes its own window against one shared, exact age counter — see
+        // `BoundedDependency::resolve`), so only the *identity* (TypeId) is
+        // checked here, never the window.
+        let mut bounded_registry: BTreeMap<&'static str, (TypeId, &'static str)> = BTreeMap::new();
+        for node in self.nodes.values() {
+            let NodeOrigin::Chained { bounded, .. } = &node.origin else {
+                continue;
+            };
+            for dependency in bounded {
+                match bounded_registry.get(dependency.type_name) {
+                    Some((type_id, first_child)) if *type_id != dependency.type_id => {
+                        return Err(GraphError(format!(
+                            "bounded event identity collision for `{}`: children `{first_child}` and `{}` resolved the same canonical name to incompatible type identities",
+                            dependency.type_name, node.type_name
+                        )));
+                    }
+                    _ => {
+                        bounded_registry
+                            .insert(dependency.type_name, (dependency.type_id, node.type_name));
+                    }
+                }
+            }
+        }
+
         self.occurrence_topological_order()?;
         Ok(())
     }
+}
+
+/// FNV-1a hash of a string, rendered as lowercase hex — used to derive
+/// stable, deterministic generated resource paths.
+fn fnv1a_hex(input: impl AsRef<str>) -> String {
+    let mut h: u32 = 2_166_136_261;
+    for b in input.as_ref().bytes() {
+        h ^= b as u32;
+        h = h.wrapping_mul(16_777_619);
+    }
+    format!("{h:08x}")
+}
+
+/// Deterministic generated resource key for a tick-lifecycle `SandEvent`
+/// group, derived from the canonical concrete event type name
+/// (`std::any::type_name::<T>()`).
+///
+/// This is intentionally **not** derived from `TypeId` (not stable across
+/// compiler versions/builds) and **not** from the subscribed handler path
+/// list (would rename the generated detector/setup whenever a handler is
+/// added, removed, or re-registered in a different order). The same concrete
+/// event type always produces the same key, and distinct generic
+/// monomorphizations (different canonical type names) always produce
+/// different keys — the exporter guards against 32-bit hash collisions
+/// between two distinct type names (see `key_registry` in `component.rs`).
+pub(crate) fn tick_event_resource_key(canonical_type_name: &str) -> String {
+    fnv1a_hex(canonical_type_name)
 }
 
 /// Graph construction/validation failure — a cycle, an unsupported parent
@@ -542,9 +698,73 @@ fn discover(
                 }
             }
 
+            let mut bounded_by_name: BTreeMap<&'static str, BoundedDependency> = BTreeMap::new();
+            for dependency in c.bounded {
+                let dependency_type_id = (dependency.event_type_id)();
+                let dependency_type_name = (dependency.event_type_name)();
+                if dependency_type_id == type_id || dependency_type_name == type_name {
+                    visiting.pop();
+                    return Err(GraphError(format!(
+                        "SandEvent `{type_name}` has an invalid bounded self-dependency through `within::<{dependency_type_name}>()`"
+                    )));
+                }
+                let parent_dispatch = (dependency.event_dispatch)().normalize();
+                if matches!(parent_dispatch, NormalizedEventDispatch::Advancement(_)) {
+                    visiting.pop();
+                    return Err(GraphError(format!(
+                        "SandEvent `{type_name}` cannot use `{dependency_type_name}` in `within`: advancement-backed SandEvent parents are not yet supported by bounded correlation (#240) — bound from a tick-lifecycle SandEvent instead"
+                    )));
+                }
+                if let NormalizedEventDispatch::Tick(tick) = &parent_dispatch
+                    && tick.scope != TickScope::Players
+                {
+                    visiting.pop();
+                    return Err(GraphError(format!(
+                        "SandEvent `{type_name}` cannot use `{dependency_type_name}` in `within`: the child requires player scope but the parent dispatch uses {:?}",
+                        tick.scope
+                    )));
+                }
+                let mut topology = vec![(type_id, type_name, "root")];
+                validate_definition_topology(
+                    dependency_type_id,
+                    dependency_type_name,
+                    parent_dispatch,
+                    "within",
+                    &mut topology,
+                )?;
+                let dependency_setup = (dependency.event_setup)();
+                discover(
+                    dependency_type_id,
+                    dependency_type_name,
+                    (dependency.event_dispatch)().normalize(),
+                    dependency_setup,
+                    handler_path,
+                    resolved,
+                    visiting,
+                )?;
+                let resolved_dependency = BoundedDependency::resolve(
+                    dependency_type_id,
+                    dependency_type_name,
+                    dependency.window,
+                );
+                match bounded_by_name.get(dependency_type_name) {
+                    Some(existing) if existing != &resolved_dependency => {
+                        visiting.pop();
+                        return Err(GraphError(format!(
+                            "SandEvent `{type_name}` received conflicting `within` window definitions for `{dependency_type_name}`: declare one window per concrete parent type, or use two distinct parent types if two different windows are genuinely required"
+                        )));
+                    }
+                    Some(_) => {}
+                    None => {
+                        bounded_by_name.insert(dependency_type_name, resolved_dependency);
+                    }
+                }
+            }
+
             NodeOrigin::Chained {
                 occurrence,
                 persistent: persistent_by_name.into_values().collect(),
+                bounded: bounded_by_name.into_values().collect(),
                 when: c.when,
                 unless: c.unless,
             }
@@ -751,6 +971,15 @@ fn validate_definition_topology(
                 path,
             )?;
         }
+        for bounded in chain.bounded {
+            validate_definition_topology(
+                (bounded.event_type_id)(),
+                (bounded.event_type_name)(),
+                (bounded.event_dispatch)().normalize(),
+                "within",
+                path,
+            )?;
+        }
     }
     path.pop();
     Ok(())
@@ -778,6 +1007,7 @@ fn validate_consistent(
             NodeOrigin::Chained {
                 occurrence,
                 persistent,
+                bounded,
                 when,
                 unless,
             },
@@ -798,8 +1028,22 @@ fn validate_consistent(
                 .collect();
             incoming.sort_by_key(|dependency| dependency.type_name);
             incoming.dedup_by(|left, right| left == right);
+            let mut incoming_bounded: Vec<BoundedDependency> = c
+                .bounded
+                .iter()
+                .map(|dependency| {
+                    BoundedDependency::resolve(
+                        (dependency.event_type_id)(),
+                        (dependency.event_type_name)(),
+                        dependency.window,
+                    )
+                })
+                .collect();
+            incoming_bounded.sort_by_key(|dependency| dependency.type_name);
+            incoming_bounded.dedup_by(|left, right| left == right);
             occurrence == &occurrence_identity(&c.occurrence)
                 && persistent == &incoming
+                && bounded == &incoming_bounded
                 && when == &c.when
                 && unless == &c.unless
         }
@@ -883,6 +1127,9 @@ mod tests {
     struct MultiAll;
     struct MixedCycleA;
     struct MixedCycleB;
+    struct BoundedParent;
+    struct BoundedCycleA;
+    struct BoundedCycleB;
     struct GenericParent<T>(std::marker::PhantomData<T>);
     struct GenericOne;
     struct GenericTwo;
@@ -925,6 +1172,22 @@ mod tests {
     impl SandEvent for MixedCycleB {
         fn dispatch() -> impl Into<SandEventDispatch> {
             SandEventDispatch::chain::<MixedCycleA>()
+        }
+    }
+    impl SandEvent for BoundedParent {
+        fn dispatch() -> impl Into<SandEventDispatch> {
+            SandEventDispatch::tick().as_players()
+        }
+    }
+    impl SandEvent for BoundedCycleA {
+        fn dispatch() -> impl Into<SandEventDispatch> {
+            SandEventDispatch::chain::<D>()
+                .within::<BoundedCycleB>(crate::events::TickWindow::new(5).expect("valid window"))
+        }
+    }
+    impl SandEvent for BoundedCycleB {
+        fn dispatch() -> impl Into<SandEventDispatch> {
+            SandEventDispatch::chain::<BoundedCycleA>()
         }
     }
     impl<T> SandEvent for GenericParent<T> {
@@ -1342,5 +1605,177 @@ mod tests {
         assert!(err.0.contains("dependency cycle"));
         assert!(err.0.contains("-[after_any]->"));
         assert!(err.0.contains("-[after]->"));
+    }
+
+    #[test]
+    fn bounded_edge_is_distinct_and_deduplicated() {
+        let mut resolved = BTreeMap::new();
+        let window = crate::events::TickWindow::new(5).unwrap();
+        let dispatch = SandEventDispatch::chain::<A>()
+            .within::<BoundedParent>(window)
+            .within::<BoundedParent>(window);
+        discover_node(
+            TypeId::of::<B>(),
+            std::any::type_name::<B>(),
+            NormalizedEventDispatch::Chain(dispatch),
+            EventSetup::none(),
+            "on_b",
+            &mut resolved,
+        )
+        .unwrap();
+        let graph = as_graph(resolved);
+        let node = &graph.nodes[std::any::type_name::<B>()];
+        let NodeOrigin::Chained { bounded, .. } = &node.origin else {
+            panic!("expected chained origin");
+        };
+        assert_eq!(bounded.len(), 1);
+        assert_eq!(bounded[0].type_name, std::any::type_name::<BoundedParent>());
+        assert_eq!(bounded[0].window, window);
+        assert!(
+            graph
+                .bounded_parents()
+                .contains(std::any::type_name::<BoundedParent>())
+        );
+        // The bounded parent has no direct handler but is still subscribed
+        // (its own detector node exists) because `.within` must observe its
+        // occurrence every tick, same as an `after` parent.
+        assert!(
+            graph
+                .nodes
+                .contains_key(std::any::type_name::<BoundedParent>())
+        );
+    }
+
+    #[test]
+    fn direct_bounded_self_dependency_is_rejected() {
+        let mut resolved = BTreeMap::new();
+        let window = crate::events::TickWindow::new(5).unwrap();
+        let err = discover_node(
+            TypeId::of::<A>(),
+            std::any::type_name::<A>(),
+            NormalizedEventDispatch::Chain(SandEventDispatch::chain::<D>().within::<A>(window)),
+            EventSetup::none(),
+            "on_a",
+            &mut resolved,
+        )
+        .unwrap_err();
+        assert!(err.0.contains("bounded self-dependency"));
+    }
+
+    #[test]
+    fn conflicting_bounded_window_is_rejected() {
+        let mut resolved = BTreeMap::new();
+        let dispatch = SandEventDispatch::chain::<A>()
+            .within::<BoundedParent>(crate::events::TickWindow::new(3).unwrap())
+            .within::<BoundedParent>(crate::events::TickWindow::new(5).unwrap());
+        let err = discover_node(
+            TypeId::of::<B>(),
+            std::any::type_name::<B>(),
+            NormalizedEventDispatch::Chain(dispatch),
+            EventSetup::none(),
+            "on_b",
+            &mut resolved,
+        )
+        .unwrap_err();
+        assert!(err.0.contains("conflicting `within` window"));
+    }
+
+    #[test]
+    fn indirect_bounded_cycle_has_labeled_path() {
+        let mut resolved = BTreeMap::new();
+        let err = discover_node(
+            TypeId::of::<BoundedCycleA>(),
+            std::any::type_name::<BoundedCycleA>(),
+            BoundedCycleA::dispatch().into().normalize(),
+            EventSetup::none(),
+            "on_bounded_cycle",
+            &mut resolved,
+        )
+        .unwrap_err();
+        assert!(err.0.contains("dependency cycle"));
+        assert!(err.0.contains("-[within]->"));
+        assert!(err.0.contains("-[after]->"));
+    }
+
+    #[test]
+    fn different_windows_on_shared_parent_are_both_accepted() {
+        let mut resolved = BTreeMap::new();
+        discover_node(
+            TypeId::of::<B>(),
+            std::any::type_name::<B>(),
+            NormalizedEventDispatch::Chain(
+                SandEventDispatch::chain::<A>()
+                    .within::<BoundedParent>(crate::events::TickWindow::new(3).unwrap()),
+            ),
+            EventSetup::none(),
+            "on_b",
+            &mut resolved,
+        )
+        .unwrap();
+        discover_node(
+            TypeId::of::<C>(),
+            std::any::type_name::<C>(),
+            NormalizedEventDispatch::Chain(
+                SandEventDispatch::chain::<A>()
+                    .within::<BoundedParent>(crate::events::TickWindow::new(9).unwrap()),
+            ),
+            EventSetup::none(),
+            "on_c",
+            &mut resolved,
+        )
+        .unwrap();
+        let graph = as_graph(resolved);
+        graph
+            .validate_dependencies()
+            .expect("distinct windows on the same parent are safe to share");
+        let b = &graph.nodes[std::any::type_name::<B>()];
+        let c = &graph.nodes[std::any::type_name::<C>()];
+        let NodeOrigin::Chained {
+            bounded: b_bounded, ..
+        } = &b.origin
+        else {
+            panic!("expected chained origin");
+        };
+        let NodeOrigin::Chained {
+            bounded: c_bounded, ..
+        } = &c.origin
+        else {
+            panic!("expected chained origin");
+        };
+        assert_ne!(b_bounded[0].condition, c_bounded[0].condition);
+        assert_eq!(b_bounded[0].type_name, c_bounded[0].type_name);
+    }
+
+    #[test]
+    fn bounded_window_one_matches_same_cycle_condition_shape() {
+        let mut resolved = BTreeMap::new();
+        discover_node(
+            TypeId::of::<B>(),
+            std::any::type_name::<B>(),
+            NormalizedEventDispatch::Chain(
+                SandEventDispatch::chain::<A>()
+                    .within::<BoundedParent>(crate::events::TickWindow::new(1).unwrap()),
+            ),
+            EventSetup::none(),
+            "on_b",
+            &mut resolved,
+        )
+        .unwrap();
+        let graph = as_graph(resolved);
+        let node = &graph.nodes[std::any::type_name::<B>()];
+        let NodeOrigin::Chained { bounded, .. } = &node.origin else {
+            panic!("expected chained origin");
+        };
+        assert_eq!(
+            bounded[0].condition,
+            Condition::Score {
+                selector: "@s".to_string(),
+                objective: format!(
+                    "se_{}_wa",
+                    tick_event_resource_key(std::any::type_name::<BoundedParent>())
+                ),
+                range: ScoreRange::Lte(0),
+            }
+        );
     }
 }

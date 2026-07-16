@@ -159,9 +159,10 @@
 //! [`ChainEventDispatch::after_any`], and [`ChainEventDispatch::after_all`]
 //! add deterministic multi-parent same-cycle clauses. A composed child can
 //! additionally require explicit persistent state with
-//! [`ChainEventDispatch::while_`]. Bounded `.within(...)` correlation,
-//! advancement-backed graph parents, and participant-rich contexts remain
-//! future work and are not current APIs.
+//! [`ChainEventDispatch::while_`], or bounded cross-tick correlation with
+//! [`ChainEventDispatch::within`] (see [`TickWindow`] for the exact boundary
+//! convention). Advancement-backed graph parents and participant-rich
+//! contexts remain future work and are not current APIs.
 //!
 //! Simple advancement-backed or single-fragment tick-poll `SandEvent` impls
 //! remain supported via [`SandEventDispatch::AdvancementTrigger`] and
@@ -236,6 +237,103 @@ impl PersistentEventCondition {
 pub trait PersistentSandEvent: SandEvent {
     /// Return the current-state condition for this event type.
     fn persistent_condition() -> PersistentEventCondition;
+}
+
+/// A validated bounded cross-tick correlation window for
+/// [`ChainEventDispatch::within`].
+///
+/// `within::<E>(TickWindow::new(N)?)` is satisfied for the current subject
+/// when `E` fired during the current evaluation cycle **or** within the
+/// previous `N - 1` completed tick boundaries. Concretely, tracking an
+/// integer *age* — ticks elapsed since `E` last fired for this subject,
+/// reset to `0` the cycle `E` fires — the window holds while `age <= N - 1`:
+///
+/// - `N = 1` is satisfied only by a same-cycle occurrence (`age == 0`),
+///   identical to `after::<E>()`.
+/// - `age` reaches `N - 1` on the last tick the window still holds; the
+///   very next tick without a fresh occurrence (`age == N`) it does not.
+/// - A new occurrence at any point resets `age` to `0`, refreshing the full
+///   window regardless of how much of the prior window remained.
+///
+/// Rejects `0` (a window must cover at least the current cycle) and windows
+/// larger than [`TickWindow::MAX_TICKS`], so callers cannot accidentally
+/// repurpose bounded correlation as an unbounded session/persistence
+/// mechanism — see [`TickWindowError`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct TickWindow(u32);
+
+impl TickWindow {
+    /// The smallest representable window: current-cycle occurrence only.
+    pub const MIN_TICKS: u32 = 1;
+    /// The largest representable window (20 minutes at 20 ticks/second).
+    ///
+    /// Bounded correlation is meant for short cross-tick coordination
+    /// windows, not long-lived session state — use durable per-player state
+    /// (e.g. `sand_core::state`) instead.
+    pub const MAX_TICKS: u32 = 24_000;
+
+    /// Validate `ticks` as a bounded correlation window.
+    ///
+    /// Returns [`TickWindowError::Zero`] for `0` and
+    /// [`TickWindowError::TooLarge`] above [`TickWindow::MAX_TICKS`].
+    pub fn new(ticks: u32) -> Result<Self, TickWindowError> {
+        if ticks < Self::MIN_TICKS {
+            return Err(TickWindowError::Zero);
+        }
+        if ticks > Self::MAX_TICKS {
+            return Err(TickWindowError::TooLarge {
+                requested: ticks,
+                max: Self::MAX_TICKS,
+            });
+        }
+        Ok(Self(ticks))
+    }
+
+    /// The validated window width, in ticks.
+    pub fn ticks(self) -> u32 {
+        self.0
+    }
+}
+
+/// [`TickWindow::new`] validation failure.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TickWindowError {
+    /// A window must cover at least the current cycle (`N >= 1`).
+    Zero,
+    /// `requested` exceeds [`TickWindow::MAX_TICKS`].
+    TooLarge { requested: u32, max: u32 },
+}
+
+impl std::fmt::Display for TickWindowError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Zero => write!(
+                f,
+                "bounded correlation window must be at least 1 tick (0 means \"never\", not \"current cycle\")"
+            ),
+            Self::TooLarge { requested, max } => write!(
+                f,
+                "bounded correlation window of {requested} ticks exceeds the supported maximum of {max} ticks"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for TickWindowError {}
+
+/// One typed bounded cross-tick correlation dependency attached to a chained
+/// event. See [`ChainEventDispatch::within`].
+pub struct BoundedEventDependency {
+    #[doc(hidden)]
+    pub event_type_id: fn() -> std::any::TypeId,
+    #[doc(hidden)]
+    pub event_type_name: fn() -> &'static str,
+    #[doc(hidden)]
+    pub event_dispatch: fn() -> SandEventDispatch,
+    #[doc(hidden)]
+    pub event_setup: fn() -> EventSetup,
+    #[doc(hidden)]
+    pub window: TickWindow,
 }
 
 /// One typed persistent-state dependency attached to a chained event.
@@ -545,6 +643,10 @@ pub struct ChainEventDispatch {
     /// Persistent current-state requirements, kept distinct from the
     /// same-cycle occurrence parent and from ordinary anonymous conditions.
     pub persistent: Vec<PersistentEventDependency>,
+    /// Bounded cross-tick correlation requirements. Distinct from `occurrence`
+    /// (same-cycle only) and `persistent` (current state, no occurrence). See
+    /// [`ChainEventDispatch::within`].
+    pub bounded: Vec<BoundedEventDependency>,
     /// Positive conditions — all must hold (ANDed) for this child to fire
     /// once its occurrence requirements are satisfied.
     pub when: Vec<crate::condition::Condition>,
@@ -614,6 +716,55 @@ impl ChainEventDispatch {
             event_dispatch: || E::dispatch().into(),
             event_setup: E::setup,
             make_condition: E::persistent_condition,
+        });
+        self
+    }
+
+    /// Require `E` to have fired for the same subject during the current
+    /// cycle or within the previous `window.ticks() - 1` completed tick
+    /// boundaries. See [`TickWindow`] for the exact boundary convention.
+    ///
+    /// Unlike `after`, `E`'s occurrence may have happened on an earlier tick.
+    /// Unlike `while_`, `E` is an occurrence, not a directly queryable
+    /// current-state condition — its own detector still runs and its
+    /// same-cycle occurrence mark still drives the age tracked for this
+    /// window. Distinct `.within` calls for different concrete parent types
+    /// are conjunctive. A repeated `.within::<E>(window)` call with the same
+    /// `window` is deduplicated; a repeated call for the same `E` with a
+    /// **different** `window` is rejected at export as an unrepresentable
+    /// conflicting declaration — declare a second concrete parent type
+    /// instead if two different windows against the same underlying event
+    /// are genuinely required.
+    ///
+    /// ```rust,no_run
+    /// use sand_core::events::{SandEvent, SandEventDispatch, TickWindow};
+    ///
+    /// struct CurrentEvent;
+    /// impl SandEvent for CurrentEvent {
+    ///     fn dispatch() -> impl Into<SandEventDispatch> {
+    ///         SandEventDispatch::tick().as_players()
+    ///     }
+    /// }
+    ///
+    /// struct PriorEvent;
+    /// impl SandEvent for PriorEvent {
+    ///     fn dispatch() -> impl Into<SandEventDispatch> {
+    ///         SandEventDispatch::tick().as_players()
+    ///     }
+    /// }
+    ///
+    /// let child = SandEventDispatch::compose()
+    ///     .after::<CurrentEvent>()
+    ///     .within::<PriorEvent>(TickWindow::new(20).expect("nonzero, in range"));
+    /// # let _: SandEventDispatch = child.into();
+    /// ```
+    pub fn within<E: SandEvent + 'static>(mut self, window: TickWindow) -> Self {
+        self.bounded.push(BoundedEventDependency {
+            event_type_id: std::any::TypeId::of::<E>,
+            event_type_name: std::any::type_name::<E>,
+            event_dispatch: || E::dispatch().into(),
+            event_setup: E::setup,
+            window,
         });
         self
     }
@@ -766,6 +917,7 @@ impl SandEventDispatch {
         ChainEventDispatch {
             occurrence: Vec::new(),
             persistent: Vec::new(),
+            bounded: Vec::new(),
             when: Vec::new(),
             unless: Vec::new(),
         }
@@ -2331,5 +2483,49 @@ mod tests {
         assert!(setup.objectives.is_empty());
         assert!(setup.pre_observation.is_empty());
         assert!(setup.post_observation.is_empty());
+    }
+
+    #[test]
+    fn tick_window_rejects_zero() {
+        assert_eq!(TickWindow::new(0), Err(TickWindowError::Zero));
+    }
+
+    #[test]
+    fn tick_window_rejects_above_max() {
+        assert_eq!(
+            TickWindow::new(TickWindow::MAX_TICKS + 1),
+            Err(TickWindowError::TooLarge {
+                requested: TickWindow::MAX_TICKS + 1,
+                max: TickWindow::MAX_TICKS,
+            })
+        );
+    }
+
+    #[test]
+    fn tick_window_accepts_min_and_max() {
+        assert_eq!(TickWindow::new(1).unwrap().ticks(), 1);
+        assert_eq!(
+            TickWindow::new(TickWindow::MAX_TICKS).unwrap().ticks(),
+            TickWindow::MAX_TICKS
+        );
+    }
+
+    #[test]
+    fn tick_window_error_messages_are_actionable() {
+        assert!(
+            TickWindowError::Zero
+                .to_string()
+                .contains("at least 1 tick")
+        );
+        let too_large = TickWindowError::TooLarge {
+            requested: 99_999,
+            max: TickWindow::MAX_TICKS,
+        };
+        assert!(too_large.to_string().contains("99999"));
+        assert!(
+            too_large
+                .to_string()
+                .contains(&TickWindow::MAX_TICKS.to_string())
+        );
     }
 }

@@ -189,15 +189,37 @@ Vanilla supports the behavior; Sand's typed coverage is incomplete.
   lifecycle. Advancement-backed `SandEvent` parents are explicitly rejected —
   their reward-function codegen path does
   not yet provide a player execution context compatible with same-cycle
-  child dispatch. Bounded `.within(...)` time windows, cross-tick
-  correlation, participant-rich execution contexts (#230), and arbitrary
-  non-player entity execution scopes are not implemented and are not exposed
-  as partial APIs.
+  child dispatch. Bounded `within::<E>(TickWindow)` cross-tick correlation
+  (Phase 5 of #240) is now implemented — see `sandevent-bounded-correlation`.
+  Participant-rich execution contexts (#230) and arbitrary non-player entity
+  execution scopes are not implemented and are not exposed as partial APIs.
   Affects: `sandevent-chained-dispatch`, `sandevent-persistent-conditions`,
-  `sandevent-multi-parent-composition`.
+  `sandevent-multi-parent-composition`, `sandevent-bounded-correlation`.
   Evidence: `sand-core/src/events/graph.rs`, `sand-core/src/component.rs`,
   `book/src/manual/events.md`
   (Same-cycle and persistent composition).
+
+- **LIM-EXP-005** — Bounded `.within(...)` age counters only advance for
+  online players: the generated age update runs under `execute as @a`, which
+  only iterates currently-online players, so age advances while a player is
+  online and pauses (does not advance) while they are offline. The
+  underlying scoreboard value is not reset by disconnect/reconnect or
+  `/reload` (it persists like `Cooldown`/`Timer` state), so a returning
+  player resumes aging from wherever it paused rather than restarting from
+  0. Practical effect: a bounded window that would have expired in real time
+  can still be open when a player reconnects, if the parent fired shortly
+  before they disconnected and few enough *online* ticks have elapsed since.
+  This is consistent with Sand's existing scoreboard-state guarantees
+  elsewhere (no vanilla mechanism ticks state for offline players) and is
+  not a bug, but callers relying on `.within(...)` as an approximation of
+  wall-clock recency should account for it. Separately, the increment is
+  guarded to stop at `TickWindow::MAX_TICKS` (24,000) rather than
+  incrementing unboundedly, so a permanently-idle parent's age cannot
+  overflow the signed 32-bit scoreboard value and wrap negative.
+  Affects: `sandevent-bounded-correlation`.
+  Evidence: `sand-core/src/component.rs` (bounded age-counter maintenance),
+  `sand-core/tests/event_chain_within_export.rs`,
+  `docs/events.md`, `book/src/manual/events.md`.
 
 ## Validation gaps
 
@@ -248,6 +270,25 @@ Vanilla supports the behavior; Sand's typed coverage is incomplete.
   real load/reload evidence only; that does not prove gameplay semantics.
   Affects: `sandevent-multi-parent-composition`, `cli-validate`.
   Evidence: `sand-core/tests/event_multi_parent_export.rs`,
+  `sand-vanilla-audit/src/lib.rs`,
+  `scripts/vanilla-semantic-client/client.cjs`,
+  `docs/vanilla-reload-validation.md`.
+
+- **LIM-VAL-006** — Bounded `.within(...)` cross-tick correlation (Phase 5 of
+  #240) has deterministic, exact boundary evidence only from `sand-core`
+  unit/export tests (the generated `matches ..N-1` condition, age-counter
+  ordering, and objective dedup) — those tests assert exact generated command
+  text, not live server timing. A real 1.21.4 protocol-client fixture
+  (`SemanticWithin`) is prepared and exercises the "clearly within,"
+  "refreshes," and "clearly expired" cases, but has not been run against a
+  live server as part of landing this feature (no server available in the
+  authoring environment); do not treat it as executed runtime evidence until
+  someone runs `scripts/validate-vanilla-semantics.sh` against it. 26.2 has no
+  semantic-runtime claim at all. Two-client multiplayer isolation remains
+  structural (per-`@s` command generation), not a two-client runtime test.
+  Affects: `sandevent-bounded-correlation`, `cli-validate`.
+  Evidence: `sand-core/src/events/graph.rs`,
+  `sand-core/tests/event_chain_within_export.rs`,
   `sand-vanilla-audit/src/lib.rs`,
   `scripts/vanilla-semantic-client/client.cjs`,
   `docs/vanilla-reload-validation.md`.

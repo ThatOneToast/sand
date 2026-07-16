@@ -22,24 +22,33 @@ Build flow:
 
 Custom `SandEvent` definitions are normalized into an export-time graph in
 `sand-core/src/events/graph.rs`. The graph keeps single-parent `after`,
-multi-parent `after_any`/`after_all`, and persistent `while` dependencies as
-distinct IR rather than anonymous command conditions. Canonical concrete Rust
-type names supply deterministic graph and generated-resource identity;
-`TypeId` is used only for in-process grouping and collision checks.
+multi-parent `after_any`/`after_all`, persistent `while`, and bounded `within`
+dependencies as distinct IR rather than anonymous command conditions.
+Canonical concrete Rust type names supply deterministic graph and
+generated-resource identity; `TypeId` is used only for in-process grouping and
+collision checks.
 
 Single-parent edges retain their immediate inherited-subject fan-out.
-Multi-parent graphs add a generated cycle coordinator: it clears only the
-required per-player occurrence marks, invokes root checks in canonical order,
-then evaluates composed nodes in deterministic occurrence-topological order.
-An event detector/setup is emitted once even when several children or groups
-reuse it. Occurrence marks are set on inherited `@s` before dependent checks;
-persistent-only providers are queried live and remain unsubscribed.
+Multi-parent and bounded graphs add a generated cycle coordinator: it clears
+only the required per-player occurrence marks, invokes root checks in
+canonical order, updates each bounded parent's shared per-subject age counter
+(refresh-to-`0` on occurrence, else increment — refresh always wins), then
+evaluates composed nodes in deterministic occurrence-topological order. Any
+node with a bounded dependency is always staged through the coordinator, even
+when its occurrence shape is otherwise a single `after`, since the age counter
+it reads is only current there. An event detector/setup is emitted once even
+when several children, groups, or distinct `.within` windows reuse it —
+distinct windows on the same bounded parent share one exact age objective
+rather than one lossy objective per window. Occurrence marks are set on
+inherited `@s` before dependent checks; persistent-only providers are queried
+live and remain unsubscribed.
 Post-observation lifecycle is deferred until dependent composed nodes finish;
 mixed immediate/staged intermediates use a per-subject attempted-observation
 mark so post-observation still runs after a failed child condition attempt.
 
 Graph discovery rejects duplicate parents/groups, incompatible scopes,
-canonical/generated identity collisions, and direct or mixed cycles with edge
-labels. Bounded cross-tick correlation, advancement-backed graph parents, and
-participant context propagation are later roadmap phases and are not modeled
-as implemented behavior here.
+canonical/generated identity collisions, conflicting `.within` windows for the
+same parent, and direct or mixed cycles with edge labels (including through
+`within` edges). Advancement-backed graph parents and participant context
+propagation are later roadmap phases and are not modeled as implemented
+behavior here.

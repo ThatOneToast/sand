@@ -54,6 +54,7 @@ fn a_dispatch() -> sand_core::events::SandEventDispatch {
             c_dispatch,
         ),
         persistent: vec![],
+        bounded: vec![],
         when: vec![],
         unless: vec![],
     })
@@ -66,6 +67,7 @@ fn b_dispatch() -> sand_core::events::SandEventDispatch {
             a_dispatch,
         ),
         persistent: vec![],
+        bounded: vec![],
         when: vec![],
         unless: vec![],
     })
@@ -78,6 +80,7 @@ fn c_dispatch() -> sand_core::events::SandEventDispatch {
             b_dispatch,
         ),
         persistent: vec![],
+        bounded: vec![],
         when: vec![],
         unless: vec![],
     })

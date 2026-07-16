@@ -154,12 +154,14 @@
 //! identity for each concrete monomorphization; use a concrete unit adapter
 //! when a generic definition stores `PhantomData` or other fields.
 //!
-//! [`SandEventDispatch::chain`] implements same-cycle parent-to-child chaining
-//! for tick-backed `SandEvent`s. A chained child can additionally require an
-//! explicitly persistent event state with [`ChainEventDispatch::while_`].
-//! Multi-parent `after_any`/`after_all`, bounded `.within(...)` correlation,
-//! advancement-backed graph parents, and participant-rich contexts are future
-//! work and are not current APIs.
+//! [`SandEventDispatch::chain`] implements concise single-parent same-cycle
+//! chaining for tick-backed `SandEvent`s. [`SandEventDispatch::compose`],
+//! [`ChainEventDispatch::after_any`], and [`ChainEventDispatch::after_all`]
+//! add deterministic multi-parent same-cycle clauses. A composed child can
+//! additionally require explicit persistent state with
+//! [`ChainEventDispatch::while_`]. Bounded `.within(...)` correlation,
+//! advancement-backed graph parents, and participant-rich contexts remain
+//! future work and are not current APIs.
 //!
 //! Simple advancement-backed or single-fragment tick-poll `SandEvent` impls
 //! remain supported via [`SandEventDispatch::AdvancementTrigger`] and
@@ -249,6 +251,78 @@ pub struct PersistentEventDependency {
     #[doc(hidden)]
     pub make_condition: fn() -> PersistentEventCondition,
 }
+
+/// One typed same-cycle event occurrence dependency.
+#[derive(Clone, Copy)]
+pub struct SameCycleEventDependency {
+    #[doc(hidden)]
+    pub event_type_id: fn() -> std::any::TypeId,
+    #[doc(hidden)]
+    pub event_type_name: fn() -> &'static str,
+    #[doc(hidden)]
+    pub event_dispatch: fn() -> SandEventDispatch,
+    #[doc(hidden)]
+    pub event_setup: fn() -> EventSetup,
+}
+
+impl SameCycleEventDependency {
+    fn of<E: SandEvent + 'static>() -> Self {
+        Self {
+            event_type_id: std::any::TypeId::of::<E>,
+            event_type_name: std::any::type_name::<E>,
+            event_dispatch: || E::dispatch().into(),
+            event_setup: E::setup,
+        }
+    }
+}
+
+/// One explicit same-cycle occurrence clause in a composed event definition.
+pub enum SameCycleEventRequirement {
+    /// One concrete parent must have fired.
+    After(SameCycleEventDependency),
+    /// At least one parent in the group must have fired.
+    AfterAny(Vec<SameCycleEventDependency>),
+    /// Every parent in the group must have fired.
+    AfterAll(Vec<SameCycleEventDependency>),
+}
+
+mod event_group_private {
+    pub trait Sealed {}
+}
+
+/// A typed tuple of two through eight concrete [`SandEvent`] parent types.
+///
+/// This trait is implemented by Sand for supported tuple arities and is not
+/// intended for manual implementation.
+#[diagnostic::on_unimplemented(
+    message = "`{Self}` is not a supported same-cycle event group",
+    label = "expected a tuple of 2 through 8 concrete `SandEvent` types",
+    note = "use `after::<E>()` for one parent, or `after_any::<(A, B)>()` / `after_all::<(A, B)>()` for 2 through 8 parents"
+)]
+pub trait SameCycleEventGroup: event_group_private::Sealed {
+    #[doc(hidden)]
+    fn dependencies() -> Vec<SameCycleEventDependency>;
+}
+
+macro_rules! impl_same_cycle_event_group {
+    ($($event:ident),+ $(,)?) => {
+        impl<$($event: SandEvent + 'static),+> event_group_private::Sealed for ($($event,)+) {}
+
+        impl<$($event: SandEvent + 'static),+> SameCycleEventGroup for ($($event,)+) {
+            fn dependencies() -> Vec<SameCycleEventDependency> {
+                vec![$(SameCycleEventDependency::of::<$event>()),+]
+            }
+        }
+    };
+}
+
+impl_same_cycle_event_group!(A, B);
+impl_same_cycle_event_group!(A, B, C);
+impl_same_cycle_event_group!(A, B, C, D);
+impl_same_cycle_event_group!(A, B, C, D, E);
+impl_same_cycle_event_group!(A, B, C, D, E, F);
+impl_same_cycle_event_group!(A, B, C, D, E, F, G);
+impl_same_cycle_event_group!(A, B, C, D, E, F, G, H);
 
 /// Lifecycle resources a [`SandEvent`] owns: objectives to create at load time,
 /// commands to run before each observation, and commands to run after a
@@ -465,31 +539,52 @@ impl From<TickEventDispatch> for SandEventDispatch {
 /// }
 /// ```
 pub struct ChainEventDispatch {
-    /// In-process grouping identity of the parent `SandEvent` type. Not
-    /// stable across builds; used only to locate/merge the parent node
-    /// during graph discovery.
-    pub parent_type_id: fn() -> std::any::TypeId,
-    /// Canonical concrete type name of the parent `SandEvent` type, used as
-    /// input to the same deterministic resource-key derivation as
-    /// tick-lifecycle events.
-    pub parent_type_name: fn() -> &'static str,
-    /// Returns the parent's own `dispatch()`, normalized through
-    /// `Into<SandEventDispatch>`, without constructing the parent marker
-    /// type.
-    pub parent_dispatch: fn() -> SandEventDispatch,
-    /// Returns the parent's own `setup()`.
-    pub parent_setup: fn() -> EventSetup,
+    /// Explicit same-cycle occurrence clauses. Clauses are conjunctive;
+    /// `AfterAny` is disjunctive only within its own parent group.
+    pub occurrence: Vec<SameCycleEventRequirement>,
     /// Persistent current-state requirements, kept distinct from the
     /// same-cycle occurrence parent and from ordinary anonymous conditions.
     pub persistent: Vec<PersistentEventDependency>,
     /// Positive conditions — all must hold (ANDed) for this child to fire
-    /// once its parent's detector succeeds.
+    /// once its occurrence requirements are satisfied.
     pub when: Vec<crate::condition::Condition>,
     /// Negative conditions — none may hold.
     pub unless: Vec<crate::condition::Condition>,
 }
 
 impl ChainEventDispatch {
+    /// Require one additional event to have fired for the same subject during
+    /// the current event cycle.
+    pub fn after<E: SandEvent + 'static>(mut self) -> Self {
+        self.occurrence.push(SameCycleEventRequirement::After(
+            SameCycleEventDependency::of::<E>(),
+        ));
+        self
+    }
+
+    /// Require at least one event in `G` to have fired for the same subject
+    /// during the current event cycle.
+    ///
+    /// `G` is a tuple of two through eight concrete [`SandEvent`] types.
+    /// Multiple `after_any` groups in one definition are rejected at export
+    /// because their coalescing boundary would otherwise be ambiguous.
+    pub fn after_any<G: SameCycleEventGroup>(mut self) -> Self {
+        self.occurrence
+            .push(SameCycleEventRequirement::AfterAny(G::dependencies()));
+        self
+    }
+
+    /// Require every event in `G` to have fired for the same subject during
+    /// the current event cycle.
+    ///
+    /// `G` is a tuple of two through eight concrete [`SandEvent`] types.
+    /// Multiple `after_all` groups in one definition are rejected at export.
+    pub fn after_all<G: SameCycleEventGroup>(mut self) -> Self {
+        self.occurrence
+            .push(SameCycleEventRequirement::AfterAll(G::dependencies()));
+        self
+    }
+
     /// Require `E`'s persistent state to be true when this child is considered.
     ///
     /// This does not require `E` to have fired in the same cycle and does not
@@ -658,15 +753,32 @@ impl SandEventDispatch {
     ///     .when(Condition::raw("block ~ ~-1 ~ minecraft:white_wool"))
     /// ```
     pub fn chain<P: SandEvent + 'static>() -> ChainEventDispatch {
+        Self::compose().after::<P>()
+    }
+
+    /// Construct a same-cycle composition builder without choosing a parent.
+    ///
+    /// Add at least one [`ChainEventDispatch::after`],
+    /// [`ChainEventDispatch::after_any`], or
+    /// [`ChainEventDispatch::after_all`] clause before returning it from
+    /// [`SandEvent::dispatch`]. Empty compositions are rejected at export.
+    pub fn compose() -> ChainEventDispatch {
         ChainEventDispatch {
-            parent_type_id: std::any::TypeId::of::<P>,
-            parent_type_name: std::any::type_name::<P>,
-            parent_dispatch: || P::dispatch().into(),
-            parent_setup: P::setup,
+            occurrence: Vec::new(),
             persistent: Vec::new(),
             when: Vec::new(),
             unless: Vec::new(),
         }
+    }
+
+    /// Start a typed any-parent same-cycle composition.
+    pub fn after_any<G: SameCycleEventGroup>() -> ChainEventDispatch {
+        Self::compose().after_any::<G>()
+    }
+
+    /// Start a typed all-parent same-cycle composition.
+    pub fn after_all<G: SameCycleEventGroup>() -> ChainEventDispatch {
+        Self::compose().after_all::<G>()
     }
 
     /// Lower this dispatch into the normalized internal IR.

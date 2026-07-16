@@ -18,9 +18,26 @@
 //! - the child is dispatched before the parent's `post_observation` runs.
 
 use sand_core::condition::Condition;
-use sand_core::events::{ChainEventDispatch, EventSetup, TickEventDispatch};
+use sand_core::events::{
+    ChainEventDispatch, EventSetup, SameCycleEventDependency, SameCycleEventRequirement,
+    SandEventDispatch, TickEventDispatch,
+};
 use sand_core::{EventDescriptor, EventDispatch};
 use std::any::TypeId;
+
+fn after(
+    event_type_id: fn() -> TypeId,
+    event_type_name: fn() -> &'static str,
+    event_dispatch: fn() -> SandEventDispatch,
+    event_setup: fn() -> EventSetup,
+) -> Vec<SameCycleEventRequirement> {
+    vec![SameCycleEventRequirement::After(SameCycleEventDependency {
+        event_type_id,
+        event_type_name,
+        event_dispatch,
+        event_setup,
+    })]
+}
 
 fn expected_key(canonical_type_name: &str) -> String {
     let mut h: u32 = 2_166_136_261;
@@ -111,10 +128,12 @@ struct SingleCondChild;
 
 fn single_cond_chain() -> Option<ChainEventDispatch> {
     Some(ChainEventDispatch {
-        parent_type_id,
-        parent_type_name,
-        parent_dispatch: || sand_core::events::SandEventDispatch::Tick(parent_dispatch().unwrap()),
-        parent_setup,
+        occurrence: after(
+            parent_type_id,
+            parent_type_name,
+            || SandEventDispatch::Tick(parent_dispatch().unwrap()),
+            parent_setup,
+        ),
         persistent: vec![],
         when: vec![Condition::raw("block ~ ~-1 ~ minecraft:white_wool")],
         unless: vec![],
@@ -156,10 +175,12 @@ struct UnconditionalChild;
 
 fn unconditional_chain() -> Option<ChainEventDispatch> {
     Some(ChainEventDispatch {
-        parent_type_id,
-        parent_type_name,
-        parent_dispatch: || sand_core::events::SandEventDispatch::Tick(parent_dispatch().unwrap()),
-        parent_setup,
+        occurrence: after(
+            parent_type_id,
+            parent_type_name,
+            || SandEventDispatch::Tick(parent_dispatch().unwrap()),
+            parent_setup,
+        ),
         persistent: vec![],
         when: vec![],
         unless: vec![],
@@ -201,10 +222,12 @@ struct OrCondChild;
 
 fn or_cond_chain() -> Option<ChainEventDispatch> {
     Some(ChainEventDispatch {
-        parent_type_id,
-        parent_type_name,
-        parent_dispatch: || sand_core::events::SandEventDispatch::Tick(parent_dispatch().unwrap()),
-        parent_setup,
+        occurrence: after(
+            parent_type_id,
+            parent_type_name,
+            || SandEventDispatch::Tick(parent_dispatch().unwrap()),
+            parent_setup,
+        ),
         persistent: vec![],
         when: vec![
             Condition::raw("score @s a matches 1").or(Condition::raw("score @s b matches 1")),
@@ -250,10 +273,12 @@ struct DistinctChildB;
 
 fn distinct_a_chain() -> Option<ChainEventDispatch> {
     Some(ChainEventDispatch {
-        parent_type_id,
-        parent_type_name,
-        parent_dispatch: || sand_core::events::SandEventDispatch::Tick(parent_dispatch().unwrap()),
-        parent_setup,
+        occurrence: after(
+            parent_type_id,
+            parent_type_name,
+            || SandEventDispatch::Tick(parent_dispatch().unwrap()),
+            parent_setup,
+        ),
         persistent: vec![],
         when: vec![Condition::raw("tag @s distinct_a")],
         unless: vec![],
@@ -261,10 +286,12 @@ fn distinct_a_chain() -> Option<ChainEventDispatch> {
 }
 fn distinct_b_chain() -> Option<ChainEventDispatch> {
     Some(ChainEventDispatch {
-        parent_type_id,
-        parent_type_name,
-        parent_dispatch: || sand_core::events::SandEventDispatch::Tick(parent_dispatch().unwrap()),
-        parent_setup,
+        occurrence: after(
+            parent_type_id,
+            parent_type_name,
+            || SandEventDispatch::Tick(parent_dispatch().unwrap()),
+            parent_setup,
+        ),
         persistent: vec![],
         when: vec![Condition::raw("tag @s distinct_b")],
         unless: vec![],
@@ -355,10 +382,12 @@ struct OrphanChild;
 
 fn orphan_child_chain() -> Option<ChainEventDispatch> {
     Some(ChainEventDispatch {
-        parent_type_id: orphan_parent_type_id,
-        parent_type_name: orphan_parent_type_name,
-        parent_dispatch: orphan_parent_dispatch,
-        parent_setup: orphan_parent_setup,
+        occurrence: after(
+            orphan_parent_type_id,
+            orphan_parent_type_name,
+            orphan_parent_dispatch,
+            orphan_parent_setup,
+        ),
         persistent: vec![],
         when: vec![],
         unless: vec![],

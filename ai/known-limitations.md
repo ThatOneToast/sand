@@ -199,6 +199,28 @@ Vanilla supports the behavior; Sand's typed coverage is incomplete.
   `book/src/manual/events.md`
   (Same-cycle and persistent composition).
 
+- **LIM-EXP-005** — Bounded `.within(...)` age counters only advance for
+  online players: the generated age update runs under `execute as @a`, which
+  only iterates currently-online players, so age advances while a player is
+  online and pauses (does not advance) while they are offline. The
+  underlying scoreboard value is not reset by disconnect/reconnect or
+  `/reload` (it persists like `Cooldown`/`Timer` state), so a returning
+  player resumes aging from wherever it paused rather than restarting from
+  0. Practical effect: a bounded window that would have expired in real time
+  can still be open when a player reconnects, if the parent fired shortly
+  before they disconnected and few enough *online* ticks have elapsed since.
+  This is consistent with Sand's existing scoreboard-state guarantees
+  elsewhere (no vanilla mechanism ticks state for offline players) and is
+  not a bug, but callers relying on `.within(...)` as an approximation of
+  wall-clock recency should account for it. Separately, the increment is
+  guarded to stop at `TickWindow::MAX_TICKS` (24,000) rather than
+  incrementing unboundedly, so a permanently-idle parent's age cannot
+  overflow the signed 32-bit scoreboard value and wrap negative.
+  Affects: `sandevent-bounded-correlation`.
+  Evidence: `sand-core/src/component.rs` (bounded age-counter maintenance),
+  `sand-core/tests/event_chain_within_export.rs`,
+  `docs/events.md`, `book/src/manual/events.md`.
+
 ## Validation gaps
 
 - **LIM-VAL-001** — Passing `cargo test --workspace` (including golden

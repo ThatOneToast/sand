@@ -1364,8 +1364,21 @@ fn try_export_components_impl(
             // mark set when ITS OWN staged evaluation call below runs — for
             // those, the age update is emitted inline in the topological loop
             // immediately after that specific evaluation, never here.
+            //
+            // Minecraft scoreboard values are signed 32-bit; an unbounded
+            // `add ... 1` on a permanently-idle parent would eventually
+            // overflow and wrap negative, which would incorrectly re-satisfy
+            // `age <= N - 1` for every window until the parent fires again.
+            // The increment is therefore guarded to stop at
+            // `TickWindow::MAX_TICKS` (the largest representable window) —
+            // an age that has already reached the largest possible window
+            // width is permanently "expired" for every valid `TickWindow`,
+            // so clamping there rather than at `i32::MAX` is both safe and
+            // ties the sentinel to the supported API range instead of an
+            // arbitrary implementation constant.
             let staged_child_names: std::collections::BTreeSet<String> =
                 staged_by_child.keys().cloned().collect();
+            let age_sentinel = crate::events::TickWindow::MAX_TICKS;
             let bounded_age_update = |name: &str| -> [String; 2] {
                 let key = tick_event_resource_key(name);
                 [
@@ -1373,7 +1386,7 @@ fn try_export_components_impl(
                         "execute as @a if score @s se_{key}_o matches 1 run scoreboard players set @s se_{key}_wa 0"
                     ),
                     format!(
-                        "execute as @a unless score @s se_{key}_o matches 1 run scoreboard players add @s se_{key}_wa 1"
+                        "execute as @a unless score @s se_{key}_o matches 1 unless score @s se_{key}_wa matches {age_sentinel}.. run scoreboard players add @s se_{key}_wa 1"
                     ),
                 ]
             };

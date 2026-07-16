@@ -391,7 +391,7 @@ fn age_counter_maintenance_runs_after_root_checks_and_before_staged_evaluation()
         "execute as @a if score @s se_{prior_key}_o matches 1 run scoreboard players set @s se_{prior_key}_wa 0"
     );
     let increment_line = format!(
-        "execute as @a unless score @s se_{prior_key}_o matches 1 run scoreboard players add @s se_{prior_key}_wa 1"
+        "execute as @a unless score @s se_{prior_key}_o matches 1 unless score @s se_{prior_key}_wa matches 24000.. run scoreboard players add @s se_{prior_key}_wa 1"
     );
     assert!(cycle.contains(&refresh_line), "{cycle}");
     assert!(cycle.contains(&increment_line), "{cycle}");
@@ -477,7 +477,7 @@ fn age_update_for_a_staged_bounded_parent_runs_after_its_own_evaluation_not_afte
         "execute as @a if score @s se_{staged_parent_key}_o matches 1 run scoreboard players set @s se_{staged_parent_key}_wa 0"
     );
     let increment_line = format!(
-        "execute as @a unless score @s se_{staged_parent_key}_o matches 1 run scoreboard players add @s se_{staged_parent_key}_wa 1"
+        "execute as @a unless score @s se_{staged_parent_key}_o matches 1 unless score @s se_{staged_parent_key}_wa matches 24000.. run scoreboard players add @s se_{staged_parent_key}_wa 1"
     );
     assert!(cycle.contains(&refresh_line), "{cycle}");
     assert!(cycle.contains(&increment_line), "{cycle}");
@@ -514,4 +514,164 @@ fn age_update_for_a_staged_bounded_parent_runs_after_its_own_evaluation_not_afte
         )),
         "window 7 -> age <= 6: {child_eval}"
     );
+}
+
+// ── Overflow/saturation coverage ────────────────────────────────────────────
+//
+// Minecraft scoreboard values are signed 32-bit. An unguarded `add ... 1` on
+// a permanently-idle bounded parent would eventually overflow and wrap
+// negative, which would incorrectly re-satisfy `age <= N - 1` for every
+// window until the parent fires again. The generated age update is guarded
+// to stop incrementing once it reaches `TickWindow::MAX_TICKS` (24000) — the
+// largest representable window, and therefore already permanently "expired"
+// for every valid window regardless of how much further real time passes.
+
+#[test]
+fn generated_increment_line_is_guarded_by_the_sentinel_and_cannot_reach_it_from_a_single_add() {
+    let records = records();
+    let prior_key = key(std::any::type_name::<PriorEvent>());
+    let cycle = function(&records, "__sand_event_cycle");
+    let guarded_increment = format!(
+        "execute as @a unless score @s se_{prior_key}_o matches 1 unless score @s se_{prior_key}_wa matches {}.. run scoreboard players add @s se_{prior_key}_wa 1",
+        TickWindow::MAX_TICKS
+    );
+    assert!(cycle.contains(&guarded_increment), "{cycle}");
+    // Never emit a bare, unguarded add on the age objective anywhere in the
+    // coordinator — every mutation of `_wa` must go through the sentinel
+    // guard or the reset-to-0 refresh line.
+    for line in cycle.lines() {
+        if line.contains(&format!("se_{prior_key}_wa")) && line.contains("scoreboard players add") {
+            assert!(
+                line.contains(&format!("unless score @s se_{prior_key}_wa matches")),
+                "every age-objective increment must be sentinel-guarded: {line}"
+            );
+        }
+    }
+}
+
+/// Pure model of the two generated age-update commands (refresh-on-occurrence,
+/// sentinel-guarded increment otherwise), independent of the export pipeline,
+/// so the *algorithm* the generated commands implement can be exercised over
+/// many simulated ticks without needing a live Minecraft server. The sentinel
+/// and sequencing here are kept identical to the generated command shape
+/// asserted above; a change to one without the other should be caught by
+/// `generated_increment_line_is_guarded_by_the_sentinel_and_cannot_reach_it_from_a_single_add`.
+struct AgeCounterModel {
+    /// `None` mirrors an objective a player has no score on yet — Minecraft's
+    /// `scoreboard players add` semantics implicitly initialize an absent
+    /// score to 0 before adding, which this model reproduces explicitly.
+    age: Option<i64>,
+}
+
+impl AgeCounterModel {
+    fn new() -> Self {
+        Self { age: None }
+    }
+
+    /// One simulated tick. `occurred` mirrors `se_{key}_o` being 1 this tick.
+    fn tick(&mut self, occurred: bool, sentinel: i64) {
+        if occurred {
+            self.age = Some(0);
+            return;
+        }
+        let current = self.age.unwrap_or(0);
+        if current < sentinel {
+            self.age = Some(current + 1);
+        }
+        // else: sentinel-guarded — no-op, exactly mirroring the generated
+        // `unless score @s se_{key}_wa matches {sentinel}..` guard.
+    }
+
+    fn age(&self) -> i64 {
+        self.age.unwrap_or(0)
+    }
+}
+
+#[test]
+fn absent_age_score_initializes_through_the_increment_path() {
+    let mut model = AgeCounterModel::new();
+    assert_eq!(model.age, None);
+    model.tick(false, i64::from(TickWindow::MAX_TICKS));
+    assert_eq!(
+        model.age(),
+        1,
+        "an absent score initializes to 0 then increments to 1, matching vanilla `scoreboard players add` on an unset score"
+    );
+}
+
+#[test]
+fn age_increments_normally_below_the_sentinel() {
+    let sentinel = i64::from(TickWindow::MAX_TICKS);
+    let mut model = AgeCounterModel::new();
+    for expected in 1..=100 {
+        model.tick(false, sentinel);
+        assert_eq!(model.age(), expected);
+    }
+}
+
+#[test]
+fn age_does_not_increment_at_or_above_the_sentinel_and_cannot_wrap_negative() {
+    let sentinel = i64::from(TickWindow::MAX_TICKS);
+    let mut model = AgeCounterModel::new();
+    // Drive well past the sentinel — many more ticks than the sentinel value
+    // itself, standing in for arbitrarily long world/pack uptime.
+    for _ in 0..(sentinel * 3) {
+        model.tick(false, sentinel);
+        assert!(model.age() >= 0, "age must never go negative");
+        assert!(
+            model.age() <= sentinel,
+            "age must never exceed the sentinel"
+        );
+    }
+    assert_eq!(
+        model.age(),
+        sentinel,
+        "age must saturate exactly at the sentinel, not drift past it"
+    );
+}
+
+#[test]
+fn an_occurrence_always_resets_a_saturated_age_to_zero() {
+    let sentinel = i64::from(TickWindow::MAX_TICKS);
+    let mut model = AgeCounterModel::new();
+    for _ in 0..(sentinel * 2) {
+        model.tick(false, sentinel);
+    }
+    assert_eq!(model.age(), sentinel, "precondition: age is saturated");
+    model.tick(true, sentinel);
+    assert_eq!(
+        model.age(),
+        0,
+        "refresh takes precedence over the sentinel guard: an occurrence always resets age to 0, even from saturation"
+    );
+}
+
+#[test]
+fn the_sentinel_does_not_satisfy_the_largest_supported_window() {
+    // Condition::Score { range: ScoreRange::Lte(N - 1) } for the largest
+    // supported window N = TickWindow::MAX_TICKS: age <= MAX_TICKS - 1.
+    let sentinel = i64::from(TickWindow::MAX_TICKS);
+    let largest_window_upper_bound = i64::from(TickWindow::MAX_TICKS) - 1;
+    assert!(
+        sentinel > largest_window_upper_bound,
+        "the sentinel must sit strictly above every valid window's inclusive upper bound, so a saturated age is expired for every valid window (age <= N - 1 is false for all supported N when age == sentinel)"
+    );
+
+    let mut model = AgeCounterModel::new();
+    for _ in 0..(sentinel * 2) {
+        model.tick(false, sentinel);
+    }
+    assert!(
+        model.age() > largest_window_upper_bound,
+        "saturated age does not satisfy even the largest supported window"
+    );
+}
+
+#[test]
+fn tick_window_max_ticks_is_the_sentinel_used_by_generated_commands() {
+    // Ties this whole test module's sentinel constant to the same public API
+    // value referenced in the generated command (asserted exactly in
+    // `generated_increment_line_is_guarded_by_the_sentinel_and_cannot_reach_it_from_a_single_add`),
+    // so a change to one is guaranteed to be caught by the other.
+    assert_eq!(TickWindow::MAX_TICKS, 24_000);
 }

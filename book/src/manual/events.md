@@ -227,10 +227,16 @@ parent, so `N = 1` behaves identically to `after::<E>()`, a parent firing on
 the current tick always satisfies `within` regardless of prior age, and a
 later occurrence always refreshes the window rather than queueing a
 delivery. `TickWindow` rejects `0` and windows above 24,000 ticks — bounded
-correlation is not a session/persistence mechanism, and its age state follows
-the same disconnect/reload behavior as `Cooldown`/`Timer` scoreboard state
-(it is not reset). The bounded parent's detector/setup is generated once
-regardless of how many children or distinct windows read it.
+correlation is not a session/persistence mechanism. The age update runs under
+`execute as @a`, so it only advances for online players and pauses while a
+player is offline; the underlying score is not reset by disconnect/reconnect
+or `/reload` (same persistence as `Cooldown`/`Timer` state), so a returning
+player resumes aging rather than restarting it. The increment is also
+guarded to stop at `TickWindow::MAX_TICKS` so a permanently-idle parent's age
+can never overflow the signed 32-bit scoreboard value and wrap negative — a
+saturated age is already permanently expired for every valid window. The
+bounded parent's detector/setup is generated once regardless of how many
+children or distinct windows read it.
 
 Nested and mixed `after`/`after_any`/`after_all`/`while`/`within` cycles are
 rejected with readable labeled paths. `.when(...)` and `.unless(...)` are

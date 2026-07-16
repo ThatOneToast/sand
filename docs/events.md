@@ -296,12 +296,22 @@ A later parent occurrence always refreshes the window; a bounded parent
 occurrence never directly dispatches the child, and repeated parent
 occurrences refresh state rather than queueing deliveries. `TickWindow`
 rejects `0` and windows above 24,000 ticks (20 minutes) — it is a bounded
-correlation window, not a session/persistence mechanism, and age state is not
-reset on player disconnect/reconnect or `/reload` (it behaves like existing
-`Cooldown`/`Timer` scoreboard state). Distinct concrete parent types compose
-conjunctively with `within`, same as `after`/`after_any`/`after_all`; a
-repeated `.within` call for the same parent and window is deduplicated, and a
-conflicting window for the same parent is rejected at export.
+correlation window, not a session/persistence mechanism. The age update runs
+under `execute as @a`, which only reaches online players, so **age advances
+only while a player is online and pauses while they are offline**; the score
+itself is not reset by disconnect/reconnect or `/reload` (it persists like
+existing `Cooldown`/`Timer` scoreboard state), so a returning player resumes
+aging from wherever it stopped rather than restarting it. The increment is
+also guarded to stop at `TickWindow::MAX_TICKS` (24,000): Minecraft
+scoreboard values are signed 32-bit, and an unguarded increment on a
+permanently-idle parent would eventually overflow and wrap negative, which
+would incorrectly re-satisfy `age <= N - 1` for every window; since
+`TickWindow::MAX_TICKS` is the largest representable window, an age that has
+reached it is already permanently expired for every valid window. Distinct
+concrete parent types compose conjunctively with `within`, same as
+`after`/`after_any`/`after_all`; a repeated `.within` call for the same
+parent and window is deduplicated, and a conflicting window for the same
+parent is rejected at export.
 
 Evaluation remains per player with inherited `@s` and position. For the
 single-parent path, the live condition is tested after that parent's direct

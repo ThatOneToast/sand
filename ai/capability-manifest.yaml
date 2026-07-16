@@ -333,11 +333,23 @@ capabilities:
       cycles through `while`/`after`/`after_any`/`after_all` edges) are
       rejected with a readable diagnostic path. State is keyed to `@s` (never
       a broad `@a`/`@e` selector for the mutating operation) so it cannot
-      cross subjects; per Sand's existing scoreboard-state contract, age state
-      is not reset on player disconnect/reconnect or `/reload` (it persists in
-      `scoreboard.dat` like `Cooldown`/`Timer`/`DamageTracker` state), and
-      simply continues aging for players who never trigger the parent again —
-      this is documented, not silently stronger than vanilla guarantees.
+      cross subjects. The age update executes under `execute as @a`, which
+      only iterates online players, so age advances only while a player is
+      online and pauses while they are offline; per Sand's existing
+      scoreboard-state contract, the score itself is not reset by
+      disconnect/reconnect or `/reload` (it persists in `scoreboard.dat` like
+      `Cooldown`/`Timer`/`DamageTracker` state), so a returning player resumes
+      aging from wherever their age stopped rather than restarting it — this
+      is documented, not silently stronger than vanilla guarantees. The
+      increment is guarded to stop at `TickWindow::MAX_TICKS` (24,000) rather
+      than incrementing unboundedly: Minecraft scoreboard values are signed
+      32-bit, and an unguarded add on a permanently-idle parent would
+      eventually overflow and wrap negative, which would incorrectly
+      re-satisfy `age <= N - 1` for every window until the parent fired
+      again. Because `TickWindow::MAX_TICKS` is the largest representable
+      window, an age that has reached it is already permanently expired for
+      every valid window, so no additional objective or reset mechanism is
+      needed to keep the sentinel itself semantically inert.
       Generated command shape, objective dedup, coordinator ordering, and
       cycle diagnostics have automated export/unit evidence. A real 1.21.4
       protocol-client fixture is prepared (SemanticWithin) proving the

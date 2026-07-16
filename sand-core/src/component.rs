@@ -1010,6 +1010,25 @@ fn try_export_components_impl(
                 )));
             }
         }
+        // Advancement-backed bridge parents (#240 Phase 6) share the same
+        // `tick_event_resource_key` keyspace (`__sand_event_advancement_bridge/{key}`)
+        // even though they are never graph nodes — extend the same collision
+        // guard to them so a 32-bit hash collision between two distinct
+        // advancement-backed parent type names is caught rather than
+        // silently merging their generated advancement/entry resources.
+        for bridge in graph.advancement_bridges.values() {
+            let key = tick_event_resource_key(bridge.type_name);
+            if let Some(existing) = key_registry.insert(key.clone(), bridge.type_name)
+                && existing != bridge.type_name
+            {
+                return Err(tick_event_export_error(format!(
+                    "generated resource key collision: event types `{existing}` and `{}` both \
+                     hash to key `{key}` — rename one of the event types to avoid colliding \
+                     generated detector/setup paths",
+                    bridge.type_name
+                )));
+            }
+        }
 
         // Some built-in SandEvent types (e.g. `PlayerSneakEvent`) still use
         // the legacy `TickCondition` constructor with a Sand-owned entity

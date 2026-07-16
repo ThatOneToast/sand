@@ -241,8 +241,48 @@ children or distinct windows read it.
 Nested and mixed `after`/`after_any`/`after_all`/`while`/`within` cycles are
 rejected with readable labeled paths. `.when(...)` and `.unless(...)` are
 evaluated at the child boundary alongside live persistent and bounded
-conditions. Advancement-backed graph parents, participant-rich contexts, and
-arbitrary non-player scopes remain planned; they are not current APIs.
+conditions.
+
+An advancement-backed `SandEvent` can also be a graph parent (#240 Phase 6),
+but only as a child's sole `after::<Parent>()` occurrence dependency:
+
+```rust
+use sand_core::events::{SandEvent, SandEventDispatch};
+use sand_core::AdvancementTrigger;
+
+pub struct GotFirstDiamond;
+impl SandEvent for GotFirstDiamond {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        SandEventDispatch::AdvancementTrigger(AdvancementTrigger::InventoryChanged {
+            slots: None,
+            items: vec![],
+        })
+    }
+}
+
+pub struct CelebrateFirstDiamond;
+impl SandEvent for CelebrateFirstDiamond {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        SandEventDispatch::chain::<GotFirstDiamond>()
+    }
+}
+```
+
+Sand bridges this by generating the dependent's condition-gated dispatch call
+directly inside the advancement's own reward entry function — synchronously,
+under the same triggering player's `@s`, with revoke still running first
+(so the advancement can fire again regardless of what a dependent does). No
+per-tick polling, no pending/queued state. This is only honest for the
+sole-`after` shape: `after_any`, `after_all`, combining it with a second
+occurrence clause, or `.within(...)` on an advancement parent are all
+rejected, because Sand does not control the reward function's execution
+order relative to the tick coordinator's own pass — mixing them would be a
+same-cycle claim Sand cannot back up. `.while_(...)`/`.when(...)`/
+`.unless(...)` remain fully supported. The bridged advancement-backed type
+must have no direct `#[event]` handler of its own in this phase; combining a
+handler with graph composition on the same type is rejected. Participant-rich
+contexts (#230) and arbitrary non-player scopes remain planned; they are not
+current APIs.
 
 For generated-output and lifecycle details, see the focused
 [events reference](../../../docs/events.md). For trigger construction, continue

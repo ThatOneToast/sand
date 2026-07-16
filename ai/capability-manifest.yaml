@@ -243,16 +243,72 @@ capabilities:
       chain depth. Both structured `SandEventDispatch::tick()` and legacy
       `SandEventDispatch::TickCondition` parents are supported and resolve
       to the same graph node/detector regardless of which constructor was
-      used. Advancement-backed SandEvent parents are explicitly rejected
-      (export error naming the child/parent), not silently approximated —
-      their reward-function codegen path does not yet provide a compatible
-      player execution context. Multi-parent same-cycle groups are covered by
+      used. A sole advancement-backed SandEvent parent is covered by
+      sandevent-advancement-graph-parent (#240 Phase 6); every other
+      advancement-backed occurrence shape (after_any/after_all, combined
+      with a second occurrence clause) is explicitly rejected (export error
+      naming the child/parent). Multi-parent same-cycle groups are covered by
       sandevent-multi-parent-composition. Bounded `.within(...)` cross-tick
       correlation is covered by sandevent-bounded-correlation. Deferred to
       later phases of #240: participant-rich execution contexts (#230) and
       arbitrary non-player entity execution scopes.
     evidence: ["sand-core/src/events/mod.rs (ChainEventDispatch, SandEventDispatch::chain, SandEventDispatch::Chain)", "sand-core/src/events/graph.rs (EventGraph, EventNode, NodeOrigin, discover_node, cycle detection)", "sand-core/src/component.rs (build_dispatch_function, build_child_edge)", "sand-macros/src/lib.rs (#[event] make_chain descriptor factory)", "sand-core/tests/event_chain_export.rs", "sand-core/tests/event_chain_legacy_tick_condition_parent.rs", "sand-core/tests/event_chain_child_lifecycle.rs", "sand-core/tests/event_chain_cycle.rs", "sand-core/tests/event_chain_advancement_parent_rejected.rs", "sand-macros/tests/cases/pass_sand_event_chain_dispatch.rs", "sand-macros/tests/cases/fail_sand_event_chain_non_sand_event_parent.rs"]
     documentation: ["book/src/manual/events.md (Same-cycle and persistent composition)"]
+
+  - id: sandevent-advancement-graph-parent
+    name: "Advancement-backed SandEvent graph parents"
+    category: events
+    intent: "Allow an advancement-backed SandEvent to participate as a typed graph parent, bridged directly from its own vanilla advancement reward function rather than polled by the tick coordinator, without duplicating its detector or losing the triggering player's execution context."
+    status: partial
+    stability: alpha
+    crates: [sand-core, sand-macros]
+    entry_points: ["ChainEventDispatch::after::<AdvancementParent>()", "SandEventDispatch::chain::<AdvancementParent>()"]
+    preferred_api: "SandEventDispatch::chain::<AdvancementParent>() (or compose().after::<AdvancementParent>()) as the child's sole occurrence clause; combine with while_/when/unless as needed"
+    sand_limitations: >
+      Phase 6 of #240. An advancement-backed SandEvent may be a graph parent
+      only as a child's sole `after::<Parent>()` occurrence dependency —
+      never inside `after_any`/`after_all`, never combined with a second
+      occurrence clause, and never referenced by `.within(...)`, because
+      Sand does not control (and will not misrepresent) the advancement
+      reward function's execution order relative to the tick coordinator's
+      own tick-tagged pass; each of those combinations is rejected at export
+      with a diagnostic naming the child, the parent, and the operator
+      rather than silently approximated. `.while_(...)`, `.when(...)`, and
+      `.unless(...)` remain fully supported and are evaluated inline, no
+      coordinator involvement required. An advancement-backed parent is
+      never inserted as a graph node (see `EventGraph::advancement_bridges`)
+      — its detection stays owned by a synthesized advancement + reward
+      entry function pair, generated exactly once regardless of how many
+      children depend on it; each dependent's condition-gated dispatch call
+      is appended directly into that entry function, executed synchronously
+      under the triggering player's exact `@s`, immediately after the
+      existing revoke-first ordering (the advancement always re-arms before
+      any dependent runs, so it can retrigger on the next criterion match
+      regardless of what a dependent's own condition does). No pending flag,
+      queue, or next-tick delay is introduced. `TickScope::AdvancementPlayer`
+      is the graph's capability seam distinguishing this from tick-polled
+      `TickScope::Players`: both guarantee an exact player subject, but only
+      `Players` supports coordinator-mediated multi-parent/staged
+      composition. The bridged parent type must have zero direct #[event]
+      handlers in this phase — combining a direct handler with graph
+      composition on the same advancement-backed type is rejected (it would
+      otherwise require either a second live advancement grant for one
+      criterion, or splicing into the separate, pre-existing per-handler
+      advancement lowering path, both out of scope here). Multiple children
+      may depend on one bridged parent; multiple distinct advancement-backed
+      parents remain distinct. Generated command shape, revoke/entry
+      ordering, provider-only subscription, multi-child sharing, and every
+      rejected combination's diagnostics have automated export-test
+      evidence. A structurally-verified fixture (SemanticAdvancementParent /
+      SemanticAdvancementBridgeChild) exports cleanly and deterministically
+      for both 1.21.4 and 26.2, but has no dedicated client-driven
+      positive/negative timing test in this phase — see LIM-VAL-007; real
+      advancement-firing semantics for this specific bridge remain
+      export/structural evidence only. Participant-rich
+      execution contexts (#230) and arbitrary non-player entity execution
+      scopes remain unimplemented (Phase 7+).
+    evidence: ["sand-core/src/events/mod.rs (TickScope::AdvancementPlayer, SameCycleEventDependency::event_revoke)", "sand-core/src/events/graph.rs (AdvancementBridge, EventGraph::advancement_bridges, resolve_occurrence_dependencies advancement branch, occurrence_topological_order exclusion)", "sand-core/src/component.rs (advancement-backed graph parent bridge codegen, advancement_handler_type_ids collision guard)", "sand-core/tests/event_chain_advancement_parent_rejected.rs", "sand-core/tests/event_chain_advancement_parent_composition.rs", "sand-core/tests/event_chain_advancement_parent_after_any_rejected.rs", "sand-core/tests/event_chain_advancement_parent_combined_occurrence_rejected.rs", "sand-core/tests/event_chain_advancement_parent_within_rejected.rs", "sand-core/tests/event_chain_advancement_parent_direct_handler_rejected.rs", "sand-vanilla-audit/src/lib.rs (SemanticAdvancementParent, SemanticAdvancementBridgeChild)"]
+    documentation: ["docs/events.md", "book/src/manual/events.md", "docs/architecture.md"]
 
   - id: sandevent-multi-parent-composition
     name: "Multi-parent same-cycle SandEvent composition"

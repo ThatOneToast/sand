@@ -186,15 +186,22 @@ Vanilla supports the behavior; Sand's typed coverage is incomplete.
   at-most-once any-group coalescing. Persistent conditions are currently
   player-scoped, directly queryable states; they are evaluated live at the
   child boundary and do not invoke another event detector or transition
-  lifecycle. Advancement-backed `SandEvent` parents are explicitly rejected —
-  their reward-function codegen path does
-  not yet provide a player execution context compatible with same-cycle
-  child dispatch. Bounded `within::<E>(TickWindow)` cross-tick correlation
-  (Phase 5 of #240) is now implemented — see `sandevent-bounded-correlation`.
-  Participant-rich execution contexts (#230) and arbitrary non-player entity
-  execution scopes are not implemented and are not exposed as partial APIs.
+  lifecycle. Bounded `within::<E>(TickWindow)` cross-tick correlation
+  (Phase 5 of #240) is implemented — see `sandevent-bounded-correlation`. An
+  advancement-backed `SandEvent` parent (Phase 6 of #240) is accepted only as
+  a child's sole `after::<Parent>()` occurrence dependency, bridged directly
+  from its own advancement reward function — see
+  `sandevent-advancement-graph-parent`. Every other advancement-backed
+  occurrence shape (`after_any`/`after_all`, combined with a second
+  occurrence clause, `.within(...)`, or a direct `#[event]` handler combined
+  with graph composition on the same type) is explicitly rejected, since Sand
+  does not control the reward function's execution order relative to the
+  tick coordinator. Participant-rich execution contexts (#230) and arbitrary
+  non-player entity execution scopes are not implemented and are not exposed
+  as partial APIs.
   Affects: `sandevent-chained-dispatch`, `sandevent-persistent-conditions`,
-  `sandevent-multi-parent-composition`, `sandevent-bounded-correlation`.
+  `sandevent-multi-parent-composition`, `sandevent-bounded-correlation`,
+  `sandevent-advancement-graph-parent`.
   Evidence: `sand-core/src/events/graph.rs`, `sand-core/src/component.rs`,
   `book/src/manual/events.md`
   (Same-cycle and persistent composition).
@@ -291,6 +298,29 @@ Vanilla supports the behavior; Sand's typed coverage is incomplete.
   `sand-core/tests/event_chain_within_export.rs`,
   `sand-vanilla-audit/src/lib.rs`,
   `scripts/vanilla-semantic-client/client.cjs`,
+  `docs/vanilla-reload-validation.md`.
+
+- **LIM-VAL-007** — Advancement-backed graph parents (Phase 6 of #240) have
+  exact structural evidence from `sand-core` export tests (advancement/entry
+  generation, revoke-first ordering, provider-only subscription, multi-child
+  sharing, and every rejected combination's diagnostics) plus deterministic
+  1.21.4 and 26.2 load/reload export evidence (`SemanticAdvancementParent`,
+  `SemanticAdvancementBridgeChild` in `sand-vanilla-audit`) — the generated
+  advancement/reward JSON and entry function parse and export identically
+  across repeated runs. There is no dedicated client-driven positive/negative
+  timing test for this specific bridge (unlike `sandevent-bounded-correlation`
+  and `sandevent-multi-parent-composition`, which have a real 1.21.4
+  protocol-client fixture) — do not treat load/reload/export success as
+  evidence that the bridged child actually dispatches correctly during real
+  advancement-firing gameplay. 26.2 has no semantic-runtime claim at all.
+  Two-player multiplayer isolation remains structural (the advancement
+  reward mechanism itself scopes `@s` to the triggering player; no
+  `execute as @a`/`@e` wrapper is ever generated for the bridge), not a
+  two-client runtime test.
+  Affects: `sandevent-advancement-graph-parent`, `cli-validate`.
+  Evidence: `sand-core/tests/event_chain_advancement_parent_rejected.rs`,
+  `sand-core/tests/event_chain_advancement_parent_composition.rs`,
+  `sand-vanilla-audit/src/lib.rs`,
   `docs/vanilla-reload-validation.md`.
 
 ## Documentation and status contradictions found during audit (2026-07-12)

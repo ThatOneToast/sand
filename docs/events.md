@@ -325,15 +325,85 @@ observation lifecycle runs around each child condition attempt;
 post-observation is deferred through downstream staged dependents, including
 mixed graphs with an immediate single-parent intermediate.
 
-This is the implemented same-cycle, persistent, and bounded-correlation
-composition surface, not general event correlation. Current limits are
-tracked as `LIM-EXP-004`:
+## Advancement-backed graph parents
 
-- tick-backed structured or compatibility-condition parents only;
+An advancement-backed `SandEvent` (`dispatch()` returning
+`SandEventDispatch::AdvancementTrigger(...)`) can be a graph parent, but only
+as a child's **sole** `after::<Parent>()` occurrence dependency:
+
+```rust
+use sand_core::events::{SandEvent, SandEventDispatch};
+use sand_core::AdvancementTrigger;
+use sand_core::prelude::*;
+use sand_macros::event;
+
+pub struct GotFirstDiamond;
+impl SandEvent for GotFirstDiamond {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        SandEventDispatch::AdvancementTrigger(AdvancementTrigger::InventoryChanged {
+            slots: None,
+            items: vec![],
+        })
+    }
+}
+
+pub struct CelebrateFirstDiamond;
+impl SandEvent for CelebrateFirstDiamond {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        SandEventDispatch::chain::<GotFirstDiamond>()
+    }
+}
+
+#[event]
+pub fn on_celebrate(_event: CelebrateFirstDiamond) {
+    cmd::say("First diamond!");
+}
+```
+
+**Execution-cycle model:** an advancement's reward function runs
+synchronously, in vanilla's own advancement-granting execution, not through
+`minecraft:tick`. Sand bridges this by generating the child's condition-gated
+dispatch call *directly inside the advancement's own reward entry function* —
+no per-tick polling, no pending/queued state, no next-tick delay. The
+dependent child observes the triggering player's exact `@s` and position, the
+same context the reward mechanism already established. This is only honest
+for the sole-`after` shape: anything requiring the tick coordinator to
+observe this parent's occurrence alongside another parent's mark in one
+deterministic pass — `after_any`, `after_all`, combining it with a second
+occurrence clause, or `.within(...)` — is rejected, because Sand does not
+control (and cannot guarantee) the reward function's execution order relative
+to the coordinator's own tick-tagged pass. `.while_::<State>()`, `.when(...)`,
+and `.unless(...)` remain fully supported (evaluated inline, no coordinator
+involvement).
+
+**Revoke/reset ordering:** identical to a direct advancement handler —
+`advancement revoke @s only ...` runs first (so the advancement can fire
+again on a later criterion match regardless of what a dependent does), then
+each dependent child's condition-gated dispatch.
+
+**Scope:** an advancement-backed parent has no graph node of its own (see
+`EventGraph::advancement_bridges`) — its detection stays owned entirely by
+the synthesized advancement + entry function, generated once regardless of
+how many children depend on it. This phase requires the bridged type to have
+**no direct `#[event]` handler** — combining a direct handler with graph
+composition on the same advancement-backed event is rejected (it would
+otherwise need either a second live advancement grant for one criterion, or
+splicing into the separate, pre-existing per-handler advancement codegen
+path, both out of scope here).
+
+This is the implemented same-cycle, persistent, bounded-correlation, and
+advancement-bridge composition surface, not general event correlation.
+Current limits are tracked as `LIM-EXP-004`:
+
+- tick-backed structured/compatibility-condition parents, or a sole
+  advancement-backed parent, only;
 - bounded correlation is capped at 24,000 ticks (`TickWindow::MAX_TICKS`) —
   not an unbounded historical event log or session mechanism;
-- no advancement-backed graph parents;
-- no participant-rich contexts or arbitrary non-player scopes.
+- advancement-backed parents cannot join `after_any`/`after_all`, cannot
+  combine with another occurrence clause, cannot be used with
+  `.within(...)`, and cannot also have a direct `#[event]` handler;
+- no participant-rich contexts (attacker/victim/interacted-entity/item
+  snapshots — #230) or arbitrary non-player execution scopes.
 
 ## Built-in events
 

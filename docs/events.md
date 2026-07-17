@@ -325,15 +325,110 @@ observation lifecycle runs around each child condition attempt;
 post-observation is deferred through downstream staged dependents, including
 mixed graphs with an immediate single-parent intermediate.
 
-This is the implemented same-cycle, persistent, and bounded-correlation
-composition surface, not general event correlation. Current limits are
-tracked as `LIM-EXP-004`:
+## Advancement-backed graph parents
 
-- tick-backed structured or compatibility-condition parents only;
+An advancement-backed `SandEvent` (`dispatch()` returning
+`SandEventDispatch::AdvancementTrigger(...)`) can be a graph parent, but only
+as a child's **sole** `after::<Parent>()` occurrence dependency:
+
+```rust
+use sand_core::events::{SandEvent, SandEventDispatch};
+use sand_core::AdvancementTrigger;
+use sand_core::prelude::*;
+use sand_macros::event;
+
+pub struct GotFirstDiamond;
+impl SandEvent for GotFirstDiamond {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        SandEventDispatch::AdvancementTrigger(AdvancementTrigger::InventoryChanged {
+            slots: None,
+            items: vec![],
+        })
+    }
+}
+
+pub struct CelebrateFirstDiamond;
+impl SandEvent for CelebrateFirstDiamond {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        SandEventDispatch::chain::<GotFirstDiamond>()
+    }
+}
+
+#[event]
+pub fn on_celebrate(_event: CelebrateFirstDiamond) {
+    cmd::say("First diamond!");
+}
+```
+
+**Execution-cycle model:** an advancement's reward function runs
+synchronously, in vanilla's own advancement-granting execution, not through
+`minecraft:tick`. Sand bridges this by generating the child's condition-gated
+dispatch call *directly inside the advancement's own reward entry function* —
+no per-tick polling, no pending/queued state, no next-tick delay. The
+dependent child observes the triggering player's exact `@s` and position, the
+same context the reward mechanism already established. This is only honest
+for the sole-`after` shape: anything requiring the tick coordinator to
+observe this parent's occurrence alongside another parent's mark in one
+deterministic pass — `after_any`, `after_all`, combining it with a second
+occurrence clause, or `.within(...)` — is rejected, because Sand does not
+control (and cannot guarantee) the reward function's execution order relative
+to the coordinator's own tick-tagged pass. `.while_::<State>()`, `.when(...)`,
+and `.unless(...)` remain fully supported (evaluated inline, no coordinator
+involvement).
+
+**Revoke/reset ordering:** identical to a direct advancement handler —
+`advancement revoke @s only ...` runs first (so the advancement can fire
+again on a later criterion match regardless of what a dependent does), then
+each dependent child's condition-gated dispatch.
+
+**Scope:** an advancement-backed parent has no graph node of its own (see
+`EventGraph::advancement_bridges`) — its detection stays owned entirely by
+the synthesized advancement + entry function, generated once regardless of
+how many children depend on it. This phase requires the bridged type to have
+**no direct `#[event]` handler** — combining a direct handler with graph
+composition on the same advancement-backed event is rejected (it would
+otherwise need either a second live advancement grant for one criterion, or
+splicing into the separate, pre-existing per-handler advancement codegen
+path, both out of scope here).
+
+**The bridged parent's own `SandEvent::setup()` must be empty.** The
+synchronous bridge dispatches the dependent directly from the parent's
+reward entry function — it never runs the parent's own setup lifecycle
+(objectives, `pre_observation`, `post_observation`). Rather than silently
+dropping a non-empty setup, export rejects the relationship and names which
+setup category is non-empty:
+
+```text
+SandEvent `ChildEvent` cannot bridge advancement-backed parent `ParentEvent`:
+the parent declares non-empty SandEvent::setup() (`pre_observation`), but
+Phase 6 synchronous advancement bridges do not execute parent lifecycle setup.
+Use an empty setup, provision prerequisites independently, or use a tick-backed parent.
+```
+
+The **child's** own setup and conditions are unaffected — `EventSetup`,
+`.while_(...)`, `.when(...)`, and `.unless(...)` on the dependent all work
+normally, exactly as they do for a tick-backed parent. Only the *parent's*
+lifecycle is restricted, since that is the value never executed by this
+bridge. Executing an advancement parent's own lifecycle synchronously would
+need new ordering semantics (does setup run before or after revoke? once
+per bridge or once per dependent?) that this phase does not attempt to
+design — see `LIM-EXP-004`.
+
+This is the implemented same-cycle, persistent, bounded-correlation, and
+advancement-bridge composition surface, not general event correlation.
+Current limits are tracked as `LIM-EXP-004`:
+
+- tick-backed structured/compatibility-condition parents, or a sole
+  empty-setup advancement-backed parent, only;
 - bounded correlation is capped at 24,000 ticks (`TickWindow::MAX_TICKS`) —
   not an unbounded historical event log or session mechanism;
-- no advancement-backed graph parents;
-- no participant-rich contexts or arbitrary non-player scopes.
+- advancement-backed parents cannot join `after_any`/`after_all`, cannot
+  combine with another occurrence clause, cannot be used with
+  `.within(...)`, cannot also have a direct `#[event]` handler, and cannot
+  declare a non-empty `SandEvent::setup()` — the bridge does not execute
+  parent lifecycle setup;
+- no participant-rich contexts (attacker/victim/interacted-entity/item
+  snapshots — #230) or arbitrary non-player execution scopes.
 
 ## Built-in events
 

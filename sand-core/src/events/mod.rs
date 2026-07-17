@@ -174,15 +174,44 @@ pub mod graph;
 
 // ── Custom event API ──────────────────────────────────────────────────────────
 
-/// Execution scope for a structured [`TickEventDispatch`].
+/// Execution scope for a structured [`TickEventDispatch`], or (as of #240
+/// Phase 6) the graph execution-context capability a parent provides.
 ///
-/// Currently only per-player polling is supported; more scopes (e.g. arbitrary
-/// entity queries) are a natural extension point for #240-style composition.
+/// This is the graph's one deterministic, non-reflective capability seam:
+/// every parent resolution site checks a concrete `TickScope` value rather
+/// than inspecting handler code. More scopes (e.g. arbitrary entity queries)
+/// remain a natural future extension point.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum TickScope {
     /// Evaluated as each online player (`execute as @a ... at @s run ...`).
     #[default]
     Players,
+    /// A single exact player subject bound to `@s`, provided synchronously
+    /// inside a vanilla advancement reward function rather than polled by
+    /// `minecraft:tick` — see [`ChainEventDispatch::after`] on an
+    /// advancement-backed `SandEvent` (#240 Phase 6).
+    ///
+    /// Narrower than [`Players`](Self::Players): it guarantees a player
+    /// subject but not a per-tick polling frame, so it is compatible with
+    /// same-cycle composition only in the single, sole-parent
+    /// `after::<E>()` shape — never `after_any`/`after_all` (which require
+    /// the tick coordinator to observe multiple parents' marks in one
+    /// deterministic pass) and never `within::<E>(...)` (which requires the
+    /// coordinator to maintain a per-tick age counter). See
+    /// [`TickScope::has_player_subject`].
+    AdvancementPlayer,
+}
+
+impl TickScope {
+    /// Whether this scope guarantees an exact, single player subject bound
+    /// to `@s` — true for both [`Players`](Self::Players) (tick-polled) and
+    /// [`AdvancementPlayer`](Self::AdvancementPlayer) (advancement
+    /// reward-triggered). Used to validate that a child's inherited-player
+    /// requirement is satisfiable by a candidate parent's scope, independent
+    /// of *how* that parent is detected.
+    pub fn has_player_subject(self) -> bool {
+        matches!(self, Self::Players | Self::AdvancementPlayer)
+    }
 }
 
 /// A directly queryable persistent event condition.
@@ -361,6 +390,12 @@ pub struct SameCycleEventDependency {
     pub event_dispatch: fn() -> SandEventDispatch,
     #[doc(hidden)]
     pub event_setup: fn() -> EventSetup,
+    /// Whether this parent's advancement is revoked after firing —
+    /// [`SandEvent::revoke`]. Only meaningful when the parent resolves to
+    /// advancement-backed dispatch (#240 Phase 6); ignored for tick-backed
+    /// parents, which have no advancement to revoke.
+    #[doc(hidden)]
+    pub event_revoke: fn() -> bool,
 }
 
 impl SameCycleEventDependency {
@@ -370,6 +405,7 @@ impl SameCycleEventDependency {
             event_type_name: std::any::type_name::<E>,
             event_dispatch: || E::dispatch().into(),
             event_setup: E::setup,
+            event_revoke: E::revoke,
         }
     }
 }
@@ -450,6 +486,34 @@ impl EventSetup {
     /// An empty setup — no objectives or lifecycle commands.
     pub fn none() -> Self {
         Self::default()
+    }
+
+    /// Whether every lifecycle-owned collection is empty — the single
+    /// canonical check for "this event owns no setup/lifecycle resources".
+    /// Covers all fields by construction (`self == &Self::none()`) rather
+    /// than re-listing them, so a future field addition to `EventSetup`
+    /// cannot silently bypass this check the way an independently
+    /// maintained per-field comparison could.
+    pub fn is_empty(&self) -> bool {
+        self == &Self::none()
+    }
+
+    /// The name of the first non-empty lifecycle category, in the order
+    /// they run (`objectives` at load, then `pre_observation`, then
+    /// `post_observation`), or `None` if [`is_empty`](Self::is_empty).
+    /// Intended for diagnostics that need to name which category blocked an
+    /// operation — not a substitute for [`is_empty`](Self::is_empty), which
+    /// remains the authoritative full-coverage check.
+    pub fn first_non_empty_category(&self) -> Option<&'static str> {
+        if !self.objectives.is_empty() {
+            Some("objectives")
+        } else if !self.pre_observation.is_empty() {
+            Some("pre_observation")
+        } else if !self.post_observation.is_empty() {
+            Some("post_observation")
+        } else {
+            None
+        }
     }
 }
 
@@ -2486,6 +2550,67 @@ mod tests {
     }
 
     #[test]
+    fn event_setup_is_empty_covers_every_field() {
+        assert!(EventSetup::none().is_empty());
+        assert!(
+            !EventSetup {
+                objectives: vec!["x".into()],
+                pre_observation: vec![],
+                post_observation: vec![],
+            }
+            .is_empty()
+        );
+        assert!(
+            !EventSetup {
+                objectives: vec![],
+                pre_observation: vec!["x".into()],
+                post_observation: vec![],
+            }
+            .is_empty()
+        );
+        assert!(
+            !EventSetup {
+                objectives: vec![],
+                pre_observation: vec![],
+                post_observation: vec!["x".into()],
+            }
+            .is_empty()
+        );
+    }
+
+    #[test]
+    fn event_setup_first_non_empty_category_is_none_when_empty_and_prioritized_when_mixed() {
+        assert_eq!(EventSetup::none().first_non_empty_category(), None);
+        assert_eq!(
+            EventSetup {
+                objectives: vec!["x".into()],
+                pre_observation: vec!["y".into()],
+                post_observation: vec!["z".into()],
+            }
+            .first_non_empty_category(),
+            Some("objectives")
+        );
+        assert_eq!(
+            EventSetup {
+                objectives: vec![],
+                pre_observation: vec!["y".into()],
+                post_observation: vec!["z".into()],
+            }
+            .first_non_empty_category(),
+            Some("pre_observation")
+        );
+        assert_eq!(
+            EventSetup {
+                objectives: vec![],
+                pre_observation: vec![],
+                post_observation: vec!["z".into()],
+            }
+            .first_non_empty_category(),
+            Some("post_observation")
+        );
+    }
+
+    #[test]
     fn tick_window_rejects_zero() {
         assert_eq!(TickWindow::new(0), Err(TickWindowError::Zero));
     }
@@ -2527,5 +2652,15 @@ mod tests {
                 .to_string()
                 .contains(&TickWindow::MAX_TICKS.to_string())
         );
+    }
+
+    #[test]
+    fn tick_scope_has_player_subject_is_deterministic_and_never_reflective() {
+        // Both scopes that can back a graph parent guarantee a player
+        // subject; neither inspects handler code or runtime state to decide
+        // this — the fact is a pure function of the enum variant.
+        assert!(TickScope::Players.has_player_subject());
+        assert!(TickScope::AdvancementPlayer.has_player_subject());
+        assert_eq!(TickScope::default(), TickScope::Players);
     }
 }

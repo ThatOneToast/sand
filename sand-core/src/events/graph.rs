@@ -27,7 +27,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use crate::condition::{Condition, ScoreRange};
 use crate::events::{
     EventSetup, NormalizedEventDispatch, SameCycleEventDependency, SameCycleEventRequirement,
-    TickEventDispatch, TickExecutionPlans, TickScope, TickWindow,
+    SandEventDispatch, TickEventDispatch, TickExecutionPlans, TickScope, TickWindow,
 };
 
 /// A resolved persistent-state requirement. This is a dependency for graph
@@ -73,11 +73,44 @@ impl BoundedDependency {
     }
 }
 
+/// A registered advancement-backed graph parent (#240 Phase 6).
+///
+/// Unlike tick-backed parents, an advancement-backed parent is never
+/// inserted into [`EventGraph::nodes`] — its detection is owned entirely by
+/// the pre-existing advancement/reward-function codegen path (see
+/// `component.rs`'s advancement lowering), not by the tick coordinator. This
+/// registry exists so the exporter can locate (or synthesize) that parent's
+/// reward entry function and splice in a call to each dependent child,
+/// entirely outside the `minecraft:tick`-driven graph machinery. Function
+/// pointers are stored rather than a resolved value so `AdvancementTrigger`
+/// (which implements neither `Clone` nor `PartialEq`) never needs to be
+/// carried by the graph IR — callers re-invoke `event_dispatch` to obtain a
+/// fresh value exactly when needed, matching the established factory
+/// pattern used by [`SameCycleEventDependency`] and
+/// `crate::events::PersistentEventDependency`'s resolution.
+#[derive(Debug, Clone, Copy)]
+pub struct AdvancementBridge {
+    pub type_id: TypeId,
+    pub type_name: &'static str,
+    pub event_dispatch: fn() -> SandEventDispatch,
+    pub event_setup: fn() -> EventSetup,
+    pub event_revoke: fn() -> bool,
+}
+
 /// One resolved same-cycle parent identity.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OccurrenceParent {
     pub type_id: TypeId,
     pub type_name: &'static str,
+    /// Whether this parent resolves to advancement-backed dispatch (#240
+    /// Phase 6) rather than tick-backed dispatch. An advancement-backed
+    /// parent is never inserted as a graph node (see [`EventGraph::advancement_bridges`])
+    /// — it is bridged directly from its vanilla advancement reward function
+    /// instead of polled by the tick coordinator, so graph code that needs
+    /// to distinguish "does this parent need coordinator-maintained
+    /// occurrence/age state" reads this flag rather than re-deriving it from
+    /// dispatch shape.
+    pub is_advancement: bool,
 }
 
 /// One explicit same-cycle occurrence clause.
@@ -245,6 +278,10 @@ pub struct EventGraph {
     /// deterministic (alphabetical by canonical name) regardless of
     /// `#[event]` registration/inventory order.
     pub nodes: BTreeMap<String, EventNode>,
+    /// Advancement-backed graph parents (#240 Phase 6), keyed by canonical
+    /// type name. Disjoint from `nodes` — an advancement-backed parent is
+    /// never a node; see [`AdvancementBridge`].
+    pub advancement_bridges: BTreeMap<String, AdvancementBridge>,
 }
 
 impl EventGraph {
@@ -416,7 +453,18 @@ impl EventGraph {
             let mut unique = BTreeSet::new();
             for clause in occurrence {
                 for parent in clause.parents() {
-                    unique.insert(parent.type_name.to_string());
+                    // Advancement-backed parents are never inserted as graph
+                    // nodes (see `EventGraph::advancement_bridges`) — they
+                    // are resolved synchronously inside their own reward
+                    // function, entirely outside this coordinator-driven
+                    // topological graph, so they contribute no indegree.
+                    // Validation upstream (`resolve_occurrence_dependencies`)
+                    // already guarantees an advancement parent is always the
+                    // node's sole occurrence clause, so this is never the
+                    // only source of indegree a node needed to become ready.
+                    if !parent.is_advancement {
+                        unique.insert(parent.type_name.to_string());
+                    }
                 }
             }
             for dependency in bounded {
@@ -580,6 +628,7 @@ pub fn discover_node(
     setup: EventSetup,
     handler_path: &'static str,
     resolved: &mut BTreeMap<TypeId, EventNode>,
+    advancement_bridges: &mut BTreeMap<String, AdvancementBridge>,
 ) -> Result<(), GraphError> {
     let mut visiting: Vec<&'static str> = Vec::new();
     discover(
@@ -590,6 +639,7 @@ pub fn discover_node(
         handler_path,
         resolved,
         &mut visiting,
+        advancement_bridges,
     )?;
     let node = resolved
         .get_mut(&type_id)
@@ -600,6 +650,7 @@ pub fn discover_node(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn discover(
     type_id: TypeId,
     type_name: &'static str,
@@ -608,6 +659,7 @@ fn discover(
     handler_path: &'static str,
     resolved: &mut BTreeMap<TypeId, EventNode>,
     visiting: &mut Vec<&'static str>,
+    advancement_bridges: &mut BTreeMap<String, AdvancementBridge>,
 ) -> Result<(), GraphError> {
     if let Some(existing) = resolved.get(&type_id) {
         return validate_consistent(type_name, &dispatch, &setup, handler_path, existing);
@@ -642,7 +694,20 @@ fn discover(
                 handler_path,
                 resolved,
                 visiting,
+                advancement_bridges,
             )?;
+            let has_advancement_occurrence_parent = occurrence.iter().any(|dependency| {
+                dependency
+                    .parents()
+                    .iter()
+                    .any(|parent| parent.is_advancement)
+            });
+            if has_advancement_occurrence_parent && !c.bounded.is_empty() {
+                visiting.pop();
+                return Err(GraphError(format!(
+                    "SandEvent `{type_name}` cannot combine an advancement-backed occurrence parent with `.within(...)`: bounded correlation requires per-tick coordinator maintenance that an advancement reward's synchronous execution cannot safely participate in (#240 Phase 6)"
+                )));
+            }
 
             let mut persistent_by_name: BTreeMap<&'static str, PersistentDependency> =
                 BTreeMap::new();
@@ -712,7 +777,7 @@ fn discover(
                 if matches!(parent_dispatch, NormalizedEventDispatch::Advancement(_)) {
                     visiting.pop();
                     return Err(GraphError(format!(
-                        "SandEvent `{type_name}` cannot use `{dependency_type_name}` in `within`: advancement-backed SandEvent parents are not yet supported by bounded correlation (#240) — bound from a tick-lifecycle SandEvent instead"
+                        "SandEvent `{type_name}` cannot use advancement-backed `{dependency_type_name}` in `within`: bounded correlation requires per-tick coordinator maintenance that an advancement reward's synchronous execution cannot safely participate in (#240 Phase 6) — bound from a tick-lifecycle SandEvent instead, or use `after::<{dependency_type_name}>()` as the child's sole occurrence clause if same-cycle-or-later correlation is not required"
                     )));
                 }
                 if let NormalizedEventDispatch::Tick(tick) = &parent_dispatch
@@ -741,6 +806,7 @@ fn discover(
                     handler_path,
                     resolved,
                     visiting,
+                    advancement_bridges,
                 )?;
                 let resolved_dependency = BoundedDependency::resolve(
                     dependency_type_id,
@@ -792,6 +858,7 @@ fn resolve_occurrence_dependencies(
     handler_path: &'static str,
     resolved: &mut BTreeMap<TypeId, EventNode>,
     visiting: &mut Vec<&'static str>,
+    advancement_bridges: &mut BTreeMap<String, AdvancementBridge>,
 ) -> Result<Vec<OccurrenceDependency>, GraphError> {
     let mut resolved_requirements = Vec::with_capacity(requirements.len());
     let mut any_groups = 0usize;
@@ -849,31 +916,99 @@ fn resolve_occurrence_dependencies(
             )?;
 
             let parent_dispatch = (factory.event_dispatch)().normalize();
-            if matches!(parent_dispatch, NormalizedEventDispatch::Advancement(_)) {
-                return Err(GraphError(format!(
-                    "SandEvent `{child_type_name}` cannot use `{parent_type_name}` in `{label}`: the advancement-backed parent cannot inherit the required player execution context (see #240)"
-                )));
+            let is_advancement = matches!(parent_dispatch, NormalizedEventDispatch::Advancement(_));
+            if is_advancement {
+                // An advancement-backed parent's occurrence is provided
+                // synchronously inside its vanilla advancement reward
+                // function, never polled by `minecraft:tick`. That is only
+                // safely representable as the child's sole, single `after`
+                // occurrence dependency — anything requiring the tick
+                // coordinator to observe it alongside another parent's mark
+                // in one deterministic pass (`after_any`/`after_all`, or
+                // combining it with a second occurrence clause) would depend
+                // on a same-cycle relationship Sand cannot honestly
+                // guarantee, since reward-function execution order relative
+                // to the coordinator's own tick-tagged pass is not
+                // controlled by Sand (#240 Phase 6).
+                if label != "after" {
+                    return Err(GraphError(format!(
+                        "SandEvent `{child_type_name}` cannot use advancement-backed `{parent_type_name}` in `{label}`: an advancement-backed parent is only representable as a sole `after::<{parent_type_name}>()` occurrence dependency, never inside `after_any`/`after_all` — advancement reward execution is not synchronized with the tick coordinator that `{label}` requires (#240 Phase 6)"
+                    )));
+                }
+                if requirements.len() != 1 {
+                    return Err(GraphError(format!(
+                        "SandEvent `{child_type_name}` cannot combine advancement-backed `{parent_type_name}` with another occurrence dependency: an advancement-backed parent must be the child's sole occurrence clause (#240 Phase 6) — split into two SandEvent types if both relationships are genuinely required"
+                    )));
+                }
+                // Never call `discover()`: advancement-backed parents are
+                // never inserted as graph nodes, so they never go through
+                // `discover()`'s own `validate_consistent()` cross-handler
+                // check — guard identity collisions here instead.
+                if let Some(existing) = advancement_bridges.get(parent_type_name)
+                    && existing.type_id != parent_type_id
+                {
+                    return Err(GraphError(format!(
+                        "canonical event identity collision for advancement-backed parent `{parent_type_name}`: distinct Rust event types resolve to the same canonical name (#240 Phase 6)"
+                    )));
+                }
+                // The synchronous bridge dispatches the dependent directly
+                // from the parent's own reward entry function — it never
+                // runs the parent's own `SandEvent::setup()` lifecycle
+                // (objectives, pre_observation, post_observation). Silently
+                // ignoring a non-empty setup would drop lifecycle
+                // requirements the parent's author declared, so reject
+                // rather than weaken them. `EventSetup::is_empty()` is the
+                // single canonical, full-coverage check (it compares every
+                // field via `PartialEq`); `first_non_empty_category()` only
+                // adds the diagnostic detail of *which* category blocked
+                // this, never substitutes for the full check.
+                let bridge_setup = (factory.event_setup)();
+                if !bridge_setup.is_empty() {
+                    let category = bridge_setup
+                        .first_non_empty_category()
+                        .expect("first_non_empty_category is Some whenever is_empty is false");
+                    return Err(GraphError(format!(
+                        "SandEvent `{child_type_name}` cannot bridge advancement-backed parent `{parent_type_name}`: the parent declares non-empty SandEvent::setup() (`{category}`), but Phase 6 synchronous advancement bridges do not execute parent lifecycle setup. Use an empty setup, provision prerequisites independently, or use a tick-backed parent."
+                    )));
+                }
+                // Detection remains owned by the pre-existing
+                // advancement/reward codegen path; this child is bridged
+                // into it directly (see `EventGraph::advancement_bridges` /
+                // `component.rs`).
+                advancement_bridges.insert(
+                    parent_type_name.to_string(),
+                    AdvancementBridge {
+                        type_id: parent_type_id,
+                        type_name: parent_type_name,
+                        event_dispatch: factory.event_dispatch,
+                        event_setup: factory.event_setup,
+                        event_revoke: factory.event_revoke,
+                    },
+                );
+            } else {
+                if let NormalizedEventDispatch::Tick(tick) = &parent_dispatch
+                    && tick.scope != TickScope::Players
+                {
+                    return Err(GraphError(format!(
+                        "SandEvent `{child_type_name}` cannot use `{parent_type_name}` in `{label}`: the child requires player scope but the parent dispatch uses {:?}",
+                        tick.scope
+                    )));
+                }
+                discover(
+                    parent_type_id,
+                    parent_type_name,
+                    parent_dispatch,
+                    (factory.event_setup)(),
+                    handler_path,
+                    resolved,
+                    visiting,
+                    advancement_bridges,
+                )?;
             }
-            if let NormalizedEventDispatch::Tick(tick) = &parent_dispatch
-                && tick.scope != TickScope::Players
-            {
-                return Err(GraphError(format!(
-                    "SandEvent `{child_type_name}` cannot use `{parent_type_name}` in `{label}`: the child requires player scope but the parent dispatch uses {:?}",
-                    tick.scope
-                )));
-            }
-            discover(
-                parent_type_id,
-                parent_type_name,
-                parent_dispatch,
-                (factory.event_setup)(),
-                handler_path,
-                resolved,
-                visiting,
-            )?;
             parents.push(OccurrenceParent {
                 type_id: parent_type_id,
                 type_name: parent_type_name,
+                is_advancement,
             });
         }
         parents.sort_by_key(|parent| parent.type_name);
@@ -1069,6 +1204,10 @@ fn occurrence_identity(requirements: &[SameCycleEventRequirement]) -> Vec<Occurr
                 SameCycleEventRequirement::After(parent) => vec![OccurrenceParent {
                     type_id: (parent.event_type_id)(),
                     type_name: (parent.event_type_name)(),
+                    is_advancement: matches!(
+                        (parent.event_dispatch)().normalize(),
+                        NormalizedEventDispatch::Advancement(_)
+                    ),
                 }],
                 SameCycleEventRequirement::AfterAny(parents)
                 | SameCycleEventRequirement::AfterAll(parents) => parents
@@ -1076,6 +1215,10 @@ fn occurrence_identity(requirements: &[SameCycleEventRequirement]) -> Vec<Occurr
                     .map(|parent| OccurrenceParent {
                         type_id: (parent.event_type_id)(),
                         type_name: (parent.event_type_name)(),
+                        is_advancement: matches!(
+                            (parent.event_dispatch)().normalize(),
+                            NormalizedEventDispatch::Advancement(_)
+                        ),
                     })
                     .collect(),
             };
@@ -1253,17 +1396,26 @@ mod tests {
     }
 
     fn as_graph(resolved: BTreeMap<TypeId, EventNode>) -> EventGraph {
+        as_graph_with_bridges(resolved, BTreeMap::new())
+    }
+
+    fn as_graph_with_bridges(
+        resolved: BTreeMap<TypeId, EventNode>,
+        advancement_bridges: BTreeMap<String, AdvancementBridge>,
+    ) -> EventGraph {
         EventGraph {
             nodes: resolved
                 .into_values()
                 .map(|n| (n.type_name.to_string(), n))
                 .collect(),
+            advancement_bridges,
         }
     }
 
     #[test]
     fn one_parent_one_child() {
         let mut resolved = BTreeMap::new();
+        let mut advancement_bridges: BTreeMap<String, AdvancementBridge> = BTreeMap::new();
         discover_node(
             TypeId::of::<A>(),
             std::any::type_name::<A>(),
@@ -1271,6 +1423,7 @@ mod tests {
             EventSetup::none(),
             "on_a",
             &mut resolved,
+            &mut advancement_bridges,
         )
         .unwrap();
         discover_node(
@@ -1280,6 +1433,7 @@ mod tests {
             EventSetup::none(),
             "on_b",
             &mut resolved,
+            &mut advancement_bridges,
         )
         .unwrap();
 
@@ -1293,6 +1447,7 @@ mod tests {
     #[test]
     fn parent_with_several_children() {
         let mut resolved = BTreeMap::new();
+        let mut advancement_bridges: BTreeMap<String, AdvancementBridge> = BTreeMap::new();
         discover_node(
             TypeId::of::<A>(),
             std::any::type_name::<A>(),
@@ -1300,6 +1455,7 @@ mod tests {
             EventSetup::none(),
             "on_a",
             &mut resolved,
+            &mut advancement_bridges,
         )
         .unwrap();
         for (id, name, path) in [
@@ -1313,6 +1469,7 @@ mod tests {
                 EventSetup::none(),
                 path,
                 &mut resolved,
+                &mut advancement_bridges,
             )
             .unwrap();
         }
@@ -1327,6 +1484,7 @@ mod tests {
     #[test]
     fn direct_self_cycle_rejected() {
         let mut resolved = BTreeMap::new();
+        let mut advancement_bridges: BTreeMap<String, AdvancementBridge> = BTreeMap::new();
         let err = discover_node(
             TypeId::of::<A>(),
             std::any::type_name::<A>(),
@@ -1334,6 +1492,7 @@ mod tests {
             EventSetup::none(),
             "on_a",
             &mut resolved,
+            &mut advancement_bridges,
         )
         .unwrap_err();
         assert!(err.0.contains("self-dependency"));
@@ -1344,6 +1503,7 @@ mod tests {
         // A chains from B, B chains from A: A -> B -> A.
         let chain_a = SandEventDispatch::chain::<B>();
         let mut resolved = BTreeMap::new();
+        let mut advancement_bridges: BTreeMap<String, AdvancementBridge> = BTreeMap::new();
         let err = discover_node(
             TypeId::of::<A>(),
             std::any::type_name::<A>(),
@@ -1351,6 +1511,7 @@ mod tests {
             EventSetup::none(),
             "on_a",
             &mut resolved,
+            &mut advancement_bridges,
         )
         .unwrap_err();
         assert!(err.0.contains("dependency cycle"));
@@ -1359,6 +1520,7 @@ mod tests {
     #[test]
     fn deep_chain_a_b_c() {
         let mut resolved = BTreeMap::new();
+        let mut advancement_bridges: BTreeMap<String, AdvancementBridge> = BTreeMap::new();
         discover_node(
             TypeId::of::<A>(),
             std::any::type_name::<A>(),
@@ -1366,6 +1528,7 @@ mod tests {
             EventSetup::none(),
             "on_a",
             &mut resolved,
+            &mut advancement_bridges,
         )
         .unwrap();
         discover_node(
@@ -1375,6 +1538,7 @@ mod tests {
             EventSetup::none(),
             "on_b",
             &mut resolved,
+            &mut advancement_bridges,
         )
         .unwrap();
         discover_node(
@@ -1384,6 +1548,7 @@ mod tests {
             EventSetup::none(),
             "on_c",
             &mut resolved,
+            &mut advancement_bridges,
         )
         .unwrap();
 
@@ -1399,6 +1564,7 @@ mod tests {
     #[test]
     fn persistent_edge_is_distinct_and_deduplicated() {
         let mut resolved = BTreeMap::new();
+        let mut advancement_bridges: BTreeMap<String, AdvancementBridge> = BTreeMap::new();
         let dispatch = SandEventDispatch::chain::<A>()
             .while_::<PersistentLeaf>()
             .while_::<PersistentLeaf>();
@@ -1409,6 +1575,7 @@ mod tests {
             EventSetup::none(),
             "on_b",
             &mut resolved,
+            &mut advancement_bridges,
         )
         .unwrap();
         let graph = as_graph(resolved);
@@ -1426,6 +1593,7 @@ mod tests {
     #[test]
     fn direct_persistent_self_dependency_is_rejected() {
         let mut resolved = BTreeMap::new();
+        let mut advancement_bridges: BTreeMap<String, AdvancementBridge> = BTreeMap::new();
         let err = discover_node(
             TypeId::of::<PersistentA>(),
             std::any::type_name::<PersistentA>(),
@@ -1433,6 +1601,7 @@ mod tests {
             EventSetup::none(),
             "on_a",
             &mut resolved,
+            &mut advancement_bridges,
         )
         .unwrap_err();
         assert!(err.0.contains("persistent self-dependency"));
@@ -1442,6 +1611,7 @@ mod tests {
     #[test]
     fn indirect_persistent_cycle_is_rejected() {
         let mut resolved = BTreeMap::new();
+        let mut advancement_bridges: BTreeMap<String, AdvancementBridge> = BTreeMap::new();
         let err = discover_node(
             TypeId::of::<PersistentA>(),
             std::any::type_name::<PersistentA>(),
@@ -1449,6 +1619,7 @@ mod tests {
             EventSetup::none(),
             "on_a",
             &mut resolved,
+            &mut advancement_bridges,
         )
         .unwrap_err();
         assert!(err.0.contains("dependency cycle"));
@@ -1459,6 +1630,7 @@ mod tests {
     #[test]
     fn persistent_provider_with_detector_setup_is_rejected() {
         let mut resolved = BTreeMap::new();
+        let mut advancement_bridges: BTreeMap<String, AdvancementBridge> = BTreeMap::new();
         let err = discover_node(
             TypeId::of::<B>(),
             std::any::type_name::<B>(),
@@ -1468,6 +1640,7 @@ mod tests {
             EventSetup::none(),
             "on_b",
             &mut resolved,
+            &mut advancement_bridges,
         )
         .unwrap_err();
         assert!(err.0.contains(std::any::type_name::<B>()));
@@ -1496,6 +1669,7 @@ mod tests {
     #[test]
     fn multi_parent_groups_are_explicit_and_topologically_ordered() {
         let mut resolved = BTreeMap::new();
+        let mut advancement_bridges: BTreeMap<String, AdvancementBridge> = BTreeMap::new();
         discover_node(
             TypeId::of::<MultiAll>(),
             std::any::type_name::<MultiAll>(),
@@ -1503,6 +1677,7 @@ mod tests {
             EventSetup::none(),
             "on_multi_all",
             &mut resolved,
+            &mut advancement_bridges,
         )
         .unwrap();
         let graph = as_graph(resolved);
@@ -1523,6 +1698,7 @@ mod tests {
     #[test]
     fn duplicate_parent_inside_group_is_rejected() {
         let mut resolved = BTreeMap::new();
+        let mut advancement_bridges: BTreeMap<String, AdvancementBridge> = BTreeMap::new();
         let dispatch = SandEventDispatch::from(SandEventDispatch::after_any::<(A, A)>());
         let err = discover_node(
             TypeId::of::<MultiAny>(),
@@ -1531,6 +1707,7 @@ mod tests {
             EventSetup::none(),
             "on_duplicate",
             &mut resolved,
+            &mut advancement_bridges,
         )
         .unwrap_err();
         assert!(err.0.contains("duplicate parent"));
@@ -1540,6 +1717,7 @@ mod tests {
     #[test]
     fn repeated_any_group_is_rejected() {
         let mut resolved = BTreeMap::new();
+        let mut advancement_bridges: BTreeMap<String, AdvancementBridge> = BTreeMap::new();
         let dispatch = SandEventDispatch::from(
             SandEventDispatch::compose()
                 .after_any::<(A, D)>()
@@ -1552,6 +1730,7 @@ mod tests {
             EventSetup::none(),
             "on_repeated_any",
             &mut resolved,
+            &mut advancement_bridges,
         )
         .unwrap_err();
         assert!(err.0.contains("multiple `after_any` groups"));
@@ -1593,6 +1772,7 @@ mod tests {
     #[test]
     fn mixed_any_after_cycle_has_labeled_path() {
         let mut resolved = BTreeMap::new();
+        let mut advancement_bridges: BTreeMap<String, AdvancementBridge> = BTreeMap::new();
         let err = discover_node(
             TypeId::of::<MixedCycleA>(),
             std::any::type_name::<MixedCycleA>(),
@@ -1600,6 +1780,7 @@ mod tests {
             EventSetup::none(),
             "on_mixed_cycle",
             &mut resolved,
+            &mut advancement_bridges,
         )
         .unwrap_err();
         assert!(err.0.contains("dependency cycle"));
@@ -1610,6 +1791,7 @@ mod tests {
     #[test]
     fn bounded_edge_is_distinct_and_deduplicated() {
         let mut resolved = BTreeMap::new();
+        let mut advancement_bridges: BTreeMap<String, AdvancementBridge> = BTreeMap::new();
         let window = crate::events::TickWindow::new(5).unwrap();
         let dispatch = SandEventDispatch::chain::<A>()
             .within::<BoundedParent>(window)
@@ -1621,6 +1803,7 @@ mod tests {
             EventSetup::none(),
             "on_b",
             &mut resolved,
+            &mut advancement_bridges,
         )
         .unwrap();
         let graph = as_graph(resolved);
@@ -1649,6 +1832,7 @@ mod tests {
     #[test]
     fn direct_bounded_self_dependency_is_rejected() {
         let mut resolved = BTreeMap::new();
+        let mut advancement_bridges: BTreeMap<String, AdvancementBridge> = BTreeMap::new();
         let window = crate::events::TickWindow::new(5).unwrap();
         let err = discover_node(
             TypeId::of::<A>(),
@@ -1657,6 +1841,7 @@ mod tests {
             EventSetup::none(),
             "on_a",
             &mut resolved,
+            &mut advancement_bridges,
         )
         .unwrap_err();
         assert!(err.0.contains("bounded self-dependency"));
@@ -1665,6 +1850,7 @@ mod tests {
     #[test]
     fn conflicting_bounded_window_is_rejected() {
         let mut resolved = BTreeMap::new();
+        let mut advancement_bridges: BTreeMap<String, AdvancementBridge> = BTreeMap::new();
         let dispatch = SandEventDispatch::chain::<A>()
             .within::<BoundedParent>(crate::events::TickWindow::new(3).unwrap())
             .within::<BoundedParent>(crate::events::TickWindow::new(5).unwrap());
@@ -1675,6 +1861,7 @@ mod tests {
             EventSetup::none(),
             "on_b",
             &mut resolved,
+            &mut advancement_bridges,
         )
         .unwrap_err();
         assert!(err.0.contains("conflicting `within` window"));
@@ -1683,6 +1870,7 @@ mod tests {
     #[test]
     fn indirect_bounded_cycle_has_labeled_path() {
         let mut resolved = BTreeMap::new();
+        let mut advancement_bridges: BTreeMap<String, AdvancementBridge> = BTreeMap::new();
         let err = discover_node(
             TypeId::of::<BoundedCycleA>(),
             std::any::type_name::<BoundedCycleA>(),
@@ -1690,6 +1878,7 @@ mod tests {
             EventSetup::none(),
             "on_bounded_cycle",
             &mut resolved,
+            &mut advancement_bridges,
         )
         .unwrap_err();
         assert!(err.0.contains("dependency cycle"));
@@ -1700,6 +1889,7 @@ mod tests {
     #[test]
     fn different_windows_on_shared_parent_are_both_accepted() {
         let mut resolved = BTreeMap::new();
+        let mut advancement_bridges: BTreeMap<String, AdvancementBridge> = BTreeMap::new();
         discover_node(
             TypeId::of::<B>(),
             std::any::type_name::<B>(),
@@ -1710,6 +1900,7 @@ mod tests {
             EventSetup::none(),
             "on_b",
             &mut resolved,
+            &mut advancement_bridges,
         )
         .unwrap();
         discover_node(
@@ -1722,6 +1913,7 @@ mod tests {
             EventSetup::none(),
             "on_c",
             &mut resolved,
+            &mut advancement_bridges,
         )
         .unwrap();
         let graph = as_graph(resolved);
@@ -1749,6 +1941,7 @@ mod tests {
     #[test]
     fn bounded_window_one_matches_same_cycle_condition_shape() {
         let mut resolved = BTreeMap::new();
+        let mut advancement_bridges: BTreeMap<String, AdvancementBridge> = BTreeMap::new();
         discover_node(
             TypeId::of::<B>(),
             std::any::type_name::<B>(),
@@ -1759,6 +1952,7 @@ mod tests {
             EventSetup::none(),
             "on_b",
             &mut resolved,
+            &mut advancement_bridges,
         )
         .unwrap();
         let graph = as_graph(resolved);

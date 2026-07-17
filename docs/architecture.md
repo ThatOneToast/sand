@@ -49,6 +49,47 @@ mark so post-observation still runs after a failed child condition attempt.
 Graph discovery rejects duplicate parents/groups, incompatible scopes,
 canonical/generated identity collisions, conflicting `.within` windows for the
 same parent, and direct or mixed cycles with edge labels (including through
-`within` edges). Advancement-backed graph parents and participant context
-propagation are later roadmap phases and are not modeled as implemented
-behavior here.
+`within` edges).
+
+An advancement-backed `SandEvent` may also participate as a graph parent
+(#240 Phase 6), but only as a child's sole `after::<Parent>()` occurrence
+dependency — never inside `after_any`/`after_all`, never combined with a
+second occurrence clause, and never referenced by `.within(...)`. Unlike
+tick-backed parents, an advancement-backed parent is never inserted as a
+graph node (`EventGraph::advancement_bridges` tracks it separately, keyed by
+canonical type name); its detection stays owned by a synthesized advancement
++ reward-entry function pair rather than the `minecraft:tick` coordinator.
+Each dependent child's condition-gated dispatch call is generated directly
+inside that reward entry — synchronously, under the triggering player's `@s`,
+after the existing revoke-first ordering — so no per-tick polling, pending
+flag, or coordinator involvement is introduced for this relationship. This
+constraint exists because Sand does not control (and will not pretend to
+guarantee) the reward function's execution order relative to the tick
+coordinator's own tick-tagged pass, so anything requiring the coordinator to
+observe this parent's occurrence alongside another parent's mark in one
+deterministic pass is rejected with a diagnostic rather than silently
+approximated. The bridged parent type must have zero direct `#[event]`
+handlers — combining one with graph composition on the same type is rejected,
+since it would otherwise require either duplicating the live advancement
+grant or splicing into the separate, pre-existing per-handler advancement
+lowering path. `TickScope::AdvancementPlayer` (alongside the existing
+`TickScope::Players`) is the graph's deterministic capability seam for this:
+both guarantee an exact player subject, but only `Players` supports
+coordinator-mediated multi-parent/staged composition.
+
+Because the bridge dispatches the dependent directly from the parent's
+reward entry rather than through any generated coordinator step, it never
+runs the parent's own `SandEvent::setup()` (`EventSetup::objectives`/
+`pre_observation`/`post_observation`). `resolve_occurrence_dependencies`
+validates this during graph discovery — before any datapack records are
+emitted — via `EventSetup::is_empty()` (the single canonical, full-field
+check), rejecting the relationship with a diagnostic naming the concrete
+child, the concrete parent, and (via `EventSetup::first_non_empty_category`)
+which lifecycle category is non-empty, rather than silently discarding
+setup the parent's author declared. Executing an advancement parent's own
+lifecycle synchronously is future work, not attempted here — it would need
+new ordering semantics this phase does not design. The dependent child's own
+`EventSetup` is unaffected and continues to be honored normally.
+
+Participant context propagation beyond a bare player subject (#230) remains a
+later roadmap phase and is not modeled as implemented behavior here.

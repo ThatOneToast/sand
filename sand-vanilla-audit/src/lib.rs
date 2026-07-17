@@ -187,6 +187,42 @@ pub fn semantic_within(_event: SemanticWithin) {
     cmd::raw(r#"tellraw @s {"text":"__SAND_SEMANTIC_WITHIN__"}"#)
 }
 
+/// Phase 6 (#240) advancement-backed graph parent: a provider-only
+/// `SandEvent` (no direct `#[event]` handler of its own) whose dispatch is
+/// advancement-backed. Sand synthesizes its advancement/entry function
+/// purely to bridge `SemanticAdvancementBridgeChild` below — see
+/// `EventGraph::advancement_bridges`. Reuses the same marked
+/// `item_used_on_block` stimulus (honeycomb on copper block) already
+/// exercised by `audit_item_used_on_block_filtered`/the Phase 1/2 semantic
+/// client flow, so this fixture's structural correctness (advancement JSON
+/// and entry ordering) is covered by existing load/reload validation
+/// without introducing a new client interaction.
+pub struct SemanticAdvancementParent;
+
+impl SandEvent for SemanticAdvancementParent {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        SandEventDispatch::AdvancementTrigger(AdvancementTrigger::ItemUsedOnBlock {
+            item: Some(ItemPredicate::id("minecraft:honeycomb").custom_data_key("sand_audit_item")),
+            location: None,
+        })
+    }
+}
+
+/// Bridged child: the sole `after::<SemanticAdvancementParent>()` occurrence
+/// dependency, dispatched synchronously from the advancement reward.
+pub struct SemanticAdvancementBridgeChild;
+
+impl SandEvent for SemanticAdvancementBridgeChild {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        SandEventDispatch::chain::<SemanticAdvancementParent>()
+    }
+}
+
+#[event]
+pub fn semantic_advancement_bridge_child(_event: SemanticAdvancementBridgeChild) {
+    cmd::raw(r#"tellraw @s {"text":"__SAND_SEMANTIC_ADVANCEMENT_BRIDGE__"}"#)
+}
+
 #[function]
 pub fn semantic_multi_fire_a() {
     cmd::raw("scoreboard players add @s sand_mp_a 1")

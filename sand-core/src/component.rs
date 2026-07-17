@@ -248,6 +248,12 @@ fn try_export_components_impl(
         crate::events::ChainEventDispatch,
         crate::events::EventSetup,
     )> = Vec::new();
+    // Canonical SandEvent type ids with at least one direct #[event] handler
+    // resolving to advancement-backed dispatch — used to reject combining a
+    // direct handler with graph composition on the same advancement-backed
+    // event (#240 Phase 6; see the advancement-bridge collision check below).
+    let mut advancement_handler_type_ids: std::collections::BTreeSet<std::any::TypeId> =
+        std::collections::BTreeSet::new();
     // Shared armor watch map — populated by both EventDescriptor ArmorEquip/
     // ArmorUnequip dispatch and the legacy ArmorEventDescriptor entries.
     // (slot, item_id, custom_data_snbt, Vec<(is_equip, path)>)
@@ -495,6 +501,7 @@ fn try_export_components_impl(
                     CustomDispatchBackend::Advancement(trigger) => {
                         // Advancement-backed custom (SandEvent) event.
                         // Same entry/body split as the typed Advancement arm.
+                        advancement_handler_type_ids.insert(event_type_id());
                         let advancement_id = desc
                             .id_override
                             .map(|s| s.to_string())
@@ -911,6 +918,10 @@ fn try_export_components_impl(
     if !tick_lifecycle_events.is_empty() || !chain_events.is_empty() {
         let mut resolved: BTreeMap<std::any::TypeId, crate::events::graph::EventNode> =
             BTreeMap::new();
+        // Advancement-backed graph parents (#240 Phase 6) — never inserted
+        // into `resolved`/`nodes`; see `EventGraph::advancement_bridges`.
+        let mut advancement_bridges: BTreeMap<String, crate::events::graph::AdvancementBridge> =
+            BTreeMap::new();
 
         for (desc, type_id, type_name, tick, setup) in &tick_lifecycle_events {
             crate::events::graph::discover_node(
@@ -920,6 +931,7 @@ fn try_export_components_impl(
                 setup.clone(),
                 desc.path,
                 &mut resolved,
+                &mut advancement_bridges,
             )
             .map_err(|e| tick_event_export_error(e.0))?;
         }
@@ -931,6 +943,7 @@ fn try_export_components_impl(
                 setup,
                 desc.path,
                 &mut resolved,
+                &mut advancement_bridges,
             )
             .map_err(|e| tick_event_export_error(e.0))?;
         }
@@ -947,7 +960,26 @@ fn try_export_components_impl(
                 )));
             }
         }
-        let graph = crate::events::graph::EventGraph { nodes };
+        // An advancement-backed graph parent may not also have a direct
+        // `#[event]` handler in this phase — see `component.rs`'s
+        // advancement-lowering loop above, which generates that handler's
+        // own advancement/entry/body independently of this graph and would
+        // otherwise silently create two live advancement grants for one
+        // criterion (this bridge's synthesized entry, plus the handler's
+        // own). Detected by cross-referencing type ids collected while that
+        // loop ran (`advancement_handler_type_ids`, populated above).
+        for bridge in advancement_bridges.values() {
+            if advancement_handler_type_ids.contains(&bridge.type_id) {
+                return Err(tick_event_export_error(format!(
+                    "advancement-backed graph parent `{}` also has a direct #[event] handler: #240 Phase 6 does not yet support combining a direct handler with graph composition on the same advancement-backed event — split into two SandEvent types (one for the handler, one chained via `after` for the composition), or remove the direct handler",
+                    bridge.type_name
+                )));
+            }
+        }
+        let graph = crate::events::graph::EventGraph {
+            nodes,
+            advancement_bridges,
+        };
         graph
             .validate_dependencies()
             .map_err(|e| tick_event_export_error(e.0))?;
@@ -975,6 +1007,25 @@ fn try_export_components_impl(
                      hash to key `{key}` — rename one of the event types to avoid colliding \
                      generated detector/setup paths",
                     node.type_name
+                )));
+            }
+        }
+        // Advancement-backed bridge parents (#240 Phase 6) share the same
+        // `tick_event_resource_key` keyspace (`__sand_event_advancement_bridge/{key}`)
+        // even though they are never graph nodes — extend the same collision
+        // guard to them so a 32-bit hash collision between two distinct
+        // advancement-backed parent type names is caught rather than
+        // silently merging their generated advancement/entry resources.
+        for bridge in graph.advancement_bridges.values() {
+            let key = tick_event_resource_key(bridge.type_name);
+            if let Some(existing) = key_registry.insert(key.clone(), bridge.type_name)
+                && existing != bridge.type_name
+            {
+                return Err(tick_event_export_error(format!(
+                    "generated resource key collision: event types `{existing}` and `{}` both \
+                     hash to key `{key}` — rename one of the event types to avoid colliding \
+                     generated detector/setup paths",
+                    bridge.type_name
                 )));
             }
         }
@@ -1438,6 +1489,83 @@ fn try_export_components_impl(
                 .entry("minecraft:tick".to_string())
                 .or_default()
                 .push(format!("{namespace}:{coordinator_path}"));
+        }
+
+        // ── Advancement-backed graph parent bridge (#240 Phase 6) ──────────
+        //
+        // An advancement-backed parent referenced by some child's sole
+        // `after::<Parent>()` is never a graph node (see
+        // `EventGraph::advancement_bridges`) — its detection stays owned by
+        // a synthesized advancement + entry function, generated here rather
+        // than through the ordinary per-handler advancement lowering above.
+        // This phase requires zero direct `#[event]` handlers on the
+        // bridged type (checked earlier via `advancement_handler_type_ids`),
+        // so there is exactly one entry per bridged parent regardless of how
+        // many children depend on it — multiple children append multiple
+        // condition-gated dispatch lines to that same entry, all running
+        // under the same `@s` the vanilla reward mechanism already binds to
+        // the triggering player. `EventSetup` is intentionally not consulted
+        // for the bridged parent itself, matching the pre-existing
+        // advancement-lowering paths above (neither ever wires
+        // pre_observation/post_observation/objectives for advancement
+        // dispatch) — a dependent child's own `EventSetup` is unaffected and
+        // still applied normally, since the child remains an ordinary graph
+        // node.
+        for (parent_name, bridge) in &graph.advancement_bridges {
+            let children = graph.children_of(parent_name);
+            let mut bridge_cmds = Vec::new();
+            for edge in &children {
+                bridge_cmds.push(build_child_edge(
+                    edge,
+                    &graph,
+                    namespace,
+                    &occurrence_marked,
+                    ChildPostObservation::Inline,
+                    &mut guarded_children,
+                    &mut records,
+                ));
+            }
+
+            let key = tick_event_resource_key(parent_name);
+            let trigger = match (bridge.event_dispatch)().normalize() {
+                crate::events::NormalizedEventDispatch::Advancement(trigger) => trigger,
+                _ => unreachable!(
+                    "AdvancementBridge is only constructed for advancement-backed dispatch"
+                ),
+            };
+            let entry_path = format!("__sand_event_advancement_bridge/{key}");
+            let entry_ref = format!("{namespace}:{entry_path}");
+            let advancement_id = format!("{namespace}:{entry_path}");
+
+            // Preserve the same revoke-before-effect ordering as the
+            // existing per-handler advancement lowering (`component.rs`
+            // above): the advancement always re-arms before any dependent
+            // runs, so it can fire again on a later criterion match
+            // regardless of what a dependent child's own condition does.
+            let mut entry_cmds = Vec::new();
+            if (bridge.event_revoke)() {
+                entry_cmds.push(format!("advancement revoke @s only {advancement_id}"));
+            }
+            entry_cmds.extend(bridge_cmds);
+
+            records.push(ComponentRecord {
+                namespace: namespace.to_string(),
+                dir: "function".to_string(),
+                path: entry_path,
+                ext: "mcfunction".to_string(),
+                content_type: "text".to_string(),
+                content: entry_cmds.join("\n"),
+            });
+
+            check_event_trigger(&trigger, &advancement_id, parent_name, ctx)?;
+            let advancement = sand_components::Advancement::new(
+                advancement_id
+                    .parse()
+                    .expect("generated advancement bridge id is a valid resource location"),
+            )
+            .criterion("event", sand_components::Criterion::new(trigger))
+            .rewards(sand_components::AdvancementRewards::new().function(entry_ref));
+            records.push(component_to_record(&advancement, ctx)?);
         }
     }
 

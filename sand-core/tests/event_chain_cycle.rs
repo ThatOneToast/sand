@@ -37,6 +37,7 @@ fn after(
         event_type_name,
         event_dispatch,
         event_setup: EventSetup::none,
+        event_revoke: || true,
     })]
 }
 

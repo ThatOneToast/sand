@@ -93,6 +93,25 @@ run was not performed as part of this change (no live Minecraft server is
 available in the authoring environment), and the evidence entry reflects that
 until someone runs `scripts/validate-vanilla-semantics.sh` against it.
 
+The `sand-vanilla-audit` crate also carries a Phase 6 (#240) fixture pair,
+`SemanticAdvancementParent` (a provider-only advancement-backed `SandEvent`,
+no direct `#[event]` handler) and `SemanticAdvancementBridgeChild` (its sole
+`after::<SemanticAdvancementParent>()` dependent). Unlike the bounded and
+multi-parent fixtures above, this pair has **no dedicated client-driven
+positive/negative timing test** in this phase — its evidence is limited to
+deterministic structural export/reload validation: the pack exports
+identically across repeated runs and loads/reloads cleanly on both 1.21.4
+and 26.2. It reuses the same `item_used_on_block` marked-honeycomb-on-
+copper-block criterion already exercised by
+`audit_item_used_on_block_filtered`'s structural coverage, so it introduces
+no new advancement condition shape to validate, but it does not by itself
+prove the bridged child actually dispatches on a real trigger firing — that
+remains `sand-core`'s exact generated-command export tests
+(`event_chain_advancement_parent_rejected.rs`,
+`event_chain_advancement_parent_composition.rs`, and the four dedicated
+rejected-combination test files), not live gameplay evidence. Recorded as
+`LIM-VAL-007`.
+
 ## Synchronization and signals
 
 The controller creates an isolated server/world directory, copies the pack

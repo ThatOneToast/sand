@@ -391,17 +391,42 @@ otherwise need either a second live advancement grant for one criterion, or
 splicing into the separate, pre-existing per-handler advancement codegen
 path, both out of scope here).
 
+**The bridged parent's own `SandEvent::setup()` must be empty.** The
+synchronous bridge dispatches the dependent directly from the parent's
+reward entry function — it never runs the parent's own setup lifecycle
+(objectives, `pre_observation`, `post_observation`). Rather than silently
+dropping a non-empty setup, export rejects the relationship and names which
+setup category is non-empty:
+
+```text
+SandEvent `ChildEvent` cannot bridge advancement-backed parent `ParentEvent`:
+the parent declares non-empty SandEvent::setup() (`pre_observation`), but
+Phase 6 synchronous advancement bridges do not execute parent lifecycle setup.
+Use an empty setup, provision prerequisites independently, or use a tick-backed parent.
+```
+
+The **child's** own setup and conditions are unaffected — `EventSetup`,
+`.while_(...)`, `.when(...)`, and `.unless(...)` on the dependent all work
+normally, exactly as they do for a tick-backed parent. Only the *parent's*
+lifecycle is restricted, since that is the value never executed by this
+bridge. Executing an advancement parent's own lifecycle synchronously would
+need new ordering semantics (does setup run before or after revoke? once
+per bridge or once per dependent?) that this phase does not attempt to
+design — see `LIM-EXP-004`.
+
 This is the implemented same-cycle, persistent, bounded-correlation, and
 advancement-bridge composition surface, not general event correlation.
 Current limits are tracked as `LIM-EXP-004`:
 
 - tick-backed structured/compatibility-condition parents, or a sole
-  advancement-backed parent, only;
+  empty-setup advancement-backed parent, only;
 - bounded correlation is capped at 24,000 ticks (`TickWindow::MAX_TICKS`) —
   not an unbounded historical event log or session mechanism;
 - advancement-backed parents cannot join `after_any`/`after_all`, cannot
   combine with another occurrence clause, cannot be used with
-  `.within(...)`, and cannot also have a direct `#[event]` handler;
+  `.within(...)`, cannot also have a direct `#[event]` handler, and cannot
+  declare a non-empty `SandEvent::setup()` — the bridge does not execute
+  parent lifecycle setup;
 - no participant-rich contexts (attacker/victim/interacted-entity/item
   snapshots — #230) or arbitrary non-player execution scopes.
 

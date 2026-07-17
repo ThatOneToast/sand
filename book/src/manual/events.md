@@ -280,9 +280,15 @@ order relative to the tick coordinator's own pass — mixing them would be a
 same-cycle claim Sand cannot back up. `.while_(...)`/`.when(...)`/
 `.unless(...)` remain fully supported. The bridged advancement-backed type
 must have no direct `#[event]` handler of its own in this phase; combining a
-handler with graph composition on the same type is rejected. Participant-rich
-contexts (#230) and arbitrary non-player scopes remain planned; they are not
-current APIs.
+handler with graph composition on the same type is rejected. The bridged
+parent's own `SandEvent::setup()` must also be empty — the synchronous
+bridge never runs the parent's setup lifecycle (objectives,
+`pre_observation`, `post_observation`), so a non-empty setup is rejected
+rather than silently dropped, naming which category is non-empty. The
+dependent child's own setup and `.while_(...)`/`.when(...)`/`.unless(...)`
+conditions are unaffected — only the parent's lifecycle is restricted.
+Participant-rich contexts (#230) and arbitrary non-player scopes remain
+planned; they are not current APIs.
 
 For generated-output and lifecycle details, see the focused
 [events reference](../../../docs/events.md). For trigger construction, continue

@@ -951,6 +951,26 @@ fn resolve_occurrence_dependencies(
                         "canonical event identity collision for advancement-backed parent `{parent_type_name}`: distinct Rust event types resolve to the same canonical name (#240 Phase 6)"
                     )));
                 }
+                // The synchronous bridge dispatches the dependent directly
+                // from the parent's own reward entry function — it never
+                // runs the parent's own `SandEvent::setup()` lifecycle
+                // (objectives, pre_observation, post_observation). Silently
+                // ignoring a non-empty setup would drop lifecycle
+                // requirements the parent's author declared, so reject
+                // rather than weaken them. `EventSetup::is_empty()` is the
+                // single canonical, full-coverage check (it compares every
+                // field via `PartialEq`); `first_non_empty_category()` only
+                // adds the diagnostic detail of *which* category blocked
+                // this, never substitutes for the full check.
+                let bridge_setup = (factory.event_setup)();
+                if !bridge_setup.is_empty() {
+                    let category = bridge_setup
+                        .first_non_empty_category()
+                        .expect("first_non_empty_category is Some whenever is_empty is false");
+                    return Err(GraphError(format!(
+                        "SandEvent `{child_type_name}` cannot bridge advancement-backed parent `{parent_type_name}`: the parent declares non-empty SandEvent::setup() (`{category}`), but Phase 6 synchronous advancement bridges do not execute parent lifecycle setup. Use an empty setup, provision prerequisites independently, or use a tick-backed parent."
+                    )));
+                }
                 // Detection remains owned by the pre-existing
                 // advancement/reward codegen path; this child is bridged
                 // into it directly (see `EventGraph::advancement_bridges` /

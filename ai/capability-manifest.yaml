@@ -294,12 +294,27 @@ capabilities:
       composition on the same advancement-backed type is rejected (it would
       otherwise require either a second live advancement grant for one
       criterion, or splicing into the separate, pre-existing per-handler
-      advancement lowering path, both out of scope here). Multiple children
+      advancement lowering path, both out of scope here). The bridged
+      parent's own SandEvent::setup() must also be empty
+      (EventSetup::is_empty(), checked during graph discovery before any
+      datapack records are emitted) — the synchronous bridge dispatches the
+      dependent directly from the parent's reward entry and never runs the
+      parent's own setup lifecycle (objectives/pre_observation/
+      post_observation), so a non-empty setup is rejected with a diagnostic
+      naming the child, the parent, and the specific non-empty category
+      (EventSetup::first_non_empty_category()) rather than silently
+      discarded. The dependent child's own EventSetup and
+      while_/when/unless conditions are unaffected — only the parent's
+      lifecycle is restricted; executing an advancement parent's own
+      lifecycle synchronously remains unimplemented future work requiring
+      new ordering semantics not designed in this phase. Multiple children
       may depend on one bridged parent; multiple distinct advancement-backed
       parents remain distinct. Generated command shape, revoke/entry
-      ordering, provider-only subscription, multi-child sharing, and every
-      rejected combination's diagnostics have automated export-test
-      evidence. A structurally-verified fixture (SemanticAdvancementParent /
+      ordering, provider-only subscription, multi-child sharing, every
+      rejected combination's diagnostics (including each non-empty setup
+      category), and deterministic diagnostic selection under mixed
+      non-empty setup have automated export-test evidence. A
+      structurally-verified fixture (SemanticAdvancementParent /
       SemanticAdvancementBridgeChild) exports cleanly and deterministically
       for both 1.21.4 and 26.2, but has no dedicated client-driven
       positive/negative timing test in this phase — see LIM-VAL-007; real
@@ -307,7 +322,7 @@ capabilities:
       export/structural evidence only. Participant-rich
       execution contexts (#230) and arbitrary non-player entity execution
       scopes remain unimplemented (Phase 7+).
-    evidence: ["sand-core/src/events/mod.rs (TickScope::AdvancementPlayer, SameCycleEventDependency::event_revoke)", "sand-core/src/events/graph.rs (AdvancementBridge, EventGraph::advancement_bridges, resolve_occurrence_dependencies advancement branch, occurrence_topological_order exclusion)", "sand-core/src/component.rs (advancement-backed graph parent bridge codegen, advancement_handler_type_ids collision guard)", "sand-core/tests/event_chain_advancement_parent_rejected.rs", "sand-core/tests/event_chain_advancement_parent_composition.rs", "sand-core/tests/event_chain_advancement_parent_after_any_rejected.rs", "sand-core/tests/event_chain_advancement_parent_combined_occurrence_rejected.rs", "sand-core/tests/event_chain_advancement_parent_within_rejected.rs", "sand-core/tests/event_chain_advancement_parent_direct_handler_rejected.rs", "sand-vanilla-audit/src/lib.rs (SemanticAdvancementParent, SemanticAdvancementBridgeChild)"]
+    evidence: ["sand-core/src/events/mod.rs (TickScope::AdvancementPlayer, SameCycleEventDependency::event_revoke, EventSetup::is_empty, EventSetup::first_non_empty_category)", "sand-core/src/events/graph.rs (AdvancementBridge, EventGraph::advancement_bridges, resolve_occurrence_dependencies advancement branch, occurrence_topological_order exclusion, empty-setup validation)", "sand-core/src/component.rs (advancement-backed graph parent bridge codegen, advancement_handler_type_ids collision guard, key_registry collision guard)", "sand-core/tests/event_chain_advancement_parent_rejected.rs", "sand-core/tests/event_chain_advancement_parent_composition.rs", "sand-core/tests/event_chain_advancement_parent_after_any_rejected.rs", "sand-core/tests/event_chain_advancement_parent_combined_occurrence_rejected.rs", "sand-core/tests/event_chain_advancement_parent_within_rejected.rs", "sand-core/tests/event_chain_advancement_parent_direct_handler_rejected.rs", "sand-core/tests/event_chain_advancement_parent_setup_objectives_rejected.rs", "sand-core/tests/event_chain_advancement_parent_setup_pre_observation_rejected.rs", "sand-core/tests/event_chain_advancement_parent_setup_post_observation_rejected.rs", "sand-core/tests/event_chain_advancement_parent_setup_mixed_rejected.rs", "sand-vanilla-audit/src/lib.rs (SemanticAdvancementParent, SemanticAdvancementBridgeChild)"]
     documentation: ["docs/events.md", "book/src/manual/events.md", "docs/architecture.md"]
 
   - id: sandevent-multi-parent-composition

@@ -77,5 +77,19 @@ lowering path. `TickScope::AdvancementPlayer` (alongside the existing
 both guarantee an exact player subject, but only `Players` supports
 coordinator-mediated multi-parent/staged composition.
 
+Because the bridge dispatches the dependent directly from the parent's
+reward entry rather than through any generated coordinator step, it never
+runs the parent's own `SandEvent::setup()` (`EventSetup::objectives`/
+`pre_observation`/`post_observation`). `resolve_occurrence_dependencies`
+validates this during graph discovery — before any datapack records are
+emitted — via `EventSetup::is_empty()` (the single canonical, full-field
+check), rejecting the relationship with a diagnostic naming the concrete
+child, the concrete parent, and (via `EventSetup::first_non_empty_category`)
+which lifecycle category is non-empty, rather than silently discarding
+setup the parent's author declared. Executing an advancement parent's own
+lifecycle synchronously is future work, not attempted here — it would need
+new ordering semantics this phase does not design. The dependent child's own
+`EventSetup` is unaffected and continues to be honored normally.
+
 Participant context propagation beyond a bare player subject (#230) remains a
 later roadmap phase and is not modeled as implemented behavior here.

@@ -196,9 +196,14 @@ Vanilla supports the behavior; Sand's typed coverage is incomplete.
   occurrence clause, `.within(...)`, or a direct `#[event]` handler combined
   with graph composition on the same type) is explicitly rejected, since Sand
   does not control the reward function's execution order relative to the
-  tick coordinator. Participant-rich execution contexts (#230) and arbitrary
-  non-player entity execution scopes are not implemented and are not exposed
-  as partial APIs.
+  tick coordinator. A bridged advancement-backed parent's own
+  `SandEvent::setup()` must also be empty — the synchronous bridge never
+  executes the parent's own lifecycle (objectives/pre_observation/
+  post_observation), so a non-empty setup is rejected at graph discovery
+  (before any records are emitted) rather than silently discarded; the
+  dependent child's own setup and conditions are unaffected. Participant-rich
+  execution contexts (#230) and arbitrary non-player entity execution scopes
+  are not implemented and are not exposed as partial APIs.
   Affects: `sandevent-chained-dispatch`, `sandevent-persistent-conditions`,
   `sandevent-multi-parent-composition`, `sandevent-bounded-correlation`,
   `sandevent-advancement-graph-parent`.

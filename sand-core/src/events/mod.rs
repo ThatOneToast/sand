@@ -487,6 +487,34 @@ impl EventSetup {
     pub fn none() -> Self {
         Self::default()
     }
+
+    /// Whether every lifecycle-owned collection is empty — the single
+    /// canonical check for "this event owns no setup/lifecycle resources".
+    /// Covers all fields by construction (`self == &Self::none()`) rather
+    /// than re-listing them, so a future field addition to `EventSetup`
+    /// cannot silently bypass this check the way an independently
+    /// maintained per-field comparison could.
+    pub fn is_empty(&self) -> bool {
+        self == &Self::none()
+    }
+
+    /// The name of the first non-empty lifecycle category, in the order
+    /// they run (`objectives` at load, then `pre_observation`, then
+    /// `post_observation`), or `None` if [`is_empty`](Self::is_empty).
+    /// Intended for diagnostics that need to name which category blocked an
+    /// operation — not a substitute for [`is_empty`](Self::is_empty), which
+    /// remains the authoritative full-coverage check.
+    pub fn first_non_empty_category(&self) -> Option<&'static str> {
+        if !self.objectives.is_empty() {
+            Some("objectives")
+        } else if !self.pre_observation.is_empty() {
+            Some("pre_observation")
+        } else if !self.post_observation.is_empty() {
+            Some("post_observation")
+        } else {
+            None
+        }
+    }
 }
 
 /// Explicit result of expanding a [`TickEventDispatch`]'s conditions into
@@ -2519,6 +2547,67 @@ mod tests {
         assert!(setup.objectives.is_empty());
         assert!(setup.pre_observation.is_empty());
         assert!(setup.post_observation.is_empty());
+    }
+
+    #[test]
+    fn event_setup_is_empty_covers_every_field() {
+        assert!(EventSetup::none().is_empty());
+        assert!(
+            !EventSetup {
+                objectives: vec!["x".into()],
+                pre_observation: vec![],
+                post_observation: vec![],
+            }
+            .is_empty()
+        );
+        assert!(
+            !EventSetup {
+                objectives: vec![],
+                pre_observation: vec!["x".into()],
+                post_observation: vec![],
+            }
+            .is_empty()
+        );
+        assert!(
+            !EventSetup {
+                objectives: vec![],
+                pre_observation: vec![],
+                post_observation: vec!["x".into()],
+            }
+            .is_empty()
+        );
+    }
+
+    #[test]
+    fn event_setup_first_non_empty_category_is_none_when_empty_and_prioritized_when_mixed() {
+        assert_eq!(EventSetup::none().first_non_empty_category(), None);
+        assert_eq!(
+            EventSetup {
+                objectives: vec!["x".into()],
+                pre_observation: vec!["y".into()],
+                post_observation: vec!["z".into()],
+            }
+            .first_non_empty_category(),
+            Some("objectives")
+        );
+        assert_eq!(
+            EventSetup {
+                objectives: vec![],
+                pre_observation: vec!["y".into()],
+                post_observation: vec!["z".into()],
+            }
+            .first_non_empty_category(),
+            Some("pre_observation")
+        );
+        assert_eq!(
+            EventSetup {
+                objectives: vec![],
+                pre_observation: vec![],
+                post_observation: vec!["z".into()],
+            }
+            .first_non_empty_category(),
+            Some("post_observation")
+        );
     }
 
     #[test]

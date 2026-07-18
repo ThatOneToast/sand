@@ -1,16 +1,16 @@
 # Participant reliability and event context capabilities
 
-This page documents `sand_core::participant` (#230 Phase 8): the typed
-reliability, availability, lifetime, and context-capability model for
-richer event participants (attacker, victim, interacted entity, ...). It
-does **not** implement participant recovery — there is no attacker/victim
-observation backend, no interacted-entity correlation, no projectile-owner
-recovery, and no bounded observation tracker anywhere in this module. That
-is Phase 9's work. Phase 8 establishes the type system and capability
-contracts Phase 9 will populate, following exactly the pattern
-[docs/items.md](items.md) set for Phase 7's `ItemLocation`/`ItemSnapshot`.
-See `ai/known-limitations.md` `LIM-CTX-001`..`LIM-CTX-004` for what remains
-architecture-only.
+This page documents `sand_core::participant`: the typed reliability,
+availability, lifetime, and context-capability model for richer event
+participants (attacker, victim, interacted entity, ...), plus (as of Phase
+9) Sand's first real participant-recovery backend. Phase 8 established the
+type system; Phase 9 adds exactly one observation mechanism —
+[`observe_correlated_attacker`](#phase-9-correlated-attacker-observation) —
+on top of it. There is still no interacted-entity correlation, no
+projectile-owner recovery, and no proximity/heuristic (`Inferred`)
+observer anywhere in this module. See `ai/known-limitations.md`
+`LIM-CTX-001`..`LIM-CTX-005`, `LIM-VAL-009`, `LIM-VAL-010` for what remains
+architecture-only or unverified.
 
 ## Root problem
 
@@ -274,3 +274,140 @@ directly-usable type/metadata layer, the same shape Phase 7 shipped
 - Does not wire any of this into `#[event]`/macro-generated handler
   signatures — that remains a manually-composed, directly-callable API
   layer, exactly like Phase 7's `ItemSnapshot::capture()`.
+
+## Phase 9: correlated attacker observation
+
+Phase 9 adds `sand_core::participant::observation`: exactly one
+participant-recovery mechanism, `observe_correlated_attacker`, built on
+vanilla's `execute on attacker` relation (already wired up as
+`EntityContext::attacker()`/`Relation::Attacker` since before this phase).
+
+```rust
+use sand_core::entity::EntityContext;
+use sand_core::entity::kind::PlayerKind;
+use sand_core::participant::{EntityParticipantRole, ObservationSchema, observe_correlated_attacker};
+use sand_core::version::{MinecraftVersion, VersionProfile};
+
+let profile = VersionProfile::resolve(&MinecraftVersion::parse("1.21.4").unwrap()).unwrap();
+let ctx: EntityContext<PlayerKind> = EntityContext::default();
+
+let commands = observe_correlated_attacker(
+    &ctx,
+    &profile,
+    ObservationSchema::new("mypack:observations", "MyDamageEvent"),
+    EntityParticipantRole::Attacker,
+    |observation| {
+        // Commands here run with the attacker (if any) bound; guard on
+        // `observation.is_present()`/`.is_absent()` as needed.
+        vec!["say attacker observed".to_string()]
+    },
+)?;
+```
+
+Embed the returned commands into a `SandEvent`'s handler body (for an
+advancement-backed event like `EntityDamagePlayerEvent`/`PlayerKillEvent`)
+or `EventSetup::pre_observation` (for a tick-backed event) — the same
+manual-composition pattern Phase 7 shipped `ItemSnapshot::capture()` as.
+Not auto-wired into `#[event]`/tick-coordinator codegen.
+
+### Why only `execute on attacker`
+
+`execute on attacker` is single-valued by vanilla's own construction (at
+most one entity, never a set), so there is no "multiple credible
+candidates" ambiguity to police — unlike a proximity-based guess, which
+Phase 9 deliberately does not implement. This is the entire reason Phase 9
+could implement this one mechanism honestly without inventing a selection
+policy: the evidence itself has no ambiguity dimension.
+
+### Reliability: always `Correlated`, never `Exact`
+
+Even though `execute on attacker` is a direct vanilla relation query (not
+a heuristic), every observation this module produces is
+`ParticipantReliability::Correlated`. `Exact` is reserved for references
+the *triggering mechanism itself* hands over synchronously (the
+advancement reward function's own `@s`); the attacker is reached through
+an additional relation traversal Sand performs itself, and there is no
+real-server evidence proving vanilla's "last attacker" memory is updated
+in lockstep with the specific damage event that fired the criterion this
+observation is embedded in (see `LIM-VAL-010`). This is a deliberate,
+conservative default — not a placeholder pending a future upgrade to
+`Exact` "once tests pass." Per Phase 9's contract, tests passing is never
+sufficient justification to upgrade reliability.
+
+### Generated commands and lifetime
+
+```mcfunction
+data modify storage mypack:observations obs.<key>.present set value 0b
+execute on attacker run data modify storage mypack:observations obs.<key>.present set value 1b
+execute on attacker run tag @s add __sand_observed_<key>
+say attacker observed
+tag @e[tag=__sand_observed_<key>] remove __sand_observed_<key>
+```
+
+Each `execute on attacker run <command>` line runs a single command
+inline — deliberately *not* routed through
+`EntityContext::attacker().if_present(...)`'s multi-command
+dynamic-function-wrapping (which registers a separate generated function
+from inside `SandEvent::setup()`; that registration point relative to the
+exporter's dynamic-function drain is not guaranteed deterministic across
+repeated exports in the same process, and this module needs only two
+single-command lines, so the wrapping was never necessary). Presence
+is checked via `.is_present()`/`.is_absent() -> Condition` (identical
+`StorageExists` pattern to `ItemSnapshot`), never encoded as an implicit
+"empty selector" the caller has to notice on their own. The participant
+handle (`.participant() -> EntityParticipant`) addresses the tagged entity
+by that unique tag — never a bare `@e[type=...]` query that could match
+the wrong entity — and is valid for
+`ParticipantLifetime::SynchronousDescendants`: the tag is added and
+removed within one straight-line generated sequence (reset → mark/bind →
+caller body → cleanup), so it survives through the caller's body and any
+same-cycle synchronous children reached from within it, and is gone by the
+time the sequence returns. There is no tick-window to refresh or expire —
+this is an instantaneous relation query, not a bounded multi-tick
+correlation like `.within(...)`; conflating "this event fired recently"
+with "this entity was observed recently" is exactly what this design
+avoids by not reusing `.within(...)`'s infrastructure here.
+`sand-core/tests/participant_attacker_observation_export.rs` proves this
+ordering end-to-end through the real export pipeline.
+
+### Multiplayer safety
+
+One deterministic, non-per-player storage path per `event_label` — safe
+under the identical `execute as @a`-is-single-threaded-per-player argument
+`ItemSnapshot`'s module doc gives in full. The identity tag is unique per
+call site (derived from `event_label`), so two *different* event types
+never collide; two observations for the *same* `event_label` nested inside
+one synchronous call tree (before the first's cleanup runs) are not
+supported — see `LIM-CTX-005`.
+
+### Target-version support
+
+`execute on attacker` requires Minecraft 1.20.2+.
+`observe_correlated_attacker` returns `ObservationError::UnsupportedVersion`
+(a build-time diagnostic, before any commands are generated) rather than
+silently degrading or fabricating availability on an older profile.
+
+### False-positive / false-negative risk
+
+- **False positive risk**: vanilla's "last attacker" memory could in
+  principle reflect an earlier hit than the one that triggered this
+  specific criterion (e.g. two hits in rapid succession), reported as the
+  same attacker when they weren't. This is the core reason for
+  `Correlated` rather than `Exact` — unverified without a live server.
+- **False negative risk**: if the victim entity has no recorded attacker
+  (e.g. environmental damage, or the "last attacker" memory expired/was
+  cleared by vanilla), the observation is honestly absent
+  (`.is_absent()` holds) rather than falling back to a guess.
+
+### What Phase 9 does not do
+
+- Does not implement victim correlation, interacted-entity correlation, or
+  projectile-owner recovery — evidence for those was judged too weak or
+  architecturally out of reach without inventing a new event pathway (see
+  `ai/known-limitations.md` `LIM-VAL-010` for the reasoning per role).
+- Does not add a proximity/heuristic (`Inferred`) observer.
+- Does not automatically apply to any built-in `SandEvent` — a caller
+  embeds `observe_correlated_attacker` themselves, exactly as shown above.
+- Does not upgrade any correlated value to `Exact` under any condition.
+- Does not persist an observation across ticks or auto-refresh a window —
+  there is no window.

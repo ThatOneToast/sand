@@ -283,6 +283,20 @@ Vanilla supports the behavior; Sand's typed coverage is incomplete.
   Affects: `participant-context-capabilities`.
   Evidence: `sand-core/src/participant/capabilities.rs`, `docs/event-context.md`.
 
+- **LIM-CTX-005** — `observe_correlated_attacker` (#230 Phase 9) is not
+  reentrant for the same `event_label` within one synchronous call tree:
+  two nested calls with the same schema would use the same
+  `__sand_observed_<key>` tag and `obs.<key>.present` storage path, so an
+  inner call's reset/cleanup would interfere with an outer call's still-in-
+  use observation. This mirrors Phase 7's identical `ItemSnapshot`
+  same-schema-reentrancy caveat (documented in
+  `sand-core/src/item/snapshot.rs`'s module doc) and is not independently
+  guarded against — give a nested observation its own distinct
+  `event_label` if this could occur.
+  Affects: `participant-attacker-observation`.
+  Evidence: `sand-core/src/participant/observation.rs` (module doc,
+  "Multiplayer safety" section).
+
 - **LIM-EXP-004** — Same-cycle single- and multi-parent `SandEvent` dispatch
   and explicit persistent `while_<E>()` conditions are the implemented
   composition phases of #240. Multi-parent groups support two through eight
@@ -307,12 +321,14 @@ Vanilla supports the behavior; Sand's typed coverage is incomplete.
   post_observation), so a non-empty setup is rejected at graph discovery
   (before any records are emitted) rather than silently discarded; the
   dependent child's own setup and conditions are unaffected. Participant
-  *recovery* (attacker/victim/interacted-entity/projectile-owner — #230
-  Phase 9) and arbitrary non-player entity execution scopes are not
-  implemented and are not exposed as partial APIs. The typed reliability/
-  availability/lifetime/capability *vocabulary* those future providers will
-  use, plus propagation/merge rules for this composition surface, is #230
-  Phase 8 (`sand_core::participant`, see `LIM-CTX-001`..`LIM-CTX-004`).
+  recovery for victim/interacted-entity/projectile-owner and arbitrary
+  non-player entity execution scopes are not implemented and are not
+  exposed as partial APIs. Correlated attacker recovery (#230 Phase 9,
+  `observe_correlated_attacker`) is implemented but not integrated into
+  this composition surface's graph — it is manually embedded per event,
+  same as Phase 7's item snapshots. The typed reliability/availability/
+  lifetime/capability *vocabulary* is #230 Phase 8
+  (`sand_core::participant`, see `LIM-CTX-001`..`LIM-CTX-005`).
   Affects: `sandevent-chained-dispatch`, `sandevent-persistent-conditions`,
   `sandevent-multi-parent-composition`, `sandevent-bounded-correlation`,
   `sandevent-advancement-graph-parent`.
@@ -478,6 +494,61 @@ Vanilla supports the behavior; Sand's typed coverage is incomplete.
   `cli-validate`.
   Evidence: `sand-core/src/participant/`,
   `sand-core/tests/participant_context_capability_audit.rs`,
+  `docs/event-context.md`.
+
+- **LIM-EXP-006** — Discovered while building `observe_correlated_attacker`
+  (#230 Phase 9): calling a `register_dyn_fn_dedup`-backed API (e.g.
+  `RelationQuery::if_present`/`if_player`, which wraps a multi-command
+  relation body in a separately generated function) from inside
+  `SandEvent::setup()` produced non-deterministic export output —
+  a first and second `try_export_components_json` call for the identical
+  input produced different JSON (the dynamically-registered function record
+  was present in one export and absent in the other). This points to a
+  timing dependency between when `SandEvent::setup()` runs relative to the
+  exporter's `drain_dyn_fns()` call that is not consistent across repeated
+  export invocations in the same process. Root cause not investigated
+  further — `sand-core/src/participant/observation.rs` avoids the pattern
+  entirely (using two direct single-command `execute on attacker run
+  <command>` lines instead of the multi-command wrapper) rather than fixing
+  the underlying exporter behavior, which was judged out of scope for this
+  phase. Anyone calling a `RelationQuery::if_present`/`if_player`-style API
+  (or any other `register_dyn_fn_dedup` consumer) from `SandEvent::setup()`
+  in the future should re-verify determinism with a `repeated_export_is_identical`-style
+  test before relying on it, and only currently-known-safe use sites
+  (already-existing `#[component]`/`#[function]` bodies, not
+  `SandEvent::setup()`) should be assumed safe.
+  Affects: `sandevent-chained-dispatch`, `participant-attacker-observation`.
+  Evidence: discovered and worked around in
+  `sand-core/src/participant/observation.rs`; not independently reproduced
+  outside this phase's own test suite.
+
+- **LIM-VAL-010** — Correlated attacker observation
+  (`observe_correlated_attacker`, #230 Phase 9) has exact structural
+  evidence from `sand-core` unit tests (reset/mark/cleanup command
+  ordering, version rejection, deterministic per-schema identity) and
+  export-level integration evidence
+  (`participant_attacker_observation_export.rs` proves the same ordering
+  through the real export pipeline, and byte-identical repeated export).
+  There is **no real-server or protocol-client evidence** that vanilla's
+  `execute on attacker` relation actually resolves, at the moment this
+  observation's commands run, to the specific entity that caused the
+  damage event the observation is embedded in — as opposed to an earlier
+  hit in the same tick, or a stale "last attacker" memory from a prior,
+  unrelated encounter. This is precisely why the observation is classified
+  `ParticipantReliability::Correlated`, not `Exact` (see
+  `docs/event-context.md` "Reliability: always Correlated, never Exact").
+  Victim correlation (for `PlayerDamageEntityEvent`-style events, where the
+  player is the attacker and the interesting participant is who they hit),
+  interacted-entity correlation, and projectile-owner recovery were not
+  implemented in this phase because no comparably strong, single-valued
+  vanilla relation evidence was identified for them within this phase's
+  scope (see `docs/event-context.md` "What Phase 9 does not do") — this is
+  a scope decision, not an oversight, and should not be read as "these are
+  harder but still planned for certain" without further evidence-gathering
+  first.
+  Affects: `participant-attacker-observation`, `cli-validate`.
+  Evidence: `sand-core/src/participant/observation.rs`,
+  `sand-core/tests/participant_attacker_observation_export.rs`,
   `docs/event-context.md`.
 
 ## Documentation and status contradictions found during audit (2026-07-12)

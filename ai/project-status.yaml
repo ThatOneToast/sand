@@ -73,7 +73,7 @@ experimental_or_alpha_areas:
     note: "Typed ItemLocation + immutable, storage-backed ItemSnapshot capture (#229 Phase 7); manually embedded by SandEvent authors, not auto-wired into #[event] codegen. See docs/items.md."
   - area: "Participant reliability, availability, and context capabilities"
     status: alpha
-    note: "Typed reliability/availability/lifetime/capability model for event participants (#230 Phase 8), plus one real recovery backend: correlated attacker observation via execute-on-attacker (#230 Phase 9). No victim/interacted-entity/projectile-owner recovery. See docs/event-context.md."
+    note: "Typed reliability/availability/lifetime/capability model (#230 Phase 8), correlated attacker observation via execute-on-attacker (#230 Phase 9), and a declarative EventParticipantPlan lifecycle helper plus a thread-local exporter dynamic-function registry fix (#230 Phase 10). Not macro-transparent; no victim/interacted-entity/projectile-owner recovery; no real-server evidence. See docs/event-context.md."
   - area: "Dialog components and dialog command helpers"
     status: alpha
   - area: "Resource pack generation and HUD workflows"

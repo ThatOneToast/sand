@@ -57,28 +57,30 @@
 //!    `if_present`" note below). Silently a no-op if the relation is
 //!    absent — vanilla's own `execute on` semantics, unrelated to the
 //!    version gating performed separately before any commands are built.
-//!
-//! ## Why not `if_present`
-//!
-//! An earlier version of this function routed the mark+tag step through
-//! [`crate::entity::context::EntityContext::attacker`]`().if_present(...)`,
-//! which wraps a multi-command body into a separately-registered dynamic
-//! function (`register_dyn_fn_dedup`). That produced a real, reproduced
-//! nondeterminism bug: two `try_export_components_json` calls in the same
-//! process for identical input returned different JSON, because that
-//! registration's timing relative to the exporter's `drain_dyn_fns()` call
-//! was not consistent across repeated exports when triggered from inside
-//! `SandEvent::setup()` (see `ai/known-limitations.md` `LIM-EXP-006` — the
-//! root cause was not investigated further). Since the mark+tag step is
-//! only two single commands, each fits directly on its own `execute on
-//! attacker run <command>` line with no wrapping needed at all, which
-//! sidesteps the bug entirely rather than working around it.
 //! 3. The caller's `body`, receiving a [`CorrelatedEntityObservation`]
 //!    whose `.participant()` selector addresses the tagged entity by a
 //!    unique temporary tag (`__sand_observed_<key>`) — never a bare
 //!    `@e[type=...]` query that could match the wrong entity.
 //! 4. An unconditional cleanup removing that tag from whatever (zero or
 //!    one) entity currently holds it.
+//!
+//! ## Why not `if_present`
+//!
+//! An earlier version of this function routed the mark+tag step through
+//! [`crate::entity::context::EntityContext::attacker`]`().if_present(...)`,
+//! which wraps a multi-command body into a separately-registered dynamic
+//! function (`register_dyn_fn_dedup`). That surfaced a real dynamic-function
+//! registry nondeterminism bug (two `try_export_components_json` calls
+//! could return different JSON for identical input) — the registry's root
+//! cause (a process-global `Mutex` racing against Rust's concurrently
+//! multi-threaded test harness) is now fixed (`sand-core/src/function.rs`
+//! is thread-local; see `ai/known-limitations.md` `LIM-EXP-006`, resolved
+//! in #230 Phase 10, and `sand-core/tests/exporter_dyn_fn_determinism.rs`).
+//! This function still emits two direct single-command `execute on
+//! attacker run <command>` lines rather than using `if_present` — kept for
+//! its own merits (simpler generated output, no function-call indirection
+//! for a two-command body), not because the underlying bug still requires
+//! it.
 //!
 //! The observation is valid for [`super::lifetime::ParticipantLifetime::SynchronousDescendants`]
 //! — the tag is added and removed within one straight-line generated
@@ -308,6 +310,26 @@ pub fn observe_correlated_attacker<K: EntityKind>(
     role: EntityParticipantRole,
     body: impl FnOnce(&CorrelatedEntityObservation) -> Vec<String>,
 ) -> std::result::Result<Vec<String>, ObservationError> {
+    let (setup_commands, observation) = attacker_observation_setup(profile, schema, role)?;
+    let mut commands = setup_commands;
+    commands.extend(body(&observation));
+    commands.extend(observation.cleanup_commands());
+    Ok(commands)
+}
+
+/// The setup half of [`observe_correlated_attacker`] (reset + presence-gated
+/// mark/bind), split out from the cleanup half so
+/// [`super::plan::EventParticipantPlan`] can place the two halves in
+/// `EventSetup::pre_observation`/`post_observation` respectively without
+/// needing a `body` closure — a plan's "body" is simply whatever the
+/// generated tick-check function already runs between `pre_observation` and
+/// `post_observation` (the condition test, handler dispatch, and any
+/// synchronous descendants), so no separate wrapping is needed there.
+pub(crate) fn attacker_observation_setup(
+    profile: &VersionProfile,
+    schema: ObservationSchema,
+    role: EntityParticipantRole,
+) -> std::result::Result<(Vec<String>, CorrelatedEntityObservation), ObservationError> {
     if Relation::Attacker.check_supported(profile).is_err() {
         return Err(ObservationError::UnsupportedVersion {
             role,
@@ -325,30 +347,24 @@ pub fn observe_correlated_attacker<K: EntityKind>(
     // `EntityContext::attacker().if_present(...)`'s multi-command
     // dynamic-function-wrapping (`RelationQuery::lower`), which registers a
     // separate generated function via `register_dyn_fn_dedup` from inside
-    // `SandEvent::setup()`. That registration happens at a point in the
-    // export pipeline relative to `drain_dyn_fns()` that is not guaranteed
-    // deterministic across repeated exports in the same process (see the
-    // regression this avoided: a first/second `try_export_components_json`
-    // call could produce different output for the same input). Only two
-    // single-command lines are needed here, so the wrapping was never
-    // necessary in the first place.
-    let mut commands = vec![format!(
-        "data modify storage {storage} {present_path}.present set value 0b"
-    )];
-    commands.push(format!(
-        "execute on attacker run data modify storage {storage} {present_path}.present set value 1b"
-    ));
-    commands.push(format!("execute on attacker run tag @s add {tag}"));
+    // `SandEvent::setup()`. Now that the registry is thread-local (see
+    // `ai/known-limitations.md` `LIM-EXP-006`, resolved), that wrapping
+    // would be safe to use — it is still avoided here because only two
+    // single-command lines are needed, so the wrapping was never necessary.
+    let commands = vec![
+        format!("data modify storage {storage} {present_path}.present set value 0b"),
+        format!(
+            "execute on attacker run data modify storage {storage} {present_path}.present set value 1b"
+        ),
+        format!("execute on attacker run tag @s add {tag}"),
+    ];
 
     let observation = CorrelatedEntityObservation {
-        schema: schema.clone(),
+        schema,
         role,
         evidence: CorrelationEvidence::ATTACKER_RELATION,
     };
-    commands.extend(body(&observation));
-    commands.extend(observation.cleanup_commands());
-
-    Ok(commands)
+    Ok((commands, observation))
 }
 
 #[cfg(test)]

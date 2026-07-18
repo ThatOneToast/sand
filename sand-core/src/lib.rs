@@ -71,6 +71,7 @@ pub mod function;
 pub mod ir;
 pub mod item;
 pub mod mc_version;
+pub mod participant;
 pub mod prelude;
 pub mod resource_location;
 pub mod resource_ref;

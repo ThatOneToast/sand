@@ -733,6 +733,78 @@ capabilities:
     crates: [sand]
     evidence: ["sand/src/main.rs (cmd_new, cmd_init)", "sand/src/scaffold.rs"]
 
+  - id: item-locations
+    name: "Typed item locations"
+    category: items
+    intent: "Address vanilla item-bearing locations (hands, equipment slots, inventory/hotbar indices, block containers, item entities) with a validated, typed model instead of raw slot strings, as the foundation for event-time item capture."
+    status: partial
+    stability: alpha
+    crates: [sand-core]
+    entry_points: ["ItemLocation::PlayerMainHand", "ItemLocation::PlayerOffHand", "ItemLocation::player_equipment", "ItemLocation::PlayerHotbar", "ItemLocation::PlayerInventory", "ItemLocation::entity_equipment", "ItemLocation::BlockContainer", "ItemLocation::ItemEntity"]
+    preferred_api: "ItemLocation variants/constructors; HotbarIndex::new/InventoryIndex::new/ContainerIndex::new for validated indices"
+    sand_limitations: >
+      #229 Phase 7. Covers player main/off hand, player equipment slots
+      (excluding Mainhand/Offhand/Body), validated hotbar (0-8) and
+      inventory (0-35) indices sharing one canonical addressing space,
+      non-player entity equipment (ArmorItems/HandItems, excluding Body),
+      block container slots, and item-entity stacks. Index constructors
+      return a typed error rather than panicking or clamping.
+      `EquipmentSlot::Body` is rejected everywhere (LIM-ITEM-002): no
+      single stable backing tag was verified across supported versions.
+      Rendering does not depend on VersionProfile — the NBT shapes are
+      stable across every version Sand supports (1.18-26.2); a future
+      version-dependent slot syntax change would need a new, explicitly
+      gated code path. Does not cover projectile/thrown-entity item
+      recovery or arbitrary non-vanilla containers.
+    evidence: ["sand-core/src/item/location.rs", "docs/items.md"]
+    documentation: ["docs/items.md"]
+
+  - id: item-snapshots
+    name: "Immutable event-time item snapshots"
+    category: items
+    intent: "Capture an item's identity and data at a specific generated-command point, before a SandEvent handler or Sand-generated cleanup can observe a vanilla-mutated (consumed/moved/damaged) version of it, and expose that capture as immutable, storage-backed, typed data rather than a live re-read."
+    status: partial
+    stability: alpha
+    crates: [sand-core]
+    entry_points: ["ItemSnapshot::capture", "SnapshotSchema::new"]
+    preferred_api: "ItemSnapshot::capture(&location, SnapshotSchema::new(storage, event_label), reliability) embedded into EventSetup::pre_observation (tick-backed) or the first lines of a handler body (advancement-backed)"
+    sand_limitations: >
+      #229 Phase 7. `capture()` always succeeds for a valid ItemLocation and
+      emits exactly four commands: unconditional reset of `present`/`item`,
+      then a presence-gated copy and presence-gated `present` mark sharing
+      one identical guard. Absence is a runtime-checked typed `Condition`
+      (`.is_present()`/`.is_absent()`), never encoded as `minecraft:air` and
+      never an Option<ItemSnapshot> (Sand cannot know a runtime fact at
+      export time). Typed field accessors (`.item_path()`, `.id_path()`,
+      `.count_path()`, `.components_path()`) return `NbtPath`, composing
+      with existing storage APIs; no raw NBT path strings are required in
+      normal usage. Reliability is caller-declared, not inferred:
+      `Exact` for tick-backed pre_observation captures (genuinely first,
+      relative to Sand's own condition test), `ExactPostTrigger` for
+      advancement-backed captures (earliest point Sand controls; vanilla's
+      own pre-criterion mutation ordering is not verified — LIM-ITEM-003).
+      `Correlated`/`Unavailable` are defined but not produced by `capture()`
+      itself, reserved for future correlation work. Storage uses one
+      deterministic path per event type (FNV-1a key from the type name,
+      collision-free across event types and stable across repeated
+      exports), not a per-player key — cross-player safety relies on
+      Minecraft's own single-threaded, non-interleaved per-player
+      `execute as @a` call-tree execution, documented explicitly rather than
+      hidden (LIM-VAN-001 still applies: command storage itself is global).
+      Snapshot lifetime is the capturing invocation and its synchronous
+      descendant calls; nothing persists automatically across ticks.
+      `.cleanup_commands()` is opt-in, not automatic. Not auto-wired into
+      `#[event]` or the tick coordinator (LIM-ITEM-001); not supported at
+      Phase 6 advancement-backed graph bridge parents (no EventSetup/handler
+      seam exists there). Defines `ItemRole`/`EventItem` as the smallest
+      stable seam for #230 to attach a role to a snapshot, without adding
+      participant types (attacker/victim/etc.) or constructing them here.
+      Does not implement attacker/victim, interacted-entity, or
+      projectile/ammunition correlation (#230). Does not convert between
+      `ItemMatcher` (predicate) and `ItemSnapshot` (captured data).
+    evidence: ["sand-core/src/item/snapshot.rs", "sand-core/tests/item_snapshot_tick_capture_export.rs", "docs/items.md"]
+    documentation: ["docs/items.md"]
+
   - id: cli-build
     name: "CLI: build"
     category: cli

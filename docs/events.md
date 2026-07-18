@@ -427,8 +427,13 @@ Current limits are tracked as `LIM-EXP-004`:
   `.within(...)`, cannot also have a direct `#[event]` handler, and cannot
   declare a non-empty `SandEvent::setup()` — the bridge does not execute
   parent lifecycle setup;
-- no participant-rich contexts (attacker/victim/interacted-entity/item
-  snapshots — #230) or arbitrary non-player execution scopes.
+- no participant-rich contexts (attacker/victim/interacted-entity
+  recovery, projectile-owner recovery, ammunition correlation — #230
+  Phase 9) or arbitrary non-player execution scopes. `sand_core::participant`
+  (#230 Phase 8, see [`docs/event-context.md`](event-context.md)) defines
+  the typed reliability/availability/lifetime/capability vocabulary Phase 9
+  will populate, plus propagation/merge rules for the composition surface
+  above — it does not implement any participant recovery itself.
 
 ## Built-in events
 

@@ -71,6 +71,9 @@ experimental_or_alpha_areas:
   - area: "Item locations and event-time item snapshots"
     status: alpha
     note: "Typed ItemLocation + immutable, storage-backed ItemSnapshot capture (#229 Phase 7); manually embedded by SandEvent authors, not auto-wired into #[event] codegen. See docs/items.md."
+  - area: "Participant reliability, availability, and context capabilities"
+    status: alpha
+    note: "Typed reliability/availability/lifetime/capability model for event participants (#230 Phase 8) — type-system and metadata only, no attacker/victim/interacted-entity recovery backend (that's Phase 9). See docs/event-context.md."
   - area: "Dialog components and dialog command helpers"
     status: alpha
   - area: "Resource pack generation and HUD workflows"

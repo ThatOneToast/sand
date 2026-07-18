@@ -209,6 +209,14 @@ snapshot inside a richer event context. Phase 7 does not construct
 victim, interacted entity) — only the item-role vocabulary, since it's
 already fully specified by this phase's own data model.
 
+`SnapshotReliability` is unchanged by #230 Phase 8 (no rename, no new
+variant, fully additive) — Phase 8 adds
+`SnapshotReliability::as_participant_reliability()`/`.item_evidence_qualifier()`
+mapping it into the shared `sand_core::participant::ParticipantReliability`
+umbrella without flattening the `Exact`/`ExactPostTrigger` distinction.
+`ItemParticipantRole` (Phase 8) is a type alias for `ItemRole`, not a
+second competing enum. See [`docs/event-context.md`](event-context.md).
+
 ## What Phase 7 does not do
 
 - Does not auto-wire capture into the `#[event]` macro or the tick

@@ -805,6 +805,104 @@ capabilities:
     evidence: ["sand-core/src/item/snapshot.rs", "sand-core/tests/item_snapshot_tick_capture_export.rs", "docs/items.md"]
     documentation: ["docs/items.md"]
 
+  - id: participant-reliability-model
+    name: "Typed participant reliability, availability, and lifetime model"
+    category: events
+    intent: "Establish the public type system for how strong the evidence is for an event participant (attacker, victim, interacted entity, item, location), whether it's available at all, and how long a reference stays meaningful, before implementing any participant-recovery backend."
+    status: partial
+    stability: alpha
+    crates: [sand-core]
+    entry_points: ["ParticipantReliability", "ParticipantAvailability", "ParticipantUnavailableReason", "ParticipantLifetime", "PlayerParticipant::subject", "EntityParticipant::subject", "EntityParticipant::correlated", "EntityParticipant::inferred"]
+    preferred_api: "PlayerParticipant::subject()/EntityParticipant::subject() for the event's own exact subject; EntityParticipant::correlated/inferred plus .require(floor)/.require_exact() for anything weaker; ParticipantAvailability<T> for optional/unsupported participants"
+    sand_limitations: >
+      #230 Phase 8. `ParticipantReliability` (`Unavailable < Inferred <
+      Correlated < ExactSnapshot < Exact`, declared weakest-first so the
+      derived `Ord` is a strength ordering; `.meets(required)` is `self >=
+      required`) is the single reliability vocabulary for every participant
+      kind. `Exact` outranks `ExactSnapshot` by design: a live reference
+      (e.g. `@s`) can still be traversed/re-queried, while a snapshot is
+      deliberately frozen copied data — both are strong evidence answering
+      different questions. Phase 7's `SnapshotReliability` is unchanged (no
+      rename, no new variant) and gets an additive
+      `.as_participant_reliability()`/`.item_evidence_qualifier()` mapping:
+      both `Exact` and `ExactPostTrigger` map to the shared `ExactSnapshot`
+      level (items are always copied, never referenced live) without
+      losing the distinction between them — the qualifier preserves it.
+      `ParticipantAvailability<T>` plus nine `ParticipantUnavailableReason`
+      variants (`NotSuppliedByTrigger`, `UnsupportedVersion`,
+      `UnsupportedBackend`, `AmbiguousCandidates`, `CorrelationExpired`,
+      `NoMatchingObservation`, `NotApplicable`, `ItemSourceAlreadyMutated`,
+      `LifetimeExpired`) keep "unsupported"/"ambiguous"/"expired"
+      distinguishable from an event-semantic `Option::None`, never
+      collapsed into it. `ParticipantLifetime` (`Invocation <
+      SynchronousDescendants < EventCycle`, `.covers(needed)` following the
+      same ordering pattern) documents — not compiler-enforces, since
+      participant references are generated-command concepts, not Rust-owned
+      values — how long a reference stays meaningful. `PlayerParticipant`/
+      `EntityParticipant` are command-building handles, not live runtime
+      data; the only exact constructor either provides is `subject()` (the
+      event's own triggering/polled player) — there is no API path to
+      construct a non-subject participant claiming `Exact` (LIM-CTX-003).
+      `EntityParticipantRole` (`Subject`, `Actor`, `Attacker`,
+      `DirectAttacker`, `Victim`, `Killer`, `Target`, `InteractedEntity`,
+      `Projectile`, `ProjectileOwner`) and `LocationParticipantRole`
+      (`EventBlock`) are new; `ItemParticipantRole` reuses Phase 7's
+      `ItemRole` directly rather than duplicating it. Does not implement
+      any participant-recovery backend (#230 Phase 9): no attacker/victim/
+      interacted-entity/projectile-owner observation, no bounded
+      correlation tracker, no automatic item snapshots.
+    evidence: ["sand-core/src/participant/reliability.rs", "sand-core/src/participant/availability.rs", "sand-core/src/participant/lifetime.rs", "sand-core/src/participant/role.rs", "sand-core/src/participant/reference.rs", "docs/event-context.md"]
+    documentation: ["docs/event-context.md"]
+
+  - id: participant-context-capabilities
+    name: "Event context capability descriptors and graph propagation"
+    category: events
+    intent: "Give every SandEvent type a deterministic, structural description of what participants it can promise, and define how that description propagates and merges through the existing same-cycle/persistent/bounded/advancement-bridge composition surface — without adding a new participant-recovery backend."
+    status: partial
+    stability: alpha
+    crates: [sand-core]
+    entry_points: ["EventContextCapabilities::for_event", "EventContextCapabilities::validate", "propagate_after", "merge_after_any", "merge_after_all", "propagate_while", "propagate_when_unless", "propagate_within"]
+    preferred_api: "EventContextCapabilities::for_event::<E>() for a directly-dispatched event's own capabilities; the propagate_*/merge_* functions in sand_core::participant::capabilities to combine parent capabilities explicitly for a known chained composition"
+    sand_limitations: >
+      #230 Phase 8. `EventContextCapabilities` is `'static`-only (`Copy`
+      enums, `&'static` slices — no `TypeId`-derived identity, deterministic
+      and comparable, safe for generic event monomorphizations; distinct
+      generic instantiations of one event family compute the same,
+      structurally-equal value). `for_event::<E: SandEvent>()` derives it
+      from `E::dispatch()`: `AdvancementTrigger`/legacy `TickCondition` and
+      `Tick` dispatch with a player-subject `TickScope` (`Players` or
+      Phase 6's `AdvancementPlayer`) resolve to an exact player subject;
+      everything else resolves to `EventContextCapabilities::NONE`. It does
+      **not** resolve `SandEventDispatch::Chain` generically — a
+      `ChainEventDispatch`'s parent(s) are identified by type-erased
+      function-pointer factories so the parent marker type never needs
+      instantiating, which means `for_event` cannot call
+      `for_event::<Parent>()` from inside an already-erased dispatch value
+      (LIM-CTX-001). `.validate()` rejects a descriptor declaring the same
+      role twice. Six pure propagation/merge functions cover the existing
+      composition surface: `propagate_after` (single-parent `after`,
+      including Phase 6 advancement bridges — child's lifetime widens to at
+      least `SynchronousDescendants`), `merge_after_any`/`merge_after_all`
+      (require identical subject scope across the group, reliability
+      degrades to the group's weakest member, order-independent, empty/
+      incompatible input rejected via `ContextMergeError` rather than
+      guessed), `propagate_while`/`propagate_when_unless` (identity — a
+      condition never adds/removes participant capability),
+      `propagate_within` (downgrades reliability to at most `Correlated`
+      and lifetime to `EventCycle`, since a bounded correlation crosses
+      tick boundaries and nothing captured at the original synchronous
+      invocation survives that). These functions operate on
+      `SubjectCapability` only — nothing yet merges non-subject
+      entity/item/location capability lists (there is nothing to merge:
+      LIM-CTX-002), and nothing wires them into the event graph exporter
+      automatically (LIM-CTX-004) — a caller invokes them explicitly today.
+      A table-driven audit (`participant_context_capability_audit.rs`)
+      confirms every currently supported `SandEvent` family gets an exact
+      player subject and empty entity/item/location lists — no
+      participant-recovery backend exists for any of them yet.
+    evidence: ["sand-core/src/participant/capabilities.rs", "sand-core/tests/participant_context_capability_audit.rs", "docs/event-context.md"]
+    documentation: ["docs/event-context.md"]
+
   - id: cli-build
     name: "CLI: build"
     category: cli

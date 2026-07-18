@@ -56,10 +56,13 @@ emerging 26.x series. Capability decisions flow through `VersionProfile`.
   a handler's own setup/body; not yet auto-wired into `#[event]` codegen.
   Typed participant reliability/availability/lifetime and event context
   capability descriptors (#230 Phase 8) establish the vocabulary and graph
-  propagation/merge rules future participant recovery will use — no
-  attacker/victim/interacted-entity/projectile-owner observation backend
-  exists yet (#230 Phase 9), and every currently supported event family
-  still resolves to only an exact player subject.
+  propagation/merge rules future participant recovery will use. Correlated
+  attacker/killer entity observation (#230 Phase 9,
+  `observe_correlated_attacker`, backed by vanilla's `execute on attacker`
+  relation) is the first real participant-recovery backend, manually
+  embedded per event; victim, interacted-entity, and projectile-owner
+  recovery remain unimplemented, and no automatic participant capability is
+  attached to built-in event families.
 - Resource pack generation — functional but requires manual setup.
 - crates.io publishing — not yet available; build from workspace.
 

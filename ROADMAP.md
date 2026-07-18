@@ -54,8 +54,12 @@ emerging 26.x series. Capability decisions flow through `VersionProfile`.
   item snapshots (#229 Phase 7) give SandEvent authors a way to capture an
   item's identity before vanilla mutates/consumes it, manually embedded into
   a handler's own setup/body; not yet auto-wired into `#[event]` codegen.
-  Participant-rich contexts (#230) and Phase 6+ graph context propagation
-  beyond a bare player subject remain.
+  Typed participant reliability/availability/lifetime and event context
+  capability descriptors (#230 Phase 8) establish the vocabulary and graph
+  propagation/merge rules future participant recovery will use — no
+  attacker/victim/interacted-entity/projectile-owner observation backend
+  exists yet (#230 Phase 9), and every currently supported event family
+  still resolves to only an exact player subject.
 - Resource pack generation — functional but requires manual setup.
 - crates.io publishing — not yet available; build from workspace.
 

@@ -219,6 +219,70 @@ Vanilla supports the behavior; Sand's typed coverage is incomplete.
   Evidence: `sand-core/src/item/snapshot.rs` (module docs, capture
   ordering), `docs/items.md`.
 
+- **LIM-CTX-001** — `EventContextCapabilities::for_event::<E>()` (#230
+  Phase 8) does not resolve capabilities for a `SandEventDispatch::Chain`
+  (same-cycle chained) event type: a `ChainEventDispatch`'s parent(s) are
+  identified by type-erased function-pointer factories specifically so the
+  parent marker type never needs instantiating (see
+  `sand-core/src/events/graph.rs` `OccurrenceParent`), so `for_event`
+  cannot generically call `for_event::<Parent>()` from inside an
+  already-erased dispatch value. It returns
+  `EventContextCapabilities::NONE` for every chained event type rather than
+  fabricating a subject capability. A caller who knows the concrete parent
+  type must call `for_event::<Parent>()` themselves and combine it with
+  `propagate_after`/`merge_after_any`/`merge_after_all` from
+  `sand_core::participant::capabilities`. Full graph-integrated capability
+  resolution (walking a `ChainEventDispatch`'s real parent chain
+  automatically) is Phase 9 work.
+  Affects: `participant-context-capabilities`.
+  Evidence: `sand-core/src/participant/capabilities.rs`
+  (`EventContextCapabilities::for_event`,
+  `chained_event_capabilities_are_not_resolved_generically` test),
+  `docs/event-context.md`.
+
+- **LIM-CTX-002** — No entity/item/location participant capability is
+  populated for any currently supported `SandEvent` family — every family
+  audited in `sand-core/tests/participant_context_capability_audit.rs`
+  (player join/state-tick, death/respawn-adjacent, kill/damage advancement
+  triggers, item-used, placed-block, interaction, projectile-adjacent,
+  ride/vehicle) resolves to an exact player subject with empty
+  `entities`/`items`/`locations` lists. There is no attacker, victim,
+  interacted-entity, or projectile-owner capability anywhere in the
+  codebase yet — populating any of those for a real event type is #230
+  Phase 9 work, not something #230 Phase 8's type system alone provides.
+  Affects: `participant-context-capabilities`.
+  Evidence: `sand-core/tests/participant_context_capability_audit.rs`,
+  `docs/event-context.md`.
+
+- **LIM-CTX-003** — `EntityParticipant`'s only exact constructor is
+  `EntityParticipant::subject()`/`PlayerParticipant::subject()` (the
+  event's own triggering/polled player). `EntityParticipant::correlated`/
+  `::inferred` are the only constructors for a non-subject reference, and
+  they hard-code `ParticipantReliability::Correlated`/`Inferred`
+  respectively — there is no API path to construct a non-subject
+  participant claiming `Exact`. An "exact non-subject entity" would require
+  a stable generated binding mechanism (e.g. the tag-then-target pattern
+  `sand_core::entity::EntityScope::bind` already uses for live traversal)
+  applied at an authoritative event boundary, which is #230 Phase 9
+  observation-backend work, not a type-system concern Phase 8 addresses.
+  Affects: `participant-reliability-model`.
+  Evidence: `sand-core/src/participant/reference.rs`.
+
+- **LIM-CTX-004** — Graph propagation/merge functions in
+  `sand_core::participant::capabilities` (`propagate_after`,
+  `merge_after_any`, `merge_after_all`, `propagate_while`,
+  `propagate_when_unless`, `propagate_within`) operate on `SubjectCapability`
+  values only — they are pure functions the caller invokes explicitly, not
+  something the event graph exporter calls automatically during
+  `after`/`after_any`/`after_all`/`while`/`within`/advancement-bridge
+  composition today. No export-time validation currently rejects a context
+  request that would require unsupported propagation; that wiring (and
+  automatic entity/item/location list merging, which the functions do not
+  yet do — only subject-level merging is implemented and tested) is #230
+  Phase 9 work.
+  Affects: `participant-context-capabilities`.
+  Evidence: `sand-core/src/participant/capabilities.rs`, `docs/event-context.md`.
+
 - **LIM-EXP-004** — Same-cycle single- and multi-parent `SandEvent` dispatch
   and explicit persistent `while_<E>()` conditions are the implemented
   composition phases of #240. Multi-parent groups support two through eight
@@ -242,9 +306,13 @@ Vanilla supports the behavior; Sand's typed coverage is incomplete.
   executes the parent's own lifecycle (objectives/pre_observation/
   post_observation), so a non-empty setup is rejected at graph discovery
   (before any records are emitted) rather than silently discarded; the
-  dependent child's own setup and conditions are unaffected. Participant-rich
-  execution contexts (#230) and arbitrary non-player entity execution scopes
-  are not implemented and are not exposed as partial APIs.
+  dependent child's own setup and conditions are unaffected. Participant
+  *recovery* (attacker/victim/interacted-entity/projectile-owner — #230
+  Phase 9) and arbitrary non-player entity execution scopes are not
+  implemented and are not exposed as partial APIs. The typed reliability/
+  availability/lifetime/capability *vocabulary* those future providers will
+  use, plus propagation/merge rules for this composition surface, is #230
+  Phase 8 (`sand_core::participant`, see `LIM-CTX-001`..`LIM-CTX-004`).
   Affects: `sandevent-chained-dispatch`, `sandevent-persistent-conditions`,
   `sandevent-multi-parent-composition`, `sandevent-bounded-correlation`,
   `sandevent-advancement-graph-parent`.
@@ -392,6 +460,25 @@ Vanilla supports the behavior; Sand's typed coverage is incomplete.
   Affects: `item-locations`, `item-snapshots`, `cli-validate`.
   Evidence: `sand-core/src/item/location.rs`, `sand-core/src/item/snapshot.rs`,
   `sand-core/tests/item_snapshot_tick_capture_export.rs`, `docs/items.md`.
+
+- **LIM-VAL-009** — The participant reliability/availability/lifetime/
+  capability model (Phase 8 of #230) is type-system and metadata
+  architecture with unit-test and export-level integration-test evidence
+  only (`sand-core/src/participant/*`,
+  `sand-core/tests/participant_context_capability_audit.rs`). No new
+  runtime commands are generated by this module beyond what Phase 6/7
+  already emit — `EventContextCapabilities::for_event`'s exact-player-subject
+  claim rides entirely on Phase 6's already-verified `@s` subject/
+  `TickScope::has_player_subject` behavior, not on any new capture/command
+  path. There is no attacker/victim/interacted-entity/projectile-owner
+  runtime behavior to verify, because none is implemented. Do not cite this
+  phase as runtime evidence for anything beyond "the existing exact-subject
+  guarantee is now also expressed as a typed capability descriptor."
+  Affects: `participant-reliability-model`, `participant-context-capabilities`,
+  `cli-validate`.
+  Evidence: `sand-core/src/participant/`,
+  `sand-core/tests/participant_context_capability_audit.rs`,
+  `docs/event-context.md`.
 
 ## Documentation and status contradictions found during audit (2026-07-12)
 

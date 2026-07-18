@@ -396,7 +396,7 @@ fn presence_execute(target: &DataTarget, path: &str) -> Execute {
 /// (#230). Phase 7 defines this purely as a stable label to pair with an
 /// [`ItemSnapshot`] via [`EventItem`] — it does not implement any
 /// role-specific observation/correlation backend; that is #230's work.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ItemRole {
     /// The item directly used to trigger the event (e.g. a consumed item,
     /// a placed block's item, a used tool).

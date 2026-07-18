@@ -30,6 +30,11 @@
 //! - [`observation::observe_correlated_attacker`] — embeds a correlated
 //!   `Attacker`/`Killer`-role [`EntityParticipant`] into a generated
 //!   command sequence, backed by vanilla's `execute on attacker` relation.
+//! - [`plan::EventParticipantPlan`] (#230 Phase 10) — a declarative way for
+//!   an event definition to state which participant observations it needs
+//!   (`SandEvent::participants()`), applied to an `EventSetup` with one
+//!   call (`EventSetup::with_participants`) instead of manually sequencing
+//!   `observe_correlated_attacker`'s commands.
 //!
 //! See `docs/event-context.md` for the full contract and
 //! `ai/known-limitations.md` (`LIM-CTX-001`.., `LIM-VAL-010`) for what
@@ -39,6 +44,7 @@ pub mod availability;
 pub mod capabilities;
 pub mod lifetime;
 pub mod observation;
+pub mod plan;
 pub mod reference;
 pub mod reliability;
 pub mod role;
@@ -55,6 +61,7 @@ pub use observation::{
     CorrelatedEntityObservation, CorrelationEvidence, CorrelationSource, ObservationError,
     ObservationSchema, observe_correlated_attacker,
 };
+pub use plan::{DuplicateParticipantRole, EventParticipantPlan, EventParticipantPlanError};
 pub use reference::{EntityParticipant, ParticipantReliabilityError, PlayerParticipant};
 pub use reliability::{ItemEvidenceQualifier, ParticipantReliability};
 pub use role::{EntityParticipantRole, ItemParticipantRole, LocationParticipantRole};

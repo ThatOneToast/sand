@@ -68,6 +68,9 @@ experimental_or_alpha_areas:
   - area: "Event system"
     status: alpha
     note: "Canonical AdvancementEvent/SandEvent split with same-cycle and explicit player-scoped persistent composition; later correlation and context phases remain planned."
+  - area: "Item locations and event-time item snapshots"
+    status: alpha
+    note: "Typed ItemLocation + immutable, storage-backed ItemSnapshot capture (#229 Phase 7); manually embedded by SandEvent authors, not auto-wired into #[event] codegen. See docs/items.md."
   - area: "Dialog components and dialog command helpers"
     status: alpha
   - area: "Resource pack generation and HUD workflows"

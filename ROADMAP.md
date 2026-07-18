@@ -50,8 +50,12 @@ emerging 26.x series. Capability decisions flow through `VersionProfile`.
   explicit player-scoped persistent `while_<E>()` conditions, bounded
   cross-tick correlation (`within::<E>(TickWindow)`), and advancement-backed
   graph parents bridged from their own reward function as a sole `after`
-  dependency (#240 Phase 6). Participant-rich contexts (#230) and Phase 6+
-  graph context propagation beyond a bare player subject remain.
+  dependency (#240 Phase 6). Typed item locations and immutable event-time
+  item snapshots (#229 Phase 7) give SandEvent authors a way to capture an
+  item's identity before vanilla mutates/consumes it, manually embedded into
+  a handler's own setup/body; not yet auto-wired into `#[event]` codegen.
+  Participant-rich contexts (#230) and Phase 6+ graph context propagation
+  beyond a bare player subject remain.
 - Resource pack generation — functional but requires manual setup.
 - crates.io publishing — not yet available; build from workspace.
 

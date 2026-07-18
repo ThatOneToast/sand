@@ -903,6 +903,56 @@ capabilities:
     evidence: ["sand-core/src/participant/capabilities.rs", "sand-core/tests/participant_context_capability_audit.rs", "docs/event-context.md"]
     documentation: ["docs/event-context.md"]
 
+  - id: participant-attacker-observation
+    name: "Correlated attacker entity observation"
+    category: events
+    intent: "Recover a typed, command-addressable attacker/killer entity participant for a damage- or death-adjacent event, with an honest Correlated reliability, using vanilla's own execute-on-attacker relation rather than a heuristic guess."
+    status: partial
+    stability: alpha
+    crates: [sand-core]
+    entry_points: ["observe_correlated_attacker", "ObservationSchema::new", "CorrelatedEntityObservation"]
+    preferred_api: "observe_correlated_attacker(&EntityContext::<PlayerKind>::default(), &profile, ObservationSchema::new(storage, event_label), role, |observation| { ... }) embedded manually into a SandEvent's handler body (advancement-backed) or EventSetup::pre_observation (tick-backed)"
+    sand_limitations: >
+      #230 Phase 9. The only participant-recovery backend Sand implements:
+      one mechanism, `execute on attacker` (vanilla, 1.20.2+), applied to
+      whichever entity is currently `@s` when `observe_correlated_attacker`
+      is called (intended usage: a victim/killer player subject, e.g.
+      EntityDamagePlayerEvent/PlayerKillEvent). Generates a deterministic
+      four-part command sequence — unconditional presence-flag reset, two
+      single-command `execute on attacker run <command>` lines marking
+      presence and tagging the attacker directly (not routed through
+      `EntityContext::attacker()`/`RelationQuery::if_present`'s
+      multi-command wrapper — see LIM-EXP-006), the caller's body, then
+      unconditional tag cleanup — mirroring
+      `item-snapshots`' reset/mark/cleanup shape. Presence is a
+      runtime-checked `Condition` (`.is_present()`/`.is_absent()`), never
+      assumed. The participant handle addresses the observed entity by a
+      unique temporary tag (`__sand_observed_<key>`), never a bare
+      `@e[type=...]` query. Always reports
+      `ParticipantReliability::Correlated`, never `Exact` — `execute on
+      attacker` is a direct vanilla relation query, not a heuristic, but
+      there is no real-server evidence that vanilla's "last attacker"
+      memory is updated in lockstep with the specific damage event that
+      fired the criterion this observation is embedded in (LIM-VAL-010).
+      No ambiguity-selection policy exists or is needed: `execute on
+      attacker` is single-valued by vanilla's own construction (at most one
+      entity), unlike a hypothetical proximity-based observer, which this
+      phase does not implement. Valid for
+      `ParticipantLifetime::SynchronousDescendants` — the tag is added and
+      removed within one straight-line generated sequence. Rejects an
+      unsupported target version (pre-1.20.2) at build time
+      (`ObservationError::UnsupportedVersion`) rather than degrading
+      silently. Not reentrant for the same `event_label` within one
+      synchronous call tree (LIM-CTX-005). Not auto-wired into
+      `#[event]`/tick-coordinator codegen — manually embedded per event,
+      same pattern as `item-snapshots`. Does not implement victim
+      correlation for the attacker-is-subject direction, interacted-entity
+      correlation, or projectile-owner recovery — no comparably strong,
+      single-valued vanilla relation evidence was identified for those
+      within this phase's scope.
+    evidence: ["sand-core/src/participant/observation.rs", "sand-core/tests/participant_attacker_observation_export.rs", "docs/event-context.md"]
+    documentation: ["docs/event-context.md"]
+
   - id: cli-build
     name: "CLI: build"
     category: cli

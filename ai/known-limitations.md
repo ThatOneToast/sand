@@ -178,6 +178,47 @@ Vanilla supports the behavior; Sand's typed coverage is incomplete.
   Affects: `resource-pack`, `hud-workflows`.
   Evidence: `ROADMAP.md`, `book/src/resource-packs-and-hud.md`.
 
+- **LIM-ITEM-001** — `ItemSnapshot::capture()` is not auto-wired into the
+  `#[event]` macro or the tick coordinator's generated pipeline (#229 Phase
+  7). A `SandEvent` author must call it themselves and embed the returned
+  commands into their own `EventSetup::pre_observation` (tick-backed) or the
+  first lines of their handler body (advancement-backed) — there is no
+  automatic per-event capture. Capture at a Phase 6 advancement-backed graph
+  bridge parent (`sandevent-advancement-graph-parent`) is not supported at
+  all: bridge parents have no `EventSetup`/handler-body seam to embed
+  capture commands into. Full graph-integrated, participant-rich capture is
+  deferred to #230.
+  Affects: `item-snapshots`.
+  Evidence: `sand-core/src/item/snapshot.rs`, `docs/items.md`,
+  `sand-core/tests/item_snapshot_tick_capture_export.rs`.
+
+- **LIM-ITEM-002** — `ItemLocation::PlayerEquipment`/`entity_equipment`
+  reject `EquipmentSlot::Body` (`ItemLocationError::UnsupportedLocation`):
+  no single stable NBT tag for a "body" armor item was verified across
+  Sand's supported version range. `PlayerEquipment` additionally rejects
+  `Mainhand`/`Offhand` (use the dedicated `ItemLocation::PlayerMainHand`/
+  `PlayerOffHand` variants, which address `SelectedItem`/slot `-106`
+  directly rather than through generic equipment-slot addressing).
+  Affects: `item-locations`.
+  Evidence: `sand-core/src/item/location.rs`
+  (`player_equipment`, `entity_equipment`).
+
+- **LIM-ITEM-003** — `SnapshotReliability::ExactPostTrigger` (used for
+  advancement-backed captures) is an honest acknowledgment, not a verified
+  guarantee: whether a given advancement criterion fires before or after
+  vanilla has already mutated the triggering item (e.g. `consume_item`
+  decrementing a stack) is criterion-specific and has not been individually
+  verified per criterion. Treat `ExactPostTrigger` snapshots as "earliest
+  point Sand had control," not as proof the item was unmutated at that
+  point. Only tick-backed `SnapshotReliability::Exact` captures (embedded in
+  `pre_observation`, which genuinely runs before Sand's own condition test)
+  carry a stronger ordering guarantee, and only relative to Sand's own
+  generated commands, not to vanilla's internal engine ordering before Sand
+  gains control at all.
+  Affects: `item-snapshots`.
+  Evidence: `sand-core/src/item/snapshot.rs` (module docs, capture
+  ordering), `docs/items.md`.
+
 - **LIM-EXP-004** — Same-cycle single- and multi-parent `SandEvent` dispatch
   and explicit persistent `while_<E>()` conditions are the implemented
   composition phases of #240. Multi-parent groups support two through eight
@@ -327,6 +368,30 @@ Vanilla supports the behavior; Sand's typed coverage is incomplete.
   `sand-core/tests/event_chain_advancement_parent_composition.rs`,
   `sand-vanilla-audit/src/lib.rs`,
   `docs/vanilla-reload-validation.md`.
+
+- **LIM-VAL-008** — Item locations and snapshots (Phase 7 of #229) have
+  exact structural evidence from `sand-core` unit tests (per-`ItemLocation`
+  variant NBT rendering, index validation, `EquipmentSlot::Body` rejection)
+  and export-level integration evidence
+  (`item_snapshot_tick_capture_export.rs` proves capture commands are the
+  first lines of a real generated tick-check function, strictly before the
+  condition test, strictly before `post_observation` cleanup, and that
+  repeated export is byte-identical). There is no real-server or
+  protocol-client evidence that a captured snapshot's data actually matches
+  the item as it existed at the moment of the vanilla event (e.g. that
+  `SelectedItem` truly reflects the pre-`consume_item` stack at the instant
+  `pre_observation` runs, or that a given advancement criterion's reward
+  function runs before the criterion's own item mutation). Treat
+  `SnapshotReliability::Exact`/`ExactPostTrigger` as documented intent
+  backed by command-ordering evidence, not as gameplay-verified runtime
+  fact — see `LIM-ITEM-003`. No `sand-vanilla-audit` semantic fixture exists
+  yet for item snapshots; this phase only re-confirmed deterministic
+  1.21.4/26.2 export of the *existing* regression suite is unaffected by
+  the new module (additive-only change), which is compile/export evidence,
+  not new gameplay-timing evidence for capture itself.
+  Affects: `item-locations`, `item-snapshots`, `cli-validate`.
+  Evidence: `sand-core/src/item/location.rs`, `sand-core/src/item/snapshot.rs`,
+  `sand-core/tests/item_snapshot_tick_capture_export.rs`, `docs/items.md`.
 
 ## Documentation and status contradictions found during audit (2026-07-12)
 

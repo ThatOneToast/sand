@@ -59,10 +59,17 @@ emerging 26.x series. Capability decisions flow through `VersionProfile`.
   propagation/merge rules future participant recovery will use. Correlated
   attacker/killer entity observation (#230 Phase 9,
   `observe_correlated_attacker`, backed by vanilla's `execute on attacker`
-  relation) is the first real participant-recovery backend, manually
-  embedded per event; victim, interacted-entity, and projectile-owner
-  recovery remain unimplemented, and no automatic participant capability is
-  attached to built-in event families.
+  relation) is the first real participant-recovery backend. `EventParticipantPlan`
+  (#230 Phase 10) lets an event declare `observe_correlated_attacker`/
+  `observe_correlated_killer` and apply it with one call
+  (`EventSetup::with_participants`) instead of hand-sequencing commands,
+  and Phase 10 also fixed a real exporter dynamic-function-registry
+  nondeterminism bug (process-global `Mutex` racing across concurrently-run
+  test threads, now thread-local). Still not macro-transparent (setup()
+  must call `.with_participants()` itself), not graph-integrated, and no
+  typed `Event<T>` handler-context accessor exists yet; victim,
+  interacted-entity, and projectile-owner recovery remain unimplemented —
+  see the Phase 10 role-evidence audit in `docs/event-context.md`.
 - Resource pack generation — functional but requires manual setup.
 - crates.io publishing — not yet available; build from workspace.
 

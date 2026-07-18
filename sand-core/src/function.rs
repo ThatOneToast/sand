@@ -625,23 +625,36 @@ pub struct TempScoreboard {
 inventory::collect!(TempScoreboard);
 
 // ── Dynamic anonymous function registry ───────────────────────────────────────
+//
+// This registry is **thread-local**, not process-global. Every export
+// (`try_export_components_json` and friends) runs as one synchronous call
+// tree on a single thread — `SandEvent::setup()`, condition lowering,
+// relation-query helpers, item-snapshot capture, and participant
+// observation all register into and drain from the *same thread's* view of
+// this registry, with no cross-thread interference.
+//
+// This matters because Rust's default test harness runs many `#[test]`
+// functions from one binary **concurrently on separate threads**. A
+// process-global `Mutex<Vec<..>>` registry (the previous design) meant any
+// two tests that happened to register/drain dynamic functions at
+// overlapping moments could corrupt each other's view of the registry —
+// this was the root cause of the nondeterminism `LIM-EXP-006` documented
+// as a workaround rather than a fix: two `try_export_components_json`
+// calls in the *same test file* could race against a concurrently-running
+// `#[test]` fn in that file, not against each other. A thread-local
+// registry removes the race entirely: each thread's export sees only its
+// own registrations, so a call to `drain_dyn_fns()` on one thread can never
+// observe (or discard) another thread's still-in-progress registrations.
+//
+// Production callers are unaffected either way — Sand's own export
+// pipeline is not itself multi-threaded internally.
 
-use std::sync::Mutex;
-use std::sync::OnceLock;
+use std::cell::RefCell;
 
 type DynFnEntry = (String, Vec<String>);
 
-fn dyn_fn_registry() -> &'static Mutex<Vec<DynFnEntry>> {
-    static REGISTRY: OnceLock<Mutex<Vec<DynFnEntry>>> = OnceLock::new();
-    REGISTRY.get_or_init(|| Mutex::new(Vec::new()))
-}
-
-#[cfg(test)]
-pub(crate) fn lock_dyn_fn_registry_for_tests() -> std::sync::MutexGuard<'static, ()> {
-    // Hold this across reset/register/drain assertions for tests touching the
-    // process-global dynamic function registry.
-    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-    LOCK.get_or_init(|| Mutex::new(())).lock().unwrap()
+thread_local! {
+    static REGISTRY: RefCell<Vec<DynFnEntry>> = const { RefCell::new(Vec::new()) };
 }
 
 /// Register an anonymous function body at runtime.
@@ -649,39 +662,44 @@ pub(crate) fn lock_dyn_fn_registry_for_tests() -> std::sync::MutexGuard<'static,
 /// Called by anonymous `run_fn!` blocks that capture local variables.
 /// The `commands` are the pre-computed mcfunction lines.
 pub fn register_dyn_fn(path: String, commands: Vec<String>) {
-    let mut registry = dyn_fn_registry().lock().unwrap();
-    if !registry.iter().any(|(existing_path, existing_commands)| {
-        existing_path == &path && existing_commands == &commands
-    }) {
-        registry.push((path, commands));
-    }
+    REGISTRY.with_borrow_mut(|registry| {
+        if !registry.iter().any(|(existing_path, existing_commands)| {
+            existing_path == &path && existing_commands == &commands
+        }) {
+            registry.push((path, commands));
+        }
+    });
 }
 
 /// Register a generated helper function, reusing an existing helper with an
 /// identical body when context semantics allow it.
 pub fn register_dyn_fn_dedup(prefix: &str, commands: Vec<String>) -> String {
-    let mut registry = dyn_fn_registry().lock().unwrap();
-    if let Some((path, _)) = registry.iter().find(|(path, existing_commands)| {
-        path.starts_with(prefix) && existing_commands == &commands
-    }) {
-        return path.clone();
-    }
+    REGISTRY.with_borrow_mut(|registry| {
+        if let Some((path, _)) = registry.iter().find(|(path, existing_commands)| {
+            path.starts_with(prefix) && existing_commands == &commands
+        }) {
+            return path.clone();
+        }
 
-    let path = format!("{prefix}/{}", stable_commands_key(&commands));
-    if !registry.iter().any(|(existing_path, existing_commands)| {
-        existing_path == &path && existing_commands == &commands
-    }) {
-        registry.push((path.clone(), commands));
-    }
-    path
+        let path = format!("{prefix}/{}", stable_commands_key(&commands));
+        if !registry.iter().any(|(existing_path, existing_commands)| {
+            existing_path == &path && existing_commands == &commands
+        }) {
+            registry.push((path.clone(), commands));
+        }
+        path
+    })
 }
 
-/// Drain all dynamically-registered anonymous functions.
+/// Drain all dynamically-registered anonymous functions registered on the
+/// *current thread*.
 ///
-/// Called once by the component builder after all user functions have run,
-/// so all `register_dyn_fn` calls are guaranteed to have completed.
+/// Called once by the component builder after all user functions have run
+/// for one export, so all `register_dyn_fn` calls made during that export
+/// (which runs synchronously on this thread) are guaranteed to have
+/// completed. Never observes or clears another thread's registrations.
 pub fn drain_dyn_fns() -> Vec<(String, Vec<String>)> {
-    std::mem::take(&mut *dyn_fn_registry().lock().unwrap())
+    REGISTRY.with_borrow_mut(std::mem::take)
 }
 
 fn stable_commands_key(commands: &[String]) -> String {
@@ -693,4 +711,100 @@ fn stable_commands_key(commands: &[String]) -> String {
         }
     }
     format!("{h:08x}")
+}
+
+#[cfg(test)]
+mod dyn_fn_registry_tests {
+    use super::*;
+
+    #[test]
+    fn drain_returns_empty_when_nothing_registered() {
+        let _ = drain_dyn_fns(); // clear any leftover state from this thread
+        assert!(drain_dyn_fns().is_empty());
+    }
+
+    #[test]
+    fn register_dyn_fn_dedup_reuses_path_for_identical_body() {
+        let _ = drain_dyn_fns();
+        let a = register_dyn_fn_dedup("sand/test_prefix", vec!["say a".to_string()]);
+        let b = register_dyn_fn_dedup("sand/test_prefix", vec!["say a".to_string()]);
+        assert_eq!(a, b);
+        let drained = drain_dyn_fns();
+        assert_eq!(drained.len(), 1);
+    }
+
+    #[test]
+    fn register_dyn_fn_dedup_distinguishes_different_bodies() {
+        let _ = drain_dyn_fns();
+        let a = register_dyn_fn_dedup("sand/test_prefix", vec!["say a".to_string()]);
+        let b = register_dyn_fn_dedup("sand/test_prefix", vec!["say b".to_string()]);
+        assert_ne!(a, b);
+        let drained = drain_dyn_fns();
+        assert_eq!(drained.len(), 2);
+    }
+
+    #[test]
+    fn register_dyn_fn_dedup_path_is_deterministic_across_calls() {
+        let _ = drain_dyn_fns();
+        let first = register_dyn_fn_dedup("sand/test_prefix", vec!["say hello".to_string()]);
+        let _ = drain_dyn_fns();
+        let second = register_dyn_fn_dedup("sand/test_prefix", vec!["say hello".to_string()]);
+        assert_eq!(
+            first, second,
+            "identical body must yield identical content-addressed path across drains"
+        );
+    }
+
+    #[test]
+    fn drain_empties_the_registry_so_a_second_drain_is_empty() {
+        let _ = drain_dyn_fns();
+        register_dyn_fn_dedup("sand/test_prefix", vec!["say once".to_string()]);
+        let first_drain = drain_dyn_fns();
+        assert_eq!(first_drain.len(), 1);
+        let second_drain = drain_dyn_fns();
+        assert!(
+            second_drain.is_empty(),
+            "a second drain must not re-observe already-drained entries"
+        );
+    }
+
+    #[test]
+    fn registry_is_isolated_per_thread() {
+        // The core guarantee behind the LIM-EXP-006 fix: two threads
+        // registering/draining concurrently never observe or clear each
+        // other's entries, because the registry is thread-local rather
+        // than a single process-global Mutex.
+        let _ = drain_dyn_fns();
+        register_dyn_fn_dedup("sand/main_thread", vec!["say main".to_string()]);
+
+        let handle = std::thread::spawn(|| {
+            // A fresh thread starts with an empty thread-local registry —
+            // it must not see the main thread's "say main" entry.
+            let initial = drain_dyn_fns();
+            assert!(
+                initial.is_empty(),
+                "a new thread must not observe another thread's registrations"
+            );
+            register_dyn_fn_dedup("sand/other_thread", vec!["say other".to_string()]);
+            drain_dyn_fns()
+        });
+        let other_thread_drain = handle.join().unwrap();
+        assert_eq!(other_thread_drain.len(), 1);
+        assert_eq!(other_thread_drain[0].1, vec!["say other".to_string()]);
+
+        // The main thread's own registration must still be there, untouched
+        // by the other thread's register/drain calls.
+        let main_thread_drain = drain_dyn_fns();
+        assert_eq!(main_thread_drain.len(), 1);
+        assert_eq!(main_thread_drain[0].1, vec!["say main".to_string()]);
+    }
+
+    #[test]
+    fn register_dyn_fn_deduplicates_identical_path_and_body() {
+        let _ = drain_dyn_fns();
+        register_dyn_fn("sand/exact_path".to_string(), vec!["say x".to_string()]);
+        register_dyn_fn("sand/exact_path".to_string(), vec!["say x".to_string()]);
+        let drained = drain_dyn_fns();
+        assert_eq!(drained.len(), 1);
+    }
 }

@@ -953,6 +953,54 @@ capabilities:
     evidence: ["sand-core/src/participant/observation.rs", "sand-core/tests/participant_attacker_observation_export.rs", "docs/event-context.md"]
     documentation: ["docs/event-context.md"]
 
+  - id: participant-event-plan
+    name: "Declarative event participant plans"
+    category: events
+    intent: "Let an event definition declare which participant observations it needs (SandEvent::participants()) and apply them to EventSetup with one call, instead of an author manually sequencing observe_correlated_attacker's reset/mark/cleanup commands by hand."
+    status: partial
+    stability: alpha
+    crates: [sand-core]
+    entry_points: ["EventParticipantPlan::new", "SandEvent::participants", "EventSetup::with_participants"]
+    preferred_api: "impl SandEvent for E { fn participants() -> EventParticipantPlan { EventParticipantPlan::new().observe_correlated_attacker() } fn setup() -> EventSetup { EventSetup::none().with_participants::<Self>(Self::participants(), storage, &profile) } }"
+    sand_limitations: >
+      #230 Phase 10. `SandEvent::participants()` is a genuinely additive
+      default trait method (defaults to `EventParticipantPlan::none()`;
+      every existing `SandEvent` implementation is unaffected). Not fully
+      macro-transparent: `setup()` must still call
+      `.with_participants(...)` itself — `#[event]`/the tick coordinator do
+      not inspect `participants()` automatically (LIM-CTX-006). Currently
+      only wraps `observe_correlated_attacker` (`.observe_correlated_attacker()`/
+      `.observe_correlated_killer()`); no other observation mechanism
+      exists to declare. `.with_participants()` appends the plan's
+      setup commands to `pre_observation` and cleanup commands to
+      `post_observation` (after any existing commands in each) — cleanup
+      always runs regardless of condition match, participant presence, or
+      handler execution, since Sand generates straight-line command
+      sequences with no exception unwinding. Declaring the same role twice
+      in one plan is rejected (`DuplicateParticipantRole`) before any
+      commands are generated. The plan API avoids the same-schema-reentrancy
+      risk `LIM-CTX-005` originally flagged for the manual API: every
+      plan's schema key is derived from `std::any::type_name::<E>()`,
+      never a caller-supplied string, so two distinct `SandEvent` types
+      will not collide in practice even with identical role and storage
+      namespace — but this relies on an unguarded 32-bit FNV-1a hash (the
+      same scheme `tick_event_resource_key` uses elsewhere), not an
+      export-time collision registry like `sand-core/src/component.rs`'s
+      `key_registry` guards the event graph's own keyspace with; a
+      collision is astronomically unlikely, not structurally impossible.
+      `EventParticipantPlan::capabilities()` returns
+      the `EntityParticipantCapability` entries a plan contributes, but
+      nothing automatically merges them into
+      `EventContextCapabilities::for_event`'s output or propagates them
+      through Phase 8's graph composition functions (LIM-CTX-006) — a
+      caller combines `for_event::<E>()`'s subject capability with
+      `E::participants().capabilities()` manually today. Generates the
+      identical `execute on attacker` commands as the manual API, so it
+      carries the same `Correlated`-only, no-real-server-evidence boundary
+      (LIM-VAL-010) — this phase added no new runtime evidence.
+    evidence: ["sand-core/src/participant/plan.rs", "sand-core/tests/participant_plan_export.rs", "docs/event-context.md"]
+    documentation: ["docs/event-context.md"]
+
   - id: cli-build
     name: "CLI: build"
     category: cli

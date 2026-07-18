@@ -1081,6 +1081,20 @@ pub trait SandEvent {
         EventSetup::none()
     }
 
+    /// Which participant observations this event declares (#230 Phase 10).
+    ///
+    /// Defaults to [`crate::participant::EventParticipantPlan::none`] — a
+    /// genuinely additive default; every existing `SandEvent` implementation
+    /// is unaffected by this method's existence. A declared plan is not
+    /// automatically applied by `#[event]`/the tick coordinator; call
+    /// [`EventSetup::with_participants`] from your own [`setup`](Self::setup)
+    /// to apply it — see
+    /// `sand-core/src/participant/plan.rs`'s module doc for the exact
+    /// lifecycle ordering and why this is not (yet) fully macro-transparent.
+    fn participants() -> crate::participant::EventParticipantPlan {
+        crate::participant::EventParticipantPlan::none()
+    }
+
     /// Whether to revoke the advancement after it fires.
     ///
     /// Defaults to `true` — the advancement is revoked immediately so it can

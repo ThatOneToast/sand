@@ -283,19 +283,35 @@ Vanilla supports the behavior; Sand's typed coverage is incomplete.
   Affects: `participant-context-capabilities`.
   Evidence: `sand-core/src/participant/capabilities.rs`, `docs/event-context.md`.
 
-- **LIM-CTX-005** — `observe_correlated_attacker` (#230 Phase 9) is not
-  reentrant for the same `event_label` within one synchronous call tree:
-  two nested calls with the same schema would use the same
-  `__sand_observed_<key>` tag and `obs.<key>.present` storage path, so an
-  inner call's reset/cleanup would interfere with an outer call's still-in-
-  use observation. This mirrors Phase 7's identical `ItemSnapshot`
-  same-schema-reentrancy caveat (documented in
-  `sand-core/src/item/snapshot.rs`'s module doc) and is not independently
-  guarded against — give a nested observation its own distinct
-  `event_label` if this could occur.
+- **LIM-CTX-005** — **Narrowed in #230 Phase 10.** The manual
+  `observe_correlated_attacker` API (Phase 9) is not reentrant for the same
+  `event_label` within one synchronous call tree: two nested calls with the
+  same schema would use the same `__sand_observed_<key>` tag and
+  `obs.<key>.present` storage path, so an inner call's reset/cleanup would
+  interfere with an outer call's still-in-use observation. This mirrors
+  Phase 7's identical `ItemSnapshot` same-schema-reentrancy caveat and is
+  not independently guarded against there — give a manually-nested
+  observation its own distinct `event_label` if this could occur. The newer
+  declarative `EventParticipantPlan` API (Phase 10,
+  `sand-core/src/participant/plan.rs`) does **not** have this problem in
+  practice: its schema key is always derived from
+  `std::any::type_name::<E>()`, never a caller-supplied string, so two
+  distinct `SandEvent` types will not collide even with the same role and
+  storage namespace — proven for distinct types by
+  `distinct_event_types_never_collide_even_with_the_same_role_and_storage`.
+  This relies on an unguarded 32-bit FNV-1a hash (the same scheme
+  `tick_event_resource_key` uses for the event graph's own keyspace,
+  `sand-core/src/events/graph.rs`) — a collision is astronomically
+  unlikely, not structurally impossible; unlike the event graph exporter
+  (which checks a `key_registry` at export time and fails loudly on any
+  collision, `sand-core/src/component.rs`), the plan API has no equivalent
+  export-time collision guard. Within one plan, a duplicate role is
+  rejected at validation time before
+  any commands are generated.
   Affects: `participant-attacker-observation`.
   Evidence: `sand-core/src/participant/observation.rs` (module doc,
-  "Multiplayer safety" section).
+  "Multiplayer safety" section — manual API caveat only),
+  `sand-core/src/participant/plan.rs` (plan API resolution).
 
 - **LIM-EXP-004** — Same-cycle single- and multi-parent `SandEvent` dispatch
   and explicit persistent `while_<E>()` conditions are the implemented
@@ -496,31 +512,32 @@ Vanilla supports the behavior; Sand's typed coverage is incomplete.
   `sand-core/tests/participant_context_capability_audit.rs`,
   `docs/event-context.md`.
 
-- **LIM-EXP-006** — Discovered while building `observe_correlated_attacker`
-  (#230 Phase 9): calling a `register_dyn_fn_dedup`-backed API (e.g.
+- **LIM-EXP-006** — **Resolved in #230 Phase 10, kept here as a pointer for
+  anyone who finds the old Phase 9 report.** The dynamic-function registry
+  (`register_dyn_fn`/`register_dyn_fn_dedup`/`drain_dyn_fns`,
+  `sand-core/src/function.rs`) was a single process-global `Mutex<Vec<..>>`.
+  Rust's default test harness runs many `#[test]` functions from one binary
+  concurrently on separate threads, so two tests that both triggered
+  dynamic-function registration (e.g. via
   `RelationQuery::if_present`/`if_player`, which wraps a multi-command
-  relation body in a separately generated function) from inside
-  `SandEvent::setup()` produced non-deterministic export output —
-  a first and second `try_export_components_json` call for the identical
-  input produced different JSON (the dynamically-registered function record
-  was present in one export and absent in the other). This points to a
-  timing dependency between when `SandEvent::setup()` runs relative to the
-  exporter's `drain_dyn_fns()` call that is not consistent across repeated
-  export invocations in the same process. Root cause not investigated
-  further — `sand-core/src/participant/observation.rs` avoids the pattern
-  entirely (using two direct single-command `execute on attacker run
-  <command>` lines instead of the multi-command wrapper) rather than fixing
-  the underlying exporter behavior, which was judged out of scope for this
-  phase. Anyone calling a `RelationQuery::if_present`/`if_player`-style API
-  (or any other `register_dyn_fn_dedup` consumer) from `SandEvent::setup()`
-  in the future should re-verify determinism with a `repeated_export_is_identical`-style
-  test before relying on it, and only currently-known-safe use sites
-  (already-existing `#[component]`/`#[function]` bodies, not
-  `SandEvent::setup()`) should be assumed safe.
+  relation body in a separately-registered function) could race — one
+  test's `drain_dyn_fns()` could observe or clear entries registered by a
+  *different, concurrently-running* test. That is what Phase 9 observed and
+  worked around (rather than fixed) by avoiding the multi-command wrapper
+  in `observe_correlated_attacker`. The actual root cause is fixed: the
+  registry is now thread-local, so each thread's export sees only its own
+  registrations, with no cross-thread interference possible. Verified by
+  `sand-core/tests/exporter_dyn_fn_determinism.rs`, which deliberately
+  reproduces the original `if_present`-from-`SandEvent::setup()` pattern
+  and asserts byte-identical output across repeated exports, plus unit
+  tests in `sand-core/src/function.rs` (`dyn_fn_registry_tests`) proving
+  thread isolation directly. `observe_correlated_attacker` still emits two
+  direct single-command lines rather than using `if_present` — that choice
+  is kept for its own merits (simpler generated output, no function
+  indirection), not because the underlying bug still requires it.
   Affects: `sandevent-chained-dispatch`, `participant-attacker-observation`.
-  Evidence: discovered and worked around in
-  `sand-core/src/participant/observation.rs`; not independently reproduced
-  outside this phase's own test suite.
+  Evidence: `sand-core/src/function.rs` (thread-local registry),
+  `sand-core/tests/exporter_dyn_fn_determinism.rs`.
 
 - **LIM-VAL-010** — Correlated attacker observation
   (`observe_correlated_attacker`, #230 Phase 9) has exact structural
@@ -549,7 +566,30 @@ Vanilla supports the behavior; Sand's typed coverage is incomplete.
   Affects: `participant-attacker-observation`, `cli-validate`.
   Evidence: `sand-core/src/participant/observation.rs`,
   `sand-core/tests/participant_attacker_observation_export.rs`,
-  `docs/event-context.md`.
+  `docs/event-context.md`. **Unchanged by #230 Phase 10** — the
+  declarative `EventParticipantPlan` API generates the identical
+  `execute on attacker` command sequence as the manual API, so it carries
+  the same evidence boundary and the same `Correlated` classification; no
+  real-server evidence was gathered in Phase 10 either (no server available
+  in the authoring environment). Do not read Phase 10's automatic-lifecycle
+  work as new runtime evidence for attacker semantics.
+
+- **LIM-CTX-006** — `EventParticipantPlan` (#230 Phase 10) is not
+  macro-transparent and not graph-integrated. `SandEvent::participants()`
+  is declared independently of `setup()` — nothing calls it automatically;
+  an author must call `EventSetup::with_participants(Self::participants(),
+  ...)` from their own `setup()` for it to take effect. Nothing
+  automatically merges a plan's `.capabilities()` into
+  `EventContextCapabilities::for_event`'s output, and nothing propagates a
+  declared plan's participant capability through Phase 8's
+  `after`/`after_any`/`after_all`/`while`/`within`/advancement-bridge
+  `propagate_*`/`merge_*` functions — a child event wanting the same
+  observation must declare its own plan. A typed `Event<T>::context().entity(role)`
+  handler-context accessor (letting a handler retrieve the observed
+  participant without reconstructing the selector manually) does not
+  exist. These remain future work.
+  Affects: `participant-attacker-observation`, `participant-context-capabilities`.
+  Evidence: `sand-core/src/participant/plan.rs`, `docs/event-context.md`.
 
 ## Documentation and status contradictions found during audit (2026-07-12)
 

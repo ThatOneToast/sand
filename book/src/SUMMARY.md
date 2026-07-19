@@ -25,3 +25,5 @@
 # Reference
 
 - [Vanilla Limitations](reference/vanilla-limitations.md)
+- [Version Support](reference/version-support.md)
+- [Built-in Event Matrix](reference/event-trigger-matrix.md)

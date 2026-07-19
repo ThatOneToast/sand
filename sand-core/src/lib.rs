@@ -216,6 +216,7 @@ pub use function::{
     register_dyn_fn, register_dyn_fn_dedup,
 };
 
+mod compiler;
 mod transition;
 pub use mc_version::McVersion;
 pub use resource_location::{Identifier, PackNamespace, ResourceLocation};

@@ -23,8 +23,6 @@ use crate::RawCommand;
 use crate::coord::{BlockPos, Rotation, Vec3};
 use crate::error::{CommandError, CommandResult};
 use crate::execute_args::{Anchor, ItemSlot, NbtStoreKind, Swizzle};
-#[allow(deprecated)]
-use crate::inventory::SlotPattern;
 use crate::nbt::DataTarget;
 use crate::render::{CommandProfile, RenderCommand, Validate};
 use crate::scoreboard::{ScoreCmp, ScoreHolder};
@@ -777,9 +775,8 @@ impl Execute {
 
     /// `if items entity <selector> <slot> <item>` — execute if the slot holds a matching item.
     ///
-    /// Accepts any type that converts to [`ItemSlot`], including the deprecated
-    /// [`InventorySlot`](crate::inventory::InventorySlot) and
-    /// [`SlotPattern`] types.
+    /// Accepts any type that converts to [`ItemSlot`], including wildcard
+    /// variants such as `ItemSlot::AnyHotbar`.
     pub fn if_items(
         mut self,
         selector: Selector,
@@ -810,58 +807,6 @@ impl Execute {
         self.checks.push(ExecuteCheck::Slot {
             index: self.next_index(),
             kind: "unless_items",
-            value: slot.clone(),
-        });
-        self.parts.push(format!(
-            "unless items entity {selector} {slot} {}",
-            item.into()
-        ));
-        self
-    }
-
-    /// `if items entity <selector> <slot> <item>` — check with a wildcard slot pattern.
-    ///
-    /// Deprecated: use [`if_items`](Execute::if_items) with `ItemSlot::AnyHotbar` etc. instead.
-    #[deprecated(
-        note = "use `if_items` with `ItemSlot::AnyHotbar`, `ItemSlot::AnyArmor`, etc. instead"
-    )]
-    #[allow(deprecated)]
-    pub fn if_items_pattern(
-        mut self,
-        selector: Selector,
-        pattern: SlotPattern,
-        item: impl Into<String>,
-    ) -> Self {
-        let slot = ItemSlot::from(pattern);
-        self.check_selector("if_items_pattern", &selector);
-        self.checks.push(ExecuteCheck::Slot {
-            index: self.next_index(),
-            kind: "if_items_pattern",
-            value: slot.clone(),
-        });
-        self.parts
-            .push(format!("if items entity {selector} {slot} {}", item.into()));
-        self
-    }
-
-    /// `unless items entity <selector> <slot> <item>` — check pattern does NOT match.
-    ///
-    /// Deprecated: use [`unless_items`](Execute::unless_items) with `ItemSlot::AnyHotbar` etc.
-    #[deprecated(
-        note = "use `unless_items` with `ItemSlot::AnyHotbar`, `ItemSlot::AnyArmor`, etc. instead"
-    )]
-    #[allow(deprecated)]
-    pub fn unless_items_pattern(
-        mut self,
-        selector: Selector,
-        pattern: SlotPattern,
-        item: impl Into<String>,
-    ) -> Self {
-        let slot = ItemSlot::from(pattern);
-        self.check_selector("unless_items_pattern", &selector);
-        self.checks.push(ExecuteCheck::Slot {
-            index: self.next_index(),
-            kind: "unless_items_pattern",
             value: slot.clone(),
         });
         self.parts.push(format!(

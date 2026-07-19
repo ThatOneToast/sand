@@ -59,8 +59,7 @@ pub use sand_commands::Execute;
 // Execute argument types
 pub use sand_commands::{Anchor, ItemSlot, NbtStoreKind, Swizzle};
 // Inventory manipulation
-#[allow(deprecated)]
-pub use sand_commands::{Inventory, InventorySlot, SlotPattern};
+pub use sand_commands::Inventory;
 // Particle effects
 pub use sand_commands::{Particle, ParticleBuilder, ParticleEffect, ParticleSpread};
 // Entity/player targeting

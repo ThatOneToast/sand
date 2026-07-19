@@ -18,3 +18,7 @@ sand-macros = { path = "../sand-macros" }
 [build-dependencies]
 sand-build = { path = "../sand-build" }
 sand-version = { path = "../sand-version" }
+
+[package.metadata.cargo-machete]
+# `sand` is required at link time: proc macros expand to ::sand::__private paths.
+ignored = ["sand"]

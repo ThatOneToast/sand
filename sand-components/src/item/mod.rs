@@ -1486,23 +1486,11 @@ impl CustomItem {
 
     // ── Escape hatch ──────────────────────────────────────────────────────────
 
-    /// Add a raw item component (for features not covered by the typed API).
+    /// Add a raw item component from an explicit [`RawComponent`] value
+    /// (for features not covered by the typed API).
     ///
-    /// Appends `key=snbt_value` verbatim to the component string.
-    #[deprecated(
-        since = "0.1.0",
-        note = "use CustomItem::component(ItemComponent::raw_component(RawComponent::new(...))) or with_raw_component(...)"
-    )]
-    pub fn raw_component(self, key: impl Into<String>, snbt_value: impl Into<String>) -> Self {
-        self.component(ItemComponent::raw_component(RawComponent::new(
-            key, snbt_value,
-        )))
-    }
-
-    /// Add a raw item component from an explicit [`RawComponent`] value.
-    ///
-    /// Prefer this over `raw_component(key, snbt)` when you want the escape hatch
-    /// to be visible at the construction site rather than buried in two string args.
+    /// The escape hatch is visible at the construction site: the component's
+    /// `key=snbt_value` is appended verbatim to the component string.
     pub fn with_raw_component(self, component: RawComponent) -> Self {
         self.component(ItemComponent::raw_component(component))
     }

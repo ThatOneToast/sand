@@ -41,11 +41,9 @@ pub use display::{Actionbar, Bossbar, BossbarColor, BossbarStyle, Title};
 pub use error::{CommandError, CommandResult};
 pub use execute::Execute;
 pub use execute_args::{Anchor, ItemSlot, NbtStoreKind, Swizzle};
-#[allow(deprecated)]
-pub use inventory::{Inventory, InventorySlot, SlotPattern};
+pub use inventory::Inventory;
 /// Canonical slot type alias — same as [`ItemSlot`].
 ///
-/// Use this in new code. [`InventorySlot`] and [`SlotPattern`] are deprecated.
 pub type Slot = ItemSlot;
 pub use nbt::{DataModify, DataTarget, NbtValue, data_modify};
 pub use particles::{Particle, ParticleBuilder, ParticleEffect, ParticleSpread};

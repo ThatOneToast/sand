@@ -118,7 +118,7 @@ impl fmt::Display for NbtStoreKind {
 
 /// An inventory slot specifier for `execute if items entity/block`.
 ///
-/// Unlike [`InventorySlot`](crate::inventory::InventorySlot), `ItemSlot` supports
+/// `ItemSlot` supports
 /// wildcard variants that match any slot in a category.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[must_use = "slots do nothing until passed to a command"]

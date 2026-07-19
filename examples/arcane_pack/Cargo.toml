@@ -25,3 +25,7 @@ serde_json = "1"
 
 [build-dependencies]
 sand-build = { path = "../../sand-build" }
+
+[package.metadata.cargo-machete]
+# `sand` is required at link time: proc macros expand to ::sand::__private paths.
+ignored = ["sand"]

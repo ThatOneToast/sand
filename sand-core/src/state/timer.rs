@@ -67,7 +67,10 @@ impl Timer {
         )
     }
 
-    /// Decrement the timer by 1 tick for `selector` (only if > 0).
+    /// Decrement the timer by 1 tick for one score holder (only if > 0).
+    ///
+    /// Use [`tick_all_players`](Self::tick_all_players) instead of passing a
+    /// multi-player selector such as `@a` here.
     pub fn tick(&self, selector: impl std::fmt::Display) -> String {
         let selector = selector.to_string();
         let obj = self.objective_name();
@@ -178,9 +181,17 @@ mod tests {
 
     #[test]
     fn timer_tick_all_players_is_per_player_safe() {
+        let command = BLINK.tick_all_players();
+        assert_eq!(command, BLINK.tick_all_players());
         assert_eq!(
-            BLINK.tick_all_players(),
+            command,
             "execute as @a if score @s blink_cd matches 1.. run scoreboard players remove @s blink_cd 1"
+        );
+        assert!(!command.contains("if score @a"));
+        assert!(!command.contains("remove @a"));
+        assert_eq!(
+            BLINK.tick("@s"),
+            "execute if score @s blink_cd matches 1.. run scoreboard players remove @s blink_cd 1"
         );
     }
 

@@ -1670,32 +1670,7 @@ fn try_export_components_impl(
                 init_cmds.push(format!("scoreboard objectives add {obj_p} dummy"));
             }
 
-            let active = format!("{obj_t}=1..");
-            if desc.every <= 1 {
-                tick_cmds.push(format!(
-                    "execute as @a[scores={{{active}}}] at @s run function {namespace}:{}",
-                    desc.path
-                ));
-                tick_cmds.push(format!(
-                    "scoreboard players remove @a[scores={{{active}}}] {obj_t} 1"
-                ));
-            } else {
-                tick_cmds.push(format!(
-                    "scoreboard players remove @a[scores={{{active}}}] {obj_p} 1"
-                ));
-                let fire = format!("{obj_t}=1..,{obj_p}=..0");
-                tick_cmds.push(format!(
-                    "execute as @a[scores={{{fire}}}] at @s run function {namespace}:{}",
-                    desc.path
-                ));
-                tick_cmds.push(format!(
-                    "execute as @a[scores={{{fire}}}] run scoreboard players set @s {obj_p} {}",
-                    desc.every
-                ));
-                tick_cmds.push(format!(
-                    "scoreboard players remove @a[scores={{{active}}}] {obj_t} 1"
-                ));
-            }
+            tick_cmds.extend(schedule_tick_commands(namespace, desc, &obj_t, &obj_p));
         }
 
         let init_path = "__sand_sched_init";
@@ -2413,6 +2388,50 @@ fn schedule_key(path: &str) -> String {
     format!("{h:08x}")
 }
 
+/// Lower scheduler maintenance through a per-player execution context.
+///
+/// Schedule counters belong to the player that called the generated `_start`
+/// function. Keeping every generated mutation on `@s` under `execute as`
+/// makes that ownership explicit and prevents future source-bearing
+/// scoreboard operations from accidentally receiving a multi-holder selector.
+fn schedule_tick_commands(
+    namespace: &str,
+    desc: &crate::function::ScheduleDescriptor,
+    obj_t: &str,
+    obj_p: &str,
+) -> Vec<String> {
+    let active = format!("{obj_t}=1..");
+    if desc.every <= 1 {
+        vec![
+            format!(
+                "execute as @a[scores={{{active}}}] at @s run function {namespace}:{}",
+                desc.path
+            ),
+            format!(
+                "execute as @a[scores={{{active}}}] run scoreboard players remove @s {obj_t} 1"
+            ),
+        ]
+    } else {
+        let fire = format!("{obj_t}=1..,{obj_p}=..0");
+        vec![
+            format!(
+                "execute as @a[scores={{{active}}}] run scoreboard players remove @s {obj_p} 1"
+            ),
+            format!(
+                "execute as @a[scores={{{fire}}}] at @s run function {namespace}:{}",
+                desc.path
+            ),
+            format!(
+                "execute as @a[scores={{{fire}}}] run scoreboard players set @s {obj_p} {}",
+                desc.every
+            ),
+            format!(
+                "execute as @a[scores={{{active}}}] run scoreboard players remove @s {obj_t} 1"
+            ),
+        ]
+    }
+}
+
 /// Build the unique key used to group armor watch entries by slot + filters.
 fn armor_watch_key(
     slot: crate::function::ArmorSlot,
@@ -3081,11 +3100,14 @@ mod tests {
     #[test]
     fn xp_score_operations_are_lowered_per_player() {
         let commands = super::xp_score_commands();
+        assert_eq!(commands, super::xp_score_commands());
         assert!(
             commands
                 .iter()
                 .all(|command| !command.contains("operation @a"))
         );
+        assert!(commands.iter().all(|command| !command.contains(" = @a")));
+        assert!(commands.iter().all(|command| !command.contains("-= @a")));
         assert!(commands.contains(&"execute as @a run scoreboard players operation @s __sand_xp_delta = @s __sand_xp_lvl".to_string()));
         assert!(commands.contains(&"execute as @a run scoreboard players operation @s __sand_xp_delta -= @s __sand_xp_prev".to_string()));
         assert_eq!(

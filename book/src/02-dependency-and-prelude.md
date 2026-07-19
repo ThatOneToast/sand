@@ -55,7 +55,9 @@ CI to make a codegen failure hard-fail the build instead.
 
 Every chapter's Rust snippet in this book starts the same way:
 
+```rust,ignore
 {{#include ../../examples/book_project/src/lib.rs:imports}}
+```
 
 `sand::prelude::*` is the default authoring import — it covers the common
 vocabulary of ordinary datapack development: the attribute macros

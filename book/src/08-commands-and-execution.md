@@ -6,7 +6,9 @@ conditional branching.
 
 ## `trail:grapple` — gating with `TypedExecute`
 
+```rust,ignore
 {{#include ../../examples/book_project/src/lib.rs:fn_grapple}}
+```
 
 `TypedExecute::as_players_at_self()` builds an `execute as @a at @s run
 ...`-shaped command: **as** every player (so the check runs once per
@@ -22,7 +24,9 @@ the identical condition list) without duplicating the effects/VFX code.
 
 ## `trail:grapple/execute` — paying costs and playing feedback
 
+```rust,ignore
 {{#include ../../examples/book_project/src/lib.rs:fn_grapple_execute}}
+```
 
 This function assumes its caller already validated the gate — it's an
 "apply" function, not a "check" function, so it goes straight to paying the
@@ -37,7 +41,9 @@ currently iterating," not "whoever ran this command directly."
 
 ## `trail:recover` — a plain reset function
 
+```rust,ignore
 {{#include ../../examples/book_project/src/lib.rs:fn_recover}}
+```
 
 Called from `tick`'s exhaustion-clearing branch (chapter 3) via
 `cmd::function(ResourceLocation::new("trail", "recover").unwrap())`. No
@@ -46,7 +52,9 @@ function body is just the state change and the player-facing message.
 
 ## `trail:claim_striders` — grouped branching with `if_()`
 
+```rust,ignore
 {{#include ../../examples/book_project/src/lib.rs:fn_claim_striders}}
+```
 
 `if_(condition).then_all(mcfunction![...]).else_all(mcfunction![...])` is
 Sand's grouped-branch API: it compiles to a pair of `execute if`/`unless`
@@ -67,7 +75,9 @@ that arm.
 
 ## `trail:menu` — a one-line dispatch to a dialog
 
+```rust,ignore
 {{#include ../../examples/book_project/src/lib.rs:fn_open_menu}}
+```
 
 `cmd::show_dialog` opens a dialog by reference (`DialogRef::local(...)`)
 rather than needing the full `Dialog` value in scope — see chapter 12 for

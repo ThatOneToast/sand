@@ -3,7 +3,9 @@
 Trailforge exposes its actions through a small in-game menu instead of
 requiring players to memorize `/function` commands:
 
+```rust,ignore
 {{#include ../../examples/book_project/src/lib.rs:dialog}}
+```
 
 ## `Dialog::multi_action_local`
 

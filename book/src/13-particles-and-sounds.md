@@ -4,7 +4,9 @@ The grapple dash needs to *feel* like something happening, not just change
 scoreboard values silently. Trailforge packages its particle and sound
 feedback into one reusable sequence:
 
+```rust,ignore
 {{#include ../../examples/book_project/src/lib.rs:vfx}}
+```
 
 ## `Vfx` as a named, reusable sequence
 

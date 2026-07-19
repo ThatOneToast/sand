@@ -3,7 +3,9 @@
 Trail Striders (chapter 5) grant a real gameplay effect purely through item
 data — no function, event, or tick logic is involved:
 
+```rust,ignore
 {{#include ../../examples/book_project/src/lib.rs:item_trail_striders}}
+```
 
 ## `AttributeModifier`
 

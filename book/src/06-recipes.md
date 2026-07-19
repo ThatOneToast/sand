@@ -2,7 +2,9 @@
 
 Trailforge makes the Grapple Core craftable with a standard shaped recipe:
 
+```rust,ignore
 {{#include ../../examples/book_project/src/lib.rs:recipe}}
+```
 
 `ShapedRecipe` mirrors vanilla's shaped-crafting JSON schema directly: a
 3×3 `pattern` of single-character keys, a `key(...)` mapping from character

@@ -4,7 +4,9 @@ Trailforge tracks five pieces of persistent state, and each one uses a
 different Sand primitive because each represents a different *kind* of
 data:
 
+```rust,ignore
 {{#include ../../examples/book_project/src/lib.rs:state}}
+```
 
 ## Choosing the right primitive
 

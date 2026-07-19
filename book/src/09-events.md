@@ -7,9 +7,13 @@ gameplay-design decision this book covers.
 
 ## Vanilla events: `FirstJoin` and `OnDeath`
 
+```rust,ignore
 {{#include ../../examples/book_project/src/lib.rs:event_on_first_join}}
+```
 
+```rust,ignore
 {{#include ../../examples/book_project/src/lib.rs:event_on_death}}
+```
 
 `FirstJoin` and `OnDeath` are typed markers from `sand::event::vanilla` for
 occurrences vanilla Minecraft already signals natively (an advancement
@@ -21,9 +25,13 @@ built-ins with a stable player accessor, the marker type directly) with
 
 ## An advancement-backed custom event: `ObtainedGrappleCoreEvent`
 
+```rust,ignore
 {{#include ../../examples/book_project/src/lib.rs:event_obtained_grapple_core}}
+```
 
+```rust,ignore
 {{#include ../../examples/book_project/src/lib.rs:event_on_obtained_grapple_core}}
+```
 
 `AdvancementEvent` is how you turn a *discrete inventory change* into a
 typed event without hand-authoring advancement JSON. `trigger()` returns an
@@ -53,9 +61,13 @@ isn't covered.
 
 ## A tick-backed custom event: `StaminaExhaustedEvent`
 
+```rust,ignore
 {{#include ../../examples/book_project/src/lib.rs:event_stamina_exhausted}}
+```
 
+```rust,ignore
 {{#include ../../examples/book_project/src/lib.rs:event_on_stamina_exhausted}}
+```
 
 Stamina hitting zero has no advancement trigger — it's pure Sand-managed
 scoreboard state, so `SandEvent::dispatch()` describes it as a tick-scoped

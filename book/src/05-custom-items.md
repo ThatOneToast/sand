@@ -7,7 +7,9 @@ claims the upgrade. They demonstrate two different reasons to reach for
 
 ## The Grapple Core: `#[item]` and its generated predicate
 
+```rust,ignore
 {{#include ../../examples/book_project/src/lib.rs:item_grapple_core}}
+```
 
 `CustomItem::new("minecraft:heart_of_the_sea")` starts from a vanilla base
 item — Trailforge doesn't need new item textures or models to ship this
@@ -39,7 +41,9 @@ same custom-data key.
 
 ## Trail Striders: a plain function, not `#[item]`
 
+```rust,ignore
 {{#include ../../examples/book_project/src/lib.rs:item_trail_striders}}
+```
 
 `trail_striders()` is a normal Rust function returning `CustomItem` — no
 `#[item]` attribute. Trailforge doesn't need a generated predicate for the

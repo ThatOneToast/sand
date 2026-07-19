@@ -3,9 +3,13 @@
 Trailforge's fifth event handler doesn't declare its own dispatch condition
 from scratch — it **chains** off another event entirely:
 
+```rust,ignore
 {{#include ../../examples/book_project/src/lib.rs:event_sprint_while_exhausted}}
+```
 
+```rust,ignore
 {{#include ../../examples/book_project/src/lib.rs:event_on_sprint_while_exhausted}}
+```
 
 `SandEventDispatch::chain::<PlayerSprintEvent>()` composes off
 `PlayerSprintEvent`, one of Sand's built-in vanilla-derived events (sprint

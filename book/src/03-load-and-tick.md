@@ -7,7 +7,9 @@ set up and then continuously drive its stamina/grapple system.
 
 ## Load: define, don't compute
 
+```rust,ignore
 {{#include ../../examples/book_project/src/lib.rs:load}}
+```
 
 `#[component(Load)]` registers this function to be called from the
 datapack's `#minecraft:load` function tag. Its job is narrow on purpose:
@@ -22,7 +24,9 @@ the datapack mid-session keeps their current stamina.
 
 ## Tick: react, don't poll blindly
 
+```rust,ignore
 {{#include ../../examples/book_project/src/lib.rs:tick}}
+```
 
 `#[component(Tick)]` registers this function to the `#minecraft:tick`
 function tag, so it runs once per tick for every online player context you

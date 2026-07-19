@@ -14,13 +14,24 @@ if (!port || version !== "1.21.4") {
   throw new Error(`semantic client requires a 1.21.4 server port; got ${version}:${port}`);
 }
 
-const bot = mineflayer.createBot({ host, port, username, version, auth: "offline" });
+const bot = mineflayer.createBot({
+  host,
+  port,
+  username,
+  version,
+  auth: "offline",
+  respawn: false,
+});
 let placedMatches = 0;
 let itemUsedMatches = 0;
 let whileSneakingMatches = 0;
 let afterAnyMatches = 0;
 let afterAllMatches = 0;
 let withinMatches = 0;
+let deathMatches = 0;
+let respawnAMatches = 0;
+let respawnBMatches = 0;
+let immediateRespawn = false;
 let interactionSequence = 0;
 let completed = false;
 
@@ -31,16 +42,34 @@ bot.on("messagestr", (message) => {
   if (message.includes("__SAND_SEMANTIC_AFTER_ANY__")) afterAnyMatches += 1;
   if (message.includes("__SAND_SEMANTIC_AFTER_ALL__")) afterAllMatches += 1;
   if (message.includes("__SAND_SEMANTIC_WITHIN__")) withinMatches += 1;
+  if (message.includes("__SAND_SEMANTIC_DEATH__")) deathMatches += 1;
+  if (message.includes("__SAND_SEMANTIC_RESPAWN_A__")) respawnAMatches += 1;
+  if (message.includes("__SAND_SEMANTIC_RESPAWN_B__")) respawnBMatches += 1;
+});
+
+bot.on("death", () => {
+  // A vanilla client performs this action automatically when immediate
+  // respawn is enabled. Mineflayer deliberately has auto-respawn disabled so
+  // the ordinary death-screen case can be held open and asserted first.
+  if (immediateRespawn) bot._client.write("client_command", { actionId: 0 });
 });
 
 function fail(message) {
   throw new Error(
-    `${message} (placed=${placedMatches}, item_used=${itemUsedMatches}, while_sneaking=${whileSneakingMatches}, after_any=${afterAnyMatches}, after_all=${afterAllMatches}, within=${withinMatches})`,
+    `${message} (placed=${placedMatches}, item_used=${itemUsedMatches}, while_sneaking=${whileSneakingMatches}, after_any=${afterAnyMatches}, after_all=${afterAllMatches}, within=${withinMatches}, death=${deathMatches}, respawn_a=${respawnAMatches}, respawn_b=${respawnBMatches})`,
   );
 }
 
 async function waitTicks(ticks = 10) {
   await new Promise((resolve) => setTimeout(resolve, ticks * 50));
+}
+
+async function waitFor(predicate, label, attempts = 100) {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    if (predicate()) return;
+    await waitTicks(2);
+  }
+  fail(`timed out waiting for ${label}`);
 }
 
 async function command(commandText) {
@@ -123,6 +152,31 @@ async function assertWithin(expected, label) {
   if (withinMatches !== expected) {
     fail(`${label}: expected within=${expected}`);
   }
+}
+
+async function assertLifecycle(expectedDeaths, expectedRespawns, label) {
+  await waitTicks(5);
+  if (
+    deathMatches !== expectedDeaths ||
+    respawnAMatches !== expectedRespawns ||
+    respawnBMatches !== expectedRespawns
+  ) {
+    fail(
+      `${label}: expected death=${expectedDeaths}, respawn_a=${expectedRespawns}, respawn_b=${expectedRespawns}`,
+    );
+  }
+}
+
+async function respawnClient() {
+  const spawned = new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error("respawn packet did not complete")), 5000);
+    bot.once("spawn", () => {
+      clearTimeout(timeout);
+      resolve();
+    });
+  });
+  bot._client.write("client_command", { actionId: 0 });
+  await spawned;
 }
 
 // Fires a scoreboard-driven stimulus without the standard `command()` 20-tick
@@ -315,8 +369,51 @@ bot.once("spawn", async () => {
       "current firing long after the last prior occurrence (window expired) must not match",
     );
 
+    // Issue #126: a held-open death screen must remain in WaitingForRespawn,
+    // both handlers must fan out exactly once after the client respawns, and a
+    // later lifecycle must reset independently.
+    await waitTicks(70);
+    bot.chat("/kill @s");
+    await waitFor(() => deathMatches === 1, "first death observation");
+    await waitTicks(30);
+    await assertLifecycle(1, 0, "held-open first death screen must not respawn");
+    await respawnClient();
+    await waitFor(
+      () => respawnAMatches === 1 && respawnBMatches === 1,
+      "both first respawn handlers",
+    );
+    await assertLifecycle(1, 1, "first respawn must reach every handler once");
+
+    await waitTicks(70);
+    bot.chat("/kill @s");
+    await waitFor(() => deathMatches === 2, "second death observation");
+    await waitTicks(15);
+    await assertLifecycle(2, 1, "second death screen must preserve the reset lifecycle");
+    await respawnClient();
+    await waitFor(
+      () => respawnAMatches === 2 && respawnBMatches === 2,
+      "both second respawn handlers",
+    );
+    await assertLifecycle(2, 2, "second respawn must fire once after reset");
+
+    // doImmediateRespawn tells a vanilla client to submit the respawn action
+    // immediately. Reproduce that client behavior and prove the statistic
+    // still supplies a distinct later observation cycle.
+    await command("gamerule doImmediateRespawn true");
+    await waitTicks(70);
+    immediateRespawn = true;
+    bot.chat("/kill @s");
+    await waitFor(() => deathMatches === 3, "immediate-respawn death observation");
+    await waitFor(
+      () => respawnAMatches === 3 && respawnBMatches === 3,
+      "both immediate-respawn handlers",
+    );
+    immediateRespawn = false;
+    await assertLifecycle(3, 3, "immediate respawn must remain a one-shot lifecycle");
+    await command("gamerule doImmediateRespawn false");
+
     console.log(
-      `PASSED semantic gameplay: placed=${placedMatches} item_used=${itemUsedMatches} while_sneaking=${whileSneakingMatches} after_any=${afterAnyMatches} after_all=${afterAllMatches} within=${withinMatches}`,
+      `PASSED semantic gameplay: placed=${placedMatches} item_used=${itemUsedMatches} while_sneaking=${whileSneakingMatches} after_any=${afterAnyMatches} after_all=${afterAllMatches} within=${withinMatches} death=${deathMatches} respawn_a=${respawnAMatches} respawn_b=${respawnBMatches}`,
     );
     completed = true;
     bot.end("semantic audit complete");

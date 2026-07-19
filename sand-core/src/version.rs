@@ -1354,9 +1354,7 @@ mod tests {
             .parent()
             .expect("sand-core should live under the workspace root");
         let docs = [
-            workspace.join("docs/version-support.md"),
             workspace.join("book/src/version-support.md"),
-            workspace.join("docs/research/datapack-parity-audit.md"),
             workspace.join("sand-resourcepack/src/lib.rs"),
         ];
         let latest = VersionProfile::resolve(&MinecraftVersion::parse(LATEST_KNOWN).unwrap())

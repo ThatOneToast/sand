@@ -291,9 +291,7 @@ Participant recovery (attacker/victim/interacted-entity/projectile-owner —
 #230 Phase 9) and arbitrary non-player scopes remain planned; they are not
 current APIs. `sand_core::participant` (#230 Phase 8) defines the typed
 reliability/availability/lifetime/capability vocabulary and graph
-propagation rules Phase 9 will populate — see
-[`docs/event-context.md`](../../../docs/event-context.md).
+propagation rules Phase 9 will populate.
 
-For generated-output and lifecycle details, see the focused
-[events reference](../../../docs/events.md). For trigger construction, continue
-to [Advancement Triggers](advancement-triggers.md).
+For trigger construction, continue to
+[Advancement Triggers](advancement-triggers.md).

@@ -134,3 +134,16 @@ reports are removed after migrating real limitations into rustdoc/book/tests;
 - Architecture tests (workspace `tests/`) guard the boundary: façade-only
   compile tests, no internal-crate imports in examples/book, no CLI deps in
   author builds, deterministic 26.2 export.
+
+## Appendix: retained v0.1.0 design decisions
+
+`Milestones.md` (the pre-1.0 milestone tracker, removed once this ADR
+landed) recorded several foundational design decisions from the original
+workspace bootstrap that this reorganization keeps unchanged: proc-macro
+registration through `inventory` (link-time collection, no manual wiring),
+builder-pattern component APIs with explicit raw-JSON/SNBT escape hatches
+rather than exhaustive struct literals, a standalone `sand.toml` (not
+embedded in `Cargo.toml`) for pack configuration, and strict
+`ResourceLocation` validation at construction time. None of these are
+revisited by the façade/crate-graph changes above; they remain load-bearing
+assumptions throughout `sand-core`, `sand-commands`, and `sand-components`.

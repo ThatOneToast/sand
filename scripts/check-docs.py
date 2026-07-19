@@ -15,14 +15,9 @@ DOC_GLOBS = (
     "CHANGELOG.md",
     "ROADMAP.md",
     "RELEASE.md",
-    "Datapacks.md",
-    "Milestones.md",
-    "AGENTS.md",
-    "llms.txt",
     "docs/**/*.md",
     "book/src/**/*.md",
     "examples/**/*.md",
-    "ai/**/*.md",
 )
 
 # Rustdoc that defines the public event model. Keep this deliberately focused:
@@ -120,7 +115,7 @@ def check_event_guard_regressions() -> list[str]:
         "#[event(id = \"pack:path\")]\nfn explicit(event: Event<Used>) {}",
     )
     failures: list[str] = []
-    synthetic = ROOT / "docs/events.md"
+    synthetic = ROOT / "docs/_event-guard-check.md"
     for case in stale_cases:
         if not check_stale_event_syntax(synthetic, case):
             failures.append(f"event-doc guard failed to reject: {case.splitlines()[0]}")

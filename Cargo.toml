@@ -13,7 +13,7 @@ members = [
     "sand-components",
     "sand-version",
 ]
-exclude = ["examples/arcane_pack"]
+exclude = ["examples/arcane_pack", "examples/book_project"]
 
 [workspace.package]
 version = "0.1.0"

@@ -31,7 +31,7 @@
 //! | [`OnJoinEvent`] | First tick after load, or new player mid-session | — |
 //! | [`FirstJoinEvent`] | Very first join ever | — |
 //! | [`OnDeathEvent`] | Any death (mob, fall, void, `/kill`, …) | — |
-//! | [`OnRespawnEvent`] | Tick after respawning from death | — |
+//! | [`OnRespawnEvent`] | First Sand tick observing post-death activity | — |
 //! | [`ArmorEquipEvent`] | Item equipped in an equipment slot | `slot` |
 //! | [`ArmorUnequipEvent`] | Item removed from an equipment slot | `slot` |
 //! | [`HoldingItemEvent`] | Holding item (every tick) | `item` |
@@ -1179,13 +1179,27 @@ pub struct FirstJoinEvent;
 /// ```
 pub struct OnDeathEvent;
 
-/// Fires on the tick after a player respawns from death.
+/// Fires on the first Sand tick that observes the player active after death.
 ///
 /// The preferred short name is [`sand_core::event::vanilla::OnRespawn`](crate::event::vanilla::OnRespawn).
 ///
-/// Sand tags each dying player with `__sand_was_dead` during the death check.
-/// Each tick, any player with that tag who is no longer in spectator mode
-/// (i.e. has respawned) triggers this event, then the tag is removed.
+/// Sand records a per-player waiting phase when `deathCount` observes a death.
+/// Vanilla resets `minecraft.custom:minecraft.time_since_death` to zero on
+/// death and increments it only while the player is alive; the event dispatches
+/// once that score is positive, then returns the phase to idle. The completion
+/// check runs before new death observation in one generated coordinator, so
+/// [`OnDeathEvent`] and this event cannot dispatch from the same death
+/// observation.
+///
+/// This is a tick-boundary signal rather than the exact client respawn packet.
+/// Remaining on the death screen (including disconnecting while dead) leaves
+/// the statistic at zero and the lifecycle waiting. Immediate respawn is
+/// supported, but still dispatches no earlier than the next Sand observation
+/// cycle. Hardcore's post-death spectator transition counts as active again if
+/// vanilla begins incrementing the statistic. Ordinary dimension changes do
+/// not enter the waiting phase and therefore do not dispatch this event. A
+/// respawn and another death that both complete between Sand ticks can coalesce
+/// because vanilla exposes no intermediate datapack callback.
 ///
 /// # Example
 ///

@@ -1,6 +1,6 @@
 //! Small deterministic datapack used only by vanilla load/reload validation.
 
-use sand_core::event::vanilla::{PlayerStartsSneaking, PlayerStopsSneaking};
+use sand_core::event::vanilla::{OnDeath, OnRespawn, PlayerStartsSneaking, PlayerStopsSneaking};
 use sand_core::events::{EventSetup, PlayerSneakEvent, SandEvent, SandEventDispatch, TickWindow};
 use sand_core::prelude::*;
 use sand_core::sand_state;
@@ -36,6 +36,24 @@ pub fn semantic_placed_reward() {
 pub fn semantic_item_used_reward() {
     cmd::raw("advancement revoke @s only sand_audit:semantic_item_used_on_block");
     cmd::raw(r#"tellraw @s {"text":"__SAND_SEMANTIC_ITEM_USED__"}"#)
+}
+
+/// Real-server evidence for the generated death observation boundary.
+#[event]
+pub fn semantic_death_lifecycle(_event: OnDeath) {
+    cmd::raw(r#"tellraw @s {"text":"__SAND_SEMANTIC_DEATH__"}"#)
+}
+
+/// First subscriber proving every handler receives the same respawn lifecycle.
+#[event]
+pub fn semantic_respawn_lifecycle_a(_event: OnRespawn) {
+    cmd::raw(r#"tellraw @s {"text":"__SAND_SEMANTIC_RESPAWN_A__"}"#)
+}
+
+/// Second subscriber proving fan-out completes before lifecycle reset.
+#[event]
+pub fn semantic_respawn_lifecycle_b(_event: OnRespawn) {
+    cmd::raw(r#"tellraw @s {"text":"__SAND_SEMANTIC_RESPAWN_B__"}"#)
 }
 
 static SEMANTIC_OCCURRENCE: ScoreVar<i32> = ScoreVar::new("sand_sem_occ");

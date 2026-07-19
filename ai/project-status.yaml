@@ -4,7 +4,7 @@
 # code-generated. See ai/maintenance.md for the update checklist. It records
 # repo-level status only; per-feature status lives in capability-manifest.yaml.
 schema_version: 1
-last_reviewed: "2026-07-16"
+last_reviewed: "2026-07-18"
 
 sand:
   version: "0.1.0"
@@ -105,8 +105,10 @@ test_and_validation_status:
       profiles. Passing reload proves parsing, not gameplay semantics; the
       separate 1.21.4 protocol-client fixture verifies placement, item-use,
       single-player persistent sneaking composition, and multi-parent
-      after_any/after_all same-cycle semantics.
-    last_local_run: "2026-07-16: profile load/reload passed on 1.21.4 and 26.2; semantic placement/item-use, persistent sneaking, and multi-parent after_any/after_all fixture passed on 1.21.4"
+      after_any/after_all same-cycle semantics. It also holds the death screen
+      open, verifies two respawn subscribers across repeated lifecycles, and
+      exercises immediate respawn through a real client action.
+    last_local_run: "2026-07-18: death/respawn lifecycle semantics passed on 1.21.4 (held death screen, two handlers, repeated lifecycle, immediate respawn); generated audit pack startup/reload passed on 1.21.4. 26.2 gameplay remains structural plus startup/reload validation."
     evidence:
       - scripts/validate-vanilla-reload.sh
       - scripts/validate-vanilla-semantics.sh

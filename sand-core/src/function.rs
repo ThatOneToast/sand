@@ -501,6 +501,9 @@ inventory::collect!(EventDescriptor);
 /// - `__ss_<hash>_p` (`dummy`) — phase countdown between executions (only
 ///   created when `every > 1`)
 ///
+/// The generated tick function evaluates and mutates these objectives once per
+/// active player under `execute as ...`, with the owner bound to `@s`.
+///
 /// # Usage
 /// Start / stop the schedule at runtime by calling the generated functions:
 /// ```mcfunction

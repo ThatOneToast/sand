@@ -79,9 +79,10 @@ impl Cooldown {
         )
     }
 
-    /// Decrement the cooldown by 1 tick for `selector` (only if score > 0).
+    /// Decrement the cooldown by 1 tick for one score holder (only if score > 0).
     ///
-    /// Place this in your tick function.
+    /// Use [`tick_all_players`](Self::tick_all_players) instead of passing a
+    /// multi-player selector such as `@a` here.
     pub fn tick(&self, selector: impl std::fmt::Display) -> String {
         let selector = selector.to_string();
         let obj = self.objective_name();
@@ -197,9 +198,21 @@ mod tests {
 
     #[test]
     fn tick_cmd() {
-        let cmd = DASH.tick("@a");
+        let cmd = DASH.tick("@s");
         assert!(cmd.contains("matches 1.."), "got: {cmd}");
-        assert!(cmd.contains("remove @a dash 1"), "got: {cmd}");
+        assert!(cmd.contains("remove @s dash 1"), "got: {cmd}");
+    }
+
+    #[test]
+    fn tick_all_players_is_per_player_safe() {
+        let command = DASH.tick_all_players();
+        assert_eq!(command, DASH.tick_all_players());
+        assert_eq!(
+            command,
+            "execute as @a if score @s dash matches 1.. run scoreboard players remove @s dash 1"
+        );
+        assert!(!command.contains("if score @a"));
+        assert!(!command.contains("remove @a"));
     }
 
     #[test]

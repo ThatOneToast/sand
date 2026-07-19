@@ -19,23 +19,18 @@ path = "src/bin/sand_resource_export.rs"
 {{/if}}
 [dependencies]
 {{#if use_path_deps}}
-sand-core   = { path = "{{sand_core_path}}" }
 {{#if resourcepack}}
-sand-macros = { path = "{{sand_macros_path}}", features = ["resourcepack"] }
-sand-resourcepack = { path = "{{sand_resourcepack_path}}" }
+sand = { path = "{{sand_path}}", features = ["resourcepack"] }
 {{else}}
-sand-macros = { path = "{{sand_macros_path}}" }
+sand = { path = "{{sand_path}}" }
 {{/if}}
 {{else}}
-sand-core   = { git = "{{sand_git_url}}", branch = "main" }
 {{#if resourcepack}}
-sand-macros = { git = "{{sand_git_url}}", branch = "main", features = ["resourcepack"] }
-sand-resourcepack = { git = "{{sand_git_url}}", branch = "main" }
+sand = { git = "{{sand_git_url}}", branch = "main", features = ["resourcepack"] }
 {{else}}
-sand-macros = { git = "{{sand_git_url}}", branch = "main" }
+sand = { git = "{{sand_git_url}}", branch = "main" }
 {{/if}}
 {{/if}}
-serde_json = "1"
 
 [build-dependencies]
 {{#if use_path_deps}}

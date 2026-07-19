@@ -22,12 +22,11 @@ pub use crate::execute_when::{if_, unless, when};
 // ── Command builders ──────────────────────────────────────────────────────────
 
 pub use crate::Damage;
-#[allow(deprecated)]
 pub use crate::cmd::{
     Actionbar, Bossbar, BossbarColor, BossbarStyle, DamageAmount, DamageBuilder, DamageKind,
-    EntityTargets, Execute, Inventory, InventorySlot, ObjectiveName, Particle, ParticleSpread,
+    EntityTargets, Execute, Inventory, ItemSlot, ObjectiveName, Particle, ParticleSpread,
     PlayerTargets, RawCommand, RenderCommand, ScoreHolder, Selector, SingleEntity, SinglePlayer,
-    SlotPattern, SoundSource, Title, Validate,
+    SoundSource, Title, Validate,
 };
 pub use crate::vfx::{
     IntoParticleStep, IntoSoundStep, IntoVfxSelector, Vfx, VfxParticle, VfxSound, VfxStep,
@@ -40,10 +39,6 @@ pub use crate::state::{
     ScoreRef, ScoreVar, SnbtCompound, SnbtValue, StorageField, StorageLocation, StorageSchema,
     StorageVar, Ticks, Timer, TypedGameState,
 };
-
-// ── Lifecycle registry ────────────────────────────────────────────────────────
-
-pub use crate::state::define_registered_state;
 
 // ── Optional systems ──────────────────────────────────────────────────────────
 
@@ -163,11 +158,6 @@ mod tests {
     fn prelude_exports_resource_locations_for_function_refs() {
         let id = ResourceLocation::new("example", "start").unwrap();
         assert_eq!(cmd::function(id).to_string(), "function example:start");
-    }
-
-    #[test]
-    fn prelude_exports_define_registered_state() {
-        let _drain: fn() -> Vec<String> = define_registered_state;
     }
 
     #[test]

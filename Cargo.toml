@@ -1,6 +1,18 @@
 [workspace]
 resolver = "3"
-members = ["sand-core", "sand", "sand-macros", "sand-build", "sand-example", "sand-vanilla-audit", "sand-resourcepack", "sand-commands", "sand-components", "sand-version"]
+members = [
+    "sand",
+    "sand-cli",
+    "sand-core",
+    "sand-macros",
+    "sand-build",
+    "sand-example",
+    "sand-vanilla-audit",
+    "sand-resourcepack",
+    "sand-commands",
+    "sand-components",
+    "sand-version",
+]
 exclude = ["examples/arcane_pack"]
 
 [workspace.package]

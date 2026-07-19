@@ -26,6 +26,7 @@ syn = { version = "2", features = ["full"] }
 
 [dev-dependencies]
 trybuild = { version = "1", features = ["diff"] }
+sand = { path = "../sand" }
 sand-core = { path = "../sand-core" }
 sand-macros = { path = "." }
 inventory = "0.3"

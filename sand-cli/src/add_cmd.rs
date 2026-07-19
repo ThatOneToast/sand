@@ -4,7 +4,7 @@ use anyhow::{Context, Result, bail};
 use colored::Colorize;
 
 use crate::config::SandConfig;
-use crate::scaffold::{WORKSPACE_ROOT, build_handlebars, write_rendered};
+use crate::scaffold::{build_handlebars, write_rendered};
 use sand_resourcepack::resource_pack_format_for;
 
 const SAND_RESOURCE_EXPORT_RS_HBS: &str =
@@ -36,7 +36,7 @@ pub fn run_resourcepack() -> Result<()> {
     // 2. Guard: already configured?
     let cargo_toml_src = std::fs::read_to_string("Cargo.toml")
         .context("failed to read Cargo.toml — run this from your project root")?;
-    if cargo_toml_src.contains("sand-resourcepack") {
+    if cargo_toml_src.contains("resourcepack") {
         println!(
             "{} resource pack support is already present in this project.",
             "Note:".dimmed()
@@ -116,102 +116,24 @@ pub fn run_resourcepack() -> Result<()> {
 
 // ── Patching helpers ──────────────────────────────────────────────────────────
 
-/// Extract the `(git_url, branch)` pair from any `sand-* = { git = "...",
-/// branch = "...", ... }` line in a `Cargo.toml` string, so a newly-added
-/// dep tracks the same repo/branch as the project's existing sand-* deps.
-fn extract_sand_git(cargo_toml: &str) -> Option<(String, String)> {
-    for line in cargo_toml.lines() {
-        let trimmed = line.trim_start();
-        if !trimmed.starts_with("sand-") || !trimmed.contains("git =") {
-            continue;
-        }
-        let git_url = extract_quoted_value(trimmed, "git = \"")?;
-        let branch =
-            extract_quoted_value(trimmed, "branch = \"").unwrap_or_else(|| "main".to_string());
-        return Some((git_url, branch));
-    }
-    None
-}
-
-/// Extract the version string from any legacy `sand-* = "X.Y.Z"` or
-/// `sand-* = { version = "X.Y.Z", ... }` line in a `Cargo.toml` string.
-/// Only present in projects scaffolded before Sand switched its default
-/// scaffold to git dependencies (Sand has never been published to
-/// crates.io, so a versioned dep here means an older, already-broken
-/// project — `sand add` matches its existing style rather than silently
-/// rewriting it).
-fn extract_sand_version(cargo_toml: &str) -> Option<String> {
-    for line in cargo_toml.lines() {
-        let trimmed = line.trim_start();
-        if !trimmed.starts_with("sand-") || trimmed.contains("git =") || trimmed.contains("path =")
-        {
-            continue;
-        }
-        // Simple form: sand-foo = "1.2.3"
-        if let Some(eq) = trimmed.find('=') {
-            let rhs = trimmed[eq + 1..].trim();
-            if rhs.starts_with('"') && rhs.ends_with('"') {
-                return Some(rhs[1..rhs.len() - 1].to_string());
-            }
-            // Inline table form: sand-foo = { version = "1.2.3", ... }
-            if let Some(version) = extract_quoted_value(rhs, "version = \"") {
-                return Some(version);
-            }
-        }
-    }
-    None
-}
-
-/// Find `prefix` in `s` and return the quoted value that follows it.
-fn extract_quoted_value(s: &str, prefix: &str) -> Option<String> {
-    let start = s.find(prefix)? + prefix.len();
-    let after = &s[start..];
-    let end = after.find('"')?;
-    Some(after[..end].to_string())
-}
-
-/// Add `sand-resourcepack` dep, `features = ["resourcepack"]` on sand-macros,
-/// and a `[[bin]] sand_resource_export` target to `Cargo.toml`.
+/// Add `features = ["resourcepack"]` to the project's `sand` dependency and a
+/// `[[bin]] sand_resource_export` target to `Cargo.toml`.
 fn patch_cargo_toml(original: &str, namespace: &str) -> Result<()> {
     let _ = namespace; // reserved for future namespace-aware path derivation
 
-    // Match the dependency style already used by this project's sand-* deps:
-    // path (contributor workspace), git (the default since Sand has no
-    // crates.io release), or a legacy version string (pre-existing projects
-    // scaffolded before the git-dep default). Falls back to a git dep
-    // against this CLI's own repo/main if no sand-* dep line is found.
-    let uses_path_deps = original
-        .lines()
-        .any(|l| l.trim_start().starts_with("sand-") && l.contains("path ="));
-
-    let sand_resourcepack_dep = if uses_path_deps {
-        let path = format!("{}/sand-resourcepack", WORKSPACE_ROOT);
-        format!("sand-resourcepack = {{ path = \"{path}\" }}")
-    } else if let Some((git_url, branch)) = extract_sand_git(original) {
-        format!("sand-resourcepack = {{ git = \"{git_url}\", branch = \"{branch}\" }}")
-    } else if let Some(version) = extract_sand_version(original) {
-        // Legacy versioned dep found — match it rather than mixing styles.
-        format!("sand-resourcepack = \"{version}\"")
-    } else {
-        let git_url = env!("CARGO_PKG_REPOSITORY");
-        format!("sand-resourcepack = {{ git = \"{git_url}\", branch = \"main\" }}")
-    };
-
     let mut lines: Vec<String> = original.lines().map(String::from).collect();
 
-    // 1. Modify the sand-macros line to add `features = ["resourcepack"]`.
-    //    Handles both dep forms:
-    //      sand-macros = { path = "..." }        → append before closing }
-    //      sand-macros = "0.1.0"                 → expand to inline table form
-    let mut modified_macros = false;
+    // Add `features = ["resourcepack"]` to the `sand` dependency. Handles:
+    //   sand = { path = "..." } / { git = "...", branch = "..." }  → insert before `}`
+    //   sand = "0.1.0"                                             → expand to table form
+    let mut modified = false;
     for line in &mut lines {
         let trimmed = line.trim_start();
-        if trimmed.starts_with("sand-macros") && !line.contains("resourcepack") {
+        let is_sand_dep = trimmed.starts_with("sand ") || trimmed.starts_with("sand=");
+        if is_sand_dep && !line.contains("resourcepack") {
             if let Some(idx) = line.rfind('}') {
-                // Inline table form: insert before closing `}`
                 line.insert_str(idx, ", features = [\"resourcepack\"]");
             } else if let Some(eq) = line.find('=') {
-                // Simple string form: `sand-macros = "0.1.0"` → expand
                 let rhs = line[eq + 1..].trim();
                 if rhs.starts_with('"') && rhs.ends_with('"') {
                     let ver = &rhs[1..rhs.len() - 1];
@@ -220,44 +142,19 @@ fn patch_cargo_toml(original: &str, namespace: &str) -> Result<()> {
                         format!("{lhs}= {{ version = \"{ver}\", features = [\"resourcepack\"] }}");
                 }
             }
-            modified_macros = true;
+            modified = true;
             break;
         }
     }
-    if !modified_macros {
-        // sand-macros not found — unusual, but don't abort. Warn instead.
+    if !modified {
         eprintln!(
-            "sand: warning: could not find `sand-macros` in Cargo.toml; \
-             add `features = [\"resourcepack\"]` manually."
+            "sand: warning: could not find the `sand` dependency in Cargo.toml; \
+             add `features = [\"resourcepack\"]` to it manually."
         );
     }
 
-    // 2. Append sand-resourcepack after the sand-macros line (or at end of deps).
-    //    Find the [dependencies] section and append there.
-    let dep_line = sand_resourcepack_dep;
-    let mut inserted_dep = false;
-    let mut result: Vec<String> = Vec::with_capacity(lines.len() + 2);
-    let mut in_deps = false;
-    for line in &lines {
-        let trimmed = line.trim();
-        if trimmed == "[dependencies]" {
-            in_deps = true;
-        } else if trimmed.starts_with('[') && trimmed != "[dependencies]" {
-            // Entering a new section — insert dep now if we were in [dependencies].
-            if in_deps && !inserted_dep {
-                result.push(dep_line.clone());
-                inserted_dep = true;
-            }
-            in_deps = false;
-        }
-        result.push(line.clone());
-    }
-    // If [dependencies] was the last section.
-    if in_deps && !inserted_dep {
-        result.push(dep_line.clone());
-    }
-
-    // 3. Append [[bin]] section for sand_resource_export at the end.
+    // Append [[bin]] section for sand_resource_export at the end.
+    let mut result = lines;
     result.push(String::new());
     result.push("[[bin]]".to_string());
     result.push("name = \"sand_resource_export\"".to_string());
@@ -316,7 +213,7 @@ fn patch_lib_rs(namespace: &str) -> Result<()> {
         "\n",
         "#[doc(hidden)]\n",
         "pub fn __sand_resource_export(namespace: &str) {\n",
-        "    println!(\"{}\", sand_resourcepack::export_resourcepack_json(namespace));\n",
+        "    println!(\"{}\", sand::resourcepack::export_resourcepack_json(namespace));\n",
         "}\n",
     );
 
@@ -327,14 +224,14 @@ fn patch_lib_rs(namespace: &str) -> Result<()> {
 }
 
 /// Attempt to add `hud_bar, hud_element, texture` to an existing
-/// `use sand_macros::{...}` statement. Returns the original string unchanged
+/// `use sand::{...}` statement. Returns the original string unchanged
 /// if the pattern is not found or the imports are already present.
 fn add_rp_imports(src: &str) -> String {
-    // Find `use sand_macros::{...};` and add the RP macros if not present.
+    // Find `use sand::{...};` and add the RP macros if not present.
     if src.contains("hud_bar") {
         return src.to_string();
     }
-    if let Some(idx) = src.find("use sand_macros::{")
+    if let Some(idx) = src.find("use sand::{")
         && let Some(end) = src[idx..].find("};")
     {
         let insert_at = idx + end;
@@ -352,7 +249,7 @@ fn add_rp_imports(src: &str) -> String {
 /// ```text
 /// // #[doc(hidden)]
 /// // pub fn __sand_resource_export(namespace: &str) {
-/// //     println!("{}", sand_resourcepack::export_resourcepack_json(namespace));
+/// //     println!("{}", sand::resourcepack::export_resourcepack_json(namespace));
 /// // }
 /// ```
 /// and strips the leading `// ` prefix from each line.
@@ -419,61 +316,21 @@ fn load_config() -> Result<SandConfig> {
 mod tests {
     use super::*;
 
-    const GIT_DEP_CARGO_TOML: &str = concat!(
-        "[package]\n",
-        "name = \"my_pack\"\n",
-        "version = \"0.1.0\"\n",
-        "\n",
-        "[dependencies]\n",
-        "sand-core   = { git = \"https://github.com/ThatOneToast/sand\", branch = \"main\" }\n",
-        "sand-macros = { git = \"https://github.com/ThatOneToast/sand\", branch = \"main\" }\n",
-        "serde_json = \"1\"\n",
-    );
-
-    const PATH_DEP_CARGO_TOML: &str = concat!(
-        "[package]\n",
-        "name = \"my_pack\"\n",
-        "version = \"0.1.0\"\n",
-        "\n",
-        "[dependencies]\n",
-        "sand-core   = { path = \"/workspace/sand-core\" }\n",
-        "sand-macros = { path = \"/workspace/sand-macros\" }\n",
-    );
-
-    const LEGACY_VERSION_CARGO_TOML: &str = concat!(
-        "[package]\n",
-        "name = \"my_pack\"\n",
-        "version = \"0.1.0\"\n",
-        "\n",
-        "[dependencies]\n",
-        "sand-core = \"0.1.0\"\n",
-        "sand-macros = \"0.1.0\"\n",
-    );
-
     #[test]
-    fn extract_sand_git_reads_url_and_branch() {
-        let (url, branch) = extract_sand_git(GIT_DEP_CARGO_TOML).unwrap();
-        assert_eq!(url, "https://github.com/ThatOneToast/sand");
-        assert_eq!(branch, "main");
-    }
-
-    #[test]
-    fn extract_sand_git_returns_none_for_path_deps() {
-        assert!(extract_sand_git(PATH_DEP_CARGO_TOML).is_none());
-    }
-
-    #[test]
-    fn extract_sand_version_ignores_git_and_path_deps() {
-        assert!(extract_sand_version(GIT_DEP_CARGO_TOML).is_none());
-        assert!(extract_sand_version(PATH_DEP_CARGO_TOML).is_none());
-        assert_eq!(
-            extract_sand_version(LEGACY_VERSION_CARGO_TOML),
-            Some("0.1.0".to_string())
+    fn uncomment_resource_export_hook_activates_commented_block() {
+        let src = concat!(
+            "// #[doc(hidden)]\n",
+            "// pub fn __sand_resource_export(namespace: &str) {\n",
+            "//     println!(\"{}\", sand::resourcepack::export_resourcepack_json(namespace));\n",
+            "// }\n",
         );
+        let out = uncomment_resource_export_hook(src);
+        assert!(out.contains("pub fn __sand_resource_export"));
+        assert!(!out.contains("// pub fn"));
     }
 
     // patch_cargo_toml writes directly to "Cargo.toml" in the process's
     // current directory, so it isn't exercised here to avoid clobbering the
-    // real file under test; the dependency-style selection it relies on is
-    // covered by the extract_sand_git/extract_sand_version tests above.
+    // real file under test; the CLI journey integration test covers the
+    // full `sand add resourcepack` flow.
 }

@@ -1,0 +1,53 @@
+[package]
+name = "sand-cli"
+description = "The `sand` command-line tool — scaffold, build, install, and run Minecraft datapacks written with the Sand library"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+keywords = ["minecraft", "datapack", "cli", "gamedev", "toolkit"]
+categories = ["command-line-utilities", "game-development"]
+
+[dependencies]
+sand-build = { path = "../sand-build" }
+sand-components = { path = "../sand-components" }
+sand-core = { path = "../sand-core" }
+sand-resourcepack = { path = "../sand-resourcepack" }
+clap = { version = "4", features = ["derive"] }
+# default-features off: handlebars 6.4.3+ enables `preserve_json_order` by
+# default, which flips serde_json to insertion-ordered maps workspace-wide and
+# breaks Sand's deterministic (sorted) JSON/SNBT output.
+handlebars = { version = "6", default-features = false }
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+zip = "2"
+walkdir = "2"
+colored = "2"
+base64 = "0.22"
+# Cross-platform Ctrl-C trapping: the standard library has no portable
+# SIGINT/Ctrl+C handling API, and this is required to shut the managed
+# Minecraft server down cleanly (send `stop`, wait for exit) instead of
+# leaving it orphaned when the user hits Ctrl-C in `sand run`.
+ctrlc = "3"
+
+[features]
+integration-tests = []
+
+[dev-dependencies]
+criterion = "0.5"
+tempfile = "3"
+
+# The installable command stays `sand` even though the package is `sand-cli`;
+# the `sand` package name belongs to the user-facing authoring library.
+[[bin]]
+name = "sand"
+path = "src/main.rs"
+
+[[bench]]
+name = "build_pipeline"
+harness = false

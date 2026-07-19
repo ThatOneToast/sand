@@ -129,10 +129,8 @@ pub fn write_scaffold_files(opts: &ScaffoldOptions) -> Result<()> {
 
     let pack_format = pack_format_for(&opts.mc_version);
     let resource_pack_format = resource_pack_format_for(&opts.mc_version);
-    let sand_core_path = format!("{}/sand-core", WORKSPACE_ROOT);
+    let sand_path = format!("{}/sand", WORKSPACE_ROOT);
     let sand_build_path = format!("{}/sand-build", WORKSPACE_ROOT);
-    let sand_macros_path = format!("{}/sand-macros", WORKSPACE_ROOT);
-    let sand_resourcepack_path = format!("{}/sand-resourcepack", WORKSPACE_ROOT);
 
     let ctx = json!({
         "name":                   opts.name,
@@ -142,10 +140,8 @@ pub fn write_scaffold_files(opts: &ScaffoldOptions) -> Result<()> {
         "mc_version":             opts.mc_version,
         "pack_format":            pack_format,
         "resource_pack_format":   resource_pack_format,
-        "sand_core_path":         sand_core_path,
+        "sand_path":              sand_path,
         "sand_build_path":        sand_build_path,
-        "sand_macros_path":       sand_macros_path,
-        "sand_resourcepack_path": sand_resourcepack_path,
         "resourcepack":           opts.resourcepack,
         "use_path_deps":          opts.use_path_deps,
         "sand_version":           SAND_VERSION,
@@ -287,10 +283,8 @@ mod tests {
             "mc_version":             "1.21.4",
             "pack_format":            pack_format,
             "resource_pack_format":   resource_pack_format,
-            "sand_core_path":         "/tmp/sand-core",
+            "sand_path":              "/tmp/sand",
             "sand_build_path":        "/tmp/sand-build",
-            "sand_macros_path":       "/tmp/sand-macros",
-            "sand_resourcepack_path": "/tmp/sand-resourcepack",
             "resourcepack":           false,
             "use_path_deps":          false,
             "sand_version":           "0.1.0",
@@ -341,7 +335,7 @@ mod tests {
         assert!(!lib_rs.contains("AdvancementTrigger::Tick"));
         assert!(lib_rs.contains("__sand_export"));
         // Attribute-first: scaffold uses typed commands, not raw mcfunction!
-        assert!(lib_rs.contains("use sand_core::prelude::*"));
+        assert!(lib_rs.contains("use sand::prelude::*"));
         assert!(lib_rs.contains("cmd::tellraw("));
         assert!(lib_rs.contains("cmd::call(hello_world)"));
         assert!(lib_rs.contains("Text::new("));
@@ -376,10 +370,8 @@ mod tests {
             "mc_version":             "1.21.4",
             "pack_format":            pack_format,
             "resource_pack_format":   resource_pack_format,
-            "sand_core_path":         "/tmp/sand-core",
+            "sand_path":              "/tmp/sand",
             "sand_build_path":        "/tmp/sand-build",
-            "sand_macros_path":       "/tmp/sand-macros",
-            "sand_resourcepack_path": "/tmp/sand-resourcepack",
             "resourcepack":           true,
             "use_path_deps":          false,
             "sand_version":           "0.1.0",
@@ -426,17 +418,15 @@ mod tests {
 
         let lib_rs = std::fs::read_to_string(project_dir.join("src/lib.rs")).unwrap();
         assert!(lib_rs.contains("pub fn __sand_resource_export"));
-        assert!(lib_rs.contains("hud_bar, hud_element, texture"));
 
         let cargo_toml = std::fs::read_to_string(project_dir.join("Cargo.toml")).unwrap();
-        assert!(cargo_toml.contains("sand-resourcepack"));
         assert!(cargo_toml.contains("features = [\"resourcepack\"]"));
         assert!(cargo_toml.contains("sand_resource_export"));
-        // Default scaffold emits git deps against main — no Sand crate should
-        // use path deps or a crates.io version (Sand isn't published there).
+        // Default scaffold emits git deps against main — the authoring dep
+        // must not use path deps or a crates.io version (Sand isn't published).
         assert!(
-            !cargo_toml.contains("sand-core = { path"),
-            "default scaffold must not contain path dep for sand-core"
+            !cargo_toml.contains("sand = { path"),
+            "default scaffold must not contain a path dep for sand"
         );
         assert!(
             !cargo_toml.contains("sand-build = { path"),
@@ -462,10 +452,8 @@ mod tests {
             "mc_version":             "1.21.4",
             "pack_format":            61,
             "resource_pack_format":   46,
-            "sand_core_path":         "/should/not/appear",
+            "sand_path":              "/should/not/appear",
             "sand_build_path":        "/should/not/appear",
-            "sand_macros_path":       "/should/not/appear",
-            "sand_resourcepack_path": "/should/not/appear",
             "resourcepack":           false,
             "use_path_deps":          false,
             "sand_version":           "0.1.0",
@@ -484,16 +472,16 @@ mod tests {
 
         let cargo_toml = std::fs::read_to_string(project_dir.join("Cargo.toml")).unwrap();
         assert!(
-            cargo_toml.contains("sand-core"),
-            "sand-core dep must be present"
-        );
-        assert!(
-            cargo_toml.contains("sand-macros"),
-            "sand-macros dep must be present"
+            cargo_toml.contains("sand = { git"),
+            "single `sand` authoring dep must be present"
         );
         assert!(
             cargo_toml.contains("sand-build"),
-            "sand-build dep must be present"
+            "sand-build build-dependency must be present"
+        );
+        assert!(
+            !cargo_toml.contains("sand-core") && !cargo_toml.contains("sand-macros"),
+            "generated projects must not depend on internal Sand crates"
         );
         assert!(
             cargo_toml.contains("git = \"https://github.com/ThatOneToast/sand\""),
@@ -504,12 +492,12 @@ mod tests {
             "default scaffold must track the main branch, not a tag/rev"
         );
         assert!(
-            !cargo_toml.contains("sand-core   = \"") && !cargo_toml.contains("sand-core = \""),
-            "default scaffold must not emit a bare crates.io version string for sand-core"
+            !cargo_toml.contains("sand = \""),
+            "default scaffold must not emit a bare crates.io version string for sand"
         );
         assert!(
-            !cargo_toml.contains("sand-core = { path"),
-            "default scaffold must not emit path dep for sand-core"
+            !cargo_toml.contains("sand = { path"),
+            "default scaffold must not emit a path dep for sand"
         );
         assert!(
             !cargo_toml.contains("sand-build = { path"),
@@ -539,10 +527,8 @@ mod tests {
             "mc_version":             "1.21.4",
             "pack_format":            61,
             "resource_pack_format":   46,
-            "sand_core_path":         "/workspace/sand-core",
+            "sand_path":              "/workspace/sand",
             "sand_build_path":        "/workspace/sand-build",
-            "sand_macros_path":       "/workspace/sand-macros",
-            "sand_resourcepack_path": "/workspace/sand-resourcepack",
             "resourcepack":           false,
             "use_path_deps":          true,
             "sand_version":           "0.1.0",
@@ -565,8 +551,8 @@ mod tests {
             "--path-deps scaffold must emit path deps"
         );
         assert!(
-            cargo_toml.contains("/workspace/sand-core"),
-            "workspace core path must appear"
+            cargo_toml.contains("sand = { path = \"/workspace/sand\""),
+            "workspace sand path must appear"
         );
         assert!(
             cargo_toml.contains("/workspace/sand-build"),

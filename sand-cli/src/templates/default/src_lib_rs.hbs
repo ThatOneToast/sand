@@ -2,13 +2,8 @@
 //!
 //! A Minecraft {{mc_version}} datapack built with [Sand](https://github.com/ThatOneToast/sand).
 
-use sand_core::events::OnJoinEvent;
-use sand_core::prelude::*;
-{{#if resourcepack}}
-use sand_macros::{event, function, hud_bar, hud_element, texture};
-{{else}}
-use sand_macros::{event, function};
-{{/if}}
+use sand::events::OnJoinEvent;
+use sand::prelude::*;
 
 // -- State ------------------------------------------------------------------
 
@@ -39,8 +34,8 @@ pub fn hello_world() {
 /// hand-written advancement or tick component is needed. Vanilla
 /// limitation: a mid-session disconnect/reconnect does not re-fire this
 /// event, because the join flag persists in `scoreboard.dat` (see
-/// `sand_core::events::OnJoinEvent`'s docs). For a "first time ever" welcome
-/// instead, use `Event<FirstJoinEvent>`. See `sand_core::events` for the
+/// `sand::events::OnJoinEvent`'s docs). For a "first time ever" welcome
+/// instead, use `Event<FirstJoinEvent>`. See `sand::events` for the
 /// full built-in event list (deaths, respawns, item use, block placement,
 /// and more).
 #[event]
@@ -62,14 +57,14 @@ pub fn on_join(event: Event<OnJoinEvent>) {
 #[doc(hidden)]
 pub fn __sand_export(namespace: &str, mc_version: &str) {
     // Resolve the version profile and gate components against it.
-    let resolved = match sand_core::version::resolve_export_caps(mc_version) {
+    let resolved = match sand::version::resolve_export_caps(mc_version) {
         Ok(resolved) => resolved,
         Err(e) => {
             eprintln!("sand export failed: {e}");
             std::process::exit(1);
         }
     };
-    match sand_core::try_export_components_json_for_version(
+    match sand::advanced::try_export_components_json_for_version(
         namespace,
         &resolved.caps,
         &resolved.version,
@@ -93,7 +88,7 @@ pub fn __sand_export(namespace: &str, mc_version: &str) {
 /// here with `pub use my_module::*;` to ensure they are linked.
 #[doc(hidden)]
 pub fn __sand_resource_export(namespace: &str) {
-    println!("{}", sand_resourcepack::export_resourcepack_json(namespace));
+    println!("{}", sand::resourcepack::export_resourcepack_json(namespace));
 }
 
 // -- Resource pack components -----------------------------------------------
@@ -152,9 +147,8 @@ pub fn __sand_resource_export(namespace: &str) {
 // Run `sand add resourcepack` to enable `sand build --resourcepack`, or follow
 // the manual steps below:
 //
-// 1. Add to Cargo.toml [dependencies]:
-//      sand-resourcepack = { path = "..." }
-//      sand-macros       = { path = "...", features = ["resourcepack"] }
+// 1. Enable the feature in Cargo.toml:
+//      sand = { ..., features = ["resourcepack"] }
 //
 // 2. Add a new binary target to Cargo.toml:
 //      [[bin]]
@@ -172,6 +166,6 @@ pub fn __sand_resource_export(namespace: &str) {
 //
 // #[doc(hidden)]
 // pub fn __sand_resource_export(namespace: &str) {
-//     println!("{}", sand_resourcepack::export_resourcepack_json(namespace));
+//     println!("{}", sand::resourcepack::export_resourcepack_json(namespace));
 // }
 {{/if}}

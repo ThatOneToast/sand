@@ -1,10 +1,10 @@
 use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
 
-use sand::build::package::zip_dir;
-use sand::build::records::{ComponentRecord, ResourcePackRecord};
-use sand::build::validate::{validate_component_records, validate_resourcepack_records};
-use sand::build::write::{write_component, write_rp_record};
-use sand::run_cmd;
+use sand_cli::build::package::zip_dir;
+use sand_cli::build::records::{ComponentRecord, ResourcePackRecord};
+use sand_cli::build::validate::{validate_component_records, validate_resourcepack_records};
+use sand_cli::build::write::{write_component, write_rp_record};
+use sand_cli::run_cmd;
 
 fn component_records(count: usize) -> Vec<ComponentRecord> {
     let records = (0..count)

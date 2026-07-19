@@ -4,8 +4,8 @@ use anyhow::{Context, Result, bail};
 use clap::{Parser, Subcommand};
 use colored::Colorize;
 
-use sand::scaffold::{ScaffoldOptions, name_to_namespace, validate_name};
-use sand::{add_cmd, build, join_cmd, run_cmd, scaffold};
+use sand_cli::scaffold::{ScaffoldOptions, name_to_namespace, validate_name};
+use sand_cli::{add_cmd, build, join_cmd, run_cmd, scaffold};
 
 // ── CLI definition ────────────────────────────────────────────────────────────
 

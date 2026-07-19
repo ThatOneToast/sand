@@ -11,6 +11,7 @@ path = "src/bin/sand_export.rs"
 doc = false
 
 [dependencies]
+sand = { path = "../sand" }
 sand-core = { path = "../sand-core" }
 sand-macros = { path = "../sand-macros" }
 

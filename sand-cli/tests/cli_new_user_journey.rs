@@ -20,7 +20,7 @@
 use std::path::Path;
 use std::path::PathBuf;
 
-use sand::scaffold::{ScaffoldOptions, name_to_namespace, validate_name, write_scaffold_files};
+use sand_cli::scaffold::{ScaffoldOptions, name_to_namespace, validate_name, write_scaffold_files};
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -233,8 +233,8 @@ fn generated_cargo_toml_uses_path_deps_when_requested() {
         "Cargo.toml must use path deps when use_path_deps=true"
     );
     assert!(
-        content.contains("sand-core"),
-        "Cargo.toml must depend on sand-core"
+        content.contains("sand = { path"),
+        "Cargo.toml must depend on the single `sand` authoring crate"
     );
     assert!(
         content.contains("sand-build"),
@@ -274,7 +274,7 @@ fn generated_lib_rs_has_required_sand_exports() {
         "src/lib.rs must define __sand_export"
     );
     assert!(
-        content.contains("sand_core::try_export_components_json_for_version"),
+        content.contains("sand::advanced::try_export_components_json_for_version"),
         "src/lib.rs must call try_export_components_json_for_version"
     );
     assert!(
@@ -282,8 +282,8 @@ fn generated_lib_rs_has_required_sand_exports() {
         "src/lib.rs must resolve the transported export version"
     );
     assert!(
-        content.contains("use sand_core::prelude::*"),
-        "src/lib.rs must import sand_core prelude"
+        content.contains("use sand::prelude::*"),
+        "src/lib.rs must import the sand prelude"
     );
 }
 

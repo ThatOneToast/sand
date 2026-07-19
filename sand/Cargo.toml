@@ -19,7 +19,7 @@ sand-resourcepack = { path = "../sand-resourcepack", optional = true }
 [features]
 default = []
 # HUD/resource-pack authoring (hud_bar!, hud_element!, texture! macros).
-resourcepack = ["dep:sand-resourcepack"]
+resourcepack = ["dep:sand-resourcepack", "sand-macros/resourcepack"]
 # Optional gameplay systems, forwarded to the implementation crate.
 systems-damage = ["sand-core/systems-damage"]
 systems-cooldowns = ["sand-core/systems-cooldowns"]

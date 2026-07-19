@@ -503,6 +503,18 @@ mod tests {
             validate_collected_line("execute if score @a mana matches 1.. run say no", &profile)
                 .is_err()
         );
+        for line in [
+            "scoreboard players operation @s target = @a source",
+            "scoreboard players operation @s target += @e source",
+            "scoreboard players operation @s target = @a[scores={source=1..}] source",
+            "execute as @a run scoreboard players operation @s target = @a source",
+            "execute as @e run scoreboard players operation @s target = @e source",
+        ] {
+            assert!(
+                validate_collected_line(line, &profile).is_err(),
+                "multi-holder operation source must be rejected: {line}"
+            );
+        }
     }
 
     #[test]

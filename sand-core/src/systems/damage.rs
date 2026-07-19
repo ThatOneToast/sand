@@ -500,6 +500,7 @@ mod tests {
     #[test]
     fn tick_players_uses_single_holder_operations() {
         let commands = DamageTracker::tick_players();
+        assert_eq!(commands, DamageTracker::tick_players());
         assert!(
             commands
                 .iter()
@@ -510,8 +511,12 @@ mod tests {
                 .iter()
                 .all(|command| !command.contains("operation @a"))
         );
-        assert!(commands[0].contains("operation @s"));
-        assert!(commands[0].contains("= @s"));
+        assert!(commands.iter().all(|command| !command.contains(" = @a")));
+        assert!(commands.iter().all(|command| !command.contains("-= @a")));
+        for index in [0, 1, 2, 5] {
+            assert!(commands[index].contains("operation @s"));
+            assert!(commands[index].contains(" @s sd_dmg_"));
+        }
     }
 
     // ── DamageThreshold unit conversion ──────────────────────────────────────

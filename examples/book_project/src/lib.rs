@@ -17,16 +17,19 @@
 //! cargo build         # library + sand_export binary only
 //! ```
 
+// ANCHOR: imports
 use sand::event::AdvancementEvent;
 use sand::event::trigger::InventoryChangedTrigger;
 use sand::event::vanilla::{FirstJoin, OnDeath};
 use sand::events::{PlayerSprintEvent, SandEvent, SandEventDispatch};
 use sand::prelude::*;
+// ANCHOR_END: imports
 
 // ── State ─────────────────────────────────────────────────────────────────────
 //
 // Scoreboard scores, flags, and timers plus one storage-backed variable.
 
+// ANCHOR: state
 /// Stamina fuels the grapple dash. Regenerates over time, capped at 100.
 static STAMINA: ScoreVar<i32> = ScoreVar::new("trail_stamina");
 
@@ -44,9 +47,11 @@ static REGEN: Timer = Timer::new("trail_regen", Ticks::seconds(2));
 
 /// Persistent pack tuning value kept in command storage.
 static GRAPPLE_RANGE: StorageVar<i32> = StorageVar::new("trail:data", "config.grapple_range");
+// ANCHOR_END: state
 
 // ── Load / Tick ───────────────────────────────────────────────────────────────
 
+// ANCHOR: load
 /// Runs once on `/reload` and world load: define objectives, seed storage.
 #[component(Load)]
 pub fn load() {
@@ -62,7 +67,9 @@ pub fn load() {
         Text::new("[Trailforge] loaded.").gold(),
     );
 }
+// ANCHOR_END: load
 
+// ANCHOR: tick
 /// Runs every tick: advance timers, regenerate stamina, drive the actionbar.
 #[component(Tick)]
 pub fn tick() {
@@ -108,9 +115,11 @@ pub fn tick() {
             Text::new("Catch your breath...").red(),
         ));
 }
+// ANCHOR_END: tick
 
 // ── Items ─────────────────────────────────────────────────────────────────────
 
+// ANCHOR: item_grapple_core
 /// The craftable upgrade material. `#[item]` generates a `GrappleCore` struct
 /// with a `PREDICATE` for `execute if items` checks.
 #[item]
@@ -127,7 +136,9 @@ pub fn grapple_core() -> CustomItem {
         .component(ItemComponent::rarity(Rarity::Rare))
         .component(ItemComponent::max_stack_size(1))
 }
+// ANCHOR_END: item_grapple_core
 
+// ANCHOR: item_trail_striders
 /// The upgraded boots granted by `trail:claim_striders`.
 pub fn trail_striders() -> CustomItem {
     CustomItem::new(ItemId::minecraft("leather_boots").unwrap())
@@ -146,9 +157,11 @@ pub fn trail_striders() -> CustomItem {
                 .slot(EquipmentSlotGroup::Feet),
         ))
 }
+// ANCHOR_END: item_trail_striders
 
 // ── Recipe ────────────────────────────────────────────────────────────────────
 
+// ANCHOR: recipe
 /// Shaped recipe for the Grapple Core: string frame around an ender pearl.
 #[component]
 pub fn grapple_core_recipe() -> ShapedRecipe {
@@ -159,9 +172,11 @@ pub fn grapple_core_recipe() -> ShapedRecipe {
         .result(RecipeResult::new("minecraft:heart_of_the_sea", 1))
         .category("equipment")
 }
+// ANCHOR_END: recipe
 
 // ── Functions ─────────────────────────────────────────────────────────────────
 
+// ANCHOR: fn_grapple
 /// Grapple dash entry point: gate on upgrade, stamina, cooldown, exhaustion.
 #[function("trail:grapple")]
 pub fn grapple() {
@@ -176,7 +191,9 @@ pub fn grapple() {
             ResourceLocation::new("trail", "grapple/execute").unwrap(),
         ));
 }
+// ANCHOR_END: fn_grapple
 
+// ANCHOR: fn_grapple_execute
 /// Applies the grapple dash: pay stamina, start the cooldown, launch, sparkle.
 #[function("trail:grapple/execute")]
 pub fn grapple_execute() {
@@ -192,7 +209,9 @@ pub fn grapple_execute() {
     grapple_vfx().play_at(Selector::self_());
     cmd::tellraw(Selector::self_(), Text::new("Whoosh!").aqua());
 }
+// ANCHOR_END: fn_grapple_execute
 
+// ANCHOR: fn_recover
 /// Clears exhaustion once stamina has recovered (called from `tick`).
 #[function("trail:recover")]
 pub fn recover() {
@@ -202,7 +221,9 @@ pub fn recover() {
         Text::new("You feel steady again.").green(),
     );
 }
+// ANCHOR_END: fn_recover
 
+// ANCHOR: fn_claim_striders
 /// Claim the Trail Striders upgrade while holding a Grapple Core.
 ///
 /// Demonstrates the `if_()` grouped-branch API: the `if` arm rejects players
@@ -228,15 +249,19 @@ pub fn claim_striders() {
             cmd::return_cmd(1);
         ]);
 }
+// ANCHOR_END: fn_claim_striders
 
+// ANCHOR: fn_open_menu
 /// Opens the trailhead menu dialog for the current player.
 #[function("trail:menu")]
 pub fn open_menu() {
     cmd::show_dialog(Selector::self_(), DialogRef::local("trailhead"));
 }
+// ANCHOR_END: fn_open_menu
 
 // ── Vfx ───────────────────────────────────────────────────────────────────────
 
+// ANCHOR: vfx
 /// Reusable dash effect: a particle burst plus a launch sound.
 fn grapple_vfx() -> Vfx {
     Vfx::new("grapple_dash")
@@ -252,9 +277,11 @@ fn grapple_vfx() -> Vfx {
                 .pitch(1.4),
         )
 }
+// ANCHOR_END: vfx
 
 // ── Dialog ────────────────────────────────────────────────────────────────────
 
+// ANCHOR: dialog
 /// The trailhead menu: one button per pack action.
 #[component]
 pub fn trailhead_dialog() -> Dialog {
@@ -270,9 +297,11 @@ pub fn trailhead_dialog() -> Dialog {
                 .action(DialogAction::run_function(claim_striders)),
         )
 }
+// ANCHOR_END: dialog
 
 // ── Events ────────────────────────────────────────────────────────────────────
 
+// ANCHOR: event_obtained_grapple_core
 /// Advancement-backed custom event: fires when a Grapple Core enters the
 /// player's inventory (guarded so it stays quiet after the upgrade).
 pub struct ObtainedGrappleCoreEvent;
@@ -289,7 +318,9 @@ impl AdvancementEvent for ObtainedGrappleCoreEvent {
         Some(HAS_STRIDERS.of("@s").is_false())
     }
 }
+// ANCHOR_END: event_obtained_grapple_core
 
+// ANCHOR: event_stamina_exhausted
 /// Tick-backed custom event: fires when a player runs out of stamina.
 /// The handler sets the `EXHAUSTED` flag, which also stops the event from
 /// re-firing until `trail:recover` clears it.
@@ -302,7 +333,9 @@ impl SandEvent for StaminaExhaustedEvent {
             .when(all![STAMINA.of("@s").lte(0), EXHAUSTED.of("@s").is_false(),])
     }
 }
+// ANCHOR_END: event_stamina_exhausted
 
+// ANCHOR: event_sprint_while_exhausted
 /// Chained event: composes off the built-in sprint detection and only fires
 /// while the sprinting player is exhausted.
 pub struct SprintingWhileExhaustedEvent;
@@ -312,7 +345,9 @@ impl SandEvent for SprintingWhileExhaustedEvent {
         SandEventDispatch::chain::<PlayerSprintEvent>().when(EXHAUSTED.of("@s").is_true())
     }
 }
+// ANCHOR_END: event_sprint_while_exhausted
 
+// ANCHOR: event_on_first_join
 /// First-ever join: seed stamina and greet the player.
 #[event]
 pub fn on_first_join(event: FirstJoin) {
@@ -322,7 +357,9 @@ pub fn on_first_join(event: FirstJoin) {
         .subtitle(Text::new("Craft a Grapple Core to begin").aqua())
         .build();
 }
+// ANCHOR_END: event_on_first_join
 
+// ANCHOR: event_on_death
 /// Death resets the traversal state so respawned players start steady.
 #[event]
 pub fn on_death(event: OnDeath) {
@@ -330,7 +367,9 @@ pub fn on_death(event: OnDeath) {
     GRAPPLE.stop(Selector::self_());
     STAMINA.set(event.player(), 100);
 }
+// ANCHOR_END: event_on_death
 
+// ANCHOR: event_on_obtained_grapple_core
 /// A Grapple Core arrives: point the player at the upgrade.
 #[event]
 pub fn on_obtained_grapple_core(event: Event<ObtainedGrappleCoreEvent>) {
@@ -340,7 +379,9 @@ pub fn on_obtained_grapple_core(event: Event<ObtainedGrappleCoreEvent>) {
     );
     cmd::call(open_menu);
 }
+// ANCHOR_END: event_on_obtained_grapple_core
 
+// ANCHOR: event_on_stamina_exhausted
 /// Stamina hit zero: mark the player exhausted.
 #[event]
 pub fn on_stamina_exhausted(_event: StaminaExhaustedEvent) {
@@ -350,7 +391,9 @@ pub fn on_stamina_exhausted(_event: StaminaExhaustedEvent) {
         Text::new("You are exhausted!").red().bold(true),
     );
 }
+// ANCHOR_END: event_on_stamina_exhausted
 
+// ANCHOR: event_on_sprint_while_exhausted
 /// Sprinting while exhausted is punished with brief slowness.
 #[event]
 pub fn on_sprint_while_exhausted(_event: SprintingWhileExhaustedEvent) {
@@ -358,6 +401,7 @@ pub fn on_sprint_while_exhausted(_event: SprintingWhileExhaustedEvent) {
         .duration(Ticks::seconds(2))
         .particles(false);
 }
+// ANCHOR_END: event_on_sprint_while_exhausted
 
 // ── Export hook (required by `sand build`) ────────────────────────────────────
 
@@ -365,6 +409,7 @@ pub fn on_sprint_while_exhausted(_event: SprintingWhileExhaustedEvent) {
 ///
 /// Calling into the library from the binary forces the linker to keep this
 /// object file, which is required for `inventory` registrations to run.
+// ANCHOR: export_hook
 #[doc(hidden)]
 pub fn __sand_export(namespace: &str, mc_version: &str) {
     let resolved = match sand::version::resolve_export_caps(mc_version) {
@@ -387,6 +432,7 @@ pub fn __sand_export(namespace: &str, mc_version: &str) {
         }
     }
 }
+// ANCHOR_END: export_hook
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 

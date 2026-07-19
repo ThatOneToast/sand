@@ -669,9 +669,13 @@ mod tests {
             score("@s", "rage", ScoreRange::Gte(10)),
         ]);
         let cmds = c.execute_commands(false, "say ok");
-        assert_eq!(cmds.len(), 2);
-        assert!(cmds[0].contains("mana"), "got: {}", cmds[0]);
-        assert!(cmds[1].contains("rage"), "got: {}", cmds[1]);
+        assert_eq!(
+            cmds,
+            vec![
+                "execute if score @s mana matches 25.. run say ok",
+                "execute if score @s rage matches 10.. run say ok",
+            ]
+        );
     }
 
     #[test]
@@ -680,12 +684,10 @@ mod tests {
         let c = !(Condition::any([flag("@s", "a", true), flag("@s", "b", true)]));
         let cmds = c.execute_commands(false, "say ok");
         assert_eq!(
-            cmds.len(),
-            1,
+            cmds,
+            vec!["execute unless score @s a matches 1 unless score @s b matches 1 run say ok"],
             "de Morgan should produce one chained command"
         );
-        assert!(cmds[0].contains("unless score @s a"), "got: {}", cmds[0]);
-        assert!(cmds[0].contains("unless score @s b"), "got: {}", cmds[0]);
     }
 
     #[test]
@@ -696,11 +698,12 @@ mod tests {
             Condition::predicate("my_pack:can_cast"),
         ]);
         let cmds = c.execute_commands(false, "say cast");
-        assert_eq!(cmds.len(), 1);
-        let cmd = &cmds[0];
-        assert!(cmd.contains("if score @s mana matches 25.."), "got: {cmd}");
-        assert!(cmd.contains("if score @s casting matches 0"), "got: {cmd}");
-        assert!(cmd.contains("if predicate my_pack:can_cast"), "got: {cmd}");
+        assert_eq!(
+            cmds,
+            vec![
+                "execute if score @s mana matches 25.. if score @s casting matches 0 if predicate my_pack:can_cast run say cast"
+            ]
+        );
     }
 
     // ── Nested Any lowering (the key bug fix) ────────────────────────────────
@@ -715,16 +718,13 @@ mod tests {
         let c = flag("@s", "sprinting", true);
         let cond = Condition::all([a, Condition::any([b, c])]);
         let cmds = cond.execute_commands(false, "say ok");
-        assert_eq!(cmds.len(), 2, "nested Any should expand: got {cmds:?}");
-        assert!(
-            cmds[0].contains("if score @s mana") && cmds[0].contains("if score @s casting"),
-            "got: {}",
-            cmds[0]
-        );
-        assert!(
-            cmds[1].contains("if score @s mana") && cmds[1].contains("if score @s sprinting"),
-            "got: {}",
-            cmds[1]
+        assert_eq!(
+            cmds,
+            vec![
+                "execute if score @s mana matches 25.. if score @s casting matches 0 run say ok",
+                "execute if score @s mana matches 25.. if score @s sprinting matches 1 run say ok",
+            ],
+            "nested Any should expand"
         );
     }
 
@@ -745,9 +745,14 @@ mod tests {
         let b = flag("@s", "casting", true);
         let cond = !(Condition::all([a, b]));
         let cmds = cond.execute_commands(false, "say ok");
-        assert_eq!(cmds.len(), 2, "NOT(AND) should give 2 plans");
-        assert!(cmds[0].contains("unless"), "got: {}", cmds[0]);
-        assert!(cmds[1].contains("unless"), "got: {}", cmds[1]);
+        assert_eq!(
+            cmds,
+            vec![
+                "execute unless score @s mana matches 25.. run say ok",
+                "execute unless score @s casting matches 1 run say ok",
+            ],
+            "NOT(AND) should give 2 plans"
+        );
     }
 
     #[test]
@@ -787,12 +792,11 @@ mod tests {
             Condition::raw("score @s sync_jumps < @s jumps"),
         ]);
         let cmds = c.execute_commands(false, "say ok");
-        assert_eq!(cmds.len(), 1);
-        assert!(cmds[0].contains("if score @s mana"), "got: {}", cmds[0]);
-        assert!(
-            cmds[0].contains("if score @s sync_jumps < @s jumps"),
-            "got: {}",
-            cmds[0]
+        assert_eq!(
+            cmds,
+            vec![
+                "execute if score @s mana matches 25.. if score @s sync_jumps < @s jumps run say ok"
+            ]
         );
     }
 
@@ -856,9 +860,10 @@ mod tests {
         let b = flag("@s", "casting", false);
         let cond = a.and(b);
         let cmds = cond.execute_commands(false, "say ok");
-        assert_eq!(cmds.len(), 1);
-        assert!(cmds[0].contains("if score @s mana"), "got: {}", cmds[0]);
-        assert!(cmds[0].contains("if score @s casting"), "got: {}", cmds[0]);
+        assert_eq!(
+            cmds,
+            vec!["execute if score @s mana matches 25.. if score @s casting matches 0 run say ok"]
+        );
     }
 
     #[test]
@@ -901,12 +906,11 @@ mod tests {
         let b = flag("@s", "casting", true);
         let cond = a.and_not(b);
         let cmds = cond.execute_commands(false, "say ok");
-        assert_eq!(cmds.len(), 1);
-        assert!(cmds[0].contains("if score @s mana"), "got: {}", cmds[0]);
-        assert!(
-            cmds[0].contains("unless score @s casting"),
-            "got: {}",
-            cmds[0]
+        assert_eq!(
+            cmds,
+            vec![
+                "execute if score @s mana matches 25.. unless score @s casting matches 1 run say ok"
+            ]
         );
     }
 
@@ -937,13 +941,11 @@ mod tests {
             .and(DASH2.ready("@s"))
             .and_not(CASTING2.of("@s").is_true());
         let cmds = guard.execute_commands(false, "function ns:handler");
-        assert_eq!(cmds.len(), 1);
-        assert!(cmds[0].contains("if score @s mana"), "got: {}", cmds[0]);
-        assert!(cmds[0].contains("if score @s dash"), "got: {}", cmds[0]);
-        assert!(
-            cmds[0].contains("unless score @s casting"),
-            "got: {}",
-            cmds[0]
+        assert_eq!(
+            cmds,
+            vec![
+                "execute if score @s mana matches 25.. if score @s dash matches 0 unless score @s casting matches 1 run function ns:handler"
+            ]
         );
     }
 }

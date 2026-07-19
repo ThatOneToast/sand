@@ -84,15 +84,18 @@ mod tests {
             1,
             "__sand_lifecycle_load record must appear exactly once"
         );
-        assert!(
-            load_recs[0]["content"]
-                .as_str()
-                .unwrap_or("")
-                .contains("scoreboard objectives add lc_test_mana dummy"),
-            "load function must contain the registered objective command"
+        assert_eq!(
+            load_recs[0]["content"].as_str().unwrap_or(""),
+            "scoreboard objectives add lc_test_mana dummy",
+            "load function must contain exactly the registered objective command"
         );
 
-        // The minecraft:load tag must reference it.
+        // The minecraft:load tag must reference it. Left as `.contains` (not
+        // `assert_eq!`) because `tag_values` reads the global component
+        // registry, which other tests (e.g. tags.rs) populate with their own
+        // minecraft:load entries outside of `registry_test_lock`; the full
+        // list's contents/order depend on which tests ran previously in this
+        // process, so only membership is deterministic.
         let load_tag = tag_values(&records, "minecraft:load");
         assert!(
             load_tag.contains(&"lcpack:__sand_lifecycle_load".to_string()),
@@ -120,14 +123,16 @@ mod tests {
             1,
             "__sand_lifecycle_tick record must appear exactly once"
         );
-        assert!(
-            tick_recs[0]["content"]
-                .as_str()
-                .unwrap_or("")
-                .contains("scoreboard players remove @a lc_test_cd 1"),
-            "tick function must contain the registered handler commands"
+        assert_eq!(
+            tick_recs[0]["content"].as_str().unwrap_or(""),
+            "scoreboard players remove @a lc_test_cd 1",
+            "tick function must contain exactly the registered handler commands"
         );
 
+        // Left as `.contains` (not `assert_eq!`) for the same reason as the
+        // minecraft:load tag check above: `tag_values` reads the global
+        // component registry, which other tests can populate with their own
+        // minecraft:tick entries outside of `registry_test_lock`.
         let tick_tag = tag_values(&records, "minecraft:tick");
         assert!(
             tick_tag.contains(&"lcpack:__sand_lifecycle_tick".to_string()),
@@ -175,17 +180,14 @@ mod tests {
         let lines: Vec<&str> = content.lines().collect();
 
         // BTreeMap guarantees alphabetical order.
-        assert!(
-            lines[0].contains("lc_alpha"),
-            "first command must be lc_alpha (alphabetical), got: {lines:?}"
-        );
-        assert!(
-            lines[1].contains("lc_mana"),
-            "second command must be lc_mana, got: {lines:?}"
-        );
-        assert!(
-            lines[2].contains("lc_zeta"),
-            "third command must be lc_zeta, got: {lines:?}"
+        assert_eq!(
+            lines,
+            vec![
+                "scoreboard objectives add lc_alpha dummy",
+                "scoreboard objectives add lc_mana dummy",
+                "scoreboard objectives add lc_zeta dummy",
+            ],
+            "commands must appear in alphabetical order, got: {lines:?}"
         );
     }
 }

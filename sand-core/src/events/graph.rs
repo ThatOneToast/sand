@@ -1495,7 +1495,13 @@ mod tests {
             &mut advancement_bridges,
         )
         .unwrap_err();
-        assert!(err.0.contains("self-dependency"));
+        assert_eq!(
+            err.0,
+            format!(
+                "SandEvent `{a}` has an invalid `after` self-dependency through parent `{a}`",
+                a = std::any::type_name::<A>()
+            )
+        );
     }
 
     #[test]

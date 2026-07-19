@@ -499,15 +499,20 @@ mod tests {
     fn xp_score_operations_are_lowered_per_player() {
         let commands = super::xp_score_commands();
         assert_eq!(commands, super::xp_score_commands());
-        assert!(
-            commands
-                .iter()
-                .all(|command| !command.contains("operation @a"))
+        assert_eq!(
+            commands,
+            vec![
+                "execute as @a store result score @s __sand_xp_lvl run experience query @s levels"
+                    .to_string(),
+                "execute as @a unless score @s __sand_xp_seen matches 1 run scoreboard players operation @s __sand_xp_prev = @s __sand_xp_lvl"
+                    .to_string(),
+                "scoreboard players set @a __sand_xp_seen 1".to_string(),
+                "execute as @a run scoreboard players operation @s __sand_xp_delta = @s __sand_xp_lvl"
+                    .to_string(),
+                "execute as @a run scoreboard players operation @s __sand_xp_delta -= @s __sand_xp_prev"
+                    .to_string(),
+            ]
         );
-        assert!(commands.iter().all(|command| !command.contains(" = @a")));
-        assert!(commands.iter().all(|command| !command.contains("-= @a")));
-        assert!(commands.contains(&"execute as @a run scoreboard players operation @s __sand_xp_delta = @s __sand_xp_lvl".to_string()));
-        assert!(commands.contains(&"execute as @a run scoreboard players operation @s __sand_xp_delta -= @s __sand_xp_prev".to_string()));
         assert_eq!(
             super::xp_advance_command(),
             "execute as @a run scoreboard players operation @s __sand_xp_prev = @s __sand_xp_lvl"
@@ -613,12 +618,12 @@ mod tests {
             .cloned()
             .or_else(|| err.downcast_ref::<&str>().map(|s| s.to_string()))
             .unwrap_or_default();
-        assert!(message.contains("my_pack:on_elevator_placed"), "{message}");
-        assert!(
-            message.contains("more than one dispatch strategy"),
-            "{message}"
+        assert_eq!(
+            message,
+            "Custom SandEvent for handler `my_pack:on_elevator_placed` returned more than one \
+             dispatch strategy (make_trigger/make_condition/make_tick/make_chain) — implement \
+             exactly one"
         );
-        assert!(message.contains("exactly one"), "{message}");
     }
 
     #[test]
@@ -631,17 +636,13 @@ mod tests {
         );
         let err = result.expect_err("invalid trigger should be rejected");
         let msg = err.to_string();
-        assert!(
-            msg.contains("cannot export advancement event `legacy_level_up`"),
-            "error should name the handler path, got: {msg}"
-        );
-        assert!(
-            msg.contains("minecraft:leveled_up"),
-            "error should include the invalid trigger ID, got: {msg}"
-        );
-        assert!(
-            msg.contains("experience query"),
-            "error should include the migration diagnostic, got: {msg}"
+        assert_eq!(
+            msg,
+            "component `test:legacy_level_up` (advancement_event): cannot export advancement \
+             event `legacy_level_up`: advancement trigger `minecraft:leveled_up` is not \
+             available for Sand's supported Minecraft targets. use tick polling: `execute \
+             store result score @s <objective> run experience query @s levels`, then compare \
+             the stored score [field: trigger]"
         );
     }
 

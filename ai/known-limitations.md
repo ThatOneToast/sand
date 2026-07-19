@@ -1,6 +1,6 @@
 # Known limitations
 
-Consolidated, reviewed 2026-07-15. Each entry has a stable ID, so other files
+Consolidated, reviewed 2026-07-18. Each entry has a stable ID, so other files
 and PRs can reference it (`[[LIM-XXX-NNN]]`). This file summarizes; it does
 not replace the detailed source docs it cites — follow the evidence links for
 depth.
@@ -55,6 +55,19 @@ can remove them.
   (e.g. via damage-amount heuristics), not detected exactly.
   Affects: `advancement-triggers`, `damage-tracking`.
   Evidence: `book/src/reference/vanilla-limitations.md`.
+
+- **LIM-VAN-007** — Vanilla datapacks do not receive the client respawn packet.
+  Sand can observe a death, then infer that the player is active again when
+  `minecraft.custom:minecraft.time_since_death` advances from its death-reset
+  value of zero. This is reliable at tick boundaries, including a held-open
+  death screen and immediate respawn, but a complete respawn followed by
+  another death between two Sand ticks can coalesce into one observed
+  lifecycle.
+  Affects: `events-typed`, `lifecycle-events`.
+  Evidence: `sand-core/src/component.rs`,
+  `sand-core/tests/respawn_lifecycle_export.rs`,
+  `book/src/reference/event-trigger-matrix.md`,
+  `scripts/validate-vanilla-semantics.sh`.
 
 ## Sand API limitations
 

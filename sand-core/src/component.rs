@@ -713,31 +713,85 @@ fn try_export_components_impl(
     }
 
     // ── DeathTick + RespawnTick aggregation ───────────────────────────────────
+    death_tick_events.sort_by_key(|desc| desc.path);
+    respawn_tick_events.sort_by_key(|desc| desc.path);
     let needs_death_check = !death_tick_events.is_empty() || !respawn_tick_events.is_empty();
     if needs_death_check {
         let init_path = "__sand_death_init";
+        let mut init_cmds = vec!["scoreboard objectives add __sand_dc deathCount".to_string()];
+        if !respawn_tick_events.is_empty() {
+            init_cmds.extend([
+                "scoreboard objectives add __sand_tsd minecraft.custom:minecraft.time_since_death"
+                    .to_string(),
+                "scoreboard objectives add __sand_rp dummy".to_string(),
+            ]);
+        }
         records.push(ComponentRecord {
             namespace: namespace.to_string(),
             dir: "function".to_string(),
             path: init_path.to_string(),
             ext: "mcfunction".to_string(),
             content_type: "text".to_string(),
-            content: "scoreboard objectives add __sand_dc deathCount".to_string(),
+            content: init_cmds.join("\n"),
         });
         tag_map
             .entry("minecraft:load".to_string())
             .or_default()
             .push(format!("{namespace}:{init_path}"));
 
+        // A single coordinator owns both halves of the lifecycle. The respawn
+        // check runs before this tick's new death observation, so even when
+        // immediate respawn makes `time_since_death` positive quickly, the
+        // death and respawn handlers cannot dispatch from the same observation
+        // cycle. This explicit function call is the ordering mechanism; the
+        // relative order of minecraft:tick tag entries is irrelevant.
+        if !respawn_tick_events.is_empty() {
+            let respawn_dispatch_path = "__sand_respawn_dispatch";
+            let mut dispatch_cmds: Vec<String> = respawn_tick_events
+                .iter()
+                .map(|desc| format!("function {namespace}:{}", desc.path))
+                .collect();
+            dispatch_cmds.push("scoreboard players set @s __sand_rp 0".to_string());
+            records.push(ComponentRecord {
+                namespace: namespace.to_string(),
+                dir: "function".to_string(),
+                path: respawn_dispatch_path.to_string(),
+                ext: "mcfunction".to_string(),
+                content_type: "text".to_string(),
+                content: dispatch_cmds.join("\n"),
+            });
+
+            records.push(ComponentRecord {
+                namespace: namespace.to_string(),
+                dir: "function".to_string(),
+                path: "__sand_respawn_check".to_string(),
+                ext: "mcfunction".to_string(),
+                content_type: "text".to_string(),
+                content: format!(
+                    "execute as @a[scores={{__sand_rp=1,__sand_tsd=1..}}] \
+                     run function {namespace}:{respawn_dispatch_path}"
+                ),
+            });
+        }
+
         let check_path = "__sand_death_check";
         let mut check_cmds: Vec<String> = Vec::new();
+        if !respawn_tick_events.is_empty() {
+            check_cmds.push(format!("function {namespace}:__sand_respawn_check"));
+        }
         check_cmds.push(
             "execute as @a[scores={__sand_dc=1..}] run tag @s add __sand_just_died".to_string(),
         );
         check_cmds.push("scoreboard players set @a __sand_dc 0".to_string());
-        // Tag dying players so the respawn check can detect them later.
+        // Enter the waiting phase only after the respawn check above. The
+        // custom statistic is reset to zero by vanilla on death and increments
+        // only while the player is alive, so phase=1 + time_since_death=1..
+        // is the first observable post-death active-player state.
         if !respawn_tick_events.is_empty() {
-            check_cmds.push("tag @a[tag=__sand_just_died] add __sand_was_dead".to_string());
+            check_cmds.push(
+                "execute as @a[tag=__sand_just_died] run scoreboard players set @s __sand_rp 1"
+                    .to_string(),
+            );
         }
         for desc in &death_tick_events {
             check_cmds.push(format!(
@@ -759,34 +813,6 @@ fn try_export_components_impl(
             .entry("minecraft:tick".to_string())
             .or_default()
             .push(format!("{namespace}:{check_path}"));
-    }
-
-    // ── RespawnTick check ─────────────────────────────────────────────────────
-    if !respawn_tick_events.is_empty() {
-        let respawn_path = "__sand_respawn_check";
-        let mut respawn_cmds: Vec<String> = Vec::new();
-        for desc in &respawn_tick_events {
-            respawn_cmds.push(format!(
-                "execute as @a[tag=__sand_was_dead,gamemode=!spectator] \
-                 run function {namespace}:{}",
-                desc.path
-            ));
-        }
-        // Remove the tag once the player has respawned (i.e. exited spectator).
-        respawn_cmds.push("tag @a[gamemode=!spectator] remove __sand_was_dead".to_string());
-
-        records.push(ComponentRecord {
-            namespace: namespace.to_string(),
-            dir: "function".to_string(),
-            path: respawn_path.to_string(),
-            ext: "mcfunction".to_string(),
-            content_type: "text".to_string(),
-            content: respawn_cmds.join("\n"),
-        });
-        tag_map
-            .entry("minecraft:tick".to_string())
-            .or_default()
-            .push(format!("{namespace}:{respawn_path}"));
     }
 
     // ── XpLevelUp aggregation ─────────────────────────────────────────────────

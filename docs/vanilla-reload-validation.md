@@ -75,9 +75,21 @@ proven precisely by the deterministic `sand-core` unit and export tests
 which assert the exact generated `matches ..N-1` condition and coordinator
 ordering rather than timing a real server.
 
+The lifecycle fixture for #126 registers one `OnDeath` handler and two
+`OnRespawn` handlers. With Mineflayer auto-respawn disabled, the client holds
+the death screen open and proves that death dispatches once while neither
+respawn handler fires; after submitting the respawn action, both handlers fire
+once. It repeats the full lifecycle to prove reset, then enables
+`doImmediateRespawn` and reproduces the vanilla client's immediate respawn
+action to prove death and respawn remain distinct Sand observation cycles.
+This is real single-player 1.21.4 evidence for the per-player phase and
+`time_since_death` signal. Two-player isolation is structural test evidence,
+and 26.2 remains strict export plus startup/reload evidence because the
+protocol client does not support that profile.
+
 The semantic client currently supports 1.21.4 only. No semantic claim is made
-for 26.2, for advancement triggers outside those two cases, or for persistent
-providers other than current sneaking.
+for 26.2 gameplay, for advancement triggers outside those two cases, or for
+persistent providers other than current sneaking.
 For advancement triggers,
 `sand_components::advancement::trigger_coverage` tracks this distinction via
 `vanilla_load_tested_profiles` and `semantic_runtime_tested_profiles`. The
@@ -151,7 +163,7 @@ scripts/validate-vanilla-reload.sh \
   --output target/vanilla-reload/1.21.4
 
 # Optional gameplay semantics for placement, item use, persistent sneaking,
-# and multi-parent same-cycle composition:
+# event composition, and death/respawn lifecycle:
 scripts/validate-vanilla-semantics.sh sand-vanilla-audit/dist/sand_audit
 ```
 

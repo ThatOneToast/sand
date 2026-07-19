@@ -70,6 +70,10 @@ emerging 26.x series. Capability decisions flow through `VersionProfile`.
   typed `Event<T>` handler-context accessor exists yet; victim,
   interacted-entity, and projectile-owner recovery remain unimplemented —
   see the Phase 10 role-evidence audit in `docs/event-context.md`.
+  Built-in death/respawn dispatch now uses one explicitly ordered per-player
+  phase coordinator and vanilla's `time_since_death` alive signal; it remains
+  a tick-boundary observation rather than a client-packet callback
+  (`LIM-VAN-007`).
 - Resource pack generation — functional but requires manual setup.
 - crates.io publishing — not yet available; build from workspace.
 

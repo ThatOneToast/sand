@@ -8,6 +8,17 @@ event, not by the handler's name.
 | `AdvancementEvent` | One vanilla advancement trigger | `Event<T>` |
 | `SandEvent` | Typed tick observation, lifecycle, generic definitions, same-cycle composition, and explicit persistent conditions | A concrete unit marker |
 
+Built-in `OnDeath` and `OnRespawn` use one Sand-owned player lifecycle
+coordinator. `deathCount` enters a per-player waiting phase;
+`minecraft.custom:minecraft.time_since_death` becoming positive proves the
+player is active after that death, dispatches every respawn subscriber, and
+returns the phase to idle. The coordinator checks prior respawn completion
+before observing new deaths, so correctness does not depend on
+`minecraft:tick` function-tag order and one death observation cannot dispatch
+both handlers. `OnRespawn` is therefore a deterministic tick-boundary signal,
+not the exact client respawn packet; see `LIM-VAN-007` in
+[`ai/known-limitations.md`](../ai/known-limitations.md).
+
 ## AdvancementEvent: one stateless vanilla trigger
 
 An `AdvancementEvent` type defines one trigger plus optional reset, guard, ID,

@@ -1084,7 +1084,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
             }
         }
 
-        // OnRespawnEvent / OnRespawn — tick poll after death tag
+        // OnRespawnEvent / OnRespawn — phase + time_since_death tick lifecycle
         "OnRespawnEvent" | "OnRespawn" => {
             quote! {
                 #preamble

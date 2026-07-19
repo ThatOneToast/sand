@@ -57,7 +57,7 @@ These fire on discrete player lifecycle transitions.
 | `OnJoinEvent` | `sand_core::event::vanilla::OnJoin` | Do something when a player connects | Generated scoreboard/tick detection using `__sand_join` | Sand tick / `JoinTick` scoreboard | Medium | Low | Fires on initial join/load detection. Mid-session disconnect/reconnect without `/reload` does not re-fire. |
 | `FirstJoinEvent` | `sand_core::event::vanilla::FirstJoin` | One-time welcome / starter kit | `minecraft:tick` advancement, never revoked | Advancement (OncePerPlayer) | High | Negligible | Fires once per player account across all sessions. Cannot un-fire. |
 | `OnDeathEvent` | `sand_core::event::vanilla::OnDeath` | React to any player death | `deathCount` scoreboard criterion | Sand tick / scoreboard | High | Low | Fires for any cause: mob, fall, void, `/kill`. Cannot distinguish cause without a separate tracker. |
-| `OnRespawnEvent` | `sand_core::event::vanilla::OnRespawn` | React to respawn (after death screen) | Sand tag `__sand_was_dead` + spectator-mode check | Sand tick / entity tag | Medium | Low | One-tick delay after the player leaves spectator. Does not fire for `/gamemode survival` outside of a death cycle. |
+| `OnRespawnEvent` | `sand_core::event::vanilla::OnRespawn` | React once a player is active after an observed death | Per-player phase + `minecraft.custom:minecraft.time_since_death` | Sand tick / scoreboard | Medium | Low | Fires on the first Sand tick where the post-death statistic is positive. Waiting on the death screen stays at zero; immediate respawn works but is still tick-boundary observed. |
 
 ---
 
@@ -208,7 +208,14 @@ matrix because they are traits or infrastructure, not callable event types:
   `FirstJoinEvent` uses an advancement grant that is never revoked — it fires
   exactly once per player for the lifetime of the datapack.
 
-- **`OnRespawnEvent` uses a tag, not a vanilla trigger.** Sand detects respawn
-  via the `__sand_was_dead` entity tag placed on death and removed when the
-  player re-enters a non-spectator gamemode. Edge case: `/gamemode survival` on
-  a newly spectating player will trigger this.
+- **`OnRespawnEvent` is a phased scoreboard observation, not a client-packet
+  hook.** Sand enters a per-player waiting phase after `deathCount` observes a
+  death. It dispatches all respawn handlers once
+  `minecraft.custom:minecraft.time_since_death` is positive, which vanilla does
+  only while that player is alive, then resets the phase. The respawn check and
+  new-death observation are explicitly ordered inside one generated function;
+  function-tag ordering is not part of correctness. Remaining on the death
+  screen or disconnecting while dead preserves the waiting phase. Hardcore's
+  spectator transition counts if vanilla resumes the statistic; ordinary
+  dimension changes never enter the phase. A complete respawn followed by
+  another death between two Sand ticks may coalesce.

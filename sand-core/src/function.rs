@@ -280,11 +280,15 @@ pub enum EventDispatch {
     /// `scoreboard.dat`. True per-login detection requires a mod or plugin.
     JoinTick,
 
-    /// Fires on the tick after a player respawns from death.
+    /// Fires on the first Sand tick that observes a player active after an
+    /// observed death.
     ///
-    /// Piggybacks on the death check: dying players receive a
-    /// `__sand_was_dead` tag, which is cleared once they are no longer in
-    /// spectator mode. Sand generates a `__sand_respawn_check` tick function.
+    /// Sand keeps a per-player phase score and gates completion on vanilla's
+    /// `minecraft.custom:minecraft.time_since_death` statistic becoming
+    /// positive after death reset it to zero. The respawn check runs before
+    /// new deaths inside one generated coordinator, so one death observation
+    /// cannot dispatch both `DeathTick` and `RespawnTick` in the same cycle.
+    /// This is a tick-boundary observation, not the client respawn packet.
     RespawnTick,
 
     /// Tick-polled condition — fires every tick the condition is true.

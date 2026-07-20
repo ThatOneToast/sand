@@ -1,9 +1,12 @@
 [package]
 name = "sand-vanilla-audit"
-version.workspace = true
-edition.workspace = true
-license.workspace = true
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+rust-version = "1.96.0"
 publish = false
+
+[workspace]
 
 [[bin]]
 name = "sand_export"

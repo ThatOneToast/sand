@@ -7,13 +7,18 @@ members = [
     "sand-macros",
     "sand-build",
     "sand-example",
-    "sand-vanilla-audit",
     "sand-resourcepack",
     "sand-commands",
     "sand-components",
     "sand-version",
 ]
-exclude = ["examples/arcane_pack", "examples/book_project"]
+# sand-vanilla-audit, like examples/arcane_pack and examples/book_project, is
+# always built standalone (via `sand build` with cwd set to its directory),
+# never through `cargo build --workspace`. Excluding it keeps its `sand_export`
+# bin out of the shared target/ directory, which otherwise collides with
+# sand-example's identically-named bin (both are dogfood/fixture crates using
+# the same generated-binary convention).
+exclude = ["examples/arcane_pack", "examples/book_project", "sand-vanilla-audit"]
 
 [workspace.package]
 version = "0.1.0"

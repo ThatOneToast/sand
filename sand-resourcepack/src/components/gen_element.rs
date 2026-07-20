@@ -5,7 +5,7 @@ use crate::sprite::{Color, gen_element_png};
 /// A static HUD overlay element whose texture is **generated at build time**
 /// from a solid color rather than copied from a user-supplied PNG.
 ///
-/// Constructed via the [`hud_element!`] macro with a `gen!(...)` expression
+/// Constructed via the `hud_element!` macro with a `gen!(...)` expression
 /// in the `texture:` field:
 ///
 /// ```rust,ignore
@@ -19,7 +19,6 @@ use crate::sprite::{Color, gen_element_png};
 /// );
 /// ```
 ///
-/// [`hud_element!`]: sand_macros::hud_element
 pub struct GenHudElement {
     /// Unique identifier used in diagnostics and codepoint derivation.
     pub name: &'static str,

@@ -20,7 +20,7 @@ use crate::components::font::{BitmapFont, BitmapProvider};
 ///
 /// # Macro
 ///
-/// Prefer the [`hud_bar!`](sand_macros::hud_bar) macro over constructing this
+/// Prefer the `hud_bar!` macro over constructing this
 /// struct directly. Unicode codepoints are assigned automatically — you do not
 /// need to specify them:
 ///

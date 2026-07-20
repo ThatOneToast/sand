@@ -11,7 +11,9 @@
 use crate::events::graph::tick_event_resource_key;
 
 use super::ExportCtx;
-use super::armor::{armor_watch_key, build_item_cond};
+use super::armor::{
+    ArmorWatchEntry, ArmorWatchKey, allocate_armor_tag_keys, armor_watch_key, build_item_cond,
+};
 use super::diagnostics::validate_function_records;
 use super::dialogs::{dialog_callback_export_lock, drain_dialog_callbacks_into};
 use super::events::{
@@ -37,7 +39,7 @@ pub(crate) fn try_export_components_impl(
     ctx: Option<&ExportCtx>,
 ) -> ExportResult<Vec<ComponentRecord>> {
     use crate::function::{
-        ArmorEventDescriptor, ArmorEventKind, ArmorSlot, ComponentFactory, EventDescriptor,
+        ArmorEventDescriptor, ArmorEventKind, ComponentFactory, EventDescriptor,
         FunctionDescriptor, FunctionTagDescriptor,
     };
     use crate::inventory;
@@ -112,14 +114,10 @@ pub(crate) fn try_export_components_impl(
         std::collections::BTreeSet::new();
     // Shared armor watch map — populated by both EventDescriptor ArmorEquip/
     // ArmorUnequip dispatch and the legacy ArmorEventDescriptor entries.
-    // (slot, item_id, custom_data_snbt, Vec<(is_equip, path)>)
-    type ArmorWatchEntry = (
-        ArmorSlot,
-        Option<&'static str>,
-        Option<&'static str>,
-        Vec<(bool, &'static str)>,
-    );
-    let mut armor_watch_map: BTreeMap<String, ArmorWatchEntry> = BTreeMap::new();
+    // Keyed by the exact (slot, item_id, custom_data_snbt) tuple — see
+    // `armor::ArmorWatchKey` — so distinct filters can never merge under a
+    // lossy sanitized-string key.
+    let mut armor_watch_map: BTreeMap<ArmorWatchKey, ArmorWatchEntry> = BTreeMap::new();
 
     for desc in inventory::iter::<EventDescriptor>() {
         // Always emit the handler function body first.
@@ -1455,10 +1453,12 @@ pub(crate) fn try_export_components_impl(
     if !armor_watch_map.is_empty() {
         let armor_path = "__sand_armor_check";
         let mut armor_cmds: Vec<String> = Vec::new();
+        let armor_tag_keys = allocate_armor_tag_keys(&armor_watch_map);
 
         for (key, (slot, item_id, custom_data_snbt, handlers)) in &armor_watch_map {
-            let tag_now = format!("__armor_{key}_now");
-            let tag_had = format!("__armor_{key}_had");
+            let tag_key = &armor_tag_keys[key];
+            let tag_now = format!("__armor_{tag_key}_now");
+            let tag_had = format!("__armor_{tag_key}_had");
             let cond = build_item_cond(*slot, *item_id, *custom_data_snbt);
 
             // Tag players currently wearing/holding the item.

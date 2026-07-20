@@ -53,3 +53,11 @@ the supporting source/test references.
   not wall-clock recency, when players may disconnect mid-window. Evidence:
   `sand-core/src/component.rs` (bounded age-counter maintenance),
   `sand-core/tests/event_chain_within_export.rs`.
+
+- **Participant roles without a vanilla relation/NBT read path are
+  `Unavailable`, not guessed.** Victim, direct attacker, interacted entity,
+  projectile, and ammunition have no credible vanilla-exposed evidence for
+  any current event family — see
+  [`participant-role-evidence.md`](participant-role-evidence.md) for the
+  full role-by-role audit, including why `execute on origin` (a real,
+  implemented relation) still isn't wired to any event today.

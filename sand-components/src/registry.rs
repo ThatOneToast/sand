@@ -184,7 +184,7 @@ registry_id! {
 ///
 /// Minecraft serializes tags as `#namespace:path` in some contexts (item
 /// predicates) and `namespace:path` in others (data files).  Use
-/// [`TagId::to_tag_string`] for the `#`-prefixed form and [`Display`] for
+/// [`TagId::to_tag_string`] for the `#`-prefixed form and [`fmt::Display`] for
 /// the plain form.
 ///
 /// # Example

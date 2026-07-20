@@ -12,9 +12,9 @@
 //!
 //! | Scenario | Use |
 //! |---|---|
-//! | `#[event]` handler with typed trigger | [`AdvancementEvent`] trait |
+//! | `#[event]` handler with typed trigger | [`AdvancementEvent`](crate::event::AdvancementEvent) trait |
 //! | Programmatic advancement in a `#[component]` fn | [`EventBuilder`] |
-//! | Bridging: pull trait impls into value form | [`AdvancementEvent::into_config()`] |
+//! | Bridging: pull trait impls into value form | [`AdvancementEvent::into_config()`](crate::event::AdvancementEvent::into_config) |
 //!
 //! # Example
 //!
@@ -55,7 +55,8 @@ use crate::state::{Cooldown, Flag, ScoreVar, StorageField, StorageVar, Timer};
 /// `EventConfig` is a plain value — it holds everything needed to generate
 /// the advancement JSON and reward-function prologue for one event.
 ///
-/// Obtain one via [`EventBuilder::build`] or [`AdvancementEvent::into_config`].
+/// Obtain one via [`EventBuilder::build`] or
+/// [`AdvancementEvent::into_config`](crate::event::AdvancementEvent::into_config).
 pub struct EventConfig {
     /// The advancement trigger that Minecraft watches.
     pub trigger: AdvancementTrigger,

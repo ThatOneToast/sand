@@ -99,7 +99,7 @@ pub struct BarStat {
     /// Scoreboard objective that stores the current frame index.
     ///
     /// Pass this directly to [`BarHandle::broadcast_commands`] if you are not
-    /// using [`HudLayout::tracked_bar`].
+    /// using [`HudLayout::tracked_bar`](crate::HudLayout::tracked_bar).
     pub frame_obj: String,
     source: StatSource,
 }

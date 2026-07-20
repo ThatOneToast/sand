@@ -74,7 +74,7 @@ jobs:
         env:
           SAND_MC_VERSION: ${{ matrix.version }}
           SAND_STRICT_CODEGEN: "1"
-        run: cargo run -p sand -- build
+        run: cargo run -p sand-cli -- build
 
       - name: Validate initial load and reload
         run: |

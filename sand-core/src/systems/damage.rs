@@ -44,7 +44,7 @@
 
 use crate::cmd::SingleEntity;
 use crate::condition::{Condition, ScoreRange};
-use crate::state::{ScoreVar, Ticks};
+use crate::state::Ticks;
 
 // ── Objective names ────────────────────────────────────────────────────────────
 
@@ -382,34 +382,6 @@ impl DamageTracker {
     pub fn clear_recent_damage(selector: impl std::fmt::Display) -> String {
         format!("scoreboard players set {} {DAMAGE_LAST_OBJ} 0", selector)
     }
-
-    // ── Deprecated compatibility shims ────────────────────────────────────────
-
-    /// Condition: `selector` was damaged this tick (delta > 0).
-    ///
-    /// Deprecated: use [`damaged_this_tick`](DamageTracker::damaged_this_tick).
-    #[deprecated(note = "use DamageTracker::damaged_this_tick")]
-    pub fn recently_damaged(selector: &str) -> Condition {
-        Self::damaged_this_tick(selector)
-    }
-
-    /// Condition: `selector` took at least `min_raw` damage this tick.
-    ///
-    /// Deprecated: use [`current_damage_at_least`](DamageTracker::current_damage_at_least)
-    /// with [`DamageThreshold`].
-    #[deprecated(note = "use DamageTracker::current_damage_at_least(DamageThreshold::raw_stat(v))")]
-    pub fn damaged_at_least(selector: &str, min_raw: i32) -> Condition {
-        Self::current_damage_at_least(selector, DamageThreshold::raw_stat(min_raw))
-    }
-
-    /// The delta objective name.
-    ///
-    /// Deprecated: use objective constants directly.
-    #[deprecated(note = "use DAMAGE_DELTA_OBJ constant")]
-    pub fn delta_objective() -> String {
-        let var: ScoreVar<i32> = ScoreVar::new(DAMAGE_DELTA_OBJ);
-        var.objective_name()
-    }
 }
 
 // ── Free function shims ───────────────────────────────────────────────────────
@@ -712,34 +684,6 @@ mod tests {
             cond,
             Condition::Score {
                 range: ScoreRange::Gte(1),
-                ..
-            }
-        ));
-    }
-
-    // ── Deprecated API still compiles and works ───────────────────────────────
-
-    #[test]
-    #[allow(deprecated)]
-    fn deprecated_recently_damaged_still_works() {
-        let cond = DamageTracker::recently_damaged("@s");
-        assert!(matches!(
-            cond,
-            Condition::Score {
-                range: ScoreRange::Gte(1),
-                ..
-            }
-        ));
-    }
-
-    #[test]
-    #[allow(deprecated)]
-    fn deprecated_damaged_at_least_still_works() {
-        let cond = DamageTracker::damaged_at_least("@s", 20);
-        assert!(matches!(
-            cond,
-            Condition::Score {
-                range: ScoreRange::Gte(20),
                 ..
             }
         ));

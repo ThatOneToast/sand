@@ -60,59 +60,47 @@ mod tests {
 
     #[test]
     fn arcane_load_commands() {
-        let cmds = arcane_load();
-        assert!(
-            cmds.iter()
-                .any(|c| c.contains("scoreboard objectives add arcane_mana"))
-        );
-        assert!(
-            cmds.iter()
-                .any(|c| c.contains("scoreboard objectives add arcane_dash"))
-        );
-        assert!(
-            cmds.iter()
-                .any(|c| c.contains("data modify storage arcane:dogfood"))
+        assert_eq!(
+            arcane_load(),
+            vec![
+                "scoreboard objectives add arcane_mana dummy",
+                "scoreboard objectives add arcane_dash dummy",
+                "data modify storage arcane:dogfood player.settings set value 100",
+            ]
         );
     }
 
     #[test]
     fn arcane_tick_commands() {
-        let cmds = arcane_tick();
-        assert!(
-            cmds.iter()
-                .any(|c| c.contains("scoreboard players remove") && c.contains("arcane_dash"))
-        );
-        assert!(
-            cmds.iter()
-                .any(|c| c.contains("actionbar") && c.contains("Dash ready"))
+        assert_eq!(
+            arcane_tick(),
+            vec![
+                "execute as @a if score @s arcane_dash matches 1.. run scoreboard players remove @s arcane_dash 1",
+                "execute as @a if score @s arcane_mana matches 25.. if score @s arcane_dash matches 0 run title @s actionbar {\"bold\":true,\"color\":\"aqua\",\"text\":\"Dash ready\"}",
+            ]
         );
     }
 
     #[test]
     fn arcane_cast_checks_conditions() {
-        let cmds = commands_for("cast");
-        assert!(
-            cmds.iter()
-                .any(|c| c.contains("score @s arcane_mana matches 25.."))
-        );
-        assert!(
-            cmds.iter()
-                .any(|c| c.contains("function arcane_dogfood:cast/execute"))
+        assert_eq!(
+            commands_for("cast"),
+            vec![
+                "execute as @a at @s if score @s arcane_mana matches 25.. if score @s arcane_dash matches 0 run function arcane_dogfood:cast/execute",
+            ]
         );
     }
 
     #[test]
     fn arcane_cast_execute_applies_effects() {
-        let cmds = commands_for("cast/execute");
-        assert!(
-            cmds.iter()
-                .any(|c| c.contains("scoreboard players remove") && c.contains("arcane_mana"))
+        assert_eq!(
+            commands_for("cast/execute"),
+            vec![
+                "scoreboard players remove @s arcane_mana 25",
+                "scoreboard players set @s arcane_dash 60",
+                "tellraw @s {\"color\":\"gold\",\"text\":\"Dash cast!\"}",
+            ]
         );
-        assert!(
-            cmds.iter()
-                .any(|c| c.contains("scoreboard players set") && c.contains("arcane_dash"))
-        );
-        assert!(cmds.iter().any(|c| c.contains("Dash cast")));
     }
 
     #[test]

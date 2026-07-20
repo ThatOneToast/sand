@@ -13,6 +13,8 @@ cargo doc --workspace --all-features --no-deps
 mdbook build
 ```
 
+If `mdbook` is unavailable locally, install it with `cargo install mdbook`.
+
 Or use the combined check script:
 
 ```sh
@@ -42,15 +44,18 @@ scripts/check.sh
 
 ## Supported Minecraft versions
 
-- 1.19 through 1.21.x (pack formats 9-61)
-- 26.x series (emerging, fallback capabilities via `VersionProfile`)
+Minecraft Java 26.2 is the canonical export/profile target
+(`sand_version::LATEST_KNOWN`); 1.21.4 is retained as an explicit
+oldest-profile/compatibility boundary (`sand_version::CI_STABLE_CODEGEN_VERSION`).
+Unknown/future versions fall back to conservative capabilities via
+`VersionProfile::resolve()`.
 
 ## Publishing
 
-Sand is not yet published to crates.io. Build from the workspace:
+Sand is not yet published to crates.io. Build the CLI from the workspace:
 
 ```sh
-cargo build -p sand --release
+cargo install --path sand-cli
 ```
 
 ## Post-release

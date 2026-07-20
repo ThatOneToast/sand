@@ -174,7 +174,7 @@ impl Serialize for AdvancementDisplay {
 
 /// Represents a trigger condition for an advancement criterion.
 ///
-/// Each variant uses typed predicate structs from [`sand_components::predicates`]
+/// Each variant uses typed predicate structs from [`crate::predicates`]
 /// instead of raw `serde_json::Value`. Prefer the typed associated constructors
 /// for variants whose public fields remain strings for source compatibility.
 /// The [`Custom`](AdvancementTrigger::Custom) variant is the legacy raw shape;

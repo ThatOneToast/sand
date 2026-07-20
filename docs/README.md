@@ -1,48 +1,21 @@
 # Sand Documentation
 
-Sand is organized around typed Rust APIs that compile to vanilla Minecraft Java
-datapacks and optional resource packs.
+This directory holds Sand's internal architecture, compiler, and testing
+notes — for maintainers and contributors, not the authoring guide.
 
-This directory contains focused reference docs, audits, and development notes.
-The [mdBook guide](../book/src/introduction.md) is the user-facing project guide; this directory is focused reference, audit, and migration material.
+The [mdBook guide](../book/src/introduction.md) is the single canonical
+user-facing documentation tree: tutorials, the manual, and reference pages
+for typed state, commands, conditions, events, items, and more.
 
-## Beginner Path
+## Contents
 
-- [Getting Started](getting-started.md)
-- [Authoring Model](authoring-model.md)
-- [Typed State](typed-state.md)
-- [Typed Commands](typed-commands.md)
-- [Conditions](conditions.md)
-- [Typed Execute](typed-execute.md)
-- [Events](events.md)
-- [Damage](damage.md)
-- [Storage And NBT](storage-nbt.md)
-- [Version Capabilities](version-capabilities.md)
+- [Architecture](architecture.md) and [architecture/](architecture/) — crate
+  boundaries ([ADR 001](architecture/adr-001-crate-boundaries.md)), the
+  compiler/export pipeline, and the event dependency graph.
+- [testing/vanilla-limitations.md](testing/vanilla-limitations.md) —
+  evidence-linked reference for constraints of vanilla Minecraft itself that
+  no amount of Sand typing can remove.
 
-## Systems reference
-
-The guide owns long tutorials. Its current manual pages cover [inventory](../book/src/manual/inventory.md), [movement](../book/src/manual/movement.md), [entities/interactables](../book/src/manual/entities.md), [custom items](../book/src/manual/custom-items.md), [item events](../book/src/manual/item-events.md), and [player data](../book/src/manual/player-data.md). These APIs are feature-gated and experimental; verify the target Minecraft version before depending on generated command/component syntax.
-
-## Datapack Components
-
-- [Components](components.md)
-- [Dialogs](dialogs.md)
-- [Advancement Events](advancement-events.md)
-- Advancements, recipes, loot tables, predicates, item modifiers, and tags are
-  covered from [Components](components.md) and [Examples](examples.md).
-
-## Advanced
-
-- [Storage And NBT](storage-nbt.md)
-- [Version Support](version-support.md)
-- [Version Capabilities](version-capabilities.md)
-- [Architecture](architecture.md)
-- [Testing](testing.md)
-- [Escape Hatches](escape-hatches.md)
-- [Examples](examples.md)
-
-## Agent-facing guides
-
-- [Typed state agent guide](agents/state-guide.md) — concise patterns for
-  `GameState<S>`, transitions, enter/exit hooks, per-state tick, lifecycle
-  registration, and the transition backend. Pairs with [Typed State](typed-state.md).
+For contributor workflow (checks, toolchain policy, testing commands), see
+[`CONTRIBUTING.md`](../CONTRIBUTING.md). For release process, see
+[`RELEASE.md`](../RELEASE.md).

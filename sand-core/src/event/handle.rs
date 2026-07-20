@@ -104,7 +104,7 @@ impl<E> EventHandle<E> {
     /// Revoke (re-arm) the advancement for this event.
     ///
     /// Emits `advancement revoke <selector> only <ns>:<path>`.  The advancement
-    /// resource location is resolved from the [`EventPathEntry`] registry
+    /// resource location is resolved from the [`EventPathEntry`](crate::function::EventPathEntry) registry
     /// populated by the `#[event]` macro; the namespace sentinel is replaced at
     /// export time by [`crate::component::export_components_json`].
     ///

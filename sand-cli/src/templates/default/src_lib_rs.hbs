@@ -1,0 +1,171 @@
+//! # {{name}}
+//!
+//! A Minecraft {{mc_version}} datapack built with [Sand](https://github.com/ThatOneToast/sand).
+
+use sand::events::OnJoinEvent;
+use sand::prelude::*;
+
+// -- State ------------------------------------------------------------------
+
+static PLAYER_DATA: StorageVar<i32> = StorageVar::new("{{namespace}}:data", "player.mana");
+
+// -- Functions -------------------------------------------------------------
+
+/// Sends a welcome message to the joining player.
+///
+/// Automatically written to `data/{{namespace}}/function/hello_world.mcfunction`
+/// by `sand build`. Called from `on_join` below via a typed function
+/// reference (`cmd::call`), and callable directly with `/function {{namespace}}:hello_world`.
+#[function]
+pub fn hello_world() {
+    cmd::tellraw(
+        Selector::self_(),
+        Text::new("Welcome to {{name}}!").gold().bold(true),
+    );
+}
+
+// -- Events ------------------------------------------------------------------
+
+/// Runs `hello_world` for a player on the first tick after each server
+/// start/reload, and for any new player who joins mid-session.
+///
+/// `OnJoinEvent` is Sand's built-in join event — `#[event]` generates the
+/// scoreboard-backed detection and per-player dispatch automatically; no
+/// hand-written advancement or tick component is needed. Vanilla
+/// limitation: a mid-session disconnect/reconnect does not re-fire this
+/// event, because the join flag persists in `scoreboard.dat` (see
+/// `sand::events::OnJoinEvent`'s docs). For a "first time ever" welcome
+/// instead, use `Event<FirstJoinEvent>`. See `sand::events` for the
+/// full built-in event list (deaths, respawns, item use, block placement,
+/// and more).
+#[event]
+pub fn on_join(event: Event<OnJoinEvent>) {
+    let _ = event;
+    cmd::call(hello_world);
+}
+
+// -- Datapack export hook -- required by `sand build`, do not remove -------
+
+/// Invoked by the generated `sand_export` binary.
+///
+/// Calling this function from the binary forces the linker to include this
+/// library's object file, which is required for `inventory::submit!`
+/// constructor functions to run before `main`.
+///
+/// If you add components in separate modules, re-export them here with
+/// `pub use my_module::*;` to ensure they are also linked.
+#[doc(hidden)]
+pub fn __sand_export(namespace: &str, mc_version: &str) {
+    // Resolve the version profile and gate components against it.
+    let resolved = match sand::version::resolve_export_caps(mc_version) {
+        Ok(resolved) => resolved,
+        Err(e) => {
+            eprintln!("sand export failed: {e}");
+            std::process::exit(1);
+        }
+    };
+    match sand::advanced::try_export_components_json_for_version(
+        namespace,
+        &resolved.caps,
+        &resolved.version,
+        resolved.is_fallback,
+    ) {
+        Ok(json) => println!("{json}"),
+        Err(e) => {
+            eprintln!("sand export failed: {e}");
+            std::process::exit(1);
+        }
+    }
+}
+
+{{#if resourcepack}}
+// -- Resource pack export hook -- required by `sand build --resourcepack` ----
+
+/// Invoked by `src/bin/sand_resource_export.rs` to collect all registered
+/// resource pack components (`hud_bar!`, `hud_element!`, `texture!`).
+///
+/// If you add resource pack components in separate modules, re-export them
+/// here with `pub use my_module::*;` to ensure they are linked.
+#[doc(hidden)]
+pub fn __sand_resource_export(namespace: &str) {
+    println!("{}", sand::resourcepack::export_resourcepack_json(namespace));
+}
+
+// -- Resource pack components -----------------------------------------------
+//
+// Register HUD elements and textures here. Each macro call is automatically
+// collected by `sand build --resourcepack` via the inventory registration.
+//
+// Example — health bar from a PNG (unicode is auto-assigned):
+//
+//   hud_bar!(
+//       name: "health",
+//       texture: "src/assets/health_bar.png",
+//       steps: 10,
+//       height: 9,
+//       ascent: 9,
+//   );
+//
+// Example — health bar with programmatic sprite strip:
+//
+//   hud_bar!(
+//       name: "health",
+//       texture: gen!(fill: 0xFF4444FF, empty: 0x333333FF),
+//       steps: 10,
+//       height: 9,
+//       ascent: 9,
+//   );
+//
+// Example — static overlay (unicode is auto-assigned):
+//
+//   hud_element!(
+//       name: "hotbar_bg",
+//       texture: "src/assets/hotbar.png",
+//       height: 22,
+//       ascent: -10,
+//   );
+//
+// Example — static overlay with programmatic solid-color texture:
+//
+//   hud_element!(
+//       name: "dark_overlay",
+//       texture: gen!(color: 0x00000080),
+//       height: 22,
+//       ascent: -10,
+//   );
+//
+// Example — raw texture:
+//
+//   texture!(
+//       id: "{{namespace}}:item/my_item",
+//       path: "src/assets/my_item.png",
+//   );
+
+{{else}}
+// -- Resource pack export hook (opt-in) ------------------------------------
+//
+// Run `sand add resourcepack` to enable `sand build --resourcepack`, or follow
+// the manual steps below:
+//
+// 1. Enable the feature in Cargo.toml:
+//      sand = { ..., features = ["resourcepack"] }
+//
+// 2. Add a new binary target to Cargo.toml:
+//      [[bin]]
+//      name = "sand_resource_export"
+//      path = "src/bin/sand_resource_export.rs"
+//
+//    Create src/bin/sand_resource_export.rs containing:
+//      fn main() { {{name_snake}}::__sand_resource_export("{{namespace}}"); }
+//
+// 3. Add a [resourcepack] section to sand.toml:
+//      [resourcepack]
+//      description = "{{name}} resource pack"
+//
+// 4. Uncomment the function below and register HUD/texture components above it:
+//
+// #[doc(hidden)]
+// pub fn __sand_resource_export(namespace: &str) {
+//     println!("{}", sand::resourcepack::export_resourcepack_json(namespace));
+// }
+{{/if}}

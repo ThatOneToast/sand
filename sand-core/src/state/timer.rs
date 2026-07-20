@@ -7,7 +7,7 @@ pub use sand_components::Ticks;
 /// A scoreboard-backed countdown timer.
 ///
 /// A `Timer` counts down from a starting value to zero. It does not generate
-/// conditions; use [`CooldownVar`](super::cooldown::CooldownVar) when you need
+/// conditions; use [`Cooldown`](super::cooldown::Cooldown) when you need
 /// ready/active conditions.
 ///
 /// ```rust,ignore

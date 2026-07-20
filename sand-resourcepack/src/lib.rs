@@ -20,7 +20,7 @@
 //! # Usage with macros
 //!
 //! Enable the `resourcepack` feature on `sand-macros` to get the
-//! [`hud_bar!`], [`hud_element!`], and [`texture!`] declarative macros:
+//! `hud_bar!`, `hud_element!`, and `texture!` declarative macros:
 //!
 //! ```toml
 //! # Cargo.toml

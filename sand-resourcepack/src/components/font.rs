@@ -84,8 +84,8 @@ impl BitmapProvider {
 /// merged by [`export_resourcepack_json`](crate::export_resourcepack_json)
 /// into a single `assets/<namespace>/font/<font_name>.json` file.
 ///
-/// Prefer using the [`hud_bar!`](sand_macros::hud_bar) or
-/// [`hud_element!`](sand_macros::hud_element) macros over constructing this
+/// Prefer using the `hud_bar!` or `hud_element!` macros (from `sand-macros`,
+/// with the `resourcepack` feature enabled) over constructing this
 /// type directly.
 pub struct BitmapFont {
     /// Name of the font file (without extension), e.g. `"default"` or

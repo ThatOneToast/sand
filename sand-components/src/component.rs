@@ -37,7 +37,7 @@ pub enum ComponentContent {
 ///
 /// Components that require a specific Minecraft feature (e.g. dialogs, jukebox
 /// songs) override [`DatapackComponent::required_features`] to declare their
-/// requirements. The export layer checks these against [`VersionCaps`] resolved
+/// requirements. The export layer checks these against [`sand_version::VersionCaps`] resolved
 /// from the target `VersionProfile` and rejects unsupported components before
 /// any pack output is written.
 pub trait DatapackComponent {
@@ -57,7 +57,7 @@ pub trait DatapackComponent {
     /// The default implementation is a no-op (`Ok(())`). Override this to
     /// reject invalid component state — e.g. empty required fields, missing
     /// pattern keys, or invariants documented in the public rustdoc — so the
-    /// export path can surface a structured [`SandError`] instead of panicking
+    /// export path can surface a structured [`crate::SandError`] instead of panicking
     /// inside `to_json` / `content`.
     ///
     /// Keep this focused on *stable builder invariants*. Version-sensitive
@@ -104,8 +104,8 @@ pub trait DatapackComponent {
     /// The default is an empty slice (no version-gated features required).
     /// Override this to declare requirements such as
     /// `[ComponentFeature::Dialogs]`. The export layer checks these against
-    /// [`VersionCaps`] and rejects unsupported components with a
-    /// [`SandError::VersionGating`] diagnostic before any pack output is written.
+    /// [`sand_version::VersionCaps`] and rejects unsupported components with a
+    /// [`crate::SandError::VersionGating`] diagnostic before any pack output is written.
     ///
     /// Custom/modded components that don't map to a known feature should
     /// return `&[]` — they remain possible; version gating applies only to

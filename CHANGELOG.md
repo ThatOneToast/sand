@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — API and compiler reorganization
+
+- **Single public dependency.** Datapack projects now depend on one crate,
+  `sand`, instead of `sand-core` + `sand-macros`. All supported attribute
+  and function-like macros (`#[function]`, `#[component]`, `#[event]`,
+  `#[item]`, `#[armor_event]`, `#[schedule]`, `run_fn!`, and the
+  `resourcepack`-gated `hud_bar!`/`hud_element!`/`texture!`) are re-exported
+  from `sand`.
+- **New prelude and topic modules.** `use sand::prelude::*` covers ordinary
+  authoring; less common APIs are organized under `sand::{event, item,
+  state, command, component, entity, data, text, version, vfx}`.
+  `sand::advanced` holds documented low-level export hooks and raw escape
+  hatches.
+- **CLI package renamed.** The CLI package is now `sand-cli`; the installed
+  binary is still named `sand`. Author library builds no longer pull in
+  CLI-only dependencies (clap, zip, handlebars, server management).
+- **Removed deprecated APIs** (no replacement shims kept — Sand is pre-1.0):
+  `InventorySlot`, `SlotPattern`, `Execute::if_items_pattern`,
+  `Execute::unless_items_pattern` (use `ItemSlot` and its wildcard variants
+  instead), `DamageTracker::{recently_damaged, damaged_at_least,
+  delta_objective}` (use `damaged_this_tick`/`current_damage_at_least`),
+  `StorageVar::set_raw`/`StorageField::set_raw` (use `set_raw_snbt`), the
+  two-argument `CustomItem::raw_component(key, snbt)` form (use
+  `with_raw_component`), and the `compat` module/`TypedEvent` alias.
+- **Minecraft 26.2 is now the canonical target.** `sand_version::DEFAULT_CODEGEN_VERSION`
+  and the primary correctness target for fixtures, examples, and the book
+  moved from 1.21.11/1.21.4 to 26.2. Minecraft 1.21.4 is retained only as an
+  explicit, clearly-labeled compatibility boundary in CI and version-profile
+  tests.
+- **Internal compiler reorganization.** `sand-core`'s former
+  4,400-line `component.rs` export pipeline is now split into
+  phase-scoped modules under `sand-core/src/compiler/export/`
+  (collection, records, events, lifecycle, diagnostics, dialogs,
+  predicates, tags, schedules, armor, functions). No generated output or
+  public API changed.
+
+See [`docs/architecture/adr-001-crate-boundaries.md`](docs/architecture/adr-001-crate-boundaries.md)
+for the full design rationale and crate graph.
+
 ### Added
 
 - A shared profile-aware fallible command validation/rendering boundary with

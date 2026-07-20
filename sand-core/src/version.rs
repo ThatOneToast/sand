@@ -776,7 +776,7 @@ fn lookup(major: u32, minor: u32, patch: u32) -> VersionCaps {
 /// Resolved version information for the export-time component validation path.
 ///
 /// Produced by [`resolve_export_caps`] from a `sand.toml` `mc_version` string.
-/// The [`VersionCaps`] field is consumed by `try_export_components_for_version`
+/// The [`sand_version::VersionCaps`] field is consumed by `try_export_components_for_version`
 /// to gate version-sensitive components.
 #[derive(Debug, Clone)]
 pub struct ResolvedExportCaps {
@@ -1354,9 +1354,7 @@ mod tests {
             .parent()
             .expect("sand-core should live under the workspace root");
         let docs = [
-            workspace.join("docs/version-support.md"),
-            workspace.join("book/src/version-support.md"),
-            workspace.join("docs/research/datapack-parity-audit.md"),
+            workspace.join("book/src/reference/version-support.md"),
             workspace.join("sand-resourcepack/src/lib.rs"),
         ];
         let latest = VersionProfile::resolve(&MinecraftVersion::parse(LATEST_KNOWN).unwrap())

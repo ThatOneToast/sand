@@ -246,7 +246,7 @@ pub enum LootCondition {
     },
     /// Custom condition type — explicit raw escape hatch for modded conditions.
     ///
-    /// Use [`RawJson`](crate::raw::RawJson) for `data`.  The named type signals
+    /// Use [`RawJson`] for `data`.  The named type signals
     /// intentional opt-out of the typed condition API.
     Custom {
         /// Condition type identifier (e.g. `"mymod:custom_condition"`).
@@ -425,7 +425,7 @@ pub enum LootFunction {
     },
     /// Custom function — explicit raw escape hatch for modded loot functions.
     ///
-    /// Use [`RawJson`](crate::raw::RawJson) for `data`.
+    /// Use [`RawJson`] for `data`.
     Custom {
         /// Function type identifier (e.g. `"mymod:custom_function"`).
         function: String,

@@ -18,9 +18,14 @@ path = "src/bin/sand_export.rs"
 doc = false
 
 [dependencies]
+sand = { path = "../../sand" }
 sand-core = { path = "../../sand-core" }
 sand-macros = { path = "../../sand-macros" }
 serde_json = "1"
 
 [build-dependencies]
 sand-build = { path = "../../sand-build" }
+
+[package.metadata.cargo-machete]
+# `sand` is required at link time: proc macros expand to ::sand::__private paths.
+ignored = ["sand"]

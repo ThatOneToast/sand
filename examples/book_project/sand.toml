@@ -1,0 +1,4 @@
+[pack]
+namespace   = "trail"
+description = "Trailforge — upgradeable equipment and traversal, built with Sand"
+mc_version  = "26.2"

@@ -1,85 +1,32 @@
 # Sand Roadmap
 
-## Stable Direction
+Sand is pre-1.0 and evolving; this file tracks genuinely future direction
+only. For what's already shipped, see the [book](book/src/introduction.md)
+and `CHANGELOG.md`.
 
-- Attribute-first datapack authoring with `#[function]`, `#[component(Load)]`,
-  and `#[component(Tick)]`.
-- Typed state (`ScoreVar`, `Flag`, `Cooldown`, `StorageVar`, `Timer`), typed
-  conditions (`all!`, `any!`), typed execute, typed text, typed storage, typed
-  selectors, and typed datapack components.
-- Generated typed command builders for all Minecraft commands (advancement,
-  recipe, execute, give, playsound, etc.).
-- Explicit escape hatches through `cmd::raw(...)` and advanced `mcfunction!`
-  command collection.
+## Target versions
 
-## Current Status (Alpha)
+Minecraft Java 26.2 is the canonical export/profile target; 1.21.4 is
+retained as an explicit oldest-profile/compatibility boundary. See
+`sand-version/src/lib.rs` and `docs/architecture/adr-001-crate-boundaries.md`.
 
-Sand is in alpha dogfooding stage. The core APIs are stable enough to build
-real datapacks. The following are working:
+## Not yet stable
 
-- `#[function]`, `#[component(Load)]`, `#[component(Tick)]` proc macros
-- Typed state: `ScoreVar<T>`, `Flag`, `Cooldown`, `StorageVar<T>`, `Timer`
-- Typed conditions: `all!`, `any!`, `Condition::*`
-- Typed execute: `TypedExecute`, `ExecuteExt::when`/`unless`
-- Typed text: `Text`, `Actionbar`, `Title`, `Bossbar`
-- Typed commands: generated from Minecraft command tree (advancement, recipe,
-  execute, give, playsound, particle, etc.)
-- Typed datapack components: advancement, recipe, loot table, predicate, tag,
-  dialog, custom item, damage type, enchantment, and more
-- Version gating: `VersionProfile` for feature detection
-- Scaffold: `sand new` generates attribute-first typed projects
+- **Event system.** `SandEvent` composition (same-cycle chained dispatch,
+  multi-parent `after_any`/`after_all`, persistent `while_<E>()` conditions,
+  bounded `.within(...)` correlation, advancement-backed graph parents) is
+  implemented but not macro-transparent: authors must call
+  `EventSetup::with_participants(...)` themselves, nothing auto-merges
+  participant capabilities into graph propagation, and there is no typed
+  `Event<T>` handler-context accessor yet. Victim, interacted-entity, and
+  projectile-owner participant recovery are unimplemented.
+- **Resource pack generation** — functional but requires manual asset setup.
+- **crates.io publishing** — not yet available; install from the workspace
+  (`cargo install --path sand-cli`).
 
-## Experimental Areas
-
-- Dialog command helpers and dialog registration/export ergonomics.
-- Resource-pack and HUD workflows.
-- Generated registry coverage for future Minecraft 26.x releases.
-
-## Target Versions
-
-Sand targets modern Minecraft Java datapacks across 1.19 through 1.21.x and the
-emerging 26.x series. Capability decisions flow through `VersionProfile`.
-
-## Not Yet Stable
-
-- `mcfunction!` macro — available but positioned as advanced tooling, not the
-  beginner path.
-- Event system — `AdvancementEvent`/`SandEvent` split formalized, with typed
-  tick dispatch, lifecycle/setup, generic identity, deterministic single- and
-  multi-parent same-cycle composition (`after`, `after_any`, `after_all`),
-  explicit player-scoped persistent `while_<E>()` conditions, bounded
-  cross-tick correlation (`within::<E>(TickWindow)`), and advancement-backed
-  graph parents bridged from their own reward function as a sole `after`
-  dependency (#240 Phase 6). Typed item locations and immutable event-time
-  item snapshots (#229 Phase 7) give SandEvent authors a way to capture an
-  item's identity before vanilla mutates/consumes it, manually embedded into
-  a handler's own setup/body; not yet auto-wired into `#[event]` codegen.
-  Typed participant reliability/availability/lifetime and event context
-  capability descriptors (#230 Phase 8) establish the vocabulary and graph
-  propagation/merge rules future participant recovery will use. Correlated
-  attacker/killer entity observation (#230 Phase 9,
-  `observe_correlated_attacker`, backed by vanilla's `execute on attacker`
-  relation) is the first real participant-recovery backend. `EventParticipantPlan`
-  (#230 Phase 10) lets an event declare `observe_correlated_attacker`/
-  `observe_correlated_killer` and apply it with one call
-  (`EventSetup::with_participants`) instead of hand-sequencing commands,
-  and Phase 10 also fixed a real exporter dynamic-function-registry
-  nondeterminism bug (process-global `Mutex` racing across concurrently-run
-  test threads, now thread-local). Still not macro-transparent (setup()
-  must call `.with_participants()` itself), not graph-integrated, and no
-  typed `Event<T>` handler-context accessor exists yet; victim,
-  interacted-entity, and projectile-owner recovery remain unimplemented —
-  see the Phase 10 role-evidence audit in `docs/event-context.md`.
-  Built-in death/respawn dispatch now uses one explicitly ordered per-player
-  phase coordinator and vanilla's `time_since_death` alive signal; it remains
-  a tick-boundary observation rather than a client-packet callback
-  (`LIM-VAN-007`).
-- Resource pack generation — functional but requires manual setup.
-- crates.io publishing — not yet available; build from workspace.
-
-## Next Work
+## Next work
 
 - Expand golden export tests to full datapack directory fixtures.
-- Add typed item stack builder with component API.
-- Harden dialog actions with typed function refs.
+- Add a typed item stack builder with component API.
+- Harden dialog actions with typed function references.
 - Complete resource pack example crates.

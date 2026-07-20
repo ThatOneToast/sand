@@ -6,7 +6,7 @@
 //! - [`DataTarget`] — where data lives (entity, block, or storage namespace)
 //! - [`DataModify`] — builder for `data modify <target> <path> <operation>`
 //!
-//! The [`Storage`] HashMap abstraction lives in `sand-core` and is not part of
+//! The `Storage` HashMap abstraction lives in `sand-core` and is not part of
 //! this crate. Use [`DataTarget::storage`] directly for storage-namespace targets.
 
 use std::fmt;

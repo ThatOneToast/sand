@@ -1,9 +1,12 @@
 [package]
 name = "sand-vanilla-audit"
-version.workspace = true
-edition.workspace = true
-license.workspace = true
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+rust-version = "1.96.0"
 publish = false
+
+[workspace]
 
 [[bin]]
 name = "sand_export"
@@ -11,9 +14,14 @@ path = "src/bin/sand_export.rs"
 doc = false
 
 [dependencies]
+sand = { path = "../sand" }
 sand-core = { path = "../sand-core" }
 sand-macros = { path = "../sand-macros" }
 
 [build-dependencies]
 sand-build = { path = "../sand-build" }
 sand-version = { path = "../sand-version" }
+
+[package.metadata.cargo-machete]
+# `sand` is required at link time: proc macros expand to ::sand::__private paths.
+ignored = ["sand"]

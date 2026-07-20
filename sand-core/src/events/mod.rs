@@ -1386,6 +1386,9 @@ impl SandEvent for EntityKillEvent {
             killing_blow: None,
         })
     }
+    fn participants() -> crate::participant::EventParticipantPlan {
+        crate::participant::EventParticipantPlan::new().observe_weapon()
+    }
 }
 
 /// Fires when any entity kills the player.
@@ -1410,6 +1413,9 @@ impl SandEvent for PlayerKillEvent {
             killing_blow: None,
         })
     }
+    fn participants() -> crate::participant::EventParticipantPlan {
+        crate::participant::EventParticipantPlan::new().observe_correlated_killer()
+    }
 }
 
 /// Fires when the player deals damage to any entity.
@@ -1423,6 +1429,9 @@ impl SandEvent for PlayerDamageEntityEvent {
             damage: None,
         })
     }
+    fn participants() -> crate::participant::EventParticipantPlan {
+        crate::participant::EventParticipantPlan::new().observe_weapon()
+    }
 }
 
 /// Fires when any entity deals damage to the player.
@@ -1435,6 +1444,9 @@ impl SandEvent for EntityDamagePlayerEvent {
             entity: None,
             damage: None,
         })
+    }
+    fn participants() -> crate::participant::EventParticipantPlan {
+        crate::participant::EventParticipantPlan::new().observe_correlated_attacker()
     }
 }
 
@@ -2000,6 +2012,22 @@ macro_rules! adv_event {
         }
         impl crate::event::EventPlayer for $ty {}
     };
+    // Same as above, plus a declared participant plan (#230) — the export
+    // pipeline applies it automatically to this event's generated body; see
+    // `crate::event::AdvancementEvent::participants`.
+    ($ty:ty, participants: $plan:expr) => {
+        impl crate::event::AdvancementEvent for $ty {
+            type Trigger = crate::AdvancementTrigger;
+            fn trigger() -> Self::Trigger {
+                let dispatch: SandEventDispatch = <$ty as SandEvent>::dispatch().into();
+                dispatch.into_trigger().unwrap()
+            }
+            fn participants() -> crate::participant::EventParticipantPlan {
+                $plan
+            }
+        }
+        impl crate::event::EventPlayer for $ty {}
+    };
 }
 
 impl SandEventDispatch {
@@ -2016,10 +2044,37 @@ impl SandEventDispatch {
     }
 }
 
-adv_event!(EntityKillEvent);
-adv_event!(PlayerKillEvent);
-adv_event!(PlayerDamageEntityEvent);
-adv_event!(EntityDamagePlayerEvent);
+// Combat participant plans (#230): `@s` is the player subject for every one
+// of these advancement-backed events. For EntityKillEvent/PlayerDamageEntityEvent,
+// the player *is* the causing entity (already exact via `.player()`), so the
+// only useful declared participant is the weapon in their mainhand at the
+// moment of the trigger (`ItemLocation::PlayerMainHand`, exact snapshot —
+// see `EventParticipantPlan::observe_weapon`). For PlayerKillEvent/
+// EntityDamagePlayerEvent, the player is the *victim*, so the causing
+// entity is only reachable through `execute on attacker` — the existing
+// Phase 9 correlated-attacker backend — under the Killer/Attacker role
+// respectively. Victim/DirectAttacker/InteractedEntity/Projectile/
+// ProjectileOwner/Ammunition are intentionally not declared here: no
+// evidence-backed backend exists for them on these event families (see
+// `docs/testing/participant-role-evidence.md`) — `event.entity(role)`/
+// `event.item(role)` honestly resolve `Unavailable(NotApplicable)` for any
+// undeclared role rather than guessing.
+adv_event!(
+    EntityKillEvent,
+    participants: crate::participant::EventParticipantPlan::new().observe_weapon()
+);
+adv_event!(
+    PlayerKillEvent,
+    participants: crate::participant::EventParticipantPlan::new().observe_correlated_killer()
+);
+adv_event!(
+    PlayerDamageEntityEvent,
+    participants: crate::participant::EventParticipantPlan::new().observe_weapon()
+);
+adv_event!(
+    EntityDamagePlayerEvent,
+    participants: crate::participant::EventParticipantPlan::new().observe_correlated_attacker()
+);
 impl crate::event::DamageAdvancementEvent for PlayerDamageEntityEvent {}
 impl crate::event::DamageAdvancementEvent for EntityDamagePlayerEvent {}
 adv_event!(ShotCrossbowEvent);

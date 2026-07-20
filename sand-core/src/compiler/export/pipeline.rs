@@ -19,9 +19,10 @@ use super::dialogs::{
     DialogCallbackExportReset, dialog_callback_export_lock, drain_dialog_callbacks_into,
 };
 use super::events::{
-    ChildPostObservation, CustomDispatchBackend, build_child_edge, build_dispatch_function,
-    build_staged_occurrence_lines, build_staged_post_observation_line, check_event_trigger,
-    resolve_custom_dispatch_backend, setup_objective_owner, tick_event_export_error,
+    ChildPostObservation, CustomDispatchBackend, apply_participants_to_setup, build_child_edge,
+    build_dispatch_function, build_staged_occurrence_lines, build_staged_post_observation_line,
+    check_event_trigger, participant_plan_export_error, resolve_custom_dispatch_backend,
+    resolve_participant_profile, setup_objective_owner, tick_event_export_error,
     xp_advance_command, xp_score_commands,
 };
 use super::functions::{drain_dynamic_functions_into, resolve_local_refs};
@@ -153,6 +154,7 @@ pub(crate) fn try_export_components_impl(
                 make_trigger,
                 revoke,
                 guard,
+                make_participants,
             } => {
                 let advancement_id = desc
                     .id_override
@@ -162,14 +164,42 @@ pub(crate) fn try_export_components_impl(
                 let body_path = format!("{}/body", desc.path);
                 let body_fn_ref = format!("{namespace}:{body_path}");
 
-                // ── Body function: pure user commands ─────────────────────────
+                // ── Participant plan: setup wraps the body, cleanup follows it ──
+                //
+                // An advancement-backed handler has no separate pre/post
+                // observation phase — its body *is* the entire generated
+                // sequence — so automatic integration means splicing the
+                // plan's commands directly around the user's own commands,
+                // exactly where the manual pattern already documented
+                // embedding them (`observation.rs`'s module doc). Keyed by
+                // `desc.path`: each `#[event]` handler on an
+                // advancement-backed type gets its own independent
+                // advancement + body, so there is no cross-handler tracker
+                // to deduplicate against here (unlike tick-lifecycle
+                // dispatch).
+                let plan = make_participants();
+                let mut body_commands = commands.clone();
+                if !plan.is_empty() {
+                    let profile = resolve_participant_profile(ctx);
+                    let (setup, cleanup) = plan
+                        .build(desc.path, &profile)
+                        .map_err(|err| participant_plan_export_error(desc.path, err))?;
+                    body_commands = setup
+                        .into_iter()
+                        .chain(body_commands)
+                        .chain(cleanup)
+                        .collect();
+                }
+
+                // ── Body function: pure user commands (plus any participant
+                //    setup/cleanup wrapping them) ────────────────────────────
                 records.push(ComponentRecord {
                     namespace: namespace.to_string(),
                     dir: "function".to_string(),
                     path: body_path,
                     ext: "mcfunction".to_string(),
                     content_type: "text".to_string(),
-                    content: commands.join("\n"),
+                    content: body_commands.join("\n"),
                 });
 
                 // ── Entry function: revoke → guard(s) → call body ─────────────
@@ -349,6 +379,7 @@ pub(crate) fn try_export_components_impl(
                 make_tick,
                 make_chain,
                 make_tracked,
+                make_participants,
                 revoke,
                 event_type_id,
                 event_type_name,
@@ -464,7 +495,13 @@ pub(crate) fn try_export_components_impl(
                             event_type_name(),
                             crate::events::TickEventDispatch::default()
                                 .when(crate::condition::Condition::raw(condition)),
-                            make_setup(),
+                            apply_participants_to_setup(
+                                make_setup(),
+                                make_participants(),
+                                event_type_name(),
+                                ctx,
+                                desc.path,
+                            )?,
                         ));
                     }
                     CustomDispatchBackend::TickLifecycle(tick) => {
@@ -472,6 +509,14 @@ pub(crate) fn try_export_components_impl(
                         // the shared detector/setup is aggregated below, grouped
                         // by event_type_id so multiple handlers of the same
                         // event share one detector and one copy of setup().
+                        //
+                        // The participant plan is merged into the setup here,
+                        // at every handler's own call site, the same way
+                        // `make_setup()` already is — downstream grouping
+                        // (`validate_consistent`) requires every handler of one
+                        // event type to produce an equal `EventSetup`, which
+                        // holds here because `apply_participants_to_setup` is a
+                        // deterministic pure function of `event_type_name()`.
                         records.push(ComponentRecord {
                             namespace: namespace.to_string(),
                             dir: "function".to_string(),
@@ -485,7 +530,13 @@ pub(crate) fn try_export_components_impl(
                             event_type_id(),
                             event_type_name(),
                             tick,
-                            make_setup(),
+                            apply_participants_to_setup(
+                                make_setup(),
+                                make_participants(),
+                                event_type_name(),
+                                ctx,
+                                desc.path,
+                            )?,
                         ));
                     }
                     CustomDispatchBackend::Chain(chain) => {

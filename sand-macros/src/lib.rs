@@ -1084,6 +1084,8 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                         make_trigger: #trigger_ident,
                         revoke: (|| false) as fn() -> bool,
                         guard: ::std::option::Option::None,
+                        make_participants: (|| ::sand::__private::participant::EventParticipantPlan::none())
+                            as fn() -> ::sand::__private::participant::EventParticipantPlan,
                     },
                 });
             }
@@ -1351,6 +1353,10 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 &format!("__sand_event_{}_guard", fn_name),
                 proc_macro2::Span::call_site(),
             );
+            let participants_ident = proc_macro2::Ident::new(
+                &format!("__sand_event_{}_participants", fn_name),
+                proc_macro2::Span::call_site(),
+            );
 
             quote! {
                 #preamble
@@ -1373,6 +1379,12 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                     <#dispatch_type_tokens as ::sand::__private::event::AdvancementEvent>::guard()
                 }
 
+                #[doc(hidden)]
+                #[allow(dead_code)]
+                fn #participants_ident() -> ::sand::__private::participant::EventParticipantPlan {
+                    <#dispatch_type_tokens as ::sand::__private::event::AdvancementEvent>::participants()
+                }
+
                 ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
                     path: #fn_name_str,
                     id_override: #id_override_tokens,
@@ -1381,6 +1393,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                         make_trigger: #trigger_ident,
                         revoke: #revoke_ident,
                         guard: ::std::option::Option::Some(#guard_ident),
+                        make_participants: #participants_ident,
                     },
                 });
 
@@ -1428,6 +1441,10 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
             );
             let setup_ident = proc_macro2::Ident::new(
                 &format!("__sand_event_{}_setup", fn_name),
+                proc_macro2::Span::call_site(),
+            );
+            let participants_ident = proc_macro2::Ident::new(
+                &format!("__sand_event_{}_participants", fn_name),
                 proc_macro2::Span::call_site(),
             );
 
@@ -1548,6 +1565,12 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                     <#dispatch_type_tokens as ::sand::__private::events::SandEvent>::setup()
                 }
 
+                #[doc(hidden)]
+                #[allow(dead_code)]
+                fn #participants_ident() -> ::sand::__private::participant::EventParticipantPlan {
+                    <#dispatch_type_tokens as ::sand::__private::events::SandEvent>::participants()
+                }
+
                 ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
                     path: #fn_name_str,
                     id_override: #id_override_tokens,
@@ -1558,6 +1581,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                         make_tick: #tick_ident,
                         make_chain: #chain_ident,
                         make_tracked: #tracked_ident,
+                        make_participants: #participants_ident,
                         revoke: #revoke_ident,
                         event_type_id: #type_id_ident,
                         event_type_name: #type_name_ident,

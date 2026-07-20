@@ -150,6 +150,32 @@ pub use sand_core::state;
 /// chains and event handlers.
 pub use sand_core::entity;
 
+/// Typed participant context (#230): reliability, availability, roles,
+/// lifetime, typed handles (`EntityParticipant`, `PlayerParticipant`),
+/// declarative observation plans (`EventParticipantPlan`), and the
+/// correlated-observation backend (`observe_correlated_attacker`).
+///
+/// The vocabulary needed to consume results from `Event<E>::entity`/`.item`/
+/// `.attacker`/`.victim`/`.weapon` (reliability, availability, unavailable
+/// reasons, role enums) is already in the [`prelude`]; reach for this module
+/// directly when declaring a plan (`SandEvent::participants`/
+/// `AdvancementEvent::participants`) or working with a typed handle
+/// (`EntityParticipant::selector()`) rather than only pattern-matching a
+/// `ParticipantAvailability` result.
+///
+/// ```rust,ignore
+/// use sand::prelude::*;
+/// use sand::participant::EntityParticipantRole;
+///
+/// #[event]
+/// fn on_hit(event: Event<EntityDamagePlayerEvent>) {
+///     if let ParticipantAvailability::Available(attacker) = event.attacker() {
+///         // build commands against attacker.selector()
+///     }
+/// }
+/// ```
+pub use sand_core::participant;
+
 /// Datapack component builders: advancements, recipes (shaped/shapeless/
 /// smithing/stonecutting), loot tables, predicates, item modifiers, tags,
 /// dialogs, and enchantments. Functions returning one of these types and

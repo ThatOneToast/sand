@@ -27,12 +27,29 @@ fn facade_join(event: Event<sand::events::OnJoinEvent>) {
     let _ = MANA.set("@s", 10);
 }
 
+// Participant context (#230) is reachable through the façade — both the
+// curated vocabulary in the glob prelude (`ParticipantAvailability`,
+// `EntityParticipantRole`) and the `sand::participant` module for typed
+// handles/plan declaration.
+#[event]
+fn facade_on_hurt(event: Event<sand::event::vanilla::EntityDamagesPlayer>) {
+    let attacker: ParticipantAvailability<sand::participant::EntityParticipant> = event.attacker();
+    let weapon: sand::participant::ParticipantAvailability<sand::item::ItemSnapshot> =
+        event.weapon();
+    cmd::raw(format!(
+        "# facade check: attacker available = {}, weapon available = {}",
+        attacker.is_available(),
+        weapon.is_available()
+    ));
+}
+
 #[test]
 fn export_includes_facade_declarations() {
     let json = sand::advanced::try_export_components_json("facade_ns")
         .expect("export must succeed through the facade");
     assert!(json.contains("facade_hello"));
     assert!(json.contains("facade_root"));
+    assert!(json.contains("facade_on_hurt"));
 }
 
 #[test]

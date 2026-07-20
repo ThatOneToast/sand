@@ -34,7 +34,7 @@ impl SandEvent for OnPlayerHurtViaPlan {
             pre_observation: Vec::new(),
             post_observation: vec!["scoreboard players set @s p10_plan_trigger 0".into()],
         }
-        .with_participants::<Self>(Self::participants(), "planpack:observations", &profile)
+        .with_participants::<Self>(Self::participants(), &profile)
         .expect("1.21.4 supports the declared attacker observation")
     }
 }
@@ -81,6 +81,7 @@ sand_core::inventory::submit! {
             make_tick: tick,
             make_chain: no_chain,
             make_tracked: || None,
+            make_participants: || sand_core::participant::EventParticipantPlan::none(),
             revoke: revoke_true,
             event_type_id: type_id,
             event_type_name: type_name,

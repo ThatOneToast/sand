@@ -257,6 +257,13 @@ pub enum EventDispatch {
         /// [`Condition`](crate::condition::Condition) via `execute_commands(true, "return 0")`.
         /// This correctly handles `Any` (OR) conditions as multiple guard lines.
         guard: Option<fn() -> Option<crate::condition::Condition>>,
+        /// This event's declared participant observations
+        /// (`AdvancementEvent::participants`, #230). The export pipeline
+        /// applies the plan automatically, splicing its setup commands at
+        /// the start of the generated body and its cleanup commands at the
+        /// end — see `sand-core/src/compiler/export/pipeline.rs`'s
+        /// `EventDispatch::Advancement` handling.
+        make_participants: fn() -> crate::participant::EventParticipantPlan,
     },
 
     /// All-deaths detection via the `deathCount` scoreboard criterion.
@@ -357,6 +364,15 @@ pub enum EventDispatch {
         /// provider backend through this factory rather than macro-level
         /// name matching, so distinct monomorphizations dispatch correctly.
         make_tracked: fn() -> Option<TrackedTransition>,
+        /// This event's declared participant observations
+        /// (`SandEvent::participants`, #230). For structured tick-lifecycle
+        /// dispatch (`make_tick` resolved `Some`), the export pipeline
+        /// applies the plan automatically to the generated detector
+        /// function's pre/post-observation commands — authors no longer
+        /// need to call `EventSetup::with_participants` from their own
+        /// `setup()` for this dispatch kind. Ignored for the other dispatch
+        /// kinds (each has its own integration point, or none yet).
+        make_participants: fn() -> crate::participant::EventParticipantPlan,
         /// Whether to revoke the advancement after firing (advancement dispatch only).
         revoke: fn() -> bool,
         /// In-process grouping identity of the `SandEvent` type this handler

@@ -37,7 +37,7 @@
 //!   graph-parent bridge): emit as the first command(s) of your own handler
 //!   body. The generated entry always runs `advancement revoke` before
 //!   calling your handler body, but revoke never touches item NBT, so this
-//!   ordering is safe — see `docs/items.md` for the full reasoning.
+//!   ordering is safe.
 //! - **Phase 6 advancement graph-parent bridges**: **not supported** in this
 //!   phase. A bridge parent cannot own a direct handler or `EventSetup`
 //!   (Phase 6's own constraint), so there is no seam today for a bridge
@@ -57,7 +57,7 @@
 //! the clearest known case) may already have mutated the source *before*
 //! the criterion fired at all, i.e. before Sand ever gains control. Do not
 //! upgrade an advancement-backed capture to `Exact` without runtime
-//! verification for that specific criterion — see `LIM-ITEM-003`.
+//! verification for that specific criterion.
 //!
 //! # Storage and concurrency
 //!
@@ -295,6 +295,26 @@ impl ItemSnapshot {
         ))
     }
 
+    /// Reconstruct the handle for a snapshot captured elsewhere with the
+    /// same `schema`, without generating (or re-generating) any capture
+    /// commands.
+    ///
+    /// `pub(crate)` — reached by
+    /// [`crate::participant::EventParticipantPlan::resolve_item`] so a
+    /// handler body can address a plan-declared item snapshot without
+    /// re-deriving its storage/key by hand.
+    pub(crate) fn reconstruct(
+        schema: SnapshotSchema,
+        source_kind: &'static str,
+        reliability: SnapshotReliability,
+    ) -> Self {
+        Self {
+            schema,
+            source_kind,
+            reliability,
+        }
+    }
+
     /// The reliability level this snapshot was captured with.
     pub fn reliability(&self) -> SnapshotReliability {
         self.reliability
@@ -351,7 +371,7 @@ impl ItemSnapshot {
     /// component/tag data (`components` on component-era targets). Callers
     /// needing version-aware interpretation should route through the
     /// existing `ItemMatcher`/`VersionCaps`-aware machinery rather than
-    /// reading this path as version-independent — see `docs/items.md`.
+    /// reading this path as version-independent.
     pub fn components_path(&self) -> NbtPath {
         self.item_path().field("components")
     }

@@ -85,6 +85,20 @@ pub use crate::event::{
     EventId, EventPlayer, EventReset, EventVisibility, IntoEventAdvancement,
 };
 
+// ── Participant context vocabulary (#230) ──────────────────────────────────────
+//
+// Only the vocabulary needed to consume `Event<E>::entity`/`.item`/`.attacker`/
+// `.victim`/`.weapon` results — reliability, availability, unavailable
+// reasons, and role enums. Typed handles (`EntityParticipant`), plan
+// declaration (`EventParticipantPlan`), and observation-backend internals
+// stay under `crate::participant` (`sand::participant`), not the glob
+// prelude — see that module's doc for the full API.
+
+pub use crate::participant::{
+    EntityParticipantRole, ItemParticipantRole, ParticipantAvailability, ParticipantHand,
+    ParticipantReliability, ParticipantUnavailableReason,
+};
+
 // ── Dialog builders ───────────────────────────────────────────────────────────
 
 pub use sand_components::dialog::{

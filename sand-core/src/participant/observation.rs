@@ -34,8 +34,9 @@
 //!   specific damage event that fired the advancement criterion this
 //!   observation is embedded in (as opposed to reflecting an earlier hit in
 //!   the same tick, or lagging by one damage event in some edge case). No
-//!   real-server evidence proves otherwise (see
-//!   `ai/known-limitations.md` `LIM-VAL-010`).
+//!   real-server evidence proves otherwise — see
+//!   `docs/testing/participant-role-evidence.md` for what has and has not
+//!   been verified on real Minecraft 26.2.
 //! - `ParticipantReliability::Exact` in Sand's model is reserved for
 //!   references the *triggering mechanism itself* directly hands over (the
 //!   advancement reward function's own `@s`). The attacker here is reached
@@ -74,8 +75,7 @@
 //! could return different JSON for identical input) — the registry's root
 //! cause (a process-global `Mutex` racing against Rust's concurrently
 //! multi-threaded test harness) is now fixed (`sand-core/src/function.rs`
-//! is thread-local; see `ai/known-limitations.md` `LIM-EXP-006`, resolved
-//! in #230 Phase 10, and `sand-core/tests/exporter_dyn_fn_determinism.rs`).
+//! is thread-local; see `sand-core/tests/exporter_dyn_fn_determinism.rs`).
 //! This function still emits two direct single-command `execute on
 //! attacker run <command>` lines rather than using `if_present` — kept for
 //! its own merits (simpler generated output, no function-call indirection
@@ -106,11 +106,14 @@
 //! process-global counter-free but call-site-unique name
 //! (`__sand_observed_<key>`, `key` derived from `event_label`) — two
 //! *concurrent* observations for the *same* event type would collide if
-//! nested inside one another before the first's cleanup runs (see
-//! `ai/known-limitations.md` `LIM-CTX-005`), which is why nesting two calls
-//! to `observe_correlated_attacker` for the same `event_label` inside one
-//! synchronous call tree is not supported and is documented as such rather
-//! than silently allowed.
+//! nested inside one another before the first's cleanup runs, which is why
+//! nesting two calls to `observe_correlated_attacker` for the same
+//! `event_label` inside one synchronous call tree is not supported and is
+//! documented as such rather than silently allowed. The declarative
+//! [`super::plan::EventParticipantPlan`] API sidesteps this by always
+//! deriving `event_label` from `std::any::type_name::<E>()` rather than a
+//! caller-chosen string, so two distinct `SandEvent`/`AdvancementEvent`
+//! types can never collide even when applied against the same storage.
 
 use crate::condition::Condition;
 use crate::entity::context::EntityContext;
@@ -174,7 +177,11 @@ impl ObservationSchema {
         format!("obs.{}", self.key)
     }
 
-    fn tag(&self) -> String {
+    /// The generated per-schema temporary observation tag. `pub(crate)` so
+    /// [`super::plan::EventParticipantPlan::resolve`] can reconstruct the
+    /// exact selector this schema's setup commands bind, without
+    /// regenerating any commands.
+    pub(crate) fn tag(&self) -> String {
         format!("__sand_observed_{}", self.key)
     }
 }
@@ -348,9 +355,9 @@ pub(crate) fn attacker_observation_setup(
     // dynamic-function-wrapping (`RelationQuery::lower`), which registers a
     // separate generated function via `register_dyn_fn_dedup` from inside
     // `SandEvent::setup()`. Now that the registry is thread-local (see
-    // `ai/known-limitations.md` `LIM-EXP-006`, resolved), that wrapping
-    // would be safe to use — it is still avoided here because only two
-    // single-command lines are needed, so the wrapping was never necessary.
+    // `function.rs`'s dyn-fn registry doc comment), that wrapping would be
+    // safe to use — it is still avoided here because only two single-command
+    // lines are needed, so the wrapping was never necessary.
     let commands = vec![
         format!("data modify storage {storage} {present_path}.present set value 0b"),
         format!(

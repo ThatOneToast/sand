@@ -461,7 +461,7 @@ pub use serde_json;
 ///
 /// Accepts semicolon-separated expressions. String literals are used as-is;
 /// any value implementing [`std::fmt::Display`] (including command builders
-/// from [`sand_core::cmd`]) is serialized via `.to_string()`.
+/// from [`crate::cmd`]) is serialized via `.to_string()`.
 ///
 /// # Examples
 /// ```

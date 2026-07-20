@@ -30,7 +30,7 @@ pub struct ComponentRecord {
     pub content: String,
 }
 
-/// Error returned by [`try_export_components`] when a registered component fails
+/// Error returned by [`try_export_components`](super::try_export_components) when a registered component fails
 /// validation or serialization.
 pub type ExportResult<T> = std::result::Result<T, ComponentExportError>;
 

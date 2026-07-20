@@ -1,7 +1,7 @@
 //! Typed condition DSL for `execute if/unless` generation.
 //!
 //! Conditions can be composed with [`Condition::all`], [`Condition::any`], and
-//! [`Condition::not`] without writing any raw execute syntax.
+//! the `!` operator ([`std::ops::Not`]) without writing any raw execute syntax.
 //!
 //! Nested `Any` inside `All` is correctly lowered into multiple execute commands
 //! via [`Condition::to_execute_plans`] — see that method for the full semantics.

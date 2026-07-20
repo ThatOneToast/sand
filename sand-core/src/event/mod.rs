@@ -27,13 +27,13 @@ use std::marker::PhantomData;
 /// Converts a value into a validated event/advancement [`ResourceLocation`](crate::ResourceLocation).
 ///
 /// Mirrors [`crate::function::IntoFunctionRef`]'s conversion table: a typed
-/// [`ResourceLocation`] value passes through unchanged (already validated at
+/// [`ResourceLocation`](crate::ResourceLocation) value passes through unchanged (already validated at
 /// construction), while raw `&str`/`String` values are parsed and validated
 /// here, panicking with an actionable diagnostic on malformed input.
 ///
 /// This keeps existing string call sites (`EventBuilder::id("my_pack:foo")`,
 /// `EventConfig::advancement("my_pack:foo", ...)`) source-compatible while
-/// making [`ResourceLocation`] the preferred, pre-validated normal path — see #196.
+/// making [`ResourceLocation`](crate::ResourceLocation) the preferred, pre-validated normal path — see #196.
 /// Invalid explicit event IDs are rejected here, at the API boundary, rather
 /// than silently passed through to `resolve()`/export.
 pub trait IntoEventId {

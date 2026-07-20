@@ -36,7 +36,7 @@ pub(crate) struct ExportCtx<'a> {
 }
 
 /// Collect all inventory-registered components into records, routing every
-/// `ComponentFactory` through the fallible [`component_to_record`] helper
+/// `ComponentFactory` through the fallible `component_to_record` helper
 /// which validates all components (JSON, text, and copy-backed) before
 /// accepting their content.
 ///
@@ -74,7 +74,7 @@ pub fn try_export_components_for_version(
 ///
 /// This is the function the generated `sand_export` binary should call. On
 /// success it returns the JSON array of [`ComponentRecord`] objects as a
-/// `String`. On failure it returns a [`ComponentExportError`] carrying the
+/// `String`. On failure it returns a [`sand_components::error::SandError`] carrying the
 /// resource location, component kind, and validation field — **no panic, no
 /// backtrace**. The caller is responsible for printing a diagnostic to stderr
 /// and exiting non-zero.
@@ -89,7 +89,7 @@ pub fn try_export_components_json(namespace: &str) -> ExportResult<String> {
 /// events, rejecting any that require features not available in the target version.
 ///
 /// This is the function the generated `sand_export` binary should call when a
-/// target version is known. On failure it returns a [`ComponentExportError`]
+/// target version is known. On failure it returns a [`sand_components::error::SandError`]
 /// carrying the resource location, component kind, and version-gating context
 /// — no panic, no backtrace.
 pub fn try_export_components_json_for_version(

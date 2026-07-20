@@ -776,7 +776,7 @@ fn lookup(major: u32, minor: u32, patch: u32) -> VersionCaps {
 /// Resolved version information for the export-time component validation path.
 ///
 /// Produced by [`resolve_export_caps`] from a `sand.toml` `mc_version` string.
-/// The [`VersionCaps`] field is consumed by `try_export_components_for_version`
+/// The [`sand_version::VersionCaps`] field is consumed by `try_export_components_for_version`
 /// to gate version-sensitive components.
 #[derive(Debug, Clone)]
 pub struct ResolvedExportCaps {

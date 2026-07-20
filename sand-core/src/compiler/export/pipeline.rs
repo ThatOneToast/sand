@@ -126,6 +126,17 @@ pub(crate) fn try_export_components_impl(
     // event (#240 Phase 6; see the advancement-bridge collision check below).
     let mut advancement_handler_type_ids: std::collections::BTreeSet<std::any::TypeId> =
         std::collections::BTreeSet::new();
+    // #264: every graph-node-backed event's declared participant plan,
+    // reduced to just the role/source-label pairs
+    // `participant_transport::validate_participant_transport` needs —
+    // recorded here (Tick/Chain backends only; see that module's doc for
+    // why advancement-dispatched/bridge events are out of scope for
+    // inheritance sourcing) since the graph itself only retains rendered
+    // `EventSetup` commands, not the structured plan.
+    let mut participant_declarations: BTreeMap<
+        &'static str,
+        super::participant_transport::ParticipantDeclarations,
+    > = BTreeMap::new();
     // Shared armor watch map — populated by both EventDescriptor ArmorEquip/
     // ArmorUnequip dispatch and the legacy ArmorEventDescriptor entries.
     // Keyed by the exact (slot, item_id, custom_data_snbt) tuple — see
@@ -489,6 +500,11 @@ pub(crate) fn try_export_components_impl(
                             content_type: "text".to_string(),
                             content: commands.join("\n"),
                         });
+                        let plan = make_participants();
+                        participant_declarations.insert(
+                            event_type_name(),
+                            super::participant_transport::ParticipantDeclarations::from_plan(&plan),
+                        );
                         tick_lifecycle_events.push((
                             desc,
                             event_type_id(),
@@ -497,7 +513,7 @@ pub(crate) fn try_export_components_impl(
                                 .when(crate::condition::Condition::raw(condition)),
                             apply_participants_to_setup(
                                 make_setup(),
-                                make_participants(),
+                                plan,
                                 event_type_name(),
                                 ctx,
                                 desc.path,
@@ -525,6 +541,11 @@ pub(crate) fn try_export_components_impl(
                             content_type: "text".to_string(),
                             content: commands.join("\n"),
                         });
+                        let plan = make_participants();
+                        participant_declarations.insert(
+                            event_type_name(),
+                            super::participant_transport::ParticipantDeclarations::from_plan(&plan),
+                        );
                         tick_lifecycle_events.push((
                             desc,
                             event_type_id(),
@@ -532,7 +553,7 @@ pub(crate) fn try_export_components_impl(
                             tick,
                             apply_participants_to_setup(
                                 make_setup(),
-                                make_participants(),
+                                plan,
                                 event_type_name(),
                                 ctx,
                                 desc.path,
@@ -544,6 +565,15 @@ pub(crate) fn try_export_components_impl(
                         // emitted now; the child node (and its parent chain,
                         // discovered recursively) is resolved into the event
                         // graph below.
+                        //
+                        // #264: `make_participants()` must be applied here
+                        // exactly as it is for the TickPoll/TickLifecycle
+                        // arms above — a chain-dispatched SandEvent's own
+                        // `participants()` declaration (own capture, or an
+                        // `.inherit_entity`/`.inherit_item` same-cycle
+                        // borrow — see `participant::plan`) was previously
+                        // silently dropped here, since only `make_setup()`
+                        // was consulted.
                         records.push(ComponentRecord {
                             namespace: namespace.to_string(),
                             dir: "function".to_string(),
@@ -552,12 +582,23 @@ pub(crate) fn try_export_components_impl(
                             content_type: "text".to_string(),
                             content: commands.join("\n"),
                         });
+                        let plan = make_participants();
+                        participant_declarations.insert(
+                            event_type_name(),
+                            super::participant_transport::ParticipantDeclarations::from_plan(&plan),
+                        );
                         chain_events.push((
                             desc,
                             event_type_id(),
                             event_type_name(),
                             chain,
-                            make_setup(),
+                            apply_participants_to_setup(
+                                make_setup(),
+                                plan,
+                                event_type_name(),
+                                ctx,
+                                desc.path,
+                            )?,
                         ));
                     }
                 }
@@ -947,6 +988,11 @@ pub(crate) fn try_export_components_impl(
         graph
             .validate_dependencies()
             .map_err(|e| tick_event_export_error(e.0))?;
+        super::participant_transport::validate_participant_transport(
+            &graph,
+            &participant_declarations,
+        )
+        .map_err(|diagnostic| tick_event_export_error(diagnostic.to_string()))?;
         let staged_events = graph
             .staged_events()
             .map_err(|e| tick_event_export_error(e.0))?;

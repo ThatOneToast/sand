@@ -30,9 +30,10 @@
 //! ordinary Minecraft `execute if/unless`, not Rust control flow.
 
 use sand::events::{
-    EntityDamagePlayerEvent, EntityKillEvent, PlayerDamageEntityEvent, PlayerKillEvent,
+    EntityDamagePlayerEvent, EntityKillEvent, PlayerDamageEntityEvent, PlayerKillEvent, SandEvent,
+    SandEventDispatch,
 };
-use sand::participant::ParticipantAvailability;
+use sand::participant::{EntityParticipantRole, ParticipantAvailability};
 use sand::prelude::*;
 
 /// Typed evidence schema for every scenario this pack validates. Field
@@ -61,6 +62,17 @@ struct ParticipantAudit {
     weapon_item: String,
     kill_weapon_present: bool,
     kill_weapon_item: String,
+    /// `ComposedAttackerParent`'s own direct capture (#264 same-cycle
+    /// composition scenario, see below).
+    compose_parent_uuid: String,
+    /// `ComposedAttackerChild`'s view of the *same* occurrence's attacker,
+    /// via `inherit_entity::<ComposedAttackerParent>` — proves the child
+    /// resolves to the same binding, not a fresh/empty one of its own.
+    compose_child_uuid: String,
+    /// `ComposedAttackerSibling`'s view of the same occurrence — a second,
+    /// independent same-cycle child inheriting from the same parent, proves
+    /// more than one dependent can observe the borrowed binding.
+    compose_sibling_uuid: String,
 }
 
 // ── Scoreboards ─────────────────────────────────────────────────────────────
@@ -71,6 +83,9 @@ static ATT2: ScoreVar<i32> = ScoreVar::new("paudit_att2");
 static KILL: ScoreVar<i32> = ScoreVar::new("paudit_kill");
 static WPN: ScoreVar<i32> = ScoreVar::new("paudit_wpn");
 static KWPN: ScoreVar<i32> = ScoreVar::new("paudit_kwpn");
+/// Manually-set trigger for the #264 same-cycle composition scenario below
+/// (`scoreboard players set @s paudit_cmp_trg 1` over RCON/in-game).
+static COMPOSE_TRIGGER: ScoreVar<i32> = ScoreVar::new("paudit_cmp_trg");
 
 /// Fake-player scoreboard holder for the global sequence counter — it has
 /// no per-entity meaning, only a global tally, so it is not tied to `@s`.
@@ -105,6 +120,7 @@ pub fn init() {
     KILL.define();
     WPN.define();
     KWPN.define();
+    COMPOSE_TRIGGER.define();
     SEQ.set(SEQ_HOLDER, 0);
     ParticipantAudit::attacker_present().set(false);
     ParticipantAudit::killer_present().set(false);
@@ -194,6 +210,97 @@ fn weapon_snapshot(
     availability
         .available()
         .expect("this event's participant plan always declares a weapon snapshot")
+}
+
+// ── Same-cycle composition scenario (#264) ─────────────────────────────────
+//
+// `ComposedAttackerParent` captures the attacker directly (a plain custom
+// `SandEvent`, manually triggered via `paudit_cmp_trg` for a controlled,
+// repeatable scenario). `ComposedAttackerChild` and `ComposedAttackerSibling`
+// are both same-cycle chain children (`SandEventDispatch::chain::<...>()`)
+// that borrow the parent's binding via `inherit_entity` instead of
+// capturing their own — zero extra setup/cleanup commands are generated for
+// either child (see `EventParticipantPlan::inherit_entity`'s doc). Custom
+// `SandEvent` handlers (unlike `AdvancementEvent` ones) have no `Event<E>`
+// wrapper with `.attacker()` sugar, so they resolve through
+// `EventParticipantPlan::resolve` directly — the same mechanism `Event<E>`
+// itself calls.
+
+struct ComposedAttackerParent;
+impl SandEvent for ComposedAttackerParent {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        SandEventDispatch::tick()
+            .as_players()
+            .when(COMPOSE_TRIGGER.of("@s").eq(1))
+    }
+    fn participants() -> sand::participant::EventParticipantPlan {
+        sand::participant::EventParticipantPlan::new().observe_correlated_attacker()
+    }
+}
+
+struct ComposedAttackerChild;
+impl SandEvent for ComposedAttackerChild {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        SandEventDispatch::chain::<ComposedAttackerParent>()
+    }
+    fn participants() -> sand::participant::EventParticipantPlan {
+        sand::participant::EventParticipantPlan::new()
+            .inherit_entity::<ComposedAttackerParent>(EntityParticipantRole::Attacker)
+    }
+}
+
+struct ComposedAttackerSibling;
+impl SandEvent for ComposedAttackerSibling {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        SandEventDispatch::chain::<ComposedAttackerParent>()
+    }
+    fn participants() -> sand::participant::EventParticipantPlan {
+        sand::participant::EventParticipantPlan::new()
+            .inherit_entity::<ComposedAttackerParent>(EntityParticipantRole::Attacker)
+    }
+}
+
+#[event]
+pub fn audit_on_composed_parent(_event: ComposedAttackerParent) {
+    COMPOSE_TRIGGER.set(Selector::self_(), 0);
+    let attacker = ComposedAttackerParent::participants()
+        .resolve(
+            std::any::type_name::<ComposedAttackerParent>(),
+            EntityParticipantRole::Attacker,
+        )
+        .available()
+        .expect("ComposedAttackerParent always declares an attacker directly");
+    attacker.execute_at(
+        ParticipantAudit::compose_parent_uuid().copy_from_entity(Selector::self_(), "UUID"),
+    );
+}
+
+#[event]
+pub fn audit_on_composed_child(_event: ComposedAttackerChild) {
+    let attacker = ComposedAttackerChild::participants()
+        .resolve(
+            std::any::type_name::<ComposedAttackerChild>(),
+            EntityParticipantRole::Attacker,
+        )
+        .available()
+        .expect("ComposedAttackerChild inherits the attacker from ComposedAttackerParent");
+    attacker.execute_at(
+        ParticipantAudit::compose_child_uuid().copy_from_entity(Selector::self_(), "UUID"),
+    );
+}
+
+#[event]
+pub fn audit_on_composed_sibling(_event: ComposedAttackerSibling) {
+    let attacker = ComposedAttackerSibling::participants()
+        .resolve(
+            std::any::type_name::<ComposedAttackerSibling>(),
+            EntityParticipantRole::Attacker,
+        )
+        .available()
+        .expect("ComposedAttackerSibling inherits the attacker from ComposedAttackerParent");
+    attacker.execute_at(
+        ParticipantAudit::compose_sibling_uuid().copy_from_entity(Selector::self_(), "UUID"),
+    );
 }
 
 // ── Export hook (required by `sand build`) ───────────────────────────────────

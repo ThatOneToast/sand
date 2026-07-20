@@ -50,6 +50,9 @@ fn every_audit_handler_is_present() {
         "audit_on_killed/body",
         "audit_on_hurt_entity/body",
         "audit_on_killed_entity/body",
+        "audit_on_composed_parent",
+        "audit_on_composed_child",
+        "audit_on_composed_sibling",
     ] {
         assert!(
             paths.contains(&expected),
@@ -176,6 +179,87 @@ fn weapon_handler_branches_on_snapshot_presence() {
             .any(|t| t.contains("state.weapon_present set value 0b")),
         "absent branch must write weapon_present=0b: {targets:?}"
     );
+}
+
+#[test]
+fn composed_scenario_child_and_sibling_reference_the_exact_parent_tag() {
+    // #264: the whole point of `inherit_entity` is that the child/sibling
+    // reference the *same* generated selector the parent's own setup
+    // creates — not merely a "compatible" one. Extract the tag from the
+    // parent's own setup (`__sand_event_check/<key>`) and assert both
+    // dependents' bodies contain that exact substring.
+    let records = records(&export());
+    let check = records
+        .iter()
+        .find(|r| {
+            r["dir"] == "function"
+                && r["path"]
+                    .as_str()
+                    .unwrap_or_default()
+                    .starts_with("__sand_event_check/")
+        })
+        .and_then(|r| r["content"].as_str())
+        .expect("ComposedAttackerParent's own tick-check function must exist");
+    let tag_start = check
+        .find("__sand_observed_")
+        .expect("parent setup must mark the correlated attacker with a tag");
+    let tag = &check[tag_start..tag_start + "__sand_observed_XXXXXXXX".len()];
+
+    let parent = records
+        .iter()
+        .find(|r| r["dir"] == "function" && r["path"] == "audit_on_composed_parent")
+        .and_then(|r| r["content"].as_str())
+        .expect("audit_on_composed_parent must exist");
+    let child = records
+        .iter()
+        .find(|r| r["dir"] == "function" && r["path"] == "audit_on_composed_child")
+        .and_then(|r| r["content"].as_str())
+        .expect("audit_on_composed_child must exist");
+    let sibling = records
+        .iter()
+        .find(|r| r["dir"] == "function" && r["path"] == "audit_on_composed_sibling")
+        .and_then(|r| r["content"].as_str())
+        .expect("audit_on_composed_sibling must exist");
+
+    for (name, body) in [("parent", parent), ("child", child), ("sibling", sibling)] {
+        assert!(
+            body.contains(tag),
+            "{name} must reference the parent's exact tag {tag}: {body}"
+        );
+        assert!(
+            body.contains("execute at"),
+            "{name} must consume the participant via execute_at, not a bare selector: {body}"
+        );
+    }
+    assert!(
+        child.contains("state.compose_child_uuid") && sibling.contains("state.compose_sibling_uuid"),
+        "each dependent must write its own evidence field: child={child:?} sibling={sibling:?}"
+    );
+}
+
+#[test]
+fn composed_scenario_neither_dependent_generates_extra_participant_setup() {
+    // inherit_entity contributes zero setup/cleanup commands — only the
+    // parent's own tick-check function should mention the correlated-
+    // attacker mechanism at all.
+    let records = records(&export());
+    let child = records
+        .iter()
+        .find(|r| r["dir"] == "function" && r["path"] == "audit_on_composed_child")
+        .and_then(|r| r["content"].as_str())
+        .expect("audit_on_composed_child must exist");
+    let sibling = records
+        .iter()
+        .find(|r| r["dir"] == "function" && r["path"] == "audit_on_composed_sibling")
+        .and_then(|r| r["content"].as_str())
+        .expect("audit_on_composed_sibling must exist");
+
+    for (name, body) in [("child", child), ("sibling", sibling)] {
+        assert!(
+            !body.contains("execute on attacker"),
+            "{name} must not run its own attacker observation: {body}"
+        );
+    }
 }
 
 #[test]

@@ -77,15 +77,26 @@ guard test alongside `examples/book_project`.
 
 **Runtime-verified against a real, live Minecraft Java 26.2 server**
 (downloaded from Mojang's own version manifest, `java -jar server.jar`,
-not a mock):
-- Real server startup with the actual merged-#266 automatic
-  participant-plan-integrated datapack (`examples/participant_audit`)
-  loaded — zero datapack load errors.
+not a mock), re-run after #264's same-cycle participant propagation
+mechanism and the composed audit scenario were added:
+- Real server startup with the current datapack — including
+  `ComposedAttackerParent`/`ComposedAttackerChild`/`ComposedAttackerSibling`
+  (#264's `inherit_entity` demonstration) — loaded, zero datapack load
+  errors.
 - Real `/reload` of that same pack over real RCON — zero reload errors,
   confirmed via `datapack list`.
 - The generated functions actually execute without error on a real server
   (`function paudit:init` run over RCON; the audit storage schema
   initializes to the expected shape).
+- The generated command *content* for the composed scenario was inspected
+  directly (`examples/participant_audit/tests/deterministic_export.rs`'s
+  `composed_scenario_*` tests): `audit_on_composed_parent`,
+  `audit_on_composed_child`, and `audit_on_composed_sibling` all reference
+  the exact same `__sand_observed_<key>` tag, and neither dependent emits
+  its own `execute on attacker` — proof the inheritance is genuinely
+  zero-cost, not a second capture that happens to agree. This is
+  structural/export evidence, not a live-fire proof of the composed
+  scenario's *runtime* correctness — see the next section.
 - A real `ServerPlayerEntity` **can** join a real 26.2 server: a
   purpose-built minimal protocol client
   (`scripts/mc_validation/minimal_join_client.py`) completed a genuine
@@ -99,6 +110,13 @@ not a mock):
 
 **Not runtime-verified — attempted, not achieved, in this validation
 pass:**
+- The composed scenario's actual *firing*: it dispatches via
+  `SandEventDispatch::tick().as_players()`, which requires a real player
+  entity present as `@s` — the same stable-Play-phase-connection gap below
+  blocks summoning one under scripted control, so no evidence exists (in
+  either direction) for `compose_child_uuid`/`compose_sibling_uuid`
+  actually landing correctly at real runtime, only that the generated
+  commands reference the right tag structurally.
 - Player-triggered combat scenarios (a real player actually taking damage
   from a real or summoned entity, and the datapack's attacker/killer/weapon
   capture producing correct evidence). The minimal client's Play-phase
@@ -131,17 +149,41 @@ never `Exact`) were already chosen conservatively enough that they do not
 depend on the outcome of that verification, and #265 remains open pending
 either a stabilized automated client or a completed manual pass.
 
-## Scope note: capability propagation through composition
+## Participant propagation across event graph edges (#264)
 
-`EventContextCapabilities::for_event_with_participants` and the
-`capabilities::full` propagation helpers (`propagate_after`,
-`merge_after_any`/`merge_after_all`, `propagate_within`) compute what a
+Before #264, `EventContextCapabilities::for_event_with_participants` and
+the `capabilities::full` propagation helpers (`propagate_after`,
+`merge_after_any`/`merge_after_all`, `propagate_within`) computed what a
 composed child event could *honestly promise* about an inherited
-entity/item participant, applying the same reliability/lifetime
-degradation rules the subject-only versions already used. They are
-capability **bookkeeping** — the export pipeline's generated commands do
-not yet re-bind a parent's observed participant (its tag/storage path) into
-a same-cycle child's own scope, so a chained/composed child cannot
-currently call `Event::entity(role)` and reach a parent's declared
-participant. Wiring real command-level propagation across chain/compose
-graph edges is tracked as focused follow-up scope.
+entity/item participant — but they were pure Rust-level bookkeeping with
+zero call sites in the export pipeline, so a chained child's generated
+commands never actually referenced a parent's captured binding. #264
+closes that gap for the same-cycle case with a genuine command-level
+mechanism — `EventParticipantPlan::inherit_entity`/`inherit_item` — rather
+than by wiring the old capability-merge functions into codegen (they
+remain unused; see `sand-core/src/participant/capabilities.rs`'s own
+module doc). `Event<E>::attacker()`/`.weapon()`/etc. resolve an inherited
+declaration exactly like a directly-declared one for `AdvancementEvent`
+handlers; plain `SandEvent` (tick/chain-dispatched) handlers call
+`E::participants().resolve(...)`/`.resolve_item(...)` directly, since
+`Event<E>`'s participant accessors are only implemented for
+`AdvancementEvent` today (a Rust trait-coherence constraint — two blanket
+`impl<E: AdvancementEvent> Event<E>` / `impl<E: SandEvent> Event<E>` blocks
+with the same method names cannot both exist without a shared supertrait,
+which would be a much larger, out-of-scope migration).
+
+### Edge/role support matrix
+
+| Edge type | Entity participant | Item snapshot | Reliability | Lifetime | Behavior |
+|---|---|---|---|---|---|
+| Direct declaration (no composition) | ✅ | ✅ | As declared (`Correlated`/`ExactSnapshot`) | `SynchronousDescendants` | Unchanged, pre-#264 baseline. |
+| Single-parent `.after(...)`/`chain::<...>()` | ✅ `inherit_entity` | ✅ `inherit_item` | Unchanged from source (never upgraded) | `SynchronousDescendants` | Zero extra commands; resolves to the source's exact generated tag/storage path. Works through an arbitrary-depth chain of plain single-parent edges (grandchild may `inherit_*::<OriginalCapturer>` directly). |
+| Same edge, but source only itself inherits (transitive) | ❌ Rejected | ❌ Rejected | — | — | Export diagnostic: "transitive inheritance is not supported... name the actual capturing ancestor directly." |
+| `after_any` (multi-parent, disjunctive) | ❌ Rejected | ❌ Rejected | — | — | Export diagnostic: reached through `after_any`/multi-parent fan-in; #264 does not choose a winner. |
+| `after_all` (multi-parent, conjunctive) | ❌ Rejected | ❌ Rejected | — | — | Same diagnostic path as `after_any` — any edge with more than one occurrence clause/parent is rejected uniformly. |
+| `.while_(...)` (persistent condition) | ❌ Rejected (also structurally impossible — see below) | ❌ Rejected | — | — | A `while_` parent is required to have an empty `EventSetup` (#240 Phase 6 precedent), so it can never carry a plan to inherit from in the first place; the validator's diagnostic names this. |
+| `.within(...)` (bounded cross-tick correlation) | ❌ Rejected (entity) | 🟡 Not automatic — use `ItemSnapshot::copy_to` by hand | Copied snapshots keep `ExactSnapshot` | Bounded, caller-managed | #264 does not add an automatic bounded-item transport; the typed `ItemSnapshot::copy_to`/`StorageField` APIs from #267 already let a caller build one explicitly into per-subject correlation storage. Entity participants are never safe to keep alive across a tick boundary with the current temporary-tag mechanism (see "Bounded entity decision" in the #264 PR description) and always resolve unavailable/rejected. |
+| Advancement-bridge parent (`.after::<AdvancementEvent>()` with no direct handler) | ❌ Rejected | ❌ Rejected | — | — | A bridge parent's own participant plan is never applied by the bridge codegen path at all today (a separate, pre-existing gap from the same-cycle chain/tick gap #264 fixes) — the validator rejects any `inherit_*` naming a bridge parent as the source, with a diagnostic pointing at the #240 Phase 6 restriction. Not fixed in #264; tracked as follow-up. |
+| Tracked-transition parent (#263) | ❌ Rejected (nothing to inherit) | ❌ Rejected | — | — | A tracked-transition `SandEvent`'s `participants()` is never consulted by its dispatch backend (`EventDispatch::Tracked` never calls `EventSetup`/`with_participants`) — a child naming one as an inherit source gets "declares no participant plan at all." |
+
+Every rejection above is a real export-time diagnostic (`sand-core/src/compiler/export/participant_transport.rs`), not a silent downgrade — see `sand-core/tests/event_chain_participant_inheritance_diag_{after_any,within,transitive}.rs` for end-to-end proof each one actually surfaces through the real export pipeline.

@@ -1680,12 +1680,18 @@ pub(crate) fn try_export_components_impl(
     // supported.
     {
         let mut transition_predicates = BTreeMap::new();
+        let mut transition_effect_predicates: BTreeMap<String, &'static str> = BTreeMap::new();
         for handler in &transition_handlers {
             if let crate::TrackedSource::BooleanCondition { condition, .. } =
                 handler.transition.source
-                && let Some((path, flag)) = sand_player_state_predicate(condition)
             {
-                transition_predicates.insert(path, flag);
+                if let Some((path, flag)) = sand_player_state_predicate(condition) {
+                    transition_predicates.insert(path, flag);
+                } else if let Some((path, effect_id)) =
+                    super::predicates::sand_effect_predicate(condition)
+                {
+                    transition_effect_predicates.insert(path, effect_id);
+                }
             }
         }
         for (path, flag) in transition_predicates {
@@ -1701,6 +1707,24 @@ pub(crate) fn try_export_components_impl(
                     content_type: "text".to_string(),
                     content: serde_json::to_string_pretty(&player_state_predicate_json(flag))
                         .unwrap(),
+                });
+            }
+        }
+        for (path, effect_id) in transition_effect_predicates {
+            if !records
+                .iter()
+                .any(|record| record.dir == "predicate" && record.path == path)
+            {
+                records.push(ComponentRecord {
+                    namespace: namespace.to_string(),
+                    dir: "predicate".to_string(),
+                    path: path.clone(),
+                    ext: "json".to_string(),
+                    content_type: "text".to_string(),
+                    content: serde_json::to_string_pretty(
+                        &super::predicates::effect_predicate_json(effect_id),
+                    )
+                    .unwrap(),
                 });
             }
         }

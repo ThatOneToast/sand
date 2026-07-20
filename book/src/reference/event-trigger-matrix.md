@@ -103,9 +103,35 @@ for precision.
 | `PlayerStopSneakingEvent` | The player stops sneaking. |
 | `PlayerSneakEvent` | The player is currently sneaking (level-triggered). |
 | `PlayerSprintEvent` | The player is currently sprinting. |
+| `PlayerStartSprintingEvent` | The player begins sprinting. |
+| `PlayerStopSprintingEvent` | The player stops sprinting. |
 | `PlayerSwimmingEvent` | The player is currently swimming. |
+| `PlayerStartSwimmingEvent` | The player begins swimming. |
+| `PlayerStopSwimmingEvent` | The player stops swimming. |
 | `PlayerFlyingEvent` | The player is currently flying (creative/spectator). |
+| `PlayerStartFlyingEvent` | The player begins actively flying. |
+| `PlayerStopFlyingEvent` | The player stops actively flying. |
 | `PlayerOnFireEvent` | The player is currently on fire. |
+| `PlayerCaughtFireEvent` | The player catches fire. |
+| `PlayerExtinguishedEvent` | The player stops being on fire. |
 | `PlayerInCreativeEvent` | The player is currently in creative mode. |
 | `PlayerInAdventureEvent` | The player is currently in adventure mode. |
 | `PlayerInSpectatorEvent` | The player is currently in spectator mode. |
+| `PlayerEnteredSurvivalEvent` | The player switches into survival mode. |
+| `PlayerExitedSurvivalEvent` | The player switches out of survival mode. |
+| `PlayerEnteredCreativeEvent` | The player switches into creative mode. |
+| `PlayerExitedCreativeEvent` | The player switches out of creative mode. |
+| `PlayerEnteredAdventureEvent` | The player switches into adventure mode. |
+| `PlayerExitedAdventureEvent` | The player switches out of adventure mode. |
+| `PlayerEnteredSpectatorEvent` | The player switches into spectator mode. |
+| `PlayerExitedSpectatorEvent` | The player switches out of spectator mode. |
+| `PlayerHealthChangedEvent` | The player's health value changes (gain or loss). |
+| `PlayerHealthLostEvent` | The player's health value decreases. |
+| `PlayerHealthGainedEvent` | The player's health value increases. |
+| `PlayerLowHealthEvent<HALF_HEARTS>` | The player's health drops to or below `HALF_HEARTS` half-hearts. |
+| `PlayerRecoveredHealthEvent<HALF_HEARTS>` | The player's health rises back above `HALF_HEARTS` half-hearts. |
+| `EffectStarted<E>` | The player gains status effect `E` (see [`StatusEffectMarker`](../09-events.md) markers). |
+| `EffectStopped<E>` | The player loses status effect `E`. |
+
+Freezing and drowning start/stop events are intentionally not provided — see
+[Vanilla Limitations](vanilla-limitations.md).

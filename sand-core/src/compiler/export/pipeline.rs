@@ -15,7 +15,9 @@ use super::armor::{
     ArmorWatchEntry, ArmorWatchKey, allocate_armor_tag_keys, armor_watch_key, build_item_cond,
 };
 use super::diagnostics::validate_function_records;
-use super::dialogs::{dialog_callback_export_lock, drain_dialog_callbacks_into};
+use super::dialogs::{
+    DialogCallbackExportReset, dialog_callback_export_lock, drain_dialog_callbacks_into,
+};
 use super::events::{
     ChildPostObservation, CustomDispatchBackend, build_child_edge, build_dispatch_function,
     build_staged_occurrence_lines, build_staged_post_observation_line, check_event_trigger,
@@ -44,6 +46,17 @@ pub(crate) fn try_export_components_impl(
     };
     use crate::inventory;
     use std::collections::BTreeMap;
+
+    // Dialog callback IDs and registrations are process-global. Hold this for
+    // the complete factory/export lifecycle so repeated or concurrent exports
+    // cannot inherit callback state from one another. Callback registration
+    // happens while component JSON is serialized below (`component_to_record`
+    // → `Dialog::to_json` → `DialogAction::to_json`), so resetting here is
+    // safe even when a factory returns a cached or otherwise prebuilt dialog
+    // — it just re-registers on this export's serialization pass.
+    let _dialog_callback_lock = dialog_callback_export_lock();
+    sand_components::dialog::reset_dialog_callbacks_for_export();
+    let _dialog_callback_reset = DialogCallbackExportReset;
 
     let mut records: Vec<ComponentRecord> = Vec::new();
     let mut tag_map: BTreeMap<String, Vec<String>> = BTreeMap::new();
@@ -1836,8 +1849,9 @@ pub(crate) fn try_export_components_impl(
 
     // ── Dialog callback dispatcher ────────────────────────────────────────────
     // Must run after ComponentFactory and other make() calls so callbacks
-    // registered while constructing dialog components are not missed.
-    let _dialog_callback_lock = dialog_callback_export_lock();
+    // registered while constructing dialog components are not missed. The
+    // export-scope lock/reset guards are acquired at the top of this
+    // function — see `_dialog_callback_lock` / `_dialog_callback_reset`.
     drain_dialog_callbacks_into(&mut records, &mut tag_map, namespace);
 
     // ── FunctionTagDescriptors ────────────────────────────────────────────────

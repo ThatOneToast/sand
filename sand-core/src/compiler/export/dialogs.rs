@@ -61,11 +61,37 @@ pub(crate) fn drain_dialog_callbacks_into(
         .push(format!("{namespace}:__sand_dialog_tick"));
 }
 
+/// Process-global lock held for the complete factory/export lifecycle so
+/// repeated or concurrent exports cannot inherit dialog callback state from
+/// one another.
+///
+/// Recovers from poison: this lock guards a `Mutex<()>` with no invariants
+/// of its own, so a panic while it was held (e.g. inside a user
+/// `ComponentFactory`) leaves nothing broken to propagate. Without this,
+/// one caught factory panic (as happens under `catch_unwind` or a test
+/// harness) would permanently poison every later export in the process.
 pub(crate) fn dialog_callback_export_lock() -> std::sync::MutexGuard<'static, ()> {
     static LOCK: std::sync::OnceLock<std::sync::Mutex<()>> = std::sync::OnceLock::new();
     LOCK.get_or_init(|| std::sync::Mutex::new(()))
         .lock()
-        .unwrap()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
+/// Clears process-global dialog callback state when an export finishes, even
+/// when a component factory returns an error or panics.
+///
+/// Safe to construct before component factories run: callback registration
+/// happens at `DialogAction::to_json` (serialization) time, not at
+/// `DialogAction::callback` (construction) time, so resetting the registry
+/// up front never discards a prebuilt/cached dialog's callback — it just
+/// gets re-registered fresh when that dialog is serialized during this
+/// export. See `sand_components::dialog::reset_dialog_callbacks_for_export`.
+pub(crate) struct DialogCallbackExportReset;
+
+impl Drop for DialogCallbackExportReset {
+    fn drop(&mut self) {
+        sand_components::dialog::reset_dialog_callbacks_for_export();
+    }
 }
 
 #[cfg(test)]
@@ -160,6 +186,54 @@ mod tests {
         assert!(
             !tag_map.contains_key("minecraft:tick"),
             "no tick tag entry should appear with no callbacks"
+        );
+    }
+
+    #[test]
+    fn dialog_callback_export_lock_recovers_after_a_caught_panic() {
+        let panic = std::panic::catch_unwind(|| {
+            let _lock = super::dialog_callback_export_lock();
+            panic!("simulated component factory panic");
+        });
+        assert!(panic.is_err(), "the simulated factory must panic");
+
+        // A caught panic while the lock was held must not permanently poison
+        // later exports in the same process.
+        let _lock = super::dialog_callback_export_lock();
+        let _ = sand_components::dialog::drain_dialog_callbacks();
+    }
+
+    #[test]
+    fn export_scope_reset_guard_clears_state_on_success_and_on_panic() {
+        {
+            let _lock = super::dialog_callback_export_lock();
+            let _ = sand_components::dialog::drain_dialog_callbacks();
+            let _reset = super::DialogCallbackExportReset;
+            let _ = sand_components::dialog::register_dialog_callback(
+                "example:successful_export".to_string(),
+            );
+            // `_reset` drops here (success path) and must clear state.
+        }
+        assert!(
+            sand_components::dialog::drain_dialog_callbacks().is_empty(),
+            "a successful export scope must leave no callback state behind"
+        );
+
+        let panic = std::panic::catch_unwind(|| {
+            let _lock = super::dialog_callback_export_lock();
+            let _reset = super::DialogCallbackExportReset;
+            let _ = sand_components::dialog::register_dialog_callback(
+                "example:panicking_export".to_string(),
+            );
+            panic!("simulated failure mid-export");
+            // `_reset` drops during unwind and must clear state.
+        });
+        assert!(panic.is_err());
+
+        let _lock = super::dialog_callback_export_lock();
+        assert!(
+            sand_components::dialog::drain_dialog_callbacks().is_empty(),
+            "a panicking export scope must still leave no callback state behind"
         );
     }
 }

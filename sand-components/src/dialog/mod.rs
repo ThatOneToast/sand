@@ -13,7 +13,6 @@
 //! }
 //! ```
 
-use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Mutex, OnceLock};
 
 use crate::{DatapackComponent, ResourceLocation};
@@ -27,31 +26,69 @@ const SAND_LOCAL_NS: &str = "__sand_local";
 /// The scoreboard trigger objective Sand uses for dialog callbacks.
 pub const SAND_DIALOG_TRIGGER: &str = "sand.dialog";
 
-/// Counter for assigning stable IDs to dialog callbacks.
-/// Starts at 1 (0 = not triggered / not set).
-static CALLBACK_ID_COUNTER: AtomicU32 = AtomicU32::new(1);
+/// `next_id` and `callbacks` are reset together (see
+/// [`reset_dialog_callbacks_for_export`]) so a fresh export's first
+/// registration always gets ID 1, regardless of how many callbacks earlier
+/// exports in the same process registered.
+struct CallbackRegistry {
+    next_id: u32,
+    callbacks: Vec<(u32, String)>,
+}
 
-fn callback_registry() -> &'static Mutex<Vec<(u32, String)>> {
-    static REG: OnceLock<Mutex<Vec<(u32, String)>>> = OnceLock::new();
-    REG.get_or_init(|| Mutex::new(Vec::new()))
+fn callback_registry() -> &'static Mutex<CallbackRegistry> {
+    static REG: OnceLock<Mutex<CallbackRegistry>> = OnceLock::new();
+    REG.get_or_init(|| {
+        Mutex::new(CallbackRegistry {
+            next_id: 1,
+            callbacks: Vec::new(),
+        })
+    })
 }
 
 /// Register a dialog callback function and return its stable trigger ID.
 ///
 /// The path must be a full `namespace:path` or a `__sand_local:path` sentinel.
 /// IDs start at 1 (0 means "trigger not yet set").
+///
+/// Called from `DialogAction::to_json`, i.e. at serialization time rather
+/// than at `DialogAction::callback` construction time — this is what lets a
+/// cached/prebuilt `Dialog` (e.g. behind a `LazyLock`, constructed once but
+/// exported many times) re-register its callback on every export even though
+/// it is only *built* once.
 pub fn register_dialog_callback(path: String) -> u32 {
-    let id = CALLBACK_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
-    callback_registry().lock().unwrap().push((id, path));
+    let mut registry = callback_registry().lock().unwrap();
+    let id = registry.next_id;
+    registry.next_id = registry
+        .next_id
+        .checked_add(1)
+        .expect("dialog callback trigger ID space exhausted");
+    registry.callbacks.push((id, path));
     id
+}
+
+/// Start a fresh dialog callback registration lifecycle for one export.
+///
+/// This is an exporter implementation detail. Safe to call before component
+/// factories run (unlike a hypothetical reset that clears the *registry* of
+/// already-embedded IDs): registration itself happens at JSON-serialization
+/// time, not at `DialogAction::callback` construction time, so a reset here
+/// never discards a prebuilt dialog's callback — it just re-registers fresh
+/// when that dialog is serialized during this export.
+#[doc(hidden)]
+pub fn reset_dialog_callbacks_for_export() {
+    let mut registry = callback_registry().lock().unwrap();
+    registry.next_id = 1;
+    registry.callbacks.clear();
 }
 
 /// Drain all registered dialog callbacks.
 ///
-/// Returns `(trigger_id, function_path)` pairs. Called by `export_components_json`
-/// to generate the dialog dispatch tick/load functions.
+/// Returns `(trigger_id, function_path)` pairs. Called by the exporter to
+/// generate the dialog dispatch tick/load functions.
 pub fn drain_dialog_callbacks() -> Vec<(u32, String)> {
-    std::mem::take(&mut *callback_registry().lock().unwrap())
+    let mut registry = callback_registry().lock().unwrap();
+    registry.next_id = 1;
+    std::mem::take(&mut registry.callbacks)
 }
 
 /// Identifier accepted by dialog constructors.
@@ -432,6 +469,14 @@ pub enum DialogAction {
     OpenDialog(String),
     /// Close the current dialog.
     Close,
+    /// Run a datapack function through Sand's survival-friendly callback
+    /// dispatcher.
+    ///
+    /// Callback IDs are assigned when the containing dialog is serialized
+    /// (see `DialogAction::to_json`) so cached or otherwise prebuilt
+    /// dialogs participate in each export's callback lifecycle.
+    #[doc(hidden)]
+    Callback(String),
 }
 
 impl DialogAction {
@@ -477,9 +522,7 @@ impl DialogAction {
     ///     .action(DialogAction::callback(grant_enhanced_cells))
     /// ```
     pub fn callback(id: impl IntoDialogFunctionRef) -> Self {
-        let path = id.into_dialog_function_path();
-        let trigger_id = register_dialog_callback(path);
-        Self::RunCommand(format!("/trigger {SAND_DIALOG_TRIGGER} set {trigger_id}"))
+        Self::Callback(id.into_dialog_function_path())
     }
 
     pub fn suggest_command(cmd: impl Into<String>) -> Self {
@@ -502,6 +545,13 @@ impl DialogAction {
             Self::OpenUrl(u) => json!({"type": "minecraft:open_url", "url": u}),
             Self::OpenDialog(d) => json!({"type": "minecraft:open_dialog", "dialog": d}),
             Self::Close => json!({"type": "minecraft:close"}),
+            Self::Callback(path) => {
+                let trigger_id = register_dialog_callback(path.clone());
+                json!({
+                    "type": "minecraft:run_command",
+                    "command": format!("/trigger {SAND_DIALOG_TRIGGER} set {trigger_id}"),
+                })
+            }
         }
     }
 }

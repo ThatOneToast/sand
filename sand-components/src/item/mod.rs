@@ -3,7 +3,7 @@
 //! `CustomItem` wraps a base item type with any combination of the 1.21 item
 //! component system. The resulting value formats as an item-component string
 //! (e.g. `minecraft:diamond_sword[custom_name={text:"..."},enchantments={...}]`) that
-//! can be passed directly to [`cmd::give`](crate::cmd).
+//! can be passed directly to [`sand_commands::give`].
 //!
 //! # Identifying items
 //!
@@ -1052,7 +1052,7 @@ impl DyedColor {
 /// [`CustomItem`]'s [`Display`](fmt::Display) impl produces.
 ///
 /// Built once from [`CustomItem::stack_components`] and shared by every
-/// consumer that needs JSON components — currently [`RecipeResult`]
+/// consumer that needs JSON components — currently [`crate::RecipeResult`]
 /// (`recipe::RecipeResult::custom_item`) — without re-deriving or
 /// re-parsing `CustomItem`'s command-syntax string.
 ///
@@ -1060,7 +1060,7 @@ impl DyedColor {
 ///
 /// [`CustomItem`]'s typed fields can never collide (each typed component
 /// contributes at most one JSON key). A user-supplied
-/// [`RawComponent`](crate::raw::RawComponent) can collide with a typed
+/// [`RawComponent`] can collide with a typed
 /// component or with another raw component; the later entry wins, replacing
 /// the value at the key's original position, so iteration order stays
 /// deterministic regardless of which call inserted the winning value.
@@ -1124,7 +1124,7 @@ fn item_component_error(base: &str, key: &str, message: impl fmt::Display) -> Sa
 /// A custom item definition using the Minecraft 1.21+ item component system.
 ///
 /// The item formats as `base[component1=val1,component2=val2,...]` and can be
-/// passed directly to [`cmd::give`](crate::cmd) since it implements `Into<String>`.
+/// passed directly to [`sand_commands::give`] since it implements `Into<String>`.
 ///
 /// # Item identity
 ///
@@ -1771,7 +1771,7 @@ impl CustomItem {
         Ok(())
     }
 
-    /// Fallible alternative to [`Display`]/[`Into<String>`] — validates this
+    /// Fallible alternative to [`fmt::Display`]/[`Into<String>`] — validates this
     /// item (see [`validate`](Self::validate)) before formatting it as an
     /// item-component command-argument string.
     ///
@@ -1924,7 +1924,7 @@ impl CustomItem {
 
     /// Build the structured JSON-component view of this item.
     ///
-    /// This mirrors [`collect_components`](Self::collect_components) field for
+    /// This mirrors `collect_components` field for
     /// field, but targets Minecraft's structured component JSON schema
     /// (`{"minecraft:key": value}`) instead of SNBT-based command syntax. It
     /// is built directly from this item's typed state — never by parsing
@@ -2131,7 +2131,7 @@ impl CustomItem {
     /// this item, preserving its base ID and every data component. `count` must
     /// be at least 1 (validated by the recipe builder before export).
     ///
-    /// Equivalent to [`recipe::RecipeResult::from_custom_item`], provided as a
+    /// Equivalent to [`recipe::RecipeResult::from_custom_item`](crate::recipe::RecipeResult::from_custom_item), provided as a
     /// method for callers that already have a `CustomItem` in hand.
     pub fn recipe_result(&self, count: u32) -> SandResult<crate::recipe::RecipeResult> {
         crate::recipe::RecipeResult::from_custom_item(self, count)
@@ -2223,7 +2223,7 @@ impl fmt::Display for CustomItem {
     }
 }
 
-/// Allows passing a `CustomItem` directly to [`cmd::give`](crate::cmd) and any
+/// Allows passing a `CustomItem` directly to [`sand_commands::give`] and any
 /// other function accepting `impl Into<String>`.
 ///
 /// **This does not validate** — see [`fmt::Display`]'s doc comment above and

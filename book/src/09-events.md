@@ -152,6 +152,59 @@ Exposing them would mean an author-chosen threshold sampled via
 transition; see [Vanilla Limitations](reference/vanilla-limitations.md)
 for the evidence trail.
 
+## Participant context: attacker, weapon, victim, and friends
+
+Some events know more than just "which player triggered this." Combat
+events can (sometimes) name who dealt the damage; damage-dealing events can
+snapshot the weapon involved. `Event<E>` exposes this as typed, honestly
+labeled participant context:
+
+```rust,ignore
+use sand::prelude::*;
+
+#[event]
+fn on_hurt(event: Event<EntityDamagePlayerEvent>) {
+    if let ParticipantAvailability::Available(attacker) = event.attacker() {
+        cmd::tellraw(attacker.selector().selector(), Text::new("tagged you!"));
+    }
+}
+
+#[event]
+fn on_hit(event: Event<PlayerDamageEntityEvent>) {
+    if let ParticipantAvailability::Available(weapon) = event.weapon() {
+        // build commands against weapon's captured item data
+    }
+}
+```
+
+`ParticipantAvailability<T>` is never collapsed into a plain `Option<T>` —
+`Unavailable(reason)` distinguishes "vanilla genuinely cannot supply this"
+from an event-semantic absence, and every `Available` value carries its own
+`ParticipantReliability` (`Correlated` for the attacker/killer, backed by
+`execute on attacker`; `ExactSnapshot` for weapon/held-item, a captured
+mainhand/offhand snapshot). Roles vanilla doesn't credibly expose for a
+given event — victim, direct attacker, interacted entity, projectile,
+ammunition — resolve `Unavailable` rather than guessing; see
+[Vanilla Limitations](reference/vanilla-limitations.md) for the full
+role-by-role breakdown.
+
+You only see this context on events that declare it. Declaring it yourself
+on a custom `AdvancementEvent`/`SandEvent` is one call in the definition,
+applied automatically by the compiler — no manual command splicing:
+
+```rust,ignore
+impl AdvancementEvent for MyCombatEvent {
+    // ...
+    fn participants() -> EventParticipantPlan {
+        EventParticipantPlan::new().observe_correlated_attacker()
+    }
+}
+```
+
+Reach for `sand::participant` directly (`EntityParticipant`,
+`EventParticipantPlan`) when `ParticipantAvailability` pattern-matching
+alone isn't enough — its own rustdoc covers the full typed handle API.
+
 ## Choosing event vs. state vs. storage
 
 As a rule of thumb Trailforge follows throughout: reach for an **event**

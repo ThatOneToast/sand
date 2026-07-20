@@ -171,10 +171,11 @@ impl EventContextCapabilities {
     /// not counting anything a same-cycle parent might contribute.
     ///
     /// - `AdvancementTrigger`/legacy `TickCondition` dispatch: exact player
-    ///   subject, invocation lifetime (a raw/custom advancement criterion's
-    ///   own extra JSON fields are not exposed as capabilities — see
-    ///   `ai/known-limitations.md` `LIM-CTX-*` for the raw-criterion
-    ///   escape-hatch boundary).
+    ///   subject, invocation lifetime. A raw/custom advancement criterion's
+    ///   own extra JSON fields (beyond the player subject itself) are never
+    ///   exposed as capabilities — only participants an
+    ///   [`crate::participant::EventParticipantPlan`] explicitly declares
+    ///   are.
     /// - Structured [`SandEventDispatch::tick`]: exact player subject iff
     ///   [`TickScope::has_player_subject`](crate::events::TickScope::has_player_subject)
     ///   holds for the declared scope.
@@ -209,6 +210,29 @@ impl EventContextCapabilities {
             // player, same as `TickCondition` — the subject is always the
             // exact observed player.
             SandEventDispatch::Tracked(_) => Self::EXACT_PLAYER_SUBJECT,
+        }
+    }
+
+    /// [`Self::for_event`]'s subject capability, plus every entity/item
+    /// capability `E::participants()` declares (#230 Phase 7 — plan
+    /// capabilities are not visible to `for_event` alone, since a plan's
+    /// capabilities are computed at runtime from a `Vec`, not the `'static`
+    /// slices `EventContextCapabilities` requires; this returns the owned
+    /// [`ResolvedEventContextCapabilities`] instead).
+    ///
+    /// This is what a caller wanting the *full* picture for one event type
+    /// — subject and declared participants together — should call, rather
+    /// than combining [`Self::for_event`] and
+    /// `E::participants().capabilities()` by hand.
+    pub fn for_event_with_participants<E: SandEvent + 'static>() -> ResolvedEventContextCapabilities
+    {
+        let subject = Self::for_event::<E>().subject;
+        let plan = E::participants();
+        ResolvedEventContextCapabilities {
+            subject,
+            entities: plan.capabilities(),
+            items: plan.item_capabilities(),
+            locations: Vec::new(),
         }
     }
 }
@@ -410,6 +434,144 @@ pub fn propagate_while(current: SubjectCapability) -> SubjectCapability {
 /// capabilities either.
 pub fn propagate_when_unless(current: SubjectCapability) -> SubjectCapability {
     current
+}
+
+/// [`propagate_after`]/[`merge_after_any`]/[`merge_after_all`]/
+/// [`propagate_within`] extended to a full [`ResolvedEventContextCapabilities`]
+/// (subject **and** declared entity/item participants), applying the same
+/// degradation rule to every entity/item capability that the subject rule
+/// already applies to the subject.
+///
+/// **Scope note:** this is capability *bookkeeping* only — it computes what
+/// a composed child could honestly promise about an inherited participant,
+/// for diagnostics and typed-context callers to consult. It does not by
+/// itself thread real command-level participant values (tags/storage
+/// paths) across chain/compose graph edges — the export pipeline's
+/// generated commands do not yet re-bind a parent's observed participant
+/// into a child's own scope. Wiring real cross-edge propagation is tracked
+/// as focused follow-up scope, not silently promised here.
+pub mod full {
+    use super::{
+        ContextMergeError, EntityParticipantCapability, ItemParticipantCapability,
+        ParticipantLifetime, ResolvedEventContextCapabilities,
+        propagate_after as propagate_subject_after, propagate_within as propagate_subject_within,
+    };
+
+    fn degrade_entity_after(cap: EntityParticipantCapability) -> EntityParticipantCapability {
+        EntityParticipantCapability {
+            lifetime: cap
+                .lifetime
+                .max(ParticipantLifetime::SynchronousDescendants),
+            ..cap
+        }
+    }
+
+    fn degrade_item_after(cap: ItemParticipantCapability) -> ItemParticipantCapability {
+        ItemParticipantCapability {
+            lifetime: cap
+                .lifetime
+                .max(ParticipantLifetime::SynchronousDescendants),
+            ..cap
+        }
+    }
+
+    /// Full-capability counterpart of [`super::propagate_after`].
+    pub fn propagate_after(
+        parent: ResolvedEventContextCapabilities,
+    ) -> ResolvedEventContextCapabilities {
+        ResolvedEventContextCapabilities {
+            subject: propagate_subject_after(parent.subject),
+            entities: parent
+                .entities
+                .into_iter()
+                .map(degrade_entity_after)
+                .collect(),
+            items: parent.items.into_iter().map(degrade_item_after).collect(),
+            locations: parent.locations,
+        }
+    }
+
+    /// Full-capability counterpart of [`super::merge_after_any`]/
+    /// [`super::merge_after_all`] — same conservative rule for both, as the
+    /// subject-only versions already document. Entity/item capabilities are
+    /// intersected by role: a role must appear (with an *equal* capability —
+    /// see [`ContextMergeError::ConflictingEntityCapability`]/
+    /// [`ContextMergeError::ConflictingItemCapability`]) in every parent to
+    /// survive the merge, since the child cannot statically know which
+    /// parent actually fired.
+    pub fn merge_disjunctive_or_conjunctive(
+        parents: &[ResolvedEventContextCapabilities],
+    ) -> Result<ResolvedEventContextCapabilities, ContextMergeError> {
+        let subjects: Vec<_> = parents.iter().map(|p| p.subject).collect();
+        let subject = super::merge_disjunctive_or_conjunctive(&subjects)?;
+
+        let mut entities = Vec::new();
+        if let Some(first) = parents.first() {
+            for candidate in &first.entities {
+                let mut agreed = Some(*candidate);
+                for other in &parents[1..] {
+                    match other.entities.iter().find(|e| e.role == candidate.role) {
+                        Some(entry) if *entry == *candidate => {}
+                        Some(_) => {
+                            return Err(ContextMergeError::ConflictingEntityCapability {
+                                role: candidate.role,
+                            });
+                        }
+                        None => agreed = None,
+                    }
+                }
+                if let Some(entry) = agreed {
+                    entities.push(degrade_entity_after(entry));
+                }
+            }
+        }
+
+        let mut items = Vec::new();
+        if let Some(first) = parents.first() {
+            for candidate in &first.items {
+                let mut agreed = Some(*candidate);
+                for other in &parents[1..] {
+                    match other.items.iter().find(|i| i.role == candidate.role) {
+                        Some(entry) if *entry == *candidate => {}
+                        Some(_) => {
+                            return Err(ContextMergeError::ConflictingItemCapability {
+                                role: candidate.role,
+                            });
+                        }
+                        None => agreed = None,
+                    }
+                }
+                if let Some(entry) = agreed {
+                    items.push(degrade_item_after(entry));
+                }
+            }
+        }
+
+        Ok(ResolvedEventContextCapabilities {
+            subject,
+            entities,
+            items,
+            locations: Vec::new(),
+        })
+    }
+
+    /// Full-capability counterpart of [`super::propagate_within`] — entity/
+    /// item participants never survive a bounded cross-tick window at all
+    /// (unlike the subject, which downgrades to `Correlated`/`EventCycle`
+    /// rather than disappearing): an ephemeral synchronous-descendant-scoped
+    /// entity/item reference from the original firing invocation cannot
+    /// possibly still be valid once `.within(...)` later observes its
+    /// condition true, potentially ticks later.
+    pub fn propagate_within(
+        parent: ResolvedEventContextCapabilities,
+    ) -> ResolvedEventContextCapabilities {
+        ResolvedEventContextCapabilities {
+            subject: propagate_subject_within(parent.subject),
+            entities: Vec::new(),
+            items: Vec::new(),
+            locations: Vec::new(),
+        }
+    }
 }
 
 /// `.within::<E>(TickWindow)` cannot retain any capability more precise
@@ -633,5 +795,138 @@ mod tests {
     fn when_and_unless_do_not_alter_capabilities() {
         let current = SubjectCapability::EXACT_PLAYER_INVOCATION;
         assert_eq!(propagate_when_unless(current), current);
+    }
+
+    // ── for_event_with_participants (#230 Phase 7) ────────────────────────
+
+    struct CombatEventWithAttacker;
+    impl SandEvent for CombatEventWithAttacker {
+        fn dispatch() -> impl Into<SandEventDispatch> {
+            SandEventDispatch::TickCondition("score @s x matches 1".into())
+        }
+        fn participants() -> crate::participant::EventParticipantPlan {
+            crate::participant::EventParticipantPlan::new().observe_correlated_attacker()
+        }
+    }
+
+    #[test]
+    fn for_event_with_participants_includes_declared_entity_capabilities() {
+        let resolved =
+            EventContextCapabilities::for_event_with_participants::<CombatEventWithAttacker>();
+        assert_eq!(resolved.subject.reliability, ParticipantReliability::Exact);
+        assert_eq!(resolved.entities.len(), 1);
+        assert_eq!(resolved.entities[0].role, EntityParticipantRole::Attacker);
+        assert_eq!(
+            resolved.entities[0].reliability,
+            ParticipantReliability::Correlated
+        );
+        assert!(resolved.items.is_empty());
+    }
+
+    #[test]
+    fn for_event_with_participants_is_empty_for_undeclared_events() {
+        let resolved = EventContextCapabilities::for_event_with_participants::<SimpleTickEvent>();
+        assert!(resolved.entities.is_empty());
+        assert!(resolved.items.is_empty());
+    }
+
+    // ── capabilities::full propagation (#230 Phase 7) ─────────────────────
+
+    mod full_propagation {
+        use super::full;
+        use super::*;
+
+        fn attacker_capability() -> EntityParticipantCapability {
+            EntityParticipantCapability {
+                role: EntityParticipantRole::Attacker,
+                reliability: ParticipantReliability::Correlated,
+                lifetime: ParticipantLifetime::SynchronousDescendants,
+                occurrence: CapabilityOccurrence::OccurrenceDependent,
+                min_version: Some((1, 20, 2)),
+            }
+        }
+
+        #[test]
+        fn propagate_after_degrades_entity_lifetime_like_subject() {
+            let parent = ResolvedEventContextCapabilities {
+                subject: SubjectCapability::EXACT_PLAYER_INVOCATION,
+                entities: vec![EntityParticipantCapability {
+                    lifetime: ParticipantLifetime::Invocation,
+                    ..attacker_capability()
+                }],
+                items: vec![],
+                locations: vec![],
+            };
+            let child = full::propagate_after(parent);
+            assert_eq!(
+                child.entities[0].lifetime,
+                ParticipantLifetime::SynchronousDescendants
+            );
+            assert_eq!(
+                child.subject.lifetime,
+                ParticipantLifetime::SynchronousDescendants
+            );
+        }
+
+        #[test]
+        fn merge_after_any_keeps_only_roles_every_parent_agrees_on() {
+            let with_attacker = ResolvedEventContextCapabilities {
+                subject: SubjectCapability::EXACT_PLAYER_INVOCATION,
+                entities: vec![attacker_capability()],
+                items: vec![],
+                locations: vec![],
+            };
+            let without_attacker = ResolvedEventContextCapabilities {
+                subject: SubjectCapability::EXACT_PLAYER_INVOCATION,
+                entities: vec![],
+                items: vec![],
+                locations: vec![],
+            };
+            let merged =
+                full::merge_disjunctive_or_conjunctive(&[with_attacker, without_attacker]).unwrap();
+            assert!(
+                merged.entities.is_empty(),
+                "a role only one parent declares must not survive the merge"
+            );
+        }
+
+        #[test]
+        fn merge_rejects_conflicting_capability_for_the_same_role() {
+            let a = ResolvedEventContextCapabilities {
+                subject: SubjectCapability::EXACT_PLAYER_INVOCATION,
+                entities: vec![attacker_capability()],
+                items: vec![],
+                locations: vec![],
+            };
+            let b = ResolvedEventContextCapabilities {
+                subject: SubjectCapability::EXACT_PLAYER_INVOCATION,
+                entities: vec![EntityParticipantCapability {
+                    reliability: ParticipantReliability::Inferred,
+                    ..attacker_capability()
+                }],
+                items: vec![],
+                locations: vec![],
+            };
+            let err = full::merge_disjunctive_or_conjunctive(&[a, b]).unwrap_err();
+            assert_eq!(
+                err,
+                ContextMergeError::ConflictingEntityCapability {
+                    role: EntityParticipantRole::Attacker
+                }
+            );
+        }
+
+        #[test]
+        fn propagate_within_drops_all_entity_and_item_participants() {
+            let parent = ResolvedEventContextCapabilities {
+                subject: SubjectCapability::EXACT_PLAYER_INVOCATION,
+                entities: vec![attacker_capability()],
+                items: vec![],
+                locations: vec![],
+            };
+            let child = full::propagate_within(parent);
+            assert!(child.entities.is_empty());
+            assert_eq!(child.subject.lifetime, ParticipantLifetime::EventCycle);
+        }
     }
 }

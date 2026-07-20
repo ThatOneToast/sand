@@ -497,6 +497,73 @@ pub(crate) fn check_event_trigger(
         )
 }
 
+/// Resolve the [`crate::version::VersionProfile`] a participant plan's
+/// version gating (`Relation::check_supported`) should run against, from
+/// the export's own already-resolved [`ExportCtx`].
+///
+/// `ctx: None` is the unprofiled compatibility export path
+/// ([`crate::try_export_components`]) — resolved against
+/// [`crate::version::LATEST_KNOWN`], the same permissive default
+/// `check_event_trigger` effectively uses for that path (no caps to gate
+/// against).
+pub(crate) fn resolve_participant_profile(
+    ctx: Option<&ExportCtx>,
+) -> crate::version::VersionProfile {
+    let requested = ctx
+        .map(|context| context.requested_version)
+        .unwrap_or(crate::version::LATEST_KNOWN);
+    let version = crate::version::MinecraftVersion::parse(requested).unwrap_or_else(|_| {
+        crate::version::MinecraftVersion::parse(crate::version::LATEST_KNOWN).unwrap()
+    });
+    crate::version::VersionProfile::resolve(&version).unwrap_or_else(|_| {
+        crate::version::VersionProfile::resolve(
+            &crate::version::MinecraftVersion::parse(crate::version::LATEST_KNOWN).unwrap(),
+        )
+        .expect("LATEST_KNOWN always resolves")
+    })
+}
+
+/// Merge `plan`'s generated commands into `setup`'s pre/post-observation
+/// (#230 automatic tick-dispatch integration) — a no-op returning `setup`
+/// unchanged when `plan.is_empty()`. `event_label` must be the event type's
+/// canonical name (`event_type_name()`), the same key
+/// [`crate::event::Event::entity`] reconstructs from, so a handler body can
+/// address what this merge bound.
+pub(crate) fn apply_participants_to_setup(
+    setup: crate::events::EventSetup,
+    plan: crate::participant::EventParticipantPlan,
+    event_label: &str,
+    ctx: Option<&ExportCtx>,
+    handler_path: &str,
+) -> ExportResult<crate::events::EventSetup> {
+    if plan.is_empty() {
+        return Ok(setup);
+    }
+    let profile = resolve_participant_profile(ctx);
+    let (setup_commands, cleanup_commands) = plan
+        .build(event_label, &profile)
+        .map_err(|err| participant_plan_export_error(handler_path, err))?;
+    let mut setup = setup;
+    setup.pre_observation.extend(setup_commands);
+    setup.post_observation.extend(cleanup_commands);
+    Ok(setup)
+}
+
+/// Map an [`crate::participant::EventParticipantPlanError`] into a fallible
+/// export diagnostic naming the handler that declared the plan.
+pub(crate) fn participant_plan_export_error(
+    handler_path: &str,
+    err: crate::participant::EventParticipantPlanError,
+) -> ComponentExportError {
+    sand_components::error::SandError::ComponentValidation {
+        location: sand_components::ResourceLocation::new("sand", "participants")
+            .expect("fixed participants resource location is valid"),
+        kind: "event_participant_plan".to_string(),
+        field: "participants".to_string(),
+        message: format!("cannot apply participant plan for handler `{handler_path}`: {err}"),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::AdvancementTrigger;

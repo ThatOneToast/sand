@@ -253,6 +253,25 @@ pub trait AdvancementEvent {
         vec![]
     }
 
+    /// Which participant observations this event declares (#230).
+    ///
+    /// Defaults to [`crate::participant::EventParticipantPlan::none`] — a
+    /// genuinely additive default; every existing `AdvancementEvent`
+    /// implementation is unaffected. Unlike [`crate::events::SandEvent::participants`]
+    /// (its tick-dispatch counterpart), a declared plan here **is**
+    /// automatically applied by the export pipeline: an advancement-backed
+    /// handler has no separate `EventSetup` pre/post-observation phase (its
+    /// generated body *is* the entire handler), so the compiler splices the
+    /// plan's setup commands at the start of the generated body and its
+    /// cleanup commands at the end — see
+    /// `sand-core/src/compiler/export/pipeline.rs`'s `EventDispatch::Advancement`
+    /// handling. Authors do not need to call
+    /// [`crate::events::EventSetup::with_participants`] themselves for this
+    /// dispatch kind.
+    fn participants() -> crate::participant::EventParticipantPlan {
+        crate::participant::EventParticipantPlan::none()
+    }
+
     /// Build a value-based [`EventConfig`] from this trait impl.
     ///
     /// This bridges the trait-based and builder-based APIs: you can obtain an
@@ -379,6 +398,81 @@ impl<E: AdvancementEvent> Event<E> {
     /// Convenience wrapper over [`AdvancementEvent::into_config`].
     pub fn config() -> crate::event::builder::EventConfig {
         E::into_config()
+    }
+
+    /// Access a declared entity participant by role (#230).
+    ///
+    /// Backed by whatever [`AdvancementEvent::participants`] declared for
+    /// this event type — a role not declared there always resolves
+    /// [`crate::participant::ParticipantAvailability::Unavailable`] with
+    /// [`crate::participant::ParticipantUnavailableReason::NotApplicable`];
+    /// a caller cannot get a stronger claim than the event definition
+    /// actually made. See
+    /// [`crate::participant::EventParticipantPlan::resolve`] for the exact
+    /// reconstruction — this is a zero-cost lookup, not a query against
+    /// live game state (Sand is a compiler; presence is a runtime fact,
+    /// checked in generated commands, not observable from Rust).
+    ///
+    /// ```rust,ignore
+    /// #[event]
+    /// fn on_hit(event: Event<EntityDamagePlayerEvent>) {
+    ///     if let ParticipantAvailability::Available(attacker) = event.entity(EntityParticipantRole::Attacker) {
+    ///         // build commands against attacker.selector()
+    ///     }
+    /// }
+    /// ```
+    pub fn entity(
+        &self,
+        role: crate::participant::EntityParticipantRole,
+    ) -> crate::participant::ParticipantAvailability<crate::participant::EntityParticipant> {
+        E::participants().resolve(std::any::type_name::<E>(), role)
+    }
+
+    /// Access a declared item participant by role (#230). See [`Self::entity`]
+    /// for the availability contract this mirrors.
+    pub fn item(
+        &self,
+        role: crate::participant::ItemParticipantRole,
+    ) -> crate::participant::ParticipantAvailability<crate::item::ItemSnapshot> {
+        E::participants().resolve_item(std::any::type_name::<E>(), role)
+    }
+
+    /// The entity that caused this event, when declared. `DirectAttacker`
+    /// (the immediate causing entity, e.g. an arrow rather than the player
+    /// who shot it) is a distinct role vanilla's damage source also draws,
+    /// but no credible backend exists for it today — see
+    /// `docs/testing/participant-role-evidence.md`.
+    pub fn attacker(
+        &self,
+    ) -> crate::participant::ParticipantAvailability<crate::participant::EntityParticipant> {
+        self.entity(crate::participant::EntityParticipantRole::Attacker)
+    }
+
+    /// The entity that landed the killing blow, when declared.
+    pub fn killer(
+        &self,
+    ) -> crate::participant::ParticipantAvailability<crate::participant::EntityParticipant> {
+        self.entity(crate::participant::EntityParticipantRole::Killer)
+    }
+
+    /// The entity that received damage/an effect, when declared.
+    pub fn victim(
+        &self,
+    ) -> crate::participant::ParticipantAvailability<crate::participant::EntityParticipant> {
+        self.entity(crate::participant::EntityParticipantRole::Victim)
+    }
+
+    /// The entity this player directly interacted with, when declared.
+    pub fn interacted_entity(
+        &self,
+    ) -> crate::participant::ParticipantAvailability<crate::participant::EntityParticipant> {
+        self.entity(crate::participant::EntityParticipantRole::InteractedEntity)
+    }
+
+    /// The weapon item snapshot, when declared — see
+    /// [`crate::participant::EventParticipantPlan::observe_weapon`].
+    pub fn weapon(&self) -> crate::participant::ParticipantAvailability<crate::item::ItemSnapshot> {
+        self.item(crate::participant::ItemParticipantRole::Weapon)
     }
 }
 

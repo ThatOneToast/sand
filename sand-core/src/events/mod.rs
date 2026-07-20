@@ -398,13 +398,47 @@ pub struct SameCycleEventDependency {
     pub event_revoke: fn() -> bool,
 }
 
+/// `E::setup()` with `E::participants()` merged in exactly the same way the
+/// export pipeline's `apply_participants_to_setup` merges it for `E`'s own
+/// direct registration (#264) — used as this dependency's `event_setup`
+/// factory so a same-cycle child's recursively-discovered view of a
+/// participant-declaring parent's `EventSetup` is byte-identical to that
+/// parent's own explicitly-registered `EventSetup`, not a stale
+/// participant-less copy (which the graph's own consistency validation
+/// would then correctly reject as two conflicting definitions of one
+/// event).
+///
+/// Resolved against the permissive default profile (`LATEST_KNOWN`), the
+/// same one `resolve_participant_profile(None)` uses — matching every
+/// caller of this factory that exports without an explicit target version.
+/// A version-profiled export whose target actually changes the merged
+/// commands for this specific event is a known, narrow limitation: fully
+/// closing it would require threading `ExportCtx` through this factory
+/// type, which is out of scope here (see #264's final report).
+fn dependency_setup<E: SandEvent + 'static>() -> EventSetup {
+    let plan = E::participants();
+    if plan.is_empty() {
+        return E::setup();
+    }
+    let profile = crate::version::VersionProfile::resolve(
+        &crate::version::MinecraftVersion::parse(crate::version::LATEST_KNOWN).unwrap(),
+    )
+    .expect("LATEST_KNOWN always resolves");
+    E::setup()
+        .with_participants::<E>(plan, &profile)
+        .expect(
+            "a participant plan declared on a same-cycle graph parent must support LATEST_KNOWN \
+             — Sand does not know how to target a version newer than its own latest supported one",
+        )
+}
+
 impl SameCycleEventDependency {
     fn of<E: SandEvent + 'static>() -> Self {
         Self {
             event_type_id: std::any::TypeId::of::<E>,
             event_type_name: std::any::type_name::<E>,
             event_dispatch: || E::dispatch().into(),
-            event_setup: E::setup,
+            event_setup: dependency_setup::<E>,
             event_revoke: E::revoke,
         }
     }
@@ -778,7 +812,7 @@ impl ChainEventDispatch {
             event_type_id: std::any::TypeId::of::<E>,
             event_type_name: std::any::type_name::<E>,
             event_dispatch: || E::dispatch().into(),
-            event_setup: E::setup,
+            event_setup: dependency_setup::<E>,
             make_condition: E::persistent_condition,
         });
         self
@@ -827,7 +861,7 @@ impl ChainEventDispatch {
             event_type_id: std::any::TypeId::of::<E>,
             event_type_name: std::any::type_name::<E>,
             event_dispatch: || E::dispatch().into(),
-            event_setup: E::setup,
+            event_setup: dependency_setup::<E>,
             window,
         });
         self

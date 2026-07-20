@@ -15,6 +15,7 @@ pub(crate) mod dialogs;
 pub(crate) mod events;
 pub(crate) mod functions;
 pub(crate) mod lifecycle;
+pub(crate) mod participant_transport;
 pub(crate) mod pipeline;
 pub(crate) mod predicates;
 pub(crate) mod records;

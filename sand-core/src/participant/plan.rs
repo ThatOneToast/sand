@@ -94,13 +94,21 @@ struct PlanEntry {
     source: PlanSource,
 }
 
-/// The observation mechanism backing an entity plan entry. Currently only
-/// correlated attacker observation — see
-/// `sand-core/src/participant/observation.rs`'s module doc for why no
-/// other mechanism exists yet.
+/// The observation mechanism backing an entity plan entry.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum PlanSource {
+    /// Directly captured by this event's own setup — see
+    /// `sand-core/src/participant/observation.rs`'s module doc for why no
+    /// other direct-capture mechanism exists yet.
     CorrelatedAttacker,
+    /// Borrowed, unchanged, from `source_event_label`'s own same-cycle
+    /// capture of the same role (#264) — see
+    /// [`EventParticipantPlan::inherit_entity`]. Contributes zero setup or
+    /// cleanup commands: the source event fully owns both, and this event
+    /// only ever runs within the source's synchronous descendant call
+    /// tree, so the source's temporary tag is already present the entire
+    /// time this event's own handlers run.
+    Inherited { source_event_label: &'static str },
 }
 
 /// One declared held-item snapshot within a plan. Always exact — see
@@ -108,12 +116,34 @@ enum PlanSource {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct ItemPlanEntry {
     role: ItemParticipantRole,
-    hand: ParticipantHand,
+    source: ItemPlanSource,
+}
+
+/// The capture mechanism backing an item plan entry.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ItemPlanSource {
+    /// Directly captured by this event's own setup, from `hand`.
+    Hand(ParticipantHand),
+    /// Borrowed, unchanged, from `source_event_label`'s own same-cycle
+    /// capture of the same role/hand (#264) — see
+    /// [`EventParticipantPlan::inherit_item`]. Contributes zero setup
+    /// commands: the source event's capture already ran.
+    Inherited {
+        source_event_label: &'static str,
+        hand: ParticipantHand,
+    },
 }
 
 impl ItemPlanEntry {
+    fn hand(self) -> ParticipantHand {
+        match self.source {
+            ItemPlanSource::Hand(hand) => hand,
+            ItemPlanSource::Inherited { hand, .. } => hand,
+        }
+    }
+
     fn location(self) -> ItemLocation {
-        match self.hand {
+        match self.hand() {
             ParticipantHand::MainHand => ItemLocation::PlayerMainHand,
             ParticipantHand::OffHand => ItemLocation::PlayerOffHand,
         }
@@ -239,6 +269,52 @@ impl EventParticipantPlan {
         self
     }
 
+    /// Declare that this event borrows `role` from `Source`'s own
+    /// same-cycle capture, instead of capturing it independently (#264).
+    ///
+    /// Valid only when `Source` is a real ancestor of this event reachable
+    /// through an unbroken chain of plain, single-parent, unbounded
+    /// `.after(...)`/`chain::<...>()` edges (no `after_any`/`after_all`
+    /// fan-in, no `.within(...)`, no advancement-bridge hop along the way),
+    /// and `Source`'s own plan must declare `role` via direct capture, not
+    /// itself via `inherit_entity` — transitive inheritance is not
+    /// supported; every link in a multi-hop chain must name the actual
+    /// capturing ancestor directly. Both conditions are enforced by the
+    /// export pipeline, which has the full event graph available (this
+    /// plan-building API does not) — see
+    /// `sand-core/src/compiler/export/participant_transport.rs`. An
+    /// unsatisfiable declaration fails export with an actionable
+    /// diagnostic; it can never silently generate a dangling reference.
+    ///
+    /// Zero setup/cleanup commands are generated for this entry — `Source`
+    /// fully owns both, and this event only ever runs inside `Source`'s own
+    /// synchronous descendant call tree, so the borrowed reference is valid
+    /// for this event's entire execution.
+    ///
+    /// ```rust,ignore
+    /// impl SandEvent for ChildAfterDamage {
+    ///     fn dispatch() -> impl Into<SandEventDispatch> {
+    ///         SandEventDispatch::chain::<EntityDamagePlayerEvent>()
+    ///     }
+    ///     fn participants() -> EventParticipantPlan {
+    ///         EventParticipantPlan::new()
+    ///             .inherit_entity::<EntityDamagePlayerEvent>(EntityParticipantRole::Attacker)
+    ///     }
+    /// }
+    /// ```
+    pub fn inherit_entity<Source: crate::events::SandEvent + 'static>(
+        mut self,
+        role: EntityParticipantRole,
+    ) -> Self {
+        self.entries.push(PlanEntry {
+            role,
+            source: PlanSource::Inherited {
+                source_event_label: std::any::type_name::<Source>(),
+            },
+        });
+        self
+    }
+
     /// Declare an [`ItemParticipantRole::Weapon`] snapshot captured from
     /// [`ParticipantHand::MainHand`] — the conventional assumption for
     /// melee combat (whatever the attacker is holding at the moment of the
@@ -257,7 +333,35 @@ impl EventParticipantPlan {
     /// infer intent from vanilla behavior, it only captures the exact item
     /// present in the named hand.
     pub fn observe_held_item(mut self, role: ItemParticipantRole, hand: ParticipantHand) -> Self {
-        self.item_entries.push(ItemPlanEntry { role, hand });
+        self.item_entries.push(ItemPlanEntry {
+            role,
+            source: ItemPlanSource::Hand(hand),
+        });
+        self
+    }
+
+    /// The item-snapshot counterpart to [`Self::inherit_entity`] — borrows
+    /// `role` (captured from `hand`) from `Source`'s own same-cycle
+    /// capture instead of capturing it independently. `hand` must match
+    /// the hand `Source`'s own plan declared that role from — this API
+    /// does not look `Source`'s declaration up for you, so a mismatched
+    /// hand resolves to a snapshot `Source` never actually captured (a
+    /// distinct, always-absent snapshot handle, not a compile or export
+    /// error — see the module doc's determinism note). Same export-time
+    /// ancestor-chain and direct-capture validation as
+    /// [`Self::inherit_entity`].
+    pub fn inherit_item<Source: crate::events::SandEvent + 'static>(
+        mut self,
+        role: ItemParticipantRole,
+        hand: ParticipantHand,
+    ) -> Self {
+        self.item_entries.push(ItemPlanEntry {
+            role,
+            source: ItemPlanSource::Inherited {
+                source_event_label: std::any::type_name::<Source>(),
+                hand,
+            },
+        });
         self
     }
 
@@ -294,7 +398,72 @@ impl EventParticipantPlan {
                     occurrence: CapabilityOccurrence::OccurrenceDependent,
                     min_version: Some(CorrelationEvidence::ATTACKER_RELATION.min_version),
                 },
+                // A same-cycle borrow never upgrades reliability/lifetime
+                // beyond what direct capture already promises (#264 Phase
+                // 13) — inheriting a `CorrelatedAttacker` role is exactly
+                // as strong as observing it directly, since it is the same
+                // live reference, not a weaker derived one.
+                PlanSource::Inherited { .. } => EntityParticipantCapability {
+                    role: entry.role,
+                    reliability: ParticipantReliability::Correlated,
+                    lifetime: ParticipantLifetime::SynchronousDescendants,
+                    occurrence: CapabilityOccurrence::OccurrenceDependent,
+                    min_version: Some(CorrelationEvidence::ATTACKER_RELATION.min_version),
+                },
             })
+            .collect()
+    }
+
+    /// Entity roles this plan declares via `Source`'s same-cycle capture,
+    /// with the declared source event label — `pub(crate)`, consumed by
+    /// the export pipeline's ancestor-chain validation
+    /// (`sand-core/src/compiler/export/participant_transport.rs`), not
+    /// part of the public plan-building API.
+    pub(crate) fn inherited_entity_roles(
+        &self,
+    ) -> Vec<(EntityParticipantRole, &'static str)> {
+        self.entries
+            .iter()
+            .filter_map(|entry| match entry.source {
+                PlanSource::Inherited { source_event_label } => {
+                    Some((entry.role, source_event_label))
+                }
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// Entity roles this plan captures directly (not inherited) —
+    /// `pub(crate)`, the counterpart validation needs to confirm a
+    /// requested inheritance source actually owns a direct capture of the
+    /// role, not itself another inherited borrow.
+    pub(crate) fn direct_entity_roles(&self) -> Vec<EntityParticipantRole> {
+        self.entries
+            .iter()
+            .filter(|entry| matches!(entry.source, PlanSource::CorrelatedAttacker))
+            .map(|entry| entry.role)
+            .collect()
+    }
+
+    /// The item-role counterpart to [`Self::inherited_entity_roles`].
+    pub(crate) fn inherited_item_roles(&self) -> Vec<(ItemParticipantRole, &'static str)> {
+        self.item_entries
+            .iter()
+            .filter_map(|entry| match entry.source {
+                ItemPlanSource::Inherited {
+                    source_event_label, ..
+                } => Some((entry.role, source_event_label)),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// The item-role counterpart to [`Self::direct_entity_roles`].
+    pub(crate) fn direct_item_roles(&self) -> Vec<ItemParticipantRole> {
+        self.item_entries
+            .iter()
+            .filter(|entry| matches!(entry.source, ItemPlanSource::Hand(_)))
+            .map(|entry| entry.role)
             .collect()
     }
 
@@ -344,21 +513,34 @@ impl EventParticipantPlan {
                     setup_commands.extend(commands);
                     cleanup_commands.extend(observation.cleanup_commands());
                 }
+                // Zero commands — the source event's own plan already
+                // captured and owns cleanup of this binding; see
+                // `inherit_entity`'s doc.
+                PlanSource::Inherited { .. } => {}
             }
         }
         for entry in &self.item_entries {
-            let schema =
-                SnapshotSchema::new(PARTICIPANT_STORAGE, &item_entry_label(event_label, *entry));
-            let (_snapshot, commands) = ItemSnapshot::capture(
-                &entry.location(),
-                schema,
-                SnapshotReliability::ExactPostTrigger,
-            )?;
-            // Item snapshots have no cleanup step — the storage is
-            // unconditionally reset (not removed) at the start of every
-            // capture, so a stale value can never leak through to the next
-            // invocation (see `ItemSnapshot::capture`'s doc).
-            setup_commands.extend(commands);
+            match entry.source {
+                ItemPlanSource::Hand(_) => {
+                    let schema = SnapshotSchema::new(
+                        PARTICIPANT_STORAGE,
+                        &item_entry_label(event_label, *entry),
+                    );
+                    let (_snapshot, commands) = ItemSnapshot::capture(
+                        &entry.location(),
+                        schema,
+                        SnapshotReliability::ExactPostTrigger,
+                    )?;
+                    // Item snapshots have no cleanup step — the storage is
+                    // unconditionally reset (not removed) at the start of
+                    // every capture, so a stale value can never leak
+                    // through to the next invocation (see
+                    // `ItemSnapshot::capture`'s doc).
+                    setup_commands.extend(commands);
+                }
+                // Zero commands — the source event's own capture already ran.
+                ItemPlanSource::Inherited { .. } => {}
+            }
         }
         Ok((setup_commands, cleanup_commands))
     }
@@ -383,16 +565,22 @@ impl EventParticipantPlan {
                 ParticipantUnavailableReason::NotApplicable,
             );
         };
-        match entry.source {
-            PlanSource::CorrelatedAttacker => {
-                let schema = ObservationSchema::new(PARTICIPANT_STORAGE, event_label);
-                ParticipantAvailability::Available(EntityParticipant::correlated(
-                    SingleEntity::raw(format!("@e[tag={},limit=1]", schema.tag())),
-                    role,
-                    ParticipantLifetime::SynchronousDescendants,
-                ))
-            }
-        }
+        let schema_event_label = match entry.source {
+            PlanSource::CorrelatedAttacker => event_label,
+            // Resolve against the *source's* own key, not this event's —
+            // nothing was ever captured under this event's own label for
+            // an inherited entry (`build` emits zero commands for it), so
+            // the only valid reconstruction reads the source's tag.
+            PlanSource::Inherited {
+                source_event_label, ..
+            } => source_event_label,
+        };
+        let schema = ObservationSchema::new(PARTICIPANT_STORAGE, schema_event_label);
+        ParticipantAvailability::Available(EntityParticipant::correlated(
+            SingleEntity::raw(format!("@e[tag={},limit=1]", schema.tag())),
+            role,
+            ParticipantLifetime::SynchronousDescendants,
+        ))
     }
 
     /// Reconstruct the typed item snapshot handle this plan's setup
@@ -411,8 +599,19 @@ impl EventParticipantPlan {
                 ParticipantUnavailableReason::NotApplicable,
             );
         };
-        let schema =
-            SnapshotSchema::new(PARTICIPANT_STORAGE, &item_entry_label(event_label, *entry));
+        let schema_event_label = match entry.source {
+            ItemPlanSource::Hand(_) => event_label,
+            // See `resolve`'s equivalent comment — an inherited entry
+            // resolves against the source's own key, since that is where
+            // the actual capture happened.
+            ItemPlanSource::Inherited {
+                source_event_label, ..
+            } => source_event_label,
+        };
+        let schema = SnapshotSchema::new(
+            PARTICIPANT_STORAGE,
+            &item_entry_label(schema_event_label, *entry),
+        );
         ParticipantAvailability::Available(ItemSnapshot::reconstruct(
             schema,
             entry.location().kind(),
@@ -426,7 +625,7 @@ impl EventParticipantPlan {
 /// entity entry) never derive the same [`SnapshotSchema`]/[`ObservationSchema`]
 /// key from one shared `event_label`.
 fn item_entry_label(event_label: &str, entry: ItemPlanEntry) -> String {
-    format!("{event_label}::item::{:?}::{:?}", entry.role, entry.hand)
+    format!("{event_label}::item::{:?}::{:?}", entry.role, entry.hand())
 }
 
 impl EventSetup {

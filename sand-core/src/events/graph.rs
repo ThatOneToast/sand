@@ -678,6 +678,14 @@ fn discover(
                  (#240) — chain from a tick-lifecycle SandEvent instead"
             )));
         }
+        NormalizedEventDispatch::Tracked(_) => {
+            visiting.pop();
+            return Err(GraphError(format!(
+                "SandEvent `{type_name}` cannot participate in same-cycle chained dispatch: \
+                 tracked-transition SandEvent parents are not yet supported by chained dispatch \
+                 (#49) — subscribe to it directly with `#[event]` instead"
+            )));
+        }
         NormalizedEventDispatch::Tick(t) => NodeOrigin::Root(t),
         NormalizedEventDispatch::Chain(c) => {
             if c.occurrence.is_empty() {

@@ -78,6 +78,7 @@ pub(crate) fn resolve_transition_plan<'a>(
     }
 
     let mut generated_names: BTreeMap<String, &str> = BTreeMap::new();
+    let mut declared_criteria: BTreeMap<&str, &str> = BTreeMap::new();
     let mut plan = TransitionPlan::default();
     for (id, tracker) in trackers {
         let key = tracker_key(id);
@@ -87,6 +88,32 @@ pub(crate) fn resolve_transition_plan<'a>(
         let available =
             matches!(tracker.source, TrackedSource::Score { .. }).then(|| format!("__st_{key}a"));
         let function_path = format!("__sand_transition/{key}");
+
+        if let TrackedSource::Score {
+            objective,
+            criterion,
+            ..
+        }
+        | TrackedSource::ScoreThreshold {
+            objective,
+            criterion,
+            ..
+        } = tracker.source
+        {
+            match declared_criteria.get(objective) {
+                Some(existing) if *existing != criterion => {
+                    return Err(format!(
+                        "transition tracker `{id}` references objective `{objective}` with criterion `{criterion}`, which conflicts with a previously declared criterion `{existing}`"
+                    ));
+                }
+                Some(_) => {}
+                None => {
+                    declared_criteria.insert(objective, criterion);
+                    plan.load_commands
+                        .push(format!("scoreboard objectives add {objective} {criterion}"));
+                }
+            }
+        }
 
         for generated in [&previous, &current, &seen, &function_path]
             .into_iter()
@@ -132,6 +159,18 @@ pub(crate) fn resolve_transition_plan<'a>(
                 &seen,
                 namespace,
             ),
+            TrackedSource::ScoreThreshold {
+                objective,
+                comparator,
+                ..
+            } => boolean_commands(
+                &tracker.handlers,
+                &comparator.render(objective),
+                &previous,
+                &current,
+                &seen,
+                namespace,
+            ),
             TrackedSource::Score { objective, .. } => score_commands(
                 &tracker.handlers,
                 objective,
@@ -158,7 +197,7 @@ fn validate_kind(transition: TrackedTransition) -> Result<(), String> {
     let valid = matches!(
         (transition.source, transition.kind),
         (
-            TrackedSource::BooleanCondition { .. },
+            TrackedSource::BooleanCondition { .. } | TrackedSource::ScoreThreshold { .. },
             TransitionKind::BecameTrue | TransitionKind::BecameFalse
         ) | (
             TrackedSource::Score { .. },
@@ -279,6 +318,7 @@ mod tests {
     const SCORE: TrackedSource = TrackedSource::Score {
         description: "test score",
         objective: "points",
+        criterion: "dummy",
     };
 
     fn handler(

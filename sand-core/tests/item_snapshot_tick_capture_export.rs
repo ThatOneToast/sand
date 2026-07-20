@@ -82,6 +82,7 @@ sand_core::inventory::submit! {
             make_condition: no_condition,
             make_tick: on_held_item_check_tick,
             make_chain: no_chain,
+            make_tracked: || None,
             revoke: revoke_true,
             event_type_id: type_id,
             event_type_name: type_name,

@@ -44,6 +44,10 @@ fn proof_events_share_one_lifecycle_managed_tracker_and_export_stably() {
     );
     let records = records(&first);
 
+    // The `sand-example` crate registers other tracked-transition events too
+    // (e.g. sprinting, gamemode) via `#[event]` handlers elsewhere in the
+    // crate — this test only asserts on the sneaking-specific tracker, not
+    // on the total count of trackers in the whole exported pack.
     let trackers: Vec<_> = records
         .iter()
         .filter(|record| {
@@ -53,9 +57,21 @@ fn proof_events_share_one_lifecycle_managed_tracker_and_export_stably() {
                     .is_some_and(|path| path.starts_with("__sand_transition/"))
         })
         .collect();
-    assert_eq!(trackers.len(), 1, "all sneaking handlers share one tracker");
-    let tracker_path = trackers[0]["path"].as_str().unwrap();
-    let tracker = trackers[0]["content"].as_str().unwrap();
+    let sneaking_trackers: Vec<_> = trackers
+        .iter()
+        .filter(|record| {
+            record["content"]
+                .as_str()
+                .is_some_and(|content| content.contains("player_sneaking"))
+        })
+        .collect();
+    assert_eq!(
+        sneaking_trackers.len(),
+        1,
+        "all sneaking handlers share one tracker"
+    );
+    let tracker_path = sneaking_trackers[0]["path"].as_str().unwrap();
+    let tracker = sneaking_trackers[0]["content"].as_str().unwrap();
 
     for handler in [
         "on_start_sneaking",
@@ -77,9 +93,15 @@ fn proof_events_share_one_lifecycle_managed_tracker_and_export_stably() {
     assert!(!tracker.contains("scoreboard players set @a"));
 
     let load = function(&records, "__sand_lifecycle_load");
+    let sneaking_key = tracker_path
+        .strip_prefix("__sand_transition/")
+        .expect("tracker path has the expected prefix");
     assert_eq!(
-        load.lines().filter(|line| line.contains("__st_")).count(),
-        3
+        load.lines()
+            .filter(|line| line.contains(&format!("__st_{sneaking_key}")))
+            .count(),
+        3,
+        "sneaking's own tracker declares exactly 3 private objectives (previous/current/seen)"
     );
     let tick = function(&records, "__sand_lifecycle_tick");
     assert!(tick.contains(&format!(

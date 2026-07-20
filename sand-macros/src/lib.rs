@@ -721,6 +721,44 @@ impl syn::parse::Parse for FlatEventAttr {
 
 // ── Event expansion ──────────────────────────────────────────────────────────
 
+/// Built-in event type names (#49) that reach the shared tracked-transition
+/// provider backend through `SandEvent::dispatch()` rather than
+/// `AdvancementEvent`, even when used as `Event<T>`.
+///
+/// Matches the *outer* type name only — generic markers like
+/// `EffectStarted<Speed>` are covered by their base name (`EffectStarted`)
+/// since the macro's `event_type_name` extraction discards generic
+/// arguments; the actual dispatch resolution still sees the fully
+/// monomorphized type through `dispatch_type_tokens`.
+fn is_tracked_provider_event_type(name: &str) -> bool {
+    matches!(
+        name,
+        "PlayerStartSprintingEvent"
+            | "PlayerStopSprintingEvent"
+            | "PlayerStartSwimmingEvent"
+            | "PlayerStopSwimmingEvent"
+            | "PlayerStartFlyingEvent"
+            | "PlayerStopFlyingEvent"
+            | "PlayerCaughtFireEvent"
+            | "PlayerExtinguishedEvent"
+            | "PlayerEnteredSurvivalEvent"
+            | "PlayerExitedSurvivalEvent"
+            | "PlayerEnteredCreativeEvent"
+            | "PlayerExitedCreativeEvent"
+            | "PlayerEnteredAdventureEvent"
+            | "PlayerExitedAdventureEvent"
+            | "PlayerEnteredSpectatorEvent"
+            | "PlayerExitedSpectatorEvent"
+            | "PlayerHealthChangedEvent"
+            | "PlayerHealthLostEvent"
+            | "PlayerHealthGainedEvent"
+            | "PlayerLowHealthEvent"
+            | "PlayerRecoveredHealthEvent"
+            | "EffectStarted"
+            | "EffectStopped"
+    )
+}
+
 fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::TokenStream> {
     let fn_name = &func.sig.ident;
     let fn_name_str = fn_name.to_string();
@@ -1283,8 +1321,22 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
 
         // Event<T> and compatibility `dispatch = "advancement"` handlers use the
         // typed AdvancementEvent path. This path never emits legacy string guards.
-        _ if is_event_context
-            || flat_attr.dispatch.as_ref().map(|s| s.value()).as_deref() == Some("advancement") =>
+        //
+        // Built-in tracked-provider event types (#49) are also reached as
+        // `Event<T>` (see `sand-core/src/event/mod.rs`'s `impl<E> Event<E>`,
+        // which is intentionally unbounded — shared by advancement-backed
+        // and generated tracked events) but must NOT take this
+        // `AdvancementEvent`-only path, including generic ones like
+        // `EffectStarted<Speed>` where `event_type_name` only captures the
+        // outer generic's name. `is_tracked_provider_event_type` excludes
+        // them so they fall through to the generic `SandEvent` dispatch arm
+        // below, which resolves dispatch via `SandEvent::dispatch()`
+        // (including `SandEventDispatch::Tracked`) instead of requiring
+        // `AdvancementEvent`.
+        _ if (is_event_context
+            || flat_attr.dispatch.as_ref().map(|s| s.value()).as_deref()
+                == Some("advancement"))
+            && !is_tracked_provider_event_type(&event_type_name) =>
         {
             let trigger_ident = proc_macro2::Ident::new(
                 &format!("__sand_event_{}_trigger", fn_name),
@@ -1358,6 +1410,10 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 &format!("__sand_event_{}_chain", fn_name),
                 proc_macro2::Span::call_site(),
             );
+            let tracked_ident = proc_macro2::Ident::new(
+                &format!("__sand_event_{}_tracked", fn_name),
+                proc_macro2::Span::call_site(),
+            );
             let revoke_ident = proc_macro2::Ident::new(
                 &format!("__sand_event_{}_revoke", fn_name),
                 proc_macro2::Span::call_site(),
@@ -1389,7 +1445,8 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                         }
                         ::sand::__private::events::SandEventDispatch::TickCondition(_)
                         | ::sand::__private::events::SandEventDispatch::Tick(_)
-                        | ::sand::__private::events::SandEventDispatch::Chain(_) => {
+                        | ::sand::__private::events::SandEventDispatch::Chain(_)
+                        | ::sand::__private::events::SandEventDispatch::Tracked(_) => {
                             ::std::option::Option::None
                         }
                     }
@@ -1406,7 +1463,8 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                         }
                         ::sand::__private::events::SandEventDispatch::AdvancementTrigger(_)
                         | ::sand::__private::events::SandEventDispatch::Tick(_)
-                        | ::sand::__private::events::SandEventDispatch::Chain(_) => {
+                        | ::sand::__private::events::SandEventDispatch::Chain(_)
+                        | ::sand::__private::events::SandEventDispatch::Tracked(_) => {
                             ::std::option::Option::None
                         }
                     }
@@ -1423,7 +1481,8 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                         }
                         ::sand::__private::events::SandEventDispatch::AdvancementTrigger(_)
                         | ::sand::__private::events::SandEventDispatch::TickCondition(_)
-                        | ::sand::__private::events::SandEventDispatch::Chain(_) => {
+                        | ::sand::__private::events::SandEventDispatch::Chain(_)
+                        | ::sand::__private::events::SandEventDispatch::Tracked(_) => {
                             ::std::option::Option::None
                         }
                     }
@@ -1440,7 +1499,26 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                         }
                         ::sand::__private::events::SandEventDispatch::AdvancementTrigger(_)
                         | ::sand::__private::events::SandEventDispatch::TickCondition(_)
-                        | ::sand::__private::events::SandEventDispatch::Tick(_) => {
+                        | ::sand::__private::events::SandEventDispatch::Tick(_)
+                        | ::sand::__private::events::SandEventDispatch::Tracked(_) => {
+                            ::std::option::Option::None
+                        }
+                    }
+                }
+
+                #[doc(hidden)]
+                #[allow(dead_code)]
+                fn #tracked_ident() -> ::std::option::Option<::sand::__private::TrackedTransition> {
+                    let dispatch: ::sand::__private::events::SandEventDispatch =
+                        <#dispatch_type_tokens as ::sand::__private::events::SandEvent>::dispatch().into();
+                    match dispatch {
+                        ::sand::__private::events::SandEventDispatch::Tracked(t) => {
+                            ::std::option::Option::Some(t)
+                        }
+                        ::sand::__private::events::SandEventDispatch::AdvancementTrigger(_)
+                        | ::sand::__private::events::SandEventDispatch::TickCondition(_)
+                        | ::sand::__private::events::SandEventDispatch::Tick(_)
+                        | ::sand::__private::events::SandEventDispatch::Chain(_) => {
                             ::std::option::Option::None
                         }
                     }
@@ -1479,6 +1557,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                         make_condition: #cond_ident,
                         make_tick: #tick_ident,
                         make_chain: #chain_ident,
+                        make_tracked: #tracked_ident,
                         revoke: #revoke_ident,
                         event_type_id: #type_id_ident,
                         event_type_name: #type_name_ident,

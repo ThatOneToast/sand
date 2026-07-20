@@ -113,6 +113,7 @@ sand_core::inventory::submit! {
             make_condition: no_condition,
             make_tick: no_tick,
             make_chain: a_chain,
+            make_tracked: || None,
             revoke: revoke_true,
             event_type_id: a_type_id,
             event_type_name: a_type_name,

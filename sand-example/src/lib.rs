@@ -16,6 +16,7 @@ pub mod enhanced_cells;
 pub mod gameplay_state_example;
 pub use gameplay_state_example::*;
 pub mod level_up_reward;
+pub mod player_state_transitions_example;
 pub mod state_ergonomics;
 pub mod tracked_sneaking_example;
 

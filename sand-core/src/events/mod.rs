@@ -924,6 +924,32 @@ pub enum SandEventDispatch {
     /// Structured, same-cycle chained dispatch. See [`ChainEventDispatch`]
     /// and [`SandEventDispatch::chain`].
     Chain(ChainEventDispatch),
+
+    /// Reusable tracked-transition dispatch (#49): a previous/current
+    /// baseline shared by every handler with the same
+    /// `TrackedTransition::tracker_id`, generated once regardless of how
+    /// many handlers subscribe.
+    ///
+    /// This is the mechanism `PlayerStartSneakingEvent` uses internally
+    /// (via macro-level dispatch), generalized here so arbitrary — including
+    /// generic — `SandEvent` types can declare their own tracked
+    /// transitions, e.g.:
+    ///
+    /// ```rust,ignore
+    /// impl SandEvent for PlayerStartSprintingEvent {
+    ///     fn dispatch() -> SandEventDispatch {
+    ///         SandEventDispatch::Tracked(TrackedTransition::new(
+    ///             "player_sprinting",
+    ///             PLAYER_SPRINTING_TRACKED_SOURCE,
+    ///             TransitionKind::BecameTrue,
+    ///         ))
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// Not yet a supported same-cycle chain/compose parent — see
+    /// `NormalizedEventDispatch::Tracked`.
+    Tracked(crate::TrackedTransition),
 }
 
 /// Normalized internal representation of a [`SandEventDispatch`], used by the
@@ -941,6 +967,14 @@ pub enum NormalizedEventDispatch {
     Tick(TickEventDispatch),
     /// Same-cycle chained dispatch. See [`ChainEventDispatch`].
     Chain(ChainEventDispatch),
+    /// Reusable tracked-transition dispatch (#49).
+    ///
+    /// Not currently supported as a same-cycle chain/compose parent —
+    /// `discover()` rejects it with a diagnostic pointing at direct
+    /// subscription instead, mirroring how advancement-backed parents were
+    /// unsupported before their own dedicated integration (#240 Phase 6).
+    /// Tracked graph-parent bridging is tracked as follow-up scope.
+    Tracked(crate::TrackedTransition),
 }
 
 impl SandEventDispatch {
@@ -1012,6 +1046,7 @@ impl SandEventDispatch {
             ),
             SandEventDispatch::Tick(t) => NormalizedEventDispatch::Tick(t),
             SandEventDispatch::Chain(c) => NormalizedEventDispatch::Chain(c),
+            SandEventDispatch::Tracked(t) => NormalizedEventDispatch::Tracked(t),
         }
     }
 }
@@ -1976,6 +2011,7 @@ impl SandEventDispatch {
             SandEventDispatch::TickCondition(_) => None,
             SandEventDispatch::Tick(_) => None,
             SandEventDispatch::Chain(_) => None,
+            SandEventDispatch::Tracked(_) => None,
         }
     }
 }
@@ -2103,6 +2139,15 @@ impl PersistentSandEvent for PlayerSneakEvent {
     }
 }
 
+/// Shared current-state source for sprinting transitions and persistent
+/// composition. Kept public only for proc-macro expansion.
+#[doc(hidden)]
+pub const PLAYER_SPRINTING_TRACKED_SOURCE: crate::TrackedSource =
+    crate::TrackedSource::BooleanCondition {
+        description: "vanilla entity predicate flags.is_sprinting",
+        condition: "predicate __sand_local:__sand/player_sprinting",
+    };
+
 /// Fires every tick the player is sprinting.
 ///
 /// Uses a generated `flags.is_sprinting` predicate.
@@ -2119,6 +2164,45 @@ impl PersistentSandEvent for PlayerSprintEvent {
         ))
     }
 }
+
+/// Fires once when a player changes from not sprinting to sprinting.
+///
+/// Shares the `player_sprinting` tracker with [`PlayerStopSprintingEvent`] —
+/// multiple handlers of either event reuse one generated provider. The first
+/// observed state establishes a baseline and does not fire.
+pub struct PlayerStartSprintingEvent;
+impl SandEvent for PlayerStartSprintingEvent {
+    fn dispatch() -> SandEventDispatch {
+        SandEventDispatch::Tracked(crate::TrackedTransition::new(
+            "player_sprinting",
+            PLAYER_SPRINTING_TRACKED_SOURCE,
+            crate::TransitionKind::BecameTrue,
+        ))
+    }
+}
+
+/// Fires once when a player changes from sprinting to not sprinting.
+///
+/// Uses the same shared tracker as [`PlayerStartSprintingEvent`].
+pub struct PlayerStopSprintingEvent;
+impl SandEvent for PlayerStopSprintingEvent {
+    fn dispatch() -> SandEventDispatch {
+        SandEventDispatch::Tracked(crate::TrackedTransition::new(
+            "player_sprinting",
+            PLAYER_SPRINTING_TRACKED_SOURCE,
+            crate::TransitionKind::BecameFalse,
+        ))
+    }
+}
+
+/// Shared current-state source for swimming transitions and persistent
+/// composition. Kept public only for proc-macro expansion.
+#[doc(hidden)]
+pub const PLAYER_SWIMMING_TRACKED_SOURCE: crate::TrackedSource =
+    crate::TrackedSource::BooleanCondition {
+        description: "vanilla entity predicate flags.is_swimming",
+        condition: "predicate __sand_local:__sand/player_swimming",
+    };
 
 /// Fires every tick the player is swimming (swimming animation active, 1.13+).
 ///
@@ -2137,6 +2221,44 @@ impl PersistentSandEvent for PlayerSwimmingEvent {
     }
 }
 
+/// Fires once when a player changes from not swimming to swimming.
+///
+/// Shares the `player_swimming` tracker with [`PlayerStopSwimmingEvent`].
+/// The first observed state establishes a baseline and does not fire.
+pub struct PlayerStartSwimmingEvent;
+impl SandEvent for PlayerStartSwimmingEvent {
+    fn dispatch() -> SandEventDispatch {
+        SandEventDispatch::Tracked(crate::TrackedTransition::new(
+            "player_swimming",
+            PLAYER_SWIMMING_TRACKED_SOURCE,
+            crate::TransitionKind::BecameTrue,
+        ))
+    }
+}
+
+/// Fires once when a player changes from swimming to not swimming.
+///
+/// Uses the same shared tracker as [`PlayerStartSwimmingEvent`].
+pub struct PlayerStopSwimmingEvent;
+impl SandEvent for PlayerStopSwimmingEvent {
+    fn dispatch() -> SandEventDispatch {
+        SandEventDispatch::Tracked(crate::TrackedTransition::new(
+            "player_swimming",
+            PLAYER_SWIMMING_TRACKED_SOURCE,
+            crate::TransitionKind::BecameFalse,
+        ))
+    }
+}
+
+/// Shared current-state source for flying transitions and persistent
+/// composition. Kept public only for proc-macro expansion.
+#[doc(hidden)]
+pub const PLAYER_FLYING_TRACKED_SOURCE: crate::TrackedSource =
+    crate::TrackedSource::BooleanCondition {
+        description: "vanilla entity NBT abilities.flying",
+        condition: "entity @s[nbt={abilities:{flying:1b}}]",
+    };
+
 /// Fires every tick the player is actively flying (Creative/Spectator flight).
 ///
 /// Uses `entity @s[nbt={abilities:{flying:1b}}]`.
@@ -2154,6 +2276,45 @@ impl PersistentSandEvent for PlayerFlyingEvent {
     }
 }
 
+/// Fires once when a player starts actively flying (Creative/Spectator flight).
+///
+/// Shares the `player_flying` tracker with [`PlayerStopFlyingEvent`]. The
+/// first observed state establishes a baseline and does not fire — a player
+/// who is already flying at join/reload does not spuriously fire this event.
+pub struct PlayerStartFlyingEvent;
+impl SandEvent for PlayerStartFlyingEvent {
+    fn dispatch() -> SandEventDispatch {
+        SandEventDispatch::Tracked(crate::TrackedTransition::new(
+            "player_flying",
+            PLAYER_FLYING_TRACKED_SOURCE,
+            crate::TransitionKind::BecameTrue,
+        ))
+    }
+}
+
+/// Fires once when a player stops actively flying.
+///
+/// Uses the same shared tracker as [`PlayerStartFlyingEvent`].
+pub struct PlayerStopFlyingEvent;
+impl SandEvent for PlayerStopFlyingEvent {
+    fn dispatch() -> SandEventDispatch {
+        SandEventDispatch::Tracked(crate::TrackedTransition::new(
+            "player_flying",
+            PLAYER_FLYING_TRACKED_SOURCE,
+            crate::TransitionKind::BecameFalse,
+        ))
+    }
+}
+
+/// Shared current-state source for on-fire transitions and persistent
+/// composition. Kept public only for proc-macro expansion.
+#[doc(hidden)]
+pub const PLAYER_ON_FIRE_TRACKED_SOURCE: crate::TrackedSource =
+    crate::TrackedSource::BooleanCondition {
+        description: "vanilla entity predicate flags.is_on_fire",
+        condition: "predicate __sand_local:__sand/player_on_fire",
+    };
+
 /// Fires every tick the player is on fire.
 ///
 /// Uses a generated `flags.is_on_fire` predicate.
@@ -2167,6 +2328,48 @@ impl PersistentSandEvent for PlayerOnFireEvent {
     fn persistent_condition() -> PersistentEventCondition {
         PersistentEventCondition::players(crate::condition::Condition::predicate(
             "__sand_local:__sand/player_on_fire",
+        ))
+    }
+}
+
+/// Fires once when a player catches fire.
+///
+/// Shares the `player_on_fire` tracker with [`PlayerExtinguishedEvent`]. The
+/// first observed state establishes a baseline and does not fire.
+///
+/// Freezing and drowning start/stop events are intentionally **not**
+/// provided: unlike on-fire (a stable `flags.is_on_fire` entity predicate
+/// flag), vanilla Java exposes freezing only through the raw
+/// `ticks_frozen`/`ticks_frozen_max` NBT ratio and drowning only through the
+/// raw `Air` NBT stat, neither of which has a corresponding boolean entity
+/// predicate flag or scoreboard criterion as of Minecraft Java 26.2. Reading
+/// them would require a tick-sampled `data get entity @s ...` derivation
+/// with an author-chosen threshold, which is an inferred approximation, not
+/// an exact transition — exposing it as `PlayerStartedFreezingEvent` would
+/// overstate its reliability. See the testing documentation for the
+/// evidence trail; this is tracked as explicit follow-up scope, not a gap
+/// left silently unaddressed.
+pub struct PlayerCaughtFireEvent;
+impl SandEvent for PlayerCaughtFireEvent {
+    fn dispatch() -> SandEventDispatch {
+        SandEventDispatch::Tracked(crate::TrackedTransition::new(
+            "player_on_fire",
+            PLAYER_ON_FIRE_TRACKED_SOURCE,
+            crate::TransitionKind::BecameTrue,
+        ))
+    }
+}
+
+/// Fires once when a player stops being on fire.
+///
+/// Uses the same shared tracker as [`PlayerCaughtFireEvent`].
+pub struct PlayerExtinguishedEvent;
+impl SandEvent for PlayerExtinguishedEvent {
+    fn dispatch() -> SandEventDispatch {
+        SandEventDispatch::Tracked(crate::TrackedTransition::new(
+            "player_on_fire",
+            PLAYER_ON_FIRE_TRACKED_SOURCE,
+            crate::TransitionKind::BecameFalse,
         ))
     }
 }
@@ -2216,6 +2419,392 @@ impl PersistentSandEvent for PlayerInSpectatorEvent {
     }
 }
 
+// ── Gamemode transitions (#49) ────────────────────────────────────────────
+//
+// One boolean tracker per gamemode (`entity @s[gamemode=<mode>]`), each
+// shared by its Entered/Exited pair — four trackers total regardless of how
+// many handlers subscribe. A single `PlayerGamemodeChangedEvent` carrying a
+// typed previous/current payload is intentionally not provided: the current
+// event-handler-context model (#230) has no mechanism for exposing an
+// enum-typed "previous state" value inside a handler body honestly — adding
+// one here would mean simulating a payload callers cannot safely read.
+// Typed enter/exit pairs give the same information without that gap.
+
+macro_rules! gamemode_transition {
+    ($mode:literal, $tracker:literal, $enter:ident, $exit:ident) => {
+        #[doc = concat!("Fires once when a player switches into ", $mode, " mode.")]
+        pub struct $enter;
+        impl SandEvent for $enter {
+            fn dispatch() -> SandEventDispatch {
+                SandEventDispatch::Tracked(crate::TrackedTransition::new(
+                    $tracker,
+                    crate::TrackedSource::BooleanCondition {
+                        description: concat!("vanilla gamemode selector: ", $mode),
+                        condition: concat!("entity @s[gamemode=", $mode, "]"),
+                    },
+                    crate::TransitionKind::BecameTrue,
+                ))
+            }
+        }
+
+        #[doc = concat!("Fires once when a player switches out of ", $mode, " mode.")]
+        #[doc = concat!("Uses the same shared tracker as [`", stringify!($enter), "`].")]
+        pub struct $exit;
+        impl SandEvent for $exit {
+            fn dispatch() -> SandEventDispatch {
+                SandEventDispatch::Tracked(crate::TrackedTransition::new(
+                    $tracker,
+                    crate::TrackedSource::BooleanCondition {
+                        description: concat!("vanilla gamemode selector: ", $mode),
+                        condition: concat!("entity @s[gamemode=", $mode, "]"),
+                    },
+                    crate::TransitionKind::BecameFalse,
+                ))
+            }
+        }
+    };
+}
+
+gamemode_transition!(
+    "survival",
+    "player_gm_survival",
+    PlayerEnteredSurvivalEvent,
+    PlayerExitedSurvivalEvent
+);
+gamemode_transition!(
+    "creative",
+    "player_gm_creative",
+    PlayerEnteredCreativeEvent,
+    PlayerExitedCreativeEvent
+);
+gamemode_transition!(
+    "adventure",
+    "player_gm_adventure",
+    PlayerEnteredAdventureEvent,
+    PlayerExitedAdventureEvent
+);
+gamemode_transition!(
+    "spectator",
+    "player_gm_spectator",
+    PlayerEnteredSpectatorEvent,
+    PlayerExitedSpectatorEvent
+);
+
+// ── Health transitions (#49) ──────────────────────────────────────────────
+//
+// One shared per-player health provider backed by vanilla's `health`
+// scoreboard criterion. The `health` criterion samples the player's current
+// health **rounded down to an integer, 0-20 by default (more with the Health
+// Boost/absorption-independent max health attribute), and does NOT include
+// absorption hearts** — absorption is a separate, decaying overlay tracked by
+// vanilla outside the `health` stat. Sand auto-declares the backing
+// objective (`sand_health`) once at load time; it is not something callers
+// need to pre-declare.
+
+/// Shared current-state source for health-change transitions. Kept public
+/// only for proc-macro expansion.
+#[doc(hidden)]
+pub const PLAYER_HEALTH_TRACKED_SOURCE: crate::TrackedSource = crate::TrackedSource::Score {
+    description: "vanilla health scoreboard criterion (integer, excludes absorption)",
+    objective: "sand_health",
+    criterion: "health",
+};
+
+/// Fires once whenever a player's health value changes (gain or loss).
+///
+/// Backed by vanilla's `health` scoreboard criterion — an integer value,
+/// 0-20 by default, that does **not** include absorption hearts. The first
+/// tick after join/reload establishes a baseline and does not fire.
+pub struct PlayerHealthChangedEvent;
+impl SandEvent for PlayerHealthChangedEvent {
+    fn dispatch() -> SandEventDispatch {
+        SandEventDispatch::Tracked(crate::TrackedTransition::new(
+            "player_health",
+            PLAYER_HEALTH_TRACKED_SOURCE,
+            crate::TransitionKind::ScoreChanged,
+        ))
+    }
+}
+
+/// Fires once whenever a player's health value decreases.
+///
+/// Shares the `player_health` tracker with [`PlayerHealthChangedEvent`] and
+/// [`PlayerHealthGainedEvent`].
+pub struct PlayerHealthLostEvent;
+impl SandEvent for PlayerHealthLostEvent {
+    fn dispatch() -> SandEventDispatch {
+        SandEventDispatch::Tracked(crate::TrackedTransition::new(
+            "player_health",
+            PLAYER_HEALTH_TRACKED_SOURCE,
+            crate::TransitionKind::ScoreDecreased,
+        ))
+    }
+}
+
+/// Fires once whenever a player's health value increases.
+///
+/// Shares the `player_health` tracker with [`PlayerHealthChangedEvent`] and
+/// [`PlayerHealthLostEvent`].
+pub struct PlayerHealthGainedEvent;
+impl SandEvent for PlayerHealthGainedEvent {
+    fn dispatch() -> SandEventDispatch {
+        SandEventDispatch::Tracked(crate::TrackedTransition::new(
+            "player_health",
+            PLAYER_HEALTH_TRACKED_SOURCE,
+            crate::TransitionKind::ScoreIncreased,
+        ))
+    }
+}
+
+/// Fires once when a player's health drops to or below a threshold, and its
+/// counterpart [`PlayerRecoveredHealthEvent`] fires once when it rises back
+/// above that threshold.
+///
+/// `HALF_HEARTS` is the threshold in half-hearts (vanilla's `health`
+/// criterion unit) — e.g. `PlayerLowHealthEvent<6>` fires at 3 hearts (6
+/// half-hearts) or below.
+///
+/// All instantiations share the single `player_low_health` tracker and the
+/// same `sand_health` objective as the change/gain/loss events above, so a
+/// pack using both never generates a second observer. Exactly one threshold
+/// value may be used per exported pack: mixing two different `HALF_HEARTS`
+/// values is a tracker-identity conflict the exporter rejects with a clear
+/// diagnostic (Sand cannot honestly share one previous/current baseline for
+/// two different boolean thresholds under one tracker id).
+///
+/// ```rust,ignore
+/// use sand_core::events::PlayerLowHealthEvent;
+/// use sand_core::prelude::*;
+/// use sand_macros::event;
+///
+/// #[event]
+/// pub fn low_health_warning(event: Event<PlayerLowHealthEvent<6>>) {
+///     cmd::say("Low health!");
+/// }
+/// ```
+pub struct PlayerLowHealthEvent<const HALF_HEARTS: i32>;
+impl<const HALF_HEARTS: i32> SandEvent for PlayerLowHealthEvent<HALF_HEARTS> {
+    fn dispatch() -> SandEventDispatch {
+        SandEventDispatch::Tracked(crate::TrackedTransition::new(
+            "player_low_health",
+            crate::TrackedSource::ScoreThreshold {
+                description: "vanilla health scoreboard criterion, low-health threshold",
+                objective: "sand_health",
+                criterion: "health",
+                comparator: crate::ScoreThresholdComparator::AtOrBelow(HALF_HEARTS),
+            },
+            crate::TransitionKind::BecameTrue,
+        ))
+    }
+}
+
+/// Fires once when a player's health rises back above
+/// [`PlayerLowHealthEvent`]'s threshold. `HALF_HEARTS` must match the
+/// corresponding `PlayerLowHealthEvent<HALF_HEARTS>` exactly — they share
+/// one tracker.
+pub struct PlayerRecoveredHealthEvent<const HALF_HEARTS: i32>;
+impl<const HALF_HEARTS: i32> SandEvent for PlayerRecoveredHealthEvent<HALF_HEARTS> {
+    fn dispatch() -> SandEventDispatch {
+        SandEventDispatch::Tracked(crate::TrackedTransition::new(
+            "player_low_health",
+            crate::TrackedSource::ScoreThreshold {
+                description: "vanilla health scoreboard criterion, low-health threshold",
+                objective: "sand_health",
+                criterion: "health",
+                comparator: crate::ScoreThresholdComparator::AtOrBelow(HALF_HEARTS),
+            },
+            crate::TransitionKind::BecameFalse,
+        ))
+    }
+}
+
+// ── Status effect transitions (#49) ───────────────────────────────────────
+//
+// One reusable generic pair, `EffectStarted<E>`/`EffectStopped<E>`, backed
+// by a per-effect Sand-owned `minecraft:entity_properties` predicate
+// (`{"effects": {"<id>": {}}}`) — the same detection family already used for
+// `flags.*` state (sneaking/sprinting/on-fire), just keyed on active effects
+// instead of entity flags. Only effects with a registered `#[event]`
+// handler generate a predicate + tracker; the other markers cost nothing.
+
+/// Implemented by zero-sized status-effect marker types (e.g. [`Speed`]) so
+/// [`EffectStarted<E>`]/[`EffectStopped<E>`] can be generic over which
+/// vanilla effect they observe, without a hand-written detection type per
+/// effect.
+///
+/// Not intended for manual implementation — implemented internally by
+/// `status_effect_marker!` for every supported effect.
+pub trait StatusEffectMarker: 'static {
+    #[doc(hidden)]
+    const EFFECT_ID: &'static str;
+    #[doc(hidden)]
+    const TRACKER_ID: &'static str;
+    #[doc(hidden)]
+    const CONDITION: &'static str;
+}
+
+macro_rules! status_effect_marker {
+    ($ty:ident, $id:literal, $tracker:literal, $condition:literal) => {
+        #[doc = concat!("Marker type for the vanilla `", $id, "` status effect.")]
+        #[doc = ""]
+        #[doc = concat!("Use with [`EffectStarted<", stringify!($ty), ">`] / [`EffectStopped<", stringify!($ty), ">`].")]
+        pub struct $ty;
+        impl StatusEffectMarker for $ty {
+            const EFFECT_ID: &'static str = $id;
+            const TRACKER_ID: &'static str = $tracker;
+            const CONDITION: &'static str = $condition;
+        }
+    };
+}
+
+status_effect_marker!(
+    Poison,
+    "minecraft:poison",
+    "effect_poison",
+    "predicate __sand_local:__sand/effect_poison"
+);
+status_effect_marker!(
+    Wither,
+    "minecraft:wither",
+    "effect_wither",
+    "predicate __sand_local:__sand/effect_wither"
+);
+status_effect_marker!(
+    Regeneration,
+    "minecraft:regeneration",
+    "effect_regeneration",
+    "predicate __sand_local:__sand/effect_regeneration"
+);
+status_effect_marker!(
+    FireResistance,
+    "minecraft:fire_resistance",
+    "effect_fire_resist",
+    "predicate __sand_local:__sand/effect_fire_resist"
+);
+status_effect_marker!(
+    Strength,
+    "minecraft:strength",
+    "effect_strength",
+    "predicate __sand_local:__sand/effect_strength"
+);
+status_effect_marker!(
+    Weakness,
+    "minecraft:weakness",
+    "effect_weakness",
+    "predicate __sand_local:__sand/effect_weakness"
+);
+status_effect_marker!(
+    Speed,
+    "minecraft:speed",
+    "effect_speed",
+    "predicate __sand_local:__sand/effect_speed"
+);
+status_effect_marker!(
+    Slowness,
+    "minecraft:slowness",
+    "effect_slowness",
+    "predicate __sand_local:__sand/effect_slowness"
+);
+status_effect_marker!(
+    Resistance,
+    "minecraft:resistance",
+    "effect_resistance",
+    "predicate __sand_local:__sand/effect_resistance"
+);
+status_effect_marker!(
+    Absorption,
+    "minecraft:absorption",
+    "effect_absorption",
+    "predicate __sand_local:__sand/effect_absorption"
+);
+status_effect_marker!(
+    Hunger,
+    "minecraft:hunger",
+    "effect_hunger",
+    "predicate __sand_local:__sand/effect_hunger"
+);
+status_effect_marker!(
+    MiningFatigue,
+    "minecraft:mining_fatigue",
+    "effect_mining_fatigue",
+    "predicate __sand_local:__sand/effect_mining_fatigue"
+);
+status_effect_marker!(
+    Nausea,
+    "minecraft:nausea",
+    "effect_nausea",
+    "predicate __sand_local:__sand/effect_nausea"
+);
+status_effect_marker!(
+    Blindness,
+    "minecraft:blindness",
+    "effect_blindness",
+    "predicate __sand_local:__sand/effect_blindness"
+);
+status_effect_marker!(
+    Levitation,
+    "minecraft:levitation",
+    "effect_levitation",
+    "predicate __sand_local:__sand/effect_levitation"
+);
+status_effect_marker!(
+    Glowing,
+    "minecraft:glowing",
+    "effect_glowing",
+    "predicate __sand_local:__sand/effect_glowing"
+);
+status_effect_marker!(
+    Invisibility,
+    "minecraft:invisibility",
+    "effect_invisibility",
+    "predicate __sand_local:__sand/effect_invisibility"
+);
+
+/// Fires once when a player gains status effect `E` (was not active, is now
+/// active). See [`StatusEffectMarker`] for the supported markers (e.g.
+/// [`Speed`], [`Poison`]).
+///
+/// ```rust,ignore
+/// use sand_core::events::{EffectStarted, Speed};
+/// use sand_core::prelude::*;
+/// use sand_macros::event;
+///
+/// #[event]
+/// pub fn on_speed_start(event: Event<EffectStarted<Speed>>) {
+///     cmd::say("Speed boost!");
+/// }
+/// ```
+pub struct EffectStarted<E: StatusEffectMarker>(std::marker::PhantomData<E>);
+impl<E: StatusEffectMarker> SandEvent for EffectStarted<E> {
+    fn dispatch() -> SandEventDispatch {
+        SandEventDispatch::Tracked(crate::TrackedTransition::new(
+            E::TRACKER_ID,
+            crate::TrackedSource::BooleanCondition {
+                description: "vanilla entity_properties effects predicate",
+                condition: E::CONDITION,
+            },
+            crate::TransitionKind::BecameTrue,
+        ))
+    }
+}
+
+/// Fires once when a player loses status effect `E` (was active, is now not
+/// active — either it expired or was removed). Shares the tracker with
+/// [`EffectStarted<E>`].
+pub struct EffectStopped<E: StatusEffectMarker>(std::marker::PhantomData<E>);
+impl<E: StatusEffectMarker> SandEvent for EffectStopped<E> {
+    fn dispatch() -> SandEventDispatch {
+        SandEventDispatch::Tracked(crate::TrackedTransition::new(
+            E::TRACKER_ID,
+            crate::TrackedSource::BooleanCondition {
+                description: "vanilla entity_properties effects predicate",
+                condition: E::CONDITION,
+            },
+            crate::TransitionKind::BecameFalse,
+        ))
+    }
+}
+
 // ════════════════════════════════════════════════════════════════════════════
 // ── EventPlayer impls for all event types ──────────────────────────────────
 // ════════════════════════════════════════════════════════════════════════════
@@ -2239,12 +2828,31 @@ player_event!(PlayerStartSneakingEvent);
 player_event!(PlayerStopSneakingEvent);
 player_event!(PlayerSneakEvent);
 player_event!(PlayerSprintEvent);
+player_event!(PlayerStartSprintingEvent);
+player_event!(PlayerStopSprintingEvent);
 player_event!(PlayerSwimmingEvent);
+player_event!(PlayerStartSwimmingEvent);
+player_event!(PlayerStopSwimmingEvent);
 player_event!(PlayerFlyingEvent);
+player_event!(PlayerStartFlyingEvent);
+player_event!(PlayerStopFlyingEvent);
 player_event!(PlayerOnFireEvent);
+player_event!(PlayerCaughtFireEvent);
+player_event!(PlayerExtinguishedEvent);
 player_event!(PlayerInCreativeEvent);
 player_event!(PlayerInAdventureEvent);
 player_event!(PlayerInSpectatorEvent);
+player_event!(PlayerEnteredSurvivalEvent);
+player_event!(PlayerExitedSurvivalEvent);
+player_event!(PlayerEnteredCreativeEvent);
+player_event!(PlayerExitedCreativeEvent);
+player_event!(PlayerEnteredAdventureEvent);
+player_event!(PlayerExitedAdventureEvent);
+player_event!(PlayerEnteredSpectatorEvent);
+player_event!(PlayerExitedSpectatorEvent);
+player_event!(PlayerHealthChangedEvent);
+player_event!(PlayerHealthLostEvent);
+player_event!(PlayerHealthGainedEvent);
 
 // ── Doc-coverage registry ────────────────────────────────────────────────────
 //
@@ -2315,12 +2923,35 @@ pub const BUILTIN_EVENT_NAMES: &[&str] = &[
     "PlayerStopSneakingEvent",
     "PlayerSneakEvent",
     "PlayerSprintEvent",
+    "PlayerStartSprintingEvent",
+    "PlayerStopSprintingEvent",
     "PlayerSwimmingEvent",
+    "PlayerStartSwimmingEvent",
+    "PlayerStopSwimmingEvent",
     "PlayerFlyingEvent",
+    "PlayerStartFlyingEvent",
+    "PlayerStopFlyingEvent",
     "PlayerOnFireEvent",
+    "PlayerCaughtFireEvent",
+    "PlayerExtinguishedEvent",
     "PlayerInCreativeEvent",
     "PlayerInAdventureEvent",
     "PlayerInSpectatorEvent",
+    "PlayerEnteredSurvivalEvent",
+    "PlayerExitedSurvivalEvent",
+    "PlayerEnteredCreativeEvent",
+    "PlayerExitedCreativeEvent",
+    "PlayerEnteredAdventureEvent",
+    "PlayerExitedAdventureEvent",
+    "PlayerEnteredSpectatorEvent",
+    "PlayerExitedSpectatorEvent",
+    "PlayerHealthChangedEvent",
+    "PlayerHealthLostEvent",
+    "PlayerHealthGainedEvent",
+    "PlayerLowHealthEvent",
+    "PlayerRecoveredHealthEvent",
+    "EffectStarted",
+    "EffectStopped",
 ];
 
 #[cfg(test)]
@@ -2539,6 +3170,7 @@ mod tests {
             }
             NormalizedEventDispatch::Advancement(_) => panic!("expected Tick"),
             NormalizedEventDispatch::Chain(_) => panic!("expected Tick"),
+            NormalizedEventDispatch::Tracked(_) => panic!("expected Tick"),
         }
     }
 
@@ -2554,6 +3186,7 @@ mod tests {
             }
             NormalizedEventDispatch::Advancement(_) => panic!("expected Tick"),
             NormalizedEventDispatch::Chain(_) => panic!("expected Tick"),
+            NormalizedEventDispatch::Tracked(_) => panic!("expected Tick"),
         }
     }
 
@@ -2566,6 +3199,7 @@ mod tests {
             }
             NormalizedEventDispatch::Tick(_) => panic!("expected Advancement"),
             NormalizedEventDispatch::Chain(_) => panic!("expected Advancement"),
+            NormalizedEventDispatch::Tracked(_) => panic!("expected Advancement"),
         }
     }
 

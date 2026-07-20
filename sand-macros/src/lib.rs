@@ -721,6 +721,44 @@ impl syn::parse::Parse for FlatEventAttr {
 
 // ── Event expansion ──────────────────────────────────────────────────────────
 
+/// Built-in event type names (#49) that reach the shared tracked-transition
+/// provider backend through `SandEvent::dispatch()` rather than
+/// `AdvancementEvent`, even when used as `Event<T>`.
+///
+/// Matches the *outer* type name only — generic markers like
+/// `EffectStarted<Speed>` are covered by their base name (`EffectStarted`)
+/// since the macro's `event_type_name` extraction discards generic
+/// arguments; the actual dispatch resolution still sees the fully
+/// monomorphized type through `dispatch_type_tokens`.
+fn is_tracked_provider_event_type(name: &str) -> bool {
+    matches!(
+        name,
+        "PlayerStartSprintingEvent"
+            | "PlayerStopSprintingEvent"
+            | "PlayerStartSwimmingEvent"
+            | "PlayerStopSwimmingEvent"
+            | "PlayerStartFlyingEvent"
+            | "PlayerStopFlyingEvent"
+            | "PlayerCaughtFireEvent"
+            | "PlayerExtinguishedEvent"
+            | "PlayerEnteredSurvivalEvent"
+            | "PlayerExitedSurvivalEvent"
+            | "PlayerEnteredCreativeEvent"
+            | "PlayerExitedCreativeEvent"
+            | "PlayerEnteredAdventureEvent"
+            | "PlayerExitedAdventureEvent"
+            | "PlayerEnteredSpectatorEvent"
+            | "PlayerExitedSpectatorEvent"
+            | "PlayerHealthChangedEvent"
+            | "PlayerHealthLostEvent"
+            | "PlayerHealthGainedEvent"
+            | "PlayerLowHealthEvent"
+            | "PlayerRecoveredHealthEvent"
+            | "EffectStarted"
+            | "EffectStopped"
+    )
+}
+
 fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::TokenStream> {
     let fn_name = &func.sig.ident;
     let fn_name_str = fn_name.to_string();
@@ -1283,8 +1321,22 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
 
         // Event<T> and compatibility `dispatch = "advancement"` handlers use the
         // typed AdvancementEvent path. This path never emits legacy string guards.
-        _ if is_event_context
-            || flat_attr.dispatch.as_ref().map(|s| s.value()).as_deref() == Some("advancement") =>
+        //
+        // Built-in tracked-provider event types (#49) are also reached as
+        // `Event<T>` (see `sand-core/src/event/mod.rs`'s `impl<E> Event<E>`,
+        // which is intentionally unbounded — shared by advancement-backed
+        // and generated tracked events) but must NOT take this
+        // `AdvancementEvent`-only path, including generic ones like
+        // `EffectStarted<Speed>` where `event_type_name` only captures the
+        // outer generic's name. `is_tracked_provider_event_type` excludes
+        // them so they fall through to the generic `SandEvent` dispatch arm
+        // below, which resolves dispatch via `SandEvent::dispatch()`
+        // (including `SandEventDispatch::Tracked`) instead of requiring
+        // `AdvancementEvent`.
+        _ if (is_event_context
+            || flat_attr.dispatch.as_ref().map(|s| s.value()).as_deref()
+                == Some("advancement"))
+            && !is_tracked_provider_event_type(&event_type_name) =>
         {
             let trigger_ident = proc_macro2::Ident::new(
                 &format!("__sand_event_{}_trigger", fn_name),

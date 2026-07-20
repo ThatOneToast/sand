@@ -83,6 +83,75 @@ threshold, act once"; use a raw tick guard (chapter 3) for "keep this
 continuously true while a condition holds" (like the readiness actionbar,
 which *should* redraw every tick while the dash is ready).
 
+## Built-in player-state transitions
+
+Sand ships a set of common player-state transition events through
+`sand::events` (see the [event trigger matrix](reference/event-trigger-matrix.md)
+for the full list), all built on the same reusable tracked-transition
+provider that backs `PlayerStartSneakingEvent`/`PlayerStopSneakingEvent`:
+movement/posture (`PlayerStartSprintingEvent`/`PlayerStopSprintingEvent`,
+swimming, flying), fire (`PlayerCaughtFireEvent`/`PlayerExtinguishedEvent`),
+gamemode entry/exit (`PlayerEnteredCreativeEvent`/`PlayerExitedCreativeEvent`
+and the survival/adventure/spectator equivalents), and health
+(`PlayerHealthChangedEvent`/`PlayerHealthLostEvent`/`PlayerHealthGainedEvent`).
+
+Every one of these fires **once** on the transition, not every tick the
+state holds — and multiple handlers subscribing to the same underlying
+state (e.g. both a start and a stop handler for sprinting) share one
+generated provider rather than each polling independently.
+
+Low health is a typed threshold pair rather than a fixed event:
+
+```rust,ignore
+use sand::prelude::*;
+use sand::events::PlayerLowHealthEvent;
+
+#[event]
+fn warn_low_health(event: Event<PlayerLowHealthEvent<6>>) {
+    // Fires once when health drops to 3 hearts (6 half-hearts) or below.
+    cmd::say("Low health!");
+}
+```
+
+Exactly one `HALF_HEARTS` threshold may be used per exported pack — mixing
+two different values is a build-time tracker conflict, not a silently wrong
+export, since Sand cannot honestly share one previous/current baseline
+between two different thresholds under one tracker.
+
+Status effects use a generic pair instead of one type per effect:
+
+```rust,ignore
+use sand::prelude::*;
+use sand::events::{EffectStarted, EffectStopped, Speed};
+
+#[event]
+fn on_speed_start(event: Event<EffectStarted<Speed>>) {
+    cmd::say("Speed boost active!");
+}
+
+#[event]
+fn on_speed_stop(event: Event<EffectStopped<Speed>>) {
+    cmd::say("Speed boost ended.");
+}
+```
+
+`StatusEffectMarker` is implemented for the supported vanilla effects
+(`Poison`, `Wither`, `Regeneration`, `FireResistance`, `Strength`,
+`Weakness`, `Speed`, `Slowness`, `Resistance`, `Absorption`, `Hunger`,
+`MiningFatigue`, `Nausea`, `Blindness`, `Levitation`, `Glowing`,
+`Invisibility`) — only effects with a registered handler generate any
+detection infrastructure.
+
+**Freezing and drowning are intentionally not covered.** Unlike on-fire
+(a stable `flags.is_on_fire` entity predicate flag), vanilla Java exposes
+freezing only through the raw `ticks_frozen`/`ticks_frozen_max` NBT ratio
+and drowning only through the raw `Air` NBT stat — neither has a boolean
+entity predicate flag or scoreboard criterion as of Minecraft Java 26.2.
+Exposing them would mean an author-chosen threshold sampled via
+`data get`, which is an inferred approximation rather than an exact
+transition; see [Vanilla Limitations](reference/vanilla-limitations.md)
+for the evidence trail.
+
 ## Choosing event vs. state vs. storage
 
 As a rule of thumb Trailforge follows throughout: reach for an **event**

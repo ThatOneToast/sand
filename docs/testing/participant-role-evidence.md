@@ -66,7 +66,14 @@ traversed with further commands; a snapshot is deliberately frozen data).
 Updated by #265's runtime-validation pass — see
 `scripts/mc_validation/README.md` for the full tooling and exact
 category-by-category evidence, and `examples/participant_audit/` for the
-real (not simulated) datapack used.
+real (not simulated) datapack used. `examples/participant_audit/src/lib.rs`
+is a typed, façade-only Sand datapack — every observed command goes through
+public `sand` API (a typed `#[derive(SandStorage)]` evidence schema,
+`EntityParticipant::execute_at`, `ItemSnapshot::copy_to`,
+`ScoreRef::store_into`, `StorageField::copy_from_entity`) with zero
+handwritten Minecraft command strings, enforced by
+`sand/tests/example_imports.rs`'s `canonical_examples_use_typed_command_builders_not_raw_strings`
+guard test alongside `examples/book_project`.
 
 **Runtime-verified against a real, live Minecraft Java 26.2 server**
 (downloaded from Mojang's own version manifest, `java -jar server.jar`,

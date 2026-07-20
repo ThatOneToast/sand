@@ -1,5 +1,24 @@
 # Participant runtime-validation tooling (#265)
 
+**Status: experimental, isolated tooling.** `rcon_client.py` (stable,
+well-documented Source RCON protocol) is solid. `minimal_join_client.py` (a
+from-scratch, empirically reverse-engineered Minecraft protocol client for
+the very recent, undocumented 26.2 protocol) reliably logs a real player in
+but cannot yet hold a stable Play-phase connection — see "What is not
+proven" below. This directory:
+
+- is **not** required by any canonical Sand example or by normal CI (it is
+  never invoked from `scripts/check.sh` or the workspace test suite);
+- is isolated from `examples/participant_audit` (that pack is a normal,
+  façade-only, typed Sand datapack — see its own `src/lib.rs` — with no
+  dependency on this directory or on Python at all);
+- has focused unit tests for its stable, protocol-independent piece:
+  `python3 scripts/mc_validation/test_rcon_client.py -v` (stdlib
+  `unittest`, no external dependencies, exercises packet framing and the
+  auth-failure path against an in-process fake server — not a substitute
+  for the real-server evidence below, which is a separate, manually-run
+  procedure).
+
 Real Minecraft Java 26.2 runtime-validation tooling for the #230
 participant backends merged in #266. Run with:
 
@@ -84,12 +103,16 @@ official game, not a bot):
 4. Player A: get hit by a summoned hostile mob (`/summon zombie ~ ~1 ~
    {Tags:[audit_x]}`, let it attack, or `/damage @s 4 mob_attack by
    @e[tag=audit_x]`). Check `/data get storage paudit:audit` — expect
-   `attacker.present: 1b` and a real `attacker.uuid` matching the summoned
-   mob (`/data get entity @e[tag=audit_x] UUID`).
+   `state.attacker_present: 1b` and a real `state.attacker_uuid` matching
+   the summoned mob (`/data get entity @e[tag=audit_x] UUID`), and
+   `state.subject_uuid` matching player A's own UUID (never the same value
+   as `state.attacker_uuid`).
 5. Repeat rapidly (multiple hits within ~1 second) — confirm each
    occurrence gets a fresh, correct attacker binding
-   (`paudit_seq`/`paudit_att1` increments each time; no stale UUID from a
-   previous hit).
+   (`paudit_seq`/`paudit_att1` increments each time, mirrored into
+   `state.sequence`; no stale UUID from a previous hit; `state.attacker_b_uuid`
+   from the second independent handler matches `state.attacker_uuid` from
+   the first for the same occurrence).
 6. Player B joins concurrently; both players get hit by different mobs in
    an overlapping window; confirm each player's own last-known values in
    `paudit:audit` reflect *their own* attacker, not the other player's
@@ -99,10 +122,13 @@ official game, not a bot):
    after each individual hit before the next player's hit overwrites it).
 7. Player attacks an entity with a custom-data weapon in hand
    (`PlayerDamageEntityEvent`/`EntityKillEvent`) — confirm
-   `weapon.item`/`kill_weapon.item` in storage contains the correct item id
-   and custom data, and that switching held items immediately afterward
-   does not retroactively change the stored snapshot.
-8. Empty mainhand: confirm `weapon.present: 0b` and `pwpn_pres` reads `0`.
+   `state.weapon_item`/`state.kill_weapon_item` in storage contains the
+   correct item id and custom data, and that switching held items
+   immediately afterward does not retroactively change the stored
+   snapshot.
+8. Empty mainhand: confirm `state.weapon_present: 0b` (no separate presence
+   scoreboard — the typed `ItemSnapshot::is_present()` branch is the single
+   source of truth for this fact).
 9. `/reload` mid-session (after step 4) — confirm subsequent hits still
    produce correct attacker/weapon evidence.
 

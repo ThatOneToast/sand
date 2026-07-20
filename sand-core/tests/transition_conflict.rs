@@ -30,6 +30,7 @@ sand_core::inventory::submit! {
             TrackedSource::Score {
                 description: "score source",
                 objective: "points",
+                criterion: "dummy",
             },
             TransitionKind::ScoreChanged,
         )),

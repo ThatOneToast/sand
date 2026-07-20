@@ -78,6 +78,7 @@ pub(crate) fn resolve_transition_plan<'a>(
     }
 
     let mut generated_names: BTreeMap<String, &str> = BTreeMap::new();
+    let mut declared_criteria: BTreeMap<&str, &str> = BTreeMap::new();
     let mut plan = TransitionPlan::default();
     for (id, tracker) in trackers {
         let key = tracker_key(id);
@@ -87,6 +88,32 @@ pub(crate) fn resolve_transition_plan<'a>(
         let available =
             matches!(tracker.source, TrackedSource::Score { .. }).then(|| format!("__st_{key}a"));
         let function_path = format!("__sand_transition/{key}");
+
+        if let TrackedSource::Score {
+            objective,
+            criterion,
+            ..
+        }
+        | TrackedSource::ScoreThreshold {
+            objective,
+            criterion,
+            ..
+        } = tracker.source
+        {
+            match declared_criteria.get(objective) {
+                Some(existing) if *existing != criterion => {
+                    return Err(format!(
+                        "transition tracker `{id}` references objective `{objective}` with criterion `{criterion}`, which conflicts with a previously declared criterion `{existing}`"
+                    ));
+                }
+                Some(_) => {}
+                None => {
+                    declared_criteria.insert(objective, criterion);
+                    plan.load_commands
+                        .push(format!("scoreboard objectives add {objective} {criterion}"));
+                }
+            }
+        }
 
         for generated in [&previous, &current, &seen, &function_path]
             .into_iter()
@@ -132,6 +159,18 @@ pub(crate) fn resolve_transition_plan<'a>(
                 &seen,
                 namespace,
             ),
+            TrackedSource::ScoreThreshold {
+                objective,
+                comparator,
+                ..
+            } => boolean_commands(
+                &tracker.handlers,
+                &comparator.render(objective),
+                &previous,
+                &current,
+                &seen,
+                namespace,
+            ),
             TrackedSource::Score { objective, .. } => score_commands(
                 &tracker.handlers,
                 objective,
@@ -158,7 +197,7 @@ fn validate_kind(transition: TrackedTransition) -> Result<(), String> {
     let valid = matches!(
         (transition.source, transition.kind),
         (
-            TrackedSource::BooleanCondition { .. },
+            TrackedSource::BooleanCondition { .. } | TrackedSource::ScoreThreshold { .. },
             TransitionKind::BecameTrue | TransitionKind::BecameFalse
         ) | (
             TrackedSource::Score { .. },
@@ -271,6 +310,7 @@ fn fnv1a(value: &str) -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ScoreThresholdComparator;
 
     const BOOL: TrackedSource = TrackedSource::BooleanCondition {
         description: "test boolean",
@@ -279,6 +319,7 @@ mod tests {
     const SCORE: TrackedSource = TrackedSource::Score {
         description: "test score",
         objective: "points",
+        criterion: "dummy",
     };
 
     fn handler(
@@ -434,5 +475,154 @@ mod tests {
             let objective = command.split_whitespace().nth(3).unwrap();
             assert!(objective.len() <= 16);
         }
+    }
+
+    #[test]
+    fn score_threshold_renders_comparator_and_supports_boolean_kinds() {
+        const LOW_HEALTH: TrackedSource = TrackedSource::ScoreThreshold {
+            description: "low health threshold",
+            objective: "sand_health",
+            criterion: "health",
+            comparator: ScoreThresholdComparator::AtOrBelow(6),
+        };
+        let plan = resolve_transition_plan(
+            "pack",
+            &[
+                handler(
+                    "low",
+                    "player_low_health",
+                    LOW_HEALTH,
+                    TransitionKind::BecameTrue,
+                ),
+                handler(
+                    "recovered",
+                    "player_low_health",
+                    LOW_HEALTH,
+                    TransitionKind::BecameFalse,
+                ),
+            ],
+        )
+        .unwrap();
+        assert_eq!(plan.functions.len(), 1);
+        let commands = &plan.functions[0].commands;
+        assert!(commands[0].contains("score @s sand_health matches ..6"));
+        assert!(
+            commands
+                .iter()
+                .any(|line| line.contains("function pack:low"))
+        );
+        assert!(
+            commands
+                .iter()
+                .any(|line| line.contains("function pack:recovered"))
+        );
+    }
+
+    #[test]
+    fn score_threshold_at_or_above_renders_open_lower_bound() {
+        assert_eq!(
+            ScoreThresholdComparator::AtOrAbove(10).render("obj"),
+            "score @s obj matches 10.."
+        );
+        assert_eq!(
+            ScoreThresholdComparator::AtOrBelow(10).render("obj"),
+            "score @s obj matches ..10"
+        );
+    }
+
+    #[test]
+    fn distinct_score_thresholds_under_one_tracker_id_conflict() {
+        const LOW_6: TrackedSource = TrackedSource::ScoreThreshold {
+            description: "low health (6)",
+            objective: "sand_health",
+            criterion: "health",
+            comparator: ScoreThresholdComparator::AtOrBelow(6),
+        };
+        const LOW_10: TrackedSource = TrackedSource::ScoreThreshold {
+            description: "low health (10)",
+            objective: "sand_health",
+            criterion: "health",
+            comparator: ScoreThresholdComparator::AtOrBelow(10),
+        };
+        let err = resolve_transition_plan(
+            "pack",
+            &[
+                handler(
+                    "low6",
+                    "player_low_health",
+                    LOW_6,
+                    TransitionKind::BecameTrue,
+                ),
+                handler(
+                    "low10",
+                    "player_low_health",
+                    LOW_10,
+                    TransitionKind::BecameTrue,
+                ),
+            ],
+        )
+        .unwrap_err();
+        assert!(err.contains("conflicting transition tracker `player_low_health`"));
+    }
+
+    #[test]
+    fn score_and_score_threshold_auto_declare_shared_criterion_once() {
+        const CHANGED: TrackedSource = TrackedSource::Score {
+            description: "health changed",
+            objective: "sand_health",
+            criterion: "health",
+        };
+        const LOW: TrackedSource = TrackedSource::ScoreThreshold {
+            description: "low health",
+            objective: "sand_health",
+            criterion: "health",
+            comparator: ScoreThresholdComparator::AtOrBelow(6),
+        };
+        let plan = resolve_transition_plan(
+            "pack",
+            &[
+                handler(
+                    "changed",
+                    "player_health",
+                    CHANGED,
+                    TransitionKind::ScoreChanged,
+                ),
+                handler("low", "player_low_health", LOW, TransitionKind::BecameTrue),
+            ],
+        )
+        .unwrap();
+        assert_eq!(
+            plan.load_commands
+                .iter()
+                .filter(|line| *line == "scoreboard objectives add sand_health health")
+                .count(),
+            1,
+            "the shared sand_health/health criterion must be declared exactly once: {:?}",
+            plan.load_commands
+        );
+    }
+
+    #[test]
+    fn conflicting_criteria_on_the_same_objective_are_rejected() {
+        const A: TrackedSource = TrackedSource::Score {
+            description: "a",
+            objective: "shared_obj",
+            criterion: "health",
+        };
+        const B: TrackedSource = TrackedSource::Score {
+            description: "b",
+            objective: "shared_obj",
+            criterion: "xp",
+        };
+        let err = resolve_transition_plan(
+            "pack",
+            &[
+                handler("a", "tracker_a", A, TransitionKind::ScoreChanged),
+                handler("b", "tracker_b", B, TransitionKind::ScoreChanged),
+            ],
+        )
+        .unwrap_err();
+        assert!(err.contains("shared_obj"));
+        assert!(err.contains("conflicts with a previously declared criterion"));
     }
 }

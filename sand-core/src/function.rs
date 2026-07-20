@@ -325,15 +325,17 @@ pub enum EventDispatch {
     /// Custom event dispatch for types implementing [`crate::events::SandEvent`].
     ///
     /// At build time, Sand calls `make_trigger()`, `make_condition()`,
-    /// `make_tick()`, and `make_chain()` to determine which dispatch path to
-    /// use. Exactly one must return `Some`; the export pipeline rejects the
-    /// export with a diagnostic naming the handler path and all four factory
-    /// methods if zero or more than one return `Some` (#121).
+    /// `make_tick()`, `make_chain()`, and `make_tracked()` to determine which
+    /// dispatch path to use. Exactly one must return `Some`; the export
+    /// pipeline rejects the export with a diagnostic naming the handler path
+    /// and all five factory methods if zero or more than one return `Some`
+    /// (#121).
     ///
     /// - `Some` from `make_trigger` only → advancement-backed dispatch
     /// - `Some` from `make_condition` only → tick-poll dispatch
     /// - `Some` from `make_tick` only → structured tick-lifecycle dispatch
     /// - `Some` from `make_chain` only → same-cycle chained dispatch (#240)
+    /// - `Some` from `make_tracked` only → reusable tracked transition (#49)
     /// - zero or more than one `Some` → rejected at export time
     Custom {
         /// Returns `Some(AdvancementTrigger)` when using legacy `AdvancementTrigger` dispatch.
@@ -342,12 +344,19 @@ pub enum EventDispatch {
         make_condition: fn() -> Option<String>,
         /// Returns `Some(TickEventDispatch)` when using the structured, typed
         /// `SandEventDispatch::tick()` builder. Mutually exclusive with the
-        /// other three factories — exactly one returns `Some`.
+        /// other factories — exactly one returns `Some`.
         make_tick: fn() -> Option<crate::events::TickEventDispatch>,
         /// Returns `Some(ChainEventDispatch)` when using
         /// `SandEventDispatch::chain::<Parent>()`. Mutually exclusive with
-        /// the other three factories — exactly one returns `Some`.
+        /// the other factories — exactly one returns `Some`.
         make_chain: fn() -> Option<crate::events::ChainEventDispatch>,
+        /// Returns `Some(TrackedTransition)` when using
+        /// `SandEventDispatch::Tracked(...)`. Mutually exclusive with the
+        /// other factories — exactly one returns `Some`. Generic `SandEvent`
+        /// types (e.g. `EffectStarted<Speed>`) reach the shared transition
+        /// provider backend through this factory rather than macro-level
+        /// name matching, so distinct monomorphizations dispatch correctly.
+        make_tracked: fn() -> Option<TrackedTransition>,
         /// Whether to revoke the advancement after firing (advancement dispatch only).
         revoke: fn() -> bool,
         /// In-process grouping identity of the `SandEvent` type this handler
@@ -410,18 +419,57 @@ pub enum TrackedSource {
         condition: &'static str,
     },
     /// A per-player scoreboard value sampled from `@s`.
+    ///
+    /// `criterion` is the vanilla scoreboard criterion (e.g. `"health"`) used
+    /// to auto-declare `objective` at load time — trackers never assume the
+    /// objective already exists.
     Score {
         description: &'static str,
         objective: &'static str,
+        criterion: &'static str,
     },
+    /// A boolean threshold crossing derived from a per-player scoreboard
+    /// value, e.g. "health at or below N".
+    ///
+    /// Reuses the same boolean transition machinery as
+    /// [`TrackedSource::BooleanCondition`] — the comparison is rendered into
+    /// an equivalent `score @s <objective> matches <range>` condition at
+    /// export time — but keeps the numeric threshold as a plain value
+    /// instead of requiring a pre-formatted `&'static str`, so const-generic
+    /// or otherwise parameterized threshold events can be expressed without
+    /// baking the number into a static string at the call site.
+    ScoreThreshold {
+        description: &'static str,
+        objective: &'static str,
+        criterion: &'static str,
+        comparator: ScoreThresholdComparator,
+    },
+}
+
+/// A one-sided integer comparison used by [`TrackedSource::ScoreThreshold`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ScoreThresholdComparator {
+    /// `score @s <objective> matches ..N` (value <= N).
+    AtOrBelow(i32),
+    /// `score @s <objective> matches N..` (value >= N).
+    AtOrAbove(i32),
+}
+
+impl ScoreThresholdComparator {
+    pub(crate) fn render(self, objective: &str) -> String {
+        match self {
+            Self::AtOrBelow(n) => format!("score @s {objective} matches ..{n}"),
+            Self::AtOrAbove(n) => format!("score @s {objective} matches {n}.."),
+        }
+    }
 }
 
 impl TrackedSource {
     pub const fn description(self) -> &'static str {
         match self {
-            Self::BooleanCondition { description, .. } | Self::Score { description, .. } => {
-                description
-            }
+            Self::BooleanCondition { description, .. }
+            | Self::Score { description, .. }
+            | Self::ScoreThreshold { description, .. } => description,
         }
     }
 }

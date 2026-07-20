@@ -414,13 +414,18 @@ pub(crate) enum CustomDispatchBackend {
     TickLifecycle(crate::events::TickEventDispatch),
     /// Structured, same-cycle chained dispatch (#240).
     Chain(crate::events::ChainEventDispatch),
+    /// Reusable tracked-transition dispatch (#49) — shares the same
+    /// generated provider backend as built-in `EventDispatch::Tracked`
+    /// handlers, but reachable for arbitrary/generic `SandEvent` types.
+    Tracked(crate::TrackedTransition),
 }
 
 /// Resolve which dispatch backend a custom `SandEvent` uses, enforcing the
 /// documented `EventDispatch::Custom` contract: exactly one of `make_trigger()`
-/// / `make_condition()` / `make_tick()` / `make_chain()` must return `Some`.
+/// / `make_condition()` / `make_tick()` / `make_chain()` / `make_tracked()`
+/// must return `Some`.
 ///
-/// All four factories are evaluated by the caller *before* this function
+/// All five factories are evaluated by the caller *before* this function
 /// runs, so this is a pure decision function — panicking here (rather than
 /// returning a `Result`) matches the existing "both `None`" precedent: this is
 /// a Rust-level authoring bug in the `SandEvent` impl, detected at
@@ -430,6 +435,7 @@ pub(crate) fn resolve_custom_dispatch_backend(
     condition: Option<String>,
     tick: Option<crate::events::TickEventDispatch>,
     chain: Option<crate::events::ChainEventDispatch>,
+    tracked: Option<crate::TrackedTransition>,
     handler_path: &str,
 ) -> CustomDispatchBackend {
     let some_count = [
@@ -437,27 +443,30 @@ pub(crate) fn resolve_custom_dispatch_backend(
         condition.is_some(),
         tick.is_some(),
         chain.is_some(),
+        tracked.is_some(),
     ]
     .iter()
     .filter(|b| **b)
     .count();
-    match (trigger, condition, tick, chain, some_count) {
-        (Some(trigger), None, None, None, 1) => CustomDispatchBackend::Advancement(trigger),
-        (None, Some(condition), None, None, 1) => CustomDispatchBackend::TickPoll(condition),
-        (None, None, Some(tick), None, 1) => CustomDispatchBackend::TickLifecycle(tick),
-        (None, None, None, Some(chain), 1) => CustomDispatchBackend::Chain(chain),
-        (_, _, _, _, 0) => {
+    match (trigger, condition, tick, chain, tracked, some_count) {
+        (Some(trigger), None, None, None, None, 1) => CustomDispatchBackend::Advancement(trigger),
+        (None, Some(condition), None, None, None, 1) => CustomDispatchBackend::TickPoll(condition),
+        (None, None, Some(tick), None, None, 1) => CustomDispatchBackend::TickLifecycle(tick),
+        (None, None, None, Some(chain), None, 1) => CustomDispatchBackend::Chain(chain),
+        (None, None, None, None, Some(tracked), 1) => CustomDispatchBackend::Tracked(tracked),
+        (_, _, _, _, _, 0) => {
             panic!(
                 "Custom SandEvent for handler `{handler_path}` returned None from \
-                 make_trigger(), make_condition(), make_tick(), and make_chain() — implement \
-                 exactly one dispatch strategy from SandEvent::dispatch()"
+                 make_trigger(), make_condition(), make_tick(), make_chain(), and \
+                 make_tracked() — implement exactly one dispatch strategy from \
+                 SandEvent::dispatch()"
             );
         }
         _ => {
             panic!(
                 "Custom SandEvent for handler `{handler_path}` returned more than one dispatch \
-                 strategy (make_trigger/make_condition/make_tick/make_chain) — implement exactly \
-                 one"
+                 strategy (make_trigger/make_condition/make_tick/make_chain/make_tracked) — \
+                 implement exactly one"
             );
         }
     }
@@ -543,6 +552,7 @@ mod tests {
             None,
             None,
             None,
+            None,
             "my_pack:on_thing",
         );
         assert!(matches!(
@@ -558,6 +568,7 @@ mod tests {
             Some("score @s foo matches 1..".to_string()),
             None,
             None,
+            None,
             "my_pack:on_thing",
         );
         assert!(matches!(backend, super::CustomDispatchBackend::TickPoll(_)));
@@ -570,6 +581,7 @@ mod tests {
             None,
             Some(crate::events::TickEventDispatch::default()),
             None,
+            None,
             "my_pack:on_thing",
         );
         assert!(matches!(
@@ -580,10 +592,10 @@ mod tests {
 
     #[test]
     #[should_panic(
-        expected = "returned None from make_trigger(), make_condition(), make_tick(), and make_chain()"
+        expected = "returned None from make_trigger(), make_condition(), make_tick(), make_chain(), and make_tracked()"
     )]
     fn custom_dispatch_backend_rejects_neither_backend() {
-        super::resolve_custom_dispatch_backend(None, None, None, None, "my_pack:on_thing");
+        super::resolve_custom_dispatch_backend(None, None, None, None, None, "my_pack:on_thing");
     }
 
     #[test]
@@ -592,6 +604,7 @@ mod tests {
         super::resolve_custom_dispatch_backend(
             Some(AdvancementTrigger::Tick),
             Some("score @s foo matches 1..".to_string()),
+            None,
             None,
             None,
             "my_pack:on_thing",
@@ -604,6 +617,7 @@ mod tests {
             super::resolve_custom_dispatch_backend(
                 Some(AdvancementTrigger::Tick),
                 Some("score @s foo matches 1..".to_string()),
+                None,
                 None,
                 None,
                 "my_pack:on_elevator_placed",
@@ -621,8 +635,8 @@ mod tests {
         assert_eq!(
             message,
             "Custom SandEvent for handler `my_pack:on_elevator_placed` returned more than one \
-             dispatch strategy (make_trigger/make_condition/make_tick/make_chain) — implement \
-             exactly one"
+             dispatch strategy (make_trigger/make_condition/make_tick/make_chain/make_tracked) — \
+             implement exactly one"
         );
     }
 

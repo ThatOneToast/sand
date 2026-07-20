@@ -205,6 +205,10 @@ impl EventContextCapabilities {
                 }
             }
             SandEventDispatch::Chain(_) => Self::NONE,
+            // Tracked-transition dispatch runs `execute as @a ... at @s` per
+            // player, same as `TickCondition` — the subject is always the
+            // exact observed player.
+            SandEventDispatch::Tracked(_) => Self::EXACT_PLAYER_SUBJECT,
         }
     }
 }

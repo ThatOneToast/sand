@@ -53,6 +53,7 @@ macro_rules! submit_collision {
                     make_condition: no_condition,
                     make_tick: tick,
                     make_chain: no_chain,
+                    make_tracked: || None,
                     revoke,
                     event_type_id: $type_id,
                     event_type_name: colliding_name,

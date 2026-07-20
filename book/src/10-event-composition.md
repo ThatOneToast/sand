@@ -48,6 +48,41 @@ composes off, which matters when the base event carries information (like
 which entity triggered it) your guard or handler needs to stay correlated
 to.
 
+## Inheriting a participant across the chain
+
+"Shared context" from the previous section isn't only conditions — a
+same-cycle child can also read a **participant** (a typed attacker/killer/
+weapon reference, chapter on `sand::participant`) its parent already
+captured, without capturing its own copy:
+
+```rust,ignore
+use sand::events::SandEventDispatch;
+use sand::participant::{EntityParticipantRole, EventParticipantPlan};
+
+impl SandEvent for ChildAfterDamage {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        SandEventDispatch::chain::<EntityDamagePlayerEvent>()
+    }
+    fn participants() -> EventParticipantPlan {
+        EventParticipantPlan::new()
+            .inherit_entity::<EntityDamagePlayerEvent>(EntityParticipantRole::Attacker)
+    }
+}
+```
+
+`inherit_entity`/`inherit_item` generate zero extra setup or cleanup
+commands — the parent's own capture already owns both, and a same-cycle
+child only ever runs inside the parent's synchronous descendant call tree,
+so the borrowed reference stays valid for the child's entire execution.
+This works through an arbitrary-depth chain of plain `.after(...)`/
+`chain::<...>()` edges (grandchild can inherit directly from the original
+capturing ancestor), but is rejected at export — with a diagnostic naming
+exactly which edge broke the chain — through `after_any`/`after_all`
+fan-in, a bounded `.within(...)` window, or a second "inherit from an
+event that itself only inherits" hop. See
+`docs/testing/participant-role-evidence.md`'s propagation support matrix
+for the complete edge/role table.
+
 ## When *not* to chain
 
 Chaining only makes sense when the event you're composing off already

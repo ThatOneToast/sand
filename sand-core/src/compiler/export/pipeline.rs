@@ -348,6 +348,7 @@ pub(crate) fn try_export_components_impl(
                 make_condition,
                 make_tick,
                 make_chain,
+                make_tracked,
                 revoke,
                 event_type_id,
                 event_type_name,
@@ -363,8 +364,27 @@ pub(crate) fn try_export_components_impl(
                     make_condition(),
                     make_tick(),
                     make_chain(),
+                    make_tracked(),
                     desc.path,
                 ) {
+                    CustomDispatchBackend::Tracked(transition) => {
+                        // Reusable tracked-transition dispatch for a generic
+                        // `SandEvent` (e.g. `EffectStarted<Speed>`). Shares
+                        // the exact same generated-provider path as built-in
+                        // `EventDispatch::Tracked` handlers.
+                        records.push(ComponentRecord {
+                            namespace: namespace.to_string(),
+                            dir: "function".to_string(),
+                            path: desc.path.to_string(),
+                            ext: "mcfunction".to_string(),
+                            content_type: "text".to_string(),
+                            content: commands.join("\n"),
+                        });
+                        transition_handlers.push(crate::transition::TransitionHandler {
+                            path: desc.path.to_string(),
+                            transition,
+                        });
+                    }
                     CustomDispatchBackend::Advancement(trigger) => {
                         // Advancement-backed custom (SandEvent) event.
                         // Same entry/body split as the typed Advancement arm.

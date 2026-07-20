@@ -1358,6 +1358,10 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 &format!("__sand_event_{}_chain", fn_name),
                 proc_macro2::Span::call_site(),
             );
+            let tracked_ident = proc_macro2::Ident::new(
+                &format!("__sand_event_{}_tracked", fn_name),
+                proc_macro2::Span::call_site(),
+            );
             let revoke_ident = proc_macro2::Ident::new(
                 &format!("__sand_event_{}_revoke", fn_name),
                 proc_macro2::Span::call_site(),
@@ -1389,7 +1393,8 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                         }
                         ::sand::__private::events::SandEventDispatch::TickCondition(_)
                         | ::sand::__private::events::SandEventDispatch::Tick(_)
-                        | ::sand::__private::events::SandEventDispatch::Chain(_) => {
+                        | ::sand::__private::events::SandEventDispatch::Chain(_)
+                        | ::sand::__private::events::SandEventDispatch::Tracked(_) => {
                             ::std::option::Option::None
                         }
                     }
@@ -1406,7 +1411,8 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                         }
                         ::sand::__private::events::SandEventDispatch::AdvancementTrigger(_)
                         | ::sand::__private::events::SandEventDispatch::Tick(_)
-                        | ::sand::__private::events::SandEventDispatch::Chain(_) => {
+                        | ::sand::__private::events::SandEventDispatch::Chain(_)
+                        | ::sand::__private::events::SandEventDispatch::Tracked(_) => {
                             ::std::option::Option::None
                         }
                     }
@@ -1423,7 +1429,8 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                         }
                         ::sand::__private::events::SandEventDispatch::AdvancementTrigger(_)
                         | ::sand::__private::events::SandEventDispatch::TickCondition(_)
-                        | ::sand::__private::events::SandEventDispatch::Chain(_) => {
+                        | ::sand::__private::events::SandEventDispatch::Chain(_)
+                        | ::sand::__private::events::SandEventDispatch::Tracked(_) => {
                             ::std::option::Option::None
                         }
                     }
@@ -1440,7 +1447,26 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                         }
                         ::sand::__private::events::SandEventDispatch::AdvancementTrigger(_)
                         | ::sand::__private::events::SandEventDispatch::TickCondition(_)
-                        | ::sand::__private::events::SandEventDispatch::Tick(_) => {
+                        | ::sand::__private::events::SandEventDispatch::Tick(_)
+                        | ::sand::__private::events::SandEventDispatch::Tracked(_) => {
+                            ::std::option::Option::None
+                        }
+                    }
+                }
+
+                #[doc(hidden)]
+                #[allow(dead_code)]
+                fn #tracked_ident() -> ::std::option::Option<::sand::__private::TrackedTransition> {
+                    let dispatch: ::sand::__private::events::SandEventDispatch =
+                        <#dispatch_type_tokens as ::sand::__private::events::SandEvent>::dispatch().into();
+                    match dispatch {
+                        ::sand::__private::events::SandEventDispatch::Tracked(t) => {
+                            ::std::option::Option::Some(t)
+                        }
+                        ::sand::__private::events::SandEventDispatch::AdvancementTrigger(_)
+                        | ::sand::__private::events::SandEventDispatch::TickCondition(_)
+                        | ::sand::__private::events::SandEventDispatch::Tick(_)
+                        | ::sand::__private::events::SandEventDispatch::Chain(_) => {
                             ::std::option::Option::None
                         }
                     }
@@ -1479,6 +1505,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                         make_condition: #cond_ident,
                         make_tick: #tick_ident,
                         make_chain: #chain_ident,
+                        make_tracked: #tracked_ident,
                         revoke: #revoke_ident,
                         event_type_id: #type_id_ident,
                         event_type_name: #type_name_ident,

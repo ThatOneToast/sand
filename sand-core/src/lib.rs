@@ -205,8 +205,8 @@ pub use function::{
     ArmorEventDescriptor, ArmorEventKind, ArmorSlot, ComponentFactory, EventDescriptor,
     EventDispatch, EventPathEntry, FunctionDescriptor, FunctionPointerEntry,
     FunctionPointerTypeEntry, FunctionTagDescriptor, IntoFunctionRef, ScheduleDescriptor,
-    TempScoreboard, TrackedSource, TrackedTransition, TransitionKind, drain_dyn_fns,
-    register_dyn_fn, register_dyn_fn_dedup,
+    ScoreThresholdComparator, TempScoreboard, TrackedSource, TrackedTransition, TransitionKind,
+    drain_dyn_fns, register_dyn_fn, register_dyn_fn_dedup,
 };
 
 mod compiler;

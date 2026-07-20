@@ -924,6 +924,32 @@ pub enum SandEventDispatch {
     /// Structured, same-cycle chained dispatch. See [`ChainEventDispatch`]
     /// and [`SandEventDispatch::chain`].
     Chain(ChainEventDispatch),
+
+    /// Reusable tracked-transition dispatch (#49): a previous/current
+    /// baseline shared by every handler with the same
+    /// [`TrackedTransition::tracker_id`], generated once regardless of how
+    /// many handlers subscribe.
+    ///
+    /// This is the mechanism `PlayerStartSneakingEvent` uses internally
+    /// (via macro-level dispatch), generalized here so arbitrary — including
+    /// generic — `SandEvent` types can declare their own tracked
+    /// transitions, e.g.:
+    ///
+    /// ```rust,ignore
+    /// impl SandEvent for PlayerStartSprintingEvent {
+    ///     fn dispatch() -> SandEventDispatch {
+    ///         SandEventDispatch::Tracked(TrackedTransition::new(
+    ///             "player_sprinting",
+    ///             PLAYER_SPRINTING_TRACKED_SOURCE,
+    ///             TransitionKind::BecameTrue,
+    ///         ))
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// Not yet a supported same-cycle chain/compose parent — see
+    /// `NormalizedEventDispatch::Tracked`.
+    Tracked(crate::TrackedTransition),
 }
 
 /// Normalized internal representation of a [`SandEventDispatch`], used by the
@@ -941,6 +967,14 @@ pub enum NormalizedEventDispatch {
     Tick(TickEventDispatch),
     /// Same-cycle chained dispatch. See [`ChainEventDispatch`].
     Chain(ChainEventDispatch),
+    /// Reusable tracked-transition dispatch (#49).
+    ///
+    /// Not currently supported as a same-cycle chain/compose parent —
+    /// `discover()` rejects it with a diagnostic pointing at direct
+    /// subscription instead, mirroring how advancement-backed parents were
+    /// unsupported before their own dedicated integration (#240 Phase 6).
+    /// Tracked graph-parent bridging is tracked as follow-up scope.
+    Tracked(crate::TrackedTransition),
 }
 
 impl SandEventDispatch {
@@ -1012,6 +1046,7 @@ impl SandEventDispatch {
             ),
             SandEventDispatch::Tick(t) => NormalizedEventDispatch::Tick(t),
             SandEventDispatch::Chain(c) => NormalizedEventDispatch::Chain(c),
+            SandEventDispatch::Tracked(t) => NormalizedEventDispatch::Tracked(t),
         }
     }
 }
@@ -1976,6 +2011,7 @@ impl SandEventDispatch {
             SandEventDispatch::TickCondition(_) => None,
             SandEventDispatch::Tick(_) => None,
             SandEventDispatch::Chain(_) => None,
+            SandEventDispatch::Tracked(_) => None,
         }
     }
 }
@@ -2539,6 +2575,7 @@ mod tests {
             }
             NormalizedEventDispatch::Advancement(_) => panic!("expected Tick"),
             NormalizedEventDispatch::Chain(_) => panic!("expected Tick"),
+            NormalizedEventDispatch::Tracked(_) => panic!("expected Tick"),
         }
     }
 
@@ -2554,6 +2591,7 @@ mod tests {
             }
             NormalizedEventDispatch::Advancement(_) => panic!("expected Tick"),
             NormalizedEventDispatch::Chain(_) => panic!("expected Tick"),
+            NormalizedEventDispatch::Tracked(_) => panic!("expected Tick"),
         }
     }
 
@@ -2566,6 +2604,7 @@ mod tests {
             }
             NormalizedEventDispatch::Tick(_) => panic!("expected Advancement"),
             NormalizedEventDispatch::Chain(_) => panic!("expected Advancement"),
+            NormalizedEventDispatch::Tracked(_) => panic!("expected Advancement"),
         }
     }
 

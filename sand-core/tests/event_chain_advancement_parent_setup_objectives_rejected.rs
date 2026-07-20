@@ -75,6 +75,7 @@ sand_core::inventory::submit! {
             make_tick: no_tick,
             make_chain: child_chain,
             make_tracked: || None,
+            make_participants: || sand_core::participant::EventParticipantPlan::none(),
             revoke: revoke_true,
             event_type_id: child_type_id,
             event_type_name: child_type_name,

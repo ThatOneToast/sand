@@ -21,9 +21,10 @@
 //! the supported version range, rather than guessed.
 //!
 //! None of these paths have been independently runtime-verified against a
-//! live 1.21.4/26.2 server as part of this change — see `LIM-VAL-008` in
-//! `ai/known-limitations.md`. They are Sand's best-confidence encoding of
-//! long-documented vanilla structure, not a certified claim.
+//! live 1.21.4/26.2 server as part of this change. They are Sand's
+//! best-confidence encoding of long-documented vanilla structure, not a
+//! certified claim — see `docs/testing/participant-role-evidence.md` for
+//! what has and has not been verified on a real server.
 
 use std::fmt;
 
@@ -194,7 +195,7 @@ impl ItemLocation {
         if matches!(slot, EquipmentSlot::Body) {
             return Err(ItemLocationError::UnsupportedLocation {
                 location: "EntityEquipment(Body)".to_string(),
-                reason: "the Body equipment slot's backing NBT tag is not verified for this phase — see LIM-ITEM-002",
+                reason: "the Body equipment slot's backing NBT tag is not verified for this phase",
             });
         }
         Ok(Self::EntityEquipment { entity, slot })
@@ -314,7 +315,7 @@ fn entity_equipment_path(slot: EquipmentSlot) -> Result<String, ItemLocationErro
         EquipmentSlot::Body => {
             return Err(ItemLocationError::UnsupportedLocation {
                 location: "EntityEquipment(Body)".to_string(),
-                reason: "the Body equipment slot's backing NBT tag is not verified for this phase — see LIM-ITEM-002",
+                reason: "the Body equipment slot's backing NBT tag is not verified for this phase",
             });
         }
     })

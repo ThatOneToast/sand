@@ -61,6 +61,20 @@ pub enum LocationParticipantRole {
     EventBlock,
 }
 
+/// Which hand a held-item participant is captured from.
+///
+/// Unlike inferring "the item used to trigger this event" (which vanilla
+/// does not always disambiguate by hand — see
+/// `EventParticipantPlan::observe_held_item`'s doc), addressing a specific
+/// hand slot is always exact and unambiguous: `PlayerMainHand`/
+/// `PlayerOffHand` are directly queryable NBT paths on `@s`, not a
+/// correlated guess.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum ParticipantHand {
+    MainHand,
+    OffHand,
+}
+
 /// The role an item participant plays in an event.
 ///
 /// Phase 7 (#229) already defined [`crate::item::ItemRole`] for exactly

@@ -72,6 +72,7 @@
 //!    execute-chain output a single `execute if` line.
 
 use sand_core::prelude::*;
+use sand_core::state::define_registered_state;
 use sand_macros::{component, function};
 
 // -- State -----------------------------------------------------------------

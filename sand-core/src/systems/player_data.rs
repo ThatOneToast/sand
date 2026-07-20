@@ -3,7 +3,7 @@
 //! Provides a builder API for defining typed per-player data schemas backed
 //! by scoreboard objectives. [`PlayerDataSchema`] is the user-facing name for
 //! this Phase 1 API; [`PlayerSchema`] remains as a compatible alias. Storage
-//! schemas from [`SandStorage`] can also be attached for unified introspection
+//! schemas from `#[derive(SandStorage)]` (from `sand-macros`) can also be attached for unified introspection
 //! and documentation.
 //!
 //! # Phase 1 scope

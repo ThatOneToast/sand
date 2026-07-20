@@ -17,11 +17,17 @@
 /// `sand-core` builds/tests — see [`DEFAULT_CODEGEN_VERSION`].
 pub const LATEST_KNOWN: &str = "26.2";
 
-/// The established generated-API CI baseline.
+/// The oldest Minecraft version Sand intentionally promises compatibility
+/// with, and the CI job that verifies that promise still codegens.
 ///
-/// CI intentionally exercises this older, known-good codegen target as well
-/// as [`LATEST_KNOWN`] so support for the stable baseline cannot regress while
-/// the bundled version table advances.
+/// This is an explicit compatibility/profile-boundary target, not the
+/// canonical one: `1.21.4` fixtures cover a known rendering-branch boundary
+/// (see `sand-core/tests/advancement_version_export.rs` and the
+/// profile/fallback tests in `version.rs`). Canonical fixtures, examples,
+/// and the default local codegen target are [`LATEST_KNOWN`]/
+/// [`DEFAULT_CODEGEN_VERSION`] (Minecraft 26.2) — 1.21.4 is retained here
+/// only so that boundary cannot silently regress, not because it is the
+/// implicit default format.
 pub const CI_STABLE_CODEGEN_VERSION: &str = "1.21.4";
 
 /// Java runtimes required by the verified vanilla-server validation matrix.
@@ -52,7 +58,7 @@ pub const CI_LATEST_JAVA_VERSION: &str = "25";
 /// explicitly opt into placeholder files that compile but fail
 /// `generated_api_health`. Changing this value requires confirming the new
 /// target is codegen-available in the default local and CI environments.
-pub const DEFAULT_CODEGEN_VERSION: &str = "1.21.11";
+pub const DEFAULT_CODEGEN_VERSION: &str = LATEST_KNOWN;
 
 /// Cycle-safe command rendering context shared by `sand-commands` and
 /// `sand-core`.

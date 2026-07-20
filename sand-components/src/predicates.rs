@@ -1,6 +1,6 @@
 //! Typed predicate model — shared across advancements, loot tables, and commands.
 //!
-//! Every predicate type has an explicit [`RawJson`](crate::raw::RawJson) escape hatch
+//! Every predicate type has an explicit [`RawJson`] escape hatch
 //! via a `::raw(RawJson)` constructor so modded or unsupported conditions can
 //! still be expressed.
 //!

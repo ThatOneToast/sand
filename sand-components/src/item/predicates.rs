@@ -255,7 +255,7 @@ impl_into_value!(ItemPredicate);
 ///
 /// This does **not** let you say "the item must be in the feet slot". The
 /// `inventory_changed` trigger has no per-position slot filter. See the
-/// [module-level note](crate::components::event_filters) for armor-slot
+/// "Slot detection note" in this module's documentation for armor-slot
 /// detection alternatives.
 ///
 /// # Example

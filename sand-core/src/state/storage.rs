@@ -268,12 +268,6 @@ impl NbtPath {
         self.set_value(SnbtValue::Raw(snbt))
     }
 
-    /// `data modify storage <storage> <path> set value <snbt>` — raw SNBT.
-    #[deprecated(since = "0.1.0", note = "use set_raw_snbt(RawSnbt::new(...))")]
-    pub fn set_raw(&self, snbt: &str) -> String {
-        self.set_raw_snbt(RawSnbt::new(snbt))
-    }
-
     /// Set an integer value at this path.
     pub fn set_int(&self, v: i32) -> String {
         self.set_value(v)
@@ -689,12 +683,6 @@ impl<T> StorageVar<T> {
     /// `data modify storage <storage> <path> set value <snbt>` — raw SNBT escape hatch.
     pub fn set_raw_snbt(&self, snbt: RawSnbt) -> String {
         self.set_value(SnbtValue::Raw(snbt))
-    }
-
-    /// `data modify storage <storage> <path> set value <snbt>` — raw SNBT.
-    #[deprecated(since = "0.1.0", note = "use set_raw_snbt(RawSnbt::new(...))")]
-    pub fn set_raw(&self, snbt: &str) -> String {
-        self.set_raw_snbt(RawSnbt::new(snbt))
     }
 
     /// Set an integer value.

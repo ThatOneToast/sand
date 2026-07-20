@@ -9,7 +9,7 @@
 //! is established before dependent evaluation.
 //!
 //! Every player-scoped custom tick detector goes through this graph as a
-//! [`NodeOrigin::Root`] node — both `SandEventDispatch::tick()` and the
+//! [`NodeOrigin::Root`](crate::events::graph::NodeOrigin::Root) node — both `SandEventDispatch::tick()` and the
 //! legacy `SandEventDispatch::TickCondition` compatibility constructor
 //! normalize into the same [`TickEventDispatch`] shape and are discovered
 //! identically, so a concrete `SandEvent` type resolves to exactly one node
@@ -17,7 +17,7 @@
 //! `dispatch()` used. Advancement-backed `SandEvent`s are dispatched through
 //! their own pre-existing reward-function codegen path, are never added to
 //! this graph, and are explicitly rejected as a chain parent (see
-//! [`discover`]). The unrelated bare `EventDispatch::TickPoll` used by
+//! [`discover_node`](crate::events::graph::discover_node)). The unrelated bare `EventDispatch::TickPoll` used by
 //! built-ins like `HoldingItemEvent`/`CurrentlyWearingEvent` (which have no
 //! `SandEvent`/chain-parent concept) is also not part of this graph.
 
@@ -1495,7 +1495,13 @@ mod tests {
             &mut advancement_bridges,
         )
         .unwrap_err();
-        assert!(err.0.contains("self-dependency"));
+        assert_eq!(
+            err.0,
+            format!(
+                "SandEvent `{a}` has an invalid `after` self-dependency through parent `{a}`",
+                a = std::any::type_name::<A>()
+            )
+        );
     }
 
     #[test]

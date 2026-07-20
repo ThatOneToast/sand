@@ -1,4 +1,4 @@
-/// A lightweight handle to a registered [`hud_bar!`](sand_macros::hud_bar)
+/// A lightweight handle to a registered `hud_bar!`
 /// component, generated automatically by the macro.
 ///
 /// # What is a frame?
@@ -183,7 +183,7 @@ impl BarHandle {
     /// screen center (positive = right, negative = left).
     ///
     /// Uses the zero-total-width technique for accurate positioning when
-    /// `frame_width` is known. See [`positioned_json`] for details.
+    /// `frame_width` is known.
     ///
     /// # Example
     ///
@@ -193,7 +193,6 @@ impl BarHandle {
     /// ```
     ///
     /// [`show`]: BarHandle::show
-    /// [`positioned_json`]: BarHandle::positioned_json
     pub fn show_at(&self, target: &str, frame: u32, namespace: &str, x_offset: i32) -> String {
         let json = self.positioned_json(frame, namespace, x_offset);
         format!("title {target} actionbar {json}")
@@ -353,7 +352,7 @@ impl BarHandle {
     }
 }
 
-/// A lightweight handle to a registered [`hud_element!`](sand_macros::hud_element)
+/// A lightweight handle to a registered `hud_element!`
 /// component, generated automatically by the macro.
 ///
 /// Unlike a [`BarHandle`], an element has only **one state** — it is a static

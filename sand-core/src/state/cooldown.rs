@@ -1,6 +1,6 @@
 //! High-level scoreboard-based ability cooldown.
 //!
-//! This is the typed state API counterpart to [`sand_core::cmd::Cooldown`].
+//! This is the typed state API counterpart to [`crate::cmd::Cooldown`].
 //! The two types have the same conceptual purpose but different constructors:
 //! - `state::Cooldown` takes `(&'static str, Ticks)` and hides the `Objective` plumbing.
 //! - `cmd::Cooldown` takes `(&'static Objective, u32)` for lower-level control.

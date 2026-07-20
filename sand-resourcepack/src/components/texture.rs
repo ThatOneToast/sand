@@ -16,7 +16,7 @@ use crate::component::{AssetContent, AssetOutput, ResourcePackComponent};
 ///
 /// # Macro
 ///
-/// Prefer the [`texture!`](sand_macros::texture) macro over constructing this
+/// Prefer the `texture!` macro over constructing this
 /// struct directly:
 ///
 /// ```rust,ignore

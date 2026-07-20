@@ -12,9 +12,9 @@
 //! | Source | Contents |
 //! |---|---|
 //! | `sand_commands` (re-exported) | All command builders: blocks, coordinates, execute, selectors, scoreboard, NBT, sound, display, inventory, particles … |
-//! | [`cooldown`] | `Cooldown` — scoreboard-based ability cooldown timer |
-//! | [`data`] | `Storage`, `StorageKind` — named NBT namespaces; bridges to `Objective::load_from` via `From<&Storage> for String` |
-//! | [`fn_macros`] | `macro_var`, `macro_line`, `function_with` — function macro utilities |
+//! | `cooldown` | [`Cooldown`] — scoreboard-based ability cooldown timer |
+//! | `data` | [`Storage`], [`StorageKind`] — named NBT namespaces; bridges to `Objective::load_from` via `From<&Storage> for String` |
+//! | `fn_macros` | `macro_var`, `macro_line`, `function_with` — function macro utilities |
 //!
 //! # Example
 //! ```rust,ignore
@@ -59,8 +59,7 @@ pub use sand_commands::Execute;
 // Execute argument types
 pub use sand_commands::{Anchor, ItemSlot, NbtStoreKind, Swizzle};
 // Inventory manipulation
-#[allow(deprecated)]
-pub use sand_commands::{Inventory, InventorySlot, SlotPattern};
+pub use sand_commands::Inventory;
 // Particle effects
 pub use sand_commands::{Particle, ParticleBuilder, ParticleEffect, ParticleSpread};
 // Entity/player targeting
@@ -102,8 +101,8 @@ pub use typed_execute::{ConditionedExecute, ExecuteExt, TypedExecute};
 
 /// Call a function by resolved reference.
 ///
-/// Accepts registered `#[function]` pointers, [`FunctionRef`], [`ResourceLocation`],
-/// and raw path strings.
+/// Accepts registered `#[function]` pointers, [`FunctionRef`](crate::resource_ref::FunctionRef),
+/// [`ResourceLocation`](crate::ResourceLocation), and raw path strings.
 ///
 /// # Examples
 ///

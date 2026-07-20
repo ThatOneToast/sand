@@ -1,0 +1,24 @@
+[package]
+name = "book_project"
+description = "Trailforge — the canonical Sand example datapack used by the book"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/ThatOneToast/sand"
+homepage = "https://github.com/ThatOneToast/sand"
+authors = ["Toast <ThatOneToast@proton.me>"]
+rust-version = "1.96.0"
+publish = false
+
+[workspace]
+
+[[bin]]
+name = "sand_export"
+path = "src/bin/sand_export.rs"
+doc = false
+
+[dependencies]
+sand = { path = "../../sand", features = ["systems-damage"] }
+
+[build-dependencies]
+sand-build = { path = "../../sand-build" }

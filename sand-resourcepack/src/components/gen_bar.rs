@@ -5,7 +5,7 @@ use crate::sprite::{Color, gen_bar_png};
 /// A bitmap-font progress bar whose sprite strip is **generated at build time**
 /// from color parameters rather than copied from a user-supplied PNG.
 ///
-/// Constructed via the [`hud_bar!`] macro with a `create!(...)` expression in
+/// Constructed via the `hud_bar!` macro with a `create!(...)` expression in
 /// the `texture:` field:
 ///
 /// ```rust,ignore
@@ -23,7 +23,6 @@ use crate::sprite::{Color, gen_bar_png};
 /// The macro expands to a [`GenHudBar`] instead of a [`HudBar`] when it
 /// detects the `create!(...)` call.
 ///
-/// [`hud_bar!`]: sand_macros::hud_bar
 /// [`HudBar`]: crate::HudBar
 pub struct GenHudBar {
     /// Unique identifier used in diagnostics and codepoint derivation.
@@ -36,7 +35,7 @@ pub struct GenHudBar {
     /// Override the first unicode codepoint for the bar frames.
     ///
     /// When `None` (the default), the codepoint is derived automatically from
-    /// the component name via [`bar_base_codepoint`](crate::bar_base_codepoint).
+    /// the component name via [`bar_base_codepoint`](crate::unicode::bar_base_codepoint).
     pub unicode_start: Option<char>,
 
     /// Number of frames in the generated sprite strip.

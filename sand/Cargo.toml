@@ -1,6 +1,6 @@
 [package]
 name = "sand"
-description = "A Minecraft datapack toolkit for Rust — scaffold, build, and test datapacks with type-safe Rust code"
+description = "Write Minecraft datapacks in type-safe Rust — the Sand authoring library"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -8,37 +8,24 @@ repository.workspace = true
 homepage.workspace = true
 authors.workspace = true
 rust-version.workspace = true
-keywords = ["minecraft", "datapack", "cli", "gamedev", "toolkit"]
-categories = ["command-line-utilities", "game-development"]
+keywords = ["minecraft", "datapack", "gamedev", "toolkit"]
+categories = ["game-development", "api-bindings"]
 
 [dependencies]
-sand-build = { path = "../sand-build" }
-sand-components = { path = "../sand-components" }
 sand-core = { path = "../sand-core" }
-sand-resourcepack = { path = "../sand-resourcepack" }
-clap = { version = "4", features = ["derive"] }
-handlebars = "6"
-anyhow = "1"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-toml = "0.8"
-zip = "2"
-walkdir = "2"
-colored = "2"
-base64 = "0.22"
-# Cross-platform Ctrl-C trapping: the standard library has no portable
-# SIGINT/Ctrl+C handling API, and this is required to shut the managed
-# Minecraft server down cleanly (send `stop`, wait for exit) instead of
-# leaving it orphaned when the user hits Ctrl-C in `sand run`.
-ctrlc = "3"
+sand-macros = { path = "../sand-macros" }
+sand-resourcepack = { path = "../sand-resourcepack", optional = true }
 
 [features]
-integration-tests = []
-
-[dev-dependencies]
-criterion = "0.5"
-tempfile = "3"
-
-[[bench]]
-name = "build_pipeline"
-harness = false
+default = []
+# HUD/resource-pack authoring (hud_bar!, hud_element!, texture! macros).
+resourcepack = ["dep:sand-resourcepack", "sand-macros/resourcepack"]
+# Optional gameplay systems, forwarded to the implementation crate.
+systems-damage = ["sand-core/systems-damage"]
+systems-cooldowns = ["sand-core/systems-cooldowns"]
+systems-lifecycle = ["sand-core/systems-lifecycle"]
+systems-player-data = ["sand-core/systems-player-data"]
+systems-movement = ["sand-core/systems-movement"]
+systems-inventory = ["sand-core/systems-inventory"]
+systems-entities = ["sand-core/systems-entities"]
+systems-all = ["sand-core/systems-all"]

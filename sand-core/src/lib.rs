@@ -1,5 +1,3 @@
-#![allow(deprecated)]
-// Compatibility exports intentionally retain deprecated APIs.
 // `SandEvent::dispatch` impls returning the concrete `SandEventDispatch` (rather than
 // the trait's `impl Into<SandEventDispatch>`) is the expected, common case and is
 // intentionally more specific — not a hazard here since `SandEvent::dispatch` is never
@@ -50,14 +48,11 @@
 //! - [`prelude`] is the default user-facing import for datapack authors.
 //! - [`advanced`] contains supported lower-level export hooks and raw escape
 //!   hatches for custom integrations.
-//! - [`compat`] names backwards-compatible exports that remain available while
-//!   newer docs and examples avoid relying on them.
 //! - `#[doc(hidden)]` items are for macro expansion and internal wiring, not
 //!   a stable authoring surface.
 
 pub mod advanced;
 pub mod cmd;
-pub mod compat;
 pub mod component;
 pub mod components;
 pub mod condition;
@@ -121,7 +116,6 @@ pub use event::{
     DamageEvent,
     Event,
     // Kept for backward compat; prefer Event<E> as handler context
-    Event as TypedEvent,
     EventAdvancement,
     EventBuilder,
     EventConfig,
@@ -132,7 +126,6 @@ pub use event::{
     IntoEventAdvancement,
     IntoEventId,
 };
-#[allow(deprecated)]
 pub use events::{
     // Equipment events
     ArmorEquipEvent,
@@ -216,6 +209,7 @@ pub use function::{
     register_dyn_fn, register_dyn_fn_dedup,
 };
 
+mod compiler;
 mod transition;
 pub use mc_version::McVersion;
 pub use resource_location::{Identifier, PackNamespace, ResourceLocation};
@@ -467,7 +461,7 @@ pub use serde_json;
 ///
 /// Accepts semicolon-separated expressions. String literals are used as-is;
 /// any value implementing [`std::fmt::Display`] (including command builders
-/// from [`sand_core::cmd`]) is serialized via `.to_string()`.
+/// from [`crate::cmd`]) is serialized via `.to_string()`.
 ///
 /// # Examples
 /// ```

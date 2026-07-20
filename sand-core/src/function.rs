@@ -48,15 +48,15 @@ inventory::collect!(FunctionPointerTypeEntry);
 /// Trait for types that can be resolved to a `function <id>` command string.
 ///
 /// This enables `cmd::call(...)` to accept local function pointers,
-/// [`FunctionRef`] values, [`ResourceLocation`] values, and raw path strings.
+/// [`FunctionRef`](crate::resource_ref::FunctionRef) values, [`ResourceLocation`](crate::ResourceLocation) values, and raw path strings.
 ///
 /// # Implementors
 ///
 /// | Type | Resolution |
 /// |---|---|
-/// | [`FunctionRef`] | Uses the ref's `Display` → `"function namespace:path"` |
+/// | [`FunctionRef`](crate::resource_ref::FunctionRef) | Uses the ref's `Display` → `"function namespace:path"` |
 /// | `&FunctionRef` | Same as above |
-/// | [`ResourceLocation`] | Uses the location's `Display` → `"function namespace:path"` |
+/// | [`ResourceLocation`](crate::ResourceLocation) | Uses the location's `Display` → `"function namespace:path"` |
 /// | `&str` | Used as-is → `"function raw_path"` |
 /// | `String` | Used as-is → `"function raw_path"` |
 /// | `fn() -> Vec<String>` or function item | Looks up the registered path from `#[function]` inventory |
@@ -481,7 +481,7 @@ impl TrackedTransition {
 /// # Fields
 /// - `path` — function resource location path (no namespace), e.g. `"on_join"`
 /// - `id_override` — optional full advancement ID override (advancement dispatch only)
-/// - `make` — factory that returns the Vec<String> of mcfunction commands
+/// - `make` — factory that returns the `Vec<String>` of mcfunction commands
 /// - `dispatch` — advancement, special generated system, tick poll, or tracked transition
 pub struct EventDescriptor {
     pub path: &'static str,
@@ -612,7 +612,7 @@ inventory::collect!(ArmorEventDescriptor);
 
 /// A temporary scoreboard objective automatically created on load.
 ///
-/// Register with [`temp_score!`] and Sand will emit
+/// Register with [`temp_score!`](crate::temp_score) and Sand will emit
 /// `scoreboard objectives add <name> <criteria>` in the generated init
 /// function — no manual load-function wiring needed.
 ///

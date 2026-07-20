@@ -1,49 +1,112 @@
 # Sand
 
-Sand is a strongly typed Rust framework for building vanilla Minecraft Java datapacks (and optional resource packs). It generates normal datapack files—functions, tags, advancements, predicates, recipes, loot, item modifiers, and components—rather than hiding Minecraft behind a runtime.
+Sand is a strongly-typed Rust framework for authoring vanilla Minecraft Java
+Edition datapacks (and optional resource packs) as ordinary Rust code. It
+emits normal `data/<namespace>/...` files — functions, tags, advancements,
+predicates, recipes, loot tables, item modifiers, and item components — via
+an attribute-first authoring model (`#[function]`, `#[component(Load)]`,
+`#[component(Tick)]`), typed state, typed conditions, typed execute chains,
+and generated typed command builders. Raw commands and raw JSON/SNBT are
+explicit, deliberate escape hatches, not the default authoring path.
 
-The full project guide lives in the [Sand mdBook](book/src/introduction.md). This README is the short orientation.
+> **Sand is pre-1.0 and volatile.** The public API can and does change
+> between commits; there are no compatibility shims for removed APIs. Pin a
+> commit if you need stability.
 
-<div class="sand-warning"><strong>Experimental.</strong> Sand is evolving. Optional systems and Minecraft's command/data formats are version-sensitive; test generated output with your target Minecraft version.</div>
+## Supported Minecraft versions
 
-## Start a project
+Minecraft Java **26.2** is the canonical export/profile target — it's what
+`VersionProfile::resolve("latest")` resolves to and what canonical fixtures,
+examples, and the book target by default. **1.21.4** is retained as an
+explicit oldest-profile/compatibility boundary: it's the oldest version CI
+verifies still codegens and renders correctly, not the implicit default.
+Unknown/future Minecraft versions fall back to conservative capabilities
+rather than erroring (`VersionProfile::resolve_strict()` is available when
+you need a hard failure instead).
+
+## Installing the CLI
+
+Sand isn't published to crates.io yet — install the `sand` binary from a
+clone of this repository:
 
 ```sh
-cargo run -p sand -- new my_pack
-cd my_pack
-cargo run -p sand -- build
+git clone https://github.com/ThatOneToast/sand.git
+cd sand
+cargo install --path sand-cli
 ```
 
-Copy the generated datapack into a world's `datapacks/` directory and run `/reload`.
+This installs the `sand-cli` package's binary, which is named `sand`.
+
+## Adding the `sand` dependency
+
+A datapack project depends on the single `sand` crate:
+
+```toml
+[dependencies]
+sand = { git = "https://github.com/ThatOneToast/sand.git", branch = "main" }
+
+[build-dependencies]
+sand-build = { git = "https://github.com/ThatOneToast/sand.git", branch = "main" }
+```
+
+`sand new`/`sand init` generate this automatically (using a local path
+dependency instead, if scaffolding inside the Sand workspace itself).
+
+## A minimal datapack
 
 ```rust
-use sand_core::prelude::*;
-use sand_macros::{component, function};
+use sand::prelude::*;
 
-static MANA: ScoreVar<i32> = ScoreVar::new("mana");
+static VISITS: ScoreVar<i32> = ScoreVar::new("visits");
 
 #[component(Load)]
-pub fn load() { MANA.define(); }
+pub fn load() {
+    VISITS.define();
+    cmd::tellraw(Selector::all_players(), Text::new("Pack loaded").green());
+}
 
 #[function]
-pub fn reward() {
-    MANA.add(Selector::self_(), 10);
-    cmd::tellraw(Selector::self_(), Text::new("+10 mana").aqua());
+pub fn greet() {
+    VISITS.add(Selector::self_(), 1);
+    cmd::tellraw(Selector::self_(), Text::new("Hello from Sand").gold().bold(true));
 }
 ```
 
-## What Sand covers
+`#[component(Load)]` registers `load` into `minecraft:load`, so it runs on
+every world load and `/reload`. `#[function]` exposes `greet` as a callable
+function (`/function <namespace>:greet`). See
+`examples/book_project/src/lib.rs` for a complete pack (state, events, items,
+recipes, dialogs, conditions, and VFX) built the same way.
 
-- Typed functions, load/tick components, selectors, conditions, execute chains, commands, text, state, storage schemas, and escape hatches.
-- Typed custom items and advancement-backed events, including typed function references.
-- Optional inventory, movement, entity/interactable, damage-tracking, lifecycle, cooldown, and player-data systems.
-- Typed datapack components: advancements, predicates, recipes, loot, tags, item modifiers, dialogs, structure templates, resource-pack and HUD data.
+## Build and run
 
-Enable only the systems you need, for example `features = ["systems-inventory", "systems-movement"]`. Raw commands and raw JSON/SNBT are deliberate interop escape hatches, not the default authoring model.
+```sh
+sand new my_pack       # scaffold a new project
+cd my_pack
+sand build              # compile to dist/
+```
 
-Normal pack code should import `sand_core::prelude::*` plus the proc macros it
-uses. Lower-level export hooks live under `sand_core::advanced`; compatibility
-exports remain available for older code but are not the preferred starting
-point.
+Copy the generated datapack from `dist/` into a world's `datapacks/`
+directory and run `/reload`, or use `sand run` to download a server jar and
+launch a local test server with the datapack already installed. `sand
+build --release` zips the output for distribution. Run `sand --help` for the
+full command list (`new`, `init`, `build`, `run`, `join`, `add`, `clean`).
 
-Useful guide entry points: [getting started](book/src/getting-started.md), [custom items](book/src/manual/custom-items.md), [events](book/src/manual/events.md), [version capabilities](book/src/version-capabilities.md), and [full project tutorials](book/src/recipes/shockwave-shield.md).
+## Documentation
+
+The [Sand Guide](book/src/introduction.md) (mdBook) is the canonical user
+guide: tutorials, a full manual, and reference pages. Build it locally with
+`mdbook build` or `scripts/build-book.sh`.
+
+## Architecture
+
+Sand is split into a small public surface (`sand`, the façade crate you
+depend on, plus the `sand-cli` binary) and several internal implementation
+crates. See
+[`docs/architecture/adr-001-crate-boundaries.md`](docs/architecture/adr-001-crate-boundaries.md)
+for the full crate graph and rationale.
+
+## Contributing
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the validation checks, toolchain
+policy, and local codegen contract.

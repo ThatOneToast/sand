@@ -54,7 +54,7 @@ use syn::{ItemFn, LitStr, parse_macro_input, token};
 /// `Vec<String>` construction the build pipeline expects.
 ///
 /// All expressions — with or without a trailing `;` — and macro invocations are
-/// routed through [`IntoCommands::into_commands`](::sand_core::IntoCommands),
+/// routed through [`IntoCommands::into_commands`](::sand::__private::IntoCommands),
 /// which accepts:
 ///
 /// - `String` / `&str` → single command
@@ -97,7 +97,7 @@ fn command_body_expr(expr: &syn::Expr) -> syn::Result<proc_macro2::TokenStream> 
         )),
         _ => Ok(quote! {
             __cmds.extend(
-                ::sand_core::IntoCommands::into_commands(#expr)
+                ::sand::__private::IntoCommands::into_commands(#expr)
             );
         }),
     }
@@ -128,7 +128,7 @@ fn build_cmd_body(block: &syn::Block) -> syn::Result<proc_macro2::TokenStream> {
                 let inner = &mac.mac;
                 pieces.push(quote! {
                     __cmds.extend(
-                        ::sand_core::IntoCommands::into_commands(#inner)
+                        ::sand::__private::IntoCommands::into_commands(#inner)
                     );
                 });
             }
@@ -149,7 +149,7 @@ fn build_cmd_body(block: &syn::Block) -> syn::Result<proc_macro2::TokenStream> {
 /// each expression into the generated command list. Use `mcfunction!` only for
 /// advanced command grouping or migration code.
 ///
-/// The function is automatically registered via [`inventory`] at program startup —
+/// The function is automatically registered via `inventory` at program startup —
 /// no manual collection or wiring is needed.
 ///
 /// The resource location *path* is derived from the function name
@@ -265,36 +265,36 @@ fn expand_function(
             ::std::any::Any::type_id(&#fn_name)
         }
 
-        ::sand_core::inventory::submit!(
-            ::sand_core::FunctionDescriptor {
+        ::sand::__private::inventory::submit!(
+            ::sand::__private::FunctionDescriptor {
                 path: #fn_name_str,
                 make: #factory_ident,
             }
         );
 
-        ::sand_core::inventory::submit!(
-            ::sand_core::FunctionPointerEntry {
+        ::sand::__private::inventory::submit!(
+            ::sand::__private::FunctionPointerEntry {
                 ptr: #fn_name as fn() -> ::std::vec::Vec<::std::string::String>,
                 path: #ptr_path_str,
             }
         );
 
-        ::sand_core::inventory::submit!(
-            ::sand_core::FunctionPointerTypeEntry {
+        ::sand::__private::inventory::submit!(
+            ::sand::__private::FunctionPointerTypeEntry {
                 type_id: #type_id_ident,
                 path: #ptr_path_str,
             }
         );
 
-        ::sand_core::inventory::submit!(
-            ::sand_core::sand_components::dialog::DialogFunctionPointerEntry {
+        ::sand::__private::inventory::submit!(
+            ::sand::__private::sand_components::dialog::DialogFunctionPointerEntry {
                 ptr: #fn_name as fn() -> ::std::vec::Vec<::std::string::String>,
                 path: #ptr_path_str,
             }
         );
 
-        ::sand_core::inventory::submit!(
-            ::sand_core::sand_components::dialog::DialogFunctionPointerTypeEntry {
+        ::sand::__private::inventory::submit!(
+            ::sand::__private::sand_components::dialog::DialogFunctionPointerTypeEntry {
                 type_id: #type_id_ident,
                 path: #ptr_path_str,
             }
@@ -309,8 +309,8 @@ fn expand_function(
 /// ## Plain `#[component]`
 ///
 /// The function must take no parameters and return a type that implements
-/// [`sand_core::DatapackComponent`]. It is automatically collected via
-/// [`inventory`] — no manual wiring needed.
+/// `sand_core::DatapackComponent`. It is automatically collected via
+/// `inventory` — no manual wiring needed.
 ///
 /// ```rust,ignore
 /// #[component]
@@ -480,12 +480,12 @@ fn expand_component_plain(func: ItemFn) -> syn::Result<proc_macro2::TokenStream>
 
         #[doc(hidden)]
         #[allow(dead_code)]
-        fn #factory_ident() -> ::std::boxed::Box<dyn ::sand_core::DatapackComponent> {
+        fn #factory_ident() -> ::std::boxed::Box<dyn ::sand::__private::DatapackComponent> {
             ::std::boxed::Box::new(#fn_name())
         }
 
-        ::sand_core::inventory::submit!(
-            ::sand_core::ComponentFactory { make: #factory_ident }
+        ::sand::__private::inventory::submit!(
+            ::sand::__private::ComponentFactory { make: #factory_ident }
         );
     })
 }
@@ -518,15 +518,15 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
             #fn_name()
         }
 
-        ::sand_core::inventory::submit!(
-            ::sand_core::FunctionDescriptor {
+        ::sand::__private::inventory::submit!(
+            ::sand::__private::FunctionDescriptor {
                 path: #fn_name_str,
                 make: #fn_make_ident,
             }
         );
 
-        ::sand_core::inventory::submit!(
-            ::sand_core::FunctionTagDescriptor {
+        ::sand::__private::inventory::submit!(
+            ::sand::__private::FunctionTagDescriptor {
                 tag: #tag_lit,
                 function_path: #fn_name_str,
             }
@@ -826,11 +826,11 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                     {
                         let binding_tokens = if is_damage_context {
                             quote! {
-                                ::sand_core::event::DamageEvent::<#event_type_tokens>::context()
+                                ::sand::__private::event::DamageEvent::<#event_type_tokens>::context()
                             }
                         } else {
                             quote! {
-                                ::sand_core::event::Event::<#event_type_tokens>::context()
+                                ::sand::__private::event::Event::<#event_type_tokens>::context()
                             }
                         };
                         EventParam::Context {
@@ -931,11 +931,11 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    /// Map a slot ident string to `::sand_core::ArmorSlot::*` tokens.
+    /// Map a slot ident string to `::sand::__private::ArmorSlot::*` tokens.
     fn slot_to_armor_slot_tokens(slot: &syn::Ident) -> syn::Result<proc_macro2::TokenStream> {
         match slot.to_string().as_str() {
             "Head" | "Chest" | "Legs" | "Feet" | "Offhand" => {
-                Ok(quote! { ::sand_core::ArmorSlot::#slot })
+                Ok(quote! { ::sand::__private::ArmorSlot::#slot })
             }
             other => Err(syn::Error::new_spanned(
                 slot,
@@ -970,15 +970,15 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
             quote! {
                 #preamble
 
-                ::sand_core::inventory::submit!(::sand_core::EventDescriptor {
+                ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
                     path: #fn_name_str,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
-                    dispatch: ::sand_core::EventDispatch::Tracked(
-                        ::sand_core::TrackedTransition::new(
+                    dispatch: ::sand::__private::EventDispatch::Tracked(
+                        ::sand::__private::TrackedTransition::new(
                             "player_sneaking",
-                            ::sand_core::events::PLAYER_SNEAKING_TRACKED_SOURCE,
-                            ::sand_core::TransitionKind::BecameTrue,
+                            ::sand::__private::events::PLAYER_SNEAKING_TRACKED_SOURCE,
+                            ::sand::__private::TransitionKind::BecameTrue,
                         )
                     ),
                 });
@@ -989,15 +989,15 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
             quote! {
                 #preamble
 
-                ::sand_core::inventory::submit!(::sand_core::EventDescriptor {
+                ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
                     path: #fn_name_str,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
-                    dispatch: ::sand_core::EventDispatch::Tracked(
-                        ::sand_core::TrackedTransition::new(
+                    dispatch: ::sand::__private::EventDispatch::Tracked(
+                        ::sand::__private::TrackedTransition::new(
                             "player_sneaking",
-                            ::sand_core::events::PLAYER_SNEAKING_TRACKED_SOURCE,
-                            ::sand_core::TransitionKind::BecameFalse,
+                            ::sand::__private::events::PLAYER_SNEAKING_TRACKED_SOURCE,
+                            ::sand::__private::TransitionKind::BecameFalse,
                         )
                     ),
                 });
@@ -1014,11 +1014,11 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
             quote! {
                 #preamble
 
-                ::sand_core::inventory::submit!(::sand_core::EventDescriptor {
+                ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
                     path: #fn_name_str,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
-                    dispatch: ::sand_core::EventDispatch::JoinTick,
+                    dispatch: ::sand::__private::EventDispatch::JoinTick,
                 });
             }
         }
@@ -1034,15 +1034,15 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
 
                 #[doc(hidden)]
                 #[allow(dead_code)]
-                fn #trigger_ident() -> ::sand_core::AdvancementTrigger {
-                    ::sand_core::AdvancementTrigger::Tick
+                fn #trigger_ident() -> ::sand::__private::AdvancementTrigger {
+                    ::sand::__private::AdvancementTrigger::Tick
                 }
 
-                ::sand_core::inventory::submit!(::sand_core::EventDescriptor {
+                ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
                     path: #fn_name_str,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
-                    dispatch: ::sand_core::EventDispatch::Advancement {
+                    dispatch: ::sand::__private::EventDispatch::Advancement {
                         make_trigger: #trigger_ident,
                         revoke: (|| false) as fn() -> bool,
                         guard: ::std::option::Option::None,
@@ -1061,11 +1061,11 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
             quote! {
                 #preamble
 
-                ::sand_core::inventory::submit!(::sand_core::EventDescriptor {
+                ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
                     path: #fn_name_str,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
-                    dispatch: ::sand_core::EventDispatch::XpLevelUp,
+                    dispatch: ::sand::__private::EventDispatch::XpLevelUp,
                 });
             }
         }
@@ -1075,11 +1075,11 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
             quote! {
                 #preamble
 
-                ::sand_core::inventory::submit!(::sand_core::EventDescriptor {
+                ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
                     path: #fn_name_str,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
-                    dispatch: ::sand_core::EventDispatch::DeathTick,
+                    dispatch: ::sand::__private::EventDispatch::DeathTick,
                 });
             }
         }
@@ -1089,11 +1089,11 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
             quote! {
                 #preamble
 
-                ::sand_core::inventory::submit!(::sand_core::EventDescriptor {
+                ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
                     path: #fn_name_str,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
-                    dispatch: ::sand_core::EventDispatch::RespawnTick,
+                    dispatch: ::sand::__private::EventDispatch::RespawnTick,
                 });
             }
         }
@@ -1113,11 +1113,11 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
             quote! {
                 #preamble
 
-                ::sand_core::inventory::submit!(::sand_core::EventDescriptor {
+                ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
                     path: #fn_name_str,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
-                    dispatch: ::sand_core::EventDispatch::ArmorEquip {
+                    dispatch: ::sand::__private::EventDispatch::ArmorEquip {
                         slot: #slot_tokens,
                         item_id: #item_tok,
                         custom_data_snbt: #cd_tok,
@@ -1141,11 +1141,11 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
             quote! {
                 #preamble
 
-                ::sand_core::inventory::submit!(::sand_core::EventDescriptor {
+                ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
                     path: #fn_name_str,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
-                    dispatch: ::sand_core::EventDispatch::ArmorUnequip {
+                    dispatch: ::sand::__private::EventDispatch::ArmorUnequip {
                         slot: #slot_tokens,
                         item_id: #item_tok,
                         custom_data_snbt: #cd_tok,
@@ -1202,11 +1202,11 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                     #condition.to_string()
                 }
 
-                ::sand_core::inventory::submit!(::sand_core::EventDescriptor {
+                ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
                     path: #fn_name_str,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
-                    dispatch: ::sand_core::EventDispatch::TickPoll {
+                    dispatch: ::sand::__private::EventDispatch::TickPoll {
                         make_condition: #cond_ident,
                     },
                 });
@@ -1270,11 +1270,11 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                     #condition.to_string()
                 }
 
-                ::sand_core::inventory::submit!(::sand_core::EventDescriptor {
+                ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
                     path: #fn_name_str,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
-                    dispatch: ::sand_core::EventDispatch::TickPoll {
+                    dispatch: ::sand::__private::EventDispatch::TickPoll {
                         make_condition: #cond_ident,
                     },
                 });
@@ -1305,27 +1305,27 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
 
                 #[doc(hidden)]
                 #[allow(dead_code)]
-                fn #trigger_ident() -> ::sand_core::AdvancementTrigger {
-                    <#dispatch_type_tokens as ::sand_core::event::AdvancementEvent>::trigger().into()
+                fn #trigger_ident() -> ::sand::__private::AdvancementTrigger {
+                    <#dispatch_type_tokens as ::sand::__private::event::AdvancementEvent>::trigger().into()
                 }
 
                 #[doc(hidden)]
                 #[allow(dead_code)]
                 fn #revoke_ident() -> bool {
-                    <#dispatch_type_tokens as ::sand_core::event::AdvancementEvent>::reset().should_revoke()
+                    <#dispatch_type_tokens as ::sand::__private::event::AdvancementEvent>::reset().should_revoke()
                 }
 
                 #[doc(hidden)]
                 #[allow(dead_code)]
-                fn #guard_ident() -> ::std::option::Option<::sand_core::condition::Condition> {
-                    <#dispatch_type_tokens as ::sand_core::event::AdvancementEvent>::guard()
+                fn #guard_ident() -> ::std::option::Option<::sand::__private::condition::Condition> {
+                    <#dispatch_type_tokens as ::sand::__private::event::AdvancementEvent>::guard()
                 }
 
-                ::sand_core::inventory::submit!(::sand_core::EventDescriptor {
+                ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
                     path: #fn_name_str,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
-                    dispatch: ::sand_core::EventDispatch::Advancement {
+                    dispatch: ::sand::__private::EventDispatch::Advancement {
                         make_trigger: #trigger_ident,
                         revoke: #revoke_ident,
                         guard: ::std::option::Option::Some(#guard_ident),
@@ -1333,7 +1333,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 });
 
                 // Register event type → handler path mapping for EventHandle<E>.revoke/grant.
-                ::sand_core::inventory::submit!(::sand_core::EventPathEntry {
+                ::sand::__private::inventory::submit!(::sand::__private::EventPathEntry {
                     type_id: ::std::any::TypeId::of::<#dispatch_type_tokens>(),
                     path: #fn_name_str,
                 });
@@ -1380,16 +1380,16 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
 
                 #[doc(hidden)]
                 #[allow(dead_code)]
-                fn #trigger_ident() -> ::std::option::Option<::sand_core::AdvancementTrigger> {
-                    let dispatch: ::sand_core::events::SandEventDispatch =
-                        <#dispatch_type_tokens as ::sand_core::events::SandEvent>::dispatch().into();
+                fn #trigger_ident() -> ::std::option::Option<::sand::__private::AdvancementTrigger> {
+                    let dispatch: ::sand::__private::events::SandEventDispatch =
+                        <#dispatch_type_tokens as ::sand::__private::events::SandEvent>::dispatch().into();
                     match dispatch {
-                        ::sand_core::events::SandEventDispatch::AdvancementTrigger(t) => {
+                        ::sand::__private::events::SandEventDispatch::AdvancementTrigger(t) => {
                             ::std::option::Option::Some(t)
                         }
-                        ::sand_core::events::SandEventDispatch::TickCondition(_)
-                        | ::sand_core::events::SandEventDispatch::Tick(_)
-                        | ::sand_core::events::SandEventDispatch::Chain(_) => {
+                        ::sand::__private::events::SandEventDispatch::TickCondition(_)
+                        | ::sand::__private::events::SandEventDispatch::Tick(_)
+                        | ::sand::__private::events::SandEventDispatch::Chain(_) => {
                             ::std::option::Option::None
                         }
                     }
@@ -1398,15 +1398,15 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 #[doc(hidden)]
                 #[allow(dead_code)]
                 fn #cond_ident() -> ::std::option::Option<::std::string::String> {
-                    let dispatch: ::sand_core::events::SandEventDispatch =
-                        <#dispatch_type_tokens as ::sand_core::events::SandEvent>::dispatch().into();
+                    let dispatch: ::sand::__private::events::SandEventDispatch =
+                        <#dispatch_type_tokens as ::sand::__private::events::SandEvent>::dispatch().into();
                     match dispatch {
-                        ::sand_core::events::SandEventDispatch::TickCondition(s) => {
+                        ::sand::__private::events::SandEventDispatch::TickCondition(s) => {
                             ::std::option::Option::Some(s)
                         }
-                        ::sand_core::events::SandEventDispatch::AdvancementTrigger(_)
-                        | ::sand_core::events::SandEventDispatch::Tick(_)
-                        | ::sand_core::events::SandEventDispatch::Chain(_) => {
+                        ::sand::__private::events::SandEventDispatch::AdvancementTrigger(_)
+                        | ::sand::__private::events::SandEventDispatch::Tick(_)
+                        | ::sand::__private::events::SandEventDispatch::Chain(_) => {
                             ::std::option::Option::None
                         }
                     }
@@ -1414,16 +1414,16 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
 
                 #[doc(hidden)]
                 #[allow(dead_code)]
-                fn #tick_ident() -> ::std::option::Option<::sand_core::events::TickEventDispatch> {
-                    let dispatch: ::sand_core::events::SandEventDispatch =
-                        <#dispatch_type_tokens as ::sand_core::events::SandEvent>::dispatch().into();
+                fn #tick_ident() -> ::std::option::Option<::sand::__private::events::TickEventDispatch> {
+                    let dispatch: ::sand::__private::events::SandEventDispatch =
+                        <#dispatch_type_tokens as ::sand::__private::events::SandEvent>::dispatch().into();
                     match dispatch {
-                        ::sand_core::events::SandEventDispatch::Tick(t) => {
+                        ::sand::__private::events::SandEventDispatch::Tick(t) => {
                             ::std::option::Option::Some(t)
                         }
-                        ::sand_core::events::SandEventDispatch::AdvancementTrigger(_)
-                        | ::sand_core::events::SandEventDispatch::TickCondition(_)
-                        | ::sand_core::events::SandEventDispatch::Chain(_) => {
+                        ::sand::__private::events::SandEventDispatch::AdvancementTrigger(_)
+                        | ::sand::__private::events::SandEventDispatch::TickCondition(_)
+                        | ::sand::__private::events::SandEventDispatch::Chain(_) => {
                             ::std::option::Option::None
                         }
                     }
@@ -1431,16 +1431,16 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
 
                 #[doc(hidden)]
                 #[allow(dead_code)]
-                fn #chain_ident() -> ::std::option::Option<::sand_core::events::ChainEventDispatch> {
-                    let dispatch: ::sand_core::events::SandEventDispatch =
-                        <#dispatch_type_tokens as ::sand_core::events::SandEvent>::dispatch().into();
+                fn #chain_ident() -> ::std::option::Option<::sand::__private::events::ChainEventDispatch> {
+                    let dispatch: ::sand::__private::events::SandEventDispatch =
+                        <#dispatch_type_tokens as ::sand::__private::events::SandEvent>::dispatch().into();
                     match dispatch {
-                        ::sand_core::events::SandEventDispatch::Chain(c) => {
+                        ::sand::__private::events::SandEventDispatch::Chain(c) => {
                             ::std::option::Option::Some(c)
                         }
-                        ::sand_core::events::SandEventDispatch::AdvancementTrigger(_)
-                        | ::sand_core::events::SandEventDispatch::TickCondition(_)
-                        | ::sand_core::events::SandEventDispatch::Tick(_) => {
+                        ::sand::__private::events::SandEventDispatch::AdvancementTrigger(_)
+                        | ::sand::__private::events::SandEventDispatch::TickCondition(_)
+                        | ::sand::__private::events::SandEventDispatch::Tick(_) => {
                             ::std::option::Option::None
                         }
                     }
@@ -1449,7 +1449,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 #[doc(hidden)]
                 #[allow(dead_code)]
                 fn #revoke_ident() -> bool {
-                    <#dispatch_type_tokens as ::sand_core::events::SandEvent>::revoke()
+                    <#dispatch_type_tokens as ::sand::__private::events::SandEvent>::revoke()
                 }
 
                 #[doc(hidden)]
@@ -1466,15 +1466,15 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
 
                 #[doc(hidden)]
                 #[allow(dead_code)]
-                fn #setup_ident() -> ::sand_core::events::EventSetup {
-                    <#dispatch_type_tokens as ::sand_core::events::SandEvent>::setup()
+                fn #setup_ident() -> ::sand::__private::events::EventSetup {
+                    <#dispatch_type_tokens as ::sand::__private::events::SandEvent>::setup()
                 }
 
-                ::sand_core::inventory::submit!(::sand_core::EventDescriptor {
+                ::sand::__private::inventory::submit!(::sand::__private::EventDescriptor {
                     path: #fn_name_str,
                     id_override: #id_override_tokens,
                     make: #fn_make_ident,
-                    dispatch: ::sand_core::EventDispatch::Custom {
+                    dispatch: ::sand::__private::EventDispatch::Custom {
                         make_trigger: #trigger_ident,
                         make_condition: #cond_ident,
                         make_tick: #tick_ident,
@@ -1752,8 +1752,8 @@ pub fn hud_element(input: TokenStream) -> TokenStream {
 
 /// Registers a raw texture copy as a resource pack component.
 ///
-/// The macro submits a [`sand_resourcepack::RawTexture`] descriptor via
-/// [`inventory::submit!`] at link time.
+/// The macro submits a `sand_resourcepack::RawTexture` descriptor via
+/// `inventory::submit!` at link time.
 ///
 /// # Required fields
 ///
@@ -2020,8 +2020,8 @@ fn expand_hud_bar(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
         Ok(quote! {
             #[doc(hidden)]
             #[allow(dead_code)]
-            fn #factory_ident() -> ::std::boxed::Box<dyn ::sand_resourcepack::ResourcePackComponent> {
-                ::std::boxed::Box::new(::sand_resourcepack::GenHudBar {
+            fn #factory_ident() -> ::std::boxed::Box<dyn ::sand::__private::rp::ResourcePackComponent> {
+                ::std::boxed::Box::new(::sand::__private::rp::GenHudBar {
                     name:          #name,
                     texture_dest:  #tex_dest_ts,
                     unicode_start: #uni_start_ts,
@@ -2035,15 +2035,15 @@ fn expand_hud_bar(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
                 })
             }
 
-            pub const #handle_ident: ::sand_resourcepack::BarHandle = ::sand_resourcepack::BarHandle {
+            pub const #handle_ident: ::sand::__private::rp::BarHandle = ::sand::__private::rp::BarHandle {
                 name:        #name,
                 steps:       #steps,
                 font:        #font_ts,
                 frame_width: #effective_fw_lit,
             };
 
-            ::sand_resourcepack::inventory::submit!(
-                ::sand_resourcepack::ResourcePackDescriptor {
+            ::sand::__private::rp::inventory::submit!(
+                ::sand::__private::rp::ResourcePackDescriptor {
                     name: #name,
                     make: #factory_ident,
                 }
@@ -2055,8 +2055,8 @@ fn expand_hud_bar(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
         Ok(quote! {
             #[doc(hidden)]
             #[allow(dead_code)]
-            fn #factory_ident() -> ::std::boxed::Box<dyn ::sand_resourcepack::ResourcePackComponent> {
-                ::std::boxed::Box::new(::sand_resourcepack::HudBar {
+            fn #factory_ident() -> ::std::boxed::Box<dyn ::sand::__private::rp::ResourcePackComponent> {
+                ::std::boxed::Box::new(::sand::__private::rp::HudBar {
                     name:          #name,
                     texture_src:   #texture,
                     texture_dest:  #tex_dest_ts,
@@ -2068,15 +2068,15 @@ fn expand_hud_bar(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
                 })
             }
 
-            pub const #handle_ident: ::sand_resourcepack::BarHandle = ::sand_resourcepack::BarHandle {
+            pub const #handle_ident: ::sand::__private::rp::BarHandle = ::sand::__private::rp::BarHandle {
                 name:        #name,
                 steps:       #steps,
                 font:        #font_ts,
                 frame_width: 0u32,  // unknown for user-supplied PNGs
             };
 
-            ::sand_resourcepack::inventory::submit!(
-                ::sand_resourcepack::ResourcePackDescriptor {
+            ::sand::__private::rp::inventory::submit!(
+                ::sand::__private::rp::ResourcePackDescriptor {
                     name: #name,
                     make: #factory_ident,
                 }
@@ -2175,8 +2175,8 @@ fn expand_hud_element(input: TokenStream) -> syn::Result<proc_macro2::TokenStrea
         Ok(quote! {
             #[doc(hidden)]
             #[allow(dead_code)]
-            fn #factory_ident() -> ::std::boxed::Box<dyn ::sand_resourcepack::ResourcePackComponent> {
-                ::std::boxed::Box::new(::sand_resourcepack::GenHudElement {
+            fn #factory_ident() -> ::std::boxed::Box<dyn ::sand::__private::rp::ResourcePackComponent> {
+                ::std::boxed::Box::new(::sand::__private::rp::GenHudElement {
                     name:         #name,
                     texture_dest: #tex_dest_ts,
                     unicode:      #unicode_ts,
@@ -2188,14 +2188,14 @@ fn expand_hud_element(input: TokenStream) -> syn::Result<proc_macro2::TokenStrea
                 })
             }
 
-            pub const #handle_ident: ::sand_resourcepack::ElementHandle = ::sand_resourcepack::ElementHandle {
+            pub const #handle_ident: ::sand::__private::rp::ElementHandle = ::sand::__private::rp::ElementHandle {
                 name:       #name,
                 font:       #font_ts,
                 char_width: #effective_cw_lit,
             };
 
-            ::sand_resourcepack::inventory::submit!(
-                ::sand_resourcepack::ResourcePackDescriptor {
+            ::sand::__private::rp::inventory::submit!(
+                ::sand::__private::rp::ResourcePackDescriptor {
                     name: #name,
                     make: #factory_ident,
                 }
@@ -2207,8 +2207,8 @@ fn expand_hud_element(input: TokenStream) -> syn::Result<proc_macro2::TokenStrea
         Ok(quote! {
             #[doc(hidden)]
             #[allow(dead_code)]
-            fn #factory_ident() -> ::std::boxed::Box<dyn ::sand_resourcepack::ResourcePackComponent> {
-                ::std::boxed::Box::new(::sand_resourcepack::HudElement {
+            fn #factory_ident() -> ::std::boxed::Box<dyn ::sand::__private::rp::ResourcePackComponent> {
+                ::std::boxed::Box::new(::sand::__private::rp::HudElement {
                     name:         #name,
                     texture_src:  #texture,
                     texture_dest: #tex_dest_ts,
@@ -2219,14 +2219,14 @@ fn expand_hud_element(input: TokenStream) -> syn::Result<proc_macro2::TokenStrea
                 })
             }
 
-            pub const #handle_ident: ::sand_resourcepack::ElementHandle = ::sand_resourcepack::ElementHandle {
+            pub const #handle_ident: ::sand::__private::rp::ElementHandle = ::sand::__private::rp::ElementHandle {
                 name:       #name,
                 font:       #font_ts,
                 char_width: 0u32,  // unknown for user-supplied PNGs
             };
 
-            ::sand_resourcepack::inventory::submit!(
-                ::sand_resourcepack::ResourcePackDescriptor {
+            ::sand::__private::rp::inventory::submit!(
+                ::sand::__private::rp::ResourcePackDescriptor {
                     name: #name,
                     make: #factory_ident,
                 }
@@ -2270,8 +2270,8 @@ fn expand_texture(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
     Ok(quote! {
         #[doc(hidden)]
         #[allow(dead_code)]
-        fn #factory_ident() -> ::std::boxed::Box<dyn ::sand_resourcepack::ResourcePackComponent> {
-            ::std::boxed::Box::new(::sand_resourcepack::RawTexture {
+        fn #factory_ident() -> ::std::boxed::Box<dyn ::sand::__private::rp::ResourcePackComponent> {
+            ::std::boxed::Box::new(::sand::__private::rp::RawTexture {
                 name:            #id,
                 asset_namespace: #asset_ns_lit,
                 dest_path:       #dest_path_lit,
@@ -2279,8 +2279,8 @@ fn expand_texture(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
             })
         }
 
-        ::sand_resourcepack::inventory::submit!(
-            ::sand_resourcepack::ResourcePackDescriptor {
+        ::sand::__private::rp::inventory::submit!(
+            ::sand::__private::rp::ResourcePackDescriptor {
                 name: #id,
                 make: #factory_ident,
             }
@@ -2460,13 +2460,13 @@ fn expand_armor_event(attr: ArmorEventAttr, func: ItemFn) -> syn::Result<proc_ma
 
     let body = build_cmd_body(&func.block)?;
 
-    // Map slot ident to ::sand_core::ArmorSlot::*
+    // Map slot ident to ::sand::__private::ArmorSlot::*
     let slot_ident = &attr.slot_ident;
-    let slot_expr = quote! { ::sand_core::ArmorSlot::#slot_ident };
+    let slot_expr = quote! { ::sand::__private::ArmorSlot::#slot_ident };
 
-    // Map kind ident to ::sand_core::ArmorEventKind::*
+    // Map kind ident to ::sand::__private::ArmorEventKind::*
     let kind_ident = &attr.kind_ident;
-    let kind_expr = quote! { ::sand_core::ArmorEventKind::#kind_ident };
+    let kind_expr = quote! { ::sand::__private::ArmorEventKind::#kind_ident };
 
     // item_id: Option<&'static str>
     let item_id_expr = match &attr.item {
@@ -2492,7 +2492,7 @@ fn expand_armor_event(attr: ArmorEventAttr, func: ItemFn) -> syn::Result<proc_ma
             #fn_name()
         }
 
-        ::sand_core::inventory::submit!(::sand_core::ArmorEventDescriptor {
+        ::sand::__private::inventory::submit!(::sand::__private::ArmorEventDescriptor {
             path: #fn_name_str,
             make: #factory_ident,
             slot: #slot_expr,
@@ -2563,8 +2563,8 @@ fn expand_run_fn(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
 
     let name_lit = LitStr::new(&name_val, span);
     let fn_call = quote! {
-        ::sand_core::cmd::function(
-            #name_lit.parse::<::sand_core::ResourceLocation>().unwrap()
+        ::sand::__private::cmd::function(
+            #name_lit.parse::<::sand::__private::ResourceLocation>().unwrap()
         )
     };
 
@@ -2585,8 +2585,8 @@ fn expand_run_fn(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
                         #cmd_body
                     }
 
-                    ::sand_core::inventory::submit!(
-                        ::sand_core::FunctionDescriptor {
+                    ::sand::__private::inventory::submit!(
+                        ::sand::__private::FunctionDescriptor {
                             path: #path_lit,
                             make: #fn_ident,
                         }
@@ -2601,7 +2601,7 @@ fn expand_run_fn(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
             // inventory, so the component builder picks it up after user fns run.
             Ok(quote! {
                 {
-                    ::sand_core::register_dyn_fn(
+                    ::sand::__private::register_dyn_fn(
                         #path_lit.to_string(),
                         { #cmd_body },
                     );
@@ -2767,7 +2767,7 @@ fn expand_schedule(func: ItemFn, attr: ScheduleAttr) -> syn::Result<proc_macro2:
             #fn_name()
         }
 
-        ::sand_core::inventory::submit!(::sand_core::ScheduleDescriptor {
+        ::sand::__private::inventory::submit!(::sand::__private::ScheduleDescriptor {
             path: #fn_name_str,
             total_ticks: #total_ticks,
             every: #every,
@@ -3095,7 +3095,7 @@ fn expand_item(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Toke
             /// }
             /// ```
             pub fn if_wearing(
-                slot: ::sand_core::cmd::ItemSlot,
+                slot: ::sand::__private::cmd::ItemSlot,
                 cmd: impl ::std::fmt::Display,
             ) -> ::std::string::String {
                 ::std::format!(
@@ -3107,7 +3107,7 @@ fn expand_item(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Toke
             /// Returns an `execute unless items entity @s <slot> <predicate> run <cmd>` command
             /// that runs `cmd` only when `@s` does NOT have this item in `slot`.
             pub fn unless_wearing(
-                slot: ::sand_core::cmd::ItemSlot,
+                slot: ::sand::__private::cmd::ItemSlot,
                 cmd: impl ::std::fmt::Display,
             ) -> ::std::string::String {
                 ::std::format!(
@@ -3117,7 +3117,7 @@ fn expand_item(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Toke
             }
 
             /// Construct the [`CustomItem`] definition for this item.
-            pub fn item() -> ::sand_core::CustomItem {
+            pub fn item() -> ::sand::__private::CustomItem {
                 #fn_ident()
             }
         }
@@ -3289,7 +3289,7 @@ fn sand_storage_derive_impl(input: syn::DeriveInput) -> Result<TokenStream, syn:
         let key_str: &str = path_override.as_deref().unwrap_or(field_name_str.as_str());
 
         methods.push(quote! {
-            pub fn #field_ident() -> ::sand_core::state::StorageField<#struct_name, #field_ty> {
+            pub fn #field_ident() -> ::sand::__private::state::StorageField<#struct_name, #field_ty> {
                 Self::SCHEMA.field(#key_str)
             }
         });
@@ -3300,8 +3300,8 @@ fn sand_storage_derive_impl(input: syn::DeriveInput) -> Result<TokenStream, syn:
 
     let expanded = quote! {
         impl #struct_name {
-            pub const SCHEMA: ::sand_core::state::StorageSchema<#struct_name> =
-                ::sand_core::state::StorageSchema::new(#storage_lit, #root_lit);
+            pub const SCHEMA: ::sand::__private::state::StorageSchema<#struct_name> =
+                ::sand::__private::state::StorageSchema::new(#storage_lit, #root_lit);
 
             #( #methods )*
         }

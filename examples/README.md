@@ -8,7 +8,7 @@ standalone crates; scaffold a project and paste the relevant code into
 
 - `basic_typed.rs` — typed function, load, and tick basics with `ScoreVar`, `#[component(Load)]`, `#[component(Tick)]`.
 - `state_and_conditions.rs` — scoreboard state, flags, cooldowns, and nested `all!`/`any!` conditions.
-- `gameplay_state.rs` — enum-backed `GameState<S>`, lifecycle registration, transitions, enter/exit hooks, and per-state ticks. Pairs with the [typed-state guide](../book/src/typed-state.md).
+- `gameplay_state.rs` — enum-backed `GameState<S>`, lifecycle registration, transitions, enter/exit hooks, and per-state ticks. See the [player state and storage chapter](../book/src/07-state-and-storage.md) for the state-primitive choices this example builds on.
 - `dialogs.rs` — typed dialog component with a typed function command action.
 - `storage_nbt.rs` — typed `StorageVar<T>`, storage paths, and storage-backed conditions.
 - `datapack_components.rs` — typed datapack JSON components (dialogs, custom items).

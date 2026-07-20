@@ -1,10 +1,8 @@
 //! Architecture guard: teaching material must import only the `sand` façade.
 //!
-//! `examples/book_project` is the canonical source for book snippets; if it
-//! imported internal crates, the book would teach the wrong dependency model.
-//!
-//! TODO(Phase 5): once `book/src` is rewritten against the façade, add it to
-//! `GUARDED_ROOTS` so book snippets are held to the same rule.
+//! `examples/book_project` is the canonical source for book snippets, and
+//! `book/src` is written against it — if either imported internal crates,
+//! the book would teach the wrong dependency model.
 
 use std::path::{Path, PathBuf};
 
@@ -17,8 +15,9 @@ const FORBIDDEN_IMPORTS: &[&str] = &[
     "use sand_version::",
 ];
 
-/// Directories (relative to the repo root) whose `.rs` files are guarded.
-const GUARDED_ROOTS: &[&str] = &["examples/book_project/src"];
+/// Directories (relative to the repo root) and the file extension to scan
+/// within each, whose sources are guarded.
+const GUARDED_ROOTS: &[(&str, &str)] = &[("examples/book_project/src", "rs"), ("book/src", "md")];
 
 fn repo_root() -> PathBuf {
     // CARGO_MANIFEST_DIR is <repo>/sand for this test crate.
@@ -28,12 +27,12 @@ fn repo_root() -> PathBuf {
         .to_path_buf()
 }
 
-fn rust_sources(dir: &Path, out: &mut Vec<PathBuf>) {
+fn sources_with_extension(dir: &Path, ext: &str, out: &mut Vec<PathBuf>) {
     for entry in std::fs::read_dir(dir).unwrap_or_else(|e| panic!("read {dir:?}: {e}")) {
         let path = entry.expect("dir entry").path();
         if path.is_dir() {
-            rust_sources(&path, out);
-        } else if path.extension().is_some_and(|ext| ext == "rs") {
+            sources_with_extension(&path, ext, out);
+        } else if path.extension().is_some_and(|e| e == ext) {
             out.push(path);
         }
     }
@@ -44,13 +43,13 @@ fn guarded_sources_import_only_the_facade() {
     let root = repo_root();
     let mut violations = Vec::new();
 
-    for guarded in GUARDED_ROOTS {
+    for (guarded, ext) in GUARDED_ROOTS {
         let dir = root.join(guarded);
         assert!(dir.is_dir(), "guarded root missing: {dir:?}");
 
         let mut files = Vec::new();
-        rust_sources(&dir, &mut files);
-        assert!(!files.is_empty(), "no .rs files under {dir:?}");
+        sources_with_extension(&dir, ext, &mut files);
+        assert!(!files.is_empty(), "no .{ext} files under {dir:?}");
 
         for file in files {
             let source =

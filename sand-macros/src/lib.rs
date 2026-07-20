@@ -149,7 +149,7 @@ fn build_cmd_body(block: &syn::Block) -> syn::Result<proc_macro2::TokenStream> {
 /// each expression into the generated command list. Use `mcfunction!` only for
 /// advanced command grouping or migration code.
 ///
-/// The function is automatically registered via [`inventory`] at program startup —
+/// The function is automatically registered via `inventory` at program startup —
 /// no manual collection or wiring is needed.
 ///
 /// The resource location *path* is derived from the function name
@@ -309,8 +309,8 @@ fn expand_function(
 /// ## Plain `#[component]`
 ///
 /// The function must take no parameters and return a type that implements
-/// [`sand_core::DatapackComponent`]. It is automatically collected via
-/// [`inventory`] — no manual wiring needed.
+/// `sand_core::DatapackComponent`. It is automatically collected via
+/// `inventory` — no manual wiring needed.
 ///
 /// ```rust,ignore
 /// #[component]
@@ -1752,8 +1752,8 @@ pub fn hud_element(input: TokenStream) -> TokenStream {
 
 /// Registers a raw texture copy as a resource pack component.
 ///
-/// The macro submits a [`sand_resourcepack::RawTexture`] descriptor via
-/// [`inventory::submit!`] at link time.
+/// The macro submits a `sand_resourcepack::RawTexture` descriptor via
+/// `inventory::submit!` at link time.
 ///
 /// # Required fields
 ///

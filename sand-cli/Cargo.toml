@@ -47,6 +47,10 @@ tempfile = "3"
 [[bin]]
 name = "sand"
 path = "src/main.rs"
+# Binaries don't need rustdoc, and this avoids an output filename collision
+# with the `sand` library crate's own docs (both would land at
+# target/doc/sand/index.html — https://github.com/rust-lang/cargo/issues/6313).
+doc = false
 
 [[bench]]
 name = "build_pipeline"

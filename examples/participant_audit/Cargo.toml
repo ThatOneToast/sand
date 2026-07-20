@@ -1,0 +1,27 @@
+[package]
+name = "participant_audit"
+description = "Dedicated Minecraft Java 26.2 runtime-validation datapack for #230 participant backends (#265)"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/ThatOneToast/sand"
+homepage = "https://github.com/ThatOneToast/sand"
+authors = ["Toast <ThatOneToast@proton.me>"]
+rust-version = "1.96.0"
+publish = false
+
+[workspace]
+
+[[bin]]
+name = "sand_export"
+path = "src/bin/sand_export.rs"
+doc = false
+
+[dependencies]
+sand = { path = "../../sand" }
+
+[dev-dependencies]
+serde_json = "1"
+
+[build-dependencies]
+sand-build = { path = "../../sand-build" }

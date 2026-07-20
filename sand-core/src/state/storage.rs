@@ -573,6 +573,23 @@ impl<Schema, T> StorageField<Schema, T> {
         )
     }
 
+    /// `data modify storage <s> <path> set from entity <entity> <src_path>`
+    ///
+    /// Copy a value from entity NBT into this field. Takes a typed
+    /// [`Selector`] — never build this by stringifying a participant handle
+    /// yourself; pass [`Selector::self_()`] from inside an
+    /// [`crate::participant::EntityParticipant::execute_at`] callback (or any
+    /// other typed selector) instead.
+    pub fn copy_from_entity(&self, entity: Selector, src_path: impl Into<String>) -> String {
+        format!(
+            "data modify storage {} {} set from entity {} {}",
+            self.storage,
+            self.full_path(),
+            entity,
+            src_path.into()
+        )
+    }
+
     pub fn copy_from_path(&self, source_storage: StorageLocation, source_path: NbtPath) -> String {
         format!(
             "data modify storage {} {} set from storage {} {}",

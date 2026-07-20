@@ -253,6 +253,39 @@ impl EntityParticipant {
     pub fn require_exact(&self) -> Result<&Self, ParticipantReliabilityError> {
         self.require(ParticipantReliability::Exact)
     }
+
+    /// `execute at <this participant's selector> run <cmd>` — run a typed
+    /// command with this participant as the execution context, without ever
+    /// stringifying the selector yourself.
+    ///
+    /// This is the normal way to consume a resolved [`EntityParticipant`]:
+    /// build `cmd` with any other typed command builder (targeting `@s`,
+    /// since `execute at` only moves the execution *position*, not the
+    /// executing entity — combine with [`sand_commands::Selector::self_`]
+    /// where a command needs to reference "this participant" as `@s`).
+    ///
+    /// ```
+    /// use sand_core::participant::{EntityParticipant, EntityParticipantRole};
+    /// use sand_core::participant::lifetime::ParticipantLifetime;
+    /// use sand_core::state::StorageSchema;
+    /// use sand_commands::Selector;
+    /// use sand_commands::selector::SingleEntity;
+    ///
+    /// let attacker = EntityParticipant::correlated(
+    ///     SingleEntity::raw("@e[tag=x,limit=1]"),
+    ///     EntityParticipantRole::Attacker,
+    ///     ParticipantLifetime::SynchronousDescendants,
+    /// );
+    /// static AUDIT: StorageSchema<()> = StorageSchema::new("pack:audit", "audit");
+    /// let cmd = attacker.execute_at(AUDIT.field::<String>("attacker_uuid").copy_from_entity(Selector::self_(), "UUID"));
+    /// assert_eq!(
+    ///     cmd,
+    ///     "execute at @e[tag=x,limit=1] run data modify storage pack:audit audit.attacker_uuid set from entity @s UUID"
+    /// );
+    /// ```
+    pub fn execute_at(&self, cmd: impl Into<String>) -> String {
+        format!("execute at {} run {}", self.selector, cmd.into())
+    }
 }
 
 #[cfg(test)]

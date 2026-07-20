@@ -1,0 +1,4 @@
+[pack]
+namespace   = "paudit"
+description = "Runtime-validation audit pack for #230 participant backends (#265)"
+mc_version  = "26.2"

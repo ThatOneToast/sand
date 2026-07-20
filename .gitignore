@@ -10,5 +10,6 @@
 .claude
 book/book/
 examples/arcane_pack/dist
+examples/participant_audit/dist
 sand-vanilla-audit/dist
 scripts/vanilla-semantic-client/node_modules/

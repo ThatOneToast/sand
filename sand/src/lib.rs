@@ -66,6 +66,14 @@
 /// meaningful when compiled through `sand build`.
 pub use sand_macros::{armor_event, component, event, function, item, run_fn, schedule};
 
+/// `#[derive(SandStorage)]` — generates a typed [`data::StorageSchema`] and
+/// one [`data::StorageField`] accessor per struct field, from a plain Rust
+/// struct annotated with `#[sand(storage = "namespace:id", root = "nbt.path")]`.
+/// The typed way to declare a datapack's NBT storage shape without hand-
+/// writing storage IDs or NBT paths at each call site. See the macro's own
+/// docs for the generated API and `#[sand(path = "...")]` field overrides.
+pub use sand_macros::SandStorage;
+
 /// `hud_bar!`, `hud_element!`, and `texture!` — declarative resource-pack
 /// authoring macros for custom HUD bars/elements and referenced textures.
 /// Only available with the `resourcepack` feature, and only useful alongside

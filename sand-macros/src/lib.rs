@@ -3270,6 +3270,10 @@ fn expand_item(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Toke
 ///
 /// - Named structs only; tuple structs are rejected at compile time.
 /// - The `#[sand(storage = ..., root = ...)]` attribute is required.
+/// - Field types are phantom markers only — the struct is never
+///   constructed, only its generated `SCHEMA`/per-field accessors are used.
+///   Add `#[allow(dead_code)]` to the struct to silence the resulting
+///   "field is never read" warning.
 #[proc_macro_derive(SandStorage, attributes(sand))]
 pub fn sand_storage_derive(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);

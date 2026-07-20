@@ -7,6 +7,7 @@ use std::sync::{Mutex, OnceLock};
 
 use crate::condition::{Condition, ScoreCompareOp, ScoreOperand, ScoreRange};
 use crate::execute_when::Conditional;
+use crate::state::storage::StorageField;
 
 // ── Name utilities ────────────────────────────────────────────────────────────
 
@@ -534,6 +535,37 @@ pub struct ScoreRef<'a, T = i32> {
 impl<'a, T> ScoreRef<'a, T> {
     fn obj(&self) -> String {
         objective_name(self.objective)
+    }
+
+    /// `execute store result storage <field> int 1 run scoreboard players get
+    /// <selector> <obj>` — copy this score into a typed storage field.
+    ///
+    /// The typed counterpart to reading storage into a score
+    /// ([`StorageField::set`] combined with [`ScoreVar::set`]/`.add`); use
+    /// this whenever a handler needs to snapshot a scoreboard value into NBT
+    /// storage (e.g. for machine-readable evidence) without hand-writing an
+    /// `execute store result storage ...` command.
+    ///
+    /// ```
+    /// use sand_core::state::{ScoreVar, StorageSchema};
+    ///
+    /// static SEQ: ScoreVar = ScoreVar::new("seq");
+    /// static AUDIT: StorageSchema<()> = StorageSchema::new("pack:audit", "audit");
+    ///
+    /// let cmd = SEQ.of("@s").store_into(AUDIT.field::<i32>("sequence"));
+    /// assert_eq!(
+    ///     cmd,
+    ///     "execute store result storage pack:audit audit.sequence int 1 run scoreboard players get @s seq"
+    /// );
+    /// ```
+    pub fn store_into<Schema, U>(&self, field: StorageField<Schema, U>) -> String {
+        format!(
+            "execute store result storage {} {} int 1 run scoreboard players get {} {}",
+            field.storage(),
+            field.full_path(),
+            self.selector,
+            self.obj()
+        )
     }
 
     /// Return the typed scoreboard entry represented by this reference.

@@ -63,32 +63,73 @@ traversed with further commands; a snapshot is deliberately frozen data).
 
 ## What has and has not been runtime-verified
 
-**Runtime-verified (already shipped, tested against real command syntax
-and version gating logic, not a live server in this change):**
+Updated by #265's runtime-validation pass — see
+`scripts/mc_validation/README.md` for the full tooling and exact
+category-by-category evidence, and `examples/participant_audit/` for the
+real (not simulated) datapack used. `examples/participant_audit/src/lib.rs`
+is a typed, façade-only Sand datapack — every observed command goes through
+public `sand` API (a typed `#[derive(SandStorage)]` evidence schema,
+`EntityParticipant::execute_at`, `ItemSnapshot::copy_to`,
+`ScoreRef::store_into`, `StorageField::copy_from_entity`) with zero
+handwritten Minecraft command strings, enforced by
+`sand/tests/example_imports.rs`'s `canonical_examples_use_typed_command_builders_not_raw_strings`
+guard test alongside `examples/book_project`.
+
+**Runtime-verified against a real, live Minecraft Java 26.2 server**
+(downloaded from Mojang's own version manifest, `java -jar server.jar`,
+not a mock):
+- Real server startup with the actual merged-#266 automatic
+  participant-plan-integrated datapack (`examples/participant_audit`)
+  loaded — zero datapack load errors.
+- Real `/reload` of that same pack over real RCON — zero reload errors,
+  confirmed via `datapack list`.
+- The generated functions actually execute without error on a real server
+  (`function paudit:init` run over RCON; the audit storage schema
+  initializes to the expected shape).
+- A real `ServerPlayerEntity` **can** join a real 26.2 server: a
+  purpose-built minimal protocol client
+  (`scripts/mc_validation/minimal_join_client.py`) completed a genuine
+  Handshake → Login → Configuration → Play sequence, confirmed by the
+  server's own log (`<name> logged in with entity id N`, `<name> joined
+  the game`) across multiple independent runs.
 - `execute on attacker` relation existence and 1.20.2+ version gate
-  (`sand-core/src/entity/relation.rs`, pre-existing).
+  (`sand-core/src/entity/relation.rs`, pre-existing, structurally tested).
 - Item location NBT paths (`SelectedItem`, `Inventory[{Slot:-106b}]`, etc.)
   — long-documented, structurally stable vanilla tags (#229).
 
-**Not runtime-verified as part of this change (structural/export-level
-tests only):**
+**Not runtime-verified — attempted, not achieved, in this validation
+pass:**
+- Player-triggered combat scenarios (a real player actually taking damage
+  from a real or summoned entity, and the datapack's attacker/killer/weapon
+  capture producing correct evidence). The minimal client's Play-phase
+  connection is not yet stable enough to survive long enough for a scripted
+  follow-up command to land reliably — see
+  `scripts/mc_validation/README.md`'s "What is not proven, and exactly
+  why" for the specific, honestly-documented gap (most likely one
+  additional serverbound acknowledgement packet this very recent protocol
+  version requires, not yet identified with confidence — no official
+  protocol documentation exists yet for protocol version 776).
+- Two independent concurrent player sessions — blocked by the same gap; a
+  single stable session was not achieved, so two was not attempted.
 - Whether `execute on attacker`'s "last attacker" memory is scoped exactly
   to the specific `EntityHurtPlayer`/`EntityKilledPlayer` criterion
   occurrence, vs. reflecting a slightly stale prior hit in edge cases
-  (rapid multi-hit sequences, mixed melee/projectile damage in one tick).
-- Two-player isolation of the correlated-attacker and held-item-snapshot
-  backends under genuinely concurrent damage events (structural evidence
-  only — see the module docs' "multiplayer safety" sections for the
-  `execute as @a` sequential-per-player argument, which is the same
-  argument already relied on elsewhere in Sand, not new verification).
-- Real Minecraft 26.2 startup/`/reload` with a pack using these participant
-  plans.
+  (rapid multi-hit sequences, mixed melee/projectile damage in one tick) —
+  an RCON-only (no player) mob-vs-mob reproduction of this was attempted
+  and did not produce a trustworthy result within this pass either (entity
+  selector behavior over RCON in this environment had its own
+  unresolved quirks — see the PR history for the attempted commands); not
+  claimed as evidence either way.
+- Custom-data weapon snapshot correctness, empty-hand behavior, and
+  inventory-mutation-after-capture isolation under real gameplay.
 
-Do not treat the "not runtime-verified" items as claims of failure — they
-are exactly what real-server validation (tracked as follow-up) would
-confirm or correct. The reliability levels above (`Correlated`, never
-`Exact`) are already chosen conservatively enough that they do not depend
-on the outcome of that verification.
+A complete, precise manual validation procedure for a human tester with a
+real Minecraft 26.2 client is in `scripts/mc_validation/README.md`. Do not
+treat the unverified items above as claims of failure — the reliability
+levels in this document (`Correlated`, never `Exact`; `ExactSnapshot`,
+never `Exact`) were already chosen conservatively enough that they do not
+depend on the outcome of that verification, and #265 remains open pending
+either a stabilized automated client or a completed manual pass.
 
 ## Scope note: capability propagation through composition
 

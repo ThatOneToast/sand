@@ -111,7 +111,7 @@ use sand_commands::nbt::{DataModify, DataTarget, NbtValue};
 use crate::condition::Condition;
 use crate::events::graph::tick_event_resource_key;
 use crate::item::location::{ItemLocation, ItemLocationError};
-use crate::state::storage::NbtPath;
+use crate::state::storage::{NbtPath, StorageField, StorageLocation};
 
 /// Deterministic, collision-checked identity for one snapshot's generated
 /// storage. `storage` is the fully-qualified `namespace:path` command
@@ -374,6 +374,19 @@ impl ItemSnapshot {
     /// reading this path as version-independent.
     pub fn components_path(&self) -> NbtPath {
         self.item_path().field("components")
+    }
+
+    /// `data modify storage <dest> <dest_path> set from storage <this snapshot's storage> <item_path>`
+    ///
+    /// Copy the captured item compound into a caller-owned typed storage
+    /// field, without the caller ever reading [`Self::storage`]/
+    /// [`Self::item_path`] directly. The normal way to persist a snapshot
+    /// past its documented [invocation lifetime](self) into longer-lived
+    /// storage (e.g. audit/evidence schemas).
+    pub fn copy_to<Schema, T>(&self, dest: StorageField<Schema, T>) -> String {
+        let source_storage = StorageLocation::parse(self.storage())
+            .expect("ItemSnapshot storage id is always a valid resource location");
+        dest.copy_from_path(source_storage, self.item_path())
     }
 
     /// Commands that reset this snapshot's storage back to explicit

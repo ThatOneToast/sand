@@ -103,14 +103,17 @@ submit_handler!(MultiParentB, "on_multi_parent_b", "say b fired");
 struct AfterAnyChild;
 impl SandEvent for AfterAnyChild {
     fn dispatch() -> impl Into<SandEventDispatch> {
-        SandEventDispatch::compose()
-            .after_any::<(MultiParentA, MultiParentB)>()
+        SandEventDispatch::compose().after_any::<(MultiParentA, MultiParentB)>()
     }
     fn participants() -> EventParticipantPlan {
         EventParticipantPlan::new().inherit_entity::<MultiParentA>(EntityParticipantRole::Attacker)
     }
 }
-submit_handler!(AfterAnyChild, "on_after_any_child", "say after_any child fired");
+submit_handler!(
+    AfterAnyChild,
+    "on_after_any_child",
+    "say after_any child fired"
+);
 
 // ── Test ────────────────────────────────────────────────────────────────
 
@@ -123,7 +126,9 @@ fn after_any_fan_in_is_rejected_with_an_actionable_diagnostic() {
         "diagnostic must name both the source and the child: {message}"
     );
     assert!(
-        message.contains("after_any") || message.contains("multi-parent") || message.contains("fan-in"),
+        message.contains("after_any")
+            || message.contains("multi-parent")
+            || message.contains("fan-in"),
         "diagnostic must explain the multi-parent reason: {message}"
     );
 }

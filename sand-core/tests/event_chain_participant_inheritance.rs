@@ -11,7 +11,7 @@ use sand_core::condition::Condition;
 use sand_core::events::{
     ChainEventDispatch, EventSetup, SandEvent, SandEventDispatch, TickEventDispatch,
 };
-use sand_core::participant::{EventParticipantPlan, EntityParticipantRole};
+use sand_core::participant::{EntityParticipantRole, EventParticipantPlan};
 use sand_core::{EventDescriptor, EventDispatch};
 use std::any::TypeId;
 
@@ -188,12 +188,18 @@ fn siblings_both_resolve_to_roots_exact_tag() {
     // it reconstructs the identical tag Root's own setup created — verified
     // here directly against the plan, the same mechanism `Event::attacker()`
     // calls through.
-    let root_selector = Root::participants()
-        .resolve(std::any::type_name::<Root>(), EntityParticipantRole::Attacker);
-    let child_a_selector = ChildA::participants()
-        .resolve(std::any::type_name::<ChildA>(), EntityParticipantRole::Attacker);
-    let child_b_selector = ChildB::participants()
-        .resolve(std::any::type_name::<ChildB>(), EntityParticipantRole::Attacker);
+    let root_selector = Root::participants().resolve(
+        std::any::type_name::<Root>(),
+        EntityParticipantRole::Attacker,
+    );
+    let child_a_selector = ChildA::participants().resolve(
+        std::any::type_name::<ChildA>(),
+        EntityParticipantRole::Attacker,
+    );
+    let child_b_selector = ChildB::participants().resolve(
+        std::any::type_name::<ChildB>(),
+        EntityParticipantRole::Attacker,
+    );
     let grandchild_selector = Grandchild::participants().resolve(
         std::any::type_name::<Grandchild>(),
         EntityParticipantRole::Attacker,
@@ -236,12 +242,12 @@ fn inheriting_children_generate_no_extra_participant_setup_or_cleanup() {
     // pre/post_observation, so if the child has no *other* lifecycle
     // commands of its own, it takes the no-wrapper direct-call fast path
     // exactly like a plain lifecycle-free chain child.
-    let has_observe_a = function_records(&records)
-        .iter()
-        .any(|r| r["path"].as_str().unwrap_or_default() == format!("__sand_event_observe/{child_a_key}"));
-    let has_observe_b = function_records(&records)
-        .iter()
-        .any(|r| r["path"].as_str().unwrap_or_default() == format!("__sand_event_observe/{child_b_key}"));
+    let has_observe_a = function_records(&records).iter().any(|r| {
+        r["path"].as_str().unwrap_or_default() == format!("__sand_event_observe/{child_a_key}")
+    });
+    let has_observe_b = function_records(&records).iter().any(|r| {
+        r["path"].as_str().unwrap_or_default() == format!("__sand_event_observe/{child_b_key}")
+    });
     assert!(
         !has_observe_a,
         "ChildA must not need a lifecycle-wrapping observe function — inherit_entity contributes zero commands"
@@ -254,8 +260,10 @@ fn inheriting_children_generate_no_extra_participant_setup_or_cleanup() {
 
 #[test]
 fn repeated_export_is_deterministic() {
-    let first = sand_core::try_export_components_json("inheritpack").expect("export should succeed");
-    let second = sand_core::try_export_components_json("inheritpack").expect("export should succeed");
+    let first =
+        sand_core::try_export_components_json("inheritpack").expect("export should succeed");
+    let second =
+        sand_core::try_export_components_json("inheritpack").expect("export should succeed");
     assert_eq!(first, second);
 }
 

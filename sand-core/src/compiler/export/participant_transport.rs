@@ -113,7 +113,11 @@ fn diagnostic(
 /// non-advancement-bridge `.after(...)` edges. `Ok(())` if found;
 /// otherwise a human-readable reason naming exactly which edge broke the
 /// chain and why.
-fn find_borrowable_ancestor_path(graph: &EventGraph, from: &str, source: &str) -> Result<(), String> {
+fn find_borrowable_ancestor_path(
+    graph: &EventGraph,
+    from: &str,
+    source: &str,
+) -> Result<(), String> {
     let mut current = from;
     let mut visited: BTreeSet<&str> = BTreeSet::new();
     loop {
@@ -236,7 +240,8 @@ fn validate_one(
             kind,
             role,
             format!("`{source_event}` declares no participant plan at all"),
-            "inherit from the event whose own participants() plan actually captures this role".to_string(),
+            "inherit from the event whose own participants() plan actually captures this role"
+                .to_string(),
         ));
     };
     if !source_declares_directly(source_decl) {
@@ -319,7 +324,10 @@ mod tests {
     #[test]
     fn direct_parent_chain_resolves() {
         let graph = graph_with(vec![root_node("Root"), chained_after("Child", "Root")]);
-        assert_eq!(find_borrowable_ancestor_path(&graph, "Child", "Root"), Ok(()));
+        assert_eq!(
+            find_borrowable_ancestor_path(&graph, "Child", "Root"),
+            Ok(())
+        );
     }
 
     #[test]
@@ -448,6 +456,9 @@ mod tests {
                 ..Default::default()
             },
         );
-        assert_eq!(validate_participant_transport(&graph, &declarations), Ok(()));
+        assert_eq!(
+            validate_participant_transport(&graph, &declarations),
+            Ok(())
+        );
     }
 }

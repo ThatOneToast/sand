@@ -419,9 +419,7 @@ impl EventParticipantPlan {
     /// the export pipeline's ancestor-chain validation
     /// (`sand-core/src/compiler/export/participant_transport.rs`), not
     /// part of the public plan-building API.
-    pub(crate) fn inherited_entity_roles(
-        &self,
-    ) -> Vec<(EntityParticipantRole, &'static str)> {
+    pub(crate) fn inherited_entity_roles(&self) -> Vec<(EntityParticipantRole, &'static str)> {
         self.entries
             .iter()
             .filter_map(|entry| match entry.source {

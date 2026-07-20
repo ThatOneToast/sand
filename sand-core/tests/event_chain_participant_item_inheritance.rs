@@ -94,10 +94,8 @@ impl SandEvent for Child {
         SandEventDispatch::chain::<Root>()
     }
     fn participants() -> EventParticipantPlan {
-        EventParticipantPlan::new().inherit_item::<Root>(
-            ItemParticipantRole::Weapon,
-            ParticipantHand::MainHand,
-        )
+        EventParticipantPlan::new()
+            .inherit_item::<Root>(ItemParticipantRole::Weapon, ParticipantHand::MainHand)
     }
 }
 submit_handler!(Child, "on_child", "say child fired");
@@ -122,7 +120,8 @@ fn child_resolves_to_roots_exact_snapshot_storage() {
 
 #[test]
 fn export_generates_exactly_one_capture_no_child_capture_duplication() {
-    let json = sand_core::try_export_components_json("itemheritpack").expect("export should succeed");
+    let json =
+        sand_core::try_export_components_json("itemheritpack").expect("export should succeed");
     let records: Vec<serde_json::Value> = serde_json::from_str(&json).expect("valid JSON");
     let capture_count = records
         .iter()

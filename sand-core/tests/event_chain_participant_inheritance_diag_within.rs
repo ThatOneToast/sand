@@ -88,7 +88,11 @@ impl SandEvent for BoundedParent {
         EventParticipantPlan::new().observe_correlated_killer()
     }
 }
-submit_handler!(BoundedParent, "on_bounded_parent", "say bounded parent fired");
+submit_handler!(
+    BoundedParent,
+    "on_bounded_parent",
+    "say bounded parent fired"
+);
 
 struct WithinTrigger;
 impl SandEvent for WithinTrigger {
@@ -98,7 +102,11 @@ impl SandEvent for WithinTrigger {
             .when(Condition::raw("score @s p264d_wt matches 1"))
     }
 }
-submit_handler!(WithinTrigger, "on_within_trigger", "say within trigger fired");
+submit_handler!(
+    WithinTrigger,
+    "on_within_trigger",
+    "say within trigger fired"
+);
 
 struct WithinChild;
 impl SandEvent for WithinChild {
@@ -124,7 +132,9 @@ fn bounded_within_is_rejected_with_an_actionable_diagnostic() {
         "diagnostic must name both the source and the child: {message}"
     );
     assert!(
-        message.contains("within") || message.contains("bounded") || message.contains("tick boundary"),
+        message.contains("within")
+            || message.contains("bounded")
+            || message.contains("tick boundary"),
         "diagnostic must explain the bounded-window reason: {message}"
     );
 }

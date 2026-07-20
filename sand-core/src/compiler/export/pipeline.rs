@@ -503,9 +503,7 @@ pub(crate) fn try_export_components_impl(
                         let plan = make_participants();
                         participant_declarations.insert(
                             event_type_name(),
-                            super::participant_transport::ParticipantDeclarations::from_plan(
-                                &plan,
-                            ),
+                            super::participant_transport::ParticipantDeclarations::from_plan(&plan),
                         );
                         tick_lifecycle_events.push((
                             desc,
@@ -546,9 +544,7 @@ pub(crate) fn try_export_components_impl(
                         let plan = make_participants();
                         participant_declarations.insert(
                             event_type_name(),
-                            super::participant_transport::ParticipantDeclarations::from_plan(
-                                &plan,
-                            ),
+                            super::participant_transport::ParticipantDeclarations::from_plan(&plan),
                         );
                         tick_lifecycle_events.push((
                             desc,
@@ -589,9 +585,7 @@ pub(crate) fn try_export_components_impl(
                         let plan = make_participants();
                         participant_declarations.insert(
                             event_type_name(),
-                            super::participant_transport::ParticipantDeclarations::from_plan(
-                                &plan,
-                            ),
+                            super::participant_transport::ParticipantDeclarations::from_plan(&plan),
                         );
                         chain_events.push((
                             desc,

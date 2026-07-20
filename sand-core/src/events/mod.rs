@@ -424,12 +424,10 @@ fn dependency_setup<E: SandEvent + 'static>() -> EventSetup {
         &crate::version::MinecraftVersion::parse(crate::version::LATEST_KNOWN).unwrap(),
     )
     .expect("LATEST_KNOWN always resolves");
-    E::setup()
-        .with_participants::<E>(plan, &profile)
-        .expect(
-            "a participant plan declared on a same-cycle graph parent must support LATEST_KNOWN \
+    E::setup().with_participants::<E>(plan, &profile).expect(
+        "a participant plan declared on a same-cycle graph parent must support LATEST_KNOWN \
              — Sand does not know how to target a version newer than its own latest supported one",
-        )
+    )
 }
 
 impl SameCycleEventDependency {

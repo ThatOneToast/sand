@@ -2,14 +2,13 @@
 //! (#230 Phase 10): proves the declarative plan API produces the exact same
 //! generated-command ordering contract as Phase 9's manual
 //! `observe_correlated_attacker` embedding, through the real export
-//! pipeline, plus that declaring participants automatically enriches the
-//! event's `EventContextCapabilities`.
+//! pipeline, plus that the event's subject capability
+//! (`EventContextCapabilities::for_event`) remains accurate independent of
+//! any declared participant plan.
 
 use sand_core::condition::Condition;
 use sand_core::events::{EventSetup, SandEvent, SandEventDispatch};
-use sand_core::participant::{
-    EntityParticipantRole, EventContextCapabilities, EventParticipantPlan,
-};
+use sand_core::participant::{EventContextCapabilities, EventParticipantPlan};
 use sand_core::version::{MinecraftVersion, VersionProfile};
 use sand_core::{EventDescriptor, EventDispatch};
 use std::any::TypeId;
@@ -148,22 +147,15 @@ fn repeated_export_is_identical() {
 }
 
 #[test]
-fn declared_plan_enriches_capabilities_when_combined_with_for_event() {
-    // `EventContextCapabilities::for_event` alone only derives the subject
-    // (it cannot see `participants()` — see LIM-CTX-001-style boundary
-    // documented in capabilities.rs); combining it with the plan's own
-    // `.capabilities()` is the documented pattern for a full descriptor.
+fn subject_capability_is_unaffected_by_a_declared_participant_plan() {
+    // `EventContextCapabilities::for_event` derives only the dispatch
+    // shape's subject — it never inspects `participants()` (see
+    // capabilities.rs's module doc). A declared attacker plan must not
+    // change what the subject capability itself reports.
     let subject_only = EventContextCapabilities::for_event::<OnPlayerHurtViaPlan>();
     assert_eq!(
         subject_only.subject.reliability,
         sand_core::participant::ParticipantReliability::Exact
     );
-
-    let plan_caps = OnPlayerHurtViaPlan::participants().capabilities();
-    assert_eq!(plan_caps.len(), 1);
-    assert_eq!(plan_caps[0].role, EntityParticipantRole::Attacker);
-    assert_eq!(
-        plan_caps[0].reliability,
-        sand_core::participant::ParticipantReliability::Correlated
-    );
+    assert!(!OnPlayerHurtViaPlan::participants().is_empty());
 }

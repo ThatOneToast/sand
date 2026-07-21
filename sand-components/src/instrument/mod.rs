@@ -5,7 +5,9 @@
 //! # Validation
 //!
 //! The export path calls [`DatapackComponent::validate`] before serialization:
-//! - `sound_event` must be non-empty and a valid resource location.
+//! - `sound_event` must be non-empty and a valid **plain** resource location
+//!   (a `#namespace:path` tag reference is rejected — the field is
+//!   serialized as a single concrete sound event, not a tag).
 //! - `use_duration` must be finite and positive.
 //! - `range` must be finite and positive.
 //!
@@ -145,6 +147,21 @@ mod tests {
         let inst = Instrument::new(rl()).sound_event("not valid!!");
         let err = inst.validate().unwrap_err();
         assert!(err.to_string().contains("sound_event"), "{err}");
+    }
+
+    #[test]
+    fn tag_prefixed_sound_event_is_rejected() {
+        let inst = Instrument::new(rl()).sound_event("#minecraft:music_disc");
+        let err = inst.validate().unwrap_err();
+        let msg = err.to_string();
+        assert!(msg.contains("sound_event"), "{msg}");
+        assert!(msg.contains("tag"), "{msg}");
+    }
+
+    #[test]
+    fn dotted_sound_event_is_accepted() {
+        let inst = valid().sound_event("minecraft:music_disc.13");
+        assert!(inst.validate().is_ok());
     }
 
     #[test]

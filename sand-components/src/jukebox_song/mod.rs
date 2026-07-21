@@ -5,7 +5,9 @@
 //! # Validation
 //!
 //! The export path calls [`DatapackComponent::validate`] before serialization:
-//! - `sound_event` must be non-empty and a valid resource location.
+//! - `sound_event` must be non-empty and a valid **plain** resource location
+//!   (a `#namespace:path` tag reference is rejected — the field is
+//!   serialized as a single concrete sound event, not a tag).
 //! - `song_length` must be finite and positive.
 //! - `comparator_output` must be in `1..=15`.
 //!
@@ -165,6 +167,23 @@ mod tests {
             .sound_event("not valid")
             .song_length(10.0);
         assert!(song.validate().is_err());
+    }
+
+    #[test]
+    fn tag_prefixed_sound_event_is_rejected() {
+        let song = JukeboxSong::new(rl())
+            .sound_event("#minecraft:music_disc")
+            .song_length(10.0);
+        let err = song.validate().unwrap_err();
+        let msg = err.to_string();
+        assert!(msg.contains("sound_event"), "{msg}");
+        assert!(msg.contains("tag"), "{msg}");
+    }
+
+    #[test]
+    fn dotted_sound_event_is_accepted() {
+        let song = valid().sound_event("minecraft:music_disc.13");
+        assert!(song.validate().is_ok());
     }
 
     #[test]

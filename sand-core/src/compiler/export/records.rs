@@ -828,6 +828,30 @@ mod tests {
     }
 
     #[test]
+    fn tag_prefixed_instrument_sound_event_fails_at_record_boundary() {
+        let inst = sand_components::Instrument::new(test_rl("test", "horn"))
+            .sound_event("#minecraft:music_disc");
+        let err = component_to_record(&inst, None).unwrap_err().to_string();
+        assert!(err.contains("test:horn"), "{err}");
+        assert!(err.contains("instrument"), "{err}");
+        assert!(err.contains("[field: sound_event]"), "{err}");
+        assert!(err.contains("tag"), "{err}");
+    }
+
+    #[test]
+    fn tag_prefixed_jukebox_song_sound_event_fails_at_record_boundary() {
+        let song = sand_components::JukeboxSong::new(test_rl("test", "theme"))
+            .sound_event("#minecraft:music_disc")
+            .song_length(10.0)
+            .comparator_output(5);
+        let err = component_to_record(&song, None).unwrap_err().to_string();
+        assert!(err.contains("test:theme"), "{err}");
+        assert!(err.contains("jukebox_song"), "{err}");
+        assert!(err.contains("[field: sound_event]"), "{err}");
+        assert!(err.contains("tag"), "{err}");
+    }
+
+    #[test]
     fn valid_damage_type_exports_deterministically() {
         let dt = sand_components::DamageType::new(test_rl("test", "spike"))
             .message_id("spike")

@@ -278,7 +278,7 @@ impl DatapackComponent for Enchantment {
             "supported_items",
             &self.supported_items,
         )?;
-        validation::validate_resource_location_str(
+        validation::validate_resource_or_tag_location_str(
             &self.location,
             kind,
             "supported_items",
@@ -321,11 +321,21 @@ impl DatapackComponent for Enchantment {
         }
 
         if let Some(ref pi) = self.primary_items {
-            validation::validate_resource_location_str(&self.location, kind, "primary_items", pi)?;
+            validation::validate_resource_or_tag_location_str(
+                &self.location,
+                kind,
+                "primary_items",
+                pi,
+            )?;
         }
 
         if let Some(ref ex) = self.exclusive_set {
-            validation::validate_resource_location_str(&self.location, kind, "exclusive_set", ex)?;
+            validation::validate_resource_or_tag_location_str(
+                &self.location,
+                kind,
+                "exclusive_set",
+                ex,
+            )?;
         }
 
         if let Some(ref effects) = self.effects {
@@ -503,6 +513,24 @@ mod tests {
     fn invalid_exclusive_set_resource_is_rejected() {
         let ench = valid().exclusive_set("bad resource");
         assert!(ench.validate().is_err());
+    }
+
+    #[test]
+    fn supported_items_accepts_plain_item_id() {
+        let ench = valid().supported_items("minecraft:diamond_boots");
+        assert!(ench.validate().is_ok());
+    }
+
+    #[test]
+    fn primary_items_accepts_tag_reference() {
+        let ench = valid().primary_items("#minecraft:enchantable/sword");
+        assert!(ench.validate().is_ok());
+    }
+
+    #[test]
+    fn exclusive_set_accepts_tag_reference() {
+        let ench = valid().exclusive_set("#minecraft:exclusive_set/boots");
+        assert!(ench.validate().is_ok());
     }
 
     #[test]

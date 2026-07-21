@@ -165,13 +165,17 @@ fn is_valid_path_char(c: char) -> bool {
     matches!(c, 'a'..='z' | '0'..='9' | '_' | '.' | '-' | '/')
 }
 
-pub(crate) fn validate_resource_location_str(
+/// Validates the namespace/path syntax of `target` (the part of `value` after
+/// any leading `#` has already been stripped or rejected by the caller).
+/// `value` is the original, unstripped input, used only for error messages so
+/// diagnostics always show what the user actually wrote.
+fn validate_resource_location_chars(
     location: &ResourceLocation,
     kind: &str,
     field: &str,
     value: &str,
+    target: &str,
 ) -> Result<()> {
-    let target = value.strip_prefix('#').unwrap_or(value);
     if target.is_empty() {
         return Err(error(
             location,
@@ -231,6 +235,51 @@ pub(crate) fn validate_resource_location_str(
     Ok(())
 }
 
+/// Validates that `value` is a **plain** resource location (`namespace:path`
+/// or bare `path`), rejecting a leading `#`.
+///
+/// Use this for fields that are serialized as a single concrete registry
+/// entry, never a tag reference — e.g. `Instrument`/`JukeboxSong`
+/// `sound_event`. A `#`-prefixed value there would be written unchanged into
+/// the datapack and only fail later, at world load, instead of at export
+/// time.
+pub(crate) fn validate_resource_location_str(
+    location: &ResourceLocation,
+    kind: &str,
+    field: &str,
+    value: &str,
+) -> Result<()> {
+    if value.starts_with('#') {
+        return Err(error(
+            location,
+            kind,
+            field,
+            &format!(
+                "{field} must be a plain resource location, not a tag reference; received `{value}`"
+            ),
+        ));
+    }
+    validate_resource_location_chars(location, kind, field, value, value)
+}
+
+/// Validates that `value` is either a plain resource location or a tag
+/// reference (`#namespace:path`), stripping the leading `#` (if present)
+/// before checking namespace/path syntax.
+///
+/// Use this for fields Minecraft documents as accepting a tag or a single
+/// entry — e.g. `Enchantment` `supported_items`, `primary_items`, and
+/// `exclusive_set`. Never use this for a field that is serialized as a
+/// single concrete registry entry; see [`validate_resource_location_str`].
+pub(crate) fn validate_resource_or_tag_location_str(
+    location: &ResourceLocation,
+    kind: &str,
+    field: &str,
+    value: &str,
+) -> Result<()> {
+    let target = value.strip_prefix('#').unwrap_or(value);
+    validate_resource_location_chars(location, kind, field, value, target)
+}
+
 pub(crate) fn require_json_object(
     location: &ResourceLocation,
     kind: &str,
@@ -246,4 +295,114 @@ pub(crate) fn require_json_object(
         ));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn rl() -> ResourceLocation {
+        ResourceLocation::new("test", "loc").unwrap()
+    }
+
+    // ── validate_resource_location_str (plain — rejects tags) ─────────────────
+
+    #[test]
+    fn plain_validator_accepts_valid_namespaced_id() {
+        assert!(
+            validate_resource_location_str(&rl(), "kind", "field", "minecraft:music_disc.13")
+                .is_ok()
+        );
+    }
+
+    #[test]
+    fn plain_validator_accepts_valid_path_only_id() {
+        assert!(validate_resource_location_str(&rl(), "kind", "field", "my_sound").is_ok());
+    }
+
+    #[test]
+    fn plain_validator_rejects_tag_prefix() {
+        let err = validate_resource_location_str(&rl(), "kind", "field", "#minecraft:music_disc")
+            .unwrap_err();
+        let msg = err.to_string();
+        assert!(msg.contains("field"), "{msg}");
+        assert!(msg.contains("tag"), "{msg}");
+    }
+
+    #[test]
+    fn plain_validator_rejects_empty_value() {
+        assert!(validate_resource_location_str(&rl(), "kind", "field", "").is_err());
+    }
+
+    #[test]
+    fn plain_validator_rejects_malformed_namespace() {
+        assert!(validate_resource_location_str(&rl(), "kind", "field", "Bad NS:path").is_err());
+    }
+
+    #[test]
+    fn plain_validator_rejects_uppercase() {
+        assert!(validate_resource_location_str(&rl(), "kind", "field", "minecraft:Music").is_err());
+    }
+
+    #[test]
+    fn plain_validator_rejects_whitespace() {
+        assert!(
+            validate_resource_location_str(&rl(), "kind", "field", "minecraft:music disc").is_err()
+        );
+    }
+
+    #[test]
+    fn plain_validator_rejects_empty_namespace() {
+        assert!(validate_resource_location_str(&rl(), "kind", "field", ":path").is_err());
+    }
+
+    #[test]
+    fn plain_validator_rejects_empty_path_after_colon() {
+        assert!(validate_resource_location_str(&rl(), "kind", "field", "minecraft:").is_err());
+    }
+
+    // ── validate_resource_or_tag_location_str (either — permits tags) ─────────
+
+    #[test]
+    fn tag_validator_accepts_valid_namespaced_id() {
+        assert!(
+            validate_resource_or_tag_location_str(
+                &rl(),
+                "kind",
+                "field",
+                "minecraft:diamond_sword"
+            )
+            .is_ok()
+        );
+    }
+
+    #[test]
+    fn tag_validator_accepts_valid_tag_reference() {
+        assert!(
+            validate_resource_or_tag_location_str(
+                &rl(),
+                "kind",
+                "field",
+                "#minecraft:enchantable/sword"
+            )
+            .is_ok()
+        );
+    }
+
+    #[test]
+    fn tag_validator_rejects_malformed_namespace_under_tag() {
+        assert!(
+            validate_resource_or_tag_location_str(&rl(), "kind", "field", "#Bad NS:path").is_err()
+        );
+    }
+
+    #[test]
+    fn tag_validator_rejects_empty_value() {
+        assert!(validate_resource_or_tag_location_str(&rl(), "kind", "field", "").is_err());
+    }
+
+    #[test]
+    fn tag_validator_rejects_bare_hash() {
+        assert!(validate_resource_or_tag_location_str(&rl(), "kind", "field", "#").is_err());
+    }
 }

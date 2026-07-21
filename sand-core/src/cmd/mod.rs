@@ -175,9 +175,83 @@ pub fn tellraw_raw(target: impl std::fmt::Display, json: impl Into<String>) -> S
     format!("tellraw {target} {}", json.into())
 }
 
+/// Conversion accepted by [`give`]'s `item` parameter.
+///
+/// Implemented for:
+/// - `&str`/`String` — the untyped escape hatch; no validation beyond what
+///   the `give` command syntax itself enforces.
+/// - [`sand_core::generated::Item`](crate::generated::Item) — generated
+///   vanilla item identifiers (e.g. `vanilla::Item::Diamond`).
+/// - [`sand_components::registry::ItemId`] (and `&ItemId`) — validated
+///   custom/modded item identifiers (`ItemId::minecraft`/`::custom`).
+///
+/// Prefer the typed forms in normal code.
+pub trait IntoGiveItem {
+    /// Convert to the item's resource location, e.g. `"minecraft:diamond"`.
+    fn into_give_item(self) -> String;
+}
+
+impl IntoGiveItem for String {
+    fn into_give_item(self) -> String {
+        self
+    }
+}
+
+impl IntoGiveItem for &str {
+    fn into_give_item(self) -> String {
+        self.to_string()
+    }
+}
+
+impl IntoGiveItem for &String {
+    fn into_give_item(self) -> String {
+        self.clone()
+    }
+}
+
+impl IntoGiveItem for sand_components::registry::ItemId {
+    fn into_give_item(self) -> String {
+        self.to_string()
+    }
+}
+
+impl IntoGiveItem for &sand_components::registry::ItemId {
+    fn into_give_item(self) -> String {
+        self.to_string()
+    }
+}
+
+impl IntoGiveItem for crate::generated::Item {
+    fn into_give_item(self) -> String {
+        self.resource_location().to_owned()
+    }
+}
+
+impl IntoGiveItem for sand_components::CustomItem {
+    fn into_give_item(self) -> String {
+        self.to_string()
+    }
+}
+
+impl IntoGiveItem for &sand_components::CustomItem {
+    fn into_give_item(self) -> String {
+        self.to_string()
+    }
+}
+
 /// `give <targets> <item>` — give an item stack to one or more players.
-pub fn give(selector: Selector, item: impl Into<String>) -> String {
-    format!("give {selector} {}", item.into())
+///
+/// # Examples
+/// ```
+/// use sand_core::cmd;
+/// use sand_core::generated::Item;
+/// use sand_commands::Selector;
+///
+/// cmd::give(Selector::all_players(), Item::Diamond);
+/// cmd::give(Selector::self_(), "minecraft:diamond_sword");
+/// ```
+pub fn give(selector: Selector, item: impl IntoGiveItem) -> String {
+    format!("give {selector} {}", item.into_give_item())
 }
 
 /// `return fail` — stop the current function with a failure return value.

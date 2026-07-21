@@ -15,7 +15,7 @@
 
 use crate::coord::{Rotation, Vec3};
 use crate::error::CommandResult;
-use crate::selector::{EntityTargets, Selector, SingleEntity};
+use crate::selector::{EntityTargets, IntoEntityType, Selector, SingleEntity};
 use crate::text::TextComponent;
 use crate::validate;
 
@@ -59,14 +59,25 @@ pub fn kill(selector: Selector) -> String {
 /// which can produce command text Minecraft rejects (`NaN`/`inf` coordinates)
 /// or silently fails to summon (an unknown entity id). Prefer
 /// [`try_summon`] on the validated path.
-pub fn summon(entity_type: impl Into<String>, x: f64, y: f64, z: f64) -> String {
-    format!("summon {} {} {} {}", entity_type.into(), x, y, z)
+pub fn summon(entity_type: impl IntoEntityType, x: f64, y: f64, z: f64) -> String {
+    format!(
+        "summon {} {} {} {}",
+        entity_type.into_entity_type(),
+        x,
+        y,
+        z
+    )
 }
 
 /// Fallible [`summon`] — rejects non-finite coordinates and an empty/malformed
 /// entity type before producing command text.
-pub fn try_summon(entity_type: impl Into<String>, x: f64, y: f64, z: f64) -> CommandResult<String> {
-    let entity_type = entity_type.into();
+pub fn try_summon(
+    entity_type: impl IntoEntityType,
+    x: f64,
+    y: f64,
+    z: f64,
+) -> CommandResult<String> {
+    let entity_type = entity_type.into_entity_type();
     validate::resource_location_shape(&entity_type, "summon", "entity_type")?;
     validate::finite(x, "summon", "x")?;
     validate::finite(y, "summon", "y")?;
@@ -75,8 +86,8 @@ pub fn try_summon(entity_type: impl Into<String>, x: f64, y: f64, z: f64) -> Com
 }
 
 /// `summon <entity_type>` — summon an entity at the current position (`~ ~ ~`).
-pub fn summon_here(entity_type: impl Into<String>) -> String {
-    format!("summon {} ~ ~ ~", entity_type.into())
+pub fn summon_here(entity_type: impl IntoEntityType) -> String {
+    format!("summon {} ~ ~ ~", entity_type.into_entity_type())
 }
 
 /// `tp <target> <destination>` — teleport the target to another entity's position.
@@ -170,8 +181,8 @@ pub fn tp_with_rotation(target: Selector, pos: Vec3, rotation: Rotation) -> Stri
 /// assert_eq!(summon_at("minecraft:zombie", Vec3::here()), "summon minecraft:zombie ~ ~ ~");
 /// assert_eq!(summon_at("minecraft:armor_stand", Vec3::absolute(0.0, 64.0, 0.0)), "summon minecraft:armor_stand 0 64 0");
 /// ```
-pub fn summon_at(entity_type: impl Into<String>, pos: Vec3) -> String {
-    format!("summon {} {}", entity_type.into(), pos)
+pub fn summon_at(entity_type: impl IntoEntityType, pos: Vec3) -> String {
+    format!("summon {} {}", entity_type.into_entity_type(), pos)
 }
 
 /// `summon <entity_type> <pos> <nbt>` — summon an entity at a position with NBT data.
@@ -185,11 +196,11 @@ pub fn summon_at(entity_type: impl Into<String>, pos: Vec3) -> String {
 /// assert_eq!(cmd, "summon minecraft:armor_stand ~ ~ ~ {Invisible:1b}");
 /// ```
 pub fn summon_at_with_nbt(
-    entity_type: impl Into<String>,
+    entity_type: impl IntoEntityType,
     pos: Vec3,
     nbt: impl std::fmt::Display,
 ) -> String {
-    format!("summon {} {} {}", entity_type.into(), pos, nbt)
+    format!("summon {} {} {}", entity_type.into_entity_type(), pos, nbt)
 }
 
 // ── Tags ──────────────────────────────────────────────────────────────────────

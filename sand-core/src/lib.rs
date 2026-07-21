@@ -557,6 +557,38 @@ impl sand_commands::IntoTextEntityType for generated::EntityType {
     }
 }
 
+impl sand_commands::selector::IntoEntityType for generated::EntityType {
+    fn into_entity_type(self) -> String {
+        self.resource_location().to_owned()
+    }
+}
+
+impl From<generated::Item> for sand_components::registry::ItemId {
+    fn from(item: generated::Item) -> Self {
+        item.resource_location()
+            .parse()
+            .expect("generated vanilla item IDs are valid resource locations")
+    }
+}
+
+impl From<generated::Block> for sand_components::registry::BlockId {
+    fn from(block: generated::Block) -> Self {
+        block
+            .resource_location()
+            .parse()
+            .expect("generated vanilla block IDs are valid resource locations")
+    }
+}
+
+impl From<generated::EntityType> for sand_components::registry::EntityTypeId {
+    fn from(entity_type: generated::EntityType) -> Self {
+        entity_type
+            .resource_location()
+            .parse()
+            .expect("generated vanilla entity type IDs are valid resource locations")
+    }
+}
+
 /// Generated block state property types.
 ///
 /// Each block with configurable state properties gets a typed `*Properties`

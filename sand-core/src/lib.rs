@@ -328,6 +328,7 @@ pub use sand_components::{
     EnchantmentEffect,
     EnchantmentEntry,
     EnchantmentId,
+    EnchantmentSlot,
     EntityEquipment,
     EntityFlags,
     // Item predicates

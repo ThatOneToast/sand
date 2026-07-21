@@ -12,6 +12,7 @@ use anyhow::{Context, Result};
 
 use super::classify::classify;
 use super::diagnostic::Grouper;
+use super::health::RunHealth;
 use super::log_record::{Stream, parse_line};
 use super::phase::PhaseTracker;
 use super::render::{OutputMode, Renderer};
@@ -35,6 +36,10 @@ enum Event {
 
 pub struct RunOutcome {
     pub exit_status: ExitStatus,
+    /// Overall `sand run` health across the whole run — distinct from
+    /// `exit_status`, since the JVM process can exit 0 (a normal `stop`)
+    /// even though the datapack never loaded successfully.
+    pub health: RunHealth,
 }
 
 /// Spawn `command` with piped stdio and drive it until it exits, forwarding
@@ -114,6 +119,7 @@ fn drive(
                 if let Some(grouped) = grouper.flush() {
                     renderer.render(&grouped, phase.current());
                 }
+                renderer.flush_pending_correlation();
             }
             Err(RecvTimeoutError::Disconnected) => break,
         }
@@ -123,6 +129,7 @@ fn drive(
             renderer.finish();
             return Ok(RunOutcome {
                 exit_status: status,
+                health: renderer.health(),
             });
         }
     }
@@ -131,6 +138,7 @@ fn drive(
     renderer.finish();
     Ok(RunOutcome {
         exit_status: status,
+        health: renderer.health(),
     })
 }
 
@@ -172,6 +180,7 @@ fn drain_remaining(
     if let Some(grouped) = grouper.flush() {
         renderer.render(&grouped, phase.current());
     }
+    renderer.flush_pending_correlation();
 }
 
 fn spawn_reader<R: Read + Send + 'static>(reader: R, stream: Stream, tx: Sender<Event>) {

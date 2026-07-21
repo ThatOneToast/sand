@@ -79,6 +79,7 @@ const DATAPACK_ERROR_KEYWORDS: &[&str] = &[
     "couldn't load data pack",
     "error loading function",
     "error parsing function",
+    "failed to load function",
     "failed to load datapack",
     "failed to load recipes",
     "failed to load loot table",
@@ -103,6 +104,8 @@ const DATAPACK_ERROR_KEYWORDS: &[&str] = &[
     "unable to resolve",
     "no such function",
     "no function tag",
+    "missing following references",
+    "couldn't load tag",
     // Reload / discovery / pack-format failures.
     "failed to reload",
     "reload failed",
@@ -330,6 +333,26 @@ mod tests {
         assert_eq!(
             classify_line(
                 "[12:00:13] [Server thread/WARN]: Unknown function tag arcane:combat/dash"
+            ),
+            Category::DatapackError
+        );
+    }
+
+    #[test]
+    fn detects_failed_to_load_function_as_datapack_error() {
+        assert_eq!(
+            classify_line(
+                "[10:15:32] [Server thread/ERROR]: Failed to load function vanilla_plus:on_load"
+            ),
+            Category::DatapackError
+        );
+    }
+
+    #[test]
+    fn detects_missing_tag_references_as_datapack_error() {
+        assert_eq!(
+            classify_line(
+                "[10:15:32] [Server thread/WARN]: Couldn't load tag minecraft:load as it is missing following references: vanilla_plus:on_load (from file/vanilla_plus)"
             ),
             Category::DatapackError
         );

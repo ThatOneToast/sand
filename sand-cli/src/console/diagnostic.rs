@@ -137,6 +137,53 @@ pub enum DiagnosticCode {
     Unclassified,
 }
 
+/// Whether a [`Diagnostic`] invalidates a successful `sand run`, and if so,
+/// which part of the run it invalidates. Consulted explicitly by the
+/// renderer and by [`super::health::HealthTracker`] — fatality is never
+/// inferred from [`Severity`]/log level alone (a `WARN`-level line can still
+/// be fatal to datapack health, e.g. a missing tag reference; conversely an
+/// `ERROR`-level line issued as ordinary runtime command feedback is not
+/// fatal to anything).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Fatality {
+    /// The server process itself failed (or never became) ready.
+    FatalToStartup,
+    /// The server process is/became ready, but this diagnostic means the
+    /// datapack (or part of it) did not load/reload successfully.
+    FatalToDatapackHealth,
+    /// Worth surfacing, but the server and datapack remain usable.
+    Nonfatal,
+}
+
+/// A note about a diagnostic that is a *consequence* of another, already
+/// reported, root diagnostic — e.g. a `minecraft:load` tag failing to
+/// resolve because the function it references failed to parse. Attached to
+/// the root [`Diagnostic`]'s [`Diagnostic::related`] rather than presented
+/// as its own unrelated top-level failure.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct RelatedDiagnostic {
+    pub code: DiagnosticCode,
+    /// The resource that could not be resolved as a result of the root
+    /// failure, e.g. `"minecraft:load"` (the tag).
+    pub resource: String,
+    /// The specific reference that was missing, e.g. `"vanilla_plus:on_load"`.
+    pub missing: String,
+    /// The pack/file Minecraft attributes the reference to, when reported,
+    /// e.g. `"file/vanilla_plus"`.
+    pub source: Option<String>,
+    pub reason: String,
+}
+
+/// The parsed pieces of a `Couldn't load tag <tag> as it is missing
+/// following references: <missing> (from <source>)` message.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct MissingTagReference {
+    tag: String,
+    missing: String,
+    source: Option<String>,
+}
+
 /// A compact, actionable summary of a recognized datapack failure, built
 /// from a [`GroupedEvent`]. Every field is `Option` (except `severity`,
 /// `phase`, `code`, and `reason`) because we only ever report what
@@ -155,14 +202,99 @@ pub struct Diagnostic {
     pub file: Option<String>,
     /// Line/command position, when Minecraft supplies one, e.g. `"command 4"`.
     pub position: Option<String>,
+    /// The 1-based source line number within the generated artifact, when
+    /// Minecraft's parser reports one (`Whilst parsing command on line 6`).
+    pub line: Option<u32>,
+    /// The parser's cursor column within that line, when reported
+    /// (`error at position 0`).
+    pub cursor: Option<u32>,
     /// The rejected command / JSON fragment / parser context, when present.
     pub context: Option<String>,
-    /// Minecraft's own explanation, extracted from the headline.
+    /// Minecraft's own explanation, extracted from the headline or, when
+    /// more specific, from a recognized pattern in the grouped detail lines.
     pub reason: String,
     /// An actionable next step, only populated when one can be inferred safely.
     pub hint: Option<String>,
+    /// Consequence diagnostics correlated to this one (see
+    /// [`super::correlate::Correlator`]) — e.g. a tag that failed to
+    /// resolve because this diagnostic's function failed to load. Empty
+    /// unless a downstream diagnostic was linked to this one.
+    pub related: Vec<RelatedDiagnostic>,
     /// The original raw lines that made up this diagnostic, for verbose mode.
     pub raw_lines: Vec<String>,
+    /// Parsed `Couldn't load tag ... missing following references: ...`
+    /// detail, when this diagnostic's own headline matches that shape.
+    /// Internal to correlation — not part of the JSON schema (folded into
+    /// `related` on the diagnostic it gets attached to instead).
+    #[serde(skip)]
+    pub(crate) missing_tag: Option<MissingTagReference>,
+}
+
+impl Diagnostic {
+    /// Whether this diagnostic invalidates a successful `sand run`, and if
+    /// so, which part.
+    pub fn fatality(&self) -> Fatality {
+        use DiagnosticCode::*;
+        match self.code {
+            StartupFailure | ProcessExited => Fatality::FatalToStartup,
+            CommandParseError
+            | JsonComponentError
+            | MissingReference
+            | PackFormatIncompatible
+            | ReloadFailure => {
+                if self.phase == RunPhase::Runtime {
+                    // The same wording occurring at runtime (a command
+                    // failing after a successful load, not during it) is
+                    // captured as RuntimeCommandError instead, but stay
+                    // conservative here in case a caller builds a
+                    // Diagnostic with this combination directly.
+                    Fatality::Nonfatal
+                } else {
+                    Fatality::FatalToDatapackHealth
+                }
+            }
+            RuntimeCommandError => Fatality::Nonfatal,
+            Unclassified => {
+                if self.severity == Severity::Error && self.phase != RunPhase::Runtime {
+                    Fatality::FatalToDatapackHealth
+                } else {
+                    Fatality::Nonfatal
+                }
+            }
+        }
+    }
+
+    /// Whether this diagnostic is eligible to be a *root* that a later
+    /// diagnostic can be correlated to as a consequence.
+    pub(super) fn is_correlation_root(&self) -> bool {
+        matches!(
+            self.code,
+            DiagnosticCode::CommandParseError | DiagnosticCode::JsonComponentError
+        ) && self.resource.is_some()
+    }
+
+    /// If this diagnostic is itself a parsed `Couldn't load tag ... missing
+    /// following references: <missing> ...` failure, the resource it
+    /// couldn't resolve (matched against a pending root's `resource` by
+    /// [`super::correlate::Correlator`]).
+    pub(super) fn missing_reference_target(&self) -> Option<&str> {
+        self.missing_tag.as_ref().map(|m| m.missing.as_str())
+    }
+
+    /// Fold this diagnostic into `root.related` as a consequence, consuming
+    /// it. Only meaningful when this diagnostic is a parsed missing-tag
+    /// reference (see [`Self::missing_reference_target`]).
+    pub(super) fn attach_as_related(self, root: &mut Diagnostic) {
+        if let Some(missing) = self.missing_tag {
+            root.related.push(RelatedDiagnostic {
+                code: self.code,
+                resource: missing.tag,
+                missing: missing.missing,
+                source: missing.source,
+                reason: self.reason,
+            });
+        }
+    }
 }
 
 impl Diagnostic {
@@ -237,10 +369,32 @@ pub fn build_diagnostic(group: &GroupedEvent, phase: RunPhase) -> Option<Diagnos
             .find_map(|l| extract_position(&l.message))
     });
 
-    let context = extract_context_line(&group.lines);
-    let reason = extract_reason(text);
-    let hint = build_hint(subsystem, text);
+    // A parser-detail line (`Whilst parsing command on line N: <message>`)
+    // is more specific than anything the generic marker-based extractors
+    // above can find, and can appear on the headline or on a grouped
+    // continuation line (as in a `Failed to load function` stack trace).
+    // When present, it supersedes the generic reason/context.
+    let parse_detail = std::iter::once(text)
+        .chain(group.lines.iter().skip(1).map(|l| l.message.as_str()))
+        .find_map(parse_command_parse_detail);
+    let cursor = extract_parser_cursor(&group.lines);
+
+    let reason = parse_detail
+        .as_ref()
+        .map(|d| d.message.clone())
+        .unwrap_or_else(|| extract_reason(text));
+    let line = parse_detail.as_ref().map(|d| d.line);
+    let context = if parse_detail.is_some() {
+        None
+    } else {
+        extract_context_line(&group.lines)
+    };
+    let hint = build_hint(subsystem, &reason);
     let code = detect_code(group.category, phase, subsystem, text);
+
+    let missing_tag = std::iter::once(text)
+        .chain(group.lines.iter().skip(1).map(|l| l.message.as_str()))
+        .find_map(extract_missing_tag_reference);
 
     Some(Diagnostic {
         phase,
@@ -250,10 +404,93 @@ pub fn build_diagnostic(group: &GroupedEvent, phase: RunPhase) -> Option<Diagnos
         subsystem: subsystem.map(str::to_string),
         file,
         position,
+        line,
+        cursor,
         context,
         reason,
         hint,
+        related: Vec::new(),
         raw_lines: group.lines.iter().map(|l| l.raw.clone()).collect(),
+        missing_tag,
+    })
+}
+
+/// Details parsed from a `Whilst parsing command on line <N>: <message>[.
+/// See below for error at position <P>: <--[HERE]]` fragment, wherever it
+/// appears within a grouped diagnostic's lines (headline or continuation).
+struct CommandParseDetail {
+    line: u32,
+    message: String,
+}
+
+fn parse_command_parse_detail(text: &str) -> Option<CommandParseDetail> {
+    const MARKER: &str = "Whilst parsing command on line ";
+    let idx = text.find(MARKER)?;
+    let rest = &text[idx + MARKER.len()..];
+    let digits: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
+    if digits.is_empty() {
+        return None;
+    }
+    let line: u32 = digits.parse().ok()?;
+    let rest = rest[digits.len()..].trim_start().strip_prefix(':')?.trim();
+    if rest.is_empty() {
+        return None;
+    }
+    let message = match rest.find(". See below") {
+        Some(i) => rest[..i].trim().to_string(),
+        None => rest.trim_end_matches('.').trim().to_string(),
+    };
+    if message.is_empty() {
+        return None;
+    }
+    Some(CommandParseDetail { line, message })
+}
+
+/// The parser's cursor column, from a `... error at position <P>` fragment,
+/// searched across every line of the group.
+fn extract_parser_cursor(lines: &[LogRecord]) -> Option<u32> {
+    const MARKER: &str = "error at position ";
+    lines.iter().find_map(|l| {
+        let lower = l.message.to_ascii_lowercase();
+        let idx = lower.find(MARKER)?;
+        let rest = &l.message[idx + MARKER.len()..];
+        let digits: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
+        digits.parse().ok()
+    })
+}
+
+/// Parses a `Couldn't load tag <tag> as it is missing following references:
+/// <missing>[, <missing2>, ...] (from <source>)` message. Only the first
+/// missing reference is kept when several are listed.
+fn extract_missing_tag_reference(text: &str) -> Option<MissingTagReference> {
+    const MARKER: &str = "Couldn't load tag ";
+    let idx = text.find(MARKER)?;
+    let rest = &text[idx + MARKER.len()..];
+    let (tag, rest) = rest.split_once(" as it is missing following references: ")?;
+    let tag = tag.trim().to_string();
+    if tag.is_empty() {
+        return None;
+    }
+
+    let (missing_part, remainder) = match rest.split_once(" (from ") {
+        Some((m, r)) => (m, Some(r)),
+        None => (rest, None),
+    };
+    let missing = missing_part
+        .split(',')
+        .next()
+        .unwrap_or(missing_part)
+        .trim()
+        .to_string();
+    if missing.is_empty() {
+        return None;
+    }
+
+    let source = remainder.map(|r| r.trim_end_matches(')').trim().to_string());
+    Some(MissingTagReference {
+        tag,
+        missing,
+        source,
     })
 }
 
@@ -267,6 +504,8 @@ const MISSING_REFERENCE_MARKERS: &[&str] = &[
     "unable to resolve",
     "no such function",
     "no function tag",
+    "missing following references",
+    "couldn't load tag",
 ];
 
 const PACK_FORMAT_MARKERS: &[&str] = &[
@@ -322,13 +561,12 @@ fn detect_code(
     }
 
     match subsystem {
+        // Any function-subsystem failure occurring at Runtime (i.e. after
+        // the server reported ready) is a live command failure rather than
+        // a load-time parse error, regardless of exact wording.
         Some("function") => {
-            if lower.contains("couldn't parse command") || lower.contains("invalid function") {
-                if phase == RunPhase::Runtime {
-                    DiagnosticCode::RuntimeCommandError
-                } else {
-                    DiagnosticCode::CommandParseError
-                }
+            if phase == RunPhase::Runtime {
+                DiagnosticCode::RuntimeCommandError
             } else {
                 DiagnosticCode::CommandParseError
             }

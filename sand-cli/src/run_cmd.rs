@@ -142,6 +142,29 @@ pub fn run(args: RunArgs) -> Result<()> {
         bail!("server exited with status {}", outcome.exit_status);
     }
 
+    // The JVM can exit 0 (a normal `stop`) even though the datapack never
+    // loaded successfully — don't report that as success. `Failed` (the
+    // process never became ready) is covered by the exit-status check
+    // above in practice, but is included here too for robustness.
+    if !crate::console::RunHealth::is_healthy(outcome.health) {
+        let log_path = server_dir.join("logs").join("latest.log");
+        let hint = if log_path.exists() {
+            format!(" — see {} for the full log", log_path.display())
+        } else {
+            String::new()
+        };
+        match outcome.health {
+            crate::console::RunHealth::Degraded => bail!(
+                "Minecraft server exited normally, but the datapack failed to load — \
+                 see the diagnostics above{hint}"
+            ),
+            crate::console::RunHealth::Failed => bail!(
+                "Minecraft server exited without becoming healthy — see the diagnostics above{hint}"
+            ),
+            crate::console::RunHealth::Healthy => unreachable!("checked is_healthy above"),
+        }
+    }
+
     Ok(())
 }
 

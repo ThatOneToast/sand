@@ -103,10 +103,14 @@ mod tests {
             subsystem: Some("function".to_string()),
             file: None,
             position: None,
+            line: None,
+            cursor: None,
             context: None,
             reason: reason.to_string(),
             hint: None,
+            related: vec![],
             raw_lines: vec![],
+            missing_tag: None,
         }
     }
 

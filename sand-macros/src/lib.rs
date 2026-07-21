@@ -183,12 +183,84 @@ pub fn function(attr: TokenStream, item: TokenStream) -> TokenStream {
 
 // ── Expansion ─────────────────────────────────────────────────────────────────
 
+fn validate_macro_resource_path(lit: &LitStr, context: &str) -> syn::Result<()> {
+    let value = lit.value();
+    if value.is_empty() {
+        return Err(syn::Error::new_spanned(
+            lit,
+            format!("invalid resource path in {context}: must not be empty"),
+        ));
+    }
+    let colon_count = value.chars().filter(|&c| c == ':').count();
+    if colon_count > 1 {
+        return Err(syn::Error::new_spanned(
+            lit,
+            format!(
+                "invalid resource path in {context}: multiple colons are not allowed in `{value}`"
+            ),
+        ));
+    }
+    if colon_count == 1 {
+        let (ns, path) = value.split_once(':').unwrap();
+        if ns.is_empty() {
+            return Err(syn::Error::new_spanned(
+                lit,
+                format!(
+                    "invalid resource path in {context}: namespace must not be empty in `{value}`"
+                ),
+            ));
+        }
+        if !ns
+            .chars()
+            .all(|c| matches!(c, 'a'..='z' | '0'..='9' | '_' | '.' | '-'))
+        {
+            return Err(syn::Error::new_spanned(
+                lit,
+                format!(
+                    "invalid resource path in {context}: namespace must only contain [a-z0-9_.-] in `{value}`"
+                ),
+            ));
+        }
+        if path.is_empty() {
+            return Err(syn::Error::new_spanned(
+                lit,
+                format!(
+                    "invalid resource path in {context}: path must not be empty in `{value}`"
+                ),
+            ));
+        }
+        if !path
+            .chars()
+            .all(|c| matches!(c, 'a'..='z' | '0'..='9' | '_' | '.' | '-' | '/'))
+        {
+            return Err(syn::Error::new_spanned(
+                lit,
+                format!(
+                    "invalid resource path in {context}: path must only contain [a-z0-9_./-] in `{value}`"
+                ),
+            ));
+        }
+    } else if !value
+        .chars()
+        .all(|c| matches!(c, 'a'..='z' | '0'..='9' | '_' | '.' | '-' | '/'))
+    {
+        return Err(syn::Error::new_spanned(
+            lit,
+            format!(
+                "invalid resource path in {context}: path must only contain [a-z0-9_./-] in `{value}`"
+            ),
+        ));
+    }
+    Ok(())
+}
+
 fn parse_function_attr(attr: TokenStream) -> syn::Result<Option<String>> {
     if attr.is_empty() {
         return Ok(None);
     }
 
     let path = syn::parse::<LitStr>(attr)?;
+    validate_macro_resource_path(&path, "#[function(...)]")?;
     Ok(Some(path.value()))
 }
 
@@ -407,6 +479,7 @@ fn parse_component_flag(attr: TokenStream) -> syn::Result<ComponentFlag> {
                     ..
                 }) = &nv.value
                 {
+                    validate_macro_resource_path(s, "#[component(Tag = \"...\")]")?;
                     Ok(ComponentFlag::Tag(s.value()))
                 } else {
                     Err(syn::Error::new_spanned(
@@ -2642,7 +2715,10 @@ fn expand_run_fn(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
 
     // Resolve the full resource location string (e.g. "ns:path").
     let (name_val, span) = match &name {
-        Some(lit) => (lit.value(), lit.span()),
+        Some(lit) => {
+            validate_macro_resource_path(lit, "run_fn!(\"...\")")?;
+            (lit.value(), lit.span())
+        }
         None => {
             // Anonymous: read namespace from sand.toml, generate unique path.
             let ns = read_sand_namespace().ok_or_else(|| {

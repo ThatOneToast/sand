@@ -50,6 +50,7 @@ pub mod resource_location;
 pub mod structure_template;
 pub mod tag;
 pub mod trim;
+pub(crate) mod validation;
 pub mod wolf_variant;
 pub mod worldgen;
 

@@ -1,0 +1,5 @@
+error: invalid resource path in #[function(...)]: must not be empty
+ --> tests/cases/fail_function_empty.rs:3:12
+  |
+3 | #[function("")]
+  |            ^^

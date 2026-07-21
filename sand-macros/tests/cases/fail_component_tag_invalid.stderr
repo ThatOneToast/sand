@@ -1,0 +1,5 @@
+error: invalid resource path in #[component(Tag = "...")]: path must only contain [a-z0-9_./-] in `INVALID`
+ --> tests/cases/fail_component_tag_invalid.rs:3:19
+  |
+3 | #[component(Tag = "INVALID")]
+  |                   ^^^^^^^^^

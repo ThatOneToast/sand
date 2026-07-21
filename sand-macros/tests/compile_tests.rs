@@ -60,6 +60,12 @@ fn public_api_tier_compile_test() {
 }
 
 #[test]
+fn vanilla_public_api_compile_test() {
+    let t = trybuild::TestCases::new();
+    t.pass("tests/cases/pass_vanilla_public_api.rs");
+}
+
+#[test]
 fn recipe_fixture_compile_tests() {
     let t = trybuild::TestCases::new();
     t.pass("tests/cases/pass_recipe_basic_state.rs");

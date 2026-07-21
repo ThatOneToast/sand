@@ -1,0 +1,25 @@
+[10:15:30] [Server thread/INFO]: Preparing level "world"
+[10:15:32] [Server thread/INFO]: Loaded 1595 recipes
+[10:15:32] [Server thread/ERROR]: Failed to load function vanilla_plus:on_load
+java.util.concurrent.CompletionException: java.lang.IllegalArgumentException: Whilst parsing command on line 6: Unknown or incomplete command. See below for error at position 0: <--[HERE]
+	at java.base/java.util.concurrent.CompletableFuture.wrapInCompletionException(CompletableFuture.java:323)
+	at java.base/java.util.concurrent.CompletableFuture.encodeThrowable(CompletableFuture.java:359)
+	at java.base/java.util.concurrent.CompletableFuture.completeThrowable(CompletableFuture.java:364)
+	at java.base/java.util.concurrent.CompletableFuture$AsyncSupply.run(CompletableFuture.java:1791)
+	at net.minecraft.server.packs.resources.SimpleReloadInstance.lambda$prepareTasks$1(SimpleReloadInstance.java:51)
+	at java.base/java.util.concurrent.ForkJoinTask$RunnableExecuteAction.compute(ForkJoinTask.java:1753)
+	at java.base/java.util.concurrent.ForkJoinTask$RunnableExecuteAction.compute(ForkJoinTask.java:1745)
+	at java.base/java.util.concurrent.ForkJoinTask$InterruptibleTask.exec(ForkJoinTask.java:1662)
+	at java.base/java.util.concurrent.ForkJoinTask.doExec(ForkJoinTask.java:511)
+	at java.base/java.util.concurrent.ForkJoinPool$WorkQueue.topLevelExec(ForkJoinPool.java:1450)
+	at java.base/java.util.concurrent.ForkJoinPool.runWorker(ForkJoinPool.java:2019)
+	at java.base/java.util.concurrent.ForkJoinWorkerThread.run(ForkJoinWorkerThread.java:187)
+Caused by: java.lang.IllegalArgumentException: Whilst parsing command on line 6: Unknown or incomplete command. See below for error at position 0: <--[HERE]
+	at net.minecraft.commands.functions.CommandFunction.fromLines(CommandFunction.java:81)
+	at net.minecraft.server.ServerFunctionLibrary.lambda$reload$3(ServerFunctionLibrary.java:85)
+	at java.base/java.util.concurrent.CompletableFuture$AsyncSupply.run(CompletableFuture.java:1789)
+	... 8 more
+[10:15:32] [Server thread/WARN]: Couldn't load tag minecraft:load as it is missing following references: vanilla_plus:on_load (from file/vanilla_plus)
+[10:15:32] [Server thread/INFO]: Loaded 1692 advancements
+[10:15:32] [Server thread/INFO]: Loading 0 persistent chunks...
+[10:15:33] [Server thread/INFO]: Done (5.123s)! For help, type "help"

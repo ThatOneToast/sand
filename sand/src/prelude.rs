@@ -35,6 +35,10 @@
 //! - **Resource refs** — `ResourceLocation` and typed refs (`FunctionRef`,
 //!   `DialogRef`, `AdvancementRef`, `LootTableRef`, `PredicateRef`).
 //! - **Version** — `MinecraftVersion`, `VersionProfile`.
+//! - **Vanilla** — the [`crate::vanilla`] module path (not its individual
+//!   variants) is brought into scope, so `vanilla::Item::Diamond` /
+//!   `vanilla::Block::WhiteWool` / `vanilla::EntityType::Marker` work
+//!   directly after `use sand::prelude::*;`.
 //! - **Optional systems** — gameplay building blocks gated behind their
 //!   Cargo feature (e.g. `DamageTracker`/`DamageThreshold` behind
 //!   `systems-damage`, `PlayerDataSchema` behind `systems-player-data`); see
@@ -54,6 +58,11 @@ pub use crate::{
 
 // The `cmd` module itself, so `cmd::say(...)` works from the prelude.
 pub use crate::cmd;
+
+// The `vanilla` module path itself (not a glob of its variants), so
+// `vanilla::Item::Diamond` etc. work from the prelude without flattening
+// thousands of generated variants into it.
+pub use crate::vanilla;
 
 // The curated implementation prelude (commands, selectors, conditions, state,
 // entities, events, components, dialogs, text, resource refs, raw escape

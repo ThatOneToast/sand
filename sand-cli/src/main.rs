@@ -50,9 +50,15 @@ enum Commands {
         /// Skip `sand build`; use whatever is already in dist/
         #[arg(long)]
         no_build: bool,
-        /// Stream the Minecraft server's raw, unfiltered log instead of
-        /// Sand's filtered console
-        #[arg(long)]
+        /// How to present the Minecraft server's log: `classified` (default,
+        /// Sand's filtered/formatted console), `verbose` (classified output
+        /// plus the raw lines behind each event), `raw` (unfiltered
+        /// passthrough), or `json` (structured diagnostics only, one JSON
+        /// object per line on stdout)
+        #[arg(long, value_enum, default_value = "classified")]
+        server_log: sand_cli::console::OutputMode,
+        /// Deprecated alias for `--server-log verbose`
+        #[arg(long, hide = true)]
         verbose: bool,
     },
     /// **Requires Prism Launcher**
@@ -180,13 +186,25 @@ fn run() -> Result<()> {
             ram,
             offline,
             no_build,
+            server_log,
             verbose,
-        } => run_cmd::run(run_cmd::RunArgs {
-            ram,
-            offline,
-            no_build,
-            verbose,
-        }),
+        } => {
+            let server_log = if verbose {
+                eprintln!(
+                    "{} `--verbose` is deprecated; use `--server-log verbose` instead",
+                    "warning:".yellow().bold()
+                );
+                sand_cli::console::OutputMode::Verbose
+            } else {
+                server_log
+            };
+            run_cmd::run(run_cmd::RunArgs {
+                ram,
+                offline,
+                no_build,
+                server_log,
+            })
+        }
         Commands::Join { local } => join_cmd::run(join_cmd::JoinArgs { local }),
         Commands::Clean { cargo, server } => cmd_clean(cargo, server),
         Commands::Add(args) => match args.feature {

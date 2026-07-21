@@ -7,8 +7,11 @@
 //! continuation lines without depending on any single Minecraft version's
 //! exact wording.
 
+use serde::Serialize;
+
 use super::classify::Category;
 use super::log_record::{LogRecord, Stream};
+use super::phase::RunPhase;
 
 /// A headline line plus any continuation lines folded into it.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -90,19 +93,107 @@ impl Grouper {
 
 // ── Diagnostic extraction ────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Severity {
     Warning,
     Error,
 }
 
-/// A compact, actionable summary of a recognized datapack failure, built
-/// from a [`GroupedEvent`]. Every field is `Option` (except `severity` and
-/// `reason`) because we only ever report what Minecraft's own output
-/// supports — we never invent a path, position, or hint.
+/// A stable classification of *what kind* of failure a [`Diagnostic`]
+/// represents, independent of the free-form `reason` text. Kept
+/// conservative: [`DiagnosticCode::Unclassified`] is the safe default for
+/// any recognized-as-a-problem line that doesn't confidently match one of
+/// the named categories, rather than guessing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DiagnosticCode {
+    /// A generated `.mcfunction` command failed to parse, at load time.
+    CommandParseError,
+    /// A datapack JSON/component document (advancement, recipe, loot
+    /// table, predicate, item modifier, dialog, worldgen, ...) failed to
+    /// parse or validate.
+    JsonComponentError,
+    /// A referenced function, tag, predicate, recipe, loot table,
+    /// advancement, dialog, or other registry entry does not exist.
+    MissingReference,
+    /// The datapack (or one of its packs) uses an incompatible/unsupported
+    /// pack format, or duplicates another pack's resources.
+    PackFormatIncompatible,
+    /// A `/reload` (or the reload portion of startup) failed.
+    ReloadFailure,
+    /// The server process failed to start: wrong Java version, missing
+    /// Java, port already bound, world already locked, or EULA not
+    /// accepted.
+    StartupFailure,
+    /// The server process exited unexpectedly (crash, uncaught exception).
+    ProcessExited,
+    /// A command failed after a successful reload, issued directly at
+    /// runtime (console/operator input) rather than during load-time
+    /// function parsing.
+    RuntimeCommandError,
+    /// Recognized as an error/warning worth surfacing, but not confidently
+    /// matched to any of the categories above.
+    Unclassified,
+}
+
+/// Whether a [`Diagnostic`] invalidates a successful `sand run`, and if so,
+/// which part of the run it invalidates. Consulted explicitly by the
+/// renderer and by [`super::health::HealthTracker`] — fatality is never
+/// inferred from [`Severity`]/log level alone (a `WARN`-level line can still
+/// be fatal to datapack health, e.g. a missing tag reference; conversely an
+/// `ERROR`-level line issued as ordinary runtime command feedback is not
+/// fatal to anything).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Fatality {
+    /// The server process itself failed (or never became) ready.
+    FatalToStartup,
+    /// The server process is/became ready, but this diagnostic means the
+    /// datapack (or part of it) did not load/reload successfully.
+    FatalToDatapackHealth,
+    /// Worth surfacing, but the server and datapack remain usable.
+    Nonfatal,
+}
+
+/// A note about a diagnostic that is a *consequence* of another, already
+/// reported, root diagnostic — e.g. a `minecraft:load` tag failing to
+/// resolve because the function it references failed to parse. Attached to
+/// the root [`Diagnostic`]'s [`Diagnostic::related`] rather than presented
+/// as its own unrelated top-level failure.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct RelatedDiagnostic {
+    pub code: DiagnosticCode,
+    /// The resource that could not be resolved as a result of the root
+    /// failure, e.g. `"minecraft:load"` (the tag).
+    pub resource: String,
+    /// The specific reference that was missing, e.g. `"vanilla_plus:on_load"`.
+    pub missing: String,
+    /// The pack/file Minecraft attributes the reference to, when reported,
+    /// e.g. `"file/vanilla_plus"`.
+    pub source: Option<String>,
+    pub reason: String,
+}
+
+/// The parsed pieces of a `Couldn't load tag <tag> as it is missing
+/// following references: <missing> (from <source>)` message.
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct MissingTagReference {
+    tag: String,
+    missing: String,
+    source: Option<String>,
+}
+
+/// A compact, actionable summary of a recognized datapack failure, built
+/// from a [`GroupedEvent`]. Every field is `Option` (except `severity`,
+/// `phase`, `code`, and `reason`) because we only ever report what
+/// Minecraft's own output supports — we never invent a path, position, or
+/// hint.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Diagnostic {
+    pub phase: RunPhase,
     pub severity: Severity,
+    pub code: DiagnosticCode,
     /// `namespace:path` resource identifier, when one appears in the log.
     pub resource: Option<String>,
     /// Datapack subsystem, e.g. `"function"`, `"recipe"`, `"loot_table"`.
@@ -111,22 +202,135 @@ pub struct Diagnostic {
     pub file: Option<String>,
     /// Line/command position, when Minecraft supplies one, e.g. `"command 4"`.
     pub position: Option<String>,
+    /// The 1-based source line number within the generated artifact, when
+    /// Minecraft's parser reports one (`Whilst parsing command on line 6`).
+    pub line: Option<u32>,
+    /// The parser's cursor column within that line, when reported
+    /// (`error at position 0`).
+    pub cursor: Option<u32>,
     /// The rejected command / JSON fragment / parser context, when present.
     pub context: Option<String>,
-    /// Minecraft's own explanation, extracted from the headline.
+    /// Minecraft's own explanation, extracted from the headline or, when
+    /// more specific, from a recognized pattern in the grouped detail lines.
     pub reason: String,
     /// An actionable next step, only populated when one can be inferred safely.
     pub hint: Option<String>,
+    /// Consequence diagnostics correlated to this one (see
+    /// [`super::correlate::Correlator`]) — e.g. a tag that failed to
+    /// resolve because this diagnostic's function failed to load. Empty
+    /// unless a downstream diagnostic was linked to this one.
+    pub related: Vec<RelatedDiagnostic>,
     /// The original raw lines that made up this diagnostic, for verbose mode.
     pub raw_lines: Vec<String>,
+    /// Parsed `Couldn't load tag ... missing following references: ...`
+    /// detail, when this diagnostic's own headline matches that shape.
+    /// Internal to correlation — not part of the JSON schema (folded into
+    /// `related` on the diagnostic it gets attached to instead).
+    #[serde(skip)]
+    pub(crate) missing_tag: Option<MissingTagReference>,
+}
+
+impl Diagnostic {
+    /// Whether this diagnostic invalidates a successful `sand run`, and if
+    /// so, which part.
+    pub fn fatality(&self) -> Fatality {
+        use DiagnosticCode::*;
+        match self.code {
+            StartupFailure | ProcessExited => Fatality::FatalToStartup,
+            CommandParseError
+            | JsonComponentError
+            | MissingReference
+            | PackFormatIncompatible
+            | ReloadFailure => {
+                if self.phase == RunPhase::Runtime {
+                    // The same wording occurring at runtime (a command
+                    // failing after a successful load, not during it) is
+                    // captured as RuntimeCommandError instead, but stay
+                    // conservative here in case a caller builds a
+                    // Diagnostic with this combination directly.
+                    Fatality::Nonfatal
+                } else {
+                    Fatality::FatalToDatapackHealth
+                }
+            }
+            RuntimeCommandError => Fatality::Nonfatal,
+            Unclassified => {
+                if self.severity == Severity::Error && self.phase != RunPhase::Runtime {
+                    Fatality::FatalToDatapackHealth
+                } else {
+                    Fatality::Nonfatal
+                }
+            }
+        }
+    }
+
+    /// Whether this diagnostic is eligible to be a *root* that a later
+    /// diagnostic can be correlated to as a consequence.
+    pub(super) fn is_correlation_root(&self) -> bool {
+        matches!(
+            self.code,
+            DiagnosticCode::CommandParseError | DiagnosticCode::JsonComponentError
+        ) && self.resource.is_some()
+    }
+
+    /// If this diagnostic is itself a parsed `Couldn't load tag ... missing
+    /// following references: <missing> ...` failure, the resource it
+    /// couldn't resolve (matched against a pending root's `resource` by
+    /// [`super::correlate::Correlator`]).
+    pub(super) fn missing_reference_target(&self) -> Option<&str> {
+        self.missing_tag.as_ref().map(|m| m.missing.as_str())
+    }
+
+    /// Fold this diagnostic into `root.related` as a consequence, consuming
+    /// it. Only meaningful when this diagnostic is a parsed missing-tag
+    /// reference (see [`Self::missing_reference_target`]).
+    pub(super) fn attach_as_related(self, root: &mut Diagnostic) {
+        if let Some(missing) = self.missing_tag {
+            root.related.push(RelatedDiagnostic {
+                code: self.code,
+                resource: missing.tag,
+                missing: missing.missing,
+                source: missing.source,
+                reason: self.reason,
+            });
+        }
+    }
+}
+
+impl Diagnostic {
+    /// A stable-ish key used to deduplicate repeated copies of what is
+    /// semantically the same root failure (e.g. the same rejected command
+    /// logged once per tick). Built only from fields that identify *what*
+    /// failed, not incidental details like exact raw line contents.
+    pub fn fingerprint(&self) -> String {
+        format!(
+            "{:?}|{:?}|{}|{}|{}",
+            self.phase,
+            self.code,
+            self.resource.as_deref().unwrap_or(""),
+            self.position.as_deref().unwrap_or(""),
+            normalize_for_fingerprint(&self.reason),
+        )
+    }
+}
+
+/// Lowercase and collapse whitespace so trivially-different renderings of
+/// the same underlying message (e.g. differing internal spacing) still
+/// dedupe together.
+fn normalize_for_fingerprint(text: &str) -> String {
+    text.to_ascii_lowercase()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 /// Build a [`Diagnostic`] from a grouped [`DatapackError`]/[`FatalError`]
-/// event. Returns `None` for other categories.
+/// event. Returns `None` for other categories. `phase` is the [`RunPhase`]
+/// active when this group's headline was observed.
 ///
 /// [`DatapackError`]: Category::DatapackError
 /// [`FatalError`]: Category::FatalError
-pub fn build_diagnostic(group: &GroupedEvent) -> Option<Diagnostic> {
+pub fn build_diagnostic(group: &GroupedEvent, phase: RunPhase) -> Option<Diagnostic> {
     if !matches!(
         group.category,
         Category::DatapackError | Category::FatalError
@@ -165,21 +369,225 @@ pub fn build_diagnostic(group: &GroupedEvent) -> Option<Diagnostic> {
             .find_map(|l| extract_position(&l.message))
     });
 
-    let context = extract_context_line(&group.lines);
-    let reason = extract_reason(text);
-    let hint = build_hint(subsystem, text);
+    // A parser-detail line (`Whilst parsing command on line N: <message>`)
+    // is more specific than anything the generic marker-based extractors
+    // above can find, and can appear on the headline or on a grouped
+    // continuation line (as in a `Failed to load function` stack trace).
+    // When present, it supersedes the generic reason/context.
+    let parse_detail = std::iter::once(text)
+        .chain(group.lines.iter().skip(1).map(|l| l.message.as_str()))
+        .find_map(parse_command_parse_detail);
+    let cursor = extract_parser_cursor(&group.lines);
+
+    let reason = parse_detail
+        .as_ref()
+        .map(|d| d.message.clone())
+        .unwrap_or_else(|| extract_reason(text));
+    let line = parse_detail.as_ref().map(|d| d.line);
+    let context = if parse_detail.is_some() {
+        None
+    } else {
+        extract_context_line(&group.lines)
+    };
+    let hint = build_hint(subsystem, &reason);
+    let code = detect_code(group.category, phase, subsystem, text);
+
+    let missing_tag = std::iter::once(text)
+        .chain(group.lines.iter().skip(1).map(|l| l.message.as_str()))
+        .find_map(extract_missing_tag_reference);
 
     Some(Diagnostic {
+        phase,
         severity,
+        code,
         resource,
         subsystem: subsystem.map(str::to_string),
         file,
         position,
+        line,
+        cursor,
         context,
         reason,
         hint,
+        related: Vec::new(),
         raw_lines: group.lines.iter().map(|l| l.raw.clone()).collect(),
+        missing_tag,
     })
+}
+
+/// Details parsed from a `Whilst parsing command on line <N>: <message>[.
+/// See below for error at position <P>: <--[HERE]]` fragment, wherever it
+/// appears within a grouped diagnostic's lines (headline or continuation).
+struct CommandParseDetail {
+    line: u32,
+    message: String,
+}
+
+fn parse_command_parse_detail(text: &str) -> Option<CommandParseDetail> {
+    const MARKER: &str = "Whilst parsing command on line ";
+    let idx = text.find(MARKER)?;
+    let rest = &text[idx + MARKER.len()..];
+    let digits: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
+    if digits.is_empty() {
+        return None;
+    }
+    let line: u32 = digits.parse().ok()?;
+    let rest = rest[digits.len()..].trim_start().strip_prefix(':')?.trim();
+    if rest.is_empty() {
+        return None;
+    }
+    let message = match rest.find(". See below") {
+        Some(i) => rest[..i].trim().to_string(),
+        None => rest.trim_end_matches('.').trim().to_string(),
+    };
+    if message.is_empty() {
+        return None;
+    }
+    Some(CommandParseDetail { line, message })
+}
+
+/// The parser's cursor column, from a `... error at position <P>` fragment,
+/// searched across every line of the group.
+fn extract_parser_cursor(lines: &[LogRecord]) -> Option<u32> {
+    const MARKER: &str = "error at position ";
+    lines.iter().find_map(|l| {
+        let lower = l.message.to_ascii_lowercase();
+        let idx = lower.find(MARKER)?;
+        let rest = &l.message[idx + MARKER.len()..];
+        let digits: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
+        digits.parse().ok()
+    })
+}
+
+/// Parses a `Couldn't load tag <tag> as it is missing following references:
+/// <missing>[, <missing2>, ...] (from <source>)` message. Only the first
+/// missing reference is kept when several are listed.
+fn extract_missing_tag_reference(text: &str) -> Option<MissingTagReference> {
+    const MARKER: &str = "Couldn't load tag ";
+    let idx = text.find(MARKER)?;
+    let rest = &text[idx + MARKER.len()..];
+    let (tag, rest) = rest.split_once(" as it is missing following references: ")?;
+    let tag = tag.trim().to_string();
+    if tag.is_empty() {
+        return None;
+    }
+
+    let (missing_part, remainder) = match rest.split_once(" (from ") {
+        Some((m, r)) => (m, Some(r)),
+        None => (rest, None),
+    };
+    let missing = missing_part
+        .split(',')
+        .next()
+        .unwrap_or(missing_part)
+        .trim()
+        .to_string();
+    if missing.is_empty() {
+        return None;
+    }
+
+    let source = remainder.map(|r| r.trim_end_matches(')').trim().to_string());
+    Some(MissingTagReference {
+        tag,
+        missing,
+        source,
+    })
+}
+
+const MISSING_REFERENCE_MARKERS: &[&str] = &[
+    "unknown function",
+    "unknown recipe",
+    "unknown advancement",
+    "unknown loot table",
+    "unknown predicate",
+    "unknown tag",
+    "unable to resolve",
+    "no such function",
+    "no function tag",
+    "missing following references",
+    "couldn't load tag",
+];
+
+const PACK_FORMAT_MARKERS: &[&str] = &[
+    "was designed for a newer version",
+    "was designed for an older version",
+    "requires format",
+    "incompatible pack",
+    "duplicate data pack",
+];
+
+const RELOAD_FAILURE_MARKERS: &[&str] = &["failed to reload", "reload failed"];
+
+const STARTUP_FAILURE_MARKERS: &[&str] = &[
+    "failed to bind to port",
+    "address already in use",
+    "unsupported class file version",
+    "unsupportedclassversionerror",
+    "requires using java",
+    "has been compiled by a more recent version of the java runtime",
+    "the world is currently being played",
+    "perhaps a server is already running",
+    "you need to agree to the eula",
+];
+
+/// Classify *what kind* of failure this diagnostic represents. Order
+/// matters: more specific markers are checked before falling back to the
+/// generic subsystem-based command/JSON split, and `phase` disambiguates a
+/// command failure at runtime from the same wording during load-time
+/// function parsing.
+fn detect_code(
+    category: Category,
+    phase: RunPhase,
+    subsystem: Option<&str>,
+    text: &str,
+) -> DiagnosticCode {
+    let lower = text.to_ascii_lowercase();
+
+    if contains_any(&lower, STARTUP_FAILURE_MARKERS) {
+        return DiagnosticCode::StartupFailure;
+    }
+    if contains_any(&lower, MISSING_REFERENCE_MARKERS) {
+        return DiagnosticCode::MissingReference;
+    }
+    if contains_any(&lower, PACK_FORMAT_MARKERS) {
+        return DiagnosticCode::PackFormatIncompatible;
+    }
+    if contains_any(&lower, RELOAD_FAILURE_MARKERS) {
+        return DiagnosticCode::ReloadFailure;
+    }
+
+    if category == Category::FatalError {
+        return DiagnosticCode::ProcessExited;
+    }
+
+    match subsystem {
+        // Any function-subsystem failure occurring at Runtime (i.e. after
+        // the server reported ready) is a live command failure rather than
+        // a load-time parse error, regardless of exact wording.
+        Some("function") => {
+            if phase == RunPhase::Runtime {
+                DiagnosticCode::RuntimeCommandError
+            } else {
+                DiagnosticCode::CommandParseError
+            }
+        }
+        Some(_) => DiagnosticCode::JsonComponentError,
+        None => {
+            if lower.contains("couldn't parse command") {
+                if phase == RunPhase::Runtime {
+                    DiagnosticCode::RuntimeCommandError
+                } else {
+                    DiagnosticCode::CommandParseError
+                }
+            } else {
+                DiagnosticCode::Unclassified
+            }
+        }
+    }
+}
+
+fn contains_any(haystack_lower: &str, needles: &[&str]) -> bool {
+    needles.iter().any(|n| haystack_lower.contains(n))
 }
 
 /// Scan for a `namespace:path` resource identifier using vanilla's allowed
@@ -352,13 +760,14 @@ mod tests {
         ]);
         assert_eq!(events.len(), 1);
 
-        let diag = build_diagnostic(&events[0]).unwrap();
+        let diag = build_diagnostic(&events[0], RunPhase::ServerStartup).unwrap();
         assert_eq!(diag.resource.as_deref(), Some("arcane:combat/dash"));
         assert_eq!(diag.subsystem.as_deref(), Some("function"));
         assert_eq!(
             diag.file.as_deref(),
             Some("dist/arcane/data/arcane/function/combat/dash.mcfunction")
         );
+        assert_eq!(diag.code, DiagnosticCode::CommandParseError);
     }
 
     #[test]
@@ -367,7 +776,7 @@ mod tests {
             "[12:00:00] [Server thread/WARN]: Function arcane:combat/dash failed execution due to: command 4 invalid",
             "execute as @a run particle minecraft:cloud ~ ~ ~ 0 0 0 1 5",
         ]);
-        let diag = build_diagnostic(&events[0]).unwrap();
+        let diag = build_diagnostic(&events[0], RunPhase::ServerStartup).unwrap();
         assert_eq!(diag.position.as_deref(), Some("command 4"));
         assert_eq!(
             diag.context.as_deref(),
@@ -382,7 +791,7 @@ mod tests {
         let events =
             group_lines(&["[12:00:00] [Server thread/INFO]: Loaded recipe arcane:combat/dash"]);
         assert_eq!(events[0].category, Category::Visible);
-        assert!(build_diagnostic(&events[0]).is_none());
+        assert!(build_diagnostic(&events[0], RunPhase::Runtime).is_none());
     }
 
     #[test]
@@ -402,8 +811,79 @@ mod tests {
         let events = group_lines(&[
             "[12:00:00] [Server thread/WARN]: Skipping loading recipe minecraft:foo",
         ]);
-        let diag = build_diagnostic(&events[0]).unwrap();
+        let diag = build_diagnostic(&events[0], RunPhase::ServerStartup).unwrap();
         assert!(diag.position.is_none());
         assert!(diag.context.is_none());
+    }
+
+    #[test]
+    fn classifies_missing_reference_distinctly_from_parse_error() {
+        let events = group_lines(&[
+            "[12:00:00] [Server thread/WARN]: Unknown function tag arcane:combat/dash",
+        ]);
+        let diag = build_diagnostic(&events[0], RunPhase::ServerStartup).unwrap();
+        assert_eq!(diag.code, DiagnosticCode::MissingReference);
+    }
+
+    #[test]
+    fn does_not_infer_reload_failure_merely_from_phase() {
+        // A JSON/component error observed while the phase happens to be
+        // `Reload` (e.g. it fires during a /reload's discovery window) must
+        // not be relabeled ReloadFailure just because of the phase — only
+        // wording that actually indicates the reload mechanism itself
+        // failed should produce that code.
+        let events = group_lines(&[
+            "[12:00:00] [Server thread/WARN]: Error loading recipe arcane:combat/dodge",
+        ]);
+        let diag = build_diagnostic(&events[0], RunPhase::Reload).unwrap();
+        assert_ne!(diag.code, DiagnosticCode::ReloadFailure);
+    }
+
+    #[test]
+    fn classifies_startup_failure_regardless_of_subsystem() {
+        let events =
+            group_lines(&["[12:00:00] [Server thread/ERROR]: **** FAILED TO BIND TO PORT!"]);
+        let diag = build_diagnostic(&events[0], RunPhase::ServerStartup).unwrap();
+        assert_eq!(diag.code, DiagnosticCode::StartupFailure);
+    }
+
+    #[test]
+    fn same_command_failure_is_runtime_error_after_ready_but_parse_error_before() {
+        let events = group_lines(&[
+            "[12:00:00] [Server thread/WARN]: Couldn't parse command: execute as @a run dash",
+        ]);
+        let startup = build_diagnostic(&events[0], RunPhase::ServerStartup).unwrap();
+        assert_eq!(startup.code, DiagnosticCode::CommandParseError);
+
+        let runtime = build_diagnostic(&events[0], RunPhase::Runtime).unwrap();
+        assert_eq!(runtime.code, DiagnosticCode::RuntimeCommandError);
+    }
+
+    #[test]
+    fn fingerprint_ignores_incidental_whitespace_but_distinguishes_resource() {
+        let a = build_diagnostic(
+            &group_lines(&[
+                "[12:00:00] [Server thread/WARN]: Error loading function arcane:combat/dash",
+            ])[0],
+            RunPhase::ServerStartup,
+        )
+        .unwrap();
+        let b = build_diagnostic(
+            &group_lines(&[
+                "[12:00:05] [Server thread/WARN]: Error loading function arcane:combat/dash",
+            ])[0],
+            RunPhase::ServerStartup,
+        )
+        .unwrap();
+        let c = build_diagnostic(
+            &group_lines(&[
+                "[12:00:05] [Server thread/WARN]: Error loading function arcane:combat/dodge",
+            ])[0],
+            RunPhase::ServerStartup,
+        )
+        .unwrap();
+
+        assert_eq!(a.fingerprint(), b.fingerprint());
+        assert_ne!(a.fingerprint(), c.fingerprint());
     }
 }

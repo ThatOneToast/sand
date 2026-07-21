@@ -2,11 +2,27 @@
 //!
 //! Enchantment definitions control how enchantments are applied, their effects,
 //! costs, and which items they can appear on.
+//!
+//! # Validation
+//!
+//! The export path calls [`DatapackComponent::validate`] before serialization:
+//! - `supported_items` must be non-empty and a valid resource location or tag
+//!   reference (`#namespace:path`).
+//! - `slots` must contain at least one entry; each must be a valid
+//!   [`EnchantmentSlot`] name.
+//! - `weight` must be in `1..=1024`.
+//! - `max_level` must be in `1..=255`.
+//! - `description` must be a non-null JSON value.
+//! - `primary_items` and `exclusive_set`, when present, must be valid resource
+//!   location or tag references.
+//! - `effects`, when present, must be a JSON object.
 
 use serde_json::Value;
 
-use crate::component::DatapackComponent;
+use crate::component::{ComponentContent, DatapackComponent};
+use crate::error::Result as SandResult;
 use crate::resource_location::ResourceLocation;
+use crate::validation;
 
 // ── EnchantmentCost ───────────────────────────────────────────────────────────
 
@@ -61,32 +77,80 @@ impl EnchantmentEffect {
     }
 }
 
+// ── EnchantmentSlot ───────────────────────────────────────────────────────────
+
+/// Equipment slots where an enchantment is active (Minecraft Java 26.2).
+///
+/// Each variant maps to a lowercase slot-group name accepted by the
+/// enchantment JSON schema.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum EnchantmentSlot {
+    Any,
+    Mainhand,
+    Offhand,
+    Hand,
+    Feet,
+    Legs,
+    Chest,
+    Head,
+    Armor,
+    Body,
+}
+
+impl EnchantmentSlot {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Any => "any",
+            Self::Mainhand => "mainhand",
+            Self::Offhand => "offhand",
+            Self::Hand => "hand",
+            Self::Feet => "feet",
+            Self::Legs => "legs",
+            Self::Chest => "chest",
+            Self::Head => "head",
+            Self::Armor => "armor",
+            Self::Body => "body",
+        }
+    }
+
+    fn from_name(s: &str) -> Option<Self> {
+        match s {
+            "any" => Some(Self::Any),
+            "mainhand" => Some(Self::Mainhand),
+            "offhand" => Some(Self::Offhand),
+            "hand" => Some(Self::Hand),
+            "feet" => Some(Self::Feet),
+            "legs" => Some(Self::Legs),
+            "chest" => Some(Self::Chest),
+            "head" => Some(Self::Head),
+            "armor" => Some(Self::Armor),
+            "body" => Some(Self::Body),
+            _ => None,
+        }
+    }
+}
+
+impl std::fmt::Display for EnchantmentSlot {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
 // ── Enchantment ───────────────────────────────────────────────────────────────
 
 /// An enchantment definition (`data/<namespace>/enchantment/<id>.json`).
 pub struct Enchantment {
     location: ResourceLocation,
-    /// Human-readable description (text component as raw JSON).
     description: Value,
-    /// Supported items tag or list (e.g. `"#minecraft:sword_enchantable"`).
     supported_items: String,
-    /// Primary items tag or list — items shown in the enchanting table.
     primary_items: Option<String>,
-    /// Exclusivity tag — enchantments in the same tag cannot coexist.
     exclusive_set: Option<String>,
-    /// Weight determining how often this enchantment appears (1–1024).
     weight: u32,
-    /// Maximum enchantment level (1–255).
     max_level: u32,
-    /// Minimum enchanting-table cost per level.
     min_cost: EnchantmentCost,
-    /// Maximum enchanting-table cost per level.
     max_cost: EnchantmentCost,
-    /// Anvil cost (XP levels consumed when combining/applying).
     anvil_cost: u32,
-    /// Equipment slots this enchantment is active in.
     slots: Vec<String>,
-    /// Raw effects map as a JSON object (complex per-1.21 format).
     effects: Option<Value>,
 }
 
@@ -169,15 +233,27 @@ impl Enchantment {
         self
     }
 
-    /// Adds an equipment slot this enchantment is active in (e.g. `"mainhand"`, `"armor"`).
+    /// Adds an equipment slot this enchantment is active in (raw string).
     pub fn slot(mut self, slot: impl Into<String>) -> Self {
         self.slots.push(slot.into());
         self
     }
 
-    /// Sets all active equipment slots at once.
+    /// Sets all active equipment slots at once (raw strings).
     pub fn slots(mut self, slots: impl IntoIterator<Item = impl Into<String>>) -> Self {
         self.slots = slots.into_iter().map(|s| s.into()).collect();
+        self
+    }
+
+    /// Adds a typed equipment slot this enchantment is active in.
+    pub fn slot_typed(mut self, slot: EnchantmentSlot) -> Self {
+        self.slots.push(slot.as_str().to_string());
+        self
+    }
+
+    /// Sets all active equipment slots from typed values.
+    pub fn slots_typed(mut self, slots: impl IntoIterator<Item = EnchantmentSlot>) -> Self {
+        self.slots = slots.into_iter().map(|s| s.as_str().to_string()).collect();
         self
     }
 
@@ -191,6 +267,87 @@ impl Enchantment {
 impl DatapackComponent for Enchantment {
     fn resource_location(&self) -> &ResourceLocation {
         &self.location
+    }
+
+    fn validate(&self) -> SandResult<()> {
+        let kind = "enchantment";
+
+        validation::require_non_empty(
+            &self.location,
+            kind,
+            "supported_items",
+            &self.supported_items,
+        )?;
+        validation::validate_resource_location_str(
+            &self.location,
+            kind,
+            "supported_items",
+            &self.supported_items,
+        )?;
+
+        validation::require_non_empty_collection(&self.location, kind, "slots", self.slots.len())?;
+        for (i, slot) in self.slots.iter().enumerate() {
+            if EnchantmentSlot::from_name(slot).is_none() {
+                return Err(validation::error(
+                    &self.location,
+                    kind,
+                    &format!("slots[{i}]"),
+                    &format!(
+                        "`{slot}` is not a valid enchantment slot; \
+                         expected one of: any, mainhand, offhand, hand, \
+                         feet, legs, chest, head, armor, body"
+                    ),
+                ));
+            }
+        }
+
+        validation::require_u32_in_range(&self.location, kind, "weight", self.weight, 1, 1024)?;
+        validation::require_u32_in_range(
+            &self.location,
+            kind,
+            "max_level",
+            self.max_level,
+            1,
+            255,
+        )?;
+
+        if self.description == Value::Null {
+            return Err(validation::error(
+                &self.location,
+                kind,
+                "description",
+                "must be a non-null JSON text component",
+            ));
+        }
+
+        if let Some(ref pi) = self.primary_items {
+            validation::validate_resource_location_str(
+                &self.location,
+                kind,
+                "primary_items",
+                pi,
+            )?;
+        }
+
+        if let Some(ref ex) = self.exclusive_set {
+            validation::validate_resource_location_str(
+                &self.location,
+                kind,
+                "exclusive_set",
+                ex,
+            )?;
+        }
+
+        if let Some(ref effects) = self.effects {
+            validation::require_json_object(&self.location, kind, "effects", effects)?;
+        }
+
+        Ok(())
+    }
+
+    fn try_content(&self) -> SandResult<ComponentContent> {
+        self.validate()?;
+        Ok(self.content())
     }
 
     fn to_json(&self) -> Value {
@@ -238,5 +395,174 @@ impl DatapackComponent for Enchantment {
 
     fn required_features(&self) -> &'static [sand_version::ComponentFeature] {
         &[sand_version::ComponentFeature::Enchantments]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn rl() -> ResourceLocation {
+        ResourceLocation::new("test", "swift_step").unwrap()
+    }
+
+    fn valid() -> Enchantment {
+        Enchantment::new(rl())
+            .description(serde_json::json!("Swift Step"))
+            .supported_items("#minecraft:enchantable/foot_armor")
+            .slot_typed(EnchantmentSlot::Feet)
+    }
+
+    #[test]
+    fn valid_minimal_enchantment_exports_deterministic_json() {
+        let ench = valid();
+        assert!(ench.validate().is_ok());
+        let a = serde_json::to_string_pretty(&ench.to_json()).unwrap();
+        let b = serde_json::to_string_pretty(&ench.to_json()).unwrap();
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn missing_supported_items_is_rejected() {
+        let ench = Enchantment::new(rl())
+            .description(serde_json::json!("x"))
+            .slot_typed(EnchantmentSlot::Any);
+        let err = ench.validate().unwrap_err();
+        assert!(err.to_string().contains("supported_items"), "{err}");
+    }
+
+    #[test]
+    fn empty_slots_is_rejected() {
+        let ench = Enchantment::new(rl())
+            .description(serde_json::json!("x"))
+            .supported_items("#minecraft:enchantable/sword");
+        let err = ench.validate().unwrap_err();
+        assert!(err.to_string().contains("slots"), "{err}");
+    }
+
+    #[test]
+    fn invalid_slot_name_is_rejected() {
+        let ench = valid().slot("invalid_slot");
+        let err = ench.validate().unwrap_err();
+        assert!(err.to_string().contains("slots["), "{err}");
+    }
+
+    #[test]
+    fn weight_zero_is_rejected() {
+        let ench = valid().weight(0);
+        let err = ench.validate().unwrap_err();
+        assert!(err.to_string().contains("weight"), "{err}");
+    }
+
+    #[test]
+    fn weight_1025_is_rejected() {
+        let ench = valid().weight(1025);
+        assert!(ench.validate().is_err());
+    }
+
+    #[test]
+    fn weight_one_is_accepted() {
+        let ench = valid().weight(1);
+        assert!(ench.validate().is_ok());
+    }
+
+    #[test]
+    fn weight_1024_is_accepted() {
+        let ench = valid().weight(1024);
+        assert!(ench.validate().is_ok());
+    }
+
+    #[test]
+    fn max_level_zero_is_rejected() {
+        let ench = valid().max_level(0);
+        let err = ench.validate().unwrap_err();
+        assert!(err.to_string().contains("max_level"), "{err}");
+    }
+
+    #[test]
+    fn max_level_256_is_rejected() {
+        let ench = valid().max_level(256);
+        assert!(ench.validate().is_err());
+    }
+
+    #[test]
+    fn max_level_one_is_accepted() {
+        let ench = valid().max_level(1);
+        assert!(ench.validate().is_ok());
+    }
+
+    #[test]
+    fn max_level_255_is_accepted() {
+        let ench = valid().max_level(255);
+        assert!(ench.validate().is_ok());
+    }
+
+    #[test]
+    fn invalid_supported_items_resource_is_rejected() {
+        let ench = valid().supported_items("INVALID");
+        assert!(ench.validate().is_err());
+    }
+
+    #[test]
+    fn invalid_primary_items_resource_is_rejected() {
+        let ench = valid().primary_items("bad resource");
+        assert!(ench.validate().is_err());
+    }
+
+    #[test]
+    fn invalid_exclusive_set_resource_is_rejected() {
+        let ench = valid().exclusive_set("bad resource");
+        assert!(ench.validate().is_err());
+    }
+
+    #[test]
+    fn non_object_effects_is_rejected() {
+        let ench = valid().effects_raw(serde_json::json!("string"));
+        let err = ench.validate().unwrap_err();
+        assert!(err.to_string().contains("effects"), "{err}");
+    }
+
+    #[test]
+    fn valid_raw_effects_object_is_accepted() {
+        let ench = valid().effects_raw(serde_json::json!({"key": {}}));
+        assert!(ench.validate().is_ok());
+    }
+
+    #[test]
+    fn null_description_is_rejected() {
+        let ench = Enchantment::new(rl())
+            .description(Value::Null)
+            .supported_items("#minecraft:enchantable/sword")
+            .slot_typed(EnchantmentSlot::Mainhand);
+        let err = ench.validate().unwrap_err();
+        assert!(err.to_string().contains("description"), "{err}");
+    }
+
+    #[test]
+    fn valid_enchantment_json_is_stable() {
+        let ench = valid();
+        let json = ench.to_json();
+        assert_eq!(json["supported_items"], "#minecraft:enchantable/foot_armor");
+        assert_eq!(json["weight"], 10);
+        assert_eq!(json["max_level"], 1);
+        assert_eq!(json["slots"][0], "feet");
+    }
+
+    #[test]
+    fn invalid_enchantment_fails_export() {
+        let ench = Enchantment::new(rl());
+        assert!(ench.try_content().is_err());
+    }
+
+    #[test]
+    fn valid_primary_items_tag_is_accepted() {
+        let ench = valid().primary_items("#minecraft:enchantable/sword");
+        assert!(ench.validate().is_ok());
+    }
+
+    #[test]
+    fn valid_exclusive_set_namespaced_is_accepted() {
+        let ench = valid().exclusive_set("minecraft:damage");
+        assert!(ench.validate().is_ok());
     }
 }

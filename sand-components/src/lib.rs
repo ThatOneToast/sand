@@ -97,7 +97,7 @@ pub use damage_type::{DamageEffects, DamageScaling, DamageType, DeathMessageType
 
 // ── Enchantment ───────────────────────────────────────────────────────────────
 
-pub use enchantment::{Enchantment, EnchantmentCost, EnchantmentEffect};
+pub use enchantment::{Enchantment, EnchantmentCost, EnchantmentEffect, EnchantmentSlot};
 
 // ── Instrument ────────────────────────────────────────────────────────────────
 

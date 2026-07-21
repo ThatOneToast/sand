@@ -63,6 +63,39 @@ vanilla armor rendering. `StorageVar::new("trail:data", "config.grapple_range")`
 targets a command-storage NBT location at `trail:data`, an entirely separate
 namespace from function/item resource locations but validated the same way.
 
+## Vanilla IDs: `sand::vanilla`
+
+`ItemId::minecraft("leather_boots")` above is the *validated custom-ID*
+path — it works for anything, vanilla or modded, but it's a runtime parse
+with a `.unwrap()`. For vanilla blocks, items, entity types, and sounds,
+`sand::vanilla` gives you a generated, discoverable Rust identifier
+instead — no parsing, no unwrap, and full IDE autocomplete over exactly
+what Minecraft's data generator reports for your configured version:
+
+```rust,ignore
+use sand::prelude::*;
+use sand::vanilla;
+
+cmd::give(Selector::self_(), vanilla::Item::Diamond);
+let wool: BlockId = vanilla::Block::WhiteWool.into();
+let marker_query = EntityQuery::entities().entity_type(vanilla::EntityType::Marker);
+```
+
+`sand::vanilla` currently exposes `Item`, `Block`, `EntityType`, and
+`SoundEvent` — the registries Sand's codegen can populate from Mojang's
+data generator report for the configured Minecraft version. It converts
+into the matching typed ID (`ItemId`, `BlockId`, `EntityTypeId`) via
+`.into()` wherever you need the wrapper type directly, and is accepted
+directly by normal-path APIs like `cmd::give`, `EntityTargets::entity_type`,
+and `EntityQuery::entity_type` — you don't need to construct an `ItemId`
+or `EntityTypeId` just to reference `minecraft:diamond` or
+`minecraft:marker`.
+
+For external/modded resources not in the generated list, keep using the
+typed `*Id` wrappers' escape hatches — `ItemId::custom(...)` or
+`"other_mod:machine_core".parse::<ItemId>()` — rather than a raw string
+on the normal path.
+
 ## Why this matters for a growing pack
 
 As Trailforge (or your own pack) grows past a handful of functions, keeping

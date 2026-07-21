@@ -276,7 +276,7 @@ pub mod data {
 /// Use these directly wherever Sand asks for a vanilla identifier or entity
 /// type — `vanilla::Item::Diamond`, `vanilla::Block::WhiteWool`,
 /// `vanilla::EntityType::Marker` — including in [`entity::EntityQuery`],
-/// [`sand_commands::selector::EntityTarget`], and `cmd::summon`/`cmd::give`.
+/// `EntityTargets`/`Selector::entity_type`, and `cmd::summon`/`cmd::give`.
 /// They convert into Sand's typed IDs (`ItemId`, `BlockId`, `EntityTypeId`)
 /// via `From`/`Into` for cases that need the wrapper type directly (storage,
 /// serialization, mixing with custom/external IDs).

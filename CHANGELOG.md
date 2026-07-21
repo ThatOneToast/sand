@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — structured `sand run` diagnostics and vanilla registry façade
+
+- **`sand run --server-log`.** Replaces the old raw-passthrough `--verbose`
+  flag (kept as a deprecated hidden alias for `--server-log verbose`) with
+  four modes: `classified` (default — Sand's filtered console with
+  structured, phase-tagged datapack diagnostics), `verbose` (classified
+  output plus the raw lines behind each event), `raw` (fully unfiltered
+  passthrough), and `json` (structured diagnostics only, one JSON object
+  per line, for editor/CI integrations).
+- **Structured diagnostic model.** Every classified failure now carries an
+  explicit `RunPhase` (`server_startup`, `datapack_discovery`, `reload`,
+  `runtime`, `shutdown`, tracked from real process/command state) and a
+  stable `DiagnosticCode` (command parse error, JSON/component error,
+  missing reference, pack-format incompatibility, reload failure, startup
+  failure, process exit, runtime command error, or unclassified).
+  Repeated copies of the same root failure are folded into a trailing
+  `repeated N times` note instead of reprinted every occurrence.
+- **`sand::vanilla` module.** Discoverable, generated vanilla identifiers —
+  `vanilla::Item`, `vanilla::Block`, `vanilla::EntityType`,
+  `vanilla::SoundEvent` — reachable from the top-level `sand` façade and
+  the prelude, converting into `ItemId`/`BlockId`/`EntityTypeId` via
+  `.into()`.
+- **Typed vanilla/custom entity types and items on normal paths.**
+  `EntityTargets`/`Selector::entity_type`/`not_type`,
+  `EntityQuery::entity_type`/`not_entity_type`, `cmd::summon` and friends,
+  and `cmd::give` now accept generated vanilla identifiers
+  (`vanilla::EntityType::Marker`, `vanilla::Item::Diamond`) and typed
+  `EntityTypeId`/`ItemId` directly, in addition to the existing raw
+  `&str`/`String` path (unchanged, still accepted — this is purely
+  additive, no signature became stricter). See
+  `sand_commands::selector::IntoEntityType` and
+  `sand_core::cmd::IntoGiveItem`.
+- **API-signature regression guard.** A new test
+  (`sand/tests/api_signature_guard.rs`) scans the public façade's `pub fn`
+  signatures for parameters that look like a typed identifier/target
+  concept (item, block, entity type, resource refs) but still accept an
+  untyped string, so new occurrences of the pattern this PR fixed don't
+  reappear silently.
+
 ### Changed — API and compiler reorganization
 
 - **Single public dependency.** Datapack projects now depend on one crate,

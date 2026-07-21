@@ -1727,9 +1727,13 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
 ///     .run(run_fn!("hello_world:on_player_join"))
 /// ```
 ///
-/// The name string must be a valid resource location (`namespace:path` or
-/// `path`-only). Namespace must match `[a-z0-9_.-]+`, path must match
-/// `[a-z0-9_./-]+`. Invalid strings are rejected at compile time.
+/// The name string must be a valid resource location: either a full
+/// `namespace:path`, or a bare `path`, which is resolved against the pack's
+/// `[pack].namespace` from `sand.toml` at compile time — the same mechanism
+/// the anonymous form above uses to pick a namespace. Namespace must match
+/// `[a-z0-9_.-]+`, path must match `[a-z0-9_./-]+`. Invalid strings, and a
+/// bare `path` with no resolvable `sand.toml` namespace, are rejected at
+/// compile time — never at runtime.
 #[proc_macro]
 pub fn run_fn(input: TokenStream) -> TokenStream {
     match expand_run_fn(input) {
@@ -2724,14 +2728,56 @@ fn read_sand_namespace() -> Option<String> {
 /// Global counter for generating unique anonymous function names.
 static ANON_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
+/// Validates a `[pack].namespace` value read from `sand.toml` against the
+/// same character rules `ResourceLocation` enforces, so a malformed config
+/// value is reported at macro-expansion time instead of reaching an
+/// `.expect()` in generated code.
+fn validate_pack_namespace(ns: &str, call_site: proc_macro2::Span) -> syn::Result<()> {
+    if ns.is_empty()
+        || !ns
+            .chars()
+            .all(|c| matches!(c, 'a'..='z' | '0'..='9' | '_' | '.' | '-'))
+    {
+        return Err(syn::Error::new(
+            call_site,
+            format!(
+                "[pack].namespace `{ns}` in sand.toml is not a valid resource-location \
+                 namespace ([a-z0-9_.-]+)"
+            ),
+        ));
+    }
+    Ok(())
+}
+
 fn expand_run_fn(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
     let RunFnInput { name, body } = syn::parse::<RunFnInput>(input)?;
 
-    // Resolve the full resource location string (e.g. "ns:path").
-    let (name_val, span) = match &name {
+    // Resolve the full (namespace, path) resource location. A path-only
+    // named input (no `:`) is resolved against the pack namespace exactly
+    // like the anonymous form below, rather than being handed to
+    // `ResourceLocation`'s runtime parser — that parser requires
+    // `namespace:path` and would panic on a bare path.
+    let (ns_val, path_val, span) = match &name {
         Some(lit) => {
             validate_macro_resource_path(lit, "run_fn!(\"...\")")?;
-            (lit.value(), lit.span())
+            let raw = lit.value();
+            match raw.split_once(':') {
+                Some((ns, path)) => (ns.to_string(), path.to_string(), lit.span()),
+                None => {
+                    let ns = read_sand_namespace().ok_or_else(|| {
+                        syn::Error::new_spanned(
+                            lit,
+                            format!(
+                                "run_fn!(\"{raw}\") is path-only and requires [pack].namespace \
+                                 in sand.toml to resolve to a full resource location; provide \
+                                 an explicit `namespace:path` name instead, or add sand.toml"
+                            ),
+                        )
+                    })?;
+                    validate_pack_namespace(&ns, lit.span())?;
+                    (ns, raw, lit.span())
+                }
+            }
         }
         None => {
             // Anonymous: read namespace from sand.toml, generate unique path.
@@ -2742,22 +2788,20 @@ fn expand_run_fn(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
                      provide an explicit name or ensure sand.toml exists",
                 )
             })?;
+            validate_pack_namespace(&ns, proc_macro2::Span::call_site())?;
             let id = ANON_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-            let anon_path = format!("{ns}:__anon/fn_{id}");
-            (anon_path, proc_macro2::Span::call_site())
+            let anon_path = format!("__anon/fn_{id}");
+            (ns, anon_path, proc_macro2::Span::call_site())
         }
     };
 
-    // Extract the path part (after ":") for the FunctionDescriptor path.
-    let path_part = match name_val.find(':') {
-        Some(i) => &name_val[i + 1..],
-        None => &name_val[..],
-    };
-
-    let name_lit = LitStr::new(&name_val, span);
+    let path_part = path_val.as_str();
+    let ns_lit = LitStr::new(&ns_val, span);
+    let full_path_lit = LitStr::new(&path_val, span);
     let fn_call = quote! {
         ::sand::__private::cmd::function(
-            #name_lit.parse::<::sand::__private::ResourceLocation>().unwrap()
+            ::sand::__private::ResourceLocation::new(#ns_lit, #full_path_lit)
+                .expect("run_fn! validates namespace/path syntax at compile time")
         )
     };
 

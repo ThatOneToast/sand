@@ -90,4 +90,5 @@ fn resource_path_validation_compile_tests() {
     t.compile_fail("tests/cases/fail_function_multi_colon.rs");
     t.compile_fail("tests/cases/fail_component_tag_invalid.rs");
     t.compile_fail("tests/cases/fail_run_fn_empty.rs");
+    t.compile_fail("tests/cases/fail_run_fn_path_only_no_namespace.rs");
 }

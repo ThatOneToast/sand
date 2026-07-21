@@ -1,0 +1,5 @@
+error: invalid resource path in #[function(...)]: path must not be empty in `ns:`
+ --> tests/cases/fail_function_missing_path.rs:3:12
+  |
+3 | #[function("ns:")]
+  |            ^^^^^

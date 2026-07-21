@@ -50,6 +50,7 @@ pub mod resource_location;
 pub mod structure_template;
 pub mod tag;
 pub mod trim;
+pub(crate) mod validation;
 pub mod wolf_variant;
 pub mod worldgen;
 
@@ -96,7 +97,7 @@ pub use damage_type::{DamageEffects, DamageScaling, DamageType, DeathMessageType
 
 // ── Enchantment ───────────────────────────────────────────────────────────────
 
-pub use enchantment::{Enchantment, EnchantmentCost, EnchantmentEffect};
+pub use enchantment::{Enchantment, EnchantmentCost, EnchantmentEffect, EnchantmentSlot};
 
 // ── Instrument ────────────────────────────────────────────────────────────────
 

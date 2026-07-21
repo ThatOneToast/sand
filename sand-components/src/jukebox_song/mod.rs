@@ -2,6 +2,15 @@
 //!
 //! Jukebox songs define custom music disc tracks.
 //!
+//! # Validation
+//!
+//! The export path calls [`DatapackComponent::validate`] before serialization:
+//! - `sound_event` must be non-empty and a valid **plain** resource location
+//!   (a `#namespace:path` tag reference is rejected — the field is
+//!   serialized as a single concrete sound event, not a tag).
+//! - `song_length` must be finite and positive.
+//! - `comparator_output` must be in `1..=15`.
+//!
 //! # Example
 //! ```rust,ignore
 //! let disc = JukeboxSong::new(rl)
@@ -13,19 +22,18 @@
 
 use serde_json::Value;
 
-use crate::component::DatapackComponent;
+use crate::component::{ComponentContent, DatapackComponent};
+use crate::error::Result as SandResult;
 use crate::resource_location::ResourceLocation;
+use crate::validation;
 
 /// A jukebox song definition (`data/<namespace>/jukebox_song/<id>.json`).
 pub struct JukeboxSong {
     location: ResourceLocation,
-    /// Sound event ID that plays when this disc is inserted.
     sound_event: String,
-    /// Duration of the song in seconds.
     song_length: f32,
-    /// Comparator output value (1–13) when this disc is in a jukebox.
+    /// Redstone comparator output level (1–15).
     comparator_output: u8,
-    /// Optional text component for the disc description in the tooltip.
     description: Option<Value>,
 }
 
@@ -50,9 +58,9 @@ impl JukeboxSong {
         self
     }
 
-    /// Set the redstone comparator output level (1–13).
+    /// Set the redstone comparator output level (1–15).
     pub fn comparator_output(mut self, output: u8) -> Self {
-        self.comparator_output = output.clamp(1, 15);
+        self.comparator_output = output;
         self
     }
 
@@ -65,6 +73,32 @@ impl JukeboxSong {
 impl DatapackComponent for JukeboxSong {
     fn resource_location(&self) -> &ResourceLocation {
         &self.location
+    }
+
+    fn validate(&self) -> SandResult<()> {
+        let kind = "jukebox_song";
+        validation::require_non_empty(&self.location, kind, "sound_event", &self.sound_event)?;
+        validation::validate_resource_location_str(
+            &self.location,
+            kind,
+            "sound_event",
+            &self.sound_event,
+        )?;
+        validation::require_positive_f32(&self.location, kind, "song_length", self.song_length)?;
+        validation::require_u32_in_range(
+            &self.location,
+            kind,
+            "comparator_output",
+            self.comparator_output as u32,
+            1,
+            15,
+        )?;
+        Ok(())
+    }
+
+    fn try_content(&self) -> SandResult<ComponentContent> {
+        self.validate()?;
+        Ok(self.content())
     }
 
     fn to_json(&self) -> Value {
@@ -93,5 +127,135 @@ impl DatapackComponent for JukeboxSong {
 
     fn required_features(&self) -> &'static [sand_version::ComponentFeature] {
         &[sand_version::ComponentFeature::JukeboxSongs]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn rl() -> ResourceLocation {
+        ResourceLocation::new("test", "theme").unwrap()
+    }
+
+    fn valid() -> JukeboxSong {
+        JukeboxSong::new(rl())
+            .sound_event("minecraft:music.disc.13")
+            .song_length(178.0)
+            .comparator_output(5)
+    }
+
+    #[test]
+    fn valid_jukebox_song_exports_deterministic_json() {
+        let song = valid();
+        assert!(song.validate().is_ok());
+        let a = serde_json::to_string_pretty(&song.to_json()).unwrap();
+        let b = serde_json::to_string_pretty(&song.to_json()).unwrap();
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn empty_sound_event_is_rejected() {
+        let song = JukeboxSong::new(rl()).song_length(10.0);
+        let err = song.validate().unwrap_err();
+        assert!(err.to_string().contains("sound_event"), "{err}");
+    }
+
+    #[test]
+    fn invalid_sound_event_is_rejected() {
+        let song = JukeboxSong::new(rl())
+            .sound_event("not valid")
+            .song_length(10.0);
+        assert!(song.validate().is_err());
+    }
+
+    #[test]
+    fn tag_prefixed_sound_event_is_rejected() {
+        let song = JukeboxSong::new(rl())
+            .sound_event("#minecraft:music_disc")
+            .song_length(10.0);
+        let err = song.validate().unwrap_err();
+        let msg = err.to_string();
+        assert!(msg.contains("sound_event"), "{msg}");
+        assert!(msg.contains("tag"), "{msg}");
+    }
+
+    #[test]
+    fn dotted_sound_event_is_accepted() {
+        let song = valid().sound_event("minecraft:music_disc.13");
+        assert!(song.validate().is_ok());
+    }
+
+    #[test]
+    fn nan_song_length_is_rejected() {
+        let song = valid().song_length(f32::NAN);
+        assert!(song.validate().is_err());
+    }
+
+    #[test]
+    fn infinite_song_length_is_rejected() {
+        let song = valid().song_length(f32::INFINITY);
+        assert!(song.validate().is_err());
+    }
+
+    #[test]
+    fn zero_song_length_is_rejected() {
+        let song = valid().song_length(0.0);
+        assert!(song.validate().is_err());
+    }
+
+    #[test]
+    fn negative_song_length_is_rejected() {
+        let song = valid().song_length(-1.0);
+        assert!(song.validate().is_err());
+    }
+
+    #[test]
+    fn comparator_output_zero_is_rejected() {
+        let song = valid().comparator_output(0);
+        assert!(song.validate().is_err());
+    }
+
+    #[test]
+    fn comparator_output_sixteen_is_rejected() {
+        let song = valid().comparator_output(16);
+        assert!(song.validate().is_err());
+    }
+
+    #[test]
+    fn comparator_output_one_is_accepted() {
+        let song = valid().comparator_output(1);
+        assert!(song.validate().is_ok());
+    }
+
+    #[test]
+    fn comparator_output_fifteen_is_accepted() {
+        let song = valid().comparator_output(15);
+        assert!(song.validate().is_ok());
+    }
+
+    #[test]
+    fn comparator_output_no_longer_silently_clamped() {
+        let song = JukeboxSong::new(rl())
+            .sound_event("minecraft:music.disc.cat")
+            .song_length(10.0)
+            .comparator_output(20);
+        assert_eq!(song.comparator_output, 20);
+        assert!(song.validate().is_err());
+    }
+
+    #[test]
+    fn valid_jukebox_song_json_is_stable() {
+        let song = valid();
+        let json = song.to_json();
+        assert_eq!(json["sound_event"], "minecraft:music.disc.13");
+        assert_eq!(json["song_length"], 178.0);
+        assert_eq!(json["comparator_output"], 5);
+    }
+
+    #[test]
+    fn invalid_jukebox_song_fails_export() {
+        let song = JukeboxSong::new(rl());
+        assert!(song.try_content().is_err());
     }
 }

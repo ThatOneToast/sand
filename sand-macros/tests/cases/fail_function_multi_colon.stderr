@@ -1,0 +1,5 @@
+error: invalid resource path in #[function(...)]: multiple colons are not allowed in `a:b:c`
+ --> tests/cases/fail_function_multi_colon.rs:3:12
+  |
+3 | #[function("a:b:c")]
+  |            ^^^^^^^

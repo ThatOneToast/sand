@@ -74,3 +74,21 @@ fn recipe_fixture_compile_tests() {
     t.compile_fail("tests/cases/fail_recipe_block_tag.rs");
     t.compile_fail("tests/cases/fail_recipe_raw_string_typed_path.rs");
 }
+
+#[test]
+fn resource_path_validation_compile_tests() {
+    let t = trybuild::TestCases::new();
+    t.pass("tests/cases/pass_function_path.rs");
+    t.pass("tests/cases/pass_function_namespaced.rs");
+    t.pass("tests/cases/pass_component_tag_valid.rs");
+    t.pass("tests/cases/pass_run_fn_valid.rs");
+    t.compile_fail("tests/cases/fail_function_empty.rs");
+    t.compile_fail("tests/cases/fail_function_uppercase.rs");
+    t.compile_fail("tests/cases/fail_function_spaces.rs");
+    t.compile_fail("tests/cases/fail_function_bad_namespace.rs");
+    t.compile_fail("tests/cases/fail_function_missing_path.rs");
+    t.compile_fail("tests/cases/fail_function_multi_colon.rs");
+    t.compile_fail("tests/cases/fail_component_tag_invalid.rs");
+    t.compile_fail("tests/cases/fail_run_fn_empty.rs");
+    t.compile_fail("tests/cases/fail_run_fn_path_only_no_namespace.rs");
+}

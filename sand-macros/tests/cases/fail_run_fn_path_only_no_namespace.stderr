@@ -1,0 +1,5 @@
+error: run_fn!("helpers/foo") is path-only and requires [pack].namespace in sand.toml to resolve to a full resource location; provide an explicit `namespace:path` name instead, or add sand.toml
+ --> tests/cases/fail_run_fn_path_only_no_namespace.rs:4:21
+  |
+4 |     let _ = run_fn!("helpers/foo" {});
+  |                     ^^^^^^^^^^^^^

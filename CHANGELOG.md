@@ -126,6 +126,27 @@ for the full design rationale and crate graph.
   against `VersionProfile`, and `EntityScope::bind` for preserving a working
   reference to an entity across relationship traversal via a collision-safe
   temporary tag. Framework infrastructure for #228–#230; resolves #227.
+- **sand-macros**: `#[function("...")]` paths, `#[component(Tag = "...")]`
+  tags, and `run_fn!("...")` paths are now validated at macro-expansion
+  time (non-empty, lowercase `[a-z0-9_./-]`, single `:` namespace
+  separator with a non-empty namespace and path) instead of failing later
+  at export or runtime. Refs #122 — parameterized legacy `#[event(...)]`
+  forms are not covered by this validation and remain open.
+- **sand-components**: structured, export-time validation for enchantment,
+  damage type, instrument, and jukebox-song components, replacing silent
+  clamping and unchecked construction with diagnostics raised through the
+  shared component-validation error path:
+  - `Enchantment`: non-empty description and valid primary/exclusive
+    resource-location syntax, non-empty `supported_items`, valid slots via
+    the new typed `EnchantmentSlot` (re-exported from `sand-core`/
+    `sand::prelude`), weight validated to `1..=1024`, max level validated to
+    `1..=255`, and `effects` required to be a JSON object. Resolves #138.
+  - `DamageType`: non-empty message ID with no whitespace-only value or
+    control characters, and a finite, non-negative `exhaustion`. Resolves
+    #139.
+  - Instruments and jukebox songs: valid sound-event IDs and finite,
+    positive duration/range/song length, with comparator output validated
+    to `1..=15` instead of silently clamped. Resolves #140.
 
 ### Fixed
 

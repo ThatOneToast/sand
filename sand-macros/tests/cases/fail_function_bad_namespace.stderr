@@ -1,0 +1,5 @@
+error: invalid resource path in #[function(...)]: namespace must only contain [a-z0-9_.-] in `BAD:path`
+ --> tests/cases/fail_function_bad_namespace.rs:3:12
+  |
+3 | #[function("BAD:path")]
+  |            ^^^^^^^^^^

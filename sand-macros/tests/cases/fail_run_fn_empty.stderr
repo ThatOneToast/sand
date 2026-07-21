@@ -1,0 +1,5 @@
+error: invalid resource path in run_fn!("..."): must not be empty
+ --> tests/cases/fail_run_fn_empty.rs:4:21
+  |
+4 |     let _ = run_fn!("" {});
+  |                     ^^

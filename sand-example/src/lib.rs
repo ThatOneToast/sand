@@ -66,6 +66,32 @@ pub fn execute_example() {
         }));
 }
 
+/// Demonstrates `run_fn!` with a **path-only** name (no explicit namespace).
+/// The namespace is resolved from `[pack].namespace` in `sand.toml`
+/// (`"hello_world"` here) at macro-expansion time — proves this doesn't
+/// panic and produces the expected fully-namespaced function ID.
+#[function]
+pub fn execute_path_only_example() {
+    use sand_core::cmd::{self, Execute, Selector};
+    Execute::new()
+        .as_(Selector::all_players())
+        .run(run_fn!("helpers/path_only_greet" {
+            cmd::raw("say Welcome from the path-only inline function!");
+        }));
+}
+
+/// Demonstrates the **anonymous** `run_fn!({ ... })` form, which resolves
+/// its namespace from `sand.toml` the same way the path-only named form
+/// above does, but generates a unique `__anon/fn_N` path instead of taking
+/// one explicitly.
+#[function]
+pub fn execute_anonymous_example() {
+    use sand_core::cmd::{self, Execute, Selector};
+    Execute::new().as_(Selector::all_players()).run(run_fn!({
+        cmd::raw("say Welcome from the anonymous inline function!");
+    }));
+}
+
 // ── Components ───────────────────────────────────────────────────────────────
 
 /// Fires `hello_world:hello_world` once per player on their first tick alive.
@@ -191,6 +217,60 @@ mod tests {
             .expect("greet_inline descriptor not registered");
         let cmds = (descriptor.make)();
         assert_eq!(cmds, vec!["say Welcome from the inline function!"]);
+    }
+
+    #[test]
+    fn run_fn_path_only_name_resolves_pack_namespace_without_panicking() {
+        let cmds = execute_path_only_example();
+        assert_eq!(cmds.len(), 1);
+        assert_eq!(
+            cmds[0],
+            "execute as @a run function hello_world:helpers/path_only_greet"
+        );
+    }
+
+    #[test]
+    fn run_fn_path_only_name_registers_inline_function_under_bare_path() {
+        let paths: Vec<&str> = inventory::iter::<FunctionDescriptor>()
+            .map(|d| d.path)
+            .collect();
+        assert!(
+            paths.contains(&"helpers/path_only_greet"),
+            "helpers/path_only_greet not found in inventory: {paths:?}"
+        );
+    }
+
+    #[test]
+    fn run_fn_path_only_inline_body_commands_correct() {
+        let descriptor = inventory::iter::<FunctionDescriptor>()
+            .find(|d| d.path == "helpers/path_only_greet")
+            .expect("helpers/path_only_greet descriptor not registered");
+        let cmds = (descriptor.make)();
+        assert_eq!(
+            cmds,
+            vec!["say Welcome from the path-only inline function!"]
+        );
+    }
+
+    #[test]
+    fn run_fn_anonymous_resolves_pack_namespace_without_panicking() {
+        let _guard = test_support::dyn_fn_test_lock();
+        let _ = sand_core::drain_dyn_fns(); // clear any leftover state from this thread
+
+        let cmds = execute_anonymous_example();
+        assert_eq!(cmds.len(), 1);
+        assert!(
+            cmds[0].starts_with("execute as @a run function hello_world:__anon/fn_"),
+            "{cmds:?}"
+        );
+
+        let drained = sand_core::drain_dyn_fns();
+        assert_eq!(drained.len(), 1);
+        assert!(drained[0].0.starts_with("__anon/fn_"), "{drained:?}");
+        assert_eq!(
+            drained[0].1,
+            vec!["say Welcome from the anonymous inline function!"]
+        );
     }
 
     #[test]

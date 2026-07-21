@@ -68,16 +68,34 @@ Root cause was **not** conclusively identified in the time available:
 - Every packet id this tooling relies on (compression threshold, login
   success, configuration select-known-packs/finish-configuration,
   play-phase keep-alive/login) was independently confirmed correct by
-  observing the real server's behavior. What remains missing is very
-  likely one additional serverbound acknowledgement introduced in a
-  version this recent (a plausible candidate is a "player loaded"-style
-  packet some newer server implementations require shortly after Play
-  starts) that this tooling does not yet send.
+  observing the real server's behavior.
 - A real end-to-end RCON-triggered damage attempt against a joined bot was
   attempted (see PR history) and did not reliably land before disconnect;
   it is not included in `run_audit.py` because it does not yet produce
   trustworthy results, and this PR's scope is validation tooling, not
   protocol-client redesign.
+
+**Follow-up attempt (post-#264/#268 roadmap pass):** the server log for
+every disconnect reads `lost connection: Timed out`, at the exact same
+wall-clock second as the join line — never a decode error, never a delay.
+The leading theory going into this pass was a missing serverbound
+`player_loaded` (`0x2c`, no payload — a modern client sends this once its
+"Loading terrain..." screen closes) acknowledgement. `minimal_join_client.py`
+now sends `player_loaded` immediately upon receiving the Play `LOGIN`
+packet. **This did not fix the disconnect** — confirmed against a fresh
+server instance, same `Timed out` result, same timing. The client still
+receives a full burst of ~20 Play packets (chunk/spawn/inventory data)
+before the drop, so the disconnect is not blocking on the very first
+packet exchange — but whatever the server is actually waiting for remains
+unidentified. Sending `player_loaded` is kept in the client regardless (it
+is a real, correct part of the modern join sequence and does not hurt),
+but the theory that it alone was the missing piece is now falsified.
+Genuinely stabilizing this connection remains unsolved; see the current
+#265-tracking issue thread for whether further protocol-level debugging
+is worth pursuing versus an official/Fabric client approach (evaluated and
+found impractical in this environment — no display/GPU, no purchased
+Minecraft account for either client — see that issue for the full
+evaluation).
 
 **Do not extend the claims in `docs/testing/participant-role-evidence.md`
 beyond what this README documents.** When the Play-phase connection is made

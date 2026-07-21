@@ -158,11 +158,16 @@ composed child event could *honestly promise* about an inherited
 entity/item participant — but they were pure Rust-level bookkeeping with
 zero call sites in the export pipeline, so a chained child's generated
 commands never actually referenced a parent's captured binding. #264
-closes that gap for the same-cycle case with a genuine command-level
+closed that gap for the same-cycle case with a genuine command-level
 mechanism — `EventParticipantPlan::inherit_entity`/`inherit_item` — rather
-than by wiring the old capability-merge functions into codegen (they
-remain unused; see `sand-core/src/participant/capabilities.rs`'s own
-module doc). `Event<E>::attacker()`/`.weapon()`/etc. resolve an inherited
+than by wiring the old capability-merge functions into codegen. An #274
+audit confirmed those helpers had gained no production call sites in the
+time since, so they were removed outright rather than left as dead public
+API; `sand-core/src/participant/capabilities.rs` now only describes an
+event's **subject** capability (`EventContextCapabilities::for_event` and
+its `propagate_*`/`merge_*` helpers), which is a genuinely separate,
+still-used concern from participant (entity/item) propagation.
+`Event<E>::attacker()`/`.weapon()`/etc. resolve an inherited
 declaration exactly like a directly-declared one for `AdvancementEvent`
 handlers; plain `SandEvent` (tick/chain-dispatched) handlers call
 `E::participants().resolve(...)`/`.resolve_item(...)` directly, since

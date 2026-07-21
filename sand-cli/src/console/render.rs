@@ -323,4 +323,27 @@ mod tests {
         );
         renderer.finish();
     }
+
+    #[test]
+    fn json_diagnostic_serializes_with_stable_field_names() {
+        let diag = build_diagnostic(
+            &single_event(
+                "[12:00:00] [Server thread/WARN]: Error loading function arcane:combat/dash",
+            ),
+            RunPhase::ServerStartup,
+        )
+        .unwrap();
+        let json = serde_json::to_value(JsonDiagnostic::from(&diag)).unwrap();
+
+        assert_eq!(json["phase"], "server_startup");
+        assert_eq!(json["severity"], "warning");
+        assert_eq!(json["code"], "command_parse_error");
+        assert_eq!(json["resource"], "arcane:combat/dash");
+        assert_eq!(json["subsystem"], "function");
+        assert_eq!(
+            json["file"],
+            "dist/arcane/data/arcane/function/combat/dash.mcfunction"
+        );
+        assert!(json.get("raw").is_some());
+    }
 }

@@ -485,4 +485,86 @@ mod tests {
         assert_eq!(renderer.health(), RunHealth::Degraded);
         renderer.finish();
     }
+
+    #[test]
+    fn json_diagnostic_for_function_parse_failure_includes_line_cursor_related_and_fatal() {
+        let mut grouper = Grouper::new();
+        let mut out = Vec::new();
+        for line in [
+            "[10:15:32] [Server thread/ERROR]: Failed to load function vanilla_plus:on_load",
+            "java.util.concurrent.CompletionException: java.lang.IllegalArgumentException: Whilst parsing command on line 6: Unknown or incomplete command. See below for error at position 0: <--[HERE]",
+            "\tat java.base/java.util.concurrent.CompletableFuture.wrapInCompletionException(CompletableFuture.java:323)",
+            "[10:15:32] [Server thread/WARN]: Couldn't load tag minecraft:load as it is missing following references: vanilla_plus:on_load (from file/vanilla_plus)",
+        ] {
+            let record = parse_line(line);
+            let category = classify(Stream::Stdout, &record);
+            out.extend(grouper.feed(Stream::Stdout, record, category));
+        }
+        if let Some(finished) = grouper.flush() {
+            out.push(finished);
+        }
+        assert_eq!(out.len(), 2, "root headline+trace, then the tag failure");
+
+        let mut correlator = super::super::correlate::Correlator::new();
+        let mut merged = None;
+        for group in &out {
+            let diag = build_diagnostic(group, RunPhase::DatapackDiscovery).unwrap();
+            for correlated in correlator.observe(diag) {
+                merged = Some(correlated);
+            }
+        }
+        let diag = merged.expect("root and consequence should merge into one diagnostic");
+
+        let json = serde_json::to_value(JsonDiagnostic::from(&diag)).unwrap();
+        assert_eq!(json["line"], 6);
+        assert_eq!(json["cursor"], 0);
+        assert_eq!(json["fatal"], true);
+        assert_eq!(json["code"], "command_parse_error");
+        let related = json["related"].as_array().unwrap();
+        assert_eq!(related.len(), 1);
+        assert_eq!(related[0]["code"], "missing_reference");
+        assert_eq!(related[0]["resource"], "minecraft:load");
+        assert_eq!(related[0]["missing"], "vanilla_plus:on_load");
+        assert_eq!(related[0]["source"], "file/vanilla_plus");
+    }
+
+    #[test]
+    fn every_output_mode_handles_the_real_fixture_without_panicking() {
+        const FIXTURE: &str = include_str!(
+            "../../tests/fixtures/console/minecraft_26_2_function_parse_load_failure.log"
+        );
+        for mode in [
+            OutputMode::Classified,
+            OutputMode::Verbose,
+            OutputMode::Raw,
+            OutputMode::Json,
+        ] {
+            let mut renderer = Renderer::new(mode, "26.2".to_string());
+            let mut grouper = Grouper::new();
+            let mut phase = crate::console::phase::PhaseTracker::new();
+            for line in FIXTURE.lines() {
+                let record = parse_line(line);
+                phase.observe_log(&record.message);
+                let category = classify(Stream::Stdout, &record);
+                for group in grouper.feed(Stream::Stdout, record, category) {
+                    renderer.render(&group, phase.current());
+                }
+            }
+            renderer.finish();
+            if mode != OutputMode::Raw {
+                assert_eq!(renderer.health(), RunHealth::Degraded);
+            }
+        }
+    }
+
+    #[test]
+    fn a_startup_failure_reports_failed_health_and_never_shows_the_ready_checkmark() {
+        let mut renderer = Renderer::new(OutputMode::Classified, "26.2".to_string());
+        renderer.render(
+            &single_event("[10:15:00] [Server thread/ERROR]: **** FAILED TO BIND TO PORT!"),
+            RunPhase::ServerStartup,
+        );
+        assert_eq!(renderer.health(), RunHealth::Failed);
+        renderer.finish();
+    }
 }

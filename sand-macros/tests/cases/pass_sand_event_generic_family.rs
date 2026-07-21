@@ -2,7 +2,8 @@
 // `ElevatorUsed<GoDown>`) must produce distinct, collision-free generated identities per
 // concrete monomorphization. Each concrete instantiation is wired through its own
 // non-generic `#[event]` handler (bare generic marker types are not yet supported as a
-// direct handler parameter — see AGENTS.md event architecture notes); the identity
+// direct handler parameter — see the `SandEvent`/`Event<T>` split documented
+// on `sand_core::event`/`sand_core::events`); the identity
 // distinctness itself is proven via `event_type_id` from the real Custom dispatch
 // registration below, exactly as codegen sees it.
 use sand_core::condition::Condition;

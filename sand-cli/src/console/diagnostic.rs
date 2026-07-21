@@ -313,7 +313,7 @@ fn detect_code(
     if contains_any(&lower, PACK_FORMAT_MARKERS) {
         return DiagnosticCode::PackFormatIncompatible;
     }
-    if contains_any(&lower, RELOAD_FAILURE_MARKERS) || phase == RunPhase::Reload {
+    if contains_any(&lower, RELOAD_FAILURE_MARKERS) {
         return DiagnosticCode::ReloadFailure;
     }
 
@@ -585,6 +585,20 @@ mod tests {
         ]);
         let diag = build_diagnostic(&events[0], RunPhase::ServerStartup).unwrap();
         assert_eq!(diag.code, DiagnosticCode::MissingReference);
+    }
+
+    #[test]
+    fn does_not_infer_reload_failure_merely_from_phase() {
+        // A JSON/component error observed while the phase happens to be
+        // `Reload` (e.g. it fires during a /reload's discovery window) must
+        // not be relabeled ReloadFailure just because of the phase — only
+        // wording that actually indicates the reload mechanism itself
+        // failed should produce that code.
+        let events = group_lines(&[
+            "[12:00:00] [Server thread/WARN]: Error loading recipe arcane:combat/dodge",
+        ]);
+        let diag = build_diagnostic(&events[0], RunPhase::Reload).unwrap();
+        assert_ne!(diag.code, DiagnosticCode::ReloadFailure);
     }
 
     #[test]

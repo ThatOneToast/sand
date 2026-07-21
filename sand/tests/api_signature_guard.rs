@@ -36,6 +36,24 @@ const LOOKS_LIKE_TYPED_CONCEPT: &[&str] = &[
     "predicate_ref",
 ];
 
+/// Function names known to accept a typed identifier/target concept even
+/// though their parameter is conventionally named something generic like
+/// `ty` rather than spelling out the concept (`entity_type`/`not_type` on
+/// `EntityTarget`/`Selector`/`EntityQuery`, `summon*` builders). Every
+/// non-`self` parameter of a matching function is checked, regardless of
+/// its name — this exists because [`LOOKS_LIKE_TYPED_CONCEPT`]'s
+/// name-based matching alone would silently miss these (parameter name
+/// `ty`, not `entity_type`).
+const TYPED_CONCEPT_FUNCTIONS: &[&str] = &[
+    "entity_type",
+    "not_entity_type",
+    "not_type",
+    "summon",
+    "summon_here",
+    "summon_at",
+    "summon_at_with_nbt",
+];
+
 /// `(file relative to the workspace root, function name)` pairs that are
 /// known, tracked exceptions to the rule above — either genuine free-form
 /// text, a deliberate raw escape hatch not already caught by the `*_raw`
@@ -214,10 +232,19 @@ fn facade_signatures_do_not_regress_typed_identifier_parameters() {
                 continue;
             }
 
+            let function_is_typed_concept = TYPED_CONCEPT_FUNCTIONS.contains(&function.as_str());
+
             for (param_name, param_type) in split_params(&params) {
-                let looks_typed = LOOKS_LIKE_TYPED_CONCEPT
-                    .iter()
-                    .any(|needle| param_name.contains(needle));
+                // For functions known to accept an entity type, only the
+                // entity-type parameter itself is in scope (by convention
+                // named `entity_type` or `ty`) — not unrelated parameters
+                // like NBT/position data on the same builder.
+                let is_entity_type_position = function_is_typed_concept
+                    && matches!(param_name.as_str(), "entity_type" | "ty");
+                let looks_typed = is_entity_type_position
+                    || LOOKS_LIKE_TYPED_CONCEPT
+                        .iter()
+                        .any(|needle| param_name.contains(needle));
                 if looks_typed && is_untyped_string_conversion(&param_type) {
                     violations.push(Violation {
                         file: (*file).to_string(),
@@ -251,4 +278,19 @@ fn guard_actually_detects_a_known_bad_pattern() {
     let parsed = split_params(params);
     let item_param = parsed.iter().find(|(n, _)| n == "item").unwrap();
     assert!(is_untyped_string_conversion(&item_param.1));
+}
+
+#[test]
+fn guard_catches_ty_named_entity_type_regression_even_though_name_alone_would_miss_it() {
+    // `entity_type`/`not_type` conventionally name their parameter `ty`,
+    // which `LOOKS_LIKE_TYPED_CONCEPT`'s substring match on the parameter
+    // name would not catch on its own — this is exactly the false
+    // negative TYPED_CONCEPT_FUNCTIONS exists to close.
+    let source = "pub fn entity_type(mut self, ty: impl Into<String>) -> Self {}";
+    let (function, params) = &extract_pub_fn_signatures(source)[0];
+    assert!(TYPED_CONCEPT_FUNCTIONS.contains(&function.as_str()));
+    let parsed = split_params(params);
+    let ty_param = parsed.iter().find(|(n, _)| n == "ty").unwrap();
+    assert!(is_untyped_string_conversion(&ty_param.1));
+    assert!(!LOOKS_LIKE_TYPED_CONCEPT.iter().any(|n| "ty".contains(n)));
 }

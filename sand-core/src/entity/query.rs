@@ -3,8 +3,8 @@
 
 use sand_commands::Selector;
 use sand_commands::selector::{
-    EntityTarget, EntityTargets, Many, One, PlayerTarget, PlayerTargets, SingleEntity,
-    SinglePlayer, SortOrder,
+    EntityTarget, EntityTargets, IntoEntityType, Many, One, PlayerTarget, PlayerTargets,
+    SingleEntity, SinglePlayer, SortOrder,
 };
 
 use crate::entity::context::EntityContext;
@@ -59,13 +59,13 @@ impl EntityQuery<Many> {
     }
 
     /// `type=<ty>` — restrict to entities of the given type.
-    pub fn entity_type(mut self, ty: impl Into<String>) -> Self {
+    pub fn entity_type(mut self, ty: impl IntoEntityType) -> Self {
         self.target = self.target.entity_type(ty);
         self
     }
 
     /// `type=!<ty>` — exclude entities of the given type.
-    pub fn not_entity_type(mut self, ty: impl Into<String>) -> Self {
+    pub fn not_entity_type(mut self, ty: impl IntoEntityType) -> Self {
         self.target = self.target.not_type(ty);
         self
     }

@@ -268,6 +268,45 @@ pub mod data {
     };
 }
 
+/// Generated vanilla Minecraft registry identifiers: `Item`, `Block`,
+/// `EntityType`, and `SoundEvent` enums populated at build time from
+/// Mojang's own data generator report for the configured Minecraft version
+/// (see [`sand_core::generated`] for the exact version source).
+///
+/// Use these directly wherever Sand asks for a vanilla identifier or entity
+/// type — `vanilla::Item::Diamond`, `vanilla::Block::WhiteWool`,
+/// `vanilla::EntityType::Marker` — including in [`entity::EntityQuery`],
+/// `EntityTargets`/`Selector::entity_type`, and `cmd::summon`/`cmd::give`.
+/// They convert into Sand's typed IDs (`ItemId`, `BlockId`, `EntityTypeId`)
+/// via `From`/`Into` for cases that need the wrapper type directly (storage,
+/// serialization, mixing with custom/external IDs).
+///
+/// For custom or modded/external identifiers not in this generated list, use
+/// the typed `*Id` wrappers instead (`ItemId::minecraft`/`::custom`,
+/// `BlockId`, `EntityTypeId`, ...) — see [`prelude`].
+///
+/// Not every generated Minecraft registry is exposed here: `sand-build`'s
+/// codegen also lists `minecraft:worldgen/biome` and `minecraft:enchantment`
+/// as candidate registries, but Mojang's data generator report does not
+/// currently include either as a plain registry (biome and enchantment data
+/// moved to datapack-authorable JSON), so no `Biome`/`Enchantment` enum is
+/// actually generated — only `Item`, `Block`, `EntityType`, and `SoundEvent`
+/// exist today. Effects, particles, and other registries without generated
+/// data still require typed ID wrappers (e.g. `EffectId`) or raw resource
+/// locations.
+///
+/// # Example
+/// ```
+/// use sand::prelude::*;
+/// use sand::vanilla;
+///
+/// let wool: BlockId = vanilla::Block::WhiteWool.into();
+/// let marker = EntityQuery::entities().entity_type(vanilla::EntityType::Marker);
+/// ```
+pub mod vanilla {
+    pub use sand_core::generated::{Block, EntityType, Item, SoundEvent};
+}
+
 /// Supported low-level hooks for framework integrators: export entry points
 /// (e.g. `try_export_components_json_for_version`, used by the generated
 /// `__sand_export` binary hook — see `examples/book_project`'s

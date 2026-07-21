@@ -52,9 +52,37 @@ jar for `sand.toml`'s `mc_version`, and starts a local server with the
 datapack loaded — the fastest way to playtest without a separate server
 setup. Useful flags: `--ram 4G` (JVM heap size), `--offline` (sets
 `online-mode=false` for easier local testing without a premium account
-check), `--no-build` (skip rebuilding and use whatever's already in
-`dist/`), and `--verbose` (stream the server's raw log instead of Sand's
-filtered console).
+check), and `--no-build` (skip rebuilding and use whatever's already in
+`dist/`).
+
+### `--server-log` — controlling diagnostic output
+
+`sand run` classifies the Minecraft server's log into structured
+diagnostics instead of forwarding raw output by default. `--server-log`
+picks the presentation:
+
+- `classified` (default) — Sand's filtered console: player events, ready/
+  shutdown banners, and classified datapack diagnostics (command parse
+  errors, missing references, pack-format issues, startup failures,
+  reload failures, runtime command errors), each tagged with the `sand
+  run` phase it happened in (`server_startup`, `datapack_discovery`,
+  `reload`, `runtime`, `shutdown`) and a stable diagnostic code. Repeated
+  copies of the same underlying failure are folded into a trailing
+  `repeated N times` note instead of reprinted every occurrence.
+- `verbose` — the same classified output, plus the raw log line(s) behind
+  each event, for when the classifier's summary isn't enough context.
+- `raw` — the server's fully unfiltered log, with no classification at
+  all (equivalent to the old `--verbose` flag, which is now a deprecated
+  alias for `--server-log verbose`).
+- `json` — structured diagnostics only, one JSON object per line on
+  stdout (phase, severity, code, resource, file, position, context,
+  reason, hint, raw lines) — for editor/CI integrations that want to
+  parse `sand run`'s findings rather than read them.
+
+```sh
+sand run --server-log verbose
+sand run --server-log json
+```
 
 ## `sand join`
 

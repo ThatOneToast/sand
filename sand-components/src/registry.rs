@@ -127,6 +127,18 @@ impl sand_commands::IntoTextEntityType for &EntityTypeId {
     }
 }
 
+impl sand_commands::selector::IntoEntityType for EntityTypeId {
+    fn into_entity_type(self) -> String {
+        self.to_string()
+    }
+}
+
+impl sand_commands::selector::IntoEntityType for &EntityTypeId {
+    fn into_entity_type(self) -> String {
+        self.to_string()
+    }
+}
+
 registry_id! {
     /// Typed Minecraft function identifier (e.g. `minecraft:load` or `mypack:tick`).
     FunctionId

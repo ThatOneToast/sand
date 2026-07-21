@@ -1,3 +1,42 @@
+## `sand run` diagnostics validation (#278)
+
+`run_harness.py` is separate, unrelated tooling from the rest of this
+directory (see below) — it validates the `sand run` structured-diagnostics
+work (`sand-cli/src/console/`), not the participant-event backends. It
+starts a real `sand run` process (against the real, cached 26.2 server
+jar) with a real `subprocess.Popen` pipe for stdin — no FIFO, no
+backgrounded wait, no reliance on an asynchronous notification. Every wait
+is bounded by an explicit timeout, and the child is always terminated
+(`stop` over stdin, then `terminate()`, then `kill()`) in a `finally`
+block before the script exits.
+
+```bash
+cargo build -p sand-cli --bin sand
+cargo run -p sand-build --bin ensure-server-jar -- 26.2
+python3 scripts/mc_validation/run_harness.py --scenario both --mode all
+```
+
+It builds `examples/participant_audit` (reused only as a ready-made
+`sand.toml` package; its participant-event content is incidental here),
+optionally injects a deliberately invalid function
+(`this is not a command` on line 6) plus a `minecraft:load` tag reference
+to it, runs `sand run --no-build --offline --server-log <mode>` for each
+of `classified`/`verbose`/`raw`/`json`, and asserts the resulting
+`RunHealth` matches what the scenario should produce (`degraded` for the
+broken pack, `healthy` for the clean one; `raw` mode is exempt from health
+tracking by design and isn't asserted). It also asserts the process always
+shuts down cleanly and leaves no stray `sand run`/`server.jar` process
+behind.
+
+Across real runs of all 8 scenario/mode combinations, the previously
+reported "An unexpected error occurred while trying to execute that
+command" console line never reproduced. `sand-cli`'s own source contains no
+such string, so it is not something Sand emits; it did not appear once
+stdin was a real, correctly-flushed pipe instead of a FIFO with a writer
+that could become detached, which matches the FIFO-based tooling in the
+prior session as the likely source. No regression test was added since no
+Sand-side bug was found.
+
 # Participant runtime-validation tooling (#265)
 
 **Status: experimental, isolated tooling.** `rcon_client.py` (stable,

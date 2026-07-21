@@ -79,6 +79,7 @@ const DATAPACK_ERROR_KEYWORDS: &[&str] = &[
     "couldn't load data pack",
     "error loading function",
     "error parsing function",
+    "failed to load function",
     "failed to load datapack",
     "failed to load recipes",
     "failed to load loot table",
@@ -93,6 +94,44 @@ const DATAPACK_ERROR_KEYWORDS: &[&str] = &[
     "failed execution",
     "invalid function",
     "unbalanced curly brackets",
+    // Missing references / unknown registry IDs.
+    "unknown function",
+    "unknown recipe",
+    "unknown advancement",
+    "unknown loot table",
+    "unknown predicate",
+    "unknown tag",
+    "unable to resolve",
+    "no such function",
+    "no function tag",
+    "missing following references",
+    "couldn't load tag",
+    // Reload / discovery / pack-format failures.
+    "failed to reload",
+    "reload failed",
+    "failed to load data pack",
+    "was designed for a newer version",
+    "was designed for an older version",
+    "requires format",
+    "incompatible pack",
+    "duplicate data pack",
+];
+
+/// Keywords that indicate the server process itself failed to come up, as
+/// opposed to a datapack content problem. These always classify as
+/// [`Category::FatalError`] regardless of log level, since a startup
+/// failure usually has no `FATAL`-level line at all (Java prints its own
+/// unprefixed diagnostics before the server's logger even attaches).
+const STARTUP_FAILURE_KEYWORDS: &[&str] = &[
+    "failed to bind to port",
+    "address already in use",
+    "unsupported class file version",
+    "unsupportedclassversionerror",
+    "requires using java",
+    "has been compiled by a more recent version of the java runtime",
+    "the world is currently being played",
+    "perhaps a server is already running",
+    "you need to agree to the eula",
 ];
 
 const FATAL_KEYWORDS: &[&str] = &[
@@ -115,7 +154,10 @@ pub fn classify(stream: Stream, record: &LogRecord) -> Category {
     let message = record.message.as_str();
     let level = record.prefix.as_ref().map(|p| p.level.as_str());
 
-    if level == Some("FATAL") || contains_any_ci(message, FATAL_KEYWORDS) {
+    if level == Some("FATAL")
+        || contains_any_ci(message, FATAL_KEYWORDS)
+        || contains_any_ci(message, STARTUP_FAILURE_KEYWORDS)
+    {
         return Category::FatalError;
     }
 
@@ -275,6 +317,54 @@ mod tests {
         assert_eq!(
             classify_line("[12:00:09] [Server thread/FATAL]: Unhandled exception"),
             Category::FatalError
+        );
+    }
+
+    #[test]
+    fn detects_port_in_use_as_fatal_even_without_fatal_level() {
+        assert_eq!(
+            classify_line("[12:00:12] [Server thread/ERROR]: **** FAILED TO BIND TO PORT!"),
+            Category::FatalError
+        );
+    }
+
+    #[test]
+    fn detects_missing_function_reference_as_datapack_error() {
+        assert_eq!(
+            classify_line(
+                "[12:00:13] [Server thread/WARN]: Unknown function tag arcane:combat/dash"
+            ),
+            Category::DatapackError
+        );
+    }
+
+    #[test]
+    fn detects_failed_to_load_function_as_datapack_error() {
+        assert_eq!(
+            classify_line(
+                "[10:15:32] [Server thread/ERROR]: Failed to load function vanilla_plus:on_load"
+            ),
+            Category::DatapackError
+        );
+    }
+
+    #[test]
+    fn detects_missing_tag_references_as_datapack_error() {
+        assert_eq!(
+            classify_line(
+                "[10:15:32] [Server thread/WARN]: Couldn't load tag minecraft:load as it is missing following references: vanilla_plus:on_load (from file/vanilla_plus)"
+            ),
+            Category::DatapackError
+        );
+    }
+
+    #[test]
+    fn detects_incompatible_pack_format_as_datapack_error() {
+        assert_eq!(
+            classify_line(
+                "[12:00:14] [Server thread/WARN]: Data pack \"arcane\" was designed for a newer version of Minecraft"
+            ),
+            Category::DatapackError
         );
     }
 }

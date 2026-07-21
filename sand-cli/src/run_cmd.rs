@@ -5,6 +5,7 @@ use anyhow::{Context, Result, bail};
 use colored::Colorize;
 
 use crate::config::SandConfig;
+use crate::console::OutputMode;
 
 pub struct RunArgs {
     /// JVM max heap size, e.g. "4G" or "2048M". Used for both -Xmx and -Xms.
@@ -13,9 +14,8 @@ pub struct RunArgs {
     pub offline: bool,
     /// Skip `sand build`; use whatever is already in dist/.
     pub no_build: bool,
-    /// Stream the Minecraft server's raw, unfiltered log instead of Sand's
-    /// filtered console.
-    pub verbose: bool,
+    /// How to present the Minecraft server's log output.
+    pub server_log: OutputMode,
 }
 
 pub fn run(args: RunArgs) -> Result<()> {
@@ -128,7 +128,7 @@ pub fn run(args: RunArgs) -> Result<()> {
         .arg("nogui")
         .current_dir(&server_dir);
 
-    let outcome = crate::console::run_server(command, args.verbose, &mc_version)?;
+    let outcome = crate::console::run_server(command, args.server_log, &mc_version)?;
 
     if !outcome.exit_status.success() {
         let log_path = server_dir.join("logs").join("latest.log");
@@ -140,6 +140,29 @@ pub fn run(args: RunArgs) -> Result<()> {
             );
         }
         bail!("server exited with status {}", outcome.exit_status);
+    }
+
+    // The JVM can exit 0 (a normal `stop`) even though the datapack never
+    // loaded successfully — don't report that as success. `Failed` (the
+    // process never became ready) is covered by the exit-status check
+    // above in practice, but is included here too for robustness.
+    if !crate::console::RunHealth::is_healthy(outcome.health) {
+        let log_path = server_dir.join("logs").join("latest.log");
+        let hint = if log_path.exists() {
+            format!(" — see {} for the full log", log_path.display())
+        } else {
+            String::new()
+        };
+        match outcome.health {
+            crate::console::RunHealth::Degraded => bail!(
+                "Minecraft server exited normally, but the datapack failed to load — \
+                 see the diagnostics above{hint}"
+            ),
+            crate::console::RunHealth::Failed => bail!(
+                "Minecraft server exited without becoming healthy — see the diagnostics above{hint}"
+            ),
+            crate::console::RunHealth::Healthy => unreachable!("checked is_healthy above"),
+        }
     }
 
     Ok(())

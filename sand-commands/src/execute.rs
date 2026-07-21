@@ -270,8 +270,8 @@ impl Execute {
     }
 
     /// `summon <entity_type>` — summon an entity and execute as it immediately.
-    pub fn summon(mut self, entity_type: impl Into<String>) -> Self {
-        let entity_type = entity_type.into();
+    pub fn summon(mut self, entity_type: impl crate::selector::IntoEntityType) -> Self {
+        let entity_type = entity_type.into_entity_type();
         self.check_resource("summon", "entity_type", &entity_type, false);
         self.parts.push(format!("summon {entity_type}"));
         self

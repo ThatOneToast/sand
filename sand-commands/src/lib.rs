@@ -54,8 +54,8 @@ pub use scoreboard::{
     ScoreboardPlayersOperation, scoreboard_players_operation,
 };
 pub use selector::{
-    EntityTarget, EntityTargets, GameMode, Many, One, PlayerTarget, PlayerTargets, Selector,
-    SingleEntity, SinglePlayer, SortOrder, TargetBase,
+    EntityTarget, EntityTargets, GameMode, IntoEntityType, Many, One, PlayerTarget, PlayerTargets,
+    Selector, SingleEntity, SinglePlayer, SortOrder, TargetBase,
 };
 pub use sound::{Sound, SoundSource};
 pub use text::{

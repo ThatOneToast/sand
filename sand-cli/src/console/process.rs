@@ -12,8 +12,10 @@ use anyhow::{Context, Result};
 
 use super::classify::classify;
 use super::diagnostic::Grouper;
+use super::health::RunHealth;
 use super::log_record::{Stream, parse_line};
-use super::render::Renderer;
+use super::phase::PhaseTracker;
+use super::render::{OutputMode, Renderer};
 
 /// How long to wait for more output before flushing a buffered diagnostic
 /// group. Bounds worst-case latency on showing a datapack error while still
@@ -34,12 +36,16 @@ enum Event {
 
 pub struct RunOutcome {
     pub exit_status: ExitStatus,
+    /// Overall `sand run` health across the whole run — distinct from
+    /// `exit_status`, since the JVM process can exit 0 (a normal `stop`)
+    /// even though the datapack never loaded successfully.
+    pub health: RunHealth,
 }
 
 /// Spawn `command` with piped stdio and drive it until it exits, forwarding
 /// stdin interactively and rendering classified stdout/stderr. The child is
 /// waited on exactly once, on every return path.
-pub fn run_server(mut command: Command, verbose: bool, mc_version: &str) -> Result<RunOutcome> {
+pub fn run_server(mut command: Command, mode: OutputMode, mc_version: &str) -> Result<RunOutcome> {
     let mut child = command
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -64,31 +70,34 @@ pub fn run_server(mut command: Command, verbose: bool, mc_version: &str) -> Resu
         let _ = ctrlc_tx.send(Event::Interrupt);
     });
 
-    drive(&mut child, stdin, &rx, verbose, mc_version)
+    drive(&mut child, stdin, &rx, mode, mc_version)
 }
 
 fn drive(
     child: &mut Child,
     mut stdin: impl Write,
     rx: &Receiver<Event>,
-    verbose: bool,
+    mode: OutputMode,
     mc_version: &str,
 ) -> Result<RunOutcome> {
-    let mut renderer = Renderer::new(verbose, mc_version.to_string());
+    let mut renderer = Renderer::new(mode, mc_version.to_string());
     let mut grouper = Grouper::new();
+    let mut phase = PhaseTracker::new();
     let mut stop_requested = false;
 
     loop {
         match rx.recv_timeout(QUIET_FLUSH) {
             Ok(Event::Log { stream, line }) => {
                 let record = parse_line(&line);
+                phase.observe_log(&record.message);
                 let category = classify(stream, &record);
                 for grouped in grouper.feed(stream, record, category) {
-                    renderer.render(&grouped);
+                    renderer.render(&grouped, phase.current());
                 }
             }
             Ok(Event::StreamClosed(_)) => {}
             Ok(Event::Input(line)) => {
+                phase.observe_command(&line);
                 if line.trim() == "stop" {
                     stop_requested = true;
                 }
@@ -108,23 +117,28 @@ fn drive(
             }
             Err(RecvTimeoutError::Timeout) => {
                 if let Some(grouped) = grouper.flush() {
-                    renderer.render(&grouped);
+                    renderer.render(&grouped, phase.current());
                 }
+                renderer.flush_pending_correlation();
             }
             Err(RecvTimeoutError::Disconnected) => break,
         }
 
         if let Some(status) = child.try_wait().context("failed to poll server process")? {
-            drain_remaining(rx, &mut grouper, &mut renderer);
+            drain_remaining(rx, &mut grouper, &mut renderer, &mut phase);
+            renderer.finish();
             return Ok(RunOutcome {
                 exit_status: status,
+                health: renderer.health(),
             });
         }
     }
 
     let status = child.wait().context("failed to wait on server process")?;
+    renderer.finish();
     Ok(RunOutcome {
         exit_status: status,
+        health: renderer.health(),
     })
 }
 
@@ -136,7 +150,12 @@ fn send_command(stdin: &mut impl Write, line: &str) {
     }
 }
 
-fn drain_remaining(rx: &Receiver<Event>, grouper: &mut Grouper, renderer: &mut Renderer) {
+fn drain_remaining(
+    rx: &Receiver<Event>,
+    grouper: &mut Grouper,
+    renderer: &mut Renderer,
+    phase: &mut PhaseTracker,
+) {
     let mut stdout_closed = false;
     let mut stderr_closed = false;
     let deadline = Instant::now() + DRAIN_TIMEOUT;
@@ -145,9 +164,10 @@ fn drain_remaining(rx: &Receiver<Event>, grouper: &mut Grouper, renderer: &mut R
         match rx.recv_timeout(Duration::from_millis(50)) {
             Ok(Event::Log { stream, line }) => {
                 let record = parse_line(&line);
+                phase.observe_log(&record.message);
                 let category = classify(stream, &record);
                 for grouped in grouper.feed(stream, record, category) {
-                    renderer.render(&grouped);
+                    renderer.render(&grouped, phase.current());
                 }
             }
             Ok(Event::StreamClosed(Stream::Stdout)) => stdout_closed = true,
@@ -158,8 +178,9 @@ fn drain_remaining(rx: &Receiver<Event>, grouper: &mut Grouper, renderer: &mut R
     }
 
     if let Some(grouped) = grouper.flush() {
-        renderer.render(&grouped);
+        renderer.render(&grouped, phase.current());
     }
+    renderer.flush_pending_correlation();
 }
 
 fn spawn_reader<R: Read + Send + 'static>(reader: R, stream: Stream, tx: Sender<Event>) {
@@ -271,7 +292,7 @@ mod tests {
             let _ = tx.send(Event::InputClosed);
         });
 
-        let result = drive(&mut child, stdin, &rx, false, "1.21.1");
+        let result = drive(&mut child, stdin, &rx, OutputMode::Classified, "1.21.1");
         // The fixture script isn't a real Minecraft server, so we only
         // assert the loop terminates cleanly with a status, proving no
         // deadlock — not any particular exit code.

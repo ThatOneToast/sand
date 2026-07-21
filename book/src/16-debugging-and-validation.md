@@ -90,6 +90,39 @@ data rather than hard-failing — set `SAND_STRICT_CODEGEN=1` to make codegen
 failures fatal, which is the right setting for CI pipelines that should
 never silently build against stale cached data.
 
+## Reading `sand run` diagnostics
+
+When something *does* reach the server and fail — a bad selector, a
+malformed generated command, a missing function reference — `sand run`
+classifies it instead of dumping raw Minecraft log noise:
+
+```text
+datapack error[command_parse_error]: failed to load trail:grapple/execute
+  phase: server_startup
+  file: dist/trail/data/trail/function/grapple/execute.mcfunction
+  command 4: execute as @a[limit=-1] run particle minecraft:cloud ~ ~ ~ 0 0 0 1 5
+  reason: `limit` must be a positive integer
+  hint: Check the .mcfunction source for this function.
+```
+
+The `phase` line tells you *when* it happened — a `server_startup` or
+`datapack_discovery` failure means the function/component itself is
+broken; the same failure reported under `reload` means it broke as part
+of a `/reload` specifically; under `runtime` it means the command was
+issued live (by a player or another function) rather than failing at
+load time. The bracketed code (`command_parse_error`,
+`missing_reference`, `pack_format_incompatible`, `startup_failure`, …) is
+stable across Minecraft log wording changes, so it's safe to grep for in
+CI output. If a diagnostic repeats (the same broken function failing
+every tick, say), `sand run` folds the repeats into a trailing `repeated
+N times` note rather than flooding the console.
+
+Reach for `sand run --server-log verbose` when the classified summary
+doesn't have enough context — it adds the raw log lines behind each
+event without switching to fully raw mode. See chapter 17 for the full
+`--server-log` mode reference and the `json` mode for machine-readable
+output.
+
 ## In-game validation: `/reload` and function tags
 
 Once a pack is running (chapter 17), the fastest debug loop for gameplay

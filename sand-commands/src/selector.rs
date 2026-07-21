@@ -7,6 +7,41 @@ use crate::error::{CommandError, CommandResult};
 use crate::render::{CommandProfile, RenderCommand, Validate};
 use crate::validate;
 
+// ── Entity type conversion ──────────────────────────────────────────────────────
+
+/// Conversion accepted by entity-type filter/target methods (`entity_type`,
+/// `not_type`, `summon`, ...).
+///
+/// Implemented for `&str`/`String` (the untyped escape hatch — no validation
+/// beyond what the selector/command syntax itself enforces) and for Sand's
+/// typed vanilla/custom entity-type identifiers: `sand_core::generated::EntityType`
+/// (generated vanilla entity types, e.g. `Marker`) and
+/// `sand_components::registry::EntityTypeId` (validated custom/modded IDs).
+/// Prefer the typed identifiers in normal code; the string forms remain for
+/// compatibility and cases with no typed representation yet.
+pub trait IntoEntityType {
+    /// Convert to the entity type's resource location, e.g. `"minecraft:marker"`.
+    fn into_entity_type(self) -> String;
+}
+
+impl IntoEntityType for String {
+    fn into_entity_type(self) -> String {
+        self
+    }
+}
+
+impl IntoEntityType for &str {
+    fn into_entity_type(self) -> String {
+        self.to_string()
+    }
+}
+
+impl IntoEntityType for &String {
+    fn into_entity_type(self) -> String {
+        self.clone()
+    }
+}
+
 // ── Public types ──────────────────────────────────────────────────────────────
 
 /// An entity/player selector for use in Minecraft commands.
@@ -117,13 +152,13 @@ impl<A> EntityTarget<A> {
     }
 
     /// `type=<entity_type>` — select only entities of the given type.
-    pub fn entity_type(mut self, ty: impl Into<String>) -> Self {
+    pub fn entity_type(mut self, ty: impl IntoEntityType) -> Self {
         self.raw = self.raw.entity_type(ty);
         self
     }
 
     /// `type=!<entity_type>` — select only entities NOT of the given type.
-    pub fn not_type(mut self, ty: impl Into<String>) -> Self {
+    pub fn not_type(mut self, ty: impl IntoEntityType) -> Self {
         self.raw = self.raw.not_type(ty);
         self
     }
@@ -591,14 +626,14 @@ impl Selector {
     }
 
     /// `type=<entity_type>` — select only entities of the given type.
-    pub fn entity_type(mut self, ty: impl Into<String>) -> Self {
-        self.args.push(SelectorArg::Type(ty.into()));
+    pub fn entity_type(mut self, ty: impl IntoEntityType) -> Self {
+        self.args.push(SelectorArg::Type(ty.into_entity_type()));
         self
     }
 
     /// `type=!<entity_type>` — select only entities NOT of the given type.
-    pub fn not_type(mut self, ty: impl Into<String>) -> Self {
-        self.args.push(SelectorArg::NotType(ty.into()));
+    pub fn not_type(mut self, ty: impl IntoEntityType) -> Self {
+        self.args.push(SelectorArg::NotType(ty.into_entity_type()));
         self
     }
 

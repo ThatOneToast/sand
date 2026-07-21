@@ -14,10 +14,16 @@
 //! This is deliberately conservative rather than clever: `after_any`/
 //! `after_all` fan-in, `.within(...)` bounded correlation, advancement
 //! bridges, and transitive inherit-of-inherit chains are all rejected
-//! outright here rather than guessed at — see the module doc on
-//! `sand-core/src/participant/capabilities.rs` for why "capability
-//! bookkeeping that doesn't match generated command access" is exactly the
-//! defect this PR closes, not something to reproduce for a new mechanism.
+//! outright here rather than guessed at. This module is the *only*
+//! participant-propagation validator in the export pipeline — an earlier,
+//! parallel capability-bookkeeping mechanism
+//! (`EventContextCapabilities::for_event_with_participants`,
+//! `capabilities::full`) computed a similar-looking "could honestly
+//! promise" value with zero export-pipeline call sites and was removed by
+//! #274; see `sand-core/src/participant/capabilities.rs`'s module doc and
+//! `docs/testing/participant-role-evidence.md` for that history. Do not
+//! reintroduce a second, Rust-level-only propagation mechanism here — this
+//! validator against the real [`EventGraph`] is the one source of truth.
 
 use std::collections::{BTreeMap, BTreeSet};
 

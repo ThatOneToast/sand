@@ -91,5 +91,11 @@ lifecycle synchronously is future work, not attempted here — it would need
 new ordering semantics this phase does not design. The dependent child's own
 `EventSetup` is unaffected and continues to be honored normally.
 
-Participant context propagation beyond a bare player subject (#230) remains a
-later roadmap phase and is not modeled as implemented behavior here.
+Participant (entity/item) context propagation across same-cycle graph edges
+is implemented for the plain single-parent case —
+`EventParticipantPlan::inherit_entity`/`inherit_item` plus
+`sand-core/src/compiler/export/participant_transport.rs`'s export-time
+validation (#264) — but not for the advancement-bridge relationship this
+section describes, nor for `after_any`/`after_all`/`.within(...)` edges; see
+`docs/testing/participant-role-evidence.md`'s edge/role support matrix for
+exactly which shapes are supported today.

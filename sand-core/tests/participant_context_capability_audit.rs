@@ -1,22 +1,21 @@
-//! Table-driven capability audit of Sand's currently supported event
-//! families (#230 Phase 8).
+//! Table-driven subject-capability audit of Sand's currently supported
+//! event families (#230 Phase 8; narrowed by #274).
 //!
 //! This does not implement any participant recovery — it records, with a
 //! test per family, exactly what `EventContextCapabilities::for_event`
-//! honestly derives for each *built-in* `SandEvent` marker type today.
-//! Every family below is currently `AdvancementTrigger`- or
-//! `Tick(Players)`-backed, so every one of them gets an exact player
-//! subject and zero entity/item/location capabilities — there is no
-//! attacker/victim/interacted-entity/projectile-owner recovery backend
-//! anywhere in Sand yet (that is #230's Phase 9). This test exists so a
-//! future Phase 9 change that starts populating `entities`/`items`/
-//! `locations` for one of these types is a visible, deliberate diff here,
-//! not a silent behavior change.
+//! honestly derives about the **subject** participant for each *built-in*
+//! `SandEvent` marker type today. Every family below is currently
+//! `AdvancementTrigger`- or `Tick(Players)`-backed, so every one of them
+//! gets an exact player subject. Real entity/item participant declarations
+//! (attacker, weapon, etc.) live on `EventParticipantPlan` instead — see
+//! `sand-core/tests/participant_plan_export.rs` and
+//! `sand-core/tests/event_chain_participant_inheritance_diag_*.rs` for that
+//! coverage.
 
 use sand_core::events::*;
 use sand_core::participant::{EventContextCapabilities, ParticipantReliability, SubjectScope};
 
-fn assert_exact_player_subject_only<E: SandEvent + 'static>(family: &str) {
+fn assert_exact_player_subject<E: SandEvent + 'static>(family: &str) {
     let caps = EventContextCapabilities::for_event::<E>();
     assert_eq!(
         caps.subject.scope,
@@ -28,18 +27,6 @@ fn assert_exact_player_subject_only<E: SandEvent + 'static>(family: &str) {
         ParticipantReliability::Exact,
         "{family} should have an exact subject"
     );
-    assert!(
-        caps.entities.is_empty(),
-        "{family} should declare no entity participants yet"
-    );
-    assert!(
-        caps.items.is_empty(),
-        "{family} should declare no item participants yet"
-    );
-    assert!(
-        caps.locations.is_empty(),
-        "{family} should declare no location participants yet"
-    );
 }
 
 #[test]
@@ -49,15 +36,15 @@ fn player_join_and_leave_family() {
     // which covers the `SandEvent`-backed families `EventContextCapabilities`
     // resolves against. `PlayerSleepEvent` is the nearest `SandEvent`
     // lifecycle-style family available.
-    assert_exact_player_subject_only::<PlayerSleepEvent>("PlayerSleepEvent");
+    assert_exact_player_subject::<PlayerSleepEvent>("PlayerSleepEvent");
 }
 
 #[test]
 fn player_state_tick_family() {
-    assert_exact_player_subject_only::<PlayerSneakEvent>("PlayerSneakEvent");
-    assert_exact_player_subject_only::<PlayerSprintEvent>("PlayerSprintEvent");
-    assert_exact_player_subject_only::<PlayerSwimmingEvent>("PlayerSwimmingEvent");
-    assert_exact_player_subject_only::<PlayerFlyingEvent>("PlayerFlyingEvent");
+    assert_exact_player_subject::<PlayerSneakEvent>("PlayerSneakEvent");
+    assert_exact_player_subject::<PlayerSprintEvent>("PlayerSprintEvent");
+    assert_exact_player_subject::<PlayerSwimmingEvent>("PlayerSwimmingEvent");
+    assert_exact_player_subject::<PlayerFlyingEvent>("PlayerFlyingEvent");
 }
 
 #[test]
@@ -69,31 +56,31 @@ fn kill_advancement_trigger_family() {
     // marker type today. Capturing that predicate data as a real
     // `EntityParticipant` is exactly the Phase 9 work this audit exists to
     // make visible when it lands.
-    assert_exact_player_subject_only::<EntityKillEvent>("EntityKillEvent");
-    assert_exact_player_subject_only::<PlayerKillEvent>("PlayerKillEvent");
+    assert_exact_player_subject::<EntityKillEvent>("EntityKillEvent");
+    assert_exact_player_subject::<PlayerKillEvent>("PlayerKillEvent");
 }
 
 #[test]
 fn damage_family() {
-    assert_exact_player_subject_only::<PlayerDamageEntityEvent>("PlayerDamageEntityEvent");
-    assert_exact_player_subject_only::<EntityDamagePlayerEvent>("EntityDamagePlayerEvent");
+    assert_exact_player_subject::<PlayerDamageEntityEvent>("PlayerDamageEntityEvent");
+    assert_exact_player_subject::<EntityDamagePlayerEvent>("EntityDamagePlayerEvent");
 }
 
 #[test]
 fn item_used_family() {
-    assert_exact_player_subject_only::<ItemConsumeEvent>("ItemConsumeEvent");
-    assert_exact_player_subject_only::<ItemCraftEvent>("ItemCraftEvent");
-    assert_exact_player_subject_only::<ItemPickedUpEvent>("ItemPickedUpEvent");
+    assert_exact_player_subject::<ItemConsumeEvent>("ItemConsumeEvent");
+    assert_exact_player_subject::<ItemCraftEvent>("ItemCraftEvent");
+    assert_exact_player_subject::<ItemPickedUpEvent>("ItemPickedUpEvent");
 }
 
 #[test]
 fn placed_block_family() {
-    assert_exact_player_subject_only::<BlockPlaceEvent>("BlockPlaceEvent");
+    assert_exact_player_subject::<BlockPlaceEvent>("BlockPlaceEvent");
 }
 
 #[test]
 fn interaction_family() {
-    assert_exact_player_subject_only::<InteractWithEntityEvent>("InteractWithEntityEvent");
+    assert_exact_player_subject::<InteractWithEntityEvent>("InteractWithEntityEvent");
 }
 
 #[test]
@@ -101,13 +88,13 @@ fn projectile_family() {
     // No dedicated "projectile hit" SandEvent exists yet; ShotCrossbowEvent
     // and ChanneledLightningEvent are the closest built-in markers that
     // touch projectile-like vanilla criteria.
-    assert_exact_player_subject_only::<ShotCrossbowEvent>("ShotCrossbowEvent");
-    assert_exact_player_subject_only::<ChanneledLightningEvent>("ChanneledLightningEvent");
+    assert_exact_player_subject::<ShotCrossbowEvent>("ShotCrossbowEvent");
+    assert_exact_player_subject::<ChanneledLightningEvent>("ChanneledLightningEvent");
 }
 
 #[test]
 fn ride_vehicle_family() {
-    assert_exact_player_subject_only::<StartRidingEvent>("StartRidingEvent");
+    assert_exact_player_subject::<StartRidingEvent>("StartRidingEvent");
 }
 
 #[test]
@@ -118,7 +105,7 @@ fn advancement_backed_custom_event_gets_exact_subject() {
             SandEventDispatch::TickCondition("score @s custom_flag matches 1".into())
         }
     }
-    assert_exact_player_subject_only::<CustomAdvancementEvent>("CustomAdvancementEvent");
+    assert_exact_player_subject::<CustomAdvancementEvent>("CustomAdvancementEvent");
 }
 
 #[test]
@@ -129,5 +116,5 @@ fn tick_backed_custom_event_gets_exact_subject() {
             SandEventDispatch::tick().as_players()
         }
     }
-    assert_exact_player_subject_only::<CustomTickEvent>("CustomTickEvent");
+    assert_exact_player_subject::<CustomTickEvent>("CustomTickEvent");
 }

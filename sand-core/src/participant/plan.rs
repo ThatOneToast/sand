@@ -64,15 +64,9 @@ use crate::events::{EventSetup, SandEvent};
 use crate::item::location::ItemLocation;
 use crate::item::snapshot::{ItemSnapshot, SnapshotError, SnapshotReliability, SnapshotSchema};
 use crate::participant::availability::{ParticipantAvailability, ParticipantUnavailableReason};
-use crate::participant::capabilities::{
-    CapabilityOccurrence, EntityParticipantCapability, ItemParticipantCapability,
-};
 use crate::participant::lifetime::ParticipantLifetime;
-use crate::participant::observation::{
-    self, CorrelationEvidence, ObservationError, ObservationSchema,
-};
+use crate::participant::observation::{self, ObservationError, ObservationSchema};
 use crate::participant::reference::EntityParticipant;
-use crate::participant::reliability::ParticipantReliability;
 use crate::participant::role::{EntityParticipantRole, ItemParticipantRole, ParticipantHand};
 use crate::version::VersionProfile;
 use sand_commands::selector::SingleEntity;
@@ -325,7 +319,7 @@ impl EventParticipantPlan {
 
     /// Declare a held-item snapshot for `role`, captured from `hand`.
     ///
-    /// Always [`ParticipantReliability::ExactSnapshot`] — addressing a
+    /// Always [`crate::participant::ParticipantReliability::ExactSnapshot`] — addressing a
     /// specific hand slot on `@s` is a directly queryable NBT path, never a
     /// correlated guess (see [`ParticipantHand`]). Which *role* label to
     /// apply (`Weapon` vs `UsedItem` vs any other [`ItemParticipantRole`])
@@ -383,37 +377,6 @@ impl EventParticipantPlan {
         Ok(())
     }
 
-    /// The [`EntityParticipantCapability`] entries this plan contributes to
-    /// an [`crate::participant::capabilities::EventContextCapabilities`]
-    /// descriptor — see
-    /// `EventContextCapabilities::for_event_with_participants`.
-    pub fn capabilities(&self) -> Vec<EntityParticipantCapability> {
-        self.entries
-            .iter()
-            .map(|entry| match entry.source {
-                PlanSource::CorrelatedAttacker => EntityParticipantCapability {
-                    role: entry.role,
-                    reliability: ParticipantReliability::Correlated,
-                    lifetime: ParticipantLifetime::SynchronousDescendants,
-                    occurrence: CapabilityOccurrence::OccurrenceDependent,
-                    min_version: Some(CorrelationEvidence::ATTACKER_RELATION.min_version),
-                },
-                // A same-cycle borrow never upgrades reliability/lifetime
-                // beyond what direct capture already promises (#264 Phase
-                // 13) — inheriting a `CorrelatedAttacker` role is exactly
-                // as strong as observing it directly, since it is the same
-                // live reference, not a weaker derived one.
-                PlanSource::Inherited { .. } => EntityParticipantCapability {
-                    role: entry.role,
-                    reliability: ParticipantReliability::Correlated,
-                    lifetime: ParticipantLifetime::SynchronousDescendants,
-                    occurrence: CapabilityOccurrence::OccurrenceDependent,
-                    min_version: Some(CorrelationEvidence::ATTACKER_RELATION.min_version),
-                },
-            })
-            .collect()
-    }
-
     /// Entity roles this plan declares via `Source`'s same-cycle capture,
     /// with the declared source event label — `pub(crate)`, consumed by
     /// the export pipeline's ancestor-chain validation
@@ -462,27 +425,6 @@ impl EventParticipantPlan {
             .iter()
             .filter(|entry| matches!(entry.source, ItemPlanSource::Hand(_)))
             .map(|entry| entry.role)
-            .collect()
-    }
-
-    /// The [`ItemParticipantCapability`] entries this plan contributes.
-    /// Always [`ParticipantReliability::ExactSnapshot`],
-    /// [`CapabilityOccurrence::Unconditional`] (the capture always runs —
-    /// whether the hand actually held an item is a runtime presence fact,
-    /// checked via [`crate::item::ItemSnapshot::is_present`], not a
-    /// capability-level occurrence dependency), and no version floor (the
-    /// underlying `data modify`/`execute if data` mechanism is supported by
-    /// every version Sand targets).
-    pub fn item_capabilities(&self) -> Vec<ItemParticipantCapability> {
-        self.item_entries
-            .iter()
-            .map(|entry| ItemParticipantCapability {
-                role: entry.role,
-                reliability: ParticipantReliability::ExactSnapshot,
-                lifetime: ParticipantLifetime::SynchronousDescendants,
-                occurrence: CapabilityOccurrence::Unconditional,
-                min_version: None,
-            })
             .collect()
     }
 
@@ -668,7 +610,6 @@ mod tests {
     fn empty_plan_is_a_no_op() {
         let plan = EventParticipantPlan::none();
         assert!(plan.is_empty());
-        assert!(plan.capabilities().is_empty());
         assert_eq!(plan.validate(), Ok(()));
     }
 
@@ -677,19 +618,11 @@ mod tests {
         let plan = EventParticipantPlan::new().observe_correlated_attacker();
         assert!(!plan.is_empty());
         assert_eq!(plan.validate(), Ok(()));
-        let caps = plan.capabilities();
-        assert_eq!(caps.len(), 1);
-        assert_eq!(caps[0].role, EntityParticipantRole::Attacker);
-        assert_eq!(caps[0].reliability, ParticipantReliability::Correlated);
         assert_eq!(
-            caps[0].lifetime,
-            ParticipantLifetime::SynchronousDescendants
+            plan.direct_entity_roles(),
+            vec![EntityParticipantRole::Attacker]
         );
-        assert_eq!(
-            caps[0].occurrence,
-            CapabilityOccurrence::OccurrenceDependent
-        );
-        assert_eq!(caps[0].min_version, Some((1, 20, 2)));
+        assert!(plan.inherited_entity_roles().is_empty());
     }
 
     #[test]
@@ -711,7 +644,13 @@ mod tests {
             .observe_correlated_attacker()
             .observe_correlated_killer();
         assert_eq!(plan.validate(), Ok(()));
-        assert_eq!(plan.capabilities().len(), 2);
+        assert_eq!(
+            plan.direct_entity_roles(),
+            vec![
+                EntityParticipantRole::Attacker,
+                EntityParticipantRole::Killer
+            ]
+        );
     }
 
     #[test]
@@ -856,12 +795,14 @@ mod tests {
         let plan = EventParticipantPlan::new().observe_weapon();
         assert!(!plan.is_empty());
         assert_eq!(plan.validate(), Ok(()));
-        let caps = plan.item_capabilities();
-        assert_eq!(caps.len(), 1);
-        assert_eq!(caps[0].role, ItemParticipantRole::Weapon);
-        assert_eq!(caps[0].reliability, ParticipantReliability::ExactSnapshot);
-        assert_eq!(caps[0].occurrence, CapabilityOccurrence::Unconditional);
-        assert_eq!(caps[0].min_version, None);
+        assert_eq!(plan.direct_item_roles(), vec![ItemParticipantRole::Weapon]);
+        let (setup, _) = plan
+            .build("WeaponCapabilityTestEvent", &profile("1.21.4"))
+            .unwrap();
+        assert!(
+            setup.iter().any(|cmd| cmd.contains("SelectedItem")),
+            "expected an exact mainhand snapshot capture: {setup:?}"
+        );
     }
 
     #[test]
@@ -881,7 +822,10 @@ mod tests {
             .observe_held_item(ItemParticipantRole::Weapon, ParticipantHand::MainHand)
             .observe_held_item(ItemParticipantRole::UsedItem, ParticipantHand::OffHand);
         assert_eq!(plan.validate(), Ok(()));
-        assert_eq!(plan.item_capabilities().len(), 2);
+        assert_eq!(
+            plan.direct_item_roles(),
+            vec![ItemParticipantRole::Weapon, ItemParticipantRole::UsedItem]
+        );
     }
 
     #[test]

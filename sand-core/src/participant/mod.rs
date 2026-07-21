@@ -19,14 +19,17 @@
 //!   lifetime, with `require_exact`/`require` gates.
 //! - [`capabilities::EventContextCapabilities`] — the deterministic,
 //!   `'static` descriptor of what an event type's *own* dispatch shape
-//!   promises, plus [`capabilities::EventContextCapabilities::for_event_with_participants`]
-//!   (which additionally folds in a declared [`plan::EventParticipantPlan`]),
-//!   and the propagation/merge rules for `after`/`after_any`/`after_all`/
-//!   `while`/`within`/advancement bridges (subject-only in the base
-//!   functions; [`capabilities::full`] extends the same rules to declared
-//!   entity/item participants as capability bookkeeping — see that module's
-//!   doc for the boundary between capability bookkeeping and actual
-//!   command-level value propagation, which remains unimplemented).
+//!   promises about its **subject** participant, plus the propagation/merge
+//!   rules for `after`/`after_any`/`after_all`/`while`/`within`/advancement
+//!   bridges. This is subject-only: an earlier participant-specific
+//!   extension (`for_event_with_participants`, `capabilities::full`) was
+//!   removed by #274 after an audit found it had zero production call
+//!   sites — see [`capabilities`]'s module doc and
+//!   `docs/testing/participant-role-evidence.md` for why real participant
+//!   propagation is [`plan::EventParticipantPlan::inherit_entity`]/
+//!   `inherit_item` plus export-time
+//!   `sand-core/src/compiler/export/participant_transport.rs` validation
+//!   instead.
 //! - [`observation::observe_correlated_attacker`] — embeds a correlated
 //!   `Attacker`/`Killer`-role [`EntityParticipant`] into a generated
 //!   command sequence, backed by vanilla's `execute on attacker` relation.
@@ -61,10 +64,7 @@ pub mod role;
 
 pub use availability::{ParticipantAvailability, ParticipantUnavailableReason};
 pub use capabilities::{
-    CapabilityDescriptorError, CapabilityOccurrence, ContextMergeError,
-    EntityParticipantCapability, EventContextCapabilities, ItemParticipantCapability,
-    LocationParticipantCapability, ResolvedEventContextCapabilities, SubjectCapability,
-    SubjectScope, VersionFloor,
+    ContextMergeError, EventContextCapabilities, SubjectCapability, SubjectScope,
 };
 pub use lifetime::ParticipantLifetime;
 pub use observation::{

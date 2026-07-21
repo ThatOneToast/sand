@@ -1,19 +1,37 @@
-//! Event context capability descriptors (#230 Phase 8).
+//! Event subject-capability descriptors (#230 Phase 8; narrowed by #274).
 //!
-//! An [`EventContextCapabilities`] value describes *what an event type can
-//! promise*, not any runtime value — it holds only `'static` data
-//! (`Copy` enums and `&'static` slices), so it is deterministic, cheap to
-//! compare, and safe to compute once per generic event monomorphization
-//! (no `TypeId`-derived identity anywhere in this module: two distinct
-//! generic instantiations of the same event family simply get distinct
+//! An [`EventContextCapabilities`] value describes what an event type's
+//! *own dispatch shape* can promise about its **subject** participant (the
+//! entity/player the event is naturally about — never a same-cycle
+//! participant plan's entity/item bindings, which are a separate, real
+//! mechanism: see [`crate::participant::plan::EventParticipantPlan`] and
+//! `sand-core/src/compiler/export/participant_transport.rs`). It holds only
+//! `'static` data (`Copy` enums), so it is deterministic, cheap to compare,
+//! and safe to compute once per generic event monomorphization (no
+//! `TypeId`-derived identity anywhere in this module: two distinct generic
+//! instantiations of the same event family simply get distinct
 //! `EventContextCapabilities` values by construction, compared structurally
 //! like any other data).
+//!
+//! This module previously also carried a parallel set of helpers
+//! (`EventContextCapabilities::for_event_with_participants`,
+//! `capabilities::full::{propagate_after, merge_after_any, merge_after_all,
+//! propagate_within}`) that extended the same propagation rules to declared
+//! entity/item participants. An #274 audit found those helpers had zero
+//! production call sites: they computed a "could honestly promise" value
+//! that nothing in the export pipeline ever consulted, while real
+//! participant transport (borrowing a concrete tag/item snapshot across a
+//! same-cycle graph edge) is validated separately by
+//! `sand-core/src/compiler/export/participant_transport.rs`. They were
+//! removed rather than wired up, to avoid two parallel and divergent
+//! sources of "what participants does this event have" truth. See
+//! `docs/testing/participant-role-evidence.md`'s "Participant propagation
+//! across event graph edges" section for the full history.
 
 use crate::events::{SandEvent, SandEventDispatch};
 
 use super::lifetime::ParticipantLifetime;
 use super::reliability::ParticipantReliability;
-use super::role::{EntityParticipantRole, ItemParticipantRole, LocationParticipantRole};
 
 /// Whether an event's subject is guaranteed to be a player.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -54,128 +72,33 @@ impl SubjectCapability {
     };
 }
 
-/// Whether a non-subject capability is guaranteed on every occurrence of
-/// the event, or only sometimes (e.g. an item location that may be empty).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum CapabilityOccurrence {
-    Unconditional,
-    OccurrenceDependent,
+impl Default for SubjectCapability {
+    fn default() -> Self {
+        SubjectCapability::NONE
+    }
 }
 
-/// A `(major, minor, patch)` version floor, compared via
-/// `McVersion::new(major, minor, patch)`. Stored as a plain tuple rather
-/// than [`crate::McVersion`] so capability descriptors stay `Copy` and
-/// usable in `const`/`&'static` contexts.
-pub type VersionFloor = (u32, u32, u32);
-
-/// What an event can promise about one non-subject entity participant
-/// role.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct EntityParticipantCapability {
-    pub role: EntityParticipantRole,
-    pub reliability: ParticipantReliability,
-    pub lifetime: ParticipantLifetime,
-    pub occurrence: CapabilityOccurrence,
-    pub min_version: Option<VersionFloor>,
-}
-
-/// What an event can promise about one item participant role.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ItemParticipantCapability {
-    pub role: ItemParticipantRole,
-    pub reliability: ParticipantReliability,
-    pub lifetime: ParticipantLifetime,
-    pub occurrence: CapabilityOccurrence,
-    pub min_version: Option<VersionFloor>,
-}
-
-/// What an event can promise about one location participant role.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct LocationParticipantCapability {
-    pub role: LocationParticipantRole,
-    pub reliability: ParticipantReliability,
-    pub lifetime: ParticipantLifetime,
-    pub occurrence: CapabilityOccurrence,
-    pub min_version: Option<VersionFloor>,
-}
-
-/// What an event type can provide, declared once and shared by every
-/// occurrence of that event. `entities`/`items`/`locations` are `&'static`
-/// slices — Phase 8 does not implement any participant-recovery backend,
-/// so every current event's slices are empty; the fields exist so Phase 9
-/// providers have somewhere to declare real entries without a breaking
-/// change to this type.
+/// What an event type's own dispatch shape promises about its subject
+/// participant, declared once and shared by every occurrence of that event.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct EventContextCapabilities {
     pub subject: SubjectCapability,
-    pub entities: &'static [EntityParticipantCapability],
-    pub items: &'static [ItemParticipantCapability],
-    pub locations: &'static [LocationParticipantCapability],
 }
 
 impl EventContextCapabilities {
     pub const NONE: EventContextCapabilities = EventContextCapabilities {
         subject: SubjectCapability::NONE,
-        entities: &[],
-        items: &[],
-        locations: &[],
     };
 
     pub const EXACT_PLAYER_SUBJECT: EventContextCapabilities = EventContextCapabilities {
         subject: SubjectCapability::EXACT_PLAYER_INVOCATION,
-        entities: &[],
-        items: &[],
-        locations: &[],
     };
-
-    /// Validate that no role is declared more than once within `entities`,
-    /// `items`, or `locations` — a duplicate declaration for one event type
-    /// is always a bug (a role either has one capability or none), never a
-    /// legitimate "two different variants of the same role."
-    pub fn validate(&self) -> Result<(), CapabilityDescriptorError> {
-        let mut seen = std::collections::BTreeSet::new();
-        for entity in self.entities {
-            if !seen.insert(entity.role) {
-                return Err(CapabilityDescriptorError::DuplicateEntityRole { role: entity.role });
-            }
-        }
-        let mut seen = std::collections::BTreeSet::new();
-        for item in self.items {
-            if !seen.insert(item.role) {
-                return Err(CapabilityDescriptorError::DuplicateItemRole { role: item.role });
-            }
-        }
-        let mut seen = std::collections::BTreeSet::new();
-        for location in self.locations {
-            if !seen.insert(location.role) {
-                return Err(CapabilityDescriptorError::DuplicateLocationRole {
-                    role: location.role,
-                });
-            }
-        }
-        Ok(())
-    }
-
-    /// A cheap owned copy suitable as input to the merge functions below,
-    /// which need to build new (non-`'static`) lists.
-    pub fn to_resolved(self) -> ResolvedEventContextCapabilities {
-        ResolvedEventContextCapabilities {
-            subject: self.subject,
-            entities: self.entities.to_vec(),
-            items: self.items.to_vec(),
-            locations: self.locations.to_vec(),
-        }
-    }
 
     /// Structurally derive the capabilities of `E`'s *own* dispatch shape —
     /// not counting anything a same-cycle parent might contribute.
     ///
     /// - `AdvancementTrigger`/legacy `TickCondition` dispatch: exact player
-    ///   subject, invocation lifetime. A raw/custom advancement criterion's
-    ///   own extra JSON fields (beyond the player subject itself) are never
-    ///   exposed as capabilities — only participants an
-    ///   [`crate::participant::EventParticipantPlan`] explicitly declares
-    ///   are.
+    ///   subject, invocation lifetime.
     /// - Structured [`SandEventDispatch::tick`]: exact player subject iff
     ///   [`TickScope::has_player_subject`](crate::events::TickScope::has_player_subject)
     ///   holds for the declared scope.
@@ -191,7 +114,7 @@ impl EventContextCapabilities {
     ///   [`for_event::<Parent>()`](Self::for_event) themselves and combine
     ///   it with [`propagate_after`]/[`merge_after_any`]/[`merge_after_all`]
     ///   below. This is a real, documented limitation, not an oversight —
-    ///   full graph-integrated capability resolution is Phase 9 work.
+    ///   full graph-integrated subject resolution remains unimplemented.
     pub fn for_event<E: SandEvent + 'static>() -> EventContextCapabilities {
         let dispatch: SandEventDispatch = E::dispatch().into();
         match dispatch {
@@ -212,82 +135,6 @@ impl EventContextCapabilities {
             SandEventDispatch::Tracked(_) => Self::EXACT_PLAYER_SUBJECT,
         }
     }
-
-    /// [`Self::for_event`]'s subject capability, plus every entity/item
-    /// capability `E::participants()` declares (#230 Phase 7 — plan
-    /// capabilities are not visible to `for_event` alone, since a plan's
-    /// capabilities are computed at runtime from a `Vec`, not the `'static`
-    /// slices `EventContextCapabilities` requires; this returns the owned
-    /// [`ResolvedEventContextCapabilities`] instead).
-    ///
-    /// This is what a caller wanting the *full* picture for one event type
-    /// — subject and declared participants together — should call, rather
-    /// than combining [`Self::for_event`] and
-    /// `E::participants().capabilities()` by hand.
-    pub fn for_event_with_participants<E: SandEvent + 'static>() -> ResolvedEventContextCapabilities
-    {
-        let subject = Self::for_event::<E>().subject;
-        let plan = E::participants();
-        ResolvedEventContextCapabilities {
-            subject,
-            entities: plan.capabilities(),
-            items: plan.item_capabilities(),
-            locations: Vec::new(),
-        }
-    }
-}
-
-/// A capability descriptor is internally inconsistent.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CapabilityDescriptorError {
-    DuplicateEntityRole { role: EntityParticipantRole },
-    DuplicateItemRole { role: ItemParticipantRole },
-    DuplicateLocationRole { role: LocationParticipantRole },
-}
-
-impl std::fmt::Display for CapabilityDescriptorError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::DuplicateEntityRole { role } => {
-                write!(
-                    f,
-                    "entity participant role {role:?} is declared more than once"
-                )
-            }
-            Self::DuplicateItemRole { role } => {
-                write!(
-                    f,
-                    "item participant role {role:?} is declared more than once"
-                )
-            }
-            Self::DuplicateLocationRole { role } => {
-                write!(
-                    f,
-                    "location participant role {role:?} is declared more than once"
-                )
-            }
-        }
-    }
-}
-
-impl std::error::Error for CapabilityDescriptorError {}
-
-/// The owned result of merging/propagating capabilities across graph
-/// edges. Unlike [`EventContextCapabilities`], this is not `'static` — it
-/// is a transient composition of one or more declared descriptors, not a
-/// new per-event-type declaration.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct ResolvedEventContextCapabilities {
-    pub subject: SubjectCapability,
-    pub entities: Vec<EntityParticipantCapability>,
-    pub items: Vec<ItemParticipantCapability>,
-    pub locations: Vec<LocationParticipantCapability>,
-}
-
-impl Default for SubjectCapability {
-    fn default() -> Self {
-        SubjectCapability::NONE
-    }
 }
 
 /// Graph propagation/merge produced an incompatible or empty combination.
@@ -298,18 +145,6 @@ pub enum ContextMergeError {
     /// Parents disagree on subject scope (e.g. one player-scoped, one not)
     /// — merging them cannot produce an honest single subject capability.
     IncompatibleSubjectScope,
-    /// Two parents declare the same entity role with different
-    /// capabilities (different reliability, lifetime, or occurrence) — a
-    /// merge would have to silently pick one, so it is rejected instead.
-    ConflictingEntityCapability {
-        role: EntityParticipantRole,
-    },
-    ConflictingItemCapability {
-        role: ItemParticipantRole,
-    },
-    ConflictingLocationCapability {
-        role: LocationParticipantRole,
-    },
 }
 
 impl std::fmt::Display for ContextMergeError {
@@ -322,24 +157,6 @@ impl std::fmt::Display for ContextMergeError {
                 write!(
                     f,
                     "parents disagree on subject scope and cannot be merged into one honest subject capability"
-                )
-            }
-            Self::ConflictingEntityCapability { role } => {
-                write!(
-                    f,
-                    "parents declare conflicting capabilities for entity role {role:?}"
-                )
-            }
-            Self::ConflictingItemCapability { role } => {
-                write!(
-                    f,
-                    "parents declare conflicting capabilities for item role {role:?}"
-                )
-            }
-            Self::ConflictingLocationCapability { role } => {
-                write!(
-                    f,
-                    "parents declare conflicting capabilities for location role {role:?}"
                 )
             }
         }
@@ -436,149 +253,10 @@ pub fn propagate_when_unless(current: SubjectCapability) -> SubjectCapability {
     current
 }
 
-/// [`propagate_after`]/[`merge_after_any`]/[`merge_after_all`]/
-/// [`propagate_within`] extended to a full [`ResolvedEventContextCapabilities`]
-/// (subject **and** declared entity/item participants), applying the same
-/// degradation rule to every entity/item capability that the subject rule
-/// already applies to the subject.
-///
-/// **Scope note:** this is capability *bookkeeping* only — it computes what
-/// a composed child could honestly promise about an inherited participant,
-/// for diagnostics and typed-context callers to consult. It does not by
-/// itself thread real command-level participant values (tags/storage
-/// paths) across chain/compose graph edges — the export pipeline's
-/// generated commands do not yet re-bind a parent's observed participant
-/// into a child's own scope. Wiring real cross-edge propagation is tracked
-/// as focused follow-up scope, not silently promised here.
-pub mod full {
-    use super::{
-        ContextMergeError, EntityParticipantCapability, ItemParticipantCapability,
-        ParticipantLifetime, ResolvedEventContextCapabilities,
-        propagate_after as propagate_subject_after, propagate_within as propagate_subject_within,
-    };
-
-    fn degrade_entity_after(cap: EntityParticipantCapability) -> EntityParticipantCapability {
-        EntityParticipantCapability {
-            lifetime: cap
-                .lifetime
-                .max(ParticipantLifetime::SynchronousDescendants),
-            ..cap
-        }
-    }
-
-    fn degrade_item_after(cap: ItemParticipantCapability) -> ItemParticipantCapability {
-        ItemParticipantCapability {
-            lifetime: cap
-                .lifetime
-                .max(ParticipantLifetime::SynchronousDescendants),
-            ..cap
-        }
-    }
-
-    /// Full-capability counterpart of [`super::propagate_after`].
-    pub fn propagate_after(
-        parent: ResolvedEventContextCapabilities,
-    ) -> ResolvedEventContextCapabilities {
-        ResolvedEventContextCapabilities {
-            subject: propagate_subject_after(parent.subject),
-            entities: parent
-                .entities
-                .into_iter()
-                .map(degrade_entity_after)
-                .collect(),
-            items: parent.items.into_iter().map(degrade_item_after).collect(),
-            locations: parent.locations,
-        }
-    }
-
-    /// Full-capability counterpart of [`super::merge_after_any`]/
-    /// [`super::merge_after_all`] — same conservative rule for both, as the
-    /// subject-only versions already document. Entity/item capabilities are
-    /// intersected by role: a role must appear (with an *equal* capability —
-    /// see [`ContextMergeError::ConflictingEntityCapability`]/
-    /// [`ContextMergeError::ConflictingItemCapability`]) in every parent to
-    /// survive the merge, since the child cannot statically know which
-    /// parent actually fired.
-    pub fn merge_disjunctive_or_conjunctive(
-        parents: &[ResolvedEventContextCapabilities],
-    ) -> Result<ResolvedEventContextCapabilities, ContextMergeError> {
-        let subjects: Vec<_> = parents.iter().map(|p| p.subject).collect();
-        let subject = super::merge_disjunctive_or_conjunctive(&subjects)?;
-
-        let mut entities = Vec::new();
-        if let Some(first) = parents.first() {
-            for candidate in &first.entities {
-                let mut agreed = Some(*candidate);
-                for other in &parents[1..] {
-                    match other.entities.iter().find(|e| e.role == candidate.role) {
-                        Some(entry) if *entry == *candidate => {}
-                        Some(_) => {
-                            return Err(ContextMergeError::ConflictingEntityCapability {
-                                role: candidate.role,
-                            });
-                        }
-                        None => agreed = None,
-                    }
-                }
-                if let Some(entry) = agreed {
-                    entities.push(degrade_entity_after(entry));
-                }
-            }
-        }
-
-        let mut items = Vec::new();
-        if let Some(first) = parents.first() {
-            for candidate in &first.items {
-                let mut agreed = Some(*candidate);
-                for other in &parents[1..] {
-                    match other.items.iter().find(|i| i.role == candidate.role) {
-                        Some(entry) if *entry == *candidate => {}
-                        Some(_) => {
-                            return Err(ContextMergeError::ConflictingItemCapability {
-                                role: candidate.role,
-                            });
-                        }
-                        None => agreed = None,
-                    }
-                }
-                if let Some(entry) = agreed {
-                    items.push(degrade_item_after(entry));
-                }
-            }
-        }
-
-        Ok(ResolvedEventContextCapabilities {
-            subject,
-            entities,
-            items,
-            locations: Vec::new(),
-        })
-    }
-
-    /// Full-capability counterpart of [`super::propagate_within`] — entity/
-    /// item participants never survive a bounded cross-tick window at all
-    /// (unlike the subject, which downgrades to `Correlated`/`EventCycle`
-    /// rather than disappearing): an ephemeral synchronous-descendant-scoped
-    /// entity/item reference from the original firing invocation cannot
-    /// possibly still be valid once `.within(...)` later observes its
-    /// condition true, potentially ticks later.
-    pub fn propagate_within(
-        parent: ResolvedEventContextCapabilities,
-    ) -> ResolvedEventContextCapabilities {
-        ResolvedEventContextCapabilities {
-            subject: propagate_subject_within(parent.subject),
-            entities: Vec::new(),
-            items: Vec::new(),
-            locations: Vec::new(),
-        }
-    }
-}
-
 /// `.within::<E>(TickWindow)` cannot retain any capability more precise
 /// than an [`EventCycle`](ParticipantLifetime::EventCycle)-scoped subject:
 /// the correlation crosses tick boundaries, so anything ephemeral captured
-/// at the original firing invocation (a synchronous-descendant-scoped
-/// entity/item reference, in particular) is gone by the time the bounded
+/// at the original firing invocation is gone by the time the bounded
 /// condition is later observed true. Only the tracked subject itself
 /// (the scoreboard age counter's own `@s`) remains meaningful, and even
 /// that downgrades to [`ParticipantLifetime::EventCycle`] — never
@@ -632,9 +310,6 @@ mod tests {
     fn default_simple_event_gets_exact_player_subject() {
         let caps = EventContextCapabilities::for_event::<SimpleTickEvent>();
         assert_eq!(caps.subject, SubjectCapability::EXACT_PLAYER_INVOCATION);
-        assert!(caps.entities.is_empty());
-        assert!(caps.items.is_empty());
-        assert!(caps.locations.is_empty());
     }
 
     #[test]
@@ -648,38 +323,6 @@ mod tests {
     fn chained_event_capabilities_are_not_resolved_generically() {
         let caps = EventContextCapabilities::for_event::<ChainedEvent>();
         assert_eq!(caps, EventContextCapabilities::NONE);
-    }
-
-    #[test]
-    fn validate_rejects_duplicate_entity_role() {
-        const DUPES: &[EntityParticipantCapability] = &[
-            EntityParticipantCapability {
-                role: EntityParticipantRole::Victim,
-                reliability: ParticipantReliability::Correlated,
-                lifetime: ParticipantLifetime::Invocation,
-                occurrence: CapabilityOccurrence::Unconditional,
-                min_version: None,
-            },
-            EntityParticipantCapability {
-                role: EntityParticipantRole::Victim,
-                reliability: ParticipantReliability::Inferred,
-                lifetime: ParticipantLifetime::Invocation,
-                occurrence: CapabilityOccurrence::Unconditional,
-                min_version: None,
-            },
-        ];
-        let caps = EventContextCapabilities {
-            subject: SubjectCapability::EXACT_PLAYER_INVOCATION,
-            entities: DUPES,
-            items: &[],
-            locations: &[],
-        };
-        assert_eq!(
-            caps.validate(),
-            Err(CapabilityDescriptorError::DuplicateEntityRole {
-                role: EntityParticipantRole::Victim
-            })
-        );
     }
 
     #[test]
@@ -795,138 +438,5 @@ mod tests {
     fn when_and_unless_do_not_alter_capabilities() {
         let current = SubjectCapability::EXACT_PLAYER_INVOCATION;
         assert_eq!(propagate_when_unless(current), current);
-    }
-
-    // ── for_event_with_participants (#230 Phase 7) ────────────────────────
-
-    struct CombatEventWithAttacker;
-    impl SandEvent for CombatEventWithAttacker {
-        fn dispatch() -> impl Into<SandEventDispatch> {
-            SandEventDispatch::TickCondition("score @s x matches 1".into())
-        }
-        fn participants() -> crate::participant::EventParticipantPlan {
-            crate::participant::EventParticipantPlan::new().observe_correlated_attacker()
-        }
-    }
-
-    #[test]
-    fn for_event_with_participants_includes_declared_entity_capabilities() {
-        let resolved =
-            EventContextCapabilities::for_event_with_participants::<CombatEventWithAttacker>();
-        assert_eq!(resolved.subject.reliability, ParticipantReliability::Exact);
-        assert_eq!(resolved.entities.len(), 1);
-        assert_eq!(resolved.entities[0].role, EntityParticipantRole::Attacker);
-        assert_eq!(
-            resolved.entities[0].reliability,
-            ParticipantReliability::Correlated
-        );
-        assert!(resolved.items.is_empty());
-    }
-
-    #[test]
-    fn for_event_with_participants_is_empty_for_undeclared_events() {
-        let resolved = EventContextCapabilities::for_event_with_participants::<SimpleTickEvent>();
-        assert!(resolved.entities.is_empty());
-        assert!(resolved.items.is_empty());
-    }
-
-    // ── capabilities::full propagation (#230 Phase 7) ─────────────────────
-
-    mod full_propagation {
-        use super::full;
-        use super::*;
-
-        fn attacker_capability() -> EntityParticipantCapability {
-            EntityParticipantCapability {
-                role: EntityParticipantRole::Attacker,
-                reliability: ParticipantReliability::Correlated,
-                lifetime: ParticipantLifetime::SynchronousDescendants,
-                occurrence: CapabilityOccurrence::OccurrenceDependent,
-                min_version: Some((1, 20, 2)),
-            }
-        }
-
-        #[test]
-        fn propagate_after_degrades_entity_lifetime_like_subject() {
-            let parent = ResolvedEventContextCapabilities {
-                subject: SubjectCapability::EXACT_PLAYER_INVOCATION,
-                entities: vec![EntityParticipantCapability {
-                    lifetime: ParticipantLifetime::Invocation,
-                    ..attacker_capability()
-                }],
-                items: vec![],
-                locations: vec![],
-            };
-            let child = full::propagate_after(parent);
-            assert_eq!(
-                child.entities[0].lifetime,
-                ParticipantLifetime::SynchronousDescendants
-            );
-            assert_eq!(
-                child.subject.lifetime,
-                ParticipantLifetime::SynchronousDescendants
-            );
-        }
-
-        #[test]
-        fn merge_after_any_keeps_only_roles_every_parent_agrees_on() {
-            let with_attacker = ResolvedEventContextCapabilities {
-                subject: SubjectCapability::EXACT_PLAYER_INVOCATION,
-                entities: vec![attacker_capability()],
-                items: vec![],
-                locations: vec![],
-            };
-            let without_attacker = ResolvedEventContextCapabilities {
-                subject: SubjectCapability::EXACT_PLAYER_INVOCATION,
-                entities: vec![],
-                items: vec![],
-                locations: vec![],
-            };
-            let merged =
-                full::merge_disjunctive_or_conjunctive(&[with_attacker, without_attacker]).unwrap();
-            assert!(
-                merged.entities.is_empty(),
-                "a role only one parent declares must not survive the merge"
-            );
-        }
-
-        #[test]
-        fn merge_rejects_conflicting_capability_for_the_same_role() {
-            let a = ResolvedEventContextCapabilities {
-                subject: SubjectCapability::EXACT_PLAYER_INVOCATION,
-                entities: vec![attacker_capability()],
-                items: vec![],
-                locations: vec![],
-            };
-            let b = ResolvedEventContextCapabilities {
-                subject: SubjectCapability::EXACT_PLAYER_INVOCATION,
-                entities: vec![EntityParticipantCapability {
-                    reliability: ParticipantReliability::Inferred,
-                    ..attacker_capability()
-                }],
-                items: vec![],
-                locations: vec![],
-            };
-            let err = full::merge_disjunctive_or_conjunctive(&[a, b]).unwrap_err();
-            assert_eq!(
-                err,
-                ContextMergeError::ConflictingEntityCapability {
-                    role: EntityParticipantRole::Attacker
-                }
-            );
-        }
-
-        #[test]
-        fn propagate_within_drops_all_entity_and_item_participants() {
-            let parent = ResolvedEventContextCapabilities {
-                subject: SubjectCapability::EXACT_PLAYER_INVOCATION,
-                entities: vec![attacker_capability()],
-                items: vec![],
-                locations: vec![],
-            };
-            let child = full::propagate_within(parent);
-            assert!(child.entities.is_empty());
-            assert_eq!(child.subject.lifetime, ParticipantLifetime::EventCycle);
-        }
     }
 }

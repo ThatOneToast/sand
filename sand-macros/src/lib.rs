@@ -170,6 +170,14 @@ fn build_cmd_body(block: &syn::Block) -> syn::Result<proc_macro2::TokenStream> {
 ///     cmd::say("Enjoy your stay!");
 /// }
 /// ```
+///
+/// # Resource path syntax
+///
+/// An explicit path override (`#[function("path")]` or
+/// `#[function("namespace:path")]`) must follow Minecraft resource-location
+/// rules: namespace `[a-z0-9_.-]+`, path `[a-z0-9_./-]+`. Empty strings,
+/// uppercase letters, whitespace, and multiple colons are rejected at compile
+/// time with a diagnostic pointing at the offending literal.
 #[proc_macro_attribute]
 pub fn function(attr: TokenStream, item: TokenStream) -> TokenStream {
     let attr = parse_function_attr(attr);
@@ -224,9 +232,7 @@ fn validate_macro_resource_path(lit: &LitStr, context: &str) -> syn::Result<()> 
         if path.is_empty() {
             return Err(syn::Error::new_spanned(
                 lit,
-                format!(
-                    "invalid resource path in {context}: path must not be empty in `{value}`"
-                ),
+                format!("invalid resource path in {context}: path must not be empty in `{value}`"),
             ));
         }
         if !path
@@ -421,6 +427,10 @@ fn expand_function(
 ///     cmd::say("player died");
 /// }
 /// ```
+///
+/// The tag string must be a valid resource location (`namespace:path` or
+/// `path`-only). Namespace must match `[a-z0-9_.-]+`, path must match
+/// `[a-z0-9_./-]+`.
 #[proc_macro_attribute]
 pub fn component(attr: TokenStream, item: TokenStream) -> TokenStream {
     let func = parse_macro_input!(item as ItemFn);
@@ -1716,6 +1726,10 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
 ///     .as_(Selector::all_players())
 ///     .run(run_fn!("hello_world:on_player_join"))
 /// ```
+///
+/// The name string must be a valid resource location (`namespace:path` or
+/// `path`-only). Namespace must match `[a-z0-9_.-]+`, path must match
+/// `[a-z0-9_./-]+`. Invalid strings are rejected at compile time.
 #[proc_macro]
 pub fn run_fn(input: TokenStream) -> TokenStream {
     match expand_run_fn(input) {

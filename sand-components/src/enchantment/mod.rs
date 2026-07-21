@@ -321,21 +321,11 @@ impl DatapackComponent for Enchantment {
         }
 
         if let Some(ref pi) = self.primary_items {
-            validation::validate_resource_location_str(
-                &self.location,
-                kind,
-                "primary_items",
-                pi,
-            )?;
+            validation::validate_resource_location_str(&self.location, kind, "primary_items", pi)?;
         }
 
         if let Some(ref ex) = self.exclusive_set {
-            validation::validate_resource_location_str(
-                &self.location,
-                kind,
-                "exclusive_set",
-                ex,
-            )?;
+            validation::validate_resource_location_str(&self.location, kind, "exclusive_set", ex)?;
         }
 
         if let Some(ref effects) = self.effects {

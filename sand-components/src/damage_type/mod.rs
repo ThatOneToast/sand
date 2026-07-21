@@ -92,6 +92,7 @@ pub struct DamageType {
     /// Translation key suffix for death messages (e.g. `"laser"` → `"death.attack.laser"`).
     message_id: String,
     /// Hunger exhaustion applied when this damage is taken (0.0–0.4 typical).
+    /// Must be finite and non-negative. No upper bound is enforced.
     exhaustion: f32,
     /// Whether the damage scales with difficulty.
     scaling: DamageScaling,

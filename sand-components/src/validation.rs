@@ -195,9 +195,7 @@ pub(crate) fn validate_resource_location_str(
                     location,
                     kind,
                     field,
-                    &format!(
-                        "{field} namespace must only contain [a-z0-9_.-] in `{value}`"
-                    ),
+                    &format!("{field} namespace must only contain [a-z0-9_.-] in `{value}`"),
                 ));
             }
             if path.is_empty() {
@@ -213,9 +211,7 @@ pub(crate) fn validate_resource_location_str(
                     location,
                     kind,
                     field,
-                    &format!(
-                        "{field} path must only contain [a-z0-9_./-] in `{value}`"
-                    ),
+                    &format!("{field} path must only contain [a-z0-9_./-] in `{value}`"),
                 ));
             }
         }

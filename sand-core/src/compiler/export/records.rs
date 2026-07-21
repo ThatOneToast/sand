@@ -785,4 +785,90 @@ mod tests {
         assert!(latest_record.content.contains("minecraft:entity_type"));
         assert_ne!(stable_record.content, latest_record.content);
     }
+
+    // ── Structured validation export integration (#138, #139, #140) ──────────
+
+    #[test]
+    fn invalid_damage_type_fails_at_record_boundary() {
+        let dt = sand_components::DamageType::new(test_rl("test", "spike"));
+        let err = component_to_record(&dt, None).unwrap_err().to_string();
+        assert!(err.contains("test:spike"), "{err}");
+        assert!(err.contains("damage_type"), "{err}");
+        assert!(err.contains("message_id"), "{err}");
+    }
+
+    #[test]
+    fn invalid_enchantment_fails_at_record_boundary() {
+        let ench = sand_components::Enchantment::new(test_rl("test", "swift_step"));
+        let err = component_to_record(&ench, None).unwrap_err().to_string();
+        assert!(err.contains("test:swift_step"), "{err}");
+        assert!(err.contains("enchantment"), "{err}");
+        assert!(err.contains("supported_items"), "{err}");
+    }
+
+    #[test]
+    fn invalid_instrument_fails_at_record_boundary() {
+        let inst = sand_components::Instrument::new(test_rl("test", "horn"));
+        let err = component_to_record(&inst, None).unwrap_err().to_string();
+        assert!(err.contains("test:horn"), "{err}");
+        assert!(err.contains("instrument"), "{err}");
+        assert!(err.contains("sound_event"), "{err}");
+    }
+
+    #[test]
+    fn invalid_jukebox_song_fails_at_record_boundary() {
+        let song = sand_components::JukeboxSong::new(test_rl("test", "theme"))
+            .sound_event("minecraft:music.disc.13")
+            .song_length(10.0)
+            .comparator_output(0);
+        let err = component_to_record(&song, None).unwrap_err().to_string();
+        assert!(err.contains("test:theme"), "{err}");
+        assert!(err.contains("jukebox_song"), "{err}");
+        assert!(err.contains("comparator_output"), "{err}");
+    }
+
+    #[test]
+    fn valid_damage_type_exports_deterministically() {
+        let dt = sand_components::DamageType::new(test_rl("test", "spike"))
+            .message_id("spike")
+            .exhaustion(0.1);
+        let a = component_to_record(&dt, None).unwrap();
+        let b = component_to_record(&dt, None).unwrap();
+        assert_eq!(a.content, b.content);
+        assert_eq!(a.dir, "damage_type");
+    }
+
+    #[test]
+    fn valid_enchantment_exports_deterministically() {
+        let ench = sand_components::Enchantment::new(test_rl("test", "swift_step"))
+            .description(serde_json::json!("Swift Step"))
+            .supported_items("#minecraft:enchantable/foot_armor")
+            .slot_typed(sand_components::EnchantmentSlot::Feet);
+        let a = component_to_record(&ench, None).unwrap();
+        let b = component_to_record(&ench, None).unwrap();
+        assert_eq!(a.content, b.content);
+        assert_eq!(a.dir, "enchantment");
+    }
+
+    #[test]
+    fn valid_instrument_exports_deterministically() {
+        let inst = sand_components::Instrument::new(test_rl("test", "horn"))
+            .sound_event("minecraft:item.goat_horn.sound.0");
+        let a = component_to_record(&inst, None).unwrap();
+        let b = component_to_record(&inst, None).unwrap();
+        assert_eq!(a.content, b.content);
+        assert_eq!(a.dir, "instrument");
+    }
+
+    #[test]
+    fn valid_jukebox_song_exports_deterministically() {
+        let song = sand_components::JukeboxSong::new(test_rl("test", "theme"))
+            .sound_event("minecraft:music.disc.13")
+            .song_length(178.0)
+            .comparator_output(5);
+        let a = component_to_record(&song, None).unwrap();
+        let b = component_to_record(&song, None).unwrap();
+        assert_eq!(a.content, b.content);
+        assert_eq!(a.dir, "jukebox_song");
+    }
 }

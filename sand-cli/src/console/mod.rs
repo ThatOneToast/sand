@@ -9,9 +9,12 @@
 //! - [`process`] owns the child process and event loop tying the above together.
 
 pub mod classify;
+pub mod dedup;
 pub mod diagnostic;
 pub mod log_record;
+pub mod phase;
 pub mod process;
 pub mod render;
 
 pub use process::{RunOutcome, run_server};
+pub use render::OutputMode;

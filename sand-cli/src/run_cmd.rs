@@ -5,6 +5,7 @@ use anyhow::{Context, Result, bail};
 use colored::Colorize;
 
 use crate::config::SandConfig;
+use crate::console::OutputMode;
 
 pub struct RunArgs {
     /// JVM max heap size, e.g. "4G" or "2048M". Used for both -Xmx and -Xms.
@@ -13,9 +14,8 @@ pub struct RunArgs {
     pub offline: bool,
     /// Skip `sand build`; use whatever is already in dist/.
     pub no_build: bool,
-    /// Stream the Minecraft server's raw, unfiltered log instead of Sand's
-    /// filtered console.
-    pub verbose: bool,
+    /// How to present the Minecraft server's log output.
+    pub server_log: OutputMode,
 }
 
 pub fn run(args: RunArgs) -> Result<()> {
@@ -128,7 +128,7 @@ pub fn run(args: RunArgs) -> Result<()> {
         .arg("nogui")
         .current_dir(&server_dir);
 
-    let outcome = crate::console::run_server(command, args.verbose, &mc_version)?;
+    let outcome = crate::console::run_server(command, args.server_log, &mc_version)?;
 
     if !outcome.exit_status.success() {
         let log_path = server_dir.join("logs").join("latest.log");

@@ -7,8 +7,11 @@
 //! continuation lines without depending on any single Minecraft version's
 //! exact wording.
 
+use serde::Serialize;
+
 use super::classify::Category;
 use super::log_record::{LogRecord, Stream};
+use super::phase::RunPhase;
 
 /// A headline line plus any continuation lines folded into it.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -90,19 +93,60 @@ impl Grouper {
 
 // ── Diagnostic extraction ────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Severity {
     Warning,
     Error,
 }
 
+/// A stable classification of *what kind* of failure a [`Diagnostic`]
+/// represents, independent of the free-form `reason` text. Kept
+/// conservative: [`DiagnosticCode::Unclassified`] is the safe default for
+/// any recognized-as-a-problem line that doesn't confidently match one of
+/// the named categories, rather than guessing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DiagnosticCode {
+    /// A generated `.mcfunction` command failed to parse, at load time.
+    CommandParseError,
+    /// A datapack JSON/component document (advancement, recipe, loot
+    /// table, predicate, item modifier, dialog, worldgen, ...) failed to
+    /// parse or validate.
+    JsonComponentError,
+    /// A referenced function, tag, predicate, recipe, loot table,
+    /// advancement, dialog, or other registry entry does not exist.
+    MissingReference,
+    /// The datapack (or one of its packs) uses an incompatible/unsupported
+    /// pack format, or duplicates another pack's resources.
+    PackFormatIncompatible,
+    /// A `/reload` (or the reload portion of startup) failed.
+    ReloadFailure,
+    /// The server process failed to start: wrong Java version, missing
+    /// Java, port already bound, world already locked, or EULA not
+    /// accepted.
+    StartupFailure,
+    /// The server process exited unexpectedly (crash, uncaught exception).
+    ProcessExited,
+    /// A command failed after a successful reload, issued directly at
+    /// runtime (console/operator input) rather than during load-time
+    /// function parsing.
+    RuntimeCommandError,
+    /// Recognized as an error/warning worth surfacing, but not confidently
+    /// matched to any of the categories above.
+    Unclassified,
+}
+
 /// A compact, actionable summary of a recognized datapack failure, built
-/// from a [`GroupedEvent`]. Every field is `Option` (except `severity` and
-/// `reason`) because we only ever report what Minecraft's own output
-/// supports — we never invent a path, position, or hint.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// from a [`GroupedEvent`]. Every field is `Option` (except `severity`,
+/// `phase`, `code`, and `reason`) because we only ever report what
+/// Minecraft's own output supports — we never invent a path, position, or
+/// hint.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Diagnostic {
+    pub phase: RunPhase,
     pub severity: Severity,
+    pub code: DiagnosticCode,
     /// `namespace:path` resource identifier, when one appears in the log.
     pub resource: Option<String>,
     /// Datapack subsystem, e.g. `"function"`, `"recipe"`, `"loot_table"`.
@@ -121,12 +165,40 @@ pub struct Diagnostic {
     pub raw_lines: Vec<String>,
 }
 
+impl Diagnostic {
+    /// A stable-ish key used to deduplicate repeated copies of what is
+    /// semantically the same root failure (e.g. the same rejected command
+    /// logged once per tick). Built only from fields that identify *what*
+    /// failed, not incidental details like exact raw line contents.
+    pub fn fingerprint(&self) -> String {
+        format!(
+            "{:?}|{:?}|{}|{}|{}",
+            self.phase,
+            self.code,
+            self.resource.as_deref().unwrap_or(""),
+            self.position.as_deref().unwrap_or(""),
+            normalize_for_fingerprint(&self.reason),
+        )
+    }
+}
+
+/// Lowercase and collapse whitespace so trivially-different renderings of
+/// the same underlying message (e.g. differing internal spacing) still
+/// dedupe together.
+fn normalize_for_fingerprint(text: &str) -> String {
+    text.to_ascii_lowercase()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
 /// Build a [`Diagnostic`] from a grouped [`DatapackError`]/[`FatalError`]
-/// event. Returns `None` for other categories.
+/// event. Returns `None` for other categories. `phase` is the [`RunPhase`]
+/// active when this group's headline was observed.
 ///
 /// [`DatapackError`]: Category::DatapackError
 /// [`FatalError`]: Category::FatalError
-pub fn build_diagnostic(group: &GroupedEvent) -> Option<Diagnostic> {
+pub fn build_diagnostic(group: &GroupedEvent, phase: RunPhase) -> Option<Diagnostic> {
     if !matches!(
         group.category,
         Category::DatapackError | Category::FatalError
@@ -168,9 +240,12 @@ pub fn build_diagnostic(group: &GroupedEvent) -> Option<Diagnostic> {
     let context = extract_context_line(&group.lines);
     let reason = extract_reason(text);
     let hint = build_hint(subsystem, text);
+    let code = detect_code(group.category, phase, subsystem, text);
 
     Some(Diagnostic {
+        phase,
         severity,
+        code,
         resource,
         subsystem: subsystem.map(str::to_string),
         file,
@@ -180,6 +255,101 @@ pub fn build_diagnostic(group: &GroupedEvent) -> Option<Diagnostic> {
         hint,
         raw_lines: group.lines.iter().map(|l| l.raw.clone()).collect(),
     })
+}
+
+const MISSING_REFERENCE_MARKERS: &[&str] = &[
+    "unknown function",
+    "unknown recipe",
+    "unknown advancement",
+    "unknown loot table",
+    "unknown predicate",
+    "unknown tag",
+    "unable to resolve",
+    "no such function",
+    "no function tag",
+];
+
+const PACK_FORMAT_MARKERS: &[&str] = &[
+    "was designed for a newer version",
+    "was designed for an older version",
+    "requires format",
+    "incompatible pack",
+    "duplicate data pack",
+];
+
+const RELOAD_FAILURE_MARKERS: &[&str] = &["failed to reload", "reload failed"];
+
+const STARTUP_FAILURE_MARKERS: &[&str] = &[
+    "failed to bind to port",
+    "address already in use",
+    "unsupported class file version",
+    "unsupportedclassversionerror",
+    "requires using java",
+    "has been compiled by a more recent version of the java runtime",
+    "the world is currently being played",
+    "perhaps a server is already running",
+    "you need to agree to the eula",
+];
+
+/// Classify *what kind* of failure this diagnostic represents. Order
+/// matters: more specific markers are checked before falling back to the
+/// generic subsystem-based command/JSON split, and `phase` disambiguates a
+/// command failure at runtime from the same wording during load-time
+/// function parsing.
+fn detect_code(
+    category: Category,
+    phase: RunPhase,
+    subsystem: Option<&str>,
+    text: &str,
+) -> DiagnosticCode {
+    let lower = text.to_ascii_lowercase();
+
+    if contains_any(&lower, STARTUP_FAILURE_MARKERS) {
+        return DiagnosticCode::StartupFailure;
+    }
+    if contains_any(&lower, MISSING_REFERENCE_MARKERS) {
+        return DiagnosticCode::MissingReference;
+    }
+    if contains_any(&lower, PACK_FORMAT_MARKERS) {
+        return DiagnosticCode::PackFormatIncompatible;
+    }
+    if contains_any(&lower, RELOAD_FAILURE_MARKERS) || phase == RunPhase::Reload {
+        return DiagnosticCode::ReloadFailure;
+    }
+
+    if category == Category::FatalError {
+        return DiagnosticCode::ProcessExited;
+    }
+
+    match subsystem {
+        Some("function") => {
+            if lower.contains("couldn't parse command") || lower.contains("invalid function") {
+                if phase == RunPhase::Runtime {
+                    DiagnosticCode::RuntimeCommandError
+                } else {
+                    DiagnosticCode::CommandParseError
+                }
+            } else {
+                DiagnosticCode::CommandParseError
+            }
+        }
+        Some(_) => DiagnosticCode::JsonComponentError,
+        None => {
+            if lower.contains("couldn't parse command") {
+                if phase == RunPhase::Runtime {
+                    DiagnosticCode::RuntimeCommandError
+                } else {
+                    DiagnosticCode::CommandParseError
+                }
+            } else {
+                DiagnosticCode::Unclassified
+            }
+        }
+    }
+}
+
+fn contains_any(haystack_lower: &str, needles: &[&str]) -> bool {
+    needles.iter().any(|n| haystack_lower.contains(n))
 }
 
 /// Scan for a `namespace:path` resource identifier using vanilla's allowed
@@ -352,13 +522,14 @@ mod tests {
         ]);
         assert_eq!(events.len(), 1);
 
-        let diag = build_diagnostic(&events[0]).unwrap();
+        let diag = build_diagnostic(&events[0], RunPhase::ServerStartup).unwrap();
         assert_eq!(diag.resource.as_deref(), Some("arcane:combat/dash"));
         assert_eq!(diag.subsystem.as_deref(), Some("function"));
         assert_eq!(
             diag.file.as_deref(),
             Some("dist/arcane/data/arcane/function/combat/dash.mcfunction")
         );
+        assert_eq!(diag.code, DiagnosticCode::CommandParseError);
     }
 
     #[test]
@@ -367,7 +538,7 @@ mod tests {
             "[12:00:00] [Server thread/WARN]: Function arcane:combat/dash failed execution due to: command 4 invalid",
             "execute as @a run particle minecraft:cloud ~ ~ ~ 0 0 0 1 5",
         ]);
-        let diag = build_diagnostic(&events[0]).unwrap();
+        let diag = build_diagnostic(&events[0], RunPhase::ServerStartup).unwrap();
         assert_eq!(diag.position.as_deref(), Some("command 4"));
         assert_eq!(
             diag.context.as_deref(),
@@ -382,7 +553,7 @@ mod tests {
         let events =
             group_lines(&["[12:00:00] [Server thread/INFO]: Loaded recipe arcane:combat/dash"]);
         assert_eq!(events[0].category, Category::Visible);
-        assert!(build_diagnostic(&events[0]).is_none());
+        assert!(build_diagnostic(&events[0], RunPhase::Runtime).is_none());
     }
 
     #[test]
@@ -402,8 +573,65 @@ mod tests {
         let events = group_lines(&[
             "[12:00:00] [Server thread/WARN]: Skipping loading recipe minecraft:foo",
         ]);
-        let diag = build_diagnostic(&events[0]).unwrap();
+        let diag = build_diagnostic(&events[0], RunPhase::ServerStartup).unwrap();
         assert!(diag.position.is_none());
         assert!(diag.context.is_none());
+    }
+
+    #[test]
+    fn classifies_missing_reference_distinctly_from_parse_error() {
+        let events = group_lines(&[
+            "[12:00:00] [Server thread/WARN]: Unknown function tag arcane:combat/dash",
+        ]);
+        let diag = build_diagnostic(&events[0], RunPhase::ServerStartup).unwrap();
+        assert_eq!(diag.code, DiagnosticCode::MissingReference);
+    }
+
+    #[test]
+    fn classifies_startup_failure_regardless_of_subsystem() {
+        let events =
+            group_lines(&["[12:00:00] [Server thread/ERROR]: **** FAILED TO BIND TO PORT!"]);
+        let diag = build_diagnostic(&events[0], RunPhase::ServerStartup).unwrap();
+        assert_eq!(diag.code, DiagnosticCode::StartupFailure);
+    }
+
+    #[test]
+    fn same_command_failure_is_runtime_error_after_ready_but_parse_error_before() {
+        let events = group_lines(&[
+            "[12:00:00] [Server thread/WARN]: Couldn't parse command: execute as @a run dash",
+        ]);
+        let startup = build_diagnostic(&events[0], RunPhase::ServerStartup).unwrap();
+        assert_eq!(startup.code, DiagnosticCode::CommandParseError);
+
+        let runtime = build_diagnostic(&events[0], RunPhase::Runtime).unwrap();
+        assert_eq!(runtime.code, DiagnosticCode::RuntimeCommandError);
+    }
+
+    #[test]
+    fn fingerprint_ignores_incidental_whitespace_but_distinguishes_resource() {
+        let a = build_diagnostic(
+            &group_lines(&[
+                "[12:00:00] [Server thread/WARN]: Error loading function arcane:combat/dash",
+            ])[0],
+            RunPhase::ServerStartup,
+        )
+        .unwrap();
+        let b = build_diagnostic(
+            &group_lines(&[
+                "[12:00:05] [Server thread/WARN]: Error loading function arcane:combat/dash",
+            ])[0],
+            RunPhase::ServerStartup,
+        )
+        .unwrap();
+        let c = build_diagnostic(
+            &group_lines(&[
+                "[12:00:05] [Server thread/WARN]: Error loading function arcane:combat/dodge",
+            ])[0],
+            RunPhase::ServerStartup,
+        )
+        .unwrap();
+
+        assert_eq!(a.fingerprint(), b.fingerprint());
+        assert_ne!(a.fingerprint(), c.fingerprint());
     }
 }

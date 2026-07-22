@@ -21,9 +21,9 @@ use super::dialogs::{
 use super::events::{
     ChildPostObservation, CustomDispatchBackend, apply_participants_to_setup, build_child_edge,
     build_dispatch_function, build_staged_occurrence_lines, build_staged_post_observation_line,
-    check_event_trigger, participant_plan_export_error, resolve_custom_dispatch_backend,
-    resolve_participant_profile, setup_objective_owner, tick_event_export_error,
-    xp_advance_command, xp_score_commands,
+    check_event_trigger, participant_accessor_panic_export_error, participant_plan_export_error,
+    resolve_custom_dispatch_backend, resolve_participant_profile, setup_objective_owner,
+    tick_event_export_error, xp_advance_command, xp_score_commands,
 };
 use super::functions::{drain_dynamic_functions_into, resolve_local_refs};
 use super::lifecycle::{
@@ -36,6 +36,68 @@ use super::predicates::{
 use super::records::{ComponentRecord, ExportResult, component_to_record};
 use super::schedules::{schedule_key, schedule_tick_commands};
 use super::tags::{dedupe_preserve_order, sort_function_tag_entries};
+use std::sync::{Arc, Mutex};
+
+/// Process-global lock guarding the panic-hook swap in
+/// [`invoke_event_handler_body`] — `std::panic::set_hook`/`take_hook` are
+/// process-wide, not thread-local, so concurrent exports (e.g. two `#[test]`
+/// functions in the same test binary calling `try_export_components_json`
+/// on separate threads) must not interleave their hook install/restore or
+/// one could clobber or lose the other's saved previous hook.
+static PARTICIPANT_PANIC_HOOK_LOCK: Mutex<()> = Mutex::new(());
+
+/// Invoke `desc.make()` — the generated command-body factory for one
+/// `#[event]` handler — with a panic-catching boundary specifically for
+/// [`crate::participant::diagnostic::MissingParticipantPanic`] (#280 item
+/// 2): an infallible participant accessor (`event.killer()`/`.weapon()`/…,
+/// or the bare-`SandEvent` equivalent via `SandEventParticipants`) that
+/// resolves to `Unavailable` panics with that payload — see
+/// [`crate::participant::plan::EventParticipantPlan::require_entity`]'s doc
+/// — rather than a plain string, precisely so this boundary can convert it
+/// into a structured `SAND-EVENT-PARTICIPANT` diagnostic instead of letting
+/// a raw, unhandled panic (and Rust's default backtrace-shaped output,
+/// which is not informative for a non-string payload) reach a `sand build`
+/// user. `desc.path` supplies the one piece of context the panic itself
+/// cannot know: which `#[event]` handler was executing.
+///
+/// Any other panic (a genuine bug, unrelated to participants) is passed
+/// through to the previous hook for printing and then resumed unchanged via
+/// [`std::panic::resume_unwind`] — this boundary never silently swallows an
+/// unrelated panic or lets export continue with partial/wrong output for
+/// one.
+fn invoke_event_handler_body(desc: &crate::function::EventDescriptor) -> ExportResult<Vec<String>> {
+    let _guard = PARTICIPANT_PANIC_HOOK_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+
+    let previous_hook: Arc<dyn Fn(&std::panic::PanicHookInfo<'_>) + Sync + Send> =
+        Arc::from(std::panic::take_hook());
+    let hook_for_closure = Arc::clone(&previous_hook);
+    std::panic::set_hook(Box::new(move |info| {
+        if info
+            .payload()
+            .downcast_ref::<crate::participant::diagnostic::MissingParticipantPanic>()
+            .is_none()
+        {
+            (hook_for_closure)(info);
+        }
+    }));
+
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| (desc.make)()));
+
+    // Restore exactly what was active before, regardless of outcome.
+    std::panic::set_hook(Box::new(move |info| (previous_hook)(info)));
+
+    match result {
+        Ok(commands) => Ok(commands),
+        Err(payload) => {
+            match payload.downcast::<crate::participant::diagnostic::MissingParticipantPanic>() {
+                Ok(panic) => Err(participant_accessor_panic_export_error(desc.path, &panic)),
+                Err(payload) => std::panic::resume_unwind(payload),
+            }
+        }
+    }
+}
 
 pub(crate) fn try_export_components_impl(
     namespace: &str,
@@ -145,8 +207,13 @@ pub(crate) fn try_export_components_impl(
     let mut armor_watch_map: BTreeMap<ArmorWatchKey, ArmorWatchEntry> = BTreeMap::new();
 
     for desc in inventory::iter::<EventDescriptor>() {
-        // Always emit the handler function body first.
-        let commands = (desc.make)();
+        // Always emit the handler function body first. Routed through
+        // `invoke_event_handler_body` (#280 item 2) rather than calling
+        // `(desc.make)()` directly, so a `MissingParticipantPanic` raised by
+        // an infallible participant accessor inside this handler's body
+        // becomes a structured `SAND-EVENT-PARTICIPANT` diagnostic instead
+        // of an unhandled panic.
+        let commands = invoke_event_handler_body(desc)?;
 
         match &desc.dispatch {
             // ── Advancement-backed ────────────────────────────────────────────

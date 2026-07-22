@@ -48,6 +48,8 @@ fn child_chain() -> Option<ChainEventDispatch> {
             event_type_name: advancement_parent_type_name,
             event_dispatch: advancement_parent_dispatch,
             event_setup: EventSetup::none,
+            event_raw_setup: EventSetup::none,
+            event_participants: || sand_core::participant::EventParticipantPlan::none(),
             event_revoke: || true,
         })],
         persistent: vec![],

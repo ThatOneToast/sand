@@ -5,7 +5,8 @@
 
 use sand_core::condition::Condition;
 use sand_core::events::{
-    ChainEventDispatch, EventSetup, SandEvent, SandEventDispatch, TickEventDispatch,
+    ChainEventDispatch, EventSetup, SandEvent, SandEventDispatch, SandEventParticipants,
+    TickEventDispatch,
 };
 use sand_core::participant::role::ParticipantHand;
 use sand_core::participant::{EventParticipantPlan, ItemParticipantRole};
@@ -102,14 +103,10 @@ submit_handler!(Child, "on_child", "say child fired");
 
 #[test]
 fn child_resolves_to_roots_exact_snapshot_storage() {
-    let root_snapshot = Root::participants()
-        .resolve_item(std::any::type_name::<Root>(), ItemParticipantRole::Weapon)
-        .available()
-        .expect("Root directly captures the weapon");
-    let child_snapshot = Child::participants()
-        .resolve_item(std::any::type_name::<Child>(), ItemParticipantRole::Weapon)
-        .available()
-        .expect("Child inherits the weapon from Root");
+    // #273: `.weapon()` (via the blanket `SandEventParticipants` impl) is
+    // the same infallible accessor real handler code uses.
+    let root_snapshot = Root.weapon();
+    let child_snapshot = Child.weapon();
 
     assert_eq!(
         child_snapshot.item_path().as_str(),

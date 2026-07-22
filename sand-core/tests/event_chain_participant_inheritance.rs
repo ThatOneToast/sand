@@ -9,7 +9,8 @@
 
 use sand_core::condition::Condition;
 use sand_core::events::{
-    ChainEventDispatch, EventSetup, SandEvent, SandEventDispatch, TickEventDispatch,
+    ChainEventDispatch, EventSetup, SandEvent, SandEventDispatch, SandEventParticipants,
+    TickEventDispatch,
 };
 use sand_core::participant::{EntityParticipantRole, EventParticipantPlan};
 use sand_core::{EventDescriptor, EventDispatch};
@@ -182,46 +183,23 @@ fn root_captures_the_attacker_directly() {
 fn siblings_both_resolve_to_roots_exact_tag() {
     // Neither child generates its own attacker capture — inherited entries
     // contribute zero setup commands (see `EventParticipantPlan::inherit_entity`).
-    // The proof that inheritance actually works is that when each sibling's
-    // *handler body itself* would reference the resolved selector (via
-    // `Event::attacker()`/`EventParticipantPlan::resolve` in real user code),
-    // it reconstructs the identical tag Root's own setup created — verified
-    // here directly against the plan, the same mechanism `Event::attacker()`
-    // calls through.
-    let root_selector = Root::participants().resolve(
-        std::any::type_name::<Root>(),
-        EntityParticipantRole::Attacker,
-    );
-    let child_a_selector = ChildA::participants().resolve(
-        std::any::type_name::<ChildA>(),
-        EntityParticipantRole::Attacker,
-    );
-    let child_b_selector = ChildB::participants().resolve(
-        std::any::type_name::<ChildB>(),
-        EntityParticipantRole::Attacker,
-    );
-    let grandchild_selector = Grandchild::participants().resolve(
-        std::any::type_name::<Grandchild>(),
-        EntityParticipantRole::Attacker,
-    );
-
-    let root_tag = root_selector.available().unwrap().selector().to_string();
+    // The proof that inheritance actually works is that each sibling's own
+    // infallible `.attacker()` accessor (#273, via the blanket
+    // `SandEventParticipants` impl — the exact same call shape real handler
+    // code uses) reconstructs the identical tag Root's own setup created.
+    let root_tag = Root.attacker().selector().to_string();
     assert_eq!(
-        child_a_selector.available().unwrap().selector().to_string(),
+        ChildA.attacker().selector().to_string(),
         root_tag,
         "ChildA must resolve to the exact same selector Root's own accessor resolves to"
     );
     assert_eq!(
-        child_b_selector.available().unwrap().selector().to_string(),
+        ChildB.attacker().selector().to_string(),
         root_tag,
         "ChildB (sibling) must resolve to the same selector as ChildA"
     );
     assert_eq!(
-        grandchild_selector
-            .available()
-            .unwrap()
-            .selector()
-            .to_string(),
+        Grandchild.attacker().selector().to_string(),
         root_tag,
         "Grandchild (multi-hop, inherits directly from Root) must resolve to the same selector"
     );

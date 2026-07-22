@@ -166,6 +166,7 @@ pub(crate) fn try_export_components_impl(
                 revoke,
                 guard,
                 make_participants,
+                event_type_name,
             } => {
                 let advancement_id = desc
                     .id_override
@@ -182,18 +183,35 @@ pub(crate) fn try_export_components_impl(
                 // sequence — so automatic integration means splicing the
                 // plan's commands directly around the user's own commands,
                 // exactly where the manual pattern already documented
-                // embedding them (`observation.rs`'s module doc). Keyed by
-                // `desc.path`: each `#[event]` handler on an
-                // advancement-backed type gets its own independent
-                // advancement + body, so there is no cross-handler tracker
-                // to deduplicate against here (unlike tick-lifecycle
-                // dispatch).
+                // embedding them (`observation.rs`'s module doc).
+                //
+                // Keyed by `event_type_name()` — the event's concrete type
+                // name — not `desc.path` (the handler's own function path).
+                // `Event<E>::entity`/`.item`/`.attacker`/… always resolve a
+                // declared participant against `std::any::type_name::<E>()`
+                // (`sand-core/src/event/mod.rs`), since that is the one
+                // label stable regardless of which of possibly several
+                // `#[event]` handlers on the same event type is asking.
+                // Keying by `desc.path` here instead (as this arm did before
+                // #280 item 4) generated setup commands under a tag/storage
+                // key the handler's own accessor call could never
+                // reconstruct — a real, previously-unnoticed mismatch: each
+                // handler's own `execute on attacker`-tagged entity was
+                // created under one key while `event.attacker()` inside that
+                // same handler's body resolved a selector built from a
+                // different key, so the accessor's selector never matched
+                // any entity the handler's own setup actually tagged. Each
+                // handler on a shared event type still gets its own
+                // independent advancement + body + setup/cleanup pass (no
+                // cross-handler tracker to deduplicate against, unlike
+                // tick-lifecycle dispatch) — they just now agree on what to
+                // call the thing they're each independently setting up.
                 let plan = make_participants();
                 let mut body_commands = commands.clone();
                 if !plan.is_empty() {
                     let profile = resolve_participant_profile(ctx);
                     let (setup, cleanup) = plan
-                        .build(desc.path, &profile)
+                        .build(event_type_name(), &profile)
                         .map_err(|err| participant_plan_export_error(desc.path, err))?;
                     body_commands = setup
                         .into_iter()
@@ -460,7 +478,11 @@ pub(crate) fn try_export_components_impl(
                     }
                     CustomDispatchBackend::Advancement(trigger) => {
                         // Advancement-backed custom (SandEvent) event.
-                        // Same entry/body split as the typed Advancement arm.
+                        // Same entry/body split as the typed Advancement arm,
+                        // including the same automatic participant-plan
+                        // splice around the body (previously this arm never
+                        // called `make_participants()` at all, silently
+                        // dropping any declared plan — see #280 item 4).
                         advancement_handler_type_ids.insert(event_type_id());
                         let advancement_id = desc
                             .id_override
@@ -471,13 +493,31 @@ pub(crate) fn try_export_components_impl(
                         let body_path = format!("{}/body", desc.path);
                         let body_fn_ref = format!("{namespace}:{body_path}");
 
+                        let plan = make_participants();
+                        participant_declarations.insert(
+                            event_type_name(),
+                            super::participant_transport::ParticipantDeclarations::from_plan(&plan),
+                        );
+                        let mut body_commands = commands.clone();
+                        if !plan.is_empty() {
+                            let profile = resolve_participant_profile(ctx);
+                            let (setup, cleanup) = plan
+                                .build(event_type_name(), &profile)
+                                .map_err(|err| participant_plan_export_error(desc.path, err))?;
+                            body_commands = setup
+                                .into_iter()
+                                .chain(body_commands)
+                                .chain(cleanup)
+                                .collect();
+                        }
+
                         records.push(ComponentRecord {
                             namespace: namespace.to_string(),
                             dir: "function".to_string(),
                             path: body_path,
                             ext: "mcfunction".to_string(),
                             content_type: "text".to_string(),
-                            content: commands.join("\n"),
+                            content: body_commands.join("\n"),
                         });
 
                         let mut entry: Vec<String> = Vec::new();

@@ -264,6 +264,21 @@ pub enum EventDispatch {
         /// end — see `sand-core/src/compiler/export/pipeline.rs`'s
         /// `EventDispatch::Advancement` handling.
         make_participants: fn() -> crate::participant::EventParticipantPlan,
+        /// Canonical concrete type name (`std::any::type_name::<T>()`) of
+        /// the `AdvancementEvent` type this handler subscribes to.
+        ///
+        /// Must be used (not `desc.path`/the handler's own function path) as
+        /// the label passed to `EventParticipantPlan::build` when applying
+        /// `make_participants()` — `Event<E>::entity`/`.item`/`.attacker`/…
+        /// (`sand-core/src/event/mod.rs`) always resolve a declared
+        /// participant against `std::any::type_name::<E>()`, since that is
+        /// the one label stable across every `#[event]` handler subscribed
+        /// to the same concrete event type. Using a per-handler label here
+        /// instead would generate setup commands under a tag/storage key the
+        /// handler's own accessor call can never reconstruct — a real,
+        /// previously-unnoticed mismatch this field exists to prevent
+        /// regressing (#280 item 4 audit).
+        event_type_name: fn() -> &'static str,
     },
 
     /// All-deaths detection via the `deathCount` scoreboard criterion.

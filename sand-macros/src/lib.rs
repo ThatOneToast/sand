@@ -1169,6 +1169,8 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                         guard: ::std::option::Option::None,
                         make_participants: (|| ::sand::__private::participant::EventParticipantPlan::none())
                             as fn() -> ::sand::__private::participant::EventParticipantPlan,
+                        event_type_name: (|| ::std::any::type_name::<#dispatch_type_tokens>())
+                            as fn() -> &'static str,
                     },
                 });
             }
@@ -1477,6 +1479,8 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                         revoke: #revoke_ident,
                         guard: ::std::option::Option::Some(#guard_ident),
                         make_participants: #participants_ident,
+                        event_type_name: (|| ::std::any::type_name::<#dispatch_type_tokens>())
+                            as fn() -> &'static str,
                     },
                 });
 

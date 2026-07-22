@@ -35,13 +35,29 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-registry-
 
-      - name: Cache build artifacts
-        uses: actions/cache@v4
-        with:
-          path: target
-          key: ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-build-
+      # No `target/` build-artifact cache here by design (see #280 item 1):
+      # this repo's own cache usage grew to ~12 GiB across three
+      # `Linux-cargo-build-*` entries (one per distinct Cargo.lock hash,
+      # ~3-4 GiB each — Cargo.lock changes on nearly every PR, so
+      # `restore-keys` fallback meant each new lockfile hash both restored a
+      # stale multi-GiB blob *and* saved a fresh one, unbounded), pushing the
+      # repo past GitHub's 10 GiB per-repo cache cap and, on this job
+      # specifically, past the runner's actual free disk — extracting a
+      # ~4 GiB cache tarball into `target/` before *any* of this job's own
+      # compilation even starts left too little headroom for the
+      # stable+latest codegen test builds, clippy, build, workspace tests,
+      # macro trybuild, and rustdoc steps below (all sharing one `target/`)
+      # to complete, and the runner's own worker process crashed trying to
+      # flush its diagnostic log once the disk was actually full. The Cargo
+      # registry cache above is unaffected by this — it is small (~30 MiB)
+      # and does not grow per-lockfile the same way. If build-artifact
+      # caching is reintroduced, key it narrowly (e.g. per-crate
+      # `target/*/incremental` only) and monitor `gh api
+      # /repos/<owner>/<repo>/actions/cache/usage` rather than caching the
+      # whole `target/` directory again.
+
+      - name: Check available disk space
+        run: df -h /
 
       - name: Resolve verified codegen targets
         id: codegen-versions

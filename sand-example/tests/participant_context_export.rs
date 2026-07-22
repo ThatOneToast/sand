@@ -42,7 +42,7 @@ fn combat_participant_plans_export_deterministically_and_wrap_the_body() {
         .find("execute on attacker run")
         .expect("attacker plan mark/bind is spliced into the body");
     let handler_pos = attacker_body
-        .find("# attacker available")
+        .find("# attacker =")
         .expect("the handler's own command is present");
     let cleanup_pos = attacker_body
         .find("tag @e[tag=__sand_observed_")
@@ -63,7 +63,7 @@ fn combat_participant_plans_export_deterministically_and_wrap_the_body() {
         .find("SelectedItem")
         .expect("weapon snapshot capture (mainhand) is spliced into the body");
     let weapon_handler_pos = weapon_body
-        .find("# weapon available")
+        .find("# weapon storage")
         .expect("the handler's own command is present");
     assert!(
         capture_pos < weapon_handler_pos,

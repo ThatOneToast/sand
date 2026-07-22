@@ -414,13 +414,44 @@ pub(crate) fn try_export_components_impl(
                         // `SandEvent` (e.g. `EffectStarted<Speed>`). Shares
                         // the exact same generated-provider path as built-in
                         // `EventDispatch::Tracked` handlers.
+                        //
+                        // #270: `make_participants()` must be applied here —
+                        // previously it (and `make_setup()`) were never
+                        // called at all for this backend, so a tracked
+                        // event's own declared participant plan was silently
+                        // dropped. Detection itself is shared, per-tracker
+                        // infrastructure the transition provider owns (not
+                        // any one handler), so — unlike tick-lifecycle/chain
+                        // dispatch, which splices into a per-event detector
+                        // function — setup/cleanup wrap this handler's own
+                        // generated body directly, the same way the typed
+                        // `EventDispatch::Advancement` arm above does: they
+                        // run exactly when (and only when) the transition
+                        // detector actually invokes this handler.
+                        let plan = make_participants();
+                        participant_declarations.insert(
+                            event_type_name(),
+                            super::participant_transport::ParticipantDeclarations::from_plan(&plan),
+                        );
+                        let mut body_commands = commands.clone();
+                        if !plan.is_empty() {
+                            let profile = resolve_participant_profile(ctx);
+                            let (setup, cleanup) = plan
+                                .build(event_type_name(), &profile)
+                                .map_err(|err| participant_plan_export_error(desc.path, err))?;
+                            body_commands = setup
+                                .into_iter()
+                                .chain(body_commands)
+                                .chain(cleanup)
+                                .collect();
+                        }
                         records.push(ComponentRecord {
                             namespace: namespace.to_string(),
                             dir: "function".to_string(),
                             path: desc.path.to_string(),
                             ext: "mcfunction".to_string(),
                             content_type: "text".to_string(),
-                            content: commands.join("\n"),
+                            content: body_commands.join("\n"),
                         });
                         transition_handlers.push(crate::transition::TransitionHandler {
                             path: desc.path.to_string(),
@@ -988,6 +1019,19 @@ pub(crate) fn try_export_components_impl(
         graph
             .validate_dependencies()
             .map_err(|e| tick_event_export_error(e.0))?;
+        // #269: a bridge parent's own plan is now a valid inherit source
+        // (its commands are actually applied around the synthesized bridge
+        // entry, below) — record it the same way every other backend
+        // records its own plan, so `validate_participant_transport` can
+        // confirm a child's `inherit_entity::<BridgeParent>(...)` names a
+        // role the bridge parent genuinely captures directly.
+        for bridge in graph.advancement_bridges.values() {
+            let plan = (bridge.event_participants)();
+            participant_declarations.insert(
+                bridge.type_name,
+                super::participant_transport::ParticipantDeclarations::from_plan(&plan),
+            );
+        }
         super::participant_transport::validate_participant_transport(
             &graph,
             &participant_declarations,
@@ -1521,6 +1565,15 @@ pub(crate) fn try_export_components_impl(
         // dispatch) — a dependent child's own `EventSetup` is unaffected and
         // still applied normally, since the child remains an ordinary graph
         // node.
+        //
+        // #269: the bridge parent's own `participants()` plan *is* now
+        // consulted — see `event_participants` below — and its setup/cleanup
+        // commands are spliced directly around the dependent dispatch lines,
+        // since this synthesized entry (not any per-tick detector) is the
+        // only generated function this parent's occurrence ever runs
+        // through: participant setup, then every dependent (direct handlers
+        // are disallowed on a bridged type, so only chained descendants),
+        // then cleanup, after every synchronous descendant has run.
         for (parent_name, bridge) in &graph.advancement_bridges {
             let children = graph.children_of(parent_name);
             let mut bridge_cmds = Vec::new();
@@ -1534,6 +1587,19 @@ pub(crate) fn try_export_components_impl(
                     &mut guarded_children,
                     &mut records,
                 ));
+            }
+
+            let plan = (bridge.event_participants)();
+            if !plan.is_empty() {
+                let profile = resolve_participant_profile(ctx);
+                let (setup, cleanup) = plan
+                    .build(parent_name, &profile)
+                    .map_err(|err| participant_plan_export_error(parent_name, err))?;
+                bridge_cmds = setup
+                    .into_iter()
+                    .chain(bridge_cmds)
+                    .chain(cleanup)
+                    .collect();
             }
 
             let key = tick_event_resource_key(parent_name);

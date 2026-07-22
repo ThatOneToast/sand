@@ -47,6 +47,9 @@
 //!   `EventSetup::with_participants` from their own `setup()`. Also covers
 //!   held-item snapshots (`observe_weapon`/`observe_held_item`), backed by
 //!   [`crate::item::ItemSnapshot`].
+//! - [`builder::ParticipantBuilder`] — the public, ordinary-Rust builder for
+//!   declaring a plan (#273); see its module doc for the full
+//!   observe/inherit/advancement-bridge model with worked examples.
 //!
 //! See `docs/testing/participant-role-evidence.md` for the full role
 //! support matrix (backend, reliability, evidence, unavailable reasons) and
@@ -54,6 +57,7 @@
 //! the user-facing summary.
 
 pub mod availability;
+pub mod builder;
 pub mod capabilities;
 pub mod lifetime;
 pub mod observation;
@@ -63,6 +67,7 @@ pub mod reliability;
 pub mod role;
 
 pub use availability::{ParticipantAvailability, ParticipantUnavailableReason};
+pub use builder::ParticipantBuilder;
 pub use capabilities::{
     ContextMergeError, EventContextCapabilities, SubjectCapability, SubjectScope,
 };

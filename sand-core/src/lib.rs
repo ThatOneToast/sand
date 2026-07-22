@@ -189,6 +189,7 @@ pub use events::{
     RecipeUnlockEvent,
     SandEvent,
     SandEventDispatch,
+    SandEventParticipants,
     ShotCrossbowEvent,
     SlideDownBlockEvent,
     StartRidingEvent,

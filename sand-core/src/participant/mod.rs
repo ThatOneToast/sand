@@ -59,6 +59,7 @@
 pub mod availability;
 pub mod builder;
 pub mod capabilities;
+pub(crate) mod diagnostic;
 pub mod lifetime;
 pub mod observation;
 pub mod plan;

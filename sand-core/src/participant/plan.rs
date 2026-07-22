@@ -580,17 +580,25 @@ impl EventParticipantPlan {
     ///
     /// # Panics
     ///
-    /// Panics with an actionable message if `role` was not declared on this
-    /// plan. This is a fully local, immediately-knowable authoring mistake —
-    /// a concrete event's `participants()` is a `fn() -> EventParticipantPlan`
-    /// resolved once per event type, so whether a role is declared is a
-    /// static fact about that one function, not something that depends on
-    /// game state. `sand build`'s mandatory graph validation is expected to
-    /// catch this earlier, before any output is written (missing/ambiguous
-    /// participant access is reported there with the event, handler, and
-    /// requested role); this panic is the internal safety net for the rare
-    /// case a mistake reaches codegen without going through that path.
-    #[track_caller]
+    /// Panics (via [`std::panic::panic_any`] with a
+    /// [`crate::participant::diagnostic::MissingParticipantPanic`] payload,
+    /// not a plain string) if `role` was not declared on this plan. This is
+    /// a fully local, immediately-knowable authoring mistake — a concrete
+    /// event's `participants()` is a `fn() -> EventParticipantPlan` resolved
+    /// once per event type, so whether a role is declared is a static fact
+    /// about that one function, not something that depends on game state.
+    /// `sand build`'s mandatory graph validation is expected to catch this
+    /// earlier, before any output is written (missing/ambiguous participant
+    /// access is reported there with the event, handler, and requested
+    /// role); this panic is the internal safety net for the rare case a
+    /// mistake reaches codegen without going through that path — the export
+    /// pipeline's handler-invocation boundary
+    /// (`sand-core/src/compiler/export/pipeline.rs`'s
+    /// `invoke_event_handler_body`) catches it and converts it into a
+    /// structured `SAND-EVENT-PARTICIPANT` diagnostic naming the handler
+    /// (this method has no notion of which `#[event]` handler is calling
+    /// it, only the boundary does), never letting it reach a user as a raw,
+    /// unhandled panic.
     pub(crate) fn require_entity(
         &self,
         event_label: &str,
@@ -598,19 +606,18 @@ impl EventParticipantPlan {
     ) -> EntityParticipant {
         match self.resolve(event_label, role) {
             ParticipantAvailability::Available(participant) => participant,
-            ParticipantAvailability::Unavailable(reason) => panic!(
-                "`{event_label}` does not provide the `{role:?}` entity participant ({}).\n\n\
-                 This accessor requires EntityParticipantRole::{role:?}.\n\
-                 Declare it directly with `ParticipantBuilder::new().observe_entity(EntityParticipantRole::{role:?})`, \
-                 inherit it from an ancestor with `.inherit_entity::<Source>(EntityParticipantRole::{role:?})`, \
-                 or use an event that provides it.",
-                reason.description()
-            ),
+            ParticipantAvailability::Unavailable(reason) => {
+                std::panic::panic_any(crate::participant::diagnostic::MissingParticipantPanic {
+                    kind: crate::participant::diagnostic::ParticipantAccessorKind::Entity,
+                    event_label: event_label.to_string(),
+                    role_debug: format!("{role:?}"),
+                    reason: reason.description(),
+                })
+            }
         }
     }
 
     /// The item-participant counterpart to [`Self::require_entity`].
-    #[track_caller]
     pub(crate) fn require_item(
         &self,
         event_label: &str,
@@ -618,14 +625,14 @@ impl EventParticipantPlan {
     ) -> ItemSnapshot {
         match self.resolve_item(event_label, role) {
             ParticipantAvailability::Available(snapshot) => snapshot,
-            ParticipantAvailability::Unavailable(reason) => panic!(
-                "`{event_label}` does not provide the `{role:?}` item participant ({}).\n\n\
-                 This accessor requires ItemParticipantRole::{role:?}.\n\
-                 Declare it directly with `ParticipantBuilder::new().observe_item(ItemParticipantRole::{role:?}, hand)`, \
-                 inherit it from an ancestor with `.inherit_item::<Source>(ItemParticipantRole::{role:?}, hand)`, \
-                 or use an event that provides it.",
-                reason.description()
-            ),
+            ParticipantAvailability::Unavailable(reason) => {
+                std::panic::panic_any(crate::participant::diagnostic::MissingParticipantPanic {
+                    kind: crate::participant::diagnostic::ParticipantAccessorKind::Item,
+                    event_label: event_label.to_string(),
+                    role_debug: format!("{role:?}"),
+                    reason: reason.description(),
+                })
+            }
         }
     }
 }

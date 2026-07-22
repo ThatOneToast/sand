@@ -108,6 +108,52 @@ fn attacker_uuid_capture_uses_execute_at_the_typed_participant_handle() {
     );
 }
 
+#[test]
+fn typed_advancement_handler_accessor_resolves_the_exact_tag_its_own_setup_created() {
+    // Regression guard (#280 item 4 audit): `EventDispatch::Advancement`'s
+    // participant-plan splice previously keyed setup by `desc.path` (the
+    // handler's own function path) while `Event<E>::attacker()` always
+    // resolves against `std::any::type_name::<E>()` — two different
+    // strings, so the setup's own tag and the handler body's own
+    // `execute at @e[tag=...]` reference silently named two different,
+    // never-matching tags. A substring check (`.contains("execute at")`)
+    // cannot catch this; only comparing the *exact* tag from both sites can.
+    let records = records(&export());
+    let body = records
+        .iter()
+        .find(|r| r["dir"] == "function" && r["path"] == "audit_on_hurt_by_entity_a/body")
+        .and_then(|r| r["content"].as_str())
+        .expect("audit_on_hurt_by_entity_a/body function must exist");
+
+    let setup_tag_start = body
+        .find("tag @s add __sand_observed_")
+        .map(|i| i + "tag @s add ".len())
+        .expect("setup must mark the correlated attacker with a tag");
+    let setup_tag = &body[setup_tag_start..setup_tag_start + "__sand_observed_XXXXXXXX".len()];
+
+    let accessor_tag_start = body
+        .find("execute at @e[tag=__sand_observed_")
+        .map(|i| i + "execute at @e[tag=".len())
+        .expect("the handler's own .attacker() accessor must generate an `execute at` reference");
+    let accessor_tag = &body[accessor_tag_start..accessor_tag_start + "__sand_observed_XXXXXXXX".len()];
+
+    assert_eq!(
+        setup_tag, accessor_tag,
+        "the handler's own accessor must reference the exact tag its own setup created, not a \
+         differently-keyed one: {body}"
+    );
+
+    let cleanup_tag_start = body
+        .rfind("tag @e[tag=__sand_observed_")
+        .map(|i| i + "tag @e[tag=".len())
+        .expect("cleanup must remove the same tag");
+    let cleanup_tag = &body[cleanup_tag_start..cleanup_tag_start + "__sand_observed_XXXXXXXX".len()];
+    assert_eq!(
+        setup_tag, cleanup_tag,
+        "cleanup must remove the exact same tag setup created: {body}"
+    );
+}
+
 /// `if_(weapon.is_present()).then_all(...).else_all(...)` compiles to a call
 /// out to two separate generated branch functions rather than inline
 /// content — this helper follows the `execute if/unless ... run function

@@ -27,11 +27,14 @@
 //! [`sand::execute_when::if_`] builder over [`ItemSnapshot::is_present`] —
 //! ordinary Minecraft `execute if/unless`, not Rust control flow.
 
+// `SandEvent`/`SandEventDispatch`/`SandEventParticipants` and the participant
+// declaration vocabulary (`EntityParticipantRole`, `ItemParticipantRole`,
+// `ParticipantBuilder`, `ParticipantHand`) all come from the prelude (#273) —
+// only the concrete built-in vanilla event marker types need an explicit
+// `sand::events` import.
 use sand::events::{
-    EntityDamagePlayerEvent, EntityKillEvent, PlayerDamageEntityEvent, PlayerKillEvent, SandEvent,
-    SandEventDispatch, SandEventParticipants,
+    EntityDamagePlayerEvent, EntityKillEvent, PlayerDamageEntityEvent, PlayerKillEvent,
 };
-use sand::participant::{EntityParticipantRole, ItemParticipantRole, ParticipantBuilder, ParticipantHand};
 use sand::prelude::*;
 
 /// Typed evidence schema for every scenario this pack validates. Field

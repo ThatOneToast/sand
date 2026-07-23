@@ -27,7 +27,7 @@
 
 use std::fmt;
 
-use sand_commands::{Build, Execute, Selector};
+use sand_commands::{Execute, Selector};
 
 use crate::condition::Condition;
 
@@ -63,16 +63,16 @@ impl ConditionedExecute {
     /// command builder.
     pub fn run(self, cmd: impl fmt::Display) -> Vec<String> {
         let cmd_str = cmd.to_string();
-        let prefix = self.prefix.build();
         self.cond
-            .to_execute_plans(self.negated)
+            .to_ir_plans(self.negated)
             .into_iter()
             .map(|clauses| {
-                if clauses.is_empty() {
-                    format!("{prefix} run {cmd_str}")
-                } else {
-                    format!("{prefix} {} run {cmd_str}", clauses.join(" "))
-                }
+                clauses
+                    .into_iter()
+                    .fold(self.prefix.clone(), |execute, clause| {
+                        execute.with_operation(clause.into_operation())
+                    })
+                    .run(&cmd_str)
             })
             .collect()
     }
@@ -156,7 +156,7 @@ impl TypedExecute {
 
 #[cfg(test)]
 mod tests {
-    use sand_commands::Execute;
+    use sand_commands::{Build, Execute};
 
     use super::*;
     use crate::state::{Flag, ScoreVar};

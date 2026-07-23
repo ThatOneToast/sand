@@ -103,7 +103,9 @@ impl ScoreHolder {
         }
     }
 
-    pub(crate) fn from_compat(value: String) -> Self {
+    /// Convert a compatibility string boundary into the closest canonical holder.
+    #[doc(hidden)]
+    pub fn compat(value: String) -> Self {
         match value.as_str() {
             "@s" => Self::entity(Selector::self_()),
             "@p" => Self::entity(Selector::nearest_player()),
@@ -116,6 +118,10 @@ impl ScoreHolder {
             }
             _ => Self::fake(value),
         }
+    }
+
+    pub(crate) fn from_compat(value: String) -> Self {
+        Self::compat(value)
     }
 }
 

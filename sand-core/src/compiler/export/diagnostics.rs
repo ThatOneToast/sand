@@ -40,6 +40,40 @@ pub(crate) fn validate_function_records(
 #[cfg(test)]
 mod tests {
     #[test]
+    fn typed_execute_version_error_reports_function_and_capability() {
+        let line = sand_commands::Execute::new()
+            .if_items(
+                sand_commands::Selector::self_(),
+                sand_commands::ItemSlot::MainHand,
+                "minecraft:diamond",
+            )
+            .run_raw("say found");
+        let mut records = vec![super::ComponentRecord {
+            namespace: "vanilla_plus".to_string(),
+            dir: "function".to_string(),
+            path: "detect_target".to_string(),
+            ext: "mcfunction".to_string(),
+            content_type: "text".to_string(),
+            content: line,
+        }];
+        let error = super::validate_function_records(
+            &mut records,
+            &sand_commands::CommandProfile::new("1.20.4", false),
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(error.contains("vanilla_plus:detect_target"), "{error}");
+        assert!(error.contains("SAND-COMMAND-VERSION"), "{error}");
+        assert!(error.contains("ExecuteItemCondition"), "{error}");
+        assert!(
+            error.contains("if items entity @s weapon.mainhand minecraft:diamond"),
+            "{error}"
+        );
+        assert!(error.contains("Minecraft profile 1.20.4"), "{error}");
+        assert!(error.contains("Minecraft 1.20.5+"), "{error}");
+    }
+
+    #[test]
     fn function_validation_fails_before_records_are_accepted_with_owner_context() {
         let mut records = vec![super::ComponentRecord {
             namespace: "audit".to_string(),

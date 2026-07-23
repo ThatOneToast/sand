@@ -21,6 +21,7 @@ pub mod display;
 pub mod error;
 pub mod execute;
 pub mod execute_args;
+pub mod execute_ir;
 pub mod inventory;
 pub mod nbt;
 pub mod particles;
@@ -41,6 +42,7 @@ pub use display::{Actionbar, Bossbar, BossbarColor, BossbarStyle, Title};
 pub use error::{CommandError, CommandResult};
 pub use execute::Execute;
 pub use execute_args::{Anchor, ItemSlot, NbtStoreKind, Swizzle};
+pub use execute_ir::{ConditionIr, ExecuteCapability, ExecuteOp, ExecuteStoreTarget};
 pub use inventory::Inventory;
 /// Canonical slot type alias — same as [`ItemSlot`].
 ///

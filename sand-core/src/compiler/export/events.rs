@@ -197,25 +197,29 @@ pub(crate) fn build_child_edge(
                                       guarded_children: &mut std::collections::BTreeSet<String>,
                                       records: &mut Vec<ComponentRecord>|
      -> Vec<String> {
-        match edge.execution_plans() {
-            crate::events::TickExecutionPlans::Unconditional => {
+        match edge.execution_ir_plans() {
+            crate::events::TickExecutionIrPlans::Unconditional => {
                 vec![format!("function {dispatch_ref}")]
             }
-            crate::events::TickExecutionPlans::Plans(plans) if plans.len() <= 1 => plans
+            crate::events::TickExecutionIrPlans::Plans(plans) if plans.len() <= 1 => plans
                 .into_iter()
                 .next()
                 .map(|plan| {
                     if plan.is_empty() {
                         format!("function {dispatch_ref}")
                     } else {
-                        format!("execute {} run function {dispatch_ref}", plan.join(" "))
+                        plan.into_iter()
+                            .fold(sand_commands::Execute::new(), |execute, clause| {
+                                execute.with_operation(clause.into_operation())
+                            })
+                            .run_fn(dispatch_ref)
                     }
                 })
                 .into_iter()
                 .collect(),
             // else: an explicit `Any([])`-shaped edge condition can never
             // hold — no dead wiring emitted for an unreachable edge.
-            crate::events::TickExecutionPlans::Plans(plans) => {
+            crate::events::TickExecutionIrPlans::Plans(plans) => {
                 // More than one OR-alternative plan means this child could be
                 // reached more than once from the same parent invocation.
                 // Coalesce via a per-child, per-player guard reset right
@@ -242,12 +246,23 @@ pub(crate) fn build_child_edge(
 
                 let mut lines = vec![format!("scoreboard players set @s {guard} 0")];
                 for plan in &plans {
-                    let mut clauses = vec![format!("unless score @s {guard} matches 1")];
-                    clauses.extend(plan.iter().cloned());
-                    lines.push(format!(
-                        "execute {} run function {edge_ref}",
-                        clauses.join(" ")
-                    ));
+                    let execute = sand_commands::Execute::new().with_operation(
+                        sand_commands::ExecuteOp::Unless(
+                            sand_commands::ConditionIr::ScoreMatches {
+                                holder: sand_commands::ScoreHolder::self_(),
+                                objective: guard.clone(),
+                                range: "1".to_string(),
+                            },
+                        ),
+                    );
+                    lines.push(
+                        plan.iter()
+                            .cloned()
+                            .fold(execute, |execute, clause| {
+                                execute.with_operation(clause.into_operation())
+                            })
+                            .run_fn(&edge_ref),
+                    );
                 }
                 lines
             }

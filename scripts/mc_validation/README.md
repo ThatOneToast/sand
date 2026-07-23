@@ -143,6 +143,62 @@ scenario matrix from the #265 issue (repeated attacks, two concurrent
 subjects, weapon/custom-data snapshots, empty-hand behavior, `/reload`
 before/after) and update the evidence doc accordingly.
 
+## #269/#280: advancement-bridge parent → SandEvent child validation attempt
+
+`run_audit.py`'s `bridge_scenario_rcon_attempt` check tries a
+non-player-driven alternative to the blocked Play-phase connection above,
+specifically for the `PlayerKillEvent -> SpecialKillEvent` advancement-bridge
+scenario (#269): summon two RCON-controlled zombies, use vanilla's own
+`/damage ... by <entity>` to establish the exact combat "last attacker"
+relationship `execute on attacker` reads, then invoke the actual generated
+bridge entry function (`function paudit:__sand_event_advancement_bridge/...`)
+directly over RCON — the identical generated commands a real advancement
+reward would call, exercising the real implementation (participant setup,
+synchronous `SandEvent` child dispatch, cleanup) even though the advancement
+*criterion* itself (`entity_killed_player`, which requires a real player
+victim) is not triggered this way.
+
+**This did not produce trustworthy evidence.** Across many attempts, summoned
+non-player entities in a fresh temp world with zero players online became
+unselectable by most commands (`data get entity`, `item replace entity`,
+`damage` — inconsistently across runs, sometimes after one follow-up
+command, sometimes after several) within moments of a successful "Summoned
+new ..." server confirmation. Ruled out, in order:
+
+- summoning into solid terrain (the temp world is not superflat) — fixed by
+  summoning at `y=200` with `NoGravity:1b`;
+- the target chunk not being loaded (no player online to keep chunks
+  ticking) — fixed with `forceload add`;
+- the `spawn-animals=false`/`spawn-monsters=false` server properties removing
+  that entity *category* — ruled out by reproducing the same disappearance
+  with a category-neutral `armor_stand`;
+- natural no-player-nearby despawning — `PersistenceRequired:1b` did not fix
+  it;
+- a `data get entity`/`item replace entity` selector-argument quirk specific
+  to this command form — `execute as <selector> run ... @s` (the same idiom
+  the real bridge invocation itself uses) did not reliably fix it either.
+
+Root cause not conclusively identified in the time available. This is the
+same class of "this specific undocumented 26.2 snapshot behaves unexpectedly
+for non-player-driven live scenarios" gap already documented at length above
+for `minimal_join_client.py`'s Play-phase instability — not a new, unrelated
+regression, but a second independent symptom of working against a
+bleeding-edge, undocumented protocol/command-grammar version. The check is
+marked `PASS (attempted, not conclusive — ...)` in `run_audit.py`'s output
+(matching `player_join`'s existing convention for a best-effort, non-gating
+check) rather than failing the whole harness or silently claiming success.
+
+**What this attempt *does* still prove**, unaffected by the above: a real
+server startup, real load of the `participant_audit` datapack containing the
+new bridge scenario (`SpecialKillEvent` chained after `PlayerKillEvent`), a
+real `/reload` of it, and real RCON inspection of its generated functions and
+storage schema — the same structural tier `startup`/`datapack_loaded`/
+`init_function_runs`/`audit_storage_initialized`/`reload` already establish
+for the rest of the pack. What remains unproven is specifically a live,
+non-mocked *firing* of the bridge scenario's generated commands end-to-end
+with a real combat-established attacker relationship. Do not claim more than
+this in the evidence doc or a PR description.
+
 ## Manual validation procedure (until the above is resolved)
 
 Until an automated client can hold a stable Play-phase connection, the

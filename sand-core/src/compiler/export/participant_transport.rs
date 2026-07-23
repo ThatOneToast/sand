@@ -140,7 +140,9 @@ fn find_borrowable_ancestor_path(
         }
         let Some(node) = graph.nodes.get(current) else {
             return Err(format!(
-                "`{current}` is not a plain same-cycle graph node (it may be an advancement-bridge parent, which cannot own a participant plan — see #240 Phase 6)"
+                "`{current}` is not a plain same-cycle graph node and is not `{source}` either — \
+                 if it is an advancement-bridge parent (#240 Phase 6), its own plan can only supply \
+                 a role to its *direct* bridge children, not transitively beyond it (#269)"
             ));
         };
         match &node.origin {
@@ -162,12 +164,16 @@ fn find_borrowable_ancestor_path(
                 }
                 match occurrence.as_slice() {
                     [OccurrenceDependency::After(parent)] => {
-                        if parent.is_advancement {
-                            return Err(format!(
-                                "`{current}`'s parent `{}` is an advancement-bridge parent, which cannot own a participant plan (#240 Phase 6 requires an empty EventSetup for bridge parents)",
-                                parent.type_name
-                            ));
-                        }
+                        // An advancement-bridge parent (#240 Phase 6) is not
+                        // a plain graph node — `graph.nodes.get(current)`
+                        // above never returns one — but as of #269 its own
+                        // `participants()` plan *is* applied directly around
+                        // its synthesized bridge entry, so it can be a valid
+                        // inherit source. Walking through it here (rather
+                        // than rejecting) lets the loop's next iteration
+                        // either terminate at `source == parent.type_name`
+                        // or continue past it if `parent` is itself not the
+                        // requested source.
                         current = parent.type_name;
                     }
                     [] if !persistent.is_empty() => {
@@ -388,7 +394,9 @@ mod tests {
     }
 
     #[test]
-    fn advancement_bridge_parent_breaks_the_chain() {
+    fn advancement_bridge_parent_is_a_valid_direct_source() {
+        // #269: a bridge parent's own plan is applied around its
+        // synthesized entry, so a direct bridge child can inherit from it.
         let mut node = chained_after("Child", "Bridge");
         let NodeOrigin::Chained { occurrence, .. } = &mut node.origin else {
             unreachable!()
@@ -398,7 +406,26 @@ mod tests {
         };
         parent.is_advancement = true;
         let graph = graph_with(vec![node]);
-        let err = find_borrowable_ancestor_path(&graph, "Child", "Bridge").unwrap_err();
+        assert_eq!(
+            find_borrowable_ancestor_path(&graph, "Child", "Bridge"),
+            Ok(())
+        );
+    }
+
+    #[test]
+    fn advancement_bridge_parent_does_not_extend_the_chain_transitively() {
+        // A bridge parent is never a plain graph node, so it cannot itself
+        // have a same-cycle ancestor to keep walking toward.
+        let mut node = chained_after("Child", "Bridge");
+        let NodeOrigin::Chained { occurrence, .. } = &mut node.origin else {
+            unreachable!()
+        };
+        let OccurrenceDependency::After(parent) = &mut occurrence[0] else {
+            unreachable!()
+        };
+        parent.is_advancement = true;
+        let graph = graph_with(vec![node]);
+        let err = find_borrowable_ancestor_path(&graph, "Child", "Grandparent").unwrap_err();
         assert!(err.contains("advancement-bridge"), "{err}");
     }
 

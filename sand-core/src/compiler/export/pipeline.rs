@@ -21,9 +21,9 @@ use super::dialogs::{
 use super::events::{
     ChildPostObservation, CustomDispatchBackend, apply_participants_to_setup, build_child_edge,
     build_dispatch_function, build_staged_occurrence_lines, build_staged_post_observation_line,
-    check_event_trigger, participant_plan_export_error, resolve_custom_dispatch_backend,
-    resolve_participant_profile, setup_objective_owner, tick_event_export_error,
-    xp_advance_command, xp_score_commands,
+    check_event_trigger, participant_accessor_panic_export_error, participant_plan_export_error,
+    resolve_custom_dispatch_backend, resolve_participant_profile, setup_objective_owner,
+    tick_event_export_error, xp_advance_command, xp_score_commands,
 };
 use super::functions::{drain_dynamic_functions_into, resolve_local_refs};
 use super::lifecycle::{
@@ -36,6 +36,68 @@ use super::predicates::{
 use super::records::{ComponentRecord, ExportResult, component_to_record};
 use super::schedules::{schedule_key, schedule_tick_commands};
 use super::tags::{dedupe_preserve_order, sort_function_tag_entries};
+use std::sync::{Arc, Mutex};
+
+/// Process-global lock guarding the panic-hook swap in
+/// [`invoke_event_handler_body`] — `std::panic::set_hook`/`take_hook` are
+/// process-wide, not thread-local, so concurrent exports (e.g. two `#[test]`
+/// functions in the same test binary calling `try_export_components_json`
+/// on separate threads) must not interleave their hook install/restore or
+/// one could clobber or lose the other's saved previous hook.
+static PARTICIPANT_PANIC_HOOK_LOCK: Mutex<()> = Mutex::new(());
+
+/// Invoke `desc.make()` — the generated command-body factory for one
+/// `#[event]` handler — with a panic-catching boundary specifically for
+/// [`crate::participant::diagnostic::MissingParticipantPanic`] (#280 item
+/// 2): an infallible participant accessor (`event.killer()`/`.weapon()`/…,
+/// or the bare-`SandEvent` equivalent via `SandEventParticipants`) that
+/// resolves to `Unavailable` panics with that payload — see
+/// [`crate::participant::plan::EventParticipantPlan::require_entity`]'s doc
+/// — rather than a plain string, precisely so this boundary can convert it
+/// into a structured `SAND-EVENT-PARTICIPANT` diagnostic instead of letting
+/// a raw, unhandled panic (and Rust's default backtrace-shaped output,
+/// which is not informative for a non-string payload) reach a `sand build`
+/// user. `desc.path` supplies the one piece of context the panic itself
+/// cannot know: which `#[event]` handler was executing.
+///
+/// Any other panic (a genuine bug, unrelated to participants) is passed
+/// through to the previous hook for printing and then resumed unchanged via
+/// [`std::panic::resume_unwind`] — this boundary never silently swallows an
+/// unrelated panic or lets export continue with partial/wrong output for
+/// one.
+fn invoke_event_handler_body(desc: &crate::function::EventDescriptor) -> ExportResult<Vec<String>> {
+    let _guard = PARTICIPANT_PANIC_HOOK_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+
+    let previous_hook: Arc<dyn Fn(&std::panic::PanicHookInfo<'_>) + Sync + Send> =
+        Arc::from(std::panic::take_hook());
+    let hook_for_closure = Arc::clone(&previous_hook);
+    std::panic::set_hook(Box::new(move |info| {
+        if info
+            .payload()
+            .downcast_ref::<crate::participant::diagnostic::MissingParticipantPanic>()
+            .is_none()
+        {
+            (hook_for_closure)(info);
+        }
+    }));
+
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| (desc.make)()));
+
+    // Restore exactly what was active before, regardless of outcome.
+    std::panic::set_hook(Box::new(move |info| (previous_hook)(info)));
+
+    match result {
+        Ok(commands) => Ok(commands),
+        Err(payload) => {
+            match payload.downcast::<crate::participant::diagnostic::MissingParticipantPanic>() {
+                Ok(panic) => Err(participant_accessor_panic_export_error(desc.path, &panic)),
+                Err(payload) => std::panic::resume_unwind(payload),
+            }
+        }
+    }
+}
 
 pub(crate) fn try_export_components_impl(
     namespace: &str,
@@ -145,8 +207,13 @@ pub(crate) fn try_export_components_impl(
     let mut armor_watch_map: BTreeMap<ArmorWatchKey, ArmorWatchEntry> = BTreeMap::new();
 
     for desc in inventory::iter::<EventDescriptor>() {
-        // Always emit the handler function body first.
-        let commands = (desc.make)();
+        // Always emit the handler function body first. Routed through
+        // `invoke_event_handler_body` (#280 item 2) rather than calling
+        // `(desc.make)()` directly, so a `MissingParticipantPanic` raised by
+        // an infallible participant accessor inside this handler's body
+        // becomes a structured `SAND-EVENT-PARTICIPANT` diagnostic instead
+        // of an unhandled panic.
+        let commands = invoke_event_handler_body(desc)?;
 
         match &desc.dispatch {
             // ── Advancement-backed ────────────────────────────────────────────
@@ -166,6 +233,7 @@ pub(crate) fn try_export_components_impl(
                 revoke,
                 guard,
                 make_participants,
+                event_type_name,
             } => {
                 let advancement_id = desc
                     .id_override
@@ -182,18 +250,35 @@ pub(crate) fn try_export_components_impl(
                 // sequence — so automatic integration means splicing the
                 // plan's commands directly around the user's own commands,
                 // exactly where the manual pattern already documented
-                // embedding them (`observation.rs`'s module doc). Keyed by
-                // `desc.path`: each `#[event]` handler on an
-                // advancement-backed type gets its own independent
-                // advancement + body, so there is no cross-handler tracker
-                // to deduplicate against here (unlike tick-lifecycle
-                // dispatch).
+                // embedding them (`observation.rs`'s module doc).
+                //
+                // Keyed by `event_type_name()` — the event's concrete type
+                // name — not `desc.path` (the handler's own function path).
+                // `Event<E>::entity`/`.item`/`.attacker`/… always resolve a
+                // declared participant against `std::any::type_name::<E>()`
+                // (`sand-core/src/event/mod.rs`), since that is the one
+                // label stable regardless of which of possibly several
+                // `#[event]` handlers on the same event type is asking.
+                // Keying by `desc.path` here instead (as this arm did before
+                // #280 item 4) generated setup commands under a tag/storage
+                // key the handler's own accessor call could never
+                // reconstruct — a real, previously-unnoticed mismatch: each
+                // handler's own `execute on attacker`-tagged entity was
+                // created under one key while `event.attacker()` inside that
+                // same handler's body resolved a selector built from a
+                // different key, so the accessor's selector never matched
+                // any entity the handler's own setup actually tagged. Each
+                // handler on a shared event type still gets its own
+                // independent advancement + body + setup/cleanup pass (no
+                // cross-handler tracker to deduplicate against, unlike
+                // tick-lifecycle dispatch) — they just now agree on what to
+                // call the thing they're each independently setting up.
                 let plan = make_participants();
                 let mut body_commands = commands.clone();
                 if !plan.is_empty() {
                     let profile = resolve_participant_profile(ctx);
                     let (setup, cleanup) = plan
-                        .build(desc.path, &profile)
+                        .build(event_type_name(), &profile)
                         .map_err(|err| participant_plan_export_error(desc.path, err))?;
                     body_commands = setup
                         .into_iter()
@@ -414,13 +499,44 @@ pub(crate) fn try_export_components_impl(
                         // `SandEvent` (e.g. `EffectStarted<Speed>`). Shares
                         // the exact same generated-provider path as built-in
                         // `EventDispatch::Tracked` handlers.
+                        //
+                        // #270: `make_participants()` must be applied here —
+                        // previously it (and `make_setup()`) were never
+                        // called at all for this backend, so a tracked
+                        // event's own declared participant plan was silently
+                        // dropped. Detection itself is shared, per-tracker
+                        // infrastructure the transition provider owns (not
+                        // any one handler), so — unlike tick-lifecycle/chain
+                        // dispatch, which splices into a per-event detector
+                        // function — setup/cleanup wrap this handler's own
+                        // generated body directly, the same way the typed
+                        // `EventDispatch::Advancement` arm above does: they
+                        // run exactly when (and only when) the transition
+                        // detector actually invokes this handler.
+                        let plan = make_participants();
+                        participant_declarations.insert(
+                            event_type_name(),
+                            super::participant_transport::ParticipantDeclarations::from_plan(&plan),
+                        );
+                        let mut body_commands = commands.clone();
+                        if !plan.is_empty() {
+                            let profile = resolve_participant_profile(ctx);
+                            let (setup, cleanup) = plan
+                                .build(event_type_name(), &profile)
+                                .map_err(|err| participant_plan_export_error(desc.path, err))?;
+                            body_commands = setup
+                                .into_iter()
+                                .chain(body_commands)
+                                .chain(cleanup)
+                                .collect();
+                        }
                         records.push(ComponentRecord {
                             namespace: namespace.to_string(),
                             dir: "function".to_string(),
                             path: desc.path.to_string(),
                             ext: "mcfunction".to_string(),
                             content_type: "text".to_string(),
-                            content: commands.join("\n"),
+                            content: body_commands.join("\n"),
                         });
                         transition_handlers.push(crate::transition::TransitionHandler {
                             path: desc.path.to_string(),
@@ -429,7 +545,11 @@ pub(crate) fn try_export_components_impl(
                     }
                     CustomDispatchBackend::Advancement(trigger) => {
                         // Advancement-backed custom (SandEvent) event.
-                        // Same entry/body split as the typed Advancement arm.
+                        // Same entry/body split as the typed Advancement arm,
+                        // including the same automatic participant-plan
+                        // splice around the body (previously this arm never
+                        // called `make_participants()` at all, silently
+                        // dropping any declared plan — see #280 item 4).
                         advancement_handler_type_ids.insert(event_type_id());
                         let advancement_id = desc
                             .id_override
@@ -440,13 +560,31 @@ pub(crate) fn try_export_components_impl(
                         let body_path = format!("{}/body", desc.path);
                         let body_fn_ref = format!("{namespace}:{body_path}");
 
+                        let plan = make_participants();
+                        participant_declarations.insert(
+                            event_type_name(),
+                            super::participant_transport::ParticipantDeclarations::from_plan(&plan),
+                        );
+                        let mut body_commands = commands.clone();
+                        if !plan.is_empty() {
+                            let profile = resolve_participant_profile(ctx);
+                            let (setup, cleanup) = plan
+                                .build(event_type_name(), &profile)
+                                .map_err(|err| participant_plan_export_error(desc.path, err))?;
+                            body_commands = setup
+                                .into_iter()
+                                .chain(body_commands)
+                                .chain(cleanup)
+                                .collect();
+                        }
+
                         records.push(ComponentRecord {
                             namespace: namespace.to_string(),
                             dir: "function".to_string(),
                             path: body_path,
                             ext: "mcfunction".to_string(),
                             content_type: "text".to_string(),
-                            content: commands.join("\n"),
+                            content: body_commands.join("\n"),
                         });
 
                         let mut entry: Vec<String> = Vec::new();
@@ -988,6 +1126,19 @@ pub(crate) fn try_export_components_impl(
         graph
             .validate_dependencies()
             .map_err(|e| tick_event_export_error(e.0))?;
+        // #269: a bridge parent's own plan is now a valid inherit source
+        // (its commands are actually applied around the synthesized bridge
+        // entry, below) — record it the same way every other backend
+        // records its own plan, so `validate_participant_transport` can
+        // confirm a child's `inherit_entity::<BridgeParent>(...)` names a
+        // role the bridge parent genuinely captures directly.
+        for bridge in graph.advancement_bridges.values() {
+            let plan = (bridge.event_participants)();
+            participant_declarations.insert(
+                bridge.type_name,
+                super::participant_transport::ParticipantDeclarations::from_plan(&plan),
+            );
+        }
         super::participant_transport::validate_participant_transport(
             &graph,
             &participant_declarations,
@@ -1521,6 +1672,15 @@ pub(crate) fn try_export_components_impl(
         // dispatch) — a dependent child's own `EventSetup` is unaffected and
         // still applied normally, since the child remains an ordinary graph
         // node.
+        //
+        // #269: the bridge parent's own `participants()` plan *is* now
+        // consulted — see `event_participants` below — and its setup/cleanup
+        // commands are spliced directly around the dependent dispatch lines,
+        // since this synthesized entry (not any per-tick detector) is the
+        // only generated function this parent's occurrence ever runs
+        // through: participant setup, then every dependent (direct handlers
+        // are disallowed on a bridged type, so only chained descendants),
+        // then cleanup, after every synchronous descendant has run.
         for (parent_name, bridge) in &graph.advancement_bridges {
             let children = graph.children_of(parent_name);
             let mut bridge_cmds = Vec::new();
@@ -1534,6 +1694,19 @@ pub(crate) fn try_export_components_impl(
                     &mut guarded_children,
                     &mut records,
                 ));
+            }
+
+            let plan = (bridge.event_participants)();
+            if !plan.is_empty() {
+                let profile = resolve_participant_profile(ctx);
+                let (setup, cleanup) = plan
+                    .build(parent_name, &profile)
+                    .map_err(|err| participant_plan_export_error(parent_name, err))?;
+                bridge_cmds = setup
+                    .into_iter()
+                    .chain(bridge_cmds)
+                    .chain(cleanup)
+                    .collect();
             }
 
             let key = tick_event_resource_key(parent_name);

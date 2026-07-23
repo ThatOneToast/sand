@@ -37,6 +37,8 @@ fn after(
         event_type_name,
         event_dispatch,
         event_setup: EventSetup::none,
+        event_raw_setup: EventSetup::none,
+        event_participants: || sand_core::participant::EventParticipantPlan::none(),
         event_revoke: || true,
     })]
 }

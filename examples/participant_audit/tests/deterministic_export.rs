@@ -53,6 +53,7 @@ fn every_audit_handler_is_present() {
         "audit_on_composed_parent",
         "audit_on_composed_child",
         "audit_on_composed_sibling",
+        "audit_on_special_kill",
     ] {
         assert!(
             paths.contains(&expected),
@@ -104,6 +105,52 @@ fn attacker_uuid_capture_uses_execute_at_the_typed_participant_handle() {
     assert!(
         body.contains("set from entity @s UUID"),
         "attacker UUID copy must run as @s inside an `execute at <attacker>` context: {body}"
+    );
+}
+
+#[test]
+fn typed_advancement_handler_accessor_resolves_the_exact_tag_its_own_setup_created() {
+    // Regression guard (#280 item 4 audit): `EventDispatch::Advancement`'s
+    // participant-plan splice previously keyed setup by `desc.path` (the
+    // handler's own function path) while `Event<E>::attacker()` always
+    // resolves against `std::any::type_name::<E>()` — two different
+    // strings, so the setup's own tag and the handler body's own
+    // `execute at @e[tag=...]` reference silently named two different,
+    // never-matching tags. A substring check (`.contains("execute at")`)
+    // cannot catch this; only comparing the *exact* tag from both sites can.
+    let records = records(&export());
+    let body = records
+        .iter()
+        .find(|r| r["dir"] == "function" && r["path"] == "audit_on_hurt_by_entity_a/body")
+        .and_then(|r| r["content"].as_str())
+        .expect("audit_on_hurt_by_entity_a/body function must exist");
+
+    let setup_tag_start = body
+        .find("tag @s add __sand_observed_")
+        .map(|i| i + "tag @s add ".len())
+        .expect("setup must mark the correlated attacker with a tag");
+    let setup_tag = &body[setup_tag_start..setup_tag_start + "__sand_observed_XXXXXXXX".len()];
+
+    let accessor_tag_start = body
+        .find("execute at @e[tag=__sand_observed_")
+        .map(|i| i + "execute at @e[tag=".len())
+        .expect("the handler's own .attacker() accessor must generate an `execute at` reference");
+    let accessor_tag = &body[accessor_tag_start..accessor_tag_start + "__sand_observed_XXXXXXXX".len()];
+
+    assert_eq!(
+        setup_tag, accessor_tag,
+        "the handler's own accessor must reference the exact tag its own setup created, not a \
+         differently-keyed one: {body}"
+    );
+
+    let cleanup_tag_start = body
+        .rfind("tag @e[tag=__sand_observed_")
+        .map(|i| i + "tag @e[tag=".len())
+        .expect("cleanup must remove the same tag");
+    let cleanup_tag = &body[cleanup_tag_start..cleanup_tag_start + "__sand_observed_XXXXXXXX".len()];
+    assert_eq!(
+        setup_tag, cleanup_tag,
+        "cleanup must remove the exact same tag setup created: {body}"
     );
 }
 
@@ -260,6 +307,108 @@ fn composed_scenario_neither_dependent_generates_extra_participant_setup() {
             "{name} must not run its own attacker observation: {body}"
         );
     }
+}
+
+#[test]
+fn advancement_bridge_applies_parent_participants_around_dependent_dispatch() {
+    // #269: `SpecialKillEvent` chains after the advancement-backed
+    // `PlayerKillEvent` through the same-cycle bridge (#240 Phase 6).
+    // `PlayerKillEvent`'s own `participants()` plan (a correlated killer)
+    // must be applied directly around the synthesized bridge entry: setup
+    // before the dependent dispatch, cleanup after it — previously a bridge
+    // parent's plan was never applied at all.
+    let records = records(&export());
+    let bridge = records
+        .iter()
+        .find(|r| {
+            r["dir"] == "function"
+                && r["path"]
+                    .as_str()
+                    .unwrap_or_default()
+                    .starts_with("__sand_event_advancement_bridge/")
+        })
+        .and_then(|r| r["content"].as_str())
+        .expect("the synthesized advancement-bridge entry must exist");
+
+    let revoke = bridge
+        .find("advancement revoke")
+        .expect("bridge entry must revoke the advancement first");
+    let mark = bridge
+        .find("execute on attacker run")
+        .expect("PlayerKillEvent's own correlated-killer setup must be spliced into the bridge entry");
+    let dispatch = bridge
+        .find("function paudit:")
+        .expect("bridge entry must dispatch to the dependent chain");
+    let cleanup = bridge
+        .rfind("tag @e[tag=__sand_observed_")
+        .expect("PlayerKillEvent's own cleanup must be spliced into the bridge entry");
+
+    assert!(revoke < mark, "revoke must run before participant setup");
+    assert!(
+        mark < dispatch,
+        "participant setup must run before the dependent chain is dispatched: {bridge}"
+    );
+    assert!(
+        dispatch < cleanup,
+        "cleanup must run after every synchronous descendant: {bridge}"
+    );
+
+    // The tag `mark` sets is the exact one `audit_on_special_kill` inherits
+    // through `inherit_entity::<PlayerKillEvent>(Killer)` — not merely "a"
+    // tag, but the identical selector the bridge parent's own setup created.
+    let tag_start = bridge
+        .find("__sand_observed_")
+        .expect("bridge setup must mark the correlated killer with a tag");
+    let tag = &bridge[tag_start..tag_start + "__sand_observed_XXXXXXXX".len()];
+
+    let special_kill = records
+        .iter()
+        .find(|r| r["dir"] == "function" && r["path"] == "audit_on_special_kill")
+        .and_then(|r| r["content"].as_str())
+        .expect("audit_on_special_kill must exist");
+    assert!(
+        special_kill.contains(tag),
+        "audit_on_special_kill must reference the bridge parent's exact killer tag {tag}: {special_kill}"
+    );
+    assert!(
+        special_kill.contains("state.bridge_killer_uuid"),
+        "audit_on_special_kill must write the inherited killer's evidence field: {special_kill}"
+    );
+}
+
+#[test]
+fn advancement_bridge_child_directly_captures_its_own_weapon_snapshot() {
+    // SpecialKillEvent directly observes its own weapon (it cannot inherit
+    // one — PlayerKillEvent's plan declares no weapon role) — the capture
+    // commands live in this same-cycle child's own generated setup
+    // function, not the bridge entry (which only ever carries the bridge
+    // *parent's* own plan).
+    let records = records(&export());
+    let bridge = records
+        .iter()
+        .find(|r| {
+            r["dir"] == "function"
+                && r["path"]
+                    .as_str()
+                    .unwrap_or_default()
+                    .starts_with("__sand_event_advancement_bridge/")
+        })
+        .and_then(|r| r["content"].as_str())
+        .expect("bridge entry must exist");
+    assert!(
+        !bridge.contains("SelectedItem"),
+        "the child's own weapon capture must not leak into the bridge parent's entry: {bridge}"
+    );
+
+    let all_bodies: Vec<&str> = records
+        .iter()
+        .filter(|r| r["dir"] == "function")
+        .filter_map(|r| r["content"].as_str())
+        .collect();
+    assert!(
+        all_bodies.iter().any(|body| body.contains("SelectedItem")),
+        "SpecialKillEvent's own direct weapon capture must exist somewhere in the export"
+    );
 }
 
 #[test]

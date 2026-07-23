@@ -87,9 +87,17 @@
 //! # Advancement parents
 //!
 //! An [`AdvancementEvent`](crate::event::AdvancementEvent) may be used as the
-//! same-cycle parent of a [`SandEvent`](crate::events::SandEvent):
+//! same-cycle parent of a [`SandEvent`](crate::events::SandEvent) — the
+//! primary interoperability path between the two event families (#269),
+//! and the number-one supported shape for combining them. `Event<T>`
+//! remains the handler context for the `AdvancementEvent` side; the bare
+//! `SandEvent` marker gets the identical accessor sugar via
+//! [`crate::events::SandEventParticipants`], both reachable from
+//! `use sand::prelude::*;` alone — no separate trait import needed:
 //!
 //! ```rust,ignore
+//! use sand::prelude::*;
+//!
 //! pub struct SpecialKillEvent;
 //!
 //! impl SandEvent for SpecialKillEvent {
@@ -99,8 +107,17 @@
 //!
 //!     fn participants() -> EventParticipantPlan {
 //!         ParticipantBuilder::new()
+//!             // PlayerKillEvent's own plan directly captures the killer
+//!             // (a correlated observation — `@s` is the *victim* in this
+//!             // advancement, so the killer is only reachable this way,
+//!             // never an exact hand snapshot); inheriting it means
+//!             // SpecialKillEvent resolves to the exact same binding.
 //!             .inherit_entity::<PlayerKillEvent>(EntityParticipantRole::Killer)
-//!             .inherit_item::<PlayerKillEvent>(ItemParticipantRole::Weapon, ParticipantHand::MainHand)
+//!             // PlayerKillEvent's plan does not declare a weapon (there is
+//!             // nothing sensible to inherit for one), so SpecialKillEvent
+//!             // observes its own — its own mainhand snapshot, composed
+//!             // alongside the inherited entity in one plan.
+//!             .observe_item(ItemParticipantRole::Weapon, ParticipantHand::MainHand)
 //!             .build()
 //!     }
 //! }
@@ -119,7 +136,16 @@
 //!
 //! See [`crate::event::AdvancementEvent::participants`] for how an
 //! advancement-backed parent's own plan is applied around its synthesized
-//! bridge entry (#269), before any dependent `SandEvent` runs.
+//! bridge entry (#269), before any dependent `SandEvent` runs, and
+//! `examples/participant_audit`'s `SpecialKillEvent` for the complete,
+//! exact-output-tested version of this example
+//! (`sand-core/tests/event_chain_advancement_bridge_nested_siblings.rs`
+//! additionally covers sibling and nested descendants of a bridge parent).
+//!
+//! A bridge parent may not currently also have a direct `#[event]` handler
+//! of its own (#240 Phase 6) — split into two types (one for the direct
+//! handler, one chained via `after`/`chain` for the composition) if both
+//! are genuinely needed.
 //!
 //! # Unsupported graph shapes
 //!
@@ -141,31 +167,49 @@
 //!
 //! Accessors built on a resolved plan (`event.killer()`, `event.weapon()`,
 //! …) never return `Result`/`Option` — they return the typed participant
-//! directly. A statically-known mistake (e.g. accessing a role a built-in
-//! event's capability markers prove it cannot provide) is a `rustc`
-//! diagnostic at the call site where feasible. Every other mistake is caught
-//! by `sand build`'s mandatory graph validation before any datapack output
-//! is written, with a diagnostic naming the event, handler, accessed
-//! participant, and required role, e.g.:
+//! directly, for both handler forms. Statically-known mistakes are not
+//! currently caught as `rustc` diagnostics at the call site: doing so
+//! automatically for an arbitrary user-defined `participants()` function
+//! would require the macro layer to parse the body of an ordinary Rust
+//! function, which Sand deliberately does not do (see the crate-level
+//! design notes) — only `sand build`'s mandatory graph/participant
+//! validation is authoritative. A missing/unavailable participant access
+//! fails export (before any datapack output is written — no partial output
+//! is ever produced) with a diagnostic naming the event, handler, accessor,
+//! and required role, e.g. (this is the exact rendered text, not a
+//! paraphrase — see `sand-core/src/participant/diagnostic.rs::MissingParticipantPanic::render`
+//! and `sand-core/tests/missing_participant_diagnostic.rs`):
 //!
 //! ```text
 //! error[SAND-EVENT-PARTICIPANT]: unavailable event participant
 //!
-//! Event: vanilla_plus::SpecialKillEvent
-//! Handler: special_kill
-//! Accessed: event.killer()
+//! Event: vanilla_plus::SomeSandEvent
+//! Handler: invalid_sand
+//! Accessor: killer
 //! Required role: EntityParticipantRole::Killer
 //!
-//! The event does not observe or inherit this participant.
+//! This event does not observe or inherit the requested participant (this role does not apply to this event).
 //!
-//! Add a declaration similar to:
+//! Declare it with ParticipantBuilder, for example:
 //!
 //!     ParticipantBuilder::new()
-//!         .inherit_entity::<PlayerKillEvent>(
-//!             EntityParticipantRole::Killer,
-//!         )
+//!         .observe_entity(EntityParticipantRole::Killer)
+//!         .build()
+//!
+//! or, if a same-cycle ancestor event already captures it:
+//!
+//!     ParticipantBuilder::new()
+//!         .inherit_entity::<ParentEvent>(EntityParticipantRole::Killer)
 //!         .build()
 //! ```
+//!
+//! Internally, the infallible accessors panic with a structured
+//! `MissingParticipantPanic` payload (crate-private; not a plain string)
+//! when a role is unavailable; the export pipeline's handler-invocation
+//! boundary catches it (via `catch_unwind`, with a scoped panic hook that
+//! suppresses the default panic printer for exactly this payload type) and
+//! converts it into the diagnostic above — a raw, unhandled Rust
+//! panic/backtrace never reaches a `sand build` user.
 
 use crate::participant::plan::{DuplicateParticipantRole, EventParticipantPlan};
 use crate::participant::role::{EntityParticipantRole, ItemParticipantRole, ParticipantHand};

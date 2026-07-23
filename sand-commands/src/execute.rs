@@ -23,6 +23,7 @@ use crate::RawCommand;
 use crate::coord::{BlockPos, Rotation, Vec3};
 use crate::error::{CommandError, CommandResult};
 use crate::execute_args::{Anchor, ItemSlot, NbtStoreKind, Swizzle};
+use crate::execute_ir::{ConditionIr, ExecuteOp, ExecuteStoreTarget};
 use crate::nbt::DataTarget;
 use crate::render::{CommandProfile, RenderCommand, Validate};
 use crate::scoreboard::{ScoreCmp, ScoreHolder};
@@ -36,7 +37,7 @@ use crate::validate;
 #[derive(Debug, Clone, Default)]
 #[must_use = "execute builders must be completed with `run`, `try_run`, or `run_raw`"]
 pub struct Execute {
-    parts: Vec<String>,
+    operations: Vec<ExecuteOp>,
     checks: Vec<ExecuteCheck>,
 }
 
@@ -106,13 +107,13 @@ impl Execute {
     /// Create a new `Execute` builder with no sub-commands.
     pub fn new() -> Self {
         Self {
-            parts: vec![],
+            operations: vec![],
             checks: vec![],
         }
     }
 
     fn next_index(&self) -> usize {
-        self.parts.len()
+        self.operations.len()
     }
 
     fn check_selector(&mut self, kind: &'static str, value: &Selector) {
@@ -178,28 +179,28 @@ impl Execute {
     /// `as <selector>` — change the executing entity.
     pub fn as_(mut self, selector: Selector) -> Self {
         self.check_selector("as", &selector);
-        self.parts.push(format!("as {selector}"));
+        self.operations.push(ExecuteOp::As(selector));
         self
     }
 
     /// `at <selector>` — change position and rotation to match the selected entity.
     pub fn at(mut self, selector: Selector) -> Self {
         self.check_selector("at", &selector);
-        self.parts.push(format!("at {selector}"));
+        self.operations.push(ExecuteOp::At(selector));
         self
     }
 
     /// `positioned <pos>` — change execution position to the given coordinates.
     pub fn positioned(mut self, pos: Vec3) -> Self {
         self.check_vec3("positioned", &pos);
-        self.parts.push(format!("positioned {pos}"));
+        self.operations.push(ExecuteOp::Positioned(pos));
         self
     }
 
     /// `positioned as <selector>` — change position to match the selected entity.
     pub fn positioned_as(mut self, selector: Selector) -> Self {
         self.check_selector("positioned_as", &selector);
-        self.parts.push(format!("positioned as {selector}"));
+        self.operations.push(ExecuteOp::PositionedAs(selector));
         self
     }
 
@@ -210,29 +211,31 @@ impl Execute {
             kind: "rotated",
             value: rotation.clone(),
         });
-        self.parts.push(format!("rotated {rotation}"));
+        self.operations.push(ExecuteOp::Rotated(rotation));
         self
     }
 
     /// `rotated as <selector>` — change rotation to match the selected entity.
     pub fn rotated_as(mut self, selector: Selector) -> Self {
         self.check_selector("rotated_as", &selector);
-        self.parts.push(format!("rotated as {selector}"));
+        self.operations.push(ExecuteOp::RotatedAs(selector));
         self
     }
 
     /// `facing <pos>` — rotate execution to face a position in the world.
     pub fn facing(mut self, pos: Vec3) -> Self {
         self.check_vec3("facing", &pos);
-        self.parts.push(format!("facing {pos}"));
+        self.operations.push(ExecuteOp::Facing(pos));
         self
     }
 
     /// `facing entity <selector> <anchor>` — rotate execution to face an entity's anchor point.
     pub fn facing_entity(mut self, selector: Selector, anchor: Anchor) -> Self {
         self.check_selector("facing_entity", &selector);
-        self.parts
-            .push(format!("facing entity {selector} {anchor}"));
+        self.operations.push(ExecuteOp::FacingEntity {
+            target: selector,
+            anchor,
+        });
         self
     }
 
@@ -240,32 +243,32 @@ impl Execute {
     pub fn in_(mut self, dimension: impl Into<String>) -> Self {
         let dimension = dimension.into();
         self.check_resource("in", "dimension", &dimension, false);
-        self.parts.push(format!("in {dimension}"));
+        self.operations.push(ExecuteOp::In(dimension));
         self
     }
 
     /// `align <axes>` — snap coordinates to the block grid along specified axes.
     pub fn align(mut self, axes: Swizzle) -> Self {
-        self.parts.push(format!("align {axes}"));
+        self.operations.push(ExecuteOp::Align(axes));
         self
     }
 
     /// `positioned over <heightmap>` — snap y-coordinate to the top of the given heightmap (1.19.4+).
     pub fn positioned_over(mut self, heightmap: impl Into<String>) -> Self {
-        self.parts
-            .push(format!("positioned over {}", heightmap.into()));
+        self.operations
+            .push(ExecuteOp::PositionedOver(heightmap.into()));
         self
     }
 
     /// `anchored <anchor>` — change the anchor point for position calculations.
     pub fn anchored(mut self, anchor: Anchor) -> Self {
-        self.parts.push(format!("anchored {anchor}"));
+        self.operations.push(ExecuteOp::Anchored(anchor));
         self
     }
 
     /// `on <relation>` — follow an entity relationship chain.
     pub fn on(mut self, relation: impl Into<String>) -> Self {
-        self.parts.push(format!("on {}", relation.into()));
+        self.operations.push(ExecuteOp::On(relation.into()));
         self
     }
 
@@ -273,7 +276,7 @@ impl Execute {
     pub fn summon(mut self, entity_type: impl crate::selector::IntoEntityType) -> Self {
         let entity_type = entity_type.into_entity_type();
         self.check_resource("summon", "entity_type", &entity_type, false);
-        self.parts.push(format!("summon {entity_type}"));
+        self.operations.push(ExecuteOp::Summon(entity_type));
         self
     }
 
@@ -282,28 +285,30 @@ impl Execute {
     /// `if entity <selector>` — execute only if the selector matches at least one entity.
     pub fn if_entity(mut self, selector: Selector) -> Self {
         self.check_selector("if_entity", &selector);
-        self.parts.push(format!("if entity {selector}"));
+        self.operations
+            .push(ExecuteOp::If(ConditionIr::Entity(selector)));
         self
     }
 
     /// `unless entity <selector>` — execute only if the selector matches NO entities.
     pub fn unless_entity(mut self, selector: Selector) -> Self {
         self.check_selector("unless_entity", &selector);
-        self.parts.push(format!("unless entity {selector}"));
+        self.operations
+            .push(ExecuteOp::Unless(ConditionIr::Entity(selector)));
         self
     }
 
     /// `if entity @s[team=<team>]` — continue only if the current entity is on the given team.
     pub fn if_on_team(mut self, team: impl Into<String>) -> Self {
-        self.parts
-            .push(format!("if entity @s[team={}]", team.into()));
+        self.operations
+            .push(ExecuteOp::If(ConditionIr::Team(team.into())));
         self
     }
 
     /// `unless entity @s[team=<team>]` — skip if the current entity is on the given team.
     pub fn unless_on_team(mut self, team: impl Into<String>) -> Self {
-        self.parts
-            .push(format!("unless entity @s[team={}]", team.into()));
+        self.operations
+            .push(ExecuteOp::Unless(ConditionIr::Team(team.into())));
         self
     }
 
@@ -331,8 +336,14 @@ impl Execute {
         let b_obj = b_obj.into();
         self.check_objective("if_score.left", &a_obj);
         self.check_objective("if_score.right", &b_obj);
-        self.parts
-            .push(format!("if score {a} {a_obj} = {b} {b_obj}",));
+        self.operations
+            .push(ExecuteOp::If(ConditionIr::ScoreCompare {
+                left: ScoreHolder::entity(a),
+                left_objective: a_obj,
+                op: ScoreCmp::Eq,
+                right: ScoreHolder::entity(b),
+                right_objective: b_obj,
+            }));
         self
     }
 
@@ -360,24 +371,34 @@ impl Execute {
         let secondary = secondary.into();
         self.check_objective("unless_score.left", &primary);
         self.check_objective("unless_score.right", &secondary);
-        self.parts.push(format!(
-            "unless score {primary_selector} {primary} = {secondary_selector} {secondary}"
-        ));
+        self.operations
+            .push(ExecuteOp::Unless(ConditionIr::ScoreCompare {
+                left: ScoreHolder::entity(primary_selector),
+                left_objective: primary,
+                op: ScoreCmp::Eq,
+                right: ScoreHolder::entity(secondary_selector),
+                right_objective: secondary,
+            }));
         self
     }
 
     /// `if block <pos> <block>` — execute only if the block at `pos` matches.
     pub fn if_block(mut self, pos: BlockPos, block: impl Into<String>) -> Self {
         self.check_block_pos("if_block", &pos);
-        self.parts.push(format!("if block {pos} {}", block.into()));
+        self.operations.push(ExecuteOp::If(ConditionIr::Block {
+            position: pos,
+            block: block.into(),
+        }));
         self
     }
 
     /// `unless block <pos> <block>` — execute only if the block at `pos` does NOT match.
     pub fn unless_block(mut self, pos: BlockPos, block: impl Into<String>) -> Self {
         self.check_block_pos("unless_block", &pos);
-        self.parts
-            .push(format!("unless block {pos} {}", block.into()));
+        self.operations.push(ExecuteOp::Unless(ConditionIr::Block {
+            position: pos,
+            block: block.into(),
+        }));
         self
     }
 
@@ -399,8 +420,12 @@ impl Execute {
             kind: "if_score_matches",
             value: range.clone(),
         });
-        self.parts
-            .push(format!("if score {holder} {objective} matches {range}",));
+        self.operations
+            .push(ExecuteOp::If(ConditionIr::ScoreMatches {
+                holder: ScoreHolder::from_compat(holder),
+                objective,
+                range,
+            }));
         self
     }
 
@@ -420,8 +445,12 @@ impl Execute {
             kind: "unless_score_matches",
             value: range.clone(),
         });
-        self.parts
-            .push(format!("unless score {holder} {objective} matches {range}",));
+        self.operations
+            .push(ExecuteOp::Unless(ConditionIr::ScoreMatches {
+                holder: ScoreHolder::from_compat(holder),
+                objective,
+                range,
+            }));
         self
     }
 
@@ -440,8 +469,14 @@ impl Execute {
         let b_obj = b_obj.into();
         self.check_objective("if_score_compare.left", &a_obj);
         self.check_objective("if_score_compare.right", &b_obj);
-        self.parts
-            .push(format!("if score {a} {a_obj} {cmp} {b} {b_obj}",));
+        self.operations
+            .push(ExecuteOp::If(ConditionIr::ScoreCompare {
+                left: ScoreHolder::from_compat(a),
+                left_objective: a_obj,
+                op: cmp,
+                right: ScoreHolder::from_compat(b),
+                right_objective: b_obj,
+            }));
         self
     }
 
@@ -460,8 +495,14 @@ impl Execute {
         let b_obj = b_obj.into();
         self.check_objective("unless_score_compare.left", &a_obj);
         self.check_objective("unless_score_compare.right", &b_obj);
-        self.parts
-            .push(format!("unless score {a} {a_obj} {cmp} {b} {b_obj}",));
+        self.operations
+            .push(ExecuteOp::Unless(ConditionIr::ScoreCompare {
+                left: ScoreHolder::from_compat(a),
+                left_objective: a_obj,
+                op: cmp,
+                right: ScoreHolder::from_compat(b),
+                right_objective: b_obj,
+            }));
         self
     }
 
@@ -582,32 +623,40 @@ impl Execute {
     /// `if data entity <selector> <path>` — continue if entity NBT has a value at `path`.
     pub fn if_data_entity(mut self, selector: Selector, path: impl Into<String>) -> Self {
         self.check_selector("if_data_entity", &selector);
-        self.parts
-            .push(format!("if data entity {selector} {}", path.into()));
+        self.operations.push(ExecuteOp::If(ConditionIr::Data {
+            target: DataTarget::entity(selector),
+            path: path.into(),
+        }));
         self
     }
 
     /// `unless data entity <selector> <path>` — skip if entity NBT has a value at `path`.
     pub fn unless_data_entity(mut self, selector: Selector, path: impl Into<String>) -> Self {
         self.check_selector("unless_data_entity", &selector);
-        self.parts
-            .push(format!("unless data entity {selector} {}", path.into()));
+        self.operations.push(ExecuteOp::Unless(ConditionIr::Data {
+            target: DataTarget::entity(selector),
+            path: path.into(),
+        }));
         self
     }
 
     /// `if data block <pos> <path>` — continue if block NBT has a value at `path`.
     pub fn if_data_block(mut self, pos: BlockPos, path: impl Into<String>) -> Self {
         self.check_block_pos("if_data_block", &pos);
-        self.parts
-            .push(format!("if data block {pos} {}", path.into()));
+        self.operations.push(ExecuteOp::If(ConditionIr::Data {
+            target: DataTarget::block(pos),
+            path: path.into(),
+        }));
         self
     }
 
     /// `unless data block <pos> <path>` — skip if block NBT has a value at `path`.
     pub fn unless_data_block(mut self, pos: BlockPos, path: impl Into<String>) -> Self {
         self.check_block_pos("unless_data_block", &pos);
-        self.parts
-            .push(format!("unless data block {pos} {}", path.into()));
+        self.operations.push(ExecuteOp::Unless(ConditionIr::Data {
+            target: DataTarget::block(pos),
+            path: path.into(),
+        }));
         self
     }
 
@@ -615,8 +664,10 @@ impl Execute {
     pub fn if_data_storage(mut self, source: impl Into<String>, path: impl Into<String>) -> Self {
         let source = source.into();
         self.check_resource("if_data_storage", "storage", &source, false);
-        self.parts
-            .push(format!("if data storage {source} {}", path.into()));
+        self.operations.push(ExecuteOp::If(ConditionIr::Data {
+            target: DataTarget::storage(source),
+            path: path.into(),
+        }));
         self
     }
 
@@ -628,8 +679,10 @@ impl Execute {
     ) -> Self {
         let source = source.into();
         self.check_resource("unless_data_storage", "storage", &source, false);
-        self.parts
-            .push(format!("unless data storage {source} {}", path.into(),));
+        self.operations.push(ExecuteOp::Unless(ConditionIr::Data {
+            target: DataTarget::storage(source),
+            path: path.into(),
+        }));
         self
     }
 
@@ -640,7 +693,10 @@ impl Execute {
         let biome = biome.into();
         self.check_block_pos("if_biome", &pos);
         self.check_resource("if_biome", "biome", &biome, true);
-        self.parts.push(format!("if biome {pos} {biome}"));
+        self.operations.push(ExecuteOp::If(ConditionIr::Biome {
+            position: pos,
+            biome,
+        }));
         self
     }
 
@@ -649,7 +705,10 @@ impl Execute {
         let biome = biome.into();
         self.check_block_pos("unless_biome", &pos);
         self.check_resource("unless_biome", "biome", &biome, true);
-        self.parts.push(format!("unless biome {pos} {biome}"));
+        self.operations.push(ExecuteOp::Unless(ConditionIr::Biome {
+            position: pos,
+            biome,
+        }));
         self
     }
 
@@ -657,7 +716,8 @@ impl Execute {
     pub fn if_dimension(mut self, dimension: impl Into<String>) -> Self {
         let dimension = dimension.into();
         self.check_resource("if_dimension", "dimension", &dimension, false);
-        self.parts.push(format!("if dimension {dimension}"));
+        self.operations
+            .push(ExecuteOp::If(ConditionIr::Dimension(dimension)));
         self
     }
 
@@ -665,21 +725,24 @@ impl Execute {
     pub fn unless_dimension(mut self, dimension: impl Into<String>) -> Self {
         let dimension = dimension.into();
         self.check_resource("unless_dimension", "dimension", &dimension, false);
-        self.parts.push(format!("unless dimension {dimension}"));
+        self.operations
+            .push(ExecuteOp::Unless(ConditionIr::Dimension(dimension)));
         self
     }
 
     /// `if loaded <pos>` — continue only if the chunk at `pos` is fully loaded.
     pub fn if_loaded(mut self, pos: BlockPos) -> Self {
         self.check_block_pos("if_loaded", &pos);
-        self.parts.push(format!("if loaded {pos}"));
+        self.operations
+            .push(ExecuteOp::If(ConditionIr::Loaded(pos)));
         self
     }
 
     /// `unless loaded <pos>` — skip if the chunk at `pos` is NOT fully loaded.
     pub fn unless_loaded(mut self, pos: BlockPos) -> Self {
         self.check_block_pos("unless_loaded", &pos);
-        self.parts.push(format!("unless loaded {pos}"));
+        self.operations
+            .push(ExecuteOp::Unless(ConditionIr::Loaded(pos)));
         self
     }
 
@@ -696,8 +759,12 @@ impl Execute {
             kind: "if_items_entity",
             value: slot.clone(),
         });
-        self.parts
-            .push(format!("if items entity {selector} {slot} {}", item.into()));
+        self.operations
+            .push(ExecuteOp::If(ConditionIr::ItemsEntity {
+                target: selector,
+                slot,
+                item: item.into(),
+            }));
         self
     }
 
@@ -714,10 +781,12 @@ impl Execute {
             kind: "unless_items_entity",
             value: slot.clone(),
         });
-        self.parts.push(format!(
-            "unless items entity {selector} {slot} {}",
-            item.into()
-        ));
+        self.operations
+            .push(ExecuteOp::Unless(ConditionIr::ItemsEntity {
+                target: selector,
+                slot,
+                item: item.into(),
+            }));
         self
     }
 
@@ -734,8 +803,11 @@ impl Execute {
             kind: "if_items_block",
             value: slot.clone(),
         });
-        self.parts
-            .push(format!("if items block {pos} {slot} {}", item.into()));
+        self.operations.push(ExecuteOp::If(ConditionIr::ItemsBlock {
+            position: pos,
+            slot,
+            item: item.into(),
+        }));
         self
     }
 
@@ -752,8 +824,12 @@ impl Execute {
             kind: "unless_items_block",
             value: slot.clone(),
         });
-        self.parts
-            .push(format!("unless items block {pos} {slot} {}", item.into()));
+        self.operations
+            .push(ExecuteOp::Unless(ConditionIr::ItemsBlock {
+                position: pos,
+                slot,
+                item: item.into(),
+            }));
         self
     }
 
@@ -761,13 +837,26 @@ impl Execute {
     pub fn if_predicate(mut self, predicate: impl Into<String>) -> Self {
         let predicate = predicate.into();
         self.check_resource("if_predicate", "predicate", &predicate, false);
-        self.parts.push(format!("if predicate {predicate}"));
+        self.operations
+            .push(ExecuteOp::If(ConditionIr::Predicate(predicate)));
         self
     }
 
-    /// Append a raw condition fragment (e.g. from `Objective::if_matches`).
+    /// Append a legacy raw execute fragment (e.g. from `Objective::if_matches`).
+    ///
+    /// This compatibility method creates [`ExecuteOp::Raw`]. Sand preserves
+    /// the fragment verbatim and cannot structurally validate or version-check
+    /// it. Prefer typed condition methods for new code.
     pub fn if_(mut self, condition: impl Into<String>) -> Self {
-        self.parts.push(condition.into());
+        self.operations.push(ExecuteOp::Raw(condition.into()));
+        self
+    }
+
+    /// Append an explicitly opaque execute subcommand.
+    ///
+    /// Raw operations are not parsed, optimized, rewritten, or version-checked.
+    pub fn raw_operation(mut self, fragment: impl Into<String>) -> Self {
+        self.operations.push(ExecuteOp::Raw(fragment.into()));
         self
     }
 
@@ -790,8 +879,12 @@ impl Execute {
             kind: "if_items",
             value: slot.clone(),
         });
-        self.parts
-            .push(format!("if items entity {selector} {slot} {}", item.into()));
+        self.operations
+            .push(ExecuteOp::If(ConditionIr::ItemsEntity {
+                target: selector,
+                slot,
+                item: item.into(),
+            }));
         self
     }
 
@@ -809,10 +902,12 @@ impl Execute {
             kind: "unless_items",
             value: slot.clone(),
         });
-        self.parts.push(format!(
-            "unless items entity {selector} {slot} {}",
-            item.into()
-        ));
+        self.operations
+            .push(ExecuteOp::Unless(ConditionIr::ItemsEntity {
+                target: selector,
+                slot,
+                item: item.into(),
+            }));
         self
     }
 
@@ -831,8 +926,11 @@ impl Execute {
             kind: "store_result_score",
             value: objective.clone(),
         });
-        self.parts
-            .push(format!("store result score {holder} {objective}"));
+        self.operations
+            .push(ExecuteOp::StoreResult(ExecuteStoreTarget::Score {
+                holder,
+                objective,
+            }));
         self
     }
 
@@ -853,8 +951,11 @@ impl Execute {
             kind: "store_success_score",
             value: objective.clone(),
         });
-        self.parts
-            .push(format!("store success score {holder} {objective}"));
+        self.operations
+            .push(ExecuteOp::StoreSuccess(ExecuteStoreTarget::Score {
+                holder,
+                objective,
+            }));
         self
     }
 
@@ -872,11 +973,13 @@ impl Execute {
             field: "scale",
             value: scale,
         });
-        self.parts.push(format!(
-            "store result {} {} {kind} {scale}",
-            target,
-            path.into()
-        ));
+        self.operations
+            .push(ExecuteOp::StoreResult(ExecuteStoreTarget::Nbt {
+                target,
+                path: path.into(),
+                kind,
+                scale,
+            }));
         self
     }
 
@@ -894,11 +997,13 @@ impl Execute {
             field: "scale",
             value: scale,
         });
-        self.parts.push(format!(
-            "store success {} {} {kind} {scale}",
-            target,
-            path.into()
-        ));
+        self.operations
+            .push(ExecuteOp::StoreSuccess(ExecuteStoreTarget::Nbt {
+                target,
+                path: path.into(),
+                kind,
+                scale,
+            }));
         self
     }
 
@@ -908,11 +1013,11 @@ impl Execute {
         id: impl Into<String>,
         attribute: impl Into<String>,
     ) -> Self {
-        self.parts.push(format!(
-            "store result bossbar {} {}",
-            id.into(),
-            attribute.into()
-        ));
+        self.operations
+            .push(ExecuteOp::StoreResult(ExecuteStoreTarget::Bossbar {
+                id: id.into(),
+                attribute: attribute.into(),
+            }));
         self
     }
 
@@ -922,11 +1027,11 @@ impl Execute {
         id: impl Into<String>,
         attribute: impl Into<String>,
     ) -> Self {
-        self.parts.push(format!(
-            "store success bossbar {} {}",
-            id.into(),
-            attribute.into()
-        ));
+        self.operations
+            .push(ExecuteOp::StoreSuccess(ExecuteStoreTarget::Bossbar {
+                id: id.into(),
+                attribute: attribute.into(),
+            }));
         self
     }
 
@@ -937,9 +1042,8 @@ impl Execute {
     /// This retains the historical infallible string API. Prefer [`try_run`](Self::try_run)
     /// for typed terminal commands; exported compatibility output is validated
     /// again with function context before files are accepted.
-    pub fn run(mut self, cmd: impl fmt::Display) -> String {
-        self.parts.push(format!("run {cmd}"));
-        format!("execute {}", self.parts.join(" "))
+    pub fn run(self, cmd: impl fmt::Display) -> String {
+        self.finish(cmd)
     }
 
     /// Validate the whole execute chain and a typed terminal command before
@@ -950,13 +1054,14 @@ impl Execute {
         let cmd = cmd
             .render(&profile)
             .map_err(|e| e.with_context("Execute::run command"))?;
-        Ok(format!("{} run {cmd}", self.build()))
+        let line = format!("{} run {cmd}", self.build());
+        crate::execute_ir::register_line(&line, &self.operations);
+        Ok(line)
     }
 
     /// Like [`run`](Execute::run) but more explicit about accepting raw strings.
-    pub fn run_raw(mut self, cmd: impl fmt::Display) -> String {
-        self.parts.push(format!("run {cmd}"));
-        format!("execute {}", self.parts.join(" "))
+    pub fn run_raw(self, cmd: impl fmt::Display) -> String {
+        self.finish(cmd)
     }
 
     /// Validate the typed execute chain, then append an explicitly raw terminal
@@ -973,24 +1078,46 @@ impl Execute {
                 "raw terminal commands must be a single line without a leading `/`",
             ));
         }
-        Ok(format!("{} run {cmd}", self.build()))
+        let line = format!("{} run {cmd}", self.build());
+        crate::execute_ir::register_line(&line, &self.operations);
+        Ok(line)
     }
 
     /// Run a named function: `execute ... run function <namespace:path>`.
-    pub fn run_fn(mut self, function: impl fmt::Display) -> String {
-        self.parts.push(format!("run function {function}"));
-        format!("execute {}", self.parts.join(" "))
+    pub fn run_fn(self, function: impl fmt::Display) -> String {
+        self.finish(format!("function {function}"))
+    }
+
+    /// Append a typed operation. Intended for Sand's higher-level builders.
+    #[doc(hidden)]
+    pub fn with_operation(mut self, operation: ExecuteOp) -> Self {
+        self.operations.push(operation);
+        self
+    }
+
+    /// Borrow the ordered operation IR.
+    pub fn operations(&self) -> &[ExecuteOp] {
+        &self.operations
+    }
+
+    fn finish(self, command: impl fmt::Display) -> String {
+        let line = format!("{} run {command}", self.build());
+        crate::execute_ir::register_line(&line, &self.operations);
+        line
     }
 }
 
 impl Validate for Execute {
     fn validate(&self, profile: &CommandProfile) -> CommandResult<()> {
-        if self.parts.is_empty() {
+        if self.operations.is_empty() {
             return Err(CommandError::new(
                 "Execute",
                 "subcommands",
                 "execute chains require at least one subcommand",
             ));
+        }
+        for (index, operation) in self.operations.iter().enumerate() {
+            operation.validate_version(index, profile)?;
         }
         for check in &self.checks {
             let (index, kind, result) = match check {
@@ -1129,10 +1256,17 @@ impl Build for Execute {
     ///
     /// Useful for embedding in `execute store` prefixes or debugging.
     fn build(&self) -> String {
-        if self.parts.is_empty() {
+        if self.operations.is_empty() {
             "execute".to_string()
         } else {
-            format!("execute {}", self.parts.join(" "))
+            format!(
+                "execute {}",
+                self.operations
+                    .iter()
+                    .map(ExecuteOp::render)
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            )
         }
     }
 }
@@ -1161,6 +1295,86 @@ mod tests {
             .as_(Selector::all_players())
             .run_raw("say hi");
         assert_eq!(s, "execute as @a run say hi");
+    }
+
+    #[test]
+    fn ordered_context_operations_render_from_typed_ir() {
+        let command = Execute::new()
+            .as_(Selector::all_players())
+            .at(Selector::self_())
+            .positioned(Vec3::new(
+                crate::Coord::rel_n(1.0),
+                crate::Coord::rel_n(2.0),
+                crate::Coord::rel_n(3.0),
+            ))
+            .positioned_as(Selector::nearest_player())
+            .rotated(Rotation::new(
+                crate::Coord::rel_n(10.0),
+                crate::Coord::rel_n(20.0),
+            ))
+            .rotated_as(Selector::self_())
+            .facing(Vec3::absolute(0.0, 64.0, 0.0))
+            .facing_entity(Selector::nearest_player(), Anchor::Eyes)
+            .anchored(Anchor::Feet)
+            .in_("minecraft:the_nether")
+            .align(Swizzle::xyz())
+            .on("attacker")
+            .run_raw("say ordered");
+        assert_eq!(
+            command,
+            "execute as @a at @s positioned ~1 ~2 ~3 positioned as @p rotated ~10 ~20 rotated as @s facing 0 64 0 facing entity @p eyes anchored feet in minecraft:the_nether align xyz on attacker run say ordered"
+        );
+    }
+
+    #[test]
+    fn raw_operation_is_distinguishable_and_verbatim() {
+        let execute = Execute::new().raw_operation("if custom future:syntax");
+        assert!(
+            matches!(execute.operations(), [ExecuteOp::Raw(fragment)] if fragment == "if custom future:syntax")
+        );
+        assert_eq!(
+            execute.run_raw("say opaque"),
+            "execute if custom future:syntax run say opaque"
+        );
+    }
+
+    #[test]
+    fn item_condition_capability_is_profile_aware_at_export_boundary() {
+        let line = Execute::new()
+            .if_items(Selector::self_(), ItemSlot::MainHand, "minecraft:diamond")
+            .run_raw("say found");
+
+        crate::render::validate_collected_line(&line, &CommandProfile::new("1.20.5", false))
+            .unwrap();
+        let error =
+            crate::render::validate_collected_line(&line, &CommandProfile::new("1.20.4", false))
+                .unwrap_err();
+        assert_eq!(error.code, "SAND-COMMAND-VERSION");
+        assert_eq!(error.field, "operation");
+        assert!(error.message.contains("ExecuteItemCondition"), "{error}");
+        assert!(error.message.contains("Minecraft 1.20.5+"), "{error}");
+    }
+
+    #[test]
+    fn raw_item_condition_keeps_user_owned_version_semantics() {
+        let line = Execute::new()
+            .raw_operation("if items entity @s weapon.mainhand minecraft:diamond")
+            .run_raw("say opaque");
+        assert_eq!(
+            crate::render::validate_collected_line(&line, &CommandProfile::new("1.20.4", false),)
+                .unwrap(),
+            line
+        );
+    }
+
+    #[test]
+    fn empty_compatibility_chain_is_rejected_before_export() {
+        let line = Execute::new().run_raw("say unreachable");
+        assert_eq!(line, "execute run say unreachable");
+        let error = crate::render::validate_collected_line(&line, &CommandProfile::unprofiled())
+            .unwrap_err();
+        assert_eq!(error.code, "SAND-COMMAND-EXECUTE-EMPTY");
+        assert_eq!(error.field, "operations");
     }
 
     #[test]

@@ -300,10 +300,35 @@ impl Condition {
 
 // ── Execute plan lowering ─────────────────────────────────────────────────────
 
-/// A single execute plan — a sequence of `if/unless …` clause strings to chain.
-///
-/// Multiple plans from the same condition are OR-alternatives (at least one must
-/// succeed for the overall condition to hold).
+/// One normalized typed condition clause.
+#[derive(Debug, Clone)]
+pub struct ExecuteClause {
+    /// Whether this clause renders with `unless` instead of `if`.
+    pub negated: bool,
+    /// Structured condition body.
+    pub condition: sand_commands::ConditionIr,
+}
+
+impl ExecuteClause {
+    /// Convert this clause into an ordered execute operation.
+    pub fn into_operation(self) -> sand_commands::ExecuteOp {
+        if self.negated {
+            sand_commands::ExecuteOp::Unless(self.condition)
+        } else {
+            sand_commands::ExecuteOp::If(self.condition)
+        }
+    }
+
+    /// Compatibility renderer for callers that still consume clause strings.
+    pub fn render(&self) -> String {
+        format!("{} {}", if_kw(self.negated), self.condition.render())
+    }
+}
+
+/// A normalized typed execute plan. Multiple plans are OR-alternatives.
+pub type ExecuteIrPlan = Vec<ExecuteClause>;
+
+/// Compatibility plan type retained for existing public callers.
 pub type ExecutePlan = Vec<String>;
 
 impl Condition {
@@ -322,74 +347,65 @@ impl Condition {
     ///
     /// The Cartesian product of `[[a], [b]]` and `[[c], [d]]` is
     /// `[[a, c], [a, d], [b, c], [b, d]]`.
-    pub fn to_execute_plans(&self, negated: bool) -> Vec<ExecutePlan> {
+    pub fn to_ir_plans(&self, negated: bool) -> Vec<ExecuteIrPlan> {
+        use sand_commands::{ConditionIr, DataTarget, ScoreCmp, ScoreHolder, Selector};
+
+        let clause = |condition| vec![vec![ExecuteClause { negated, condition }]];
         match self {
-            // Leaf nodes → single plan with one clause
             Condition::Score {
                 selector,
                 objective,
                 range,
-            } => {
-                let kw = if_kw(negated);
-                vec![vec![format!(
-                    "{kw} score {selector} {objective} matches {}",
-                    range.render()
-                )]]
-            }
+            } => clause(ConditionIr::ScoreMatches {
+                holder: ScoreHolder::compat(selector.clone()),
+                objective: objective.clone(),
+                range: range.render(),
+            }),
             Condition::ScoreCompare { left, op, right } => {
-                let kw = if_kw(negated);
-                vec![vec![format!(
-                    "{kw} score {} {} {} {} {}",
-                    left.selector,
-                    left.objective,
-                    op.as_str(),
-                    right.selector,
-                    right.objective
-                )]]
+                let op = match op {
+                    ScoreCompareOp::Eq => ScoreCmp::Eq,
+                    ScoreCompareOp::Gt => ScoreCmp::Gt,
+                    ScoreCompareOp::Gte => ScoreCmp::Ge,
+                    ScoreCompareOp::Lt => ScoreCmp::Lt,
+                    ScoreCompareOp::Lte => ScoreCmp::Le,
+                };
+                clause(ConditionIr::ScoreCompare {
+                    left: ScoreHolder::compat(left.selector.clone()),
+                    left_objective: left.objective.clone(),
+                    op,
+                    right: ScoreHolder::compat(right.selector.clone()),
+                    right_objective: right.objective.clone(),
+                })
             }
             Condition::Flag {
                 selector,
                 objective,
                 value,
-            } => {
-                let kw = if_kw(negated);
-                let expected = if *value { "1" } else { "0" };
-                vec![vec![format!(
-                    "{kw} score {selector} {objective} matches {expected}"
-                )]]
-            }
-            Condition::Predicate(loc) => {
-                let kw = if_kw(negated);
-                vec![vec![format!("{kw} predicate {loc}")]]
-            }
-            Condition::Entity(sel) => {
-                let kw = if_kw(negated);
-                vec![vec![format!("{kw} entity {sel}")]]
-            }
-            Condition::StorageExists { location, path } => {
-                let kw = if_kw(negated);
-                vec![vec![format!("{kw} data storage {location} {path}")]]
-            }
-            Condition::Raw(fragment) => {
-                let kw = if_kw(negated);
-                vec![vec![format!("{kw} {fragment}")]]
-            }
+            } => clause(ConditionIr::ScoreMatches {
+                holder: ScoreHolder::compat(selector.clone()),
+                objective: objective.clone(),
+                range: if *value { "1" } else { "0" }.to_string(),
+            }),
+            Condition::Predicate(loc) => clause(ConditionIr::Predicate(loc.clone())),
+            Condition::Entity(sel) => clause(ConditionIr::Entity(Selector::raw(sel.clone()))),
+            Condition::StorageExists { location, path } => clause(ConditionIr::Data {
+                target: DataTarget::storage(location.clone()),
+                path: path.clone(),
+            }),
+            Condition::Raw(fragment) => clause(ConditionIr::Raw(fragment.clone())),
 
             // Not: flip the negated flag and delegate
-            Condition::Not(inner) => inner.to_execute_plans(!negated),
+            Condition::Not(inner) => inner.to_ir_plans(!negated),
 
             // All(cs) negated=false → AND  → Cartesian product of each child's plans
             // All(cs) negated=true  → NOT(AND) = OR of NOTs → union of negated children
             Condition::All(conds) => {
                 if negated {
                     // NOT(a AND b) = NOT a OR NOT b
-                    conds
-                        .iter()
-                        .flat_map(|c| c.to_execute_plans(true))
-                        .collect()
+                    conds.iter().flat_map(|c| c.to_ir_plans(true)).collect()
                 } else {
-                    let sub_plan_sets: Vec<Vec<ExecutePlan>> =
-                        conds.iter().map(|c| c.to_execute_plans(false)).collect();
+                    let sub_plan_sets: Vec<Vec<ExecuteIrPlan>> =
+                        conds.iter().map(|c| c.to_ir_plans(false)).collect();
                     cartesian_product_plans(sub_plan_sets)
                 }
             }
@@ -399,17 +415,22 @@ impl Condition {
             Condition::Any(conds) => {
                 if negated {
                     // NOT(a OR b) = NOT a AND NOT b
-                    let sub_plan_sets: Vec<Vec<ExecutePlan>> =
-                        conds.iter().map(|c| c.to_execute_plans(true)).collect();
+                    let sub_plan_sets: Vec<Vec<ExecuteIrPlan>> =
+                        conds.iter().map(|c| c.to_ir_plans(true)).collect();
                     cartesian_product_plans(sub_plan_sets)
                 } else {
-                    conds
-                        .iter()
-                        .flat_map(|c| c.to_execute_plans(false))
-                        .collect()
+                    conds.iter().flat_map(|c| c.to_ir_plans(false)).collect()
                 }
             }
         }
+    }
+
+    /// Compatibility rendering of [`Condition::to_ir_plans`].
+    pub fn to_execute_plans(&self, negated: bool) -> Vec<ExecutePlan> {
+        self.to_ir_plans(negated)
+            .into_iter()
+            .map(|plan| plan.into_iter().map(|clause| clause.render()).collect())
+            .collect()
     }
 
     /// Build complete `execute … run <cmd>` command strings for this condition.
@@ -422,13 +443,18 @@ impl Condition {
     /// - `Not(Any)`: one command with de Morgan–applied `unless` clauses.
     /// - `All([a, Any([b, c])])`: two commands.
     pub fn execute_commands(&self, negated: bool, run: &str) -> Vec<String> {
-        self.to_execute_plans(negated)
+        self.to_ir_plans(negated)
             .into_iter()
             .map(|clauses| {
                 if clauses.is_empty() {
                     run.to_string()
                 } else {
-                    format!("execute {} run {run}", clauses.join(" "))
+                    clauses
+                        .into_iter()
+                        .fold(sand_commands::Execute::new(), |execute, clause| {
+                            execute.with_operation(clause.into_operation())
+                        })
+                        .run(run)
                 }
             })
             .collect()
@@ -462,11 +488,11 @@ fn if_kw(negated: bool) -> &'static str {
 ///
 /// Given `[[plan_a1, plan_a2], [plan_b1]]` produces every combination:
 /// `[plan_a1 + plan_b1, plan_a2 + plan_b1]`.
-fn cartesian_product_plans(plan_sets: Vec<Vec<ExecutePlan>>) -> Vec<ExecutePlan> {
+fn cartesian_product_plans(plan_sets: Vec<Vec<ExecuteIrPlan>>) -> Vec<ExecuteIrPlan> {
     if plan_sets.is_empty() {
         return vec![vec![]];
     }
-    let mut result: Vec<ExecutePlan> = vec![vec![]];
+    let mut result: Vec<ExecuteIrPlan> = vec![vec![]];
     for plan_set in plan_sets {
         let mut new_result = Vec::new();
         for existing in &result {
@@ -552,6 +578,30 @@ mod tests {
         let c = score("@s", "mana", ScoreRange::Gte(25));
         let plans = c.to_execute_plans(false);
         assert_eq!(plans, vec![vec!["if score @s mana matches 25.."]]);
+    }
+
+    #[test]
+    fn normalization_retains_typed_condition_nodes() {
+        let condition = Condition::all([
+            score("@s", "mana", ScoreRange::Gte(10)),
+            Condition::predicate("demo:can_cast"),
+            Condition::raw("block ~ ~-1 ~ minecraft:stone"),
+        ]);
+        let plans = condition.to_ir_plans(false);
+        assert_eq!(plans.len(), 1);
+        assert!(matches!(
+            &plans[0][0].condition,
+            sand_commands::ConditionIr::ScoreMatches { objective, .. } if objective == "mana"
+        ));
+        assert!(matches!(
+            &plans[0][1].condition,
+            sand_commands::ConditionIr::Predicate(value) if value == "demo:can_cast"
+        ));
+        assert!(matches!(
+            &plans[0][2].condition,
+            sand_commands::ConditionIr::Raw(value)
+                if value == "block ~ ~-1 ~ minecraft:stone"
+        ));
     }
 
     #[test]

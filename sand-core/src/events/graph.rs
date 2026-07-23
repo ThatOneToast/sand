@@ -250,12 +250,16 @@ impl EventEdge {
     /// same semantics as [`TickEventDispatch::execution_plans`] /
     /// `ChainEventDispatch::execution_plans`.
     pub fn execution_plans(&self) -> TickExecutionPlans {
+        self.execution_ir_plans().render_compat()
+    }
+
+    pub(crate) fn execution_ir_plans(&self) -> crate::events::TickExecutionIrPlans {
         if self.persistent.is_empty()
             && self.bounded.is_empty()
             && self.when.is_empty()
             && self.unless.is_empty()
         {
-            return TickExecutionPlans::Unconditional;
+            return crate::events::TickExecutionIrPlans::Unconditional;
         }
         let mut positive: Vec<Condition> = self
             .persistent
@@ -276,7 +280,7 @@ impl EventEdge {
         for u in &self.unless {
             combined = combined.and_not(u.clone());
         }
-        TickExecutionPlans::Plans(combined.to_execute_plans(false))
+        crate::events::TickExecutionIrPlans::Plans(combined.to_ir_plans(false))
     }
 }
 

@@ -145,7 +145,7 @@ pub(crate) fn try_export_components_impl(
     }
 
     // ── EventDescriptors + ArmorEventDescriptors ─────────────────────────────
-    use crate::events::TickExecutionPlans;
+    use crate::events::TickExecutionIrPlans;
     use crate::function::EventDispatch;
 
     // Categorise events by dispatch type so we can batch-generate aggregators.
@@ -1255,14 +1255,14 @@ pub(crate) fn try_export_components_impl(
             let crate::events::graph::NodeOrigin::Root(tick) = &root.origin else {
                 unreachable!("roots() only yields Root-origin nodes");
             };
-            let plans = tick.execution_plans();
-            let needs_guard = matches!(&plans, TickExecutionPlans::Plans(p) if p.len() > 1);
+            let plans = tick.execution_ir_plans();
+            let needs_guard = matches!(&plans, TickExecutionIrPlans::Plans(p) if p.len() > 1);
             let key = tick_event_resource_key(root.type_name);
             let self_guard = needs_guard.then(|| format!("se_{key}_f"));
 
             let dispatch_reachable = match &plans {
-                TickExecutionPlans::Unconditional => true,
-                TickExecutionPlans::Plans(p) => !p.is_empty(),
+                TickExecutionIrPlans::Unconditional => true,
+                TickExecutionIrPlans::Plans(p) => !p.is_empty(),
             };
             let dispatch_ref = if dispatch_reachable {
                 Some(build_dispatch_function(
@@ -1449,7 +1449,7 @@ pub(crate) fn try_export_components_impl(
             let crate::events::graph::NodeOrigin::Root(tick) = &root.origin else {
                 unreachable!("roots() only yields Root-origin nodes");
             };
-            let plans = tick.execution_plans();
+            let plans = tick.execution_ir_plans();
             let self_guard = root_self_guard.get(root.type_name).and_then(|g| g.clone());
             let key = tick_event_resource_key(root.type_name);
 
@@ -1471,26 +1471,27 @@ pub(crate) fn try_export_components_impl(
                     }
                 }
                 match &plans {
-                    TickExecutionPlans::Unconditional => {
+                    TickExecutionIrPlans::Unconditional => {
                         tick_cmds.push(format!("execute as @a at @s run function {dispatch_ref}"));
                     }
-                    TickExecutionPlans::Plans(plans) => {
+                    TickExecutionIrPlans::Plans(plans) => {
                         for plan in plans {
-                            let mut clauses: Vec<String> = Vec::new();
+                            let mut execute = sand_commands::Execute::new()
+                                .as_(sand_commands::Selector::all_players())
+                                .at(sand_commands::Selector::self_());
                             if let Some(guard) = &self_guard {
-                                clauses.push(format!("unless score @s {guard} matches 1"));
-                            }
-                            clauses.extend(plan.iter().cloned());
-                            if clauses.is_empty() {
-                                tick_cmds.push(format!(
-                                    "execute as @a at @s run function {dispatch_ref}"
-                                ));
-                            } else {
-                                tick_cmds.push(format!(
-                                    "execute as @a at @s {} run function {dispatch_ref}",
-                                    clauses.join(" ")
+                                execute = execute.with_operation(sand_commands::ExecuteOp::Unless(
+                                    sand_commands::ConditionIr::ScoreMatches {
+                                        holder: sand_commands::ScoreHolder::self_(),
+                                        objective: guard.clone(),
+                                        range: "1".to_string(),
+                                    },
                                 ));
                             }
+                            execute = plan.iter().cloned().fold(execute, |execute, clause| {
+                                execute.with_operation(clause.into_operation())
+                            });
+                            tick_cmds.push(execute.run_fn(&dispatch_ref));
                         }
                     }
                 }

@@ -25,7 +25,13 @@
 //! - **Entities** — typed entity/player query builders and execution-scoped
 //!   contexts from [`crate::entity`].
 //! - **Events** — the typed event model: `Event`, `AdvancementEvent`,
-//!   trigger builders (`InventoryChangedTrigger`, …), and `EventHandle`.
+//!   trigger builders (`InventoryChangedTrigger`, …), and `EventHandle`;
+//!   plus, for custom event authoring (#273), bare-marker `SandEvent`/
+//!   `SandEventDispatch` and the `SandEventParticipants` extension trait
+//!   that gives bare `SandEvent` handlers the same `.entity`/`.attacker`/
+//!   `.killer`/`.victim`/`.weapon` accessor sugar `Event<E>` has; and
+//!   `EventParticipantPlan`/`ParticipantBuilder` for declaring what a plan
+//!   observes or inherits.
 //! - **Components** — item/advancement/recipe/loot-table/dialog builders
 //!   from [`mod@crate::component`] (advancements, recipes, loot tables,
 //!   predicates, dialogs, tags, item components) plus raw escape hatches
@@ -45,10 +51,12 @@
 //!   [`crate::systems`].
 //!
 //! Anything not listed above — VFX ([`crate::vfx`]), the event dispatch
-//! graph ([`crate::events`]), storage/NBT modeling details ([`crate::data`]),
-//! and low-level export hooks ([`crate::advanced`]) — stays in its topic
-//! module; import it explicitly when you need it (e.g. `use sand::vfx::Vfx;`
-//! or `use sand::event::vanilla::OnDeath;`).
+//! *graph* internals ([`crate::events`]'s `EventGraph` and chain/compose
+//! builder plumbing — as opposed to `SandEvent`/`SandEventDispatch`
+//! themselves, which are in the prelude), storage/NBT modeling details
+//! ([`crate::data`]), and low-level export hooks ([`crate::advanced`]) —
+//! stays in its topic module; import it explicitly when you need it (e.g.
+//! `use sand::vfx::Vfx;` or `use sand::event::vanilla::OnDeath;`).
 
 // Attribute + declarative macros.
 pub use crate::{

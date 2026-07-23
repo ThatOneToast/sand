@@ -390,6 +390,24 @@ pub struct SameCycleEventDependency {
     pub event_dispatch: fn() -> SandEventDispatch,
     #[doc(hidden)]
     pub event_setup: fn() -> EventSetup,
+    /// `E::setup()` called directly, with no participant-plan merge — unlike
+    /// `event_setup` (which is `dependency_setup`, crate-private, the
+    /// participants-merged view a same-cycle child's own recursively-discovered `EventSetup`
+    /// must match). The advancement-bridge eligibility check (#269) needs
+    /// this raw form: a bridge parent's own lifecycle `setup()` must still
+    /// be empty (Phase 6 never runs it), but a non-empty `participants()`
+    /// plan is no longer disqualifying — the export pipeline applies it
+    /// directly around the synthesized bridge entry instead (see
+    /// `sand-core/src/events/graph.rs`'s bridge-eligibility check and
+    /// `sand-core/src/compiler/export/pipeline.rs`'s bridge loop).
+    #[doc(hidden)]
+    pub event_raw_setup: fn() -> EventSetup,
+    /// `E::participants()` called directly — the raw plan factory
+    /// [`AdvancementBridge`](crate::events::graph::AdvancementBridge) carries
+    /// forward so the export pipeline can apply a bridge parent's own plan
+    /// (#269).
+    #[doc(hidden)]
+    pub event_participants: fn() -> crate::participant::EventParticipantPlan,
     /// Whether this parent's advancement is revoked after firing —
     /// [`SandEvent::revoke`]. Only meaningful when the parent resolves to
     /// advancement-backed dispatch (#240 Phase 6); ignored for tick-backed
@@ -437,6 +455,8 @@ impl SameCycleEventDependency {
             event_type_name: std::any::type_name::<E>,
             event_dispatch: || E::dispatch().into(),
             event_setup: dependency_setup::<E>,
+            event_raw_setup: E::setup,
+            event_participants: E::participants,
             event_revoke: E::revoke,
         }
     }
@@ -1152,12 +1172,16 @@ pub trait SandEvent {
     ///
     /// Defaults to [`crate::participant::EventParticipantPlan::none`] — a
     /// genuinely additive default; every existing `SandEvent` implementation
-    /// is unaffected by this method's existence. A declared plan is not
-    /// automatically applied by `#[event]`/the tick coordinator; call
-    /// [`EventSetup::with_participants`] from your own [`setup`](Self::setup)
-    /// to apply it — see
-    /// `sand-core/src/participant/plan.rs`'s module doc for the exact
-    /// lifecycle ordering and why this is not (yet) fully macro-transparent.
+    /// is unaffected by this method's existence. The export pipeline applies
+    /// a declared plan automatically for every dispatch backend that can
+    /// meaningfully own one — tick-lifecycle/tick-poll dispatch, same-cycle
+    /// chained dispatch (#264), and tracked-transition dispatch (#270) all
+    /// merge it into the generated detector/handler around the same
+    /// pre/post-observation boundary [`EventSetup::with_participants`]
+    /// documents; you do not need to call `with_participants` yourself
+    /// unless you are hand-assembling an `EventSetup` outside the normal
+    /// `#[event]` path. See `sand-core/src/participant/plan.rs`'s module doc
+    /// for the exact lifecycle ordering per backend.
     fn participants() -> crate::participant::EventParticipantPlan {
         crate::participant::EventParticipantPlan::none()
     }
@@ -1176,6 +1200,74 @@ pub trait SandEvent {
         true
     }
 }
+
+/// Infallible participant accessors for bare `SandEvent`-backed `#[event]`
+/// handlers (`fn handler(event: MarkerType)`), mirroring
+/// [`crate::event::Event`]'s `AdvancementEvent`-backed accessor sugar
+/// without a second overlapping blanket `impl<E: SandEvent> Event<E>` (#273)
+/// — coherence would reject that the moment a type could implement both
+/// `AdvancementEvent` and `SandEvent`, which every built-in combat event
+/// already does. This trait sidesteps the conflict entirely: it is
+/// implemented once, for every `T: SandEvent + 'static`, as inherent-feeling
+/// methods on the concrete marker type itself rather than through a second
+/// generic wrapper.
+///
+/// A blanket `impl` is provided for every `SandEvent` — no manual
+/// implementation needed:
+///
+/// ```rust,ignore
+/// #[event]
+/// fn special_kill(event: SpecialKillEvent) {
+///     let killer = event.killer();
+///     let weapon = event.weapon();
+/// }
+/// ```
+///
+/// See [`crate::participant::ParticipantBuilder`] for how to declare the
+/// plan these accessors read from.
+pub trait SandEventParticipants: SandEvent + Sized + 'static {
+    /// Access a declared entity participant by role. See
+    /// [`crate::event::Event::entity`] for the identical infallible
+    /// contract this mirrors.
+    fn entity(
+        &self,
+        role: crate::participant::EntityParticipantRole,
+    ) -> crate::participant::EntityParticipant {
+        Self::participants().require_entity(std::any::type_name::<Self>(), role)
+    }
+
+    /// Access a declared item participant by role. See [`Self::entity`].
+    fn item(&self, role: crate::participant::ItemParticipantRole) -> crate::item::ItemSnapshot {
+        Self::participants().require_item(std::any::type_name::<Self>(), role)
+    }
+
+    /// The entity that caused this event, when declared.
+    fn attacker(&self) -> crate::participant::EntityParticipant {
+        self.entity(crate::participant::EntityParticipantRole::Attacker)
+    }
+
+    /// The entity that landed the killing blow, when declared.
+    fn killer(&self) -> crate::participant::EntityParticipant {
+        self.entity(crate::participant::EntityParticipantRole::Killer)
+    }
+
+    /// The entity that received damage/an effect, when declared.
+    fn victim(&self) -> crate::participant::EntityParticipant {
+        self.entity(crate::participant::EntityParticipantRole::Victim)
+    }
+
+    /// The entity this player directly interacted with, when declared.
+    fn interacted_entity(&self) -> crate::participant::EntityParticipant {
+        self.entity(crate::participant::EntityParticipantRole::InteractedEntity)
+    }
+
+    /// The weapon item snapshot, when declared.
+    fn weapon(&self) -> crate::item::ItemSnapshot {
+        self.item(crate::participant::ItemParticipantRole::Weapon)
+    }
+}
+
+impl<T: SandEvent + Sized + 'static> SandEventParticipants for T {}
 
 // ── Built-in event marker types ───────────────────────────────────────────────
 

@@ -15,13 +15,11 @@
 //!
 //! # Availability vs. presence
 //!
-//! [`ParticipantAvailability`] answers a build-time question — did this
-//! event type's declared participant plan include this role at all? For
-//! every role this pack observes, the answer is always yes (the plan is a
-//! static property of the event type, not a per-tick runtime fact), so each
-//! handler unwraps it with [`ParticipantAvailability::available`] in a
-//! plain `let` binding rather than branching on it — no bespoke
-//! `Vec<String>`-returning helper function needed.
+//! Participant accessors (`event.attacker()`, `event.killer()`, …) are
+//! infallible (#273): a role an event's plan does not declare would be a
+//! build-time authoring bug (the plan is a static property of the event
+//! type, not a per-tick runtime fact), caught by `sand build`'s mandatory
+//! graph validation, not something ordinary handler code branches on.
 //!
 //! Whether an *item* snapshot actually captured something is a genuine
 //! per-occurrence Minecraft-level fact (a player can swing with an empty
@@ -29,11 +27,14 @@
 //! [`sand::execute_when::if_`] builder over [`ItemSnapshot::is_present`] —
 //! ordinary Minecraft `execute if/unless`, not Rust control flow.
 
+// `SandEvent`/`SandEventDispatch`/`SandEventParticipants` and the participant
+// declaration vocabulary (`EntityParticipantRole`, `ItemParticipantRole`,
+// `ParticipantBuilder`, `ParticipantHand`) all come from the prelude (#273) —
+// only the concrete built-in vanilla event marker types need an explicit
+// `sand::events` import.
 use sand::events::{
-    EntityDamagePlayerEvent, EntityKillEvent, PlayerDamageEntityEvent, PlayerKillEvent, SandEvent,
-    SandEventDispatch,
+    EntityDamagePlayerEvent, EntityKillEvent, PlayerDamageEntityEvent, PlayerKillEvent,
 };
-use sand::participant::{EntityParticipantRole, ParticipantAvailability};
 use sand::prelude::*;
 
 /// Typed evidence schema for every scenario this pack validates. Field
@@ -73,6 +74,11 @@ struct ParticipantAudit {
     /// independent same-cycle child inheriting from the same parent, proves
     /// more than one dependent can observe the borrowed binding.
     compose_sibling_uuid: String,
+    /// `SpecialKillEvent`'s view (#269) of the killer it inherits from its
+    /// advancement-bridge parent `PlayerKillEvent`.
+    bridge_killer_uuid: String,
+    bridge_weapon_present: bool,
+    bridge_weapon_item: String,
 }
 
 // ── Scoreboards ─────────────────────────────────────────────────────────────
@@ -137,10 +143,7 @@ pub fn init() {
 pub fn audit_on_hurt_by_entity_a(event: Event<EntityDamagePlayerEvent>) {
     ATT1.add(Selector::self_(), 1);
     bump_sequence();
-    let attacker = event
-        .attacker()
-        .available()
-        .expect("EntityDamagePlayerEvent's participant plan always declares an attacker");
+    let attacker = event.attacker();
     ParticipantAudit::attacker_present().set(true);
     ParticipantAudit::subject_uuid().copy_from_entity(Selector::self_(), "UUID");
     attacker.execute_at(
@@ -151,10 +154,7 @@ pub fn audit_on_hurt_by_entity_a(event: Event<EntityDamagePlayerEvent>) {
 #[event]
 pub fn audit_on_hurt_by_entity_b(event: Event<EntityDamagePlayerEvent>) {
     ATT2.add(Selector::self_(), 1);
-    let attacker = event
-        .attacker()
-        .available()
-        .expect("EntityDamagePlayerEvent's participant plan always declares an attacker");
+    let attacker = event.attacker();
     attacker.execute_at(
         ParticipantAudit::attacker_b_uuid().copy_from_entity(Selector::self_(), "UUID"),
     );
@@ -165,10 +165,7 @@ pub fn audit_on_hurt_by_entity_b(event: Event<EntityDamagePlayerEvent>) {
 pub fn audit_on_killed(event: Event<PlayerKillEvent>) {
     KILL.add(Selector::self_(), 1);
     bump_sequence();
-    let killer = event
-        .killer()
-        .available()
-        .expect("PlayerKillEvent's participant plan always declares a killer");
+    let killer = event.killer();
     ParticipantAudit::killer_present().set(true);
     killer.execute_at(ParticipantAudit::killer_uuid().copy_from_entity(Selector::self_(), "UUID"));
 }
@@ -178,7 +175,7 @@ pub fn audit_on_killed(event: Event<PlayerKillEvent>) {
 pub fn audit_on_hurt_entity(event: Event<PlayerDamageEntityEvent>) {
     WPN.add(Selector::self_(), 1);
     bump_sequence();
-    let weapon = weapon_snapshot(event.weapon());
+    let weapon = event.weapon();
     if_(weapon.is_present())
         .then_all(mcfunction![
             ParticipantAudit::weapon_present().set(true);
@@ -192,24 +189,13 @@ pub fn audit_on_hurt_entity(event: Event<PlayerDamageEntityEvent>) {
 pub fn audit_on_killed_entity(event: Event<EntityKillEvent>) {
     KWPN.add(Selector::self_(), 1);
     bump_sequence();
-    let weapon = weapon_snapshot(event.weapon());
+    let weapon = event.weapon();
     if_(weapon.is_present())
         .then_all(mcfunction![
             ParticipantAudit::kill_weapon_present().set(true);
             weapon.copy_to(ParticipantAudit::kill_weapon_item());
         ])
         .else_all(mcfunction![ParticipantAudit::kill_weapon_present().set(false);]);
-}
-
-/// Both weapon-snapshot events declare their weapon role unconditionally
-/// (see the module doc's "availability vs. presence" note) — this just
-/// names the shared unwrap so both handlers read identically.
-fn weapon_snapshot(
-    availability: ParticipantAvailability<sand::item::ItemSnapshot>,
-) -> sand::item::ItemSnapshot {
-    availability
-        .available()
-        .expect("this event's participant plan always declares a weapon snapshot")
 }
 
 // ── Same-cycle composition scenario (#264) ─────────────────────────────────
@@ -221,10 +207,10 @@ fn weapon_snapshot(
 // that borrow the parent's binding via `inherit_entity` instead of
 // capturing their own — zero extra setup/cleanup commands are generated for
 // either child (see `EventParticipantPlan::inherit_entity`'s doc). Custom
-// `SandEvent` handlers (unlike `AdvancementEvent` ones) have no `Event<E>`
-// wrapper with `.attacker()` sugar, so they resolve through
-// `EventParticipantPlan::resolve` directly — the same mechanism `Event<E>`
-// itself calls.
+// `SandEvent` handlers get the identical `event.attacker()`-shaped accessor
+// `AdvancementEvent` handlers use, via the blanket `SandEventParticipants`
+// impl (#273) — no more manually-typed `EventParticipantPlan::resolve` calls
+// naming the type and role by hand.
 
 struct ComposedAttackerParent;
 impl SandEvent for ComposedAttackerParent {
@@ -234,7 +220,9 @@ impl SandEvent for ComposedAttackerParent {
             .when(COMPOSE_TRIGGER.of("@s").eq(1))
     }
     fn participants() -> sand::participant::EventParticipantPlan {
-        sand::participant::EventParticipantPlan::new().observe_correlated_attacker()
+        ParticipantBuilder::new()
+            .observe_entity(EntityParticipantRole::Attacker)
+            .build()
     }
 }
 
@@ -244,8 +232,9 @@ impl SandEvent for ComposedAttackerChild {
         SandEventDispatch::chain::<ComposedAttackerParent>()
     }
     fn participants() -> sand::participant::EventParticipantPlan {
-        sand::participant::EventParticipantPlan::new()
+        ParticipantBuilder::new()
             .inherit_entity::<ComposedAttackerParent>(EntityParticipantRole::Attacker)
+            .build()
     }
 }
 
@@ -255,52 +244,80 @@ impl SandEvent for ComposedAttackerSibling {
         SandEventDispatch::chain::<ComposedAttackerParent>()
     }
     fn participants() -> sand::participant::EventParticipantPlan {
-        sand::participant::EventParticipantPlan::new()
+        ParticipantBuilder::new()
             .inherit_entity::<ComposedAttackerParent>(EntityParticipantRole::Attacker)
+            .build()
     }
 }
 
 #[event]
-pub fn audit_on_composed_parent(_event: ComposedAttackerParent) {
+pub fn audit_on_composed_parent(event: ComposedAttackerParent) {
     COMPOSE_TRIGGER.set(Selector::self_(), 0);
-    let attacker = ComposedAttackerParent::participants()
-        .resolve(
-            std::any::type_name::<ComposedAttackerParent>(),
-            EntityParticipantRole::Attacker,
-        )
-        .available()
-        .expect("ComposedAttackerParent always declares an attacker directly");
+    let attacker = event.attacker();
     attacker.execute_at(
         ParticipantAudit::compose_parent_uuid().copy_from_entity(Selector::self_(), "UUID"),
     );
 }
 
 #[event]
-pub fn audit_on_composed_child(_event: ComposedAttackerChild) {
-    let attacker = ComposedAttackerChild::participants()
-        .resolve(
-            std::any::type_name::<ComposedAttackerChild>(),
-            EntityParticipantRole::Attacker,
-        )
-        .available()
-        .expect("ComposedAttackerChild inherits the attacker from ComposedAttackerParent");
+pub fn audit_on_composed_child(event: ComposedAttackerChild) {
+    let attacker = event.attacker();
     attacker.execute_at(
         ParticipantAudit::compose_child_uuid().copy_from_entity(Selector::self_(), "UUID"),
     );
 }
 
 #[event]
-pub fn audit_on_composed_sibling(_event: ComposedAttackerSibling) {
-    let attacker = ComposedAttackerSibling::participants()
-        .resolve(
-            std::any::type_name::<ComposedAttackerSibling>(),
-            EntityParticipantRole::Attacker,
-        )
-        .available()
-        .expect("ComposedAttackerSibling inherits the attacker from ComposedAttackerParent");
+pub fn audit_on_composed_sibling(event: ComposedAttackerSibling) {
+    let attacker = event.attacker();
     attacker.execute_at(
         ParticipantAudit::compose_sibling_uuid().copy_from_entity(Selector::self_(), "UUID"),
     );
+}
+
+// ── Advancement-bridge composition scenario (#269) ─────────────────────────
+//
+// `SpecialKillEvent` is a plain `SandEvent` chained after `PlayerKillEvent`
+// — an `AdvancementEvent` — through the same-cycle advancement bridge
+// (#240 Phase 6). It inherits the killer entity `PlayerKillEvent`'s own
+// `AdvancementEvent::participants()` plan declares, proving a bridge
+// parent's plan is now actually applied around its synthesized entry
+// (previously it was silently never applied at all). It also directly
+// observes its own weapon snapshot — `@s` is the victim in `PlayerKillEvent`
+// (the killer is only reachable via correlated observation, never an exact
+// hand snapshot), so the weapon here is *this event's own* mainhand
+// capture, composed alongside the inherited entity in one plan. `PlayerKillEvent`
+// itself has no direct `#[event]` handler here — #240 Phase 6 still
+// requires a bridged advancement-backed parent's sole dependents to be
+// same-cycle chain children, not a mix of a direct handler and graph
+// composition.
+
+struct SpecialKillEvent;
+impl SandEvent for SpecialKillEvent {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        SandEventDispatch::chain::<PlayerKillEvent>()
+    }
+    fn participants() -> sand::participant::EventParticipantPlan {
+        ParticipantBuilder::new()
+            .inherit_entity::<PlayerKillEvent>(EntityParticipantRole::Killer)
+            .observe_item(ItemParticipantRole::Weapon, ParticipantHand::MainHand)
+            .build()
+    }
+}
+
+#[event]
+pub fn audit_on_special_kill(event: SpecialKillEvent) {
+    let killer = event.killer();
+    killer.execute_at(
+        ParticipantAudit::bridge_killer_uuid().copy_from_entity(Selector::self_(), "UUID"),
+    );
+    let weapon = event.weapon();
+    if_(weapon.is_present())
+        .then_all(mcfunction![
+            ParticipantAudit::bridge_weapon_present().set(true);
+            weapon.copy_to(ParticipantAudit::bridge_weapon_item());
+        ])
+        .else_all(mcfunction![ParticipantAudit::bridge_weapon_present().set(false);]);
 }
 
 // ── Export hook (required by `sand build`) ───────────────────────────────────

@@ -255,7 +255,11 @@ impl EventParticipantPlan {
         self.observe_correlated_attacker_as(EntityParticipantRole::Killer)
     }
 
-    fn observe_correlated_attacker_as(mut self, role: EntityParticipantRole) -> Self {
+    /// `pub(crate)` general form of [`Self::observe_correlated_attacker`]/
+    /// [`Self::observe_correlated_killer`] — reached by [`crate::participant::builder::ParticipantBuilder::observe_entity`]
+    /// so the builder can declare a direct correlated observation under any
+    /// role, not just the two named shorthands.
+    pub(crate) fn observe_correlated_attacker_as(mut self, role: EntityParticipantRole) -> Self {
         self.entries.push(PlanEntry {
             role,
             source: PlanSource::CorrelatedAttacker,
@@ -495,7 +499,13 @@ impl EventParticipantPlan {
     /// [`ParticipantUnavailableReason::NotApplicable`] if `role` was not
     /// declared in this plan — a caller cannot self-report a stronger
     /// availability than the plan actually declared.
-    pub fn resolve(
+    ///
+    /// `pub(crate)` — public handler code reaches this through the infallible
+    /// [`Self::require_entity`] wrapper (or the `Event<E>`/`SandEvent`
+    /// accessor sugar built on it) instead, per #273: a role that a
+    /// statically-known event definition did not declare is a build-time
+    /// authoring bug, not a value for ordinary handler code to branch on.
+    pub(crate) fn resolve(
         &self,
         event_label: &str,
         role: EntityParticipantRole,
@@ -529,7 +539,10 @@ impl EventParticipantPlan {
     /// entity-role equivalent this mirrors. Returns
     /// [`ParticipantUnavailableReason::NotApplicable`] if `role` was not
     /// declared in this plan.
-    pub fn resolve_item(
+    ///
+    /// `pub(crate)` — see [`Self::resolve`]'s doc for why public code reaches
+    /// this through [`Self::require_item`] instead.
+    pub(crate) fn resolve_item(
         &self,
         event_label: &str,
         role: ItemParticipantRole,
@@ -557,6 +570,70 @@ impl EventParticipantPlan {
             entry.location().kind(),
             SnapshotReliability::ExactPostTrigger,
         ))
+    }
+
+    /// Infallible entity-participant access (#273): the public accessor
+    /// surface (`Event<E>::entity`/`.attacker`/etc., and the equivalent
+    /// bare-`SandEvent` accessors) resolves through this instead of
+    /// [`Self::resolve`] directly, so ordinary handler code never sees a
+    /// [`ParticipantAvailability`] wrapper.
+    ///
+    /// # Panics
+    ///
+    /// Panics (via [`std::panic::panic_any`] with a
+    /// [`crate::participant::diagnostic::MissingParticipantPanic`] payload,
+    /// not a plain string) if `role` was not declared on this plan. This is
+    /// a fully local, immediately-knowable authoring mistake — a concrete
+    /// event's `participants()` is a `fn() -> EventParticipantPlan` resolved
+    /// once per event type, so whether a role is declared is a static fact
+    /// about that one function, not something that depends on game state.
+    /// `sand build`'s mandatory graph validation is expected to catch this
+    /// earlier, before any output is written (missing/ambiguous participant
+    /// access is reported there with the event, handler, and requested
+    /// role); this panic is the internal safety net for the rare case a
+    /// mistake reaches codegen without going through that path — the export
+    /// pipeline's handler-invocation boundary
+    /// (`sand-core/src/compiler/export/pipeline.rs`'s
+    /// `invoke_event_handler_body`) catches it and converts it into a
+    /// structured `SAND-EVENT-PARTICIPANT` diagnostic naming the handler
+    /// (this method has no notion of which `#[event]` handler is calling
+    /// it, only the boundary does), never letting it reach a user as a raw,
+    /// unhandled panic.
+    pub(crate) fn require_entity(
+        &self,
+        event_label: &str,
+        role: EntityParticipantRole,
+    ) -> EntityParticipant {
+        match self.resolve(event_label, role) {
+            ParticipantAvailability::Available(participant) => participant,
+            ParticipantAvailability::Unavailable(reason) => {
+                std::panic::panic_any(crate::participant::diagnostic::MissingParticipantPanic {
+                    kind: crate::participant::diagnostic::ParticipantAccessorKind::Entity,
+                    event_label: event_label.to_string(),
+                    role_debug: format!("{role:?}"),
+                    reason: reason.description(),
+                })
+            }
+        }
+    }
+
+    /// The item-participant counterpart to [`Self::require_entity`].
+    pub(crate) fn require_item(
+        &self,
+        event_label: &str,
+        role: ItemParticipantRole,
+    ) -> ItemSnapshot {
+        match self.resolve_item(event_label, role) {
+            ParticipantAvailability::Available(snapshot) => snapshot,
+            ParticipantAvailability::Unavailable(reason) => {
+                std::panic::panic_any(crate::participant::diagnostic::MissingParticipantPanic {
+                    kind: crate::participant::diagnostic::ParticipantAccessorKind::Item,
+                    event_label: event_label.to_string(),
+                    role_debug: format!("{role:?}"),
+                    reason: reason.description(),
+                })
+            }
+        }
     }
 }
 

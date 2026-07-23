@@ -160,26 +160,25 @@ pub use sand_core::entity;
 
 /// Typed participant context (#230): reliability, availability, roles,
 /// lifetime, typed handles (`EntityParticipant`, `PlayerParticipant`),
-/// declarative observation plans (`EventParticipantPlan`), and the
-/// correlated-observation backend (`observe_correlated_attacker`).
+/// declarative observation plans (`EventParticipantPlan`,
+/// [`ParticipantBuilder`](sand_core::participant::ParticipantBuilder)), and
+/// the correlated-observation backend (`observe_correlated_attacker`).
 ///
-/// The vocabulary needed to consume results from `Event<E>::entity`/`.item`/
-/// `.attacker`/`.victim`/`.weapon` (reliability, availability, unavailable
-/// reasons, role enums) is already in the [`prelude`]; reach for this module
-/// directly when declaring a plan (`SandEvent::participants`/
-/// `AdvancementEvent::participants`) or working with a typed handle
-/// (`EntityParticipant::selector()`) rather than only pattern-matching a
-/// `ParticipantAvailability` result.
+/// Accessors (`Event<E>::entity`/`.item`/`.attacker`/`.victim`/`.weapon`, and
+/// the equivalent bare-`SandEvent` accessors via
+/// [`events::SandEventParticipants`]) return the typed participant directly
+/// (#273) — reach for this module when declaring a plan
+/// (`SandEvent::participants`/`AdvancementEvent::participants`, built with
+/// [`ParticipantBuilder`](sand_core::participant::ParticipantBuilder)) or
+/// working with a typed handle (`EntityParticipant::selector()`).
 ///
 /// ```rust,ignore
 /// use sand::prelude::*;
-/// use sand::participant::EntityParticipantRole;
 ///
 /// #[event]
 /// fn on_hit(event: Event<EntityDamagePlayerEvent>) {
-///     if let ParticipantAvailability::Available(attacker) = event.attacker() {
-///         // build commands against attacker.selector()
-///     }
+///     let attacker = event.attacker();
+///     // build commands against attacker.selector()
 /// }
 /// ```
 pub use sand_core::participant;

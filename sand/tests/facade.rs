@@ -28,18 +28,25 @@ fn facade_join(event: Event<sand::events::OnJoinEvent>) {
 }
 
 // Participant context (#230) is reachable through the façade — both the
-// curated vocabulary in the glob prelude (`ParticipantAvailability`,
-// `EntityParticipantRole`) and the `sand::participant` module for typed
-// handles/plan declaration.
+// curated vocabulary in the glob prelude (`EntityParticipantRole`) and the
+// `sand::participant` module for typed handles/plan declaration. Accessors
+// return the typed participant directly, not a `ParticipantAvailability`
+// wrapper (#273).
 #[event]
 fn facade_on_hurt(event: Event<sand::event::vanilla::EntityDamagesPlayer>) {
-    let attacker: ParticipantAvailability<sand::participant::EntityParticipant> = event.attacker();
-    let weapon: sand::participant::ParticipantAvailability<sand::item::ItemSnapshot> =
-        event.weapon();
+    let attacker: sand::participant::EntityParticipant = event.attacker();
     cmd::raw(format!(
-        "# facade check: attacker available = {}, weapon available = {}",
-        attacker.is_available(),
-        weapon.is_available()
+        "# facade check: attacker = {}",
+        attacker.selector()
+    ));
+}
+
+#[event]
+fn facade_on_hurt_entity(event: Event<sand::event::vanilla::PlayerDamagesEntity>) {
+    let weapon: sand::item::ItemSnapshot = event.weapon();
+    cmd::raw(format!(
+        "# facade check: weapon storage = {}",
+        weapon.storage()
     ));
 }
 

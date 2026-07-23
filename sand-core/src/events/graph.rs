@@ -95,6 +95,15 @@ pub struct AdvancementBridge {
     pub event_dispatch: fn() -> SandEventDispatch,
     pub event_setup: fn() -> EventSetup,
     pub event_revoke: fn() -> bool,
+    /// This bridge parent's own declared participant plan (#269) — applied
+    /// by the export pipeline directly around the synthesized bridge entry
+    /// function (setup before dependent dispatch, cleanup after every
+    /// synchronous descendant), since the bridge never runs the parent's own
+    /// `SandEvent::setup()` lifecycle. `event_setup` above remains the raw
+    /// (never applied) lifecycle setup, kept only for parity with other
+    /// call sites; this field is the one the export pipeline actually
+    /// splices in.
+    pub event_participants: fn() -> crate::participant::EventParticipantPlan,
 }
 
 /// One resolved same-cycle parent identity.
@@ -970,7 +979,19 @@ fn resolve_occurrence_dependencies(
                 // field via `PartialEq`); `first_non_empty_category()` only
                 // adds the diagnostic detail of *which* category blocked
                 // this, never substitutes for the full check.
-                let bridge_setup = (factory.event_setup)();
+                //
+                // This checks the *raw* `SandEvent::setup()` (#269), not
+                // `factory.event_setup` — the latter is [`dependency_setup`],
+                // which merges a declared `participants()` plan in exactly
+                // the way a same-cycle tick/chain child needs to see it. A
+                // bridge parent's `participants()` plan is no longer
+                // disqualifying on its own: the export pipeline applies it
+                // directly around the synthesized bridge entry instead (see
+                // `event_participants` below and
+                // `sand-core/src/compiler/export/pipeline.rs`'s bridge
+                // loop). Only genuine non-participant lifecycle setup — which
+                // the bridge structurally cannot run — is still rejected.
+                let bridge_setup = (factory.event_raw_setup)();
                 if !bridge_setup.is_empty() {
                     let category = bridge_setup
                         .first_non_empty_category()
@@ -991,6 +1012,7 @@ fn resolve_occurrence_dependencies(
                         event_dispatch: factory.event_dispatch,
                         event_setup: factory.event_setup,
                         event_revoke: factory.event_revoke,
+                        event_participants: factory.event_participants,
                     },
                 );
             } else {

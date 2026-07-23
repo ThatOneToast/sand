@@ -169,13 +169,23 @@ its `propagate_*`/`merge_*` helpers), which is a genuinely separate,
 still-used concern from participant (entity/item) propagation.
 `Event<E>::attacker()`/`.weapon()`/etc. resolve an inherited
 declaration exactly like a directly-declared one for `AdvancementEvent`
-handlers; plain `SandEvent` (tick/chain-dispatched) handlers call
-`E::participants().resolve(...)`/`.resolve_item(...)` directly, since
-`Event<E>`'s participant accessors are only implemented for
-`AdvancementEvent` today (a Rust trait-coherence constraint — two blanket
-`impl<E: AdvancementEvent> Event<E>` / `impl<E: SandEvent> Event<E>` blocks
-with the same method names cannot both exist without a shared supertrait,
-which would be a much larger, out-of-scope migration).
+handlers. As of #273/#280, plain `SandEvent` (tick/chain/tracked-dispatched)
+handlers get the identical accessor sugar via the `SandEventParticipants`
+blanket trait (`impl<T: SandEvent + 'static> SandEventParticipants for T`),
+implemented as default trait methods on the concrete marker type itself
+rather than a second `impl<E: SandEvent> Event<E>` block — this sidesteps
+the trait-coherence conflict a second blanket `Event<E>` impl would hit
+(nothing prevents a type implementing both `AdvancementEvent` and
+`SandEvent`, as every built-in combat event already does) without a
+supertrait migration. Both accessor surfaces are also now infallible: they
+return the typed participant directly rather than a
+`ParticipantAvailability<T>` wrapper, panicking internally (converted to a
+structured `SAND-EVENT-PARTICIPANT` `sand build` diagnostic by the export
+pipeline's panic-hook boundary, never a raw unhandled panic) if the plan
+does not declare the requested role — see
+`sand-core/tests/missing_participant_diagnostic.rs`. The old
+`EventParticipantPlan::resolve`/`.resolve_item()` are now crate-private;
+public code no longer has a reason to call them directly.
 
 ### Edge/role support matrix
 
@@ -188,7 +198,7 @@ which would be a much larger, out-of-scope migration).
 | `after_all` (multi-parent, conjunctive) | ❌ Rejected | ❌ Rejected | — | — | Same diagnostic path as `after_any` — any edge with more than one occurrence clause/parent is rejected uniformly. |
 | `.while_(...)` (persistent condition) | ❌ Rejected (also structurally impossible — see below) | ❌ Rejected | — | — | A `while_` parent is required to have an empty `EventSetup` (#240 Phase 6 precedent), so it can never carry a plan to inherit from in the first place; the validator's diagnostic names this. |
 | `.within(...)` (bounded cross-tick correlation) | ❌ Rejected (entity) | 🟡 Not automatic — use `ItemSnapshot::copy_to` by hand | Copied snapshots keep `ExactSnapshot` | Bounded, caller-managed | #264 does not add an automatic bounded-item transport; the typed `ItemSnapshot::copy_to`/`StorageField` APIs from #267 already let a caller build one explicitly into per-subject correlation storage. Entity participants are never safe to keep alive across a tick boundary with the current temporary-tag mechanism (see "Bounded entity decision" in the #264 PR description) and always resolve unavailable/rejected. |
-| Advancement-bridge parent (`.after::<AdvancementEvent>()` with no direct handler) | ❌ Rejected | ❌ Rejected | — | — | A bridge parent's own participant plan is never applied by the bridge codegen path at all today (a separate, pre-existing gap from the same-cycle chain/tick gap #264 fixes) — the validator rejects any `inherit_*` naming a bridge parent as the source, with a diagnostic pointing at the #240 Phase 6 restriction. Not fixed in #264; tracked as follow-up. |
-| Tracked-transition parent (#263) | ❌ Rejected (nothing to inherit) | ❌ Rejected | — | — | A tracked-transition `SandEvent`'s `participants()` is never consulted by its dispatch backend (`EventDispatch::Tracked` never calls `EventSetup`/`with_participants`) — a child naming one as an inherit source gets "declares no participant plan at all." |
+| Advancement-bridge parent (`.after::<AdvancementEvent>()` with no direct handler) | ✅ `inherit_entity` (#269) | ✅ `inherit_item` (#269) | Unchanged from source | `SynchronousDescendants` | Fixed in #269/#280: the bridge parent's own `participants()` plan is now applied directly around its synthesized entry (setup after revoke, before every dependent; cleanup after every synchronous descendant) — see `sand-core/tests/event_chain_advancement_bridge_nested_siblings.rs` for exact-output proof (siblings, a nested grandchild, and ordering). A grandchild reached through another same-cycle child may still `inherit_*` directly from the original bridge parent (multi-hop, not transitive). Real-server validation attempted for this specific scenario (`PlayerKillEvent -> SpecialKillEvent`) via `scripts/mc_validation/run_audit.py`'s `bridge_scenario_rcon_attempt` check — see that script's README section for what is and is not proven live; a real, non-mocked *firing* of the scenario was not achieved (unrelated entity-persistence instability in this environment), but real server startup/load/reload of the pack containing this scenario is proven. |
+| Tracked-transition parent (#263) | ❌ Rejected (nothing to inherit) | ❌ Rejected | — | — | Same-cycle graph-parent bridging for tracked-transition `SandEvent`s remains unsupported and is unrelated to #270: #270 fixed a tracked-transition event's own *direct* participant plan being silently ignored by its dispatch backend (now applied around its own handler body — see `sand-core/tests/tracked_event_participant_setup.rs`); using a tracked event as a graph parent for another event's inheritance is still rejected by `discover()` (`sand-core/src/events/graph.rs`), unchanged. |
 
 Every rejection above is a real export-time diagnostic (`sand-core/src/compiler/export/participant_transport.rs`), not a silent downgrade — see `sand-core/tests/event_chain_participant_inheritance_diag_{after_any,within,transitive}.rs` for end-to-end proof each one actually surfaces through the real export pipeline.

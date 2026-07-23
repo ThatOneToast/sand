@@ -7,9 +7,13 @@
 //!
 //! The prelude is the recommended import for ordinary datapack authoring. It
 //! covers typed functions, components, commands, selectors, state, storage,
-//! events, common component builders, text, resource references, and deliberate
-//! raw escape hatches. Reach for [`crate::advanced`] only when you need
-//! lower-level export registries or custom framework integration points.
+//! events (both `AdvancementEvent`/`Event<E>` and bare `SandEvent` markers,
+//! plus participant declaration via `ParticipantBuilder`), common component
+//! builders, text, resource references, and deliberate raw escape hatches.
+//! Reach for [`crate::advanced`] only when you need lower-level export
+//! registries or custom framework integration points, or `crate::events`
+//! directly for the event dispatch *graph* internals (`EventGraph` and
+//! friends) that this prelude deliberately does not flatten.
 
 pub use crate::{all, any, cmd, mcfunction};
 
@@ -85,18 +89,43 @@ pub use crate::event::{
     EventId, EventPlayer, EventReset, EventVisibility, IntoEventAdvancement,
 };
 
-// ── Participant context vocabulary (#230) ──────────────────────────────────────
+// ── Custom SandEvent authoring (#273) ──────────────────────────────────────────
 //
-// Only the vocabulary needed to consume `Event<E>::entity`/`.item`/`.attacker`/
-// `.victim`/`.weapon` results — reliability, availability, unavailable
-// reasons, and role enums. Typed handles (`EntityParticipant`), plan
-// declaration (`EventParticipantPlan`), and observation-backend internals
-// stay under `crate::participant` (`sand::participant`), not the glob
-// prelude — see that module's doc for the full API.
+// `SandEvent`/`SandEventDispatch` are the bare-marker counterpart to
+// `AdvancementEvent`/`Event<E>` above — defining a custom tick-polled,
+// chained, or tracked-transition event, and dispatching it as
+// `fn handler(event: MarkerType)` rather than `Event<MarkerType>`. Both are
+// now part of ordinary event authoring (#273 made bare `SandEvent` handlers
+// a first-class, equally-ergonomic alternative to `AdvancementEvent`
+// handlers), so they belong in the default authoring surface alongside
+// `AdvancementEvent`/`Event<E>` above — unlike the rest of `crate::events`
+// (the event dispatch *graph* internals: `EventGraph`, `ChainEventDispatch`
+// builder plumbing, `NormalizedEventDispatch`, …), which remain reachable
+// only through `crate::events` (`sand::events`) directly, not this glob.
+// `SandEventParticipants` is the extension trait providing `.entity`/`.item`/
+// `.attacker`/`.killer`/`.victim`/`.interacted_entity`/`.weapon` on bare
+// `SandEvent` markers (mirroring `Event<E>`'s inherent methods below) — it
+// must be in scope (as it is here) for those methods to resolve; see its own
+// doc for why it is a trait rather than inherent methods.
+
+pub use crate::events::{SandEvent, SandEventDispatch, SandEventParticipants};
+
+// ── Participant context vocabulary (#230, #273) ────────────────────────────────
+//
+// The vocabulary needed to consume `Event<E>::entity`/`.item`/`.attacker`/
+// `.victim`/`.weapon` (and the identical bare-`SandEvent` accessors via
+// `SandEventParticipants` above) — reliability, availability, unavailable
+// reasons, and role enums — plus the two types needed to *declare* a plan
+// (`EventParticipantPlan`, the plan type itself, and `ParticipantBuilder`,
+// the ordinary-Rust builder that produces one; see its doc for the full
+// observe/inherit/advancement-bridge model). Typed handles
+// (`EntityParticipant`) and observation-backend internals stay under
+// `crate::participant` (`sand::participant`) directly, not this glob — see
+// that module's doc for the full API.
 
 pub use crate::participant::{
-    EntityParticipantRole, ItemParticipantRole, ParticipantAvailability, ParticipantHand,
-    ParticipantReliability, ParticipantUnavailableReason,
+    EntityParticipantRole, EventParticipantPlan, ItemParticipantRole, ParticipantAvailability,
+    ParticipantBuilder, ParticipantHand, ParticipantReliability, ParticipantUnavailableReason,
 };
 
 // ── Dialog builders ───────────────────────────────────────────────────────────

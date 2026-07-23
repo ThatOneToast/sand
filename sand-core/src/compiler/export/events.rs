@@ -564,6 +564,23 @@ pub(crate) fn participant_plan_export_error(
     }
 }
 
+/// Convert a caught [`crate::participant::diagnostic::MissingParticipantPanic`]
+/// (#280 item 2) into the structured `SAND-EVENT-PARTICIPANT` export
+/// diagnostic — see `invoke_event_handler_body` in `pipeline.rs`, the sole
+/// call site, for the panic-hook/`catch_unwind` boundary that produces it.
+pub(crate) fn participant_accessor_panic_export_error(
+    handler_path: &str,
+    panic: &crate::participant::diagnostic::MissingParticipantPanic,
+) -> ComponentExportError {
+    sand_components::error::SandError::ComponentValidation {
+        location: sand_components::ResourceLocation::new("sand", "participants")
+            .expect("fixed participants resource location is valid"),
+        kind: "event_participant_accessor".to_string(),
+        field: "participants".to_string(),
+        message: panic.render(handler_path),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::AdvancementTrigger;

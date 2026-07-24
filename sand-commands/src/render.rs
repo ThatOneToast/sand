@@ -31,7 +31,7 @@ pub fn validate_collected_line(line: &str, profile: &CommandProfile) -> CommandR
     Ok(line.to_string())
 }
 
-fn validate_line_integrity(line: &str) -> CommandResult<()> {
+pub(crate) fn validate_line_integrity(line: &str) -> CommandResult<()> {
     if line.contains(['\0', '\n', '\r']) {
         return Err(CommandError::new(
             "command_line",

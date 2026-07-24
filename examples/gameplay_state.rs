@@ -67,17 +67,15 @@ fn stop_fighting() {
 #[function("boss_phases:phase/enraged_tick")]
 fn enraged_tick() {
     Actionbar::show(Selector::self_(), Text::new("ENRAGED").dark_red());
-    for command in ParticleBuilder::new(Particle::dust_hex(0xCC2200, 1.2))
+    ParticleBuilder::new(Particle::dust_hex(0xCC2200, 1.2))
         .try_circle(2.0, 1.0, 16)
-        .unwrap()
-    {
-        command;
-    }
+        .unwrap();
     Sound::play("minecraft:entity.warden.heartbeat")
         .source(SoundSource::Hostile)
         .to(Selector::all_players())
         .volume(0.7)
-        .pitch(0.8);
+        .pitch(0.8)
+        .build();
 }
 
 #[component(Load)]

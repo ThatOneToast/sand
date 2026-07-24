@@ -1,4 +1,4 @@
-error[E0609]: no field `previous_jumps` on type `Event<JumpDelta>`
+error[E0609]: no field `previous_jumps` on type `sand_core::Event<JumpDelta>`
   --> tests/cases/fail_advancement_event_marker_field_not_runtime.rs:25:19
    |
 25 |     let _ = event.previous_jumps;

@@ -59,10 +59,27 @@ impl PlayerModel {
 
 #[function("hello_world:start_enrage")]
 pub fn start_enrage() {
+    let bar = BossbarId::parse("hello_world:guardian").unwrap();
+    Bossbar::add(
+        bar.clone(),
+        Text::new("Ancient Guardian").dark_red().bold(true),
+    );
+    Bossbar::set_max(bar.clone(), 100);
+    Bossbar::set_value(bar.clone(), 50);
+    Bossbar::set_color(bar.clone(), BossbarColor::Red);
+    Bossbar::set_players(bar, Selector::all_players());
+    Title::of(Selector::all_players())
+        .title(Text::new("ENRAGED").dark_red().bold(true))
+        .subtitle(Text::new("The guardian breaks its chains").gold())
+        .times(10, 50, 20)
+        .build();
     cmd::tellraw(
         Selector::self_(),
         Text::new("The boss is enraged!").dark_red().bold(true),
     );
+    cmd::effect_give(Selector::self_(), EffectId::Strength)
+        .seconds(10)
+        .amplifier(1);
 }
 
 #[function("hello_world:stop_fighting")]
@@ -76,6 +93,15 @@ pub fn stop_fighting() {
 #[function("hello_world:enraged_tick")]
 pub fn enraged_tick() {
     Actionbar::show(Selector::self_(), Text::new("[Enraged] berserk").dark_red());
+    ParticleBuilder::new(Particle::dust_hex(0xCC2200, 1.2))
+        .try_circle(2.0, 1.0, 16)
+        .unwrap();
+    Sound::play("minecraft:entity.warden.heartbeat")
+        .source(SoundSource::Hostile)
+        .to(Selector::all_players())
+        .volume(0.7)
+        .pitch(0.8)
+        .build();
 }
 
 #[component(Load)]
@@ -153,5 +179,21 @@ mod tests {
             cmd::call(stop_fighting),
             "function hello_world:stop_fighting"
         );
+        let enter = start_enrage();
+        assert!(enter.iter().any(|line| line.starts_with("bossbar add")));
+        assert!(enter.iter().any(|line| line.starts_with("title @a title")));
+        assert!(
+            enter
+                .iter()
+                .any(|line| line == "effect give @s minecraft:strength 10 1")
+        );
+        let tick = enraged_tick();
+        assert_eq!(
+            tick.iter()
+                .filter(|line| line.starts_with("particle "))
+                .count(),
+            16
+        );
+        assert!(tick.iter().any(|line| line.starts_with("playsound ")));
     }
 }

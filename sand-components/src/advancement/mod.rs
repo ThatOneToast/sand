@@ -2712,6 +2712,22 @@ impl DatapackComponent for Advancement {
             validate_resource_id(&display.icon.id, "display.icon.id")
                 .map_err(split_validation_message)
                 .map_err(|(field, message)| self.validation_error(field, message))?;
+            for (field, text) in [
+                ("display.title", &display.title),
+                ("display.description", &display.description),
+            ] {
+                sand_commands::text::validate_json_text(
+                    text,
+                    &sand_commands::CommandProfile::unprofiled(),
+                    field,
+                )
+                .map_err(|error| {
+                    self.validation_error(
+                        error.field,
+                        format!("error[{}] {}", error.code, error.message),
+                    )
+                })?;
+            }
             if let Some(background) = &display.background {
                 validate_resource_id(background, "display.background")
                     .map_err(split_validation_message)

@@ -31,9 +31,11 @@
 //! ```
 
 use crate::cmd::{
-    Build, EntityTargets, Execute, Particle, ParticleBuilder, ParticleSpread, PlayerTargets,
-    Selector, SingleEntity, SinglePlayer, Sound, SoundSource, Vec3,
+    Build, CommandProfile, EntityTargets, Execute, Particle, ParticleBuilder, ParticleSpread,
+    PlayerTargets, RenderCommand, Selector, SingleEntity, SinglePlayer, Sound, SoundSource,
+    Validate, Vec3,
 };
+use sand_commands::{CommandResult, IntoParticleId, IntoSoundEvent};
 
 /// A reusable group of visual/audio commands.
 #[derive(Debug, Clone)]
@@ -90,6 +92,16 @@ impl Vfx {
         self.steps.iter().flat_map(VfxStep::render).collect()
     }
 
+    /// Validate every typed particle/sound step, then render deterministically.
+    pub fn try_play(&self) -> CommandResult<Vec<String>> {
+        self.steps
+            .iter()
+            .map(VfxStep::try_render)
+            .collect::<CommandResult<Vec<_>>>()
+            .map(|groups| groups.into_iter().flatten().collect())
+            .map_err(|error| error.with_context(format!("VFX `{}`", self.name)))
+    }
+
     /// Render commands at an entity/player selector.
     ///
     /// Particle and raw command steps are wrapped with `execute at <target>`.
@@ -140,6 +152,14 @@ impl VfxStep {
             Self::Particle(step) => step.render(),
             Self::Sound(step) => vec![step.render(None, None)],
             Self::Command(command) => vec![command.clone()],
+        }
+    }
+
+    fn try_render(&self) -> CommandResult<Vec<String>> {
+        match self {
+            Self::Particle(step) => step.try_render(),
+            Self::Sound(step) => step.try_render(None, None).map(|line| vec![line]),
+            Self::Command(command) => Ok(vec![command.clone()]),
         }
     }
 
@@ -213,7 +233,7 @@ impl VfxParticle {
     }
 
     /// Create a named particle step.
-    pub fn named(name: impl Into<String>) -> Self {
+    pub fn named(name: impl IntoParticleId) -> Self {
         Self::new(Particle::named(name))
     }
 
@@ -273,6 +293,22 @@ impl VfxParticle {
             .force(self.force)
             .points_at(&self.points)
     }
+
+    /// Validate the underlying particle command and every point before rendering.
+    pub fn try_render(&self) -> CommandResult<Vec<String>> {
+        ParticleBuilder::new(self.particle.clone())
+            .spread(self.spread.clone())
+            .speed(self.speed)
+            .particles_per_point(self.count)
+            .force(self.force)
+            .try_points_at(&self.points)
+    }
+}
+
+impl Validate for VfxParticle {
+    fn validate(&self, _profile: &CommandProfile) -> CommandResult<()> {
+        self.try_render().map(|_| ())
+    }
 }
 
 impl From<Particle> for VfxParticle {
@@ -313,9 +349,9 @@ pub struct VfxSound {
 
 impl VfxSound {
     /// Begin building a reusable `playsound` step.
-    pub fn new(event: impl Into<String>) -> Self {
+    pub fn new(event: impl IntoSoundEvent) -> Self {
         Self {
-            event: event.into(),
+            event: event.into_sound_event(),
             source: SoundSource::Master,
             audience: None,
             position: None,
@@ -362,6 +398,19 @@ impl VfxSound {
     }
 
     fn render(&self, audience: Option<&Selector>, position: Option<Vec3>) -> String {
+        self.sound(audience, position).build()
+    }
+
+    fn try_render(
+        &self,
+        audience: Option<&Selector>,
+        position: Option<Vec3>,
+    ) -> CommandResult<String> {
+        let sound = self.sound(audience, position);
+        sound.try_build()
+    }
+
+    fn sound(&self, audience: Option<&Selector>, position: Option<Vec3>) -> Sound {
         let mut sound = Sound::play(self.event.clone())
             .source(self.source)
             .volume(self.volume)
@@ -379,7 +428,7 @@ impl VfxSound {
             sound = sound.min_volume(min_volume);
         }
 
-        sound.build()
+        sound
     }
 
     /// Render using the sound's own configured audience (falling back to `@s`),
@@ -391,6 +440,14 @@ impl VfxSound {
     fn render_with_own_audience(&self, position: Option<Vec3>) -> String {
         let audience = self.audience.clone().unwrap_or_else(Selector::self_);
         self.render(Some(&audience), position)
+    }
+}
+
+impl Validate for VfxSound {
+    fn validate(&self, profile: &CommandProfile) -> CommandResult<()> {
+        self.sound(None, None)
+            .validate(profile)
+            .map_err(|error| error.with_context("VfxSound"))
     }
 }
 
@@ -457,6 +514,29 @@ mod tests {
         let vfx = Vfx::new("empty");
         assert!(vfx.is_empty());
         assert_eq!(vfx.play(), Vec::<String>::new());
+    }
+
+    #[test]
+    fn vfx_uses_particle_and_sound_validation() {
+        let particle_error = Vfx::new("bad_particle")
+            .particle(VfxParticle::named("Bad Particle"))
+            .try_play()
+            .unwrap_err();
+        assert_eq!(particle_error.code, "SAND-PARTICLE-ID");
+        assert!(particle_error.to_string().contains("bad_particle"));
+
+        let sound_error = Vfx::new("bad_sound")
+            .sound(VfxSound::new("minecraft:test").pitch(0.0))
+            .try_play()
+            .unwrap_err();
+        assert_eq!(sound_error.code, "SAND-SOUND-NUMERIC");
+
+        assert!(
+            Vfx::new("empty_geometry")
+                .particle(VfxParticle::happy_villager().offsets([]))
+                .try_play()
+                .is_err()
+        );
     }
 
     #[test]

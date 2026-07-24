@@ -74,6 +74,45 @@ impl ChatDecoration {
         }
         Value::Object(map)
     }
+
+    fn validate(&self, owner: &ResourceLocation, path: &str) -> crate::error::Result<()> {
+        if self.translation_key.trim().is_empty()
+            || self.translation_key.chars().any(char::is_control)
+        {
+            return Err(crate::error::SandError::ComponentValidation {
+                location: owner.clone(),
+                kind: "chat_type".to_string(),
+                field: format!("{path}.translation_key"),
+                message: "error[SAND-TEXT-TRANSLATE] translation keys must be non-empty and contain no control characters".to_string(),
+            });
+        }
+        for (index, parameter) in self.parameters.iter().enumerate() {
+            if !matches!(parameter.as_str(), "sender" | "target" | "content") {
+                return Err(crate::error::SandError::ComponentValidation {
+                    location: owner.clone(),
+                    kind: "chat_type".to_string(),
+                    field: format!("{path}.parameters[{index}]"),
+                    message: format!(
+                        "expected `sender`, `target`, or `content`, got `{parameter}`"
+                    ),
+                });
+            }
+        }
+        if let Some(style) = &self.style {
+            sand_commands::text::validate_json_text(
+                style,
+                &sand_commands::CommandProfile::unprofiled(),
+                &format!("{path}.style"),
+            )
+            .map_err(|error| crate::error::SandError::ComponentValidation {
+                location: owner.clone(),
+                kind: "chat_type".to_string(),
+                field: error.field,
+                message: format!("error[{}] {}", error.code, error.message),
+            })?;
+        }
+        Ok(())
+    }
 }
 
 // ── ChatType ──────────────────────────────────────────────────────────────────
@@ -119,6 +158,14 @@ impl DatapackComponent for ChatType {
             map.insert("narration".to_string(), narration.to_json());
         }
         Value::Object(map)
+    }
+
+    fn validate(&self) -> crate::error::Result<()> {
+        self.chat.validate(&self.location, "chat")?;
+        if let Some(narration) = &self.narration {
+            narration.validate(&self.location, "narration")?;
+        }
+        Ok(())
     }
 
     fn component_dir(&self) -> &'static str {

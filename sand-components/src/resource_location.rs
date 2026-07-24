@@ -59,6 +59,44 @@ impl FromStr for ResourceLocation {
     }
 }
 
+impl sand_commands::IntoParticleId for ResourceLocation {
+    fn into_particle_id(self) -> String {
+        self.to_string()
+    }
+}
+
+impl sand_commands::IntoParticleId for &ResourceLocation {
+    fn into_particle_id(self) -> String {
+        self.to_string()
+    }
+}
+
+impl sand_commands::IntoSoundEvent for ResourceLocation {
+    fn into_sound_event(self) -> String {
+        self.to_string()
+    }
+}
+
+impl sand_commands::IntoSoundEvent for &ResourceLocation {
+    fn into_sound_event(self) -> String {
+        self.to_string()
+    }
+}
+
+impl sand_commands::IntoBossbarId for ResourceLocation {
+    fn into_bossbar_id(self) -> sand_commands::BossbarId {
+        sand_commands::BossbarId::parse(self.to_string())
+            .expect("ResourceLocation is already validated")
+    }
+}
+
+impl sand_commands::IntoBossbarId for &ResourceLocation {
+    fn into_bossbar_id(self) -> sand_commands::BossbarId {
+        sand_commands::BossbarId::parse(self.to_string())
+            .expect("ResourceLocation is already validated")
+    }
+}
+
 impl Serialize for ResourceLocation {
     fn serialize<S: Serializer>(&self, s: S) -> std::result::Result<S::Ok, S::Error> {
         s.serialize_str(&self.to_string())
@@ -132,5 +170,27 @@ fn validate_path(s: &str) -> Result<()> {
         Err(SandError::InvalidPath(s.to_string()))
     } else {
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use sand_commands::{RenderCommand, Validate};
+
+    use super::*;
+
+    #[test]
+    fn resource_locations_feed_command_media_ids_directly() {
+        let id = ResourceLocation::new("example", "boss").unwrap();
+        assert!(
+            sand_commands::Particle::named(id.clone())
+                .validate(&sand_commands::CommandProfile::unprofiled())
+                .is_ok()
+        );
+        assert!(sand_commands::Sound::play(id.clone()).try_build().is_ok());
+        assert_eq!(
+            sand_commands::Bossbar::remove(id),
+            "bossbar remove example:boss"
+        );
     }
 }

@@ -217,4 +217,46 @@ mod tests {
         .unwrap();
         assert_eq!(records[0].content, content);
     }
+
+    #[test]
+    fn command_media_nodes_fail_before_partial_record_rewrite() {
+        use sand_commands::{
+            Actionbar, Bossbar, Build, Particle, ParticleBuilder, Selector, Sound, Text,
+        };
+
+        let invalid_lines = [
+            Actionbar::show(
+                Selector::self_(),
+                Text::new("bad color").color_hex("#12FG00"),
+            ),
+            Bossbar::remove("Boss Bar"),
+            ParticleBuilder::new(Particle::dust(f32::NAN, 0.0, 0.0, 1.0))
+                .points_at(&[[0.0, 0.0, 0.0]])[0]
+                .clone(),
+            Sound::play("minecraft:test").pitch(0.0).build(),
+            crate::cmd::effect_give(Selector::self_(), sand_components::EffectId::Speed)
+                .duration(sand_components::Ticks::new(15))
+                .build(),
+        ];
+
+        for line in invalid_lines {
+            let original = format!("say valid\n{line}");
+            let mut records = vec![super::ComponentRecord {
+                namespace: "audit".to_string(),
+                dir: "function".to_string(),
+                path: "invalid_media".to_string(),
+                ext: "mcfunction".to_string(),
+                content_type: "text".to_string(),
+                content: original.clone(),
+            }];
+            let error = super::validate_function_records(
+                &mut records,
+                &sand_commands::CommandProfile::unprofiled(),
+            )
+            .unwrap_err()
+            .to_string();
+            assert!(error.contains("SAND-"), "{error}");
+            assert_eq!(records[0].content, original);
+        }
+    }
 }

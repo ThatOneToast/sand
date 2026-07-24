@@ -22,7 +22,7 @@ pub struct CommandError {
     /// The helper function that rejected its input (e.g. `"tp"`, `"tag_add"`).
     pub helper: &'static str,
     /// The parameter name that failed validation (e.g. `"x"`, `"tag"`).
-    pub field: &'static str,
+    pub field: String,
     /// Human-readable explanation of the violated invariant.
     pub message: String,
     /// Optional owner context added by composed commands or export.
@@ -30,12 +30,13 @@ pub struct CommandError {
 }
 
 impl CommandError {
-    pub fn new(helper: &'static str, field: &'static str, message: impl Into<String>) -> Self {
+    pub fn new(helper: &'static str, field: impl Into<String>, message: impl Into<String>) -> Self {
+        let field = field.into();
         Self {
             code: format!(
                 "command.{}.invalid_{}",
                 diagnostic_fragment(helper),
-                diagnostic_fragment(field)
+                diagnostic_fragment(&field)
             ),
             helper,
             field,

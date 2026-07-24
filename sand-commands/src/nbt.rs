@@ -745,7 +745,28 @@ impl Validate for DataCommand {
 
 fn validate_ref(reference: &NbtRef, write: bool) -> CommandResult<()> {
     reference.location.validate(write)?;
-    reference.path.validate()
+    reference.path.validate()?;
+    if write
+        && matches!(reference.location, DataTarget::Entity(_))
+        && matches!(
+            reference
+                .path
+                .as_str()
+                .split(['.', '['])
+                .next()
+                .unwrap_or_default(),
+            "Inventory" | "SelectedItem" | "EnderItems"
+        )
+    {
+        return Err(data_error(
+            "target",
+            format!(
+                "entity inventory path `{}` is not a safe `/data` write target; use a typed item location and `/item replace`",
+                reference.path
+            ),
+        ));
+    }
+    Ok(())
 }
 
 fn validate_source(source: &DataSource) -> CommandResult<()> {
@@ -859,12 +880,16 @@ impl From<DataCommand> for String {
     }
 }
 
+// Compatibility comparisons intentionally render at the final command
+// boundary; DataCommand's structural fields do not have a string view.
+#[allow(clippy::cmp_owned)]
 impl PartialEq<str> for DataCommand {
     fn eq(&self, other: &str) -> bool {
         self.to_string() == other
     }
 }
 
+#[allow(clippy::cmp_owned)]
 impl PartialEq<&str> for DataCommand {
     fn eq(&self, other: &&str) -> bool {
         self.to_string() == *other
@@ -1058,6 +1083,13 @@ mod tests {
                 .try_render(&CommandProfile::unprofiled())
                 .is_err()
         );
+        let player_inventory = Nbt::entity(Selector::self_()).path("Inventory[0]");
+        let error = player_inventory
+            .set(NbtCompound::new().field("id", "minecraft:stone"))
+            .try_render(&CommandProfile::unprofiled())
+            .unwrap_err();
+        assert_eq!(error.code, "SAND-DATA-TARGET");
+        assert!(error.message.contains("typed item location"));
     }
 
     #[test]

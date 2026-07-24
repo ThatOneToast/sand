@@ -142,7 +142,7 @@ pub use sand_core::events;
 /// event or `execute if items` check.
 pub use sand_core::item;
 
-/// Typed live inventory locations. [`ItemLocation`] is the canonical model;
+/// Typed live inventory locations. [`inventory::ItemLocation`] is the canonical model;
 /// the entity/block factory handles in this module only construct locations.
 /// NBT reads and snapshots share [`data::NbtRef`], while live mutation and
 /// matching use vanilla `/item` and `execute if items`.
@@ -272,6 +272,7 @@ pub mod text {
 /// are one kind of state). Use this module when working with NBT/storage
 /// data directly rather than through a typed state wrapper.
 pub mod data {
+    pub use sand_core::cmd::{DataModifyOperation, DataSource, DataTarget, NbtCompound, NbtValue};
     pub use sand_core::state::{
         BlockNbt, DataCommand, EntityNbt, Nbt, NbtLocation, NbtPath, NbtRef, NbtTarget,
         SnbtCompound, SnbtValue, StorageField, StorageLocation, StorageSchema, StorageVar,

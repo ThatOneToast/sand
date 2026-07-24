@@ -26,6 +26,46 @@ pub fn audit_command() {
     );
 }
 
+/// Parser-only coverage for the validated display/media command families.
+///
+/// Vanilla loads and parses this function during startup and `/reload`; the
+/// harness does not invoke it, so it does not claim client-visible or audible
+/// confirmation.
+#[function]
+pub fn audit_command_media() {
+    Bossbar::add(
+        ResourceLocation::new("sand_audit", "guardian").unwrap(),
+        Text::new("Sand Guardian").dark_red().bold(true),
+    );
+    Bossbar::set_color(
+        ResourceLocation::new("sand_audit", "guardian").unwrap(),
+        BossbarColor::Red,
+    );
+    Title::of(Selector::all_players())
+        .title(Text::new("Sand audit").gold())
+        .subtitle(Text::new("Validated command media").yellow())
+        .times(5, 20, 5)
+        .build();
+    Actionbar::show(
+        Selector::all_players(),
+        Text::new("Command media parser audit").green(),
+    );
+    ParticleBuilder::new(Particle::named(
+        ResourceLocation::new("minecraft", "flame").unwrap(),
+    ))
+    .try_points_at(&[[0.0, 1.0, 0.0]])
+    .unwrap();
+    Sound::play(ResourceLocation::new("minecraft", "block.note_block.pling").unwrap())
+        .source(SoundSource::Master)
+        .to(Selector::all_players())
+        .volume(1.0)
+        .pitch(1.0)
+        .build();
+    cmd::effect_give(Selector::all_players(), EffectId::Speed)
+        .seconds(5)
+        .particles(false);
+}
+
 #[function]
 pub fn semantic_placed_reward() {
     cmd::raw("advancement revoke @s only sand_audit:semantic_placed_block");

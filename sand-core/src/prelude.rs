@@ -54,7 +54,10 @@ pub use crate::state::{
 pub use crate::systems::damage::{DamageThreshold, DamageTracker, recently_damaged};
 
 #[cfg(feature = "systems-player-data")]
-pub use crate::systems::player_data::{PlayerDataSchema, PlayerSchema};
+pub use crate::systems::player_data::{
+    CooldownField, CooldownFieldRef, FlagField, GameStateField, GlobalStorageField,
+    PlayerDataSchema, PlayerSchema, ScoreField, TimerField, TimerFieldRef,
+};
 
 // ── Resource refs ─────────────────────────────────────────────────────────────
 

@@ -1138,7 +1138,7 @@ pub fn validate_json_text(
 
 fn validate_json_text_inner(
     value: &serde_json::Value,
-    profile: &CommandProfile,
+    _profile: &CommandProfile,
     path: &str,
     depth: usize,
 ) -> CommandResult<()> {
@@ -1153,7 +1153,7 @@ fn validate_json_text_inner(
         serde_json::Value::String(_) => Ok(()),
         serde_json::Value::Array(values) => {
             for (index, child) in values.iter().enumerate() {
-                validate_json_text_inner(child, profile, &format!("{path}[{index}]"), depth + 1)?;
+                validate_json_text_inner(child, _profile, &format!("{path}[{index}]"), depth + 1)?;
             }
             Ok(())
         }
@@ -1222,7 +1222,7 @@ fn validate_json_text_inner(
                     for (index, child) in children.iter().enumerate() {
                         validate_json_text_inner(
                             child,
-                            profile,
+                            _profile,
                             &format!("{path}.{key}[{index}]"),
                             depth + 1,
                         )?;
@@ -1234,7 +1234,7 @@ fn validate_json_text_inner(
             {
                 validate_json_text_inner(
                     contents,
-                    profile,
+                    _profile,
                     &format!("{path}.hoverEvent.contents"),
                     depth + 1,
                 )?;

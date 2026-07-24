@@ -199,9 +199,9 @@ pub(crate) fn resolve_transition_plan<'a>(
 /// Both families share lifecycle merging, generated-function collision checks,
 /// private objective diagnostics, deterministic ordering, and the exporter
 /// wiring below this boundary.
-pub(crate) fn resolve_unified_transition_plan<'a>(
+pub(crate) fn resolve_unified_transition_plan(
     namespace: &str,
-    handlers: &'a [TransitionHandler],
+    handlers: &[TransitionHandler],
 ) -> Result<TransitionPlan, String> {
     let mut plan = resolve_transition_plan(namespace, handlers)?;
     let flows = crate::state::flow::drain_flows();

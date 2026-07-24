@@ -1,15 +1,16 @@
-//! Manual player-data schema helpers (`systems-player-data` feature).
+//! Typed player-data schema helpers (`systems-player-data` feature).
 //!
-//! Provides a builder API for defining typed per-player data schemas backed
-//! by scoreboard objectives. [`PlayerDataSchema`] is the user-facing name for
-//! this Phase 1 API; [`PlayerSchema`] remains as a compatible alias. Storage
-//! schemas from `#[derive(SandStorage)]` (from `sand-macros`) can also be attached for unified introspection
-//! and documentation.
+//! Provides typed field handles plus a builder for defining per-player data
+//! schemas backed by existing scoreboard and state primitives.
+//! [`PlayerDataSchema`] is the user-facing name; [`PlayerSchema`] remains a
+//! compatible alias. Storage schemas from `#[derive(SandStorage)]` can also be
+//! attached for unified introspection and documentation.
 //!
-//! # Phase 1 scope
+//! # Lifecycle scope
 //!
-//! This is a **builder-only API**. It groups field definitions and generates
-//! setup commands, but does **not** auto-manage lifecycle wiring.
+//! Field handles provide typed access, while schema registration generates
+//! setup and non-clobbering initialization commands. It does **not**
+//! automatically choose application lifecycle events.
 //!
 //! You must:
 //! - Call [`PlayerSchema::define_all`] from your load function to define scoreboard objectives.
@@ -17,7 +18,9 @@
 //! - Wire timer/cooldown ticks and lifecycle manually using the underlying [`Timer`] and
 //!   [`Cooldown`] APIs (see their docs for tick management).
 //!
-//! Automatic export, lifecycle wiring, and higher-level field accessors are Phase 2+ work.
+//! The handles reuse the same objectives as [`ScoreVar`], [`Flag`], [`Timer`],
+//! [`Cooldown`], and [`GameState`]; no duplicate scoreboard representation is
+//! created.
 //!
 //! # Naming and namespacing
 //!
@@ -538,10 +541,9 @@ impl PlayerSchema {
     ///    `data modify storage my_pack:players <uuid>.mana set value 100`.
     ///    Sand does not generate these automatically because the UUID is a
     ///    runtime value, not a compile-time constant.
-    /// 3. **Entity NBT** — `data modify entity @s … set value …` writes to
-    ///    the player's own NBT, which is truly per-player but has a different
-    ///    API (use [`StorageField`](crate::state::StorageField) paths with
-    ///    entity selectors manually).
+    /// 3. **Explicit entity data where vanilla permits it** — use the unified
+    ///    typed NBT API. Arbitrary player NBT and inventory writes are rejected;
+    ///    use scoreboard or typed item-location operations for those values.
     ///
     /// # Example
     ///
@@ -640,7 +642,7 @@ impl PlayerSchema {
     }
 }
 
-/// User-facing alias for the Phase 1 player-scoped schema API.
+/// User-facing alias for the typed player-scoped schema API.
 ///
 /// `PlayerSchema` remains available for compatibility with earlier code and
 /// documentation, but new code can prefer `PlayerDataSchema` to better reflect

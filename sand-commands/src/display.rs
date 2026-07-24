@@ -67,7 +67,7 @@ impl Title {
     pub fn build(self) -> Vec<String> {
         let lines = self.render_lines(true);
         for line in &lines {
-            register_line(line, DisplayCommand::Title(self.clone()));
+            register_line(line, DisplayCommand::Title(Box::new(self.clone())));
         }
         lines
     }
@@ -157,7 +157,7 @@ enum TitleCommand {
     Reset(Selector),
     Actionbar {
         selector: Selector,
-        text: TextComponent,
+        text: Box<TextComponent>,
     },
     RawActionbar {
         selector: String,
@@ -168,7 +168,7 @@ enum TitleCommand {
 impl TitleCommand {
     fn build_registered(self) -> String {
         let line = self.render_unchecked(&CommandProfile::unprofiled());
-        register_line(&line, DisplayCommand::TitleCommand(self));
+        register_line(&line, DisplayCommand::TitleCommand(Box::new(self)));
         line
     }
 }
@@ -216,7 +216,11 @@ pub struct Actionbar;
 
 impl Actionbar {
     pub fn show(selector: Selector, text: TextComponent) -> String {
-        TitleCommand::Actionbar { selector, text }.build_registered()
+        TitleCommand::Actionbar {
+            selector,
+            text: Box::new(text),
+        }
+        .build_registered()
     }
 
     /// Opaque selector/JSON escape hatch.
@@ -365,7 +369,7 @@ pub enum BossbarCommand {
 impl BossbarCommand {
     fn build_registered(self) -> String {
         let line = self.render_unchecked(&CommandProfile::unprofiled());
-        register_line(&line, DisplayCommand::Bossbar(self));
+        register_line(&line, DisplayCommand::Bossbar(Box::new(self)));
         line
     }
 
@@ -525,9 +529,9 @@ impl Bossbar {
 
 #[derive(Debug, Clone)]
 enum DisplayCommand {
-    Title(Title),
-    TitleCommand(TitleCommand),
-    Bossbar(BossbarCommand),
+    Title(Box<Title>),
+    TitleCommand(Box<TitleCommand>),
+    Bossbar(Box<BossbarCommand>),
 }
 
 impl Validate for DisplayCommand {

@@ -13,6 +13,7 @@ pub fn validate_collected_line(line: &str, profile: &CommandProfile) -> CommandR
     validate_line_integrity(line)?;
     crate::execute_ir::validate_registered_line(line, profile)?;
     crate::nbt::validate_registered_line(line, profile)?;
+    crate::blocks::validate_registered_line(line, profile)?;
     crate::particles::validate_registered_line(line, profile)?;
     crate::sound::validate_registered_line(line, profile)?;
     crate::display::validate_registered_line(line, profile)?;

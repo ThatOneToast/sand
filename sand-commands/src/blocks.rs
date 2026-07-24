@@ -25,12 +25,71 @@
 
 use std::collections::BTreeMap;
 use std::fmt;
+use std::sync::{Mutex, OnceLock};
 
 use crate::Build;
 use crate::coord::BlockPos;
 use crate::error::{CommandError, CommandResult};
 use crate::render::{CommandProfile, RenderCommand, Validate};
 use crate::validate;
+
+// ── Pre-write export re-validation registry ─────────────────────────────────
+//
+// Mirrors the pattern used by `nbt::DataCommand`/`execute_ir` (see #145's
+// architecture): a rendered line's typed node is retained here so the
+// export pipeline's `validate_collected_line` can re-validate the *typed
+// node* (not re-parse the rendered string) against the export's resolved
+// `CommandProfile`, even though this crate's ordinary constructors return
+// plain rendered `String`s once collected into a function body. This is
+// what makes typed command builders (rather than a separate `Cmd` IR enum)
+// the canonical, fully-validated representation through to export — see
+// the #146/#168/#169/#170/#173/#175 PR body's "Cmd IR decision".
+#[derive(Debug, Clone)]
+enum BlockCommandNode {
+    SetBlock(SetBlock),
+    Fill(Fill),
+    Clone(CloneBlocks),
+}
+
+impl BlockCommandNode {
+    fn validate(&self, profile: &CommandProfile) -> CommandResult<()> {
+        match self {
+            Self::SetBlock(cmd) => Validate::validate(cmd, profile),
+            Self::Fill(cmd) => Validate::validate(cmd, profile),
+            Self::Clone(cmd) => Validate::validate(cmd, profile),
+        }
+    }
+}
+
+fn registered_block_lines() -> &'static Mutex<BTreeMap<String, BlockCommandNode>> {
+    static LINES: OnceLock<Mutex<BTreeMap<String, BlockCommandNode>>> = OnceLock::new();
+    LINES.get_or_init(|| Mutex::new(BTreeMap::new()))
+}
+
+fn register_block_line(line: &str, node: BlockCommandNode) {
+    registered_block_lines()
+        .lock()
+        .expect("block command registry poisoned")
+        .insert(line.to_owned(), node);
+}
+
+/// Re-validate a previously rendered `setblock`/`fill`/`clone` line's typed
+/// node against `profile`, if this crate rendered it. Lines this crate did
+/// not render (including hand-written raw block commands) are left alone —
+/// the same "unknown lines pass through" contract every other registered
+/// family (`nbt`, `execute_ir`, particles, sound, display, text, effect)
+/// uses.
+pub(crate) fn validate_registered_line(line: &str, profile: &CommandProfile) -> CommandResult<()> {
+    let node = registered_block_lines()
+        .lock()
+        .expect("block command registry poisoned")
+        .get(line)
+        .cloned();
+    if let Some(node) = node {
+        node.validate(profile)?;
+    }
+    Ok(())
+}
 
 // ── BlockState ────────────────────────────────────────────────────────────────
 
@@ -238,6 +297,13 @@ impl RenderCommand for SetBlock {
     fn render_unchecked(&self, _profile: &CommandProfile) -> String {
         self.build()
     }
+
+    fn render(&self, profile: &CommandProfile) -> CommandResult<String> {
+        self.validate(profile)?;
+        let line = self.render_unchecked(profile);
+        register_block_line(&line, BlockCommandNode::SetBlock(self.clone()));
+        Ok(line)
+    }
 }
 
 // ── FillMode ──────────────────────────────────────────────────────────────────
@@ -346,6 +412,13 @@ impl Validate for Fill {
 impl RenderCommand for Fill {
     fn render_unchecked(&self, _profile: &CommandProfile) -> String {
         self.build()
+    }
+
+    fn render(&self, profile: &CommandProfile) -> CommandResult<String> {
+        self.validate(profile)?;
+        let line = self.render_unchecked(profile);
+        register_block_line(&line, BlockCommandNode::Fill(self.clone()));
+        Ok(line)
     }
 }
 
@@ -497,6 +570,13 @@ impl RenderCommand for CloneBlocks {
     fn render_unchecked(&self, _profile: &CommandProfile) -> String {
         self.build()
     }
+
+    fn render(&self, profile: &CommandProfile) -> CommandResult<String> {
+        self.validate(profile)?;
+        let line = self.render_unchecked(profile);
+        register_block_line(&line, BlockCommandNode::Clone(self.clone()));
+        Ok(line)
+    }
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -505,6 +585,58 @@ impl RenderCommand for CloneBlocks {
 mod tests {
     use super::*;
     use crate::coord::{BlockPos, Coord};
+
+    // ── Cmd IR "Option B" proof: typed nodes remain the export-time source
+    // of truth after rendering, without needing a top-level Cmd variant ──
+
+    #[test]
+    fn render_registers_the_typed_node_for_export_time_revalidation() {
+        // A valid setblock renders and is registered.
+        let line = SetBlock::new(BlockPos::here(), "minecraft:stone")
+            .render(&CommandProfile::unprofiled())
+            .unwrap();
+        assert_eq!(line, "setblock ~ ~ ~ minecraft:stone");
+
+        // The export boundary (crate::render::validate_collected_line) looks
+        // the line up and re-validates the retained typed node, not the
+        // string — proving structure survives to the pre-write boundary
+        // rather than being discarded once collected into a function body.
+        assert!(
+            crate::render::validate_collected_line(&line, &CommandProfile::unprofiled()).is_ok()
+        );
+    }
+
+    #[test]
+    fn unregistered_raw_block_lines_pass_through_the_export_boundary_unchanged() {
+        // A hand-written raw line was never rendered by this module, so it
+        // is not in the registry — the same "unknown/raw lines are never
+        // silently rejected" contract every registered family upholds.
+        let raw = "setblock ~ ~ ~ some_unmodeled_modded_block_state[custom=true]";
+        assert_eq!(
+            crate::render::validate_collected_line(raw, &CommandProfile::unprofiled()).unwrap(),
+            raw
+        );
+    }
+
+    #[test]
+    fn setblock_composes_with_execute_run_and_is_still_revalidated_at_export() {
+        use crate::execute::Execute;
+        use crate::selector::Selector;
+
+        let setblock = SetBlock::new(BlockPos::here(), "minecraft:stone")
+            .render(&CommandProfile::unprofiled())
+            .unwrap();
+        let composed = Execute::new().as_(Selector::self_()).run_raw(setblock);
+
+        // The composed `execute as @s run setblock ...` line is validated by
+        // recursing into the `run` tail, which re-finds the registered
+        // typed SetBlock node — proving composition with `execute run`
+        // does not bypass the typed validation boundary.
+        assert!(
+            crate::render::validate_collected_line(&composed, &CommandProfile::unprofiled())
+                .is_ok()
+        );
+    }
 
     #[test]
     fn block_state_no_props() {

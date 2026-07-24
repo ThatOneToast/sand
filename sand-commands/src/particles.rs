@@ -22,6 +22,23 @@ use crate::render::{CommandProfile, RenderCommand, Validate};
 
 // ── Particle ──────────────────────────────────────────────────────────────────
 
+/// Conversion into a particle resource-location token.
+pub trait IntoParticleId {
+    fn into_particle_id(self) -> String;
+}
+
+impl IntoParticleId for String {
+    fn into_particle_id(self) -> String {
+        self
+    }
+}
+
+impl IntoParticleId for &str {
+    fn into_particle_id(self) -> String {
+        self.to_string()
+    }
+}
+
 /// A Minecraft particle type with its parameters.
 #[derive(Debug, Clone)]
 pub enum Particle {
@@ -53,8 +70,8 @@ pub enum Particle {
 
 impl Particle {
     /// A named particle with no extra parameters (e.g. `"minecraft:flame"`).
-    pub fn named(name: impl Into<String>) -> Self {
-        Particle::Named(name.into())
+    pub fn named(name: impl IntoParticleId) -> Self {
+        Particle::Named(name.into_particle_id())
     }
 
     /// Create an intentionally opaque particle token.

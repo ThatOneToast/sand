@@ -56,7 +56,8 @@ pub use sand_commands::{
 pub use sand_commands::{BlockPos, Coord, Rotation, Vec2, Vec3};
 // Player display commands
 pub use sand_commands::{
-    Actionbar, Bossbar, BossbarColor, BossbarCommand, BossbarId, BossbarStyle, Title, TitleTimes,
+    Actionbar, Bossbar, BossbarColor, BossbarCommand, BossbarId, BossbarStyle, IntoBossbarId,
+    Title, TitleTimes,
 };
 // Execute builder
 pub use sand_commands::Execute;
@@ -66,7 +67,7 @@ pub use sand_commands::{Anchor, ItemSlot, NbtStoreKind, Swizzle};
 pub use sand_commands::Inventory;
 // Particle effects
 pub use sand_commands::{
-    Particle, ParticleBuilder, ParticleCommand, ParticleEffect, ParticleSpread,
+    IntoParticleId, Particle, ParticleBuilder, ParticleCommand, ParticleEffect, ParticleSpread,
 };
 // Entity/player targeting
 pub use sand_commands::{
@@ -74,7 +75,7 @@ pub use sand_commands::{
     One, PlayerTarget, PlayerTargets, Selector, SingleEntity, SinglePlayer, SortOrder, TargetBase,
 };
 // Sound
-pub use sand_commands::{Sound, SoundSource, StopSoundCommand};
+pub use sand_commands::{IntoSoundEvent, Sound, SoundSource, StopSoundCommand};
 // Text components
 pub use sand_commands::{
     ChatColor, ClickEvent, EntityHoverId, HoverEvent, IntoTextEntityType, Text, TextCommand,
@@ -327,6 +328,7 @@ pub fn raw(command: impl Into<String>) -> sand_commands::RawCommand {
 pub trait Command: std::fmt::Display {}
 
 impl Command for sand_commands::DataCommand {}
+impl Command for sand_commands::Sound {}
 
 // Include the generated command builders from commands.json.
 #[allow(warnings, clippy::all)]

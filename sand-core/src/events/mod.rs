@@ -596,6 +596,27 @@ pub enum TickExecutionPlans {
     Plans(Vec<Vec<String>>),
 }
 
+/// Internal typed counterpart retained through event export lowering.
+#[derive(Debug, Clone)]
+pub(crate) enum TickExecutionIrPlans {
+    Unconditional,
+    Plans(Vec<crate::condition::ExecuteIrPlan>),
+}
+
+impl TickExecutionIrPlans {
+    pub(crate) fn render_compat(self) -> TickExecutionPlans {
+        match self {
+            Self::Unconditional => TickExecutionPlans::Unconditional,
+            Self::Plans(plans) => TickExecutionPlans::Plans(
+                plans
+                    .into_iter()
+                    .map(|plan| plan.into_iter().map(|clause| clause.render()).collect())
+                    .collect(),
+            ),
+        }
+    }
+}
+
 impl TickExecutionPlans {
     /// `true` if this is [`Unconditional`](Self::Unconditional).
     pub fn is_unconditional(&self) -> bool {
@@ -710,9 +731,13 @@ impl TickEventDispatch {
     /// [`TickExecutionPlans::Unconditional`] and every entry of
     /// [`TickExecutionPlans::Plans`] explicitly.
     pub fn execution_plans(&self) -> TickExecutionPlans {
+        self.execution_ir_plans().render_compat()
+    }
+
+    pub(crate) fn execution_ir_plans(&self) -> TickExecutionIrPlans {
         match self.combined_condition() {
-            None => TickExecutionPlans::Unconditional,
-            Some(combined) => TickExecutionPlans::Plans(combined.to_execute_plans(false)),
+            None => TickExecutionIrPlans::Unconditional,
+            Some(combined) => TickExecutionIrPlans::Plans(combined.to_ir_plans(false)),
         }
     }
 }
@@ -929,9 +954,13 @@ impl ChainEventDispatch {
     /// Expand this child's conditions into explicit [`TickExecutionPlans`],
     /// same shape as [`TickEventDispatch::execution_plans`].
     pub fn execution_plans(&self) -> TickExecutionPlans {
+        self.execution_ir_plans().render_compat()
+    }
+
+    pub(crate) fn execution_ir_plans(&self) -> TickExecutionIrPlans {
         match self.combined_condition() {
-            None => TickExecutionPlans::Unconditional,
-            Some(combined) => TickExecutionPlans::Plans(combined.to_execute_plans(false)),
+            None => TickExecutionIrPlans::Unconditional,
+            Some(combined) => TickExecutionIrPlans::Plans(combined.to_ir_plans(false)),
         }
     }
 }

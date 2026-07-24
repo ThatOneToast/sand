@@ -96,6 +96,27 @@ impl CommandProfile {
     pub fn is_fallback(&self) -> bool {
         self.is_fallback
     }
+
+    /// Whether this resolved command target is at least the given Java release.
+    ///
+    /// Unknown/fallback profiles are conservative and never claim support.
+    pub fn is_at_least(&self, major: u32, minor: u32, patch: u32) -> bool {
+        if self.is_fallback {
+            return false;
+        }
+        let value = if self.requested_version == "latest" {
+            LATEST_KNOWN
+        } else {
+            &self.requested_version
+        };
+        let mut parts = value.split('.').map(|part| part.parse::<u32>());
+        let Some(Ok(actual_major)) = parts.next() else {
+            return false;
+        };
+        let actual_minor = parts.next().transpose().ok().flatten().unwrap_or(0);
+        let actual_patch = parts.next().transpose().ok().flatten().unwrap_or(0);
+        (actual_major, actual_minor, actual_patch) >= (major, minor, patch)
+    }
 }
 
 // ── Component capability identifiers ───────────────────────────────────────────

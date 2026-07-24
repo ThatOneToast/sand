@@ -11,6 +11,7 @@ pub use sand_version::CommandProfile;
 /// validation; unknown, macro, and modded commands remain verbatim.
 pub fn validate_collected_line(line: &str, profile: &CommandProfile) -> CommandResult<String> {
     validate_line_integrity(line)?;
+    crate::execute_ir::validate_registered_line(line, profile)?;
     let trimmed = line.trim_start();
     if trimmed.is_empty() || trimmed.starts_with('#') || trimmed.starts_with('$') {
         return Ok(line.to_string());
@@ -218,6 +219,14 @@ fn validate_execute_command(
         .enumerate()
         .skip(1)
         .find_map(|(index, token)| (token.text == "run").then_some(index));
+    if run_index == Some(1) {
+        return Err(CommandError::new(
+            "Execute",
+            "operations",
+            "execute chains require at least one operation before `run`",
+        )
+        .with_code("SAND-COMMAND-EXECUTE-EMPTY"));
+    }
     let subcommand_end = run_index.unwrap_or(tokens.len());
     let mut index = 1;
     while index < subcommand_end {

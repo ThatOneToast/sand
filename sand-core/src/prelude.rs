@@ -32,6 +32,10 @@ pub use crate::cmd::{
     ObjectiveName, Particle, ParticleSpread, PlayerTargets, RawCommand, RenderCommand, ScoreHolder,
     Selector, SingleEntity, SinglePlayer, SoundSource, Title, UntypedNbt, Validate,
 };
+pub use crate::item::{
+    BlockInventory, ContainerIndex, EnderChestIndex, EntityInventory, EntityInventorySlot,
+    HotbarIndex, InventoryIndex, ItemLocation, MainInventoryIndex,
+};
 pub use crate::vfx::{
     IntoParticleStep, IntoSoundStep, IntoVfxSelector, Vfx, VfxParticle, VfxSound, VfxStep,
 };

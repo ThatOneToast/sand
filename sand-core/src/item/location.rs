@@ -29,9 +29,11 @@
 use std::fmt;
 
 use sand_commands::coord::BlockPos;
-use sand_commands::nbt::DataTarget;
+use sand_commands::execute_args::ItemSlot;
+use sand_commands::nbt::{DataCommand, DataTarget, NbtPath, NbtRef, UntypedNbt};
 use sand_commands::selector::Selector;
 
+use crate::condition::Condition;
 use sand_components::EquipmentSlot;
 
 /// Deterministic short label naming the *kind* of location, used in
@@ -155,9 +157,103 @@ pub enum ItemLocation {
     /// An item entity's own stack (the `Item` compound on a dropped-item
     /// entity), addressed by [`Selector`].
     ItemEntity(Selector),
+    /// A discoverable slot produced by [`ItemLocation::entity`].
+    EntityInventory {
+        entity: Selector,
+        slot: EntityInventorySlot,
+    },
+    /// An ender-chest entry. Vanilla exposes this through entity NBT but not
+    /// as an `/item` command slot, so read/snapshot operations are supported
+    /// while live `/item replace` and `execute if items` are rejected.
+    EntityEnderChest {
+        entity: Selector,
+        slot: EnderChestIndex,
+    },
+}
+
+/// One entity inventory slot with both live `/item` and NBT addressing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum EntityInventorySlot {
+    SelectedItem,
+    MainHand,
+    OffHand,
+    Head,
+    Chest,
+    Legs,
+    Feet,
+    Hotbar(HotbarIndex),
+    MainInventory(MainInventoryIndex),
+    Inventory(InventoryIndex),
+}
+
+/// Validated main-inventory index (`0..=26`, excluding the hotbar).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct MainInventoryIndex(u8);
+
+impl MainInventoryIndex {
+    pub const MAX: u8 = 26;
+
+    pub fn new(index: u8) -> Result<Self, ItemLocationError> {
+        if index > Self::MAX {
+            return Err(ItemLocationError::IndexOutOfRange {
+                location_kind: "player main inventory slot",
+                index: u32::from(index),
+                max: u32::from(Self::MAX),
+            });
+        }
+        Ok(Self(index))
+    }
+
+    pub fn get(self) -> u8 {
+        self.0
+    }
+}
+
+/// Validated ender-chest index (`0..=26`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct EnderChestIndex(u8);
+
+impl EnderChestIndex {
+    pub const MAX: u8 = 26;
+
+    pub fn new(index: u8) -> Result<Self, ItemLocationError> {
+        if index > Self::MAX {
+            return Err(ItemLocationError::IndexOutOfRange {
+                location_kind: "ender chest slot",
+                index: u32::from(index),
+                max: u32::from(Self::MAX),
+            });
+        }
+        Ok(Self(index))
+    }
+
+    pub fn get(self) -> u8 {
+        self.0
+    }
+}
+
+/// Factory handle for entity inventory locations. The produced
+/// [`ItemLocation`] remains the sole live-location representation.
+#[derive(Debug, Clone)]
+pub struct EntityInventory {
+    entity: Selector,
+}
+
+/// Factory handle for block inventory locations.
+#[derive(Debug, Clone)]
+pub struct BlockInventory {
+    position: BlockPos,
 }
 
 impl ItemLocation {
+    pub fn entity(entity: Selector) -> EntityInventory {
+        EntityInventory { entity }
+    }
+
+    pub fn block(position: BlockPos) -> BlockInventory {
+        BlockInventory { position }
+    }
+
     /// A player armor location — [`EquipmentSlot::Head`],
     /// [`EquipmentSlot::Chest`], [`EquipmentSlot::Legs`], or
     /// [`EquipmentSlot::Feet`] only. `Mainhand`/`Offhand` are rejected (use
@@ -216,6 +312,8 @@ impl ItemLocation {
             Self::EntityEquipment { .. } => "entity_equipment",
             Self::BlockContainer { .. } => "block_container",
             Self::ItemEntity(_) => "item_entity",
+            Self::EntityInventory { .. } => "entity_inventory",
+            Self::EntityEnderChest { .. } => "entity_ender_chest",
         }
     }
 
@@ -233,6 +331,124 @@ impl ItemLocation {
                 | Self::PlayerHotbar(_)
                 | Self::PlayerInventory(_)
         )
+    }
+
+    /// Canonical typed NBT view of this live item location.
+    pub fn nbt(&self) -> NbtRef<UntypedNbt> {
+        let (target, path) = self
+            .nbt_source()
+            .expect("constructible ItemLocation variants always have NBT addressing");
+        NbtRef::new(target, NbtPath::new(path))
+    }
+
+    /// Snapshot/copy the current stack compound into a typed NBT destination.
+    pub fn copy_to<T>(&self, destination: &NbtRef<T>) -> DataCommand {
+        destination.copy_from(&self.nbt())
+    }
+
+    /// Copy NBT into a block container slot.
+    ///
+    /// Entity/player inventory mutation is deliberately rejected here because
+    /// vanilla does not safely permit arbitrary player NBT writes. Use
+    /// [`replace_from`](Self::replace_from) for live entity inventory copies.
+    pub fn copy_from<T>(&self, source: &NbtRef<T>) -> Result<DataCommand, ItemLocationError> {
+        match self {
+            Self::BlockContainer { .. } => Ok(self.nbt().copy_from(source)),
+            _ => Err(ItemLocationError::UnsupportedLocation {
+                location: self.kind().to_string(),
+                reason: "NBT writes to live entity/player inventory are unsafe; use ItemLocation::replace_from for item-to-item copies",
+            }),
+        }
+    }
+
+    /// Typed `execute if data` existence check for the stack compound.
+    pub fn exists(&self) -> Condition {
+        let reference = self.nbt();
+        Condition::NbtExists {
+            target: reference.location().clone(),
+            path: reference.path_value().clone(),
+        }
+    }
+
+    /// True when the live slot contains no item.
+    pub fn is_empty(&self) -> Result<Condition, ItemLocationError> {
+        Ok(!self.matches("*")?)
+    }
+
+    /// Match a live slot through typed `execute if items` condition IR.
+    ///
+    /// `item` is the vanilla item-stack predicate argument (an item ID,
+    /// tag/wildcard, or component-bearing predicate syntax).
+    pub fn matches(&self, item: impl Into<String>) -> Result<Condition, ItemLocationError> {
+        let item = item.into();
+        match self.item_target_slot()? {
+            ItemCommandLocation::Entity { target, slot } => {
+                Ok(Condition::ItemsEntity { target, slot, item })
+            }
+            ItemCommandLocation::Block { position, slot } => Ok(Condition::ItemsBlock {
+                position,
+                slot,
+                item,
+            }),
+        }
+    }
+
+    /// Copy a live stack using vanilla `/item replace ... from ...`.
+    pub fn replace_from(&self, source: &ItemLocation) -> Result<String, ItemLocationError> {
+        let destination = self.item_target_slot()?;
+        let source = source.item_target_slot()?;
+        Ok(format!(
+            "item replace {} {} from {} {}",
+            destination.target_text(),
+            destination.slot(),
+            source.target_text(),
+            source.slot()
+        ))
+    }
+
+    fn item_target_slot(&self) -> Result<ItemCommandLocation, ItemLocationError> {
+        match self {
+            Self::PlayerMainHand => Ok(ItemCommandLocation::Entity {
+                target: Selector::self_(),
+                slot: ItemSlot::MainHand,
+            }),
+            Self::PlayerOffHand => Ok(ItemCommandLocation::Entity {
+                target: Selector::self_(),
+                slot: ItemSlot::OffHand,
+            }),
+            Self::PlayerEquipment(slot) => Ok(ItemCommandLocation::Entity {
+                target: Selector::self_(),
+                slot: equipment_item_slot(*slot)?,
+            }),
+            Self::PlayerHotbar(index) => Ok(ItemCommandLocation::Entity {
+                target: Selector::self_(),
+                slot: ItemSlot::Hotbar(index.get()),
+            }),
+            Self::PlayerInventory(index) => Ok(ItemCommandLocation::Entity {
+                target: Selector::self_(),
+                slot: inventory_item_slot(*index),
+            }),
+            Self::EntityEquipment { entity, slot } => Ok(ItemCommandLocation::Entity {
+                target: entity.clone(),
+                slot: equipment_item_slot(*slot)?,
+            }),
+            Self::BlockContainer { position, slot } => Ok(ItemCommandLocation::Block {
+                position: position.clone(),
+                slot: ItemSlot::Container(slot.get()),
+            }),
+            Self::ItemEntity(entity) => Ok(ItemCommandLocation::Entity {
+                target: entity.clone(),
+                slot: ItemSlot::raw("contents"),
+            }),
+            Self::EntityInventory { entity, slot } => Ok(ItemCommandLocation::Entity {
+                target: entity.clone(),
+                slot: slot.item_slot(),
+            }),
+            Self::EntityEnderChest { .. } => Err(ItemLocationError::UnsupportedLocation {
+                location: self.kind().to_string(),
+                reason: "ender chest entries have NBT addressing but no vanilla `/item` slot",
+            }),
+        }
     }
 
     /// Resolve this location to a `(DataTarget, NBT get-path)` pair suitable
@@ -282,7 +498,160 @@ impl ItemLocation {
             Self::ItemEntity(selector) => {
                 (DataTarget::entity(selector.clone()), "Item".to_string())
             }
+            Self::EntityInventory { entity, slot } => {
+                (DataTarget::entity(entity.clone()), slot.nbt_path())
+            }
+            Self::EntityEnderChest { entity, slot } => (
+                DataTarget::entity(entity.clone()),
+                format!("EnderItems[{{Slot:{}b}}]", slot.get()),
+            ),
         })
+    }
+}
+
+impl EntityInventory {
+    fn location(&self, slot: EntityInventorySlot) -> ItemLocation {
+        ItemLocation::EntityInventory {
+            entity: self.entity.clone(),
+            slot,
+        }
+    }
+
+    pub fn selected_item(&self) -> ItemLocation {
+        self.location(EntityInventorySlot::SelectedItem)
+    }
+
+    pub fn mainhand(&self) -> ItemLocation {
+        self.location(EntityInventorySlot::MainHand)
+    }
+
+    pub fn offhand(&self) -> ItemLocation {
+        self.location(EntityInventorySlot::OffHand)
+    }
+
+    pub fn helmet(&self) -> ItemLocation {
+        self.location(EntityInventorySlot::Head)
+    }
+
+    pub fn chestplate(&self) -> ItemLocation {
+        self.location(EntityInventorySlot::Chest)
+    }
+
+    pub fn leggings(&self) -> ItemLocation {
+        self.location(EntityInventorySlot::Legs)
+    }
+
+    pub fn boots(&self) -> ItemLocation {
+        self.location(EntityInventorySlot::Feet)
+    }
+
+    pub fn hotbar(&self, index: u8) -> Result<ItemLocation, ItemLocationError> {
+        Ok(self.location(EntityInventorySlot::Hotbar(HotbarIndex::new(index)?)))
+    }
+
+    pub fn main_inventory(&self, index: u8) -> Result<ItemLocation, ItemLocationError> {
+        Ok(
+            self.location(EntityInventorySlot::MainInventory(MainInventoryIndex::new(
+                index,
+            )?)),
+        )
+    }
+
+    pub fn slot(&self, index: u8) -> Result<ItemLocation, ItemLocationError> {
+        Ok(self.location(EntityInventorySlot::Inventory(InventoryIndex::new(index)?)))
+    }
+
+    pub fn ender_chest(&self, index: u8) -> Result<ItemLocation, ItemLocationError> {
+        Ok(ItemLocation::EntityEnderChest {
+            entity: self.entity.clone(),
+            slot: EnderChestIndex::new(index)?,
+        })
+    }
+}
+
+impl BlockInventory {
+    pub fn slot(&self, index: u8) -> Result<ItemLocation, ItemLocationError> {
+        Ok(ItemLocation::BlockContainer {
+            position: self.position.clone(),
+            slot: ContainerIndex::new(index)?,
+        })
+    }
+}
+
+impl EntityInventorySlot {
+    fn item_slot(self) -> ItemSlot {
+        match self {
+            Self::SelectedItem | Self::MainHand => ItemSlot::MainHand,
+            Self::OffHand => ItemSlot::OffHand,
+            Self::Head => ItemSlot::Head,
+            Self::Chest => ItemSlot::Chest,
+            Self::Legs => ItemSlot::Legs,
+            Self::Feet => ItemSlot::Feet,
+            Self::Hotbar(index) => ItemSlot::Hotbar(index.get()),
+            Self::MainInventory(index) => ItemSlot::Inventory(index.get()),
+            Self::Inventory(index) => inventory_item_slot(index),
+        }
+    }
+
+    fn nbt_path(self) -> String {
+        match self {
+            Self::SelectedItem | Self::MainHand => "SelectedItem".to_string(),
+            Self::OffHand => "Inventory[{Slot:-106b}]".to_string(),
+            Self::Head => "Inventory[{Slot:103b}]".to_string(),
+            Self::Chest => "Inventory[{Slot:102b}]".to_string(),
+            Self::Legs => "Inventory[{Slot:101b}]".to_string(),
+            Self::Feet => "Inventory[{Slot:100b}]".to_string(),
+            Self::Hotbar(index) => format!("Inventory[{{Slot:{}b}}]", index.get()),
+            Self::MainInventory(index) => {
+                format!("Inventory[{{Slot:{}b}}]", index.get() + 9)
+            }
+            Self::Inventory(index) => {
+                format!("Inventory[{{Slot:{}b}}]", index.get())
+            }
+        }
+    }
+}
+
+enum ItemCommandLocation {
+    Entity { target: Selector, slot: ItemSlot },
+    Block { position: BlockPos, slot: ItemSlot },
+}
+
+impl ItemCommandLocation {
+    fn target_text(&self) -> String {
+        match self {
+            Self::Entity { target, .. } => format!("entity {target}"),
+            Self::Block { position, .. } => format!("block {position}"),
+        }
+    }
+
+    fn slot(&self) -> &ItemSlot {
+        match self {
+            Self::Entity { slot, .. } | Self::Block { slot, .. } => slot,
+        }
+    }
+}
+
+fn equipment_item_slot(slot: EquipmentSlot) -> Result<ItemSlot, ItemLocationError> {
+    match slot {
+        EquipmentSlot::Head => Ok(ItemSlot::Head),
+        EquipmentSlot::Chest => Ok(ItemSlot::Chest),
+        EquipmentSlot::Legs => Ok(ItemSlot::Legs),
+        EquipmentSlot::Feet => Ok(ItemSlot::Feet),
+        EquipmentSlot::Mainhand => Ok(ItemSlot::MainHand),
+        EquipmentSlot::Offhand => Ok(ItemSlot::OffHand),
+        EquipmentSlot::Body => Err(ItemLocationError::UnsupportedLocation {
+            location: "EquipmentSlot::Body".to_string(),
+            reason: "body equipment is not verified across Sand's supported profiles",
+        }),
+    }
+}
+
+fn inventory_item_slot(index: InventoryIndex) -> ItemSlot {
+    if index.get() <= 8 {
+        ItemSlot::Hotbar(index.get())
+    } else {
+        ItemSlot::Inventory(index.get() - 9)
     }
 }
 
@@ -375,6 +744,84 @@ mod tests {
         let (target, path) = ItemLocation::PlayerOffHand.nbt_source().unwrap();
         assert_eq!(target.to_string(), "entity @s");
         assert_eq!(path, "Inventory[{Slot:-106b}]");
+    }
+
+    #[test]
+    fn discoverable_entity_and_block_inventory_locations_share_nbt() {
+        let inventory = ItemLocation::entity(Selector::self_());
+        assert_eq!(
+            inventory.mainhand().nbt().get().to_string(),
+            "data get entity @s SelectedItem"
+        );
+        assert_eq!(
+            inventory.hotbar(3).unwrap().nbt().as_str(),
+            "Inventory[{Slot:3b}]"
+        );
+        assert_eq!(
+            inventory.main_inventory(2).unwrap().nbt().as_str(),
+            "Inventory[{Slot:11b}]"
+        );
+        assert_eq!(
+            inventory.ender_chest(4).unwrap().nbt().as_str(),
+            "EnderItems[{Slot:4b}]"
+        );
+        assert_eq!(
+            ItemLocation::block(BlockPos::here())
+                .slot(0)
+                .unwrap()
+                .nbt()
+                .as_str(),
+            "Items[{Slot:0b}]"
+        );
+    }
+
+    #[test]
+    fn inventory_copy_matching_and_empty_use_correct_command_families() {
+        let entity = ItemLocation::entity(Selector::self_());
+        let mainhand = entity.mainhand();
+        let cache = sand_commands::Nbt::storage("pack:cache").path::<UntypedNbt>("last_item");
+        assert_eq!(
+            mainhand.copy_to(&cache).to_string(),
+            "data modify storage pack:cache last_item set from entity @s SelectedItem"
+        );
+
+        let block = ItemLocation::block(BlockPos::here()).slot(0).unwrap();
+        assert_eq!(
+            block.replace_from(&mainhand).unwrap(),
+            "item replace block ~ ~ ~ container.0 from entity @s weapon.mainhand"
+        );
+        assert_eq!(
+            mainhand
+                .matches("minecraft:diamond_sword")
+                .unwrap()
+                .execute_commands(false, "say yes"),
+            vec!["execute if items entity @s weapon.mainhand minecraft:diamond_sword run say yes"]
+        );
+        assert_eq!(
+            mainhand
+                .is_empty()
+                .unwrap()
+                .execute_commands(false, "say empty"),
+            vec!["execute unless items entity @s weapon.mainhand * run say empty"]
+        );
+    }
+
+    #[test]
+    fn inventory_indices_and_unsafe_player_nbt_writes_are_rejected() {
+        assert!(ItemLocation::entity(Selector::self_()).hotbar(9).is_err());
+        assert!(
+            ItemLocation::entity(Selector::self_())
+                .main_inventory(27)
+                .is_err()
+        );
+        assert!(ItemLocation::block(BlockPos::here()).slot(54).is_err());
+        let source = sand_commands::Nbt::storage("pack:data").path::<UntypedNbt>("item");
+        assert!(
+            ItemLocation::entity(Selector::self_())
+                .mainhand()
+                .copy_from(&source)
+                .is_err()
+        );
     }
 
     #[test]

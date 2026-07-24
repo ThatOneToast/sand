@@ -142,6 +142,17 @@ pub use sand_core::events;
 /// event or `execute if items` check.
 pub use sand_core::item;
 
+/// Typed live inventory locations. [`ItemLocation`] is the canonical model;
+/// the entity/block factory handles in this module only construct locations.
+/// NBT reads and snapshots share [`data::NbtRef`], while live mutation and
+/// matching use vanilla `/item` and `execute if items`.
+pub mod inventory {
+    pub use sand_core::item::{
+        BlockInventory, ContainerIndex, EnderChestIndex, EntityInventory, EntityInventorySlot,
+        HotbarIndex, InventoryIndex, ItemLocation, ItemLocationError, MainInventoryIndex,
+    };
+}
+
 /// Scoreboard-, storage-, and NBT-backed state: `ScoreVar`, `Flag`, `Timer`,
 /// `Cooldown`, `GameState`/`TypedGameState`, and storage schemas
 /// (`StorageVar`, `StorageSchema`). These are the building blocks behind

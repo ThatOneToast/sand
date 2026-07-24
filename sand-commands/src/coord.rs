@@ -124,6 +124,14 @@ pub struct BlockPos {
     pub z: Coord,
 }
 
+impl PartialEq for BlockPos {
+    fn eq(&self, other: &Self) -> bool {
+        self.to_string() == other.to_string()
+    }
+}
+
+impl Eq for BlockPos {}
+
 impl BlockPos {
     /// Create a block position from three coordinates.
     pub fn new(x: impl Into<Coord>, y: impl Into<Coord>, z: impl Into<Coord>) -> Self {

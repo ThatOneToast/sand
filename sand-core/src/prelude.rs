@@ -28,9 +28,9 @@ pub use crate::execute_when::{if_, unless, when};
 pub use crate::Damage;
 pub use crate::cmd::{
     Actionbar, Bossbar, BossbarColor, BossbarStyle, DamageAmount, DamageBuilder, DamageKind,
-    EntityTargets, Execute, Inventory, ItemSlot, ObjectiveName, Particle, ParticleSpread,
-    PlayerTargets, RawCommand, RenderCommand, ScoreHolder, Selector, SingleEntity, SinglePlayer,
-    SoundSource, Title, Validate,
+    DataCommand, EntityTargets, Execute, Inventory, ItemSlot, Nbt, NbtCompound, NbtRef, NbtTarget,
+    ObjectiveName, Particle, ParticleSpread, PlayerTargets, RawCommand, RenderCommand, ScoreHolder,
+    Selector, SingleEntity, SinglePlayer, SoundSource, Title, UntypedNbt, Validate,
 };
 pub use crate::vfx::{
     IntoParticleStep, IntoSoundStep, IntoVfxSelector, Vfx, VfxParticle, VfxSound, VfxStep,

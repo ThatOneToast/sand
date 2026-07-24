@@ -134,6 +134,11 @@ pub enum Condition {
     Entity(String),
     /// `if data storage <location> <path>`
     StorageExists { location: String, path: String },
+    /// `if data <storage|entity|block> <path>` using the unified NBT model.
+    NbtExists {
+        target: sand_commands::DataTarget,
+        path: sand_commands::NbtPath,
+    },
     /// Invert this condition (flips `if` ↔ `unless`).
     Not(Box<Condition>),
     /// All sub-conditions must hold (chained `if … if …`).
@@ -391,6 +396,10 @@ impl Condition {
             Condition::StorageExists { location, path } => clause(ConditionIr::Data {
                 target: DataTarget::storage(location.clone()),
                 path: path.clone(),
+            }),
+            Condition::NbtExists { target, path } => clause(ConditionIr::Data {
+                target: target.clone(),
+                path: path.as_str().to_string(),
             }),
             Condition::Raw(fragment) => clause(ConditionIr::Raw(fragment.clone())),
 

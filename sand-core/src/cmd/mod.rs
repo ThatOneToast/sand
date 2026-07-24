@@ -74,7 +74,10 @@ pub use sand_commands::{
     ChatColor, ClickEvent, EntityHoverId, HoverEvent, IntoTextEntityType, Text, TextComponent,
 };
 // NBT types — owned by sand-commands
-pub use sand_commands::{DataModify, DataTarget, NbtValue, data_modify};
+pub use sand_commands::{
+    DataCommand, DataModify, DataModifyOperation, DataSource, DataTarget, Nbt, NbtCompound,
+    NbtPath, NbtRef, NbtTarget, NbtValue, UntypedNbt, data_modify,
+};
 // Scoreboard types — owned by sand-commands
 // Note: &Storage satisfies Objective::load_from's `impl Into<String>` parameter
 // via the `From<&Storage> for String` impl in mod data.
@@ -315,6 +318,8 @@ pub fn raw(command: impl Into<String>) -> sand_commands::RawCommand {
 /// }
 /// ```
 pub trait Command: std::fmt::Display {}
+
+impl Command for sand_commands::DataCommand {}
 
 // Include the generated command builders from commands.json.
 #[allow(warnings, clippy::all)]

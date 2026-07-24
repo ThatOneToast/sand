@@ -184,6 +184,9 @@ pub enum Cmd {
     /// A `scoreboard players` sub-command.
     ScorePlayers(ScorePlayersOp),
 
+    /// Standalone typed `data get|remove|modify|merge` command IR.
+    Data(sand_commands::DataCommand),
+
     /// `execute <operations…> run <cmd>`, retaining ordered typed operations.
     Execute {
         operations: Vec<ExecuteOp>,
@@ -218,6 +221,8 @@ impl Cmd {
             }
 
             Self::ScorePlayers(op) => op.render(),
+
+            Self::Data(command) => command.try_render(profile)?,
 
             Self::Execute { operations, run } => {
                 if operations.is_empty() {

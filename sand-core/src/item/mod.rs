@@ -21,7 +21,10 @@
 pub mod location;
 pub mod snapshot;
 
-pub use location::{ContainerIndex, HotbarIndex, InventoryIndex, ItemLocation, ItemLocationError};
+pub use location::{
+    BlockInventory, ContainerIndex, EnderChestIndex, EntityInventory, EntityInventorySlot,
+    HotbarIndex, InventoryIndex, ItemLocation, ItemLocationError, MainInventoryIndex,
+};
 pub use snapshot::{
     EventItem, ItemRole, ItemSnapshot, SnapshotAbsence, SnapshotError, SnapshotReliability,
     SnapshotSchema,

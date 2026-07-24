@@ -7,6 +7,7 @@ fn compile_tests() {
     t.pass("tests/cases/pass_attribute_typed.rs");
     t.pass("tests/cases/pass_public_api_tiers.rs");
     t.pass("tests/cases/pass_canonical_command_foundations.rs");
+    t.pass("tests/cases/pass_validated_command_media.rs");
     t.pass("tests/cases/pass_component.rs");
     t.pass("tests/cases/pass_component_dialog.rs");
     t.pass("tests/cases/pass_event_generic.rs");

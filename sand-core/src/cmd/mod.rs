@@ -41,7 +41,9 @@ mod typed_execute;
 // ── Re-exports from sand-commands ─────────────────────────────────────────────
 
 /// Command construction and the shared profile-aware validation boundary.
-pub use sand_commands::{Build, CommandProfile, RawCommand, RenderCommand, Validate};
+pub use sand_commands::{
+    Build, CommandProfile, EffectCommand, EffectDuration, RawCommand, RenderCommand, Validate,
+};
 
 /// Trait for types resolving to a `function <id>` command.
 pub use crate::function::IntoFunctionRef;
@@ -53,7 +55,9 @@ pub use sand_commands::{
 // Coordinate types
 pub use sand_commands::{BlockPos, Coord, Rotation, Vec2, Vec3};
 // Player display commands
-pub use sand_commands::{Actionbar, Bossbar, BossbarColor, BossbarStyle, Title};
+pub use sand_commands::{
+    Actionbar, Bossbar, BossbarColor, BossbarCommand, BossbarId, BossbarStyle, Title, TitleTimes,
+};
 // Execute builder
 pub use sand_commands::Execute;
 // Execute argument types
@@ -61,17 +65,20 @@ pub use sand_commands::{Anchor, ItemSlot, NbtStoreKind, Swizzle};
 // Inventory manipulation
 pub use sand_commands::Inventory;
 // Particle effects
-pub use sand_commands::{Particle, ParticleBuilder, ParticleEffect, ParticleSpread};
+pub use sand_commands::{
+    Particle, ParticleBuilder, ParticleCommand, ParticleEffect, ParticleSpread,
+};
 // Entity/player targeting
 pub use sand_commands::{
     Damage as DamageBuilder, DamageAmount, DamageKind, EntityTarget, EntityTargets, GameMode, Many,
     One, PlayerTarget, PlayerTargets, Selector, SingleEntity, SinglePlayer, SortOrder, TargetBase,
 };
 // Sound
-pub use sand_commands::{Sound, SoundSource};
+pub use sand_commands::{Sound, SoundSource, StopSoundCommand};
 // Text components
 pub use sand_commands::{
-    ChatColor, ClickEvent, EntityHoverId, HoverEvent, IntoTextEntityType, Text, TextComponent,
+    ChatColor, ClickEvent, EntityHoverId, HoverEvent, IntoTextEntityType, Text, TextCommand,
+    TextComponent,
 };
 // NBT types — owned by sand-commands
 pub use sand_commands::{
@@ -169,8 +176,8 @@ pub fn show_dialog(
 }
 
 /// `tellraw <target> <json>` — send a rich JSON text component to a target.
-pub fn tellraw(target: impl std::fmt::Display, text: TextComponent) -> String {
-    format!("tellraw {target} {text}")
+pub fn tellraw(target: Selector, text: TextComponent) -> String {
+    TextCommand::tellraw(target, text).build()
 }
 
 /// `tellraw <target> <raw_json>` — send a raw JSON text component to a target.

@@ -14,10 +14,14 @@
 //! // → "stopsound @a"
 //! ```
 
+use std::collections::BTreeMap;
 use std::fmt;
+use std::sync::{Mutex, OnceLock};
 
 use crate::Build;
 use crate::coord::Vec3;
+use crate::error::{CommandError, CommandResult};
+use crate::render::{CommandProfile, RenderCommand, Validate};
 use crate::selector::Selector;
 
 // ── SoundSource ───────────────────────────────────────────────────────────────
@@ -33,6 +37,7 @@ pub enum SoundSource {
     Hostile,
     Neutral,
     Player,
+    Ui,
     Ambient,
     Voice,
 }
@@ -48,6 +53,7 @@ impl fmt::Display for SoundSource {
             SoundSource::Hostile => "hostile",
             SoundSource::Neutral => "neutral",
             SoundSource::Player => "player",
+            SoundSource::Ui => "ui",
             SoundSource::Ambient => "ambient",
             SoundSource::Voice => "voice",
         };
@@ -61,6 +67,7 @@ impl fmt::Display for SoundSource {
 #[derive(Debug, Clone)]
 pub struct Sound {
     event: String,
+    raw_event: bool,
     source: SoundSource,
     target: Option<Selector>,
     pos: Option<Vec3>,
@@ -74,12 +81,21 @@ impl Sound {
     pub fn play(event: impl Into<String>) -> Self {
         Self {
             event: event.into(),
+            raw_event: false,
             source: SoundSource::Master,
             target: None,
             pos: None,
             volume: 1.0,
             pitch: 1.0,
             min_volume: None,
+        }
+    }
+
+    /// Begin building a sound command with an intentionally opaque event token.
+    pub fn play_raw(event: impl Into<String>) -> Self {
+        Self {
+            raw_event: true,
+            ..Self::play(event)
         }
     }
 
@@ -122,22 +138,44 @@ impl Sound {
     // ── stopsound helpers ─────────────────────────────────────────────────────
 
     /// `stopsound <selector>` — stop all sounds playing for the target.
-    pub fn stop_all(target: impl fmt::Display) -> String {
-        format!("stopsound {}", target)
+    pub fn stop_all(target: Selector) -> String {
+        StopSoundCommand::All { target }.build_registered()
     }
 
     /// `stopsound <selector> <source>` — stop all sounds in a specific category.
-    pub fn stop_source(target: impl fmt::Display, source: SoundSource) -> String {
-        format!("stopsound {} {}", target, source)
+    pub fn stop_source(target: Selector, source: SoundSource) -> String {
+        StopSoundCommand::Source { target, source }.build_registered()
     }
 
     /// `stopsound <selector> <source> <event>` — stop a specific sound for the target.
-    pub fn stop(
-        target: impl fmt::Display,
+    pub fn stop_event(target: Selector, source: SoundSource, event: impl Into<String>) -> String {
+        StopSoundCommand::Event {
+            target,
+            source,
+            event: event.into(),
+            raw_event: false,
+        }
+        .build_registered()
+    }
+
+    /// Compatibility alias for [`Sound::stop_event`].
+    pub fn stop(target: Selector, source: SoundSource, event: impl Into<String>) -> String {
+        Self::stop_event(target, source, event)
+    }
+
+    /// Stop a sound with an intentionally opaque event token.
+    pub fn stop_event_raw(
+        target: Selector,
         source: SoundSource,
-        event: impl fmt::Display,
+        event: impl Into<String>,
     ) -> String {
-        format!("stopsound {} {} {}", target, source, event)
+        StopSoundCommand::Event {
+            target,
+            source,
+            event: event.into(),
+            raw_event: true,
+        }
+        .build_registered()
     }
 }
 
@@ -146,6 +184,50 @@ impl Build for Sound {
     ///
     /// Defaults: target=`@s`, position=`~ ~ ~`.
     fn build(&self) -> String {
+        let line = self.render_unchecked(&CommandProfile::unprofiled());
+        register_line(&line, SoundCommand::Play(self.clone()));
+        line
+    }
+}
+
+impl Validate for Sound {
+    fn validate(&self, profile: &CommandProfile) -> CommandResult<()> {
+        if !self.raw_event {
+            crate::validate::resource_location_shape(&self.event, "SoundCommand", "event")
+                .map_err(|error| sound_error("SAND-SOUND-ID", error.field, error.message))?;
+        }
+        self.target
+            .as_ref()
+            .unwrap_or(&Selector::self_())
+            .validate(profile)
+            .map_err(|error| sound_error("SAND-SOUND-TARGET", "target", error.to_string()))?;
+        validate_non_negative(self.volume, "volume")?;
+        validate_positive(self.pitch, "pitch")?;
+        if let Some(minimum) = self.min_volume {
+            validate_non_negative(minimum, "minimum_volume")?;
+        }
+        if let Some(position) = &self.pos {
+            for (field, value) in [
+                ("position.x", &position.x),
+                ("position.y", &position.y),
+                ("position.z", &position.z),
+            ] {
+                let text = value.to_string();
+                if text.contains("NaN") || text.contains("inf") {
+                    return Err(sound_error(
+                        "SAND-SOUND-NUMERIC",
+                        field,
+                        format!("coordinates must be finite, got `{text}`"),
+                    ));
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+impl RenderCommand for Sound {
+    fn render_unchecked(&self, _profile: &CommandProfile) -> String {
         let target = self.target.clone().unwrap_or_else(Selector::self_);
         let pos = self.pos.clone().unwrap_or_else(Vec3::here);
 
@@ -160,6 +242,70 @@ impl Build for Sound {
         }
 
         s
+    }
+}
+
+/// Structured forms of `stopsound`.
+#[derive(Debug, Clone)]
+pub enum StopSoundCommand {
+    All {
+        target: Selector,
+    },
+    Source {
+        target: Selector,
+        source: SoundSource,
+    },
+    Event {
+        target: Selector,
+        source: SoundSource,
+        event: String,
+        raw_event: bool,
+    },
+}
+
+impl StopSoundCommand {
+    fn build_registered(self) -> String {
+        let line = self.render_unchecked(&CommandProfile::unprofiled());
+        register_line(&line, SoundCommand::Stop(self));
+        line
+    }
+}
+
+impl Validate for StopSoundCommand {
+    fn validate(&self, profile: &CommandProfile) -> CommandResult<()> {
+        let target = match self {
+            Self::All { target } | Self::Source { target, .. } | Self::Event { target, .. } => {
+                target
+            }
+        };
+        target
+            .validate(profile)
+            .map_err(|error| sound_error("SAND-SOUND-TARGET", "target", error.to_string()))?;
+        if let Self::Event {
+            event,
+            raw_event: false,
+            ..
+        } = self
+        {
+            crate::validate::resource_location_shape(event, "SoundCommand", "event")
+                .map_err(|error| sound_error("SAND-SOUND-ID", error.field, error.message))?;
+        }
+        Ok(())
+    }
+}
+
+impl RenderCommand for StopSoundCommand {
+    fn render_unchecked(&self, _profile: &CommandProfile) -> String {
+        match self {
+            Self::All { target } => format!("stopsound {target}"),
+            Self::Source { target, source } => format!("stopsound {target} {source}"),
+            Self::Event {
+                target,
+                source,
+                event,
+                ..
+            } => format!("stopsound {target} {source} {event}"),
+        }
     }
 }
 
@@ -181,6 +327,74 @@ fn format_float(v: f64) -> String {
     } else {
         format!("{v}")
     }
+}
+
+#[derive(Debug, Clone)]
+enum SoundCommand {
+    Play(Sound),
+    Stop(StopSoundCommand),
+}
+
+impl Validate for SoundCommand {
+    fn validate(&self, profile: &CommandProfile) -> CommandResult<()> {
+        match self {
+            Self::Play(command) => command.validate(profile),
+            Self::Stop(command) => command.validate(profile),
+        }
+    }
+}
+
+fn sound_error(
+    code: &'static str,
+    field: impl Into<String>,
+    message: impl Into<String>,
+) -> CommandError {
+    CommandError::new("SoundCommand", field, message).with_code(code)
+}
+
+fn validate_non_negative(value: f64, field: &'static str) -> CommandResult<()> {
+    if !value.is_finite() || value < 0.0 {
+        Err(sound_error(
+            "SAND-SOUND-NUMERIC",
+            field,
+            format!("must be finite and non-negative, got `{value}`"),
+        ))
+    } else {
+        Ok(())
+    }
+}
+
+fn validate_positive(value: f64, field: &'static str) -> CommandResult<()> {
+    if !value.is_finite() || value <= 0.0 {
+        Err(sound_error(
+            "SAND-SOUND-NUMERIC",
+            field,
+            format!("must be finite and greater than zero, got `{value}`"),
+        ))
+    } else {
+        Ok(())
+    }
+}
+
+fn registered_lines() -> &'static Mutex<BTreeMap<String, SoundCommand>> {
+    static LINES: OnceLock<Mutex<BTreeMap<String, SoundCommand>>> = OnceLock::new();
+    LINES.get_or_init(|| Mutex::new(BTreeMap::new()))
+}
+
+fn register_line(line: &str, command: SoundCommand) {
+    registered_lines()
+        .lock()
+        .expect("sound command registry mutex poisoned")
+        .insert(line.to_owned(), command);
+}
+
+pub(crate) fn validate_registered_line(line: &str, profile: &CommandProfile) -> CommandResult<()> {
+    registered_lines()
+        .lock()
+        .expect("sound command registry mutex poisoned")
+        .get(line)
+        .cloned()
+        .map_or(Ok(()), |command| command.validate(profile))
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -235,5 +449,27 @@ mod tests {
             ),
             "stopsound @a block minecraft:block.stone.hit"
         );
+    }
+
+    #[test]
+    fn validates_ids_and_numeric_domains() {
+        assert!(Sound::play("modded:custom.event").try_build().is_ok());
+        assert_eq!(
+            Sound::play("Bad Event").try_build().unwrap_err().code,
+            "SAND-SOUND-ID"
+        );
+        for sound in [
+            Sound::play("minecraft:test").volume(f64::NAN),
+            Sound::play("minecraft:test").volume(-1.0),
+            Sound::play("minecraft:test").pitch(0.0),
+            Sound::play("minecraft:test").min_volume(-0.1),
+        ] {
+            assert_eq!(sound.try_build().unwrap_err().code, "SAND-SOUND-NUMERIC");
+        }
+    }
+
+    #[test]
+    fn raw_sound_event_is_opaque() {
+        assert!(Sound::play_raw("modded payload").try_build().is_ok());
     }
 }

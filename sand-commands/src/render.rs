@@ -12,6 +12,7 @@ pub use sand_version::CommandProfile;
 pub fn validate_collected_line(line: &str, profile: &CommandProfile) -> CommandResult<String> {
     validate_line_integrity(line)?;
     crate::execute_ir::validate_registered_line(line, profile)?;
+    crate::nbt::validate_registered_line(line, profile)?;
     let trimmed = line.trim_start();
     if trimmed.is_empty() || trimmed.starts_with('#') || trimmed.starts_with('$') {
         return Ok(line.to_string());

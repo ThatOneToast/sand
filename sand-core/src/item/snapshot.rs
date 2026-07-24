@@ -111,7 +111,7 @@ use sand_commands::nbt::{DataModify, DataTarget, NbtValue};
 use crate::condition::Condition;
 use crate::events::graph::tick_event_resource_key;
 use crate::item::location::{ItemLocation, ItemLocationError};
-use crate::state::storage::{NbtPath, StorageField, StorageLocation};
+use crate::state::storage::{Nbt, NbtPath, NbtRef, StorageField, UntypedNbt};
 
 /// Deterministic, collision-checked identity for one snapshot's generated
 /// storage. `storage` is the fully-qualified `namespace:path` command
@@ -147,8 +147,8 @@ impl SnapshotSchema {
         &self.storage
     }
 
-    fn base_path(&self) -> NbtPath {
-        NbtPath::new(self.storage.clone(), format!("snap.{}", self.key))
+    fn base_path(&self) -> NbtRef {
+        Nbt::storage(self.storage.clone()).path(format!("snap.{}", self.key))
     }
 }
 
@@ -267,18 +267,24 @@ impl ItemSnapshot {
         let mut commands = Vec::with_capacity(4);
         // 1. Unconditional reset to explicit absence — a stale snapshot
         //    from an earlier invocation must never leak through.
-        commands.push(present_path.set_value(false));
+        commands.push(present_path.set_value(false).to_string());
         commands.push(
-            DataModify::new(dest_storage.clone(), item_path.as_str().to_string())
-                .set(NbtValue::raw("{}")),
+            DataModify::new(
+                dest_storage.clone(),
+                item_path.path_value().as_str().to_string(),
+            )
+            .set(NbtValue::raw("{}")),
         );
         // 2. Presence-gated exact copy — only runs (and only overwrites the
         //    reset-to-empty compound) if the source actually resolves.
         let copy_guard = presence_execute(&source_target, &source_path);
         commands.push(
             copy_guard.clone().run(
-                DataModify::new(dest_storage.clone(), item_path.as_str().to_string())
-                    .set_from(source_target, source_path),
+                DataModify::new(
+                    dest_storage.clone(),
+                    item_path.path_value().as_str().to_string(),
+                )
+                .set_from(source_target, source_path),
             ),
         );
         // 3. Presence-gated mark — never a bare unconditional `set value
@@ -334,9 +340,9 @@ impl ItemSnapshot {
     /// location actually had an item at capture time.
     pub fn is_present(&self) -> Condition {
         let base = self.schema.base_path();
-        Condition::StorageExists {
-            location: base.storage().to_string(),
-            path: format!("{}{{present:1b}}", base.as_str()),
+        Condition::NbtExists {
+            target: base.location().clone(),
+            path: NbtPath::raw(format!("{}{{present:1b}}", base.path_value().as_str())),
         }
     }
 
@@ -353,17 +359,17 @@ impl ItemSnapshot {
     /// combine with `sand_components::item::ItemMatcher` / typed
     /// component accessors to interpret it, exactly as you would any other
     /// captured item compound).
-    pub fn item_path(&self) -> NbtPath {
+    pub fn item_path(&self) -> NbtRef<UntypedNbt> {
         self.schema.base_path().field("item")
     }
 
     /// The typed NBT path to the captured item's `id` field.
-    pub fn id_path(&self) -> NbtPath {
+    pub fn id_path(&self) -> NbtRef<UntypedNbt> {
         self.item_path().field("id")
     }
 
     /// The typed NBT path to the captured item's `count` field.
-    pub fn count_path(&self) -> NbtPath {
+    pub fn count_path(&self) -> NbtRef<UntypedNbt> {
         self.item_path().field("count")
     }
 
@@ -372,7 +378,7 @@ impl ItemSnapshot {
     /// needing version-aware interpretation should route through the
     /// existing `ItemMatcher`/`VersionCaps`-aware machinery rather than
     /// reading this path as version-independent.
-    pub fn components_path(&self) -> NbtPath {
+    pub fn components_path(&self) -> NbtRef<UntypedNbt> {
         self.item_path().field("components")
     }
 
@@ -384,9 +390,7 @@ impl ItemSnapshot {
     /// past its documented [invocation lifetime](self) into longer-lived
     /// storage (e.g. audit/evidence schemas).
     pub fn copy_to<Schema, T>(&self, dest: StorageField<Schema, T>) -> String {
-        let source_storage = StorageLocation::parse(self.storage())
-            .expect("ItemSnapshot storage id is always a valid resource location");
-        dest.copy_from_path(source_storage, self.item_path())
+        dest.path().copy_from(&self.item_path()).to_string()
     }
 
     /// Commands that reset this snapshot's storage back to explicit
@@ -399,10 +403,10 @@ impl ItemSnapshot {
     pub fn cleanup_commands(&self) -> Vec<String> {
         let base = self.schema.base_path();
         vec![
-            base.field("present").set_value(false),
+            base.field("present").set_value(false).to_string(),
             DataModify::new(
                 DataTarget::storage(self.schema.storage.clone()),
-                base.field("item").as_str().to_string(),
+                base.field("item").path_value().as_str().to_string(),
             )
             .set(NbtValue::raw("{}")),
         ]

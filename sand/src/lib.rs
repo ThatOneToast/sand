@@ -262,8 +262,9 @@ pub mod text {
 /// data directly rather than through a typed state wrapper.
 pub mod data {
     pub use sand_core::state::{
-        BlockNbt, EntityNbt, NbtLocation, NbtPath, SnbtCompound, SnbtValue, StorageField,
-        StorageLocation, StorageSchema, StorageVar,
+        BlockNbt, DataCommand, EntityNbt, Nbt, NbtLocation, NbtPath, NbtRef, NbtTarget,
+        SnbtCompound, SnbtValue, StorageField, StorageLocation, StorageSchema, StorageVar,
+        UntypedNbt,
     };
 }
 

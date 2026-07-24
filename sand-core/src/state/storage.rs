@@ -5,292 +5,13 @@ use std::fmt;
 use std::marker::PhantomData;
 
 use crate::condition::Condition;
-use sand_commands::{BlockPos, Selector};
+use sand_commands::{BlockPos, DataTarget, Selector};
 use sand_components::{RawSnbt, ResourceLocation};
 
-// ── SnbtValue ────────────────────────────────────────────────────────────────
-
-/// A typed SNBT value for storage and data commands.
-#[derive(Debug, Clone, PartialEq)]
-pub enum SnbtValue {
-    Byte(i8),
-    Short(i16),
-    Int(i32),
-    Long(i64),
-    Float(f32),
-    Double(f64),
-    String(String),
-    Bool(bool),
-    List(Vec<SnbtValue>),
-    Compound(SnbtCompound),
-    Raw(RawSnbt),
-}
-
-impl SnbtValue {
-    pub fn list(values: impl IntoIterator<Item = SnbtValue>) -> Self {
-        Self::List(values.into_iter().collect())
-    }
-
-    pub fn compound(compound: SnbtCompound) -> Self {
-        Self::Compound(compound)
-    }
-
-    pub fn raw(raw: RawSnbt) -> Self {
-        Self::Raw(raw)
-    }
-}
-
-impl fmt::Display for SnbtValue {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            SnbtValue::Byte(v) => write!(f, "{v}b"),
-            SnbtValue::Short(v) => write!(f, "{v}s"),
-            SnbtValue::Int(v) => write!(f, "{v}"),
-            SnbtValue::Long(v) => write!(f, "{v}L"),
-            SnbtValue::Float(v) => write!(f, "{v}f"),
-            SnbtValue::Double(v) => write!(f, "{v}d"),
-            SnbtValue::String(v) => write!(f, "\"{}\"", escape_snbt_string(v)),
-            SnbtValue::Bool(v) => f.write_str(if *v { "1b" } else { "0b" }),
-            SnbtValue::List(values) => {
-                let values = values
-                    .iter()
-                    .map(ToString::to_string)
-                    .collect::<Vec<_>>()
-                    .join(",");
-                write!(f, "[{values}]")
-            }
-            SnbtValue::Compound(compound) => compound.fmt(f),
-            SnbtValue::Raw(raw) => raw.fmt(f),
-        }
-    }
-}
-
-impl From<i8> for SnbtValue {
-    fn from(value: i8) -> Self {
-        Self::Byte(value)
-    }
-}
-
-impl From<i16> for SnbtValue {
-    fn from(value: i16) -> Self {
-        Self::Short(value)
-    }
-}
-
-impl From<i32> for SnbtValue {
-    fn from(value: i32) -> Self {
-        Self::Int(value)
-    }
-}
-
-impl From<i64> for SnbtValue {
-    fn from(value: i64) -> Self {
-        Self::Long(value)
-    }
-}
-
-impl From<f32> for SnbtValue {
-    fn from(value: f32) -> Self {
-        Self::Float(value)
-    }
-}
-
-impl From<f64> for SnbtValue {
-    fn from(value: f64) -> Self {
-        Self::Double(value)
-    }
-}
-
-impl From<bool> for SnbtValue {
-    fn from(value: bool) -> Self {
-        Self::Bool(value)
-    }
-}
-
-impl From<String> for SnbtValue {
-    fn from(value: String) -> Self {
-        Self::String(value)
-    }
-}
-
-impl From<&str> for SnbtValue {
-    fn from(value: &str) -> Self {
-        Self::String(value.to_string())
-    }
-}
-
-impl From<SnbtCompound> for SnbtValue {
-    fn from(value: SnbtCompound) -> Self {
-        Self::Compound(value)
-    }
-}
-
-impl From<RawSnbt> for SnbtValue {
-    fn from(value: RawSnbt) -> Self {
-        Self::Raw(value)
-    }
-}
-
-impl<T> From<Vec<T>> for SnbtValue
-where
-    T: Into<SnbtValue>,
-{
-    fn from(value: Vec<T>) -> Self {
-        Self::List(value.into_iter().map(Into::into).collect())
-    }
-}
-
-/// A typed SNBT compound preserving insertion order.
-#[derive(Debug, Clone, Default, PartialEq)]
-pub struct SnbtCompound {
-    entries: Vec<(String, SnbtValue)>,
-}
-
-impl SnbtCompound {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn field(mut self, key: impl Into<String>, value: impl Into<SnbtValue>) -> Self {
-        self.entries.push((key.into(), value.into()));
-        self
-    }
-
-    pub fn insert(&mut self, key: impl Into<String>, value: impl Into<SnbtValue>) {
-        self.entries.push((key.into(), value.into()));
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.entries.is_empty()
-    }
-}
-
-impl fmt::Display for SnbtCompound {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let entries = self
-            .entries
-            .iter()
-            .map(|(key, value)| format!("{}:{value}", snbt_compound_key(key)))
-            .collect::<Vec<_>>()
-            .join(",");
-        write!(f, "{{{entries}}}")
-    }
-}
-
-// ── NbtPath ───────────────────────────────────────────────────────────────────
-
-/// A typed NBT path string for navigating storage/entity/block NBT.
-///
-/// # Example
-/// ```rust,ignore
-/// use sand_core::state::NbtPath;
-///
-/// let p = NbtPath::new("sand:data", "player.mana");
-/// assert_eq!(p.as_str(), "player.mana");
-/// assert_eq!(p.storage(), "sand:data");
-/// ```
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct NbtPath {
-    storage: String,
-    path: String,
-}
-
-impl NbtPath {
-    /// Create a path for a storage location.
-    pub fn new(storage: impl Into<String>, path: impl Into<String>) -> Self {
-        Self {
-            storage: storage.into(),
-            path: path.into(),
-        }
-    }
-
-    /// Create a root path without binding it to a storage location.
-    pub fn root(path: impl Into<String>) -> Self {
-        Self {
-            storage: String::new(),
-            path: path.into(),
-        }
-    }
-
-    /// The storage namespace (e.g. `"sand:data"`).
-    pub fn storage(&self) -> &str {
-        &self.storage
-    }
-
-    /// The path within the storage (e.g. `"player.mana"`).
-    pub fn as_str(&self) -> &str {
-        &self.path
-    }
-
-    /// Append a field/key segment, returning a new path.
-    pub fn field(&self, key: impl AsRef<str>) -> Self {
-        Self {
-            storage: self.storage.clone(),
-            path: append_path_field(&self.path, key.as_ref()),
-        }
-    }
-
-    /// Append a sub-key, returning a new path.
-    pub fn key(&self, key: impl AsRef<str>) -> Self {
-        self.field(key)
-    }
-
-    /// Index into an array, returning a new path.
-    pub fn index(&self, i: usize) -> Self {
-        Self {
-            storage: self.storage.clone(),
-            path: format!("{}[{i}]", self.path),
-        }
-    }
-
-    /// `data get storage <storage> <path>` — read the NBT value.
-    pub fn get(&self) -> String {
-        format!("data get storage {} {}", self.storage, self.path)
-    }
-
-    /// `data remove storage <storage> <path>` — remove the NBT tag.
-    pub fn remove(&self) -> String {
-        format!("data remove storage {} {}", self.storage, self.path)
-    }
-
-    /// `data modify storage <storage> <path> set value <snbt>`.
-    pub fn set_value(&self, value: impl Into<SnbtValue>) -> String {
-        format!(
-            "data modify storage {} {} set value {}",
-            self.storage,
-            self.path,
-            value.into()
-        )
-    }
-
-    /// `data modify storage <storage> <path> set value <snbt>` — raw SNBT escape hatch.
-    pub fn set_raw_snbt(&self, snbt: RawSnbt) -> String {
-        self.set_value(SnbtValue::Raw(snbt))
-    }
-
-    /// Set an integer value at this path.
-    pub fn set_int(&self, v: i32) -> String {
-        self.set_value(v)
-    }
-
-    /// Set a boolean as a byte (`0b` or `1b`) at this path.
-    pub fn set_bool(&self, v: bool) -> String {
-        self.set_value(v)
-    }
-
-    /// Set a string value at this path.
-    pub fn set_string(&self, v: &str) -> String {
-        self.set_value(v)
-    }
-
-    /// Build a `Condition` that checks `if data storage <storage> <path>`.
-    pub fn exists(&self) -> Condition {
-        Condition::StorageExists {
-            location: self.storage.clone(),
-            path: self.path.clone(),
-        }
-    }
-}
+pub use sand_commands::{
+    DataCommand, Nbt, NbtCompound as SnbtCompound, NbtPath, NbtRef, NbtTarget,
+    NbtValue as SnbtValue, UntypedNbt,
+};
 
 // ── Storage locations ────────────────────────────────────────────────────────
 
@@ -320,6 +41,12 @@ impl fmt::Display for StorageLocation {
     }
 }
 
+impl From<StorageLocation> for String {
+    fn from(value: StorageLocation) -> Self {
+        value.to_string()
+    }
+}
+
 /// A typed entity NBT target.
 #[derive(Debug, Clone)]
 pub struct EntityNbt {
@@ -329,6 +56,10 @@ pub struct EntityNbt {
 impl EntityNbt {
     pub fn target(target: Selector) -> Self {
         Self { target }
+    }
+
+    pub fn path<T>(&self, path: impl Into<NbtPath>) -> NbtRef<T> {
+        NbtRef::new(DataTarget::entity(self.target.clone()), path.into())
     }
 }
 
@@ -342,39 +73,14 @@ impl BlockNbt {
     pub fn pos(pos: BlockPos) -> Self {
         Self { pos }
     }
-}
 
-/// A typed target for Minecraft `data` commands.
-#[derive(Debug, Clone)]
-pub enum NbtLocation {
-    Storage(StorageLocation),
-    Entity(EntityNbt),
-    Block(BlockNbt),
-}
-
-impl NbtLocation {
-    pub fn storage(storage: StorageLocation) -> Self {
-        Self::Storage(storage)
-    }
-
-    pub fn entity(target: Selector) -> Self {
-        Self::Entity(EntityNbt::target(target))
-    }
-
-    pub fn block(pos: BlockPos) -> Self {
-        Self::Block(BlockNbt::pos(pos))
+    pub fn path<T>(&self, path: impl Into<NbtPath>) -> NbtRef<T> {
+        NbtRef::new(DataTarget::block(self.pos.clone()), path.into())
     }
 }
 
-impl fmt::Display for NbtLocation {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            NbtLocation::Storage(storage) => write!(f, "storage {storage}"),
-            NbtLocation::Entity(entity) => write!(f, "entity {}", entity.target),
-            NbtLocation::Block(block) => write!(f, "block {}", block.pos),
-        }
-    }
-}
+/// Compatibility name for the canonical command-layer [`DataTarget`].
+pub type NbtLocation = DataTarget;
 
 // ── StorageSchema / StorageField ─────────────────────────────────────────────
 
@@ -421,8 +127,8 @@ impl<T> StorageSchema<T> {
         }
     }
 
-    pub fn path(&self) -> NbtPath {
-        NbtPath::new(self.storage, self.root)
+    pub fn path(&self) -> NbtRef<T> {
+        Nbt::storage(self.storage).path(self.root)
     }
 
     pub fn location(&self) -> StorageLocation {
@@ -431,32 +137,30 @@ impl<T> StorageSchema<T> {
     }
 
     pub fn get(&self) -> String {
-        self.path().get()
+        self.path().get().to_string()
     }
 
     pub fn set(&self, value: impl Into<SnbtValue>) -> String {
-        self.path().set_value(value)
+        self.path().set(value).to_string()
     }
 
     pub fn set_raw_snbt(&self, raw: RawSnbt) -> String {
-        self.path().set_raw_snbt(raw)
+        self.path().set_raw(raw.to_string()).to_string()
     }
 
     pub fn merge(&self, value: impl Into<SnbtValue>) -> String {
-        format!(
-            "data modify storage {} {} merge value {}",
-            self.storage,
-            self.root,
-            value.into()
-        )
+        self.path().merge(value).to_string()
     }
 
     pub fn remove(&self) -> String {
-        self.path().remove()
+        self.path().remove().to_string()
     }
 
     pub fn exists(&self) -> Condition {
-        self.path().exists()
+        Condition::NbtExists {
+            target: DataTarget::storage(self.storage),
+            path: NbtPath::new(self.root),
+        }
     }
 }
 
@@ -495,12 +199,14 @@ impl<Schema, T> StorageField<Schema, T> {
         self.field
     }
 
-    pub fn path(&self) -> NbtPath {
-        NbtPath::new(self.storage, self.root).field(self.field)
+    pub fn path(&self) -> NbtRef<T> {
+        Nbt::storage(self.storage)
+            .path::<T>(self.root)
+            .field(self.field)
     }
 
     pub fn full_path(&self) -> String {
-        self.path().as_str().to_string()
+        self.path().path_value().as_str().to_string()
     }
 
     /// The dot-separated NBT path for this field (`root.field`).
@@ -524,15 +230,11 @@ impl<Schema, T> StorageField<Schema, T> {
     }
 
     pub fn get(&self) -> String {
-        format!("data get storage {} {}", self.storage, self.full_path())
+        self.path().get().to_string()
     }
 
     pub fn get_scaled(&self, scale: f64) -> String {
-        format!(
-            "data get storage {} {} {scale}",
-            self.storage,
-            self.full_path()
-        )
+        self.path().get_scaled(scale).to_string()
     }
 
     pub fn set(&self, value: impl Into<SnbtValue>) -> String {
@@ -540,37 +242,26 @@ impl<Schema, T> StorageField<Schema, T> {
     }
 
     pub fn set_value(&self, value: SnbtValue) -> String {
-        format!(
-            "data modify storage {} {} set value {}",
-            self.storage,
-            self.full_path(),
-            value
-        )
+        self.path().set(value).to_string()
     }
 
     pub fn set_raw_snbt(&self, raw: RawSnbt) -> String {
-        self.set_value(SnbtValue::Raw(raw))
+        self.path().set_raw(raw.to_string()).to_string()
     }
 
     pub fn remove(&self) -> String {
-        format!("data remove storage {} {}", self.storage, self.full_path())
+        self.path().remove().to_string()
     }
 
     pub fn exists(&self) -> Condition {
-        Condition::StorageExists {
-            location: self.storage.to_string(),
-            path: self.full_path(),
+        Condition::NbtExists {
+            target: DataTarget::storage(self.storage),
+            path: NbtPath::new(self.full_path()),
         }
     }
 
     pub fn copy_from<OtherSchema, U>(&self, source: StorageField<OtherSchema, U>) -> String {
-        format!(
-            "data modify storage {} {} set from storage {} {}",
-            self.storage,
-            self.full_path(),
-            source.storage,
-            source.full_path()
-        )
+        self.path().copy_from(&source.path()).to_string()
     }
 
     /// `data modify storage <s> <path> set from entity <entity> <src_path>`
@@ -581,41 +272,21 @@ impl<Schema, T> StorageField<Schema, T> {
     /// [`crate::participant::EntityParticipant::execute_at`] callback (or any
     /// other typed selector) instead.
     pub fn copy_from_entity(&self, entity: Selector, src_path: impl Into<String>) -> String {
-        format!(
-            "data modify storage {} {} set from entity {} {}",
-            self.storage,
-            self.full_path(),
-            entity,
-            src_path.into()
-        )
+        let source = Nbt::entity(entity).path::<UntypedNbt>(src_path.into());
+        self.path().copy_from(&source).to_string()
     }
 
     pub fn copy_from_path(&self, source_storage: StorageLocation, source_path: NbtPath) -> String {
-        format!(
-            "data modify storage {} {} set from storage {} {}",
-            self.storage,
-            self.full_path(),
-            source_storage,
-            source_path.as_str()
-        )
+        let source = Nbt::storage(source_storage.to_string()).path::<UntypedNbt>(source_path);
+        self.path().copy_from(&source).to_string()
     }
 
     pub fn append(&self, value: impl Into<SnbtValue>) -> String {
-        format!(
-            "data modify storage {} {} append value {}",
-            self.storage,
-            self.full_path(),
-            value.into()
-        )
+        self.path().append(value).to_string()
     }
 
     pub fn merge(&self, value: impl Into<SnbtValue>) -> String {
-        format!(
-            "data modify storage {} {} merge value {}",
-            self.storage,
-            self.full_path(),
-            value.into()
-        )
+        self.path().merge(value).to_string()
     }
 }
 
@@ -669,37 +340,32 @@ impl<T> StorageVar<T> {
     }
 
     /// Build an [`NbtPath`] for this variable.
-    pub fn as_path(&self) -> NbtPath {
-        NbtPath::new(self.storage, self.path)
+    pub fn as_path(&self) -> NbtRef<T> {
+        Nbt::storage(self.storage).path(self.path)
     }
 
     // ── Read ──────────────────────────────────────────────────────────────────
 
     /// `data get storage <storage> <path>` — read the value.
     pub fn get(&self) -> String {
-        format!("data get storage {} {}", self.storage, self.path)
+        self.as_path().get().to_string()
     }
 
     /// `data get storage <storage> <path> <scale>` — read a numeric value with scale.
     pub fn get_scaled(&self, scale: f64) -> String {
-        format!("data get storage {} {} {scale}", self.storage, self.path)
+        self.as_path().get_scaled(scale).to_string()
     }
 
     // ── Write ─────────────────────────────────────────────────────────────────
 
     /// `data modify storage <storage> <path> set value <snbt>`.
     pub fn set_value(&self, value: impl Into<SnbtValue>) -> String {
-        format!(
-            "data modify storage {} {} set value {}",
-            self.storage,
-            self.path,
-            value.into()
-        )
+        self.as_path().set(value).to_string()
     }
 
     /// `data modify storage <storage> <path> set value <snbt>` — raw SNBT escape hatch.
     pub fn set_raw_snbt(&self, snbt: RawSnbt) -> String {
-        self.set_value(SnbtValue::Raw(snbt))
+        self.as_path().set_raw(snbt.to_string()).to_string()
     }
 
     /// Set an integer value.
@@ -734,76 +400,23 @@ impl<T> StorageVar<T> {
 
     /// `data modify storage <storage> <path> set from storage <src> <src_path>` — copy.
     pub fn copy_from(&self, src_storage: &str, src_path: &str) -> String {
-        format!(
-            "data modify storage {} {} set from storage {} {}",
-            self.storage, self.path, src_storage, src_path
-        )
+        let source = Nbt::storage(src_storage).path::<UntypedNbt>(src_path);
+        self.as_path().copy_from(&source).to_string()
     }
 
     // ── Delete / exists ───────────────────────────────────────────────────────
 
     /// `data remove storage <storage> <path>` — remove the tag.
     pub fn remove(&self) -> String {
-        format!("data remove storage {} {}", self.storage, self.path)
+        self.as_path().remove().to_string()
     }
 
     /// Build a `Condition` that checks `if data storage <storage> <path>`.
     pub fn exists(&self) -> Condition {
-        Condition::StorageExists {
-            location: self.storage.to_string(),
-            path: self.path.to_string(),
+        Condition::NbtExists {
+            target: DataTarget::storage(self.storage),
+            path: NbtPath::new(self.path),
         }
-    }
-}
-
-fn escape_snbt_string(value: &str) -> String {
-    let mut out = String::with_capacity(value.len());
-    for c in value.chars() {
-        let code = c as u32;
-        if code < 0x20 {
-            panic!(
-                "SNBT string contains control character U+{code:04X} which cannot be safely \
-                 represented in a Minecraft command string; strip or replace it before building \
-                 the command"
-            );
-        }
-        match c {
-            '\\' => out.push_str("\\\\"),
-            '"' => out.push_str("\\\""),
-            _ => out.push(c),
-        }
-    }
-    out
-}
-
-fn is_bare_snbt_key(key: &str) -> bool {
-    !key.is_empty()
-        && key
-            .chars()
-            .all(|c| matches!(c, 'a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-' | '.'))
-}
-
-fn snbt_compound_key(key: &str) -> String {
-    if is_bare_snbt_key(key) {
-        key.to_string()
-    } else {
-        format!("\"{}\"", escape_snbt_string(key))
-    }
-}
-
-fn nbt_path_key(key: &str) -> String {
-    if is_bare_snbt_key(key) {
-        key.to_string()
-    } else {
-        format!("\"{}\"", escape_snbt_string(key))
-    }
-}
-
-fn append_path_field(path: &str, field: &str) -> String {
-    if path.is_empty() {
-        nbt_path_key(field)
-    } else {
-        format!("{path}.{}", nbt_path_key(field))
     }
 }
 
@@ -937,9 +550,9 @@ mod tests {
     fn exists_condition() {
         let cond = MANA.exists();
         match &cond {
-            Condition::StorageExists { location, path } => {
-                assert_eq!(location, "sand:data");
-                assert_eq!(path, "player.mana");
+            Condition::NbtExists { target, path } => {
+                assert_eq!(target.to_string(), "storage sand:data");
+                assert_eq!(path.as_str(), "player.mana");
             }
             other => panic!("unexpected: {other:?}"),
         }
@@ -950,7 +563,7 @@ mod tests {
 
     #[test]
     fn nbt_path_navigate() {
-        let base = NbtPath::new("sand:data", "player");
+        let base = Nbt::storage("sand:data").path::<UntypedNbt>("player");
         let mana = base.key("mana");
         assert_eq!(mana.as_str(), "player.mana");
         assert_eq!(mana.storage(), "sand:data");
@@ -970,14 +583,16 @@ mod tests {
 
     #[test]
     fn nbt_path_get_remove() {
-        let p = NbtPath::new("sand:data", "player.mana");
+        let p = Nbt::storage("sand:data").path::<UntypedNbt>("player.mana");
         assert_eq!(p.get(), "data get storage sand:data player.mana");
         assert_eq!(p.remove(), "data remove storage sand:data player.mana");
     }
 
     #[test]
     fn nbt_path_set_bool() {
-        let p = NbtPath::new("sand:data", "player").key("mana");
+        let p = Nbt::storage("sand:data")
+            .path::<UntypedNbt>("player")
+            .key("mana");
         assert_eq!(
             p.set_bool(true),
             "data modify storage sand:data player.mana set value 1b"
@@ -986,18 +601,21 @@ mod tests {
 
     #[test]
     fn nbt_path_raw_snbt_escape_hatch() {
-        let p = NbtPath::new("sand:data", "player.payload");
+        let p = Nbt::storage("sand:data").path::<UntypedNbt>("player.payload");
         assert_eq!(
-            p.set_raw_snbt(RawSnbt::new("{custom:1b}")),
+            p.set_raw(RawSnbt::new("{custom:1b}").to_string()),
             "data modify storage sand:data player.payload set value {custom:1b}"
         );
     }
 
     #[test]
     fn nbt_path_exists() {
-        let p = NbtPath::new("sand:data", "player.mana");
-        let cond = p.exists();
-        assert!(matches!(cond, Condition::StorageExists { .. }));
+        let p = Nbt::storage("sand:data").path::<UntypedNbt>("player.mana");
+        let cond = Condition::NbtExists {
+            target: p.location().clone(),
+            path: p.path_value().clone(),
+        };
+        assert!(matches!(cond, Condition::NbtExists { .. }));
     }
 
     #[test]
@@ -1038,7 +656,7 @@ mod tests {
             MAGIC.remove(),
             "data remove storage arcane:players player.magic"
         );
-        assert!(matches!(MAGIC.exists(), Condition::StorageExists { .. }));
+        assert!(matches!(MAGIC.exists(), Condition::NbtExists { .. }));
     }
 
     #[test]
@@ -1063,10 +681,7 @@ mod tests {
             MAGIC_MANA.remove(),
             "data remove storage arcane:players player.magic.mana"
         );
-        assert!(matches!(
-            MAGIC_MANA.exists(),
-            Condition::StorageExists { .. }
-        ));
+        assert!(matches!(MAGIC_MANA.exists(), Condition::NbtExists { .. }));
     }
 
     #[test]
@@ -1148,40 +763,34 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    fn snbt_string_newline_panics() {
-        let _ = SnbtValue::from("line1\nline2").to_string();
-    }
-
-    #[test]
-    #[should_panic]
-    fn snbt_string_tab_panics() {
-        let _ = SnbtValue::from("col1\tcol2").to_string();
-    }
-
-    #[test]
-    #[should_panic]
-    fn snbt_string_carriage_return_panics() {
-        let _ = SnbtValue::from("a\rb").to_string();
-    }
-
-    #[test]
-    #[should_panic]
-    fn snbt_string_nul_panics() {
-        let _ = SnbtValue::from("nul\0byte").to_string();
-    }
-
-    #[test]
-    #[should_panic]
-    fn snbt_compound_key_newline_panics() {
-        let _ = SnbtCompound::new()
-            .field("key\nwith\nnewline", 1_i32)
-            .to_string();
-    }
-
-    #[test]
-    #[should_panic]
-    fn set_string_newline_panics() {
-        let _ = NAME.set_string("line1\nline2");
+    fn typed_snbt_controls_report_structured_errors() {
+        for value in ["line1\nline2", "col1\tcol2", "a\rb", "nul\0byte"] {
+            let command = Nbt::storage("sand:data")
+                .path::<UntypedNbt>("value")
+                .set(value);
+            assert_eq!(
+                command
+                    .try_render(&sand_commands::CommandProfile::unprofiled())
+                    .unwrap_err()
+                    .code,
+                "SAND-DATA-TARGET"
+            );
+        }
+        let compound = Nbt::storage("sand:data")
+            .path::<UntypedNbt>("value")
+            .set(SnbtCompound::new().field("key\nwith\nnewline", 1_i32));
+        assert!(
+            compound
+                .try_render(&sand_commands::CommandProfile::unprofiled())
+                .is_err()
+        );
+        let string = Nbt::storage("sand:data")
+            .path::<UntypedNbt>("player.name")
+            .set_string("line1\nline2");
+        assert!(
+            string
+                .try_render(&sand_commands::CommandProfile::unprofiled())
+                .is_err()
+        );
     }
 }

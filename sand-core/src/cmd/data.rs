@@ -172,7 +172,7 @@ impl Storage {
     /// WORLD.insert("name",       "Boss")  // → data modify storage … set value "Boss"
     /// ```
     pub fn insert(&self, key: impl Into<String>, value: impl Into<NbtValue>) -> String {
-        DataModify::new(self.target(), key).set(value)
+        DataModify::new(self.target(), key.into()).set(value)
     }
 
     /// Delete `key` from storage.
@@ -232,12 +232,12 @@ impl Storage {
 
     /// Append `value` to the end of the list at `key`.
     pub fn push(&self, key: impl Into<String>, value: impl Into<NbtValue>) -> String {
-        DataModify::new(self.target(), key).append(value)
+        DataModify::new(self.target(), key.into()).append(value)
     }
 
     /// Prepend `value` to the front of the list at `key`.
     pub fn push_front(&self, key: impl Into<String>, value: impl Into<NbtValue>) -> String {
-        DataModify::new(self.target(), key).prepend(value)
+        DataModify::new(self.target(), key.into()).prepend(value)
     }
 
     // ── Merge ─────────────────────────────────────────────────────────────
@@ -256,7 +256,8 @@ impl Storage {
         entity: sand_commands::Selector,
         src_path: impl Into<String>,
     ) -> String {
-        DataModify::new(self.target(), key).set_from(DataTarget::Entity(entity), src_path)
+        DataModify::new(self.target(), key.into())
+            .set_from(DataTarget::Entity(entity), src_path.into())
     }
 
     /// Copy a value from another storage namespace.
@@ -266,7 +267,8 @@ impl Storage {
         src_id: impl Into<String>,
         src_path: impl Into<String>,
     ) -> String {
-        DataModify::new(self.target(), key).set_from(DataTarget::Storage(src_id.into()), src_path)
+        DataModify::new(self.target(), key.into())
+            .set_from(DataTarget::Storage(src_id.into()), src_path.into())
     }
 }
 

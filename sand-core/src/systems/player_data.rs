@@ -105,7 +105,223 @@
 //! // schema.init_player("@s") → set defaults for new player
 //! ```
 
-use crate::state::{Cooldown, Flag, ScoreVar, StorageSchema, Timer};
+use std::marker::PhantomData;
+
+use crate::condition::Condition;
+use crate::state::{
+    Cooldown, Flag, FlagRef, GameState, GameStateRef, NbtRef, ScoreRef, ScoreVar, StorageField,
+    StorageSchema, Ticks, Timer, TypedGameState,
+};
+
+// ── Typed field handles ──────────────────────────────────────────────────────
+
+/// Schema field handle backed by the existing [`ScoreVar`].
+pub struct ScoreField<T = i32> {
+    value: ScoreVar<T>,
+    default: i32,
+}
+
+impl<T> ScoreField<T> {
+    pub const fn new(objective: &'static str) -> Self {
+        Self {
+            value: ScoreVar::new(objective),
+            default: 0,
+        }
+    }
+
+    pub const fn default(mut self, value: i32) -> Self {
+        self.default = value;
+        self
+    }
+
+    pub fn of<'a>(&'a self, selector: &str) -> ScoreRef<'a, T> {
+        self.value.of(selector)
+    }
+
+    pub fn value(&self) -> &ScoreVar<T> {
+        &self.value
+    }
+
+    pub fn default_value(&self) -> i32 {
+        self.default
+    }
+}
+
+/// Schema field handle backed by the existing [`Flag`].
+pub struct FlagField {
+    value: Flag,
+    default: bool,
+}
+
+impl FlagField {
+    pub const fn new(objective: &'static str) -> Self {
+        Self {
+            value: Flag::new(objective),
+            default: false,
+        }
+    }
+
+    pub const fn default(mut self, value: bool) -> Self {
+        self.default = value;
+        self
+    }
+
+    pub fn of<'a>(&'a self, selector: &str) -> FlagRef<'a> {
+        self.value.of(selector)
+    }
+
+    pub fn value(&self) -> &Flag {
+        &self.value
+    }
+
+    pub fn default_value(&self) -> bool {
+        self.default
+    }
+}
+
+/// Schema field handle backed by the existing [`Timer`].
+pub struct TimerField {
+    value: Timer,
+}
+
+impl TimerField {
+    pub const fn new(objective: &'static str, duration: Ticks) -> Self {
+        Self {
+            value: Timer::new(objective, duration),
+        }
+    }
+
+    pub fn of<'a>(&'a self, selector: impl Into<String>) -> TimerFieldRef<'a> {
+        TimerFieldRef {
+            field: self,
+            selector: selector.into(),
+        }
+    }
+
+    pub fn value(&self) -> &Timer {
+        &self.value
+    }
+}
+
+pub struct TimerFieldRef<'a> {
+    field: &'a TimerField,
+    selector: String,
+}
+
+impl TimerFieldRef<'_> {
+    pub fn start(&self) -> String {
+        self.field.value.start(&self.selector)
+    }
+
+    pub fn reset(&self) -> String {
+        self.field.value.reset(&self.selector)
+    }
+
+    pub fn active(&self) -> Condition {
+        self.field.value.active(&self.selector)
+    }
+
+    pub fn expired(&self) -> Condition {
+        self.field.value.expired(&self.selector)
+    }
+}
+
+/// Schema field handle backed by the existing [`Cooldown`].
+pub struct CooldownField {
+    value: Cooldown,
+}
+
+impl CooldownField {
+    pub const fn new(objective: &'static str, duration: Ticks) -> Self {
+        Self {
+            value: Cooldown::new(objective, duration),
+        }
+    }
+
+    pub fn of<'a>(&'a self, selector: impl Into<String>) -> CooldownFieldRef<'a> {
+        CooldownFieldRef {
+            field: self,
+            selector: selector.into(),
+        }
+    }
+
+    pub fn value(&self) -> &Cooldown {
+        &self.value
+    }
+}
+
+pub struct CooldownFieldRef<'a> {
+    field: &'a CooldownField,
+    selector: String,
+}
+
+impl CooldownFieldRef<'_> {
+    pub fn start(&self) -> String {
+        self.field.value.start(&self.selector)
+    }
+
+    pub fn stop(&self) -> String {
+        self.field.value.stop(&self.selector)
+    }
+
+    pub fn ready(&self) -> Condition {
+        self.field.value.ready(&self.selector)
+    }
+
+    pub fn active(&self) -> Condition {
+        self.field.value.active(&self.selector)
+    }
+}
+
+/// Schema field handle backed by the existing enum-backed [`GameState`].
+pub struct GameStateField<S: TypedGameState> {
+    value: GameState<S>,
+}
+
+impl<S: TypedGameState> GameStateField<S> {
+    pub const fn new(objective: &'static str) -> Self {
+        Self {
+            value: GameState::new(objective),
+        }
+    }
+
+    pub const fn with_default_score(objective: &'static str, default: i32) -> Self {
+        Self {
+            value: GameState::with_default_score(objective, default),
+        }
+    }
+
+    pub fn of<'a>(&'a self, selector: &str) -> GameStateRef<'a, S> {
+        self.value.of(selector)
+    }
+
+    pub fn value(&self) -> &GameState<S> {
+        &self.value
+    }
+}
+
+/// Explicit global-storage field handle. It never claims player scoping.
+pub struct GlobalStorageField<Schema, T> {
+    value: StorageField<Schema, T>,
+    marker: PhantomData<fn() -> (Schema, T)>,
+}
+
+impl<Schema, T> GlobalStorageField<Schema, T> {
+    pub const fn new(schema: &StorageSchema<Schema>, field: &'static str) -> Self {
+        Self {
+            value: schema.field(field),
+            marker: PhantomData,
+        }
+    }
+
+    pub fn nbt(&self) -> NbtRef<T> {
+        self.value.path()
+    }
+
+    pub fn value(&self) -> &StorageField<Schema, T> {
+        &self.value
+    }
+}
 
 // ── FieldInit ─────────────────────────────────────────────────────────────────
 
@@ -114,6 +330,7 @@ enum FieldInit {
     Flag { obj: String, default: bool },
     TimerObj { obj: String },
     CooldownObj { obj: String },
+    StateObj { obj: String, default: Option<i32> },
 }
 
 impl FieldInit {
@@ -122,7 +339,8 @@ impl FieldInit {
             FieldInit::Score { obj, .. }
             | FieldInit::Flag { obj, .. }
             | FieldInit::TimerObj { obj }
-            | FieldInit::CooldownObj { obj } => {
+            | FieldInit::CooldownObj { obj }
+            | FieldInit::StateObj { obj, .. } => {
                 format!("scoreboard objectives add {obj} dummy")
             }
         }
@@ -141,6 +359,13 @@ impl FieldInit {
             }
             FieldInit::TimerObj { .. } => None,
             FieldInit::CooldownObj { .. } => None,
+            FieldInit::StateObj {
+                obj,
+                default: Some(default),
+            } => Some(format!(
+                "execute unless score {selector} {obj} matches -2147483648.. run scoreboard players set {selector} {obj} {default}"
+            )),
+            FieldInit::StateObj { default: None, .. } => None,
         }
     }
 }
@@ -209,6 +434,10 @@ impl PlayerSchema {
         self
     }
 
+    pub fn score_field<T>(self, field: &ScoreField<T>) -> Self {
+        self.score(field.value(), field.default_value())
+    }
+
     /// Register a `Flag` with a default boolean value for new players.
     pub fn flag(mut self, flag: &Flag, default: bool) -> Self {
         self.fields.push(FieldInit::Flag {
@@ -216,6 +445,10 @@ impl PlayerSchema {
             default,
         });
         self
+    }
+
+    pub fn flag_field(self, field: &FlagField) -> Self {
+        self.flag(field.value(), field.default_value())
     }
 
     /// Register a [`Timer`] objective (define only; no per-player default).
@@ -235,6 +468,10 @@ impl PlayerSchema {
         self
     }
 
+    pub fn timer_field(self, field: &TimerField) -> Self {
+        self.timer(field.value())
+    }
+
     /// Register a `Cooldown` objective (define only; no per-player default).
     ///
     /// This method **only** defines/registers the cooldown's scoreboard objective.
@@ -248,6 +485,30 @@ impl PlayerSchema {
     pub fn cooldown(mut self, cd: &Cooldown) -> Self {
         self.fields.push(FieldInit::CooldownObj {
             obj: cd.objective_name(),
+        });
+        self
+    }
+
+    pub fn cooldown_field(self, field: &CooldownField) -> Self {
+        self.cooldown(field.value())
+    }
+
+    pub fn game_state<S: TypedGameState>(mut self, field: &GameStateField<S>) -> Self {
+        self.fields.push(FieldInit::StateObj {
+            obj: field.value().objective_name(),
+            default: field.value().default_score(),
+        });
+        self
+    }
+
+    /// Attach one explicit global-storage handle for schema introspection.
+    pub fn global_storage_field<Schema, T>(
+        mut self,
+        field: &GlobalStorageField<Schema, T>,
+    ) -> Self {
+        self.storage_schemas.push(StorageDescriptor {
+            storage: field.value().storage(),
+            root: field.value().root_path(),
         });
         self
     }
@@ -313,7 +574,20 @@ impl PlayerSchema {
     /// It is safe to call `define_all()` more than once or to run its output
     /// in every reload.
     pub fn define_all(&self) -> Vec<String> {
-        self.fields.iter().map(|f| f.define_cmd()).collect()
+        let mut seen = std::collections::BTreeSet::new();
+        let mut commands = Vec::new();
+        for field in &self.fields {
+            let command = field.define_cmd();
+            let objective = command
+                .split_whitespace()
+                .nth(3)
+                .unwrap_or_default()
+                .to_string();
+            if seen.insert(objective) {
+                commands.push(command);
+            }
+        }
+        commands
     }
 
     /// Commands to initialize a new player's scores to their defaults.
@@ -324,10 +598,23 @@ impl PlayerSchema {
     /// Cooldowns have no default value, so they are skipped here.  Storage
     /// schemas are not affected by this method.
     pub fn init_player(&self, selector: &str) -> Vec<String> {
-        self.fields
+        let mut seen = std::collections::BTreeSet::new();
+        let mut commands = Vec::new();
+        for command in self
+            .fields
             .iter()
-            .filter_map(|f| f.init_cmd(selector))
-            .collect()
+            .filter_map(|field| field.init_cmd(selector))
+        {
+            let objective = command
+                .split_whitespace()
+                .nth(4)
+                .unwrap_or_default()
+                .to_string();
+            if seen.insert(objective) {
+                commands.push(command);
+            }
+        }
+        commands
     }
 
     // ── Introspection ─────────────────────────────────────────────────────────
@@ -365,12 +652,39 @@ pub type PlayerDataSchema = PlayerSchema;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::state::{Cooldown, Flag, ScoreVar, StorageSchema, Ticks, Timer};
+    use crate::state::{Cooldown, Flag, ScoreVar, StorageSchema, Ticks, Timer, TypedGameState};
 
     static MANA: ScoreVar<i32> = ScoreVar::new("mana");
     static HAS_CELLS: Flag = Flag::new("has_cells");
     static REGEN: Timer = Timer::new("regen", Ticks::new(40));
     static DASH: Cooldown = Cooldown::new("dash", Ticks::new(60));
+    static MANA_FIELD: ScoreField<i32> = ScoreField::new("arcane_mana").default(100);
+    static WAND_FIELD: FlagField = FlagField::new("arcane_wand").default(false);
+    static REGEN_FIELD: TimerField = TimerField::new("arcane_regen", Ticks::new(40));
+    static CAST_FIELD: CooldownField = CooldownField::new("arcane_cast", Ticks::new(60));
+
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    enum Class {
+        Unbound = 0,
+        Mage = 1,
+    }
+
+    impl TypedGameState for Class {
+        fn to_score(self) -> i32 {
+            self as i32
+        }
+
+        fn from_score(score: i32) -> Option<Self> {
+            match score {
+                0 => Some(Self::Unbound),
+                1 => Some(Self::Mage),
+                _ => None,
+            }
+        }
+    }
+
+    static CLASS_FIELD: GameStateField<Class> =
+        GameStateField::with_default_score("arcane_class", 0);
 
     fn schema() -> PlayerSchema {
         PlayerSchema::new("test_pack")
@@ -378,6 +692,59 @@ mod tests {
             .flag(&HAS_CELLS, false)
             .timer(&REGEN)
             .cooldown(&DASH)
+    }
+
+    #[test]
+    fn typed_field_handles_reuse_existing_primitives() {
+        let schema = PlayerDataSchema::new("arcane")
+            .score_field(&MANA_FIELD)
+            .flag_field(&WAND_FIELD)
+            .timer_field(&REGEN_FIELD)
+            .cooldown_field(&CAST_FIELD)
+            .game_state(&CLASS_FIELD);
+        assert_eq!(
+            schema.define_all(),
+            vec![
+                "scoreboard objectives add arcane_mana dummy",
+                "scoreboard objectives add arcane_wand dummy",
+                "scoreboard objectives add arcane_regen dummy",
+                "scoreboard objectives add arcane_cast dummy",
+                "scoreboard objectives add arcane_class dummy",
+            ]
+        );
+        assert_eq!(
+            schema.init_player("@s"),
+            vec![
+                "execute unless score @s arcane_mana matches -2147483648.. run scoreboard players set @s arcane_mana 100",
+                "execute unless score @s arcane_wand matches -2147483648.. run scoreboard players set @s arcane_wand 0",
+                "execute unless score @s arcane_class matches -2147483648.. run scoreboard players set @s arcane_class 0",
+            ]
+        );
+        assert!(matches!(
+            MANA_FIELD.of("@s").gte(25),
+            Condition::Score { .. }
+        ));
+        assert!(matches!(
+            WAND_FIELD.of("@s").is_true(),
+            Condition::Flag { .. }
+        ));
+        assert!(matches!(
+            CAST_FIELD.of("@s").ready(),
+            Condition::Score { .. }
+        ));
+        assert!(matches!(
+            CLASS_FIELD.of("@s").is(Class::Mage),
+            Condition::Score { .. }
+        ));
+    }
+
+    #[test]
+    fn duplicate_typed_handles_do_not_duplicate_objectives() {
+        let schema = PlayerDataSchema::new("arcane")
+            .score_field(&MANA_FIELD)
+            .score_field(&MANA_FIELD);
+        assert_eq!(schema.define_all().len(), 1);
+        assert_eq!(schema.init_player("@s").len(), 1);
     }
 
     // ── existing tests (unchanged behavior) ─────────────────────────────────

@@ -133,7 +133,8 @@ impl ScoreRange {
                     "range `{}` (from {self:?}) cannot be satisfied by any i32 score",
                     self.render()
                 ),
-            ))
+            )
+            .with_code("SAND-SCORE-RANGE"))
         }
     }
 }
@@ -648,6 +649,12 @@ mod tests {
         let range = ScoreRange::Between(Some(100), Some(10));
         assert!(!range.is_satisfiable());
         assert!(range.validate().is_err());
+    }
+
+    #[test]
+    fn range_validate_error_code_is_stable() {
+        let err = ScoreRange::Gt(i32::MAX).validate().unwrap_err();
+        assert_eq!(err.code, "SAND-SCORE-RANGE");
     }
 
     #[test]

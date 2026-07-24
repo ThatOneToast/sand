@@ -200,7 +200,8 @@ impl Validate for BlockPos {
                     "BlockPos",
                     field,
                     "block-position commands (`setblock`, `fill`, `clone`, block-targeted `data`) do not accept local (`^`) coordinates; use absolute or relative (`~`) coordinates, or a generic `Vec3` position for commands that support local coordinates",
-                ));
+                )
+                .with_code("SAND-COORD-BLOCKPOS-LOCAL"));
             }
         }
         Ok(())
@@ -470,6 +471,14 @@ mod tests {
             .try_build()
             .unwrap_err();
         assert!(err.to_string().contains("local"), "{err}");
+    }
+
+    #[test]
+    fn block_positions_local_rejection_uses_stable_diagnostic_code() {
+        let err = BlockPos::new(Coord::local_n(1), Coord::local_n(2), Coord::local_n(3))
+            .try_build()
+            .unwrap_err();
+        assert_eq!(err.code, "SAND-COORD-BLOCKPOS-LOCAL");
     }
 
     #[test]

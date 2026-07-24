@@ -81,7 +81,8 @@ impl BlockState {
 
 impl Validate for BlockState {
     fn validate(&self, _profile: &CommandProfile) -> CommandResult<()> {
-        validate::resource_location_shape(&self.block, "BlockState", "block")?;
+        validate::resource_location_shape(&self.block, "BlockState", "block")
+            .map_err(|e| e.with_code("SAND-BLOCK-ID"))?;
         for (key, value) in &self.props {
             validate_block_state_token(key, "BlockState", "property_key")?;
             validate_block_state_token(value, "BlockState", "property_value")?;
@@ -110,7 +111,8 @@ fn validate_block_state_token(
             helper,
             field,
             format!("must not contain block-state delimiters `[`, `]`, `=`, or `,`, got `{value}`"),
-        ));
+        )
+        .with_code("SAND-BLOCK-STATE-DELIMITER"));
     }
     Ok(())
 }
@@ -332,8 +334,10 @@ impl Validate for Fill {
             .validate(profile)
             .map_err(|e| e.with_context("fill block"))?;
         if let FillMode::ReplaceFilter(filter) = &self.mode {
-            validate::non_empty(filter, "Fill", "replace_filter")
-                .map_err(|e| e.with_context("fill replace filter"))?;
+            validate::non_empty(filter, "Fill", "replace_filter").map_err(|e| {
+                e.with_context("fill replace filter")
+                    .with_code("SAND-BLOCK-FILTER-EMPTY")
+            })?;
         }
         Ok(())
     }
@@ -480,8 +484,10 @@ impl Validate for CloneBlocks {
             .map_err(|e| e.with_context("clone dest"))?;
         if matches!(self.mask_mode, CloneMaskMode::Filtered) {
             let filter = self.filter.as_deref().unwrap_or("");
-            validate::non_empty(filter, "CloneBlocks", "filter")
-                .map_err(|e| e.with_context("clone filter"))?;
+            validate::non_empty(filter, "CloneBlocks", "filter").map_err(|e| {
+                e.with_context("clone filter")
+                    .with_code("SAND-BLOCK-FILTER-EMPTY")
+            })?;
         }
         Ok(())
     }
@@ -596,6 +602,41 @@ mod tests {
         assert!(BlockState::of("not a block id").try_build().is_err());
         assert!(BlockState::of("").try_build().is_err());
         assert!(BlockState::of("NoNamespace").try_build().is_err());
+    }
+
+    #[test]
+    fn block_state_diagnostic_codes_are_stable() {
+        let id_err = BlockState::of("not a block id").try_build().unwrap_err();
+        assert_eq!(id_err.code, "SAND-BLOCK-ID");
+
+        let delim_err = BlockState::of("minecraft:oak_stairs")
+            .prop("facing", "east]")
+            .try_build()
+            .unwrap_err();
+        assert_eq!(delim_err.code, "SAND-BLOCK-STATE-DELIMITER");
+    }
+
+    #[test]
+    fn fill_and_clone_empty_filter_diagnostic_codes_are_stable() {
+        let fill_err = Fill::new(
+            BlockPos::absolute(0, 64, 0),
+            BlockPos::absolute(1, 65, 1),
+            "minecraft:air",
+        )
+        .mode(FillMode::ReplaceFilter(String::new()))
+        .try_build()
+        .unwrap_err();
+        assert_eq!(fill_err.code, "SAND-BLOCK-FILTER-EMPTY");
+
+        let clone_err = CloneBlocks::new(
+            BlockPos::absolute(0, 64, 0),
+            BlockPos::absolute(5, 68, 5),
+            BlockPos::absolute(10, 64, 0),
+        )
+        .filtered("")
+        .try_build()
+        .unwrap_err();
+        assert_eq!(clone_err.code, "SAND-BLOCK-FILTER-EMPTY");
     }
 
     #[test]

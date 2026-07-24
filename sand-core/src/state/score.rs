@@ -386,7 +386,8 @@ impl<T> ScoreVar<T> {
                 "ScoreVar::try_clamp",
                 "min_max",
                 format!("min ({min}) must not be greater than max ({max})"),
-            ));
+            )
+            .with_code("SAND-SCORE-RANGE"));
         }
         Ok(self.clamp(selector, min, max))
     }
@@ -1269,6 +1270,12 @@ mod tests {
     #[test]
     fn try_clamp_rejects_min_greater_than_max() {
         assert!(MANA.try_clamp("@s", 10, 5).is_err());
+    }
+
+    #[test]
+    fn try_clamp_diagnostic_code_is_stable() {
+        let err = MANA.try_clamp("@s", 10, 5).unwrap_err();
+        assert_eq!(err.code, "SAND-SCORE-RANGE");
     }
 
     #[test]

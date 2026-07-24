@@ -81,6 +81,13 @@ and this book both target Minecraft Java 26.2 specifically (see
 useful if the book's own examples are validated against a real, current
 profile rather than an assumed-compatible one.
 
+Command media participates in that same pre-write phase. A typed actionbar with
+an invalid nested color, for example, reports `SAND-TEXT-COLOR` with the
+function and `actionbar.style.color` path. Particle, sound, effect, and bossbar
+errors use their corresponding stable code families. Export validates every
+record before the writer runs, so a later bad line cannot leave a partially
+rewritten or partially written datapack.
+
 ## Codegen failures
 
 `build.rs`'s `sand_build::generate("26.2")` call downloads and caches

@@ -14,6 +14,12 @@
 //!     .points_at(&[[0.0,0.0,0.0],[1.0,1.0,0.0],[2.0,0.0,0.0]]);
 //! ```
 
+use std::collections::BTreeMap;
+use std::sync::{Mutex, OnceLock};
+
+use crate::error::{CommandError, CommandResult};
+use crate::render::{CommandProfile, RenderCommand, Validate};
+
 // ── Particle ──────────────────────────────────────────────────────────────────
 
 /// A Minecraft particle type with its parameters.
@@ -41,12 +47,22 @@ pub enum Particle {
     SculkCharge { roll: f32 },
     /// `minecraft:shriek` with a delay in ticks before appearing.
     Shriek { delay: u32 },
+    /// Explicit opaque particle token.
+    Raw(String),
 }
 
 impl Particle {
     /// A named particle with no extra parameters (e.g. `"minecraft:flame"`).
     pub fn named(name: impl Into<String>) -> Self {
         Particle::Named(name.into())
+    }
+
+    /// Create an intentionally opaque particle token.
+    ///
+    /// Sand renders this unchanged and does not apply particle-specific
+    /// compatibility checks.
+    pub fn raw_token(token: impl Into<String>) -> Self {
+        Self::Raw(token.into())
     }
 
     /// Colored dust particle. RGB values in `0.0–1.0`, scale is size (1.0 = default).
@@ -166,6 +182,50 @@ impl Particle {
             Particle::Item(s) => format!("minecraft:item {s}"),
             Particle::SculkCharge { roll } => format!("minecraft:sculk_charge {}", fmt_c(*roll)),
             Particle::Shriek { delay } => format!("minecraft:shriek {delay}"),
+            Particle::Raw(token) => token.clone(),
+        }
+    }
+}
+
+impl Validate for Particle {
+    fn validate(&self, _profile: &CommandProfile) -> CommandResult<()> {
+        match self {
+            Self::Named(id) => {
+                crate::validate::resource_location_shape(id, "ParticleCommand", "particle.id")
+                    .map(|_| ())
+                    .map_err(|error| particle_error("SAND-PARTICLE-ID", error.field, error.message))
+            }
+            Self::Dust { r, g, b, scale } => {
+                validate_color(*r, "particle.color.r")?;
+                validate_color(*g, "particle.color.g")?;
+                validate_color(*b, "particle.color.b")?;
+                validate_scale(*scale)
+            }
+            Self::DustColorTransition {
+                from_r,
+                from_g,
+                from_b,
+                to_r,
+                to_g,
+                to_b,
+                scale,
+            } => {
+                for (field, value) in [
+                    ("particle.from_color.r", *from_r),
+                    ("particle.from_color.g", *from_g),
+                    ("particle.from_color.b", *from_b),
+                    ("particle.to_color.r", *to_r),
+                    ("particle.to_color.g", *to_g),
+                    ("particle.to_color.b", *to_b),
+                ] {
+                    validate_color(value, field)?;
+                }
+                validate_scale(*scale)
+            }
+            Self::Block(state) => validate_particle_payload_id(state, "particle.block"),
+            Self::Item(item) => validate_particle_payload_id(item, "particle.item"),
+            Self::SculkCharge { roll } => validate_finite(*roll as f64, "particle.roll"),
+            Self::Shriek { .. } | Self::Raw(_) => Ok(()),
         }
     }
 }
@@ -200,6 +260,71 @@ impl ParticleSpread {
     /// Custom per-axis spread.
     pub fn new(dx: f64, dy: f64, dz: f64) -> Self {
         Self { dx, dy, dz }
+    }
+}
+
+impl Validate for ParticleSpread {
+    fn validate(&self, _profile: &CommandProfile) -> CommandResult<()> {
+        for (field, value) in [
+            ("spread.dx", self.dx),
+            ("spread.dy", self.dy),
+            ("spread.dz", self.dz),
+        ] {
+            validate_non_negative(value, field)?;
+        }
+        Ok(())
+    }
+}
+
+/// One structured `particle` command retained until validation and rendering.
+#[derive(Debug, Clone)]
+pub struct ParticleCommand {
+    particle: Particle,
+    position: [f64; 3],
+    spread: ParticleSpread,
+    speed: f64,
+    count: u32,
+    force: bool,
+}
+
+impl Validate for ParticleCommand {
+    fn validate(&self, profile: &CommandProfile) -> CommandResult<()> {
+        self.particle.validate(profile)?;
+        self.spread.validate(profile)?;
+        validate_non_negative(self.speed, "speed")?;
+        if self.count == 0 {
+            return Err(particle_error(
+                "SAND-PARTICLE-COUNT",
+                "count",
+                "particles_per_point must be greater than zero",
+            ));
+        }
+        for (field, value) in [
+            ("position.x", self.position[0]),
+            ("position.y", self.position[1]),
+            ("position.z", self.position[2]),
+        ] {
+            validate_finite(value, field)?;
+        }
+        Ok(())
+    }
+}
+
+impl RenderCommand for ParticleCommand {
+    fn render_unchecked(&self, _profile: &CommandProfile) -> String {
+        let mode = if self.force { "force" } else { "normal" };
+        format!(
+            "particle {} ~{} ~{} ~{} {} {} {} {} {} {mode}",
+            self.particle.command_token(),
+            fmt_f(self.position[0]),
+            fmt_f(self.position[1]),
+            fmt_f(self.position[2]),
+            fmt_f(self.spread.dx),
+            fmt_f(self.spread.dy),
+            fmt_f(self.spread.dz),
+            fmt_f(self.speed),
+            self.count,
+        )
     }
 }
 
@@ -251,6 +376,271 @@ impl ParticleBuilder {
     pub fn force(mut self, force: bool) -> Self {
         self.force = force;
         self
+    }
+
+    /// Validate the particle and numeric command settings without rendering.
+    pub fn validate(&self) -> CommandResult<()> {
+        self.command_at([0.0, 0.0, 0.0])
+            .validate(&CommandProfile::unprofiled())
+    }
+
+    /// Fallible point renderer used by VFX and strict callers.
+    pub fn try_points_at(&self, pts: &[[f64; 3]]) -> CommandResult<Vec<String>> {
+        if pts.is_empty() {
+            return Err(particle_error(
+                "SAND-PARTICLE-GEOMETRY",
+                "points",
+                "geometry must contain at least one point",
+            ));
+        }
+        pts.iter()
+            .map(|point| self.command_at(*point).try_build())
+            .collect()
+    }
+
+    /// Fallible circle generator with explicit geometry diagnostics.
+    pub fn try_circle(
+        &self,
+        radius: f64,
+        y_offset: f64,
+        points: usize,
+    ) -> CommandResult<Vec<String>> {
+        validate_geometry_non_negative(radius, "geometry.radius")?;
+        validate_finite(y_offset, "geometry.y_offset")?;
+        validate_points(points)?;
+        Ok(self.circle(radius, y_offset, points))
+    }
+
+    pub fn try_arc(
+        &self,
+        radius: f64,
+        y_offset: f64,
+        start_deg: f64,
+        end_deg: f64,
+        points: usize,
+    ) -> CommandResult<Vec<String>> {
+        validate_geometry_non_negative(radius, "geometry.radius")?;
+        for (field, value) in [
+            ("geometry.y_offset", y_offset),
+            ("geometry.start_degrees", start_deg),
+            ("geometry.end_degrees", end_deg),
+        ] {
+            validate_finite(value, field)?;
+        }
+        validate_points(points)?;
+        Ok(self.arc(radius, y_offset, start_deg, end_deg, points))
+    }
+
+    pub fn try_polygon(
+        &self,
+        sides: usize,
+        radius: f64,
+        y_offset: f64,
+        points_per_side: usize,
+    ) -> CommandResult<Vec<String>> {
+        if sides < 3 {
+            return Err(particle_error(
+                "SAND-PARTICLE-GEOMETRY",
+                "geometry.sides",
+                "polygon sides must be at least 3",
+            ));
+        }
+        validate_points(points_per_side)?;
+        sides.checked_mul(points_per_side).ok_or_else(|| {
+            particle_error(
+                "SAND-PARTICLE-GEOMETRY",
+                "geometry.points",
+                "polygon output count overflows `usize`",
+            )
+        })?;
+        validate_geometry_non_negative(radius, "geometry.radius")?;
+        validate_finite(y_offset, "geometry.y_offset")?;
+        Ok(self.polygon(sides, radius, y_offset, points_per_side))
+    }
+
+    pub fn try_star(
+        &self,
+        arms: usize,
+        outer_radius: f64,
+        inner_radius: f64,
+        y_offset: f64,
+    ) -> CommandResult<Vec<String>> {
+        if arms < 2 || arms.checked_mul(2).is_none() {
+            return Err(particle_error(
+                "SAND-PARTICLE-GEOMETRY",
+                "geometry.arms",
+                "star arms must be at least 2 and small enough to double safely",
+            ));
+        }
+        validate_geometry_non_negative(outer_radius, "geometry.outer_radius")?;
+        validate_geometry_non_negative(inner_radius, "geometry.inner_radius")?;
+        validate_finite(y_offset, "geometry.y_offset")?;
+        Ok(self.star(arms, outer_radius, inner_radius, y_offset))
+    }
+
+    /// Fallible sphere generator with explicit geometry diagnostics.
+    pub fn try_sphere(
+        &self,
+        radius: f64,
+        y_offset: f64,
+        points: usize,
+    ) -> CommandResult<Vec<String>> {
+        validate_geometry_non_negative(radius, "geometry.radius")?;
+        validate_finite(y_offset, "geometry.y_offset")?;
+        validate_points(points)?;
+        Ok(self.sphere(radius, y_offset, points))
+    }
+
+    /// Fallible helix generator with explicit geometry diagnostics.
+    pub fn try_helix(
+        &self,
+        radius: f64,
+        height: f64,
+        turns: f64,
+        points: usize,
+    ) -> CommandResult<Vec<String>> {
+        validate_geometry_non_negative(radius, "geometry.radius")?;
+        validate_geometry_non_negative(height, "geometry.height")?;
+        validate_non_negative(turns, "geometry.turns")?;
+        if turns == 0.0 {
+            return Err(particle_error(
+                "SAND-PARTICLE-GEOMETRY",
+                "geometry.turns",
+                "helix turns must be greater than zero",
+            ));
+        }
+        validate_points(points)?;
+        Ok(self.helix(radius, height, turns, points))
+    }
+
+    pub fn try_double_helix(
+        &self,
+        radius: f64,
+        height: f64,
+        turns: f64,
+        points: usize,
+    ) -> CommandResult<Vec<String>> {
+        self.try_helix(radius, height, turns, points)?;
+        Ok(self.double_helix(radius, height, turns, points))
+    }
+
+    pub fn try_line(
+        &self,
+        from: [f64; 3],
+        to: [f64; 3],
+        points: usize,
+    ) -> CommandResult<Vec<String>> {
+        validate_points(points)?;
+        for (index, value) in from.into_iter().chain(to).enumerate() {
+            validate_finite(value, format!("geometry.coordinate[{index}]"))?;
+        }
+        Ok(self.line(from, to, points))
+    }
+
+    pub fn try_disc(
+        &self,
+        radius: f64,
+        y_offset: f64,
+        density: usize,
+    ) -> CommandResult<Vec<String>> {
+        validate_geometry_non_negative(radius, "geometry.radius")?;
+        validate_finite(y_offset, "geometry.y_offset")?;
+        validate_points(density)?;
+        Ok(self.disc(radius, y_offset, density))
+    }
+
+    pub fn try_torus(
+        &self,
+        major_radius: f64,
+        minor_radius: f64,
+        y_offset: f64,
+        rings: usize,
+        segments_per_ring: usize,
+    ) -> CommandResult<Vec<String>> {
+        validate_geometry_non_negative(major_radius, "geometry.major_radius")?;
+        validate_geometry_non_negative(minor_radius, "geometry.minor_radius")?;
+        validate_finite(y_offset, "geometry.y_offset")?;
+        validate_points(rings)?;
+        validate_points(segments_per_ring)?;
+        rings.checked_mul(segments_per_ring).ok_or_else(|| {
+            particle_error(
+                "SAND-PARTICLE-GEOMETRY",
+                "geometry.points",
+                "torus output count overflows `usize`",
+            )
+        })?;
+        Ok(self.torus(
+            major_radius,
+            minor_radius,
+            y_offset,
+            rings,
+            segments_per_ring,
+        ))
+    }
+
+    pub fn try_cone(
+        &self,
+        base_radius: f64,
+        height: f64,
+        y_offset: f64,
+        rings: usize,
+    ) -> CommandResult<Vec<String>> {
+        validate_geometry_non_negative(base_radius, "geometry.base_radius")?;
+        validate_geometry_non_negative(height, "geometry.height")?;
+        validate_finite(y_offset, "geometry.y_offset")?;
+        validate_points(rings)?;
+        Ok(self.cone(base_radius, height, y_offset, rings))
+    }
+
+    pub fn try_burst(
+        &self,
+        radius: f64,
+        y_offset: f64,
+        points: usize,
+    ) -> CommandResult<Vec<String>> {
+        validate_geometry_non_negative(radius, "geometry.radius")?;
+        validate_finite(y_offset, "geometry.y_offset")?;
+        validate_points(points)?;
+        Ok(self.burst(radius, y_offset, points))
+    }
+
+    pub fn try_wave(
+        &self,
+        length: f64,
+        amplitude: f64,
+        cycles: f64,
+        y_offset: f64,
+        points: usize,
+    ) -> CommandResult<Vec<String>> {
+        validate_geometry_non_negative(length, "geometry.length")?;
+        validate_geometry_non_negative(amplitude, "geometry.amplitude")?;
+        validate_non_negative(cycles, "geometry.cycles")?;
+        validate_finite(y_offset, "geometry.y_offset")?;
+        validate_points(points)?;
+        Ok(self.wave(length, amplitude, cycles, y_offset, points))
+    }
+
+    pub fn try_grid(
+        &self,
+        width: f64,
+        depth: f64,
+        cols: usize,
+        rows: usize,
+        y_offset: f64,
+    ) -> CommandResult<Vec<String>> {
+        validate_geometry_non_negative(width, "geometry.width")?;
+        validate_geometry_non_negative(depth, "geometry.depth")?;
+        validate_finite(y_offset, "geometry.y_offset")?;
+        validate_points(cols)?;
+        validate_points(rows)?;
+        cols.checked_mul(rows).ok_or_else(|| {
+            particle_error(
+                "SAND-PARTICLE-GEOMETRY",
+                "geometry.points",
+                "grid output count overflows `usize`",
+            )
+        })?;
+        Ok(self.grid(width, depth, cols, rows, y_offset))
     }
 
     // ── Shape generators ──────────────────────────────────────────────────────
@@ -534,19 +924,21 @@ impl ParticleBuilder {
     }
 
     fn cmd(&self, x: f64, y: f64, z: f64) -> String {
-        let mode = if self.force { "force" } else { "normal" };
-        format!(
-            "particle {} ~{} ~{} ~{} {} {} {} {} {} {mode}",
-            self.particle.command_token(),
-            fmt_f(x),
-            fmt_f(y),
-            fmt_f(z),
-            fmt_f(self.spread.dx),
-            fmt_f(self.spread.dy),
-            fmt_f(self.spread.dz),
-            fmt_f(self.speed),
-            self.particles_per_point,
-        )
+        let command = self.command_at([x, y, z]);
+        let line = command.render_unchecked(&CommandProfile::unprofiled());
+        register_line(&line, command);
+        line
+    }
+
+    fn command_at(&self, position: [f64; 3]) -> ParticleCommand {
+        ParticleCommand {
+            particle: self.particle.clone(),
+            position,
+            spread: self.spread.clone(),
+            speed: self.speed,
+            count: self.particles_per_point,
+            force: self.force,
+        }
     }
 }
 
@@ -700,6 +1092,115 @@ fn extract_relative_y(cmd: &str) -> f64 {
     0.0
 }
 
+fn particle_error(
+    code: &'static str,
+    field: impl Into<String>,
+    message: impl Into<String>,
+) -> CommandError {
+    CommandError::new("ParticleCommand", field, message).with_code(code)
+}
+
+fn validate_finite(value: f64, field: impl Into<String>) -> CommandResult<()> {
+    let field = field.into();
+    if value.is_finite() {
+        Ok(())
+    } else {
+        Err(particle_error(
+            "SAND-PARTICLE-NUMERIC",
+            field,
+            format!("must be finite, got `{value}`"),
+        ))
+    }
+}
+
+fn validate_non_negative(value: f64, field: impl Into<String>) -> CommandResult<()> {
+    let field = field.into();
+    validate_finite(value, field.clone())?;
+    if value < 0.0 {
+        Err(particle_error(
+            "SAND-PARTICLE-NUMERIC",
+            field,
+            format!("must be non-negative, got `{value}`"),
+        ))
+    } else {
+        Ok(())
+    }
+}
+
+fn validate_geometry_non_negative(value: f64, field: &'static str) -> CommandResult<()> {
+    validate_non_negative(value, field)
+        .map_err(|error| particle_error("SAND-PARTICLE-GEOMETRY", error.field, error.message))
+}
+
+fn validate_points(points: usize) -> CommandResult<()> {
+    if points == 0 {
+        Err(particle_error(
+            "SAND-PARTICLE-GEOMETRY",
+            "geometry.points",
+            "point count must be greater than zero",
+        ))
+    } else {
+        Ok(())
+    }
+}
+
+fn validate_color(value: f32, field: &'static str) -> CommandResult<()> {
+    if !value.is_finite() || !(0.0..=1.0).contains(&value) {
+        Err(particle_error(
+            "SAND-PARTICLE-COLOR",
+            field,
+            format!("RGB channels must be finite and within 0.0..=1.0, got `{value}`"),
+        ))
+    } else {
+        Ok(())
+    }
+}
+
+fn validate_scale(scale: f32) -> CommandResult<()> {
+    if !scale.is_finite() || scale <= 0.0 {
+        Err(particle_error(
+            "SAND-PARTICLE-SCALE",
+            "particle.scale",
+            format!("dust scale must be finite and greater than zero, got `{scale}`"),
+        ))
+    } else {
+        Ok(())
+    }
+}
+
+fn validate_particle_payload_id(value: &str, field: &'static str) -> CommandResult<()> {
+    let id = value
+        .split_once(['[', '{', ' '])
+        .map_or(value, |(id, _)| id);
+    crate::validate::resource_location_shape(id, "ParticleCommand", field)
+        .map(|_| ())
+        .map_err(|error| particle_error("SAND-PARTICLE-ID", field, error.message))
+}
+
+fn registered_lines() -> &'static Mutex<BTreeMap<String, ParticleCommand>> {
+    static LINES: OnceLock<Mutex<BTreeMap<String, ParticleCommand>>> = OnceLock::new();
+    LINES.get_or_init(|| Mutex::new(BTreeMap::new()))
+}
+
+fn register_line(line: &str, command: ParticleCommand) {
+    registered_lines()
+        .lock()
+        .expect("particle command registry mutex poisoned")
+        .insert(line.to_owned(), command);
+}
+
+pub(crate) fn validate_registered_line(line: &str, profile: &CommandProfile) -> CommandResult<()> {
+    let command = registered_lines()
+        .lock()
+        .expect("particle command registry mutex poisoned")
+        .get(line)
+        .cloned();
+    match command {
+        Some(command) => command.validate(profile),
+        None => Ok(()),
+    }
+}
+
 // ── Tests ──────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -851,5 +1352,50 @@ mod tests {
         assert_eq!(fmt_f(1.0), "1");
         assert_eq!(fmt_f(1.5), "1.5");
         assert_eq!(fmt_f(1.2345678), "1.2346");
+    }
+
+    #[test]
+    fn particle_validation_covers_ids_numbers_and_geometry() {
+        let profile = CommandProfile::unprofiled();
+        assert!(
+            Particle::named("modded:custom_particle")
+                .validate(&profile)
+                .is_ok()
+        );
+        assert_eq!(
+            Particle::named("Bad Particle")
+                .validate(&profile)
+                .unwrap_err()
+                .code,
+            "SAND-PARTICLE-ID"
+        );
+        assert_eq!(
+            Particle::dust(f32::NAN, 0.0, 0.0, 1.0)
+                .validate(&profile)
+                .unwrap_err()
+                .code,
+            "SAND-PARTICLE-COLOR"
+        );
+        assert_eq!(
+            Particle::dust(1.0, 0.0, 0.0, 0.0)
+                .validate(&profile)
+                .unwrap_err()
+                .code,
+            "SAND-PARTICLE-SCALE"
+        );
+        let builder = ParticleBuilder::new(Particle::named("minecraft:flame"));
+        assert!(builder.try_circle(-1.0, 0.0, 4).is_err());
+        assert!(builder.try_helix(1.0, 2.0, 0.0, 4).is_err());
+        assert!(builder.try_grid(1.0, 1.0, 0, 2, 0.0).is_err());
+        assert!(builder.try_points_at(&[]).is_err());
+    }
+
+    #[test]
+    fn particle_raw_token_is_opaque() {
+        assert!(
+            Particle::raw_token("modded payload")
+                .validate(&CommandProfile::unprofiled())
+                .is_ok()
+        );
     }
 }

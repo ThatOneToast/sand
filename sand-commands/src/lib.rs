@@ -18,6 +18,7 @@ pub mod blocks;
 pub mod builtins;
 pub mod coord;
 pub mod display;
+pub mod effect;
 pub mod error;
 pub mod execute;
 pub mod execute_args;
@@ -38,7 +39,10 @@ pub use blocks::{
 };
 pub use builtins::*;
 pub use coord::{BlockPos, Coord, Rotation, Vec2, Vec3};
-pub use display::{Actionbar, Bossbar, BossbarColor, BossbarStyle, Title};
+pub use display::{
+    Actionbar, Bossbar, BossbarColor, BossbarCommand, BossbarId, BossbarStyle, Title, TitleTimes,
+};
+pub use effect::{EffectCommand, EffectDuration};
 pub use error::{CommandError, CommandResult};
 pub use execute::Execute;
 pub use execute_args::{Anchor, ItemSlot, NbtStoreKind, Swizzle};
@@ -51,7 +55,7 @@ pub use nbt::{
     DataCommand, DataModify, DataModifyOperation, DataSource, DataTarget, Nbt, NbtCompound,
     NbtPath, NbtRef, NbtTarget, NbtValue, UntypedNbt, data_modify,
 };
-pub use particles::{Particle, ParticleBuilder, ParticleEffect, ParticleSpread};
+pub use particles::{Particle, ParticleBuilder, ParticleCommand, ParticleEffect, ParticleSpread};
 pub use raw::RawCommand;
 pub use render::{CommandProfile, RenderCommand, Validate};
 pub use scoreboard::{
@@ -62,9 +66,10 @@ pub use selector::{
     EntityTarget, EntityTargets, GameMode, IntoEntityType, Many, One, PlayerTarget, PlayerTargets,
     Selector, SingleEntity, SinglePlayer, SortOrder, TargetBase,
 };
-pub use sound::{Sound, SoundSource};
+pub use sound::{Sound, SoundSource, StopSoundCommand};
 pub use text::{
-    ChatColor, ClickEvent, EntityHoverId, HoverEvent, IntoTextEntityType, Text, TextComponent,
+    ChatColor, ClickEvent, EntityHoverId, HoverEvent, IntoTextEntityType, Text, TextCommand,
+    TextComponent,
 };
 
 // ── Build trait ───────────────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 use std::fmt;
 
-use sand_commands::Selector;
+use sand_commands::{Build, EffectCommand, EffectDuration, RenderCommand, Selector};
 use sand_components::{EffectId, Ticks};
 
 use super::Command;
@@ -8,67 +8,52 @@ use super::Command;
 /// Builder for `effect give`.
 #[derive(Debug, Clone)]
 pub struct EffectGive {
-    selector: Selector,
-    effect: EffectId,
-    duration: Option<Ticks>,
-    amplifier: Option<u8>,
-    show_particles: bool,
+    command: EffectCommand,
 }
 
 impl EffectGive {
     pub fn new(selector: Selector, effect: impl Into<EffectId>) -> Self {
         Self {
-            selector,
-            effect: effect.into(),
-            duration: None,
-            amplifier: None,
-            show_particles: true,
+            command: EffectCommand::give(selector, effect.into().to_string()),
         }
     }
 
     /// Set command duration using ticks. Minecraft command syntax stores this as seconds.
     pub fn duration(mut self, duration: Ticks) -> Self {
-        self.duration = Some(duration);
+        self.command = self.command.duration(EffectDuration::ticks(duration.get()));
         self
     }
 
     /// Set command duration in seconds.
-    pub fn seconds(self, seconds: u32) -> Self {
-        self.duration(Ticks::seconds(seconds))
+    pub fn seconds(mut self, seconds: u32) -> Self {
+        self.command = self.command.duration(EffectDuration::seconds(seconds));
+        self
+    }
+
+    /// Persist until explicitly cleared (Minecraft 1.19.4+).
+    pub fn infinite(mut self) -> Self {
+        self.command = self.command.duration(EffectDuration::Infinite);
+        self
     }
 
     pub fn amplifier(mut self, amplifier: u8) -> Self {
-        self.amplifier = Some(amplifier);
+        self.command = self.command.amplifier(amplifier);
         self
     }
 
     /// Control visible particles. `false` serializes to Minecraft's `hideParticles=true`.
     pub fn particles(mut self, show_particles: bool) -> Self {
-        self.show_particles = show_particles;
+        self.command = self.command.particles(show_particles);
         self
     }
 
     pub fn build(&self) -> String {
-        let mut out = format!("effect give {} {}", self.selector, self.effect);
-        if let Some(duration) = self.duration {
-            out.push_str(&format!(" {}", duration.as_seconds()));
-        }
-        if let Some(amplifier) = self.amplifier {
-            if self.duration.is_none() {
-                out.push_str(" 30");
-            }
-            out.push_str(&format!(" {amplifier}"));
-        }
-        if !self.show_particles {
-            if self.duration.is_none() {
-                out.push_str(" 30");
-            }
-            if self.amplifier.is_none() {
-                out.push_str(" 0");
-            }
-            out.push_str(" true");
-        }
-        out
+        self.command.build()
+    }
+
+    /// Validate exact whole-second semantics before rendering.
+    pub fn try_build(&self) -> sand_commands::CommandResult<String> {
+        self.command.try_build()
     }
 }
 
@@ -154,6 +139,15 @@ mod tests {
                 .to_string(),
             "effect give @s minecraft:speed 10 1 true"
         );
+    }
+
+    #[test]
+    fn non_aligned_ticks_do_not_truncate() {
+        let error = effect_give(Selector::self_(), EffectId::Speed)
+            .duration(Ticks::new(15))
+            .try_build()
+            .unwrap_err();
+        assert_eq!(error.code, "SAND-EFFECT-DURATION");
     }
 
     #[test]

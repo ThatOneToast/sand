@@ -1147,6 +1147,8 @@ pub struct CustomItem {
     item_name: Option<String>,
     /// Pre-serialised JSON strings for each lore line.
     lore: Vec<String>,
+    /// Typed text retained for semantic validation before command emission.
+    text_components: Vec<(String, TextComponent)>,
     rarity: Option<ItemRarity>,
     enchantment_glint_override: Option<bool>,
     hide_additional_tooltip: bool,
@@ -1199,6 +1201,7 @@ impl CustomItem {
             custom_name: None,
             item_name: None,
             lore: Vec::new(),
+            text_components: Vec::new(),
             rarity: None,
             enchantment_glint_override: None,
             hide_additional_tooltip: false,
@@ -1233,10 +1236,23 @@ impl CustomItem {
 
     fn apply_component(&mut self, component: ItemComponent) {
         match component {
-            ItemComponent::CustomName(name) => self.custom_name = Some(name.to_string()),
-            ItemComponent::ItemName(name) => self.item_name = Some(name.to_string()),
+            ItemComponent::CustomName(name) => {
+                self.text_components
+                    .push(("custom_name".to_string(), name.clone()));
+                self.custom_name = Some(name.to_string());
+            }
+            ItemComponent::ItemName(name) => {
+                self.text_components
+                    .push(("item_name".to_string(), name.clone()));
+                self.item_name = Some(name.to_string());
+            }
             ItemComponent::Lore(lines) => {
-                self.lore.extend(lines.into_iter().map(|l| l.to_string()))
+                for line in lines {
+                    let index = self.lore.len();
+                    self.text_components
+                        .push((format!("lore[{index}]"), line.clone()));
+                    self.lore.push(line.to_string());
+                }
             }
             ItemComponent::Rarity(rarity) => self.rarity = Some(rarity),
             ItemComponent::CustomModelData(value) => self.custom_model_data = Some(value),
@@ -1641,6 +1657,19 @@ impl CustomItem {
             }
             Ok(())
         };
+
+        for (field, text) in &self.text_components {
+            text.validate_at_path(
+                &sand_commands::CommandProfile::unprofiled(),
+                format!("item.{field}"),
+            )
+            .map_err(|error| {
+                err(
+                    &error.field,
+                    &format!("error[{}] {}", error.code, error.message),
+                )
+            })?;
+        }
 
         if let Some(size) = self.max_stack_size
             && !(1..=99).contains(&size)
@@ -2283,6 +2312,15 @@ mod tests {
         assert!(s.contains("custom_name="));
         assert!(s.contains("Inferno"));
         assert!(s.contains("red"));
+    }
+
+    #[test]
+    fn item_text_validation_uses_shared_text_rules() {
+        let item = CustomItem::new("minecraft:stone")
+            .custom_name(TextComponent::literal("Bad").color_hex("#12FG00"));
+        let error = item.validate().unwrap_err().to_string();
+        assert!(error.contains("SAND-TEXT-COLOR"), "{error}");
+        assert!(error.contains("custom_name"), "{error}");
     }
 
     #[test]

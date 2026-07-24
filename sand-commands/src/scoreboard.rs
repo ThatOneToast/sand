@@ -490,6 +490,75 @@ impl Objective {
         self.name.as_str()
     }
 
+    /// Validate this objective's name against Minecraft's scoreboard-objective
+    /// grammar (non-empty, no whitespace/control characters, ≤16 characters).
+    pub fn try_validate(&self) -> CommandResult<()> {
+        self.name.validate(&CommandProfile::unprofiled())
+    }
+
+    // ── Validated direct manipulation ──────────────────────────────────────
+    //
+    // These `try_*` methods route through the same `ObjectiveName`/
+    // `ScoreHolder` validation as `ScoreboardPlayersOperation`. The plain
+    // (infallible) methods below remain a documented compatibility path for
+    // callers with already-trusted, statically valid names/holders.
+
+    /// Validated `scoreboard objectives add <name> <criterion>`.
+    pub fn try_create(&self, criterion: impl Into<String>) -> CommandResult<String> {
+        self.try_validate()?;
+        Ok(self.create(criterion))
+    }
+
+    /// Validated `scoreboard players set <holder> <obj> <value>`.
+    pub fn try_set(&self, holder: ScoreHolder, value: i32) -> CommandResult<String> {
+        self.try_validate()?;
+        holder.validate(&CommandProfile::unprofiled())?;
+        Ok(self.set(holder, value))
+    }
+
+    /// Validated `scoreboard players get <holder> <obj>`.
+    pub fn try_get(&self, holder: ScoreHolder) -> CommandResult<String> {
+        self.try_validate()?;
+        holder.validate(&CommandProfile::unprofiled())?;
+        Ok(self.get(holder))
+    }
+
+    /// Validated `scoreboard players add <holder> <obj> <amount>`.
+    pub fn try_add(&self, holder: ScoreHolder, amount: i32) -> CommandResult<String> {
+        self.try_validate()?;
+        holder.validate(&CommandProfile::unprofiled())?;
+        Ok(self.add(holder, amount))
+    }
+
+    /// Validated `scoreboard players remove <holder> <obj> <amount>`.
+    pub fn try_subtract(&self, holder: ScoreHolder, amount: i32) -> CommandResult<String> {
+        self.try_validate()?;
+        holder.validate(&CommandProfile::unprofiled())?;
+        Ok(self.subtract(holder, amount))
+    }
+
+    /// Validated `scoreboard players reset <holder> <obj>`.
+    pub fn try_reset(&self, holder: ScoreHolder) -> CommandResult<String> {
+        self.try_validate()?;
+        holder.validate(&CommandProfile::unprofiled())?;
+        Ok(self.reset(holder))
+    }
+
+    /// Validated `scoreboard players operation <lhs> <obj> <op> <rhs> <rhs_obj>`.
+    ///
+    /// Reuses [`ScoreboardPlayersOperation::validate`], which additionally
+    /// requires `rhs` to resolve to exactly one score holder.
+    pub fn try_operation(
+        &self,
+        lhs: ScoreHolder,
+        op: ScoreOp,
+        rhs: ScoreHolder,
+        rhs_obj: &Objective,
+    ) -> CommandResult<String> {
+        scoreboard_players_operation(lhs, self.name.clone(), op, rhs, rhs_obj.name.clone())
+            .try_build()
+    }
+
     // ── Load from storage ──────────────────────────────────────────────────
 
     /// `execute store result score <holder> <obj> run data get storage <storage_id> <key>`
@@ -897,6 +966,58 @@ mod tests {
                 .unwrap(),
             "@e[modded_single=true]"
         );
+    }
+
+    #[test]
+    fn objective_try_methods_match_infallible_output_for_valid_input() {
+        assert_eq!(
+            DMG.try_create("dummy").unwrap(),
+            DMG.create("dummy")
+        );
+        assert_eq!(
+            DMG.try_set(ScoreHolder::self_(), 5).unwrap(),
+            DMG.set(ScoreHolder::self_(), 5)
+        );
+        assert_eq!(
+            DMG.try_get(ScoreHolder::self_()).unwrap(),
+            DMG.get(ScoreHolder::self_())
+        );
+        assert_eq!(
+            DMG.try_add(ScoreHolder::self_(), 5).unwrap(),
+            DMG.add(ScoreHolder::self_(), 5)
+        );
+        assert_eq!(
+            DMG.try_subtract(ScoreHolder::self_(), 5).unwrap(),
+            DMG.subtract(ScoreHolder::self_(), 5)
+        );
+        assert_eq!(
+            DMG.try_reset(ScoreHolder::self_()).unwrap(),
+            DMG.reset(ScoreHolder::self_())
+        );
+    }
+
+    #[test]
+    fn objective_try_methods_reject_invalid_objective_name() {
+        let bad = Objective::dynamic("has space");
+        assert!(bad.try_create("dummy").is_err());
+        assert!(bad.try_set(ScoreHolder::self_(), 1).is_err());
+    }
+
+    #[test]
+    fn objective_try_methods_reject_invalid_holder() {
+        assert!(
+            DMG.try_set(ScoreHolder::fake("bad holder"), 1)
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn objective_try_operation_matches_scoreboard_players_operation() {
+        static OTHER: Objective = Objective::new("other_dmg");
+        let cmd = DMG
+            .try_operation(ScoreHolder::self_(), ScoreOp::Add, ScoreHolder::self_(), &OTHER)
+            .unwrap();
+        assert_eq!(cmd, "scoreboard players operation @s inferno_dmg += @s other_dmg");
     }
 
     #[test]

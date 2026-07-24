@@ -80,18 +80,60 @@ impl ScoreCompareOp {
 
 impl ScoreRange {
     /// Render the range to a Minecraft matches string fragment.
+    ///
+    /// Uses saturating arithmetic for `Gt`/`Lt` so that `Gt(i32::MAX)` and
+    /// `Lt(i32::MIN)` cannot overflow (panic in debug, silently wrap in
+    /// release). Those two ranges cannot be satisfied by any `i32` score and
+    /// are also rejected by [`ScoreRange::validate`] — `render` stays total
+    /// (never panics) so it remains safe to call on a range that was
+    /// constructed through an infallible/legacy path.
     pub fn render(&self) -> String {
         match self {
             ScoreRange::Eq(n) => n.to_string(),
-            ScoreRange::Gt(n) => format!("{}..", n + 1),
+            ScoreRange::Gt(n) => format!("{}..", n.saturating_add(1)),
             ScoreRange::Gte(n) => format!("{n}.."),
-            ScoreRange::Lt(n) => format!("..{}", n - 1),
+            ScoreRange::Lt(n) => format!("..{}", n.saturating_sub(1)),
             ScoreRange::Lte(n) => format!("..{n}"),
             ScoreRange::Between(lo, hi) => {
                 let lo_s = lo.map(|n| n.to_string()).unwrap_or_default();
                 let hi_s = hi.map(|n| n.to_string()).unwrap_or_default();
                 format!("{lo_s}..{hi_s}")
             }
+        }
+    }
+
+    /// `true` if some `i32` score value could satisfy this range.
+    ///
+    /// `Gt(i32::MAX)`, `Lt(i32::MIN)`, and `Between(lo, hi)` with `lo > hi`
+    /// describe an empty range: every score is excluded, but the naive
+    /// rendered `matches` fragment does not make that obvious (and for
+    /// `Gt`/`Lt` at the `i32` boundary, naive rendering would overflow).
+    pub fn is_satisfiable(&self) -> bool {
+        match self {
+            ScoreRange::Eq(_) | ScoreRange::Gte(_) | ScoreRange::Lte(_) => true,
+            ScoreRange::Gt(n) => *n != i32::MAX,
+            ScoreRange::Lt(n) => *n != i32::MIN,
+            ScoreRange::Between(Some(lo), Some(hi)) => lo <= hi,
+            ScoreRange::Between(_, _) => true,
+        }
+    }
+
+    /// Validate this range using the shared `sand-commands` diagnostic type.
+    ///
+    /// Rejects ranges that cannot be satisfied by any `i32` score:
+    /// `Gt(i32::MAX)`, `Lt(i32::MIN)`, and `Between(lo, hi)` with `lo > hi`.
+    pub fn validate(&self) -> sand_commands::CommandResult<()> {
+        if self.is_satisfiable() {
+            Ok(())
+        } else {
+            Err(sand_commands::CommandError::new(
+                "ScoreRange",
+                "range",
+                format!(
+                    "range `{}` (from {self:?}) cannot be satisfied by any i32 score",
+                    self.render()
+                ),
+            ))
         }
     }
 }
@@ -584,6 +626,38 @@ mod tests {
     #[test]
     fn range_gt() {
         assert_eq!(ScoreRange::Gt(10).render(), "11..");
+    }
+
+    #[test]
+    fn range_gt_at_i32_max_does_not_overflow() {
+        // Never panics/wraps; the impossible range is caught by `validate`.
+        assert_eq!(ScoreRange::Gt(i32::MAX).render(), format!("{}..", i32::MAX));
+        assert!(!ScoreRange::Gt(i32::MAX).is_satisfiable());
+        assert!(ScoreRange::Gt(i32::MAX).validate().is_err());
+    }
+
+    #[test]
+    fn range_lt_at_i32_min_does_not_overflow() {
+        assert_eq!(ScoreRange::Lt(i32::MIN).render(), format!("..{}", i32::MIN));
+        assert!(!ScoreRange::Lt(i32::MIN).is_satisfiable());
+        assert!(ScoreRange::Lt(i32::MIN).validate().is_err());
+    }
+
+    #[test]
+    fn range_between_min_greater_than_max_is_unsatisfiable() {
+        let range = ScoreRange::Between(Some(100), Some(10));
+        assert!(!range.is_satisfiable());
+        assert!(range.validate().is_err());
+    }
+
+    #[test]
+    fn range_validate_accepts_normal_ranges() {
+        assert!(ScoreRange::Eq(5).validate().is_ok());
+        assert!(ScoreRange::Gt(10).validate().is_ok());
+        assert!(ScoreRange::Lt(10).validate().is_ok());
+        assert!(ScoreRange::Between(Some(1), Some(100)).validate().is_ok());
+        assert!(ScoreRange::Between(None, Some(100)).validate().is_ok());
+        assert!(ScoreRange::Between(Some(1), None).validate().is_ok());
     }
 
     #[test]

@@ -1,8 +1,8 @@
-error[E0277]: the trait bound `EntityTarget<One>: From<EntityTarget<Many>>` is not satisfied
+error[E0277]: the trait bound `EntityTarget<One>: std::convert::From<EntityTarget<Many>>` is not satisfied
  --> tests/cases/fail_damage_direct_many_targets.rs:4:25
   |
 4 |     let _ = cmd::damage(EntityTargets::nearby(5.0), 4.0);
-  |             ----------- ^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `From<EntityTarget<Many>>` is not implemented for `EntityTarget<One>`
+  |             ----------- ^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `std::convert::From<EntityTarget<Many>>` is not implemented for `EntityTarget<One>`
   |             |
   |             required by a bound introduced by this call
   |

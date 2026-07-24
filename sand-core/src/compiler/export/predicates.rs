@@ -54,7 +54,10 @@ pub(crate) fn collect_sand_player_state_predicates(
         | crate::condition::Condition::ScoreCompare { .. }
         | crate::condition::Condition::Flag { .. }
         | crate::condition::Condition::Entity(_)
-        | crate::condition::Condition::StorageExists { .. } => {}
+        | crate::condition::Condition::StorageExists { .. }
+        | crate::condition::Condition::NbtExists { .. }
+        | crate::condition::Condition::ItemsEntity { .. }
+        | crate::condition::Condition::ItemsBlock { .. } => {}
     }
 }
 

@@ -10,6 +10,8 @@
 - [5. Custom Items](05-custom-items.md)
 - [6. Recipes](06-recipes.md)
 - [7. Player State And Storage](07-state-and-storage.md)
+  - [Unified Data And Inventory](07a-unified-data.md)
+  - [Typed State Flows](07b-state-flow.md)
 - [8. Commands And Execution Contexts](08-commands-and-execution.md)
 - [9. Events](09-events.md)
 - [10. Event Composition](10-event-composition.md)

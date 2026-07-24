@@ -13,6 +13,11 @@ pub fn validate_collected_line(line: &str, profile: &CommandProfile) -> CommandR
     validate_line_integrity(line)?;
     crate::execute_ir::validate_registered_line(line, profile)?;
     crate::nbt::validate_registered_line(line, profile)?;
+    crate::particles::validate_registered_line(line, profile)?;
+    crate::sound::validate_registered_line(line, profile)?;
+    crate::display::validate_registered_line(line, profile)?;
+    crate::text::validate_registered_line(line, profile)?;
+    crate::effect::validate_registered_line(line, profile)?;
     let trimmed = line.trim_start();
     if trimmed.is_empty() || trimmed.starts_with('#') || trimmed.starts_with('$') {
         return Ok(line.to_string());
@@ -340,7 +345,7 @@ fn validate_single_score_holder(
     Ok(())
 }
 
-fn validate_selector_token(token: &str) -> CommandResult<Option<&str>> {
+pub(crate) fn validate_selector_token(token: &str) -> CommandResult<Option<&str>> {
     let bytes = token.as_bytes();
     if bytes.len() < 2 || bytes[0] != b'@' || !matches!(bytes[1], b'a' | b'e' | b'p' | b's' | b'r')
     {
@@ -362,6 +367,13 @@ fn validate_selector_token(token: &str) -> CommandResult<Option<&str>> {
     }
 
     let arguments = &token[3..token.len() - 1];
+    if arguments.is_empty() {
+        return Err(CommandError::new(
+            "Selector",
+            "arguments",
+            "selector argument list must not be empty",
+        ));
+    }
     for argument in split_top_level(arguments).ok_or_else(|| {
         CommandError::new("Selector", "arguments", "unbalanced selector arguments")
     })? {
@@ -383,6 +395,12 @@ fn validate_selector_token(token: &str) -> CommandResult<Option<&str>> {
                     format!("selector limits must be greater than zero, got `{limit}`"),
                 ));
             }
+        }
+        if matches!(key, "type" | "predicate") {
+            let id = value.strip_prefix('!').unwrap_or(value);
+            let id = id.strip_prefix('#').unwrap_or(id);
+            let field = if key == "type" { "type" } else { "predicate" };
+            crate::validate::resource_location_shape(id, "Selector", field)?;
         }
         if matches!(key, "x" | "y" | "z" | "dx" | "dy" | "dz") {
             let field = match key {

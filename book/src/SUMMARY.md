@@ -23,6 +23,7 @@
 - [16. Debugging And Validation](16-debugging-and-validation.md)
 - [17. Packaging And Running](17-packaging-and-running.md)
 - [18. Extending Trailforge](18-extending.md)
+- [19. Validated Command Media](19-validated-command-media.md)
 
 # Reference
 

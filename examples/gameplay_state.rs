@@ -36,10 +36,27 @@ static PHASE: GameStateField<BossPhase> =
 
 #[function("boss_phases:phase/start_enrage")]
 fn start_enrage() {
+    let bar = BossbarId::parse("boss_phases:guardian").unwrap();
+    Bossbar::add(
+        bar.clone(),
+        Text::new("Ancient Guardian").dark_red().bold(true),
+    );
+    Bossbar::set_max(bar.clone(), 100);
+    Bossbar::set_value(bar.clone(), 50);
+    Bossbar::set_color(bar.clone(), BossbarColor::Red);
+    Bossbar::set_players(bar, Selector::all_players());
+    Title::of(Selector::all_players())
+        .title(Text::new("ENRAGED").dark_red().bold(true))
+        .subtitle(Text::new("The guardian breaks its chains").gold())
+        .times(10, 50, 20)
+        .build();
     cmd::tellraw(
         Selector::self_(),
         Text::new("The boss is enraged!").dark_red().bold(true),
     );
+    cmd::effect_give(Selector::self_(), EffectId::Strength)
+        .seconds(10)
+        .amplifier(1);
 }
 
 #[function("boss_phases:phase/stop_fighting")]
@@ -50,6 +67,15 @@ fn stop_fighting() {
 #[function("boss_phases:phase/enraged_tick")]
 fn enraged_tick() {
     Actionbar::show(Selector::self_(), Text::new("ENRAGED").dark_red());
+    ParticleBuilder::new(Particle::dust_hex(0xCC2200, 1.2))
+        .try_circle(2.0, 1.0, 16)
+        .unwrap();
+    Sound::play("minecraft:entity.warden.heartbeat")
+        .source(SoundSource::Hostile)
+        .to(Selector::all_players())
+        .volume(0.7)
+        .pitch(0.8)
+        .build();
 }
 
 #[component(Load)]

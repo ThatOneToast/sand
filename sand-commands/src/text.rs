@@ -19,9 +19,14 @@
 //! let _cmd = format!("tellraw @a {msg}");
 //! ```
 
+use std::collections::BTreeMap;
+use std::sync::{Mutex, OnceLock};
 use std::{fmt, str::FromStr};
 
+use crate::Build;
 use crate::error::{CommandError, CommandResult};
+use crate::render::{CommandProfile, RenderCommand, Validate};
+use crate::selector::Selector;
 
 // ── ChatColor ─────────────────────────────────────────────────────────────────
 
@@ -186,7 +191,10 @@ enum TextContent {
         name: String,
         objective: String,
     },
-    Selector(String),
+    Selector {
+        value: String,
+        raw: bool,
+    },
     Translate {
         key: String,
         with: Vec<TextComponent>,
@@ -197,10 +205,15 @@ enum TextContent {
 #[derive(Debug, Clone)]
 enum TextHoverEvent {
     Public(HoverEvent),
+    RawShowItem {
+        id: String,
+        count: Option<u32>,
+    },
     ShowEntityText {
         name: Box<TextComponent>,
         entity_type: String,
         id: Option<String>,
+        raw: bool,
     },
 }
 
@@ -226,6 +239,7 @@ enum TextHoverEvent {
 pub struct TextComponent {
     content: TextContent,
     color: Option<String>,
+    font: Option<String>,
     bold: Option<bool>,
     italic: Option<bool>,
     underlined: Option<bool>,
@@ -281,7 +295,25 @@ impl TextComponent {
 
     /// `{"selector": "..."}` — render the display name(s) of matched entities.
     pub fn selector(selector: impl Into<String>) -> Self {
-        Self::new(TextContent::Selector(selector.into()))
+        Self::new(TextContent::Selector {
+            value: selector.into(),
+            raw: false,
+        })
+    }
+
+    /// Create selector text from Sand's canonical typed selector.
+    pub fn selector_typed(selector: Selector) -> Self {
+        Self::selector(selector.to_string())
+    }
+
+    /// Create intentionally opaque selector text.
+    ///
+    /// The value is rendered unchanged and selector compatibility is user-owned.
+    pub fn selector_raw(selector: impl Into<String>) -> Self {
+        Self::new(TextContent::Selector {
+            value: selector.into(),
+            raw: true,
+        })
     }
 
     /// `{"translate": "..."}` — a localization key from Minecraft's language files.
@@ -309,6 +341,7 @@ impl TextComponent {
         Self {
             content,
             color: None,
+            font: None,
             bold: None,
             italic: None,
             underlined: None,
@@ -332,6 +365,12 @@ impl TextComponent {
     /// Apply an arbitrary hex color code (Minecraft 1.16+), e.g. `"#FF5733"`.
     pub fn color_hex(mut self, hex: impl Into<String>) -> Self {
         self.color = Some(hex.into());
+        self
+    }
+
+    /// Set the font resource location used to render this component.
+    pub fn font(mut self, font: impl Into<String>) -> Self {
+        self.font = Some(font.into());
         self
     }
 
@@ -530,6 +569,7 @@ impl TextComponent {
             name: Box::new(name),
             entity_type: entity_type.into_text_entity_type(),
             id: None,
+            raw: false,
         });
         self
     }
@@ -548,6 +588,7 @@ impl TextComponent {
             name: Box::new(name),
             entity_type: entity_type.into_text_entity_type(),
             id: Some(id.to_string()),
+            raw: false,
         });
         self
     }
@@ -568,6 +609,16 @@ impl TextComponent {
             name: Box::new(name),
             entity_type: entity_type.into(),
             id,
+            raw: true,
+        });
+        self
+    }
+
+    /// Show an item tooltip with an intentionally opaque item token.
+    pub fn hover_item_raw(mut self, item: impl Into<String>, count: Option<u32>) -> Self {
+        self.hover_event = Some(TextHoverEvent::RawShowItem {
+            id: item.into(),
+            count,
         });
         self
     }
@@ -586,7 +637,7 @@ impl TextComponent {
             TextContent::Score { name, objective } => {
                 serde_json::json!({ "score": { "name": name, "objective": objective } })
             }
-            TextContent::Selector(sel) => serde_json::json!({ "selector": sel }),
+            TextContent::Selector { value, .. } => serde_json::json!({ "selector": value }),
             TextContent::Translate { key, with } => {
                 if with.is_empty() {
                     serde_json::json!({ "translate": key })
@@ -599,6 +650,9 @@ impl TextComponent {
         };
         if let Some(c) = &self.color {
             obj["color"] = serde_json::json!(c);
+        }
+        if let Some(font) = &self.font {
+            obj["font"] = serde_json::json!(font);
         }
         if let Some(v) = self.bold {
             obj["bold"] = serde_json::json!(v);
@@ -647,6 +701,13 @@ impl TextComponent {
                     }
                     h
                 }
+                TextHoverEvent::RawShowItem { id, count } => {
+                    let mut h = serde_json::json!({"action": "show_item", "id": id});
+                    if let Some(c) = count {
+                        h["count"] = serde_json::json!(c);
+                    }
+                    h
+                }
                 TextHoverEvent::Public(HoverEvent::ShowEntity {
                     name,
                     entity_type,
@@ -662,6 +723,7 @@ impl TextComponent {
                     name,
                     entity_type,
                     id,
+                    ..
                 } => {
                     let mut h = serde_json::json!({
                         "action": "show_entity",
@@ -680,6 +742,510 @@ impl TextComponent {
             obj["extra"] = serde_json::json!(extras);
         }
         obj
+    }
+
+    /// Validate this component recursively and return its deterministic JSON value.
+    pub fn try_to_json_value(&self) -> CommandResult<serde_json::Value> {
+        self.validate(&CommandProfile::unprofiled())?;
+        Ok(self.to_json_value())
+    }
+
+    /// Validate recursively while retaining a consumer-provided field path.
+    pub fn validate_at_path(
+        &self,
+        profile: &CommandProfile,
+        path: impl Into<String>,
+    ) -> CommandResult<()> {
+        self.validate_inner(profile, &path.into(), 0)
+    }
+
+    fn validate_inner(
+        &self,
+        profile: &CommandProfile,
+        path: &str,
+        depth: usize,
+    ) -> CommandResult<()> {
+        const MAX_DEPTH: usize = 64;
+        if depth > MAX_DEPTH {
+            return Err(text_error(
+                "SAND-TEXT-DEPTH",
+                path,
+                format!("text nesting exceeds the supported depth of {MAX_DEPTH}"),
+            ));
+        }
+
+        match &self.content {
+            TextContent::Literal(_) => {}
+            TextContent::Score { name, objective } => {
+                validate_score_holder(name).map_err(|error| {
+                    text_error(
+                        "SAND-TEXT-SCORE-HOLDER",
+                        format!("{path}.score.name"),
+                        error.message,
+                    )
+                })?;
+                validate_objective(objective).map_err(|error| {
+                    text_error(
+                        "SAND-TEXT-SCORE-OBJECTIVE",
+                        format!("{path}.score.objective"),
+                        error.message,
+                    )
+                })?;
+            }
+            TextContent::Selector { value, raw: false } => {
+                crate::render::validate_selector_token(value).map_err(|error| {
+                    text_error(
+                        "SAND-TEXT-SELECTOR",
+                        format!("{path}.selector"),
+                        format!(
+                            "{}; use `TextComponent::selector_raw(...)` for opaque syntax",
+                            error.message
+                        ),
+                    )
+                })?;
+            }
+            TextContent::Selector { raw: true, .. } => {}
+            TextContent::Translate { key, with } => {
+                validate_non_blank_no_control(key, "translation key").map_err(|message| {
+                    text_error("SAND-TEXT-TRANSLATE", format!("{path}.translate"), message)
+                })?;
+                for (index, argument) in with.iter().enumerate() {
+                    argument.validate_inner(
+                        profile,
+                        &format!("{path}.with[{index}]"),
+                        depth + 1,
+                    )?;
+                }
+            }
+            TextContent::Keybind(key) => {
+                if key.is_empty() || key.chars().any(|c| c.is_whitespace() || c.is_control()) {
+                    return Err(text_error(
+                        "SAND-TEXT-KEYBIND",
+                        format!("{path}.keybind"),
+                        format!(
+                            "keybind IDs must be non-empty and contain no whitespace/control characters; got `{key}`"
+                        ),
+                    ));
+                }
+            }
+        }
+
+        if let Some(color) = &self.color
+            && !is_named_color(color)
+            && !is_hex_color(color)
+        {
+            return Err(text_error(
+                "SAND-TEXT-COLOR",
+                format!("{path}.style.color"),
+                format!("expected a named Minecraft color or `#RRGGBB`, got `{color}`"),
+            ));
+        }
+        if let Some(font) = &self.font {
+            crate::validate::resource_location_shape(font, "TextComponent", "font").map_err(
+                |error| {
+                    text_error(
+                        "SAND-TEXT-FONT",
+                        format!("{path}.style.font"),
+                        error.message,
+                    )
+                },
+            )?;
+        }
+        if let Some(click) = &self.click_event {
+            validate_click(click, path)?;
+        }
+        if let Some(hover) = &self.hover_event {
+            validate_hover(hover, profile, path, depth + 1)?;
+        }
+        for (index, child) in self.extra.iter().enumerate() {
+            child.validate_inner(profile, &format!("{path}.extra[{index}]"), depth + 1)?;
+        }
+        Ok(())
+    }
+}
+
+impl Validate for TextComponent {
+    fn validate(&self, profile: &CommandProfile) -> CommandResult<()> {
+        self.validate_inner(profile, "text", 0)
+    }
+}
+
+/// Structured `tellraw` command retaining its selector and text component.
+#[derive(Debug, Clone)]
+pub struct TextCommand {
+    target: Selector,
+    text: TextComponent,
+}
+
+impl TextCommand {
+    pub fn tellraw(target: Selector, text: TextComponent) -> Self {
+        Self { target, text }
+    }
+}
+
+impl Validate for TextCommand {
+    fn validate(&self, profile: &CommandProfile) -> CommandResult<()> {
+        self.target
+            .validate(profile)
+            .map_err(|error| text_error("SAND-TEXT-TARGET", "target", error.to_string()))?;
+        self.text.validate_at_path(profile, "tellraw.text")
+    }
+}
+
+impl RenderCommand for TextCommand {
+    fn render_unchecked(&self, _profile: &CommandProfile) -> String {
+        format!("tellraw {} {}", self.target, self.text)
+    }
+}
+
+impl Build for TextCommand {
+    fn build(&self) -> String {
+        let line = self.render_unchecked(&CommandProfile::unprofiled());
+        register_line(&line, self.clone());
+        line
+    }
+}
+
+impl fmt::Display for TextCommand {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.build())
+    }
+}
+
+impl From<TextCommand> for String {
+    fn from(command: TextCommand) -> Self {
+        command.build()
+    }
+}
+
+fn text_error(
+    code: &'static str,
+    field: impl Into<String>,
+    message: impl Into<String>,
+) -> CommandError {
+    CommandError::new("TextComponent", field, message).with_code(code)
+}
+
+fn validate_non_blank_no_control(value: &str, label: &str) -> Result<(), String> {
+    if value.trim().is_empty() {
+        return Err(format!("{label} must not be empty or whitespace-only"));
+    }
+    if value.chars().any(char::is_control) {
+        return Err(format!("{label} must not contain control characters"));
+    }
+    Ok(())
+}
+
+fn validate_score_holder(value: &str) -> CommandResult<()> {
+    if value.starts_with('@') {
+        crate::render::validate_selector_token(value)?;
+    } else if value.is_empty()
+        || value.len() > 40
+        || value.chars().any(|c| c.is_whitespace() || c.is_control())
+    {
+        return Err(CommandError::new(
+            "TextComponent",
+            "score.name",
+            format!(
+                "score holder must be a valid selector or a non-empty single token of at most 40 characters; got `{value}`"
+            ),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_objective(value: &str) -> CommandResult<()> {
+    if value.is_empty()
+        || value.len() > 16
+        || value.chars().any(|c| c.is_whitespace() || c.is_control())
+    {
+        return Err(CommandError::new(
+            "TextComponent",
+            "score.objective",
+            format!(
+                "objective names must be non-empty single tokens of at most 16 characters; got `{value}`"
+            ),
+        ));
+    }
+    Ok(())
+}
+
+fn is_named_color(value: &str) -> bool {
+    matches!(
+        value,
+        "black"
+            | "dark_blue"
+            | "dark_green"
+            | "dark_aqua"
+            | "dark_red"
+            | "dark_purple"
+            | "gold"
+            | "gray"
+            | "dark_gray"
+            | "blue"
+            | "green"
+            | "aqua"
+            | "red"
+            | "light_purple"
+            | "yellow"
+            | "white"
+            | "reset"
+    )
+}
+
+fn is_hex_color(value: &str) -> bool {
+    value.len() == 7
+        && value.starts_with('#')
+        && value[1..].bytes().all(|byte| byte.is_ascii_hexdigit())
+}
+
+fn validate_click(click: &ClickEvent, path: &str) -> CommandResult<()> {
+    match click {
+        ClickEvent::RunCommand(value) | ClickEvent::SuggestCommand(value)
+            if value.trim().is_empty() =>
+        {
+            Err(text_error(
+                "SAND-TEXT-CLICK-COMMAND",
+                format!("{path}.click_event.value"),
+                "command click values must not be empty",
+            ))
+        }
+        ClickEvent::OpenUrl(value) => {
+            let remainder = value
+                .strip_prefix("https://")
+                .or_else(|| value.strip_prefix("http://"));
+            if remainder.is_none_or(|rest| {
+                rest.is_empty()
+                    || rest.starts_with('/')
+                    || rest.chars().any(|c| c.is_whitespace() || c.is_control())
+            }) {
+                Err(text_error(
+                    "SAND-TEXT-CLICK-URL",
+                    format!("{path}.click_event.value"),
+                    format!(
+                        "open_url requires a non-empty `http://` or `https://` target without whitespace; got `{value}`"
+                    ),
+                ))
+            } else {
+                Ok(())
+            }
+        }
+        _ => Ok(()),
+    }
+}
+
+fn validate_hover(
+    hover: &TextHoverEvent,
+    profile: &CommandProfile,
+    path: &str,
+    depth: usize,
+) -> CommandResult<()> {
+    match hover {
+        TextHoverEvent::Public(HoverEvent::ShowText(text)) => {
+            text.validate_inner(profile, &format!("{path}.hover_event.contents"), depth)
+        }
+        TextHoverEvent::Public(HoverEvent::ShowItem { id, count }) => {
+            crate::validate::resource_location_shape(id, "TextComponent", "hover.item.id")
+                .map_err(|error| {
+                    text_error(
+                        "SAND-TEXT-HOVER-ITEM",
+                        format!("{path}.hover_event.contents.id"),
+                        error.message,
+                    )
+                })?;
+            if count.is_some_and(|count| count == 0) {
+                return Err(text_error(
+                    "SAND-TEXT-HOVER-ITEM",
+                    format!("{path}.hover_event.contents.count"),
+                    "item hover count must be greater than zero when present",
+                ));
+            }
+            Ok(())
+        }
+        TextHoverEvent::RawShowItem { .. } => Ok(()),
+        TextHoverEvent::Public(HoverEvent::ShowEntity {
+            name: _,
+            entity_type,
+            id,
+        }) => validate_entity_hover(entity_type, id.as_deref(), path),
+        TextHoverEvent::ShowEntityText {
+            name,
+            entity_type,
+            id,
+            raw,
+        } => {
+            if !raw {
+                validate_entity_hover(entity_type, id.as_deref(), path)?;
+            }
+            name.validate_inner(profile, &format!("{path}.hover_event.contents.name"), depth)
+        }
+    }
+}
+
+fn validate_entity_hover(entity_type: &str, id: Option<&str>, path: &str) -> CommandResult<()> {
+    crate::validate::resource_location_shape(entity_type, "TextComponent", "hover.entity.type")
+        .map_err(|error| {
+            text_error(
+                "SAND-TEXT-HOVER-ENTITY",
+                format!("{path}.hover_event.contents.type"),
+                error.message,
+            )
+        })?;
+    if let Some(id) = id {
+        EntityHoverId::parse(id).map_err(|error| {
+            text_error(
+                "SAND-TEXT-HOVER-ENTITY",
+                format!("{path}.hover_event.contents.id"),
+                error.message,
+            )
+        })?;
+    }
+    Ok(())
+}
+
+fn registered_lines() -> &'static Mutex<BTreeMap<String, TextCommand>> {
+    static LINES: OnceLock<Mutex<BTreeMap<String, TextCommand>>> = OnceLock::new();
+    LINES.get_or_init(|| Mutex::new(BTreeMap::new()))
+}
+
+fn register_line(line: &str, command: TextCommand) {
+    registered_lines()
+        .lock()
+        .expect("text command registry mutex poisoned")
+        .insert(line.to_owned(), command);
+}
+
+pub(crate) fn validate_registered_line(line: &str, profile: &CommandProfile) -> CommandResult<()> {
+    registered_lines()
+        .lock()
+        .expect("text command registry mutex poisoned")
+        .get(line)
+        .cloned()
+        .map_or(Ok(()), |command| command.validate(profile))
+}
+
+/// Validate a component-owned JSON text value.
+///
+/// This bridges advancement and chat-style `serde_json::Value` fields into
+/// the same recursive validator used by typed command text.
+pub fn validate_json_text(
+    value: &serde_json::Value,
+    profile: &CommandProfile,
+    path: &str,
+) -> CommandResult<()> {
+    validate_json_text_inner(value, profile, path, 0)
+}
+
+fn validate_json_text_inner(
+    value: &serde_json::Value,
+    _profile: &CommandProfile,
+    path: &str,
+    depth: usize,
+) -> CommandResult<()> {
+    if depth > 64 {
+        return Err(text_error(
+            "SAND-TEXT-DEPTH",
+            path,
+            "JSON text nesting exceeds the supported depth of 64",
+        ));
+    }
+    match value {
+        serde_json::Value::String(_) => Ok(()),
+        serde_json::Value::Array(values) => {
+            for (index, child) in values.iter().enumerate() {
+                validate_json_text_inner(child, _profile, &format!("{path}[{index}]"), depth + 1)?;
+            }
+            Ok(())
+        }
+        serde_json::Value::Object(object) => {
+            let content_keys = ["text", "translate", "score", "selector", "keybind", "nbt"];
+            let present = content_keys
+                .iter()
+                .filter(|key| object.contains_key(**key))
+                .copied()
+                .collect::<Vec<_>>();
+            if present.len() > 1 {
+                return Err(text_error(
+                    "SAND-TEXT-CONTENT",
+                    path,
+                    format!("conflicting text content fields: {}", present.join(", ")),
+                ));
+            }
+            if let Some(serde_json::Value::String(color)) = object.get("color")
+                && !is_named_color(color)
+                && !is_hex_color(color)
+            {
+                return Err(text_error(
+                    "SAND-TEXT-COLOR",
+                    format!("{path}.color"),
+                    format!("expected a named Minecraft color or `#RRGGBB`, got `{color}`"),
+                ));
+            }
+            if let Some(serde_json::Value::String(font)) = object.get("font") {
+                crate::validate::resource_location_shape(font, "TextComponent", "font").map_err(
+                    |error| text_error("SAND-TEXT-FONT", format!("{path}.font"), error.message),
+                )?;
+            }
+            if let Some(serde_json::Value::String(key)) = object.get("translate") {
+                validate_non_blank_no_control(key, "translation key").map_err(|message| {
+                    text_error("SAND-TEXT-TRANSLATE", format!("{path}.translate"), message)
+                })?;
+            }
+            if let Some(serde_json::Value::String(key)) = object.get("keybind")
+                && (key.is_empty() || key.chars().any(|c| c.is_whitespace() || c.is_control()))
+            {
+                return Err(text_error(
+                    "SAND-TEXT-KEYBIND",
+                    format!("{path}.keybind"),
+                    "keybind IDs must be non-empty and contain no whitespace/control characters",
+                ));
+            }
+            if let Some(serde_json::Value::String(selector)) = object.get("selector") {
+                crate::render::validate_selector_token(selector).map_err(|error| {
+                    text_error(
+                        "SAND-TEXT-SELECTOR",
+                        format!("{path}.selector"),
+                        error.message,
+                    )
+                })?;
+            }
+            if let Some(serde_json::Value::Object(score)) = object.get("score") {
+                if let Some(serde_json::Value::String(name)) = score.get("name") {
+                    validate_score_holder(name)?;
+                }
+                if let Some(serde_json::Value::String(objective)) = score.get("objective") {
+                    validate_objective(objective)?;
+                }
+            }
+            for key in ["with", "extra"] {
+                if let Some(serde_json::Value::Array(children)) = object.get(key) {
+                    for (index, child) in children.iter().enumerate() {
+                        validate_json_text_inner(
+                            child,
+                            _profile,
+                            &format!("{path}.{key}[{index}]"),
+                            depth + 1,
+                        )?;
+                    }
+                }
+            }
+            if let Some(hover) = object.get("hoverEvent")
+                && let Some(contents) = hover.get("contents")
+            {
+                validate_json_text_inner(
+                    contents,
+                    _profile,
+                    &format!("{path}.hoverEvent.contents"),
+                    depth + 1,
+                )?;
+            }
+            Ok(())
+        }
+        _ => Err(text_error(
+            "SAND-TEXT-SHAPE",
+            path,
+            "text JSON must be a string, object, or array",
+        )),
     }
 }
 
@@ -766,6 +1332,78 @@ mod tests {
     fn color_hex() {
         let t = TextComponent::literal("hex!").color_hex("#FF5733");
         assert!(t.to_string().contains("\"color\":\"#FF5733\""));
+    }
+
+    #[test]
+    fn recursive_validation_rejects_structured_field_errors() {
+        let profile = CommandProfile::unprofiled();
+        assert_eq!(
+            Text::new("bad")
+                .color_hex("#12FG00")
+                .validate(&profile)
+                .unwrap_err()
+                .code,
+            "SAND-TEXT-COLOR"
+        );
+        assert_eq!(
+            TextComponent::selector("@e[type=]")
+                .validate(&profile)
+                .unwrap_err()
+                .code,
+            "SAND-TEXT-SELECTOR"
+        );
+        assert_eq!(
+            TextComponent::score("@s", "objective name")
+                .validate(&profile)
+                .unwrap_err()
+                .code,
+            "SAND-TEXT-SCORE-OBJECTIVE"
+        );
+        assert_eq!(
+            TextComponent::translate(" \t ")
+                .validate(&profile)
+                .unwrap_err()
+                .code,
+            "SAND-TEXT-TRANSLATE"
+        );
+        assert_eq!(
+            TextComponent::keybind("key jump")
+                .validate(&profile)
+                .unwrap_err()
+                .code,
+            "SAND-TEXT-KEYBIND"
+        );
+        assert_eq!(
+            Text::new("link")
+                .click_open_url("ftp://example.com")
+                .validate(&profile)
+                .unwrap_err()
+                .code,
+            "SAND-TEXT-CLICK-URL"
+        );
+        assert_eq!(
+            Text::new("item")
+                .hover_item_with_count("minecraft:diamond", 0)
+                .validate(&profile)
+                .unwrap_err()
+                .code,
+            "SAND-TEXT-HOVER-ITEM"
+        );
+    }
+
+    #[test]
+    fn raw_text_fields_are_opaque_but_nested_typed_text_is_not() {
+        assert!(
+            TextComponent::selector_raw("@e[type=]")
+                .validate(&CommandProfile::unprofiled())
+                .is_ok()
+        );
+        assert!(
+            Text::new("raw")
+                .hover_item_raw("modded payload", Some(0))
+                .validate(&CommandProfile::unprofiled())
+                .is_ok()
+        );
     }
 
     #[test]

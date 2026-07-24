@@ -27,10 +27,11 @@ pub use crate::execute_when::{if_, unless, when};
 
 pub use crate::Damage;
 pub use crate::cmd::{
-    Actionbar, Bossbar, BossbarColor, BossbarStyle, DamageAmount, DamageBuilder, DamageKind,
-    DataCommand, EntityTargets, Execute, Inventory, ItemSlot, Nbt, NbtCompound, NbtRef, NbtTarget,
-    ObjectiveName, Particle, ParticleSpread, PlayerTargets, RawCommand, RenderCommand, ScoreHolder,
-    Selector, SingleEntity, SinglePlayer, SoundSource, Title, UntypedNbt, Validate,
+    Actionbar, Bossbar, BossbarColor, BossbarId, BossbarStyle, Build, DamageAmount, DamageBuilder,
+    DamageKind, DataCommand, EffectDuration, EntityTargets, Execute, Inventory, ItemSlot, Nbt,
+    NbtCompound, NbtRef, NbtTarget, ObjectiveName, Particle, ParticleBuilder, ParticleSpread,
+    PlayerTargets, RawCommand, RenderCommand, ScoreHolder, Selector, SingleEntity, SinglePlayer,
+    Sound, SoundSource, Title, TitleTimes, UntypedNbt, Validate,
 };
 pub use crate::item::{
     BlockInventory, ContainerIndex, EnderChestIndex, EntityInventory, EntityInventorySlot,

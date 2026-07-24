@@ -16,7 +16,7 @@
 use std::sync::{Mutex, OnceLock};
 
 use crate::{DatapackComponent, ResourceLocation};
-use sand_commands::{Text, TextComponent};
+use sand_commands::{CommandProfile, Text, TextComponent};
 use serde_json::{Value, json};
 
 const SAND_LOCAL_NS: &str = "__sand_local";
@@ -145,6 +145,17 @@ pub struct DialogText(TextComponent);
 impl DialogText {
     fn to_json(&self) -> Value {
         serde_json::from_str(&self.0.to_string()).expect("TextComponent must serialize to JSON")
+    }
+
+    fn validate(&self, path: &str) -> crate::error::Result<()> {
+        self.0
+            .validate_at_path(&CommandProfile::unprofiled(), path)
+            .map_err(|error| crate::error::SandError::ComponentValidation {
+                location: ResourceLocation::new("sand", "text").expect("static resource location"),
+                kind: "text".to_string(),
+                field: error.field,
+                message: format!("error[{}] {}", error.code, error.message),
+            })
     }
 }
 
@@ -794,6 +805,41 @@ impl DatapackComponent for Dialog {
         Dialog::to_json(self)
     }
 
+    fn validate(&self) -> crate::error::Result<()> {
+        let map_error = |error: crate::error::SandError| match error {
+            crate::error::SandError::ComponentValidation { field, message, .. } => {
+                crate::error::SandError::ComponentValidation {
+                    location: self.id.clone(),
+                    kind: "dialog".to_string(),
+                    field,
+                    message,
+                }
+            }
+            other => other,
+        };
+        if let Some(title) = &self.title {
+            title.validate("title").map_err(map_error)?;
+        }
+        for (index, body) in self.body.iter().enumerate() {
+            if let DialogBody::Text { text, .. } = body {
+                text.validate(&format!("body[{index}].text"))
+                    .map_err(map_error)?;
+            }
+        }
+        for (index, button) in self.buttons.iter().enumerate() {
+            button
+                .label
+                .validate(&format!("buttons[{index}].label"))
+                .map_err(map_error)?;
+            if let Some(tooltip) = &button.tooltip {
+                tooltip
+                    .validate(&format!("buttons[{index}].tooltip"))
+                    .map_err(map_error)?;
+            }
+        }
+        Ok(())
+    }
+
     fn required_features(&self) -> &'static [sand_version::ComponentFeature] {
         &[sand_version::ComponentFeature::Dialogs]
     }
@@ -831,6 +877,16 @@ impl DatapackComponent for DialogTag {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn nested_text_validation_reports_dialog_path() {
+        let dialog =
+            Dialog::notice("example:invalid_text").title(Text::new("Bad").color_hex("#12FG00"));
+        let error = dialog.validate().unwrap_err().to_string();
+        assert!(error.contains("SAND-TEXT-COLOR"), "{error}");
+        assert!(error.contains("title.style.color"), "{error}");
+        assert!(error.contains("example:invalid_text"), "{error}");
+    }
 
     #[test]
     fn notice_dialog_json() {

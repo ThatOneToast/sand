@@ -25,6 +25,11 @@ camera shake, or a second particle burst), it changes in exactly one place
 — the `Vfx` definition — rather than every call site that plays the dash
 effect.
 
+Use `try_play()` when constructing a VFX plan outside a function body and you
+want immediate feedback. Export validates the typed nodes again, so malformed
+IDs, non-finite values, zero counts, and empty geometry cannot reach generated
+`.mcfunction` output.
+
 ## Particle tuning
 
 ```rust,ignore

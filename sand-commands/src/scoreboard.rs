@@ -72,6 +72,25 @@ impl ScoreHolder {
         ScoreHolder(ScoreHolderKind::All)
     }
 
+    /// Alias for [`ScoreHolder::all`]: `*`, every score holder with any score
+    /// in the objective. Named to match #146's requested canonical
+    /// constructor set (`entity`/`player`/`fake`/`wildcard`/`raw`).
+    pub fn wildcard() -> Self {
+        Self::all()
+    }
+
+    /// A literal online-player name (e.g. `"Notch"`), independent of a
+    /// selector or fake-player holder.
+    ///
+    /// Validated by [`Selector::player`]'s player-name rules (1..=16 ASCII
+    /// letters, digits, or `_`) — the same shape Minecraft accepts for a
+    /// literal player-name score holder, kept distinct from
+    /// [`ScoreHolder::fake`] so a real player name and a `#`-prefixed fake
+    /// player are never confused.
+    pub fn player(name: impl Into<String>) -> Self {
+        ScoreHolder::entity(Selector::player(name))
+    }
+
     /// `@s` — score holder for the entity executing the command.
     pub fn self_() -> Self {
         ScoreHolder::entity(Selector::self_())
@@ -1054,6 +1073,17 @@ mod tests {
         );
         let s: String = op.into();
         assert_eq!(s, "scoreboard players operation @s mana += @s regen");
+    }
+
+    #[test]
+    fn score_holder_player_wildcard_constructors() {
+        assert_eq!(ScoreHolder::player("Notch").try_build().unwrap(), "Notch");
+        assert!(ScoreHolder::player("has space").try_build().is_err());
+        assert_eq!(ScoreHolder::wildcard().try_build().unwrap(), "*");
+        assert_eq!(
+            ScoreHolder::wildcard().to_string(),
+            ScoreHolder::all().to_string()
+        );
     }
 
     #[test]

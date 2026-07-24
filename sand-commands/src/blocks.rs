@@ -625,11 +625,7 @@ mod tests {
         let cmd = SetBlock::new(BlockPos::absolute(1, 2, 3), "minecraft:stone");
         assert!(cmd.try_build().is_ok());
         let bad = SetBlock::new(
-            BlockPos::new(
-                Coord::abs(1.5_f64),
-                Coord::abs(2),
-                Coord::abs(3),
-            ),
+            BlockPos::new(Coord::abs(1.5_f64), Coord::abs(2), Coord::abs(3)),
             "minecraft:stone",
         );
         assert!(bad.try_build().is_err());

@@ -197,7 +197,10 @@ impl Storage {
     /// `namespace:path` resource location and `key` must be a
     /// structurally valid NBT path.
     pub fn try_remove(&self, key: impl Into<String>) -> CommandResult<String> {
-        self.target().path(key.into()).remove().try_render(&Self::profile())
+        self.target()
+            .path(key.into())
+            .remove()
+            .try_render(&Self::profile())
     }
 
     // ── HashMap-like read ─────────────────────────────────────────────────
@@ -218,7 +221,10 @@ impl Storage {
 
     /// Validated counterpart to [`Storage::get`].
     pub fn try_get(&self, key: impl Into<String>) -> CommandResult<String> {
-        self.target().path(key.into()).get().try_render(&Self::profile())
+        self.target()
+            .path(key.into())
+            .get()
+            .try_render(&Self::profile())
     }
 
     /// Like [`get`](Self::get) but scales the numeric result by `scale`.
@@ -541,10 +547,6 @@ mod tests {
     #[test]
     fn try_get_scaled_rejects_non_finite_scale() {
         assert!(WORLD.try_get_scaled("boss_phase", f64::NAN).is_err());
-        assert!(
-            WORLD
-                .try_get_scaled("boss_phase", f64::INFINITY)
-                .is_err()
-        );
+        assert!(WORLD.try_get_scaled("boss_phase", f64::INFINITY).is_err());
     }
 }

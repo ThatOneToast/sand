@@ -970,10 +970,7 @@ mod tests {
 
     #[test]
     fn objective_try_methods_match_infallible_output_for_valid_input() {
-        assert_eq!(
-            DMG.try_create("dummy").unwrap(),
-            DMG.create("dummy")
-        );
+        assert_eq!(DMG.try_create("dummy").unwrap(), DMG.create("dummy"));
         assert_eq!(
             DMG.try_set(ScoreHolder::self_(), 5).unwrap(),
             DMG.set(ScoreHolder::self_(), 5)
@@ -1005,19 +1002,24 @@ mod tests {
 
     #[test]
     fn objective_try_methods_reject_invalid_holder() {
-        assert!(
-            DMG.try_set(ScoreHolder::fake("bad holder"), 1)
-                .is_err()
-        );
+        assert!(DMG.try_set(ScoreHolder::fake("bad holder"), 1).is_err());
     }
 
     #[test]
     fn objective_try_operation_matches_scoreboard_players_operation() {
         static OTHER: Objective = Objective::new("other_dmg");
         let cmd = DMG
-            .try_operation(ScoreHolder::self_(), ScoreOp::Add, ScoreHolder::self_(), &OTHER)
+            .try_operation(
+                ScoreHolder::self_(),
+                ScoreOp::Add,
+                ScoreHolder::self_(),
+                &OTHER,
+            )
             .unwrap();
-        assert_eq!(cmd, "scoreboard players operation @s inferno_dmg += @s other_dmg");
+        assert_eq!(
+            cmd,
+            "scoreboard players operation @s inferno_dmg += @s other_dmg"
+        );
     }
 
     #[test]

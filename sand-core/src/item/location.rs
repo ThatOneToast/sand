@@ -779,7 +779,7 @@ mod tests {
     fn inventory_copy_matching_and_empty_use_correct_command_families() {
         let entity = ItemLocation::entity(Selector::self_());
         let mainhand = entity.mainhand();
-        let cache = sand_commands::Nbt::storage("pack:cache").path::<UntypedNbt>("last_item");
+        let cache = sand_commands::Nbt::storage("pack:cache").path("last_item");
         assert_eq!(
             mainhand.copy_to(&cache).to_string(),
             "data modify storage pack:cache last_item set from entity @s SelectedItem"
@@ -815,7 +815,7 @@ mod tests {
                 .is_err()
         );
         assert!(ItemLocation::block(BlockPos::here()).slot(54).is_err());
-        let source = sand_commands::Nbt::storage("pack:data").path::<UntypedNbt>("item");
+        let source = sand_commands::Nbt::storage("pack:data").path("item");
         assert!(
             ItemLocation::entity(Selector::self_())
                 .mainhand()

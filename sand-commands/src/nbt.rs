@@ -362,7 +362,11 @@ impl DataTarget {
         Self::Storage(id.into())
     }
 
-    pub fn path<T>(&self, path: impl Into<NbtPath>) -> NbtRef<T> {
+    pub fn path(&self, path: impl Into<NbtPath>) -> NbtRef {
+        NbtRef::new(self.clone(), path.into())
+    }
+
+    pub fn typed_path<T>(&self, path: impl Into<NbtPath>) -> NbtRef<T> {
         NbtRef::new(self.clone(), path.into())
     }
 
@@ -465,7 +469,11 @@ impl NbtTarget {
         &self.location
     }
 
-    pub fn path<T>(&self, path: impl Into<NbtPath>) -> NbtRef<T> {
+    pub fn path(&self, path: impl Into<NbtPath>) -> NbtRef {
+        NbtRef::new(self.location.clone(), path.into())
+    }
+
+    pub fn typed_path<T>(&self, path: impl Into<NbtPath>) -> NbtRef<T> {
         NbtRef::new(self.location.clone(), path.into())
     }
 
@@ -972,9 +980,9 @@ mod tests {
 
     #[test]
     fn all_locations_and_operations_render() {
-        let cache = Nbt::storage("my_pack:cache").path::<UntypedNbt>("items");
-        let selected = Nbt::entity(Selector::self_()).path::<UntypedNbt>("SelectedItem");
-        let block = Nbt::block(BlockPos::here()).path::<UntypedNbt>("Items[0]");
+        let cache = Nbt::storage("my_pack:cache").path("items");
+        let selected = Nbt::entity(Selector::self_()).path("SelectedItem");
+        let block = Nbt::block(BlockPos::here()).path("Items[0]");
 
         assert_eq!(
             cache.get().to_string(),
@@ -1014,7 +1022,7 @@ mod tests {
 
     #[test]
     fn typed_and_raw_paths_have_distinct_validation() {
-        let invalid = Nbt::storage("my_pack:data").path::<UntypedNbt>("bad..path");
+        let invalid = Nbt::storage("my_pack:data").path("bad..path");
         assert_eq!(
             invalid
                 .get()
@@ -1023,28 +1031,28 @@ mod tests {
                 .code,
             "SAND-DATA-TARGET"
         );
-        let raw = Nbt::storage("my_pack:data")
-            .path::<UntypedNbt>(NbtPath::raw("custom..modded[{anything:true}]"));
+        let raw =
+            Nbt::storage("my_pack:data").path(NbtPath::raw("custom..modded[{anything:true}]"));
         assert!(raw.get().try_render(&CommandProfile::unprofiled()).is_ok());
     }
 
     #[test]
     fn rejects_invalid_storage_scale_and_many_entity_write() {
-        let invalid_storage = Nbt::storage("Not Valid").path::<UntypedNbt>("x");
+        let invalid_storage = Nbt::storage("Not Valid").path("x");
         assert!(
             invalid_storage
                 .get()
                 .try_render(&CommandProfile::unprofiled())
                 .is_err()
         );
-        let scale = Nbt::storage("pack:data").path::<UntypedNbt>("x");
+        let scale = Nbt::storage("pack:data").path("x");
         assert!(
             scale
                 .get_scaled(f64::NAN)
                 .try_render(&CommandProfile::unprofiled())
                 .is_err()
         );
-        let many = Nbt::entity(Selector::all_entities()).path::<UntypedNbt>("Health");
+        let many = Nbt::entity(Selector::all_entities()).path("Health");
         assert!(
             many.set(1)
                 .try_render(&CommandProfile::unprofiled())

@@ -44,6 +44,7 @@
 
 pub mod cooldown;
 pub mod flag;
+pub mod flow;
 pub mod registry;
 pub mod score;
 pub mod storage;
@@ -52,6 +53,7 @@ pub mod typed_state;
 
 pub use cooldown::Cooldown;
 pub use flag::{Flag, FlagRef};
+pub use flow::{FlowTransitionBuilder, IntoStateCommands, StateFlow, StateTransitionBuilder};
 pub use registry::{
     StateDescriptor, StateLifecycle, define_registered_state, drain_load_commands,
     drain_tick_commands, register_load_objective, register_tick_handler,

@@ -14,6 +14,7 @@ pub(crate) struct TransitionHandler {
 pub(crate) struct TransitionPlan {
     pub load_commands: Vec<String>,
     pub tick_commands: Vec<String>,
+    pub global_tick_commands: Vec<String>,
     pub functions: Vec<GeneratedTransitionFunction>,
     pub private_objectives: BTreeMap<String, (String, String)>,
 }
@@ -190,6 +191,51 @@ pub(crate) fn resolve_transition_plan<'a>(
             commands,
         });
     }
+    Ok(plan)
+}
+
+/// Resolve tracked events and typed state flows through one transition backend.
+///
+/// Both families share lifecycle merging, generated-function collision checks,
+/// private objective diagnostics, deterministic ordering, and the exporter
+/// wiring below this boundary.
+pub(crate) fn resolve_unified_transition_plan<'a>(
+    namespace: &str,
+    handlers: &'a [TransitionHandler],
+) -> Result<TransitionPlan, String> {
+    let mut plan = resolve_transition_plan(namespace, handlers)?;
+    let flows = crate::state::flow::drain_flows();
+    let flow_plan = crate::state::flow::resolve_state_flow_plan(namespace, flows)?;
+
+    let mut paths: BTreeSet<String> = plan
+        .functions
+        .iter()
+        .map(|function| function.path.clone())
+        .collect();
+    for function in flow_plan.functions {
+        if !paths.insert(function.path.clone()) {
+            return Err(format!(
+                "error[SAND-STATE-FLOW]: generated transition helper collision\n\nPath: {}\nFlow: {}\n\nCorrection: give the state flow a distinct `.named(...)` label",
+                function.path, function.tracker_id
+            ));
+        }
+        plan.functions.push(function);
+    }
+    for (objective, owner) in flow_plan.private_objectives {
+        if let Some(existing) = plan
+            .private_objectives
+            .insert(objective.clone(), owner.clone())
+        {
+            return Err(format!(
+                "error[SAND-STATE-FLOW]: generated objective collision\n\nObjective: {objective}\nExisting owner: {}\nFlow owner: {}\n\nCorrection: give the state flow a distinct `.named(...)` label",
+                existing.0, owner.0
+            ));
+        }
+    }
+    plan.load_commands.extend(flow_plan.load_commands);
+    plan.tick_commands.extend(flow_plan.tick_commands);
+    plan.global_tick_commands
+        .extend(flow_plan.global_tick_commands);
     Ok(plan)
 }
 

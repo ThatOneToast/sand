@@ -2001,7 +2001,7 @@ pub(crate) fn try_export_components_impl(
         }
 
         let transition_plan =
-            crate::transition::resolve_transition_plan(namespace, &transition_handlers)
+            crate::transition::resolve_unified_transition_plan(namespace, &transition_handlers)
                 .map_err(transition_export_error)?;
         for generated in &transition_plan.functions {
             transition_private_metadata.insert(
@@ -2042,6 +2042,7 @@ pub(crate) fn try_export_components_impl(
         automatic
             .tick_commands
             .extend(transition_plan.tick_commands);
+        let transition_global_tick_commands = transition_plan.global_tick_commands;
         let manual_load_cmds = crate::state::drain_load_commands();
         for command in &manual_load_cmds {
             if let Some(objective) = command.split_whitespace().nth(3)
@@ -2137,6 +2138,7 @@ pub(crate) fn try_export_components_impl(
                 .into_iter()
                 .map(|command| format!("execute as @a run {command}")),
         );
+        tick_cmds.extend(transition_global_tick_commands);
         tick_cmds.extend(crate::state::drain_tick_commands());
         if !tick_cmds.is_empty() {
             let path = "__sand_lifecycle_tick";

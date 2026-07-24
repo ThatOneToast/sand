@@ -43,9 +43,9 @@ pub use crate::vfx::{
 // ── State variables ───────────────────────────────────────────────────────────
 
 pub use crate::state::{
-    BlockNbt, Cooldown, EntityNbt, Flag, FlagRef, GameState, GameStateRef, NbtLocation, NbtPath,
-    ScoreRef, ScoreVar, SnbtCompound, SnbtValue, StorageField, StorageLocation, StorageSchema,
-    StorageVar, Ticks, Timer, TypedGameState,
+    BlockNbt, Cooldown, EntityNbt, Flag, FlagRef, GameState, GameStateRef, IntoStateCommands,
+    NbtLocation, NbtPath, ScoreRef, ScoreVar, SnbtCompound, SnbtValue, StateFlow, StorageField,
+    StorageLocation, StorageSchema, StorageVar, Ticks, Timer, TypedGameState,
 };
 
 // ── Optional systems ──────────────────────────────────────────────────────────

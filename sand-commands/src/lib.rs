@@ -63,7 +63,7 @@ pub use raw::RawCommand;
 pub use render::{CommandProfile, RenderCommand, Validate};
 pub use scoreboard::{
     DisplaySlot, Objective, ObjectiveName, ScoreCmp, ScoreHolder, ScoreOp,
-    ScoreboardPlayersOperation, scoreboard_players_operation,
+    ScoreboardPlayersOperation, hash_objective_name, scoreboard_players_operation,
 };
 pub use selector::{
     EntityTarget, EntityTargets, GameMode, IntoEntityType, Many, One, PlayerTarget, PlayerTargets,

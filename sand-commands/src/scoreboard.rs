@@ -188,47 +188,148 @@ impl From<Selector> for ScoreHolder {
 }
 
 /// Validated Minecraft scoreboard objective name.
+///
+/// This is the single canonical objective-name type for Sand (see
+/// [#146](https://github.com/ThatOneToast/sand/issues/146)): both
+/// `sand_commands::scoreboard::Objective` and
+/// `sand_core::state::ScoreVar` route their emitted objective name through
+/// [`ObjectiveName::logical`], so both crates share one deterministic
+/// hashing algorithm ([`hash_objective_name`]) instead of maintaining
+/// separate, potentially-diverging implementations.
+///
+/// - [`ObjectiveName::minecraft`]/[`ObjectiveName::new`] — an already-valid,
+///   const-friendly *exact* emitted name. Validated at the fallible
+///   render/export boundary, not at construction (so `static`
+///   declarations stay const-friendly); an invalid exact name is rejected
+///   there rather than silently hashed.
+/// - [`ObjectiveName::logical`] — a *generated* name for an arbitrary
+///   logical identifier. Short, already-valid logical names pass through
+///   unchanged; anything else (too long, or containing characters an
+///   objective name cannot use) is deterministically hashed to a stable
+///   ≤16-character token. The original logical name is retained for
+///   diagnostics via [`ObjectiveName::logical_name`].
 #[derive(Debug, Clone)]
 #[must_use = "objective names do nothing until passed to a scoreboard command"]
-pub struct ObjectiveName(Cow<'static, str>);
+pub struct ObjectiveName {
+    emitted: Cow<'static, str>,
+    /// `Some` only for [`ObjectiveName::logical`] names, so diagnostics and
+    /// [`ObjectiveName::logical_name`] can report the pre-hash identifier
+    /// even when the emitted name is a hash.
+    logical: Option<Cow<'static, str>>,
+}
 
 impl ObjectiveName {
     /// Const-compatible name used by static objectives. Validation occurs at
     /// the fallible render/export boundary.
     pub const fn new(name: &'static str) -> Self {
-        Self(Cow::Borrowed(name))
+        Self {
+            emitted: Cow::Borrowed(name),
+            logical: None,
+        }
     }
 
-    /// Construct and immediately validate a runtime name.
+    /// Alias for [`ObjectiveName::new`]: an already-valid emitted name.
+    pub const fn minecraft(name: &'static str) -> Self {
+        Self::new(name)
+    }
+
+    /// Construct and immediately validate a runtime *exact* name.
+    ///
+    /// Unlike [`ObjectiveName::logical`], this never falls back to hashing —
+    /// an invalid name is rejected outright, per #146's requirement that
+    /// "invalid short exact names are rejected rather than silently treated
+    /// as logical names."
     pub fn try_dynamic(name: impl Into<String>) -> CommandResult<Self> {
-        let name = Self(Cow::Owned(name.into()));
+        let name = Self {
+            emitted: Cow::Owned(name.into()),
+            logical: None,
+        };
         name.validate(&CommandProfile::unprofiled())?;
         Ok(name)
     }
 
-    pub fn as_str(&self) -> &str {
-        &self.0
+    /// Construct a deterministically generated name for an arbitrary logical
+    /// identifier (e.g. a long, human-readable name).
+    ///
+    /// If `name` is already a valid direct objective token (non-empty, no
+    /// whitespace/control characters, ≤16 characters), it is used verbatim.
+    /// Otherwise `name` is deterministically hashed via
+    /// [`hash_objective_name`] to a stable, always-valid ≤16-character
+    /// token. The result of [`ObjectiveName::validate`] is always `Ok` for a
+    /// value constructed this way.
+    pub fn logical(name: impl Into<String>) -> Self {
+        let name = name.into();
+        let direct = Self {
+            emitted: Cow::Owned(name.clone()),
+            logical: None,
+        };
+        let emitted = if direct.validate(&CommandProfile::unprofiled()).is_ok() {
+            name.clone()
+        } else {
+            hash_objective_name(&name)
+        };
+        Self {
+            emitted: Cow::Owned(emitted),
+            logical: Some(Cow::Owned(name)),
+        }
     }
+
+    /// The name actually emitted into `scoreboard` command text.
+    pub fn as_str(&self) -> &str {
+        &self.emitted
+    }
+
+    /// The original logical name passed to [`ObjectiveName::logical`], for
+    /// diagnostics. Returns the emitted name itself for
+    /// [`ObjectiveName::new`]/[`ObjectiveName::try_dynamic`] values, which
+    /// have no separate logical identifier.
+    pub fn logical_name(&self) -> &str {
+        self.logical.as_deref().unwrap_or(&self.emitted)
+    }
+
+    /// `true` if this name was constructed via [`ObjectiveName::logical`]
+    /// and its logical identifier differs from its emitted name (i.e. it
+    /// was hashed rather than used verbatim).
+    pub fn is_hashed(&self) -> bool {
+        self.logical.as_deref().is_some_and(|l| l != self.emitted)
+    }
+}
+
+/// Deterministically hash a name to a stable ≤16-character scoreboard
+/// objective token: an FNV-1a hash formatted as `s` followed by 15 hex
+/// digits. This is the single canonical hashing algorithm shared by
+/// [`ObjectiveName::logical`] and `sand_core::state::ScoreVar` (see
+/// [#146](https://github.com/ThatOneToast/sand/issues/146)) — do not
+/// reimplement a second hashing scheme elsewhere for the same purpose.
+pub fn hash_objective_name(name: &str) -> String {
+    let mut hash: u64 = 14_695_981_039_346_656_037;
+    for byte in name.bytes() {
+        hash ^= byte as u64;
+        hash = hash.wrapping_mul(1_099_511_628_211);
+    }
+    format!("s{:015x}", hash & 0x0FFF_FFFF_FFFF_FFFF)
 }
 
 impl fmt::Display for ObjectiveName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.0)
+        f.write_str(&self.emitted)
     }
 }
 
 impl Validate for ObjectiveName {
     fn validate(&self, _profile: &CommandProfile) -> CommandResult<()> {
-        validate::no_whitespace_or_control(&self.0, "ObjectiveName", "name")?;
-        if self.0.len() > 16 {
+        validate::no_whitespace_or_control(&self.emitted, "ObjectiveName", "name")?;
+        if self.emitted.len() > 16 {
             return Err(CommandError::new(
                 "ObjectiveName",
                 "name",
                 format!(
-                    "objective names cannot exceed 16 characters, got {}",
-                    self.0.len()
+                    "objective names cannot exceed 16 characters, got {} (logical name: {:?})",
+                    self.emitted.len(),
+                    self.logical_name()
                 ),
-            ));
+            )
+            .with_code("SAND-SCORE-OBJECTIVE"));
         }
         Ok(())
     }
@@ -474,7 +575,10 @@ impl Objective {
     /// [`try_dynamic`](Self::try_dynamic) when handling user input.
     pub fn dynamic(name: impl Into<String>) -> Self {
         Self {
-            name: ObjectiveName(Cow::Owned(name.into())),
+            name: ObjectiveName {
+                emitted: Cow::Owned(name.into()),
+                logical: None,
+            },
         }
     }
 
@@ -965,6 +1069,60 @@ mod tests {
                 .try_build()
                 .unwrap(),
             "@e[modded_single=true]"
+        );
+    }
+
+    #[test]
+    fn objective_name_logical_short_valid_name_passes_through() {
+        let name = ObjectiveName::logical("mana");
+        assert_eq!(name.as_str(), "mana");
+        assert_eq!(name.logical_name(), "mana");
+        assert!(!name.is_hashed());
+    }
+
+    #[test]
+    fn objective_name_logical_long_name_is_hashed_deterministically() {
+        let long = "this_is_a_very_long_logical_name_that_exceeds_the_limit";
+        let a = ObjectiveName::logical(long);
+        let b = ObjectiveName::logical(long);
+        assert_eq!(a.as_str(), b.as_str(), "hash must be deterministic");
+        assert!(a.as_str().len() <= 16);
+        assert!(a.as_str().starts_with('s'));
+        assert_eq!(a.logical_name(), long);
+        assert!(a.is_hashed());
+        assert!(a.validate(&CommandProfile::unprofiled()).is_ok());
+    }
+
+    #[test]
+    fn objective_name_logical_short_invalid_name_falls_back_to_hash() {
+        // Contains a space: not a valid direct token, so it must be hashed
+        // rather than emitted verbatim (that would be invalid
+        // `scoreboard objectives add` syntax).
+        let name = ObjectiveName::logical("player mana");
+        assert_ne!(name.as_str(), "player mana");
+        assert!(name.as_str().len() <= 16);
+        assert_eq!(name.logical_name(), "player mana");
+        assert!(name.is_hashed());
+    }
+
+    #[test]
+    fn objective_name_try_dynamic_rejects_rather_than_hashes_invalid_short_names() {
+        // try_dynamic (the "exact" constructor) must reject an invalid short
+        // name outright, not silently hash it like `logical` does.
+        assert!(ObjectiveName::try_dynamic("player mana").is_err());
+    }
+
+    #[test]
+    fn objective_name_minecraft_is_new_alias() {
+        assert_eq!(ObjectiveName::minecraft("mana").as_str(), "mana");
+    }
+
+    #[test]
+    fn hash_objective_name_matches_objective_name_logical() {
+        let long = "this_is_a_very_long_logical_name_that_exceeds_the_limit";
+        assert_eq!(
+            hash_objective_name(long),
+            ObjectiveName::logical(long).as_str()
         );
     }
 

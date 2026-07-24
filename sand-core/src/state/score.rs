@@ -12,15 +12,20 @@ use crate::state::storage::StorageField;
 // ── Name utilities ────────────────────────────────────────────────────────────
 
 /// Minecraft scoreboard objective names are limited to 16 characters.
-/// If the requested name exceeds that limit, a stable FNV-1a hash is used
-/// to produce a deterministic 16-character name prefixed with `"s"`.
+///
+/// Delegates to [`sand_commands::scoreboard::ObjectiveName::logical`] so
+/// `ScoreVar`'s generated objective names use the exact same deterministic
+/// hashing algorithm as `sand_commands::scoreboard::Objective` (see
+/// [#146](https://github.com/ThatOneToast/sand/issues/146) — "do not leave
+/// `sand-commands` and `sand-core` with unrelated validation and hashing
+/// behavior"). If `name` fits and is already a valid direct objective token,
+/// it is used verbatim; otherwise (too long, or containing characters an
+/// objective name cannot use, such as whitespace) it is hashed to a stable,
+/// always-valid ≤16-character name prefixed with `"s"`.
 pub(super) fn objective_name(name: &str) -> String {
-    if name.len() <= 16 {
-        name.to_string()
-    } else {
-        let hash = fnv1a(name);
-        format!("s{:015x}", hash & 0x0FFF_FFFF_FFFF_FFFF)
-    }
+    sand_commands::ObjectiveName::logical(name)
+        .as_str()
+        .to_string()
 }
 
 fn fnv1a(s: &str) -> u64 {
@@ -1221,6 +1226,34 @@ mod tests {
             a.len()
         );
         assert!(a.starts_with('s'), "hashed name must start with 's'");
+    }
+
+    #[test]
+    fn long_name_hashing_matches_sand_commands_canonical_algorithm() {
+        // #146: sand-core's ScoreVar and sand-commands' Objective/ObjectiveName
+        // must share one hashing algorithm, not two independently-maintained
+        // ones. Prove ScoreVar's emitted name equals the canonical
+        // ObjectiveName::logical output directly.
+        static LOCAL: ScoreVar<i32> = ScoreVar::new("this_is_a_very_long_name_that_exceeds_limit");
+        assert_eq!(
+            LOCAL.objective_name(),
+            sand_commands::ObjectiveName::logical("this_is_a_very_long_name_that_exceeds_limit")
+                .as_str()
+        );
+    }
+
+    #[test]
+    fn short_invalid_name_is_hashed_rather_than_emitted_verbatim() {
+        // Previously a bug: a short (<=16 char) name with a space would be
+        // emitted verbatim (invalid `scoreboard objectives add` syntax).
+        // objective_name now routes through ObjectiveName::logical, which
+        // falls back to hashing instead of emitting an invalid direct token.
+        static BAD: ScoreVar<i32> = ScoreVar::new("bad name");
+        let emitted = BAD.objective_name();
+        assert_ne!(emitted, "bad name");
+        assert!(emitted.starts_with('s'));
+        assert!(emitted.len() <= 16);
+        assert!(!emitted.contains(' '));
     }
 
     #[test]

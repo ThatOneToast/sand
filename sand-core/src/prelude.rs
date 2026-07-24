@@ -28,9 +28,13 @@ pub use crate::execute_when::{if_, unless, when};
 pub use crate::Damage;
 pub use crate::cmd::{
     Actionbar, Bossbar, BossbarColor, BossbarStyle, DamageAmount, DamageBuilder, DamageKind,
-    EntityTargets, Execute, Inventory, ItemSlot, ObjectiveName, Particle, ParticleSpread,
-    PlayerTargets, RawCommand, RenderCommand, ScoreHolder, Selector, SingleEntity, SinglePlayer,
-    SoundSource, Title, Validate,
+    DataCommand, EntityTargets, Execute, Inventory, ItemSlot, Nbt, NbtCompound, NbtRef, NbtTarget,
+    ObjectiveName, Particle, ParticleSpread, PlayerTargets, RawCommand, RenderCommand, ScoreHolder,
+    Selector, SingleEntity, SinglePlayer, SoundSource, Title, UntypedNbt, Validate,
+};
+pub use crate::item::{
+    BlockInventory, ContainerIndex, EnderChestIndex, EntityInventory, EntityInventorySlot,
+    HotbarIndex, InventoryIndex, ItemLocation, MainInventoryIndex,
 };
 pub use crate::vfx::{
     IntoParticleStep, IntoSoundStep, IntoVfxSelector, Vfx, VfxParticle, VfxSound, VfxStep,
@@ -39,9 +43,9 @@ pub use crate::vfx::{
 // ── State variables ───────────────────────────────────────────────────────────
 
 pub use crate::state::{
-    BlockNbt, Cooldown, EntityNbt, Flag, FlagRef, GameState, GameStateRef, NbtLocation, NbtPath,
-    ScoreRef, ScoreVar, SnbtCompound, SnbtValue, StorageField, StorageLocation, StorageSchema,
-    StorageVar, Ticks, Timer, TypedGameState,
+    BlockNbt, Cooldown, EntityNbt, Flag, FlagRef, GameState, GameStateRef, IntoStateCommands,
+    NbtLocation, NbtPath, ScoreRef, ScoreVar, SnbtCompound, SnbtValue, StateFlow, StorageField,
+    StorageLocation, StorageSchema, StorageVar, Ticks, Timer, TypedGameState,
 };
 
 // ── Optional systems ──────────────────────────────────────────────────────────
@@ -50,7 +54,10 @@ pub use crate::state::{
 pub use crate::systems::damage::{DamageThreshold, DamageTracker, recently_damaged};
 
 #[cfg(feature = "systems-player-data")]
-pub use crate::systems::player_data::{PlayerDataSchema, PlayerSchema};
+pub use crate::systems::player_data::{
+    CooldownField, CooldownFieldRef, FlagField, GameStateField, GlobalStorageField,
+    PlayerDataSchema, PlayerSchema, ScoreField, TimerField, TimerFieldRef,
+};
 
 // ── Resource refs ─────────────────────────────────────────────────────────────
 

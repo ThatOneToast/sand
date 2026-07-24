@@ -194,6 +194,15 @@ pub struct GameStateRef<'a, S: TypedGameState> {
 }
 
 impl<'a, S: TypedGameState> GameStateRef<'a, S> {
+    pub fn selector(&self) -> &str {
+        &self.selector
+    }
+
+    /// Start a compact one-off typed transition.
+    pub fn transition(&'a self) -> crate::state::StateTransitionBuilder<'a, S> {
+        crate::state::StateTransitionBuilder::new(self)
+    }
+
     /// `scoreboard players set <sel> <obj> <variant.to_score()>`
     pub fn set(&self, variant: S) -> String {
         self.set_score(variant.to_score())

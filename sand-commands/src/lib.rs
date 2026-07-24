@@ -47,7 +47,10 @@ pub use inventory::Inventory;
 /// Canonical slot type alias — same as [`ItemSlot`].
 ///
 pub type Slot = ItemSlot;
-pub use nbt::{DataModify, DataTarget, NbtValue, data_modify};
+pub use nbt::{
+    DataCommand, DataModify, DataModifyOperation, DataSource, DataTarget, Nbt, NbtCompound,
+    NbtPath, NbtRef, NbtTarget, NbtValue, UntypedNbt, data_modify,
+};
 pub use particles::{Particle, ParticleBuilder, ParticleEffect, ParticleSpread};
 pub use raw::RawCommand;
 pub use render::{CommandProfile, RenderCommand, Validate};

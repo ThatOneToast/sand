@@ -67,6 +67,14 @@ pub struct Selector {
     args: Vec<SelectorArg>,
 }
 
+impl PartialEq for Selector {
+    fn eq(&self, other: &Self) -> bool {
+        self.to_string() == other.to_string()
+    }
+}
+
+impl Eq for Selector {}
+
 impl From<Selector> for String {
     fn from(s: Selector) -> Self {
         s.to_string()

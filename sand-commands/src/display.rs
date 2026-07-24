@@ -323,6 +323,29 @@ impl From<String> for BossbarId {
     }
 }
 
+/// Conversion into a bossbar resource-location token.
+pub trait IntoBossbarId {
+    fn into_bossbar_id(self) -> BossbarId;
+}
+
+impl IntoBossbarId for BossbarId {
+    fn into_bossbar_id(self) -> BossbarId {
+        self
+    }
+}
+
+impl IntoBossbarId for String {
+    fn into_bossbar_id(self) -> BossbarId {
+        BossbarId::compatibility(self)
+    }
+}
+
+impl IntoBossbarId for &str {
+    fn into_bossbar_id(self) -> BossbarId {
+        BossbarId::compatibility(self)
+    }
+}
+
 /// Typed bossbar terminal command.
 #[derive(Debug, Clone)]
 pub enum BossbarCommand {
@@ -412,81 +435,88 @@ impl RenderCommand for BossbarCommand {
 pub struct Bossbar;
 
 impl Bossbar {
-    pub fn add(id: impl Into<BossbarId>, name: TextComponent) -> String {
+    pub fn add(id: impl IntoBossbarId, name: TextComponent) -> String {
         BossbarCommand::Add {
-            id: id.into(),
+            id: id.into_bossbar_id(),
             name,
         }
         .build_registered()
     }
-    pub fn remove(id: impl Into<BossbarId>) -> String {
-        BossbarCommand::Remove { id: id.into() }.build_registered()
+    pub fn remove(id: impl IntoBossbarId) -> String {
+        BossbarCommand::Remove {
+            id: id.into_bossbar_id(),
+        }
+        .build_registered()
     }
     pub fn list() -> String {
         BossbarCommand::List.build_registered()
     }
-    pub fn set_value(id: impl Into<BossbarId>, value: u32) -> String {
+    pub fn set_value(id: impl IntoBossbarId, value: u32) -> String {
         BossbarCommand::SetValue {
-            id: id.into(),
+            id: id.into_bossbar_id(),
             value,
         }
         .build_registered()
     }
-    pub fn set_max(id: impl Into<BossbarId>, max: u32) -> String {
-        BossbarCommand::SetMax { id: id.into(), max }.build_registered()
+    pub fn set_max(id: impl IntoBossbarId, max: u32) -> String {
+        BossbarCommand::SetMax {
+            id: id.into_bossbar_id(),
+            max,
+        }
+        .build_registered()
     }
-    pub fn set_players(id: impl Into<BossbarId>, players: Selector) -> String {
+    pub fn set_players(id: impl IntoBossbarId, players: Selector) -> String {
         BossbarCommand::SetPlayers {
-            id: id.into(),
+            id: id.into_bossbar_id(),
             players,
         }
         .build_registered()
     }
-    pub fn set_color(id: impl Into<BossbarId>, color: BossbarColor) -> String {
+    pub fn set_color(id: impl IntoBossbarId, color: BossbarColor) -> String {
         BossbarCommand::SetColor {
-            id: id.into(),
+            id: id.into_bossbar_id(),
             color,
         }
         .build_registered()
     }
-    pub fn set_style(id: impl Into<BossbarId>, style: BossbarStyle) -> String {
+    pub fn set_style(id: impl IntoBossbarId, style: BossbarStyle) -> String {
         BossbarCommand::SetStyle {
-            id: id.into(),
+            id: id.into_bossbar_id(),
             style,
         }
         .build_registered()
     }
-    pub fn set_name(id: impl Into<BossbarId>, name: TextComponent) -> String {
+    pub fn set_name(id: impl IntoBossbarId, name: TextComponent) -> String {
         BossbarCommand::SetName {
-            id: id.into(),
+            id: id.into_bossbar_id(),
             name,
         }
         .build_registered()
     }
-    pub fn set_visible(id: impl Into<BossbarId>, visible: bool) -> String {
+    pub fn set_visible(id: impl IntoBossbarId, visible: bool) -> String {
         BossbarCommand::SetVisible {
-            id: id.into(),
+            id: id.into_bossbar_id(),
             visible,
         }
         .build_registered()
     }
-    pub fn get_value(id: impl Into<BossbarId>) -> String {
+    pub fn get_value(id: impl IntoBossbarId) -> String {
         BossbarCommand::Get {
-            id: id.into(),
+            id: id.into_bossbar_id(),
             field: "value",
         }
         .build_registered()
     }
-    pub fn get_max(id: impl Into<BossbarId>) -> String {
+    pub fn get_max(id: impl IntoBossbarId) -> String {
         BossbarCommand::Get {
-            id: id.into(),
+            id: id.into_bossbar_id(),
             field: "max",
         }
         .build_registered()
     }
-    pub fn get_players(id: impl Into<BossbarId>) -> String {
+    pub fn get_players(id: impl IntoBossbarId) -> String {
         BossbarCommand::Get {
-            id: id.into(),
+            id: id.into_bossbar_id(),
             field: "players",
         }
         .build_registered()

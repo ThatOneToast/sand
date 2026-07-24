@@ -26,6 +26,23 @@ use crate::selector::Selector;
 
 // ── SoundSource ───────────────────────────────────────────────────────────────
 
+/// Conversion into a sound-event resource-location token.
+pub trait IntoSoundEvent {
+    fn into_sound_event(self) -> String;
+}
+
+impl IntoSoundEvent for String {
+    fn into_sound_event(self) -> String {
+        self
+    }
+}
+
+impl IntoSoundEvent for &str {
+    fn into_sound_event(self) -> String {
+        self.to_string()
+    }
+}
+
 /// Minecraft audio channel/category for sound playback.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SoundSource {
@@ -78,9 +95,9 @@ pub struct Sound {
 
 impl Sound {
     /// Begin building a `playsound` command for the given sound event ID.
-    pub fn play(event: impl Into<String>) -> Self {
+    pub fn play(event: impl IntoSoundEvent) -> Self {
         Self {
-            event: event.into(),
+            event: event.into_sound_event(),
             raw_event: false,
             source: SoundSource::Master,
             target: None,
@@ -92,7 +109,7 @@ impl Sound {
     }
 
     /// Begin building a sound command with an intentionally opaque event token.
-    pub fn play_raw(event: impl Into<String>) -> Self {
+    pub fn play_raw(event: impl IntoSoundEvent) -> Self {
         Self {
             raw_event: true,
             ..Self::play(event)

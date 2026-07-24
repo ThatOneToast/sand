@@ -35,7 +35,7 @@ use crate::cmd::{
     PlayerTargets, RenderCommand, Selector, SingleEntity, SinglePlayer, Sound, SoundSource,
     Validate, Vec3,
 };
-use sand_commands::CommandResult;
+use sand_commands::{CommandResult, IntoParticleId, IntoSoundEvent};
 
 /// A reusable group of visual/audio commands.
 #[derive(Debug, Clone)]
@@ -233,7 +233,7 @@ impl VfxParticle {
     }
 
     /// Create a named particle step.
-    pub fn named(name: impl Into<String>) -> Self {
+    pub fn named(name: impl IntoParticleId) -> Self {
         Self::new(Particle::named(name))
     }
 
@@ -349,9 +349,9 @@ pub struct VfxSound {
 
 impl VfxSound {
     /// Begin building a reusable `playsound` step.
-    pub fn new(event: impl Into<String>) -> Self {
+    pub fn new(event: impl IntoSoundEvent) -> Self {
         Self {
-            event: event.into(),
+            event: event.into_sound_event(),
             source: SoundSource::Master,
             audience: None,
             position: None,

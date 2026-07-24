@@ -47,7 +47,7 @@
 
 use std::borrow::Cow;
 
-use sand_commands::{DataModify, DataTarget, NbtValue};
+use sand_commands::{CommandResult, DataModify, DataTarget, NbtValue, Validate};
 
 // ── StorageKind ───────────────────────────────────────────────────────────────
 
@@ -160,6 +160,10 @@ impl Storage {
         DataTarget::Storage(self.id.as_ref().to_owned())
     }
 
+    fn profile() -> sand_commands::CommandProfile {
+        sand_commands::CommandProfile::unprofiled()
+    }
+
     // ── HashMap-like write ────────────────────────────────────────────────
 
     /// Set `key` to `value`.
@@ -178,8 +182,22 @@ impl Storage {
     /// Delete `key` from storage.
     ///
     /// Equivalent to `HashMap::remove`.
+    ///
+    /// Raw/unchecked: hand-formats the command without routing the storage
+    /// id or NBT path through the typed [`DataTarget`]/[`NbtPath`](sand_commands::NbtPath)
+    /// validators. Prefer [`Storage::try_remove`].
     pub fn remove(&self, key: impl Into<String>) -> String {
         format!("data remove storage {} {}", self.id, key.into())
+    }
+
+    /// Validated counterpart to [`Storage::remove`].
+    ///
+    /// Routes through the same [`DataTarget`]/NBT-path validation as
+    /// [`sand_commands::DataCommand`]: the storage id must be a valid
+    /// `namespace:path` resource location and `key` must be a
+    /// structurally valid NBT path.
+    pub fn try_remove(&self, key: impl Into<String>) -> CommandResult<String> {
+        self.target().path(key.into()).remove().try_render(&Self::profile())
     }
 
     // ── HashMap-like read ─────────────────────────────────────────────────
@@ -198,11 +216,29 @@ impl Storage {
         format!("data get storage {} {}", self.id, key.into())
     }
 
+    /// Validated counterpart to [`Storage::get`].
+    pub fn try_get(&self, key: impl Into<String>) -> CommandResult<String> {
+        self.target().path(key.into()).get().try_render(&Self::profile())
+    }
+
     /// Like [`get`](Self::get) but scales the numeric result by `scale`.
     ///
     /// Useful when piping float NBT (e.g. `Health`) into integer scoreboards.
+    ///
+    /// Raw/unchecked: accepts a non-finite `scale`. Prefer
+    /// [`Storage::try_get_scaled`].
     pub fn get_scaled(&self, key: impl Into<String>, scale: f64) -> String {
         format!("data get storage {} {} {scale}", self.id, key.into())
+    }
+
+    /// Validated counterpart to [`Storage::get_scaled`]. Rejects a
+    /// non-finite `scale` in addition to the storage id/path validation
+    /// shared with [`Storage::try_get`].
+    pub fn try_get_scaled(&self, key: impl Into<String>, scale: f64) -> CommandResult<String> {
+        self.target()
+            .path(key.into())
+            .get_scaled(scale)
+            .try_render(&Self::profile())
     }
 
     // ── Existence / defaults ──────────────────────────────────────────────
@@ -215,10 +251,27 @@ impl Storage {
         format!("data storage {} {}", self.id, key.into())
     }
 
+    /// Validated counterpart to [`Storage::contains`].
+    ///
+    /// `data storage <id> <key>` is a condition fragment, not a standalone
+    /// `DataCommand`, so this validates the storage id and NBT path through
+    /// the same [`sand_commands`] validators (via a throwaway `data get`
+    /// read-shaped check) without changing the emitted fragment's syntax.
+    pub fn try_contains(&self, key: impl Into<String>) -> CommandResult<String> {
+        let key = key.into();
+        self.target()
+            .path(key.clone())
+            .get()
+            .validate(&Self::profile())?;
+        Ok(format!("data storage {} {}", self.id, key))
+    }
+
     /// Set `key` to `default` only if it is not already present.
     ///
     /// Equivalent to `HashMap::entry(k).or_insert(v)`. Returns a single
     /// `execute unless data storage … run data modify …` command.
+    ///
+    /// Raw/unchecked: prefer [`Storage::try_get_or_insert`].
     pub fn get_or_insert(&self, key: impl Into<String>, default: impl Into<NbtValue>) -> String {
         let key = key.into();
         let val = default.into();
@@ -226,6 +279,22 @@ impl Storage {
             "execute unless data storage {} {} run data modify storage {} {} set value {}",
             self.id, key, self.id, key, val
         )
+    }
+
+    /// Validated counterpart to [`Storage::get_or_insert`].
+    pub fn try_get_or_insert(
+        &self,
+        key: impl Into<String>,
+        default: impl Into<NbtValue>,
+    ) -> CommandResult<String> {
+        let key = key.into();
+        let contains = self.try_contains(key.clone())?;
+        let set = self
+            .target()
+            .path(key)
+            .set(default)
+            .try_render(&Self::profile())?;
+        Ok(format!("execute unless {contains} run {set}"))
     }
 
     // ── List operations ───────────────────────────────────────────────────
@@ -243,8 +312,23 @@ impl Storage {
     // ── Merge ─────────────────────────────────────────────────────────────
 
     /// `data merge storage <id> <nbt>` — merge a compound into the root.
+    ///
+    /// Raw/unchecked: prefer [`Storage::try_merge`].
     pub fn merge(&self, value: impl Into<NbtValue>) -> String {
         format!("data merge storage {} {}", self.id, value.into())
+    }
+
+    /// Validated counterpart to [`Storage::merge`].
+    ///
+    /// Validates the storage id through the same resource-location shape
+    /// check used by [`DataTarget::Storage`]. `value`'s NBT structure is not
+    /// re-validated here: [`sand_commands::DataCommand::Merge`] requires a
+    /// structured `NbtCompound`, while this compatibility API keeps
+    /// accepting any [`NbtValue`] (including [`NbtValue::raw`] escape
+    /// hatches) for the merge payload.
+    pub fn try_merge(&self, value: impl Into<NbtValue>) -> CommandResult<String> {
+        sand_commands::validate::resource_location_shape(&self.id, "Storage::try_merge", "id")?;
+        Ok(format!("data merge storage {} {}", self.id, value.into()))
     }
 
     // ── Copy from other locations ─────────────────────────────────────────
@@ -405,5 +489,62 @@ mod tests {
     fn data_modify_via_sand_commands() {
         let cmd = data_modify(DataTarget::entity(Selector::self_()), "Custom.Phase").set(2_i32);
         assert_eq!(cmd, "data modify entity @s Custom.Phase set value 2");
+    }
+
+    // ── Validated try_* Storage API ─────────────────────────────────────────
+
+    #[test]
+    fn try_methods_match_infallible_output_for_valid_input() {
+        assert_eq!(
+            WORLD.try_remove("boss_phase").unwrap(),
+            WORLD.remove("boss_phase")
+        );
+        assert_eq!(
+            WORLD.try_get("boss_phase").unwrap(),
+            WORLD.get("boss_phase")
+        );
+        assert_eq!(
+            WORLD.try_get_scaled("boss_phase", 10.0).unwrap(),
+            WORLD.get_scaled("boss_phase", 10.0)
+        );
+        assert_eq!(
+            WORLD.try_contains("boss_phase").unwrap(),
+            WORLD.contains("boss_phase")
+        );
+        assert_eq!(
+            WORLD.try_get_or_insert("boss_phase", 1_i32).unwrap(),
+            WORLD.get_or_insert("boss_phase", 1_i32)
+        );
+        assert_eq!(
+            WORLD
+                .try_merge(NbtValue::raw("{phase:2,active:1b}"))
+                .unwrap(),
+            WORLD.merge(NbtValue::raw("{phase:2,active:1b}"))
+        );
+    }
+
+    #[test]
+    fn try_methods_reject_invalid_storage_id() {
+        let bad = Storage::new("not_a_resource_location", StorageKind::Global);
+        assert!(bad.try_get("key").is_err());
+        assert!(bad.try_remove("key").is_err());
+        assert!(bad.try_contains("key").is_err());
+        assert!(bad.try_merge(1_i32).is_err());
+    }
+
+    #[test]
+    fn try_methods_reject_invalid_path() {
+        assert!(WORLD.try_get("").is_err());
+        assert!(WORLD.try_remove("bad..path").is_err());
+    }
+
+    #[test]
+    fn try_get_scaled_rejects_non_finite_scale() {
+        assert!(WORLD.try_get_scaled("boss_phase", f64::NAN).is_err());
+        assert!(
+            WORLD
+                .try_get_scaled("boss_phase", f64::INFINITY)
+                .is_err()
+        );
     }
 }

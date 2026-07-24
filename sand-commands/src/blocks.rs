@@ -28,12 +28,23 @@ use std::fmt;
 
 use crate::Build;
 use crate::coord::BlockPos;
+use crate::error::{CommandError, CommandResult};
+use crate::render::{CommandProfile, RenderCommand, Validate};
+use crate::validate;
 
 // ── BlockState ────────────────────────────────────────────────────────────────
 
 /// A Minecraft block state string like `minecraft:oak_stairs[facing=east,half=bottom]`.
 ///
 /// Properties are sorted alphabetically so output is deterministic.
+///
+/// `BlockState` accepts any block ID/property strings without validating
+/// them eagerly — construction stays ergonomic for chained builder syntax.
+/// Validation happens at the fallible boundary: [`BlockState::validate`], or
+/// transitively through [`SetBlock::try_build`], [`Fill::try_build`], and
+/// [`CloneBlocks::try_build`]. The infallible [`Build::build`]/`Display`
+/// paths remain available as a documented raw/unchecked escape hatch for
+/// custom or future block-state syntax Sand does not yet model.
 #[derive(Debug, Clone)]
 pub struct BlockState {
     block: String,
@@ -66,6 +77,42 @@ impl BlockState {
         }
         self
     }
+}
+
+impl Validate for BlockState {
+    fn validate(&self, _profile: &CommandProfile) -> CommandResult<()> {
+        validate::resource_location_shape(&self.block, "BlockState", "block")?;
+        for (key, value) in &self.props {
+            validate_block_state_token(key, "BlockState", "property_key")?;
+            validate_block_state_token(value, "BlockState", "property_value")?;
+        }
+        Ok(())
+    }
+}
+
+impl RenderCommand for BlockState {
+    fn render_unchecked(&self, _profile: &CommandProfile) -> String {
+        self.to_string()
+    }
+}
+
+/// Reject block-state delimiter characters (`[`, `]`, `=`, `,`) and
+/// whitespace/control characters inside a property key or value — these
+/// would corrupt the surrounding `block[key=value,...]` grammar.
+fn validate_block_state_token(
+    value: &str,
+    helper: &'static str,
+    field: &'static str,
+) -> CommandResult<()> {
+    validate::no_whitespace_or_control(value, helper, field)?;
+    if value.contains(['[', ']', '=', ',']) {
+        return Err(CommandError::new(
+            helper,
+            field,
+            format!("must not contain block-state delimiters `[`, `]`, `=`, or `,`, got `{value}`"),
+        ));
+    }
+    Ok(())
 }
 
 impl fmt::Display for BlockState {
@@ -174,6 +221,23 @@ impl From<SetBlock> for String {
     }
 }
 
+impl Validate for SetBlock {
+    fn validate(&self, profile: &CommandProfile) -> CommandResult<()> {
+        self.pos
+            .validate(profile)
+            .map_err(|e| e.with_context("setblock position"))?;
+        self.block
+            .validate(profile)
+            .map_err(|e| e.with_context("setblock block"))
+    }
+}
+
+impl RenderCommand for SetBlock {
+    fn render_unchecked(&self, _profile: &CommandProfile) -> String {
+        self.build()
+    }
+}
+
 // ── FillMode ──────────────────────────────────────────────────────────────────
 
 /// Mode for the `fill` command.
@@ -253,6 +317,31 @@ impl fmt::Display for Fill {
 impl From<Fill> for String {
     fn from(v: Fill) -> Self {
         v.build()
+    }
+}
+
+impl Validate for Fill {
+    fn validate(&self, profile: &CommandProfile) -> CommandResult<()> {
+        self.from
+            .validate(profile)
+            .map_err(|e| e.with_context("fill from"))?;
+        self.to
+            .validate(profile)
+            .map_err(|e| e.with_context("fill to"))?;
+        self.block
+            .validate(profile)
+            .map_err(|e| e.with_context("fill block"))?;
+        if let FillMode::ReplaceFilter(filter) = &self.mode {
+            validate::non_empty(filter, "Fill", "replace_filter")
+                .map_err(|e| e.with_context("fill replace filter"))?;
+        }
+        Ok(())
+    }
+}
+
+impl RenderCommand for Fill {
+    fn render_unchecked(&self, _profile: &CommandProfile) -> String {
+        self.build()
     }
 }
 
@@ -378,12 +467,38 @@ impl From<CloneBlocks> for String {
     }
 }
 
+impl Validate for CloneBlocks {
+    fn validate(&self, profile: &CommandProfile) -> CommandResult<()> {
+        self.from
+            .validate(profile)
+            .map_err(|e| e.with_context("clone from"))?;
+        self.to
+            .validate(profile)
+            .map_err(|e| e.with_context("clone to"))?;
+        self.dest
+            .validate(profile)
+            .map_err(|e| e.with_context("clone dest"))?;
+        if matches!(self.mask_mode, CloneMaskMode::Filtered) {
+            let filter = self.filter.as_deref().unwrap_or("");
+            validate::non_empty(filter, "CloneBlocks", "filter")
+                .map_err(|e| e.with_context("clone filter"))?;
+        }
+        Ok(())
+    }
+}
+
+impl RenderCommand for CloneBlocks {
+    fn render_unchecked(&self, _profile: &CommandProfile) -> String {
+        self.build()
+    }
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::coord::BlockPos;
+    use crate::coord::{BlockPos, Coord};
 
     #[test]
     fn block_state_no_props() {
@@ -464,5 +579,111 @@ mod tests {
         )
         .build();
         assert_eq!(cmd, "clone 0 64 0 5 68 5 10 64 0 replace normal");
+    }
+
+    // ── Fallible validation ──────────────────────────────────────────────
+
+    #[test]
+    fn block_state_validate_accepts_clean_input() {
+        let bs = BlockState::of("minecraft:oak_stairs")
+            .prop("facing", "east")
+            .prop("half", "bottom");
+        assert!(bs.try_build().is_ok());
+    }
+
+    #[test]
+    fn block_state_rejects_malformed_block_id() {
+        assert!(BlockState::of("not a block id").try_build().is_err());
+        assert!(BlockState::of("").try_build().is_err());
+        assert!(BlockState::of("NoNamespace").try_build().is_err());
+    }
+
+    #[test]
+    fn block_state_rejects_delimiter_in_property() {
+        let bs = BlockState::of("minecraft:oak_stairs").prop("facing", "east]");
+        assert!(bs.try_build().is_err());
+        let bs = BlockState::of("minecraft:oak_stairs").prop("bad key", "east");
+        assert!(bs.try_build().is_err());
+        let bs = BlockState::of("minecraft:oak_stairs").prop("facing", "a,b");
+        assert!(bs.try_build().is_err());
+    }
+
+    #[test]
+    fn setblock_try_build_matches_build_for_valid_input() {
+        let cmd = SetBlock::new(BlockPos::here(), "minecraft:stone");
+        assert_eq!(cmd.try_build().unwrap(), cmd.build());
+    }
+
+    #[test]
+    fn setblock_try_build_rejects_invalid_block() {
+        let cmd = SetBlock::new(BlockPos::here(), "not a block");
+        assert!(cmd.try_build().is_err());
+    }
+
+    #[test]
+    fn setblock_try_build_rejects_fractional_block_pos() {
+        let cmd = SetBlock::new(BlockPos::absolute(1, 2, 3), "minecraft:stone");
+        assert!(cmd.try_build().is_ok());
+        let bad = SetBlock::new(
+            BlockPos::new(
+                Coord::abs(1.5_f64),
+                Coord::abs(2),
+                Coord::abs(3),
+            ),
+            "minecraft:stone",
+        );
+        assert!(bad.try_build().is_err());
+    }
+
+    #[test]
+    fn fill_try_build_matches_build_for_valid_input() {
+        let cmd = Fill::new(
+            BlockPos::absolute(0, 64, 0),
+            BlockPos::absolute(10, 68, 10),
+            "minecraft:glass",
+        );
+        assert_eq!(cmd.try_build().unwrap(), cmd.build());
+    }
+
+    #[test]
+    fn fill_try_build_rejects_empty_replace_filter() {
+        let cmd = Fill::new(
+            BlockPos::absolute(0, 64, 0),
+            BlockPos::absolute(1, 65, 1),
+            "minecraft:air",
+        )
+        .mode(FillMode::ReplaceFilter(String::new()));
+        assert!(cmd.try_build().is_err());
+    }
+
+    #[test]
+    fn clone_try_build_matches_build_for_valid_input() {
+        let cmd = CloneBlocks::new(
+            BlockPos::absolute(0, 64, 0),
+            BlockPos::absolute(5, 68, 5),
+            BlockPos::absolute(10, 64, 0),
+        );
+        assert_eq!(cmd.try_build().unwrap(), cmd.build());
+    }
+
+    #[test]
+    fn clone_try_build_rejects_empty_filter() {
+        let cmd = CloneBlocks::new(
+            BlockPos::absolute(0, 64, 0),
+            BlockPos::absolute(5, 68, 5),
+            BlockPos::absolute(10, 64, 0),
+        )
+        .filtered("");
+        assert!(cmd.try_build().is_err());
+    }
+
+    #[test]
+    fn clone_try_build_rejects_local_coordinates() {
+        let cmd = CloneBlocks::new(
+            BlockPos::new(Coord::local_n(1), Coord::local_n(2), Coord::local_n(3)),
+            BlockPos::absolute(5, 68, 5),
+            BlockPos::absolute(10, 64, 0),
+        );
+        assert!(cmd.try_build().is_err());
     }
 }

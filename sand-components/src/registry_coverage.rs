@@ -282,7 +282,18 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         sand_module: Some("sand_components::chat_type"),
         api_status: RegistryApiStatus::FullyImplemented,
         version_gate: Some("1.19"),
-        notes: "ChatType, ChatDecoration. Introduced in 1.19.",
+        notes: "ChatType, ChatDecoration. Introduced in 1.19. Normal-path authoring is typed: \
+                ChatDecorationParameter (Sender/Target/Content, with an explicit Custom(_) escape \
+                hatch that still fails validation unless it matches a known vanilla value) and \
+                ChatStyle (color/color_hex/bold/italic/underlined/strikethrough/obfuscated/insertion) \
+                cover normal authoring; validate() rejects unknown/duplicate parameters, empty or \
+                control-character translation keys, invalid hex colors, and non-object raw styles. \
+                The raw serde_json::Value path remains available only via the explicitly named \
+                ChatDecoration::style_raw escape hatch. Golden JSON test: \
+                chat_type::tests::golden_chat_type_json and \
+                canonical_26_2_chat_type_with_typed_parameters_and_style. Restored/kept \
+                FullyImplemented per #199 and #193 (this row was left for this stream to update by \
+                #288/#193 to avoid a merge conflict; see #199).",
     },
     // ── Vanilla value registries with datapack elements ─────────────────────
     RegistryCoverage {

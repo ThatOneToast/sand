@@ -32,10 +32,11 @@
 //!   `.killer`/`.victim`/`.weapon` accessor sugar `Event<E>` has; and
 //!   `EventParticipantPlan`/`ParticipantBuilder` for declaring what a plan
 //!   observes or inherits.
-//! - **Components** — item/advancement/recipe/loot-table/dialog builders
-//!   from [`mod@crate::component`] (advancements, recipes, loot tables,
-//!   predicates, dialogs, tags, item components) plus raw escape hatches
-//!   (`RawComponent`, `RawJson`, `RawSnbt`) and typed registry identifiers
+//! - **Components** — item/advancement/recipe/loot-table/dialog/chat-type
+//!   builders from [`mod@crate::component`] (advancements, recipes, loot
+//!   tables, predicates, dialogs, chat types, tags, item components) plus
+//!   raw escape hatches (`RawComponent`, `RawJson`, `RawSnbt`) and typed
+//!   registry identifiers
 //!   (`ItemId`, `EntityTypeId`, `EffectId`, …).
 //! - **Text** — `Text`, `TextComponent`, `ChatColor`, click/hover events.
 //! - **Resource refs** — `ResourceLocation` and typed refs (`FunctionRef`,

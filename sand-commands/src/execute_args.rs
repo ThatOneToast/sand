@@ -213,6 +213,28 @@ impl ItemSlot {
     pub fn raw(value: impl Into<String>) -> Self {
         Self::Raw(value.into())
     }
+
+    /// Whether this slot matches more than one physical inventory slot.
+    ///
+    /// Wildcard slots (`armor.*`, `weapon.*`, `hotbar.*`, `inventory.*`,
+    /// `container.*`, `horse.*`, `villager.*`, and any [`ItemSlot::Raw`]
+    /// ending in `*`) are valid for read/check contexts such as
+    /// `execute if items`, but Minecraft's single-slot write grammar
+    /// (`item replace`/`item modify`) requires exactly one resolved slot.
+    /// See [`Inventory`](crate::inventory::Inventory)'s write-slot validation.
+    pub fn is_wildcard(&self) -> bool {
+        match self {
+            Self::AnyArmor
+            | Self::AnyWeapon
+            | Self::AnyHotbar
+            | Self::AnyInventory
+            | Self::AnyContainer
+            | Self::AnyHorse
+            | Self::AnyVillager => true,
+            Self::Raw(s) => s.ends_with('*'),
+            _ => false,
+        }
+    }
 }
 
 impl Validate for ItemSlot {
@@ -284,6 +306,21 @@ mod tests {
         assert_eq!(ItemSlot::AnyHorse.to_string(), "horse.*");
         assert_eq!(ItemSlot::AnyVillager.to_string(), "villager.*");
         assert_eq!(ItemSlot::Raw("custom.*".into()).to_string(), "custom.*");
+    }
+
+    #[test]
+    fn item_slot_is_wildcard() {
+        assert!(ItemSlot::AnyArmor.is_wildcard());
+        assert!(ItemSlot::AnyWeapon.is_wildcard());
+        assert!(ItemSlot::AnyHotbar.is_wildcard());
+        assert!(ItemSlot::AnyInventory.is_wildcard());
+        assert!(ItemSlot::AnyContainer.is_wildcard());
+        assert!(ItemSlot::AnyHorse.is_wildcard());
+        assert!(ItemSlot::AnyVillager.is_wildcard());
+        assert!(ItemSlot::raw("custom.*").is_wildcard());
+        assert!(!ItemSlot::MainHand.is_wildcard());
+        assert!(!ItemSlot::Hotbar(3).is_wildcard());
+        assert!(!ItemSlot::raw("custom.slot").is_wildcard());
     }
 
     #[test]

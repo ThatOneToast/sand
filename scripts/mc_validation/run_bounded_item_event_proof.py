@@ -23,8 +23,8 @@ What this proves, precisely:
 What this does **not** prove: that a real player swinging a real weapon
 triggers the source event. That needs a real game client; this environment
 has none (see `scripts/mc_validation/README.md` on the 26.2 Play-phase
-client instability). Subjects here are `minecraft:marker` entities acting
-as score holders, and the source's own item *capture* (#229/#267, validated
+client instability). Subjects here are armor stands acting as score
+holders, and the source's own item *capture* (#229/#267, validated
 separately) is stood in for by writing its snapshot storage directly — so
 what is exercised is the transport under test, not the capture feeding it.
 The `execute as @a` coordinator lines are likewise not exercised at
@@ -115,6 +115,53 @@ def export_records() -> list[dict]:
     return json.loads(dump.read_text())
 
 
+def write_harness_functions(pack: Path, snap_key: str, source_dispatch: str) -> None:
+    """Drive a source occurrence *atomically*, in one tick.
+
+    The generated `__sand_event_check` runs every tick from the pack's own
+    tick tag and unconditionally resets the source's transient snapshot
+    storage to absence before re-capturing it. That is correct — in real
+    operation the capture and the persist happen in the same synchronous
+    call tree within one tick, which is exactly why persist is spliced into
+    the source's dispatch right after its occurrence mark.
+
+    A harness that writes the snapshot in one RCON call and invokes dispatch
+    in another straddles a possible tick boundary, and intermittently
+    observes the reset instead of its own write. So both steps live in one
+    function here: the item comes from `bevth:stage item` (a storage the
+    pack under test never touches, so writing it cannot race), and the
+    snapshot write and dispatch invocation are guaranteed same-tick.
+    """
+    fn = pack / "data" / "bevth" / "function"
+    fn.mkdir(parents=True, exist_ok=True)
+    # Function file names must be lowercase — Minecraft rejects any other
+    # resource path outright ("Invalid path in pack ... ignoring") — while
+    # entity tags are free-form, so the two cannot share a spelling.
+    for tag, suffix in (("subjA", "a"), ("subjB", "b")):
+        (fn / f"src_{suffix}.mcfunction").write_text(
+            "\n".join(
+                [
+                    f"data modify storage sand:__participants snap.{snap_key}.present set value 1b",
+                    f"data modify storage sand:__participants snap.{snap_key}.item set from storage bevth:stage item",
+                    f"execute as @e[tag={tag},limit=1] run function {NS}:{source_dispatch}",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+        (fn / f"src_absent_{suffix}.mcfunction").write_text(
+            "\n".join(
+                [
+                    f"data modify storage sand:__participants snap.{snap_key}.present set value 0b",
+                    f"data modify storage sand:__participants snap.{snap_key}.item set value {{}}",
+                    f"execute as @e[tag={tag},limit=1] run function {NS}:{source_dispatch}",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+
 def write_pack(datapacks: Path, records: list[dict]) -> None:
     pack = datapacks / "bevt"
     (pack / "data").mkdir(parents=True)
@@ -187,6 +234,7 @@ def main() -> int:
     datapacks = server_dir / "world" / "datapacks"
     datapacks.mkdir(parents=True)
     write_pack(datapacks, records)
+    write_harness_functions(datapacks / "bevt", snap_key, source_dispatch)
     (server_dir / "eula.txt").write_text("eula=true\n", encoding="utf-8")
 
     server_port = available_port()
@@ -250,8 +298,15 @@ def main() -> int:
         )
         return "has 1 " in out[1]
 
-    def persist_for(tag: str) -> None:
-        run(rcon_port, f"execute as @e[tag={tag},limit=1] run function {NS}:{source_dispatch}")
+    def persist_for(tag: str, item: str) -> None:
+        """Stage `item`, then fire the source occurrence for `tag` in one tick."""
+        suffix = "a" if tag == "subjA" else "b"
+        run(rcon_port, f"data modify storage bevth:stage item set value {item}")
+        run(rcon_port, f"function bevth:src_{suffix}")
+
+    def persist_absent_for(tag: str) -> None:
+        suffix = "a" if tag == "subjA" else "b"
+        run(rcon_port, f"function bevth:src_absent_{suffix}")
 
     try:
         deadline = time.monotonic() + args.timeout
@@ -324,12 +379,7 @@ def main() -> int:
         results["subjects_selectable"] = "PASS" if selectable else "FAIL (never became selectable)"
 
         print("\n== Source occurrence persists into per-subject storage ==")
-        run(
-            rcon_port,
-            f'data modify storage sand:__participants snap.{snap_key} set value '
-            f'{{present:1b,item:{{id:"minecraft:diamond_sword",count:1}}}}',
-        )
-        persist_for("subjA")
+        persist_for("subjA", '{id:"minecraft:diamond_sword",count:1}')
         slots = run(
             rcon_port,
             "execute as @e[tag=subjA,limit=1] run scoreboard players get @s sand_subj",
@@ -338,12 +388,7 @@ def main() -> int:
             "PASS" if " has 1 " in slots[0] else f"FAIL ({slots})"
         )
 
-        run(
-            rcon_port,
-            f'data modify storage sand:__participants snap.{snap_key} set value '
-            f'{{present:1b,item:{{id:"minecraft:golden_apple",count:3}}}}',
-        )
-        persist_for("subjB")
+        persist_for("subjB", '{id:"minecraft:golden_apple",count:3}')
         slots_b = run(
             rcon_port,
             "execute as @e[tag=subjB,limit=1] run scoreboard players get @s sand_subj",
@@ -376,12 +421,7 @@ def main() -> int:
         )
 
         print("\n== Repeated source occurrence replaces atomically ==")
-        run(
-            rcon_port,
-            f'data modify storage sand:__participants snap.{snap_key} set value '
-            f'{{present:1b,item:{{id:"minecraft:stone",count:64}}}}',
-        )
-        persist_for("subjA")
+        persist_for("subjA", '{id:"minecraft:stone",count:64}')
         replaced = load_for("subjA")
         results["repeated_occurrence_replaces"] = (
             "PASS" if "stone" in replaced and "diamond_sword" not in replaced else f"FAIL ({replaced})"
@@ -392,21 +432,12 @@ def main() -> int:
         )
 
         print("\n== Absent item clears presence rather than leaving stale data ==")
-        run(
-            rcon_port,
-            f"data remove storage sand:__participants snap.{snap_key}",
-        )
-        persist_for("subjA")
+        persist_absent_for("subjA")
         load_for("subjA")
         results["absent_source_clears_presence"] = "PASS" if not staged_present() else "FAIL"
 
         print("\n== Survives /reload ==")
-        run(
-            rcon_port,
-            f'data modify storage sand:__participants snap.{snap_key} set value '
-            f'{{present:1b,item:{{id:"minecraft:diamond_sword",count:1}}}}',
-        )
-        persist_for("subjA")
+        persist_for("subjA", '{id:"minecraft:diamond_sword",count:1}')
         rel = run(rcon_port, "reload")
         time.sleep(3)
         results["reload"] = "PASS" if "reload" in "\n".join(rel).lower() else f"FAIL ({rel})"

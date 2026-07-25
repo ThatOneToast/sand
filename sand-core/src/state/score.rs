@@ -451,7 +451,10 @@ impl<T> ScoreVar<T> {
         holder: impl Into<sand_commands::ScoreHolder>,
     ) -> sand_commands::CommandResult<ScoreRef<'a, T>> {
         let holder = holder.into();
-        sand_commands::Validate::validate(&holder, &sand_commands::CommandProfile::unprofiled())?;
+        // `execute if/unless score <holder> ...` requires exactly one score
+        // holder — a wildcard or a multi-entity selector is not legal here,
+        // even though it is legal for `set`/`add`/`remove`/`reset`/`init`.
+        holder.validate_single(&sand_commands::CommandProfile::unprofiled())?;
         Ok(ScoreRef {
             objective: self.name,
             selector: holder.to_string(),
@@ -533,6 +536,14 @@ impl<T> ScoreVar<T> {
     /// Validated counterpart to [`ScoreVar::copy_within`] — see
     /// [`ScoreVar::try_set`]. Both the source and destination holders are
     /// validated before any command text is generated.
+    ///
+    /// `scoreboard players operation <dst> <obj> = <src> <obj>` allows
+    /// `dst` to resolve to multiple holders (the operation runs once per
+    /// holder) but requires `src` — the copy source — to resolve to exactly
+    /// one holder, matching vanilla's `scoreboard players operation`
+    /// semantics. `src_holder` is validated with
+    /// [`sand_commands::ScoreHolder::validate_single`] accordingly; a
+    /// wildcard or multi-entity selector source is rejected.
     pub fn try_copy_within(
         &self,
         src_holder: impl Into<sand_commands::ScoreHolder>,
@@ -540,10 +551,7 @@ impl<T> ScoreVar<T> {
     ) -> sand_commands::CommandResult<String> {
         let src_holder = src_holder.into();
         let dst_holder = dst_holder.into();
-        sand_commands::Validate::validate(
-            &src_holder,
-            &sand_commands::CommandProfile::unprofiled(),
-        )?;
+        src_holder.validate_single(&sand_commands::CommandProfile::unprofiled())?;
         sand_commands::Validate::validate(
             &dst_holder,
             &sand_commands::CommandProfile::unprofiled(),
@@ -1949,6 +1957,59 @@ mod tests {
         assert!(
             MANA.try_add(ScoreHolder::entity(Selector::self_()), 1)
                 .is_ok()
+        );
+    }
+
+    #[test]
+    fn try_of_rejects_wildcard_and_multi_entity_holders() {
+        // `execute if/unless score <holder> ...` requires exactly one score
+        // holder; unlike `set`/`add`/`remove`/`reset`, a wildcard or a
+        // selector matching more than one entity must be rejected rather
+        // than silently producing `execute if score * mana matches ...` /
+        // `execute if score @a mana matches ...`, which Minecraft refuses to
+        // parse.
+        use sand_commands::selector::Selector;
+        assert!(MANA.try_of(ScoreHolder::wildcard()).is_err());
+        assert!(
+            MANA.try_of(ScoreHolder::entity(Selector::all_players()))
+                .is_err()
+        );
+        assert!(
+            MANA.try_of(ScoreHolder::entity(Selector::all_entities()))
+                .is_err()
+        );
+        // Single-holder cases remain accepted.
+        assert!(MANA.try_of(ScoreHolder::self_()).is_ok());
+        assert!(MANA.try_of(ScoreHolder::player("Notch")).is_ok());
+    }
+
+    #[test]
+    fn try_copy_within_rejects_wildcard_or_multi_entity_source() {
+        // `scoreboard players operation <dst> <obj> = <src> <obj>` allows a
+        // multi-holder `dst` but requires a single-holder `src`.
+        use sand_commands::selector::Selector;
+        assert!(
+            MANA.try_copy_within(ScoreHolder::wildcard(), ScoreHolder::self_())
+                .is_err()
+        );
+        assert!(
+            MANA.try_copy_within(
+                ScoreHolder::entity(Selector::all_players()),
+                ScoreHolder::self_()
+            )
+            .is_err()
+        );
+        // A multi-holder destination is fine — only the source must be single.
+        assert!(
+            MANA.try_copy_within(ScoreHolder::self_(), ScoreHolder::wildcard())
+                .is_ok()
+        );
+        assert!(
+            MANA.try_copy_within(
+                ScoreHolder::self_(),
+                ScoreHolder::entity(Selector::all_players())
+            )
+            .is_ok()
         );
     }
 }

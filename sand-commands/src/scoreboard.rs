@@ -109,7 +109,20 @@ impl ScoreHolder {
         }
     }
 
-    pub(crate) fn validate_single(&self, profile: &CommandProfile) -> CommandResult<()> {
+    /// Validate this holder *and* require it to statically resolve to
+    /// exactly one score holder.
+    ///
+    /// Several vanilla scoreboard command shapes require a single-holder
+    /// target even though the general `<targets>` grammar allows multiple:
+    /// `execute if/unless score <holder> <obj> matches ...` and the
+    /// `<source>` half of `scoreboard players operation`. Plain
+    /// [`ScoreHolder::validate`] alone is not sufficient there — a wildcard
+    /// (`*`) or a selector matching multiple entities (`@a`, `@e`) passes
+    /// ordinary validation but is not legal in those positions. Callers
+    /// building those command shapes (in this crate or downstream, e.g.
+    /// `sand-core`'s `ScoreVar::try_of`/`PlayerSchema::try_init_player`)
+    /// should use this instead of [`ScoreHolder::validate`].
+    pub fn validate_single(&self, profile: &CommandProfile) -> CommandResult<()> {
         self.validate(profile)?;
         if self.is_single() {
             Ok(())

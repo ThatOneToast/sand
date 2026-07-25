@@ -659,7 +659,10 @@ mod tests {
         let err = find_borrowable_ancestor_path(&graph, "Child", "C").unwrap_err();
         assert!(err.contains("after_any"), "{err}");
         assert!(err.contains("A, B"), "{err}");
-        assert!(err.contains("`C` is not one of those listed parents"), "{err}");
+        assert!(
+            err.contains("`C` is not one of those listed parents"),
+            "{err}"
+        );
     }
 
     #[test]
@@ -697,7 +700,10 @@ mod tests {
         let err = find_borrowable_ancestor_path(&graph, "Child", "C").unwrap_err();
         assert!(err.contains("after_all"), "{err}");
         assert!(err.contains("A, B"), "{err}");
-        assert!(err.contains("`C` is not one of those listed parents"), "{err}");
+        assert!(
+            err.contains("`C` is not one of those listed parents"),
+            "{err}"
+        );
     }
 
     #[test]

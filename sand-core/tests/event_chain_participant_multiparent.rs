@@ -413,7 +413,8 @@ fn conflicting_same_role_bindings_from_different_sources_are_rejected_never_sile
             .inherit_entity::<AllZ>(EntityParticipantRole::Attacker)
             .build()
     });
-    let err = result.expect_err("conflicting same-role bindings must panic, never silently pick one");
+    let err =
+        result.expect_err("conflicting same-role bindings must panic, never silently pick one");
     let message = err
         .downcast_ref::<String>()
         .cloned()

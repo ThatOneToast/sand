@@ -293,6 +293,10 @@ impl Drop for ExportRegistryGuard {
 }
 
 #[cfg(test)]
+#[path = "export_registry_families.rs"]
+mod family_coverage;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 

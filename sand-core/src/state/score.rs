@@ -1,4 +1,21 @@
 //! Typed scoreboard variable — wraps a scoreboard objective for clean access.
+//!
+//! # API hierarchy (see [#146](https://github.com/ThatOneToast/sand/issues/146))
+//!
+//! 1. **Typed normal API** — `try_*` methods (e.g. [`ScoreVar::try_set`],
+//!    [`ScoreVar::try_of`]) take a typed [`sand_commands::ScoreHolder`]
+//!    (an entity selector, `@s`, a literal player name, or a `#`-prefixed
+//!    fake player) and validate it before generating any command text.
+//!    Prefer these in new code.
+//! 2. **Validated compatibility adapter** — [`sand_commands::scoreboard::Objective`]
+//!    offers the same validated surface directly against
+//!    [`sand_commands::ObjectiveName`]/[`sand_commands::ScoreHolder`] for
+//!    callers that don't need `ScoreVar`'s condition-builder ergonomics.
+//! 3. **Raw escape hatch** — the plain (infallible) methods (e.g.
+//!    [`ScoreVar::set`], [`ScoreVar::of`]) accept any `impl Display`/`&str`
+//!    and interpolate it into command text without validation. They remain
+//!    available for compatibility and for advanced/modded selector syntax
+//!    Sand cannot yet type-check.
 
 use std::collections::BTreeMap;
 use std::marker::PhantomData;
@@ -399,6 +416,11 @@ impl<T> ScoreVar<T> {
 
     /// Bind this variable to a selector to produce a condition builder.
     ///
+    /// Compatibility/raw path: `selector` is an unvalidated string,
+    /// interpolated directly into generated commands. Prefer
+    /// [`ScoreVar::try_of`] in normal code — see
+    /// [#146](https://github.com/ThatOneToast/sand/issues/146).
+    ///
     /// ```rust,ignore
     /// let cond = MANA.of("@s").gte(25);
     /// ```
@@ -408,6 +430,125 @@ impl<T> ScoreVar<T> {
             selector: selector.to_string(),
             _marker: PhantomData,
         }
+    }
+
+    /// Validated counterpart to [`ScoreVar::of`] — takes a typed
+    /// [`sand_commands::ScoreHolder`] (an entity selector or a fake player)
+    /// and validates it before producing a condition builder, instead of
+    /// interpolating an unvalidated selector string.
+    ///
+    /// ```
+    /// use sand_core::state::ScoreVar;
+    /// use sand_commands::ScoreHolder;
+    ///
+    /// static MANA: ScoreVar<i32> = ScoreVar::new("mana");
+    ///
+    /// let cond = MANA.try_of(ScoreHolder::self_()).unwrap().gte(25);
+    /// assert!(MANA.try_of(ScoreHolder::fake("bad holder")).is_err());
+    /// ```
+    pub fn try_of<'a>(
+        &'a self,
+        holder: impl Into<sand_commands::ScoreHolder>,
+    ) -> sand_commands::CommandResult<ScoreRef<'a, T>> {
+        let holder = holder.into();
+        sand_commands::Validate::validate(&holder, &sand_commands::CommandProfile::unprofiled())?;
+        Ok(ScoreRef {
+            objective: self.name,
+            selector: holder.to_string(),
+            _marker: PhantomData,
+        })
+    }
+
+    /// Validated counterpart to [`ScoreVar::set`] — takes a typed
+    /// [`sand_commands::ScoreHolder`] and validates it before generating the
+    /// `scoreboard players set` command, instead of interpolating an
+    /// unvalidated `Display` value. See
+    /// [#146](https://github.com/ThatOneToast/sand/issues/146).
+    ///
+    /// ```
+    /// use sand_core::state::ScoreVar;
+    /// use sand_commands::ScoreHolder;
+    ///
+    /// static MANA: ScoreVar<i32> = ScoreVar::new("mana");
+    ///
+    /// assert_eq!(
+    ///     MANA.try_set(ScoreHolder::self_(), 100).unwrap(),
+    ///     "scoreboard players set @s mana 100"
+    /// );
+    /// assert!(MANA.try_set(ScoreHolder::fake("bad holder"), 100).is_err());
+    /// ```
+    pub fn try_set(
+        &self,
+        holder: impl Into<sand_commands::ScoreHolder>,
+        value: i32,
+    ) -> sand_commands::CommandResult<String> {
+        let holder = holder.into();
+        sand_commands::Validate::validate(&holder, &sand_commands::CommandProfile::unprofiled())?;
+        Ok(self.set(holder.to_string(), value))
+    }
+
+    /// Validated counterpart to [`ScoreVar::add`] — see [`ScoreVar::try_set`].
+    pub fn try_add(
+        &self,
+        holder: impl Into<sand_commands::ScoreHolder>,
+        amount: i32,
+    ) -> sand_commands::CommandResult<String> {
+        let holder = holder.into();
+        sand_commands::Validate::validate(&holder, &sand_commands::CommandProfile::unprofiled())?;
+        Ok(self.add(holder.to_string(), amount))
+    }
+
+    /// Validated counterpart to [`ScoreVar::remove`] — see [`ScoreVar::try_set`].
+    pub fn try_remove(
+        &self,
+        holder: impl Into<sand_commands::ScoreHolder>,
+        amount: i32,
+    ) -> sand_commands::CommandResult<String> {
+        let holder = holder.into();
+        sand_commands::Validate::validate(&holder, &sand_commands::CommandProfile::unprofiled())?;
+        Ok(self.remove(holder.to_string(), amount))
+    }
+
+    /// Validated counterpart to [`ScoreVar::reset`] — see [`ScoreVar::try_set`].
+    pub fn try_reset(
+        &self,
+        holder: impl Into<sand_commands::ScoreHolder>,
+    ) -> sand_commands::CommandResult<String> {
+        let holder = holder.into();
+        sand_commands::Validate::validate(&holder, &sand_commands::CommandProfile::unprofiled())?;
+        Ok(self.reset(holder.to_string()))
+    }
+
+    /// Validated counterpart to [`ScoreVar::init`] — see [`ScoreVar::try_set`].
+    pub fn try_init(
+        &self,
+        holder: impl Into<sand_commands::ScoreHolder>,
+        value: i32,
+    ) -> sand_commands::CommandResult<String> {
+        let holder = holder.into();
+        sand_commands::Validate::validate(&holder, &sand_commands::CommandProfile::unprofiled())?;
+        Ok(self.init(holder.to_string(), value))
+    }
+
+    /// Validated counterpart to [`ScoreVar::copy_within`] — see
+    /// [`ScoreVar::try_set`]. Both the source and destination holders are
+    /// validated before any command text is generated.
+    pub fn try_copy_within(
+        &self,
+        src_holder: impl Into<sand_commands::ScoreHolder>,
+        dst_holder: impl Into<sand_commands::ScoreHolder>,
+    ) -> sand_commands::CommandResult<String> {
+        let src_holder = src_holder.into();
+        let dst_holder = dst_holder.into();
+        sand_commands::Validate::validate(
+            &src_holder,
+            &sand_commands::CommandProfile::unprofiled(),
+        )?;
+        sand_commands::Validate::validate(
+            &dst_holder,
+            &sand_commands::CommandProfile::unprofiled(),
+        )?;
+        Ok(self.copy_within(src_holder.to_string(), dst_holder.to_string()))
     }
 
     /// Initialize the score to `value` only if the selector has no existing score entry.
@@ -1715,6 +1856,99 @@ mod tests {
                 "execute if score @s mana matches ..-1 run scoreboard players set @s mana 0",
                 "execute if score @s mana matches 101.. run scoreboard players set @s mana 100",
             ]
+        );
+    }
+
+    // ── #146: typed ScoreHolder-validated API ─────────────────────────────
+
+    use sand_commands::ScoreHolder;
+
+    #[test]
+    fn try_set_matches_infallible_set_for_valid_holder() {
+        assert_eq!(
+            MANA.try_set(ScoreHolder::self_(), 100).unwrap(),
+            MANA.set("@s", 100)
+        );
+    }
+
+    #[test]
+    fn try_add_try_remove_try_reset_match_infallible_variants() {
+        assert_eq!(
+            MANA.try_add(ScoreHolder::self_(), 5).unwrap(),
+            MANA.add("@s", 5)
+        );
+        assert_eq!(
+            MANA.try_remove(ScoreHolder::self_(), 5).unwrap(),
+            MANA.remove("@s", 5)
+        );
+        assert_eq!(
+            MANA.try_reset(ScoreHolder::self_()).unwrap(),
+            MANA.reset("@s")
+        );
+    }
+
+    #[test]
+    fn try_init_matches_infallible_init() {
+        assert_eq!(
+            MANA.try_init(ScoreHolder::self_(), 100).unwrap(),
+            MANA.init("@s", 100)
+        );
+    }
+
+    #[test]
+    fn try_copy_within_matches_infallible_copy_within() {
+        assert_eq!(
+            MANA.try_copy_within(ScoreHolder::self_(), ScoreHolder::player("Notch"))
+                .unwrap(),
+            MANA.copy_within("@s", "Notch")
+        );
+    }
+
+    #[test]
+    fn try_of_matches_infallible_of() {
+        let cond = MANA.try_of(ScoreHolder::self_()).unwrap().gte(25);
+        assert_eq!(cond, MANA.of("@s").gte(25));
+    }
+
+    #[test]
+    fn typed_holder_apis_reject_invalid_fake_player_holders() {
+        // A fake-player holder with whitespace is not valid vanilla
+        // score-holder syntax; the typed path must reject it rather than
+        // silently emit malformed mcfunction output.
+        let bad = ScoreHolder::fake("bad holder");
+        assert!(MANA.try_set(bad.clone(), 1).is_err());
+        assert!(MANA.try_add(bad.clone(), 1).is_err());
+        assert!(MANA.try_remove(bad.clone(), 1).is_err());
+        assert!(MANA.try_reset(bad.clone()).is_err());
+        assert!(MANA.try_init(bad.clone(), 1).is_err());
+        assert!(
+            MANA.try_copy_within(bad.clone(), ScoreHolder::self_())
+                .is_err()
+        );
+        assert!(
+            MANA.try_copy_within(ScoreHolder::self_(), bad.clone())
+                .is_err()
+        );
+        assert!(MANA.try_of(bad).is_err());
+    }
+
+    #[test]
+    fn typed_holder_apis_accept_fake_players_and_wildcards() {
+        assert!(MANA.try_set(ScoreHolder::fake("#total_kills"), 0).is_ok());
+        assert!(MANA.try_reset(ScoreHolder::wildcard()).is_ok());
+        assert!(MANA.try_set(ScoreHolder::player("Notch"), 1).is_ok());
+    }
+
+    #[test]
+    fn typed_holder_apis_accept_entity_selectors() {
+        use sand_commands::selector::Selector;
+        assert!(
+            MANA.try_set(ScoreHolder::entity(Selector::all_players()), 1)
+                .is_ok()
+        );
+        assert!(
+            MANA.try_add(ScoreHolder::entity(Selector::self_()), 1)
+                .is_ok()
         );
     }
 }

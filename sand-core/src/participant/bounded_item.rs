@@ -311,22 +311,24 @@ fn reset_to_absence(base: &NbtRef<UntypedNbt>) -> Vec<String> {
     ]
 }
 
-/// Copy `src`'s item into `dest`, presence-gated on `present_guard`, and mark
-/// `dest` present under the same guard.
+/// Emit `copy_command` and the matching presence mark, both gated on
+/// `present_guard`.
 ///
-/// Both emitted commands are built from one shared guard value so they can
-/// never drift apart — the same invariant
+/// `copy_command` is passed in rather than built here so the persist path can
+/// route through [`ItemSnapshot::copy_to_nbt`] (#267's typed copy API, which
+/// #272 is specified in terms of) while the load path — which copies storage
+/// to storage and has no [`ItemSnapshot`] in hand — uses the same underlying
+/// [`NbtRef`] primitive directly. Both still share this one guard value, so
+/// the copy and the mark can never drift apart — the same invariant
 /// [`ItemSnapshot::capture`](crate::item::ItemSnapshot::capture) maintains
 /// via its own single `presence_execute`.
 fn gated_copy(
     present_guard: &crate::condition::Condition,
-    src_item: &NbtRef<UntypedNbt>,
+    copy_command: String,
     dest: &NbtRef<UntypedNbt>,
 ) -> Vec<String> {
     let mut commands = Vec::new();
-    commands.extend(
-        present_guard.execute_commands(false, &dest.field("item").copy_from(src_item).to_string()),
-    );
+    commands.extend(present_guard.execute_commands(false, &copy_command));
     commands.extend(
         present_guard.execute_commands(false, &dest.field("present").set_value(true).to_string()),
     );
@@ -371,7 +373,11 @@ fn as_macro_lines(commands: Vec<String>) -> Vec<String> {
 pub(crate) fn persist_macro_body(schema: &BoundedItemSchema, source: &ItemSnapshot) -> Vec<String> {
     let dest = schema.subject_base();
     let mut commands = reset_to_absence(&dest);
-    commands.extend(gated_copy(&source.is_present(), &source.item_path(), &dest));
+    commands.extend(gated_copy(
+        &source.is_present(),
+        source.copy_to_nbt(&dest.field("item")),
+        &dest,
+    ));
     as_macro_lines(commands)
 }
 
@@ -390,7 +396,11 @@ pub(crate) fn load_macro_body(schema: &BoundedItemSchema) -> Vec<String> {
         path: NbtPath::raw(format!("{}{{present:1b}}", src.path_value().as_str())),
     };
     let mut commands = reset_to_absence(&dest);
-    commands.extend(gated_copy(&present_guard, &src.field("item"), &dest));
+    commands.extend(gated_copy(
+        &present_guard,
+        dest.field("item").copy_from(&src.field("item")).to_string(),
+        &dest,
+    ));
     as_macro_lines(commands)
 }
 

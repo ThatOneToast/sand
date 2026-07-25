@@ -406,6 +406,9 @@ fn validate_one(
 /// `.within::<source_event>(window)` bounded dependency.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct BoundedItemTransport {
+    /// The event that declared `inherit_item_within` — i.e. the consumer
+    /// whose dispatch function needs a generated load call (#272).
+    pub(crate) child_event: &'static str,
     pub(crate) source_event: &'static str,
     pub(crate) role: ItemParticipantRole,
     pub(crate) hand: ParticipantHand,
@@ -492,6 +495,7 @@ pub(crate) fn validate_bounded_item_transport(
             }
 
             transports.push(BoundedItemTransport {
+                child_event,
                 source_event,
                 role,
                 hand,

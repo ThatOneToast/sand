@@ -1206,7 +1206,7 @@ pub(crate) fn try_export_components_impl(
                 .or_insert(0);
             *entry = (*entry).max(transport.window.ticks());
         }
-        // Persist commands, keyed by *source* event type name — spliced
+        // Persist call lines, keyed by *source* event type name — spliced
         // into that node's own dispatch function immediately after its
         // occurrence mark (see `build_dispatch_function`'s #272 comment).
         let mut bounded_item_persist: BTreeMap<String, Vec<String>> = BTreeMap::new();
@@ -1214,23 +1214,115 @@ pub(crate) fn try_export_components_impl(
         // appended to that source's own per-player age-update block in the
         // staged coordinator below (`bounded_age_update`).
         let mut bounded_item_expire: BTreeMap<String, Vec<String>> = BTreeMap::new();
+        // Load (stage-into-scratch) call lines, keyed by *consuming child*
+        // event type name — prepended to that child's own dispatch function
+        // so its handler body can read the snapshot through the static
+        // accessor paths. See `bounded_item`'s "Read side" module doc.
+        let mut bounded_item_load: BTreeMap<String, Vec<String>> = BTreeMap::new();
+
+        let slot_alloc_path = "__sand_bounded_item_slot_alloc".to_string();
+        let slot_alloc_function = format!("{namespace}:{slot_alloc_path}");
+        if !bounded_item_transports.is_empty() {
+            // One shared allocator and one shared slot objective for the
+            // whole pack — subject identity is a property of the player, not
+            // of any particular bounded entry.
+            records.push(ComponentRecord {
+                namespace: namespace.to_string(),
+                dir: "function".to_string(),
+                path: slot_alloc_path,
+                ext: "mcfunction".to_string(),
+                content_type: "text".to_string(),
+                content: crate::participant::bounded_item::slot_alloc_body().join("\n"),
+            });
+            let setup_path = "__sand_bounded_item_setup".to_string();
+            records.push(ComponentRecord {
+                namespace: namespace.to_string(),
+                dir: "function".to_string(),
+                path: setup_path.clone(),
+                ext: "mcfunction".to_string(),
+                content_type: "text".to_string(),
+                content: crate::participant::bounded_item::slot_objective_definition(),
+            });
+            tag_map
+                .entry("minecraft:load".to_string())
+                .or_default()
+                .push(format!("{namespace}:{setup_path}"));
+        }
+
         for (&(source_event, role, hand), &max_window) in &bounded_item_max_window {
             let schema =
                 crate::participant::bounded_item::BoundedItemSchema::new(source_event, role, hand);
             let source_snapshot =
                 crate::participant::plan::resolve_direct_item_snapshot(source_event, role, hand);
-            bounded_item_persist
-                .entry(source_event.to_string())
-                .or_default()
-                .extend(crate::participant::bounded_item::persist_commands(
+            // Taken from the schema itself rather than re-derived, so the
+            // generated function paths can never drift from the storage
+            // paths inside them.
+            let entry_key = schema.key().to_string();
+
+            // --- persist: macro function + its call site -------------------
+            let persist_path = format!("__sand_event_bounded_item_persist/{entry_key}");
+            records.push(ComponentRecord {
+                namespace: namespace.to_string(),
+                dir: "function".to_string(),
+                path: persist_path.clone(),
+                ext: "mcfunction".to_string(),
+                content_type: "text".to_string(),
+                content: crate::participant::bounded_item::persist_macro_body(
                     &schema,
                     &source_snapshot,
-                ));
+                )
+                .join("\n"),
+            });
+            let persist_lines = bounded_item_persist
+                .entry(source_event.to_string())
+                .or_default();
+            persist_lines.extend(crate::participant::bounded_item::bind_subject_commands(
+                &slot_alloc_function,
+            ));
+            persist_lines.push(crate::participant::bounded_item::call_macro(&format!(
+                "{namespace}:{persist_path}"
+            )));
 
+            // --- load: macro function + per-consumer call site -------------
+            let load_path = format!("__sand_event_bounded_item_load/{entry_key}");
+            records.push(ComponentRecord {
+                namespace: namespace.to_string(),
+                dir: "function".to_string(),
+                path: load_path.clone(),
+                ext: "mcfunction".to_string(),
+                content_type: "text".to_string(),
+                content: crate::participant::bounded_item::load_macro_body(&schema).join("\n"),
+            });
+            for transport in &bounded_item_transports {
+                if (transport.source_event, transport.role, transport.hand)
+                    != (source_event, role, hand)
+                {
+                    continue;
+                }
+                let load_lines = bounded_item_load
+                    .entry(transport.child_event.to_string())
+                    .or_default();
+                load_lines.extend(crate::participant::bounded_item::bind_subject_for_read());
+                load_lines.push(crate::participant::bounded_item::call_macro(&format!(
+                    "{namespace}:{load_path}"
+                )));
+            }
+
+            // --- expiry: macro function, its non-macro caller, and the
+            //     guarded per-player line that reaches it -------------------
             let source_key = tick_event_resource_key(source_event);
             let expire_key = tick_event_resource_key(&format!(
                 "{source_event}::bounded_item_expire::{role:?}::{hand:?}"
             ));
+            let expire_macro_path = format!("__sand_event_bounded_item_expire_m/{expire_key}");
+            records.push(ComponentRecord {
+                namespace: namespace.to_string(),
+                dir: "function".to_string(),
+                path: expire_macro_path.clone(),
+                ext: "mcfunction".to_string(),
+                content_type: "text".to_string(),
+                content: crate::participant::bounded_item::expire_macro_body(&schema).join("\n"),
+            });
             let expire_path = format!("__sand_event_bounded_item_expire/{expire_key}");
             records.push(ComponentRecord {
                 namespace: namespace.to_string(),
@@ -1238,15 +1330,26 @@ pub(crate) fn try_export_components_impl(
                 path: expire_path.clone(),
                 ext: "mcfunction".to_string(),
                 content_type: "text".to_string(),
-                content: crate::participant::bounded_item::expire_commands(&schema).join("\n"),
+                content: [
+                    crate::participant::bounded_item::store_subject_command(),
+                    crate::participant::bounded_item::call_macro(&format!(
+                        "{namespace}:{expire_macro_path}"
+                    )),
+                ]
+                .join("\n"),
             });
             bounded_item_expire
                 .entry(source_event.to_string())
                 .or_default()
                 .push(format!(
-                    "execute as @a if score @s se_{source_key}_wa matches {max_window} run function {namespace}:{expire_path}"
+                    "execute as @a {} if score @s se_{source_key}_wa matches {max_window} run function {namespace}:{expire_path}",
+                    crate::participant::bounded_item::has_slot_guard()
                 ));
         }
+        let bounded_item_codegen = super::events::BoundedItemCodegen {
+            persist: &bounded_item_persist,
+            load: &bounded_item_load,
+        };
 
         let staged_events = graph
             .staged_events()
@@ -1376,7 +1479,7 @@ pub(crate) fn try_export_components_impl(
                     self_guard.as_deref(),
                     &occurrence_marked,
                     &mut guarded_children,
-                    &bounded_item_persist,
+                    bounded_item_codegen,
                     &mut records,
                 ))
             } else {
@@ -1396,7 +1499,7 @@ pub(crate) fn try_export_components_impl(
                 &occurrence_marked,
                 ChildPostObservation::DeferredByOccurrence,
                 &mut guarded_children,
-                &bounded_item_persist,
+                bounded_item_codegen,
                 &mut records,
             );
             let key = tick_event_resource_key(&staged.child);
@@ -1714,8 +1817,10 @@ pub(crate) fn try_export_components_impl(
                 // `bounded_item_max_window` above). Appended after the
                 // increment line above so it observes the just-incremented
                 // age, still within this same per-player `execute as @a`
-                // pass (entity NBT reset is safe here, unlike a read of the
-                // transient global `ItemSnapshot` storage would be).
+                // pass — which is what lets the expiry function bind `@s`'s
+                // own subject slot. Guarded on the subject actually having a
+                // slot, so players who never sourced this event are skipped
+                // rather than addressing the unallocated slot `0`.
                 if let Some(expire) = bounded_item_expire.get(name) {
                     lines.extend(expire.iter().cloned());
                 }
@@ -1811,7 +1916,7 @@ pub(crate) fn try_export_components_impl(
                     &occurrence_marked,
                     ChildPostObservation::Inline,
                     &mut guarded_children,
-                    &bounded_item_persist,
+                    bounded_item_codegen,
                     &mut records,
                 ));
             }

@@ -399,7 +399,7 @@ impl EventParticipantPlan {
     ///
     /// Unlike [`Self::inherit_item`], this is sound *specifically because*
     /// it does not borrow a same-cycle reference: the export pipeline
-    /// generates an owned copy into per-subject entity NBT storage the
+    /// generates an owned copy into per-subject command storage the
     /// moment `Source` occurs (reusing `Source`'s own `.within(...)` age
     /// counter for freshness — see
     /// `sand-core/src/participant/bounded_item.rs`), so the value is still
@@ -1345,9 +1345,9 @@ mod tests {
             ItemParticipantRole::Weapon,
             ParticipantHand::MainHand,
         );
-        // Different storage kinds (per-subject entity NBT vs. the source's
-        // own transient global command storage) but derived from the exact
-        // same source label/role/hand triple.
+        // Different storage (the bounded copy's staged per-subject path vs.
+        // the source's own transient global snapshot path) but derived from
+        // the exact same source label/role/hand triple.
         assert_ne!(bounded.item_path().as_str(), direct.item_path().as_str());
     }
 

@@ -12,6 +12,25 @@ use super::ExportCtx;
 use super::records::{ComponentRecord, ExportResult};
 use crate::component::ComponentExportError;
 
+/// The two generated bounded item-transport (#272) command sets a dispatch
+/// function may need to splice, keyed by event type name.
+///
+/// Bundled rather than passed as two more positional arguments because
+/// `build_dispatch_function`/`build_child_edge` already carry every other
+/// piece of graph-wide context they need, and the two maps are only ever
+/// meaningful together.
+#[derive(Clone, Copy)]
+pub(crate) struct BoundedItemCodegen<'a> {
+    /// Keyed by *source* event type name: bind the subject slot and invoke
+    /// the persist macro function, spliced right after that source's
+    /// occurrence mark.
+    pub(crate) persist: &'a std::collections::BTreeMap<String, Vec<String>>,
+    /// Keyed by *consuming child* event type name: bind the subject slot and
+    /// invoke the load macro function, prepended to that child's dispatch so
+    /// its handler body can read the staged snapshot.
+    pub(crate) load: &'a std::collections::BTreeMap<String, Vec<String>>,
+}
+
 pub(crate) fn xp_score_commands() -> Vec<String> {
     vec![
         "execute as @a store result score @s __sand_xp_lvl run experience query @s levels"
@@ -99,7 +118,7 @@ pub(crate) fn build_dispatch_function(
     self_guard: Option<&str>,
     occurrence_marked: &std::collections::BTreeSet<String>,
     guarded_children: &mut std::collections::BTreeSet<String>,
-    bounded_item_persist: &std::collections::BTreeMap<String, Vec<String>>,
+    bounded_item: BoundedItemCodegen<'_>,
     records: &mut Vec<ComponentRecord>,
 ) -> String {
     let node = &graph.nodes[name];
@@ -107,16 +126,29 @@ pub(crate) fn build_dispatch_function(
     let children = graph.children_of(name);
 
     let records_occurrence = occurrence_marked.contains(name);
+    // #272: a node that consumes a bounded item snapshot always needs the
+    // wrapper, even with a single handler and no children — the load call
+    // has to run before that handler, so there is nowhere else to put it.
+    let bounded_item_load = bounded_item.load.get(node.type_name);
     let needs_wrapper = node.handlers.len() != 1
         || !children.is_empty()
         || self_guard.is_some()
-        || records_occurrence;
+        || records_occurrence
+        || bounded_item_load.is_some();
 
     if !needs_wrapper {
         return format!("{namespace}:{}", node.handlers[0]);
     }
 
     let mut cmds: Vec<String> = Vec::new();
+    // #272: stage this subject's persisted bounded snapshot(s) into the
+    // static scratch path the read accessors name, before anything in this
+    // node's own call tree can read them. First in the function body, ahead
+    // of the occurrence mark, because a node may legitimately be both a
+    // consumer of one bounded entry and the source of another.
+    if let Some(load) = bounded_item_load {
+        cmds.extend(load.iter().cloned());
+    }
     if records_occurrence {
         cmds.push(format!("scoreboard players set @s se_{key}_o 1"));
         // #272: persist any bounded item transport(s) sourced from this
@@ -127,7 +159,7 @@ pub(crate) fn build_dispatch_function(
         // only when its own occurrence genuinely just happened (this line
         // only runs when it did), giving repeated-occurrence replacement
         // semantics for free.
-        if let Some(extra) = bounded_item_persist.get(node.type_name) {
+        if let Some(extra) = bounded_item.persist.get(node.type_name) {
             cmds.extend(extra.iter().cloned());
         }
     }
@@ -153,7 +185,7 @@ pub(crate) fn build_dispatch_function(
             occurrence_marked,
             post_observation,
             guarded_children,
-            bounded_item_persist,
+            bounded_item,
             records,
         ));
     }
@@ -189,7 +221,7 @@ pub(crate) fn build_child_edge(
     occurrence_marked: &std::collections::BTreeSet<String>,
     post_observation: ChildPostObservation,
     guarded_children: &mut std::collections::BTreeSet<String>,
-    bounded_item_persist: &std::collections::BTreeMap<String, Vec<String>>,
+    bounded_item: BoundedItemCodegen<'_>,
     records: &mut Vec<ComponentRecord>,
 ) -> String {
     let child_node = &graph.nodes[&edge.child];
@@ -200,7 +232,7 @@ pub(crate) fn build_child_edge(
         None,
         occurrence_marked,
         guarded_children,
-        bounded_item_persist,
+        bounded_item,
         records,
     );
     let has_lifecycle = !child_node.setup.pre_observation.is_empty()

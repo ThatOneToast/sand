@@ -399,12 +399,17 @@ impl ItemSnapshot {
 
     /// Generalized form of [`Self::copy_to`]: copy the captured item
     /// compound into any caller-supplied [`NbtRef`] destination, not just a
-    /// command-storage [`StorageField`] — e.g. per-entity NBT on a specific
-    /// selector, the mechanism
+    /// command-storage [`StorageField`] — e.g. a raw path inside a macro
+    /// line, which is how
     /// [`crate::participant::EventParticipantPlan::inherit_item_within`]
-    /// (#272) uses to give a bounded, per-subject copy of this snapshot
-    /// genuine per-player isolation (command storage has no native
-    /// per-player keying; entity NBT does).
+    /// (#272) writes a bounded, per-subject copy of this snapshot: command
+    /// storage has no native per-player keying, so that feature supplies it
+    /// explicitly via a macro-substituted subject slot.
+    ///
+    /// Note entity NBT is *not* a usable destination for arbitrary custom
+    /// keys — vanilla silently drops those writes (see
+    /// `crate::participant::bounded_item`'s module doc for the live
+    /// transcript). Use it only for vanilla-recognized fields.
     pub fn copy_to_nbt<T>(&self, dest: &NbtRef<T>) -> String {
         dest.copy_from(&self.item_path()).to_string()
     }

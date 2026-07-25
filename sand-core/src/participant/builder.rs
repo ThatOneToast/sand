@@ -147,11 +147,36 @@
 //! handler, one chained via `after`/`chain` for the composition) if both
 //! are genuinely needed.
 //!
+//! # `after_any`/`after_all` multi-parent composition (#271)
+//!
+//! `inherit_entity`/`inherit_item` may name any one of an `after_any`/
+//! `after_all` group's own listed parents directly — the child does not
+//! need to know or guess which alternative actually supplied a given
+//! tick's occurrence, because the reference it generates addresses the
+//! named parent's own tag/storage by type identity, not by which branch
+//! fired: if the named parent fired this tick, the reference is valid for
+//! the child's entire execution (cleanup is deferred until after every
+//! synchronous descendant); if a *different* `after_any` alternative
+//! supplied the occurrence instead, the named parent's own tag simply does
+//! not exist this tick, so the accessor legitimately resolves to "not
+//! present" rather than a wrong or stale entity. Only a *direct*, one-hop
+//! membership check is performed — an `after_any`/`after_all` boundary is
+//! never walked past to reach a grandparent (transitive inheritance is
+//! never supported, with or without fan-in). See
+//! `sand-core/src/compiler/export/participant_transport.rs`'s module doc
+//! for the full soundness argument, and
+//! `sand-core/tests/event_chain_participant_multiparent.rs` for the tested
+//! shape matrix (distinct roles from different parents, two parents
+//! independently declaring the same role with one named explicitly,
+//! reversed registration order, simultaneous fan-in, nested descendants,
+//! entity and item participants). A single plan can never declare two
+//! *competing* bindings for the same role regardless of how many sources
+//! are reachable — [`EventParticipantPlan::validate`] rejects a duplicate
+//! role within one plan unconditionally, which is what actually prevents a
+//! silent arbitrary pick between two same-role sources.
+//!
 //! # Unsupported graph shapes
 //!
-//! - Inheriting through `after_any`/`after_all` fan-in is rejected — which
-//!   parent actually supplied the occurrence is not determinable from
-//!   generated commands today (#271).
 //! - Entity participants cannot be inherited across a `.within(...)` bounded
 //!   window — a same-cycle borrowed reference cannot outlive the tick its
 //!   source's temporary tag exists in.

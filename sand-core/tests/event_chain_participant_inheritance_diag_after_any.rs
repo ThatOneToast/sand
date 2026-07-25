@@ -1,8 +1,16 @@
-//! Export-time rejection coverage for `inherit_entity`/`inherit_item`
-//! declarations whose edge shape cannot honestly carry a same-cycle
-//! borrowed participant (#264) — proven through the *real* export
-//! pipeline, not just the isolated unit tests in
+//! Export-time coverage for `inherit_entity`/`inherit_item` declarations
+//! reached through `after_any` fan-in (#271) — proven through the *real*
+//! export pipeline, not just the isolated unit tests in
 //! `sand-core/src/compiler/export/participant_transport.rs`.
+//!
+//! As of #271, naming one of the `after_any` group's own listed parents
+//! directly is valid (see that module's doc for why this is always sound
+//! regardless of which sibling alternative actually supplies a given
+//! tick's occurrence). What remains rejected is naming a source that is
+//! *not* one of the group's listed parents at all — see
+//! `event_chain_participant_multiparent.rs` for the full accepted-shape
+//! matrix (distinct roles, compatible same-role bindings, reversed
+//! registration order, simultaneous fan-in, nested/entity/item coverage).
 
 use sand_core::condition::Condition;
 use sand_core::events::{
@@ -75,7 +83,7 @@ macro_rules! submit_handler {
     };
 }
 
-// ── Scenario 1: multi-parent (after_any) fan-in breaks the chain ───────────
+// ── Scenario: after_any fan-in, inherit from a non-member source ───────────
 
 struct MultiParentA;
 impl SandEvent for MultiParentA {
@@ -100,13 +108,28 @@ impl SandEvent for MultiParentB {
 }
 submit_handler!(MultiParentB, "on_multi_parent_b", "say b fired");
 
+// Not a member of AfterAnyChild's after_any group at all — naming it must
+// still fail, with a diagnostic identifying exactly why.
+struct Unrelated;
+impl SandEvent for Unrelated {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        SandEventDispatch::tick()
+            .as_players()
+            .when(Condition::raw("score @s p264d_u matches 1"))
+    }
+    fn participants() -> EventParticipantPlan {
+        EventParticipantPlan::new().observe_correlated_attacker()
+    }
+}
+submit_handler!(Unrelated, "on_unrelated", "say unrelated fired");
+
 struct AfterAnyChild;
 impl SandEvent for AfterAnyChild {
     fn dispatch() -> impl Into<SandEventDispatch> {
         SandEventDispatch::compose().after_any::<(MultiParentA, MultiParentB)>()
     }
     fn participants() -> EventParticipantPlan {
-        EventParticipantPlan::new().inherit_entity::<MultiParentA>(EntityParticipantRole::Attacker)
+        EventParticipantPlan::new().inherit_entity::<Unrelated>(EntityParticipantRole::Attacker)
     }
 }
 submit_handler!(
@@ -118,17 +141,15 @@ submit_handler!(
 // ── Test ────────────────────────────────────────────────────────────────
 
 #[test]
-fn after_any_fan_in_is_rejected_with_an_actionable_diagnostic() {
+fn after_any_fan_in_from_a_non_member_source_is_rejected_with_an_actionable_diagnostic() {
     let err = sand_core::try_export_components_json("diagpack_after_any").unwrap_err();
     let message = err.to_string();
     assert!(
-        message.contains("MultiParentA") && message.contains("AfterAnyChild"),
-        "diagnostic must name both the source and the child: {message}"
+        message.contains("Unrelated") && message.contains("AfterAnyChild"),
+        "diagnostic must name both the requested source and the child: {message}"
     );
     assert!(
-        message.contains("after_any")
-            || message.contains("multi-parent")
-            || message.contains("fan-in"),
-        "diagnostic must explain the multi-parent reason: {message}"
+        message.contains("after_any") && message.contains("not one of those listed parents"),
+        "diagnostic must explain that the named source is not a member of the after_any group: {message}"
     );
 }

@@ -14,7 +14,7 @@
 //!
 //! ```
 //! use sand_components::chat_type::{ChatDecoration, ChatDecorationParameter, ChatStyle, ChatType};
-//! use sand_components::ResourceLocation;
+//! use sand_components::{DatapackComponent, ResourceLocation};
 //! use sand_commands::ChatColor;
 //!
 //! let chat = ChatDecoration::new("chat.type.text")

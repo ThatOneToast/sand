@@ -92,41 +92,46 @@ pub fn drain_dialog_callbacks() -> Vec<(u32, String)> {
 }
 
 /// Identifier accepted by dialog constructors.
+///
+/// Stores the raw `namespace:path` string without parsing it — invalid
+/// identifiers never panic here. They are instead validated (and reported as
+/// an actionable [`crate::error::SandError::ComponentValidation`] diagnostic)
+/// when the owning [`Dialog`] is validated, so a bad ID surfaces at the same
+/// export boundary as every other dialog invariant instead of during
+/// builder/construction.
 #[derive(Debug, Clone)]
-pub struct DialogId(ResourceLocation);
+pub struct DialogId(String);
 
 impl DialogId {
     pub fn local(path: impl AsRef<str>) -> Self {
-        Self(
-            ResourceLocation::new(SAND_LOCAL_NS, path).expect("invalid local dialog resource path"),
-        )
+        Self(format!("{SAND_LOCAL_NS}:{}", path.as_ref()))
     }
 
     pub fn external(location: impl AsRef<str>) -> Self {
         Self::from(location.as_ref())
     }
 
-    fn into_location(self) -> ResourceLocation {
+    fn into_raw(self) -> String {
         self.0
     }
 }
 
 impl From<ResourceLocation> for DialogId {
     fn from(value: ResourceLocation) -> Self {
-        Self(value)
+        Self(value.to_string())
     }
 }
 
 impl From<&ResourceLocation> for DialogId {
     fn from(value: &ResourceLocation) -> Self {
-        Self(value.clone())
+        Self(value.to_string())
     }
 }
 
 impl From<&str> for DialogId {
     fn from(value: &str) -> Self {
         if value.contains(':') {
-            Self(value.parse().expect("invalid dialog resource location"))
+            Self(value.to_string())
         } else {
             Self::local(value)
         }
@@ -137,6 +142,16 @@ impl From<String> for DialogId {
     fn from(value: String) -> Self {
         Self::from(value.as_str())
     }
+}
+
+/// Validate a raw `namespace:path` resource reference string.
+///
+/// Used to validate dialog IDs, `open_dialog` targets, and function/callback
+/// paths at [`Dialog::validate`] time rather than at construction time.
+fn validate_resource_ref(raw: &str) -> std::result::Result<(), String> {
+    raw.parse::<ResourceLocation>()
+        .map(|_| ())
+        .map_err(|error| error.to_string())
 }
 
 #[derive(Debug, Clone)]
@@ -226,42 +241,36 @@ where
     None
 }
 
+/// Converts a value into a raw dialog function-reference path.
+///
+/// Raw `&str`/`String` and [`ResourceLocation`] paths are stored as given —
+/// they are **not** validated here. Invalid function/callback paths are
+/// instead rejected as an actionable diagnostic when the owning [`Dialog`]
+/// is validated, so a malformed `run_function`/`callback` target never
+/// silently becomes generated `function` command content.
 pub trait IntoDialogFunctionRef {
-    fn into_dialog_function_command(self) -> String;
     fn into_dialog_function_path(self) -> String;
 }
 
 impl IntoDialogFunctionRef for ResourceLocation {
-    fn into_dialog_function_command(self) -> String {
-        format!("/function {self}")
-    }
     fn into_dialog_function_path(self) -> String {
         self.to_string()
     }
 }
 
 impl IntoDialogFunctionRef for &ResourceLocation {
-    fn into_dialog_function_command(self) -> String {
-        format!("/function {self}")
-    }
     fn into_dialog_function_path(self) -> String {
         self.to_string()
     }
 }
 
 impl IntoDialogFunctionRef for &str {
-    fn into_dialog_function_command(self) -> String {
-        format!("/function {self}")
-    }
     fn into_dialog_function_path(self) -> String {
         self.to_string()
     }
 }
 
 impl IntoDialogFunctionRef for String {
-    fn into_dialog_function_command(self) -> String {
-        format!("/function {}", self)
-    }
     fn into_dialog_function_path(self) -> String {
         self
     }
@@ -271,26 +280,25 @@ impl<F> IntoDialogFunctionRef for F
 where
     F: Fn() -> Vec<String> + Copy + 'static,
 {
-    fn into_dialog_function_command(self) -> String {
-        if let Some(path) = registered_path_for_function_value(self) {
-            return format!("/function {}", local_id_for_path(path));
-        }
-        panic!(
-            "unregistered function pointer: the function must be annotated with \
-             #[function] or #[function(\"path\")] to be used in DialogAction::run_function()"
-        )
-    }
     fn into_dialog_function_path(self) -> String {
         if let Some(path) = registered_path_for_function_value(self) {
             return local_id_for_path(path);
         }
         panic!(
             "unregistered function pointer: the function must be annotated with \
-             #[function] or #[function(\"path\")] to be used in DialogAction::callback()"
+             #[function] or #[function(\"path\")] to be used in DialogAction::run_function() \
+             or DialogAction::callback()"
         )
     }
 }
 
+/// Converts a value into a raw dialog reference (target of `open_dialog`, or
+/// a [`DialogTag`] entry).
+///
+/// Raw `&str`/`String` and [`DialogId`] values are stored as given — they
+/// are **not** validated here. Invalid dialog references are instead
+/// rejected as an actionable diagnostic when the owning [`Dialog`] is
+/// validated.
 pub trait IntoDialogRef {
     fn into_dialog_ref(self) -> String;
 }
@@ -309,19 +317,19 @@ impl IntoDialogRef for &ResourceLocation {
 
 impl IntoDialogRef for DialogId {
     fn into_dialog_ref(self) -> String {
-        self.into_location().to_string()
+        self.into_raw()
     }
 }
 
 impl IntoDialogRef for &str {
     fn into_dialog_ref(self) -> String {
-        DialogId::from(self).into_location().to_string()
+        DialogId::from(self).into_raw()
     }
 }
 
 impl IntoDialogRef for String {
     fn into_dialog_ref(self) -> String {
-        DialogId::from(self).into_location().to_string()
+        DialogId::from(self).into_raw()
     }
 }
 
@@ -385,6 +393,53 @@ impl DialogTag {
     }
 }
 
+// ── DialogItemRef ────────────────────────────────────────────────────────────
+
+/// A typed item reference accepted by [`DialogBody::item`] /
+/// [`DialogBody::item_sized`].
+///
+/// Accepts raw `&str`/`String` item IDs (escape hatch, validated at
+/// [`Dialog::validate`] time), [`ResourceLocation`], or the typed
+/// [`crate::registry::ItemId`] wrapper.
+#[derive(Debug, Clone)]
+pub struct DialogItemRef(String);
+
+impl From<&str> for DialogItemRef {
+    fn from(value: &str) -> Self {
+        Self(value.to_string())
+    }
+}
+
+impl From<String> for DialogItemRef {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+
+impl From<ResourceLocation> for DialogItemRef {
+    fn from(value: ResourceLocation) -> Self {
+        Self(value.to_string())
+    }
+}
+
+impl From<&ResourceLocation> for DialogItemRef {
+    fn from(value: &ResourceLocation) -> Self {
+        Self(value.to_string())
+    }
+}
+
+impl From<crate::registry::ItemId> for DialogItemRef {
+    fn from(value: crate::registry::ItemId) -> Self {
+        Self(value.to_string())
+    }
+}
+
+impl From<&crate::registry::ItemId> for DialogItemRef {
+    fn from(value: &crate::registry::ItemId) -> Self {
+        Self(value.to_string())
+    }
+}
+
 // ── DialogBody ────────────────────────────────────────────────────────────────
 
 /// A dialog body element (text, item display, etc.).
@@ -413,6 +468,10 @@ impl DialogBody {
     }
 
     /// Plain text body with explicit width.
+    ///
+    /// `width` must be non-zero — a `0` width is rejected by
+    /// [`Dialog::validate`]. There is no vanilla-documented upper bound, so
+    /// large values are accepted (raw escape-hatch semantics).
     pub fn text_with_width(content: impl Into<DialogText>, width: u32) -> Self {
         Self::Text {
             text: Box::new(content.into()),
@@ -421,18 +480,26 @@ impl DialogBody {
     }
 
     /// Item display body.
-    pub fn item(item: impl Into<String>) -> Self {
+    ///
+    /// Accepts a raw item ID string, a [`ResourceLocation`], or a typed
+    /// [`crate::registry::ItemId`]. The reference is validated (as a
+    /// well-formed resource location) by [`Dialog::validate`].
+    pub fn item(item: impl Into<DialogItemRef>) -> Self {
         Self::Item {
-            item: item.into(),
+            item: item.into().0,
             width: None,
             height: None,
         }
     }
 
     /// Item display body with explicit dimensions.
-    pub fn item_sized(item: impl Into<String>, width: u32, height: u32) -> Self {
+    ///
+    /// `width`/`height` must be non-zero — a `0` dimension is rejected by
+    /// [`Dialog::validate`]. There is no vanilla-documented upper bound, so
+    /// large values are accepted (raw escape-hatch semantics).
+    pub fn item_sized(item: impl Into<DialogItemRef>, width: u32, height: u32) -> Self {
         Self::Item {
-            item: item.into(),
+            item: item.into().0,
             width: Some(width),
             height: Some(height),
         }
@@ -470,8 +537,17 @@ impl DialogBody {
 /// An action associated with a dialog button.
 #[derive(Debug, Clone)]
 pub enum DialogAction {
-    /// Run a command when the button is pressed.
+    /// Run a raw command when the button is pressed.
+    ///
+    /// This is the explicit raw escape hatch — the command string is never
+    /// validated. Prefer [`DialogAction::run_function`] for datapack
+    /// function calls.
     RunCommand(String),
+    /// Run a datapack function when the button is pressed.
+    ///
+    /// The raw function path (not yet formatted into a command) — validated
+    /// by [`Dialog::validate`] before it can reach generated output.
+    RunFunction(String),
     /// Fill the chat bar with a command suggestion.
     SuggestCommand(String),
     /// Open a URL (where server-controlled links are permitted).
@@ -485,7 +561,9 @@ pub enum DialogAction {
     ///
     /// Callback IDs are assigned when the containing dialog is serialized
     /// (see `DialogAction::to_json`) so cached or otherwise prebuilt
-    /// dialogs participate in each export's callback lifecycle.
+    /// dialogs participate in each export's callback lifecycle. The raw
+    /// function path is validated by [`Dialog::validate`] before it can
+    /// reach generated `__sand_dialog_tick` output.
     #[doc(hidden)]
     Callback(String),
 }
@@ -510,7 +588,7 @@ impl DialogAction {
     /// );
     /// ```
     pub fn run_function(id: impl IntoDialogFunctionRef) -> Self {
-        Self::RunCommand(id.into_dialog_function_command())
+        Self::RunFunction(id.into_dialog_function_path())
     }
 
     /// Survival-friendly callback — runs a datapack function via a scoreboard trigger.
@@ -552,6 +630,9 @@ impl DialogAction {
     pub(crate) fn to_json(&self) -> Value {
         match self {
             Self::RunCommand(c) => json!({"type": "minecraft:run_command", "command": c}),
+            Self::RunFunction(path) => {
+                json!({"type": "minecraft:run_command", "command": format!("/function {path}")})
+            }
             Self::SuggestCommand(c) => json!({"type": "minecraft:suggest_command", "command": c}),
             Self::OpenUrl(u) => json!({"type": "minecraft:open_url", "url": u}),
             Self::OpenDialog(d) => json!({"type": "minecraft:open_dialog", "dialog": d}),
@@ -562,6 +643,34 @@ impl DialogAction {
                     "type": "minecraft:run_command",
                     "command": format!("/trigger {SAND_DIALOG_TRIGGER} set {trigger_id}"),
                 })
+            }
+        }
+    }
+
+    /// Validate this action's raw resource references.
+    ///
+    /// `RunCommand` is the explicit raw escape hatch and is never validated.
+    /// `RunFunction`/`Callback` targets and `OpenDialog` targets must be
+    /// well-formed `namespace:path` references.
+    fn validate(&self, path: &str) -> crate::error::Result<()> {
+        let placeholder =
+            ResourceLocation::new("sand", "dialog_action").expect("static placeholder is valid");
+        let build_error = |message: String| crate::error::SandError::ComponentValidation {
+            location: placeholder.clone(),
+            kind: "dialog".to_string(),
+            field: path.to_string(),
+            message,
+        };
+        match self {
+            Self::RunFunction(target) | Self::Callback(target) => validate_resource_ref(target)
+                .map_err(|message| {
+                    build_error(format!("invalid function reference `{target}`: {message}"))
+                }),
+            Self::OpenDialog(target) => validate_resource_ref(target).map_err(|message| {
+                build_error(format!("invalid dialog reference `{target}`: {message}"))
+            }),
+            Self::RunCommand(_) | Self::SuggestCommand(_) | Self::OpenUrl(_) | Self::Close => {
+                Ok(())
             }
         }
     }
@@ -680,7 +789,17 @@ impl DialogKind {
 #[derive(Debug, Clone)]
 pub struct Dialog {
     /// The resource location for this dialog (e.g. `"example:welcome"`).
+    ///
+    /// When the ID given at construction time was invalid, this is a
+    /// placeholder location and [`Dialog::validate`] reports the real
+    /// error — `id` is never used to silently paper over an invalid
+    /// identifier.
     pub id: ResourceLocation,
+    /// Set when the raw ID given at construction time failed to parse as a
+    /// `namespace:path` resource location. Surfaced as a diagnostic by
+    /// [`DatapackComponent::validate`] rather than panicking at
+    /// construction time.
+    id_error: Option<String>,
     kind: DialogKind,
     title: Option<DialogText>,
     body: Vec<DialogBody>,
@@ -721,8 +840,17 @@ impl Dialog {
     }
 
     fn new_with_kind(id: impl Into<DialogId>, kind: DialogKind) -> Self {
+        let raw = id.into().into_raw();
+        let (location, id_error) = match raw.parse::<ResourceLocation>() {
+            Ok(location) => (location, None),
+            Err(error) => (
+                Self::placeholder_location(),
+                Some(format!("invalid dialog id `{raw}`: {error}")),
+            ),
+        };
         Self {
-            id: id.into().into_location(),
+            id: location,
+            id_error,
             kind,
             title: None,
             body: vec![],
@@ -730,6 +858,14 @@ impl Dialog {
             pause: false,
             external_title: false,
         }
+    }
+
+    /// A stable, always-valid placeholder location used when the dialog's
+    /// real ID failed to parse. [`Dialog::validate`] rejects the dialog
+    /// before this placeholder is ever written to a pack.
+    fn placeholder_location() -> ResourceLocation {
+        ResourceLocation::new(SAND_LOCAL_NS, "invalid_dialog_id")
+            .expect("static placeholder location is always valid")
     }
 
     /// Set the dialog title.
@@ -817,15 +953,62 @@ impl DatapackComponent for Dialog {
             }
             other => other,
         };
+        let field_error = |field: &str, message: String| {
+            map_error(crate::error::SandError::ComponentValidation {
+                location: self.id.clone(),
+                kind: "dialog".to_string(),
+                field: field.to_string(),
+                message,
+            })
+        };
+
+        if let Some(message) = &self.id_error {
+            return Err(field_error("id", message.clone()));
+        }
+
         if let Some(title) = &self.title {
             title.validate("title").map_err(map_error)?;
         }
+
         for (index, body) in self.body.iter().enumerate() {
-            if let DialogBody::Text { text, .. } = body {
-                text.validate(&format!("body[{index}].text"))
-                    .map_err(map_error)?;
+            match body {
+                DialogBody::Text { text, width } => {
+                    text.validate(&format!("body[{index}].text"))
+                        .map_err(map_error)?;
+                    if *width == Some(0) {
+                        return Err(field_error(
+                            &format!("body[{index}].width"),
+                            "dimension must be greater than zero".to_string(),
+                        ));
+                    }
+                }
+                DialogBody::Item {
+                    item,
+                    width,
+                    height,
+                } => {
+                    validate_resource_ref(item).map_err(|message| {
+                        field_error(
+                            &format!("body[{index}].item"),
+                            format!("invalid item reference `{item}`: {message}"),
+                        )
+                    })?;
+                    if *width == Some(0) {
+                        return Err(field_error(
+                            &format!("body[{index}].width"),
+                            "dimension must be greater than zero".to_string(),
+                        ));
+                    }
+                    if *height == Some(0) {
+                        return Err(field_error(
+                            &format!("body[{index}].height"),
+                            "dimension must be greater than zero".to_string(),
+                        ));
+                    }
+                }
             }
         }
+
         for (index, button) in self.buttons.iter().enumerate() {
             button
                 .label
@@ -836,7 +1019,41 @@ impl DatapackComponent for Dialog {
                     .validate(&format!("buttons[{index}].tooltip"))
                     .map_err(map_error)?;
             }
+            if button.width == Some(0) {
+                return Err(field_error(
+                    &format!("buttons[{index}].width"),
+                    "dimension must be greater than zero".to_string(),
+                ));
+            }
+            if let Some(action) = &button.action {
+                action
+                    .validate(&format!("buttons[{index}].action"))
+                    .map_err(map_error)?;
+            }
         }
+
+        match self.kind {
+            DialogKind::MultiAction => {
+                if self.buttons.is_empty() {
+                    return Err(field_error(
+                        "actions",
+                        "multi_action dialogs require at least one action".to_string(),
+                    ));
+                }
+            }
+            DialogKind::Notice | DialogKind::Confirmation => {
+                if self.buttons.is_empty() {
+                    return Err(field_error(
+                        "buttons",
+                        format!(
+                            "{} dialogs require at least one button",
+                            self.kind.type_str()
+                        ),
+                    ));
+                }
+            }
+        }
+
         Ok(())
     }
 
@@ -865,6 +1082,20 @@ impl DatapackComponent for DialogTag {
             "replace": self.replace,
             "values": self.values,
         })
+    }
+
+    fn validate(&self) -> crate::error::Result<()> {
+        for (index, value) in self.values.iter().enumerate() {
+            validate_resource_ref(value).map_err(|message| {
+                crate::error::SandError::ComponentValidation {
+                    location: self.location.clone(),
+                    kind: "dialog_tag".to_string(),
+                    field: format!("values[{index}]"),
+                    message: format!("invalid dialog reference `{value}`: {message}"),
+                }
+            })?;
+        }
+        Ok(())
     }
 
     fn component_dir(&self) -> &'static str {
@@ -1136,5 +1367,189 @@ mod tests {
             actions[1]["action"]["dialog"].as_str().unwrap(),
             "__sand_local:rules"
         );
+    }
+
+    // ── #150 validation tests ───────────────────────────────────────────────
+
+    #[test]
+    fn invalid_local_dialog_id_does_not_panic_and_fails_validate() {
+        // Local IDs are prefixed with the local sentinel namespace, so the
+        // only way to make one invalid is an illegal path segment.
+        let dialog = Dialog::notice_local("Not Valid! Path")
+            .button(DialogButton::new("OK").action(DialogAction::close()));
+        let error = dialog.validate().unwrap_err().to_string();
+        assert!(error.contains("field: id"), "{error}");
+    }
+
+    #[test]
+    fn invalid_external_dialog_id_does_not_panic_and_fails_validate() {
+        let dialog = Dialog::notice("Not A Valid Location")
+            .button(DialogButton::new("OK").action(DialogAction::close()));
+        let error = dialog.validate().unwrap_err().to_string();
+        assert!(error.contains("field: id"), "{error}");
+    }
+
+    #[test]
+    fn invalid_dialog_id_to_json_does_not_panic() {
+        // to_json remains the infallible escape hatch: it must never panic,
+        // even for an invalid id — validate() is the correctness boundary.
+        let dialog = Dialog::notice("not a valid location");
+        let _ = dialog.to_json();
+    }
+
+    #[test]
+    fn invalid_open_dialog_ref_rejected() {
+        let dialog = Dialog::multi_action("example:menu")
+            .button(DialogButton::new("Go").action(DialogAction::open_dialog("not a valid ref")));
+        let error = dialog.validate().unwrap_err().to_string();
+        assert!(error.contains("buttons[0].action"), "{error}");
+        assert!(error.contains("invalid dialog reference"), "{error}");
+    }
+
+    #[test]
+    fn invalid_run_function_ref_rejected() {
+        let dialog = Dialog::multi_action("example:menu")
+            .button(DialogButton::new("Go").action(DialogAction::run_function("not a valid ref")));
+        let error = dialog.validate().unwrap_err().to_string();
+        assert!(error.contains("buttons[0].action"), "{error}");
+        assert!(error.contains("invalid function reference"), "{error}");
+    }
+
+    #[test]
+    fn invalid_callback_ref_rejected_before_export() {
+        let dialog = Dialog::multi_action("example:menu")
+            .button(DialogButton::new("Go").action(DialogAction::callback("not a valid ref")));
+        let error = dialog.validate().unwrap_err().to_string();
+        assert!(error.contains("buttons[0].action"), "{error}");
+        assert!(error.contains("invalid function reference"), "{error}");
+    }
+
+    #[test]
+    fn callback_validation_runs_before_try_content_registers_it() {
+        // try_content() must call validate() first — an invalid callback
+        // must never reach DialogAction::to_json (which is what registers
+        // the callback for __sand_dialog_tick generation).
+        use crate::component::DatapackComponent;
+        let _lock_guard = ();
+        let before = drain_dialog_callbacks();
+        assert!(before.is_empty(), "test must start with an empty registry");
+
+        let dialog = Dialog::multi_action("example:menu")
+            .button(DialogButton::new("Go").action(DialogAction::callback("not a valid ref")));
+        assert!(DatapackComponent::try_content(&dialog).is_err());
+
+        let after = drain_dialog_callbacks();
+        assert!(
+            after.is_empty(),
+            "an invalid callback must never be registered, got: {after:?}"
+        );
+    }
+
+    #[test]
+    fn run_command_escape_hatch_not_validated() {
+        // run_command remains the explicit raw escape hatch: arbitrary
+        // strings (even ones that look nothing like a resource ref) pass.
+        let dialog = Dialog::multi_action("example:menu")
+            .button(DialogButton::new("Go").action(DialogAction::run_command("say hello there")));
+        assert!(dialog.validate().is_ok());
+    }
+
+    #[test]
+    fn invalid_typed_item_reference_rejected() {
+        let dialog = Dialog::notice("example:shop")
+            .body(DialogBody::item("Not A Valid Item!"))
+            .button(DialogButton::new("OK").action(DialogAction::close()));
+        let error = dialog.validate().unwrap_err().to_string();
+        assert!(error.contains("body[0].item"), "{error}");
+        assert!(error.contains("invalid item reference"), "{error}");
+    }
+
+    #[test]
+    fn valid_typed_item_reference_via_item_id() {
+        let item_id = crate::registry::ItemId::minecraft("diamond").unwrap();
+        let dialog = Dialog::notice("example:shop")
+            .body(DialogBody::item(item_id))
+            .button(DialogButton::new("OK").action(DialogAction::close()));
+        assert!(dialog.validate().is_ok());
+        assert_eq!(
+            dialog.to_json()["body"][0]["item"].as_str().unwrap(),
+            "minecraft:diamond"
+        );
+    }
+
+    #[test]
+    fn zero_width_text_body_rejected() {
+        let dialog = Dialog::notice("example:welcome")
+            .body(DialogBody::text_with_width("hi", 0))
+            .button(DialogButton::new("OK").action(DialogAction::close()));
+        let error = dialog.validate().unwrap_err().to_string();
+        assert!(error.contains("body[0].width"), "{error}");
+    }
+
+    #[test]
+    fn zero_dimension_item_body_rejected() {
+        let dialog = Dialog::notice("example:shop")
+            .body(DialogBody::item_sized("minecraft:diamond", 0, 32))
+            .button(DialogButton::new("OK").action(DialogAction::close()));
+        let error = dialog.validate().unwrap_err().to_string();
+        assert!(error.contains("body[0].width"), "{error}");
+    }
+
+    #[test]
+    fn zero_width_button_rejected() {
+        let dialog = Dialog::notice("example:welcome").button(
+            DialogButton::new("OK")
+                .action(DialogAction::close())
+                .width(0),
+        );
+        let error = dialog.validate().unwrap_err().to_string();
+        assert!(error.contains("buttons[0].width"), "{error}");
+    }
+
+    #[test]
+    fn multi_action_with_no_actions_rejected() {
+        let dialog = Dialog::multi_action("example:empty");
+        let error = dialog.validate().unwrap_err().to_string();
+        assert!(error.contains("field: actions"), "{error}");
+        assert!(error.contains("at least one action"), "{error}");
+    }
+
+    #[test]
+    fn notice_with_no_buttons_rejected() {
+        let dialog = Dialog::notice("example:empty");
+        let error = dialog.validate().unwrap_err().to_string();
+        assert!(error.contains("field: buttons"), "{error}");
+    }
+
+    #[test]
+    fn confirmation_with_no_buttons_rejected() {
+        let dialog = Dialog::confirmation("example:empty");
+        let error = dialog.validate().unwrap_err().to_string();
+        assert!(error.contains("field: buttons"), "{error}");
+    }
+
+    #[test]
+    fn well_formed_dialogs_of_every_kind_validate_ok() {
+        let notice = Dialog::notice("example:notice")
+            .button(DialogButton::new("OK").action(DialogAction::close()));
+        assert!(notice.validate().is_ok());
+
+        let confirmation = Dialog::confirmation("example:confirm")
+            .button(DialogButton::new("Yes").action(DialogAction::close()))
+            .button(DialogButton::new("No").action(DialogAction::close()));
+        assert!(confirmation.validate().is_ok());
+
+        let multi = Dialog::multi_action("example:menu")
+            .button(DialogButton::new("Go").action(DialogAction::close()));
+        assert!(multi.validate().is_ok());
+    }
+
+    #[test]
+    fn invalid_dialog_tag_entry_rejected() {
+        use crate::component::DatapackComponent;
+        let tag = DialogTag::pause_screen_additions().dialog("not a valid ref");
+        let error = tag.validate().unwrap_err().to_string();
+        assert!(error.contains("values[0]"), "{error}");
+        let _ = DatapackComponent::try_content(&tag);
     }
 }

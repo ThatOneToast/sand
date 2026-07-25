@@ -3,27 +3,260 @@
 //! Chat types define how chat messages are decorated and displayed in-game.
 //! Each chat type has a `chat` decoration (shown in chat) and an optional
 //! `narration` decoration (used by screen readers / narrator).
+//!
+//! # Typed authoring
+//!
+//! Normal decoration parameters are authored through [`ChatDecorationParameter`]
+//! and normal style overrides through [`ChatStyle`] — both are validated before
+//! export. Raw `serde_json::Value` style objects remain available through the
+//! explicit [`ChatDecoration::style_raw`] escape hatch for shapes typed helpers
+//! don't cover yet.
+//!
+//! ```
+//! use sand_components::chat_type::{ChatDecoration, ChatDecorationParameter, ChatStyle, ChatType};
+//! use sand_components::ResourceLocation;
+//! use sand_commands::ChatColor;
+//!
+//! let chat = ChatDecoration::new("chat.type.text")
+//!     .parameters([
+//!         ChatDecorationParameter::Sender,
+//!         ChatDecorationParameter::Content,
+//!     ])
+//!     .style(ChatStyle::new().color(ChatColor::Gray).italic(true));
+//!
+//! let chat_type = ChatType::new(ResourceLocation::new("example", "system").unwrap(), chat);
+//! assert!(chat_type.validate().is_ok());
+//! ```
+
+use std::fmt;
 
 use serde_json::Value;
 
 use crate::component::DatapackComponent;
+use crate::error::SandError;
 use crate::resource_location::ResourceLocation;
+
+// ── ChatDecorationParameter ────────────────────────────────────────────────────
+
+/// A parameter substituted into a chat decoration's translation format string.
+///
+/// Vanilla only recognizes `sender`, `target`, and `content`. Use
+/// [`ChatDecorationParameter::Custom`] as an explicit, visually distinct escape
+/// hatch for future/unknown/modded parameter names — note that unknown custom
+/// values still fail [`ChatDecoration`] validation unless they match a known
+/// vanilla parameter, since Minecraft itself only understands the three above.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ChatDecorationParameter {
+    /// The message sender's display name.
+    Sender,
+    /// The message target (used by e.g. `/msg`-style decorations).
+    Target,
+    /// The message content itself.
+    Content,
+    /// Escape hatch for a raw/unknown parameter name.
+    Custom(String),
+}
+
+impl ChatDecorationParameter {
+    /// The vanilla wire string for this parameter.
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::Sender => "sender",
+            Self::Target => "target",
+            Self::Content => "content",
+            Self::Custom(s) => s,
+        }
+    }
+
+    fn is_known(&self) -> bool {
+        matches!(self, Self::Sender | Self::Target | Self::Content)
+    }
+}
+
+impl fmt::Display for ChatDecorationParameter {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl From<&str> for ChatDecorationParameter {
+    fn from(value: &str) -> Self {
+        match value {
+            "sender" => Self::Sender,
+            "target" => Self::Target,
+            "content" => Self::Content,
+            other => Self::Custom(other.to_string()),
+        }
+    }
+}
+
+impl From<String> for ChatDecorationParameter {
+    fn from(value: String) -> Self {
+        Self::from(value.as_str())
+    }
+}
+
+// ── ChatStyle ───────────────────────────────────────────────────────────────────
+
+/// A color for [`ChatStyle`] — either a typed [`sand_commands::ChatColor`] or an
+/// explicit `#RRGGBB` hex escape hatch.
+#[derive(Debug, Clone, PartialEq)]
+enum ChatStyleColor {
+    Named(sand_commands::ChatColor),
+    Hex(String),
+}
+
+/// Typed style overrides for a [`ChatDecoration`].
+///
+/// Covers the common text-style fields accepted in chat type JSON without
+/// requiring callers to hand-write `serde_json::json!` objects. For style
+/// shapes this doesn't cover, use [`ChatDecoration::style_raw`].
+///
+/// ```
+/// use sand_components::chat_type::ChatStyle;
+/// use sand_commands::ChatColor;
+///
+/// let style = ChatStyle::new().color(ChatColor::Yellow).bold(true);
+/// ```
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct ChatStyle {
+    color: Option<ChatStyleColor>,
+    bold: Option<bool>,
+    italic: Option<bool>,
+    underlined: Option<bool>,
+    strikethrough: Option<bool>,
+    obfuscated: Option<bool>,
+    insertion: Option<String>,
+}
+
+impl ChatStyle {
+    /// Creates an empty style with no overrides set.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Sets a named vanilla text color.
+    pub fn color(mut self, color: sand_commands::ChatColor) -> Self {
+        self.color = Some(ChatStyleColor::Named(color));
+        self
+    }
+
+    /// Sets a raw `#RRGGBB` hex color (validated before export).
+    pub fn color_hex(mut self, hex: impl Into<String>) -> Self {
+        self.color = Some(ChatStyleColor::Hex(hex.into()));
+        self
+    }
+
+    /// Sets whether the decorated text is bold.
+    pub fn bold(mut self, value: bool) -> Self {
+        self.bold = Some(value);
+        self
+    }
+
+    /// Sets whether the decorated text is italic.
+    pub fn italic(mut self, value: bool) -> Self {
+        self.italic = Some(value);
+        self
+    }
+
+    /// Sets whether the decorated text is underlined.
+    pub fn underlined(mut self, value: bool) -> Self {
+        self.underlined = Some(value);
+        self
+    }
+
+    /// Sets whether the decorated text is struck through.
+    pub fn strikethrough(mut self, value: bool) -> Self {
+        self.strikethrough = Some(value);
+        self
+    }
+
+    /// Sets whether the decorated text is obfuscated (matrix effect).
+    pub fn obfuscated(mut self, value: bool) -> Self {
+        self.obfuscated = Some(value);
+        self
+    }
+
+    /// Sets the shift-click chat insertion text.
+    pub fn insertion(mut self, text: impl Into<String>) -> Self {
+        self.insertion = Some(text.into());
+        self
+    }
+
+    fn to_json(&self) -> Value {
+        let mut map = serde_json::Map::new();
+        if let Some(color) = &self.color {
+            let value = match color {
+                ChatStyleColor::Named(c) => c.to_string(),
+                ChatStyleColor::Hex(h) => h.clone(),
+            };
+            map.insert("color".to_string(), Value::String(value));
+        }
+        if let Some(v) = self.bold {
+            map.insert("bold".to_string(), Value::Bool(v));
+        }
+        if let Some(v) = self.italic {
+            map.insert("italic".to_string(), Value::Bool(v));
+        }
+        if let Some(v) = self.underlined {
+            map.insert("underlined".to_string(), Value::Bool(v));
+        }
+        if let Some(v) = self.strikethrough {
+            map.insert("strikethrough".to_string(), Value::Bool(v));
+        }
+        if let Some(v) = self.obfuscated {
+            map.insert("obfuscated".to_string(), Value::Bool(v));
+        }
+        if let Some(ins) = &self.insertion {
+            map.insert("insertion".to_string(), Value::String(ins.clone()));
+        }
+        Value::Object(map)
+    }
+
+    fn validate(&self, owner: &ResourceLocation, path: &str) -> crate::error::Result<()> {
+        if let Some(ChatStyleColor::Hex(hex)) = &self.color {
+            if !is_valid_hex_color(hex) {
+                return Err(SandError::ComponentValidation {
+                    location: owner.clone(),
+                    kind: "chat_type".to_string(),
+                    field: format!("{path}.color"),
+                    message: format!(
+                        "error[SAND-TEXT-COLOR] invalid hex color `{hex}`: expected `#RRGGBB`"
+                    ),
+                });
+            }
+        }
+        Ok(())
+    }
+}
+
+fn is_valid_hex_color(s: &str) -> bool {
+    s.len() == 7 && s.starts_with('#') && s[1..].chars().all(|c| c.is_ascii_hexdigit())
+}
+
+/// Internal storage for a decoration's style — either the typed [`ChatStyle`]
+/// normal path or the raw [`serde_json::Value`] escape hatch.
+#[derive(Debug, Clone)]
+enum ChatDecorationStyle {
+    Typed(ChatStyle),
+    Raw(Value),
+}
 
 // ── ChatDecoration ────────────────────────────────────────────────────────────
 
 /// Controls how a chat message is decorated (wrapped with sender/target text).
 ///
 /// The `translation_key` maps to a format string in the language file.
-/// `parameters` lists the values substituted into the format string in order
-/// (valid values: `"sender"`, `"target"`, `"content"`).
+/// Parameters list the values substituted into the format string in order —
+/// author them with [`ChatDecorationParameter`] (typed) or plain strings
+/// (converted automatically; unknown strings become
+/// [`ChatDecorationParameter::Custom`] and fail validation, same as before).
 #[derive(Clone)]
 pub struct ChatDecoration {
     /// The translation key for the format string.
     pub translation_key: String,
-    /// Style overrides (`bold`, `italic`, `color`, etc.) as a raw JSON object.
-    pub style: Option<Value>,
-    /// Parameter list — ordered substitution into the translation format.
-    pub parameters: Vec<String>,
+    style: Option<ChatDecorationStyle>,
+    parameters: Vec<ChatDecorationParameter>,
 }
 
 impl ChatDecoration {
@@ -36,21 +269,46 @@ impl ChatDecoration {
         }
     }
 
-    /// Adds a parameter to the decoration (e.g. `"sender"`, `"content"`).
-    pub fn parameter(mut self, param: impl Into<String>) -> Self {
+    /// Adds a parameter to the decoration.
+    ///
+    /// ```
+    /// use sand_components::chat_type::{ChatDecoration, ChatDecorationParameter};
+    /// let deco = ChatDecoration::new("chat.type.text").parameter(ChatDecorationParameter::Sender);
+    /// ```
+    pub fn parameter(mut self, param: impl Into<ChatDecorationParameter>) -> Self {
         self.parameters.push(param.into());
         self
     }
 
     /// Sets multiple parameters at once.
-    pub fn parameters(mut self, params: impl IntoIterator<Item = impl Into<String>>) -> Self {
-        self.parameters = params.into_iter().map(|p| p.into()).collect();
+    pub fn parameters(
+        mut self,
+        params: impl IntoIterator<Item = impl Into<ChatDecorationParameter>>,
+    ) -> Self {
+        self.parameters = params.into_iter().map(Into::into).collect();
+        self
+    }
+
+    /// Sets typed style overrides (color, bold, italic, ...).
+    ///
+    /// ```
+    /// use sand_components::chat_type::{ChatDecoration, ChatStyle};
+    /// use sand_commands::ChatColor;
+    ///
+    /// let deco = ChatDecoration::new("chat.type.text")
+    ///     .style(ChatStyle::new().color(ChatColor::Yellow).bold(true));
+    /// ```
+    pub fn style(mut self, style: ChatStyle) -> Self {
+        self.style = Some(ChatDecorationStyle::Typed(style));
         self
     }
 
     /// Sets a raw JSON style object (e.g. `{"color":"yellow","bold":true}`).
-    pub fn style(mut self, style: Value) -> Self {
-        self.style = Some(style);
+    ///
+    /// Escape hatch for style shapes [`ChatStyle`] doesn't cover. Prefer
+    /// [`ChatDecoration::style`] for normal authoring.
+    pub fn style_raw(mut self, style: Value) -> Self {
+        self.style = Some(ChatDecorationStyle::Raw(style));
         self
     }
 
@@ -65,12 +323,16 @@ impl ChatDecoration {
             Value::Array(
                 self.parameters
                     .iter()
-                    .map(|p| Value::String(p.clone()))
+                    .map(|p| Value::String(p.as_str().to_string()))
                     .collect(),
             ),
         );
-        if let Some(ref style) = self.style {
-            map.insert("style".to_string(), style.clone());
+        if let Some(style) = &self.style {
+            let style_json = match style {
+                ChatDecorationStyle::Typed(s) => s.to_json(),
+                ChatDecorationStyle::Raw(v) => v.clone(),
+            };
+            map.insert("style".to_string(), style_json);
         }
         Value::Object(map)
     }
@@ -79,16 +341,17 @@ impl ChatDecoration {
         if self.translation_key.trim().is_empty()
             || self.translation_key.chars().any(char::is_control)
         {
-            return Err(crate::error::SandError::ComponentValidation {
+            return Err(SandError::ComponentValidation {
                 location: owner.clone(),
                 kind: "chat_type".to_string(),
                 field: format!("{path}.translation_key"),
                 message: "error[SAND-TEXT-TRANSLATE] translation keys must be non-empty and contain no control characters".to_string(),
             });
         }
+        let mut seen = std::collections::HashSet::new();
         for (index, parameter) in self.parameters.iter().enumerate() {
-            if !matches!(parameter.as_str(), "sender" | "target" | "content") {
-                return Err(crate::error::SandError::ComponentValidation {
+            if !parameter.is_known() {
+                return Err(SandError::ComponentValidation {
                     location: owner.clone(),
                     kind: "chat_type".to_string(),
                     field: format!("{path}.parameters[{index}]"),
@@ -97,19 +360,40 @@ impl ChatDecoration {
                     ),
                 });
             }
+            if !seen.insert(parameter.as_str()) {
+                return Err(SandError::ComponentValidation {
+                    location: owner.clone(),
+                    kind: "chat_type".to_string(),
+                    field: format!("{path}.parameters[{index}]"),
+                    message: format!("duplicate parameter `{parameter}`"),
+                });
+            }
         }
         if let Some(style) = &self.style {
-            sand_commands::text::validate_json_text(
-                style,
-                &sand_commands::CommandProfile::unprofiled(),
-                &format!("{path}.style"),
-            )
-            .map_err(|error| crate::error::SandError::ComponentValidation {
-                location: owner.clone(),
-                kind: "chat_type".to_string(),
-                field: error.field,
-                message: format!("error[{}] {}", error.code, error.message),
-            })?;
+            match style {
+                ChatDecorationStyle::Typed(s) => s.validate(owner, &format!("{path}.style"))?,
+                ChatDecorationStyle::Raw(value) => {
+                    if !value.is_object() {
+                        return Err(SandError::ComponentValidation {
+                            location: owner.clone(),
+                            kind: "chat_type".to_string(),
+                            field: format!("{path}.style"),
+                            message: format!("style must be a JSON object, got `{value}`"),
+                        });
+                    }
+                    sand_commands::text::validate_json_text(
+                        value,
+                        &sand_commands::CommandProfile::unprofiled(),
+                        &format!("{path}.style"),
+                    )
+                    .map_err(|error| SandError::ComponentValidation {
+                        location: owner.clone(),
+                        kind: "chat_type".to_string(),
+                        field: error.field,
+                        message: format!("error[{}] {}", error.code, error.message),
+                    })?;
+                }
+            }
         }
         Ok(())
     }
@@ -174,5 +458,189 @@ impl DatapackComponent for ChatType {
 
     fn required_features(&self) -> &'static [sand_version::ComponentFeature] {
         &[sand_version::ComponentFeature::ChatTypes]
+    }
+}
+
+// ── Tests ─────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn loc() -> ResourceLocation {
+        ResourceLocation::new("test", "chat").unwrap()
+    }
+
+    #[test]
+    fn typed_parameters_serialize_in_order() {
+        let deco = ChatDecoration::new("chat.type.text").parameters([
+            ChatDecorationParameter::Sender,
+            ChatDecorationParameter::Content,
+        ]);
+        let json = deco.to_json();
+        assert_eq!(json["parameters"], serde_json::json!(["sender", "content"]));
+        assert!(deco.validate(&loc(), "chat").is_ok());
+    }
+
+    #[test]
+    fn raw_string_parameters_still_accepted() {
+        let deco = ChatDecoration::new("chat.type.text").parameters(["sender", "content"]);
+        assert!(deco.validate(&loc(), "chat").is_ok());
+        assert_eq!(
+            deco.to_json()["parameters"],
+            serde_json::json!(["sender", "content"])
+        );
+    }
+
+    #[test]
+    fn unknown_parameter_rejected() {
+        let deco = ChatDecoration::new("chat.type.text").parameter("bogus");
+        let err = deco.validate(&loc(), "chat").unwrap_err().to_string();
+        assert!(err.contains("bogus"), "{err}");
+        assert!(err.contains("chat.parameters[0]"), "{err}");
+    }
+
+    #[test]
+    fn custom_variant_rejected_same_as_unknown_string() {
+        let deco = ChatDecoration::new("chat.type.text")
+            .parameter(ChatDecorationParameter::Custom("modded_param".to_string()));
+        let err = deco.validate(&loc(), "chat").unwrap_err().to_string();
+        assert!(err.contains("modded_param"), "{err}");
+    }
+
+    #[test]
+    fn duplicate_parameter_rejected() {
+        let deco = ChatDecoration::new("chat.type.text").parameters([
+            ChatDecorationParameter::Sender,
+            ChatDecorationParameter::Sender,
+        ]);
+        let err = deco.validate(&loc(), "chat").unwrap_err().to_string();
+        assert!(err.contains("duplicate"), "{err}");
+        assert!(err.contains("chat.parameters[1]"), "{err}");
+    }
+
+    #[test]
+    fn empty_translation_key_rejected() {
+        let deco = ChatDecoration::new("   ");
+        let err = deco.validate(&loc(), "chat").unwrap_err().to_string();
+        assert!(err.contains("SAND-TEXT-TRANSLATE"), "{err}");
+    }
+
+    #[test]
+    fn control_character_translation_key_rejected() {
+        let deco = ChatDecoration::new("chat.type\u{0007}.text");
+        assert!(deco.validate(&loc(), "chat").is_err());
+    }
+
+    #[test]
+    fn typed_style_serializes_expected_fields() {
+        let style = ChatStyle::new()
+            .color(sand_commands::ChatColor::Gold)
+            .bold(true)
+            .italic(false);
+        let deco = ChatDecoration::new("chat.type.text").style(style);
+        let json = deco.to_json();
+        assert_eq!(json["style"]["color"], "gold");
+        assert_eq!(json["style"]["bold"], true);
+        assert_eq!(json["style"]["italic"], false);
+        assert!(json["style"].get("underlined").is_none());
+        assert!(deco.validate(&loc(), "chat").is_ok());
+    }
+
+    #[test]
+    fn typed_style_hex_color_valid() {
+        let style = ChatStyle::new().color_hex("#AABBCC");
+        let deco = ChatDecoration::new("chat.type.text").style(style);
+        assert!(deco.validate(&loc(), "chat").is_ok());
+        assert_eq!(deco.to_json()["style"]["color"], "#AABBCC");
+    }
+
+    #[test]
+    fn typed_style_invalid_hex_color_rejected() {
+        let style = ChatStyle::new().color_hex("#ZZZZZZ");
+        let deco = ChatDecoration::new("chat.type.text").style(style);
+        let err = deco.validate(&loc(), "chat").unwrap_err().to_string();
+        assert!(err.contains("SAND-TEXT-COLOR"), "{err}");
+    }
+
+    #[test]
+    fn style_raw_object_accepted() {
+        let deco = ChatDecoration::new("chat.type.text")
+            .style_raw(serde_json::json!({"color": "yellow", "bold": true}));
+        assert!(deco.validate(&loc(), "chat").is_ok());
+        assert_eq!(deco.to_json()["style"]["color"], "yellow");
+    }
+
+    #[test]
+    fn style_raw_non_object_rejected() {
+        let deco = ChatDecoration::new("chat.type.text").style_raw(serde_json::json!(["array"]));
+        let err = deco.validate(&loc(), "chat").unwrap_err().to_string();
+        assert!(err.contains("must be a JSON object"), "{err}");
+    }
+
+    #[test]
+    fn style_raw_invalid_named_color_rejected() {
+        let deco =
+            ChatDecoration::new("chat.type.text").style_raw(serde_json::json!({"color": "nope"}));
+        assert!(deco.validate(&loc(), "chat").is_err());
+    }
+
+    #[test]
+    fn chat_type_valid_end_to_end() {
+        let chat = ChatDecoration::new("chat.type.text")
+            .parameters([
+                ChatDecorationParameter::Sender,
+                ChatDecorationParameter::Content,
+            ])
+            .style(ChatStyle::new().color(sand_commands::ChatColor::Gray));
+        let narration = ChatDecoration::new("chat.type.text.narrate").parameters([
+            ChatDecorationParameter::Sender,
+            ChatDecorationParameter::Content,
+        ]);
+        let chat_type = ChatType::new(ResourceLocation::new("example", "system").unwrap(), chat)
+            .narration(narration);
+        assert!(chat_type.validate().is_ok());
+    }
+
+    #[test]
+    fn chat_type_invalid_narration_reports_narration_path() {
+        let chat = ChatDecoration::new("chat.type.text").parameter(ChatDecorationParameter::Sender);
+        let narration = ChatDecoration::new("chat.type.text").parameter("bogus");
+        let chat_type = ChatType::new(ResourceLocation::new("example", "system").unwrap(), chat)
+            .narration(narration);
+        let err = chat_type.validate().unwrap_err().to_string();
+        assert!(err.contains("narration.parameters[0]"), "{err}");
+        assert!(err.contains("example:system"), "{err}");
+    }
+
+    #[test]
+    fn golden_chat_type_json() {
+        let chat = ChatDecoration::new("chat.type.text")
+            .parameters([
+                ChatDecorationParameter::Sender,
+                ChatDecorationParameter::Content,
+            ])
+            .style(
+                ChatStyle::new()
+                    .color(sand_commands::ChatColor::Gray)
+                    .italic(true),
+            );
+        let chat_type = ChatType::new(ResourceLocation::new("example", "system").unwrap(), chat);
+        let json = chat_type.to_json();
+        assert_eq!(
+            json,
+            serde_json::json!({
+                "chat": {
+                    "translation_key": "chat.type.text",
+                    "parameters": ["sender", "content"],
+                    "style": {"color": "gray", "italic": true}
+                }
+            })
+        );
+        assert_eq!(chat_type.component_dir(), "chat_type");
+        assert_eq!(
+            chat_type.required_features(),
+            &[sand_version::ComponentFeature::ChatTypes]
+        );
     }
 }

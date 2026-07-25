@@ -89,7 +89,7 @@ pub use banner_pattern::BannerPattern;
 
 // ── Chat Type ─────────────────────────────────────────────────────────────────
 
-pub use chat_type::{ChatDecoration, ChatType};
+pub use chat_type::{ChatDecoration, ChatDecorationParameter, ChatStyle, ChatType};
 
 // ── Damage Type ───────────────────────────────────────────────────────────────
 

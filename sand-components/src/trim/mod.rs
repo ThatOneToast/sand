@@ -9,7 +9,16 @@
 //!   identifier (e.g. `"quartz"`).
 //! - `ingredient` must be non-empty and a valid plain resource location
 //!   (e.g. `"minecraft:quartz"`).
-//! - `item_model_index` must be finite and within `0.0..=1.0`.
+//! - `item_model_index` must be finite (non-`NaN`, non-infinite) — required
+//!   for the value to serialize as valid JSON. Sand does **not** enforce a
+//!   `0.0..=1.0` numeric range here: `item_model_index` is a pre-1.21.4
+//!   legacy field (superseded by `override_armor_assets` in current
+//!   Minecraft; Sand does not yet model that field, see the crate's known
+//!   limitations) with no vanilla-documented bound, and real third-party
+//!   tooling uses out-of-`0..1` values (e.g. `-1.0` as a sentinel) for valid
+//!   purposes. A `0.0..=1.0` range was previously enforced here as an
+//!   unverified opinionated guess and has been relaxed after failing to find
+//!   vanilla evidence for it.
 //!
 //! `TrimPattern`:
 //! - `asset_id` must be non-empty and a valid plain resource location.
@@ -45,7 +54,8 @@ pub struct TrimMaterial {
     asset_name: String,
     /// Item used to apply this trim (e.g. `"minecraft:quartz"`).
     ingredient: String,
-    /// Model index for the trim overlay (0.0–1.0).
+    /// Model index for the trim overlay. Must be finite; Minecraft does not
+    /// document a numeric range for this legacy (pre-1.21.4) field.
     item_model_index: f32,
     /// Text component for the trim tooltip description.
     description: Option<Value>,
@@ -114,13 +124,11 @@ impl DatapackComponent for TrimMaterial {
             "ingredient",
             &self.ingredient,
         )?;
-        validation::require_f32_in_range(
+        validation::require_finite_f32(
             &self.location,
             kind,
             "item_model_index",
             self.item_model_index,
-            0.0,
-            1.0,
         )?;
         Ok(())
     }
@@ -321,16 +329,14 @@ mod tests {
         assert!(m.validate().is_err());
     }
 
+    /// `item_model_index` has no vanilla-documented numeric range (see the
+    /// module-level `# Validation` docs) — negative and >1.0 finite values
+    /// are legitimate and must be accepted, matching real third-party usage
+    /// (e.g. `-1.0` as a sentinel).
     #[test]
-    fn negative_item_model_index_is_rejected() {
-        let m = valid_material().item_model_index(-0.1);
-        assert!(m.validate().is_err());
-    }
-
-    #[test]
-    fn item_model_index_above_one_is_rejected() {
-        let m = valid_material().item_model_index(1.1);
-        assert!(m.validate().is_err());
+    fn item_model_index_out_of_unit_range_is_accepted() {
+        assert!(valid_material().item_model_index(-1.0).validate().is_ok());
+        assert!(valid_material().item_model_index(2.5).validate().is_ok());
     }
 
     #[test]

@@ -121,6 +121,26 @@ pub(crate) fn require_positive_f32(
     Ok(())
 }
 
+pub(crate) fn require_f32_in_range(
+    location: &ResourceLocation,
+    kind: &str,
+    field: &str,
+    value: f32,
+    min: f32,
+    max: f32,
+) -> Result<()> {
+    require_finite_f32(location, kind, field, value)?;
+    if value < min || value > max {
+        return Err(error(
+            location,
+            kind,
+            field,
+            &format!("{field} must be in {min}..={max}; received {value}"),
+        ));
+    }
+    Ok(())
+}
+
 pub(crate) fn require_u32_in_range(
     location: &ResourceLocation,
     kind: &str,
@@ -359,6 +379,26 @@ mod tests {
     #[test]
     fn plain_validator_rejects_empty_path_after_colon() {
         assert!(validate_resource_location_str(&rl(), "kind", "field", "minecraft:").is_err());
+    }
+
+    // ── require_f32_in_range ────────────────────────────────────────────────
+
+    #[test]
+    fn f32_in_range_accepts_bounds_inclusive() {
+        assert!(require_f32_in_range(&rl(), "kind", "field", 0.0, 0.0, 1.0).is_ok());
+        assert!(require_f32_in_range(&rl(), "kind", "field", 1.0, 0.0, 1.0).is_ok());
+    }
+
+    #[test]
+    fn f32_in_range_rejects_out_of_range() {
+        assert!(require_f32_in_range(&rl(), "kind", "field", -0.1, 0.0, 1.0).is_err());
+        assert!(require_f32_in_range(&rl(), "kind", "field", 1.1, 0.0, 1.0).is_err());
+    }
+
+    #[test]
+    fn f32_in_range_rejects_nan_and_infinite() {
+        assert!(require_f32_in_range(&rl(), "kind", "field", f32::NAN, 0.0, 1.0).is_err());
+        assert!(require_f32_in_range(&rl(), "kind", "field", f32::INFINITY, 0.0, 1.0).is_err());
     }
 
     // ── validate_resource_or_tag_location_str (either — permits tags) ─────────

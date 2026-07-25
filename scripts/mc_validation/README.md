@@ -82,7 +82,13 @@ results by category.
 | Real `/reload` | ✅ Proven | `reload` command issued over real RCON; `datapack list` re-checked afterward; the actual merged-#266 generated functions (including the automatic participant-plan splicing) are what gets reloaded. |
 | Generated functions execute without error | ✅ Proven | `function paudit:init` run over real RCON; the audit storage schema (`paudit:audit`) is inspected afterward via `data get storage paudit:audit` and shows the expected initialized shape. |
 | A real player *can* join a real 26.2 server | ✅ Proven | `minimal_join_client.py` performs a real (not simulated) Handshake → Login → Configuration → Play handshake; the server log shows `<name> logged in with entity id N` and `<name> joined the game` on every run. |
-| Player-triggered combat scenarios (attacker/killer/weapon capture) | ❌ **Not proven** | See "What is not proven" below. |
+| Correlated attacker (`EntityDamagePlayerEvent`) | ✅ Proven (RCON-direct, not advancement-criterion-driven — see "#265 (this pass)" below) | Real two-entity combat relation + direct handler invocation; captured `attacker_uuid` genuinely matches the real attacker's own UUID. |
+| Correlated killer (`PlayerKillEvent`) | ✅ Proven (same caveat) | Same technique/proof for `killer_uuid`. |
+| Advancement-bridge inheritance (`PlayerKillEvent` → `SpecialKillEvent`) | ✅ Proven (same caveat) | Same technique/proof for `bridge_killer_uuid`, invoking the synthesized bridge entry function directly. |
+| Stale-state cleanup (temporary observation tag) | ✅ Proven | Confirmed gone from the real entity after handler completion, not just removed in generated text. |
+| Weapon snapshot, absent-mainhand branch | ✅ Proven | A subject with no `SelectedItem` produces `weapon_present: 0b` live. |
+| Weapon/held-item snapshot, present branch (actual captured item) | ❌ **Not achieved** | Requires a real player client — see "#265 (this pass)" below for why a non-player stand-in doesn't work here. |
+| Player-triggered combat scenarios *driven by the real advancement criterion* | ❌ **Not proven** | See "What is not proven" below. |
 | Two independent player sessions | ❌ **Not proven** | Blocked by the same gap — see below. |
 
 ## What is not proven, and exactly why
@@ -198,6 +204,83 @@ for the rest of the pack. What remains unproven is specifically a live,
 non-mocked *firing* of the bridge scenario's generated commands end-to-end
 with a real combat-established attacker relationship. Do not claim more than
 this in the evidence doc or a PR description.
+
+## #265 (this pass): the entity-unselectability symptom explained, and a real bug found
+
+The #269/#280 write-up above concluded root cause not identified. This
+pass identified it, and it turned out to be two separate things, neither
+of which was what #280 suspected (RCON-round-trip/tick-boundary timing):
+
+1. **A same-tick selector-visibility lag, not a persistence bug.** A
+   freshly summoned entity is not reliably selector-matchable by a command
+   in the *same* server tick it was summoned in — confirmed directly: a
+   single `.mcfunction` batching summon → immediate
+   `execute if entity @e[tag=...] run ...` (zero RCON round-trip latency,
+   guaranteed same tick) failed the check on every attempt, while the
+   identical commands issued as separate RCON round-trips with a ~0.5s
+   settle delay between them succeeded the large majority of the time. A
+   `data get entity @e[type=zombie,limit=1]` issued well afterward always
+   found the entity, fully intact (tag included) — it was never actually
+   removed or corrupted, just not yet selector-visible. `run_audit.py` now
+   sleeps 0.5s after each summon before the first selector-dependent
+   command, and retries the full scenario (fresh entities, up to 6
+   attempts) if a `damage` call still reports "No entity was found" or
+   "Target is invulnerable to the given damage type" (a freshly-spawned
+   mob's own brief post-spawn invulnerability window — a real vanilla
+   mechanic, not a bug). In practice 1–2 attempts reliably sufficed.
+2. **A real, confirmed bug in `sand-core`**, found only once (1) stopped
+   masking it: `EntityParticipant::execute_at`
+   (`sand-core/src/participant/reference.rs`) generated a bare
+   `execute at <selector> run <cmd>`. Vanilla's `execute at` only moves
+   execution *position* — it never rebinds `@s`. Every caller of this
+   method (every correlated-attacker/killer/bridge-killer capture in
+   `examples/participant_audit`, written exactly per the method's own
+   documented usage) builds `cmd` referencing `@s` to mean "this
+   participant" — so `@s` silently kept resolving to the *caller's* own
+   entity (the victim), not the attacker, in every case. Concretely: the
+   real combat relation was captured correctly via `execute on attacker`
+   (that part always worked), but reading the tagged entity's UUID back
+   out through `execute_at` + `@s` wrote the **victim's own UUID** into
+   `attacker_uuid`/`killer_uuid`/`bridge_killer_uuid` — never the
+   attacker's. Every structural/export test asserted the exact (wrong)
+   generated string, so nothing caught it. Fixed to
+   `execute as <selector> at @s run <cmd>`; see that method's own doc for
+   the full before/after and its updated doctest.
+
+With both fixed, `run_audit.py` now has real, gating (not best-effort)
+live-fire evidence for three of the previously-inconclusive scenarios,
+replacing the old `bridge_scenario_rcon_attempt` check:
+
+| Check | What it proves |
+|---|---|
+| `correlated_attacker_rcon_direct_invocation` + `correlated_attacker_matches_real_attacker_uuid` | `EntityDamagePlayerEvent`'s `audit_on_hurt_by_entity_a` captures the *real* attacker's own UUID (byte-for-byte match against an independently-queried value), not just "some" UUID. |
+| `correlated_killer_rcon_direct_invocation` + `correlated_killer_matches_real_attacker_uuid` | Same proof for `PlayerKillEvent`'s `audit_on_killed`. |
+| `advancement_bridge_rcon_direct_invocation` + `advancement_bridge_matches_real_attacker_uuid` | Same proof for the `PlayerKillEvent` → `SpecialKillEvent` advancement-bridge inheritance, invoking the synthesized bridge entry function directly. |
+| `stale_state_cleanup` | The temporary `__sand_observed_<key>` tag a handler's setup creates is genuinely gone from the real entity after the handler completes, not just removed in the generated text. |
+| `weapon_snapshot_absent_branch` | A subject with no `SelectedItem` produces `weapon_present: 0b` live. |
+| `weapon_snapshot_present_branch` | **Not achieved** — see below. |
+
+As before, invoking the generated handler function directly over RCON
+(rather than through the real advancement criterion, which requires a
+real player) is real command execution against a real server, exercising
+the real implementation end-to-end — but it is not proof that a live
+player hit/kill fires the advancement criterion that leads here; that
+specific gap (a stable Play-phase client connection) is unchanged from
+the "What is not proven" section above.
+
+**`weapon_snapshot_present_branch` (an actual captured item) was
+attempted and not achieved**, for a different, non-timing reason: a
+summoned non-player entity was used as a `@s` stand-in and a `SelectedItem`
+tag injected via `data merge entity` — the command reports success
+("Modified entity data of ...") but a follow-up
+`data get entity ... SelectedItem` reliably reports "Found no elements
+matching SelectedItem". Vanilla's `data merge entity` validates merged NBT
+against the target's own data component schema, and `SelectedItem` is not
+a real component of a `zombie` (only of a player-controlled entity), so
+the merge is silently dropped server-side. Retrying did not help — this is
+not the same-tick lag from (1) above. A real player client is required for
+this specific branch; it remains blocked on the same Play-phase-stability
+gap as the rest of the player-driven scenarios.
 
 ## Manual validation procedure (until the above is resolved)
 

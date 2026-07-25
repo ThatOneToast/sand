@@ -45,10 +45,11 @@
 //!
 //! # Adding a tenth family
 //!
-//! Declare a zero-sized marker type, implement [`RegistryFamily`] for it,
-//! and route all state access through [`with_state`]/[`read_state`] (or the
-//! [`register_line`]/[`lookup_line`] helpers for the common
-//! `BTreeMap<String, Node>` shape). There is no per-family reset to
+//! Declare a zero-sized marker type, implement this module's crate-private
+//! `RegistryFamily` trait for it, and route all state access through
+//! `with_state`/`read_state` (or the `register_line`/`lookup_line` helpers
+//! for the common `BTreeMap<String, Node>` shape). There is no per-family
+//! reset to
 //! remember to write and no per-family reset to remember to wire into the
 //! export pipeline: a family that keeps its state here is export-scoped by
 //! construction, because the state has no other place to live.

@@ -2,7 +2,6 @@
 
 use std::collections::BTreeMap;
 use std::fmt;
-use std::sync::{Mutex, OnceLock};
 
 use crate::error::{CommandError, CommandResult};
 use crate::render::{CommandProfile, RenderCommand, Validate};
@@ -151,7 +150,7 @@ impl TitleTimes {
 }
 
 #[derive(Debug, Clone)]
-enum TitleCommand {
+pub(crate) enum TitleCommand {
     Times(TitleTimes),
     Clear(Selector),
     Reset(Selector),
@@ -528,7 +527,7 @@ impl Bossbar {
 }
 
 #[derive(Debug, Clone)]
-enum DisplayCommand {
+pub(crate) enum DisplayCommand {
     Title(Box<Title>),
     TitleCommand(Box<TitleCommand>),
     Bossbar(Box<BossbarCommand>),
@@ -552,25 +551,30 @@ fn display_error(
     CommandError::new("DisplayCommand", field, message).with_code(code)
 }
 
-fn registered_lines() -> &'static Mutex<BTreeMap<String, DisplayCommand>> {
-    static LINES: OnceLock<Mutex<BTreeMap<String, DisplayCommand>>> = OnceLock::new();
-    LINES.get_or_init(|| Mutex::new(BTreeMap::new()))
+/// Export-scoped registry family holding this module's rendered
+/// display command lines and their originating typed nodes.
+///
+/// State lives in [`crate::export_registry`]'s active layer, so it is
+/// per-thread, scoped to whichever [`crate::export_registry::ExportRegistryGuard`]
+/// is open, and discarded when that guard drops — including on an early
+/// `Err` return or an unwind. There is no process-global map and no
+/// per-family reset to remember to call.
+pub(crate) struct DisplayLines;
+
+impl crate::export_registry::RegistryFamily for DisplayLines {
+    type State = BTreeMap<String, DisplayCommand>;
 }
 
 fn register_line(line: &str, command: DisplayCommand) {
-    registered_lines()
-        .lock()
-        .expect("display command registry mutex poisoned")
-        .insert(line.to_owned(), command);
+    crate::export_registry::register_line::<DisplayLines, _>(line, command);
 }
 
 pub(crate) fn validate_registered_line(line: &str, profile: &CommandProfile) -> CommandResult<()> {
-    registered_lines()
-        .lock()
-        .expect("display command registry mutex poisoned")
-        .get(line)
-        .cloned()
-        .map_or(Ok(()), |command| command.validate(profile))
+    crate::export_registry::validate_registered_line::<DisplayLines, _>(
+        line,
+        profile,
+        |command, profile| command.validate(profile),
+    )
 }
 
 #[cfg(test)]

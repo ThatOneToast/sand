@@ -25,7 +25,6 @@
 
 use std::collections::BTreeMap;
 use std::fmt;
-use std::sync::{Mutex, OnceLock};
 
 use crate::Build;
 use crate::coord::BlockPos;
@@ -45,7 +44,7 @@ use crate::validate;
 // the canonical, fully-validated representation through to export — see
 // the #146/#168/#169/#170/#173/#175 PR body's "Cmd IR decision".
 #[derive(Debug, Clone)]
-enum BlockCommandNode {
+pub(crate) enum BlockCommandNode {
     SetBlock(SetBlock),
     Fill(Fill),
     Clone(CloneBlocks),
@@ -61,16 +60,22 @@ impl BlockCommandNode {
     }
 }
 
-fn registered_block_lines() -> &'static Mutex<BTreeMap<String, BlockCommandNode>> {
-    static LINES: OnceLock<Mutex<BTreeMap<String, BlockCommandNode>>> = OnceLock::new();
-    LINES.get_or_init(|| Mutex::new(BTreeMap::new()))
+/// Export-scoped registry family holding this module's rendered
+/// `setblock`/`fill`/`clone` command lines and their originating typed nodes.
+///
+/// State lives in [`crate::export_registry`]'s active layer, so it is
+/// per-thread, scoped to whichever [`crate::export_registry::ExportRegistryGuard`]
+/// is open, and discarded when that guard drops — including on an early
+/// `Err` return or an unwind. There is no process-global map and no
+/// per-family reset to remember to call.
+pub(crate) struct BlockLines;
+
+impl crate::export_registry::RegistryFamily for BlockLines {
+    type State = BTreeMap<String, BlockCommandNode>;
 }
 
 fn register_block_line(line: &str, node: BlockCommandNode) {
-    registered_block_lines()
-        .lock()
-        .expect("block command registry poisoned")
-        .insert(line.to_owned(), node);
+    crate::export_registry::register_line::<BlockLines, _>(line, node);
 }
 
 /// Re-validate a previously rendered `setblock`/`fill`/`clone` line's typed
@@ -80,15 +85,11 @@ fn register_block_line(line: &str, node: BlockCommandNode) {
 /// family (`nbt`, `execute_ir`, particles, sound, display, text, effect)
 /// uses.
 pub(crate) fn validate_registered_line(line: &str, profile: &CommandProfile) -> CommandResult<()> {
-    let node = registered_block_lines()
-        .lock()
-        .expect("block command registry poisoned")
-        .get(line)
-        .cloned();
-    if let Some(node) = node {
-        node.validate(profile)?;
-    }
-    Ok(())
+    crate::export_registry::validate_registered_line::<BlockLines, _>(
+        line,
+        profile,
+        |node, profile| node.validate(profile),
+    )
 }
 
 // ── BlockState ────────────────────────────────────────────────────────────────

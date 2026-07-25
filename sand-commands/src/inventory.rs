@@ -187,6 +187,31 @@ pub(crate) fn validate_registered_line(line: &str, profile: &CommandProfile) -> 
     Ok(())
 }
 
+/// Clear the process-global pre-write re-validation registry.
+///
+/// This registry is process-global (an `OnceLock<Mutex<BTreeMap<..>>>`), so
+/// without an explicit reset, stale entries from an earlier export in the
+/// same process persist forever: if a later, unrelated export happens to
+/// render a command line with byte-identical text to a previously
+/// registered (and possibly now-invalid, e.g. wildcard-write) line, that
+/// unrelated line would be re-validated against the *stale* typed node
+/// instead of being treated as an ordinary/raw line — a false positive or
+/// false negative unrelated to the current export.
+///
+/// The export pipeline calls this once at the start of every export (see
+/// `sand-core`'s `try_export_components_impl`), mirroring
+/// `sand_components::dialog::reset_dialog_callbacks_for_export`'s
+/// per-export reset for the dialog-callback registry. Safe to call before
+/// any `Inventory` methods run for the export: registration always happens
+/// synchronously when a line is rendered, so resetting up front never
+/// discards state a later step in the *same* export still needs.
+pub fn reset_registry_for_export() {
+    registered_inventory_lines()
+        .lock()
+        .expect("inventory command registry poisoned")
+        .clear();
+}
+
 // ── Validation helpers ───────────────────────────────────────────────────────
 
 /// Reject a wildcard slot (valid only in read/check contexts) and enforce

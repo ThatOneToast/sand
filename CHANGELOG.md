@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — visual-component builder validation and registry coverage accuracy (#141, #193)
+
+- **Asset-backed visual builders now validate before export.**
+  `BannerPattern`, `PaintingVariant`, `TrimMaterial`, `TrimPattern`, and
+  `WolfVariant` implement `DatapackComponent::validate`, so invalid
+  builder states (empty/malformed `asset_id`s, texture paths, and item
+  IDs; painting `width`/`height` outside `1..=16`; non-finite or
+  out-of-range trim `item_model_index`; empty or malformed `WolfVariant`
+  `biomes` shapes) are rejected with a structured diagnostic before any
+  JSON is written, instead of silently serializing incomplete or
+  malformed public state. No public API became panicking; invalid state
+  is now caught earlier, at export time, via the existing
+  `try_content`/`validate` hook.
+- **`RegistryCoverage` status now matches actual typedness.**
+  `minecraft:advancement` and `minecraft:recipe` are downgraded from
+  `FullyImplemented` to `PartiallyImplemented` (both still expose
+  normal-path raw strings / `serde_json::Value` fields; tracked by #183,
+  #184, #178). A new `KNOWN_PARTIAL_REGISTRIES` fixture and
+  `registry_coverage_status_matches_known_gaps` regression test now fail
+  the build if a tracked-partial registry is promoted to
+  `FullyImplemented` without updating the fixture, keeping the coverage
+  table from silently overclaiming completeness again.
+
 ### Added — structured `sand run` diagnostics and vanilla registry façade
 
 - **`sand run --server-log`.** Replaces the old raw-passthrough `--verbose`

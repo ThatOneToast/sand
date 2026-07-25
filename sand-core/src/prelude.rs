@@ -144,6 +144,10 @@ pub use sand_components::dialog::{
     Dialog, DialogAction, DialogBody, DialogButton, DialogKind, DialogTag,
 };
 
+// ── Chat type builders ────────────────────────────────────────────────────────
+
+pub use sand_components::{ChatDecoration, ChatDecorationParameter, ChatStyle, ChatType};
+
 // ── Item/component builders ──────────────────────────────────────────────────
 
 pub use sand_components::{

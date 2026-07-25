@@ -104,7 +104,18 @@ fn attacker_uuid_capture_uses_execute_at_the_typed_participant_handle() {
 
     assert!(
         body.contains("set from entity @s UUID"),
-        "attacker UUID copy must run as @s inside an `execute at <attacker>` context: {body}"
+        "attacker UUID copy must run as @s inside an `execute as <attacker> at @s` context: {body}"
+    );
+    // #265 live-runtime regression guard: `execute_at` must rebind the
+    // executing entity (`execute as`), not just move position
+    // (`execute at`) — see `EntityParticipant::execute_at`'s doc for the
+    // real live-fire evidence this was wrong before. A bare `execute at
+    // <attacker> run ... @s ...` leaves `@s` as the caller (the victim),
+    // so the captured UUID would silently be the wrong entity's.
+    assert!(
+        body.contains("execute as @e[tag=__sand_observed_") && body.contains("] at @s run"),
+        "attacker UUID copy must rebind @s via `execute as <attacker> at @s run ...`, \
+         not a position-only `execute at`: {body}"
     );
 }
 
@@ -115,8 +126,8 @@ fn typed_advancement_handler_accessor_resolves_the_exact_tag_its_own_setup_creat
     // handler's own function path) while `Event<E>::attacker()` always
     // resolves against `std::any::type_name::<E>()` — two different
     // strings, so the setup's own tag and the handler body's own
-    // `execute at @e[tag=...]` reference silently named two different,
-    // never-matching tags. A substring check (`.contains("execute at")`)
+    // `execute as @e[tag=...]` reference silently named two different,
+    // never-matching tags. A substring check (`.contains("execute as")`)
     // cannot catch this; only comparing the *exact* tag from both sites can.
     let records = records(&export());
     let body = records
@@ -132,9 +143,9 @@ fn typed_advancement_handler_accessor_resolves_the_exact_tag_its_own_setup_creat
     let setup_tag = &body[setup_tag_start..setup_tag_start + "__sand_observed_XXXXXXXX".len()];
 
     let accessor_tag_start = body
-        .find("execute at @e[tag=__sand_observed_")
-        .map(|i| i + "execute at @e[tag=".len())
-        .expect("the handler's own .attacker() accessor must generate an `execute at` reference");
+        .find("execute as @e[tag=__sand_observed_")
+        .map(|i| i + "execute as @e[tag=".len())
+        .expect("the handler's own .attacker() accessor must generate an `execute as` reference");
     let accessor_tag = &body[accessor_tag_start..accessor_tag_start + "__sand_observed_XXXXXXXX".len()];
 
     assert_eq!(
@@ -274,8 +285,9 @@ fn composed_scenario_child_and_sibling_reference_the_exact_parent_tag() {
             "{name} must reference the parent's exact tag {tag}: {body}"
         );
         assert!(
-            body.contains("execute at"),
-            "{name} must consume the participant via execute_at, not a bare selector: {body}"
+            body.contains("execute as") && body.contains("at @s run"),
+            "{name} must consume the participant via execute_at (which rebinds @s with \
+             `execute as ... at @s run ...`), not a bare selector: {body}"
         );
     }
     assert!(

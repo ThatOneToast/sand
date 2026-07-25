@@ -75,10 +75,37 @@ handwritten Minecraft command strings, enforced by
 `sand/tests/example_imports.rs`'s `canonical_examples_use_typed_command_builders_not_raw_strings`
 guard test alongside `examples/book_project`.
 
+### A real bug this pass found and fixed
+
+The previous (#280) pass got stuck on summoned entities becoming
+unselectable before a full scenario could complete, and left the
+`Correlated`/`ExactSnapshot` reliability claims resting on structural/export
+evidence only. This pass got far enough past that (see "RCON-direct
+scenario invocation" below) to actually inspect *correct* live-captured
+data — and found that `EntityParticipant::execute_at`
+(`sand-core/src/participant/reference.rs`) generated a bare
+`execute at <selector> run <cmd>`. Vanilla's `execute at` only moves the
+execution *position* — it never rebinds the executing entity (`@s`). Every
+caller (every correlated-attacker/killer/bridge-killer capture in this
+pack, built exactly per that method's own documented usage) builds `cmd`
+referencing `@s` to mean "this participant" — so `@s` silently kept
+resolving to the *caller's* own entity (the victim) instead, in every
+single case. Concretely: a real summoned "attacker" zombie's combat
+relation was captured correctly via `execute on attacker` (that part
+always worked), but reading its UUID back out through the old `execute_at`
+wrote the **victim's own UUID** into `attacker_uuid`/`killer_uuid`/
+`bridge_killer_uuid` every time — never the attacker's. Every export-level
+test asserted the exact (wrong) generated command string, so nothing
+caught it; only live evidence with a genuine two-entity combat relation to
+compare against did. Fixed to `execute as <selector> at @s run <cmd>` (see
+that method's doc for the full before/after). This is the finding this
+document exists to catch, and the primary reason `Correlated` reliability
+claims below are now backed by matching-UUID live evidence rather than
+"storage got populated."
+
 **Runtime-verified against a real, live Minecraft Java 26.2 server**
 (downloaded from Mojang's own version manifest, `java -jar server.jar`,
-not a mock), re-run after #264's same-cycle participant propagation
-mechanism and the composed audit scenario were added:
+not a mock), re-run after the `execute_at` fix above:
 - Real server startup with the current datapack — including
   `ComposedAttackerParent`/`ComposedAttackerChild`/`ComposedAttackerSibling`
   (#264's `inherit_entity` demonstration) — loaded, zero datapack load
@@ -88,6 +115,35 @@ mechanism and the composed audit scenario were added:
 - The generated functions actually execute without error on a real server
   (`function paudit:init` run over RCON; the audit storage schema
   initializes to the expected shape).
+- **Correlated attacker** (`EntityDamagePlayerEvent` →
+  `audit_on_hurt_by_entity_a`): a real combat "last attacker" relationship
+  is established via vanilla's own `/damage ... by <entity>` between two
+  freshly summoned, real entities, then the actual generated handler
+  function is invoked directly over RCON — the identical commands a real
+  advancement reward would call. The captured `attacker_uuid` in storage
+  is compared byte-for-byte against the real summoned attacker's own
+  `UUID` (queried independently) — genuinely matching, not merely
+  "populated." See `scripts/mc_validation/run_audit.py`'s
+  `correlated_attacker_rcon_direct_invocation`/
+  `correlated_attacker_matches_real_attacker_uuid` checks.
+- **Correlated killer** (`PlayerKillEvent` → `audit_on_killed`): identical
+  technique and identical UUID-match proof for `killer_uuid`.
+- **Advancement-bridge inheritance** (`PlayerKillEvent` bridge parent →
+  `SpecialKillEvent` → `audit_on_special_kill`): identical technique,
+  invoking the synthesized bridge entry function
+  (`paudit:__sand_event_advancement_bridge/f6a08801`) directly instead of a
+  plain handler — `bridge_killer_uuid` genuinely matches the real
+  attacker's UUID, proving the inherited-participant plan is applied
+  correctly around the bridge entry at real runtime, not just structurally.
+- **Stale-state cleanup**: after a successful correlated-attacker
+  invocation, the temporary `__sand_observed_<key>` tag the handler's setup
+  creates and its own cleanup command removes was confirmed actually gone
+  from the real entity afterward (`data get entity
+  @e[tag=__sand_observed_f797eaf3]` → "No entity was found"), not merely
+  present as text in the generated function.
+- **Weapon snapshot, absent-mainhand branch** (`PlayerDamageEntityEvent` →
+  `audit_on_hurt_entity`): a fresh entity with no `SelectedItem` NBT at all
+  invoked directly produces `weapon_present: 0b`, genuinely confirmed live.
 - The generated command *content* for the composed scenario was inspected
   directly (`examples/participant_audit/tests/deterministic_export.rs`'s
   `composed_scenario_*` tests): `audit_on_composed_parent`,
@@ -96,7 +152,7 @@ mechanism and the composed audit scenario were added:
   its own `execute on attacker` — proof the inheritance is genuinely
   zero-cost, not a second capture that happens to agree. This is
   structural/export evidence, not a live-fire proof of the composed
-  scenario's *runtime* correctness — see the next section.
+  scenario's *runtime* correctness.
 - A real `ServerPlayerEntity` **can** join a real 26.2 server: a
   purpose-built minimal protocol client
   (`scripts/mc_validation/minimal_join_client.py`) completed a genuine
@@ -108,8 +164,66 @@ mechanism and the composed audit scenario were added:
 - Item location NBT paths (`SelectedItem`, `Inventory[{Slot:-106b}]`, etc.)
   — long-documented, structurally stable vanilla tags (#229).
 
+### RCON-direct scenario invocation: what it proves and what it does not
+
+The checks above summon two real entities, use vanilla's own
+`/damage ... by <entity>` to establish the exact combat relation
+`execute on attacker` reads, then invoke the actual generated handler
+function directly over RCON — the identical generated commands a real
+advancement reward would call — rather than triggering the advancement
+criterion itself (`entity_hurt_player`/`entity_killed_player`, which
+require a real player victim; see "Not runtime-verified" below for why
+that path is still blocked). This is real command execution against a
+real running server, exercising the real implementation end-to-end
+(participant setup, the correlated capture, cleanup) with a real,
+independently-verifiable two-entity relation to check the result against —
+**not** proof that a live player hit/kill fires the advancement criterion
+that leads here. Getting this far required two harness fixes discovered
+during this pass, both applied in `scripts/mc_validation/run_audit.py`:
+- A ~0.5s settle delay between summoning an entity and the first command
+  that selector-matches it. Empirically confirmed necessary and
+  sufficient: a single-mcfunction batch of summon → immediate
+  selector-check (same server tick, zero RCON round-trip latency) failed
+  the check *every* time, while the same commands issued as separate RCON
+  round-trips with this delay between them succeeded the large majority of
+  the time — ruling out the RCON-round-trip/tick-boundary theory #280 had
+  proposed for the "entities become unselectable" symptom; it is a
+  same-tick selector-visibility lag, not a multi-tick persistence bug.
+- Retrying the full summon → damage → invoke sequence with fresh entities
+  (up to 6 attempts) when a `damage` call still reports "No entity was
+  found" or "Target is invulnerable to the given damage type" (the latter
+  is a freshly-spawned mob's own brief post-spawn invulnerability window,
+  a genuine vanilla mechanic, not a bug) — in this pass, 1–2 attempts
+  reliably sufficed once the settle delay above was in place.
+
 **Not runtime-verified — attempted, not achieved, in this validation
 pass:**
+- Weapon snapshot's **present** branch (an actual captured item). Its
+  backend is unaffected by the `execute_at` bug above (`@s` for this event
+  is already the attacking player's own entity — a direct mainhand-slot
+  NBT read, no relation traversal or `execute_at`/`execute on` indirection
+  involved at all), but it could not be exercised with a real captured
+  item in this pass: real command execution confirmed a summoned
+  non-player entity cannot stand in for a real player here — vanilla's
+  `data merge entity` validates merged NBT against the target's own data
+  component schema, and `SelectedItem` is not a real component of a
+  `zombie` (only of a player-controlled entity), so injecting one is
+  silently dropped server-side (confirmed: `data merge entity` itself
+  reports "Modified entity data of ...", but a follow-up
+  `data get entity ... SelectedItem` reliably reports "Found no elements
+  matching SelectedItem"). This is a hard requirement for a real player
+  client, not a settle-timing issue like the entity-selectability gap
+  above — retrying did not help. See
+  `scripts/mc_validation/run_audit.py`'s `weapon_snapshot_present_branch`.
+- Held-item snapshot is the same underlying backend as weapon snapshot
+  (`ItemLocation::PlayerMainHand`/`PlayerOffHand`, `EventParticipantPlan::observe_held_item`)
+  — same status as above, not separately re-attempted.
+- Tracked-transition participant capture (#270's fix — a tracked-transition
+  event's own direct participant plan being applied around its handler
+  body) has structural/export coverage
+  (`sand-core/tests/tracked_event_participant_setup.rs`) but no dedicated
+  scenario in `examples/participant_audit` and was not added in this pass;
+  live evidence for it remains open.
 - The composed scenario's actual *firing*: it dispatches via
   `SandEventDispatch::tick().as_players()`, which requires a real player
   entity present as `@s` — the same stable-Play-phase-connection gap below
@@ -118,10 +232,10 @@ pass:**
   actually landing correctly at real runtime, only that the generated
   commands reference the right tag structurally.
 - Player-triggered combat scenarios (a real player actually taking damage
-  from a real or summoned entity, and the datapack's attacker/killer/weapon
-  capture producing correct evidence). The minimal client's Play-phase
-  connection is not yet stable enough to survive long enough for a scripted
-  follow-up command to land reliably — see
+  from a real or summoned entity, driven through the real advancement
+  criterion rather than a direct RCON handler invocation). The minimal
+  client's Play-phase connection is not yet stable enough to survive long
+  enough for a scripted follow-up command to land reliably — see
   `scripts/mc_validation/README.md`'s "What is not proven, and exactly
   why" for the specific, honestly-documented gap (most likely one
   additional serverbound acknowledgement packet this very recent protocol
@@ -133,13 +247,12 @@ pass:**
   to the specific `EntityHurtPlayer`/`EntityKilledPlayer` criterion
   occurrence, vs. reflecting a slightly stale prior hit in edge cases
   (rapid multi-hit sequences, mixed melee/projectile damage in one tick) —
-  an RCON-only (no player) mob-vs-mob reproduction of this was attempted
-  and did not produce a trustworthy result within this pass either (entity
-  selector behavior over RCON in this environment had its own
-  unresolved quirks — see the PR history for the attempted commands); not
-  claimed as evidence either way.
-- Custom-data weapon snapshot correctness, empty-hand behavior, and
-  inventory-mutation-after-capture isolation under real gameplay.
+  not attempted in this pass; a genuine "does the same entity attack twice
+  in one tick from two different sources" reproduction requires more setup
+  than the single-relation checks added here.
+- Custom-data weapon snapshot correctness and inventory-mutation-after-capture
+  isolation under real gameplay (both require the same real-player-client
+  precondition as the present-branch weapon check above).
 
 A complete, precise manual validation procedure for a human tester with a
 real Minecraft 26.2 client is in `scripts/mc_validation/README.md`. Do not
@@ -147,7 +260,8 @@ treat the unverified items above as claims of failure — the reliability
 levels in this document (`Correlated`, never `Exact`; `ExactSnapshot`,
 never `Exact`) were already chosen conservatively enough that they do not
 depend on the outcome of that verification, and #265 remains open pending
-either a stabilized automated client or a completed manual pass.
+either a stabilized automated client, a completed manual pass, or a real
+player-client-driven weapon/held-item present-branch check.
 
 ## Participant propagation across event graph edges (#264)
 
@@ -198,7 +312,7 @@ public code no longer has a reason to call them directly.
 | `after_all` (multi-parent, conjunctive) | ❌ Rejected | ❌ Rejected | — | — | Same diagnostic path as `after_any` — any edge with more than one occurrence clause/parent is rejected uniformly. |
 | `.while_(...)` (persistent condition) | ❌ Rejected (also structurally impossible — see below) | ❌ Rejected | — | — | A `while_` parent is required to have an empty `EventSetup` (#240 Phase 6 precedent), so it can never carry a plan to inherit from in the first place; the validator's diagnostic names this. |
 | `.within(...)` (bounded cross-tick correlation) | ❌ Rejected (entity) | 🟡 Not automatic — use `ItemSnapshot::copy_to` by hand | Copied snapshots keep `ExactSnapshot` | Bounded, caller-managed | #264 does not add an automatic bounded-item transport; the typed `ItemSnapshot::copy_to`/`StorageField` APIs from #267 already let a caller build one explicitly into per-subject correlation storage. Entity participants are never safe to keep alive across a tick boundary with the current temporary-tag mechanism (see "Bounded entity decision" in the #264 PR description) and always resolve unavailable/rejected. |
-| Advancement-bridge parent (`.after::<AdvancementEvent>()` with no direct handler) | ✅ `inherit_entity` (#269) | ✅ `inherit_item` (#269) | Unchanged from source | `SynchronousDescendants` | Fixed in #269/#280: the bridge parent's own `participants()` plan is now applied directly around its synthesized entry (setup after revoke, before every dependent; cleanup after every synchronous descendant) — see `sand-core/tests/event_chain_advancement_bridge_nested_siblings.rs` for exact-output proof (siblings, a nested grandchild, and ordering). A grandchild reached through another same-cycle child may still `inherit_*` directly from the original bridge parent (multi-hop, not transitive). Real-server validation attempted for this specific scenario (`PlayerKillEvent -> SpecialKillEvent`) via `scripts/mc_validation/run_audit.py`'s `bridge_scenario_rcon_attempt` check — see that script's README section for what is and is not proven live; a real, non-mocked *firing* of the scenario was not achieved (unrelated entity-persistence instability in this environment), but real server startup/load/reload of the pack containing this scenario is proven. |
+| Advancement-bridge parent (`.after::<AdvancementEvent>()` with no direct handler) | ✅ `inherit_entity` (#269) | ✅ `inherit_item` (#269) | Unchanged from source | `SynchronousDescendants` | Fixed in #269/#280: the bridge parent's own `participants()` plan is now applied directly around its synthesized entry (setup after revoke, before every dependent; cleanup after every synchronous descendant) — see `sand-core/tests/event_chain_advancement_bridge_nested_siblings.rs` for exact-output proof (siblings, a nested grandchild, and ordering). A grandchild reached through another same-cycle child may still `inherit_*` directly from the original bridge parent (multi-hop, not transitive). Real-server validation for this specific scenario (`PlayerKillEvent -> SpecialKillEvent`) via `scripts/mc_validation/run_audit.py`'s `advancement_bridge_rcon_direct_invocation`/`advancement_bridge_matches_real_attacker_uuid` checks: a real, non-mocked firing of the synthesized bridge entry function against a real, independently-verified combat attacker relationship, with `bridge_killer_uuid` confirmed to genuinely match the real attacker's UUID (see `docs/testing/participant-role-evidence.md`'s "What has and has not been runtime-verified" and `scripts/mc_validation/README.md`'s "#265 (this pass)" section for the full before/after, including a real `execute_at` bug this uncovered and fixed). |
 | Tracked-transition parent (#263) | ❌ Rejected (nothing to inherit) | ❌ Rejected | — | — | Same-cycle graph-parent bridging for tracked-transition `SandEvent`s remains unsupported and is unrelated to #270: #270 fixed a tracked-transition event's own *direct* participant plan being silently ignored by its dispatch backend (now applied around its own handler body — see `sand-core/tests/tracked_event_participant_setup.rs`); using a tracked event as a graph parent for another event's inheritance is still rejected by `discover()` (`sand-core/src/events/graph.rs`), unchanged. |
 
 Every rejection above is a real export-time diagnostic (`sand-core/src/compiler/export/participant_transport.rs`), not a silent downgrade — see `sand-core/tests/event_chain_participant_inheritance_diag_{after_any,within,transitive}.rs` for end-to-end proof each one actually surfaces through the real export pipeline.

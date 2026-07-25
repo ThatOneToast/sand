@@ -31,7 +31,26 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RegistryApiStatus {
     /// A typed Sand module exists and generates correct JSON paths.
-    /// At least one serialization/golden test exists.
+    ///
+    /// This is a stronger claim than "a module exists": it requires
+    /// **all** of the following to hold for the normal (non-escape-hatch)
+    /// public API —
+    ///
+    /// - every field a typed builder exposes on the normal path is either
+    ///   a typed/validated value or goes through export-time validation
+    ///   (`DatapackComponent::validate`) that rejects malformed input
+    ///   before JSON is written (no silently-serialized empty strings,
+    ///   unchecked numeric ranges, or unvalidated resource IDs);
+    /// - correct datapack path generation for the registry's directory;
+    /// - at least one focused serialization/golden JSON test.
+    ///
+    /// See [`KNOWN_PARTIAL_REGISTRIES`] and
+    /// `registry_coverage_status_matches_known_gaps` for the automated
+    /// guard that keeps this claim from silently going stale. A row may
+    /// only be promoted to `FullyImplemented` by also updating (or
+    /// removing) its entry in `KNOWN_PARTIAL_REGISTRIES`, and its `notes`
+    /// field should explain *why* the claim holds (not just restate the
+    /// module name) — see [`RegistryCoverage::notes`].
     FullyImplemented,
     /// A module exists but coverage is incomplete — some fields are raw
     /// `serde_json::Value`, required builders are missing, or tests are absent.
@@ -89,9 +108,16 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         datapack_dir: "advancement",
         tag_dir: None,
         sand_module: Some("sand_components::advancement"),
-        api_status: RegistryApiStatus::FullyImplemented,
+        api_status: RegistryApiStatus::PartiallyImplemented,
         version_gate: None,
-        notes: "Advancement, AdvancementTrigger, AdvancementDisplay. 50+ trigger variants. See trigger_coverage.",
+        notes: "Advancement, AdvancementTrigger, AdvancementDisplay. 50+ trigger variants. See trigger_coverage. \
+                #184 (typed resource IDs inside AdvancementTrigger variants) is closed and confirmed done: trigger \
+                condition/resource fields (e.g. BlockId, DimensionId, PotionRegistryId, EntityPredicate) are typed. \
+                Remaining normal-path raw surfaces per #183: AdvancementDisplay::{title, description} are raw \
+                serde_json::Value instead of a typed TextComponent, AdvancementDisplay::background and \
+                AdvancementIcon::id are raw String, AdvancementRewards::{recipes, loot, function} are \
+                Vec<String>/Option<String>, and Advancement::parent is a raw String. Downgraded from \
+                FullyImplemented per #193. Follow-up: #183.",
     },
     RegistryCoverage {
         registry_key: "minecraft:function",
@@ -109,7 +135,9 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         sand_module: Some("sand_components::loot_table"),
         api_status: RegistryApiStatus::PartiallyImplemented,
         version_gate: None,
-        notes: "LootTable, LootPool, LootEntry exist but coverage is partial. Complex pool conditions and entry types are missing. Follow-up: #17.",
+        notes: "LootTable, LootPool, LootEntry exist but coverage is partial. Complex pool conditions and entry types are missing. \
+                Follow-up: #185 (route loot table item/tag/text/reference IDs through typed public APIs); \
+                #17 (original registry-coverage generation issue) is closed and does not track this specific gap.",
     },
     RegistryCoverage {
         registry_key: "minecraft:predicate",
@@ -127,7 +155,13 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         sand_module: Some("sand_components::recipe"),
         api_status: RegistryApiStatus::FullyImplemented,
         version_gate: None,
-        notes: "All standard recipe types implemented: shaped, shapeless, smelting, blasting, smoking, campfire, smithing_transform, smithing_trim, stonecutting.",
+        notes: "All standard recipe types implemented: shaped, shapeless, smelting, blasting, smoking, campfire, \
+                smithing_transform, smithing_trim, stonecutting. #178 (route recipe ingredient/result IDs through \
+                typed item/tag IDs) is closed and confirmed done: Ingredient::item_id/item_tag and \
+                RecipeResult::item take IntoRecipeItemId/TagId<ItemId> on the normal path; raw_item/raw_tag/raw \
+                remain as explicitly named compatibility escape hatches. Not downgraded per #193 (a prior review \
+                pass incorrectly cited #178 as still open; verified closed 2026-07-12 with the typed API already \
+                present on this branch's base).",
     },
     RegistryCoverage {
         registry_key: "minecraft:item_modifier",
@@ -191,7 +225,9 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         sand_module: Some("sand_components::painting_variant"),
         api_status: RegistryApiStatus::FullyImplemented,
         version_gate: None,
-        notes: "PaintingVariant.",
+        notes: "PaintingVariant. validate() rejects empty/malformed asset_id and width/height outside 1..=16 \
+                before export. Golden JSON test: painting_variant::tests::valid_painting_variant_json_is_stable. \
+                See #141.",
     },
     RegistryCoverage {
         registry_key: "minecraft:banner_pattern",
@@ -200,7 +236,9 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         sand_module: Some("sand_components::banner_pattern"),
         api_status: RegistryApiStatus::FullyImplemented,
         version_gate: None,
-        notes: "BannerPattern.",
+        notes: "BannerPattern. validate() rejects empty/malformed asset_id and empty/control-char translation_key \
+                before export. Golden JSON test: banner_pattern::tests::valid_banner_pattern_json_is_stable. \
+                See #141.",
     },
     RegistryCoverage {
         registry_key: "minecraft:trim_material",
@@ -209,7 +247,10 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         sand_module: Some("sand_components::trim"),
         api_status: RegistryApiStatus::FullyImplemented,
         version_gate: Some("1.19.4"),
-        notes: "TrimMaterial in sand_components::trim module.",
+        notes: "TrimMaterial in sand_components::trim module. validate() rejects empty/malformed asset_name and \
+                ingredient, and non-finite item_model_index before export (no numeric range enforced — see \
+                module docs, item_model_index has no vanilla-documented bound). Golden JSON test: \
+                trim::tests::valid_trim_material_json_is_stable. See #141.",
     },
     RegistryCoverage {
         registry_key: "minecraft:trim_pattern",
@@ -218,7 +259,9 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         sand_module: Some("sand_components::trim"),
         api_status: RegistryApiStatus::FullyImplemented,
         version_gate: Some("1.19.4"),
-        notes: "TrimPattern in sand_components::trim module.",
+        notes: "TrimPattern in sand_components::trim module. validate() rejects empty/malformed asset_id and \
+                template_item before export. Golden JSON test: trim::tests::valid_trim_pattern_json_is_stable. \
+                See #141.",
     },
     RegistryCoverage {
         registry_key: "minecraft:wolf_variant",
@@ -227,7 +270,10 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         sand_module: Some("sand_components::wolf_variant"),
         api_status: RegistryApiStatus::FullyImplemented,
         version_gate: Some("1.20.5"),
-        notes: "WolfVariant. Introduced in 1.20.5.",
+        notes: "WolfVariant. Introduced in 1.20.5. validate() rejects empty/malformed texture paths and \
+                unsupported biomes JSON shapes (empty string/array, non-string entries, non-string/array \
+                top-level shapes) before export. Golden JSON test: wolf_variant::tests::valid_wolf_variant_json_is_stable. \
+                See #141.",
     },
     RegistryCoverage {
         registry_key: "minecraft:chat_type",
@@ -614,6 +660,28 @@ pub const TAG_COVERAGE: &[TagCoverage] = &[
 /// in) API while allowing a registry to remain valid for older fixtures.
 pub const REGISTRY_REMOVED_IN: &[(&str, &str)] = &[];
 
+// ── Coverage-status consistency guard (#193) ───────────────────────────────────
+
+/// Registries known to have normal-path typedness gaps, keyed to the issue(s)
+/// tracking their remaining work.
+///
+/// This is a small, explicit allowlist rather than a link to
+/// `docs/typedness-audit.md` — that file was removed in #262 (see #174), so
+/// this fixture is now the source of truth `registry_coverage.rs` checks
+/// itself against. Each entry asserts two things about the matching
+/// [`REGISTRY_COVERAGE`] row:
+///
+/// 1. its `api_status` is **not** [`RegistryApiStatus::FullyImplemented`];
+/// 2. its `notes` mention every listed issue reference.
+///
+/// When a registry genuinely becomes fully typed, remove its entry here in
+/// the same change that promotes its `REGISTRY_COVERAGE` row — that keeps a
+/// promotion from silently slipping in without a corresponding audit.
+pub const KNOWN_PARTIAL_REGISTRIES: &[(&str, &[&str])] = &[
+    ("minecraft:advancement", &["#183"]),
+    ("minecraft:loot_table", &["#185"]),
+];
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -968,6 +1036,61 @@ mod tests {
                     !entry.notes.is_empty(),
                     "missing registry '{}' must have notes explaining the gap or escape hatch",
                     entry.registry_key
+                );
+            }
+        }
+    }
+
+    /// Regression guard for #193: `RegistryCoverage` must not claim
+    /// `FullyImplemented` for a registry that [`KNOWN_PARTIAL_REGISTRIES`]
+    /// still identifies as having normal-path typedness gaps, and the
+    /// row's notes must actually reference the owning issue(s) rather than
+    /// a vague "partial" statement.
+    ///
+    /// If this test fails because a registry was promoted to
+    /// `FullyImplemented`, either the promotion is real (remove the entry
+    /// from `KNOWN_PARTIAL_REGISTRIES` in the same change) or the row was
+    /// promoted without actually closing the gap (fix the row instead).
+    #[test]
+    fn registry_coverage_status_matches_known_gaps() {
+        for (registry_key, issues) in KNOWN_PARTIAL_REGISTRIES {
+            let entry = REGISTRY_COVERAGE
+                .iter()
+                .find(|e| &e.registry_key == registry_key)
+                .unwrap_or_else(|| {
+                    panic!("KNOWN_PARTIAL_REGISTRIES references unknown registry '{registry_key}'")
+                });
+            assert_ne!(
+                entry.api_status,
+                RegistryApiStatus::FullyImplemented,
+                "registry '{registry_key}' is listed in KNOWN_PARTIAL_REGISTRIES but its \
+                 REGISTRY_COVERAGE row claims FullyImplemented; either the typedness gap is \
+                 closed (remove it from KNOWN_PARTIAL_REGISTRIES) or the row is overstated \
+                 (downgrade api_status)"
+            );
+            for issue in *issues {
+                assert!(
+                    entry.notes.contains(issue),
+                    "registry '{registry_key}' notes must reference tracking issue {issue}: {:?}",
+                    entry.notes
+                );
+            }
+        }
+    }
+
+    /// Every row claiming `FullyImplemented` must carry non-trivial notes
+    /// that justify the claim (not merely restate the module name), per the
+    /// stricter definition documented on [`RegistryApiStatus::FullyImplemented`].
+    #[test]
+    fn fully_implemented_rows_have_justification_notes() {
+        for entry in REGISTRY_COVERAGE {
+            if entry.api_status == RegistryApiStatus::FullyImplemented {
+                assert!(
+                    entry.notes.len() >= 20,
+                    "registry '{}' claims FullyImplemented but notes are too short to justify \
+                     it: {:?}",
+                    entry.registry_key,
+                    entry.notes
                 );
             }
         }

@@ -1,9 +1,22 @@
 //! Builder for `data/<namespace>/painting_variant/` JSON files (Minecraft 1.21+).
+//!
+//! # Validation
+//!
+//! The export path calls [`DatapackComponent::validate`] before serialization:
+//! - `asset_id` must be non-empty and a valid plain resource location
+//!   (e.g. `"minecraft:kebab"`).
+//! - `width` and `height` must be in `1..=16` (a real vanilla-documented
+//!   constraint for custom painting variants).
+//! - `author` and `title`, when set, must not contain control characters.
+//!   This is a Sand-side defensive check, not a documented vanilla
+//!   requirement.
 
 use serde_json::Value;
 
-use crate::component::DatapackComponent;
+use crate::component::{ComponentContent, DatapackComponent};
+use crate::error::Result as SandResult;
 use crate::resource_location::ResourceLocation;
+use crate::validation;
 
 /// A painting variant definition (`data/<namespace>/painting_variant/<id>.json`).
 ///
@@ -80,6 +93,31 @@ impl DatapackComponent for PaintingVariant {
         &self.location
     }
 
+    fn validate(&self) -> SandResult<()> {
+        let kind = "painting_variant";
+        validation::require_non_empty(&self.location, kind, "asset_id", &self.asset_id)?;
+        validation::validate_resource_location_str(
+            &self.location,
+            kind,
+            "asset_id",
+            &self.asset_id,
+        )?;
+        validation::require_u32_in_range(&self.location, kind, "width", self.width, 1, 16)?;
+        validation::require_u32_in_range(&self.location, kind, "height", self.height, 1, 16)?;
+        if let Some(ref author) = self.author {
+            validation::reject_control_chars(&self.location, kind, "author", author)?;
+        }
+        if let Some(ref title) = self.title {
+            validation::reject_control_chars(&self.location, kind, "title", title)?;
+        }
+        Ok(())
+    }
+
+    fn try_content(&self) -> SandResult<ComponentContent> {
+        self.validate()?;
+        Ok(self.content())
+    }
+
     fn to_json(&self) -> Value {
         let mut map = serde_json::Map::new();
         map.insert("asset_id".to_string(), Value::String(self.asset_id.clone()));
@@ -96,5 +134,88 @@ impl DatapackComponent for PaintingVariant {
 
     fn component_dir(&self) -> &'static str {
         "painting_variant"
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn rl() -> ResourceLocation {
+        ResourceLocation::new("test", "kebab").unwrap()
+    }
+
+    fn valid() -> PaintingVariant {
+        PaintingVariant::new(rl())
+            .asset_id("minecraft:kebab")
+            .dimensions(1, 1)
+    }
+
+    #[test]
+    fn valid_painting_variant_passes_validation() {
+        assert!(valid().validate().is_ok());
+    }
+
+    #[test]
+    fn empty_asset_id_is_rejected() {
+        let pv = PaintingVariant::new(rl()).dimensions(1, 1);
+        let err = pv.validate().unwrap_err();
+        assert!(err.to_string().contains("asset_id"), "{err}");
+    }
+
+    #[test]
+    fn malformed_asset_id_is_rejected() {
+        let pv = valid().asset_id("Not Valid!");
+        assert!(pv.validate().is_err());
+    }
+
+    #[test]
+    fn width_zero_is_rejected() {
+        let pv = valid().width(0);
+        assert!(pv.validate().is_err());
+    }
+
+    #[test]
+    fn width_above_sixteen_is_rejected() {
+        let pv = valid().width(17);
+        assert!(pv.validate().is_err());
+    }
+
+    #[test]
+    fn height_zero_is_rejected() {
+        let pv = valid().height(0);
+        assert!(pv.validate().is_err());
+    }
+
+    #[test]
+    fn height_above_sixteen_is_rejected() {
+        let pv = valid().height(17);
+        assert!(pv.validate().is_err());
+    }
+
+    #[test]
+    fn width_and_height_bounds_are_accepted() {
+        assert!(valid().dimensions(1, 16).validate().is_ok());
+        assert!(valid().dimensions(16, 1).validate().is_ok());
+    }
+
+    #[test]
+    fn invalid_painting_variant_fails_export() {
+        let pv = PaintingVariant::new(rl());
+        assert!(pv.try_content().is_err());
+    }
+
+    #[test]
+    fn valid_painting_variant_json_is_stable() {
+        let pv = valid().author("Bob Ross").title("Kebab");
+        let json = pv.to_json();
+        assert_eq!(json["asset_id"], "minecraft:kebab");
+        assert_eq!(json["width"], 1);
+        assert_eq!(json["height"], 1);
+        assert_eq!(json["author"], "Bob Ross");
+        assert_eq!(json["title"], "Kebab");
+        let a = serde_json::to_string_pretty(&pv.to_json()).unwrap();
+        let b = serde_json::to_string_pretty(&pv.to_json()).unwrap();
+        assert_eq!(a, b);
     }
 }

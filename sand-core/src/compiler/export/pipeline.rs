@@ -121,6 +121,18 @@ pub(crate) fn try_export_components_impl(
     sand_components::dialog::reset_dialog_callbacks_for_export();
     let _dialog_callback_reset = DialogCallbackExportReset;
 
+    // The `sand_commands::inventory` pre-write re-validation registry (see
+    // #172) is process-global for the same reason the dialog-callback
+    // registry above is: without a per-export reset, two exports in the
+    // same process (e.g. two `#[test]`s, or a long-running build daemon)
+    // could have a later export's `validate_collected_line` call match a
+    // stale, unrelated typed node left behind by an earlier export whose
+    // rendered line happened to share the exact same text. This lock's
+    // scope already serializes the whole export body (see the comment
+    // above), so resetting here is race-free with any other in-process
+    // export.
+    sand_commands::inventory::reset_registry_for_export();
+
     let mut records: Vec<ComponentRecord> = Vec::new();
     let mut tag_map: BTreeMap<String, Vec<String>> = BTreeMap::new();
 

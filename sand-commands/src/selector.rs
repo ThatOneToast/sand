@@ -744,12 +744,12 @@ impl Selector {
     /// entries instead of a hand-formatted string.
     ///
     /// ```
-    /// use sand_commands::selector::{Selector, SelectorScores, SelectorRange};
+    /// use sand_commands::selector::{Selector, SelectorScores, ScoreRange};
     ///
     /// let sel = Selector::all_players().scores_typed(
     ///     SelectorScores::new()
-    ///         .with("kills", SelectorRange::between(1.0, 10.0))
-    ///         .with("deaths", SelectorRange::exact(0.0)),
+    ///         .with("kills", ScoreRange::between(1, 10))
+    ///         .with("deaths", ScoreRange::exact(0)),
     /// );
     /// assert_eq!(sel.to_string(), "@a[scores={kills=1..10,deaths=0}]");
     /// ```
@@ -1379,25 +1379,91 @@ impl fmt::Display for SelectorRange {
     }
 }
 
+// ── ScoreRange ───────────────────────────────────────────────────────────────
+
+/// A typed integer range for `scores={...}` selector entries (see
+/// [#200](https://github.com/ThatOneToast/sand/issues/200)).
+///
+/// Deliberately distinct from [`SelectorRange`]: Minecraft scoreboard scores
+/// are always 32-bit integers, so `scores={obj=1.5..3.2}` is not legal
+/// vanilla syntax even though the same `min..max` grammar shape is used for
+/// `distance`/`level` (which *are* floating-point). Using an `i32`-based
+/// type here at the API boundary makes a fractional score range a compile
+/// error instead of a malformed-selector diagnostic discovered at
+/// `try_build` time.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ScoreRange {
+    min: Option<i32>,
+    max: Option<i32>,
+}
+
+impl ScoreRange {
+    /// An exact value: `n..n`, rendered as `n`.
+    pub fn exact(n: i32) -> Self {
+        Self {
+            min: Some(n),
+            max: Some(n),
+        }
+    }
+
+    /// `n..` — at least `n`.
+    pub fn at_least(n: i32) -> Self {
+        Self {
+            min: Some(n),
+            max: None,
+        }
+    }
+
+    /// `..n` — at most `n`.
+    pub fn at_most(n: i32) -> Self {
+        Self {
+            min: None,
+            max: Some(n),
+        }
+    }
+
+    /// `min..max` — an inclusive range.
+    pub fn between(min: i32, max: i32) -> Self {
+        Self {
+            min: Some(min),
+            max: Some(max),
+        }
+    }
+}
+
+impl fmt::Display for ScoreRange {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match (self.min, self.max) {
+            (Some(a), Some(b)) if a == b => write!(f, "{a}"),
+            (Some(a), Some(b)) => write!(f, "{a}..{b}"),
+            (Some(a), None) => write!(f, "{a}.."),
+            (None, Some(b)) => write!(f, "..{b}"),
+            (None, None) => Ok(()),
+        }
+    }
+}
+
 // ── SelectorScores ───────────────────────────────────────────────────────────
 
 /// A typed `scores={...}` selector filter map (see
 /// [#200](https://github.com/ThatOneToast/sand/issues/200)).
 ///
 /// Entries are rendered in insertion order, so equivalent construction order
-/// always produces an identical rendered selector.
+/// always produces an identical rendered selector. Values are [`ScoreRange`]
+/// (integer), not [`SelectorRange`] (float) — scoreboard scores are always
+/// integers in vanilla Minecraft.
 ///
 /// ```
-/// use sand_commands::selector::{SelectorScores, SelectorRange};
+/// use sand_commands::selector::{SelectorScores, ScoreRange};
 ///
 /// let scores = SelectorScores::new()
-///     .with("kills", SelectorRange::between(1.0, 10.0))
-///     .with("deaths", SelectorRange::exact(0.0));
+///     .with("kills", ScoreRange::between(1, 10))
+///     .with("deaths", ScoreRange::exact(0));
 /// assert_eq!(scores.to_string(), "kills=1..10,deaths=0");
 /// ```
 #[derive(Debug, Clone, Default)]
 pub struct SelectorScores {
-    entries: Vec<(String, SelectorRange)>,
+    entries: Vec<(String, ScoreRange)>,
 }
 
 impl SelectorScores {
@@ -1407,7 +1473,7 @@ impl SelectorScores {
     }
 
     /// Add `objective=range` to this filter map.
-    pub fn with(mut self, objective: impl Into<String>, range: SelectorRange) -> Self {
+    pub fn with(mut self, objective: impl Into<String>, range: ScoreRange) -> Self {
         self.entries.push((objective.into(), range));
         self
     }
@@ -1837,8 +1903,8 @@ mod tests {
         let typed = Selector::all_players()
             .scores_typed(
                 SelectorScores::new()
-                    .with("kills", SelectorRange::between(1.0, 10.0))
-                    .with("deaths", SelectorRange::exact(0.0)),
+                    .with("kills", ScoreRange::between(1, 10))
+                    .with("deaths", ScoreRange::exact(0)),
             )
             .try_build()
             .unwrap();
@@ -1855,12 +1921,25 @@ mod tests {
         let err = Selector::all_players()
             .scores_typed(
                 SelectorScores::new()
-                    .with("kills", SelectorRange::exact(1.0))
-                    .with("kills", SelectorRange::exact(2.0)),
+                    .with("kills", ScoreRange::exact(1))
+                    .with("kills", ScoreRange::exact(2)),
             )
             .try_build()
             .unwrap_err();
         assert!(err.to_string().contains("duplicate"), "{err}");
+    }
+
+    #[test]
+    fn score_range_is_integer_typed_not_float() {
+        // #200 review finding: `scores={...}` values must be integers in
+        // vanilla Minecraft — `ScoreRange` uses `i32` bounds so a fractional
+        // score range is a compile error, not a malformed-selector
+        // diagnostic discovered later at `try_build` time. This test just
+        // pins the rendered (always-integer) output shape.
+        assert_eq!(ScoreRange::exact(0).to_string(), "0");
+        assert_eq!(ScoreRange::between(-5, 5).to_string(), "-5..5");
+        assert_eq!(ScoreRange::at_least(3).to_string(), "3..");
+        assert_eq!(ScoreRange::at_most(-1).to_string(), "..-1");
     }
 
     #[test]
@@ -1926,24 +2005,61 @@ mod tests {
 
     #[test]
     fn selector_construction_order_is_deterministic() {
-        // #200/#173: equivalent construction order must produce identical
-        // rendered selectors — building the same selector twice, in the same
-        // call order, must not vary run to run.
+        // #200/#173: rebuilding the same selector from scratch, in the same
+        // call order, must always render identically — no run-to-run
+        // variance. `Selector`'s args and `SelectorScores`'s entries are
+        // both backed by `Vec` (insertion order), not a hasher-seeded map,
+        // so this is not merely "the same closure returns the same string
+        // twice": each `build()` call constructs fresh `Vec`s from scratch,
+        // and a `HashMap`-backed regression (each instance gets an
+        // independently randomized iteration order in std) would show up as
+        // flaky inequality across iterations. Loop many times for
+        // confidence instead of relying on two calls that could coincide by
+        // chance.
         let build = || {
             Selector::all_entities()
                 .entity_type("minecraft:zombie")
                 .tag("elite")
                 .distance_typed(SelectorRange::at_most(20.0))
-                .scores_typed(SelectorScores::new().with("threat", SelectorRange::at_least(5.0)))
+                .scores_typed(
+                    SelectorScores::new()
+                        .with("threat", ScoreRange::at_least(5))
+                        .with("armor", ScoreRange::between(0, 3))
+                        .with("kills", ScoreRange::exact(0)),
+                )
                 .limit(3)
                 .to_string()
         };
-        let a = build();
-        let b = build();
-        assert_eq!(a, b);
-        assert_eq!(
-            a,
-            "@e[type=minecraft:zombie,tag=elite,distance=..20,scores={threat=5..},limit=3]"
-        );
+        let expected = "@e[type=minecraft:zombie,tag=elite,distance=..20,scores={threat=5..,armor=0..3,kills=0},limit=3]";
+        let first = build();
+        assert_eq!(first, expected);
+        for _ in 0..64 {
+            assert_eq!(build(), first);
+        }
+
+        // Construction order is caller-controlled and semantically
+        // significant for `SelectorScores` (it is not canonicalized/sorted),
+        // so two *different* insertion orders are expected to render
+        // differently from each other — while each remains internally
+        // deterministic across repeated builds.
+        let reordered = || {
+            Selector::all_entities()
+                .entity_type("minecraft:zombie")
+                .tag("elite")
+                .distance_typed(SelectorRange::at_most(20.0))
+                .scores_typed(
+                    SelectorScores::new()
+                        .with("kills", ScoreRange::exact(0))
+                        .with("armor", ScoreRange::between(0, 3))
+                        .with("threat", ScoreRange::at_least(5)),
+                )
+                .limit(3)
+                .to_string()
+        };
+        let reordered_first = reordered();
+        assert_ne!(reordered_first, first);
+        for _ in 0..64 {
+            assert_eq!(reordered(), reordered_first);
+        }
     }
 }

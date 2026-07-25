@@ -97,6 +97,28 @@ pub fn resource_location_shape<'a>(
     }
 }
 
+/// Reject a string containing control characters (e.g. NUL, newline,
+/// carriage return) that would corrupt a single-line `.mcfunction` command
+/// or silently truncate a chat/tellraw message. Unlike
+/// [`no_whitespace_or_control`], ordinary whitespace (spaces) is allowed —
+/// `say`/`tell`/`me` read their message to end-of-line rather than
+/// splitting on whitespace like a tag or team name would.
+pub fn no_control_characters<'a>(
+    value: &'a str,
+    helper: &'static str,
+    field: &'static str,
+) -> CommandResult<&'a str> {
+    non_empty(value, helper, field)?;
+    if value.chars().any(|c| c.is_control()) {
+        return Err(CommandError::new(
+            helper,
+            field,
+            "must not contain control characters (e.g. newline, carriage return, NUL)",
+        ));
+    }
+    Ok(value)
+}
+
 /// Reject a count/amount of `0` where Minecraft requires at least one.
 pub fn positive_u32(value: u32, helper: &'static str, field: &'static str) -> CommandResult<u32> {
     if value == 0 {
@@ -157,6 +179,14 @@ mod tests {
     fn resource_location_shape_rejects_uppercase_and_spaces() {
         assert!(resource_location_shape("Minecraft:Diamond", "h", "f").is_err());
         assert!(resource_location_shape("minecraft: diamond", "h", "f").is_err());
+    }
+
+    #[test]
+    fn no_control_characters_rejects_newline_and_nul_but_allows_spaces() {
+        assert!(no_control_characters("has\nnewline", "h", "f").is_err());
+        assert!(no_control_characters("has\0nul", "h", "f").is_err());
+        assert!(no_control_characters("has a space", "h", "f").is_ok());
+        assert!(no_control_characters("", "h", "f").is_err());
     }
 
     #[test]

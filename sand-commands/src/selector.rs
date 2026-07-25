@@ -720,20 +720,132 @@ impl Selector {
     }
 
     /// `scores=<objective>=<range>` — select only entities with matching scoreboard score.
+    ///
+    /// Raw/compatibility: `scores` is a single pre-formatted fragment (e.g.
+    /// `"kills=1..10,deaths=0"`), validated at [`Selector::try_build`] time
+    /// rather than at the type level. Prefer [`Selector::scores_typed`] in
+    /// normal code — see [#200](https://github.com/ThatOneToast/sand/issues/200).
+    /// Equivalent to [`Selector::scores_raw`].
     pub fn scores(mut self, scores: impl Into<String>) -> Self {
         self.args.push(SelectorArg::Scores(scores.into()));
         self
     }
 
+    /// Explicit raw escape hatch for `scores=...` syntax, e.g. hand-formatted
+    /// fragments this crate has no typed representation for yet. Equivalent
+    /// to [`Selector::scores`] — use whichever name best documents intent at
+    /// the call site.
+    pub fn scores_raw(self, scores: impl Into<String>) -> Self {
+        self.scores(scores)
+    }
+
+    /// `scores={<objective>=<range>,...}` — select only entities with
+    /// matching scoreboard scores, built from typed [`SelectorScores`]
+    /// entries instead of a hand-formatted string.
+    ///
+    /// ```
+    /// use sand_commands::selector::{Selector, SelectorScores, SelectorRange};
+    ///
+    /// let sel = Selector::all_players().scores_typed(
+    ///     SelectorScores::new()
+    ///         .with("kills", SelectorRange::between(1.0, 10.0))
+    ///         .with("deaths", SelectorRange::exact(0.0)),
+    /// );
+    /// assert_eq!(sel.to_string(), "@a[scores={kills=1..10,deaths=0}]");
+    /// ```
+    pub fn scores_typed(mut self, scores: SelectorScores) -> Self {
+        self.args.push(SelectorArg::Scores(scores.to_string()));
+        self
+    }
+
     /// `nbt=<nbt>` — select only entities matching the given NBT compound.
+    ///
+    /// Raw escape hatch: no typed SNBT representation exists yet in this
+    /// crate, so this remains the normal path for NBT filters. Equivalent to
+    /// [`Selector::nbt_raw`], kept for readability at call sites that prefer
+    /// the shorter name.
     pub fn nbt(mut self, nbt: impl Into<String>) -> Self {
         self.args.push(SelectorArg::Nbt(nbt.into()));
         self
     }
 
+    /// Explicit raw escape hatch for `nbt=...` syntax. Equivalent to
+    /// [`Selector::nbt`].
+    pub fn nbt_raw(self, nbt: impl Into<String>) -> Self {
+        self.nbt(nbt)
+    }
+
     /// `predicate=<predicate>` — select only entities matching a loot table predicate.
+    ///
+    /// Raw/compatibility: `predicate` is a string, validated for
+    /// resource-location shape at [`Selector::try_build`] time. Prefer
+    /// [`Selector::predicate_id`] in normal code — see
+    /// [#200](https://github.com/ThatOneToast/sand/issues/200). Equivalent to
+    /// [`Selector::predicate_raw`].
     pub fn predicate(mut self, predicate: impl Into<String>) -> Self {
         self.args.push(SelectorArg::Predicate(predicate.into()));
+        self
+    }
+
+    /// Explicit raw escape hatch for `predicate=...` syntax. Equivalent to
+    /// [`Selector::predicate`].
+    pub fn predicate_raw(self, predicate: impl Into<String>) -> Self {
+        self.predicate(predicate)
+    }
+
+    /// `predicate=<id>` — select only entities matching a loot table
+    /// predicate, using a typed [`PredicateId`] instead of a raw string.
+    ///
+    /// ```
+    /// use sand_commands::selector::{Selector, PredicateId};
+    ///
+    /// let sel = Selector::all_players().predicate_id(PredicateId::new("my_pack:is_sneaking"));
+    /// assert_eq!(sel.to_string(), "@a[predicate=my_pack:is_sneaking]");
+    /// ```
+    pub fn predicate_id(mut self, id: PredicateId) -> Self {
+        self.args.push(SelectorArg::Predicate(id.to_string()));
+        self
+    }
+
+    /// `distance=<range>` — select only entities within a typed distance
+    /// range, using [`SelectorRange`] instead of a hand-formatted string.
+    ///
+    /// ```
+    /// use sand_commands::selector::{Selector, SelectorRange};
+    ///
+    /// let sel = Selector::all_entities().distance_typed(SelectorRange::at_most(16.0));
+    /// assert_eq!(sel.to_string(), "@e[distance=..16]");
+    /// ```
+    pub fn distance_typed(mut self, range: SelectorRange) -> Self {
+        self.args.push(SelectorArg::Distance(range.to_string()));
+        self
+    }
+
+    /// `level=<range>` — select only players within a typed XP level range,
+    /// using [`SelectorRange`] instead of a hand-formatted string.
+    ///
+    /// ```
+    /// use sand_commands::selector::{Selector, SelectorRange};
+    ///
+    /// let sel = Selector::all_players().level_typed(SelectorRange::between(10.0, 30.0));
+    /// assert_eq!(sel.to_string(), "@a[level=10..30]");
+    /// ```
+    pub fn level_typed(mut self, range: SelectorRange) -> Self {
+        self.args.push(SelectorArg::Level(range.to_string()));
+        self
+    }
+
+    /// `tag=<tag>` — select only entities with the given tag, using a typed
+    /// [`EntityTag`] instead of a raw string.
+    pub fn tag_typed(mut self, tag: EntityTag) -> Self {
+        self.args.push(SelectorArg::Tag(tag.into_inner()));
+        self
+    }
+
+    /// `team=<team>` — select only entities on the given team, using a typed
+    /// [`TeamName`] instead of a raw string.
+    pub fn team_typed(mut self, team: TeamName) -> Self {
+        self.args.push(SelectorArg::Team(team.into_inner()));
         self
     }
 
@@ -1192,6 +1304,215 @@ fn validate_scores(value: &str) -> CommandResult<()> {
     Ok(())
 }
 
+// ── SelectorRange ─────────────────────────────────────────────────────────────
+
+/// A typed numeric range for selector arguments such as `distance` and
+/// `level` (see [#200](https://github.com/ThatOneToast/sand/issues/200)).
+///
+/// Renders to vanilla's `min..max` range syntax. At least one bound must be
+/// present; use [`SelectorRange::at_least`]/[`SelectorRange::at_most`] for
+/// open-ended ranges. Impossible ranges (`min > max`) and non-finite bounds
+/// are not rejected at construction — they are diagnosed uniformly with all
+/// other selector arguments at [`Selector::try_build`] time.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct SelectorRange {
+    min: Option<f64>,
+    max: Option<f64>,
+}
+
+impl SelectorRange {
+    /// An exact value: `n..n`, rendered as `n`.
+    pub fn exact(n: f64) -> Self {
+        Self {
+            min: Some(n),
+            max: Some(n),
+        }
+    }
+
+    /// `n..` — at least `n`.
+    pub fn at_least(n: f64) -> Self {
+        Self {
+            min: Some(n),
+            max: None,
+        }
+    }
+
+    /// `..n` — at most `n`.
+    pub fn at_most(n: f64) -> Self {
+        Self {
+            min: None,
+            max: Some(n),
+        }
+    }
+
+    /// `min..max` — an inclusive range.
+    pub fn between(min: f64, max: f64) -> Self {
+        Self {
+            min: Some(min),
+            max: Some(max),
+        }
+    }
+}
+
+impl fmt::Display for SelectorRange {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fn fmt_bound(v: f64, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(f, "{v}")
+        }
+        match (self.min, self.max) {
+            (Some(a), Some(b)) if a == b => fmt_bound(a, f),
+            (Some(a), Some(b)) => {
+                fmt_bound(a, f)?;
+                write!(f, "..")?;
+                fmt_bound(b, f)
+            }
+            (Some(a), None) => {
+                fmt_bound(a, f)?;
+                write!(f, "..")
+            }
+            (None, Some(b)) => {
+                write!(f, "..")?;
+                fmt_bound(b, f)
+            }
+            (None, None) => Ok(()),
+        }
+    }
+}
+
+// ── SelectorScores ───────────────────────────────────────────────────────────
+
+/// A typed `scores={...}` selector filter map (see
+/// [#200](https://github.com/ThatOneToast/sand/issues/200)).
+///
+/// Entries are rendered in insertion order, so equivalent construction order
+/// always produces an identical rendered selector.
+///
+/// ```
+/// use sand_commands::selector::{SelectorScores, SelectorRange};
+///
+/// let scores = SelectorScores::new()
+///     .with("kills", SelectorRange::between(1.0, 10.0))
+///     .with("deaths", SelectorRange::exact(0.0));
+/// assert_eq!(scores.to_string(), "kills=1..10,deaths=0");
+/// ```
+#[derive(Debug, Clone, Default)]
+pub struct SelectorScores {
+    entries: Vec<(String, SelectorRange)>,
+}
+
+impl SelectorScores {
+    /// Create an empty score filter map.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Add `objective=range` to this filter map.
+    pub fn with(mut self, objective: impl Into<String>, range: SelectorRange) -> Self {
+        self.entries.push((objective.into(), range));
+        self
+    }
+}
+
+impl fmt::Display for SelectorScores {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let rendered = self
+            .entries
+            .iter()
+            .map(|(objective, range)| format!("{objective}={range}"))
+            .collect::<Vec<_>>()
+            .join(",");
+        write!(f, "{rendered}")
+    }
+}
+
+// ── PredicateId ──────────────────────────────────────────────────────────────
+
+/// A typed `predicate=<namespace:path>` identifier (see
+/// [#200](https://github.com/ThatOneToast/sand/issues/200)).
+///
+/// Resource-location shape is validated at [`Selector::try_build`] time
+/// (consistent with [`Selector::predicate`]/[`Selector::predicate_raw`]),
+/// not at construction, so this stays const/static-friendly.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PredicateId {
+    location: String,
+    negated: bool,
+}
+
+impl PredicateId {
+    /// Create a predicate ID from a `namespace:path` resource location.
+    pub fn new(location: impl Into<String>) -> Self {
+        Self {
+            location: location.into(),
+            negated: false,
+        }
+    }
+
+    /// `predicate=!<id>` — negate this predicate filter.
+    pub fn negated(mut self) -> Self {
+        self.negated = true;
+        self
+    }
+}
+
+impl fmt::Display for PredicateId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.negated {
+            write!(f, "!{}", self.location)
+        } else {
+            write!(f, "{}", self.location)
+        }
+    }
+}
+
+// ── EntityTag / TeamName ─────────────────────────────────────────────────────
+
+/// A typed selector `tag` value (see
+/// [#200](https://github.com/ThatOneToast/sand/issues/200)). Whitespace/
+/// control-character validity is checked at [`Selector::try_build`] time,
+/// matching [`Selector::tag`]'s existing validation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EntityTag(String);
+
+impl EntityTag {
+    /// Wrap a tag value.
+    pub fn new(tag: impl Into<String>) -> Self {
+        Self(tag.into())
+    }
+
+    fn into_inner(self) -> String {
+        self.0
+    }
+}
+
+impl fmt::Display for EntityTag {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+/// A typed selector `team` value (see
+/// [#200](https://github.com/ThatOneToast/sand/issues/200)).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TeamName(String);
+
+impl TeamName {
+    /// Wrap a team name.
+    pub fn new(team: impl Into<String>) -> Self {
+        Self(team.into())
+    }
+
+    fn into_inner(self) -> String {
+        self.0
+    }
+}
+
+impl fmt::Display for TeamName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 // ── GameMode ──────────────────────────────────────────────────────────────────
 
 /// Minecraft player game mode.
@@ -1458,6 +1779,171 @@ mod tests {
                 .try_build()
                 .unwrap(),
             "@e[modded_filter={x:1}]"
+        );
+    }
+
+    // ── #200: typed selector filter helpers ───────────────────────────────
+
+    #[test]
+    fn distance_typed_matches_string_variants() {
+        assert_eq!(
+            Selector::all_entities()
+                .distance_typed(SelectorRange::at_most(16.0))
+                .try_build()
+                .unwrap(),
+            Selector::all_entities()
+                .distance_max(16.0)
+                .try_build()
+                .unwrap()
+        );
+        assert_eq!(
+            Selector::all_entities()
+                .distance_typed(SelectorRange::between(0.5, 10.0))
+                .try_build()
+                .unwrap(),
+            "@e[distance=0.5..10]"
+        );
+        assert_eq!(
+            Selector::all_entities()
+                .distance_typed(SelectorRange::at_least(2.0))
+                .try_build()
+                .unwrap(),
+            "@e[distance=2..]"
+        );
+    }
+
+    #[test]
+    fn level_typed_renders_same_as_string_level() {
+        assert_eq!(
+            Selector::all_players()
+                .level_typed(SelectorRange::between(10.0, 30.0))
+                .try_build()
+                .unwrap(),
+            Selector::all_players().level("10..30").try_build().unwrap()
+        );
+    }
+
+    #[test]
+    fn selector_range_impossible_range_is_a_diagnostic_not_a_panic() {
+        let err = Selector::all_entities()
+            .distance_typed(SelectorRange::between(10.0, 1.0))
+            .try_build()
+            .unwrap_err();
+        assert!(err.to_string().contains("distance"), "{err}");
+    }
+
+    #[test]
+    fn scores_typed_matches_string_scores() {
+        let typed = Selector::all_players()
+            .scores_typed(
+                SelectorScores::new()
+                    .with("kills", SelectorRange::between(1.0, 10.0))
+                    .with("deaths", SelectorRange::exact(0.0)),
+            )
+            .try_build()
+            .unwrap();
+        let stringly = Selector::all_players()
+            .scores("kills=1..10,deaths=0")
+            .try_build()
+            .unwrap();
+        assert_eq!(typed, stringly);
+        assert_eq!(typed, "@a[scores={kills=1..10,deaths=0}]");
+    }
+
+    #[test]
+    fn scores_typed_duplicate_objective_is_a_diagnostic() {
+        let err = Selector::all_players()
+            .scores_typed(
+                SelectorScores::new()
+                    .with("kills", SelectorRange::exact(1.0))
+                    .with("kills", SelectorRange::exact(2.0)),
+            )
+            .try_build()
+            .unwrap_err();
+        assert!(err.to_string().contains("duplicate"), "{err}");
+    }
+
+    #[test]
+    fn predicate_id_matches_string_predicate() {
+        assert_eq!(
+            Selector::all_players()
+                .predicate_id(PredicateId::new("my_pack:is_sneaking"))
+                .try_build()
+                .unwrap(),
+            Selector::all_players()
+                .predicate("my_pack:is_sneaking")
+                .try_build()
+                .unwrap()
+        );
+        assert_eq!(
+            Selector::all_players()
+                .predicate_id(PredicateId::new("my_pack:is_sneaking").negated())
+                .try_build()
+                .unwrap(),
+            "@a[predicate=!my_pack:is_sneaking]"
+        );
+    }
+
+    #[test]
+    fn tag_typed_and_team_typed_match_string_variants() {
+        assert_eq!(
+            Selector::all_players()
+                .tag_typed(EntityTag::new("ready"))
+                .try_build()
+                .unwrap(),
+            Selector::all_players().tag("ready").try_build().unwrap()
+        );
+        assert_eq!(
+            Selector::all_players()
+                .team_typed(TeamName::new("red"))
+                .try_build()
+                .unwrap(),
+            Selector::all_players().team("red").try_build().unwrap()
+        );
+    }
+
+    #[test]
+    fn raw_aliases_render_identically_to_normal_methods() {
+        assert_eq!(
+            Selector::all_entities()
+                .nbt_raw("{CustomName:\"Boss\"}")
+                .to_string(),
+            Selector::all_entities()
+                .nbt("{CustomName:\"Boss\"}")
+                .to_string()
+        );
+        assert_eq!(
+            Selector::all_players().scores_raw("kills=1..").to_string(),
+            Selector::all_players().scores("kills=1..").to_string()
+        );
+        assert_eq!(
+            Selector::all_players()
+                .predicate_raw("pack:ready")
+                .to_string(),
+            Selector::all_players().predicate("pack:ready").to_string()
+        );
+    }
+
+    #[test]
+    fn selector_construction_order_is_deterministic() {
+        // #200/#173: equivalent construction order must produce identical
+        // rendered selectors — building the same selector twice, in the same
+        // call order, must not vary run to run.
+        let build = || {
+            Selector::all_entities()
+                .entity_type("minecraft:zombie")
+                .tag("elite")
+                .distance_typed(SelectorRange::at_most(20.0))
+                .scores_typed(SelectorScores::new().with("threat", SelectorRange::at_least(5.0)))
+                .limit(3)
+                .to_string()
+        };
+        let a = build();
+        let b = build();
+        assert_eq!(a, b);
+        assert_eq!(
+            a,
+            "@e[type=minecraft:zombie,tag=elite,distance=..20,scores={threat=5..},limit=3]"
         );
     }
 }

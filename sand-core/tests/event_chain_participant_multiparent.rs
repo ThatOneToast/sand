@@ -577,3 +577,19 @@ fn every_declared_handler_is_present() {
         );
     }
 }
+
+#[test]
+#[ignore]
+fn dump_export_to_file_for_external_hash_comparison() {
+    // Not part of the normal suite — invoked twice as two independent OS
+    // processes (see the PR's determinism verification) to prove
+    // byte-identical output across genuinely separate export runs, not
+    // just repeated calls within one process's memory state.
+    let json =
+        sand_core::try_export_components_json("multiparentpack").expect("export should succeed");
+    std::fs::write(
+        std::env::var("SAND_DETERMINISM_DUMP_PATH").expect("SAND_DETERMINISM_DUMP_PATH not set"),
+        json,
+    )
+    .expect("write dump file");
+}

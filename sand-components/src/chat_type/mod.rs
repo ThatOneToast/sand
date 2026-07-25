@@ -214,17 +214,17 @@ impl ChatStyle {
     }
 
     fn validate(&self, owner: &ResourceLocation, path: &str) -> crate::error::Result<()> {
-        if let Some(ChatStyleColor::Hex(hex)) = &self.color {
-            if !is_valid_hex_color(hex) {
-                return Err(SandError::ComponentValidation {
-                    location: owner.clone(),
-                    kind: "chat_type".to_string(),
-                    field: format!("{path}.color"),
-                    message: format!(
-                        "error[SAND-TEXT-COLOR] invalid hex color `{hex}`: expected `#RRGGBB`"
-                    ),
-                });
-            }
+        if let Some(ChatStyleColor::Hex(hex)) = &self.color
+            && !is_valid_hex_color(hex)
+        {
+            return Err(SandError::ComponentValidation {
+                location: owner.clone(),
+                kind: "chat_type".to_string(),
+                field: format!("{path}.color"),
+                message: format!(
+                    "error[SAND-TEXT-COLOR] invalid hex color `{hex}`: expected `#RRGGBB`"
+                ),
+            });
         }
         Ok(())
     }

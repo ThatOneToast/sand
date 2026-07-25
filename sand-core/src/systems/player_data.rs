@@ -599,6 +599,11 @@ impl PlayerSchema {
     ///
     /// Cooldowns have no default value, so they are skipped here.  Storage
     /// schemas are not affected by this method.
+    ///
+    /// Compatibility/raw path: `selector` is an unvalidated string,
+    /// interpolated directly into generated commands. Prefer
+    /// [`PlayerSchema::try_init_player`] in normal code — see
+    /// [#146](https://github.com/ThatOneToast/sand/issues/146).
     pub fn init_player(&self, selector: &str) -> Vec<String> {
         let mut seen = std::collections::BTreeSet::new();
         let mut commands = Vec::new();
@@ -617,6 +622,30 @@ impl PlayerSchema {
             }
         }
         commands
+    }
+
+    /// Validated counterpart to [`PlayerSchema::init_player`] — takes a typed
+    /// [`sand_commands::ScoreHolder`] and validates it before generating
+    /// commands, instead of interpolating an unvalidated selector string.
+    ///
+    /// ```
+    /// use sand_core::systems::player_data::PlayerSchema;
+    /// use sand_core::state::ScoreVar;
+    /// use sand_commands::ScoreHolder;
+    ///
+    /// static MANA: ScoreVar<i32> = ScoreVar::new("mana");
+    /// let schema = PlayerSchema::new("player").score(&MANA, 100);
+    ///
+    /// assert!(schema.try_init_player(ScoreHolder::self_()).is_ok());
+    /// assert!(schema.try_init_player(ScoreHolder::fake("bad holder")).is_err());
+    /// ```
+    pub fn try_init_player(
+        &self,
+        holder: impl Into<sand_commands::ScoreHolder>,
+    ) -> sand_commands::CommandResult<Vec<String>> {
+        let holder = holder.into();
+        sand_commands::Validate::validate(&holder, &sand_commands::CommandProfile::unprofiled())?;
+        Ok(self.init_player(&holder.to_string()))
     }
 
     // ── Introspection ─────────────────────────────────────────────────────────

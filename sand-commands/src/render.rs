@@ -13,6 +13,7 @@ pub fn validate_collected_line(line: &str, profile: &CommandProfile) -> CommandR
     validate_line_integrity(line)?;
     crate::execute_ir::validate_registered_line(line, profile)?;
     crate::nbt::validate_registered_line(line, profile)?;
+    crate::blocks::validate_registered_line(line, profile)?;
     crate::particles::validate_registered_line(line, profile)?;
     crate::sound::validate_registered_line(line, profile)?;
     crate::display::validate_registered_line(line, profile)?;
@@ -31,7 +32,7 @@ pub fn validate_collected_line(line: &str, profile: &CommandProfile) -> CommandR
     Ok(line.to_string())
 }
 
-fn validate_line_integrity(line: &str) -> CommandResult<()> {
+pub(crate) fn validate_line_integrity(line: &str) -> CommandResult<()> {
     if line.contains(['\0', '\n', '\r']) {
         return Err(CommandError::new(
             "command_line",

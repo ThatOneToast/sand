@@ -24,6 +24,7 @@
 - [17. Packaging And Running](17-packaging-and-running.md)
 - [18. Extending Trailforge](18-extending.md)
 - [19. Validated Command Media](19-validated-command-media.md)
+- [20. Command Arguments: Coordinates, Selectors, Scores, and Blocks](20-command-arguments.md)
 
 # Reference
 

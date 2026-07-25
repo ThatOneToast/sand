@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — visual-component builder validation and registry coverage accuracy (#141, #193)
+
+- **Asset-backed visual builders now validate before export.**
+  `BannerPattern`, `PaintingVariant`, `TrimMaterial`, `TrimPattern`, and
+  `WolfVariant` implement `DatapackComponent::validate`, so invalid
+  builder states (empty/malformed `asset_id`s, texture paths, and item
+  IDs; painting `width`/`height` outside `1..=16`, a real
+  vanilla-documented bound; non-finite trim `item_model_index`; empty or
+  malformed `WolfVariant` `biomes` shapes) are rejected with a structured
+  diagnostic before any JSON is written, instead of silently serializing
+  incomplete or malformed public state. No public API became panicking;
+  invalid state is now caught earlier, at export time, via the existing
+  `try_content`/`validate` hook. `TrimMaterial::item_model_index` does
+  **not** enforce a `0.0..=1.0` range: it is a legacy pre-1.21.4 field
+  with no vanilla-documented bound, and real third-party tooling uses
+  out-of-range values (e.g. `-1.0`) intentionally — only finiteness is
+  required.
+- **`RegistryCoverage` status now matches actual typedness.**
+  `minecraft:advancement` is downgraded from `FullyImplemented` to
+  `PartiallyImplemented` (still exposes normal-path raw strings /
+  `serde_json::Value` fields for display text, icon, rewards, and parent;
+  tracked by #183). `minecraft:recipe` was considered for the same
+  downgrade but its typed item/tag ID work (#178) turned out to already
+  be closed and present on this branch's base, so it remains
+  `FullyImplemented` with notes explaining why. A new
+  `KNOWN_PARTIAL_REGISTRIES` fixture and
+  `registry_coverage_status_matches_known_gaps` regression test now fail
+  the build if a tracked-partial registry is promoted to
+  `FullyImplemented` without updating the fixture, keeping the coverage
+  table from silently overclaiming completeness again. The pre-existing
+  `minecraft:loot_table` row's issue reference was also corrected from a
+  closed, unrelated issue (#17) to the issue that actually tracks its gap
+  (#185).
+
 ### Added — structured `sand run` diagnostics and vanilla registry façade
 
 - **`sand run --server-log`.** Replaces the old raw-passthrough `--verbose`

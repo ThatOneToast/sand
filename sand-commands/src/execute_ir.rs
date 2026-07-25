@@ -4,7 +4,6 @@
 //! author this IR directly. Rendering is deliberately the last step.
 
 use std::collections::BTreeMap;
-use std::sync::{Mutex, OnceLock};
 
 use crate::coord::{BlockPos, Rotation, Vec3};
 use crate::error::{CommandError, CommandResult};
@@ -264,22 +263,31 @@ fn render_store(target: &ExecuteStoreTarget) -> String {
 }
 
 #[derive(Debug, Clone)]
-struct Requirement {
+pub(crate) struct Requirement {
     capability: ExecuteCapability,
     operation: String,
 }
 
 type Requirements = BTreeMap<String, Vec<Requirement>>;
 
-fn requirements() -> &'static Mutex<Requirements> {
-    static REQUIREMENTS: OnceLock<Mutex<Requirements>> = OnceLock::new();
-    REQUIREMENTS.get_or_init(|| Mutex::new(BTreeMap::new()))
+/// Export-scoped registry family holding the capability requirements of
+/// each `execute` line typed IR rendered.
+///
+/// Unlike the other eight families this is not a `line -> typed node` map
+/// but a `line -> required capabilities` side table; sharing
+/// [`crate::export_registry`] rather than its own storage is exactly why
+/// that module's state type is free-form.
+pub(crate) struct ExecuteRequirements;
+
+impl crate::export_registry::RegistryFamily for ExecuteRequirements {
+    type State = Requirements;
 }
 
 /// Record capability metadata for a line produced by typed execute IR.
 ///
 /// This side table preserves the historical `String` terminal API while the
-/// export pipeline still stores function bodies as strings.
+/// export pipeline still stores function bodies as strings. Entries are
+/// scoped to the active [`crate::export_registry::ExportRegistryGuard`].
 #[doc(hidden)]
 pub fn register_line(line: &str, operations: &[ExecuteOp]) {
     let required: Vec<_> = operations
@@ -294,18 +302,20 @@ pub fn register_line(line: &str, operations: &[ExecuteOp]) {
         })
         .collect();
     if !required.is_empty() {
-        requirements()
-            .lock()
-            .expect("execute requirement registry poisoned")
-            .insert(line.to_string(), required);
+        crate::export_registry::register_line::<ExecuteRequirements, _>(line, required);
     }
 }
 
+/// Re-validate a typed-IR `execute` line's recorded capability
+/// requirements against `profile`.
+///
+/// Lines this crate did not render during the active export scope carry no
+/// requirements and pass through untouched.
 pub(crate) fn validate_registered_line(line: &str, profile: &CommandProfile) -> CommandResult<()> {
-    let guard = requirements()
-        .lock()
-        .expect("execute requirement registry poisoned");
-    let Some(required) = guard.get(line) else {
+    let required = crate::export_registry::read_state::<ExecuteRequirements, _>(|state| {
+        state.and_then(|state| state.get(line).cloned())
+    });
+    let Some(required) = required else {
         return Ok(());
     };
     for requirement in required {

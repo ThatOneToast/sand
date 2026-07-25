@@ -20,7 +20,6 @@
 //! ```
 
 use std::collections::BTreeMap;
-use std::sync::{Mutex, OnceLock};
 use std::{fmt, str::FromStr};
 
 use crate::Build;
@@ -1103,25 +1102,30 @@ fn validate_entity_hover(entity_type: &str, id: Option<&str>, path: &str) -> Com
     Ok(())
 }
 
-fn registered_lines() -> &'static Mutex<BTreeMap<String, TextCommand>> {
-    static LINES: OnceLock<Mutex<BTreeMap<String, TextCommand>>> = OnceLock::new();
-    LINES.get_or_init(|| Mutex::new(BTreeMap::new()))
+/// Export-scoped registry family holding this module's rendered
+/// text command lines and their originating typed nodes.
+///
+/// State lives in [`crate::export_registry`]'s active layer, so it is
+/// per-thread, scoped to whichever [`crate::export_registry::ExportRegistryGuard`]
+/// is open, and discarded when that guard drops — including on an early
+/// `Err` return or an unwind. There is no process-global map and no
+/// per-family reset to remember to call.
+pub(crate) struct TextLines;
+
+impl crate::export_registry::RegistryFamily for TextLines {
+    type State = BTreeMap<String, TextCommand>;
 }
 
 fn register_line(line: &str, command: TextCommand) {
-    registered_lines()
-        .lock()
-        .expect("text command registry mutex poisoned")
-        .insert(line.to_owned(), command);
+    crate::export_registry::register_line::<TextLines, _>(line, command);
 }
 
 pub(crate) fn validate_registered_line(line: &str, profile: &CommandProfile) -> CommandResult<()> {
-    registered_lines()
-        .lock()
-        .expect("text command registry mutex poisoned")
-        .get(line)
-        .cloned()
-        .map_or(Ok(()), |command| command.validate(profile))
+    crate::export_registry::validate_registered_line::<TextLines, _>(
+        line,
+        profile,
+        |command, profile| command.validate(profile),
+    )
 }
 
 /// Validate a component-owned JSON text value.

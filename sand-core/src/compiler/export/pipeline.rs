@@ -1173,6 +1173,81 @@ pub(crate) fn try_export_components_impl(
             &participant_declarations,
         )
         .map_err(|diagnostic| tick_event_export_error(diagnostic.to_string()))?;
+
+        // #272: bounded (`.within(...)`) item-snapshot transport. Validated
+        // separately from same-cycle transport above (opposite soundness
+        // condition — see `participant_transport`'s module doc for why).
+        // Deduplicated by `(source_event, role, hand)` — the persisted
+        // storage is shared by every child that inherits it, so it is
+        // generated once per triple regardless of how many children (or how
+        // many distinct declared windows) reference it; the *codegen*
+        // window is the maximum of every consumer's own declared window,
+        // so storage never expires before the longest-lived consumer's own
+        // window does (a shorter-window consumer's own bounded condition
+        // still independently stops it from firing after its own window,
+        // this only controls how long the copy itself survives).
+        let bounded_item_transports =
+            super::participant_transport::validate_bounded_item_transport(
+                &graph,
+                &participant_declarations,
+            )
+            .map_err(|diagnostic| tick_event_export_error(diagnostic.to_string()))?;
+        let mut bounded_item_max_window: BTreeMap<
+            (
+                &'static str,
+                crate::participant::ItemParticipantRole,
+                crate::participant::ParticipantHand,
+            ),
+            u32,
+        > = BTreeMap::new();
+        for transport in &bounded_item_transports {
+            let entry = bounded_item_max_window
+                .entry((transport.source_event, transport.role, transport.hand))
+                .or_insert(0);
+            *entry = (*entry).max(transport.window.ticks());
+        }
+        // Persist commands, keyed by *source* event type name — spliced
+        // into that node's own dispatch function immediately after its
+        // occurrence mark (see `build_dispatch_function`'s #272 comment).
+        let mut bounded_item_persist: BTreeMap<String, Vec<String>> = BTreeMap::new();
+        // Guarded expiry call lines, keyed by *source* event type name —
+        // appended to that source's own per-player age-update block in the
+        // staged coordinator below (`bounded_age_update`).
+        let mut bounded_item_expire: BTreeMap<String, Vec<String>> = BTreeMap::new();
+        for (&(source_event, role, hand), &max_window) in &bounded_item_max_window {
+            let schema =
+                crate::participant::bounded_item::BoundedItemSchema::new(source_event, role, hand);
+            let source_snapshot =
+                crate::participant::plan::resolve_direct_item_snapshot(source_event, role, hand);
+            bounded_item_persist
+                .entry(source_event.to_string())
+                .or_default()
+                .extend(crate::participant::bounded_item::persist_commands(
+                    &schema,
+                    &source_snapshot,
+                ));
+
+            let source_key = tick_event_resource_key(source_event);
+            let expire_key = tick_event_resource_key(&format!(
+                "{source_event}::bounded_item_expire::{role:?}::{hand:?}"
+            ));
+            let expire_path = format!("__sand_event_bounded_item_expire/{expire_key}");
+            records.push(ComponentRecord {
+                namespace: namespace.to_string(),
+                dir: "function".to_string(),
+                path: expire_path.clone(),
+                ext: "mcfunction".to_string(),
+                content_type: "text".to_string(),
+                content: crate::participant::bounded_item::expire_commands(&schema).join("\n"),
+            });
+            bounded_item_expire
+                .entry(source_event.to_string())
+                .or_default()
+                .push(format!(
+                    "execute as @a if score @s se_{source_key}_wa matches {max_window} run function {namespace}:{expire_path}"
+                ));
+        }
+
         let staged_events = graph
             .staged_events()
             .map_err(|e| tick_event_export_error(e.0))?;
@@ -1301,6 +1376,7 @@ pub(crate) fn try_export_components_impl(
                     self_guard.as_deref(),
                     &occurrence_marked,
                     &mut guarded_children,
+                    &bounded_item_persist,
                     &mut records,
                 ))
             } else {
@@ -1320,6 +1396,7 @@ pub(crate) fn try_export_components_impl(
                 &occurrence_marked,
                 ChildPostObservation::DeferredByOccurrence,
                 &mut guarded_children,
+                &bounded_item_persist,
                 &mut records,
             );
             let key = tick_event_resource_key(&staged.child);
@@ -1621,16 +1698,28 @@ pub(crate) fn try_export_components_impl(
             let staged_child_names: std::collections::BTreeSet<String> =
                 staged_by_child.keys().cloned().collect();
             let age_sentinel = crate::events::TickWindow::MAX_TICKS;
-            let bounded_age_update = |name: &str| -> [String; 2] {
+            let bounded_age_update = |name: &str| -> Vec<String> {
                 let key = tick_event_resource_key(name);
-                [
+                let mut lines = vec![
                     format!(
                         "execute as @a if score @s se_{key}_o matches 1 run scoreboard players set @s se_{key}_wa 0"
                     ),
                     format!(
                         "execute as @a unless score @s se_{key}_o matches 1 unless score @s se_{key}_wa matches {age_sentinel}.. run scoreboard players add @s se_{key}_wa 1"
                     ),
-                ]
+                ];
+                // #272: bounded item transport expiry — cleared the moment
+                // this source's own age counter first exceeds the longest
+                // window any `inherit_item_within` declared against it (see
+                // `bounded_item_max_window` above). Appended after the
+                // increment line above so it observes the just-incremented
+                // age, still within this same per-player `execute as @a`
+                // pass (entity NBT reset is safe here, unlike a read of the
+                // transient global `ItemSnapshot` storage would be).
+                if let Some(expire) = bounded_item_expire.get(name) {
+                    lines.extend(expire.iter().cloned());
+                }
+                lines
             };
             for name in bounded_parents.difference(&staged_child_names) {
                 coordinator.extend(bounded_age_update(name));
@@ -1722,6 +1811,7 @@ pub(crate) fn try_export_components_impl(
                     &occurrence_marked,
                     ChildPostObservation::Inline,
                     &mut guarded_children,
+                    &bounded_item_persist,
                     &mut records,
                 ));
             }

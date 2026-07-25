@@ -91,6 +91,7 @@ pub(crate) enum ChildPostObservation {
 /// follows immediate single-parent edges; multi-parent nodes are separate
 /// staged roots, which prevents shared-parent traversal from duplicating a
 /// detector or dispatch resource.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn build_dispatch_function(
     name: &str,
     graph: &crate::events::graph::EventGraph,
@@ -98,6 +99,7 @@ pub(crate) fn build_dispatch_function(
     self_guard: Option<&str>,
     occurrence_marked: &std::collections::BTreeSet<String>,
     guarded_children: &mut std::collections::BTreeSet<String>,
+    bounded_item_persist: &std::collections::BTreeMap<String, Vec<String>>,
     records: &mut Vec<ComponentRecord>,
 ) -> String {
     let node = &graph.nodes[name];
@@ -117,6 +119,17 @@ pub(crate) fn build_dispatch_function(
     let mut cmds: Vec<String> = Vec::new();
     if records_occurrence {
         cmds.push(format!("scoreboard players set @s se_{key}_o 1"));
+        // #272: persist any bounded item transport(s) sourced from this
+        // node into per-subject storage right here — still this node's own
+        // synchronous per-player call tree (the only place safe to read
+        // its transient global `ItemSnapshot` capture; see
+        // `sand-core/src/participant/bounded_item.rs`'s module doc), and
+        // only when its own occurrence genuinely just happened (this line
+        // only runs when it did), giving repeated-occurrence replacement
+        // semantics for free.
+        if let Some(extra) = bounded_item_persist.get(node.type_name) {
+            cmds.extend(extra.iter().cloned());
+        }
     }
     if let Some(guard) = self_guard {
         cmds.push(format!("scoreboard players set @s {guard} 1"));
@@ -140,6 +153,7 @@ pub(crate) fn build_dispatch_function(
             occurrence_marked,
             post_observation,
             guarded_children,
+            bounded_item_persist,
             records,
         ));
     }
@@ -167,6 +181,7 @@ pub(crate) fn build_dispatch_function(
 /// not the condition matched (mirroring the tick-lifecycle contract for
 /// roots). A child with no lifecycle commands has no such ordering concern,
 /// so it keeps the direct (no-wrapper) call shape.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn build_child_edge(
     edge: &crate::events::graph::EventEdge,
     graph: &crate::events::graph::EventGraph,
@@ -174,6 +189,7 @@ pub(crate) fn build_child_edge(
     occurrence_marked: &std::collections::BTreeSet<String>,
     post_observation: ChildPostObservation,
     guarded_children: &mut std::collections::BTreeSet<String>,
+    bounded_item_persist: &std::collections::BTreeMap<String, Vec<String>>,
     records: &mut Vec<ComponentRecord>,
 ) -> String {
     let child_node = &graph.nodes[&edge.child];
@@ -184,6 +200,7 @@ pub(crate) fn build_child_edge(
         None,
         occurrence_marked,
         guarded_children,
+        bounded_item_persist,
         records,
     );
     let has_lifecycle = !child_node.setup.pre_observation.is_empty()

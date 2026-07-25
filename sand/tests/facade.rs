@@ -59,6 +59,33 @@ fn export_includes_facade_declarations() {
     assert!(json.contains("facade_on_hurt"));
 }
 
+// Inventory's validated fallible path (#172) is reachable using only the
+// glob prelude — no explicit `sand_commands::inventory` import required.
+#[test]
+fn prelude_only_inventory_try_methods_compile_and_validate() {
+    let inv = Inventory::of(Selector::self_());
+
+    // Valid input on the fallible path matches the infallible builder's
+    // output exactly (regression: identical generated command text).
+    assert_eq!(
+        inv.try_set(ItemSlot::MainHand, "minecraft:diamond_sword")
+            .unwrap(),
+        inv.set(ItemSlot::MainHand, "minecraft:diamond_sword")
+    );
+
+    // Wildcard slots are rejected in a single-slot write context …
+    assert!(inv.try_set(ItemSlot::AnyHotbar, "minecraft:stone").is_err());
+    // … but the infallible compatibility path never panics on the same input.
+    let _ = inv.set(ItemSlot::AnyHotbar, "minecraft:stone");
+
+    // Out-of-range slot indices are diagnostics, not panics, on both paths.
+    assert!(
+        inv.try_set(ItemSlot::Hotbar(99), "minecraft:stone")
+            .is_err()
+    );
+    let _ = inv.set(ItemSlot::Hotbar(99), "minecraft:stone");
+}
+
 #[test]
 fn prelude_does_not_leak_compiler_internals() {
     // These modules exist, but their contents are deliberately not in the

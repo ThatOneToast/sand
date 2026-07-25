@@ -254,15 +254,38 @@ impl EntityParticipant {
         self.require(ParticipantReliability::Exact)
     }
 
-    /// `execute at <this participant's selector> run <cmd>` — run a typed
-    /// command with this participant as the execution context, without ever
-    /// stringifying the selector yourself.
+    /// `execute as <this participant's selector> at @s run <cmd>` — run a
+    /// typed command with this participant as *both* the executing entity
+    /// and the execution position, without ever stringifying the selector
+    /// yourself.
     ///
     /// This is the normal way to consume a resolved [`EntityParticipant`]:
     /// build `cmd` with any other typed command builder (targeting `@s`,
-    /// since `execute at` only moves the execution *position*, not the
-    /// executing entity — combine with [`sand_commands::Selector::self_`]
-    /// where a command needs to reference "this participant" as `@s`).
+    /// which — via the leading `execute as <participant>` — resolves to
+    /// *this participant*, not the caller).
+    ///
+    /// # A real, live-fire-confirmed bug this method used to have
+    ///
+    /// Before this fix, `execute_at` generated a bare `execute at <selector>
+    /// run <cmd>`. Vanilla's `execute at` only moves the execution
+    /// *position* — it never rebinds the executing entity (`@s`). Every
+    /// caller of this method builds `cmd` with [`sand_commands::Selector::self_`]
+    /// specifically to reference "this participant" — so with the old
+    /// `execute at`-only form, `@s` inside `cmd` silently kept resolving to
+    /// whatever `@s` already was in the *caller's* context (typically the
+    /// event's subject, e.g. the victim of an attack), never to the
+    /// participant this method exists to address. Every structural/export
+    /// test asserted the exact (wrong) generated string, so nothing caught
+    /// it — real Minecraft 26.2 runtime validation for #265 did: a summoned
+    /// "attacker" zombie's real combat relation was captured via
+    /// `execute on attacker` correctly, but reading its UUID back out
+    /// through `execute_at` + `@s` produced the *victim's* UUID every time.
+    /// See `docs/testing/participant-role-evidence.md` for the exact
+    /// before/after evidence. Leading `execute as` fixes this: `as`
+    /// rebinds `@s`, and the trailing `at @s` (now referring to the new,
+    /// correct `@s`) preserves this method's original position-moving
+    /// behavior for any `cmd` that also needs it (e.g. relative
+    /// coordinates, particle/sound effects).
     ///
     /// ```
     /// use sand_core::participant::{EntityParticipant, EntityParticipantRole};
@@ -280,11 +303,11 @@ impl EntityParticipant {
     /// let cmd = attacker.execute_at(AUDIT.field::<String>("attacker_uuid").copy_from_entity(Selector::self_(), "UUID"));
     /// assert_eq!(
     ///     cmd,
-    ///     "execute at @e[tag=x,limit=1] run data modify storage pack:audit audit.attacker_uuid set from entity @s UUID"
+    ///     "execute as @e[tag=x,limit=1] at @s run data modify storage pack:audit audit.attacker_uuid set from entity @s UUID"
     /// );
     /// ```
     pub fn execute_at(&self, cmd: impl Into<String>) -> String {
-        format!("execute at {} run {}", self.selector, cmd.into())
+        format!("execute as {} at @s run {}", self.selector, cmd.into())
     }
 }
 

@@ -1,5 +1,20 @@
 //! Builders for armor trim material and pattern definitions (Minecraft 1.20+).
 //!
+//! # Validation
+//!
+//! The export path calls [`DatapackComponent::validate`] before serialization:
+//!
+//! `TrimMaterial`:
+//! - `asset_name` must be non-empty and a valid resource-location-shaped
+//!   identifier (e.g. `"quartz"`).
+//! - `ingredient` must be non-empty and a valid plain resource location
+//!   (e.g. `"minecraft:quartz"`).
+//! - `item_model_index` must be finite and within `0.0..=1.0`.
+//!
+//! `TrimPattern`:
+//! - `asset_id` must be non-empty and a valid plain resource location.
+//! - `template_item` must be non-empty and a valid plain resource location.
+//!
 //! # Example
 //! ```rust,ignore
 //! let material = TrimMaterial::new(rl)
@@ -16,8 +31,10 @@
 
 use serde_json::Value;
 
-use crate::component::DatapackComponent;
+use crate::component::{ComponentContent, DatapackComponent};
+use crate::error::Result as SandResult;
 use crate::resource_location::ResourceLocation;
+use crate::validation;
 
 // ── TrimMaterial ──────────────────────────────────────────────────────────────
 
@@ -79,6 +96,38 @@ impl TrimMaterial {
 impl DatapackComponent for TrimMaterial {
     fn resource_location(&self) -> &ResourceLocation {
         &self.location
+    }
+
+    fn validate(&self) -> SandResult<()> {
+        let kind = "trim_material";
+        validation::require_non_empty(&self.location, kind, "asset_name", &self.asset_name)?;
+        validation::validate_resource_location_str(
+            &self.location,
+            kind,
+            "asset_name",
+            &self.asset_name,
+        )?;
+        validation::require_non_empty(&self.location, kind, "ingredient", &self.ingredient)?;
+        validation::validate_resource_location_str(
+            &self.location,
+            kind,
+            "ingredient",
+            &self.ingredient,
+        )?;
+        validation::require_f32_in_range(
+            &self.location,
+            kind,
+            "item_model_index",
+            self.item_model_index,
+            0.0,
+            1.0,
+        )?;
+        Ok(())
+    }
+
+    fn try_content(&self) -> SandResult<ComponentContent> {
+        self.validate()?;
+        Ok(self.content())
     }
 
     fn to_json(&self) -> Value {
@@ -165,6 +214,30 @@ impl DatapackComponent for TrimPattern {
         &self.location
     }
 
+    fn validate(&self) -> SandResult<()> {
+        let kind = "trim_pattern";
+        validation::require_non_empty(&self.location, kind, "asset_id", &self.asset_id)?;
+        validation::validate_resource_location_str(
+            &self.location,
+            kind,
+            "asset_id",
+            &self.asset_id,
+        )?;
+        validation::require_non_empty(&self.location, kind, "template_item", &self.template_item)?;
+        validation::validate_resource_location_str(
+            &self.location,
+            kind,
+            "template_item",
+            &self.template_item,
+        )?;
+        Ok(())
+    }
+
+    fn try_content(&self) -> SandResult<ComponentContent> {
+        self.validate()?;
+        Ok(self.content())
+    }
+
     fn to_json(&self) -> Value {
         let mut map = serde_json::Map::new();
         map.insert("asset_id".to_string(), Value::String(self.asset_id.clone()));
@@ -185,5 +258,150 @@ impl DatapackComponent for TrimPattern {
 
     fn required_features(&self) -> &'static [sand_version::ComponentFeature] {
         &[sand_version::ComponentFeature::TrimAssets]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn rl() -> ResourceLocation {
+        ResourceLocation::new("test", "quartz").unwrap()
+    }
+
+    fn valid_material() -> TrimMaterial {
+        TrimMaterial::new(rl())
+            .asset_name("quartz")
+            .ingredient("minecraft:quartz")
+            .item_model_index(0.1)
+    }
+
+    fn valid_pattern() -> TrimPattern {
+        TrimPattern::new(rl())
+            .asset_id("minecraft:bolt")
+            .template_item("minecraft:bolt_armor_trim_smithing_template")
+    }
+
+    // ── TrimMaterial ────────────────────────────────────────────────────────
+
+    #[test]
+    fn valid_trim_material_passes_validation() {
+        assert!(valid_material().validate().is_ok());
+    }
+
+    #[test]
+    fn empty_asset_name_is_rejected() {
+        let m = TrimMaterial::new(rl()).ingredient("minecraft:quartz");
+        let err = m.validate().unwrap_err();
+        assert!(err.to_string().contains("asset_name"), "{err}");
+    }
+
+    #[test]
+    fn empty_ingredient_is_rejected() {
+        let m = TrimMaterial::new(rl()).asset_name("quartz");
+        let err = m.validate().unwrap_err();
+        assert!(err.to_string().contains("ingredient"), "{err}");
+    }
+
+    #[test]
+    fn malformed_ingredient_is_rejected() {
+        let m = valid_material().ingredient("Not Valid!");
+        assert!(m.validate().is_err());
+    }
+
+    #[test]
+    fn nan_item_model_index_is_rejected() {
+        let m = valid_material().item_model_index(f32::NAN);
+        assert!(m.validate().is_err());
+    }
+
+    #[test]
+    fn infinite_item_model_index_is_rejected() {
+        let m = valid_material().item_model_index(f32::INFINITY);
+        assert!(m.validate().is_err());
+    }
+
+    #[test]
+    fn negative_item_model_index_is_rejected() {
+        let m = valid_material().item_model_index(-0.1);
+        assert!(m.validate().is_err());
+    }
+
+    #[test]
+    fn item_model_index_above_one_is_rejected() {
+        let m = valid_material().item_model_index(1.1);
+        assert!(m.validate().is_err());
+    }
+
+    #[test]
+    fn item_model_index_bounds_are_accepted() {
+        assert!(valid_material().item_model_index(0.0).validate().is_ok());
+        assert!(valid_material().item_model_index(1.0).validate().is_ok());
+    }
+
+    #[test]
+    fn invalid_trim_material_fails_export() {
+        let m = TrimMaterial::new(rl());
+        assert!(m.try_content().is_err());
+    }
+
+    #[test]
+    fn valid_trim_material_json_is_stable() {
+        let m = valid_material();
+        let json = m.to_json();
+        assert_eq!(json["asset_name"], "quartz");
+        assert_eq!(json["ingredient"], "minecraft:quartz");
+        assert_eq!(json["item_model_index"], serde_json::json!(0.1_f32));
+        let a = serde_json::to_string_pretty(&m.to_json()).unwrap();
+        let b = serde_json::to_string_pretty(&m.to_json()).unwrap();
+        assert_eq!(a, b);
+    }
+
+    // ── TrimPattern ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn valid_trim_pattern_passes_validation() {
+        assert!(valid_pattern().validate().is_ok());
+    }
+
+    #[test]
+    fn empty_asset_id_is_rejected() {
+        let p = TrimPattern::new(rl()).template_item("minecraft:bolt_armor_trim_smithing_template");
+        let err = p.validate().unwrap_err();
+        assert!(err.to_string().contains("asset_id"), "{err}");
+    }
+
+    #[test]
+    fn empty_template_item_is_rejected() {
+        let p = TrimPattern::new(rl()).asset_id("minecraft:bolt");
+        let err = p.validate().unwrap_err();
+        assert!(err.to_string().contains("template_item"), "{err}");
+    }
+
+    #[test]
+    fn malformed_template_item_is_rejected() {
+        let p = valid_pattern().template_item("Not Valid!");
+        assert!(p.validate().is_err());
+    }
+
+    #[test]
+    fn invalid_trim_pattern_fails_export() {
+        let p = TrimPattern::new(rl());
+        assert!(p.try_content().is_err());
+    }
+
+    #[test]
+    fn valid_trim_pattern_json_is_stable() {
+        let p = valid_pattern().decal(true);
+        let json = p.to_json();
+        assert_eq!(json["asset_id"], "minecraft:bolt");
+        assert_eq!(
+            json["template_item"],
+            "minecraft:bolt_armor_trim_smithing_template"
+        );
+        assert_eq!(json["decal"], true);
+        let a = serde_json::to_string_pretty(&p.to_json()).unwrap();
+        let b = serde_json::to_string_pretty(&p.to_json()).unwrap();
+        assert_eq!(a, b);
     }
 }

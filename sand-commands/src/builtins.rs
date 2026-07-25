@@ -22,18 +22,49 @@ use crate::validate;
 // ── Chat / messaging ──────────────────────────────────────────────────────────
 
 /// `say <message>` — broadcast a message to all players.
+///
+/// Raw/unchecked: accepts an empty message or one containing control
+/// characters (e.g. an embedded newline), which would either produce a
+/// no-op broadcast or silently emit more than one `.mcfunction` line's
+/// worth of content on a single line. Prefer [`try_say`] on the validated path.
 pub fn say(message: impl Into<String>) -> String {
     format!("say {}", message.into())
 }
 
+/// Fallible [`say`] — rejects an empty message or control characters
+/// (newline, carriage return, NUL) that would corrupt the command line.
+pub fn try_say(message: impl Into<String>) -> CommandResult<String> {
+    let message = message.into();
+    validate::no_control_characters(&message, "say", "message")?;
+    Ok(format!("say {message}"))
+}
+
 /// `tell <target> <message>` / `msg` — send a private message to the target.
+///
+/// Raw/unchecked: see [`say`]. Prefer [`try_tell`] on the validated path.
 pub fn tell(target: Selector, message: impl Into<String>) -> String {
     format!("tell {} {}", target, message.into())
 }
 
+/// Fallible [`tell`] — rejects an empty message or control characters.
+pub fn try_tell(target: Selector, message: impl Into<String>) -> CommandResult<String> {
+    let message = message.into();
+    validate::no_control_characters(&message, "tell", "message")?;
+    Ok(format!("tell {target} {message}"))
+}
+
 /// `me <action>` — send an emote message (prefixed with the executor's name).
+///
+/// Raw/unchecked: see [`say`]. Prefer [`try_me`] on the validated path.
 pub fn me(action: impl Into<String>) -> String {
     format!("me {}", action.into())
+}
+
+/// Fallible [`me`] — rejects an empty action or control characters.
+pub fn try_me(action: impl Into<String>) -> CommandResult<String> {
+    let action = action.into();
+    validate::no_control_characters(&action, "me", "action")?;
+    Ok(format!("me {action}"))
 }
 
 /// `tellraw <target> <json>` — send a rich JSON text component to the target.
@@ -42,8 +73,33 @@ pub fn tellraw(target: impl std::fmt::Display, text: TextComponent) -> String {
 }
 
 /// `tellraw <target> <raw_json>` — send a raw JSON string to the target.
+///
+/// Raw/unchecked: accepts any string, including text that is not valid
+/// JSON, which produces a `.mcfunction` line Minecraft rejects at reload.
+/// Prefer [`tellraw`] with a typed [`TextComponent`], or [`try_tellraw_raw`]
+/// on the validated path.
 pub fn tellraw_raw(target: impl std::fmt::Display, json: impl Into<String>) -> String {
     format!("tellraw {} {}", target, json.into())
+}
+
+/// Fallible [`tellraw_raw`] — rejects text that does not parse as JSON.
+///
+/// This only validates JSON syntax, not the text-component schema; prefer
+/// [`tellraw`] with a typed [`TextComponent`] when the shape is known ahead
+/// of time.
+pub fn try_tellraw_raw(
+    target: impl std::fmt::Display,
+    json: impl Into<String>,
+) -> CommandResult<String> {
+    let json = json.into();
+    if serde_json::from_str::<serde_json::Value>(&json).is_err() {
+        return Err(crate::error::CommandError::new(
+            "tellraw_raw",
+            "json",
+            format!("must be valid JSON, got `{json}`"),
+        ));
+    }
+    Ok(format!("tellraw {target} {json}"))
 }
 
 // ── Entity management ─────────────────────────────────────────────────────────
@@ -86,6 +142,13 @@ pub fn try_summon(
 }
 
 /// `summon <entity_type>` — summon an entity at the current position (`~ ~ ~`).
+///
+/// Raw/unchecked: accepts any string entity type, which silently fails to
+/// summon at reload if unrecognized. There is no coordinate to validate
+/// here (the position is always the fixed `~ ~ ~` relative shorthand), and
+/// no `try_summon_here` counterpart exists yet — validate `entity_type`
+/// ahead of the call (e.g. via [`try_summon`]'s entity-type check) if this
+/// needs to fail fast.
 pub fn summon_here(entity_type: impl IntoEntityType) -> String {
     format!("summon {} ~ ~ ~", entity_type.into_entity_type())
 }
@@ -173,6 +236,13 @@ pub fn tp_with_rotation(target: Selector, pos: Vec3, rotation: Rotation) -> Stri
 
 /// `summon <entity_type> <pos>` — summon an entity at a typed [`Vec3`] position.
 ///
+/// Raw/unchecked for `entity_type`: `pos` is a typed [`Vec3`] (structurally
+/// modeling finite coordinates), but `entity_type` accepts any string and
+/// silently fails to summon at reload if unrecognized. No `try_summon_at`
+/// counterpart exists yet — prefer [`try_summon`] (which takes raw `f64`
+/// coordinates instead of a typed [`Vec3`]) if entity-type validation is
+/// needed ahead of export.
+///
 /// # Example
 /// ```
 /// use sand_commands::coord::Vec3;
@@ -186,6 +256,13 @@ pub fn summon_at(entity_type: impl IntoEntityType, pos: Vec3) -> String {
 }
 
 /// `summon <entity_type> <pos> <nbt>` — summon an entity at a position with NBT data.
+///
+/// Raw/unchecked: `entity_type` accepts any string (see [`summon_at`]), and
+/// `nbt` accepts any string with no SNBT syntax validation — malformed NBT
+/// produces a `.mcfunction` line Minecraft rejects at reload. SNBT
+/// validation is tracked separately
+/// (see [#167](https://github.com/ThatOneToast/sand/issues/167)); no
+/// `try_summon_at_with_nbt` counterpart exists yet.
 ///
 /// # Example
 /// ```
@@ -364,30 +441,70 @@ pub fn effect_clear(selector: Selector) -> String {
 }
 
 /// `effect clear <selector> <effect>` — clear a specific status effect.
+///
+/// Raw/unchecked: accepts any string effect id. Prefer
+/// [`try_effect_clear_effect`] on the validated path.
 pub fn effect_clear_effect(selector: Selector, effect: impl Into<String>) -> String {
     format!("effect clear {} {}", selector, effect.into())
+}
+
+/// Fallible [`effect_clear_effect`] — rejects an effect id that isn't a
+/// valid `namespace:path` resource location.
+pub fn try_effect_clear_effect(
+    selector: Selector,
+    effect: impl Into<String>,
+) -> CommandResult<String> {
+    let effect = effect.into();
+    validate::resource_location_shape(&effect, "effect_clear_effect", "effect")?;
+    Ok(format!("effect clear {selector} {effect}"))
 }
 
 // ── Experience ────────────────────────────────────────────────────────────────
 
 /// `experience add <selector> <amount> points` — add experience points.
+///
+/// A negative `amount` is valid vanilla syntax (it subtracts experience),
+/// so this stays infallible — there is no invalid-input shape to reject.
 pub fn xp_add_points(selector: Selector, amount: i32) -> String {
     format!("experience add {} {} points", selector, amount)
 }
 
 /// `experience add <selector> <amount> levels` — add experience levels.
+///
+/// A negative `amount` is valid vanilla syntax (it subtracts levels), so
+/// this stays infallible — there is no invalid-input shape to reject.
 pub fn xp_add_levels(selector: Selector, amount: i32) -> String {
     format!("experience add {} {} levels", selector, amount)
 }
 
 /// `experience set <selector> <amount> points` — set experience points.
+///
+/// `amount` is unsigned, so a negative value cannot reach this helper —
+/// there is no invalid-input shape to reject, so this stays infallible.
 pub fn xp_set_points(selector: Selector, amount: u32) -> String {
     format!("experience set {} {} points", selector, amount)
 }
 
 /// `experience set <selector> <amount> levels` — set experience levels.
+///
+/// Raw/unchecked: accepts a negative level count, which vanilla's `set`
+/// subcommand rejects (unlike `add`, which legitimately accepts negative
+/// amounts to subtract experience). Prefer [`try_xp_set_levels`] on the
+/// validated path.
 pub fn xp_set_levels(selector: Selector, amount: i32) -> String {
     format!("experience set {} {} levels", selector, amount)
+}
+
+/// Fallible [`xp_set_levels`] — rejects a negative level count.
+pub fn try_xp_set_levels(selector: Selector, amount: i32) -> CommandResult<String> {
+    if amount < 0 {
+        return Err(crate::error::CommandError::new(
+            "xp_set_levels",
+            "amount",
+            format!("experience levels cannot be set to a negative value, got `{amount}`"),
+        ));
+    }
+    Ok(format!("experience set {selector} {amount} levels"))
 }
 
 // ── Teams ─────────────────────────────────────────────────────────────────────
@@ -446,8 +563,20 @@ pub fn team_leave(selector: Selector) -> String {
 // ── World / time / weather ────────────────────────────────────────────────────
 
 /// `time set <value>` — set the world time (e.g. `"day"`, `"noon"`, `"night"`, or a tick count).
+///
+/// Raw/unchecked: accepts an empty value or one containing whitespace/
+/// control characters, which corrupts the single-token time-set grammar.
+/// Prefer [`try_time_set`] on the validated path.
 pub fn time_set(value: impl Into<String>) -> String {
     format!("time set {}", value.into())
+}
+
+/// Fallible [`time_set`] — rejects an empty value or one containing
+/// whitespace/control characters.
+pub fn try_time_set(value: impl Into<String>) -> CommandResult<String> {
+    let value = value.into();
+    validate::no_whitespace_or_control(&value, "time_set", "value")?;
+    Ok(format!("time set {value}"))
 }
 
 /// `time add <value>` — add ticks to the current world time.
@@ -911,8 +1040,19 @@ impl IntoDamageTargets for EntityTargets {
 // ── Attributes ────────────────────────────────────────────────────────────────
 
 /// `attribute <target> <attribute> get` — get an attribute value.
+///
+/// Raw/unchecked: accepts any string attribute id. Prefer
+/// [`try_attribute_get`] on the validated path.
 pub fn attribute_get(target: Selector, attribute: impl Into<String>) -> String {
     format!("attribute {} {} get", target, attribute.into())
+}
+
+/// Fallible [`attribute_get`] — rejects an attribute id that isn't a valid
+/// `namespace:path` resource location.
+pub fn try_attribute_get(target: Selector, attribute: impl Into<String>) -> CommandResult<String> {
+    let attribute = attribute.into();
+    validate::resource_location_shape(&attribute, "attribute_get", "attribute")?;
+    Ok(format!("attribute {target} {attribute} get"))
 }
 
 /// `attribute <target> <attribute> base set <value>` — set an attribute's base value.
@@ -1640,6 +1780,81 @@ mod tests {
     fn try_kick_rejects_empty_player() {
         assert!(try_kick("", None).is_err());
         assert!(try_kick("Steve", Some("griefing")).is_ok());
+    }
+
+    // ── #170: chat/XP/effect/attribute/time try_* helpers ─────────────────────
+
+    #[test]
+    fn try_say_matches_raw_for_valid_input() {
+        assert_eq!(try_say("hello").unwrap(), say("hello"));
+    }
+
+    #[test]
+    fn try_say_rejects_control_characters_but_allows_spaces() {
+        assert!(try_say("hello world").is_ok());
+        assert!(try_say("hello\nworld").is_err());
+        assert!(try_say("hello\0world").is_err());
+        assert!(try_say("").is_err());
+    }
+
+    #[test]
+    fn try_tell_and_try_me_reject_control_characters() {
+        assert!(try_tell(Selector::self_(), "hi there").is_ok());
+        assert!(try_tell(Selector::self_(), "hi\r\nthere").is_err());
+        assert!(try_me("waves happily").is_ok());
+        assert!(try_me("waves\0oddly").is_err());
+    }
+
+    #[test]
+    fn try_tellraw_raw_rejects_malformed_json() {
+        assert!(try_tellraw_raw(Selector::self_(), r#"{"text":"ok"}"#).is_ok());
+        assert!(try_tellraw_raw(Selector::self_(), "not json").is_err());
+        assert!(try_tellraw_raw(Selector::self_(), r#"{"text":"ok""#).is_err());
+    }
+
+    #[test]
+    fn try_tellraw_raw_matches_raw_for_valid_input() {
+        let json = r#"{"text":"ok"}"#;
+        assert_eq!(
+            try_tellraw_raw(Selector::self_(), json).unwrap(),
+            tellraw_raw(Selector::self_(), json)
+        );
+    }
+
+    #[test]
+    fn try_xp_set_levels_rejects_negative() {
+        assert!(try_xp_set_levels(Selector::self_(), -1).is_err());
+        assert!(try_xp_set_levels(Selector::self_(), 0).is_ok());
+        assert_eq!(
+            try_xp_set_levels(Selector::self_(), 10).unwrap(),
+            xp_set_levels(Selector::self_(), 10)
+        );
+    }
+
+    #[test]
+    fn try_effect_clear_effect_rejects_malformed_effect_id() {
+        assert!(try_effect_clear_effect(Selector::self_(), "speed").is_err());
+        assert_eq!(
+            try_effect_clear_effect(Selector::self_(), "minecraft:speed").unwrap(),
+            effect_clear_effect(Selector::self_(), "minecraft:speed")
+        );
+    }
+
+    #[test]
+    fn try_attribute_get_rejects_malformed_attribute_id() {
+        assert!(try_attribute_get(Selector::self_(), "max_health").is_err());
+        assert_eq!(
+            try_attribute_get(Selector::self_(), "minecraft:generic.max_health").unwrap(),
+            attribute_get(Selector::self_(), "minecraft:generic.max_health")
+        );
+    }
+
+    #[test]
+    fn try_time_set_rejects_whitespace_and_empty() {
+        assert!(try_time_set("").is_err());
+        assert!(try_time_set("day time").is_err());
+        assert_eq!(try_time_set("day").unwrap(), time_set("day"));
+        assert_eq!(try_time_set("6000").unwrap(), time_set("6000"));
     }
 
     #[test]

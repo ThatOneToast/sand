@@ -311,7 +311,7 @@ public code no longer has a reason to call them directly.
 | `after_any` (multi-parent, disjunctive) | ❌ Rejected | ❌ Rejected | — | — | Export diagnostic: reached through `after_any`/multi-parent fan-in; #264 does not choose a winner. |
 | `after_all` (multi-parent, conjunctive) | ❌ Rejected | ❌ Rejected | — | — | Same diagnostic path as `after_any` — any edge with more than one occurrence clause/parent is rejected uniformly. |
 | `.while_(...)` (persistent condition) | ❌ Rejected (also structurally impossible — see below) | ❌ Rejected | — | — | A `while_` parent is required to have an empty `EventSetup` (#240 Phase 6 precedent), so it can never carry a plan to inherit from in the first place; the validator's diagnostic names this. |
-| `.within(...)` (bounded cross-tick correlation) | ❌ Rejected (entity) | ✅ `inherit_item_within` (#272) | Preserved from source (`ExactSnapshot`/`ExactPostTrigger` qualifier unchanged) | `BoundedWindow` (new #272 lifetime — see below) | #272 adds an automatic bounded-item transport: the export pipeline copies the source's `ItemSnapshot` into per-subject entity NBT storage (`sand-core/src/participant/bounded_item.rs`) the moment the source occurs, reusing the existing `.within(...)` age counter for expiry — no hand-wired `ItemSnapshot::copy_to` needed for this case anymore (that API remains available for any other custom persistence a caller wants to build). Entity participants are still never safe to keep alive across a tick boundary with the current temporary-tag mechanism (see "Bounded entity decision" in the #264 PR description) and still always resolve unavailable/rejected — #272 explicitly does not attempt this; see its own PR description for the full rationale. |
+| `.within(...)` (bounded cross-tick correlation) | ❌ Rejected (entity) | ⚠️ `inherit_item_within` (#272) — structurally implemented, **confirmed non-functional live** (see below) | Preserved from source (`ExactSnapshot`/`ExactPostTrigger` qualifier unchanged) | `BoundedWindow` (new #272 lifetime — see below) | #272 adds an automatic bounded-item transport: the export pipeline copies the source's `ItemSnapshot` into per-subject entity NBT storage (`sand-core/src/participant/bounded_item.rs`) the moment the source occurs, reusing the existing `.within(...)` age counter for expiry. A live RCON round-trip test found the underlying entity-NBT write is silently dropped by vanilla Minecraft 26.2 for custom top-level keys on any entity — see the "Minecraft 26.2 validation status" section below before relying on this. Entity participants are still never safe to keep alive across a tick boundary with the current temporary-tag mechanism (see "Bounded entity decision" in the #264 PR description) and still always resolve unavailable/rejected — #272 explicitly does not attempt this; see its own PR description for the full rationale. |
 | Advancement-bridge parent (`.after::<AdvancementEvent>()` with no direct handler) | ✅ `inherit_entity` (#269) | ✅ `inherit_item` (#269) | Unchanged from source | `SynchronousDescendants` | Fixed in #269/#280: the bridge parent's own `participants()` plan is now applied directly around its synthesized entry (setup after revoke, before every dependent; cleanup after every synchronous descendant) — see `sand-core/tests/event_chain_advancement_bridge_nested_siblings.rs` for exact-output proof (siblings, a nested grandchild, and ordering). A grandchild reached through another same-cycle child may still `inherit_*` directly from the original bridge parent (multi-hop, not transitive). Real-server validation for this specific scenario (`PlayerKillEvent -> SpecialKillEvent`) via `scripts/mc_validation/run_audit.py`'s `advancement_bridge_rcon_direct_invocation`/`advancement_bridge_matches_real_attacker_uuid` checks: a real, non-mocked firing of the synthesized bridge entry function against a real, independently-verified combat attacker relationship, with `bridge_killer_uuid` confirmed to genuinely match the real attacker's UUID (see `docs/testing/participant-role-evidence.md`'s "What has and has not been runtime-verified" and `scripts/mc_validation/README.md`'s "#265 (this pass)" section for the full before/after, including a real `execute_at` bug this uncovered and fixed). |
 | Tracked-transition parent (#263) | ❌ Rejected (nothing to inherit) | ❌ Rejected | — | — | Same-cycle graph-parent bridging for tracked-transition `SandEvent`s remains unsupported and is unrelated to #270: #270 fixed a tracked-transition event's own *direct* participant plan being silently ignored by its dispatch backend (now applied around its own handler body — see `sand-core/tests/tracked_event_participant_setup.rs`); using a tracked event as a graph parent for another event's inheritance is still rejected by `discover()` (`sand-core/src/events/graph.rs`), unchanged. |
 
@@ -366,7 +366,39 @@ See `sand-core/tests/event_chain_bounded_item_transport.rs` for exact-output
 proof of the generated persist/expire commands, subject-isolation structure,
 and export determinism, and `sand-core/src/participant/plan.rs`/
 `bounded_item.rs`'s unit tests for the declaration/resolution/command-shape
-coverage. Minecraft 26.2 validation status: see the PR description — this
-document is updated once real load/reload evidence for a pack exercising
-this path exists (structural export/JSON coverage above is not itself
-runtime evidence).
+coverage.
+
+### ⚠️ Minecraft 26.2 validation status: CONFIRMED BROKEN (live-fire, gating)
+
+A real-server RCON round-trip test performed during a #272 review pass
+(summon a stand-in entity, `data modify entity <target>
+__sand_bounded_item.<key> set value 1b`, then immediately `data get entity
+<target> __sand_bounded_item`) shows the write command reports success
+(`Modified entity data of ...`) but the custom top-level compound key is
+**silently absent** on immediate readback (`Found no elements matching
+__sand_bounded_item`). A vanilla-recognized field (`CustomName`, `tag ...
+add`) on the same entity in the same session writes and reads back
+correctly, ruling out a tooling/RCON artifact; the failure reproduces with
+a bare, unprefixed, unnested key too (`simplekey set value 5`), and with
+the entity already fully settled (ruling out the same-tick
+selectability issue #292 found). Full transcript and analysis:
+`sand-core/src/participant/bounded_item.rs`'s module doc.
+
+**Practical consequence: every bounded item snapshot this module writes is
+currently unrecoverable in real Minecraft**, despite every structural/
+export test above passing — those tests only assert generated command
+text, never round-trip it against a live server. This is consistent with,
+and extends, `sand-core/src/systems/player_data.rs`'s pre-existing
+documented finding that arbitrary player NBT writes are rejected, and
+`sand-core/src/item/location.rs`'s rejection of live entity/player
+inventory NBT writes — the rejection is broader than either of those
+call sites previously assumed (any custom top-level entity NBT key, on any
+entity kind).
+
+This backend must be migrated to a command-storage-based design (keyed by
+a runtime-computed stable player identity, per
+`sand-core/src/systems/player_data.rs`'s documented per-player-storage
+options) before #272 can be considered functionally complete. Until that
+migration lands and is itself live-validated, #272 stays open and this
+feature should be treated as **non-functional**, not merely
+"structurally implemented, runtime-unverified."

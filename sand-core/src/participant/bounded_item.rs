@@ -39,6 +39,62 @@
 //! call tree they are spliced, and why that placement (not
 //! `pre_observation`/`post_observation`) is the only place safe from the
 //! same cross-player-interleaving hazard described above.
+//!
+//! # ⚠️ CONFIRMED LIVE-FIRE BUG (#272 review pass): this storage does not work
+//!
+//! A real Minecraft Java 26.2 server, RCON round-trip test (summon an
+//! `armor_stand`, `data modify entity @e[...] __sand_bounded_item.testkey
+//! set value 1b`, then immediately `data get entity @e[...]
+//! __sand_bounded_item`) reproduces this every time:
+//!
+//! ```text
+//! > data modify entity @e[tag=nbttest5,limit=1] __sand_bounded_item.testkey set value 1b
+//! Modified entity data of Armor Stand
+//! > data get entity @e[tag=nbttest5,limit=1] __sand_bounded_item
+//! Found no elements matching __sand_bounded_item
+//! ```
+//!
+//! The write command reports success, but the custom top-level compound key
+//! is silently absent immediately afterward — not a timing/settle-delay
+//! issue (confirmed with the entity already fully settled and independently
+//! `data get`-readable beforehand), not specific to the `__sand_` prefix or
+//! to nesting (a bare `simplekey set value 5` reproduces identically), and
+//! not specific to this one entity or key name. A vanilla-recognized field
+//! on the *same* entity in the *same* session (`CustomName`, `tag ... add`)
+//! writes and reads back correctly, ruling out an RCON/tooling artifact.
+//! This matches `sand-core/src/systems/player_data.rs`'s existing, separate
+//! documented finding ("Arbitrary player NBT and inventory writes are
+//! rejected") and `sand-core/src/item/location.rs`'s
+//! (`ItemLocation::copy_from`'s rejection of live entity/player inventory
+//! writes) — this module's design predates awareness that the same
+//! rejection applies to *any* custom top-level entity NBT key, on *any*
+//! entity kind, not just recognized/schema-validated vanilla fields and not
+//! just players.
+//!
+//! **Practical effect: every bounded item snapshot this module writes is
+//! silently lost.** `persist_commands` appears to succeed (no command
+//! error), `is_present()`/`item_path()` reads will simply find nothing, and
+//! a bounded child will always observe absence — not a wrong/stale value,
+//! but a snapshot that can never actually be recovered. This was not caught
+//! by this PR's structural/export tests because those tests only assert
+//! the *generated command text*, never round-trip it against a real
+//! server — see `docs/testing/participant-role-evidence.md` for the
+//! now-corrected status.
+//!
+//! **This entity-NBT design should not be used until replaced.** The
+//! established, working Sand convention for arbitrary per-player data is
+//! command storage (`data storage <id> <path>`), keyed by a stable player
+//! identity computed at runtime (e.g. via a macro-invoked function reading
+//! the subject's name/UUID into the storage path, or a scoreboard-assigned
+//! per-player numeric slot indexing a storage array) rather than raw entity
+//! NBT — see `sand-core/src/systems/player_data.rs`'s module doc, options
+//! 1–2. Migrating this module to that convention is real follow-up work,
+//! not a small patch: it needs its own dedicated design and live
+//! validation (ideally including a real player client, not just a
+//! non-player stand-in) before this module's `persist_commands`/
+//! `expire_commands`/read-side accessors can be trusted. Until then, #272
+//! remains open and this feature should be treated as **non-functional in
+//! real Minecraft**, despite all structural/export tests passing.
 
 use sand_commands::Selector;
 

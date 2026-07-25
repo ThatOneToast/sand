@@ -270,11 +270,18 @@ impl EventParticipantPlan {
     /// Declare that this event borrows `role` from `Source`'s own
     /// same-cycle capture, instead of capturing it independently (#264).
     ///
-    /// Valid only when `Source` is a real ancestor of this event reachable
+    /// Valid when `Source` is a real ancestor of this event reachable
     /// through an unbroken chain of plain, single-parent, unbounded
-    /// `.after(...)`/`chain::<...>()` edges (no `after_any`/`after_all`
-    /// fan-in, no `.within(...)`, no advancement-bridge hop along the way),
-    /// and `Source`'s own plan must declare `role` via direct capture, not
+    /// `.after(...)`/`chain::<...>()` edges (no `.within(...)`, no
+    /// advancement-bridge hop along the way beyond a direct bridge parent),
+    /// **or** when `Source` is one of this event's own directly-listed
+    /// `after_any`/`after_all` occurrence parents (#271 — see
+    /// `sand-core/src/compiler/export/participant_transport.rs`'s module
+    /// doc for why naming one specific group member is always sound,
+    /// regardless of which alternative actually supplied a given tick's
+    /// occurrence; an `after_any`/`after_all` boundary is never walked past
+    /// transitively, matching the plain-chain case), and `Source`'s own
+    /// plan must declare `role` via direct capture, not
     /// itself via `inherit_entity` — transitive inheritance is not
     /// supported; every link in a multi-hop chain must name the actual
     /// capturing ancestor directly. Both conditions are enforced by the

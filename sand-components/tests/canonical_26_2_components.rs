@@ -731,6 +731,51 @@ fn canonical_26_2_dialog_notice_with_button_action() {
     );
 }
 
+// ── Chat Types ───────────────────────────────────────────────────────────────
+// Wiki: "Chat type" (https://minecraft.wiki/w/Chat_type), checked 2026-07-24.
+
+/// A chat type with typed decoration parameters and a typed style, plus a
+/// narration decoration — exercises the #199 typed authoring surface end to
+/// end and the #153 validation boundary via `try_content`.
+#[test]
+fn canonical_26_2_chat_type_with_typed_parameters_and_style() {
+    use sand_components::chat_type::{
+        ChatDecoration, ChatDecorationParameter, ChatStyle, ChatType,
+    };
+
+    let chat = ChatDecoration::new("chat.type.text")
+        .parameters([
+            ChatDecorationParameter::Sender,
+            ChatDecorationParameter::Content,
+        ])
+        .style(ChatStyle::new().color(sand_commands::ChatColor::Gray));
+    let narration = ChatDecoration::new("chat.type.text.narrate").parameters([
+        ChatDecorationParameter::Sender,
+        ChatDecorationParameter::Content,
+    ]);
+    let chat_type = ChatType::new(id("system"), chat).narration(narration);
+
+    let expected = serde_json::json!({
+        "chat": {
+            "translation_key": "chat.type.text",
+            "parameters": ["sender", "content"],
+            "style": {"color": "gray"}
+        },
+        "narration": {
+            "translation_key": "chat.type.text.narrate",
+            "parameters": ["sender", "content"]
+        }
+    });
+
+    assert_eq!(chat_type.to_json(), expected);
+    assert_eq!(content_json(&chat_type), expected);
+    assert_eq!(chat_type.component_dir(), "chat_type");
+    assert_eq!(
+        chat_type.required_features(),
+        &[sand_version::ComponentFeature::ChatTypes]
+    );
+}
+
 // ── Enchantments ────────────────────────────────────────────────────────────
 // Wiki: "Enchantment definition" (https://minecraft.wiki/w/Enchantment_definition), checked 2026-07-19.
 

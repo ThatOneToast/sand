@@ -76,9 +76,10 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use crate::events::TickWindow;
 use crate::events::graph::{EventGraph, NodeOrigin, OccurrenceDependency};
 use crate::participant::plan::EventParticipantPlan;
-use crate::participant::role::{EntityParticipantRole, ItemParticipantRole};
+use crate::participant::role::{EntityParticipantRole, ItemParticipantRole, ParticipantHand};
 
 /// What a plan declared, stripped down to just the role/source-label pairs
 /// [`validate_participant_transport`] needs — recorded once per graph node
@@ -91,6 +92,18 @@ pub(crate) struct ParticipantDeclarations {
     inherited_entity_roles: Vec<(EntityParticipantRole, &'static str)>,
     direct_item_roles: Vec<ItemParticipantRole>,
     inherited_item_roles: Vec<(ItemParticipantRole, &'static str)>,
+    /// `(role, hand)` pairs directly captured by this event's own plan —
+    /// #272's bounded-item-transport validator needs the hand, not just the
+    /// role, since [`EventParticipantPlan::inherit_item_within`] names both.
+    direct_item_hands: Vec<(ItemParticipantRole, ParticipantHand)>,
+    /// `(role, source_event, hand, window)` bounded item declarations this
+    /// event made via [`EventParticipantPlan::inherit_item_within`] (#272).
+    pub(crate) bounded_item_roles: Vec<(
+        ItemParticipantRole,
+        &'static str,
+        ParticipantHand,
+        TickWindow,
+    )>,
 }
 
 impl ParticipantDeclarations {
@@ -100,6 +113,8 @@ impl ParticipantDeclarations {
             inherited_entity_roles: plan.inherited_entity_roles(),
             direct_item_roles: plan.direct_item_roles(),
             inherited_item_roles: plan.inherited_item_roles(),
+            direct_item_hands: plan.direct_item_hands(),
+            bounded_item_roles: plan.bounded_item_roles(),
         }
     }
 }
@@ -372,6 +387,121 @@ fn validate_one(
     Ok(())
 }
 
+// ── Bounded item transport (#272) ───────────────────────────────────────────
+//
+// `inherit_item_within` is deliberately validated separately from
+// `validate_one` above rather than folded into it: same-cycle borrowing
+// (`inherit_entity`/`inherit_item`) and bounded copying
+// (`inherit_item_within`) have opposite soundness conditions — the former
+// requires *not* crossing a `.within(...)` edge
+// (`find_borrowable_ancestor_path` rejects exactly that), the latter
+// requires the child to be reached through *exactly* that kind of edge, with
+// a matching window. Reusing one validator for both would mean threading a
+// "but accept bounded edges this time" flag through
+// `find_borrowable_ancestor_path`'s same-cycle-only walk, which is more
+// confusing than two small, single-purpose functions.
+
+/// One validated bounded item transport declaration: `child_event` reads
+/// `source_event`'s own direct `(role, hand)` capture through a genuine
+/// `.within::<source_event>(window)` bounded dependency.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct BoundedItemTransport {
+    pub(crate) source_event: &'static str,
+    pub(crate) role: ItemParticipantRole,
+    pub(crate) hand: ParticipantHand,
+    pub(crate) window: TickWindow,
+}
+
+/// Validate every [`EventParticipantPlan::inherit_item_within`] declaration
+/// recorded in `declarations` against `graph`'s actual resolved shape.
+/// Returns the validated transports (deterministic child-then-declaration
+/// order) so the caller can generate persist/expire codegen from them,
+/// or the first violation found.
+pub(crate) fn validate_bounded_item_transport(
+    graph: &EventGraph,
+    declarations: &BTreeMap<&'static str, ParticipantDeclarations>,
+) -> Result<Vec<BoundedItemTransport>, ParticipantTransportDiagnostic> {
+    let mut transports = Vec::new();
+    for (child_event, decl) in declarations {
+        for &(role, source_event, hand, window) in &decl.bounded_item_roles {
+            let Some(source_decl) = declarations.get(source_event) else {
+                return Err(diagnostic(
+                    child_event,
+                    source_event,
+                    ParticipantTransportKind::Item,
+                    role,
+                    format!("`{source_event}` declares no participant plan at all"),
+                    "inherit from the event whose own participants() plan actually captures this role/hand directly".to_string(),
+                ));
+            };
+            if !source_decl.direct_item_hands.contains(&(role, hand)) {
+                let reason = if source_decl.direct_item_roles.contains(&role) {
+                    format!(
+                        "`{source_event}` captures this role from a different hand than `{hand:?}`"
+                    )
+                } else {
+                    format!("`{source_event}` does not directly capture this role at all")
+                };
+                return Err(diagnostic(
+                    child_event,
+                    source_event,
+                    ParticipantTransportKind::Item,
+                    role,
+                    reason,
+                    "name the exact (role, hand) pair the source's own observe_held_item/observe_weapon declaration captures".to_string(),
+                ));
+            }
+
+            let Some(node) = graph.nodes.get(*child_event) else {
+                return Err(diagnostic(
+                    child_event,
+                    source_event,
+                    ParticipantTransportKind::Item,
+                    role,
+                    format!("`{child_event}` is not a plain same-cycle graph node"),
+                    "inherit_item_within is only valid on an ordinary chained SandEvent"
+                        .to_string(),
+                ));
+            };
+            let NodeOrigin::Chained { bounded, .. } = &node.origin else {
+                return Err(diagnostic(
+                    child_event,
+                    source_event,
+                    ParticipantTransportKind::Item,
+                    role,
+                    format!("`{child_event}` is a root event with no `.within(...)` dependency"),
+                    "declare `.within::<Source>(window)` on this event's own dispatch()"
+                        .to_string(),
+                ));
+            };
+            let matched = bounded
+                .iter()
+                .any(|b| b.type_name == source_event && b.window == window);
+            if !matched {
+                return Err(diagnostic(
+                    child_event,
+                    source_event,
+                    ParticipantTransportKind::Item,
+                    role,
+                    format!(
+                        "`{child_event}` is not reached from `{source_event}` through a `.within::<{source_event}>({:?})` bounded dependency with this exact window",
+                        window.ticks()
+                    ),
+                    "declare a `.within::<Source>(window)` dependency on this event's own dispatch() whose window matches the one passed to inherit_item_within exactly".to_string(),
+                ));
+            }
+
+            transports.push(BoundedItemTransport {
+                source_event,
+                role,
+                hand,
+                window,
+            });
+        }
+    }
+    Ok(transports)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -580,8 +710,6 @@ mod tests {
             Ok(())
         );
     }
-
-    // ── #271: after_any/after_all multi-parent inheritance ─────────────────
 
     fn chained_after_any(name: &'static str, parents: &[&'static str]) -> EventNode {
         let mut sorted: Vec<&'static str> = parents.to_vec();
@@ -863,5 +991,190 @@ mod tests {
         );
         let err = validate_participant_transport(&graph, &declarations).unwrap_err();
         assert!(err.reason.contains("after_any"), "{}", err.reason);
+    }
+
+    fn chained_within(
+        name: &'static str,
+        parent: &'static str,
+        window: crate::events::TickWindow,
+    ) -> EventNode {
+        use crate::events::graph::BoundedDependency;
+        EventNode {
+            type_id: TypeId::of::<()>(),
+            type_name: name,
+            origin: NodeOrigin::Chained {
+                occurrence: vec![],
+                persistent: vec![],
+                bounded: vec![BoundedDependency {
+                    type_id: TypeId::of::<()>(),
+                    type_name: parent,
+                    window,
+                    condition: crate::condition::Condition::raw("dummy"),
+                }],
+                when: vec![],
+                unless: vec![],
+            },
+            setup: EventSetup::none(),
+            handlers: vec!["h"],
+        }
+    }
+
+    #[test]
+    fn bounded_item_transport_accepts_matching_source_and_window() {
+        let window = crate::events::TickWindow::new(20).unwrap();
+        let graph = graph_with(vec![
+            root_node("Source"),
+            chained_within("Child", "Source", window),
+        ]);
+        let mut declarations = BTreeMap::new();
+        declarations.insert(
+            "Source",
+            ParticipantDeclarations {
+                direct_item_hands: vec![(ItemParticipantRole::Weapon, ParticipantHand::MainHand)],
+                direct_item_roles: vec![ItemParticipantRole::Weapon],
+                ..Default::default()
+            },
+        );
+        declarations.insert(
+            "Child",
+            ParticipantDeclarations {
+                bounded_item_roles: vec![(
+                    ItemParticipantRole::Weapon,
+                    "Source",
+                    ParticipantHand::MainHand,
+                    window,
+                )],
+                ..Default::default()
+            },
+        );
+        let transports = validate_bounded_item_transport(&graph, &declarations).unwrap();
+        assert_eq!(transports.len(), 1);
+        assert_eq!(transports[0].source_event, "Source");
+        assert_eq!(transports[0].role, ItemParticipantRole::Weapon);
+        assert_eq!(transports[0].hand, ParticipantHand::MainHand);
+        assert_eq!(transports[0].window, window);
+    }
+
+    #[test]
+    fn bounded_item_transport_rejects_source_that_does_not_capture_directly() {
+        let window = crate::events::TickWindow::new(20).unwrap();
+        let graph = graph_with(vec![
+            root_node("Source"),
+            chained_within("Child", "Source", window),
+        ]);
+        let mut declarations = BTreeMap::new();
+        declarations.insert("Source", ParticipantDeclarations::default());
+        declarations.insert(
+            "Child",
+            ParticipantDeclarations {
+                bounded_item_roles: vec![(
+                    ItemParticipantRole::Weapon,
+                    "Source",
+                    ParticipantHand::MainHand,
+                    window,
+                )],
+                ..Default::default()
+            },
+        );
+        let err = validate_bounded_item_transport(&graph, &declarations).unwrap_err();
+        assert!(
+            err.reason.contains("does not directly capture"),
+            "{}",
+            err.reason
+        );
+    }
+
+    #[test]
+    fn bounded_item_transport_rejects_mismatched_hand() {
+        let window = crate::events::TickWindow::new(20).unwrap();
+        let graph = graph_with(vec![
+            root_node("Source"),
+            chained_within("Child", "Source", window),
+        ]);
+        let mut declarations = BTreeMap::new();
+        declarations.insert(
+            "Source",
+            ParticipantDeclarations {
+                direct_item_hands: vec![(ItemParticipantRole::Weapon, ParticipantHand::OffHand)],
+                direct_item_roles: vec![ItemParticipantRole::Weapon],
+                ..Default::default()
+            },
+        );
+        declarations.insert(
+            "Child",
+            ParticipantDeclarations {
+                bounded_item_roles: vec![(
+                    ItemParticipantRole::Weapon,
+                    "Source",
+                    ParticipantHand::MainHand,
+                    window,
+                )],
+                ..Default::default()
+            },
+        );
+        let err = validate_bounded_item_transport(&graph, &declarations).unwrap_err();
+        assert!(err.reason.contains("different hand"), "{}", err.reason);
+    }
+
+    #[test]
+    fn bounded_item_transport_rejects_mismatched_window() {
+        let declared_window = crate::events::TickWindow::new(20).unwrap();
+        let graph_window = crate::events::TickWindow::new(40).unwrap();
+        let graph = graph_with(vec![
+            root_node("Source"),
+            chained_within("Child", "Source", graph_window),
+        ]);
+        let mut declarations = BTreeMap::new();
+        declarations.insert(
+            "Source",
+            ParticipantDeclarations {
+                direct_item_hands: vec![(ItemParticipantRole::Weapon, ParticipantHand::MainHand)],
+                direct_item_roles: vec![ItemParticipantRole::Weapon],
+                ..Default::default()
+            },
+        );
+        declarations.insert(
+            "Child",
+            ParticipantDeclarations {
+                bounded_item_roles: vec![(
+                    ItemParticipantRole::Weapon,
+                    "Source",
+                    ParticipantHand::MainHand,
+                    declared_window,
+                )],
+                ..Default::default()
+            },
+        );
+        let err = validate_bounded_item_transport(&graph, &declarations).unwrap_err();
+        assert!(err.reason.contains("not reached"), "{}", err.reason);
+    }
+
+    #[test]
+    fn bounded_item_transport_rejects_a_child_with_no_within_dependency_at_all() {
+        let window = crate::events::TickWindow::new(20).unwrap();
+        let graph = graph_with(vec![root_node("Source"), chained_after("Child", "Source")]);
+        let mut declarations = BTreeMap::new();
+        declarations.insert(
+            "Source",
+            ParticipantDeclarations {
+                direct_item_hands: vec![(ItemParticipantRole::Weapon, ParticipantHand::MainHand)],
+                direct_item_roles: vec![ItemParticipantRole::Weapon],
+                ..Default::default()
+            },
+        );
+        declarations.insert(
+            "Child",
+            ParticipantDeclarations {
+                bounded_item_roles: vec![(
+                    ItemParticipantRole::Weapon,
+                    "Source",
+                    ParticipantHand::MainHand,
+                    window,
+                )],
+                ..Default::default()
+            },
+        );
+        let err = validate_bounded_item_transport(&graph, &declarations).unwrap_err();
+        assert!(err.reason.contains("not reached"), "{}", err.reason);
     }
 }

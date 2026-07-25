@@ -461,6 +461,17 @@ impl<E: AdvancementEvent> Event<E> {
     pub fn weapon(&self) -> crate::item::ItemSnapshot {
         self.item(crate::participant::ItemParticipantRole::Weapon)
     }
+
+    /// Access a declared bounded item participant by role (#272, infallible
+    /// per #273) — the `.within(...)`-crossing counterpart to [`Self::item`].
+    /// See [`crate::participant::EventParticipantPlan::inherit_item_within`]
+    /// for the full contract.
+    pub fn bounded_item(
+        &self,
+        role: crate::participant::ItemParticipantRole,
+    ) -> crate::participant::BoundedItemSnapshot {
+        E::participants().require_bounded_item(std::any::type_name::<E>(), role)
+    }
 }
 
 impl<E> Default for Event<E> {

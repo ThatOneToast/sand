@@ -133,6 +133,22 @@ pub fn call(id: impl crate::function::IntoFunctionRef) -> String {
     id.into_function_command()
 }
 
+/// Validated counterpart to [`call`].
+///
+/// [`crate::function::IntoFunctionRef`]'s registered-pointer, [`FunctionRef`](crate::resource_ref::FunctionRef),
+/// and [`ResourceLocation`](crate::ResourceLocation) implementors are always
+/// well-formed by construction, but the `&str`/`String` raw-path escape hatch
+/// is not — this validates the resolved `namespace:path` resource location
+/// (or the `__sand_local:path` sentinel used for not-yet-namespaced local
+/// function pointers) before returning command text.
+pub fn try_call(id: impl crate::function::IntoFunctionRef) -> sand_commands::CommandResult<String> {
+    let line = id.into_function_command();
+    let function_id = line.strip_prefix("function ").unwrap_or(line.as_str());
+    sand_commands::validate::resource_location_shape(function_id, "cmd::try_call", "id")
+        .map_err(|e| e.with_code("SAND-COMMAND-ARG-FUNCTION-ID"))?;
+    Ok(line)
+}
+
 /// `function <namespace:path>` — run a datapack function by resource location.
 ///
 /// Raw/unchecked: `id` is interpolated verbatim, with no resource-location
@@ -188,6 +204,17 @@ pub fn show_dialog(
     dialog: impl sand_components::dialog::IntoDialogRef,
 ) -> String {
     format!("dialog show {selector} {}", dialog.into_dialog_ref())
+}
+
+/// Validated counterpart to [`show_dialog`] — validates `selector` through
+/// [`Selector`]'s normal validation before returning command text. `dialog`
+/// resolution is already typed via [`IntoDialogRef`](sand_components::dialog::IntoDialogRef).
+pub fn try_show_dialog(
+    selector: Selector,
+    dialog: impl sand_components::dialog::IntoDialogRef,
+) -> sand_commands::CommandResult<String> {
+    selector.validate(&CommandProfile::unprofiled())?;
+    Ok(show_dialog(selector, dialog))
 }
 
 /// `tellraw <target> <json>` — send a rich JSON text component to a target.
@@ -302,6 +329,26 @@ impl IntoGiveItem for &sand_components::CustomItem {
 /// ```
 pub fn give(selector: Selector, item: impl IntoGiveItem) -> String {
     format!("give {selector} {}", item.into_give_item())
+}
+
+/// Validated counterpart to [`give`].
+///
+/// Typed [`IntoGiveItem`] implementors ([`crate::generated::Item`],
+/// [`sand_components::registry::ItemId`], [`sand_components::CustomItem`])
+/// are already well-formed by construction, but the `&str`/`String` raw
+/// escape hatch is not — this validates the leading `namespace:path` item ID
+/// (any trailing `[...]`/`{...}` item-component/NBT payload is preserved
+/// verbatim, matching `sand_commands::Inventory`'s item validation) and the
+/// target `selector` before returning command text.
+pub fn try_give(
+    selector: Selector,
+    item: impl IntoGiveItem,
+) -> sand_commands::CommandResult<String> {
+    selector.validate(&CommandProfile::unprofiled())?;
+    let item = item.into_give_item();
+    let id_part = item.find(['[', '{']).map_or(item.as_str(), |i| &item[..i]);
+    sand_commands::validate::resource_location_shape(id_part, "cmd::try_give", "item")?;
+    Ok(format!("give {selector} {item}"))
 }
 
 /// `return fail` — stop the current function with a failure return value.
@@ -501,6 +548,76 @@ mod tests {
         assert!(
             super::try_tellraw_raw(super::Selector::all_entities().limit(0), r#"{"text":"hi"}"#)
                 .is_err()
+        );
+    }
+
+    #[test]
+    fn try_call_matches_call_for_valid_raw_path() {
+        assert_eq!(
+            super::try_call("my_pack:api/do_thing").unwrap(),
+            super::call("my_pack:api/do_thing")
+        );
+    }
+
+    #[test]
+    fn try_call_rejects_malformed_raw_path() {
+        assert!(super::try_call("not a resource location").is_err());
+        assert!(super::try_call("Bad Path").is_err());
+    }
+
+    #[test]
+    fn try_give_matches_give_for_valid_item() {
+        assert_eq!(
+            super::try_give(super::Selector::self_(), "minecraft:diamond_sword").unwrap(),
+            super::give(super::Selector::self_(), "minecraft:diamond_sword")
+        );
+    }
+
+    #[test]
+    fn try_give_rejects_malformed_item_id() {
+        assert!(super::try_give(super::Selector::self_(), "Diamond").is_err());
+        assert!(super::try_give(super::Selector::self_(), "diamond").is_err());
+    }
+
+    #[test]
+    fn try_give_accepts_component_syntax_as_escape_hatch() {
+        assert_eq!(
+            super::try_give(
+                super::Selector::self_(),
+                "minecraft:diamond_sword[custom_name='\"Foo\"']"
+            )
+            .unwrap(),
+            "give @s minecraft:diamond_sword[custom_name='\"Foo\"']"
+        );
+    }
+
+    #[test]
+    fn try_give_rejects_invalid_selector() {
+        assert!(
+            super::try_give(
+                super::Selector::all_entities().limit(0),
+                "minecraft:diamond"
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn try_show_dialog_matches_show_dialog_for_valid_selector() {
+        assert_eq!(
+            super::try_show_dialog(super::Selector::self_(), DialogRef::local("welcome")).unwrap(),
+            super::show_dialog(super::Selector::self_(), DialogRef::local("welcome"))
+        );
+    }
+
+    #[test]
+    fn try_show_dialog_rejects_invalid_selector() {
+        assert!(
+            super::try_show_dialog(
+                super::Selector::all_entities().limit(0),
+                DialogRef::local("welcome")
+            )
+            .is_err()
         );
     }
 

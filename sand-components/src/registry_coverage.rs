@@ -111,9 +111,13 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         api_status: RegistryApiStatus::PartiallyImplemented,
         version_gate: None,
         notes: "Advancement, AdvancementTrigger, AdvancementDisplay. 50+ trigger variants. See trigger_coverage. \
-                Normal-path raw/mostly-typed surfaces remain: AdvancementDisplay::{title, description, background}, \
-                AdvancementIcon::id, AdvancementRewards, Advancement::parent, and several trigger condition/resource \
-                fields are raw strings or serde_json::Value. Downgraded from FullyImplemented per #193. Follow-up: #183, #184.",
+                #184 (typed resource IDs inside AdvancementTrigger variants) is closed and confirmed done: trigger \
+                condition/resource fields (e.g. BlockId, DimensionId, PotionRegistryId, EntityPredicate) are typed. \
+                Remaining normal-path raw surfaces per #183: AdvancementDisplay::{title, description} are raw \
+                serde_json::Value instead of a typed TextComponent, AdvancementDisplay::background and \
+                AdvancementIcon::id are raw String, AdvancementRewards::{recipes, loot, function} are \
+                Vec<String>/Option<String>, and Advancement::parent is a raw String. Downgraded from \
+                FullyImplemented per #193. Follow-up: #183.",
     },
     RegistryCoverage {
         registry_key: "minecraft:function",
@@ -131,7 +135,9 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         sand_module: Some("sand_components::loot_table"),
         api_status: RegistryApiStatus::PartiallyImplemented,
         version_gate: None,
-        notes: "LootTable, LootPool, LootEntry exist but coverage is partial. Complex pool conditions and entry types are missing. Follow-up: #17.",
+        notes: "LootTable, LootPool, LootEntry exist but coverage is partial. Complex pool conditions and entry types are missing. \
+                Follow-up: #185 (route loot table item/tag/text/reference IDs through typed public APIs); \
+                #17 (original registry-coverage generation issue) is closed and does not track this specific gap.",
     },
     RegistryCoverage {
         registry_key: "minecraft:predicate",
@@ -147,12 +153,15 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         datapack_dir: "recipe",
         tag_dir: None,
         sand_module: Some("sand_components::recipe"),
-        api_status: RegistryApiStatus::PartiallyImplemented,
+        api_status: RegistryApiStatus::FullyImplemented,
         version_gate: None,
         notes: "All standard recipe types implemented: shaped, shapeless, smelting, blasting, smoking, campfire, \
-                smithing_transform, smithing_trim, stonecutting. Ingredient/result IDs are mostly typed/raw-string \
-                on the normal path rather than routed through typed item/tag IDs. Downgraded from FullyImplemented \
-                per #193. Follow-up: #178.",
+                smithing_transform, smithing_trim, stonecutting. #178 (route recipe ingredient/result IDs through \
+                typed item/tag IDs) is closed and confirmed done: Ingredient::item_id/item_tag and \
+                RecipeResult::item take IntoRecipeItemId/TagId<ItemId> on the normal path; raw_item/raw_tag/raw \
+                remain as explicitly named compatibility escape hatches. Not downgraded per #193 (a prior review \
+                pass incorrectly cited #178 as still open; verified closed 2026-07-12 with the typed API already \
+                present on this branch's base).",
     },
     RegistryCoverage {
         registry_key: "minecraft:item_modifier",
@@ -239,8 +248,9 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         api_status: RegistryApiStatus::FullyImplemented,
         version_gate: Some("1.19.4"),
         notes: "TrimMaterial in sand_components::trim module. validate() rejects empty/malformed asset_name and \
-                ingredient, and non-finite/out-of-range (0.0..=1.0) item_model_index before export. Golden JSON \
-                test: trim::tests::valid_trim_material_json_is_stable. See #141.",
+                ingredient, and non-finite item_model_index before export (no numeric range enforced — see \
+                module docs, item_model_index has no vanilla-documented bound). Golden JSON test: \
+                trim::tests::valid_trim_material_json_is_stable. See #141.",
     },
     RegistryCoverage {
         registry_key: "minecraft:trim_pattern",
@@ -668,9 +678,8 @@ pub const REGISTRY_REMOVED_IN: &[(&str, &str)] = &[];
 /// the same change that promotes its `REGISTRY_COVERAGE` row — that keeps a
 /// promotion from silently slipping in without a corresponding audit.
 pub const KNOWN_PARTIAL_REGISTRIES: &[(&str, &[&str])] = &[
-    ("minecraft:advancement", &["#183", "#184"]),
-    ("minecraft:recipe", &["#178"]),
-    ("minecraft:loot_table", &["#17"]),
+    ("minecraft:advancement", &["#183"]),
+    ("minecraft:loot_table", &["#185"]),
 ];
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

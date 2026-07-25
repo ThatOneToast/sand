@@ -5,8 +5,11 @@
 //! The export path calls [`DatapackComponent::validate`] before serialization:
 //! - `asset_id` must be non-empty and a valid plain resource location
 //!   (e.g. `"minecraft:kebab"`).
-//! - `width` and `height` must be in `1..=16` (Minecraft rejects paintings
-//!   outside this range).
+//! - `width` and `height` must be in `1..=16` (a real vanilla-documented
+//!   constraint for custom painting variants).
+//! - `author` and `title`, when set, must not contain control characters.
+//!   This is a Sand-side defensive check, not a documented vanilla
+//!   requirement.
 
 use serde_json::Value;
 

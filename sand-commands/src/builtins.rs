@@ -142,6 +142,13 @@ pub fn try_summon(
 }
 
 /// `summon <entity_type>` — summon an entity at the current position (`~ ~ ~`).
+///
+/// Raw/unchecked: accepts any string entity type, which silently fails to
+/// summon at reload if unrecognized. There is no coordinate to validate
+/// here (the position is always the fixed `~ ~ ~` relative shorthand), and
+/// no `try_summon_here` counterpart exists yet — validate `entity_type`
+/// ahead of the call (e.g. via [`try_summon`]'s entity-type check) if this
+/// needs to fail fast.
 pub fn summon_here(entity_type: impl IntoEntityType) -> String {
     format!("summon {} ~ ~ ~", entity_type.into_entity_type())
 }
@@ -229,6 +236,13 @@ pub fn tp_with_rotation(target: Selector, pos: Vec3, rotation: Rotation) -> Stri
 
 /// `summon <entity_type> <pos>` — summon an entity at a typed [`Vec3`] position.
 ///
+/// Raw/unchecked for `entity_type`: `pos` is a typed [`Vec3`] (structurally
+/// modeling finite coordinates), but `entity_type` accepts any string and
+/// silently fails to summon at reload if unrecognized. No `try_summon_at`
+/// counterpart exists yet — prefer [`try_summon`] (which takes raw `f64`
+/// coordinates instead of a typed [`Vec3`]) if entity-type validation is
+/// needed ahead of export.
+///
 /// # Example
 /// ```
 /// use sand_commands::coord::Vec3;
@@ -242,6 +256,13 @@ pub fn summon_at(entity_type: impl IntoEntityType, pos: Vec3) -> String {
 }
 
 /// `summon <entity_type> <pos> <nbt>` — summon an entity at a position with NBT data.
+///
+/// Raw/unchecked: `entity_type` accepts any string (see [`summon_at`]), and
+/// `nbt` accepts any string with no SNBT syntax validation — malformed NBT
+/// produces a `.mcfunction` line Minecraft rejects at reload. SNBT
+/// validation is tracked separately
+/// (see [#167](https://github.com/ThatOneToast/sand/issues/167)); no
+/// `try_summon_at_with_nbt` counterpart exists yet.
 ///
 /// # Example
 /// ```

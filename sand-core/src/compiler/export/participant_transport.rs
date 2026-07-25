@@ -11,11 +11,60 @@
 //! unbounded, non-advancement-bridge `.after(...)` edges reaching a source
 //! event that directly captures the requested role.
 //!
-//! This is deliberately conservative rather than clever: `after_any`/
-//! `after_all` fan-in, `.within(...)` bounded correlation, advancement
-//! bridges, and transitive inherit-of-inherit chains are all rejected
-//! outright here rather than guessed at. This module is the *only*
-//! participant-propagation validator in the export pipeline — an earlier,
+//! This is deliberately conservative rather than clever: `.within(...)`
+//! bounded correlation, advancement bridges reached transitively, and
+//! transitive inherit-of-inherit chains are all rejected outright here
+//! rather than guessed at.
+//!
+//! # `after_any`/`after_all` multi-parent composition (#271)
+//!
+//! Because [`EventParticipantPlan::inherit_entity`]/[`inherit_item`](crate::participant::EventParticipantPlan::inherit_item)
+//! always name one concrete `Source` type (never an inferred "whichever
+//! parent fired"), a same-cycle child reached through `after_any`/
+//! `after_all` fan-in can validly inherit from *any one* of its listed
+//! occurrence parents, directly, with no ambiguity to resolve:
+//!
+//! - The reference generated for an inherited role addresses `Source`'s own
+//!   generated tag/storage key by *type identity*, never by position in the
+//!   parent list — `after_any::<(A, B)>()` and `after_any::<(B, A)>()`
+//!   resolve to the exact same graph shape (`EventGraph::discover` sorts
+//!   every occurrence-dependency parent list by canonical type name before
+//!   this validator ever runs), so registration order can never affect
+//!   which binding is selected or what is generated.
+//! - `Source`'s own setup/cleanup lifecycle is entirely unaffected by being
+//!   composed into an `after_any`/`after_all` group — it still only runs
+//!   (and only produces a live tag) exactly when `Source` itself fires this
+//!   tick, same as the sole-parent case. If the named `Source` is one
+//!   `after_any` alternative among several and a *different* alternative
+//!   supplied this tick's occurrence instead, `Source` did not fire, so its
+//!   tag is absent and the generated selector legitimately matches nothing
+//!   — this is "does not apply this tick", never a wrong/stale entity: the
+//!   coordinator defers every occurrence-marked parent's cleanup until
+//!   after all of its synchronous descendants (including every staged
+//!   `after_any`/`after_all` child) have run (see `pipeline.rs`'s
+//!   `deferred_root_post_observation`/`deferred_post_refs`), so a `Source`
+//!   that *did* fire this tick keeps a valid tag for the child's entire
+//!   execution regardless of how many sibling parents are in its group.
+//! - For `after_all`, every listed parent is guaranteed to have fired
+//!   before the child ever dispatches (that is what `after_all` means), so
+//!   naming any one of them is exactly as sound as the sole-parent case —
+//!   no gating is even needed.
+//! - Only a *direct* one-hop membership check is performed here — an
+//!   `after_any`/`after_all` boundary is never walked past to reach a
+//!   grandparent, matching the existing "transitive inheritance is not
+//!   supported" rule for the sole-parent case.
+//! - Two different `after_all`/`after_any` parents may both directly
+//!   declare the same role without conflict, as long as the child names
+//!   exactly one of them: the other parent's declaration is simply
+//!   irrelevant to this child's plan. A single plan can never declare two
+//!   competing bindings for the same role at all — [`EventParticipantPlan::validate`]
+//!   already rejects a duplicate role within one plan
+//!   ([`DuplicateParticipantRole`]) regardless of how many distinct sources
+//!   would otherwise be reachable, which is what actually prevents a
+//!   silent arbitrary pick when two parents could both plausibly supply a
+//!   role.
+//!
+//! This module is the *only*
 //! parallel capability-bookkeeping mechanism
 //! (`EventContextCapabilities::for_event_with_participants`,
 //! `capabilities::full`) computed a similar-looking "could honestly
@@ -176,6 +225,43 @@ fn find_borrowable_ancestor_path(
                         // requested source.
                         current = parent.type_name;
                     }
+                    // #271: a direct, one-hop membership check — `source`
+                    // must be one of the group's own listed parents, never
+                    // a grandparent reached transitively through one of
+                    // them (see this module's doc for why naming one
+                    // specific member is always sound, regardless of which
+                    // sibling alternative actually supplied a given tick's
+                    // occurrence).
+                    [OccurrenceDependency::AfterAny(parents)]
+                        if parents.iter().any(|parent| parent.type_name == source) =>
+                    {
+                        return Ok(());
+                    }
+                    [OccurrenceDependency::AfterAll(parents)]
+                        if parents.iter().any(|parent| parent.type_name == source) =>
+                    {
+                        return Ok(());
+                    }
+                    [OccurrenceDependency::AfterAny(parents)] => {
+                        return Err(format!(
+                            "`{current}` is reached through `after_any` fan-in over [{}], and `{source}` is not one of those listed parents — name one of them directly (no further ancestry is walked past an after_any/after_all boundary)",
+                            parents
+                                .iter()
+                                .map(|parent| parent.type_name)
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        ));
+                    }
+                    [OccurrenceDependency::AfterAll(parents)] => {
+                        return Err(format!(
+                            "`{current}` is reached through `after_all` fan-in over [{}], and `{source}` is not one of those listed parents — name one of them directly (no further ancestry is walked past an after_any/after_all boundary)",
+                            parents
+                                .iter()
+                                .map(|parent| parent.type_name)
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        ));
+                    }
                     [] if !persistent.is_empty() => {
                         return Err(format!(
                             "`{current}` reaches its parent only through a persistent `.while_(...)` condition, which contributes truth, not occurrence-scoped participant state"
@@ -188,7 +274,7 @@ fn find_borrowable_ancestor_path(
                     }
                     _ => {
                         return Err(format!(
-                            "`{current}` is reached through `after_any`/`after_all`/multiple occurrence clauses — #264 does not propagate a same-cycle borrow through multi-parent fan-in (see the after_any/after_all diagnostics instead)"
+                            "`{current}` declares multiple simultaneous occurrence clauses — same-cycle borrowing requires exactly one `.after(...)`, one `after_any` group, or one `after_all` group"
                         ));
                     }
                 }
@@ -493,5 +579,283 @@ mod tests {
             validate_participant_transport(&graph, &declarations),
             Ok(())
         );
+    }
+
+    // ── #271: after_any/after_all multi-parent inheritance ─────────────────
+
+    fn chained_after_any(name: &'static str, parents: &[&'static str]) -> EventNode {
+        let mut sorted: Vec<&'static str> = parents.to_vec();
+        sorted.sort_unstable();
+        EventNode {
+            type_id: TypeId::of::<()>(),
+            type_name: name,
+            origin: NodeOrigin::Chained {
+                occurrence: vec![OccurrenceDependency::AfterAny(
+                    sorted
+                        .into_iter()
+                        .map(|parent| OccurrenceParent {
+                            type_id: TypeId::of::<()>(),
+                            type_name: parent,
+                            is_advancement: false,
+                        })
+                        .collect(),
+                )],
+                persistent: vec![],
+                bounded: vec![],
+                when: vec![],
+                unless: vec![],
+            },
+            setup: EventSetup::none(),
+            handlers: vec!["h"],
+        }
+    }
+
+    fn chained_after_all(name: &'static str, parents: &[&'static str]) -> EventNode {
+        let mut sorted: Vec<&'static str> = parents.to_vec();
+        sorted.sort_unstable();
+        EventNode {
+            type_id: TypeId::of::<()>(),
+            type_name: name,
+            origin: NodeOrigin::Chained {
+                occurrence: vec![OccurrenceDependency::AfterAll(
+                    sorted
+                        .into_iter()
+                        .map(|parent| OccurrenceParent {
+                            type_id: TypeId::of::<()>(),
+                            type_name: parent,
+                            is_advancement: false,
+                        })
+                        .collect(),
+                )],
+                persistent: vec![],
+                bounded: vec![],
+                when: vec![],
+                unless: vec![],
+            },
+            setup: EventSetup::none(),
+            handlers: vec!["h"],
+        }
+    }
+
+    #[test]
+    fn after_any_named_member_resolves_directly() {
+        let graph = graph_with(vec![
+            root_node("A"),
+            root_node("B"),
+            chained_after_any("Child", &["A", "B"]),
+        ]);
+        assert_eq!(find_borrowable_ancestor_path(&graph, "Child", "A"), Ok(()));
+        assert_eq!(find_borrowable_ancestor_path(&graph, "Child", "B"), Ok(()));
+    }
+
+    #[test]
+    fn after_any_non_member_is_rejected_with_actionable_message() {
+        let graph = graph_with(vec![
+            root_node("A"),
+            root_node("B"),
+            root_node("C"),
+            chained_after_any("Child", &["A", "B"]),
+        ]);
+        let err = find_borrowable_ancestor_path(&graph, "Child", "C").unwrap_err();
+        assert!(err.contains("after_any"), "{err}");
+        assert!(err.contains("A, B"), "{err}");
+        assert!(err.contains("`C` is not one of those listed parents"), "{err}");
+    }
+
+    #[test]
+    fn after_any_does_not_walk_past_the_group_transitively() {
+        // Grandparent is A's own parent, not a direct after_any member —
+        // only a one-hop membership check is performed.
+        let graph = graph_with(vec![
+            root_node("Grandparent"),
+            chained_after("A", "Grandparent"),
+            root_node("B"),
+            chained_after_any("Child", &["A", "B"]),
+        ]);
+        assert!(find_borrowable_ancestor_path(&graph, "Child", "Grandparent").is_err());
+    }
+
+    #[test]
+    fn after_all_named_member_resolves_directly() {
+        let graph = graph_with(vec![
+            root_node("A"),
+            root_node("B"),
+            chained_after_all("Child", &["A", "B"]),
+        ]);
+        assert_eq!(find_borrowable_ancestor_path(&graph, "Child", "A"), Ok(()));
+        assert_eq!(find_borrowable_ancestor_path(&graph, "Child", "B"), Ok(()));
+    }
+
+    #[test]
+    fn after_all_non_member_is_rejected_with_actionable_message() {
+        let graph = graph_with(vec![
+            root_node("A"),
+            root_node("B"),
+            root_node("C"),
+            chained_after_all("Child", &["A", "B"]),
+        ]);
+        let err = find_borrowable_ancestor_path(&graph, "Child", "C").unwrap_err();
+        assert!(err.contains("after_all"), "{err}");
+        assert!(err.contains("A, B"), "{err}");
+        assert!(err.contains("`C` is not one of those listed parents"), "{err}");
+    }
+
+    #[test]
+    fn after_any_membership_check_is_independent_of_declared_parent_order() {
+        // The graph builder canonically sorts occurrence parents by type
+        // name (see `EventGraph::discover`), so a node built with parents
+        // given in either order produces an identical resolved shape —
+        // this test constructs both orders directly (bypassing `discover`)
+        // to prove the validator itself doesn't care about order either.
+        let forward = graph_with(vec![
+            root_node("A"),
+            root_node("B"),
+            chained_after_any("Child", &["A", "B"]),
+        ]);
+        let backward = graph_with(vec![
+            root_node("A"),
+            root_node("B"),
+            chained_after_any("Child", &["B", "A"]),
+        ]);
+        assert_eq!(
+            find_borrowable_ancestor_path(&forward, "Child", "A"),
+            find_borrowable_ancestor_path(&backward, "Child", "A"),
+        );
+        assert_eq!(
+            find_borrowable_ancestor_path(&forward, "Child", "B"),
+            find_borrowable_ancestor_path(&backward, "Child", "B"),
+        );
+    }
+
+    #[test]
+    fn validate_accepts_named_inherit_through_after_any() {
+        let graph = graph_with(vec![
+            root_node("A"),
+            root_node("B"),
+            chained_after_any("Child", &["A", "B"]),
+        ]);
+        let mut declarations = BTreeMap::new();
+        declarations.insert(
+            "A",
+            ParticipantDeclarations {
+                direct_entity_roles: vec![EntityParticipantRole::Killer],
+                ..Default::default()
+            },
+        );
+        declarations.insert(
+            "Child",
+            ParticipantDeclarations {
+                inherited_entity_roles: vec![(EntityParticipantRole::Killer, "A")],
+                ..Default::default()
+            },
+        );
+        assert_eq!(
+            validate_participant_transport(&graph, &declarations),
+            Ok(())
+        );
+    }
+
+    #[test]
+    fn validate_accepts_two_after_all_parents_supplying_distinct_roles() {
+        let graph = graph_with(vec![
+            root_node("A"),
+            root_node("B"),
+            chained_after_all("Child", &["A", "B"]),
+        ]);
+        let mut declarations = BTreeMap::new();
+        declarations.insert(
+            "A",
+            ParticipantDeclarations {
+                direct_entity_roles: vec![EntityParticipantRole::Killer],
+                ..Default::default()
+            },
+        );
+        declarations.insert(
+            "B",
+            ParticipantDeclarations {
+                direct_entity_roles: vec![EntityParticipantRole::Victim],
+                ..Default::default()
+            },
+        );
+        declarations.insert(
+            "Child",
+            ParticipantDeclarations {
+                inherited_entity_roles: vec![
+                    (EntityParticipantRole::Killer, "A"),
+                    (EntityParticipantRole::Victim, "B"),
+                ],
+                ..Default::default()
+            },
+        );
+        assert_eq!(
+            validate_participant_transport(&graph, &declarations),
+            Ok(())
+        );
+    }
+
+    #[test]
+    fn validate_accepts_naming_one_of_two_parents_that_both_declare_the_same_role() {
+        // A second after_all parent independently declaring the identical
+        // role does not block the child's own explicit, unambiguous choice
+        // of source — this is the "compatible" case, not a conflict, since
+        // the child only ever names one concrete source.
+        let graph = graph_with(vec![
+            root_node("A"),
+            root_node("B"),
+            chained_after_all("Child", &["A", "B"]),
+        ]);
+        let mut declarations = BTreeMap::new();
+        declarations.insert(
+            "A",
+            ParticipantDeclarations {
+                direct_entity_roles: vec![EntityParticipantRole::Killer],
+                ..Default::default()
+            },
+        );
+        declarations.insert(
+            "B",
+            ParticipantDeclarations {
+                direct_entity_roles: vec![EntityParticipantRole::Killer],
+                ..Default::default()
+            },
+        );
+        declarations.insert(
+            "Child",
+            ParticipantDeclarations {
+                inherited_entity_roles: vec![(EntityParticipantRole::Killer, "A")],
+                ..Default::default()
+            },
+        );
+        assert_eq!(
+            validate_participant_transport(&graph, &declarations),
+            Ok(())
+        );
+    }
+
+    #[test]
+    fn validate_rejects_after_any_inherit_from_a_non_member() {
+        let graph = graph_with(vec![
+            root_node("A"),
+            root_node("B"),
+            root_node("C"),
+            chained_after_any("Child", &["A", "B"]),
+        ]);
+        let mut declarations = BTreeMap::new();
+        declarations.insert(
+            "C",
+            ParticipantDeclarations {
+                direct_entity_roles: vec![EntityParticipantRole::Killer],
+                ..Default::default()
+            },
+        );
+        declarations.insert(
+            "Child",
+            ParticipantDeclarations {
+                inherited_entity_roles: vec![(EntityParticipantRole::Killer, "C")],
+                ..Default::default()
+            },
+        );
+        let err = validate_participant_transport(&graph, &declarations).unwrap_err();
+        assert!(err.reason.contains("after_any"), "{}", err.reason);
     }
 }

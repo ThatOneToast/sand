@@ -66,8 +66,9 @@ pub use scoreboard::{
     ScoreboardPlayersOperation, hash_objective_name, scoreboard_players_operation,
 };
 pub use selector::{
-    EntityTarget, EntityTargets, GameMode, IntoEntityType, Many, One, PlayerTarget, PlayerTargets,
-    Selector, SingleEntity, SinglePlayer, SortOrder, TargetBase,
+    EntityTag, EntityTarget, EntityTargets, GameMode, IntoEntityType, Many, One, PlayerTarget,
+    PlayerTargets, PredicateId, ScoreRange, Selector, SelectorRange, SelectorScores, SingleEntity,
+    SinglePlayer, SortOrder, TargetBase, TeamName,
 };
 pub use sound::{IntoSoundEvent, Sound, SoundSource, StopSoundCommand};
 pub use text::{

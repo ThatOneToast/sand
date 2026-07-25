@@ -599,6 +599,11 @@ impl PlayerSchema {
     ///
     /// Cooldowns have no default value, so they are skipped here.  Storage
     /// schemas are not affected by this method.
+    ///
+    /// Compatibility/raw path: `selector` is an unvalidated string,
+    /// interpolated directly into generated commands. Prefer
+    /// [`PlayerSchema::try_init_player`] in normal code — see
+    /// [#146](https://github.com/ThatOneToast/sand/issues/146).
     pub fn init_player(&self, selector: &str) -> Vec<String> {
         let mut seen = std::collections::BTreeSet::new();
         let mut commands = Vec::new();
@@ -617,6 +622,36 @@ impl PlayerSchema {
             }
         }
         commands
+    }
+
+    /// Validated counterpart to [`PlayerSchema::init_player`] — takes a typed
+    /// [`sand_commands::ScoreHolder`] and validates it before generating
+    /// commands, instead of interpolating an unvalidated selector string.
+    ///
+    /// ```
+    /// use sand_core::systems::player_data::PlayerSchema;
+    /// use sand_core::state::ScoreVar;
+    /// use sand_commands::ScoreHolder;
+    ///
+    /// static MANA: ScoreVar<i32> = ScoreVar::new("mana");
+    /// let schema = PlayerSchema::new("player").score(&MANA, 100);
+    ///
+    /// assert!(schema.try_init_player(ScoreHolder::self_()).is_ok());
+    /// assert!(schema.try_init_player(ScoreHolder::fake("bad holder")).is_err());
+    /// ```
+    pub fn try_init_player(
+        &self,
+        holder: impl Into<sand_commands::ScoreHolder>,
+    ) -> sand_commands::CommandResult<Vec<String>> {
+        let holder = holder.into();
+        // Every emitted command is `execute unless score <holder> <obj>
+        // matches ... run scoreboard players set <holder> <obj> ...`, which
+        // (like `ScoreVar::try_of`) requires exactly one score holder —
+        // reject wildcards and multi-entity selectors here rather than
+        // emitting an `execute unless score *` / `execute unless score @a`
+        // that Minecraft will refuse to parse.
+        holder.validate_single(&sand_commands::CommandProfile::unprofiled())?;
+        Ok(self.init_player(&holder.to_string()))
     }
 
     // ── Introspection ─────────────────────────────────────────────────────────
@@ -790,6 +825,44 @@ mod tests {
             cmds[1]
         );
         assert!(cmds[1].contains("set @s has_cells 0"), "got: {}", cmds[1]);
+    }
+
+    // ── #146: try_init_player ───────────────────────────────────────────────
+
+    #[test]
+    fn try_init_player_matches_infallible_init_player_for_valid_holder() {
+        use sand_commands::ScoreHolder;
+        assert_eq!(
+            schema().try_init_player(ScoreHolder::self_()).unwrap(),
+            schema().init_player("@s")
+        );
+    }
+
+    #[test]
+    fn try_init_player_rejects_invalid_fake_player_holder() {
+        use sand_commands::ScoreHolder;
+        assert!(
+            schema()
+                .try_init_player(ScoreHolder::fake("bad holder"))
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn try_init_player_rejects_wildcard_and_multi_entity_holders() {
+        // Every emitted command is `execute unless score <holder> ...`,
+        // which requires exactly one score holder — a wildcard or a
+        // multi-entity selector must be rejected rather than emitting
+        // `execute unless score * mana matches ...` /
+        // `execute unless score @a mana matches ...`.
+        use sand_commands::ScoreHolder;
+        use sand_commands::selector::Selector;
+        assert!(schema().try_init_player(ScoreHolder::wildcard()).is_err());
+        assert!(
+            schema()
+                .try_init_player(ScoreHolder::entity(Selector::all_players()))
+                .is_err()
+        );
     }
 
     // ── name accessor ────────────────────────────────────────────────────────

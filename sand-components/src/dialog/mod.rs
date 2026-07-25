@@ -276,6 +276,13 @@ impl IntoDialogFunctionRef for String {
     }
 }
 
+/// **Exception to the "never panics" contract above:** unlike the string/
+/// `ResourceLocation` impls, this impl panics immediately if the given
+/// function value was never registered via `#[function]`/`#[function("path")]`.
+/// This is a macro-registration/programmer-error check (the function literally
+/// cannot be resolved to a path at all, so there is nothing to defer to
+/// `Dialog::validate`), not user-input validation — it is unrelated to, and
+/// does not weaken, the deferred validation of user-supplied strings/IDs.
 impl<F> IntoDialogFunctionRef for F
 where
     F: Fn() -> Vec<String> + Copy + 'static,

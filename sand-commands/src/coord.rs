@@ -106,7 +106,25 @@ impl RenderCommand for Coord {
 
 // ── BlockPos ──────────────────────────────────────────────────────────────────
 
-/// Integer/relative block position used in commands like `setblock`, `fill`.
+/// Integer/relative block position used in commands like `setblock`, `fill`,
+/// `clone`, and block-targeted `data`.
+///
+/// # Contract (see [#169](https://github.com/ThatOneToast/sand/issues/169))
+///
+/// `BlockPos` models Minecraft's block-position grammar, which is stricter
+/// than the generic position grammar accepted by [`Vec3`]:
+///
+/// - absolute coordinates (`10 64 -5`) must be **integers** — fractional
+///   absolute values are rejected by [`Validate::validate`];
+/// - relative coordinates (`~N`) must also be integral offsets;
+/// - local (`^`) coordinates are **rejected** — block-position commands do
+///   not accept them in vanilla Minecraft. Use [`Vec3`] (which does accept
+///   local coordinates) for commands with generic position grammar, such as
+///   `execute positioned`, `particle`, `summon`, or `tp`.
+///
+/// Do not reuse `BlockPos` as a generic fractional/local position — use
+/// [`Vec3`] for that instead so the type itself documents the grammar a
+/// command accepts.
 ///
 /// # Examples
 /// ```
@@ -176,6 +194,14 @@ impl Validate for BlockPos {
                     field,
                     format!("integer block coordinates cannot contain fractional value `{value}`"),
                 ));
+            }
+            if matches!(coord, Coord::Local(_)) {
+                return Err(CommandError::new(
+                    "BlockPos",
+                    field,
+                    "block-position commands (`setblock`, `fill`, `clone`, block-targeted `data`) do not accept local (`^`) coordinates; use absolute or relative (`~`) coordinates, or a generic `Vec3` position for commands that support local coordinates",
+                )
+                .with_code("SAND-COORD-BLOCKPOS-LOCAL"));
             }
         }
         Ok(())
@@ -437,5 +463,40 @@ mod tests {
                 .is_err()
         );
         assert_eq!(BlockPos::absolute(1, 2, 3).try_build().unwrap(), "1 2 3");
+    }
+
+    #[test]
+    fn block_positions_reject_local_coordinates() {
+        let err = BlockPos::new(Coord::local_n(1), Coord::local_n(2), Coord::local_n(3))
+            .try_build()
+            .unwrap_err();
+        assert!(err.to_string().contains("local"), "{err}");
+    }
+
+    #[test]
+    fn block_positions_local_rejection_uses_stable_diagnostic_code() {
+        let err = BlockPos::new(Coord::local_n(1), Coord::local_n(2), Coord::local_n(3))
+            .try_build()
+            .unwrap_err();
+        assert_eq!(err.code, "SAND-COORD-BLOCKPOS-LOCAL");
+    }
+
+    #[test]
+    fn block_positions_accept_relative_integers() {
+        assert_eq!(BlockPos::above(3).try_build().unwrap(), "~ ~3 ~");
+        assert_eq!(
+            BlockPos::new(Coord::rel_n(1), Coord::rel_n(-2), Coord::rel())
+                .try_build()
+                .unwrap(),
+            "~1 ~-2 ~"
+        );
+    }
+
+    #[test]
+    fn coordinates_reject_infinity() {
+        assert!(Coord::abs(f64::INFINITY).try_build().is_err());
+        assert!(Coord::abs(f64::NEG_INFINITY).try_build().is_err());
+        assert!(Vec3::absolute(f64::NAN, 0.0, 0.0).try_build().is_err());
+        assert!(Rotation::absolute(f64::INFINITY, 0.0).try_build().is_err());
     }
 }

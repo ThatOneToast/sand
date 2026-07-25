@@ -27,11 +27,13 @@ pub use crate::execute_when::{if_, unless, when};
 
 pub use crate::Damage;
 pub use crate::cmd::{
-    Actionbar, Bossbar, BossbarColor, BossbarId, BossbarStyle, Build, DamageAmount, DamageBuilder,
-    DamageKind, DataCommand, EffectDuration, EntityTargets, Execute, Inventory, ItemSlot, Nbt,
-    NbtCompound, NbtRef, NbtTarget, ObjectiveName, Particle, ParticleBuilder, ParticleSpread,
-    PlayerTargets, RawCommand, RenderCommand, ScoreHolder, Selector, SingleEntity, SinglePlayer,
-    Sound, SoundSource, Title, TitleTimes, UntypedNbt, Validate,
+    Actionbar, BlockPos, BlockState, Bossbar, BossbarColor, BossbarId, BossbarStyle, Build,
+    CloneBlocks, CloneMaskMode, CloneMode, Coord, DamageAmount, DamageBuilder, DamageKind,
+    DataCommand, EffectDuration, EntityTargets, Execute, Fill, FillMode, GameMode, Inventory,
+    ItemSlot, Nbt, NbtCompound, NbtRef, NbtTarget, Objective, ObjectiveName, Particle,
+    ParticleBuilder, ParticleSpread, PlayerTargets, RawCommand, RenderCommand, Rotation,
+    ScoreHolder, Selector, SetBlock, SetBlockMode, SingleEntity, SinglePlayer, Sound, SoundSource,
+    Title, TitleTimes, UntypedNbt, Validate, Vec2, Vec3,
 };
 pub use crate::item::{
     BlockInventory, ContainerIndex, EnderChestIndex, EntityInventory, EntityInventorySlot,
@@ -297,5 +299,59 @@ mod tests {
                 "execute unless score @s has_wand matches -2147483648.. run scoreboard players set @s has_wand 0",
             ]
         );
+    }
+
+    /// Facade-completeness fixture (#175/#168/#169/#146 Phase 8): every
+    /// symbol here must be reachable through a single `use super::*;` glob
+    /// import of this prelude module (equivalently, `use sand::prelude::*;`
+    /// for external consumers, since `sand::prelude` re-exports
+    /// `sand_core::prelude::*` verbatim) — selector construction, score
+    /// objective/holder, setblock/fill, teleport, tag, gamemode, a
+    /// function call, and the raw command escape hatch, without reaching
+    /// into `sand_commands`/`sand_core` internals directly.
+    #[test]
+    fn prelude_only_command_argument_fixture_compiles_and_runs() {
+        // Selector construction.
+        let scan = Selector::all_entities().limit(5).distance_range(0.0, 16.0);
+        assert!(scan.try_build().is_ok());
+
+        // Score objective + holder.
+        static SCORE: Objective = Objective::new("prelude_fixture");
+        let score_cmd = SCORE.try_set(ScoreHolder::self_(), 1).unwrap();
+        assert_eq!(score_cmd, "scoreboard players set @s prelude_fixture 1");
+
+        // Block placement.
+        let setblock = SetBlock::new(BlockPos::here(), BlockState::of("minecraft:stone"))
+            .try_build()
+            .unwrap();
+        assert_eq!(setblock, "setblock ~ ~ ~ minecraft:stone");
+        let fill = Fill::new(
+            BlockPos::absolute(0, 64, 0),
+            BlockPos::absolute(1, 65, 1),
+            BlockState::of("minecraft:glass"),
+        )
+        .try_build()
+        .unwrap();
+        assert_eq!(fill, "fill 0 64 0 1 65 1 minecraft:glass");
+
+        // Teleport (generated typed command builder — `cmd::teleport_4`).
+        let tp = cmd::teleport_4(Selector::self_(), Vec3::absolute(0.0, 64.0, 0.0)).to_string();
+        assert_eq!(tp, "teleport @s 0 64 0");
+
+        // Tag + gamemode (generated typed command builders).
+        let tag = cmd::tag_add(Selector::self_(), "prelude_fixture").to_string();
+        assert_eq!(tag, "tag @s add prelude_fixture");
+        let gamemode = cmd::gamemode(GameMode::Survival)
+            .target(Selector::self_())
+            .to_string();
+        assert_eq!(gamemode, "gamemode survival @s");
+
+        // Function call.
+        let call = cmd::try_function("my_pack:api/do_thing").unwrap();
+        assert_eq!(call, "function my_pack:api/do_thing");
+
+        // Raw command escape hatch.
+        let raw = cmd::raw("mymod:pulse 5").try_build().unwrap();
+        assert_eq!(raw, "mymod:pulse 5");
     }
 }

@@ -135,10 +135,24 @@ pub fn call(id: impl crate::function::IntoFunctionRef) -> String {
 
 /// `function <namespace:path>` — run a datapack function by resource location.
 ///
-/// This explicit fallback keeps the common function command available even when
-/// generated vanilla command builders cannot be produced in a local/CI build.
+/// Raw/unchecked: `id` is interpolated verbatim, with no resource-location
+/// validation. This explicit fallback keeps the common function command
+/// available even when generated vanilla command builders cannot be produced
+/// in a local/CI build. Prefer [`call`] (registered typed function
+/// references) or [`try_function`] (validated resource-location string) in
+/// normal code — see [#175](https://github.com/ThatOneToast/sand/issues/175).
 pub fn function(id: impl std::fmt::Display) -> String {
     format!("function {id}")
+}
+
+/// Validated counterpart to [`function`]: rejects an `id` that is not a
+/// syntactically valid `namespace:path` resource location before returning
+/// command text.
+pub fn try_function(id: impl std::fmt::Display) -> sand_commands::CommandResult<String> {
+    let id = id.to_string();
+    sand_commands::validate::resource_location_shape(&id, "cmd::try_function", "id")
+        .map_err(|e| e.with_code("SAND-COMMAND-ARG-FUNCTION-ID"))?;
+    Ok(format!("function {id}"))
 }
 
 /// Resolve a function identifier to its `namespace:path` resource location.
@@ -170,7 +184,7 @@ pub fn function_id(id: impl crate::function::IntoFunctionRef) -> String {
 /// );
 /// ```
 pub fn show_dialog(
-    selector: impl std::fmt::Display,
+    selector: Selector,
     dialog: impl sand_components::dialog::IntoDialogRef,
 ) -> String {
     format!("dialog show {selector} {}", dialog.into_dialog_ref())
@@ -182,8 +196,33 @@ pub fn tellraw(target: Selector, text: TextComponent) -> String {
 }
 
 /// `tellraw <target> <raw_json>` — send a raw JSON text component to a target.
+///
+/// Raw/unchecked: `target` and `json` are interpolated verbatim, with no
+/// selector or JSON validation. Prefer [`tellraw`] (validated
+/// [`TextComponent`]) or [`try_tellraw_raw`] (validates the target selector
+/// and that `json` is at least syntactically valid JSON) in normal code —
+/// see [#175](https://github.com/ThatOneToast/sand/issues/175).
 pub fn tellraw_raw(target: impl std::fmt::Display, json: impl Into<String>) -> String {
     format!("tellraw {target} {}", json.into())
+}
+
+/// Validated counterpart to [`tellraw_raw`].
+///
+/// Validates `target` through [`Selector`]'s normal validation and parses
+/// `json` as JSON syntax (it does not validate it against the text-component
+/// schema the way [`TextComponent`] does — that would duplicate the
+/// component-level validation `Text`/`TextComponent` already own).
+pub fn try_tellraw_raw(
+    target: Selector,
+    json: impl Into<String>,
+) -> sand_commands::CommandResult<String> {
+    target.validate(&CommandProfile::unprofiled())?;
+    let json = json.into();
+    serde_json::from_str::<serde_json::Value>(&json).map_err(|e| {
+        sand_commands::CommandError::new("cmd::try_tellraw_raw", "json", e.to_string())
+            .with_code("SAND-COMMAND-ARG-TELLRAW-JSON")
+    })?;
+    Ok(format!("tellraw {target} {json}"))
 }
 
 /// Conversion accepted by [`give`]'s `item` parameter.
@@ -428,6 +467,40 @@ mod tests {
         assert_eq!(
             super::raw("function other_pack:api/do_special_thing"),
             "function other_pack:api/do_special_thing"
+        );
+    }
+
+    #[test]
+    fn try_function_matches_function_for_valid_id() {
+        assert_eq!(
+            super::try_function("my_pack:api/do_thing").unwrap(),
+            super::function("my_pack:api/do_thing")
+        );
+    }
+
+    #[test]
+    fn try_function_rejects_malformed_id() {
+        assert!(super::try_function("not a resource location").is_err());
+    }
+
+    #[test]
+    fn try_tellraw_raw_matches_tellraw_raw_for_valid_json() {
+        assert_eq!(
+            super::try_tellraw_raw(super::Selector::self_(), r#"{"text":"hi"}"#).unwrap(),
+            super::tellraw_raw(super::Selector::self_(), r#"{"text":"hi"}"#)
+        );
+    }
+
+    #[test]
+    fn try_tellraw_raw_rejects_malformed_json() {
+        assert!(super::try_tellraw_raw(super::Selector::self_(), "{not json}").is_err());
+    }
+
+    #[test]
+    fn try_tellraw_raw_rejects_invalid_selector() {
+        assert!(
+            super::try_tellraw_raw(super::Selector::all_entities().limit(0), r#"{"text":"hi"}"#)
+                .is_err()
         );
     }
 

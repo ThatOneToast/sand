@@ -696,8 +696,26 @@ impl Selector {
     }
 
     /// `gamemode=<mode>` — select only players in the given gamemode.
+    ///
+    /// Raw/compatibility: `mode` is a string, validated against the vanilla
+    /// gamemode set at [`Selector::try_build`] time rather than at the type
+    /// level. Prefer [`Selector::gamemode_typed`] in normal code — see
+    /// [#173](https://github.com/ThatOneToast/sand/issues/173).
     pub fn gamemode(mut self, mode: impl Into<String>) -> Self {
         self.args.push(SelectorArg::Gamemode(mode.into()));
+        self
+    }
+
+    /// `gamemode=<mode>` — select only players in the given gamemode, using
+    /// the canonical typed [`GameMode`] enum instead of a validated string.
+    pub fn gamemode_typed(mut self, mode: GameMode) -> Self {
+        self.args.push(SelectorArg::Gamemode(mode.to_string()));
+        self
+    }
+
+    /// `gamemode=!<mode>` — exclude players in the given gamemode.
+    pub fn not_gamemode_typed(mut self, mode: GameMode) -> Self {
+        self.args.push(SelectorArg::Gamemode(format!("!{mode}")));
         self
     }
 
@@ -1401,6 +1419,26 @@ mod tests {
         );
         assert!(Selector::all_entities().tag("").try_build().is_ok());
         assert!(Selector::self_().limit(1).try_build().is_err());
+    }
+
+    #[test]
+    fn gamemode_typed_matches_string_gamemode_for_valid_input() {
+        assert_eq!(
+            Selector::all_players()
+                .gamemode_typed(GameMode::Survival)
+                .try_build()
+                .unwrap(),
+            Selector::all_players()
+                .gamemode("survival")
+                .try_build()
+                .unwrap()
+        );
+    }
+
+    #[test]
+    fn not_gamemode_typed_renders_negation() {
+        let selector = Selector::all_players().not_gamemode_typed(GameMode::Creative);
+        assert_eq!(selector.try_build().unwrap(), "@a[gamemode=!creative]");
     }
 
     #[test]

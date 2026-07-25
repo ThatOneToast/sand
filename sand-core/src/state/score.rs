@@ -12,15 +12,20 @@ use crate::state::storage::StorageField;
 // ── Name utilities ────────────────────────────────────────────────────────────
 
 /// Minecraft scoreboard objective names are limited to 16 characters.
-/// If the requested name exceeds that limit, a stable FNV-1a hash is used
-/// to produce a deterministic 16-character name prefixed with `"s"`.
+///
+/// Delegates to [`sand_commands::scoreboard::ObjectiveName::logical`] so
+/// `ScoreVar`'s generated objective names use the exact same deterministic
+/// hashing algorithm as `sand_commands::scoreboard::Objective` (see
+/// [#146](https://github.com/ThatOneToast/sand/issues/146) — "do not leave
+/// `sand-commands` and `sand-core` with unrelated validation and hashing
+/// behavior"). If `name` fits and is already a valid direct objective token,
+/// it is used verbatim; otherwise (too long, or containing characters an
+/// objective name cannot use, such as whitespace) it is hashed to a stable,
+/// always-valid ≤16-character name prefixed with `"s"`.
 pub(super) fn objective_name(name: &str) -> String {
-    if name.len() <= 16 {
-        name.to_string()
-    } else {
-        let hash = fnv1a(name);
-        format!("s{:015x}", hash & 0x0FFF_FFFF_FFFF_FFFF)
-    }
+    sand_commands::ObjectiveName::logical(name)
+        .as_str()
+        .to_string()
 }
 
 fn fnv1a(s: &str) -> u64 {
@@ -348,6 +353,15 @@ impl<T> ScoreVar<T> {
     /// execute if score <selector> <obj> matches ..<min-1> run scoreboard players set <selector> <obj> <min>
     /// execute if score <selector> <obj> matches <max+1>.. run scoreboard players set <selector> <obj> <max>
     /// ```
+    ///
+    /// # `min > max`
+    ///
+    /// This infallible method does not reject `min > max` — it stays
+    /// available so existing valid call sites keep byte-identical output.
+    /// Two contradictory commands are emitted in that case (see
+    /// [#146](https://github.com/ThatOneToast/sand/issues/146)). Prefer
+    /// [`ScoreVar::try_clamp`], which rejects `min > max` before returning
+    /// any command text.
     pub fn clamp(&self, selector: impl std::fmt::Display, min: i32, max: i32) -> Vec<String> {
         let selector = selector.to_string();
         let obj = self.objective_name();
@@ -361,6 +375,26 @@ impl<T> ScoreVar<T> {
                 max.saturating_add(1)
             ),
         ]
+    }
+
+    /// Validated counterpart to [`ScoreVar::clamp`] — rejects `min > max`
+    /// before generating any mcfunction output instead of emitting two
+    /// contradictory `execute if score ... matches` commands.
+    pub fn try_clamp(
+        &self,
+        selector: impl std::fmt::Display,
+        min: i32,
+        max: i32,
+    ) -> sand_commands::CommandResult<Vec<String>> {
+        if min > max {
+            return Err(sand_commands::CommandError::new(
+                "ScoreVar::try_clamp",
+                "min_max",
+                format!("min ({min}) must not be greater than max ({max})"),
+            )
+            .with_code("SAND-SCORE-RANGE"));
+        }
+        Ok(self.clamp(selector, min, max))
     }
 
     /// Bind this variable to a selector to produce a condition builder.
@@ -916,6 +950,31 @@ impl<'a, T> ScoreRef<'a, T> {
         Condition::Not(Box::new(self.between(min, max)))
     }
 
+    /// Validated `matches <n+1>..` — strictly greater than `n`.
+    ///
+    /// Rejects `n == i32::MAX`, which describes a range no `i32` score can
+    /// satisfy (see [`ScoreRange::is_satisfiable`]).
+    pub fn try_gt(self, n: i32) -> sand_commands::CommandResult<Condition> {
+        ScoreRange::Gt(n).validate()?;
+        Ok(self.gt(n))
+    }
+
+    /// Validated `matches ..<n-1>` — strictly less than `n`.
+    ///
+    /// Rejects `n == i32::MIN`, which describes a range no `i32` score can
+    /// satisfy.
+    pub fn try_lt(self, n: i32) -> sand_commands::CommandResult<Condition> {
+        ScoreRange::Lt(n).validate()?;
+        Ok(self.lt(n))
+    }
+
+    /// Validated inclusive range — rejects `min > max` instead of emitting an
+    /// always-false `matches` fragment.
+    pub fn try_between(self, min: i32, max: i32) -> sand_commands::CommandResult<Condition> {
+        ScoreRange::Between(Some(min), Some(max)).validate()?;
+        Ok(self.between(min, max))
+    }
+
     /// `if score <sel> <obj> matches <lo>..<hi>` — within an inclusive range.
     ///
     /// Accepts any `RangeBounds<i32>`: `1..=100`, `0..`, `..100`, etc.
@@ -937,6 +996,33 @@ impl<'a, T> ScoreRef<'a, T> {
             objective,
             range: ScoreRange::Between(lo, hi),
         }
+    }
+
+    /// Validated counterpart to [`ScoreRef::matches`] — rejects a range whose
+    /// resolved bounds have `lo > hi` instead of emitting an always-false
+    /// `matches` fragment.
+    pub fn try_matches(
+        self,
+        range: impl RangeBounds<i32>,
+    ) -> sand_commands::CommandResult<Condition> {
+        use std::ops::Bound;
+        let lo = match range.start_bound() {
+            Bound::Included(&n) => Some(n),
+            Bound::Excluded(&n) => Some(n + 1),
+            Bound::Unbounded => None,
+        };
+        let hi = match range.end_bound() {
+            Bound::Included(&n) => Some(n),
+            Bound::Excluded(&n) => Some(n - 1),
+            Bound::Unbounded => None,
+        };
+        ScoreRange::Between(lo, hi).validate()?;
+        let objective = self.obj();
+        Ok(Condition::Score {
+            selector: self.selector,
+            objective,
+            range: ScoreRange::Between(lo, hi),
+        })
     }
 }
 
@@ -1143,6 +1229,34 @@ mod tests {
     }
 
     #[test]
+    fn long_name_hashing_matches_sand_commands_canonical_algorithm() {
+        // #146: sand-core's ScoreVar and sand-commands' Objective/ObjectiveName
+        // must share one hashing algorithm, not two independently-maintained
+        // ones. Prove ScoreVar's emitted name equals the canonical
+        // ObjectiveName::logical output directly.
+        static LOCAL: ScoreVar<i32> = ScoreVar::new("this_is_a_very_long_name_that_exceeds_limit");
+        assert_eq!(
+            LOCAL.objective_name(),
+            sand_commands::ObjectiveName::logical("this_is_a_very_long_name_that_exceeds_limit")
+                .as_str()
+        );
+    }
+
+    #[test]
+    fn short_invalid_name_is_hashed_rather_than_emitted_verbatim() {
+        // Previously a bug: a short (<=16 char) name with a space would be
+        // emitted verbatim (invalid `scoreboard objectives add` syntax).
+        // objective_name now routes through ObjectiveName::logical, which
+        // falls back to hashing instead of emitting an invalid direct token.
+        static BAD: ScoreVar<i32> = ScoreVar::new("bad name");
+        let emitted = BAD.objective_name();
+        assert_ne!(emitted, "bad name");
+        assert!(emitted.starts_with('s'));
+        assert!(emitted.len() <= 16);
+        assert!(!emitted.contains(' '));
+    }
+
+    #[test]
     fn define_cmd() {
         assert_eq!(MANA.define(), "scoreboard objectives add mana dummy");
     }
@@ -1176,6 +1290,51 @@ mod tests {
         assert_eq!(cmds.len(), 2);
         assert!(cmds[0].contains("matches ..-1"), "got: {}", cmds[0]);
         assert!(cmds[1].contains("matches 101.."), "got: {}", cmds[1]);
+    }
+
+    #[test]
+    fn try_clamp_matches_clamp_for_valid_range() {
+        assert_eq!(
+            MANA.try_clamp("@s", 0, 100).unwrap(),
+            MANA.clamp("@s", 0, 100)
+        );
+    }
+
+    #[test]
+    fn try_clamp_rejects_min_greater_than_max() {
+        assert!(MANA.try_clamp("@s", 10, 5).is_err());
+    }
+
+    #[test]
+    fn try_clamp_diagnostic_code_is_stable() {
+        let err = MANA.try_clamp("@s", 10, 5).unwrap_err();
+        assert_eq!(err.code, "SAND-SCORE-RANGE");
+    }
+
+    #[test]
+    fn try_gt_rejects_i32_max() {
+        assert!(MANA.of("@s").try_gt(i32::MAX).is_err());
+        assert!(MANA.of("@s").try_gt(10).is_ok());
+    }
+
+    #[test]
+    fn try_lt_rejects_i32_min() {
+        assert!(MANA.of("@s").try_lt(i32::MIN).is_err());
+        assert!(MANA.of("@s").try_lt(10).is_ok());
+    }
+
+    #[test]
+    fn try_between_rejects_min_greater_than_max() {
+        assert!(MANA.of("@s").try_between(10, 5).is_err());
+        assert!(MANA.of("@s").try_between(5, 10).is_ok());
+    }
+
+    #[test]
+    fn try_matches_rejects_impossible_range() {
+        #[allow(clippy::reversed_empty_ranges)]
+        let bad = MANA.of("@s").try_matches(10..=5);
+        assert!(bad.is_err());
+        assert!(MANA.of("@s").try_matches(1..=100).is_ok());
     }
 
     #[test]

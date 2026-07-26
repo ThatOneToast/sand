@@ -186,6 +186,23 @@ registry_id! {
     PotionRegistryId
 }
 
+registry_id! {
+    /// Typed armor-material / equipment-asset identifier used as a key in
+    /// `trim_material`'s `override_armor_materials` map (e.g. `minecraft:iron`).
+    ///
+    /// # Vanilla history (why this is not simply a registry ID)
+    ///
+    /// `override_armor_materials` keys have changed shape across versions:
+    /// pre-1.20.2 packs commonly wrote bare, un-namespaced names (`"iron"`),
+    /// and 1.21.4+ replaced the field entirely with `override_armor_assets`
+    /// keyed by equipment-asset ID. Sand models the field shape it actually
+    /// emits (see [`crate::trim`]) and requires a namespaced key on the typed
+    /// path. Author bare-key or otherwise unusual maps through the explicit
+    /// [`crate::trim::TrimMaterial::override_armor_materials_raw`] escape
+    /// hatch instead.
+    ArmorMaterialId
+}
+
 // ── TagId<T> ─────────────────────────────────────────────────────────────────
 
 /// A typed tag identifier scoped to a specific registry kind `T`.

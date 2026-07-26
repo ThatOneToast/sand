@@ -389,8 +389,29 @@ impl ItemSnapshot {
     /// [`Self::item_path`] directly. The normal way to persist a snapshot
     /// past its documented [invocation lifetime](self) into longer-lived
     /// storage (e.g. audit/evidence schemas).
+    ///
+    /// Defined in terms of [`Self::copy_to_nbt`] — see that method's doc for
+    /// the generalized form that targets any NBT location, not just command
+    /// storage.
     pub fn copy_to<Schema, T>(&self, dest: StorageField<Schema, T>) -> String {
-        dest.path().copy_from(&self.item_path()).to_string()
+        self.copy_to_nbt(&dest.path())
+    }
+
+    /// Generalized form of [`Self::copy_to`]: copy the captured item
+    /// compound into any caller-supplied [`NbtRef`] destination, not just a
+    /// command-storage [`StorageField`] — e.g. a raw path inside a macro
+    /// line, which is how
+    /// [`crate::participant::EventParticipantPlan::inherit_item_within`]
+    /// (#272) writes a bounded, per-subject copy of this snapshot: command
+    /// storage has no native per-player keying, so that feature supplies it
+    /// explicitly via a macro-substituted subject slot.
+    ///
+    /// Note entity NBT is *not* a usable destination for arbitrary custom
+    /// keys — vanilla silently drops those writes (see
+    /// `crate::participant::bounded_item`'s module doc for the live
+    /// transcript). Use it only for vanilla-recognized fields.
+    pub fn copy_to_nbt<T>(&self, dest: &NbtRef<T>) -> String {
+        dest.copy_from(&self.item_path()).to_string()
     }
 
     /// Commands that reset this snapshot's storage back to explicit

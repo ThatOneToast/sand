@@ -1294,6 +1294,18 @@ pub trait SandEventParticipants: SandEvent + Sized + 'static {
     fn weapon(&self) -> crate::item::ItemSnapshot {
         self.item(crate::participant::ItemParticipantRole::Weapon)
     }
+
+    /// Access a declared bounded item participant by role (#272) — the
+    /// `.within(...)`-crossing counterpart to [`Self::item`]. Backed by
+    /// [`crate::participant::EventParticipantPlan::inherit_item_within`]
+    /// instead of a same-cycle capture; see that method's doc for the full
+    /// replacement/expiry/absence contract.
+    fn bounded_item(
+        &self,
+        role: crate::participant::ItemParticipantRole,
+    ) -> crate::participant::BoundedItemSnapshot {
+        Self::participants().require_bounded_item(std::any::type_name::<Self>(), role)
+    }
 }
 
 impl<T: SandEvent + Sized + 'static> SandEventParticipants for T {}

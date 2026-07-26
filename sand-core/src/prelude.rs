@@ -147,8 +147,9 @@ pub use crate::events::{SandEvent, SandEventDispatch, SandEventParticipants};
 // that module's doc for the full API.
 
 pub use crate::participant::{
-    EntityParticipantRole, EventParticipantPlan, ItemParticipantRole, ParticipantAvailability,
-    ParticipantBuilder, ParticipantHand, ParticipantReliability, ParticipantUnavailableReason,
+    BoundedItemSnapshot, EntityParticipantRole, EventParticipantPlan, ItemParticipantRole,
+    ParticipantAvailability, ParticipantBuilder, ParticipantHand, ParticipantReliability,
+    ParticipantUnavailableReason,
 };
 
 // ── Dialog builders ───────────────────────────────────────────────────────────

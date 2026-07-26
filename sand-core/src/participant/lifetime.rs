@@ -30,6 +30,16 @@ pub enum ParticipantLifetime {
     /// not the same as a snapshot the user has explicitly copied into their
     /// own durable storage.
     EventCycle,
+    /// Valid across multiple event cycles, for exactly as long as a bounded
+    /// `.within(...)` correlation window remains unexpired (#272) — wider
+    /// than [`EventCycle`](Self::EventCycle) (which covers only the single
+    /// pass that captured it) but still an explicit, bounded, Sand-managed
+    /// lifetime, never silently promoted to an unbounded/durable one. Backs
+    /// [`crate::participant::EventParticipantPlan::inherit_item_within`]'s
+    /// generated per-subject storage: valid from the source occurrence that
+    /// wrote it until either the window elapses or the source fires again
+    /// (replacing it) — see that method's doc for the exact contract.
+    BoundedWindow,
 }
 
 impl ParticipantLifetime {
@@ -79,10 +89,22 @@ mod tests {
     }
 
     #[test]
+    fn bounded_window_covers_every_narrower_use() {
+        assert!(ParticipantLifetime::BoundedWindow.covers(ParticipantLifetime::Invocation));
+        assert!(
+            ParticipantLifetime::BoundedWindow.covers(ParticipantLifetime::SynchronousDescendants)
+        );
+        assert!(ParticipantLifetime::BoundedWindow.covers(ParticipantLifetime::EventCycle));
+        assert!(ParticipantLifetime::BoundedWindow.covers(ParticipantLifetime::BoundedWindow));
+        assert!(!ParticipantLifetime::EventCycle.covers(ParticipantLifetime::BoundedWindow));
+    }
+
+    #[test]
     fn deterministic_lifetime_ordering() {
         let mut lifetimes = [
             ParticipantLifetime::EventCycle,
             ParticipantLifetime::Invocation,
+            ParticipantLifetime::BoundedWindow,
             ParticipantLifetime::SynchronousDescendants,
         ];
         lifetimes.sort();
@@ -92,6 +114,7 @@ mod tests {
                 ParticipantLifetime::Invocation,
                 ParticipantLifetime::SynchronousDescendants,
                 ParticipantLifetime::EventCycle,
+                ParticipantLifetime::BoundedWindow,
             ]
         );
     }

@@ -76,9 +76,22 @@ pub use crate::version::{MinecraftVersion, VersionProfile};
 // ── Entity queries and execution-scoped contexts ──────────────────────────────
 
 pub use crate::entity::{
-    AnyEntity, EntityContext, EntityKind, EntityQueries, EntityQuery, EntityScope, PlayerContext,
-    PlayerKind, PlayerQueries, PlayerQuery, Relation, RelationQuery, ScopedEntityRef,
-    SingleEntityQuery, SinglePlayerQuery,
+    Adoption, AdoptionSource, AnyEntity, AttributeBinding, AttributeModifierBinding,
+    CurrentHealthSync, CurveEvaluationError, CurveInputs, DEFAULT_FIXED_POINT_SCALE,
+    DependencyGraph, DerivedScoreEncoding, DirtyPlan, EffectBinding, EntityAction, EntityArchetype,
+    EntityContext, EntityCooldown, EntityDerivation, EntityDiagnostic, EntityEnum, EntityEnumValue,
+    EntityEventId, EntityFlag, EntityKind, EntityNbtBinding, EntityNbtProperty, EntityNbtType,
+    EntityNbtValue, EntityQueries, EntityQuery, EntityRuntimeOperation, EntityScope, EntityScore,
+    EntityState, EntityStateField, EntityTag, EntityTeam, EntityText, EntityTextSegment,
+    EntityTimer, EntityTransition, EnumEncoding, EquipmentBinding, FixedPoint, FixedValue,
+    HealthBinding, HealthResizePolicy, KnownEntityKind, LivingEntityKind, LoweredCurve,
+    LoweredCurveOperation, LoweringStrategy, MarkerKind, Migration, MutableLivingEntityKind,
+    NameBinding, NumericPropertySource, OverflowPolicy, OwnershipPolicy, PlayerContext, PlayerKind,
+    PlayerQueries, PlayerQuery, RawEntityProperty, RawEntityStateField, ReconcilePolicy,
+    RefreshPolicy, Relation, RelationQuery, RoundingPolicy, SafeEntityDataWriteKind,
+    ScopedEntityRef, SingleEntityQuery, SinglePlayerQuery, SpecialEntityPolicy, StatCurve,
+    StateFieldDescriptor, StateFieldKind, StatePredicate, StateSchema, TagBinding, TeamBinding,
+    ThresholdDirection, ZombieKind,
 };
 
 // ── Function refs (IntoFunctionRef trait) ──────────────────────────────────────

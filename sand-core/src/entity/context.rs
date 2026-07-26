@@ -1,7 +1,6 @@
 //! Execution-scoped entity context and relationship-preserving scoped bindings.
 
 use std::marker::PhantomData;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 use sand_commands::Selector;
 use sand_commands::selector::{Many, One};
@@ -37,6 +36,15 @@ impl<K: EntityKind> Default for EntityContext<K> {
 impl<K: EntityKind> EntityContext<K> {
     pub(crate) fn new() -> Self {
         Self { _kind: PhantomData }
+    }
+
+    /// Bind a typed entity-state field to the current executor (`@s`).
+    ///
+    /// The returned accessor emits commands against `@s`; it is not a
+    /// storable entity reference and must remain inside the generated
+    /// execution chain that supplied this context.
+    pub fn state<F: crate::entity::state::EntityStateField>(&self, field: F) -> F::Accessor {
+        field.bind()
     }
 
     /// `tag @s add <tag>`.
@@ -92,15 +100,14 @@ impl<K: EntityKind> EntityContext<K> {
 
 // ── Scoped bindings ────────────────────────────────────────────────────────────
 
-static SCOPE_COUNTER: AtomicU64 = AtomicU64::new(0);
-
 /// A stable reference to a specific entity, preserved across relationship
 /// traversal (which reassigns `@s`).
 ///
 /// Backed by a uniquely namespaced temporary tag added to the bound entity
 /// for the lifetime of the [`EntityScope::bind`] call and removed again at
-/// the end of the generated command list. The tag name is allocated from a
-/// process-global counter, so distinct `bind` call sites never collide; the
+/// the end of the generated command list. The tag name is derived from the
+/// Rust call site's file, line, and column, so distinct call sites do not
+/// collide and repeated/concurrent exports produce identical output; the
 /// add/remove pair is emitted as an unconditional straight-line prefix/suffix
 /// around the caller's body (Sand's command DSL has no early-return
 /// branching), so cleanup always executes exactly once, synchronously,
@@ -197,12 +204,22 @@ impl EntityScope {
     /// assert!(cmds[0].starts_with("tag @s add __sand_scope_"));
     /// assert!(cmds.last().unwrap().starts_with("tag @e[tag=__sand_scope_"));
     /// ```
+    #[track_caller]
     pub fn bind<K: EntityKind>(
         _ctx: &EntityContext<K>,
         body: impl FnOnce(&ScopedEntityRef<K>) -> Vec<String>,
     ) -> Vec<String> {
-        let n = SCOPE_COUNTER.fetch_add(1, Ordering::Relaxed);
-        let tag = format!("__sand_scope_{n}");
+        let location = std::panic::Location::caller();
+        let logical = format!(
+            "{}:{}:{}",
+            location.file(),
+            location.line(),
+            location.column()
+        );
+        let tag = format!(
+            "__sand_scope_{:012x}",
+            stable_hash(&logical) & 0xff_ffff_ffff_ffff
+        );
         let scoped = ScopedEntityRef {
             tag: tag.clone(),
             _kind: PhantomData,
@@ -225,6 +242,15 @@ impl EntityScope {
         ));
         cmds
     }
+}
+
+fn stable_hash(value: &str) -> u64 {
+    let mut hash = 14_695_981_039_346_656_037_u64;
+    for byte in value.bytes() {
+        hash ^= u64::from(byte);
+        hash = hash.wrapping_mul(1_099_511_628_211);
+    }
+    hash
 }
 
 #[cfg(test)]
@@ -269,5 +295,14 @@ mod tests {
         let a = EntityScope::bind(&ctx, |scoped| vec![scoped.add_tag("a")]);
         let b = EntityScope::bind(&ctx, |scoped| vec![scoped.add_tag("a")]);
         assert_ne!(a[0], b[0]);
+    }
+
+    #[test]
+    fn same_call_site_is_repeat_export_deterministic() {
+        fn build(ctx: &EntityContext<AnyEntity>) -> Vec<String> {
+            EntityScope::bind(ctx, |scoped| vec![scoped.add_tag("a")])
+        }
+        let ctx: EntityContext<AnyEntity> = EntityContext::new();
+        assert_eq!(build(&ctx), build(&ctx));
     }
 }

@@ -1,0 +1,5 @@
+error: EntityStateEnum variants must not have fields
+ --> tests/cases/fail_entity_state_enum_payload.rs:5:5
+  |
+5 |     Value(i32),
+  |     ^^^^^^^^^^

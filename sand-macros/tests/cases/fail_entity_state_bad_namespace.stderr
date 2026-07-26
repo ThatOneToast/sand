@@ -1,0 +1,5 @@
+error: entity state namespace must use lowercase characters [a-z0-9_.-]
+ --> tests/cases/fail_entity_state_bad_namespace.rs:4:28
+  |
+4 | #[entity_state(namespace = "RPG!", name = "bad", version = 1)]
+  |                            ^^^^^^

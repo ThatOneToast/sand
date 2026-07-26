@@ -64,7 +64,16 @@
 /// import needed. See each macro's own docs for attribute syntax and
 /// generated code; `#[function]`/`#[component]`/`#[event]` bodies are only
 /// meaningful when compiled through `sand build`.
-pub use sand_macros::{armor_event, component, event, function, item, run_fn, schedule};
+pub use sand_macros::{
+    armor_event, component, entity_archetype, event, function, item, run_fn, schedule,
+};
+
+/// Derives typed entity-bound schemas and stable finite-enum encodings.
+///
+/// `EntityState` validates schema metadata and generates lowercase typed field
+/// constants; `EntityStateEnum` maps fieldless enum variants to scoreboard
+/// integers. Both expand exclusively through the façade crate.
+pub use sand_macros::{EntityState, EntityStateEnum};
 
 /// `#[derive(SandStorage)]` — generates a typed [`data::StorageSchema`] and
 /// one [`data::StorageField`] accessor per struct field, from a plain Rust
@@ -163,11 +172,48 @@ pub mod inventory {
 /// state types.
 pub use sand_core::state;
 
-/// Entity and player queries (`Selector`-adjacent typed query builders) and
-/// execution-scoped contexts (`EntityContext`, `PlayerContext`) used to model
-/// "the entity/player this command executes as" inside typed `execute`
-/// chains and event handlers.
-pub use sand_core::entity;
+/// Typed entity-bound state, archetypes, curves, native properties, and
+/// execution-scoped entity contexts.
+///
+/// State persists per entity in scoreboards. Archetype scans see loaded
+/// chunks only, pause while an entity is unloaded, and resume after load.
+/// Every generated helper binds its entity to `@s`; `EntityContext` never
+/// represents durable cross-tick identity.
+///
+/// ```
+/// use sand::prelude::*;
+///
+/// #[derive(EntityState)]
+/// #[entity_state(namespace = "demo", name = "zombie", version = 1)]
+/// struct Mob {
+///     #[state(default = 1, min = 1, max = 100)]
+///     level: EntityScore<i32>,
+///     #[state(default = 20, min = 1, max = 1000)]
+///     max_health: EntityScore<i32>,
+/// }
+///
+/// #[entity_archetype]
+/// fn zombie() -> EntityArchetype<ZombieKind, Mob> {
+///     let fixed = FixedPoint::new(
+///         1,
+///         RoundingPolicy::TowardZero,
+///         OverflowPolicy::Error,
+///     ).unwrap();
+///     EntityArchetype::new(ResourceLocation::new("demo", "zombie").unwrap())
+///         .adopt(Adoption::natural_and_external().every(Ticks::new(5)))
+///         .derive(
+///             EntityDerivation::new(
+///                 "health",
+///                 Mob::max_health,
+///                 StatCurve::linear(StatCurve::state(Mob::level), 2.0, 18.0),
+///             ).fixed_point(fixed),
+///         )
+///         .health(HealthBinding::new(Mob::max_health))
+/// }
+/// ```
+pub mod entity {
+    pub use sand_core::entity::*;
+}
 
 /// Typed participant context (#230): reliability, availability, roles,
 /// lifetime, typed handles (`EntityParticipant`, `PlayerParticipant`),
@@ -345,6 +391,7 @@ pub mod __private {
     //! compiler/export pipeline. Nothing here is a compatibility promise;
     //! paths exist solely so generated code can reach the implementation
     //! crate through the façade. See docs/architecture/adr-001.
+    pub use sand_core::entity::*;
     pub use sand_core::*;
     pub use sand_core::{cmd, condition, event, events, state};
 

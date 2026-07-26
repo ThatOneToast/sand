@@ -351,6 +351,21 @@ impl fmt::Display for ObjectiveName {
 impl Validate for ObjectiveName {
     fn validate(&self, _profile: &CommandProfile) -> CommandResult<()> {
         validate::no_whitespace_or_control(&self.emitted, "ObjectiveName", "name")?;
+        if !self
+            .emitted
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-' | b'.' | b'+'))
+        {
+            return Err(CommandError::new(
+                "ObjectiveName",
+                "name",
+                format!(
+                    "objective names may contain only ASCII letters, digits, `_`, `-`, `.`, or `+`; got {:?}",
+                    self.emitted
+                ),
+            )
+            .with_code("SAND-SCORE-OBJECTIVE"));
+        }
         if self.emitted.len() > 16 {
             return Err(CommandError::new(
                 "ObjectiveName",
@@ -1146,6 +1161,10 @@ mod tests {
         assert!(name.as_str().len() <= 16);
         assert_eq!(name.logical_name(), "player mana");
         assert!(name.is_hashed());
+
+        let namespaced = ObjectiveName::logical("rpg:mob.level");
+        assert_ne!(namespaced.as_str(), "rpg:mob.level");
+        assert!(namespaced.is_hashed());
     }
 
     #[test]

@@ -38,14 +38,54 @@
 //! - [`EntityScope`] — preserves a working reference to a specific entity
 //!   across relationship traversal, which reassigns `@s`.
 
+pub mod archetype;
 pub mod context;
+pub mod coverage;
+pub mod curve;
+pub mod diagnostic;
 pub mod kind;
+pub mod property;
 pub mod query;
 pub mod relation;
+pub mod state;
 
+pub use archetype::{
+    Adoption, AdoptionSource, ArchetypeDefinition, ArchetypeProperty, DerivedScoreEncoding,
+    EntityAction, EntityArchetype, EntityArchetypeDescriptor, EntityDerivation,
+    EntityRuntimeReport, EntityTransition, EntityTransitionField, Migration, ReconcilePolicy,
+    SpecialEntityPolicy, ThresholdDirection,
+};
 pub use context::{EntityContext, EntityScope, PlayerContext, ScopedEntityRef};
-pub use kind::{AnyEntity, EntityKind, PlayerKind};
+pub use coverage::{
+    ENTITY_RUNTIME_COVERAGE, EntityCapabilityCoverage, EntityCapabilityStatus, EntityCoverageOwner,
+    EntityPlayerSafety, EntityProfileSupport, EntityPropertyFamily, EntityRuntimeOperation,
+    entity_runtime_capability, entity_runtime_coverage, entity_runtime_family,
+};
+pub use curve::{
+    CurveEvaluationError, CurveInputs, DEFAULT_FIXED_POINT_SCALE, DependencyGraph, DirtyPlan,
+    FixedPoint, FixedValue, LoweredCurve, LoweredCurveOperation, LoweringStrategy, OverflowPolicy,
+    RoundingPolicy, StatCurve,
+};
+pub use diagnostic::EntityDiagnostic;
+pub use kind::{
+    AnyEntity, EntityKind, KnownEntityKind, LivingEntityKind, MarkerKind, MutableLivingEntityKind,
+    PlayerKind, SafeEntityDataWriteKind, ZombieKind,
+};
+pub use property::{
+    AttributeBinding, AttributeModifierBinding, CurrentHealthSync, EffectBinding, EntityEventId,
+    EntityNbtBinding, EntityNbtProperty, EntityNbtType, EntityNbtValue, EntityTag, EntityTeam,
+    EntityText, EntityTextSegment, EquipmentBinding, HealthBinding, HealthResizePolicy,
+    NameBinding, NativeAttributeKey, NativeEffectKey, NativeEquipmentKey, NativePropertyKey,
+    NumericPropertySource, OwnershipPolicy, PropertyNameError, RawEntityProperty,
+    RawEntityStateField, RawPropertyAccess, RawStateBackend, RefreshPolicy, TagBinding,
+    TeamBinding, validate_native_ownership,
+};
 pub use query::{
     EntityQueries, EntityQuery, PlayerQueries, PlayerQuery, SingleEntityQuery, SinglePlayerQuery,
 };
 pub use relation::{Relation, RelationQuery};
+pub use state::{
+    EntityCooldown, EntityEnum, EntityEnumValue, EntityFlag, EntityScore, EntityState,
+    EntityStateField, EntityTimer, EnumEncoding, StateFieldDescriptor, StateFieldKind,
+    StatePredicate, StateSchema,
+};

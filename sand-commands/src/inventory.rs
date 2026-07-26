@@ -59,7 +59,6 @@
 
 use std::collections::BTreeMap;
 use std::fmt;
-use std::sync::{Mutex, OnceLock};
 
 use crate::error::{CommandError, CommandResult};
 use crate::execute_args::ItemSlot;
@@ -75,7 +74,7 @@ use crate::validate;
 // the rendered string) even though `Inventory`'s ordinary methods return
 // plain rendered `String`s once collected into a function body.
 #[derive(Debug, Clone)]
-enum InventoryCommandNode {
+pub(crate) enum InventoryCommandNode {
     Give {
         item: String,
     },
@@ -157,59 +156,56 @@ impl InventoryCommandNode {
     }
 }
 
-fn registered_inventory_lines() -> &'static Mutex<BTreeMap<String, InventoryCommandNode>> {
-    static LINES: OnceLock<Mutex<BTreeMap<String, InventoryCommandNode>>> = OnceLock::new();
-    LINES.get_or_init(|| Mutex::new(BTreeMap::new()))
+/// Export-scoped registry family holding this module's rendered inventory
+/// command lines and their originating typed nodes.
+///
+/// State lives in [`crate::export_registry`]'s active layer, so it is
+/// per-thread, scoped to whichever
+/// [`crate::export_registry::ExportRegistryGuard`] is open, and discarded
+/// when that guard drops — including on an early `Err` return or an unwind.
+/// There is no process-global map and no per-family reset to remember to
+/// call.
+pub(crate) struct InventoryLines;
+
+impl crate::export_registry::RegistryFamily for InventoryLines {
+    type State = BTreeMap<String, InventoryCommandNode>;
 }
 
 fn register_inventory_line(line: &str, node: InventoryCommandNode) {
-    registered_inventory_lines()
-        .lock()
-        .expect("inventory command registry poisoned")
-        .insert(line.to_owned(), node);
+    crate::export_registry::register_line::<InventoryLines, _>(line, node);
 }
 
 /// Re-validate a previously rendered inventory command line's typed node
-/// against `profile`, if this module rendered it. Lines this module did not
-/// render (including hand-written raw inventory commands) are left alone —
-/// the same "unknown lines pass through" contract every other registered
-/// family (`nbt`, `execute_ir`, `blocks`, particles, sound, display, text,
-/// effect) uses.
+/// against `profile`, if this module rendered it *during the active export
+/// scope*. Lines this module did not render (including hand-written raw
+/// inventory commands, and lines rendered by an earlier export) are left
+/// alone — the same "unknown lines pass through" contract every other
+/// registered family (`nbt`, `execute_ir`, `blocks`, particles, sound,
+/// display, text, effect) uses.
 pub(crate) fn validate_registered_line(line: &str, profile: &CommandProfile) -> CommandResult<()> {
-    let node = registered_inventory_lines()
-        .lock()
-        .expect("inventory command registry poisoned")
-        .get(line)
-        .cloned();
-    if let Some(node) = node {
-        node.validate(profile)?;
-    }
-    Ok(())
+    crate::export_registry::validate_registered_line::<InventoryLines, _>(
+        line,
+        profile,
+        |node, profile| node.validate(profile),
+    )
 }
 
-/// Clear the process-global pre-write re-validation registry.
+/// Clear this module's entries in the active export registry scope.
 ///
-/// This registry is process-global (an `OnceLock<Mutex<BTreeMap<..>>>`), so
-/// without an explicit reset, stale entries from an earlier export in the
-/// same process persist forever: if a later, unrelated export happens to
-/// render a command line with byte-identical text to a previously
-/// registered (and possibly now-invalid, e.g. wildcard-write) line, that
-/// unrelated line would be re-validated against the *stale* typed node
-/// instead of being treated as an ordinary/raw line — a false positive or
-/// false negative unrelated to the current export.
+/// # Deprecated
 ///
-/// The export pipeline calls this once at the start of every export (see
-/// `sand-core`'s `try_export_components_impl`), mirroring
-/// `sand_components::dialog::reset_dialog_callbacks_for_export`'s
-/// per-export reset for the dialog-callback registry. Safe to call before
-/// any `Inventory` methods run for the export: registration always happens
-/// synchronously when a line is rendered, so resetting up front never
-/// discards state a later step in the *same* export still needs.
+/// Superseded by [`crate::export_registry::ExportRegistryGuard`] (#293).
+/// The registry is no longer process-global: it lives in a thread-local,
+/// export-scoped layer that is created and destroyed by that guard, so an
+/// explicit reset is neither necessary nor sufficient. Retained as a
+/// no-longer-required, still-harmless clear so existing callers keep
+/// compiling.
+#[deprecated(
+    since = "0.5.0",
+    note = "export registries are now scoped by `export_registry::ExportRegistryGuard`; this reset is no longer needed"
+)]
 pub fn reset_registry_for_export() {
-    registered_inventory_lines()
-        .lock()
-        .expect("inventory command registry poisoned")
-        .clear();
+    crate::export_registry::with_state::<InventoryLines, _>(BTreeMap::clear);
 }
 
 // ── Validation helpers ───────────────────────────────────────────────────────

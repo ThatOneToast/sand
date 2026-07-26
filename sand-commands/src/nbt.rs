@@ -9,7 +9,6 @@
 use std::collections::BTreeMap;
 use std::fmt;
 use std::marker::PhantomData;
-use std::sync::{Mutex, OnceLock};
 
 use crate::Build;
 use crate::coord::BlockPos;
@@ -901,28 +900,30 @@ fn data_error(field: &'static str, message: impl Into<String>) -> CommandError {
 }
 
 // Retain validation metadata after compatibility rendering to String.
-fn registered_lines() -> &'static Mutex<BTreeMap<String, DataCommand>> {
-    static LINES: OnceLock<Mutex<BTreeMap<String, DataCommand>>> = OnceLock::new();
-    LINES.get_or_init(|| Mutex::new(BTreeMap::new()))
+/// Export-scoped registry family holding this module's rendered
+/// `data` command lines and their originating typed nodes.
+///
+/// State lives in [`crate::export_registry`]'s active layer, so it is
+/// per-thread, scoped to whichever [`crate::export_registry::ExportRegistryGuard`]
+/// is open, and discarded when that guard drops — including on an early
+/// `Err` return or an unwind. There is no process-global map and no
+/// per-family reset to remember to call.
+pub(crate) struct DataLines;
+
+impl crate::export_registry::RegistryFamily for DataLines {
+    type State = BTreeMap<String, DataCommand>;
 }
 
 fn register_line(line: &str, command: DataCommand) {
-    registered_lines()
-        .lock()
-        .expect("data command registry poisoned")
-        .insert(line.to_owned(), command);
+    crate::export_registry::register_line::<DataLines, _>(line, command);
 }
 
 pub(crate) fn validate_registered_line(line: &str, profile: &CommandProfile) -> CommandResult<()> {
-    let command = registered_lines()
-        .lock()
-        .expect("data command registry poisoned")
-        .get(line)
-        .cloned();
-    if let Some(command) = command {
-        command.try_render(profile)?;
-    }
-    Ok(())
+    crate::export_registry::validate_registered_line::<DataLines, _>(
+        line,
+        profile,
+        |command, profile| command.try_render(profile).map(|_| ()),
+    )
 }
 
 // ── Compatibility DataModify builder ────────────────────────────────────────

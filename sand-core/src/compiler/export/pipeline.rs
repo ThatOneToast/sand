@@ -10,6 +10,8 @@
 
 use crate::events::graph::tick_event_resource_key;
 
+use crate::component::ComponentExportError;
+
 use super::ExportCtx;
 use super::armor::{
     ArmorWatchEntry, ArmorWatchKey, allocate_armor_tag_keys, armor_watch_key, build_item_cond,
@@ -110,6 +112,33 @@ pub(crate) fn try_export_components_impl(
     use crate::inventory;
     use std::collections::BTreeMap;
 
+    // Open the export scope for every typed command family's pre-write
+    // re-validation registry (#293) *first*, before the process-wide dialog
+    // lock below. Every typed command line rendered on this thread while
+    // this guard lives is registered into this scope only, and the whole
+    // scope is dropped when the guard drops — on the happy path, on any of
+    // the many `?` early returns below, and on unwind out of a user factory
+    // or `#[event]` handler body.
+    //
+    // Entering before the dialog lock is deliberate: a nested/reentrant
+    // export (an export triggered from inside a component factory) would
+    // otherwise deadlock on that non-reentrant lock with no explanation.
+    // Taking the registry guard first turns that case into a diagnosed
+    // error naming the actual problem.
+    let _command_registry_scope = sand_commands::export_registry::ExportRegistryGuard::enter()
+        .map_err(|error| {
+            match sand_components::ResourceLocation::new(namespace, "__sand_export") {
+                Ok(location) => ComponentExportError::ComponentValidation {
+                    location,
+                    kind: "export".to_string(),
+                    field: "command_registry".to_string(),
+                    message: error.to_string(),
+                },
+                // An invalid namespace is the more actionable error of the two.
+                Err(namespace_error) => namespace_error,
+            }
+        })?;
+
     // Dialog callback IDs and registrations are process-global. Hold this for
     // the complete factory/export lifecycle so repeated or concurrent exports
     // cannot inherit callback state from one another. Callback registration
@@ -120,18 +149,6 @@ pub(crate) fn try_export_components_impl(
     let _dialog_callback_lock = dialog_callback_export_lock();
     sand_components::dialog::reset_dialog_callbacks_for_export();
     let _dialog_callback_reset = DialogCallbackExportReset;
-
-    // The `sand_commands::inventory` pre-write re-validation registry (see
-    // #172) is process-global for the same reason the dialog-callback
-    // registry above is: without a per-export reset, two exports in the
-    // same process (e.g. two `#[test]`s, or a long-running build daemon)
-    // could have a later export's `validate_collected_line` call match a
-    // stale, unrelated typed node left behind by an earlier export whose
-    // rendered line happened to share the exact same text. This lock's
-    // scope already serializes the whole export body (see the comment
-    // above), so resetting here is race-free with any other in-process
-    // export.
-    sand_commands::inventory::reset_registry_for_export();
 
     let mut records: Vec<ComponentRecord> = Vec::new();
     let mut tag_map: BTreeMap<String, Vec<String>> = BTreeMap::new();

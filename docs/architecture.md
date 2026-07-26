@@ -99,3 +99,51 @@ validation (#264) — but not for the advancement-bridge relationship this
 section describes, nor for `after_any`/`after_all`/`.within(...)` edges; see
 `docs/testing/participant-role-evidence.md`'s edge/role support matrix for
 exactly which shapes are supported today.
+
+## Export-scoped typed command registries
+
+Eight typed command families (`blocks`, `nbt`, `particles`, `sound`,
+`display`, `text`, `effect`, `inventory`) render to a `String` but retain
+their typed node in a `rendered line -> node` side table, plus `execute_ir`,
+which retains per-line capability requirements. The export pipeline's
+pre-write boundary (`sand_commands::render::validate_collected_line`) looks
+each emitted line back up so the *typed* node can be re-validated against
+the export's resolved `CommandProfile` after the type has been erased into a
+function body.
+
+All nine share one store, `sand-commands/src/export_registry.rs`. The
+contract:
+
+- **Ownership.** State lives in a thread-local stack of layers, one `State`
+  per family keyed by the family marker's `TypeId`. Nothing is
+  process-global. Registration and lookup target the **top** layer only.
+- **Lifecycle.** `ExportRegistryGuard::enter()` pushes a fresh layer;
+  `Drop` pops it. `try_export_components_impl` takes the guard as its first
+  act, so every one of its `?` early returns, and any unwind out of a user
+  factory or `#[event]` handler, discards the layer. Cleanup is never a call
+  at the end of the happy path.
+- **Isolation.** Layers are thread-local and the guard is `!Send`, so
+  concurrent exports on different threads cannot observe each other. An
+  export cannot observe the ambient (layer 0) entries left by typed commands
+  rendered outside any export.
+- **Nesting.** Not supported. A second `enter()` on a thread with an open
+  scope returns `NestedExportError` (`SAND-EXPORT-REGISTRY-NESTED`), which
+  the pipeline surfaces as a component-validation error. The guard is taken
+  *before* the process-wide dialog callback lock precisely so a reentrant
+  export reports this instead of deadlocking on that non-reentrant lock.
+- **Raw lines stay opaque.** A lookup miss always means "pass through
+  unvalidated", never "invalid". Hand-authored raw commands, lines from an
+  earlier export, and lines rendered on another thread are all misses.
+
+A tenth family gets this lifecycle by construction: implement
+`RegistryFamily` and keep the state in the layer. There is no per-family
+reset to write and none to wire into the pipeline. Historically each family
+owned an independent `OnceLock<Mutex<BTreeMap<..>>>`; a `Mutex` gives
+data-race safety but not export isolation, so a stale entry keyed only by
+line text could re-validate a later, unrelated export's byte-identical line
+against the wrong node (#293).
+
+Coverage: `sand-commands`' `export_registry::family_coverage` harness (four
+lifecycle properties x nine families) and
+`sand-core/tests/export_registry_scope.rs` (the same properties through the
+real pipeline).

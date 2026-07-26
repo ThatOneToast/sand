@@ -15,7 +15,6 @@
 //! ```
 
 use std::collections::BTreeMap;
-use std::sync::{Mutex, OnceLock};
 
 use crate::error::{CommandError, CommandResult};
 use crate::render::{CommandProfile, RenderCommand, Validate};
@@ -1194,28 +1193,30 @@ fn validate_particle_payload_id(value: &str, field: &'static str) -> CommandResu
         .map_err(|error| particle_error("SAND-PARTICLE-ID", field, error.message))
 }
 
-fn registered_lines() -> &'static Mutex<BTreeMap<String, ParticleCommand>> {
-    static LINES: OnceLock<Mutex<BTreeMap<String, ParticleCommand>>> = OnceLock::new();
-    LINES.get_or_init(|| Mutex::new(BTreeMap::new()))
+/// Export-scoped registry family holding this module's rendered
+/// `particle` command lines and their originating typed nodes.
+///
+/// State lives in [`crate::export_registry`]'s active layer, so it is
+/// per-thread, scoped to whichever [`crate::export_registry::ExportRegistryGuard`]
+/// is open, and discarded when that guard drops — including on an early
+/// `Err` return or an unwind. There is no process-global map and no
+/// per-family reset to remember to call.
+pub(crate) struct ParticleLines;
+
+impl crate::export_registry::RegistryFamily for ParticleLines {
+    type State = BTreeMap<String, ParticleCommand>;
 }
 
 fn register_line(line: &str, command: ParticleCommand) {
-    registered_lines()
-        .lock()
-        .expect("particle command registry mutex poisoned")
-        .insert(line.to_owned(), command);
+    crate::export_registry::register_line::<ParticleLines, _>(line, command);
 }
 
 pub(crate) fn validate_registered_line(line: &str, profile: &CommandProfile) -> CommandResult<()> {
-    let command = registered_lines()
-        .lock()
-        .expect("particle command registry mutex poisoned")
-        .get(line)
-        .cloned();
-    match command {
-        Some(command) => command.validate(profile),
-        None => Ok(()),
-    }
+    crate::export_registry::validate_registered_line::<ParticleLines, _>(
+        line,
+        profile,
+        |command, profile| command.validate(profile),
+    )
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────────

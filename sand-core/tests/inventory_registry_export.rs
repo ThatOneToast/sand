@@ -14,13 +14,14 @@
 //! earlier, now-stale entry, it gets incorrectly re-validated against that
 //! stale typed node instead of being treated as its own, unrelated line.
 //!
-//! The export pipeline now resets this registry once at the start of every
-//! export (`sand_commands::inventory::reset_registry_for_export`), inside
-//! the same process-wide lock that already serializes the whole export body
-//! (see `dialog_callback_export_lock` in
-//! `sand-core/src/compiler/export/pipeline.rs`), mirroring the fix already
-//! in place for the dialog-callback registry (see
-//! `dialog_callback_export.rs`).
+//! Since #293 this registry is no longer process-global at all: it lives in
+//! `sand_commands::export_registry`'s thread-local, export-scoped layer,
+//! created and destroyed by the `ExportRegistryGuard` that
+//! `try_export_components_impl` takes as its first act. This test's
+//! scenario — polluting the registry by calling `Inventory` directly
+//! *outside* any export, then exporting a byte-identical raw line — now
+//! passes because the export scope shadows the ambient layer the direct
+//! call wrote to, rather than because a reset ran.
 
 use sand_commands::{Inventory, ItemSlot, Selector};
 use sand_core::component::try_export_components_json as export_components_json;

@@ -2,7 +2,6 @@
 
 use std::collections::BTreeMap;
 use std::fmt;
-use std::sync::{Mutex, OnceLock};
 
 use crate::Build;
 use crate::error::{CommandError, CommandResult};
@@ -192,25 +191,30 @@ fn effect_error(
     CommandError::new("EffectCommand", field, message).with_code(code)
 }
 
-fn registered_lines() -> &'static Mutex<BTreeMap<String, EffectCommand>> {
-    static LINES: OnceLock<Mutex<BTreeMap<String, EffectCommand>>> = OnceLock::new();
-    LINES.get_or_init(|| Mutex::new(BTreeMap::new()))
+/// Export-scoped registry family holding this module's rendered
+/// `effect` command lines and their originating typed nodes.
+///
+/// State lives in [`crate::export_registry`]'s active layer, so it is
+/// per-thread, scoped to whichever [`crate::export_registry::ExportRegistryGuard`]
+/// is open, and discarded when that guard drops — including on an early
+/// `Err` return or an unwind. There is no process-global map and no
+/// per-family reset to remember to call.
+pub(crate) struct EffectLines;
+
+impl crate::export_registry::RegistryFamily for EffectLines {
+    type State = BTreeMap<String, EffectCommand>;
 }
 
 fn register_line(line: &str, command: EffectCommand) {
-    registered_lines()
-        .lock()
-        .expect("effect command registry mutex poisoned")
-        .insert(line.to_owned(), command);
+    crate::export_registry::register_line::<EffectLines, _>(line, command);
 }
 
 pub(crate) fn validate_registered_line(line: &str, profile: &CommandProfile) -> CommandResult<()> {
-    registered_lines()
-        .lock()
-        .expect("effect command registry mutex poisoned")
-        .get(line)
-        .cloned()
-        .map_or(Ok(()), |command| command.validate(profile))
+    crate::export_registry::validate_registered_line::<EffectLines, _>(
+        line,
+        profile,
+        |command, profile| command.validate(profile),
+    )
 }
 
 #[cfg(test)]

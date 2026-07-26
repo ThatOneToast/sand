@@ -1,0 +1,5 @@
+error: EntityState requires a struct with named fields
+ --> tests/cases/fail_entity_state_tuple.rs:5:11
+  |
+5 | struct Bad(EntityScore<i32>);
+  |           ^^^^^^^^^^^^^^^^^^

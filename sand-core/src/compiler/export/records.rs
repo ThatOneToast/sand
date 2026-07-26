@@ -14,7 +14,7 @@ use super::ExportCtx;
 
 /// A serializable record of a datapack component for output during the build
 /// process.  Consumed by `sand-build` / the generated `sand_export` binary.
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, Clone, PartialEq, Eq)]
 pub struct ComponentRecord {
     /// The namespace (e.g. `"my_pack"`).
     pub namespace: String,

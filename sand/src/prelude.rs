@@ -61,8 +61,8 @@
 
 // Attribute + declarative macros.
 pub use crate::{
-    SandStorage, all, any, armor_event, component, event, function, item, mcfunction, run_fn,
-    sand_state, schedule,
+    EntityState, EntityStateEnum, SandStorage, all, any, armor_event, component, entity_archetype,
+    event, function, item, mcfunction, run_fn, sand_state, schedule,
 };
 
 // The `cmd` module itself, so `cmd::say(...)` works from the prelude.

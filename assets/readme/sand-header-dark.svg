@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="340" viewBox="0 0 1200 340" role="img" aria-labelledby="title desc">
+  <title id="title">Sand</title>
+  <desc id="desc">Typed Rust in, vanilla datapacks out</desc>
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#15191e"/>
+      <stop offset="1" stop-color="#22201d"/>
+    </linearGradient>
+    <linearGradient id="dune" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#d7a459"/>
+      <stop offset="0.55" stop-color="#c47e48"/>
+      <stop offset="1" stop-color="#9e5438"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="14" flood-color="#000" flood-opacity=".38"/>
+    </filter>
+  </defs>
+  <rect x="1" y="1" width="1198" height="338" rx="30" fill="url(#sky)" stroke="#3b403f" stroke-width="2"/>
+  <circle cx="1024" cy="86" r="42" fill="#dfa04c" opacity=".94"/>
+  <circle cx="1024" cy="86" r="62" fill="none" stroke="#dfa04c" stroke-width="2" opacity=".14"/>
+  <g fill="#d29a5a" opacity=".55">
+    <circle cx="102" cy="72" r="4"/>
+    <circle cx="132" cy="48" r="3"/>
+    <circle cx="162" cy="78" r="5"/>
+    <circle cx="1082" cy="152" r="4"/>
+    <circle cx="1114" cy="128" r="3"/>
+  </g>
+  <g transform="translate(88 76)" filter="url(#glow)">
+    <rect width="154" height="154" rx="36" fill="#f0e7da"/>
+    <path d="M32 52c24-18 66-18 90 0-24 20-66 20-90 0Z" fill="#e6b86f"/>
+    <path d="M32 78c24-18 66-18 90 0-24 20-66 20-90 0Z" fill="#cd874e"/>
+    <path d="M32 104c24-18 66-18 90 0-24 20-66 20-90 0Z" fill="#a85c3c"/>
+  </g>
+  <text x="286" y="158" fill="#f2eadf" font-family="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="104" font-weight="800" letter-spacing="10">SAND</text>
+  <text x="294" y="206" fill="#cdbda8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="24" font-weight="600" letter-spacing=".6">TYPED RUST IN  →  VANILLA DATAPACKS OUT</text>
+  <path d="M0 282c140-30 240-46 382-23 142 23 230 20 352-9 122-29 277-37 466 13v77H0Z" fill="#d8aa63"/>
+  <path d="M0 308c174-32 304-19 438 4 134 23 254 11 366-13 112-24 242-24 396 14v27H0Z" fill="url(#dune)" opacity=".96"/>
+</svg>

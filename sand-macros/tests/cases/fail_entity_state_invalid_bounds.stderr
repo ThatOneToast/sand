@@ -1,0 +1,6 @@
+error: state field minimum must not exceed its maximum
+ --> tests/cases/fail_entity_state_invalid_bounds.rs:6:5
+  |
+6 | /     #[state(min = 10, max = 1)]
+7 | |     value: EntityScore<i32>,
+  | |___________________________^

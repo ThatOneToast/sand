@@ -176,6 +176,16 @@ impl<A> EntityTarget<A> {
         self.not_type("minecraft:player")
     }
 
+    /// Add one typed scoreboard filter without formatting a selector score map.
+    pub fn score(
+        mut self,
+        objective: crate::ObjectiveName,
+        range: ScoreRange,
+    ) -> CommandResult<Self> {
+        self.raw = self.raw.score_typed(objective, range)?;
+        Ok(self)
+    }
+
     /// `distance=0.1..` — exclude the current executor when centered at `@s`.
     pub fn excluding_self(mut self) -> Self {
         self.raw = self.raw.exclude_self_distance();
@@ -756,6 +766,46 @@ impl Selector {
     pub fn scores_typed(mut self, scores: SelectorScores) -> Self {
         self.args.push(SelectorArg::Scores(scores.to_string()));
         self
+    }
+
+    /// Add one typed scoreboard filter to the selector's score map.
+    ///
+    /// Repeated calls merge into one `scores={...}` argument. Reusing an
+    /// objective is rejected so higher-level typed state queries cannot emit
+    /// ambiguous filters.
+    pub fn score_typed(
+        mut self,
+        objective: crate::ObjectiveName,
+        range: ScoreRange,
+    ) -> CommandResult<Self> {
+        objective.validate(&CommandProfile::unprofiled())?;
+        let objective = objective.as_str();
+        if let Some(SelectorArg::Scores(scores)) = self
+            .args
+            .iter_mut()
+            .find(|argument| matches!(argument, SelectorArg::Scores(_)))
+        {
+            if scores.split(',').any(|entry| {
+                entry
+                    .split_once('=')
+                    .is_some_and(|(existing, _)| existing == objective)
+            }) {
+                return Err(CommandError::new(
+                    "Selector",
+                    "scores",
+                    format!("duplicate typed score predicate for objective `{objective}`"),
+                )
+                .with_code("SAND-SELECTOR-SCORE-DUPLICATE"));
+            }
+            scores.push(',');
+            scores.push_str(objective);
+            scores.push('=');
+            scores.push_str(&range.to_string());
+        } else {
+            self.args
+                .push(SelectorArg::Scores(format!("{objective}={range}")));
+        }
+        Ok(self)
     }
 
     /// `nbt=<nbt>` — select only entities matching the given NBT compound.

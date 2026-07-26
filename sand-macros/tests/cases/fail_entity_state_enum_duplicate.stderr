@@ -1,0 +1,15 @@
+error: duplicate EntityStateEnum score 4; already used by `First`
+ --> tests/cases/fail_entity_state_enum_duplicate.rs:6:5
+  |
+6 |     Second = 4,
+  |     ^^^^^^^^^^
+
+error[E0081]: discriminant value `4` assigned more than once
+ --> tests/cases/fail_entity_state_enum_duplicate.rs:4:1
+  |
+4 | enum Bad {
+  | ^^^^^^^^
+5 |     First = 4,
+  |             - `4` assigned here
+6 |     Second = 4,
+  |              - `4` assigned here

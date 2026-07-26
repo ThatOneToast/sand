@@ -48,6 +48,94 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{ItemFn, LitStr, parse_macro_input, token};
 
+mod entity_state;
+
+/// Derive a typed entity-bound state schema and its field constants.
+#[proc_macro_derive(EntityState, attributes(entity_state, state))]
+pub fn derive_entity_state(input: TokenStream) -> TokenStream {
+    entity_state::derive_state(parse_macro_input!(input as syn::DeriveInput))
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+/// Derive the stable scoreboard encoding used by `EntityEnum<T>`.
+#[proc_macro_derive(EntityStateEnum)]
+pub fn derive_entity_state_enum(input: TokenStream) -> TokenStream {
+    entity_state::derive_enum(parse_macro_input!(input as syn::DeriveInput))
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+/// Register a zero-argument `EntityArchetype<K, S>` factory for export.
+///
+/// The annotated function remains callable by author code. Each export calls
+/// it afresh, so registration does not retain process-global mutable builder
+/// state between exports or tests.
+#[proc_macro_attribute]
+pub fn entity_archetype(attr: TokenStream, item: TokenStream) -> TokenStream {
+    if !attr.is_empty() {
+        return syn::Error::new(
+            proc_macro2::Span::call_site(),
+            "#[entity_archetype] does not accept arguments",
+        )
+        .into_compile_error()
+        .into();
+    }
+    let function = parse_macro_input!(item as ItemFn);
+    expand_entity_archetype(function)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+fn expand_entity_archetype(function: ItemFn) -> syn::Result<proc_macro2::TokenStream> {
+    if !function.sig.inputs.is_empty() {
+        return Err(syn::Error::new_spanned(
+            &function.sig.inputs,
+            "#[entity_archetype] functions must take no parameters",
+        ));
+    }
+    if !function.sig.generics.params.is_empty() {
+        return Err(syn::Error::new_spanned(
+            &function.sig.generics,
+            "#[entity_archetype] functions cannot be generic",
+        ));
+    }
+    if function.sig.asyncness.is_some()
+        || function.sig.constness.is_some()
+        || function.sig.unsafety.is_some()
+        || function.sig.abi.is_some()
+        || function.sig.variadic.is_some()
+    {
+        return Err(syn::Error::new_spanned(
+            &function.sig,
+            "#[entity_archetype] requires an ordinary synchronous safe Rust function",
+        ));
+    }
+    let name = &function.sig.ident;
+    let factory = proc_macro2::Ident::new(
+        &format!("__sand_entity_archetype_{}_make", name),
+        name.span(),
+    );
+    Ok(quote! {
+        #function
+
+        #[doc(hidden)]
+        #[allow(dead_code)]
+        fn #factory() -> ::std::result::Result<
+            ::sand::__private::entity::ArchetypeDefinition,
+            ::sand::__private::entity::EntityDiagnostic,
+        > {
+            ::std::result::Result::Ok(#name().definition())
+        }
+
+        ::sand::__private::inventory::submit!(
+            ::sand::__private::entity::EntityArchetypeDescriptor {
+                make: #factory,
+            }
+        );
+    })
+}
+
 // ── Body transformation ───────────────────────────────────────────────────────
 
 /// Convert a `#[function]` / `#[component(Tick|Load|Tag)]` block into the

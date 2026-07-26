@@ -29,6 +29,14 @@ cargo test --manifest-path examples/participant_audit/Cargo.toml
         python3 -c 'import json, sys; json.load(sys.stdin)'
 )
 
+echo "=== RPG entity archetype audit pack (facade-only, MC 26.2, #295) ==="
+cargo test --manifest-path examples/rpg_entity/Cargo.toml
+(
+    cd examples/rpg_entity
+    SAND_EXPORT_MC_VERSION=26.2 cargo run --bin sand_export |
+        python3 -c 'import json, sys; json.load(sys.stdin)'
+)
+
 echo "=== Rustdoc ==="
 cargo doc --workspace --all-features --no-deps
 

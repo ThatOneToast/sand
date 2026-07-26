@@ -1,0 +1,4 @@
+[pack]
+namespace = "rpg"
+description = "Entity-bound RPG Zombie validation pack for issue #295"
+mc_version = "26.2"

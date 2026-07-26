@@ -1,3 +1,21 @@
+## Entity archetype validation (#295)
+
+`run_entity_archetype_audit.py` builds on the stable RCON/server portion of
+this directory and validates `examples/rpg_entity` against a real 26.2 server:
+
+```bash
+python3 scripts/mc_validation/run_entity_archetype_audit.py \
+  --build \
+  --jar ~/.sand/cache/26.2/server.jar \
+  --evidence /tmp/entity-archetype-evidence.json
+```
+
+It checks adoption, provisioning, derived max health/attack damage, isolated
+dirty refresh, ratio-preserved current health, colored dynamic names,
+migration, macro-storage cleanup, unload/re-observation, explicit cleanup,
+and removal. See `docs/testing/entity-archetype-evidence.md` for the latest
+results and the explicit boundary around natural-spawn provenance.
+
 ## `sand run` diagnostics validation (#278)
 
 `run_harness.py` is separate, unrelated tooling from the rest of this

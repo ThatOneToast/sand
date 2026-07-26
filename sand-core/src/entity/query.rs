@@ -76,6 +76,22 @@ impl EntityQuery<Many> {
         self
     }
 
+    /// Restrict the query with a typed entity-state predicate.
+    ///
+    /// Repeated calls merge into one vanilla `scores={...}` selector map.
+    /// Duplicate predicates for the same field return a structured command
+    /// error rather than silently choosing one bound.
+    pub fn state(
+        mut self,
+        predicate: crate::entity::state::StatePredicate,
+    ) -> sand_commands::CommandResult<Self> {
+        self.target = self.target.score(
+            sand_commands::ObjectiveName::try_dynamic(predicate.objective)?,
+            predicate.selector_range,
+        )?;
+        Ok(self)
+    }
+
     /// `tag=<tag>` — restrict to entities with the given tag.
     pub fn tag(mut self, tag: impl Into<String>) -> Self {
         self.target = self.target.tag(tag);
@@ -290,6 +306,7 @@ fn lower_each<K: crate::entity::kind::EntityKind>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::entity::state::{EntityFlag, EntityScore, EntityStateField};
 
     #[test]
     fn entities_each_lowers_to_execute_as_at_run_function() {
@@ -337,5 +354,22 @@ mod tests {
         assert!(cmds[0].starts_with(
             "execute as @a[tag=ready,sort=nearest,limit=1] at @s run function __sand_local:sand/entity_query/"
         ));
+    }
+
+    #[test]
+    fn typed_state_predicates_merge_into_one_score_map() {
+        let level = EntityScore::<i32>::new("rpg", "mob", "level", 1, None);
+        let sick = EntityFlag::new("rpg", "mob", "sick", false);
+        let commands = EntityQuery::entities()
+            .entity_type("minecraft:zombie")
+            .state(level.matches(10..=20).unwrap())
+            .unwrap()
+            .state(sick.is_enabled())
+            .unwrap()
+            .each(|entity| vec![entity.add_tag("matched")]);
+        assert!(commands[0].contains("scores={"));
+        assert!(commands[0].contains(&format!("{}=10..20", level.objective())));
+        assert!(commands[0].contains(&format!("{}=1", sick.objective())));
+        assert_eq!(commands[0].matches("scores={").count(), 1);
     }
 }

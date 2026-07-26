@@ -1953,6 +1953,121 @@ pub(crate) fn try_export_components_impl(
         }
     }
 
+    // ── Entity archetypes ────────────────────────────────────────────────────
+    //
+    // Archetype descriptors are immutable link-time factories. Collect and
+    // compile them afresh for this export, sorted by canonical archetype ID;
+    // no process-global mutable registry survives an error or parallel export.
+    let requested_entity_version = ctx.map_or(sand_version::LATEST_KNOWN, |context| {
+        context.requested_version
+    });
+    let entity_version = crate::version::MinecraftVersion::parse(requested_entity_version)
+        .map_err(|error| {
+            lifecycle_export_error(format!(
+                "entity archetype target profile `{requested_entity_version}` is invalid: {error}"
+            ))
+        })?;
+    let entity_profile = crate::version::VersionProfile::resolve(&entity_version).map_err(|error| {
+        lifecycle_export_error(format!(
+            "entity archetype target profile `{requested_entity_version}` cannot be resolved: {error}"
+        ))
+    })?;
+    let compiled_archetypes = crate::entity::archetype::compile_registered(&entity_profile)
+        .map_err(|diagnostic| {
+            lifecycle_export_error(format!(
+                "{} while compiling generated entity resources",
+                diagnostic
+            ))
+        })?;
+    if !compiled_archetypes.is_empty() {
+        let mut load_functions = std::collections::BTreeSet::new();
+        let mut tick_functions = std::collections::BTreeSet::new();
+        let mut generated_keys: BTreeMap<(String, String, String), String> = BTreeMap::new();
+        for record in &records {
+            generated_keys.insert(
+                (
+                    record.namespace.clone(),
+                    record.dir.clone(),
+                    record.path.clone(),
+                ),
+                "existing component".to_string(),
+            );
+        }
+        for compiled in compiled_archetypes {
+            let owner = compiled.report.archetype.clone();
+            for record in compiled.records {
+                let key = (
+                    record.namespace.clone(),
+                    record.dir.clone(),
+                    record.path.clone(),
+                );
+                if let Some(existing) = generated_keys.insert(key.clone(), owner.clone()) {
+                    return Err(lifecycle_export_error(format!(
+                        "[SAND-ENTITY-RESOURCE-COLLISION] entity archetype `{owner}` generated `{}:{}/{}.{}`, already owned by `{existing}`",
+                        key.0, key.1, key.2, record.ext
+                    )));
+                }
+                records.push(record);
+            }
+            load_functions.extend(compiled.load_functions);
+            tick_functions.extend(compiled.tick_functions);
+        }
+        if !load_functions.is_empty() {
+            let path = "__sand_entity_load";
+            if records
+                .iter()
+                .any(|record| record.dir == "function" && record.path == path)
+            {
+                return Err(lifecycle_export_error(format!(
+                    "[SAND-ENTITY-RESOURCE-COLLISION] generated entity coordinator `{path}` collides with an existing function"
+                )));
+            }
+            records.push(ComponentRecord {
+                namespace: namespace.to_string(),
+                dir: "function".to_string(),
+                path: path.to_string(),
+                ext: "mcfunction".to_string(),
+                content_type: "text".to_string(),
+                content: load_functions
+                    .into_iter()
+                    .map(|function| format!("function {function}"))
+                    .collect::<Vec<_>>()
+                    .join("\n"),
+            });
+            tag_map
+                .entry("minecraft:load".to_string())
+                .or_default()
+                .push(format!("{namespace}:{path}"));
+        }
+        if !tick_functions.is_empty() {
+            let path = "__sand_entity_tick";
+            if records
+                .iter()
+                .any(|record| record.dir == "function" && record.path == path)
+            {
+                return Err(lifecycle_export_error(format!(
+                    "[SAND-ENTITY-RESOURCE-COLLISION] generated entity coordinator `{path}` collides with an existing function"
+                )));
+            }
+            records.push(ComponentRecord {
+                namespace: namespace.to_string(),
+                dir: "function".to_string(),
+                path: path.to_string(),
+                ext: "mcfunction".to_string(),
+                content_type: "text".to_string(),
+                content: tick_functions
+                    .into_iter()
+                    .map(|function| format!("function {function}"))
+                    .collect::<Vec<_>>()
+                    .join("\n"),
+            });
+            tag_map
+                .entry("minecraft:tick".to_string())
+                .or_default()
+                .push(format!("{namespace}:{path}"));
+        }
+    }
+
     // ── Dynamic anonymous functions (branches from all make() calls above) ───
     // ── Compiler-managed score constants / expression temporaries ───────────
     // Score operands are registered while user factories execute, so this must

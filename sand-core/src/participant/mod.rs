@@ -57,6 +57,7 @@
 //! the user-facing summary.
 
 pub mod availability;
+pub mod bounded_item;
 pub mod builder;
 pub mod capabilities;
 pub(crate) mod diagnostic;
@@ -68,6 +69,7 @@ pub mod reliability;
 pub mod role;
 
 pub use availability::{ParticipantAvailability, ParticipantUnavailableReason};
+pub use bounded_item::BoundedItemSnapshot;
 pub use builder::ParticipantBuilder;
 pub use capabilities::{
     ContextMergeError, EventContextCapabilities, SubjectCapability, SubjectScope,

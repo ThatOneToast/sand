@@ -12,6 +12,25 @@ use super::ExportCtx;
 use super::records::{ComponentRecord, ExportResult};
 use crate::component::ComponentExportError;
 
+/// The two generated bounded item-transport (#272) command sets a dispatch
+/// function may need to splice, keyed by event type name.
+///
+/// Bundled rather than passed as two more positional arguments because
+/// `build_dispatch_function`/`build_child_edge` already carry every other
+/// piece of graph-wide context they need, and the two maps are only ever
+/// meaningful together.
+#[derive(Clone, Copy)]
+pub(crate) struct BoundedItemCodegen<'a> {
+    /// Keyed by *source* event type name: bind the subject slot and invoke
+    /// the persist macro function, spliced right after that source's
+    /// occurrence mark.
+    pub(crate) persist: &'a std::collections::BTreeMap<String, Vec<String>>,
+    /// Keyed by *consuming child* event type name: bind the subject slot and
+    /// invoke the load macro function, prepended to that child's dispatch so
+    /// its handler body can read the staged snapshot.
+    pub(crate) load: &'a std::collections::BTreeMap<String, Vec<String>>,
+}
+
 pub(crate) fn xp_score_commands() -> Vec<String> {
     vec![
         "execute as @a store result score @s __sand_xp_lvl run experience query @s levels"
@@ -91,6 +110,7 @@ pub(crate) enum ChildPostObservation {
 /// follows immediate single-parent edges; multi-parent nodes are separate
 /// staged roots, which prevents shared-parent traversal from duplicating a
 /// detector or dispatch resource.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn build_dispatch_function(
     name: &str,
     graph: &crate::events::graph::EventGraph,
@@ -98,6 +118,7 @@ pub(crate) fn build_dispatch_function(
     self_guard: Option<&str>,
     occurrence_marked: &std::collections::BTreeSet<String>,
     guarded_children: &mut std::collections::BTreeSet<String>,
+    bounded_item: BoundedItemCodegen<'_>,
     records: &mut Vec<ComponentRecord>,
 ) -> String {
     let node = &graph.nodes[name];
@@ -105,18 +126,42 @@ pub(crate) fn build_dispatch_function(
     let children = graph.children_of(name);
 
     let records_occurrence = occurrence_marked.contains(name);
+    // #272: a node that consumes a bounded item snapshot always needs the
+    // wrapper, even with a single handler and no children — the load call
+    // has to run before that handler, so there is nowhere else to put it.
+    let bounded_item_load = bounded_item.load.get(node.type_name);
     let needs_wrapper = node.handlers.len() != 1
         || !children.is_empty()
         || self_guard.is_some()
-        || records_occurrence;
+        || records_occurrence
+        || bounded_item_load.is_some();
 
     if !needs_wrapper {
         return format!("{namespace}:{}", node.handlers[0]);
     }
 
     let mut cmds: Vec<String> = Vec::new();
+    // #272: stage this subject's persisted bounded snapshot(s) into the
+    // static scratch path the read accessors name, before anything in this
+    // node's own call tree can read them. First in the function body, ahead
+    // of the occurrence mark, because a node may legitimately be both a
+    // consumer of one bounded entry and the source of another.
+    if let Some(load) = bounded_item_load {
+        cmds.extend(load.iter().cloned());
+    }
     if records_occurrence {
         cmds.push(format!("scoreboard players set @s se_{key}_o 1"));
+        // #272: persist any bounded item transport(s) sourced from this
+        // node into per-subject storage right here — still this node's own
+        // synchronous per-player call tree (the only place safe to read
+        // its transient global `ItemSnapshot` capture; see
+        // `sand-core/src/participant/bounded_item.rs`'s module doc), and
+        // only when its own occurrence genuinely just happened (this line
+        // only runs when it did), giving repeated-occurrence replacement
+        // semantics for free.
+        if let Some(extra) = bounded_item.persist.get(node.type_name) {
+            cmds.extend(extra.iter().cloned());
+        }
     }
     if let Some(guard) = self_guard {
         cmds.push(format!("scoreboard players set @s {guard} 1"));
@@ -140,6 +185,7 @@ pub(crate) fn build_dispatch_function(
             occurrence_marked,
             post_observation,
             guarded_children,
+            bounded_item,
             records,
         ));
     }
@@ -167,6 +213,7 @@ pub(crate) fn build_dispatch_function(
 /// not the condition matched (mirroring the tick-lifecycle contract for
 /// roots). A child with no lifecycle commands has no such ordering concern,
 /// so it keeps the direct (no-wrapper) call shape.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn build_child_edge(
     edge: &crate::events::graph::EventEdge,
     graph: &crate::events::graph::EventGraph,
@@ -174,6 +221,7 @@ pub(crate) fn build_child_edge(
     occurrence_marked: &std::collections::BTreeSet<String>,
     post_observation: ChildPostObservation,
     guarded_children: &mut std::collections::BTreeSet<String>,
+    bounded_item: BoundedItemCodegen<'_>,
     records: &mut Vec<ComponentRecord>,
 ) -> String {
     let child_node = &graph.nodes[&edge.child];
@@ -184,6 +232,7 @@ pub(crate) fn build_child_edge(
         None,
         occurrence_marked,
         guarded_children,
+        bounded_item,
         records,
     );
     let has_lifecycle = !child_node.setup.pre_observation.is_empty()

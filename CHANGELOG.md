@@ -7,6 +7,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — collision-safe schedule objectives, typed state holders, typed target filters (#124, #146, #200)
+
+- **Generated schedule objectives can no longer silently collide (#124).**
+  `#[schedule]` derived `__ss_<key>_t` / `__ss_<key>_p` from a bare 32-bit
+  FNV-1a hash of the schedule path, so two distinct paths that hashed equal
+  would share countdown/phase state while still producing a valid-looking
+  datapack. Keys are now allocated for the whole schedule set up front by
+  `allocate_schedule_objective_keys`, which walks paths in sorted order via a
+  `BTreeSet` and claims the first unclaimed deterministically salted rehash.
+  Sorted iteration makes the mapping depend only on the *set* of schedule
+  paths — never on `inventory` registration order, thread scheduling, or
+  hash-map iteration order — and probe attempt 0 is the original path hash, so
+  non-colliding packs keep byte-identical output. Salted rehashing is used
+  instead of the `_<n>` suffix that `armor::allocate_armor_tag_keys` uses
+  because `__ss_` (5) + 8 hex + `_t` (2) already spends 15 of Minecraft's
+  16-character objective budget. If all 64 probes collide, the export fails
+  with a diagnostic naming both schedule paths, the generated key, and the
+  affected objective names.
+- **`Flag`, `Timer`, and `Cooldown` gained validated typed-holder paths
+  (#146).** All three interpolated `selector: impl Display` straight into
+  `scoreboard players …` / `execute if score …` text with no validation,
+  independent of the `ScoreVar` typed path delivered by #285/#286. Every
+  holder-bearing operation now has a `try_*` counterpart taking
+  `impl Into<sand_commands::ScoreHolder>`. Operations where vanilla requires
+  exactly one holder — every condition and guard — enforce
+  `ScoreHolder::validate_single`, rejecting wildcard and multi-entity holders;
+  plain mutations validate the holder but still permit legal multi-target
+  forms. Each `try_*` delegates to its raw counterpart after validation, so
+  typed and compatibility calls render byte-identically. The infallible
+  methods remain as documented raw escape hatches (no `#[deprecated]`, matching
+  the existing repository idiom).
+- **`temp_score!` metadata is validated before export (#146).** Objective
+  names now route through the canonical `ObjectiveName` rules, so a name over
+  the 16-character limit is deterministically hashed the same way the rest of
+  the state family hashes theirs, while empty, whitespace-bearing, and
+  control-character names are rejected outright rather than silently hashed.
+  Criterion tokens must be non-empty and use only `[A-Za-z0-9_.:-]`.
+  **Generated-output change:** display names were previously interpolated as
+  bare text into `scoreboard objectives add <name> <criterion> <display>`, but
+  vanilla requires a JSON text component in that position — so any pack using
+  the three-argument `temp_score!` form was emitting a malformed command.
+  Display names are now rendered through the canonical `TextComponent`, e.g.
+  `{"text":"Total Kills"}`, with quotes escaped and control characters
+  rejected. Covered by exact regression tests.
+- **`EntityTarget<A>` / `PlayerTarget<A>` expose the full typed filter
+  vocabulary (#200).** The typed filters added to `Selector` by #286
+  (`predicate_id`, `scores_typed`, `distance_typed`, `level_typed`, typed
+  tags/teams, typed gamemode) were unreachable from the target wrappers
+  without `.into_selector()`. They are now forwarded generically over the
+  cardinality marker `A`, so a single target stays single and a many target
+  stays many through every filter. Forwarding is capability-correct:
+  `gamemode`/`level` are exposed only on `PlayerTarget` (player-only vanilla
+  arguments) and `entity_type`/`not_type` only on `EntityTarget` (a player
+  target is already `type=player`). Every wrapper method delegates to the
+  underlying `Selector`, so validation and diagnostics are identical and
+  rendering is byte-identical; compile-fail tests pin the incompatible
+  combinations. Raw escape hatches (`scores_raw`, `nbt_raw`, `predicate_raw`)
+  are forwarded and remain explicitly documented.
+
 ### Fixed — visual-component builder validation and registry coverage accuracy (#141, #193)
 
 - **Asset-backed visual builders now validate before export.**

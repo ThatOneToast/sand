@@ -578,11 +578,21 @@ inventory::collect!(EventDescriptor);
 /// - `<path>_stop.mcfunction`  — cancels an active schedule for `@s`
 ///
 /// # Scoreboard objectives (auto-created on load)
-/// Objective names are derived from a stable FNV-1a hash of `path` so they
-/// always fit within Minecraft's 16-character limit:
-/// - `__ss_<hash>_t` (`dummy`) — ticks remaining; `0` = inactive
-/// - `__ss_<hash>_p` (`dummy`) — phase countdown between executions (only
+/// Objective names are derived from a stable 8-hex-char FNV-1a hash of `path`
+/// so they always fit within Minecraft's 16-character limit:
+/// - `__ss_<key>_t` (`dummy`) — ticks remaining; `0` = inactive
+/// - `__ss_<key>_p` (`dummy`) — phase countdown between executions (only
 ///   created when `every > 1`)
+///
+/// Because a 32-bit hash can collide, `<key>` is not hashed per descriptor in
+/// isolation: the exporter allocates keys for all registered schedules at
+/// once, walking paths in sorted order (so allocation never depends on
+/// registration order) and assigning the plain path hash whenever it is free —
+/// which keeps output byte-identical for non-colliding packs — or the first
+/// free deterministically salted rehash otherwise. Two distinct schedules can
+/// therefore never silently share timer/phase state. In the pathological case
+/// where every rehash also collides, export fails with a diagnostic naming
+/// both schedule paths, the key, and the affected objectives.
 ///
 /// The generated tick function evaluates and mutates these objectives once per
 /// active player under `execute as ...`, with the owner bound to `@s`.
@@ -700,12 +710,25 @@ inventory::collect!(ArmorEventDescriptor);
 /// temp_score!(player_hp_tmp);           // dummy criterion
 /// temp_score!(kill_count, "playerKillCount");
 /// ```
+///
+/// Every field is validated during export before any generated output is
+/// accepted — see [`temp_score!`](crate::temp_score) for the exact rules.
 pub struct TempScoreboard {
-    /// The objective name (≤16 chars recommended).
+    /// The objective name.
+    ///
+    /// Names longer than Minecraft's 16-character limit are deterministically
+    /// hashed to a stable valid name by the canonical
+    /// [`ObjectiveName`](sand_commands::ObjectiveName) rules. Empty,
+    /// whitespace-bearing, and control-character names are rejected at export.
     pub name: &'static str,
     /// Scoreboard criterion, e.g. `"dummy"`, `"playerKillCount"`.
+    ///
+    /// Must be non-empty and use only `[A-Za-z0-9_.:-]`.
     pub criteria: &'static str,
     /// Optional display name shown in the sidebar/tab list.
+    ///
+    /// Emitted as a JSON text component, which is what vanilla requires in the
+    /// `<displayName>` position. Control characters are rejected at export.
     pub display_name: Option<&'static str>,
 }
 inventory::collect!(TempScoreboard);

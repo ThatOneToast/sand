@@ -177,6 +177,16 @@ impl<A> EntityTarget<A> {
     }
 
     /// Add one typed scoreboard filter without formatting a selector score map.
+    ///
+    /// ```
+    /// use sand_commands::ObjectiveName;
+    /// use sand_commands::selector::{EntityTargets, ScoreRange};
+    ///
+    /// let targets = EntityTargets::all()
+    ///     .score(ObjectiveName::new("threat"), ScoreRange::at_least(5))
+    ///     .unwrap();
+    /// assert_eq!(targets.to_string(), "@e[scores={threat=5..}]");
+    /// ```
     pub fn score(
         mut self,
         objective: crate::ObjectiveName,
@@ -207,6 +217,144 @@ impl<A> EntityTarget<A> {
     /// `distance=<min>..<max>` — select only entities between `min` and `max`.
     pub fn distance_range(mut self, min: f64, max: f64) -> Self {
         self.raw = self.raw.distance_range(min, max);
+        self
+    }
+
+    /// `distance=<min>..` — select only entities at least `min` blocks away.
+    pub fn distance_min(mut self, min: f64) -> Self {
+        self.raw = self.raw.distance_min(min);
+        self
+    }
+
+    /// `distance=<range>` — select only entities within a typed distance
+    /// range, using [`SelectorRange`] instead of a hand-formatted string.
+    ///
+    /// ```
+    /// use sand_commands::selector::{EntityTargets, SelectorRange};
+    ///
+    /// let targets = EntityTargets::all().distance_typed(SelectorRange::at_most(16.0));
+    /// assert_eq!(targets.to_string(), "@e[distance=..16]");
+    /// ```
+    pub fn distance_typed(mut self, range: SelectorRange) -> Self {
+        self.raw = self.raw.distance_typed(range);
+        self
+    }
+
+    /// `tag=<tag>` — select only entities with the given tag, using a typed
+    /// [`EntityTag`] instead of a raw string.
+    pub fn tag_typed(mut self, tag: EntityTag) -> Self {
+        self.raw = self.raw.tag_typed(tag);
+        self
+    }
+
+    /// `team=<team>` — select only entities on the given team.
+    pub fn team(mut self, team: impl Into<String>) -> Self {
+        self.raw = self.raw.team(team);
+        self
+    }
+
+    /// `team=!<team>` — select only entities NOT on the given team.
+    pub fn not_team(mut self, team: impl Into<String>) -> Self {
+        self.raw = self.raw.not_team(team);
+        self
+    }
+
+    /// `team=<team>` — select only entities on the given team, using a typed
+    /// [`TeamName`] instead of a raw string.
+    pub fn team_typed(mut self, team: TeamName) -> Self {
+        self.raw = self.raw.team_typed(team);
+        self
+    }
+
+    /// `name=<name>` — select only entities with the exact display name.
+    pub fn name(mut self, name: impl Into<String>) -> Self {
+        self.raw = self.raw.name(name);
+        self
+    }
+
+    /// `name=!<name>` — select only entities WITHOUT the given display name.
+    pub fn not_name(mut self, name: impl Into<String>) -> Self {
+        self.raw = self.raw.not_name(name);
+        self
+    }
+
+    /// `scores={<objective>=<range>,...}` — select only entities with
+    /// matching scoreboard scores, built from typed [`SelectorScores`]
+    /// entries instead of a hand-formatted string.
+    ///
+    /// ```
+    /// use sand_commands::selector::{EntityTargets, ScoreRange, SelectorScores};
+    ///
+    /// let targets = EntityTargets::all().scores_typed(
+    ///     SelectorScores::new()
+    ///         .with("threat", ScoreRange::at_least(5))
+    ///         .with("kills", ScoreRange::exact(0)),
+    /// );
+    /// assert_eq!(targets.to_string(), "@e[scores={threat=5..,kills=0}]");
+    /// ```
+    pub fn scores_typed(mut self, scores: SelectorScores) -> Self {
+        self.raw = self.raw.scores_typed(scores);
+        self
+    }
+
+    /// `predicate=<id>` — select only entities matching a loot table
+    /// predicate, using a typed [`PredicateId`] instead of a raw string.
+    ///
+    /// ```
+    /// use sand_commands::selector::{EntityTargets, PredicateId};
+    ///
+    /// let targets = EntityTargets::all().predicate_id(PredicateId::new("my_pack:is_burning"));
+    /// assert_eq!(targets.to_string(), "@e[predicate=my_pack:is_burning]");
+    /// ```
+    pub fn predicate_id(mut self, id: PredicateId) -> Self {
+        self.raw = self.raw.predicate_id(id);
+        self
+    }
+
+    /// `dx/dy/dz` — set a bounding box volume filter.
+    pub fn volume(mut self, dx: f64, dy: f64, dz: f64) -> Self {
+        self.raw = self.raw.volume(dx, dy, dz);
+        self
+    }
+
+    /// `x/y/z` — set the origin point for distance and volume checks.
+    pub fn at_pos(mut self, x: f64, y: f64, z: f64) -> Self {
+        self.raw = self.raw.at_pos(x, y, z);
+        self
+    }
+
+    /// Explicit raw escape hatch for `scores=...` syntax.
+    ///
+    /// This opts out of Sand's typed score model: the fragment is passed
+    /// through verbatim (e.g. `"kills=1..10,deaths=0"`) and only checked for
+    /// shape at [`Selector::try_build`] time. Prefer
+    /// [`EntityTarget::scores_typed`] in normal code; use this only for score
+    /// syntax Sand cannot model yet. Delegates to [`Selector::scores_raw`].
+    pub fn scores_raw(mut self, scores: impl Into<String>) -> Self {
+        self.raw = self.raw.scores_raw(scores);
+        self
+    }
+
+    /// Explicit raw escape hatch for `nbt=...` syntax.
+    ///
+    /// This crate has no typed SNBT representation yet, so this remains the
+    /// normal path for NBT filters — the compound is passed through verbatim
+    /// and only balance-checked at [`Selector::try_build`] time. Delegates to
+    /// [`Selector::nbt_raw`].
+    pub fn nbt_raw(mut self, nbt: impl Into<String>) -> Self {
+        self.raw = self.raw.nbt_raw(nbt);
+        self
+    }
+
+    /// Explicit raw escape hatch for `predicate=...` syntax.
+    ///
+    /// This opts out of the typed [`PredicateId`] wrapper: the string is
+    /// passed through verbatim and only resource-location-shape checked at
+    /// [`Selector::try_build`] time. Prefer
+    /// [`EntityTarget::predicate_id`] in normal code. Delegates to
+    /// [`Selector::predicate_raw`].
+    pub fn predicate_raw(mut self, predicate: impl Into<String>) -> Self {
+        self.raw = self.raw.predicate_raw(predicate);
         self
     }
 }
@@ -301,6 +449,228 @@ impl<A> PlayerTarget<A> {
     /// `distance=<min>..<max>` — select only players between `min` and `max`.
     pub fn distance_range(mut self, min: f64, max: f64) -> Self {
         self.raw = self.raw.distance_range(min, max);
+        self
+    }
+
+    /// `distance=<min>..` — select only players at least `min` blocks away.
+    pub fn distance_min(mut self, min: f64) -> Self {
+        self.raw = self.raw.distance_min(min);
+        self
+    }
+
+    /// `distance=<range>` — select only players within a distance range.
+    pub fn distance(mut self, range: impl Into<String>) -> Self {
+        self.raw = self.raw.distance(range);
+        self
+    }
+
+    /// `distance=<range>` — select only players within a typed distance
+    /// range, using [`SelectorRange`] instead of a hand-formatted string.
+    ///
+    /// ```
+    /// use sand_commands::selector::{PlayerTargets, SelectorRange};
+    ///
+    /// let targets = PlayerTargets::all().distance_typed(SelectorRange::between(0.5, 10.0));
+    /// assert_eq!(targets.to_string(), "@a[distance=0.5..10]");
+    /// ```
+    pub fn distance_typed(mut self, range: SelectorRange) -> Self {
+        self.raw = self.raw.distance_typed(range);
+        self
+    }
+
+    /// `distance=0.1..` — exclude the current executor when centered at `@s`.
+    pub fn excluding_self(mut self) -> Self {
+        self.raw = self.raw.exclude_self_distance();
+        self
+    }
+
+    /// `tag=<tag>` — select only players with the given tag, using a typed
+    /// [`EntityTag`] instead of a raw string.
+    pub fn tag_typed(mut self, tag: EntityTag) -> Self {
+        self.raw = self.raw.tag_typed(tag);
+        self
+    }
+
+    /// `team=<team>` — select only players on the given team.
+    pub fn team(mut self, team: impl Into<String>) -> Self {
+        self.raw = self.raw.team(team);
+        self
+    }
+
+    /// `team=!<team>` — select only players NOT on the given team.
+    pub fn not_team(mut self, team: impl Into<String>) -> Self {
+        self.raw = self.raw.not_team(team);
+        self
+    }
+
+    /// `team=<team>` — select only players on the given team, using a typed
+    /// [`TeamName`] instead of a raw string.
+    pub fn team_typed(mut self, team: TeamName) -> Self {
+        self.raw = self.raw.team_typed(team);
+        self
+    }
+
+    /// `name=<name>` — select only players with the exact display name.
+    pub fn name(mut self, name: impl Into<String>) -> Self {
+        self.raw = self.raw.name(name);
+        self
+    }
+
+    /// `name=!<name>` — select only players WITHOUT the given display name.
+    pub fn not_name(mut self, name: impl Into<String>) -> Self {
+        self.raw = self.raw.not_name(name);
+        self
+    }
+
+    /// Add one typed scoreboard filter without formatting a selector score map.
+    ///
+    /// ```
+    /// use sand_commands::ObjectiveName;
+    /// use sand_commands::selector::{PlayerTargets, ScoreRange};
+    ///
+    /// let targets = PlayerTargets::all()
+    ///     .score(ObjectiveName::new("kills"), ScoreRange::at_least(1))
+    ///     .unwrap();
+    /// assert_eq!(targets.to_string(), "@a[scores={kills=1..}]");
+    /// ```
+    pub fn score(
+        mut self,
+        objective: crate::ObjectiveName,
+        range: ScoreRange,
+    ) -> CommandResult<Self> {
+        self.raw = self.raw.score_typed(objective, range)?;
+        Ok(self)
+    }
+
+    /// `scores={<objective>=<range>,...}` — select only players with matching
+    /// scoreboard scores, built from typed [`SelectorScores`] entries instead
+    /// of a hand-formatted string.
+    ///
+    /// ```
+    /// use sand_commands::selector::{PlayerTargets, ScoreRange, SelectorScores};
+    ///
+    /// let targets = PlayerTargets::all().scores_typed(
+    ///     SelectorScores::new()
+    ///         .with("kills", ScoreRange::between(1, 10))
+    ///         .with("deaths", ScoreRange::exact(0)),
+    /// );
+    /// assert_eq!(targets.to_string(), "@a[scores={kills=1..10,deaths=0}]");
+    /// ```
+    pub fn scores_typed(mut self, scores: SelectorScores) -> Self {
+        self.raw = self.raw.scores_typed(scores);
+        self
+    }
+
+    /// `predicate=<id>` — select only players matching a loot table
+    /// predicate, using a typed [`PredicateId`] instead of a raw string.
+    ///
+    /// ```
+    /// use sand_commands::selector::{PlayerTargets, PredicateId};
+    ///
+    /// let targets = PlayerTargets::all().predicate_id(PredicateId::new("my_pack:is_sneaking"));
+    /// assert_eq!(targets.to_string(), "@a[predicate=my_pack:is_sneaking]");
+    /// ```
+    pub fn predicate_id(mut self, id: PredicateId) -> Self {
+        self.raw = self.raw.predicate_id(id);
+        self
+    }
+
+    /// `level=<range>` — select only players within the given XP level range.
+    ///
+    /// Raw/compatibility: `range` is a hand-formatted string, validated at
+    /// [`Selector::try_build`] time. Prefer [`PlayerTarget::level_typed`].
+    pub fn level(mut self, range: impl Into<String>) -> Self {
+        self.raw = self.raw.level(range);
+        self
+    }
+
+    /// `level=<range>` — select only players within a typed XP level range,
+    /// using [`SelectorRange`] instead of a hand-formatted string.
+    ///
+    /// ```
+    /// use sand_commands::selector::{PlayerTargets, SelectorRange};
+    ///
+    /// let targets = PlayerTargets::all().level_typed(SelectorRange::between(10.0, 30.0));
+    /// assert_eq!(targets.to_string(), "@a[level=10..30]");
+    /// ```
+    pub fn level_typed(mut self, range: SelectorRange) -> Self {
+        self.raw = self.raw.level_typed(range);
+        self
+    }
+
+    /// `gamemode=<mode>` — select only players in the given gamemode.
+    ///
+    /// Raw/compatibility: `mode` is a string, validated against the vanilla
+    /// gamemode set at [`Selector::try_build`] time rather than at the type
+    /// level. Prefer [`PlayerTarget::gamemode_typed`] in normal code.
+    pub fn gamemode(mut self, mode: impl Into<String>) -> Self {
+        self.raw = self.raw.gamemode(mode);
+        self
+    }
+
+    /// `gamemode=<mode>` — select only players in the given gamemode, using
+    /// the canonical typed [`GameMode`] enum instead of a validated string.
+    ///
+    /// ```
+    /// use sand_commands::selector::{GameMode, PlayerTargets};
+    ///
+    /// let targets = PlayerTargets::all().gamemode_typed(GameMode::Adventure);
+    /// assert_eq!(targets.to_string(), "@a[gamemode=adventure]");
+    /// ```
+    pub fn gamemode_typed(mut self, mode: GameMode) -> Self {
+        self.raw = self.raw.gamemode_typed(mode);
+        self
+    }
+
+    /// `gamemode=!<mode>` — exclude players in the given gamemode.
+    pub fn not_gamemode_typed(mut self, mode: GameMode) -> Self {
+        self.raw = self.raw.not_gamemode_typed(mode);
+        self
+    }
+
+    /// `dx/dy/dz` — set a bounding box volume filter.
+    pub fn volume(mut self, dx: f64, dy: f64, dz: f64) -> Self {
+        self.raw = self.raw.volume(dx, dy, dz);
+        self
+    }
+
+    /// `x/y/z` — set the origin point for distance and volume checks.
+    pub fn at_pos(mut self, x: f64, y: f64, z: f64) -> Self {
+        self.raw = self.raw.at_pos(x, y, z);
+        self
+    }
+
+    /// Explicit raw escape hatch for `scores=...` syntax.
+    ///
+    /// This opts out of Sand's typed score model: the fragment is passed
+    /// through verbatim (e.g. `"kills=1..10,deaths=0"`) and only checked for
+    /// shape at [`Selector::try_build`] time. Prefer
+    /// [`PlayerTarget::scores_typed`] in normal code; use this only for score
+    /// syntax Sand cannot model yet. Delegates to [`Selector::scores_raw`].
+    pub fn scores_raw(mut self, scores: impl Into<String>) -> Self {
+        self.raw = self.raw.scores_raw(scores);
+        self
+    }
+
+    /// Explicit raw escape hatch for `nbt=...` syntax.
+    ///
+    /// This crate has no typed SNBT representation yet, so this remains the
+    /// normal path for NBT filters — the compound is passed through verbatim
+    /// and only balance-checked at [`Selector::try_build`] time. Delegates to
+    /// [`Selector::nbt_raw`].
+    pub fn nbt_raw(mut self, nbt: impl Into<String>) -> Self {
+        self.raw = self.raw.nbt_raw(nbt);
+        self
+    }
+
+    /// Explicit raw escape hatch for `predicate=...` syntax.
+    ///
+    /// This opts out of the typed [`PredicateId`] wrapper: the string is
+    /// passed through verbatim and only resource-location-shape checked at
+    /// [`Selector::try_build`] time. Prefer [`PlayerTarget::predicate_id`] in
+    /// normal code. Delegates to [`Selector::predicate_raw`].
+    pub fn predicate_raw(mut self, predicate: impl Into<String>) -> Self {
+        self.raw = self.raw.predicate_raw(predicate);
         self
     }
 }

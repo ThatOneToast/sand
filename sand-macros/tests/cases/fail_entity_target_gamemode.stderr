@@ -1,0 +1,5 @@
+error[E0599]: no method named `gamemode_typed` found for struct `EntityTarget<A>` in the current scope
+ --> tests/cases/fail_entity_target_gamemode.rs:7:34
+  |
+7 |     let _ = EntityTargets::all().gamemode_typed(GameMode::Survival);
+  |                                  ^^^^^^^^^^^^^^ method not found in `EntityTarget<Many>`

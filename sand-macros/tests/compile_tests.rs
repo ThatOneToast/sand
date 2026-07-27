@@ -38,6 +38,11 @@ fn compile_tests() {
     t.compile_fail("tests/cases/fail_damage_event_non_damage.rs");
     t.compile_fail("tests/cases/fail_damage_direct_many_targets.rs");
     t.compile_fail("tests/cases/fail_selector_implicit_narrowing.rs");
+    // #200: typed selector filter forwarding on `EntityTarget`/`PlayerTarget`.
+    t.pass("tests/cases/pass_typed_target_filters.rs");
+    t.compile_fail("tests/cases/fail_entity_target_gamemode.rs");
+    t.compile_fail("tests/cases/fail_player_target_entity_type.rs");
+    t.compile_fail("tests/cases/fail_entity_target_filters_do_not_narrow.rs");
     t.compile_fail("tests/cases/fail_scoreboard_string_operation.rs");
     t.compile_fail("tests/cases/fail_event_too_many_params.rs");
     t.compile_fail("tests/cases/fail_advancement_event_marker_field_not_runtime.rs");

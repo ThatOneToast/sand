@@ -36,7 +36,7 @@ use super::predicates::{
     collect_sand_player_state_predicates, player_state_predicate_json, sand_player_state_predicate,
 };
 use super::records::{ComponentRecord, ExportResult, component_to_record};
-use super::schedules::{schedule_key, schedule_tick_commands};
+use super::schedules::emit_schedule_records;
 use super::tags::{dedupe_preserve_order, sort_function_tag_entries};
 use std::sync::{Arc, Mutex};
 
@@ -2033,104 +2033,17 @@ pub(crate) fn try_export_components_impl(
     // ── ScheduleDescriptors ───────────────────────────────────────────────────
     use crate::function::ScheduleDescriptor;
     let schedules: Vec<&ScheduleDescriptor> = inventory::iter::<ScheduleDescriptor>().collect();
-    if !schedules.is_empty() {
-        let mut init_cmds: Vec<String> = Vec::new();
-        let mut tick_cmds: Vec<String> = Vec::new();
-
-        for desc in &schedules {
-            let hash = schedule_key(desc.path);
-            let obj_t = format!("__ss_{hash}_t");
-            let obj_p = format!("__ss_{hash}_p");
-
-            records.push(ComponentRecord {
-                namespace: namespace.to_string(),
-                dir: "function".to_string(),
-                path: desc.path.to_string(),
-                ext: "mcfunction".to_string(),
-                content_type: "text".to_string(),
-                content: (desc.make)().join("\n"),
-            });
-
-            let mut start_cmds = vec![format!(
-                "scoreboard players set @s {obj_t} {}",
-                desc.total_ticks
-            )];
-            if desc.every > 1 {
-                start_cmds.push(format!("scoreboard players set @s {obj_p} 1"));
-            }
-            records.push(ComponentRecord {
-                namespace: namespace.to_string(),
-                dir: "function".to_string(),
-                path: format!("{}_start", desc.path),
-                ext: "mcfunction".to_string(),
-                content_type: "text".to_string(),
-                content: start_cmds.join("\n"),
-            });
-            records.push(ComponentRecord {
-                namespace: namespace.to_string(),
-                dir: "function".to_string(),
-                path: format!("{}_stop", desc.path),
-                ext: "mcfunction".to_string(),
-                content_type: "text".to_string(),
-                content: format!("scoreboard players set @s {obj_t} 0"),
-            });
-
-            init_cmds.push(format!("scoreboard objectives add {obj_t} dummy"));
-            if desc.every > 1 {
-                init_cmds.push(format!("scoreboard objectives add {obj_p} dummy"));
-            }
-
-            tick_cmds.extend(schedule_tick_commands(namespace, desc, &obj_t, &obj_p));
-        }
-
-        let init_path = "__sand_sched_init";
-        records.push(ComponentRecord {
-            namespace: namespace.to_string(),
-            dir: "function".to_string(),
-            path: init_path.to_string(),
-            ext: "mcfunction".to_string(),
-            content_type: "text".to_string(),
-            content: init_cmds.join("\n"),
-        });
-        tag_map
-            .entry("minecraft:load".to_string())
-            .or_default()
-            .push(format!("{namespace}:{init_path}"));
-
-        let tick_path = "__sand_sched_tick";
-        records.push(ComponentRecord {
-            namespace: namespace.to_string(),
-            dir: "function".to_string(),
-            path: tick_path.to_string(),
-            ext: "mcfunction".to_string(),
-            content_type: "text".to_string(),
-            content: tick_cmds.join("\n"),
-        });
-        tag_map
-            .entry("minecraft:tick".to_string())
-            .or_default()
-            .push(format!("{namespace}:{tick_path}"));
-    }
+    // Objective keys are allocated up front for the whole schedule set (in
+    // sorted path order, so allocation is inventory-order independent), then
+    // records are emitted in the inventory order collected above.
+    emit_schedule_records(namespace, &schedules, &mut records, &mut tag_map)?;
 
     // ── TempScoreboard → __sand_temp_scores (minecraft:load) ─────────────────
     {
-        use std::collections::BTreeSet;
-        let mut seen: BTreeSet<(&str, &str)> = BTreeSet::new();
-        let mut ts_cmds: Vec<String> = Vec::new();
-        for ts in inventory::iter::<crate::TempScoreboard>() {
-            if seen.insert((ts.name, ts.criteria)) {
-                match ts.display_name {
-                    Some(dn) => ts_cmds.push(format!(
-                        "scoreboard objectives add {} {} {}",
-                        ts.name, ts.criteria, dn
-                    )),
-                    None => ts_cmds.push(format!(
-                        "scoreboard objectives add {} {}",
-                        ts.name, ts.criteria
-                    )),
-                }
-            }
-        }
+        // Objective names, criterion tokens, and display-name text are all
+        // validated before any command is produced, so an invalid `temp_score!`
+        // fails the export instead of reaching a generated `.mcfunction`.
+        let ts_cmds = super::temp_scores::temp_score_commands()?;
         if !ts_cmds.is_empty() {
             let ts_path = "__sand_temp_scores";
             records.push(ComponentRecord {

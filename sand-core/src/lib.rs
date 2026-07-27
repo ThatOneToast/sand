@@ -424,6 +424,28 @@ pub use sand_commands::Damage;
 ///
 /// Sand collects all registered objectives and emits them in a generated
 /// `__sand_temp_scores` mcfunction injected into `minecraft:load`.
+///
+/// # Validation
+///
+/// Declarations are validated during export, before any `.mcfunction` output
+/// is accepted (see [#146](https://github.com/ThatOneToast/sand/issues/146)):
+///
+/// - **Objective name** — routed through the canonical
+///   [`ObjectiveName`](sand_commands::ObjectiveName) rules. A name longer than
+///   Minecraft's 16-character limit is deterministically hashed to a stable
+///   valid name, exactly as `ScoreVar`, `Flag`, `Timer`, and `Cooldown` hash
+///   theirs. Empty, whitespace-bearing, and control-character names are
+///   rejected rather than silently hashed.
+/// - **Criterion** — must be non-empty and use only `[A-Za-z0-9_.:-]`, so a
+///   malformed token cannot shift the rest of the command into the wrong
+///   argument position.
+/// - **Display name** — rendered as a JSON text component via
+///   [`TextComponent`](sand_commands::TextComponent), which is what vanilla
+///   requires in that position. Text containing spaces or quotes is escaped
+///   correctly; control characters are rejected.
+///
+/// Objectives are de-duplicated on `(name, criterion)` and emitted in
+/// declaration order.
 #[macro_export]
 macro_rules! temp_score {
     ($name:ident) => {

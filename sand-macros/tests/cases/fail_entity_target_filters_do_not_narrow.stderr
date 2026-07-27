@@ -1,0 +1,15 @@
+error[E0308]: mismatched types
+ --> tests/cases/fail_entity_target_filters_do_not_narrow.rs:9:15
+  |
+9 |     needs_one(EntityTargets::all().tag("elite").within_blocks(8.0));
+  |     --------- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `EntityTarget<One>`, found `EntityTarget<Many>`
+  |     |
+  |     arguments to this function are incorrect
+  |
+  = note: expected struct `EntityTarget<One>`
+             found struct `EntityTarget<Many>`
+note: function defined here
+ --> tests/cases/fail_entity_target_filters_do_not_narrow.rs:3:4
+  |
+3 | fn needs_one(_target: SingleEntity) {}
+  |    ^^^^^^^^^ ---------------------

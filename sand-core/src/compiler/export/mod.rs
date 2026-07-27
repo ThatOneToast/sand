@@ -21,6 +21,7 @@ pub(crate) mod predicates;
 pub(crate) mod records;
 pub(crate) mod schedules;
 pub(crate) mod tags;
+pub(crate) mod temp_scores;
 #[cfg(test)]
 pub(crate) mod testing;
 

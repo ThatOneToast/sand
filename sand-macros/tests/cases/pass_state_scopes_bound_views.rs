@@ -27,6 +27,7 @@ struct LivingState {
 #[derive(State)]
 #[state(namespace = "test", scope = global, name = "world")]
 struct GlobalState {
+    #[state(criterion = "playerKillCount", display_name = "World value")]
     value: EntityScore<i32>,
 }
 

@@ -49,6 +49,14 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
         }
         let attrs = parse_field_config(field)?;
         let wrapper = parse_wrapper(&field.ty)?;
+        if !matches!(&wrapper, Wrapper::Score(_))
+            && (attrs.criterion.is_some() || attrs.display_name.is_some())
+        {
+            return Err(syn::Error::new_spanned(
+                field,
+                "`criterion` and `display_name` are only valid on EntityScore fields",
+            ));
+        }
         if attrs.auto_tick && !matches!(&wrapper, Wrapper::Timer | Wrapper::Cooldown) {
             return Err(syn::Error::new_spanned(
                 field,
@@ -245,15 +253,29 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
                 ),
                 ident.span(),
             );
+            let criterion = attrs
+                .criterion
+                .as_ref()
+                .map(|criterion| quote!(.criterion(#criterion)))
+                .unwrap_or_default();
+            let display_name = attrs
+                .display_name
+                .as_ref()
+                .map(|display_name| quote!(.display_name(#display_name)))
+                .unwrap_or_default();
             let lifecycle = if attrs.auto_tick {
                 quote! {
                     ::sand::__private::StateLifecycle::score(#logical_objective)
+                        #criterion
+                        #display_name
                         .default(#lifecycle_default)
                         .auto_tick()
                 }
             } else {
                 quote! {
                     ::sand::__private::StateLifecycle::score(#logical_objective)
+                        #criterion
+                        #display_name
                         .default(#lifecycle_default)
                 }
             };
@@ -528,6 +550,8 @@ struct FieldConfig {
     min: Option<i32>,
     max: Option<i32>,
     kind: Option<String>,
+    criterion: Option<LitStr>,
+    display_name: Option<LitStr>,
     auto_tick: bool,
 }
 
@@ -552,6 +576,19 @@ fn parse_field_config(field: &syn::Field) -> syn::Result<FieldConfig> {
             } else if meta.path.is_ident("kind") {
                 let value: LitStr = meta.value()?.parse()?;
                 set_once(&mut result.kind, value.value(), &meta.path)
+            } else if meta.path.is_ident("criterion") {
+                let value: LitStr = meta.value()?.parse()?;
+                validate_criterion(&value)?;
+                set_once(&mut result.criterion, value, &meta.path)
+            } else if meta.path.is_ident("display_name") {
+                let value: LitStr = meta.value()?.parse()?;
+                if value.value().chars().any(char::is_control) {
+                    return Err(syn::Error::new_spanned(
+                        value,
+                        "state objective display name must not contain control characters",
+                    ));
+                }
+                set_once(&mut result.display_name, value, &meta.path)
             } else if meta.path.is_ident("auto_tick") {
                 if result.auto_tick {
                     Err(meta.error("duplicate option"))
@@ -565,6 +602,21 @@ fn parse_field_config(field: &syn::Field) -> syn::Result<FieldConfig> {
         })?;
     }
     Ok(result)
+}
+
+fn validate_criterion(value: &LitStr) -> syn::Result<()> {
+    let criterion = value.value();
+    if criterion.is_empty()
+        || !criterion
+            .chars()
+            .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '_' | '.' | ':' | '-'))
+    {
+        return Err(syn::Error::new_spanned(
+            value,
+            "state objective criterion must be non-empty and contain only ASCII letters, digits, `_`, `.`, `:`, or `-`",
+        ));
+    }
+    Ok(())
 }
 
 fn to_snake_case(name: &str) -> String {

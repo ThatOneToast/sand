@@ -14,6 +14,7 @@ use super::score::objective_name;
 pub struct StateLifecycle {
     objective: &'static str,
     criterion: &'static str,
+    display_name: Option<&'static str>,
     default: Option<i32>,
     auto_tick: bool,
     scope: StateScope,
@@ -34,6 +35,7 @@ impl StateLifecycle {
         Self {
             objective,
             criterion: "dummy",
+            display_name: None,
             default: None,
             auto_tick: false,
             scope: StateScope::Player,
@@ -43,6 +45,12 @@ impl StateLifecycle {
     /// Override the vanilla scoreboard criterion.
     pub const fn criterion(mut self, criterion: &'static str) -> Self {
         self.criterion = criterion;
+        self
+    }
+
+    /// Set the objective's optional JSON text display name.
+    pub const fn display_name(mut self, display_name: &'static str) -> Self {
+        self.display_name = Some(display_name);
         self
     }
 
@@ -90,6 +98,15 @@ pub(crate) struct AutomaticLifecycle {
     pub global_tick_commands: Vec<String>,
 }
 
+#[derive(Debug, PartialEq, Eq)]
+struct ResolvedLifecycle {
+    criterion: &'static str,
+    display_name: Option<&'static str>,
+    default: Option<i32>,
+    auto_tick: bool,
+    scope: StateScope,
+}
+
 /// Resolve link-time state declarations.
 ///
 /// Identical declarations deduplicate. Any criterion, default, auto-tick, or
@@ -104,13 +121,13 @@ pub(crate) fn automatic_lifecycle() -> Result<AutomaticLifecycle, String> {
 fn automatic_lifecycle_from(
     declarations: impl IntoIterator<Item = StateLifecycle>,
 ) -> Result<AutomaticLifecycle, String> {
-    let mut states: BTreeMap<String, (&'static str, Option<i32>, bool, StateScope)> =
-        BTreeMap::new();
+    let mut states: BTreeMap<String, ResolvedLifecycle> = BTreeMap::new();
     let mut declarations: Vec<_> = declarations.into_iter().collect();
     declarations.sort_by_key(|declaration| {
         (
             objective_name(declaration.objective),
             declaration.criterion,
+            declaration.display_name,
             declaration.default,
             declaration.auto_tick,
             declaration.scope,
@@ -119,25 +136,28 @@ fn automatic_lifecycle_from(
 
     for declaration in declarations {
         let objective = objective_name(declaration.objective);
-        let definition = (
-            declaration.criterion,
-            declaration.default,
-            declaration.auto_tick,
-            declaration.scope,
-        );
+        let definition = ResolvedLifecycle {
+            criterion: declaration.criterion,
+            display_name: declaration.display_name,
+            default: declaration.default,
+            auto_tick: declaration.auto_tick,
+            scope: declaration.scope,
+        };
         match states.get(&objective) {
             Some(existing) if existing == &definition => {}
             Some(existing) => {
                 return Err(format!(
-                    "conflicting automatic state `{objective}`: first declaration has criterion `{}`, default {:?}, auto_tick {}, scope {:?}; conflicting declaration has criterion `{}`, default {:?}, auto_tick {}, scope {:?}",
-                    existing.0,
-                    existing.1,
-                    existing.2,
-                    existing.3,
-                    definition.0,
-                    definition.1,
-                    definition.2,
-                    definition.3
+                    "conflicting automatic state `{objective}`: first declaration has criterion `{}`, display name {:?}, default {:?}, auto_tick {}, scope {:?}; conflicting declaration has criterion `{}`, display name {:?}, default {:?}, auto_tick {}, scope {:?}",
+                    existing.criterion,
+                    existing.display_name,
+                    existing.default,
+                    existing.auto_tick,
+                    existing.scope,
+                    definition.criterion,
+                    definition.display_name,
+                    definition.default,
+                    definition.auto_tick,
+                    definition.scope
                 ));
             }
             None => {
@@ -147,28 +167,38 @@ fn automatic_lifecycle_from(
     }
 
     let mut output = AutomaticLifecycle::default();
-    for (objective, (criterion, default, auto_tick, scope)) in states {
-        output
-            .load_commands
-            .push(format!("scoreboard objectives add {objective} {criterion}"));
-        let holder = match scope {
+    for (objective, state) in states {
+        let display_name = state
+            .display_name
+            .map(|name| {
+                format!(
+                    " {}",
+                    serde_json::to_string(name).expect("string serializes")
+                )
+            })
+            .unwrap_or_default();
+        output.load_commands.push(format!(
+            "scoreboard objectives add {objective} {}{display_name}",
+            state.criterion
+        ));
+        let holder = match state.scope {
             StateScope::Player => "@s",
             StateScope::Global(holder) => holder,
         };
-        if let Some(default) = default {
+        if let Some(default) = state.default {
             let command = format!(
                 "execute unless score {holder} {objective} matches -2147483648.. run scoreboard players set {holder} {objective} {default}"
             );
-            match scope {
+            match state.scope {
                 StateScope::Player => output.player_init_commands.push(command),
                 StateScope::Global(_) => output.global_init_commands.push(command),
             }
         }
-        if auto_tick {
+        if state.auto_tick {
             let command = format!(
                 "execute if score {holder} {objective} matches 1.. run scoreboard players remove {holder} {objective} 1"
             );
-            match scope {
+            match state.scope {
                 StateScope::Player => output.player_tick_commands.push(command),
                 StateScope::Global(_) => output.global_tick_commands.push(command),
             }

@@ -65,6 +65,7 @@ fn state_derive_compile_tests() {
     t.compile_fail("tests/cases/fail_entity_state_invalid_bounds.rs");
     t.compile_fail("tests/cases/fail_state_invalid_scope.rs");
     t.compile_fail("tests/cases/fail_state_auto_tick_score.rs");
+    t.compile_fail("tests/cases/fail_state_invalid_criterion.rs");
     t.compile_fail("tests/cases/fail_entity_state_enum_duplicate.rs");
     t.compile_fail("tests/cases/fail_entity_state_enum_payload.rs");
     t.compile_fail("tests/cases/fail_entity_marker_health_capability.rs");

@@ -45,7 +45,12 @@ use sand::prelude::*;
 #[derive(State)]
 #[state(namespace = "oasis", scope = player)]
 struct PlayerState {
-    #[state(default = 0, min = 0, max = 100)]
+    #[state(
+        default = 0,
+        min = 0,
+        max = 100,
+        display_name = "Discoveries"
+    )]
     discoveries: EntityScore<i32>,
 }
 

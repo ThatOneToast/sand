@@ -32,6 +32,8 @@ event families, and tests are not public declaration languages.
 or advanced command-building primitives because existing systems and state-flow
 lowering use their operations directly. They are not the canonical declaration
 API, and their parallel lifecycle registration methods have been removed.
+Score fields retain custom vanilla criteria and JSON-safe objective display
+names through `#[state(criterion = "...", display_name = "...")]`.
 
 ## Ordered remaining slices
 

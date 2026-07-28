@@ -18,7 +18,11 @@ struct PlayerState {
 #[derive(State)]
 #[state(namespace = "state_test", scope = global)]
 struct GlobalState {
-    #[state(default = 1)]
+    #[state(
+        default = 1,
+        criterion = "playerKillCount",
+        display_name = "World wave"
+    )]
     wave: EntityScore<i32>,
 }
 
@@ -50,6 +54,7 @@ fn derived_state_lifecycle_is_scoped_deterministic_and_deduplicated() {
     assert_eq!(objectives.len(), 5);
     assert_eq!(unique.len(), objectives.len());
     assert!(load.contains("#sand_state_test_global_state"));
+    assert!(load.contains("playerKillCount \"World wave\""));
 
     let init = function(&records, "__sand_lifecycle_init");
     assert_eq!(init.lines().count(), 4);

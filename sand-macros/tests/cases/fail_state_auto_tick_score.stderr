@@ -1,0 +1,6 @@
+error: `auto_tick` is only valid on EntityTimer and EntityCooldown fields
+ --> tests/cases/fail_state_auto_tick_score.rs:6:5
+  |
+6 | /     #[state(auto_tick)]
+7 | |     value: EntityScore<i32>,
+  | |___________________________^

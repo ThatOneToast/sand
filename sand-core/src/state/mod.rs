@@ -1,51 +1,14 @@
-//! Typed datapack state variables.
+//! State implementation primitives.
 //!
-//! Provides high-level wrappers around scoreboard objectives so users do not
-//! need to know scoreboard command syntax for common patterns.
-//!
-//! # Types
-//!
-//! | Type | Purpose |
-//! |---|---|
-//! | [`ScoreVar<T>`] | Integer variable backed by a scoreboard objective |
-//! | [`Flag`] | Boolean flag (score = 0 or 1) |
-//! | [`Timer`] | Countdown timer |
-//! | [`Cooldown`] | Ability cooldown with ready/active conditions |
-//! | [`Ticks`] | Tick-based duration |
-//!
-//! # Example — manual `.define()`
-//! ```rust,ignore
-//! use sand_core::state::{ScoreVar, Flag, Cooldown, Ticks};
-//!
-//! static MANA: ScoreVar<i32> = ScoreVar::new("mana");
-//! static CASTING: Flag = Flag::new("casting");
-//! static DASH: Cooldown = Cooldown::new("dash", Ticks::new(60));
-//!
-//! fn load() -> Vec<String> {
-//!     vec![MANA.define(), CASTING.define(), DASH.define()]
-//! }
-//!
-//! fn tick() -> Vec<String> {
-//!     vec![DASH.tick_all_players()]
-//! }
-//! ```
-//!
-//! # Example — automatic lifecycle
-//! ```rust,ignore
-//! sand_core::sand_state! {
-//!     static MANA: ScoreVar<i32> = ScoreVar::new("mana") =>
-//!         MANA.lifecycle().default(100);
-//!     static CASTING: Flag = Flag::new("casting") =>
-//!         CASTING.lifecycle().default(0);
-//!     static DASH: Cooldown = Cooldown::new("dash", Ticks::new(60)) =>
-//!         DASH.lifecycle().default(0).auto_tick();
-//! }
-//! ```
+//! The public façade's `#[derive(State)]` API is the canonical declaration
+//! path. The types here are retained as low-level command-building primitives
+//! for framework internals and advanced code that intentionally manages an
+//! existing objective or storage location.
 
 pub mod cooldown;
 pub mod flag;
 pub mod flow;
-pub mod registry;
+pub(crate) mod registry;
 pub mod score;
 pub mod storage;
 pub mod timer;
@@ -54,10 +17,8 @@ pub mod typed_state;
 pub use cooldown::Cooldown;
 pub use flag::{Flag, FlagRef};
 pub use flow::{FlowTransitionBuilder, IntoStateCommands, StateFlow, StateTransitionBuilder};
-pub use registry::{
-    StateDescriptor, StateLifecycle, define_registered_state, drain_load_commands,
-    drain_tick_commands, register_load_objective, register_tick_handler,
-};
+#[doc(hidden)]
+pub use registry::{StateDescriptor, StateLifecycle};
 pub use score::{ScoreConst, ScoreConstants, ScoreExpr, ScoreOperation, ScoreRef, ScoreVar};
 pub use storage::{
     BlockNbt, DataCommand, EntityNbt, Nbt, NbtLocation, NbtPath, NbtRef, NbtTarget, SnbtCompound,

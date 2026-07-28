@@ -176,7 +176,13 @@ pub trait EntityStateField: Copy + 'static {
     fn dirty_objective(self) -> String;
 
     /// Bind this field to the current executor.
-    fn bind(self) -> Self::Accessor;
+    fn bind(self) -> Self::Accessor {
+        self.bind_to("@s")
+    }
+
+    /// Bind this field to an explicit typed score holder.
+    #[doc(hidden)]
+    fn bind_to(self, holder: &'static str) -> Self::Accessor;
 }
 
 /// Typed score predicate consumable by [`crate::entity::EntityQuery`].
@@ -289,8 +295,11 @@ impl<T: 'static> EntityStateField for EntityScore<T> {
     fn dirty_objective(self) -> String {
         dirty_name(self.namespace, self.schema, self.descriptor.name)
     }
-    fn bind(self) -> Self::Accessor {
-        EntityScoreAccessor { field: self }
+    fn bind_to(self, holder: &'static str) -> Self::Accessor {
+        EntityScoreAccessor {
+            field: self,
+            holder,
+        }
     }
 }
 
@@ -298,6 +307,7 @@ impl<T: 'static> EntityStateField for EntityScore<T> {
 #[derive(Debug, Clone, Copy)]
 pub struct EntityScoreAccessor<T = i32> {
     field: EntityScore<T>,
+    holder: &'static str,
 }
 
 impl<T: 'static> EntityScoreAccessor<T> {
@@ -312,25 +322,35 @@ impl<T: 'static> EntityScoreAccessor<T> {
     /// Assign a value and mark the source dirty.
     #[must_use]
     pub fn set(self, value: i32) -> Vec<String> {
-        mutation(self.field, "set", value)
+        mutation(self.field, self.holder, "set", value)
     }
 
     /// Add a value and mark the source dirty.
     #[must_use]
     #[allow(clippy::should_implement_trait)]
     pub fn add(self, value: i32) -> Vec<String> {
-        mutation(self.field, "add", value)
+        mutation(self.field, self.holder, "add", value)
     }
 
     /// Subtract a value and mark the source dirty.
     #[must_use]
     pub fn subtract(self, value: i32) -> Vec<String> {
-        mutation(self.field, "remove", value)
+        mutation(self.field, self.holder, "remove", value)
     }
 
     /// Build a typed condition over this score.
     pub fn matches(self, range: impl RangeBounds<i32>) -> Result<Condition, EntityDiagnostic> {
-        Ok(self.field.matches(range)?.condition())
+        let predicate = predicate_for_range(
+            self.field.objective(),
+            format!("{}:{}", self.field.namespace, self.field.schema),
+            self.field.descriptor.name,
+            range,
+        )?;
+        Ok(Condition::Score {
+            selector: self.holder.to_string(),
+            objective: predicate.objective,
+            range: predicate.condition_range,
+        })
     }
 }
 
@@ -407,8 +427,11 @@ impl EntityStateField for EntityFlag {
     fn dirty_objective(self) -> String {
         dirty_name(self.namespace, self.schema, self.descriptor.name)
     }
-    fn bind(self) -> Self::Accessor {
-        EntityFlagAccessor { field: self }
+    fn bind_to(self, holder: &'static str) -> Self::Accessor {
+        EntityFlagAccessor {
+            field: self,
+            holder,
+        }
     }
 }
 
@@ -416,28 +439,29 @@ impl EntityStateField for EntityFlag {
 #[derive(Debug, Clone, Copy)]
 pub struct EntityFlagAccessor {
     field: EntityFlag,
+    holder: &'static str,
 }
 
 impl EntityFlagAccessor {
     /// Set the flag to one.
     #[must_use]
     pub fn enable(self) -> Vec<String> {
-        mutation(self.field, "set", 1)
+        mutation(self.field, self.holder, "set", 1)
     }
     /// Set the flag to zero.
     #[must_use]
     pub fn disable(self) -> Vec<String> {
-        mutation(self.field, "set", 0)
+        mutation(self.field, self.holder, "set", 0)
     }
     /// Condition: enabled.
     #[must_use]
     pub fn is_enabled(self) -> Condition {
-        self.field.is_enabled().condition()
+        holder_condition(self.holder, self.field.objective(), ScoreRange::Eq(1))
     }
     /// Condition: disabled.
     #[must_use]
     pub fn is_disabled(self) -> Condition {
-        self.field.is_disabled().condition()
+        holder_condition(self.holder, self.field.objective(), ScoreRange::Eq(0))
     }
 }
 
@@ -497,8 +521,11 @@ impl<T: EntityEnumValue> EntityStateField for EntityEnum<T> {
     fn dirty_objective(self) -> String {
         dirty_name(self.namespace, self.schema, self.descriptor.name)
     }
-    fn bind(self) -> Self::Accessor {
-        EntityEnumAccessor { field: self }
+    fn bind_to(self, holder: &'static str) -> Self::Accessor {
+        EntityEnumAccessor {
+            field: self,
+            holder,
+        }
     }
 }
 
@@ -506,18 +533,23 @@ impl<T: EntityEnumValue> EntityStateField for EntityEnum<T> {
 #[derive(Debug, Clone, Copy)]
 pub struct EntityEnumAccessor<T: EntityEnumValue> {
     field: EntityEnum<T>,
+    holder: &'static str,
 }
 
 impl<T: EntityEnumValue> EntityEnumAccessor<T> {
     /// Store a variant and mark the source dirty.
     #[must_use]
     pub fn set(self, value: T) -> Vec<String> {
-        mutation(self.field, "set", value.encode())
+        mutation(self.field, self.holder, "set", value.encode())
     }
     /// Condition: current value equals `value`.
     #[must_use]
     pub fn is(self, value: T) -> Condition {
-        self.field.is(value).condition()
+        holder_condition(
+            self.holder,
+            self.field.objective(),
+            ScoreRange::Eq(value.encode()),
+        )
     }
 }
 
@@ -568,8 +600,11 @@ impl EntityStateField for EntityTimer {
     fn dirty_objective(self) -> String {
         dirty_name(self.namespace, self.schema, self.descriptor.name)
     }
-    fn bind(self) -> Self::Accessor {
-        EntityTimerAccessor { field: self }
+    fn bind_to(self, holder: &'static str) -> Self::Accessor {
+        EntityTimerAccessor {
+            field: self,
+            holder,
+        }
     }
 }
 
@@ -577,33 +612,41 @@ impl EntityStateField for EntityTimer {
 #[derive(Debug, Clone, Copy)]
 pub struct EntityTimerAccessor {
     field: EntityTimer,
+    holder: &'static str,
 }
 
 impl EntityTimerAccessor {
     /// Start a countdown.
     #[must_use]
     pub fn start(self, ticks: crate::state::Ticks) -> Vec<String> {
-        mutation(self.field, "set", ticks.get().min(i32::MAX as u32) as i32)
+        mutation(
+            self.field,
+            self.holder,
+            "set",
+            ticks.get().min(i32::MAX as u32) as i32,
+        )
     }
     /// Decrement a positive timer for the loaded current entity.
     #[must_use]
     pub fn tick(self) -> Vec<String> {
         vec![
             format!(
-                "execute if score @s {0} matches 1.. run scoreboard players set @s {1} 1",
+                "execute if score {2} {0} matches 1.. run scoreboard players set {2} {1} 1",
                 self.field.objective(),
-                self.field.dirty_objective()
+                self.field.dirty_objective(),
+                self.holder,
             ),
             format!(
-                "execute if score @s {0} matches 1.. run scoreboard players remove @s {0} 1",
-                self.field.objective()
+                "execute if score {1} {0} matches 1.. run scoreboard players remove {1} {0} 1",
+                self.field.objective(),
+                self.holder,
             ),
         ]
     }
     /// Condition: timer reached zero.
     #[must_use]
     pub fn elapsed(self) -> Condition {
-        self.field.elapsed().condition()
+        holder_condition(self.holder, self.field.objective(), ScoreRange::Eq(0))
     }
 }
 
@@ -645,8 +688,11 @@ impl EntityStateField for EntityCooldown {
     fn dirty_objective(self) -> String {
         self.0.dirty_objective()
     }
-    fn bind(self) -> Self::Accessor {
-        EntityCooldownAccessor { field: self }
+    fn bind_to(self, holder: &'static str) -> Self::Accessor {
+        EntityCooldownAccessor {
+            field: self,
+            holder,
+        }
     }
 }
 
@@ -654,18 +700,24 @@ impl EntityStateField for EntityCooldown {
 #[derive(Debug, Clone, Copy)]
 pub struct EntityCooldownAccessor {
     field: EntityCooldown,
+    holder: &'static str,
 }
 
 impl EntityCooldownAccessor {
     /// Start the cooldown.
     #[must_use]
     pub fn start(self, ticks: crate::state::Ticks) -> Vec<String> {
-        mutation(self.field, "set", ticks.get().min(i32::MAX as u32) as i32)
+        mutation(
+            self.field,
+            self.holder,
+            "set",
+            ticks.get().min(i32::MAX as u32) as i32,
+        )
     }
     /// Condition: ready.
     #[must_use]
     pub fn ready(self) -> Condition {
-        self.field.ready().condition()
+        holder_condition(self.holder, self.field.objective(), ScoreRange::Eq(0))
     }
 }
 
@@ -698,30 +750,43 @@ fn validate_enum_encodings(
     Ok(())
 }
 
-fn mutation<F: EntityStateField>(field: F, operation: &str, value: i32) -> Vec<String> {
+fn mutation<F: EntityStateField>(
+    field: F,
+    holder: &str,
+    operation: &str,
+    value: i32,
+) -> Vec<String> {
     let objective = field.objective();
     let mut commands = vec![format!(
-        "scoreboard players {operation} @s {objective} {value}"
+        "scoreboard players {operation} {holder} {objective} {value}"
     )];
     if let Some((min, max)) = field.descriptor().bounds {
         if min != i32::MIN {
             commands.push(format!(
-                "execute if score @s {objective} matches ..{} run scoreboard players set @s {objective} {min}",
+                "execute if score {holder} {objective} matches ..{} run scoreboard players set {holder} {objective} {min}",
                 min - 1
             ));
         }
         if max != i32::MAX {
             commands.push(format!(
-                "execute if score @s {objective} matches {}.. run scoreboard players set @s {objective} {max}",
+                "execute if score {holder} {objective} matches {}.. run scoreboard players set {holder} {objective} {max}",
                 max + 1
             ));
         }
     }
     commands.push(format!(
-        "scoreboard players set @s {} 1",
+        "scoreboard players set {holder} {} 1",
         field.dirty_objective()
     ));
     commands
+}
+
+fn holder_condition(holder: &str, objective: String, range: ScoreRange) -> Condition {
+    Condition::Score {
+        selector: holder.to_string(),
+        objective,
+        range,
+    }
 }
 
 pub(crate) fn objective_name(namespace: &str, schema: &str, field: &str) -> String {

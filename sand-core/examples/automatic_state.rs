@@ -1,41 +1,29 @@
-use sand_core::sand_state;
-use sand_core::state::{Cooldown, GameState, ScoreVar, Ticks, TypedGameState};
+use sand::prelude::*;
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, EntityStateEnum)]
 enum Phase {
     Lobby = 0,
     Playing = 1,
 }
 
-impl TypedGameState for Phase {
-    fn to_score(self) -> i32 {
-        self as i32
-    }
-
-    fn from_score(value: i32) -> Option<Self> {
-        match value {
-            0 => Some(Self::Lobby),
-            1 => Some(Self::Playing),
-            _ => None,
-        }
-    }
-}
-
-sand_state! {
-    static MANA: ScoreVar<i32> = ScoreVar::new("mana") =>
-        MANA.lifecycle().default(100);
-    static PHASE: GameState<Phase> = GameState::with_default_score("phase", 0) =>
-        PHASE.lifecycle();
-    static DASH: Cooldown = Cooldown::new("dash", Ticks::new(60)) =>
-        DASH.lifecycle().default(0).auto_tick();
+#[allow(dead_code)]
+#[derive(State)]
+#[state(namespace = "demo", scope = player)]
+struct PlayerState {
+    #[state(default = 100, min = 0, max = 100)]
+    mana: EntityScore<i32>,
+    #[state(default = "Phase::Lobby")]
+    phase: EntityEnum<Phase>,
+    #[state(auto_tick)]
+    dash: EntityCooldown,
 }
 
 fn main() {
-    // No load/tick function and no manual registry drain are required.
-    let _typed_api_still_works = (
-        MANA.set("@s", 50),
-        PHASE.of("@s").set(Phase::Playing),
-        DASH.start("@s"),
+    let state = PlayerState::on(PlayerContext::default());
+    let _commands = (
+        state.mana.set(50),
+        state.phase.set(Phase::Playing),
+        state.dash.start(Ticks::new(60)),
     );
     println!(
         "{}",

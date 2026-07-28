@@ -294,11 +294,6 @@ impl<T> ScoreVar<T> {
         }
     }
 
-    /// Build an automatic export lifecycle descriptor for this variable.
-    pub const fn lifecycle(&self) -> crate::state::StateLifecycle {
-        crate::state::StateLifecycle::score(self.name)
-    }
-
     /// Return the actual scoreboard objective name used in commands.
     ///
     /// This is either `name` directly (≤16 chars) or a stable hash (>16 chars).
@@ -311,15 +306,6 @@ impl<T> ScoreVar<T> {
     /// Call this in your `load` function.
     pub fn define(&self) -> String {
         format!("scoreboard objectives add {} dummy", self.objective_name())
-    }
-
-    /// Enroll this variable in Sand's global lifecycle registry.
-    ///
-    /// The objective will be included in the next call to
-    /// [`define_registered_state`](crate::state::define_registered_state).
-    /// Calling `.register()` multiple times for the same variable is a no-op.
-    pub fn register(&self) {
-        crate::state::register_load_objective(self.objective_name(), "dummy");
     }
 
     /// `scoreboard players set <selector> <obj> <value>`

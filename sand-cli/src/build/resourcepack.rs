@@ -1,27 +1,86 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
 use colored::Colorize;
 
 use crate::config::SandConfig;
 
+use super::export::{Exporter, run_exporter};
 use super::package::zip_dir;
 use super::records::ResourcePackRecord;
 use super::validate::validate_resourcepack_records_for_project;
 use super::write::{write_resourcepack_mcmeta, write_rp_record};
 
+/// The namespace the resource pack is exported under.
+///
+/// Falls back to the datapack namespace when `[resourcepack]` does not set one.
+fn resourcepack_namespace(config: &SandConfig) -> &str {
+    config
+        .resourcepack
+        .as_ref()
+        .and_then(|c| c.namespace.as_ref().map(|n| n.as_str()))
+        .unwrap_or(config.pack.namespace.as_str())
+}
+
+/// Fails with scaffolding instructions when the project has no resource
+/// exporter binary source.
+///
+/// Run before the exporters are compiled so `cargo build --bin
+/// sand_resource_export` never fails with an opaque "no bin target" error, and
+/// so a `--resourcepack` build that cannot succeed stops before writing any
+/// datapack output.
+pub(super) fn ensure_resource_export_source(
+    config: &SandConfig,
+    project_root: &Path,
+) -> Result<()> {
+    let export_src = project_root.join("src/bin/sand_resource_export.rs");
+    if export_src.exists() {
+        return Ok(());
+    }
+    bail!(
+        "src/bin/sand_resource_export.rs not found.\n\n\
+         To enable resource pack builds, add the following to your project:\n\n\
+         1. Create src/bin/sand_resource_export.rs:\n\n\
+         {}fn main() {{ {ns}::__sand_resource_export(\"{ns}\"); }}\n\n\
+         2. Add to Cargo.toml:\n\n\
+         {}[[bin]]\n\
+         {}name = \"sand_resource_export\"\n\
+         {}path = \"src/bin/sand_resource_export.rs\"\n\n\
+         3. Add to src/lib.rs:\n\n\
+         {}#[doc(hidden)]\n\
+         {}pub fn __sand_resource_export(namespace: &str) {{\n\
+         {}    println!(\"{{}}\", sand_resourcepack::export_resourcepack_json(namespace));\n\
+         {}}}\n",
+        "    ",
+        "    ",
+        "    ",
+        "    ",
+        "    ",
+        "    ",
+        "    ",
+        "    ",
+        ns = resourcepack_namespace(config)
+    );
+}
+
+/// Runs the already-compiled resource exporter and writes the resource pack.
+///
+/// `binary` is compiled alongside the datapack exporter by
+/// [`super::export::ExportBuildPlan`]; this function never invokes Cargo. The
+/// records it parses, validates, and writes stay entirely within the resource
+/// pack's own output root, and copy sources are resolved against the same
+/// `project_root` the datapack half used.
 pub(super) fn build_resourcepack(
     config: &SandConfig,
+    project_root: &Path,
     mc_version: &str,
     release: bool,
-    cargo_target_dir: &std::path::Path,
+    binary: &Path,
 ) -> Result<()> {
     use sand_core::version::{MinecraftVersion, VersionProfile};
 
     let rp_cfg = config.resourcepack.as_ref();
-    let rp_namespace = rp_cfg
-        .and_then(|c| c.namespace.as_ref().map(|n| n.as_str()))
-        .unwrap_or(config.pack.namespace.as_str());
+    let rp_namespace = resourcepack_namespace(config);
     let rp_description = rp_cfg
         .and_then(|c| c.description.as_deref())
         .unwrap_or(&config.pack.description);
@@ -64,67 +123,15 @@ pub(super) fn build_resourcepack(
         rp_format.to_string().yellow()
     );
 
-    // Check that the resource export binary source exists before attempting
-    // compilation so we can emit a helpful error message.
-    let export_src = std::env::current_dir()?.join("src/bin/sand_resource_export.rs");
-    if !export_src.exists() {
-        bail!(
-            "src/bin/sand_resource_export.rs not found.\n\n\
-             To enable resource pack builds, add the following to your project:\n\n\
-             1. Create src/bin/sand_resource_export.rs:\n\n\
-             {}fn main() {{ {ns}::__sand_resource_export(\"{ns}\"); }}\n\n\
-             2. Add to Cargo.toml:\n\n\
-             {}[[bin]]\n\
-             {}name = \"sand_resource_export\"\n\
-             {}path = \"src/bin/sand_resource_export.rs\"\n\n\
-             3. Add to src/lib.rs:\n\n\
-             {}#[doc(hidden)]\n\
-             {}pub fn __sand_resource_export(namespace: &str) {{\n\
-             {}    println!(\"{{}}\", sand_resourcepack::export_resourcepack_json(namespace));\n\
-             {}}}\n",
-            "    ",
-            "    ",
-            "    ",
-            "    ",
-            "    ",
-            "    ",
-            "    ",
-            "    ",
-            ns = rp_namespace
-        );
-    }
+    // Run the resource export binary (compiled alongside the datapack exporter).
+    let stdout = run_exporter(Exporter::ResourcePack, binary, &[])?;
 
-    // Compile the resource export binary.
-    let mut cmd = std::process::Command::new("cargo");
-    cmd.args(["build", "--bin", "sand_resource_export"]);
-    if release {
-        cmd.arg("--release");
-    }
-    cmd.env("RUSTFLAGS", "-Awarnings");
-    let status = cmd.status().context("failed to invoke `cargo build`")?;
-    if !status.success() {
-        bail!("`cargo build --bin sand_resource_export` failed");
-    }
+    // Parse resource pack records — a separate stream from the datapack's
+    // ComponentRecords, validated against its own rules.
+    let records: Vec<ResourcePackRecord> =
+        serde_json::from_slice(&stdout).context("failed to parse resource pack export JSON")?;
 
-    // Run the resource export binary.
-    let profile = if release { "release" } else { "debug" };
-    let binary = cargo_target_dir.join(profile).join("sand_resource_export");
-    let output = std::process::Command::new(&binary)
-        .output()
-        .with_context(|| format!("failed to run '{}'", binary.display()))?;
-    if !output.status.success() {
-        bail!(
-            "resource export binary failed:\n{}",
-            String::from_utf8_lossy(&output.stderr)
-        );
-    }
-
-    // Parse resource pack records.
-    let records: Vec<ResourcePackRecord> = serde_json::from_slice(&output.stdout)
-        .context("failed to parse resource pack export JSON")?;
-
-    let project_root = std::env::current_dir()?;
-    validate_resourcepack_records_for_project(&project_root, &records)?;
+    validate_resourcepack_records_for_project(project_root, &records)?;
 
     // Write pack.mcmeta for the resource pack.
     let rp_dist_name = format!("{}-resources", config.pack.namespace.as_str());
@@ -135,7 +142,7 @@ pub(super) fn build_resourcepack(
     // Write each resource pack record.
     let mut written = 0usize;
     for record in &records {
-        write_rp_record(&rp_dist, &project_root, record)?;
+        write_rp_record(&rp_dist, project_root, record)?;
         written += 1;
     }
 

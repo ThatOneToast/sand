@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — structure copy sources can no longer escape the project root (#158)
+
+- **Structure-template copy sources are now canonically contained (#158).**
+  `validate_structure_source_file` joined the declared source onto the project
+  root and accepted it if `std::fs::metadata` reported a file. Because
+  `metadata` follows symlinks, a project-relative source such as
+  `src/structures/leak.nbt -> ../../outside/leak.nbt` — or any source reached
+  through a symlinked intermediate directory — passed every lexical check
+  (absolute, `..`, prefix, null byte, `.nbt`) and was copied into
+  `data/<namespace>/structure/…`. That left the datapack copy boundary weaker
+  than the resource-pack copy boundary hardened in #154/#156. Both paths now
+  share one helper, `validate_copy_source_within_project`, which canonicalizes
+  the project root and the source and requires the canonical source to stay
+  inside the canonical root. **Symlink policy:** a symlink is accepted only
+  when its resolved target is still inside the project root, matching the
+  existing resource-pack policy. Containment is component-wise, so
+  `project-other` is not treated as inside `project`. Every structure record is
+  still validated before the datapack output directory is created, and the
+  missing, not-a-file, and unreadable diagnostics are unchanged. A symlink
+  whose target is missing now says so instead of reporting a file the author
+  can see in their tree as "not found". Two limits are documented rather than
+  claimed away: hard links are invisible to canonicalization, and the check is
+  a preflight, not a race-free copy (the copy re-joins the path afterwards, as
+  the resource-pack path already did).
+
 ### Fixed — collision-safe schedule objectives, typed state holders, typed target filters (#124, #146, #200)
 
 - **Generated schedule objectives can no longer silently collide (#124).**

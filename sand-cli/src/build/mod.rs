@@ -859,6 +859,254 @@ mod tests {
         assert!(validate_component_records_for_project(&dist, &project_root, &[text_nbt]).is_err());
     }
 
+    // ── Structure copy-source containment (#158) ──────────────────────────────
+
+    /// Build a structure copy record whose source is `content`.
+    fn structure_record(path: &str, content: &str) -> ComponentRecord {
+        serde_json::from_value(serde_json::json!({
+            "namespace": "audit",
+            "dir": "structure",
+            "path": path,
+            "ext": "nbt",
+            "content_type": "copy",
+            "content": content,
+        }))
+        .unwrap_or_else(|e| panic!("invalid structure test record ({path}): {e}"))
+    }
+
+    #[test]
+    fn structure_source_lexical_escapes_stay_rejected() {
+        let temp = tempfile::tempdir().unwrap();
+        let project_root = temp.path();
+        let dist = temp.path().join("dist/audit");
+
+        for bad_source in [
+            "",
+            "../escape.nbt",
+            "src/../../escape.nbt",
+            "/tmp/escape.nbt",
+            "src\0bad.nbt",
+            "src/structures/start.txt",
+        ] {
+            let record = structure_record("rooms/start", bad_source);
+            let err =
+                validate_component_records_for_project(&dist, project_root, &[record]).unwrap_err();
+            assert!(
+                err.to_string()
+                    .contains("unsafe structure template source path"),
+                "source '{bad_source}' should be rejected lexically: {err}"
+            );
+        }
+        assert!(!dist.exists(), "validation must not create output");
+    }
+
+    #[test]
+    fn structure_source_missing_and_directory_sources_are_rejected() {
+        let temp = tempfile::tempdir().unwrap();
+        let project_root = temp.path();
+        let dist = temp.path().join("dist/audit");
+
+        let missing = structure_record("rooms/missing", "src/structures/missing.nbt");
+        let err =
+            validate_component_records_for_project(&dist, project_root, &[missing]).unwrap_err();
+        let rendered = format!("{err:#}");
+        assert!(
+            rendered.contains("datapack structure asset not found or unreadable")
+                && rendered.contains("src/structures/missing.nbt"),
+            "missing source needs an actionable diagnostic naming the path: {rendered}"
+        );
+
+        // A *directory* whose name ends in .nbt passes every lexical rule.
+        std::fs::create_dir_all(project_root.join("src/structures/dir.nbt")).unwrap();
+        let directory = structure_record("rooms/dir", "src/structures/dir.nbt");
+        let err =
+            validate_component_records_for_project(&dist, project_root, &[directory]).unwrap_err();
+        assert!(
+            err.to_string()
+                .contains("datapack structure asset is not a file"),
+            "directory source should be rejected before writing: {err}"
+        );
+
+        assert!(!dist.exists(), "validation must not create output");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rejects_structure_source_symlink_escape_before_writing() {
+        let temp = tempfile::tempdir().unwrap();
+        let project_root = temp.path().join("project");
+        let outside_root = temp.path().join("outside");
+        let dist = temp.path().join("dist/audit");
+        std::fs::create_dir_all(project_root.join("src/structures")).unwrap();
+        std::fs::create_dir_all(&outside_root).unwrap();
+        std::fs::write(outside_root.join("leak.nbt"), [0x0a, 0x00, 0x00]).unwrap();
+
+        // Skip only the symlink assertion where symlink creation is unavailable.
+        let link_path = project_root.join("src/structures/leak.nbt");
+        if std::os::unix::fs::symlink(outside_root.join("leak.nbt"), &link_path).is_err() {
+            eprintln!("skipping: symlink creation not permitted in this environment");
+            return;
+        }
+
+        let record = structure_record("rooms/leak", "src/structures/leak.nbt");
+        let err =
+            validate_component_records_for_project(&dist, &project_root, &[record]).unwrap_err();
+        assert!(
+            err.to_string()
+                .contains("datapack structure asset escapes the project root"),
+            "symlinked structure source escapes should be rejected: {err}"
+        );
+        assert!(
+            err.to_string().contains("leak.nbt"),
+            "diagnostic must identify the unsafe source: {err}"
+        );
+        assert!(
+            !dist.exists(),
+            "structure preflight must fail before output is created"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rejects_structure_source_through_symlinked_directory() {
+        let temp = tempfile::tempdir().unwrap();
+        let project_root = temp.path().join("project");
+        let outside_root = temp.path().join("outside");
+        let dist = temp.path().join("dist/audit");
+        std::fs::create_dir_all(project_root.join("src")).unwrap();
+        std::fs::create_dir_all(&outside_root).unwrap();
+        std::fs::write(outside_root.join("start.nbt"), [0x0a, 0x00, 0x00]).unwrap();
+
+        // src/structures -> ../outside : the *directory* escapes, not the file.
+        let link_path = project_root.join("src/structures");
+        if std::os::unix::fs::symlink(&outside_root, &link_path).is_err() {
+            eprintln!("skipping: symlink creation not permitted in this environment");
+            return;
+        }
+
+        let record = structure_record("rooms/start", "src/structures/start.nbt");
+        let err =
+            validate_component_records_for_project(&dist, &project_root, &[record]).unwrap_err();
+        assert!(
+            err.to_string()
+                .contains("datapack structure asset escapes the project root"),
+            "intermediate directory symlink escapes should be rejected: {err}"
+        );
+        assert!(!dist.exists(), "validation must not create output");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn accepts_structure_source_symlink_that_stays_inside_the_project() {
+        let temp = tempfile::tempdir().unwrap();
+        let project_root = temp.path().join("project");
+        let dist = temp.path().join("dist/audit");
+        std::fs::create_dir_all(project_root.join("assets")).unwrap();
+        std::fs::create_dir_all(project_root.join("src/structures")).unwrap();
+        std::fs::write(project_root.join("assets/start.nbt"), [0x0a, 0x00, 0x00]).unwrap();
+
+        let link_path = project_root.join("src/structures/start.nbt");
+        if std::os::unix::fs::symlink(project_root.join("assets/start.nbt"), &link_path).is_err() {
+            eprintln!("skipping: symlink creation not permitted in this environment");
+            return;
+        }
+
+        let record = structure_record("rooms/start", "src/structures/start.nbt");
+        assert!(
+            validate_component_records_for_project(&dist, &project_root, &[record]).is_ok(),
+            "a symlink resolving inside the project root is allowed, \
+             matching the resource-pack copy policy"
+        );
+    }
+
+    /// A sibling directory sharing a name prefix must not count as "inside":
+    /// `/tmp/x/project-other` is not under `/tmp/x/project`.
+    #[cfg(unix)]
+    #[test]
+    fn structure_source_containment_is_component_wise() {
+        let temp = tempfile::tempdir().unwrap();
+        let project_root = temp.path().join("project");
+        let sibling = temp.path().join("project-other");
+        let dist = temp.path().join("dist/audit");
+        std::fs::create_dir_all(project_root.join("src")).unwrap();
+        std::fs::create_dir_all(&sibling).unwrap();
+        std::fs::write(sibling.join("start.nbt"), [0x0a, 0x00, 0x00]).unwrap();
+
+        // The only way to reach the prefix-sharing sibling without a lexical
+        // `..` is through a symlink, so this exercises the real containment
+        // check at the string-prefix boundary.
+        let link_path = project_root.join("src/structures");
+        if std::os::unix::fs::symlink(&sibling, &link_path).is_err() {
+            eprintln!("skipping: symlink creation not permitted in this environment");
+            return;
+        }
+
+        let record = structure_record("rooms/start", "src/structures/start.nbt");
+        let err =
+            validate_component_records_for_project(&dist, &project_root, &[record]).unwrap_err();
+        assert!(
+            err.to_string()
+                .contains("datapack structure asset escapes the project root"),
+            "'project-other' must not be treated as inside 'project': {err}"
+        );
+    }
+
+    /// A symlink whose target is gone is reported as a broken link, not as a
+    /// missing file the author can plainly see in their tree.
+    #[cfg(unix)]
+    #[test]
+    fn dangling_structure_source_symlink_is_named_as_a_symlink() {
+        let temp = tempfile::tempdir().unwrap();
+        let project_root = temp.path().join("project");
+        let dist = temp.path().join("dist/audit");
+        std::fs::create_dir_all(project_root.join("src/structures")).unwrap();
+
+        let link_path = project_root.join("src/structures/start.nbt");
+        if std::os::unix::fs::symlink(temp.path().join("gone.nbt"), &link_path).is_err() {
+            eprintln!("skipping: symlink creation not permitted in this environment");
+            return;
+        }
+
+        let record = structure_record("rooms/start", "src/structures/start.nbt");
+        let err =
+            validate_component_records_for_project(&dist, &project_root, &[record]).unwrap_err();
+        let rendered = format!("{err:#}");
+        assert!(
+            rendered.contains("is a symlink whose target is missing or unreadable"),
+            "broken links need their own diagnostic: {rendered}"
+        );
+        assert!(!dist.exists(), "validation must not create output");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rejects_resourcepack_copy_source_through_symlinked_directory() {
+        let temp = tempfile::tempdir().unwrap();
+        let project_root = temp.path().join("project");
+        let outside_root = temp.path().join("outside");
+        std::fs::create_dir_all(project_root.join("assets")).unwrap();
+        std::fs::create_dir_all(&outside_root).unwrap();
+        std::fs::write(outside_root.join("leak.png"), b"secret").unwrap();
+
+        let link_path = project_root.join("assets/src");
+        if std::os::unix::fs::symlink(&outside_root, &link_path).is_err() {
+            eprintln!("skipping: symlink creation not permitted in this environment");
+            return;
+        }
+
+        let record = resourcepack_record(
+            "assets/audit/textures/item/leak.png",
+            "copy",
+            "assets/src/leak.png",
+        );
+        let err = validate_resourcepack_records_for_project(&project_root, &[record]).unwrap_err();
+        assert!(
+            err.to_string()
+                .contains("resource-pack asset escapes the project root"),
+            "intermediate directory symlink escapes should be rejected: {err}"
+        );
+    }
+
     #[test]
     fn dialog_tag_records_use_generic_tags_dir_and_dialog_path() {
         let record: ComponentRecord = serde_json::from_value(serde_json::json!({

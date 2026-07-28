@@ -12,7 +12,7 @@
 //!
 //! - **Macros** — the attribute macros (`#[function]`, `#[component]`,
 //!   `#[event]`, `#[item]`, `#[armor_event]`, `#[schedule]`) and declarative
-//!   macros (`all!`, `any!`, `mcfunction!`, `sand_state!`, `run_fn!`) that
+//!   expression macros (`all!`, `any!`, `mcfunction!`, `run_fn!`) that
 //!   drive datapack authoring.
 //! - **Commands** — the [`crate::cmd`] module (as `cmd::...`) plus typed
 //!   command builders: `Execute`/`TypedExecute`, `Selector` and target types,
@@ -61,8 +61,8 @@
 
 // Attribute + declarative macros.
 pub use crate::{
-    EntityState, EntityStateEnum, SandStorage, all, any, armor_event, component, entity_archetype,
-    event, function, item, mcfunction, run_fn, sand_state, schedule,
+    EntityStateEnum, SandStorage, State, all, any, armor_event, component, entity_archetype, event,
+    function, item, mcfunction, run_fn, schedule,
 };
 
 // The `cmd` module itself, so `cmd::say(...)` works from the prelude.

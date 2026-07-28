@@ -1,7 +1,7 @@
 use sand::prelude::*;
 
-#[derive(EntityState)]
-#[entity_state(namespace = "test", name = "marker", version = 1)]
+#[derive(State)]
+#[state(namespace = "test", scope = entity, name = "marker", version = 1)]
 struct MarkerState {
     #[state(default = 20, min = 1, max = 100)]
     health: EntityScore<i32>,

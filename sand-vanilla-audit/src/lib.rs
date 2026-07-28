@@ -3,19 +3,20 @@
 use sand_core::event::vanilla::{OnDeath, OnRespawn, PlayerStartsSneaking, PlayerStopsSneaking};
 use sand_core::events::{EventSetup, PlayerSneakEvent, SandEvent, SandEventDispatch, TickWindow};
 use sand_core::prelude::*;
-use sand_core::sand_state;
 use sand_core::{FloatRange, IntRange, NumberProvider};
 use sand_macros::{component, event, function};
 
-sand_state! {
-    static AUDIT_SCORE: ScoreVar<i32> = ScoreVar::new("sand_audit_score") =>
-        AUDIT_SCORE.lifecycle().default(7);
-    static AUDIT_FLAG: Flag = Flag::new("sand_audit_flag") =>
-        AUDIT_FLAG.lifecycle().default(0);
-    static AUDIT_TIMER: Timer = Timer::new("sand_audit_timer", Ticks::seconds(1)) =>
-        AUDIT_TIMER.lifecycle().default(0).auto_tick();
-    static AUDIT_COOLDOWN: Cooldown = Cooldown::new("sand_audit_cd", Ticks::seconds(1)) =>
-        AUDIT_COOLDOWN.lifecycle().default(0).auto_tick();
+#[derive(State)]
+#[state(namespace = "sand_audit", scope = player)]
+struct AuditState {
+    #[state(default = 7)]
+    score: EntityScore<i32>,
+    #[state(default = false)]
+    flag: EntityFlag,
+    #[state(default = 0, auto_tick)]
+    timer: EntityTimer,
+    #[state(auto_tick)]
+    cooldown: EntityCooldown,
 }
 
 #[function]

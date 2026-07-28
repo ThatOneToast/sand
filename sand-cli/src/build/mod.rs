@@ -1,4 +1,5 @@
 mod config;
+mod export;
 pub mod package;
 pub mod records;
 mod resourcepack;
@@ -15,9 +16,10 @@ use crate::config::SandConfig;
 use crate::pack_format::pack_format_for;
 
 use config::{cargo_target_dir, resolve_mc_version};
+use export::{ExportBuildPlan, Exporter, run_exporter};
 use package::zip_dir;
 use records::ComponentRecord;
-use resourcepack::build_resourcepack;
+use resourcepack::{build_resourcepack, ensure_resource_export_source};
 use validate::validate_component_records_for_project;
 use write::{write_component, write_pack_mcmeta};
 
@@ -77,39 +79,33 @@ pub fn run(release: bool, resourcepack: bool) -> Result<()> {
         pack_format.to_string().yellow()
     );
 
-    // 2. Compile the export binary
-    let mut cmd = std::process::Command::new("cargo");
-    cmd.args(["build", "--bin", "sand_export"]);
-    if release {
-        cmd.arg("--release");
+    // 2. Compile the export binaries.  A datapack-only build compiles just
+    //    `sand_export`; `--resourcepack` adds `sand_resource_export` to the
+    //    *same* `cargo build` so Cargo resolves and analyses the project once.
+    //    The exporters still run as separate processes with separate record
+    //    streams — only compilation is coordinated.
+    let plan = ExportBuildPlan::new(release, resourcepack);
+    if resourcepack {
+        // Checked before compiling so a missing resource exporter reports the
+        // scaffolding instructions instead of a raw Cargo target error.
+        ensure_resource_export_source(&config, &project_root)?;
     }
-    // Suppress all compiler warnings during the build — the export binary is a
-    // build-time tool, not user-facing code, so warning noise is unhelpful here.
-    cmd.env("RUSTFLAGS", "-Awarnings");
-    let status = cmd.status().context("failed to invoke `cargo build`")?;
-    if !status.success() {
-        bail!("`cargo build` failed");
-    }
-
-    // 3. Run the export binary — pass the target mc_version via env var so the
-    //    subprocess can gate components against the resolved VersionProfile.
+    plan.compile()?;
     let target_dir = cargo_target_dir()?;
-    let profile = if release { "release" } else { "debug" };
-    let binary = target_dir.join(profile).join("sand_export");
-    let output = std::process::Command::new(&binary)
-        .env("SAND_EXPORT_MC_VERSION", &mc_version)
-        .output()
-        .with_context(|| format!("failed to run '{}'", binary.display()))?;
-    if !output.status.success() {
-        bail!(
-            "export binary failed:\n{}",
-            String::from_utf8_lossy(&output.stderr)
-        );
-    }
+    let binaries = plan.binaries(&target_dir);
+
+    // 3. Run the datapack export binary — pass the target mc_version via env
+    //    var so the subprocess can gate components against the resolved
+    //    VersionProfile.
+    let stdout = run_exporter(
+        Exporter::Datapack,
+        &binaries.datapack,
+        &[("SAND_EXPORT_MC_VERSION", &mc_version)],
+    )?;
 
     // 4. Parse component records
-    let records: Vec<ComponentRecord> = serde_json::from_slice(&output.stdout).map_err(|e| {
-        let stdout = String::from_utf8_lossy(&output.stdout);
+    let records: Vec<ComponentRecord> = serde_json::from_slice(&stdout).map_err(|e| {
+        let stdout = String::from_utf8_lossy(&stdout);
         let hint = if stdout.contains("export_resourcepack_json") {
             "\n\nHint: it looks like __sand_export is calling \
              export_resourcepack_json. Resource pack output must go in \
@@ -182,9 +178,11 @@ pub fn run(release: bool, resourcepack: bool) -> Result<()> {
         );
     }
 
-    // 9. Resource pack build (optional, --resourcepack flag)
-    if resourcepack {
-        build_resourcepack(&config, &mc_version, release, &target_dir)?;
+    // 9. Resource pack build (optional, --resourcepack flag).  The binary was
+    //    already compiled in step 2; it runs and is validated independently,
+    //    into its own output root.
+    if let Some(rp_binary) = binaries.resource_pack.as_deref() {
+        build_resourcepack(&config, &project_root, &mc_version, release, rp_binary)?;
     }
 
     Ok(())
@@ -205,7 +203,9 @@ mod tests {
         validate_function_tag, validate_resourcepack_records,
         validate_resourcepack_records_for_project,
     };
-    use super::write::{write_component, write_pack_mcmeta, write_resourcepack_mcmeta};
+    use super::write::{
+        write_component, write_pack_mcmeta, write_resourcepack_mcmeta, write_rp_record,
+    };
     use sand_components::registry_coverage::{REGISTRY_COVERAGE, TAG_COVERAGE};
 
     /// Construct a valid ComponentRecord from parts via JSON deserialization.
@@ -857,6 +857,164 @@ mod tests {
         }))
         .unwrap();
         assert!(validate_component_records_for_project(&dist, &project_root, &[text_nbt]).is_err());
+    }
+
+    // ── Coordinated export compilation (#35) ──────────────────────────────────
+
+    /// The two record families are parsed, validated, and written independently
+    /// even though their exporters are now compiled together.  Nothing from one
+    /// stream may reach the other artifact root.
+    #[test]
+    fn datapack_and_resourcepack_records_stay_in_separate_roots() {
+        let temp = tempfile::tempdir().unwrap();
+        let project_root = temp.path().join("project");
+        let dist = temp.path().join("dist/audit");
+        let rp_dist = temp.path().join("dist/audit-resources");
+        std::fs::create_dir_all(&project_root).unwrap();
+
+        let component_records: Vec<ComponentRecord> = serde_json::from_value(serde_json::json!([
+            {
+                "namespace": "audit",
+                "dir": "function",
+                "path": "load",
+                "ext": "mcfunction",
+                "content": "say loaded",
+            },
+            {
+                "namespace": "audit",
+                "dir": "recipe",
+                "path": "test",
+                "ext": "json",
+                "content": "{\"type\":\"minecraft:crafting_shaped\"}",
+            },
+        ]))
+        .unwrap();
+        let rp_records: Vec<ResourcePackRecord> = serde_json::from_value(serde_json::json!([
+            {
+                "path": "assets/audit/models/item/test.json",
+                "content_type": "json",
+                "content": "{\"parent\":\"minecraft:item/generated\"}",
+            },
+        ]))
+        .unwrap();
+
+        validate_component_records_for_project(&dist, &project_root, &component_records).unwrap();
+        validate_resourcepack_records_for_project(&project_root, &rp_records).unwrap();
+
+        std::fs::create_dir_all(&dist).unwrap();
+        write_pack_mcmeta(&dist, "audit", "data", 71).unwrap();
+        for record in &component_records {
+            write_component(&dist, &project_root, record).unwrap();
+        }
+        std::fs::create_dir_all(&rp_dist).unwrap();
+        write_resourcepack_mcmeta(&rp_dist, "resources", 48).unwrap();
+        for record in &rp_records {
+            write_rp_record(&rp_dist, &project_root, record).unwrap();
+        }
+
+        assert!(dist.join("data/audit/function/load.mcfunction").exists());
+        assert!(
+            !dist.join("assets").exists(),
+            "resource-pack assets must never appear in the datapack root"
+        );
+        assert!(rp_dist.join("assets/audit/models/item/test.json").exists());
+        assert!(
+            !rp_dist.join("data").exists(),
+            "datapack components must never appear in the resource-pack root"
+        );
+    }
+
+    /// Record families cannot be routed into the wrong validator, so a mixed-up
+    /// export stream fails instead of silently writing to the wrong root.
+    #[test]
+    fn record_families_are_not_interchangeable() {
+        // A resource-pack asset path is not a legal ComponentRecord at all.
+        let as_component: Result<ComponentRecord, _> = serde_json::from_value(serde_json::json!({
+            "namespace": "audit",
+            "dir": "assets",
+            "path": "audit/models/item/test",
+            "ext": "json",
+            "content": "{}",
+        }));
+        assert!(
+            as_component.is_err(),
+            "resource-pack records must not deserialize as datapack components"
+        );
+
+        // A datapack output path is rejected by the resource-pack validator.
+        let as_rp = resourcepack_record("data/audit/recipe/test.json", "json", "{}");
+        assert!(
+            validate_resourcepack_records(&[as_rp]).is_err(),
+            "datapack records must not validate as resource-pack assets"
+        );
+    }
+
+    /// The generated bytes depend only on the records, not on how many times or
+    /// in what order the write phase runs.
+    #[test]
+    fn generated_output_is_byte_stable_across_repeated_writes() {
+        let temp = tempfile::tempdir().unwrap();
+        let project_root = temp.path().join("project");
+        std::fs::create_dir_all(&project_root).unwrap();
+
+        let records: Vec<ComponentRecord> = serde_json::from_value(serde_json::json!([
+            {
+                "namespace": "audit",
+                "dir": "function",
+                "path": "load",
+                "ext": "mcfunction",
+                "content": "say loaded\r\nsay again",
+            },
+            {
+                "namespace": "minecraft",
+                "dir": "tags/function",
+                "path": "load",
+                "ext": "json",
+                "content": "{\"values\":[\"audit:load\"]}",
+            },
+        ]))
+        .unwrap();
+
+        let render = |dist: &Path| {
+            std::fs::create_dir_all(dist).unwrap();
+            write_pack_mcmeta(dist, "audit", "byte-stable", 71).unwrap();
+            for record in &records {
+                write_component(dist, &project_root, record).unwrap();
+            }
+            let mut files: Vec<(String, Vec<u8>)> = Vec::new();
+            let mut stack = vec![dist.to_path_buf()];
+            while let Some(dir) = stack.pop() {
+                for entry in std::fs::read_dir(&dir).unwrap() {
+                    let path = entry.unwrap().path();
+                    if path.is_dir() {
+                        stack.push(path);
+                    } else {
+                        let rel = path
+                            .strip_prefix(dist)
+                            .unwrap()
+                            .to_string_lossy()
+                            .replace('\\', "/");
+                        files.push((rel, std::fs::read(&path).unwrap()));
+                    }
+                }
+            }
+            files.sort();
+            files
+        };
+
+        let first = render(&temp.path().join("out-a"));
+        let second = render(&temp.path().join("out-b"));
+        assert_eq!(
+            first, second,
+            "generated datapack output must be byte-stable"
+        );
+        assert!(
+            first.iter().any(
+                |(name, bytes)| name == "data/audit/function/load.mcfunction"
+                    && bytes == b"say loaded\nsay again"
+            ),
+            "function output must keep its normalized LF content: {first:?}"
+        );
     }
 
     // ── Structure copy-source containment (#158) ──────────────────────────────

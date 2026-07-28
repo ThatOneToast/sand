@@ -572,4 +572,233 @@ mod end_to_end {
         );
         assert_file_contains(&join_init_fn, "scoreboard objectives add __sand_join");
     }
+
+    /// `sand build --resourcepack` compiles both exporters in one Cargo
+    /// invocation (see `build::export::ExportBuildPlan`) but must still emit two
+    /// strictly separate artifact roots.
+    #[test]
+    fn sand_build_with_resourcepack_produces_both_artifact_roots() {
+        let tmp = tempfile::tempdir().expect("failed to create temp dir");
+
+        let mut new_cmd = std::process::Command::new(sand_bin());
+        new_cmd
+            .args([
+                "new",
+                "rp_pack",
+                "--mc-version",
+                "1.21.4",
+                "--path-deps",
+                "--resourcepack",
+            ])
+            .current_dir(tmp.path())
+            .env("NO_COLOR", "1");
+        run(&mut new_cmd);
+
+        let project = tmp.path().join("rp_pack");
+        assert!(
+            project.join("src/bin/sand_resource_export.rs").exists(),
+            "`sand new --resourcepack` must scaffold the resource exporter"
+        );
+
+        // The scaffold ships every resource-pack example commented out, so an
+        // untouched project exports zero assets and the crossover assertions
+        // below would be vacuous. Register one real HUD element — `create!`
+        // generates the texture, so no PNG fixture is needed.
+        //
+        // NOTE: `hud_element!` parses `key = value` pairs (`syn::ExprAssign`),
+        // not the `key: value` form its rustdoc and the `sand new` template
+        // show. That mismatch is a separate pre-existing bug; this test uses
+        // the form that actually compiles.
+        let lib_rs = project.join("src/lib.rs");
+        let mut lib_src = std::fs::read_to_string(&lib_rs).unwrap();
+        lib_src.push_str(
+            "\nsand::hud_element!(\n\
+             \x20   name = \"dark_overlay\",\n\
+             \x20   texture = create!(color = 0x00000080),\n\
+             \x20   height = 22,\n\
+             \x20   ascent = -10,\n\
+             );\n",
+        );
+        std::fs::write(&lib_rs, lib_src).unwrap();
+
+        // `sand new` pre-warms the cache with `cargo build`, which builds every
+        // bin target. Remove both exporters so what follows observes only what
+        // `sand build` itself compiles.
+        for bin in ["sand_export", "sand_resource_export"] {
+            let _ = std::fs::remove_file(project.join("target/debug").join(bin));
+        }
+
+        let mut build_cmd = std::process::Command::new(sand_bin());
+        build_cmd
+            .args(["build", "--resourcepack"])
+            .current_dir(&project)
+            .env("NO_COLOR", "1");
+        run(&mut build_cmd);
+
+        let dist = project.join("dist/rp_pack");
+        let rp_dist = project.join("dist/rp_pack-resources");
+        assert!(dist.is_dir(), "datapack root must exist");
+        assert!(rp_dist.is_dir(), "resource-pack root must exist");
+        assert!(dist.join("pack.mcmeta").exists());
+        assert!(rp_dist.join("pack.mcmeta").exists());
+
+        // No crossover between the two record streams. Both roots have real
+        // content, so these assertions are not vacuous.
+        assert!(
+            dist.join("data/rp_pack").is_dir(),
+            "datapack components must be written under the datapack root"
+        );
+        let rp_assets = rp_dist.join("assets");
+        assert!(
+            rp_assets.is_dir() && std::fs::read_dir(&rp_assets).unwrap().next().is_some(),
+            "the registered HUD element must produce resource-pack assets"
+        );
+        assert!(
+            !dist.join("assets").exists(),
+            "resource-pack assets must not land in the datapack root"
+        );
+        assert!(
+            !rp_dist.join("data").exists(),
+            "datapack components must not land in the resource-pack root"
+        );
+
+        // Both exporters were compiled by the single coordinated invocation.
+        let target = project.join("target/debug");
+        for bin in ["sand_export", "sand_resource_export"] {
+            assert!(
+                target.join(bin).exists(),
+                "`sand build --resourcepack` must compile {bin}"
+            );
+        }
+    }
+
+    /// `sand build --resourcepack` must issue exactly one `cargo build`.
+    ///
+    /// Counting the real subprocesses is the only thing that catches a second
+    /// invocation being reintroduced anywhere in the pipeline — asserting on a
+    /// command-argument vector cannot. A `cargo` shim early on `PATH` logs each
+    /// invocation and delegates to the real Cargo.
+    #[cfg(unix)]
+    #[test]
+    fn resourcepack_build_issues_exactly_one_cargo_build() {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        let tmp = tempfile::tempdir().expect("failed to create temp dir");
+
+        let mut new_cmd = std::process::Command::new(sand_bin());
+        new_cmd
+            .args([
+                "new",
+                "shim_pack",
+                "--mc-version",
+                "1.21.4",
+                "--path-deps",
+                "--resourcepack",
+            ])
+            .current_dir(tmp.path())
+            .env("NO_COLOR", "1");
+        run(&mut new_cmd);
+        let project = tmp.path().join("shim_pack");
+
+        // Shim directory placed ahead of the real cargo on PATH.
+        let shim_dir = tmp.path().join("shim");
+        std::fs::create_dir_all(&shim_dir).unwrap();
+        let log = tmp.path().join("cargo-invocations.log");
+        let real_cargo = std::env::var("CARGO").expect("CARGO is set for cargo-run tests");
+        let shim = shim_dir.join("cargo");
+        std::fs::write(
+            &shim,
+            format!(
+                "#!/bin/sh\nprintf '%s\\n' \"$*\" >> '{}'\nexec '{}' \"$@\"\n",
+                log.display(),
+                real_cargo
+            ),
+        )
+        .unwrap();
+        std::fs::set_permissions(&shim, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+        let path = format!(
+            "{}:{}",
+            shim_dir.display(),
+            std::env::var("PATH").unwrap_or_default()
+        );
+        let mut build_cmd = std::process::Command::new(sand_bin());
+        build_cmd
+            .args(["build", "--resourcepack"])
+            .current_dir(&project)
+            .env("PATH", &path)
+            .env("NO_COLOR", "1");
+        run(&mut build_cmd);
+
+        let invocations = std::fs::read_to_string(&log).expect("the shim must have been used");
+        let builds: Vec<&str> = invocations
+            .lines()
+            .filter(|line| line.split_whitespace().next() == Some("build"))
+            .collect();
+        assert_eq!(
+            builds.len(),
+            1,
+            "`sand build --resourcepack` must run exactly one `cargo build`, got:\n{invocations}"
+        );
+        assert!(
+            builds[0].contains("--bin sand_export")
+                && builds[0].contains("--bin sand_resource_export"),
+            "the single invocation must compile both exporters: {}",
+            builds[0]
+        );
+    }
+
+    /// A datapack-only build never compiles or runs the resource exporter, even
+    /// in a project that has one.
+    #[test]
+    fn datapack_only_build_does_not_compile_the_resource_exporter() {
+        let tmp = tempfile::tempdir().expect("failed to create temp dir");
+
+        let mut new_cmd = std::process::Command::new(sand_bin());
+        new_cmd
+            .args([
+                "new",
+                "dp_only",
+                "--mc-version",
+                "1.21.4",
+                "--path-deps",
+                "--resourcepack",
+            ])
+            .current_dir(tmp.path())
+            .env("NO_COLOR", "1");
+        run(&mut new_cmd);
+
+        let project = tmp.path().join("dp_only");
+
+        // `sand new` pre-warms with a plain `cargo build`, which builds every
+        // bin target. Remove both exporters first so the assertions below
+        // reflect only what `sand build` compiles.
+        for bin in ["sand_export", "sand_resource_export"] {
+            let _ = std::fs::remove_file(project.join("target/debug").join(bin));
+        }
+
+        let mut build_cmd = std::process::Command::new(sand_bin());
+        build_cmd
+            .arg("build")
+            .current_dir(&project)
+            .env("NO_COLOR", "1");
+        run(&mut build_cmd);
+
+        assert!(
+            project.join("dist/dp_only/pack.mcmeta").exists(),
+            "datapack output must be written"
+        );
+        assert!(
+            !project.join("dist/dp_only-resources").exists(),
+            "a datapack-only build must not produce resource-pack output"
+        );
+        assert!(
+            project.join("target/debug/sand_export").exists(),
+            "the datapack exporter must be compiled"
+        );
+        assert!(
+            !project.join("target/debug/sand_resource_export").exists(),
+            "a datapack-only build must not compile the resource exporter"
+        );
+    }
 }

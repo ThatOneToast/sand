@@ -61,16 +61,20 @@ Rust toolchain is enough:
   Rust project, Sand or not. **No Sand-specific wiring is needed for this
   tier** — rust-analyzer already gives Sand authors macro-expansion diagnostics
   for free today.
-- **`sand build`** — what `sand-cli/src/build/mod.rs:81-105` actually does:
+- **`sand build`** — what `sand-cli/src/build/mod.rs` (step 2 onward) actually
+  does:
   1. `cargo build --bin sand_export` (with `RUSTFLAGS=-Awarnings`) — a full
      compile, status inherited straight to the terminal, so **normal rustc
-     diagnostics only**.
+     diagnostics only**. With `--resourcepack` the same invocation also carries
+     `--bin sand_resource_export`, so both exporters are compiled once
+     (`sand-cli/src/build/export.rs`).
   2. Runs the resulting `sand_export` binary and captures its stdout (a JSON
      array of component records) and stderr.
   3. If the binary exits non-zero, `sand build` `bail!`s with the *entire*
-     captured stderr text as one opaque error string (`sand-cli/src/build/mod.rs:100-104`).
+     captured stderr text as one opaque error string, prefixed with which
+     exporter failed (`sand-cli/src/build/export.rs`, `run_exporter`).
   4. If it exits zero but produces malformed/unexpected JSON, `sand build`
-     synthesizes a best-effort text hint (`sand-cli/src/build/mod.rs:107-125`).
+     synthesizes a best-effort text hint (`sand-cli/src/build/mod.rs`, step 4).
 
 So today, a `sand build` failure surfaces as: either a normal `cargo build`
 diagnostic (span-accurate, already IDE-legible via rust-analyzer/rustc), or a

@@ -15,8 +15,8 @@ The derive creates typed handles and stable per-entity scoreboard objectives.
 The Rust struct is schema metadata; it is never constructed at runtime.
 
 ```rust
-#[derive(EntityState)]
-#[entity_state(namespace = "rpg", name = "zombie", version = 2)]
+#[derive(State)]
+#[state(namespace = "rpg", scope = living, name = "zombie", version = 2)]
 struct ZombieState {
     #[state(default = 1, min = 1, max = 100)]
     level: EntityScore<i32>,

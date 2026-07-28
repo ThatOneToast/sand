@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — derive-based scoped state schemas (#298)
+
+- **Breaking:** `#[derive(State)]` with `#[state(namespace = "...", scope =
+  player|entity|living|global)]` is now the single declaration path for the
+  migrated state-schema surface. The derive generates a concrete
+  `<Schema>Bound` struct, public typed accessor fields, and scope-correct
+  `Schema::on(...)` or `Schema::global()` entry points.
+- Player and global schemas provision deterministic objectives and initialize
+  defaults automatically. `auto_tick` is accepted only on timer/cooldown
+  fields; schemas without lifecycle work do not add tick commands. Entity and
+  living schemas continue to receive constrained lifecycle scans only through
+  explicit archetype attachment.
+- The superseded state and temporary-objective function-like declaration
+  macros, the entity-specific derive name, the separate temporary-score export
+  phase, their façade exports, and their dedicated tests/examples were removed
+  with no compatibility aliases.
+
 ### Performance — one Cargo invocation for both exporters (#35)
 
 - **`sand build --resourcepack` no longer pays for two Cargo build cycles

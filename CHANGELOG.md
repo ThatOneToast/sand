@@ -7,6 +7,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Performance — one Cargo invocation for both exporters (#35)
+
+- **`sand build --resourcepack` no longer pays for two Cargo build cycles
+  (#35).** The datapack path ran `cargo build --bin sand_export`, and the
+  resource-pack step later ran a second, separate `cargo build --bin
+  sand_resource_export`, so Cargo re-resolved and re-analysed the project twice
+  per resource-pack build. Compilation is now planned up front by
+  `build::export::ExportBuildPlan`: a datapack-only build runs `cargo build
+  --bin sand_export` exactly as before, and `--resourcepack` runs `cargo build
+  --bin sand_export --bin sand_resource_export` once. Only compilation is
+  coordinated — the exporters still run as separate processes, the datapack
+  stream is still parsed as `ComponentRecord` and the resource-pack stream as
+  `ResourcePackRecord`, each is validated against its own rules, and each is
+  written to its own output root. Generated pack contents are unchanged.
+  Exporter failures are now attributed by name ("datapack exporter
+  `sand_export` failed" / "resource-pack exporter `sand_resource_export`
+  failed") instead of two similar-looking messages.
+- **`sand new`'s pre-warm build is no longer thrown away (#35).** `sand new`
+  ran a plain `cargo build` to warm the cache while `sand build` compiles with
+  `RUSTFLAGS=-Awarnings`. `RUSTFLAGS` is part of Cargo's fingerprint, so the
+  mismatch dirtied every unit in the graph and the first `sand build` after
+  `sand new` recompiled the whole dependency tree. The pre-warm now uses the
+  same `RUSTFLAGS`. This is a far larger saving than the duplicated invocation
+  itself.
+- **Behavior change:** with `--resourcepack`, anything that stops the resource
+  exporter from *compiling* — a missing `src/bin/sand_resource_export.rs`, or a
+  compile error in it — now fails before the datapack is written rather than
+  after. Error text and scaffolding instructions are unchanged; the build
+  simply no longer produces datapack output for a run that cannot complete.
+  Datapack-only builds are unaffected.
+
+### Fixed — structure copy sources can no longer escape the project root (#158)
+
+- **Structure-template copy sources are now canonically contained (#158).**
+  `validate_structure_source_file` joined the declared source onto the project
+  root and accepted it if `std::fs::metadata` reported a file. Because
+  `metadata` follows symlinks, a project-relative source such as
+  `src/structures/leak.nbt -> ../../outside/leak.nbt` — or any source reached
+  through a symlinked intermediate directory — passed every lexical check
+  (absolute, `..`, prefix, null byte, `.nbt`) and was copied into
+  `data/<namespace>/structure/…`. That left the datapack copy boundary weaker
+  than the resource-pack copy boundary hardened in #154/#156. Both paths now
+  share one helper, `validate_copy_source_within_project`, which canonicalizes
+  the project root and the source and requires the canonical source to stay
+  inside the canonical root. **Symlink policy:** a symlink is accepted only
+  when its resolved target is still inside the project root, matching the
+  existing resource-pack policy. Containment is component-wise, so
+  `project-other` is not treated as inside `project`. Every structure record is
+  still validated before the datapack output directory is created, and the
+  missing, not-a-file, and unreadable diagnostics are unchanged. A symlink
+  whose target is missing now says so instead of reporting a file the author
+  can see in their tree as "not found". Two limits are documented rather than
+  claimed away: hard links are invisible to canonicalization, and the check is
+  a preflight, not a race-free copy (the copy re-joins the path afterwards, as
+  the resource-pack path already did).
+
 ### Fixed — collision-safe schedule objectives, typed state holders, typed target filters (#124, #146, #200)
 
 - **Generated schedule objectives can no longer silently collide (#124).**

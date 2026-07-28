@@ -2275,8 +2275,9 @@ pub(crate) fn try_export_components_impl(
         let mut load_definitions: BTreeMap<String, (String, String)> = BTreeMap::new();
 
         for command in automatic.load_commands {
-            let mut parts = command.split_whitespace();
+            let mut parts = command.splitn(6, ' ');
             let parsed = match (
+                parts.next(),
                 parts.next(),
                 parts.next(),
                 parts.next(),
@@ -2289,7 +2290,12 @@ pub(crate) fn try_export_components_impl(
                     Some("add"),
                     Some(objective),
                     Some(criterion),
-                ) if parts.next().is_none() => Some((objective.to_string(), criterion.to_string())),
+                    display_name,
+                ) if display_name
+                    .is_none_or(|json| serde_json::from_str::<serde_json::Value>(json).is_ok()) =>
+                {
+                    Some((objective.to_string(), criterion.to_string()))
+                }
                 _ => None,
             };
 

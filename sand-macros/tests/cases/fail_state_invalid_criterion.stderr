@@ -1,0 +1,5 @@
+error: state objective criterion must be non-empty and contain only ASCII letters, digits, `_`, `.`, `:`, or `-`
+ --> tests/cases/fail_state_invalid_criterion.rs:6:25
+  |
+6 |     #[state(criterion = "not a criterion")]
+  |                         ^^^^^^^^^^^^^^^^^

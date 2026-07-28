@@ -152,25 +152,111 @@ fn validate_structure_source_path(path: &str) -> Result<()> {
 }
 
 fn validate_structure_source_file(project_root: &Path, record: &ComponentRecord) -> Result<()> {
-    let src = project_root.join(&record.content);
-    let metadata = std::fs::metadata(&src).with_context(|| {
+    validate_copy_source_within_project(
+        project_root,
+        &record.content,
+        "datapack structure asset",
+        "a project-root-relative .nbt file",
+    )
+}
+
+/// Resolves a project-relative copy source and proves it stays inside the
+/// project root.
+///
+/// Shared by the datapack structure-template path and the resource-pack copy
+/// path so the two export boundaries cannot drift apart again.
+///
+/// The lexical checks performed by the callers (`..`, absolute paths, prefixes,
+/// null bytes) are not sufficient on their own: `std::fs::metadata` follows
+/// symlinks, so a project-relative source such as `structures/leak.nbt ->
+/// ../../secrets/leak.nbt` passes every lexical rule while resolving outside
+/// the project. Canonicalizing both sides and requiring containment closes
+/// that hole, including for symlinked intermediate directories.
+///
+/// **Symlink policy:** a symlink is accepted only when its fully resolved
+/// target is still inside the canonical project root. A project may therefore
+/// keep assets behind an internal symlink, but a symlink pointing out of the
+/// project tree is rejected.
+///
+/// Containment is checked component-wise via [`Path::starts_with`], so a
+/// sibling directory like `/tmp/project-other` is not treated as being inside
+/// `/tmp/project`. Both sides are canonical, so a project root reached through
+/// a symlink compares correctly against sources under it.
+///
+/// # Limits
+///
+/// - **Hard links are invisible here.** Canonicalization resolves symlinks, not
+///   hard links, so a hard link created inside the project to an outside file
+///   resolves to an in-project path and is accepted. Nothing at this layer can
+///   distinguish that from an ordinary file.
+/// - **Not race-free.** The source is canonicalized and opened here, then
+///   re-joined and copied later by [`super::write`]. A source swapped between
+///   the two steps is out of scope, exactly as it is for the resource-pack
+///   path. Closing that window would require copying through the handle opened
+///   during validation.
+///
+/// `label` names the artifact family for diagnostics ("datapack structure
+/// asset", "resource-pack asset") and `expected` completes the remediation
+/// hint after "Make sure the source path points to ".
+fn validate_copy_source_within_project(
+    project_root: &Path,
+    source: &str,
+    label: &str,
+    expected: &str,
+) -> Result<()> {
+    let src = project_root.join(source);
+    let canonical_project_root = project_root.canonicalize().with_context(|| {
         format!(
-            "datapack structure asset not found or unreadable before writing output: '{}'\n\
-             Make sure the file exists relative to your project root.",
-            src.display()
+            "failed to canonicalize project root '{}'",
+            project_root.display()
         )
+    })?;
+    // Probe metadata first so a missing or unreadable source keeps its specific
+    // diagnostic instead of surfacing a bare canonicalization failure.
+    let metadata = std::fs::metadata(&src).with_context(|| {
+        // `metadata` follows symlinks, so a link whose target is missing or
+        // unreadable looks identical to a missing file — say which it is, or
+        // the author sees a "not found" error for a path they can see on disk.
+        let is_symlink = std::fs::symlink_metadata(&src).is_ok_and(|m| m.file_type().is_symlink());
+        if is_symlink {
+            format!(
+                "{label} is a symlink whose target is missing or unreadable: '{}'\n\
+                 Make sure the link resolves to {expected} inside your project root.",
+                src.display()
+            )
+        } else {
+            format!(
+                "{label} not found or unreadable before writing output: '{}'\n\
+                 Make sure the file exists relative to your project root.",
+                src.display()
+            )
+        }
     })?;
     if !metadata.is_file() {
         bail!(
-            "datapack structure asset is not a file: '{}'\n\
-             Make sure the source path points to a project-root-relative .nbt file.",
+            "{label} is not a file: '{}'\n\
+             Make sure the source path points to {expected}.",
+            src.display()
+        );
+    }
+
+    let canonical_src = src.canonicalize().with_context(|| {
+        format!(
+            "{label} not found or unreadable before writing output: '{}'",
+            src.display()
+        )
+    })?;
+    if !canonical_src.starts_with(&canonical_project_root) {
+        bail!(
+            "{label} escapes the project root: '{}'\n\
+             Make sure the source path points to {expected}.",
             src.display()
         );
     }
 
     std::fs::File::open(&src).with_context(|| {
         format!(
-            "datapack structure asset not readable before writing output: '{}'",
+            "{label} not readable before writing output: '{}'",
             src.display()
         )
     })?;
@@ -257,50 +343,12 @@ fn validate_resourcepack_copy_source_file(
     project_root: &Path,
     record: &ResourcePackRecord,
 ) -> Result<()> {
-    let src = project_root.join(&record.content);
-    let canonical_project_root = project_root.canonicalize().with_context(|| {
-        format!(
-            "failed to canonicalize project root '{}'",
-            project_root.display()
-        )
-    })?;
-    let metadata = std::fs::metadata(&src).with_context(|| {
-        format!(
-            "resource-pack asset not found or unreadable before writing output: '{}'\n\
-             Make sure the file exists relative to your project root.",
-            src.display()
-        )
-    })?;
-    if !metadata.is_file() {
-        bail!(
-            "resource-pack asset is not a file: '{}'\n\
-             Make sure the source path points to a project-root-relative file.",
-            src.display()
-        );
-    }
-
-    let canonical_src = src.canonicalize().with_context(|| {
-        format!(
-            "resource-pack asset not found or unreadable before writing output: '{}'",
-            src.display()
-        )
-    })?;
-    if !canonical_src.starts_with(&canonical_project_root) {
-        bail!(
-            "resource-pack asset escapes the project root: '{}'\n\
-             Make sure the source path points to a project-root-relative file.",
-            src.display()
-        );
-    }
-
-    std::fs::File::open(&src).with_context(|| {
-        format!(
-            "resource-pack asset not readable before writing output: '{}'",
-            src.display()
-        )
-    })?;
-
-    Ok(())
+    validate_copy_source_within_project(
+        project_root,
+        &record.content,
+        "resource-pack asset",
+        "a project-root-relative file",
+    )
 }
 
 /// Validates a Minecraft function tag JSON string.

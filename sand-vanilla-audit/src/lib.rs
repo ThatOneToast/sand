@@ -4,8 +4,9 @@ use sand_core::event::vanilla::{OnDeath, OnRespawn, PlayerStartsSneaking, Player
 use sand_core::events::{EventSetup, PlayerSneakEvent, SandEvent, SandEventDispatch, TickWindow};
 use sand_core::prelude::*;
 use sand_core::{FloatRange, IntRange, NumberProvider};
-use sand_macros::{component, event, function};
+use sand_macros::{State, component, event, function};
 
+#[allow(dead_code)]
 #[derive(State)]
 #[state(namespace = "sand_audit", scope = player)]
 struct AuditState {

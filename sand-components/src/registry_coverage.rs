@@ -245,12 +245,13 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         datapack_dir: "trim_material",
         tag_dir: None,
         sand_module: Some("sand_components::trim"),
-        api_status: RegistryApiStatus::FullyImplemented,
+        api_status: RegistryApiStatus::PartiallyImplemented,
         version_gate: Some("1.19.4"),
-        notes: "TrimMaterial in sand_components::trim module. validate() rejects empty/malformed asset_name and \
-                ingredient, and non-finite item_model_index before export (no numeric range enforced — see \
-                module docs, item_model_index has no vanilla-documented bound). Golden JSON test: \
-                trim::tests::valid_trim_material_json_is_stable. See #141.",
+        notes: "TrimMaterial uses typed ItemId, TextComponent, ResourceLocation armor-material keys, and \
+                validated TrimAssetName values on the normal path; raw descriptions/override objects are \
+                explicit. item_model_index remains the legacy pre-1.21.4 field and current \
+                override_armor_assets is not yet modeled. Golden JSON test: \
+                trim::tests::valid_trim_material_json_is_stable. Typed migration: #198.",
     },
     RegistryCoverage {
         registry_key: "minecraft:trim_pattern",
@@ -259,9 +260,9 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         sand_module: Some("sand_components::trim"),
         api_status: RegistryApiStatus::FullyImplemented,
         version_gate: Some("1.19.4"),
-        notes: "TrimPattern in sand_components::trim module. validate() rejects empty/malformed asset_id and \
-                template_item before export. Golden JSON test: trim::tests::valid_trim_pattern_json_is_stable. \
-                See #141.",
+        notes: "TrimPattern uses typed ResourceLocation, ItemId, and TextComponent inputs on the normal \
+                path, with an explicitly named raw text escape hatch. Golden JSON test: \
+                trim::tests::valid_trim_pattern_json_is_stable. Typed migration: #198.",
     },
     RegistryCoverage {
         registry_key: "minecraft:wolf_variant",

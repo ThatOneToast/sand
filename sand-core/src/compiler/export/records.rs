@@ -875,6 +875,34 @@ mod tests {
     }
 
     #[test]
+    fn typed_trim_components_export_to_their_registry_directories() {
+        let material = sand_components::TrimMaterial::new(test_rl("test", "quartz"))
+            .asset_name(sand_components::TrimAssetName::new("quartz").unwrap())
+            .ingredient(sand_components::ItemId::minecraft("quartz").unwrap())
+            .item_model_index(0.1)
+            .description(sand_commands::TextComponent::translate(
+                "trim_material.test.quartz",
+            ));
+        let material_record = component_to_record(&material, None).unwrap();
+        assert_eq!(material_record.dir, "trim_material");
+        assert_eq!(material_record.path, "quartz");
+        assert!(material_record.content.contains("\"minecraft:quartz\""));
+
+        let pattern = sand_components::TrimPattern::new(test_rl("test", "bolt"))
+            .asset_id(test_rl("test", "bolt"))
+            .template_item(
+                sand_components::ItemId::minecraft("bolt_armor_trim_smithing_template").unwrap(),
+            )
+            .description(sand_commands::TextComponent::translate(
+                "trim_pattern.test.bolt",
+            ));
+        let pattern_record = component_to_record(&pattern, None).unwrap();
+        assert_eq!(pattern_record.dir, "trim_pattern");
+        assert_eq!(pattern_record.path, "bolt");
+        assert!(pattern_record.content.contains("\"test:bolt\""));
+    }
+
+    #[test]
     fn valid_instrument_exports_deterministically() {
         let inst = sand_components::Instrument::new(test_rl("test", "horn"))
             .sound_event("minecraft:item.goat_horn.sound.0");

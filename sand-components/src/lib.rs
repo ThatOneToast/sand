@@ -160,7 +160,7 @@ pub use structure_template::StructureTemplate;
 
 // ── Trim ──────────────────────────────────────────────────────────────────────
 
-pub use trim::{TrimMaterial, TrimPattern};
+pub use trim::{TrimAssetName, TrimMaterial, TrimPattern};
 
 // ── Wolf Variant ──────────────────────────────────────────────────────────────
 

@@ -44,7 +44,7 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
         if !seen.insert(field_name.clone()) {
             return Err(syn::Error::new_spanned(
                 ident,
-                format!("duplicate entity state field `{field_name}`"),
+                format!("duplicate State field `{field_name}`"),
             ));
         }
         let attrs = parse_field_config(field)?;
@@ -62,6 +62,26 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
                 field,
                 "`auto_tick` is only valid on EntityTimer and EntityCooldown fields",
             ));
+        }
+        if matches!(config.scope, Scope::Entity | Scope::Living) {
+            if let Some(criterion) = &attrs.criterion {
+                return Err(syn::Error::new_spanned(
+                    criterion,
+                    "`criterion` is only supported on player/global State score fields; entity/living criteria require later archetype dirty-observer integration",
+                ));
+            }
+            if let Some(display_name) = &attrs.display_name {
+                return Err(syn::Error::new_spanned(
+                    display_name,
+                    "`display_name` is only supported on player/global State score fields; entity/living display names require later archetype objective lowering",
+                ));
+            }
+            if attrs.auto_tick {
+                return Err(syn::Error::new_spanned(
+                    field,
+                    "`auto_tick` is only supported on player/global State fields; entity/living ticking is owned by archetype reconciliation",
+                ));
+            }
         }
         let namespace = &config.namespace;
         let schema_name = &config.name;
@@ -107,7 +127,7 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
                 let default = numeric_default(default, field)?;
                 (
                     quote! {
-                        #[doc = concat!("Typed handle for the `", #field_name, "` entity state field.")]
+                        #[doc = concat!("Typed handle for the `", #field_name, "` State field.")]
                         pub const #ident: ::sand::__private::EntityScore<#ty> =
                             ::sand::__private::EntityScore::__new(
                                 #namespace, #schema_name, #field_name, #kind, #default, #bounds
@@ -127,7 +147,7 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
                 let default = boolean_default(default, field)?;
                 (
                     quote! {
-                        #[doc = concat!("Typed handle for the `", #field_name, "` entity state field.")]
+                        #[doc = concat!("Typed handle for the `", #field_name, "` State field.")]
                         pub const #ident: ::sand::__private::EntityFlag =
                             ::sand::__private::EntityFlag::new(
                                 #namespace, #schema_name, #field_name, #default
@@ -150,7 +170,7 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
                 let default = enum_default(default, &ty)?;
                 (
                     quote! {
-                        #[doc = concat!("Typed handle for the `", #field_name, "` entity state field.")]
+                        #[doc = concat!("Typed handle for the `", #field_name, "` State field.")]
                         pub const #ident: ::sand::__private::EntityEnum<#ty> =
                             ::sand::__private::EntityEnum::new(
                                 #namespace, #schema_name, #field_name, #default
@@ -181,7 +201,7 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
                 }
                 (
                     quote! {
-                        #[doc = concat!("Typed handle for the `", #field_name, "` entity state field.")]
+                        #[doc = concat!("Typed handle for the `", #field_name, "` State field.")]
                         pub const #ident: ::sand::__private::EntityTimer =
                             ::sand::__private::EntityTimer::new(
                                 #namespace, #schema_name, #field_name, #default
@@ -214,7 +234,7 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
                 }
                 (
                     quote! {
-                        #[doc = concat!("Typed handle for the `", #field_name, "` entity state field.")]
+                        #[doc = concat!("Typed handle for the `", #field_name, "` State field.")]
                         pub const #ident: ::sand::__private::EntityCooldown =
                             ::sand::__private::EntityCooldown::new(
                                 #namespace, #schema_name, #field_name
@@ -239,8 +259,13 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
             #[doc = concat!("Bound accessor for the `", #field_name, "` state field.")]
             pub #ident: #accessor
         });
+        let track_dirty = matches!(config.scope, Scope::Entity | Scope::Living);
         bound_values.push(quote! {
-            #ident: ::sand::__private::EntityStateField::bind_to(Self::#ident, holder)
+            #ident: ::sand::__private::EntityStateField::bind_to(
+                Self::#ident,
+                holder,
+                #track_dirty,
+            )
         });
 
         if matches!(config.scope, Scope::Player | Scope::Global) {
@@ -299,6 +324,7 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
     }
 
     let ident = &input.ident;
+    let visibility = &input.vis;
     let bound_ident = quote::format_ident!("{}Bound", ident);
     let namespace = &config.namespace;
     let name = &config.name;
@@ -343,7 +369,7 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
     };
     Ok(quote! {
         #[derive(Debug, Clone, Copy)]
-        pub struct #bound_ident {
+        #visibility struct #bound_ident {
             #(#bound_fields),*
         }
 
@@ -533,7 +559,7 @@ fn parse_schema_config(input: &DeriveInput) -> syn::Result<SchemaConfig> {
     if version == 0 {
         return Err(syn::Error::new_spanned(
             attrs[0],
-            "entity state version zero is reserved for uninitialized entities",
+            "State schema version zero is reserved for uninitialized entities",
         ));
     }
     Ok(SchemaConfig {
@@ -691,7 +717,7 @@ fn parse_wrapper(ty: &Type) -> syn::Result<Wrapper> {
         }
         _ => Err(syn::Error::new_spanned(
             ty,
-            "unsupported EntityState field wrapper; expected EntityScore<T>, EntityFlag, EntityEnum<T>, EntityTimer, or EntityCooldown",
+            "unsupported State field wrapper; expected EntityScore<T>, EntityFlag, EntityEnum<T>, EntityTimer, or EntityCooldown",
         )),
     }
 }
@@ -843,9 +869,9 @@ fn validate_resource_part(value: &LitStr, path: bool) -> syn::Result<()> {
         Err(syn::Error::new_spanned(
             value,
             if path {
-                "entity state name must use lowercase resource-path characters [a-z0-9_./-]"
+                "State schema name must use lowercase resource-path characters [a-z0-9_./-]"
             } else {
-                "entity state namespace must use lowercase characters [a-z0-9_.-]"
+                "State schema namespace must use lowercase characters [a-z0-9_.-]"
             },
         ))
     }

@@ -20,7 +20,7 @@ struct GenericState {
 #[derive(State)]
 #[state(namespace = "test", scope = living)]
 struct LivingState {
-    #[state(default = 0, auto_tick)]
+    #[state(default = 0)]
     age: EntityTimer,
 }
 

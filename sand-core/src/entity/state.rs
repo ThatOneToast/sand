@@ -1,14 +1,19 @@
-//! Typed state persisted on the entity currently bound to `@s`.
+//! Typed scoreboard-backed state for entity, living-entity, player, and global
+//! schemas.
 //!
-//! Numeric values, flags, enums, timers, cooldowns, versions, and dirty bits
-//! use entity scoreboard entries. This is deliberate: arbitrary custom
-//! top-level entity NBT is not a reliable persistence mechanism in Minecraft
-//! 26.2. State survives chunk unloading with the entity, but generated timers
-//! and observers do not run while the entity is unloaded.
+//! Entity and living-entity state normally binds to the entity currently
+//! executing as `@s`. Its accessors may mark deterministic hidden source-dirty
+//! objectives so an archetype can reconcile only outputs that depend on the
+//! changed field. State survives chunk unloading with the entity, but generated
+//! timers and observers do not run while the entity is unloaded.
 //!
-//! Accessors emit Minecraft commands; they do not mutate Rust memory. Every
-//! normal write also marks a deterministic hidden source-dirty objective so an
-//! archetype can refresh only outputs that depend on the changed field.
+//! Player state binds to the current player without dirty tracking. Global
+//! state binds to a deterministic fake-player score holder, also without dirty
+//! tracking. Accessors for every scope emit Minecraft commands; they do not
+//! mutate Rust memory.
+//!
+//! Scoreboard persistence is deliberate: arbitrary custom top-level entity NBT
+//! is not a reliable persistence mechanism in Minecraft 26.2.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
@@ -92,7 +97,7 @@ impl StateFieldDescriptor {
     }
 }
 
-/// Complete metadata for an entity-bound state schema.
+/// Complete metadata for a typed state schema.
 #[derive(Debug, Clone, Copy)]
 pub struct StateSchema {
     /// Namespace used in generated logical names.
@@ -308,7 +313,11 @@ impl<T: 'static> EntityStateField for EntityScore<T> {
     }
 }
 
-/// An [`EntityScore`] bound to `@s`.
+/// An [`EntityScore`] bound to its schema-selected score holder.
+///
+/// Entity/living schemas normally use the current executor (`@s`), player
+/// schemas use the current player (`@s`), and global schemas use their
+/// deterministic fake-player holder.
 #[derive(Debug, Clone, Copy)]
 pub struct EntityScoreAccessor<T = i32> {
     field: EntityScore<T>,
@@ -444,7 +453,11 @@ impl EntityStateField for EntityFlag {
     }
 }
 
-/// An [`EntityFlag`] bound to `@s`.
+/// An [`EntityFlag`] bound to its schema-selected score holder.
+///
+/// Entity/living schemas normally use the current executor (`@s`), player
+/// schemas use the current player (`@s`), and global schemas use their
+/// deterministic fake-player holder.
 #[derive(Debug, Clone, Copy)]
 pub struct EntityFlagAccessor {
     field: EntityFlag,
@@ -540,7 +553,11 @@ impl<T: EntityEnumValue> EntityStateField for EntityEnum<T> {
     }
 }
 
-/// An [`EntityEnum`] bound to `@s`.
+/// An [`EntityEnum`] bound to its schema-selected score holder.
+///
+/// Entity/living schemas normally use the current executor (`@s`), player
+/// schemas use the current player (`@s`), and global schemas use their
+/// deterministic fake-player holder.
 #[derive(Debug, Clone, Copy)]
 pub struct EntityEnumAccessor<T: EntityEnumValue> {
     field: EntityEnum<T>,
@@ -627,7 +644,11 @@ impl EntityStateField for EntityTimer {
     }
 }
 
-/// An [`EntityTimer`] bound to `@s`.
+/// An [`EntityTimer`] bound to its schema-selected score holder.
+///
+/// Entity/living schemas normally use the current executor (`@s`), player
+/// schemas use the current player (`@s`), and global schemas use their
+/// deterministic fake-player holder.
 #[derive(Debug, Clone, Copy)]
 pub struct EntityTimerAccessor {
     field: EntityTimer,
@@ -723,7 +744,11 @@ impl EntityStateField for EntityCooldown {
     }
 }
 
-/// An [`EntityCooldown`] bound to `@s`.
+/// An [`EntityCooldown`] bound to its schema-selected score holder.
+///
+/// Entity/living schemas normally use the current executor (`@s`), player
+/// schemas use the current player (`@s`), and global schemas use their
+/// deterministic fake-player holder.
 #[derive(Debug, Clone, Copy)]
 pub struct EntityCooldownAccessor {
     field: EntityCooldown,

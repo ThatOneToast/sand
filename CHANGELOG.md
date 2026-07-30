@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — typed trim material and pattern fields (#198)
+
+- **Breaking:** `TrimMaterial` and `TrimPattern` now require typed `ItemId`,
+  `ResourceLocation`, `TextComponent`, and `TrimAssetName` values on their
+  normal builder paths instead of accepting arbitrary strings or JSON.
+- Armor-material overrides use a deterministic typed resource-ID-to-asset-name
+  map. Explicit `raw_description` and `raw_override_armor_materials` methods
+  retain interop for unsupported or modded shapes.
+- `TrimAssetName` validates the un-namespaced lowercase resource-path form at
+  construction, so malformed trim asset names cannot enter a typed builder.
+
 ### Changed — derive-based scoped state schemas (#298)
 
 - **Breaking:** `#[derive(State)]` with `#[state(namespace = "...", scope =

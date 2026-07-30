@@ -13,6 +13,7 @@ surfaces are not retained as aliases.
 | function command references | strings, `Display`, and `IntoFunctionRef` | one typed function reference/resolution path | follow-up; #175 open |
 | selectors used as command targets | `Selector` and string-like parameters | `EntityTargets`, `PlayerTargets`, `SingleEntity`, `SinglePlayer`, `ScoreHolder` | follow-up |
 | resource and registry identifiers | mixed strings and typed IDs | existing typed refs/IDs backed by `ResourceLocation` | follow-up |
+| trim materials and patterns | raw string/JSON IDs, items, text, and overrides | typed `ItemId`, `ResourceLocation`, `TextComponent`, `TrimAssetName`, and typed override maps | completed normal paths; #198 |
 | storage and NBT paths | strings plus typed paths | `StorageLocation`, `NbtRef`, `NbtPath` | follow-up |
 
 ## Public function-like macro inventory

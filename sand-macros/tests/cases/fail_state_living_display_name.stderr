@@ -1,0 +1,5 @@
+error: `display_name` is only supported on player/global State score fields; entity/living display names require later archetype objective lowering
+ --> tests/cases/fail_state_living_display_name.rs:6:28
+  |
+6 |     #[state(display_name = "Visible name")]
+  |                            ^^^^^^^^^^^^^^

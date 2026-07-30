@@ -15,8 +15,8 @@ The derive creates typed handles and stable per-entity scoreboard objectives.
 The Rust struct is schema metadata; it is never constructed at runtime.
 
 ```rust
-#[derive(EntityState)]
-#[entity_state(namespace = "rpg", name = "zombie", version = 2)]
+#[derive(State)]
+#[state(namespace = "rpg", scope = living, name = "zombie", version = 2)]
 struct ZombieState {
     #[state(default = 1, min = 1, max = 100)]
     level: EntityScore<i32>,
@@ -43,6 +43,12 @@ ZombieState::ability.bind().start(Ticks::seconds(5));
 ```
 
 These methods produce commands; they do not contact a server while Rust runs.
+Entity/living accessors deliberately retain source-dirty writes for archetype
+reconciliation, but deriving `State` alone does not provision their owner
+objectives. Attach the schema to an `EntityArchetype` before these commands can
+execute. Standalone entity/living owner provisioning remains a later #298
+slice. Custom objective criteria/display names and `auto_tick` are currently
+player/global-only.
 
 ## Adopt Natural And External Zombies
 

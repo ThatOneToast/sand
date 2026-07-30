@@ -42,16 +42,22 @@ datapack under `data/<namespace>/...`.
 ```rust
 use sand::prelude::*;
 
-static DISCOVERIES: ScoreVar<i32> = ScoreVar::new("discoveries");
-
-#[component(Load)]
-pub fn load() {
-    DISCOVERIES.define();
+#[derive(State)]
+#[state(namespace = "oasis", scope = player)]
+struct PlayerState {
+    #[state(
+        default = 0,
+        min = 0,
+        max = 100,
+        display_name = "Discoveries"
+    )]
+    discoveries: EntityScore<i32>,
 }
 
 #[function]
 pub fn discover_oasis() {
-    DISCOVERIES.add(Selector::self_(), 1);
+    let state = PlayerState::on(PlayerContext::default());
+    state.discoveries.add(1);
     cmd::tellraw(
         Selector::self_(),
         Text::new("Oasis discovered!").gold().bold(true),
@@ -59,9 +65,17 @@ pub fn discover_oasis() {
 }
 ```
 
-`#[component(Load)]` wires `load` into Minecraft's `load` function tag.
-`#[function]` exports `discover_oasis` as a callable function. The result is
-still the vanilla format you would ship without Sand:
+`#[derive(State)]` provisions and initializes the objective automatically.
+The generated `PlayerStateBound` exposes `discoveries` as an ordinary typed
+field, and `#[function]` exports `discover_oasis` as a callable function. The
+result is still the vanilla format you would ship without Sand:
+
+Automatic provisioning, custom score criteria/display names, and `auto_tick`
+apply to player/global schemas. Entity/living bound accessors retain dirty
+writes for archetype reconciliation and require the schema to be attached to
+an archetype that provisions their objectives; standalone owner provisioning
+remains part of #298. This release establishes one canonical declaration path,
+not complete state-system consolidation.
 
 ```text
 dist/oasis/
@@ -69,13 +83,13 @@ dist/oasis/
 └── data/
     ├── minecraft/tags/function/load.json
     └── oasis/function/
-        ├── discover_oasis.mcfunction
-        └── load.mcfunction
+        ├── __sand_lifecycle_load.mcfunction
+        └── discover_oasis.mcfunction
 ```
 
 ```mcfunction
 # data/oasis/function/discover_oasis.mcfunction
-scoreboard players add @s discoveries 1
+scoreboard players add @s <deterministic-objective> 1
 tellraw @s {"bold":true,"color":"gold","text":"Oasis discovered!"}
 ```
 
@@ -92,8 +106,8 @@ not a runtime dependency.
 - **Typed commands and control flow** — selectors, text, execute chains,
   conditions, particles, sounds, scoreboards, NBT operations, and generated
   command builders.
-- **Typed state** — `ScoreVar`, `Flag`, `Timer`, `Cooldown`, storage schemas,
-  and entity-bound state replace ad hoc objective and path conventions.
+- **Typed state** — `#[derive(State)]` generates scoped, autocomplete-friendly
+  bound views for scores, flags, timers, cooldowns, and finite enums.
 - **Data-driven resources** — builders for recipes, advancements, predicates,
   loot tables, item modifiers, tags, dialogs, enchantments, and more.
   Coverage varies by resource; explicit raw JSON, SNBT, component, and command

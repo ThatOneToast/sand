@@ -1,8 +1,8 @@
-use sand::prelude::*;
 use sand::entity::{Adoption, EntityArchetype};
+use sand::prelude::*;
 
-#[derive(EntityState)]
-#[entity_state(namespace = "rpg", name = "zombie", version = 1)]
+#[derive(State)]
+#[state(namespace = "rpg", scope = entity, name = "zombie", version = 1)]
 struct ZombieState {
     #[state(default = 1, min = 1, max = 100)]
     level: EntityScore<i32>,

@@ -1,8 +1,9 @@
 use sand::prelude::*;
 
 #[derive(State)]
-#[state(namespace = "RPG!", scope = entity, name = "bad", version = 1)]
+#[state(namespace = "test", scope = player)]
 struct Bad {
+    #[state(auto_tick)]
     value: EntityScore<i32>,
 }
 

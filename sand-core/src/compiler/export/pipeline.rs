@@ -2038,29 +2038,6 @@ pub(crate) fn try_export_components_impl(
     // records are emitted in the inventory order collected above.
     emit_schedule_records(namespace, &schedules, &mut records, &mut tag_map)?;
 
-    // ── TempScoreboard → __sand_temp_scores (minecraft:load) ─────────────────
-    {
-        // Objective names, criterion tokens, and display-name text are all
-        // validated before any command is produced, so an invalid `temp_score!`
-        // fails the export instead of reaching a generated `.mcfunction`.
-        let ts_cmds = super::temp_scores::temp_score_commands()?;
-        if !ts_cmds.is_empty() {
-            let ts_path = "__sand_temp_scores";
-            records.push(ComponentRecord {
-                namespace: namespace.to_string(),
-                dir: "function".to_string(),
-                path: ts_path.to_string(),
-                ext: "mcfunction".to_string(),
-                content_type: "text".to_string(),
-                content: ts_cmds.join("\n"),
-            });
-            tag_map
-                .entry("minecraft:load".to_string())
-                .or_default()
-                .push(format!("{namespace}:{ts_path}"));
-        }
-    }
-
     // ── Entity archetypes ────────────────────────────────────────────────────
     //
     // Archetype descriptors are immutable link-time factories. Collect and
@@ -2292,24 +2269,15 @@ pub(crate) fn try_export_components_impl(
             .load_commands
             .extend(transition_plan.load_commands);
         automatic
-            .tick_commands
+            .player_tick_commands
             .extend(transition_plan.tick_commands);
         let transition_global_tick_commands = transition_plan.global_tick_commands;
-        let manual_load_cmds = crate::state::drain_load_commands();
-        for command in &manual_load_cmds {
-            if let Some(objective) = command.split_whitespace().nth(3)
-                && let Some((tracker_id, source)) = transition_objectives.get(objective)
-            {
-                return Err(transition_export_error(format!(
-                    "tracker `{tracker_id}` source `{source}` generated private objective `{objective}`, which collides with a manual lifecycle registration"
-                )));
-            }
-        }
         let mut load_definitions: BTreeMap<String, (String, String)> = BTreeMap::new();
 
-        for command in automatic.load_commands.into_iter().chain(manual_load_cmds) {
-            let mut parts = command.split_whitespace();
+        for command in automatic.load_commands {
+            let mut parts = command.splitn(6, ' ');
             let parsed = match (
+                parts.next(),
                 parts.next(),
                 parts.next(),
                 parts.next(),
@@ -2322,7 +2290,12 @@ pub(crate) fn try_export_components_impl(
                     Some("add"),
                     Some(objective),
                     Some(criterion),
-                ) if parts.next().is_none() => Some((objective.to_string(), criterion.to_string())),
+                    display_name,
+                ) if display_name
+                    .is_none_or(|json| serde_json::from_str::<serde_json::Value>(json).is_ok()) =>
+                {
+                    Some((objective.to_string(), criterion.to_string()))
+                }
                 _ => None,
             };
 
@@ -2348,6 +2321,8 @@ pub(crate) fn try_export_components_impl(
             .into_values()
             .map(|(_, command)| command)
             .collect();
+        let mut load_cmds = load_cmds;
+        load_cmds.append(&mut automatic.global_init_commands);
         if !load_cmds.is_empty() {
             let path = "__sand_lifecycle_load";
             ensure_private_lifecycle_path_available(&records, path)?;
@@ -2366,7 +2341,7 @@ pub(crate) fn try_export_components_impl(
         }
 
         let init_path = "__sand_lifecycle_init";
-        if !automatic.init_commands.is_empty() {
+        if !automatic.player_init_commands.is_empty() {
             ensure_private_lifecycle_path_available(&records, init_path)?;
             records.push(ComponentRecord {
                 namespace: namespace.to_string(),
@@ -2374,24 +2349,24 @@ pub(crate) fn try_export_components_impl(
                 path: init_path.to_string(),
                 ext: "mcfunction".to_string(),
                 content_type: "text".to_string(),
-                content: automatic.init_commands.join("\n"),
+                content: automatic.player_init_commands.join("\n"),
             });
         }
 
         let mut tick_cmds = Vec::new();
-        if !automatic.init_commands.is_empty() {
+        if !automatic.player_init_commands.is_empty() {
             tick_cmds.push(format!(
                 "execute as @a run function {namespace}:{init_path}"
             ));
         }
         tick_cmds.extend(
             automatic
-                .tick_commands
+                .player_tick_commands
                 .into_iter()
                 .map(|command| format!("execute as @a run {command}")),
         );
+        tick_cmds.extend(automatic.global_tick_commands);
         tick_cmds.extend(transition_global_tick_commands);
-        tick_cmds.extend(crate::state::drain_tick_commands());
         if !tick_cmds.is_empty() {
             let path = "__sand_lifecycle_tick";
             ensure_private_lifecycle_path_available(&records, path)?;

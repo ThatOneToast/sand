@@ -699,40 +699,6 @@ pub struct ArmorEventDescriptor {
 }
 inventory::collect!(ArmorEventDescriptor);
 
-/// A temporary scoreboard objective automatically created on load.
-///
-/// Register with [`temp_score!`](crate::temp_score) and Sand will emit
-/// `scoreboard objectives add <name> <criteria>` in the generated init
-/// function — no manual load-function wiring needed.
-///
-/// # Example
-/// ```rust,ignore
-/// temp_score!(player_hp_tmp);           // dummy criterion
-/// temp_score!(kill_count, "playerKillCount");
-/// ```
-///
-/// Every field is validated during export before any generated output is
-/// accepted — see [`temp_score!`](crate::temp_score) for the exact rules.
-pub struct TempScoreboard {
-    /// The objective name.
-    ///
-    /// Names longer than Minecraft's 16-character limit are deterministically
-    /// hashed to a stable valid name by the canonical
-    /// [`ObjectiveName`](sand_commands::ObjectiveName) rules. Empty,
-    /// whitespace-bearing, and control-character names are rejected at export.
-    pub name: &'static str,
-    /// Scoreboard criterion, e.g. `"dummy"`, `"playerKillCount"`.
-    ///
-    /// Must be non-empty and use only `[A-Za-z0-9_.:-]`.
-    pub criteria: &'static str,
-    /// Optional display name shown in the sidebar/tab list.
-    ///
-    /// Emitted as a JSON text component, which is what vanilla requires in the
-    /// `<displayName>` position. Control characters are rejected at export.
-    pub display_name: Option<&'static str>,
-}
-inventory::collect!(TempScoreboard);
-
 // ── Dynamic anonymous function registry ───────────────────────────────────────
 //
 // This registry is **thread-local**, not process-global. Every export

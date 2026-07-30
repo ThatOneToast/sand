@@ -1,0 +1,5 @@
+error: invalid state scope; expected player, entity, living, or global
+ --> tests/cases/fail_state_invalid_scope.rs:4:37
+  |
+4 | #[state(namespace = "test", scope = players)]
+  |                                     ^^^^^^^

@@ -16,9 +16,6 @@ pub use crate::component::{
 pub use crate::function::{
     ComponentFactory, EventDescriptor, EventDispatch, EventPathEntry, FunctionDescriptor,
     FunctionPointerEntry, FunctionPointerTypeEntry, FunctionTagDescriptor, ScheduleDescriptor,
-    TempScoreboard, drain_dyn_fns, register_dyn_fn, register_dyn_fn_dedup,
-};
-pub use crate::state::{
-    drain_load_commands, drain_tick_commands, register_load_objective, register_tick_handler,
+    drain_dyn_fns, register_dyn_fn, register_dyn_fn_dedup,
 };
 pub use sand_components::{RawCommand, RawComponent, RawJson, RawSnbt};

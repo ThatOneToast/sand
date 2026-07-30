@@ -68,12 +68,12 @@ pub use sand_macros::{
     armor_event, component, entity_archetype, event, function, item, run_fn, schedule,
 };
 
-/// Derives typed entity-bound schemas and stable finite-enum encodings.
+/// Derives scoped state schemas and stable finite-enum encodings.
 ///
-/// `EntityState` validates schema metadata and generates lowercase typed field
-/// constants; `EntityStateEnum` maps fieldless enum variants to scoreboard
-/// integers. Both expand exclusively through the façade crate.
-pub use sand_macros::{EntityState, EntityStateEnum};
+/// `State` validates schema metadata, generates concrete bound views, and
+/// registers scope-aware lifecycle metadata; `EntityStateEnum` maps fieldless
+/// enum variants to scoreboard integers.
+pub use sand_macros::{EntityStateEnum, State};
 
 /// `#[derive(SandStorage)]` — generates a typed [`data::StorageSchema`] and
 /// one [`data::StorageField`] accessor per struct field, from a plain Rust
@@ -95,13 +95,9 @@ pub use sand_macros::{hud_bar, hud_element, texture};
 
 /// `all!`/`any!` compose typed [`condition::Condition`]s (all-of / any-of);
 /// `mcfunction!` builds a `Vec<String>` of commands from semicolon-separated
-/// expressions; `sand_state!` declares a typed state value with an automatic
-/// lifecycle (default value, optional auto-ticking); `temp_score!` registers
-/// a scoreboard objective that Sand creates for you on load without an
-/// explicit `#[component(Load)]` entry. These are `macro_rules!` macros
-/// defined in the implementation crate and re-exported here so `sand::` is
-/// the only path authors need.
-pub use sand_core::{all, any, mcfunction, sand_state, temp_score};
+/// expressions. These expression macros are defined in the implementation
+/// crate and re-exported here so `sand::` is the only path authors need.
+pub use sand_core::{all, any, mcfunction};
 
 // ── Prelude ───────────────────────────────────────────────────────────────────
 
@@ -162,14 +158,9 @@ pub mod inventory {
     };
 }
 
-/// Scoreboard-, storage-, and NBT-backed state: `ScoreVar`, `Flag`, `Timer`,
-/// `Cooldown`, `GameState`/`TypedGameState`, and storage schemas
-/// (`StorageVar`, `StorageSchema`). These are the building blocks behind
-/// [`sand_state!`](crate::sand_state) — declare a `static` of one of these
-/// types, call `.define()` from `#[component(Load)]`, and read/write it with
-/// `.of(selector)` inside function bodies. Most of this module is already in
-/// the [`prelude`]; reach for it directly when writing generic helpers over
-/// state types.
+/// State implementation primitives and typed storage/NBT schemas. Ordinary
+/// authoring uses [`State`] with `#[state(...)]`; this module remains available
+/// for advanced helpers over low-level score and storage representations.
 pub use sand_core::state;
 
 /// Typed entity-bound state, archetypes, curves, native properties, and
@@ -183,8 +174,8 @@ pub use sand_core::state;
 /// ```
 /// use sand::prelude::*;
 ///
-/// #[derive(EntityState)]
-/// #[entity_state(namespace = "demo", name = "zombie", version = 1)]
+/// #[derive(State)]
+/// #[state(namespace = "demo", scope = living, name = "zombie", version = 1)]
 /// struct Mob {
 ///     #[state(default = 1, min = 1, max = 100)]
 ///     level: EntityScore<i32>,

@@ -7,8 +7,8 @@ enum Phase {
     Enraged = 7,
 }
 
-#[derive(EntityState)]
-#[entity_state(namespace = "rpg", name = "mob/zombie", version = 3)]
+#[derive(State)]
+#[state(namespace = "rpg", scope = entity, name = "mob/zombie", version = 3)]
 struct MobState {
     #[state(default = 10, min = 1, max = 100)]
     level: EntityScore<i32>,

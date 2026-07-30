@@ -1,7 +1,7 @@
 use sand::prelude::*;
 
 #[derive(State)]
-#[state(namespace = "RPG!", scope = entity, name = "bad", version = 1)]
+#[state(namespace = "test", scope = players)]
 struct Bad {
     value: EntityScore<i32>,
 }

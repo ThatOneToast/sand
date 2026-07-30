@@ -3440,7 +3440,7 @@ fn stable_hash(value: &str) -> u64 {
 mod tests {
     use super::*;
     use crate::entity::ZombieKind;
-    use crate::entity::state::{EntityScore, StateFieldDescriptor, StateFieldKind};
+    use crate::entity::state::{EntityFlag, EntityScore, StateFieldDescriptor, StateFieldKind};
 
     struct MobState;
     static FIELDS: &[StateFieldDescriptor] = &[
@@ -3460,6 +3460,7 @@ mod tests {
     }
     const LEVEL: EntityScore<i32> = EntityScore::new("rpg", "mob", "level", 1, Some((1, 100)));
     const HEALTH: EntityScore<i32> = EntityScore::new("rpg", "mob", "health", 20, Some((1, 2_000)));
+    const SICK: EntityFlag = EntityFlag::new("rpg", "mob", "sick", false);
 
     fn profile() -> crate::version::VersionProfile {
         crate::version::VersionProfile::resolve(
@@ -3478,6 +3479,16 @@ mod tests {
         let second = compile_definition(&archetype.definition(), &profile()).unwrap();
         assert_eq!(first.report, second.report);
         assert_eq!(first.records, second.records);
+        for field in [LEVEL.objective(), HEALTH.objective(), SICK.objective()] {
+            assert!(first.report.objectives.contains(&field));
+        }
+        for dirty in [
+            LEVEL.dirty_objective(),
+            HEALTH.dirty_objective(),
+            SICK.dirty_objective(),
+        ] {
+            assert!(first.report.objectives.contains(&dirty));
+        }
         let init = first
             .records
             .iter()

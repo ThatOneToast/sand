@@ -12,17 +12,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Breaking:** `#[derive(State)]` with `#[state(namespace = "...", scope =
   player|entity|living|global)]` is now the single declaration path for the
   migrated state-schema surface. The derive generates a concrete
-  `<Schema>Bound` struct, public typed accessor fields, and scope-correct
+  `<Schema>Bound` struct with the schema's visibility, named typed accessor
+  fields usable wherever that bound type is visible, and scope-correct
   `Schema::on(...)` or `Schema::global()` entry points.
 - Player and global schemas provision deterministic objectives and initialize
-  defaults automatically. `auto_tick` is accepted only on timer/cooldown
+  defaults automatically. Their score fields support custom `criterion` and
+  `display_name` metadata, and `auto_tick` is accepted on timer/cooldown
   fields; schemas without lifecycle work do not add tick commands. Entity and
-  living schemas continue to receive constrained lifecycle scans only through
-  explicit archetype attachment.
+  living fields reject those attributes until owner-aware objective metadata
+  and opt-in ticking are integrated with archetype reconciliation in a later
+  #298 slice. Direct entity/living bindings retain dirty writes and require
+  their objectives to be provisioned by an attached archetype; the derive
+  alone does not provision owner objectives.
 - The superseded state and temporary-objective function-like declaration
   macros, the entity-specific derive name, the separate temporary-score export
   phase, their façade exports, and their dedicated tests/examples were removed
   with no compatibility aliases.
+- This establishes one canonical state declaration path; it does not complete
+  the remaining #298 work for bundles, queries, systems, structured storage,
+  migrations, or full owner lifecycle integration.
 
 ### Performance — one Cargo invocation for both exporters (#35)
 

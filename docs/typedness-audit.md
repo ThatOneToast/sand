@@ -32,8 +32,15 @@ event families, and tests are not public declaration languages.
 or advanced command-building primitives because existing systems and state-flow
 lowering use their operations directly. They are not the canonical declaration
 API, and their parallel lifecycle registration methods have been removed.
-Score fields retain custom vanilla criteria and JSON-safe objective display
-names through `#[state(criterion = "...", display_name = "...")]`.
+Player/global score fields retain custom vanilla criteria and JSON-safe
+objective display names through
+`#[state(criterion = "...", display_name = "...")]`. Entity/living fields
+reject that metadata until archetype descriptor lowering, collision
+validation, and dirty-observer integration land in a later #298 slice. Direct
+entity/living binding likewise requires archetype-provisioned objectives.
+
+This slice establishes one canonical declaration path for the migrated
+surface. It is not complete state-system consolidation.
 
 ## Ordered remaining slices
 

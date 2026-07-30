@@ -70,6 +70,13 @@ The generated `PlayerStateBound` exposes `discoveries` as an ordinary typed
 field, and `#[function]` exports `discover_oasis` as a callable function. The
 result is still the vanilla format you would ship without Sand:
 
+Automatic provisioning, custom score criteria/display names, and `auto_tick`
+apply to player/global schemas. Entity/living bound accessors retain dirty
+writes for archetype reconciliation and require the schema to be attached to
+an archetype that provisions their objectives; standalone owner provisioning
+remains part of #298. This release establishes one canonical declaration path,
+not complete state-system consolidation.
+
 ```text
 dist/oasis/
 ├── pack.mcmeta

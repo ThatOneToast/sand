@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — typed parameterized function arguments (#194)
+
+- Added `FunctionMacroArg` and `FunctionMacroArgs` for validated function
+  macro declarations. Argument names use the stable `[A-Za-z0-9_]+` subset;
+  duplicate declarations, undeclared placeholders, malformed placeholders,
+  and unterminated `$(name)` syntax fail before function output is accepted.
+- Added `cmd::try_call_with` / `cmd::call_with`, which resolve the same
+  registered function pointers and typed references as `cmd::call` and accept
+  a typed `NbtRef` for the macro argument compound. Function IDs, data targets,
+  and NBT paths are validated on the fallible path.
+- Existing `macro_var`, `macro_line`, and `function_with` helpers remain
+  explicit unchecked compatibility/escape-hatch APIs. All exported function
+  macro lines are now rejected for Minecraft versions before 1.20.2 and for
+  conservative fallback profiles.
+
 ### Changed — derive-based scoped state schemas (#298)
 
 - **Breaking:** `#[derive(State)]` with `#[state(namespace = "...", scope =

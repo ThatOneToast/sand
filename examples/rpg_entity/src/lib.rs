@@ -16,8 +16,8 @@ pub enum Rarity {
 }
 
 /// All persistent state owned by one adopted Zombie.
-#[derive(EntityState)]
-#[entity_state(namespace = "rpg", name = "zombie", version = 2)]
+#[derive(State)]
+#[state(namespace = "rpg", scope = living, name = "zombie", version = 2)]
 #[allow(dead_code)]
 pub struct ZombieState {
     #[state(default = 1, min = 1, max = 100)]

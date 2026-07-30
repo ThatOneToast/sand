@@ -54,14 +54,23 @@ fn compile_tests() {
 }
 
 #[test]
-fn entity_state_derive_compile_tests() {
+fn state_derive_compile_tests() {
     let t = trybuild::TestCases::new();
     t.pass("tests/cases/pass_entity_state.rs");
     t.pass("tests/cases/pass_entity_archetype.rs");
+    t.pass("tests/cases/pass_state_scopes_bound_views.rs");
+    t.pass("tests/cases/pass_state_visibility.rs");
     t.compile_fail("tests/cases/fail_entity_state_tuple.rs");
     t.compile_fail("tests/cases/fail_entity_state_unknown_wrapper.rs");
     t.compile_fail("tests/cases/fail_entity_state_bad_namespace.rs");
     t.compile_fail("tests/cases/fail_entity_state_invalid_bounds.rs");
+    t.compile_fail("tests/cases/fail_state_invalid_scope.rs");
+    t.compile_fail("tests/cases/fail_state_auto_tick_score.rs");
+    t.compile_fail("tests/cases/fail_state_entity_auto_tick.rs");
+    t.compile_fail("tests/cases/fail_state_invalid_criterion.rs");
+    t.compile_fail("tests/cases/fail_state_entity_criterion.rs");
+    t.compile_fail("tests/cases/fail_state_living_display_name.rs");
+    t.compile_fail("tests/cases/fail_state_private_bound_visibility.rs");
     t.compile_fail("tests/cases/fail_entity_state_enum_duplicate.rs");
     t.compile_fail("tests/cases/fail_entity_state_enum_payload.rs");
     t.compile_fail("tests/cases/fail_entity_marker_health_capability.rs");

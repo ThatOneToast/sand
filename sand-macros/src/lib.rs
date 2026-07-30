@@ -50,9 +50,15 @@ use syn::{ItemFn, LitStr, parse_macro_input, token};
 
 mod entity_state;
 
-/// Derive a typed entity-bound state schema and its field constants.
-#[proc_macro_derive(EntityState, attributes(entity_state, state))]
-pub fn derive_entity_state(input: TokenStream) -> TokenStream {
+/// Derive a typed state schema, its field constants, and a concrete bound view.
+///
+/// Player/global schemas own objective provisioning and support score
+/// `criterion`/`display_name` metadata plus timer/cooldown `auto_tick`.
+/// Entity/living schemas retain dirty writes for archetype reconciliation and
+/// require archetype-provisioned objectives; owner-aware metadata and ticking
+/// remain later #298 work.
+#[proc_macro_derive(State, attributes(state))]
+pub fn derive_state(input: TokenStream) -> TokenStream {
     entity_state::derive_state(parse_macro_input!(input as syn::DeriveInput))
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()

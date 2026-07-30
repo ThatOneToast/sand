@@ -55,12 +55,6 @@ impl Timer {
         Self { name, duration }
     }
 
-    /// Build an automatic export lifecycle descriptor for this timer.
-    /// Call `.auto_tick()` on the result to opt into per-player ticking.
-    pub const fn lifecycle(&self) -> crate::state::StateLifecycle {
-        crate::state::StateLifecycle::score(self.name)
-    }
-
     /// Return the actual scoreboard objective name.
     pub fn objective_name(&self) -> String {
         super::score::objective_name(self.name)
@@ -69,15 +63,6 @@ impl Timer {
     /// `scoreboard objectives add <obj> dummy`
     pub fn define(&self) -> String {
         format!("scoreboard objectives add {} dummy", self.objective_name())
-    }
-
-    /// Enroll this timer in Sand's global lifecycle registry.
-    ///
-    /// The objective will be included in the next call to
-    /// [`define_registered_state`](crate::state::define_registered_state).
-    /// Calling `.register()` multiple times for the same timer is a no-op.
-    pub fn register(&self) {
-        crate::state::register_load_objective(self.objective_name(), "dummy");
     }
 
     /// Set the timer to the configured duration for `selector`.

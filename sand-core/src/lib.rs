@@ -206,8 +206,8 @@ pub use function::{
     ArmorEventDescriptor, ArmorEventKind, ArmorSlot, ComponentFactory, EventDescriptor,
     EventDispatch, EventPathEntry, FunctionDescriptor, FunctionPointerEntry,
     FunctionPointerTypeEntry, FunctionTagDescriptor, IntoFunctionRef, ScheduleDescriptor,
-    ScoreThresholdComparator, TempScoreboard, TrackedSource, TrackedTransition, TransitionKind,
-    drain_dyn_fns, register_dyn_fn, register_dyn_fn_dedup,
+    ScoreThresholdComparator, TrackedSource, TrackedTransition, TransitionKind, drain_dyn_fns,
+    register_dyn_fn, register_dyn_fn_dedup,
 };
 
 mod compiler;
@@ -219,45 +219,11 @@ pub use state::{
     StorageLocation, StorageSchema, StorageVar,
 };
 pub use state::{GameState, GameStateRef, TypedGameState};
-pub use state::{
-    StateDescriptor, StateLifecycle, drain_load_commands, drain_tick_commands,
-    register_load_objective, register_tick_handler,
-};
+#[doc(hidden)]
+pub use state::{StateDescriptor, StateLifecycle};
 pub use vfx::{
     IntoParticleStep, IntoSoundStep, IntoVfxSelector, Vfx, VfxParticle, VfxSound, VfxStep,
 };
-
-/// Declare a typed state value and submit its automatic lifecycle descriptor.
-///
-/// Every entry uses the same [`StateLifecycle`] model available to callers of
-/// [`inventory::submit!`]. Timer and cooldown ticking is opt-in through
-/// `auto_tick`; defaults are initialized only for players missing a score.
-///
-/// ```rust,ignore
-/// sand_core::sand_state! {
-///     pub static MANA: ScoreVar<i32> = ScoreVar::new("mana") =>
-///         MANA.lifecycle().default(100);
-///     pub static DASH: Cooldown = Cooldown::new("dash", Ticks::seconds(3)) =>
-///         DASH.lifecycle().default(0).auto_tick();
-/// }
-/// ```
-#[macro_export]
-macro_rules! sand_state {
-    ($(
-        $(#[$meta:meta])*
-        $vis:vis static $name:ident : $ty:ty = $value:expr => $lifecycle:expr;
-    )+) => {
-        $(
-            $(#[$meta])*
-            $vis static $name: $ty = $value;
-            const _: () = {
-                $crate::inventory::submit! {
-                    $crate::StateDescriptor::new($lifecycle)
-                }
-            };
-        )+
-    };
-}
 
 // ── McFunction (sand-core-specific component) ─────────────────────────────────
 
@@ -408,68 +374,6 @@ pub use sand_components::{
 
 /// High-level typed damage command builder.
 pub use sand_commands::Damage;
-
-/// Register a temporary scoreboard objective that Sand creates automatically on load.
-///
-/// Eliminates the need to manually add `scoreboard objectives add` to your
-/// `#[component(Load)]` function.
-///
-/// # Syntax
-///
-/// ```rust,ignore
-/// temp_score!(my_obj);                         // criterion: dummy
-/// temp_score!(my_obj, "playerKillCount");      // custom criterion
-/// temp_score!(my_obj, "dummy", "My Display");  // criterion + display name
-/// ```
-///
-/// Sand collects all registered objectives and emits them in a generated
-/// `__sand_temp_scores` mcfunction injected into `minecraft:load`.
-///
-/// # Validation
-///
-/// Declarations are validated during export, before any `.mcfunction` output
-/// is accepted (see [#146](https://github.com/ThatOneToast/sand/issues/146)):
-///
-/// - **Objective name** — routed through the canonical
-///   [`ObjectiveName`](sand_commands::ObjectiveName) rules. A name longer than
-///   Minecraft's 16-character limit is deterministically hashed to a stable
-///   valid name, exactly as `ScoreVar`, `Flag`, `Timer`, and `Cooldown` hash
-///   theirs. Empty, whitespace-bearing, and control-character names are
-///   rejected rather than silently hashed.
-/// - **Criterion** — must be non-empty and use only `[A-Za-z0-9_.:-]`, so a
-///   malformed token cannot shift the rest of the command into the wrong
-///   argument position.
-/// - **Display name** — rendered as a JSON text component via
-///   [`TextComponent`](sand_commands::TextComponent), which is what vanilla
-///   requires in that position. Text containing spaces or quotes is escaped
-///   correctly; control characters are rejected.
-///
-/// Objectives are de-duplicated on `(name, criterion)` and emitted in
-/// declaration order.
-#[macro_export]
-macro_rules! temp_score {
-    ($name:ident) => {
-        ::sand_core::inventory::submit!(::sand_core::TempScoreboard {
-            name: stringify!($name),
-            criteria: "dummy",
-            display_name: ::std::option::Option::None,
-        });
-    };
-    ($name:ident, $criteria:literal) => {
-        ::sand_core::inventory::submit!(::sand_core::TempScoreboard {
-            name: stringify!($name),
-            criteria: $criteria,
-            display_name: ::std::option::Option::None,
-        });
-    };
-    ($name:ident, $criteria:literal, $display:literal) => {
-        ::sand_core::inventory::submit!(::sand_core::TempScoreboard {
-            name: stringify!($name),
-            criteria: $criteria,
-            display_name: ::std::option::Option::Some($display),
-        });
-    };
-}
 
 /// Re-exported so proc macros can write `::sand_core::inventory::submit!`
 /// without requiring users to add `inventory` as a direct dependency.

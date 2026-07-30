@@ -1,0 +1,5 @@
+error: `criterion` is only supported on player/global State score fields; entity/living criteria require later archetype dirty-observer integration
+ --> tests/cases/fail_state_entity_criterion.rs:6:25
+  |
+6 |     #[state(criterion = "playerKillCount")]
+  |                         ^^^^^^^^^^^^^^^^^

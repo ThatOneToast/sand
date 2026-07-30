@@ -1,0 +1,6 @@
+error: `auto_tick` is only supported on player/global State fields; entity/living ticking is owned by archetype reconciliation
+ --> tests/cases/fail_state_entity_auto_tick.rs:6:5
+  |
+6 | /     #[state(auto_tick)]
+7 | |     timer: EntityTimer,
+  | |______________________^

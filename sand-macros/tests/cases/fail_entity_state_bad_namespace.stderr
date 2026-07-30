@@ -1,4 +1,4 @@
-error: entity state namespace must use lowercase characters [a-z0-9_.-]
+error: State schema namespace must use lowercase characters [a-z0-9_.-]
  --> tests/cases/fail_entity_state_bad_namespace.rs:4:21
   |
 4 | #[state(namespace = "RPG!", scope = entity, name = "bad", version = 1)]

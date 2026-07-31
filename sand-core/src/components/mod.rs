@@ -67,4 +67,7 @@ pub use sand_components::{
     Tag,
     ToolProperties,
     ToolRule,
+    TrimAssetName,
+    TrimMaterial,
+    TrimPattern,
 };

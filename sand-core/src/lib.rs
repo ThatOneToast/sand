@@ -370,6 +370,7 @@ pub use sand_components::{
     ToolProperties,
     ToolRule,
     // Trim
+    TrimAssetName,
     TrimMaterial,
     TrimPattern,
     TypedTag,

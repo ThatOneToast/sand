@@ -8,6 +8,11 @@ are treated as unsupported rather than guessed, so a build against an
 unrecognized `mc_version` fails loudly on any feature that needs an exact
 profile instead of silently emitting a schema that might be wrong.
 
+Function macro lines (`$...` with `$(name)` placeholders) are accepted only
+for exact Minecraft 1.20.2+ profiles. Older and conservative fallback
+profiles fail at the final function export boundary with the owning function
+and line index in the diagnostic.
+
 `sand.toml`'s `mc_version` accepts `"latest"` (resolves to the anchor above)
 or an explicit version string such as `"1.21.4"`. `sand build` fails with an
 actionable error for a malformed version string rather than silently falling

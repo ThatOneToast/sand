@@ -107,7 +107,10 @@ pub use crate::vfx::{
 };
 pub use data::{Storage, StorageKind};
 pub use effect::{EffectGive, effect_clear, effect_clear_effect, effect_give, effect_give_raw};
-pub use fn_macros::{function_with, macro_line, macro_var};
+pub use fn_macros::{
+    FunctionMacroArg, FunctionMacroArgs, call_with, function_with, macro_line, macro_var,
+    try_call_with, try_macro_var,
+};
 pub use typed_execute::{ConditionedExecute, ExecuteExt, TypedExecute};
 
 /// Call a function by resolved reference.

@@ -655,10 +655,10 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         registry_key: "minecraft:dimension_type",
         datapack_dir: "dimension_type",
         tag_dir: Some("tags/dimension_type"),
-        sand_module: None,
-        api_status: RegistryApiStatus::Missing,
+        sand_module: Some("sand_components::worldgen::dimension_type"),
+        api_status: RegistryApiStatus::PartiallyImplemented,
         version_gate: None,
-        notes: "Not implemented. Use RawComponent.",
+        notes: "Typed builder covers the stable vanilla-like field set and DimensionTypeId references; version-specific additions use an explicit raw_field escape hatch.",
     },
     // ── 1.21.6+ dialog (version-gated) ───────────────────────────────────────
     RegistryCoverage {

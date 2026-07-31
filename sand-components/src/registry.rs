@@ -160,6 +160,11 @@ registry_id! {
 }
 
 registry_id! {
+    /// Typed Minecraft dimension-type identifier (e.g. `minecraft:overworld` or `mymod:skylands`).
+    DimensionTypeId
+}
+
+registry_id! {
     /// Typed Minecraft damage type identifier (e.g. `minecraft:generic` or `mymod:arcane`).
     DamageTypeId
 }

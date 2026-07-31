@@ -27,6 +27,16 @@ pub fn starter_item() -> CustomItem {
         .component(ItemComponent::max_stack_size(1))
 }
 
+/// A complete vanilla-like custom dimension type with typed registry references.
+#[component]
+pub fn bright_overworld() -> DimensionType {
+    DimensionType::overworld_like(
+        ResourceLocation::new("example", "bright_overworld").expect("static ID is valid"),
+    )
+    .ambient_light(0.25)
+    .monster_spawn_light_level(MonsterSpawnLightLevel::Constant(7))
+}
+
 #[component]
 pub fn quartz_trim_material() -> TrimMaterial {
     TrimMaterial::new(ResourceLocation::new("example", "quartz").unwrap())

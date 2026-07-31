@@ -5,8 +5,8 @@
 
 use sand_core::{
     AttributeModifier, AttributeOperation, AttributeType, ConsumableAnimation,
-    ConsumableProperties, CustomItem, DyedColor, EquipmentSlot,
-    EquipmentSlotGroup, EquippableProperties, FoodProperties, ItemRarity,
+    ConsumableProperties, CustomItem, DyedColor, EquipmentModelId, EquipmentSlot,
+    EquipmentSlotGroup, EquippableProperties, FoodProperties, ItemRarity, SoundEventId,
     ToolProperties, ToolRule,
 };
 use sand_macros::component;
@@ -23,7 +23,7 @@ pub fn magic_apple() -> CustomItem {
         .consumable(
             ConsumableProperties::new(1.0) // 1 second to eat
                 .animation(ConsumableAnimation::Eat)
-                .sound("minecraft:entity.player.burp"),
+                .sound(SoundEventId::minecraft("entity.player.burp").unwrap()),
         )
         .enchantment_glint_override(true)
         .max_stack_size(16)
@@ -75,7 +75,8 @@ pub fn royal_chestplate() -> CustomItem {
     .rarity(ItemRarity::Rare)
     .equippable(
         EquippableProperties::new(EquipmentSlot::Chest)
-            .equip_sound("minecraft:item.armor.equip_gold")
+            .equip_sound(SoundEventId::minecraft("item.armor.equip_gold").unwrap())
+            .model(EquipmentModelId::minecraft("royal").unwrap())
             .dispensable(true)
             .swappable(true)
             .damage_on_hurt(true),

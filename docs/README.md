@@ -15,6 +15,9 @@ for typed state, commands, conditions, events, items, and more.
 - [testing/vanilla-limitations.md](testing/vanilla-limitations.md) —
   evidence-linked reference for constraints of vanilla Minecraft itself that
   no amount of Sand typing can remove.
+- [`sand-components/src/registry_coverage.rs`](../sand-components/src/registry_coverage.rs)
+  — the machine-checked component inventory for data-driven registries, tags,
+  and non-registry datapack assets such as copy-backed structure templates.
 
 For contributor workflow (checks, toolchain policy, testing commands), see
 [`CONTRIBUTING.md`](../CONTRIBUTING.md). For release process, see

@@ -45,3 +45,13 @@ pub fn bolt_trim_pattern() -> TrimPattern {
         .template_item(ItemId::minecraft("bolt_armor_trim_smithing_template").unwrap())
         .description(TextComponent::translate("trim_pattern.example.bolt"))
 }
+
+#[component]
+pub fn mob_enchantments() -> EnchantmentProvider {
+    EnchantmentProvider::by_cost_with_difficulty(
+        ResourceLocation::new("example", "mob_enchantments").unwrap(),
+        TagId::<EnchantmentId>::minecraft("on_mob_spawn_equipment").unwrap(),
+        5,
+        17,
+    )
+}

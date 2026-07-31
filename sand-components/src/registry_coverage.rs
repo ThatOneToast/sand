@@ -1,28 +1,36 @@
-//! Registry coverage audit for Sand data-driven component modules.
+//! Datapack component coverage audit for Sand.
 //!
 //! This module provides a static compile-time table of every known vanilla Java
-//! Edition data-driven registry, along with Sand's implementation status.
+//! Edition data-driven registry, along with Sand's implementation status. It
+//! also tracks datapack assets that are not data-driven registries, such as
+//! copy-backed binary structure templates.
 //!
 //! # Purpose
 //!
-//! - Single source of truth for datapack component parity.
+//! - Single source of truth for registry, tag, and non-registry datapack asset
+//!   parity.
 //! - Makes gaps explicit: missing registries are listed as `Missing` rather
 //!   than silently absent from the codebase.
 //! - Checked-in fixtures compare this table against Mojang's generated
 //!   `datapack.json` report to detect newly-added or renamed registries.
 //! - Tag-only coverage lives in [`TAG_COVERAGE`] and never masquerades as a
 //!   vanilla registry identifier.
+//! - Non-registry files live in [`DATAPACK_ASSET_COVERAGE`] so they remain
+//!   visible without pretending they are entries in Mojang's registry report.
 //!
 //! # Usage
 //!
 //! ```
-//! use sand_components::registry_coverage::{REGISTRY_COVERAGE, RegistryApiStatus};
+//! use sand_components::registry_coverage::{
+//!     DATAPACK_ASSET_COVERAGE, REGISTRY_COVERAGE, RegistryApiStatus,
+//! };
 //!
 //! let missing: Vec<_> = REGISTRY_COVERAGE
 //!     .iter()
 //!     .filter(|r| matches!(r.api_status, RegistryApiStatus::Missing))
 //!     .collect();
 //! println!("{} missing registries", missing.len());
+//! println!("{} non-registry assets", DATAPACK_ASSET_COVERAGE.len());
 //! ```
 
 // ── Status enums ──────────────────────────────────────────────────────────────
@@ -91,10 +99,45 @@ pub struct RegistryCoverage {
 /// vanilla data-driven registry.
 #[derive(Debug)]
 pub struct TagCoverage {
+    /// The registry containing values referenced by this tag family.
     pub value_registry: &'static str,
+    /// The tag folder path relative to `data/<namespace>/`.
     pub datapack_dir: &'static str,
+    /// The Sand module that provides this tag API, if any.
     pub sand_module: Option<&'static str>,
+    /// Implementation status.
     pub api_status: RegistryApiStatus,
+    /// Notes about typed coverage or escape hatches.
+    pub notes: &'static str,
+}
+
+/// How a non-registry datapack asset is produced.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DatapackAssetKind {
+    /// Sand validates and copies an existing binary file without parsing its
+    /// format or generating its contents.
+    CopyBackedBinary,
+}
+
+/// Coverage for a datapack component that is not a data-driven registry or tag.
+///
+/// Mojang's generated `datapack.json` report cannot discover these files, so
+/// they are deliberately separate from [`REGISTRY_COVERAGE`].
+#[derive(Debug)]
+pub struct DatapackAssetCoverage {
+    /// Stable Sand-facing name for the asset family.
+    pub asset_name: &'static str,
+    /// The datapack folder path relative to `data/<namespace>/`.
+    pub datapack_dir: &'static str,
+    /// File extension without a leading dot.
+    pub file_extension: &'static str,
+    /// The Sand module that provides this asset API.
+    pub sand_module: &'static str,
+    /// How Sand produces the asset.
+    pub kind: DatapackAssetKind,
+    /// Implementation status.
+    pub api_status: RegistryApiStatus,
+    /// Notes about validation boundaries and unsupported behavior.
     pub notes: &'static str,
 }
 
@@ -195,10 +238,13 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         registry_key: "minecraft:enchantment_provider",
         datapack_dir: "enchantment_provider",
         tag_dir: None,
-        sand_module: None,
-        api_status: RegistryApiStatus::Missing,
+        sand_module: Some("sand_components::enchantment_provider"),
+        api_status: RegistryApiStatus::PartiallyImplemented,
         version_gate: Some("1.21"),
-        notes: "Not implemented. Use RawComponent. Added with data-driven enchantments in 1.21.",
+        notes: "EnchantmentProvider covers single, by_cost, and by_cost_with_difficulty with typed \
+                enchantment IDs/tags and constant/uniform integer providers. Other integer-provider \
+                and modded provider shapes use the explicit whole-provider RawJson escape hatch. \
+                Added with data-driven enchantments in 1.21. Follow-up: #188.",
     },
     RegistryCoverage {
         registry_key: "minecraft:jukebox_song",
@@ -665,6 +711,23 @@ pub const TAG_COVERAGE: &[TagCoverage] = &[
     },
 ];
 
+/// Coverage for public datapack assets omitted from Mojang's registry report.
+///
+/// These rows complement [`REGISTRY_COVERAGE`] and [`TAG_COVERAGE`]. They must
+/// not be fed into registry-drift comparisons because their directories are
+/// ordinary datapack file families rather than registry identifiers.
+pub const DATAPACK_ASSET_COVERAGE: &[DatapackAssetCoverage] = &[DatapackAssetCoverage {
+    asset_name: "structure_template",
+    datapack_dir: "structure",
+    file_extension: "nbt",
+    sand_module: "sand_components::structure_template",
+    kind: DatapackAssetKind::CopyBackedBinary,
+    api_status: RegistryApiStatus::FullyImplemented,
+    notes: "StructureTemplate validates a project-relative .nbt source and copies it to \
+            data/<namespace>/structure/<path>.nbt. Sand does not parse, generate, or \
+            semantically validate the binary NBT payload.",
+}];
+
 /// Exclusive upper version gates for registries removed or renamed by Mojang.
 ///
 /// The table is currently empty because both checked profiles are additive.
@@ -1037,6 +1100,64 @@ mod tests {
             !REGISTRY_COVERAGE
                 .iter()
                 .any(|entry| entry.registry_key.contains("(tags)"))
+        );
+    }
+
+    #[test]
+    fn datapack_asset_rows_are_valid_and_unique() {
+        assert!(
+            !DATAPACK_ASSET_COVERAGE.is_empty(),
+            "non-registry datapack assets must remain visible to coverage audits"
+        );
+
+        let mut names = BTreeSet::new();
+        for asset in DATAPACK_ASSET_COVERAGE {
+            assert!(
+                names.insert(asset.asset_name),
+                "duplicate datapack asset coverage row: {}",
+                asset.asset_name
+            );
+            assert!(
+                valid_dir(asset.datapack_dir),
+                "invalid datapack asset directory: {}",
+                asset.datapack_dir
+            );
+            assert!(
+                !asset.file_extension.is_empty()
+                    && !asset.file_extension.starts_with('.')
+                    && asset
+                        .file_extension
+                        .bytes()
+                        .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit()),
+                "invalid datapack asset extension: {}",
+                asset.file_extension
+            );
+            assert!(!asset.sand_module.is_empty());
+            assert!(!asset.notes.is_empty());
+        }
+    }
+
+    #[test]
+    fn structure_templates_are_tracked_as_copy_backed_binary_assets() {
+        let asset = DATAPACK_ASSET_COVERAGE
+            .iter()
+            .find(|asset| asset.asset_name == "structure_template")
+            .expect("StructureTemplate must remain represented in the coverage audit");
+
+        assert_eq!(asset.datapack_dir, "structure");
+        assert_eq!(asset.file_extension, "nbt");
+        assert_eq!(asset.sand_module, "sand_components::structure_template");
+        assert_eq!(asset.kind, DatapackAssetKind::CopyBackedBinary);
+        assert_eq!(asset.api_status, RegistryApiStatus::FullyImplemented);
+        assert!(
+            asset.notes.contains("does not parse") && asset.notes.contains("semantically validate"),
+            "coverage must not overstate Sand's binary NBT support"
+        );
+        assert!(
+            !REGISTRY_COVERAGE
+                .iter()
+                .any(|registry| registry.datapack_dir == asset.datapack_dir),
+            "structure templates are assets, not data-driven registry rows"
         );
     }
 

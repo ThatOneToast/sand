@@ -1542,7 +1542,7 @@ impl CustomItem {
     pub fn on_use_advancement(
         &self,
         location: ResourceLocation,
-        reward_fn: impl Into<String>,
+        reward_fn: crate::registry::FunctionId,
     ) -> Advancement {
         Advancement::new(location)
             .criterion(
@@ -1562,7 +1562,7 @@ impl CustomItem {
     pub fn on_kill_advancement(
         &self,
         location: ResourceLocation,
-        reward_fn: impl Into<String>,
+        reward_fn: crate::registry::FunctionId,
     ) -> Advancement {
         Advancement::new(location)
             .criterion(
@@ -1582,7 +1582,7 @@ impl CustomItem {
         &self,
         location: ResourceLocation,
         trigger: AdvancementTrigger,
-        reward_fn: impl Into<String>,
+        reward_fn: crate::registry::FunctionId,
     ) -> Advancement {
         Advancement::new(location)
             .criterion("triggered", Criterion::new(trigger))

@@ -361,8 +361,11 @@ pub(crate) fn try_export_components_impl(
                 )
                 .criterion("event", sand_components::Criterion::new(trigger))
                 .rewards(
-                    sand_components::AdvancementRewards::new()
-                        .function(format!("{namespace}:{}", desc.path)),
+                    sand_components::AdvancementRewards::new().function(
+                        format!("{namespace}:{}", desc.path)
+                            .parse()
+                            .expect("generated event function ID must be valid"),
+                    ),
                 );
 
                 records.push(component_to_record(&advancement, ctx)?);
@@ -637,8 +640,11 @@ pub(crate) fn try_export_components_impl(
                         )
                         .criterion("event", sand_components::Criterion::new(trigger))
                         .rewards(
-                            sand_components::AdvancementRewards::new()
-                                .function(format!("{namespace}:{}", desc.path)),
+                            sand_components::AdvancementRewards::new().function(
+                                format!("{namespace}:{}", desc.path)
+                                    .parse()
+                                    .expect("generated event function ID must be valid"),
+                            ),
                         );
 
                         records.push(component_to_record(&advancement, ctx)?);
@@ -1972,7 +1978,13 @@ pub(crate) fn try_export_components_impl(
                     .expect("generated advancement bridge id is a valid resource location"),
             )
             .criterion("event", sand_components::Criterion::new(trigger))
-            .rewards(sand_components::AdvancementRewards::new().function(entry_ref));
+            .rewards(
+                sand_components::AdvancementRewards::new().function(
+                    entry_ref
+                        .parse()
+                        .expect("generated event function ID must be valid"),
+                ),
+            );
             records.push(component_to_record(&advancement, ctx)?);
         }
     }

@@ -135,7 +135,13 @@ impl Interactable {
                     entity: self.entity_filter.clone(),
                 }),
             )
-            .rewards(AdvancementRewards::new().function(reward_fn))
+            .rewards(
+                AdvancementRewards::new().function(
+                    reward_fn
+                        .parse()
+                        .expect("response function must be a valid resource location"),
+                ),
+            )
     }
 
     /// Build the advancement, providing the response function now (overrides any set earlier).

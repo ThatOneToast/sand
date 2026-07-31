@@ -5,8 +5,9 @@
 
 use sand_core::{
     Advancement, AdvancementDisplay, AdvancementFrame, AdvancementIcon,
-    AdvancementRewards, AdvancementTrigger, Criterion, RawJson,
+    AdvancementRewards, AdvancementTrigger, Criterion, ItemId, RawJson,
 };
+use sand_core::prelude::Text;
 use sand_macros::component;
 
 // ── Basic advancement with a tick trigger ────────────────────────────────────
@@ -16,7 +17,9 @@ use sand_macros::component;
 pub fn first_join() -> Advancement {
     Advancement::new("my_pack:first_join".parse().unwrap())
         .criterion("joined", Criterion::new(AdvancementTrigger::Tick))
-        .rewards(AdvancementRewards::new().function("my_pack:on_first_join"))
+        .rewards(
+            AdvancementRewards::new().function("my_pack:on_first_join".parse().unwrap()),
+        )
 }
 
 // ── Advancement with display ─────────────────────────────────────────────────
@@ -27,9 +30,9 @@ pub fn get_diamonds() -> Advancement {
     Advancement::new("my_pack:get_diamonds".parse().unwrap())
         .display(
             AdvancementDisplay::new(
-                AdvancementIcon::new("minecraft:diamond"),
-                "Diamond Collector",
-                "Mine your first diamond",
+                AdvancementIcon::new(ItemId::minecraft("diamond").unwrap()),
+                Text::new("Diamond Collector"),
+                Text::new("Mine your first diamond"),
             )
             .frame(AdvancementFrame::Task)
             .show_toast(true)
@@ -52,9 +55,9 @@ pub fn dragon_slayer() -> Advancement {
         .parent("my_pack:get_diamonds".parse().unwrap())
         .display(
             AdvancementDisplay::new(
-                AdvancementIcon::new("minecraft:dragon_head"),
-                "Dragon Slayer",
-                "Defeat the Ender Dragon",
+                AdvancementIcon::new(ItemId::minecraft("dragon_head").unwrap()),
+                Text::new("Dragon Slayer"),
+                Text::new("Defeat the Ender Dragon"),
             )
             .frame(AdvancementFrame::Challenge)
             .announce_to_chat(true),
@@ -75,7 +78,7 @@ pub fn dragon_slayer() -> Advancement {
         .rewards(
             AdvancementRewards::new()
                 .experience(1000)
-                .function("my_pack:dragon_reward"),
+                .function("my_pack:dragon_reward".parse().unwrap()),
         )
 }
 
@@ -87,9 +90,9 @@ pub fn master_miner() -> Advancement {
     Advancement::new("my_pack:master_miner".parse().unwrap())
         .display(
             AdvancementDisplay::new(
-                AdvancementIcon::new("minecraft:netherite_pickaxe"),
-                "Master Miner",
-                "Mine all rare ores",
+                AdvancementIcon::new(ItemId::minecraft("netherite_pickaxe").unwrap()),
+                Text::new("Master Miner"),
+                Text::new("Mine all rare ores"),
             )
             .frame(AdvancementFrame::Goal),
         )

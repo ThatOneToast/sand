@@ -145,6 +145,21 @@ registry_id! {
 }
 
 registry_id! {
+    /// Typed Minecraft advancement identifier (e.g. `minecraft:story/root` or `mypack:chapter/start`).
+    AdvancementId
+}
+
+registry_id! {
+    /// Typed Minecraft recipe identifier (e.g. `minecraft:diamond_pickaxe` or `mypack:arcane_blade`).
+    RecipeId
+}
+
+registry_id! {
+    /// Typed Minecraft loot-table identifier (e.g. `minecraft:chests/simple_dungeon` or `mypack:rewards/boss`).
+    LootTableId
+}
+
+registry_id! {
     /// Typed Minecraft enchantment identifier (e.g. `minecraft:sharpness` or `mymod:arcane`).
     EnchantmentId
 }

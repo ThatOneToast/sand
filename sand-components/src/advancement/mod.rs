@@ -2,6 +2,7 @@ pub mod trigger_coverage;
 
 use std::collections::HashMap;
 
+use sand_commands::{CommandProfile, TextComponent};
 use serde::Serialize;
 use serde::ser::{SerializeMap, Serializer};
 use serde_json::Value;
@@ -12,7 +13,10 @@ use crate::predicates::{
     ItemPredicate, LocationPredicate,
 };
 use crate::raw::RawJson;
-use crate::registry::{BlockId, DimensionId, PotionRegistryId, StatusEffectId};
+use crate::registry::{
+    AdvancementId, BlockId, DimensionId, FunctionId, ItemId, LootTableId, PotionRegistryId,
+    RecipeId, StatusEffectId,
+};
 use crate::resource_location::ResourceLocation;
 
 fn validate_resource_id(value: &str, path: &str) -> Result<(), String> {
@@ -50,16 +54,34 @@ impl AdvancementFrame {
 // ── AdvancementIcon ───────────────────────────────────────────────────────────
 
 /// The icon displayed for an advancement, with optional item components.
+///
+/// The normal constructor accepts only item-registry IDs, so a block tag or
+/// another registry kind cannot be passed accidentally:
+///
+/// ```compile_fail
+/// use sand_components::{AdvancementIcon, BlockId};
+///
+/// let block = BlockId::minecraft("stone").unwrap();
+/// let _icon = AdvancementIcon::new(block);
+/// ```
 pub struct AdvancementIcon {
-    pub id: String,
-    pub components: Option<RawJson>,
+    id: String,
+    components: Option<RawJson>,
 }
 
 impl AdvancementIcon {
-    /// Creates a new advancement icon with the specified item ID.
-    pub fn new(id: impl std::fmt::Display) -> Self {
+    /// Creates a new advancement icon through the typed item-ID path.
+    pub fn new(id: ItemId) -> Self {
         Self {
             id: id.to_string(),
+            components: None,
+        }
+    }
+
+    /// Creates an advancement icon through the explicit raw compatibility path.
+    pub fn raw(id: impl Into<String>) -> Self {
+        Self {
+            id: id.into(),
             components: None,
         }
     }
@@ -87,33 +109,74 @@ impl Serialize for AdvancementIcon {
 
 // ── AdvancementDisplay ────────────────────────────────────────────────────────
 
+enum AdvancementText {
+    Typed(Box<TextComponent>),
+    Raw(RawJson),
+}
+
+impl AdvancementText {
+    fn validate(&self, location: &ResourceLocation, field: &str) -> crate::error::Result<()> {
+        let error = match self {
+            Self::Typed(text) => text.validate_at_path(&CommandProfile::unprofiled(), field),
+            Self::Raw(text) => sand_commands::text::validate_json_text(
+                text.as_value(),
+                &CommandProfile::unprofiled(),
+                field,
+            ),
+        };
+        error.map_err(|error| crate::error::SandError::ComponentValidation {
+            location: location.clone(),
+            kind: "advancement".to_string(),
+            field: error.field,
+            message: format!("error[{}] {}", error.code, error.message),
+        })
+    }
+}
+
+impl Serialize for AdvancementText {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        match self {
+            Self::Typed(text) => {
+                let value = text
+                    .try_to_json_value()
+                    .map_err(serde::ser::Error::custom)?;
+                value.serialize(serializer)
+            }
+            Self::Raw(text) => text.serialize(serializer),
+        }
+    }
+}
+
 /// The display information shown for an advancement in the advancement screen and toast.
 pub struct AdvancementDisplay {
-    pub icon: AdvancementIcon,
-    pub title: Value,
-    pub description: Value,
-    pub background: Option<String>,
-    pub frame: AdvancementFrame,
-    pub show_toast: bool,
-    pub announce_to_chat: bool,
-    pub hidden: bool,
+    icon: AdvancementIcon,
+    title: AdvancementText,
+    description: AdvancementText,
+    background: Option<String>,
+    frame: AdvancementFrame,
+    show_toast: bool,
+    announce_to_chat: bool,
+    hidden: bool,
 }
 
 impl AdvancementDisplay {
-    /// Creates a new advancement display with the specified icon, title, and description.
+    /// Creates a display using typed Minecraft text components.
     ///
-    /// `title` and `description` accept any `impl Into<Value>` — pass a plain `&str`
-    /// for a string literal title, or a [`TextComponent`](sand_commands::TextComponent)
-    /// for rich text (it implements `Into<Value>` via `Into<String>` → `Value::String`).
-    pub fn new(
-        icon: AdvancementIcon,
-        title: impl Into<Value>,
-        description: impl Into<Value>,
-    ) -> Self {
+    /// ```
+    /// use sand_commands::Text;
+    /// use sand_components::{AdvancementDisplay, AdvancementIcon, ItemId};
+    ///
+    /// let display = AdvancementDisplay::new(
+    ///     AdvancementIcon::new(ItemId::minecraft("diamond").unwrap()),
+    ///     Text::new("Diamond Collector").aqua().bold(true),
+    ///     Text::new("Find a diamond"),
+    /// );
+    /// ```
+    pub fn new(icon: AdvancementIcon, title: TextComponent, description: TextComponent) -> Self {
         Self {
             icon,
-            title: title.into(),
-            description: description.into(),
+            title: AdvancementText::Typed(Box::new(title)),
+            description: AdvancementText::Typed(Box::new(description)),
             background: None,
             frame: AdvancementFrame::Task,
             show_toast: true,
@@ -122,8 +185,40 @@ impl AdvancementDisplay {
         }
     }
 
-    /// Sets the background texture for the advancement tab.
-    pub fn background(mut self, bg: impl Into<String>) -> Self {
+    /// Creates a display with explicitly raw Minecraft text JSON.
+    pub fn raw_text(icon: AdvancementIcon, title: RawJson, description: RawJson) -> Self {
+        Self {
+            icon,
+            title: AdvancementText::Raw(title),
+            description: AdvancementText::Raw(description),
+            background: None,
+            frame: AdvancementFrame::Task,
+            show_toast: true,
+            announce_to_chat: true,
+            hidden: false,
+        }
+    }
+
+    /// Replaces the title through the explicit raw text escape hatch.
+    pub fn raw_title(mut self, title: RawJson) -> Self {
+        self.title = AdvancementText::Raw(title);
+        self
+    }
+
+    /// Replaces the description through the explicit raw text escape hatch.
+    pub fn raw_description(mut self, description: RawJson) -> Self {
+        self.description = AdvancementText::Raw(description);
+        self
+    }
+
+    /// Sets the typed background texture for the advancement tab.
+    pub fn background(mut self, bg: ResourceLocation) -> Self {
+        self.background = Some(bg.to_string());
+        self
+    }
+
+    /// Sets the background through the explicit raw compatibility path.
+    pub fn raw_background(mut self, bg: impl Into<String>) -> Self {
         self.background = Some(bg.into());
         self
     }
@@ -2521,10 +2616,10 @@ impl Serialize for Criterion {
 
 /// Rewards granted to the player when an advancement is completed.
 pub struct AdvancementRewards {
-    pub recipes: Vec<String>,
-    pub loot: Vec<String>,
-    pub experience: i32,
-    pub function: Option<String>,
+    recipes: Vec<String>,
+    loot: Vec<String>,
+    experience: i32,
+    function: Option<String>,
 }
 
 impl AdvancementRewards {
@@ -2539,13 +2634,28 @@ impl AdvancementRewards {
     }
 
     /// Adds a recipe unlock reward.
-    pub fn recipe(mut self, recipe: impl Into<String>) -> Self {
+    ///
+    /// Custom pack IDs remain typed: parse them as [`RecipeId`] or construct
+    /// them from a validated [`ResourceLocation`].
+    pub fn recipe(mut self, recipe: RecipeId) -> Self {
+        self.recipes.push(recipe.to_string());
+        self
+    }
+
+    /// Adds a recipe reward through the explicit raw compatibility path.
+    pub fn raw_recipe(mut self, recipe: impl Into<String>) -> Self {
         self.recipes.push(recipe.into());
         self
     }
 
     /// Adds a loot table reward.
-    pub fn loot(mut self, loot: impl Into<String>) -> Self {
+    pub fn loot(mut self, loot: LootTableId) -> Self {
+        self.loot.push(loot.to_string());
+        self
+    }
+
+    /// Adds a loot-table reward through the explicit raw compatibility path.
+    pub fn raw_loot(mut self, loot: impl Into<String>) -> Self {
         self.loot.push(loot.into());
         self
     }
@@ -2557,7 +2667,13 @@ impl AdvancementRewards {
     }
 
     /// Sets a function to execute as a reward.
-    pub fn function(mut self, func: impl Into<String>) -> Self {
+    pub fn function(mut self, func: FunctionId) -> Self {
+        self.function = Some(func.to_string());
+        self
+    }
+
+    /// Sets a reward function through the explicit raw compatibility path.
+    pub fn raw_function(mut self, func: impl Into<String>) -> Self {
         self.function = Some(func.into());
         self
     }
@@ -2620,13 +2736,13 @@ impl Serialize for AdvancementRewards {
 
 /// A complete advancement definition for a Minecraft datapack.
 pub struct Advancement {
-    pub location: ResourceLocation,
-    pub parent: Option<String>,
-    pub display: Option<AdvancementDisplay>,
-    pub criteria: HashMap<String, Criterion>,
-    pub requirements: Option<Vec<Vec<String>>>,
-    pub rewards: Option<AdvancementRewards>,
-    pub sends_telemetry_data: bool,
+    location: ResourceLocation,
+    parent: Option<String>,
+    display: Option<AdvancementDisplay>,
+    criteria: HashMap<String, Criterion>,
+    requirements: Option<Vec<Vec<String>>>,
+    rewards: Option<AdvancementRewards>,
+    sends_telemetry_data: bool,
 }
 
 impl Advancement {
@@ -2644,7 +2760,20 @@ impl Advancement {
     }
 
     /// Sets the parent advancement.
-    pub fn parent(mut self, parent: impl Into<String>) -> Self {
+    ///
+    /// ```
+    /// use sand_components::{Advancement, AdvancementId, ResourceLocation};
+    ///
+    /// let advancement = Advancement::new(ResourceLocation::new("demo", "child").unwrap())
+    ///     .parent("demo:root".parse::<AdvancementId>().unwrap());
+    /// ```
+    pub fn parent(mut self, parent: AdvancementId) -> Self {
+        self.parent = Some(parent.to_string());
+        self
+    }
+
+    /// Sets the parent through the explicit raw compatibility path.
+    pub fn raw_parent(mut self, parent: impl Into<String>) -> Self {
         self.parent = Some(parent.into());
         self
     }
@@ -2712,22 +2841,10 @@ impl DatapackComponent for Advancement {
             validate_resource_id(&display.icon.id, "display.icon.id")
                 .map_err(split_validation_message)
                 .map_err(|(field, message)| self.validation_error(field, message))?;
-            for (field, text) in [
-                ("display.title", &display.title),
-                ("display.description", &display.description),
-            ] {
-                sand_commands::text::validate_json_text(
-                    text,
-                    &sand_commands::CommandProfile::unprofiled(),
-                    field,
-                )
-                .map_err(|error| {
-                    self.validation_error(
-                        error.field,
-                        format!("error[{}] {}", error.code, error.message),
-                    )
-                })?;
-            }
+            display.title.validate(&self.location, "display.title")?;
+            display
+                .description
+                .validate(&self.location, "display.description")?;
             if let Some(background) = &display.background {
                 validate_resource_id(background, "display.background")
                     .map_err(split_validation_message)
@@ -2899,6 +3016,27 @@ mod tests {
         DamagePredicate, DamageSourcePredicate, EntityPredicate, FloatRange, IntRange,
         ItemPredicate, LocationPredicate,
     };
+    use sand_commands::Text;
+
+    fn advancement_id(value: &str) -> AdvancementId {
+        value.parse().unwrap()
+    }
+
+    fn function_id(value: &str) -> FunctionId {
+        value.parse().unwrap()
+    }
+
+    fn item_id(value: &str) -> ItemId {
+        value.parse().unwrap()
+    }
+
+    fn loot_table_id(value: &str) -> LootTableId {
+        value.parse().unwrap()
+    }
+
+    fn recipe_id(value: &str) -> RecipeId {
+        value.parse().unwrap()
+    }
 
     #[test]
     fn tick_trigger_serializes() {
@@ -3017,7 +3155,7 @@ mod tests {
             .rewards(
                 AdvancementRewards::new()
                     .experience(1000)
-                    .function("test:reward"),
+                    .function(function_id("test:reward")),
             );
         let json = adv.to_json();
         assert_eq!(
@@ -3025,6 +3163,89 @@ mod tests {
             "minecraft:ender_dragon"
         );
         assert_eq!(json["rewards"]["experience"], 1000);
+    }
+
+    #[test]
+    fn typed_display_icon_parent_and_rewards_emit_canonical_json() {
+        let display = AdvancementDisplay::new(
+            AdvancementIcon::new(item_id("minecraft:diamond")),
+            Text::new("Shiny").aqua().bold(true),
+            Text::new("Find a diamond"),
+        )
+        .background("minecraft:textures/block/stone.png".parse().unwrap());
+        let advancement = tick_advancement("typed_surface")
+            .parent(advancement_id("test:root"))
+            .display(display)
+            .rewards(
+                AdvancementRewards::new()
+                    .recipe(recipe_id("test:diamond_recipe"))
+                    .loot(loot_table_id("test:diamond_reward"))
+                    .function(function_id("test:complete")),
+            );
+
+        let json = advancement.to_json();
+        assert_eq!(json["parent"], "test:root");
+        assert_eq!(json["display"]["icon"]["id"], "minecraft:diamond");
+        assert_eq!(json["display"]["title"]["text"], "Shiny");
+        assert_eq!(json["display"]["title"]["color"], "aqua");
+        assert_eq!(json["display"]["title"]["bold"], true);
+        assert_eq!(json["display"]["description"]["text"], "Find a diamond");
+        assert_eq!(json["rewards"]["recipes"][0], "test:diamond_recipe");
+        assert_eq!(json["rewards"]["loot"][0], "test:diamond_reward");
+        assert_eq!(json["rewards"]["function"], "test:complete");
+    }
+
+    #[test]
+    fn explicit_raw_top_level_escape_hatches_preserve_valid_custom_shapes() {
+        let display = AdvancementDisplay::raw_text(
+            AdvancementIcon::raw("mymod:icon")
+                .components(RawJson::new(serde_json::json!({"mymod:glow": true}))),
+            RawJson::new(serde_json::json!(["Raw ", {"text": "title"}])),
+            RawJson::new(serde_json::json!("Raw description")),
+        )
+        .raw_background("mymod:textures/gui/root.png");
+        let advancement = tick_advancement("raw_surface")
+            .raw_parent("mymod:root")
+            .display(display)
+            .rewards(
+                AdvancementRewards::new()
+                    .raw_recipe("mymod:recipe")
+                    .raw_loot("mymod:loot")
+                    .raw_function("mymod:complete"),
+            );
+
+        advancement.validate().unwrap();
+        let json = advancement.to_json();
+        assert_eq!(json["display"]["title"][0], "Raw ");
+        assert_eq!(json["display"]["description"], "Raw description");
+        assert_eq!(json["display"]["icon"]["components"]["mymod:glow"], true);
+    }
+
+    #[test]
+    fn malformed_raw_display_text_fails_with_the_advancement_field_path() {
+        let display = AdvancementDisplay::raw_text(
+            AdvancementIcon::new(item_id("minecraft:stone")),
+            RawJson::new(serde_json::json!(42)),
+            RawJson::new(serde_json::json!("Description")),
+        );
+        let error = tick_advancement("bad_raw_text")
+            .display(display)
+            .try_content()
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("field: display.title"), "{error}");
+        assert!(error.contains("SAND-TEXT-SHAPE"), "{error}");
+    }
+
+    #[test]
+    fn typed_top_level_ids_reject_malformed_resource_locations_at_construction() {
+        for malformed in ["not namespaced", "minecraft:bad path", "Bad:id"] {
+            assert!(malformed.parse::<AdvancementId>().is_err());
+            assert!(malformed.parse::<ItemId>().is_err());
+            assert!(malformed.parse::<RecipeId>().is_err());
+            assert!(malformed.parse::<LootTableId>().is_err());
+            assert!(malformed.parse::<FunctionId>().is_err());
+        }
     }
 
     // ── Trigger ID golden tests ───────────────────────────────────────────────
@@ -3523,7 +3744,7 @@ mod tests {
 
     #[test]
     fn advancement_validates_top_level_resource_references() {
-        let invalid_parent = tick_advancement("bad_parent").parent("not namespaced");
+        let invalid_parent = tick_advancement("bad_parent").raw_parent("not namespaced");
         assert!(
             invalid_parent
                 .try_content()
@@ -3532,8 +3753,11 @@ mod tests {
                 .contains("field: parent")
         );
 
-        let display =
-            AdvancementDisplay::new(AdvancementIcon::new("bad icon"), "Title", "Description");
+        let display = AdvancementDisplay::new(
+            AdvancementIcon::raw("bad icon"),
+            Text::new("Title"),
+            Text::new("Description"),
+        );
         let invalid_icon = tick_advancement("bad_icon").display(display);
         assert!(
             invalid_icon
@@ -3544,11 +3768,11 @@ mod tests {
         );
 
         let display = AdvancementDisplay::new(
-            AdvancementIcon::new("minecraft:stone"),
-            "Title",
-            "Description",
+            AdvancementIcon::new(item_id("minecraft:stone")),
+            Text::new("Title"),
+            Text::new("Description"),
         )
-        .background("bad background");
+        .raw_background("bad background");
         let invalid_background = tick_advancement("bad_background").display(display);
         assert!(
             invalid_background
@@ -3562,9 +3786,9 @@ mod tests {
     #[test]
     fn advancement_validates_reward_resource_references() {
         let rewards = [
-            AdvancementRewards::new().recipe("bad recipe"),
-            AdvancementRewards::new().loot("bad loot"),
-            AdvancementRewards::new().function("bad function"),
+            AdvancementRewards::new().raw_recipe("bad recipe"),
+            AdvancementRewards::new().raw_loot("bad loot"),
+            AdvancementRewards::new().raw_function("bad function"),
         ];
         let fields = ["rewards.recipes[0]", "rewards.loot[0]", "rewards.function"];
         for (rewards, field) in rewards.into_iter().zip(fields) {
@@ -3634,10 +3858,14 @@ mod tests {
     #[test]
     fn advancement_valid_resource_references_and_raw_conditions_are_preserved() {
         let advancement = Advancement::new("mymod:advancement".parse().unwrap())
-            .parent("mymod:parent")
+            .parent(advancement_id("mymod:parent"))
             .display(
-                AdvancementDisplay::new(AdvancementIcon::new("mymod:icon"), "Title", "Description")
-                    .background("mymod:textures/gui/background.png"),
+                AdvancementDisplay::new(
+                    AdvancementIcon::new(item_id("mymod:icon")),
+                    Text::new("Title"),
+                    Text::new("Description"),
+                )
+                .background("mymod:textures/gui/background.png".parse().unwrap()),
             )
             .criterion(
                 "custom/event",
@@ -3649,9 +3877,9 @@ mod tests {
             .requirements(vec![vec!["custom/event".into()]])
             .rewards(
                 AdvancementRewards::new()
-                    .recipe("mymod:recipe")
-                    .loot("mymod:loot")
-                    .function("mymod:reward"),
+                    .recipe(recipe_id("mymod:recipe"))
+                    .loot(loot_table_id("mymod:loot"))
+                    .function(function_id("mymod:reward")),
             );
 
         assert_eq!(advancement.try_content().unwrap(), advancement.content());
@@ -4406,7 +4634,7 @@ mod tests {
                     None,
                 )),
             )
-            .rewards(AdvancementRewards::new().function("test:reward"));
+            .rewards(AdvancementRewards::new().function(function_id("test:reward")));
         let json = advancement.to_json();
         assert_eq!(json["requirements"], serde_json::json!([["event"]]));
     }

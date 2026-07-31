@@ -93,10 +93,13 @@ fn typed_food_consumable_equippable_and_tool_components() {
         .component(ItemComponent::consumable(
             ConsumableProperties::new(1.0)
                 .animation(ConsumableAnimation::Eat)
-                .sound("minecraft:entity.player.burp"),
+                .sound(SoundEventId::minecraft("entity.player.burp").unwrap()),
         ))
         .component(ItemComponent::equippable(
-            EquippableProperties::new(EquipmentSlot::Head).swappable(false),
+            EquippableProperties::new(EquipmentSlot::Head)
+                .swappable(false)
+                .equip_sound(SoundEventId::minecraft("item.armor.equip_gold").unwrap())
+                .model(EquipmentModelId::minecraft("gold").unwrap()),
         ))
         .component(ItemComponent::tool(
             ToolProperties::new()
@@ -110,7 +113,7 @@ fn typed_food_consumable_equippable_and_tool_components() {
 
     assert_eq!(
         item.to_string(),
-        "minecraft:apple[food={nutrition:8,saturation:12.8f,can_always_eat:true},consumable={consume_seconds:1f,animation:\"eat\",has_consume_particles:true,sound:\"minecraft:entity.player.burp\"},tool={rules:[{blocks:\"#minecraft:mineable/pickaxe\",speed:12f,correct_for_drops:true}],default_mining_speed:1f,damage_per_block:2},equippable={slot:\"head\",dispensable:true,swappable:false,damage_on_hurt:true}]"
+        "minecraft:apple[food={nutrition:8,saturation:12.8f,can_always_eat:true},consumable={consume_seconds:1f,animation:\"eat\",has_consume_particles:true,sound:\"minecraft:entity.player.burp\"},tool={rules:[{blocks:\"#minecraft:mineable/pickaxe\",speed:12f,correct_for_drops:true}],default_mining_speed:1f,damage_per_block:2},equippable={slot:\"head\",dispensable:true,swappable:false,damage_on_hurt:true,equip_sound:\"minecraft:item.armor.equip_gold\",model:\"minecraft:gold\"}]"
     );
 }
 

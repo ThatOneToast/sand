@@ -73,8 +73,8 @@ pub use predicates::{
     IntRange, ItemPredicate, LocationPredicate, Range,
 };
 pub use registry::{
-    BiomeId, BlockId, DamageTypeId, DimensionId, EnchantmentId, EntityTypeId, FunctionId, ItemId,
-    PotionRegistryId, StatusEffectId, StructureId, TagId,
+    BiomeId, BlockId, DamageTypeId, DimensionId, EnchantmentId, EntityTypeId, EquipmentModelId,
+    FunctionId, ItemId, PotionRegistryId, SoundEventId, StatusEffectId, StructureId, TagId,
 };
 pub use resource_location::{Identifier, PackNamespace, ResourceLocation};
 

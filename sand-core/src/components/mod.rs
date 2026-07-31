@@ -35,6 +35,7 @@ pub use sand_components::{
     EnchantmentSelection,
     // Item predicates
     EntityPredicate,
+    EquipmentModelId,
     EquipmentSlot,
     EquipmentSlotGroup,
     EquippableProperties,
@@ -60,6 +61,7 @@ pub use sand_components::{
     ShapelessRecipe,
     SmithingTransformRecipe,
     SmithingTrimRecipe,
+    SoundEventId,
     StonecuttingRecipe,
     // Tag
     Tag,

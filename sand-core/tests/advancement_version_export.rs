@@ -22,7 +22,9 @@ fn filtered_placed_block() -> Advancement {
             None,
         )),
     )
-    .rewards(AdvancementRewards::new().function("advancement_export_test:on_placed"))
+    .rewards(
+        AdvancementRewards::new().function("advancement_export_test:on_placed".parse().unwrap()),
+    )
 }
 
 fn multi_criteria_advancement() -> Advancement {

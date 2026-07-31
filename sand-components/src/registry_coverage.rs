@@ -108,16 +108,11 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         datapack_dir: "advancement",
         tag_dir: None,
         sand_module: Some("sand_components::advancement"),
-        api_status: RegistryApiStatus::PartiallyImplemented,
+        api_status: RegistryApiStatus::FullyImplemented,
         version_gate: None,
-        notes: "Advancement, AdvancementTrigger, AdvancementDisplay. 50+ trigger variants. See trigger_coverage. \
-                #184 (typed resource IDs inside AdvancementTrigger variants) is closed and confirmed done: trigger \
-                condition/resource fields (e.g. BlockId, DimensionId, PotionRegistryId, EntityPredicate) are typed. \
-                Remaining normal-path raw surfaces per #183: AdvancementDisplay::{title, description} are raw \
-                serde_json::Value instead of a typed TextComponent, AdvancementDisplay::background and \
-                AdvancementIcon::id are raw String, AdvancementRewards::{recipes, loot, function} are \
-                Vec<String>/Option<String>, and Advancement::parent is a raw String. Downgraded from \
-                FullyImplemented per #193. Follow-up: #183.",
+        notes: "Advancement, AdvancementTrigger, AdvancementDisplay. 50+ trigger variants. Normal display, icon, \
+                parent, reward, and trigger reference paths are typed; unsupported/custom shapes require explicitly \
+                named raw escape hatches. See trigger_coverage.",
     },
     RegistryCoverage {
         registry_key: "minecraft:function",
@@ -688,10 +683,7 @@ pub const REGISTRY_REMOVED_IN: &[(&str, &str)] = &[];
 /// When a registry genuinely becomes fully typed, remove its entry here in
 /// the same change that promotes its `REGISTRY_COVERAGE` row — that keeps a
 /// promotion from silently slipping in without a corresponding audit.
-pub const KNOWN_PARTIAL_REGISTRIES: &[(&str, &[&str])] = &[
-    ("minecraft:advancement", &["#183"]),
-    ("minecraft:loot_table", &["#185"]),
-];
+pub const KNOWN_PARTIAL_REGISTRIES: &[(&str, &[&str])] = &[("minecraft:loot_table", &["#185"])];
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 

@@ -184,9 +184,10 @@ pub use sand_components::{RawComponent, RawJson, RawSnbt};
 // ── Typed registry identifiers ────────────────────────────────────────────────
 
 pub use sand_components::{
-    BiomeId, BlockId, DamageTypeId, DimensionId, EffectId, EnchantmentId, EntityTypeId, FunctionId,
-    ItemId, PotionContents, PotionId, PotionRegistryId, Range, StatusEffectId,
-    StatusEffectInstance, StructureId, StructureTemplate, SuspiciousStewEffect, TagId,
+    AdvancementId, BiomeId, BlockId, DamageTypeId, DimensionId, EffectId, EnchantmentId,
+    EntityTypeId, FunctionId, ItemId, LootTableId, PotionContents, PotionId, PotionRegistryId,
+    Range, RecipeId, StatusEffectId, StatusEffectInstance, StructureId, StructureTemplate,
+    SuspiciousStewEffect, TagId,
 };
 
 // ── Text / chat ───────────────────────────────────────────────────────────────

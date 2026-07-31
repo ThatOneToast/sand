@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — typed advancement display and references (#183)
+
+- **Breaking:** advancement displays now take `TextComponent` title and
+  description values, icons take `ItemId`, parents take `AdvancementId`,
+  backgrounds take `ResourceLocation`, and rewards take `RecipeId`,
+  `LootTableId`, and `FunctionId`. This removes anonymous strings and
+  `serde_json::Value` from the normal top-level advancement authoring path.
+- Added explicitly named raw icon, text, background, parent, recipe, loot, and
+  function escape hatches for unsupported or version-specific content. No
+  compatibility forwarding layer was retained because Sand is pre-release and
+  the typed path is now canonical.
+- Plain display text now serializes as an explicit Minecraft text object such
+  as `{"text":"Title"}` rather than a JSON string.
+
 ### Changed — derive-based scoped state schemas (#298)
 
 - **Breaking:** `#[derive(State)]` with `#[state(namespace = "...", scope =

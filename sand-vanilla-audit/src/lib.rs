@@ -325,7 +325,9 @@ pub fn stops_sneaking(event: sand_core::event::Event<PlayerStopsSneaking>) {
 pub fn audit_advancement() -> Advancement {
     Advancement::new("sand_audit:first_tick".parse().unwrap())
         .criterion("tick", Criterion::new(AdvancementTrigger::Tick))
-        .rewards(AdvancementRewards::new().function("sand_audit:audit_command"))
+        .rewards(
+            AdvancementRewards::new().function("sand_audit:audit_command".parse().unwrap()),
+        )
 }
 
 /// Real-vanilla load/reload coverage for the #231/#232 `placed_block` fix:
@@ -350,7 +352,9 @@ pub fn audit_placed_block_filtered() -> Advancement {
                 None,
             )),
         )
-        .rewards(AdvancementRewards::new().function("sand_audit:audit_command"))
+        .rewards(
+            AdvancementRewards::new().function("sand_audit:audit_command".parse().unwrap()),
+        )
 }
 
 /// Same coverage as [`audit_placed_block_filtered`] for `item_used_on_block`.
@@ -364,7 +368,9 @@ pub fn audit_item_used_on_block_filtered() -> Advancement {
                 location: None,
             }),
         )
-        .rewards(AdvancementRewards::new().function("sand_audit:audit_command"))
+        .rewards(
+            AdvancementRewards::new().function("sand_audit:audit_command".parse().unwrap()),
+        )
 }
 
 /// Client-driven semantic fixture. The reward revokes this advancement so a
@@ -381,7 +387,10 @@ pub fn semantic_placed_block() -> Advancement {
                 None,
             )),
         )
-        .rewards(AdvancementRewards::new().function("sand_audit:semantic_placed_reward"))
+        .rewards(
+            AdvancementRewards::new()
+                .function("sand_audit:semantic_placed_reward".parse().unwrap()),
+        )
 }
 
 /// Client-driven item-use fixture with the same revoke/re-fire contract.
@@ -400,7 +409,10 @@ pub fn semantic_item_used_on_block() -> Advancement {
                 ),
             }),
         )
-        .rewards(AdvancementRewards::new().function("sand_audit:semantic_item_used_reward"))
+        .rewards(
+            AdvancementRewards::new()
+                .function("sand_audit:semantic_item_used_reward".parse().unwrap()),
+        )
 }
 
 /// Cross-family parse fixture for direct entity, entity-nested location,

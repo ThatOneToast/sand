@@ -21,6 +21,7 @@
 
 use std::collections::HashMap;
 
+use sand_commands::Text;
 use sand_components::TagId;
 use sand_components::dialog::{Dialog, DialogAction, DialogBody, DialogButton};
 use sand_components::item::stack::ItemStack;
@@ -34,7 +35,9 @@ use sand_components::recipe::{
     CookingRecipe, CookingType, Ingredient, RecipeResult, ShapedRecipe, ShapelessRecipe,
     SmithingTransformRecipe, SmithingTrimRecipe, StonecuttingRecipe,
 };
-use sand_components::registry::{EnchantmentId, ItemId};
+use sand_components::registry::{
+    AdvancementId, EnchantmentId, FunctionId, ItemId, LootTableId, RecipeId,
+};
 use sand_components::tag::{Tag, TagEntry, TypedTag};
 use sand_components::worldgen::Biome;
 use sand_components::worldgen::biome::BiomeEffects;
@@ -68,15 +71,15 @@ fn content_json(component: &dyn DatapackComponent) -> serde_json::Value {
 fn canonical_26_2_advancement_display_icon_criteria_rewards_parent() {
     let build = || {
         Advancement::new(id("boss/dragon_slayer"))
-            .parent("canon:boss/root")
+            .parent("canon:boss/root".parse::<AdvancementId>().unwrap())
             .display(
                 AdvancementDisplay::new(
-                    AdvancementIcon::new("minecraft:dragon_head"),
-                    "Dragon Slayer",
-                    "Defeat the Ender Dragon",
+                    AdvancementIcon::new(ItemId::minecraft("dragon_head").unwrap()),
+                    Text::new("Dragon Slayer"),
+                    Text::new("Defeat the Ender Dragon"),
                 )
                 .frame(AdvancementFrame::Challenge)
-                .background("minecraft:textures/block/end_stone.png")
+                .background("minecraft:textures/block/end_stone.png".parse().unwrap())
                 .show_toast(true)
                 .announce_to_chat(true)
                 .hidden(false),
@@ -91,9 +94,9 @@ fn canonical_26_2_advancement_display_icon_criteria_rewards_parent() {
             .rewards(
                 AdvancementRewards::new()
                     .experience(1000)
-                    .loot("canon:boss/dragon_reward")
-                    .recipe("canon:elytra_repair")
-                    .function("canon:on_dragon_slain"),
+                    .loot("canon:boss/dragon_reward".parse::<LootTableId>().unwrap())
+                    .recipe("canon:elytra_repair".parse::<RecipeId>().unwrap())
+                    .function("canon:on_dragon_slain".parse::<FunctionId>().unwrap()),
             )
     };
 
@@ -101,8 +104,8 @@ fn canonical_26_2_advancement_display_icon_criteria_rewards_parent() {
         "parent": "canon:boss/root",
         "display": {
             "icon": {"id": "minecraft:dragon_head"},
-            "title": "Dragon Slayer",
-            "description": "Defeat the Ender Dragon",
+            "title": {"text": "Dragon Slayer"},
+            "description": {"text": "Defeat the Ender Dragon"},
             "background": "minecraft:textures/block/end_stone.png",
             "frame": "challenge",
             "show_toast": true,

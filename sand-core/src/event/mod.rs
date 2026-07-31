@@ -571,7 +571,13 @@ impl<E: AdvancementEvent> EventAdvancement<E> {
 
         crate::Advancement::new(rl)
             .criterion("event", crate::Criterion::new(trigger))
-            .rewards(crate::AdvancementRewards::new().function(self.handler_function))
+            .rewards(
+                crate::AdvancementRewards::new().function(
+                    self.handler_function
+                        .parse()
+                        .expect("handler function must be a valid resource location"),
+                ),
+            )
     }
 }
 

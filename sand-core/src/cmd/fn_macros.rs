@@ -52,7 +52,198 @@
 //! compound. The compound must exist and be non-empty before the function is
 //! called.
 
+use std::collections::BTreeSet;
+use std::fmt;
+
+use sand_commands::{CommandError, CommandResult, NbtRef, RenderCommand};
+
 use super::DataTarget;
+
+/// A validated function-macro argument name.
+///
+/// Minecraft macro placeholders use the form `$(name)`. Sand accepts the
+/// stable unquoted-key subset `[A-Za-z0-9_]+`; unusual or future syntax remains
+/// available through the unchecked [`macro_var`] and [`macro_line`] helpers.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct FunctionMacroArg(String);
+
+impl FunctionMacroArg {
+    /// Parse a function-macro argument name.
+    pub fn new(name: impl Into<String>) -> CommandResult<Self> {
+        let name = name.into();
+        if name.is_empty() {
+            return Err(macro_error("name", "argument names cannot be empty"));
+        }
+        if !name
+            .chars()
+            .all(|character| character.is_ascii_alphanumeric() || character == '_')
+        {
+            return Err(macro_error(
+                "name",
+                format!("argument name `{name}` must contain only ASCII letters, digits, or `_`"),
+            ));
+        }
+        Ok(Self(name))
+    }
+
+    /// The validated argument name without `$(` / `)`.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    /// Render this declaration as a `$(name)` placeholder.
+    pub fn placeholder(&self) -> String {
+        format!("$({})", self.0)
+    }
+}
+
+impl fmt::Display for FunctionMacroArg {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(&self.0)
+    }
+}
+
+impl TryFrom<&str> for FunctionMacroArg {
+    type Error = CommandError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        Self::new(value)
+    }
+}
+
+impl TryFrom<String> for FunctionMacroArg {
+    type Error = CommandError;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::new(value)
+    }
+}
+
+/// Declared arguments for a parameterized `.mcfunction`.
+///
+/// The declaration validates names and rejects duplicates up front. Use
+/// [`variable`](Self::variable) to render a declared placeholder and
+/// [`line`](Self::line) to ensure every placeholder in a macro line was
+/// declared by this set.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FunctionMacroArgs {
+    names: BTreeSet<FunctionMacroArg>,
+}
+
+impl FunctionMacroArgs {
+    /// Build a validated declaration from argument names.
+    pub fn new<I, S>(names: I) -> CommandResult<Self>
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        let mut declared = BTreeSet::new();
+        for name in names {
+            let argument = FunctionMacroArg::new(name)?;
+            if !declared.insert(argument.clone()) {
+                return Err(macro_error(
+                    "name",
+                    format!("duplicate function-macro argument `{argument}`"),
+                ));
+            }
+        }
+        Ok(Self { names: declared })
+    }
+
+    /// Return whether `name` is declared by this argument set.
+    pub fn contains(&self, name: &str) -> bool {
+        self.names.contains(&FunctionMacroArg(name.to_string()))
+    }
+
+    /// Render a declared argument as `$(name)`.
+    pub fn variable(&self, name: &str) -> CommandResult<String> {
+        let argument = FunctionMacroArg::new(name)?;
+        if !self.names.contains(&argument) {
+            return Err(macro_error(
+                "placeholder",
+                format!("undeclared function-macro argument `{argument}`"),
+            ));
+        }
+        Ok(argument.placeholder())
+    }
+
+    /// Mark a command as a macro line after validating every `$(name)`.
+    pub fn line(&self, command: impl fmt::Display) -> CommandResult<String> {
+        let command = command.to_string();
+        validate_placeholders(&command, &self.names)?;
+        let line = format!("${command}");
+        sand_commands::render::validate_collected_line(
+            &line,
+            &sand_commands::CommandProfile::unprofiled(),
+        )?;
+        Ok(line)
+    }
+
+    /// Call a registered/typed function using a typed NBT compound reference.
+    ///
+    /// The declaration is retained at the definition side for placeholder
+    /// validation; Minecraft validates the runtime compound's actual keys.
+    pub fn call_with<T>(
+        &self,
+        function: impl crate::function::IntoFunctionRef,
+        arguments: &NbtRef<T>,
+    ) -> CommandResult<String> {
+        try_call_with(function, arguments)
+    }
+
+    /// Iterate declared arguments in deterministic name order.
+    pub fn iter(&self) -> impl Iterator<Item = &FunctionMacroArg> {
+        self.names.iter()
+    }
+
+    /// Whether no arguments are declared.
+    pub fn is_empty(&self) -> bool {
+        self.names.is_empty()
+    }
+
+    /// Number of declared arguments.
+    pub fn len(&self) -> usize {
+        self.names.len()
+    }
+}
+
+fn macro_error(field: impl Into<String>, message: impl Into<String>) -> CommandError {
+    CommandError::new("function_macro", field, message).with_code("SAND-FUNCTION-MACRO")
+}
+
+fn validate_placeholders(
+    command: &str,
+    declared: &BTreeSet<FunctionMacroArg>,
+) -> CommandResult<()> {
+    let mut remaining = command;
+    while let Some(start) = remaining.find("$(") {
+        let after_start = &remaining[start + 2..];
+        let Some(end) = after_start.find(')') else {
+            return Err(macro_error(
+                "placeholder",
+                "unterminated function-macro placeholder",
+            ));
+        };
+        let name = &after_start[..end];
+        let argument = FunctionMacroArg::new(name).map_err(|error| {
+            macro_error(
+                "placeholder",
+                format!(
+                    "invalid function-macro placeholder `$({name})`: {}",
+                    error.message
+                ),
+            )
+        })?;
+        if !declared.contains(&argument) {
+            return Err(macro_error(
+                "placeholder",
+                format!("undeclared function-macro placeholder `$({argument})`"),
+            ));
+        }
+        remaining = &after_start[end + 1..];
+    }
+    Ok(())
+}
 
 // ── macro_var ─────────────────────────────────────────────────────────────────
 
@@ -76,6 +267,11 @@ use super::DataTarget;
 /// ```
 pub fn macro_var(name: &str) -> String {
     format!("$({name})")
+}
+
+/// Validated counterpart to [`macro_var`].
+pub fn try_macro_var(name: impl Into<String>) -> CommandResult<String> {
+    Ok(FunctionMacroArg::new(name)?.placeholder())
 }
 
 // ── macro_line ────────────────────────────────────────────────────────────────
@@ -139,6 +335,50 @@ pub fn function_with(
     format!("function {name} with {source} {}", path.into())
 }
 
+/// Call a registered or typed function with a typed NBT compound reference.
+///
+/// This is the function-reference-integrated normal path. It resolves local
+/// `#[function]` pointers through [`IntoFunctionRef`](crate::function::IntoFunctionRef)
+/// and validates the NBT location and path before rendering. Use
+/// [`function_with`] only when intentionally supplying unchecked strings.
+pub fn try_call_with<T>(
+    function: impl crate::function::IntoFunctionRef,
+    arguments: &NbtRef<T>,
+) -> CommandResult<String> {
+    let function_id = function.into_function_id();
+    sand_commands::validate::resource_location_shape(
+        &function_id,
+        "cmd::try_call_with",
+        "function",
+    )
+    .map_err(|error| error.with_code("SAND-COMMAND-ARG-FUNCTION-ID"))?;
+
+    // Rendering a data-get command exercises the canonical DataTarget and
+    // NbtPath validators without maintaining a second parser here.
+    arguments
+        .get()
+        .render(&sand_commands::CommandProfile::unprofiled())?;
+
+    Ok(format!(
+        "function {function_id} with {} {}",
+        arguments.location(),
+        arguments.path_value()
+    ))
+}
+
+/// Infallible typed-reference spelling for [`try_call_with`].
+///
+/// This is convenient when the function and NBT reference were already
+/// validated by construction. It panics with the validation diagnostic if a
+/// raw `IntoFunctionRef` or `NbtPath` escape hatch is malformed.
+pub fn call_with<T>(
+    function: impl crate::function::IntoFunctionRef,
+    arguments: &NbtRef<T>,
+) -> String {
+    try_call_with(function, arguments)
+        .unwrap_or_else(|error| panic!("invalid function macro call: {error}"))
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -153,6 +393,37 @@ mod tests {
     fn macro_var_format() {
         assert_eq!(macro_var("player"), "$(player)");
         assert_eq!(macro_var("uuid"), "$(uuid)");
+    }
+
+    #[test]
+    fn typed_arguments_validate_names_duplicates_and_declarations() {
+        assert!(FunctionMacroArg::new("").is_err());
+        assert!(FunctionMacroArg::new("bad-name").is_err());
+        assert!(FunctionMacroArgs::new(["player", "player"]).is_err());
+
+        let args = FunctionMacroArgs::new(["player", "count_2"]).unwrap();
+        assert_eq!(args.variable("player").unwrap(), "$(player)");
+        assert!(args.variable("missing").is_err());
+        assert_eq!(
+            args.iter()
+                .map(FunctionMacroArg::as_str)
+                .collect::<Vec<_>>(),
+            ["count_2", "player"]
+        );
+    }
+
+    #[test]
+    fn typed_macro_line_rejects_undeclared_and_malformed_placeholders() {
+        let args = FunctionMacroArgs::new(["player"]).unwrap();
+        assert_eq!(
+            args.line("say Hello, $(player)!").unwrap(),
+            "$say Hello, $(player)!"
+        );
+        let undeclared = args.line("say $(count)").unwrap_err();
+        assert_eq!(undeclared.code, "SAND-FUNCTION-MACRO");
+        assert!(undeclared.message.contains("undeclared"), "{undeclared}");
+        assert!(args.line("say $(player").is_err());
+        assert!(args.line("say $(bad-name)").is_err());
     }
 
     #[test]
@@ -207,6 +478,43 @@ mod tests {
         assert_eq!(
             cmd,
             "function my_pack:on_hit with entity @s Custom.macro_args"
+        );
+    }
+
+    #[test]
+    fn call_with_resolves_typed_function_and_nbt_reference() {
+        let reference = DataTarget::storage(TEMP.id()).path("vars");
+        let cmd = try_call_with(
+            crate::ResourceLocation::new("my_pack", "init_player").unwrap(),
+            &reference,
+        )
+        .unwrap();
+        assert_eq!(
+            cmd,
+            "function my_pack:init_player with storage my_pack:temp vars"
+        );
+    }
+
+    #[test]
+    fn call_with_rejects_invalid_raw_function_or_nbt_reference() {
+        let valid_reference = DataTarget::storage(TEMP.id()).path("vars");
+        assert!(try_call_with("not namespaced", &valid_reference).is_err());
+
+        let invalid_reference = DataTarget::storage("not namespaced").path("vars");
+        assert!(
+            try_call_with(
+                crate::ResourceLocation::new("my_pack", "init_player").unwrap(),
+                &invalid_reference,
+            )
+            .is_err()
+        );
+        let invalid_path = DataTarget::storage(TEMP.id()).path("bad..path");
+        assert!(
+            try_call_with(
+                crate::ResourceLocation::new("my_pack", "init_player").unwrap(),
+                &invalid_path,
+            )
+            .is_err()
         );
     }
 }

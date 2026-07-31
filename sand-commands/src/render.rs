@@ -21,7 +21,21 @@ pub fn validate_collected_line(line: &str, profile: &CommandProfile) -> CommandR
     crate::text::validate_registered_line(line, profile)?;
     crate::effect::validate_registered_line(line, profile)?;
     let trimmed = line.trim_start();
-    if trimmed.is_empty() || trimmed.starts_with('#') || trimmed.starts_with('$') {
+    if trimmed.starts_with('$') {
+        if !profile.is_at_least(1, 20, 2) {
+            return Err(CommandError::new(
+                "function_macro",
+                "line",
+                format!(
+                    "function macro lines require Minecraft 1.20.2+; selected {}",
+                    profile.requested_version()
+                ),
+            )
+            .with_code("SAND-COMMAND-VERSION"));
+        }
+        return Ok(line.to_string());
+    }
+    if trimmed.is_empty() || trimmed.starts_with('#') {
         return Ok(line.to_string());
     }
 
@@ -517,6 +531,20 @@ mod tests {
                 "line must survive unchanged: {line}"
             );
         }
+    }
+
+    #[test]
+    fn collected_function_macros_are_version_gated() {
+        let line = "$say $(message)";
+        let error = validate_collected_line(line, &CommandProfile::new("1.20.1", false))
+            .expect_err("function macros were added in 1.20.2");
+        assert_eq!(error.code, "SAND-COMMAND-VERSION");
+        assert!(error.message.contains("Minecraft 1.20.2+"), "{error}");
+        assert_eq!(
+            validate_collected_line(line, &CommandProfile::new("1.20.2", false)).unwrap(),
+            line
+        );
+        assert!(validate_collected_line(line, &CommandProfile::new("future", true)).is_err());
     }
 
     #[test]

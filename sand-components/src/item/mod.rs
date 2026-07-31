@@ -46,7 +46,7 @@ use crate::error::{Result as SandResult, SandError};
 use crate::predicates::ItemPredicate as TypedItemPredicate;
 use crate::raw::{RawComponent, RawSnbt};
 use crate::resource_location::ResourceLocation;
-use crate::{BlockId, EnchantmentId, EntityTypeId, TagId};
+use crate::{BlockId, EnchantmentId, EntityTypeId, EquipmentModelId, SoundEventId, TagId};
 use sand_commands::TextComponent;
 
 pub mod definition;
@@ -657,7 +657,7 @@ pub struct ConsumableProperties {
     /// Whether particles appear when consuming.
     pub has_consume_particles: bool,
     /// Optional custom sound to play.
-    pub sound: Option<String>,
+    pub sound: Option<SoundEventId>,
 }
 
 impl ConsumableProperties {
@@ -683,9 +683,9 @@ impl ConsumableProperties {
         self
     }
 
-    /// Set a custom sound to play when consuming (e.g. `"minecraft:entity.player.burp"`).
-    pub fn sound(mut self, sound: impl fmt::Display) -> Self {
-        self.sound = Some(sound.to_string());
+    /// Set the typed sound event played while consuming.
+    pub fn sound(mut self, sound: SoundEventId) -> Self {
+        self.sound = Some(sound);
         self
     }
 
@@ -715,7 +715,7 @@ impl ConsumableProperties {
             Value::Bool(self.has_consume_particles),
         );
         if let Some(ref sound) = self.sound {
-            map.insert("sound".into(), Value::String(sound.clone()));
+            map.insert("sound".into(), Value::String(sound.to_string()));
         }
         Value::Object(map)
     }
@@ -772,9 +772,9 @@ pub struct EquippableProperties {
     /// Whether the item takes damage when the wearer is hurt.
     pub damage_on_hurt: bool,
     /// Optional sound to play when equipping.
-    pub equip_sound: Option<String>,
+    pub equip_sound: Option<SoundEventId>,
     /// Optional custom model for the equipped item.
-    pub model: Option<String>,
+    pub model: Option<EquipmentModelId>,
     /// Optional entity tag restricting who can wear this.
     pub allowed_entities: Option<String>,
 }
@@ -808,14 +808,14 @@ impl EquippableProperties {
         self.damage_on_hurt = v;
         self
     }
-    /// Set a sound to play when equipping (e.g. `"minecraft:item.armor.equip_diamond"`).
-    pub fn equip_sound(mut self, sound: impl fmt::Display) -> Self {
-        self.equip_sound = Some(sound.to_string());
+    /// Set the typed sound event played when equipping.
+    pub fn equip_sound(mut self, sound: SoundEventId) -> Self {
+        self.equip_sound = Some(sound);
         self
     }
-    /// Set a custom model override for this equipped item.
-    pub fn model(mut self, model: impl fmt::Display) -> Self {
-        self.model = Some(model.to_string());
+    /// Set the typed equipment-model resource used by this item.
+    pub fn model(mut self, model: EquipmentModelId) -> Self {
+        self.model = Some(model);
         self
     }
     /// Restrict equipping to entities with a specific tag.
@@ -860,10 +860,10 @@ impl EquippableProperties {
         map.insert("swappable".into(), Value::Bool(self.swappable));
         map.insert("damage_on_hurt".into(), Value::Bool(self.damage_on_hurt));
         if let Some(ref s) = self.equip_sound {
-            map.insert("equip_sound".into(), Value::String(s.clone()));
+            map.insert("equip_sound".into(), Value::String(s.to_string()));
         }
         if let Some(ref m) = self.model {
-            map.insert("model".into(), Value::String(m.clone()));
+            map.insert("model".into(), Value::String(m.to_string()));
         }
         if let Some(ref e) = self.allowed_entities {
             map.insert("allowed_entities".into(), Value::String(e.clone()));
@@ -1611,10 +1611,9 @@ impl CustomItem {
     ///   `"`/`\` (which would break the emitted SNBT string);
     /// - `AttributeModifier::amount` is finite, and its `id`/custom
     ///   [`AttributeType::Custom`] string are non-empty and quote/backslash-free;
-    /// - `ConsumableProperties::consume_seconds` is finite and non-negative,
-    ///   and its `sound` is non-empty and quote/backslash-free;
-    /// - `EquippableProperties::{equip_sound,model,allowed_entities}` are
-    ///   non-empty and quote/backslash-free;
+    /// - `ConsumableProperties::consume_seconds` is finite and non-negative;
+    /// - `EquippableProperties::allowed_entities` is non-empty and
+    ///   quote/backslash-free (sound/model references are typed IDs);
     /// - `ToolRule::blocks` is non-empty and quote/backslash-free, and
     ///   `ToolRule::speed`/`ToolProperties::default_mining_speed` are finite;
     /// - `use_cooldown` is finite and non-negative;
@@ -1744,9 +1743,6 @@ impl CustomItem {
                     &format!("must be non-negative, got {}", consumable.consume_seconds),
                 ));
             }
-            if let Some(ref sound) = consumable.sound {
-                snbt_safe_string("consumable[sound]", sound)?;
-            }
         }
 
         if let Some(secs) = self.use_cooldown {
@@ -1769,16 +1765,10 @@ impl CustomItem {
             }
         }
 
-        if let Some(ref equippable) = self.equippable {
-            if let Some(ref s) = equippable.equip_sound {
-                snbt_safe_string("equippable[equip_sound]", s)?;
-            }
-            if let Some(ref m) = equippable.model {
-                snbt_safe_string("equippable[model]", m)?;
-            }
-            if let Some(ref e) = equippable.allowed_entities {
-                snbt_safe_string("equippable[allowed_entities]", e)?;
-            }
+        if let Some(ref equippable) = self.equippable
+            && let Some(ref e) = equippable.allowed_entities
+        {
+            snbt_safe_string("equippable[allowed_entities]", e)?;
         }
 
         if let Some(CustomData::Marker(ref key)) = self.custom_data
@@ -2762,10 +2752,38 @@ mod tests {
     }
 
     #[test]
-    fn validate_rejects_empty_consumable_sound() {
-        let item =
-            CustomItem::new("minecraft:stick").consumable(ConsumableProperties::new(1.0).sound(""));
-        assert!(item.validate().is_err());
+    fn typed_sound_and_model_ids_preserve_snbt_and_json_output() {
+        let sound = SoundEventId::minecraft("entity.player.burp").unwrap();
+        let model: EquipmentModelId = ResourceLocation::new("mymod", "equipment/royal")
+            .unwrap()
+            .into();
+        let consumable = ConsumableProperties::new(1.0).sound(sound.clone());
+        let equippable = EquippableProperties::new(EquipmentSlot::Chest)
+            .equip_sound(sound)
+            .model(model);
+
+        assert!(
+            consumable
+                .to_snbt()
+                .contains("sound:\"minecraft:entity.player.burp\"")
+        );
+        assert_eq!(
+            consumable.to_json()["sound"],
+            serde_json::json!("minecraft:entity.player.burp")
+        );
+        assert!(
+            equippable
+                .to_snbt()
+                .contains("model:\"mymod:equipment/royal\"")
+        );
+        assert_eq!(
+            equippable.to_json()["equip_sound"],
+            serde_json::json!("minecraft:entity.player.burp")
+        );
+        assert_eq!(
+            equippable.to_json()["model"],
+            serde_json::json!("mymod:equipment/royal")
+        );
     }
 
     #[test]
@@ -2781,9 +2799,9 @@ mod tests {
     }
 
     #[test]
-    fn validate_rejects_empty_equippable_strings() {
+    fn validate_rejects_empty_equippable_allowed_entities() {
         let item = CustomItem::new("minecraft:stick")
-            .equippable(EquippableProperties::new(EquipmentSlot::Head).equip_sound(""));
+            .equippable(EquippableProperties::new(EquipmentSlot::Head).allowed_entities(""));
         assert!(item.validate().is_err());
     }
 

@@ -46,8 +46,8 @@ use sand_components::{
     Advancement, AdvancementDisplay, AdvancementFrame, AdvancementIcon, AdvancementRewards,
     AdvancementTrigger, AttributeModifier, AttributeOperation, AttributeType, ComponentContent,
     Criterion, CustomItem, DatapackComponent, Enchantment, EnchantmentCost, EnchantmentEntry,
-    EquipmentSlot, EquipmentSlotGroup, EquippableProperties, FoodProperties, ItemComponent,
-    ResourceLocation,
+    EnchantmentProvider, EquipmentSlot, EquipmentSlotGroup, EquippableProperties, FoodProperties,
+    ItemComponent, ResourceLocation,
 };
 
 fn id(path: &str) -> ResourceLocation {
@@ -817,6 +817,32 @@ fn canonical_26_2_enchantment_definition() {
     assert_eq!(enchantment.component_dir(), "enchantment");
     assert_eq!(
         enchantment.required_features(),
+        &[sand_version::ComponentFeature::Enchantments]
+    );
+}
+
+/// Enchantment provider using the vanilla local-difficulty cost calculation.
+#[test]
+fn canonical_26_2_enchantment_provider() {
+    let provider = EnchantmentProvider::by_cost_with_difficulty(
+        id("mob_spawn_equipment"),
+        TagId::<EnchantmentId>::minecraft("on_mob_spawn_equipment").unwrap(),
+        5,
+        17,
+    );
+
+    assert_eq!(
+        content_json(&provider),
+        serde_json::json!({
+            "type": "minecraft:by_cost_with_difficulty",
+            "enchantments": "#minecraft:on_mob_spawn_equipment",
+            "min_cost": 5,
+            "max_cost_span": 17,
+        })
+    );
+    assert_eq!(provider.component_dir(), "enchantment_provider");
+    assert_eq!(
+        provider.required_features(),
         &[sand_version::ComponentFeature::Enchantments]
     );
 }

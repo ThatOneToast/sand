@@ -74,6 +74,35 @@ mod tests {
     }
 
     #[test]
+    fn function_macro_version_error_reports_function_and_line() {
+        let mut records = vec![super::ComponentRecord {
+            namespace: "audit".to_string(),
+            dir: "function".to_string(),
+            path: "parameterized".to_string(),
+            ext: "mcfunction".to_string(),
+            content_type: "text".to_string(),
+            content: "$say $(message)".to_string(),
+        }];
+        let error = super::validate_function_records(
+            &mut records,
+            &sand_commands::CommandProfile::new("1.20.1", false),
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(error.contains("audit:parameterized"), "{error}");
+        assert!(error.contains("commands[0].line"), "{error}");
+        assert!(error.contains("SAND-COMMAND-VERSION"), "{error}");
+        assert!(error.contains("Minecraft 1.20.2+"), "{error}");
+
+        super::validate_function_records(
+            &mut records,
+            &sand_commands::CommandProfile::new("1.20.2", false),
+        )
+        .unwrap();
+        assert_eq!(records[0].content, "$say $(message)");
+    }
+
+    #[test]
     fn function_validation_fails_before_records_are_accepted_with_owner_context() {
         let mut records = vec![super::ComponentRecord {
             namespace: "audit".to_string(),

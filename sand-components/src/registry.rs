@@ -175,6 +175,11 @@ registry_id! {
 }
 
 registry_id! {
+    /// Typed Minecraft dimension-type identifier (e.g. `minecraft:overworld` or `mymod:skylands`).
+    DimensionTypeId
+}
+
+registry_id! {
     /// Typed Minecraft damage type identifier (e.g. `minecraft:generic` or `mymod:arcane`).
     DamageTypeId
 }
@@ -182,6 +187,16 @@ registry_id! {
 registry_id! {
     /// Typed Minecraft structure identifier (e.g. `minecraft:village` or `mymod:dungeon`).
     StructureId
+}
+
+registry_id! {
+    /// Typed sound-event identifier (e.g. `minecraft:entity.player.burp` or `mymod:arcane_chime`).
+    SoundEventId
+}
+
+registry_id! {
+    /// Typed equipment-model identifier used by the `equippable` item component.
+    EquipmentModelId
 }
 
 registry_id! {
@@ -326,6 +341,20 @@ mod tests {
         );
         assert!("not namespaced".parse::<StatusEffectId>().is_err());
         assert!("minecraft:bad path".parse::<PotionRegistryId>().is_err());
+    }
+
+    #[test]
+    fn sound_event_and_equipment_model_ids_validate_and_serialize() {
+        let sound = SoundEventId::minecraft("entity.player.burp").unwrap();
+        let model: EquipmentModelId = "mymod:royal_armor".parse().unwrap();
+        assert_eq!(sound.to_string(), "minecraft:entity.player.burp");
+        assert_eq!(model.to_string(), "mymod:royal_armor");
+        assert_eq!(
+            serde_json::to_value(sound).unwrap(),
+            serde_json::json!("minecraft:entity.player.burp")
+        );
+        assert!("not namespaced".parse::<SoundEventId>().is_err());
+        assert!("minecraft:bad path".parse::<EquipmentModelId>().is_err());
     }
 
     #[test]

@@ -29,11 +29,11 @@ pub use crate::Damage;
 pub use crate::cmd::{
     Actionbar, BlockPos, BlockState, Bossbar, BossbarColor, BossbarId, BossbarStyle, Build,
     CloneBlocks, CloneMaskMode, CloneMode, Coord, DamageAmount, DamageBuilder, DamageKind,
-    DataCommand, EffectDuration, EntityTargets, Execute, Fill, FillMode, GameMode, Inventory,
-    ItemSlot, Nbt, NbtCompound, NbtRef, NbtTarget, Objective, ObjectiveName, Particle,
-    ParticleBuilder, ParticleSpread, PlayerTargets, RawCommand, RenderCommand, Rotation,
-    ScoreHolder, Selector, SetBlock, SetBlockMode, SingleEntity, SinglePlayer, Sound, SoundSource,
-    Title, TitleTimes, UntypedNbt, Validate, Vec2, Vec3,
+    DataCommand, EffectDuration, EntityTargets, Execute, Fill, FillMode, FunctionMacroArg,
+    FunctionMacroArgs, GameMode, Inventory, ItemSlot, Nbt, NbtCompound, NbtRef, NbtTarget,
+    Objective, ObjectiveName, Particle, ParticleBuilder, ParticleSpread, PlayerTargets, RawCommand,
+    RenderCommand, Rotation, ScoreHolder, Selector, SetBlock, SetBlockMode, SingleEntity,
+    SinglePlayer, Sound, SoundSource, Title, TitleTimes, UntypedNbt, Validate, Vec2, Vec3,
 };
 pub use crate::item::{
     BlockInventory, ContainerIndex, EnderChestIndex, EntityInventory, EntityInventorySlot,

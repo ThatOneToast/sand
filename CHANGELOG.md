@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — typed dimension-type components (#190)
+
+- Added `DimensionType::new` / `DimensionType::overworld_like` and typed
+  setters for the stable vanilla-like dimension-type schema, including height,
+  lighting, environmental behavior, effects, and infiniburn fields. Export
+  validates finite numeric values, vanilla height relationships, and
+  light-level bounds before writing
+  `data/<namespace>/dimension_type/<id>.json`.
+- Added `DimensionTypeId`; normal `Dimension` constructors and setters now use
+  it, while explicitly named raw reference and `DimensionType::raw_field`
+  escape hatches preserve modded and version-specific interop.
+
 ### Changed — derive-based scoped state schemas (#298)
 
 - **Breaking:** `#[derive(State)]` with `#[state(namespace = "...", scope =

@@ -26,3 +26,13 @@ pub fn starter_item() -> CustomItem {
         .component(ItemComponent::EnchantmentGlintOverride(true))
         .component(ItemComponent::max_stack_size(1))
 }
+
+#[component]
+pub fn mob_enchantments() -> EnchantmentProvider {
+    EnchantmentProvider::by_cost_with_difficulty(
+        ResourceLocation::new("example", "mob_enchantments").unwrap(),
+        TagId::<EnchantmentId>::minecraft("on_mob_spawn_equipment").unwrap(),
+        5,
+        17,
+    )
+}

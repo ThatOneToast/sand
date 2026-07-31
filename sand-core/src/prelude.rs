@@ -169,13 +169,13 @@ pub use sand_components::{
     AdvancementTrigger, AttributeId, AttributeModifier, AttributeOperation, AttributeType,
     BannerPattern, BlockPredicate, ConsumableAnimation, ConsumableProperties, Criterion,
     CustomData, CustomItem, DamagePredicate, DamageSourcePredicate, DistancePredicate,
-    EnchantmentEntry, EnchantmentSlot, EntityEquipment, EntityFlags, EntityPredicate,
-    EquipmentModelId, EquipmentSlot, EquipmentSlotGroup, EquippableProperties, FoodProperties,
-    Ingredient, ItemComponent, ItemModifier, ItemPredicate, ItemRarity, ItemStackComponents,
-    LocationPredicate, LootCondition, LootEntry, LootFunction, LootPool, LootTable, LootTableType,
-    Predicate, Rarity, RecipeResult, ShapedRecipe, ShapelessRecipe, SmithingTransformRecipe,
-    SmithingTrimRecipe, StonecuttingRecipe, Tag, TagEntry, TagRegistry, ToolProperties, ToolRule,
-    TypedTag,
+    EnchantmentEntry, EnchantmentProvider, EnchantmentProviderInt, EnchantmentSelection,
+    EnchantmentSlot, EntityEquipment, EntityFlags, EntityPredicate, EquipmentModelId,
+    EquipmentSlot, EquipmentSlotGroup, EquippableProperties, FoodProperties, Ingredient,
+    ItemComponent, ItemModifier, ItemPredicate, ItemRarity, ItemStackComponents, LocationPredicate,
+    LootCondition, LootEntry, LootFunction, LootPool, LootTable, LootTableType, Predicate, Rarity,
+    RecipeResult, ShapedRecipe, ShapelessRecipe, SmithingTransformRecipe, SmithingTrimRecipe,
+    StonecuttingRecipe, Tag, TagEntry, TagRegistry, ToolProperties, ToolRule, TypedTag,
 };
 
 // ── Raw escape hatch types ────────────────────────────────────────────────────

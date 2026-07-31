@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — typed enchantment providers (#188)
+
+- Added `EnchantmentProvider` for the Minecraft 1.21+
+  `enchantment_provider` registry, including typed `single`, `by_cost`, and
+  `by_cost_with_difficulty` variants, typed enchantment ID/list/tag
+  selections, and constant/uniform positive integer providers.
+- Unsupported integer-provider forms and modded provider kinds remain
+  available through an explicit whole-provider `RawJson` constructor whose
+  object and `type` field are validated before export.
+
 ### Changed — typed item sound and equipment-model IDs (#195)
 
 - **Breaking:** `ConsumableProperties::sound`,

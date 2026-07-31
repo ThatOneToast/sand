@@ -112,6 +112,10 @@ not a runtime dependency.
   loot tables, item modifiers, tags, dialogs, enchantments, and more.
   Coverage varies by resource; explicit raw JSON, SNBT, component, and command
   escape hatches remain available for unsupported edges.
+- **Structure-template assets** — validate and copy existing `.nbt` files into
+  `data/<namespace>/structure/`. Sand does not parse, generate, or semantically
+  validate their binary NBT payloads. The component audit tracks these
+  non-registry assets separately from registries and tags.
 - **Version-aware output** — version profiles gate known features and generated
   registries against the selected Minecraft target.
 - **Optional systems** — feature-gated building blocks for damage, cooldowns,

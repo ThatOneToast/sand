@@ -18,6 +18,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `TrimAssetName` validates the un-namespaced lowercase resource-path form at
   construction, so malformed trim asset names cannot enter a typed builder.
 
+### Added — typed enchantment providers (#188)
+
+- Added `EnchantmentProvider` for the Minecraft 1.21+
+  `enchantment_provider` registry, including typed `single`, `by_cost`, and
+  `by_cost_with_difficulty` variants, typed enchantment ID/list/tag
+  selections, and constant/uniform positive integer providers.
+- Unsupported integer-provider forms and modded provider kinds remain
+  available through an explicit whole-provider `RawJson` constructor whose
+  object and `type` field are validated before export.
+
+### Changed — typed item sound and equipment-model IDs (#195)
+
+- **Breaking:** `ConsumableProperties::sound`,
+  `EquippableProperties::equip_sound`, and `EquippableProperties::model` now
+  accept resource-location-backed `SoundEventId` and `EquipmentModelId`
+  values instead of arbitrary `Display` inputs. Both typed IDs are available
+  from `sand-components` and the `sand-core` prelude, validate vanilla and
+  modded namespaces at construction, and preserve the existing SNBT/JSON
+  output for valid identifiers.
+
 ### Changed — derive-based scoped state schemas (#298)
 
 - **Breaking:** `#[derive(State)]` with `#[state(namespace = "...", scope =

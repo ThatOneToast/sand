@@ -28,6 +28,25 @@ pub fn starter_item() -> CustomItem {
 }
 
 #[component]
+pub fn quartz_trim_material() -> TrimMaterial {
+    TrimMaterial::new(ResourceLocation::new("example", "quartz").unwrap())
+        .asset_name(TrimAssetName::new("quartz").unwrap())
+        .ingredient(ItemId::minecraft("quartz").unwrap())
+        .item_model_index(0.1)
+        .description(TextComponent::translate(
+            "trim_material.example.quartz",
+        ))
+}
+
+#[component]
+pub fn bolt_trim_pattern() -> TrimPattern {
+    TrimPattern::new(ResourceLocation::new("example", "bolt").unwrap())
+        .asset_id(ResourceLocation::new("example", "bolt").unwrap())
+        .template_item(ItemId::minecraft("bolt_armor_trim_smithing_template").unwrap())
+        .description(TextComponent::translate("trim_pattern.example.bolt"))
+}
+
+#[component]
 pub fn mob_enchantments() -> EnchantmentProvider {
     EnchantmentProvider::by_cost_with_difficulty(
         ResourceLocation::new("example", "mob_enchantments").unwrap(),

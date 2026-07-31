@@ -175,7 +175,8 @@ pub use sand_components::{
     ItemComponent, ItemModifier, ItemPredicate, ItemRarity, ItemStackComponents, LocationPredicate,
     LootCondition, LootEntry, LootFunction, LootPool, LootTable, LootTableType, Predicate, Rarity,
     RecipeResult, ShapedRecipe, ShapelessRecipe, SmithingTransformRecipe, SmithingTrimRecipe,
-    StonecuttingRecipe, Tag, TagEntry, TagRegistry, ToolProperties, ToolRule, TypedTag,
+    StonecuttingRecipe, Tag, TagEntry, TagRegistry, ToolProperties, ToolRule, TrimAssetName,
+    TrimMaterial, TrimPattern, TypedTag,
 };
 
 // ── Raw escape hatch types ────────────────────────────────────────────────────

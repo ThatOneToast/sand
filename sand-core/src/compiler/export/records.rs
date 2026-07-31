@@ -875,6 +875,68 @@ mod tests {
     }
 
     #[test]
+    fn typed_trim_components_export_to_their_registry_directories() {
+        let material = sand_components::TrimMaterial::new(test_rl("test", "quartz"))
+            .asset_name(sand_components::TrimAssetName::new("quartz").unwrap())
+            .ingredient(sand_components::ItemId::minecraft("quartz").unwrap())
+            .item_model_index(0.1)
+            .description(sand_commands::TextComponent::translate(
+                "trim_material.test.quartz",
+            ));
+        let material_record = component_to_record(&material, None).unwrap();
+        assert_eq!(material_record.dir, "trim_material");
+        assert_eq!(material_record.path, "quartz");
+        assert!(material_record.content.contains("\"minecraft:quartz\""));
+
+        let pattern = sand_components::TrimPattern::new(test_rl("test", "bolt"))
+            .asset_id(test_rl("test", "bolt"))
+            .template_item(
+                sand_components::ItemId::minecraft("bolt_armor_trim_smithing_template").unwrap(),
+            )
+            .description(sand_commands::TextComponent::translate(
+                "trim_pattern.test.bolt",
+            ));
+        let pattern_record = component_to_record(&pattern, None).unwrap();
+        assert_eq!(pattern_record.dir, "trim_pattern");
+        assert_eq!(pattern_record.path, "bolt");
+        assert!(pattern_record.content.contains("\"test:bolt\""));
+    }
+
+    #[test]
+    fn enchantment_provider_exports_to_its_registry_directory() {
+        let provider = sand_components::EnchantmentProvider::single(
+            test_rl("test", "enderman_loot_drop"),
+            sand_components::EnchantmentId::minecraft("silk_touch").unwrap(),
+            1,
+        );
+        let record = component_to_record(&provider, None).unwrap();
+        assert_eq!(record.namespace, "test");
+        assert_eq!(record.dir, "enchantment_provider");
+        assert_eq!(record.path, "enderman_loot_drop");
+        assert_eq!(record.ext, "json");
+        assert!(record.content.contains("\"minecraft:single\""));
+    }
+
+    #[test]
+    fn enchantment_provider_uses_the_enchantment_version_gate() {
+        let provider = sand_components::EnchantmentProvider::single(
+            test_rl("test", "gated"),
+            sand_components::EnchantmentId::minecraft("sharpness").unwrap(),
+            1,
+        );
+        let caps = VersionCaps::all_disabled();
+        let ctx = ExportCtx {
+            caps: &caps,
+            requested_version: "1.20.6",
+            is_fallback: false,
+        };
+        let err = component_to_record(&provider, Some(&ctx)).unwrap_err();
+        let message = err.to_string();
+        assert!(message.contains("enchantments"), "{message}");
+        assert!(message.contains("1.20.6"), "{message}");
+    }
+
+    #[test]
     fn valid_instrument_exports_deterministically() {
         let inst = sand_components::Instrument::new(test_rl("test", "horn"))
             .sound_event("minecraft:item.goat_horn.sound.0");

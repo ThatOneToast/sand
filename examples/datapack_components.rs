@@ -26,3 +26,42 @@ pub fn starter_item() -> CustomItem {
         .component(ItemComponent::EnchantmentGlintOverride(true))
         .component(ItemComponent::max_stack_size(1))
 }
+
+/// A complete vanilla-like custom dimension type with typed registry references.
+#[component]
+pub fn bright_overworld() -> DimensionType {
+    DimensionType::overworld_like(
+        ResourceLocation::new("example", "bright_overworld").expect("static ID is valid"),
+    )
+    .ambient_light(0.25)
+    .monster_spawn_light_level(MonsterSpawnLightLevel::Constant(7))
+}
+
+#[component]
+pub fn quartz_trim_material() -> TrimMaterial {
+    TrimMaterial::new(ResourceLocation::new("example", "quartz").unwrap())
+        .asset_name(TrimAssetName::new("quartz").unwrap())
+        .ingredient(ItemId::minecraft("quartz").unwrap())
+        .item_model_index(0.1)
+        .description(TextComponent::translate(
+            "trim_material.example.quartz",
+        ))
+}
+
+#[component]
+pub fn bolt_trim_pattern() -> TrimPattern {
+    TrimPattern::new(ResourceLocation::new("example", "bolt").unwrap())
+        .asset_id(ResourceLocation::new("example", "bolt").unwrap())
+        .template_item(ItemId::minecraft("bolt_armor_trim_smithing_template").unwrap())
+        .description(TextComponent::translate("trim_pattern.example.bolt"))
+}
+
+#[component]
+pub fn mob_enchantments() -> EnchantmentProvider {
+    EnchantmentProvider::by_cost_with_difficulty(
+        ResourceLocation::new("example", "mob_enchantments").unwrap(),
+        TagId::<EnchantmentId>::minecraft("on_mob_spawn_equipment").unwrap(),
+        5,
+        17,
+    )
+}

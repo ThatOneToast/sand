@@ -6,10 +6,12 @@
 
 pub mod biome;
 pub mod dimension;
+pub mod dimension_type;
 pub mod noise_settings;
 pub mod placed_feature;
 
 pub use biome::Biome;
 pub use dimension::Dimension;
+pub use dimension_type::{DimensionType, MonsterSpawnLightLevel};
 pub use noise_settings::NoiseSettings;
 pub use placed_feature::PlacedFeature;

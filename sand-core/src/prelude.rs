@@ -168,13 +168,14 @@ pub use sand_components::{
     Advancement, AdvancementDisplay, AdvancementFrame, AdvancementIcon, AdvancementRewards,
     AdvancementTrigger, AttributeId, AttributeModifier, AttributeOperation, AttributeType,
     BannerPattern, BlockPredicate, ConsumableAnimation, ConsumableProperties, Criterion,
-    CustomData, CustomItem, DamagePredicate, DamageSourcePredicate, DistancePredicate,
-    EnchantmentEntry, EnchantmentSlot, EntityEquipment, EntityFlags, EntityPredicate,
-    EquipmentSlot, EquipmentSlotGroup, EquippableProperties, FoodProperties, Ingredient,
-    ItemComponent, ItemModifier, ItemPredicate, ItemRarity, ItemStackComponents, LocationPredicate,
-    LootCondition, LootEntry, LootFunction, LootPool, LootTable, LootTableType, Predicate, Rarity,
-    RecipeResult, ShapedRecipe, ShapelessRecipe, SmithingTransformRecipe, SmithingTrimRecipe,
-    StonecuttingRecipe, Tag, TagEntry, TagRegistry, ToolProperties, ToolRule, TypedTag,
+    CustomData, CustomItem, DamagePredicate, DamageSourcePredicate, Dimension, DimensionType,
+    DistancePredicate, EnchantmentEntry, EnchantmentSlot, EntityEquipment, EntityFlags,
+    EntityPredicate, EquipmentSlot, EquipmentSlotGroup, EquippableProperties, FoodProperties,
+    Ingredient, ItemComponent, ItemModifier, ItemPredicate, ItemRarity, ItemStackComponents,
+    LocationPredicate, LootCondition, LootEntry, LootFunction, LootPool, LootTable, LootTableType,
+    MonsterSpawnLightLevel, Predicate, Rarity, RecipeResult, ShapedRecipe, ShapelessRecipe,
+    SmithingTransformRecipe, SmithingTrimRecipe, StonecuttingRecipe, Tag, TagEntry, TagRegistry,
+    ToolProperties, ToolRule, TypedTag,
 };
 
 // ── Raw escape hatch types ────────────────────────────────────────────────────
@@ -184,9 +185,10 @@ pub use sand_components::{RawComponent, RawJson, RawSnbt};
 // ── Typed registry identifiers ────────────────────────────────────────────────
 
 pub use sand_components::{
-    BiomeId, BlockId, DamageTypeId, DimensionId, EffectId, EnchantmentId, EntityTypeId, FunctionId,
-    ItemId, PotionContents, PotionId, PotionRegistryId, Range, StatusEffectId,
-    StatusEffectInstance, StructureId, StructureTemplate, SuspiciousStewEffect, TagId,
+    BiomeId, BlockId, DamageTypeId, DimensionId, DimensionTypeId, EffectId, EnchantmentId,
+    EntityTypeId, FunctionId, ItemId, PotionContents, PotionId, PotionRegistryId, Range,
+    StatusEffectId, StatusEffectInstance, StructureId, StructureTemplate, SuspiciousStewEffect,
+    TagId,
 };
 
 // ── Text / chat ───────────────────────────────────────────────────────────────
@@ -198,6 +200,7 @@ pub use sand_commands::{
 #[cfg(test)]
 mod tests {
     use super::*;
+    use sand_components::DatapackComponent;
 
     #[test]
     fn prelude_exports_typed_command_path() {
@@ -211,6 +214,18 @@ mod tests {
         assert!(cmd.contains(r#""text":"Hello from Sand""#));
         assert!(cmd.contains(r#""color":"gold""#));
         assert!(cmd.contains(r#""bold":true"#));
+    }
+
+    #[test]
+    fn prelude_exports_typed_dimension_reference_path() {
+        let location = ResourceLocation::new("test", "skylands").unwrap();
+        let _dimension_type = DimensionType::new(location.clone());
+        let dimension = Dimension::new(
+            location,
+            DimensionTypeId::minecraft("overworld").unwrap(),
+            serde_json::json!({"type": "minecraft:flat", "settings": {}}),
+        );
+        assert_eq!(dimension.to_json()["type"], "minecraft:overworld");
     }
 
     #[test]

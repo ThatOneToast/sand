@@ -30,6 +30,9 @@ pub use sand_components::{
     Criterion,
     CustomItem,
     DyedColor,
+    EnchantmentProvider,
+    EnchantmentProviderInt,
+    EnchantmentSelection,
     // Item predicates
     EntityPredicate,
     EquipmentModelId,

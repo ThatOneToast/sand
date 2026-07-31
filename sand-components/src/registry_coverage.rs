@@ -238,10 +238,13 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         registry_key: "minecraft:enchantment_provider",
         datapack_dir: "enchantment_provider",
         tag_dir: None,
-        sand_module: None,
-        api_status: RegistryApiStatus::Missing,
+        sand_module: Some("sand_components::enchantment_provider"),
+        api_status: RegistryApiStatus::PartiallyImplemented,
         version_gate: Some("1.21"),
-        notes: "Not implemented. Use RawComponent. Added with data-driven enchantments in 1.21.",
+        notes: "EnchantmentProvider covers single, by_cost, and by_cost_with_difficulty with typed \
+                enchantment IDs/tags and constant/uniform integer providers. Other integer-provider \
+                and modded provider shapes use the explicit whole-provider RawJson escape hatch. \
+                Added with data-driven enchantments in 1.21. Follow-up: #188.",
     },
     RegistryCoverage {
         registry_key: "minecraft:jukebox_song",

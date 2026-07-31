@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — typed item sound and equipment-model IDs (#195)
+
+- **Breaking:** `ConsumableProperties::sound`,
+  `EquippableProperties::equip_sound`, and `EquippableProperties::model` now
+  accept resource-location-backed `SoundEventId` and `EquipmentModelId`
+  values instead of arbitrary `Display` inputs. Both typed IDs are available
+  from `sand-components` and the `sand-core` prelude, validate vanilla and
+  modded namespaces at construction, and preserve the existing SNBT/JSON
+  output for valid identifiers.
+
 ### Changed — derive-based scoped state schemas (#298)
 
 - **Breaking:** `#[derive(State)]` with `#[state(namespace = "...", scope =

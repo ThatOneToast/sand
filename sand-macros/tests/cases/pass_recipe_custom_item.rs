@@ -11,7 +11,7 @@ fn enchanted_carrot() -> CustomItem {
         .consumable(
             ConsumableProperties::new(1.6)
                 .animation(ConsumableAnimation::Eat)
-                .sound("minecraft:entity.player.burp"),
+                .sound(SoundEventId::minecraft("entity.player.burp").unwrap()),
         )
         .max_stack_size(16)
 }

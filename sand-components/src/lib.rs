@@ -11,6 +11,7 @@
 //! | [`chat_type`]      | `chat_type/`                               | [`ChatType`], [`ChatDecoration`] |
 //! | [`damage_type`]    | `damage_type/`                             | [`DamageType`], [`DamageScaling`], … |
 //! | [`enchantment`]    | `enchantment/`                             | [`Enchantment`], [`EnchantmentCost`] |
+//! | [`enchantment_provider`] | `enchantment_provider/`              | [`EnchantmentProvider`], [`EnchantmentSelection`] |
 //! | [`instrument`]     | `instrument/`                              | [`Instrument`] |
 //! | [`item`]           | *(item component strings)*                 | [`CustomItem`], [`FoodProperties`], … |
 //! | [`item_modifier`]  | `item_modifier/`                           | [`ItemModifier`] |
@@ -33,6 +34,7 @@ pub mod damage_type;
 pub mod dialog;
 pub mod effect;
 pub mod enchantment;
+pub mod enchantment_provider;
 pub mod error;
 pub mod instrument;
 pub mod item;
@@ -71,8 +73,8 @@ pub use predicates::{
     IntRange, ItemPredicate, LocationPredicate, Range,
 };
 pub use registry::{
-    BiomeId, BlockId, DamageTypeId, DimensionId, EnchantmentId, EntityTypeId, FunctionId, ItemId,
-    PotionRegistryId, StatusEffectId, StructureId, TagId,
+    BiomeId, BlockId, DamageTypeId, DimensionId, EnchantmentId, EntityTypeId, EquipmentModelId,
+    FunctionId, ItemId, PotionRegistryId, SoundEventId, StatusEffectId, StructureId, TagId,
 };
 pub use resource_location::{Identifier, PackNamespace, ResourceLocation};
 
@@ -98,6 +100,7 @@ pub use damage_type::{DamageEffects, DamageScaling, DamageType, DeathMessageType
 // ── Enchantment ───────────────────────────────────────────────────────────────
 
 pub use enchantment::{Enchantment, EnchantmentCost, EnchantmentEffect, EnchantmentSlot};
+pub use enchantment_provider::{EnchantmentProvider, EnchantmentProviderInt, EnchantmentSelection};
 
 // ── Instrument ────────────────────────────────────────────────────────────────
 
@@ -160,7 +163,7 @@ pub use structure_template::StructureTemplate;
 
 // ── Trim ──────────────────────────────────────────────────────────────────────
 
-pub use trim::{TrimMaterial, TrimPattern};
+pub use trim::{TrimAssetName, TrimMaterial, TrimPattern};
 
 // ── Wolf Variant ──────────────────────────────────────────────────────────────
 

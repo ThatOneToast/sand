@@ -100,7 +100,7 @@ pub fn player_join_advancement() -> sand_core::Advancement {
     use sand_core::{Advancement, AdvancementRewards, AdvancementTrigger, Criterion};
     Advancement::new("hello_world:player_join".parse().unwrap())
         .criterion("tick", Criterion::new(AdvancementTrigger::Tick))
-        .rewards(AdvancementRewards::new().function("hello_world:hello_world"))
+        .rewards(AdvancementRewards::new().function("hello_world:hello_world".parse().unwrap()))
 }
 
 // ── Export hook ───────────────────────────────────────────────────────────────
@@ -497,16 +497,17 @@ mod tests {
 
     #[test]
     fn advancement_json_output() {
+        use sand_core::prelude::Text;
         use sand_core::{
             Advancement, AdvancementDisplay, AdvancementFrame, AdvancementIcon, AdvancementRewards,
-            AdvancementTrigger, Criterion, EntityPredicate,
+            AdvancementTrigger, Criterion, EntityPredicate, ItemId,
         };
         let adv = Advancement::new("hello_world:kill_zombie".parse().unwrap())
             .display(
                 AdvancementDisplay::new(
-                    AdvancementIcon::new("minecraft:diamond_sword"),
-                    "Zombie Slayer",
-                    "Kill your first zombie",
+                    AdvancementIcon::new(ItemId::minecraft("diamond_sword").unwrap()),
+                    Text::new("Zombie Slayer"),
+                    Text::new("Kill your first zombie"),
                 )
                 .frame(AdvancementFrame::Challenge),
             )
@@ -788,7 +789,7 @@ mod tests {
     fn advancement_parent_and_requirements() {
         use sand_core::{Advancement, AdvancementTrigger, Criterion};
         let adv = Advancement::new("hello_world:child".parse().unwrap())
-            .parent("hello_world:root")
+            .parent("hello_world:root".parse().unwrap())
             .criterion("a", Criterion::new(AdvancementTrigger::Tick))
             .criterion("b", Criterion::new(AdvancementTrigger::Impossible))
             .requirements(vec![vec!["a".into()], vec!["b".into()]]);
@@ -805,10 +806,10 @@ mod tests {
             .criterion("t", Criterion::new(AdvancementTrigger::Tick))
             .rewards(
                 AdvancementRewards::new()
-                    .recipe("hello_world:special_recipe")
-                    .loot("hello_world:bonus_chest")
+                    .recipe("hello_world:special_recipe".parse().unwrap())
+                    .loot("hello_world:bonus_chest".parse().unwrap())
                     .experience(500)
-                    .function("hello_world:on_complete"),
+                    .function("hello_world:on_complete".parse().unwrap()),
             );
         let json = adv.to_json();
         assert_eq!(json["rewards"]["experience"].as_i64().unwrap(), 500);
@@ -1076,25 +1077,10 @@ mod tests {
     // ── Struct literal construction ───────────────────────────────────────────
 
     #[test]
-    fn advancement_struct_literal() {
+    fn advancement_builder_construction() {
         use sand_core::{Advancement, AdvancementTrigger, Criterion, DatapackComponent};
-        use std::collections::HashMap;
-        let mut criteria = HashMap::new();
-        criteria.insert(
-            "t".to_string(),
-            Criterion {
-                trigger: AdvancementTrigger::Tick,
-            },
-        );
-        let adv = Advancement {
-            location: "hello_world:manual_adv".parse().unwrap(),
-            parent: None,
-            display: None,
-            criteria,
-            requirements: None,
-            rewards: None,
-            sends_telemetry_data: false,
-        };
+        let adv = Advancement::new("hello_world:manual_adv".parse().unwrap())
+            .criterion("t", Criterion::new(AdvancementTrigger::Tick));
         let json = adv.to_json();
         assert_eq!(
             adv.resource_location().to_string(),

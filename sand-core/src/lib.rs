@@ -247,6 +247,7 @@ pub use sand_components::{
     AdvancementDisplay,
     AdvancementFrame,
     AdvancementIcon,
+    AdvancementId,
     AdvancementRewards,
     AdvancementTrigger,
     // Custom item
@@ -335,6 +336,7 @@ pub use sand_components::{
     LootFunction,
     LootPool,
     LootTable,
+    LootTableId,
     LootTableType,
     MonsterSpawnLightLevel,
     NoiseSettings,
@@ -352,6 +354,7 @@ pub use sand_components::{
     RawComponent,
     RawJson,
     RawSnbt,
+    RecipeId,
     RecipeResult,
     ShapedRecipe,
     ShapelessRecipe,

@@ -97,7 +97,14 @@ impl EventConfig {
         // currently all event advancements are hidden (no display block).
         crate::Advancement::new(rl)
             .criterion("event", crate::Criterion::new(self.trigger_clone()))
-            .rewards(crate::AdvancementRewards::new().function(reward_fn.into_function_id()))
+            .rewards(
+                crate::AdvancementRewards::new().function(
+                    reward_fn
+                        .into_function_id()
+                        .parse()
+                        .expect("function reference must resolve to a valid resource location"),
+                ),
+            )
     }
 
     // ── Reward function prologue ──────────────────────────────────────────────

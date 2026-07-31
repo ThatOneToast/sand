@@ -133,7 +133,7 @@ mod tests {
     fn generated_event_advancement_json_remains_unchanged_through_fallible_export() {
         let advancement = Advancement::new(ResourceLocation::new("test", "event").unwrap())
             .criterion("event", Criterion::new(AdvancementTrigger::Tick))
-            .rewards(AdvancementRewards::new().function("test:event"));
+            .rewards(AdvancementRewards::new().function("test:event".parse().unwrap()));
 
         let legacy = serde_json::to_string_pretty(&advancement.to_json()).unwrap();
         let record = super::component_to_record(&advancement, None).unwrap();

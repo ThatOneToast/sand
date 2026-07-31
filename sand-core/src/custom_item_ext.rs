@@ -81,11 +81,23 @@ pub trait CustomItemExt {
 
 impl CustomItemExt for CustomItem {
     fn on_use_fn(&self, location: ResourceLocation, handler: impl IntoFunctionRef) -> Advancement {
-        self.on_use_advancement(location, handler.into_function_id())
+        self.on_use_advancement(
+            location,
+            handler
+                .into_function_id()
+                .parse()
+                .expect("function reference must resolve to a valid resource location"),
+        )
     }
 
     fn on_kill_fn(&self, location: ResourceLocation, handler: impl IntoFunctionRef) -> Advancement {
-        self.on_kill_advancement(location, handler.into_function_id())
+        self.on_kill_advancement(
+            location,
+            handler
+                .into_function_id()
+                .parse()
+                .expect("function reference must resolve to a valid resource location"),
+        )
     }
 
     fn on_trigger_fn(
@@ -94,7 +106,14 @@ impl CustomItemExt for CustomItem {
         trigger: crate::AdvancementTrigger,
         handler: impl IntoFunctionRef,
     ) -> Advancement {
-        self.custom_trigger_advancement(location, trigger, handler.into_function_id())
+        self.custom_trigger_advancement(
+            location,
+            trigger,
+            handler
+                .into_function_id()
+                .parse()
+                .expect("function reference must resolve to a valid resource location"),
+        )
     }
 
     fn item_check_in(&self, slot: impl Into<ItemSlot>) -> Execute {

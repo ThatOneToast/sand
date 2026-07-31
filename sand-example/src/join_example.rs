@@ -66,7 +66,7 @@ pub fn detect_join() -> sand_core::Advancement {
     use sand_core::{Advancement, AdvancementRewards, AdvancementTrigger, Criterion};
     Advancement::new("hello_world:detect_join".parse().unwrap())
         .criterion("joined", Criterion::new(AdvancementTrigger::Tick))
-        .rewards(AdvancementRewards::new().function("hello_world:on_player_join"))
+        .rewards(AdvancementRewards::new().function("hello_world:on_player_join".parse().unwrap()))
 }
 
 // ── 3. The join handler ───────────────────────────────────────────────────────

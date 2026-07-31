@@ -19,6 +19,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   it, while explicitly named raw reference and `DimensionType::raw_field`
   escape hatches preserve modded and version-specific interop.
 
+### Added — typed parameterized function arguments (#194)
+
+- Added `FunctionMacroArg` and `FunctionMacroArgs` for validated function
+  macro declarations. Argument names use the stable `[A-Za-z0-9_]+` subset;
+  duplicate declarations, undeclared placeholders, malformed placeholders,
+  and unterminated `$(name)` syntax fail before function output is accepted.
+- Added `cmd::try_call_with` / `cmd::call_with`, which resolve the same
+  registered function pointers and typed references as `cmd::call` and accept
+  a typed `NbtRef` for the macro argument compound. Function IDs, data targets,
+  and NBT paths are validated on the fallible path.
+- Existing `macro_var`, `macro_line`, and `function_with` helpers remain
+  explicit unchecked compatibility/escape-hatch APIs. All exported function
+  macro lines are now rejected for Minecraft versions before 1.20.2 and for
+  conservative fallback profiles.
+
+### Changed — typed trim material and pattern fields (#198)
+
+- **Breaking:** `TrimMaterial` and `TrimPattern` now require typed `ItemId`,
+  `ResourceLocation`, `TextComponent`, and `TrimAssetName` values on their
+  normal builder paths instead of accepting arbitrary strings or JSON.
+- Armor-material overrides use a deterministic typed resource-ID-to-asset-name
+  map. Explicit `raw_description` and `raw_override_armor_materials` methods
+  retain interop for unsupported or modded shapes.
+- `TrimAssetName` validates the un-namespaced lowercase resource-path form at
+  construction, so malformed trim asset names cannot enter a typed builder.
+
+### Added — typed enchantment providers (#188)
+
+- Added `EnchantmentProvider` for the Minecraft 1.21+
+  `enchantment_provider` registry, including typed `single`, `by_cost`, and
+  `by_cost_with_difficulty` variants, typed enchantment ID/list/tag
+  selections, and constant/uniform positive integer providers.
+- Unsupported integer-provider forms and modded provider kinds remain
+  available through an explicit whole-provider `RawJson` constructor whose
+  object and `type` field are validated before export.
+
+### Changed — typed item sound and equipment-model IDs (#195)
+
+- **Breaking:** `ConsumableProperties::sound`,
+  `EquippableProperties::equip_sound`, and `EquippableProperties::model` now
+  accept resource-location-backed `SoundEventId` and `EquipmentModelId`
+  values instead of arbitrary `Display` inputs. Both typed IDs are available
+  from `sand-components` and the `sand-core` prelude, validate vanilla and
+  modded namespaces at construction, and preserve the existing SNBT/JSON
+  output for valid identifiers.
+
 ### Changed — derive-based scoped state schemas (#298)
 
 - **Breaking:** `#[derive(State)]` with `#[state(namespace = "...", scope =

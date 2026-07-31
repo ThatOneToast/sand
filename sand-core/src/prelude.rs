@@ -29,11 +29,11 @@ pub use crate::Damage;
 pub use crate::cmd::{
     Actionbar, BlockPos, BlockState, Bossbar, BossbarColor, BossbarId, BossbarStyle, Build,
     CloneBlocks, CloneMaskMode, CloneMode, Coord, DamageAmount, DamageBuilder, DamageKind,
-    DataCommand, EffectDuration, EntityTargets, Execute, Fill, FillMode, GameMode, Inventory,
-    ItemSlot, Nbt, NbtCompound, NbtRef, NbtTarget, Objective, ObjectiveName, Particle,
-    ParticleBuilder, ParticleSpread, PlayerTargets, RawCommand, RenderCommand, Rotation,
-    ScoreHolder, Selector, SetBlock, SetBlockMode, SingleEntity, SinglePlayer, Sound, SoundSource,
-    Title, TitleTimes, UntypedNbt, Validate, Vec2, Vec3,
+    DataCommand, EffectDuration, EntityTargets, Execute, Fill, FillMode, FunctionMacroArg,
+    FunctionMacroArgs, GameMode, Inventory, ItemSlot, Nbt, NbtCompound, NbtRef, NbtTarget,
+    Objective, ObjectiveName, Particle, ParticleBuilder, ParticleSpread, PlayerTargets, RawCommand,
+    RenderCommand, Rotation, ScoreHolder, Selector, SetBlock, SetBlockMode, SingleEntity,
+    SinglePlayer, Sound, SoundSource, Title, TitleTimes, UntypedNbt, Validate, Vec2, Vec3,
 };
 pub use crate::item::{
     BlockInventory, ContainerIndex, EnderChestIndex, EntityInventory, EntityInventorySlot,
@@ -169,13 +169,14 @@ pub use sand_components::{
     AdvancementTrigger, AttributeId, AttributeModifier, AttributeOperation, AttributeType,
     BannerPattern, BlockPredicate, ConsumableAnimation, ConsumableProperties, Criterion,
     CustomData, CustomItem, DamagePredicate, DamageSourcePredicate, Dimension, DimensionType,
-    DistancePredicate, EnchantmentEntry, EnchantmentSlot, EntityEquipment, EntityFlags,
-    EntityPredicate, EquipmentSlot, EquipmentSlotGroup, EquippableProperties, FoodProperties,
+    DistancePredicate, EnchantmentEntry, EnchantmentProvider, EnchantmentProviderInt,
+    EnchantmentSelection, EnchantmentSlot, EntityEquipment, EntityFlags, EntityPredicate,
+    EquipmentModelId, EquipmentSlot, EquipmentSlotGroup, EquippableProperties, FoodProperties,
     Ingredient, ItemComponent, ItemModifier, ItemPredicate, ItemRarity, ItemStackComponents,
     LocationPredicate, LootCondition, LootEntry, LootFunction, LootPool, LootTable, LootTableType,
     MonsterSpawnLightLevel, Predicate, Rarity, RecipeResult, ShapedRecipe, ShapelessRecipe,
     SmithingTransformRecipe, SmithingTrimRecipe, StonecuttingRecipe, Tag, TagEntry, TagRegistry,
-    ToolProperties, ToolRule, TypedTag,
+    ToolProperties, ToolRule, TrimAssetName, TrimMaterial, TrimPattern, TypedTag,
 };
 
 // ── Raw escape hatch types ────────────────────────────────────────────────────
@@ -187,8 +188,8 @@ pub use sand_components::{RawComponent, RawJson, RawSnbt};
 pub use sand_components::{
     BiomeId, BlockId, DamageTypeId, DimensionId, DimensionTypeId, EffectId, EnchantmentId,
     EntityTypeId, FunctionId, ItemId, PotionContents, PotionId, PotionRegistryId, Range,
-    StatusEffectId, StatusEffectInstance, StructureId, StructureTemplate, SuspiciousStewEffect,
-    TagId,
+    SoundEventId, StatusEffectId, StatusEffectInstance, StructureId, StructureTemplate,
+    SuspiciousStewEffect, TagId,
 };
 
 // ── Text / chat ───────────────────────────────────────────────────────────────

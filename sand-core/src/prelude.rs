@@ -170,11 +170,12 @@ pub use sand_components::{
     BannerPattern, BlockPredicate, ConsumableAnimation, ConsumableProperties, Criterion,
     CustomData, CustomItem, DamagePredicate, DamageSourcePredicate, DistancePredicate,
     EnchantmentEntry, EnchantmentSlot, EntityEquipment, EntityFlags, EntityPredicate,
-    EquipmentSlot, EquipmentSlotGroup, EquippableProperties, FoodProperties, Ingredient,
-    ItemComponent, ItemModifier, ItemPredicate, ItemRarity, ItemStackComponents, LocationPredicate,
-    LootCondition, LootEntry, LootFunction, LootPool, LootTable, LootTableType, Predicate, Rarity,
-    RecipeResult, ShapedRecipe, ShapelessRecipe, SmithingTransformRecipe, SmithingTrimRecipe,
-    StonecuttingRecipe, Tag, TagEntry, TagRegistry, ToolProperties, ToolRule, TypedTag,
+    EquipmentModelId, EquipmentSlot, EquipmentSlotGroup, EquippableProperties, FoodProperties,
+    Ingredient, ItemComponent, ItemModifier, ItemPredicate, ItemRarity, ItemStackComponents,
+    LocationPredicate, LootCondition, LootEntry, LootFunction, LootPool, LootTable, LootTableType,
+    Predicate, Rarity, RecipeResult, ShapedRecipe, ShapelessRecipe, SmithingTransformRecipe,
+    SmithingTrimRecipe, StonecuttingRecipe, Tag, TagEntry, TagRegistry, ToolProperties, ToolRule,
+    TypedTag,
 };
 
 // ── Raw escape hatch types ────────────────────────────────────────────────────
@@ -185,7 +186,7 @@ pub use sand_components::{RawComponent, RawJson, RawSnbt};
 
 pub use sand_components::{
     BiomeId, BlockId, DamageTypeId, DimensionId, EffectId, EnchantmentId, EntityTypeId, FunctionId,
-    ItemId, PotionContents, PotionId, PotionRegistryId, Range, StatusEffectId,
+    ItemId, PotionContents, PotionId, PotionRegistryId, Range, SoundEventId, StatusEffectId,
     StatusEffectInstance, StructureId, StructureTemplate, SuspiciousStewEffect, TagId,
 };
 

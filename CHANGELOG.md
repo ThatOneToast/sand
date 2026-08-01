@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — `pack.mcmeta` `supported_formats` and overlays (#149)
+
+- Added `[pack].supported_formats` and `[pack].overlays` (and the same fields
+  under `[resourcepack]`) to `sand.toml`, letting a single generated pack
+  declare a `pack_format` range or format-specific overlay directories
+  instead of only a single `pack_format`. `supported_formats` accepts either
+  a bare format number or an inclusive `{ min, max }` table; overlay entries
+  pair a validated relative directory (`RelativePackPath`, rejecting
+  absolute/`..`-traversing paths) with their own `formats` range.
+- `sand.toml` parsing now rejects invalid ranges early (`min > max`, `0`) with
+  a diagnostic naming the offending values, instead of producing a
+  `pack.mcmeta` Minecraft would silently reject.
+- `write_pack_mcmeta`/`write_resourcepack_mcmeta` emit vanilla's
+  `pack.supported_formats` (`{"min_inclusive", "max_inclusive"}` for ranges)
+  and `overlays.entries` when configured, and keep the legacy
+  `pack_format`/`description`-only shape byte-for-byte unchanged when they
+  are not.
+- `sand build`'s output validator now checks any `supported_formats` /
+  `overlays` present in a generated `pack.mcmeta` for structural validity.
+
 ### Changed — typed advancement display and references (#183)
 
 - **Breaking:** advancement displays now take `TextComponent` title and

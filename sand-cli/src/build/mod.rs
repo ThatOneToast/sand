@@ -136,6 +136,8 @@ pub fn run(release: bool, resourcepack: bool) -> Result<()> {
         config.pack.namespace.as_str(),
         &config.pack.description,
         pack_format,
+        config.pack.supported_formats,
+        &config.pack.overlays,
     )?;
 
     // 7. Write each component file
@@ -549,8 +551,8 @@ mod tests {
         let resourcepack = temp.path().join("audit-resources");
         std::fs::create_dir_all(datapack.join("data/audit/function")).unwrap();
         std::fs::create_dir_all(resourcepack.join("assets/audit/models/item")).unwrap();
-        write_pack_mcmeta(&datapack, "audit", "data", 71).unwrap();
-        write_resourcepack_mcmeta(&resourcepack, "resources", 48).unwrap();
+        write_pack_mcmeta(&datapack, "audit", "data", 71, None, &[]).unwrap();
+        write_resourcepack_mcmeta(&resourcepack, "resources", 48, None, &[]).unwrap();
         std::fs::write(
             datapack.join("data/audit/function/load.mcfunction"),
             "say loaded",
@@ -582,7 +584,7 @@ mod tests {
     #[test]
     fn modern_datapack_metadata_includes_required_format_bounds() {
         let temp = tempfile::tempdir().unwrap();
-        write_pack_mcmeta(temp.path(), "audit", "modern", 107).unwrap();
+        write_pack_mcmeta(temp.path(), "audit", "modern", 107, None, &[]).unwrap();
         let metadata: serde_json::Value = serde_json::from_str(
             &std::fs::read_to_string(temp.path().join("pack.mcmeta")).unwrap(),
         )
@@ -590,6 +592,231 @@ mod tests {
         assert_eq!(metadata["pack"]["pack_format"], 107);
         assert_eq!(metadata["pack"]["min_format"], 107);
         assert_eq!(metadata["pack"]["max_format"], 107);
+    }
+
+    // ── supported_formats / overlays (#149) ────────────────────────────────────
+
+    #[test]
+    fn minimal_pack_mcmeta_unchanged_without_compatibility_fields() {
+        let temp = tempfile::tempdir().unwrap();
+        write_pack_mcmeta(temp.path(), "audit", "minimal", 71, None, &[]).unwrap();
+        let metadata: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(temp.path().join("pack.mcmeta")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            metadata,
+            serde_json::json!({
+                "pack": {
+                    "pack_format": 71,
+                    "description": "minimal",
+                }
+            }),
+            "no supported_formats/overlays configured must keep the legacy minimal shape"
+        );
+    }
+
+    #[test]
+    fn single_supported_format_serializes_as_bare_integer() {
+        use super::records::PackSupportedFormats;
+
+        let temp = tempfile::tempdir().unwrap();
+        write_pack_mcmeta(
+            temp.path(),
+            "audit",
+            "single",
+            71,
+            Some(PackSupportedFormats::Single(71)),
+            &[],
+        )
+        .unwrap();
+        let metadata: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(temp.path().join("pack.mcmeta")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(metadata["pack"]["supported_formats"], 71);
+        assert!(metadata.get("overlays").is_none());
+    }
+
+    #[test]
+    fn range_supported_format_serializes_as_min_max_object() {
+        use super::records::PackSupportedFormats;
+
+        let temp = tempfile::tempdir().unwrap();
+        write_pack_mcmeta(
+            temp.path(),
+            "audit",
+            "range",
+            71,
+            Some(PackSupportedFormats::Range { min: 71, max: 72 }),
+            &[],
+        )
+        .unwrap();
+        let metadata: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(temp.path().join("pack.mcmeta")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(metadata["pack"]["supported_formats"]["min_inclusive"], 71);
+        assert_eq!(metadata["pack"]["supported_formats"]["max_inclusive"], 72);
+    }
+
+    #[test]
+    fn overlays_are_written_as_overlays_entries() {
+        use super::records::{PackOverlay, PackSupportedFormats};
+
+        let overlay: PackOverlay =
+            toml::from_str("directory = \"overlays/26_2\"\nformats = { min = 72, max = 72 }\n")
+                .unwrap();
+
+        let temp = tempfile::tempdir().unwrap();
+        write_pack_mcmeta(
+            temp.path(),
+            "audit",
+            "with-overlay",
+            71,
+            Some(PackSupportedFormats::Range { min: 71, max: 72 }),
+            &[overlay],
+        )
+        .unwrap();
+        let metadata: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(temp.path().join("pack.mcmeta")).unwrap(),
+        )
+        .unwrap();
+        let entries = metadata["overlays"]["entries"].as_array().unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0]["directory"], "overlays/26_2");
+        assert_eq!(entries[0]["formats"]["min_inclusive"], 72);
+        assert_eq!(entries[0]["formats"]["max_inclusive"], 72);
+    }
+
+    #[test]
+    fn resourcepack_mcmeta_supports_the_same_compatibility_fields() {
+        use super::records::PackSupportedFormats;
+
+        let temp = tempfile::tempdir().unwrap();
+        write_resourcepack_mcmeta(
+            temp.path(),
+            "resources",
+            48,
+            Some(PackSupportedFormats::Range { min: 46, max: 48 }),
+            &[],
+        )
+        .unwrap();
+        let metadata: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(temp.path().join("pack.mcmeta")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(metadata["pack"]["supported_formats"]["min_inclusive"], 46);
+        assert_eq!(metadata["pack"]["supported_formats"]["max_inclusive"], 48);
+    }
+
+    // ── sand.toml supported_formats / overlays parsing (#149) ──────────────────
+
+    #[test]
+    fn config_parses_single_supported_format() {
+        let toml = "[pack]\nnamespace = \"audit\"\ndescription = \"test\"\n\
+                     mc_version = \"1.21\"\nsupported_formats = 71\n";
+        let config: crate::config::SandConfig = toml::from_str(toml).unwrap();
+        assert_eq!(
+            config.pack.supported_formats,
+            Some(super::records::PackSupportedFormats::Single(71))
+        );
+    }
+
+    #[test]
+    fn config_parses_supported_format_range() {
+        let toml = "[pack]\nnamespace = \"audit\"\ndescription = \"test\"\n\
+                     mc_version = \"1.21\"\nsupported_formats = { min = 71, max = 72 }\n";
+        let config: crate::config::SandConfig = toml::from_str(toml).unwrap();
+        assert_eq!(
+            config.pack.supported_formats,
+            Some(super::records::PackSupportedFormats::Range { min: 71, max: 72 })
+        );
+    }
+
+    #[test]
+    fn config_rejects_inverted_supported_format_range() {
+        let toml = "[pack]\nnamespace = \"audit\"\ndescription = \"test\"\n\
+                     mc_version = \"1.21\"\nsupported_formats = { min = 72, max = 71 }\n";
+        let err = toml::from_str::<crate::config::SandConfig>(toml).unwrap_err();
+        assert!(
+            err.to_string().contains("min") && err.to_string().contains("max"),
+            "error should name min/max: {err}"
+        );
+    }
+
+    #[test]
+    fn config_rejects_zero_supported_format() {
+        for toml in [
+            "[pack]\nnamespace = \"audit\"\ndescription = \"test\"\n\
+             mc_version = \"1.21\"\nsupported_formats = 0\n",
+            "[pack]\nnamespace = \"audit\"\ndescription = \"test\"\n\
+             mc_version = \"1.21\"\nsupported_formats = { min = 0, max = 71 }\n",
+        ] {
+            assert!(
+                toml::from_str::<crate::config::SandConfig>(toml).is_err(),
+                "format number 0 must be rejected: {toml}"
+            );
+        }
+    }
+
+    #[test]
+    fn config_parses_pack_overlays() {
+        let toml = "[pack]\nnamespace = \"audit\"\ndescription = \"test\"\n\
+                     mc_version = \"1.21\"\nsupported_formats = { min = 71, max = 72 }\n\
+                     [[pack.overlays]]\ndirectory = \"overlays/26_2\"\n\
+                     formats = { min = 72, max = 72 }\n";
+        let config: crate::config::SandConfig = toml::from_str(toml).unwrap();
+        assert_eq!(config.pack.overlays.len(), 1);
+        assert_eq!(config.pack.overlays[0].directory.as_str(), "overlays/26_2");
+        assert_eq!(
+            config.pack.overlays[0].formats,
+            super::records::PackSupportedFormats::Range { min: 72, max: 72 }
+        );
+    }
+
+    #[test]
+    fn config_rejects_absolute_overlay_directory() {
+        let toml = "[pack]\nnamespace = \"audit\"\ndescription = \"test\"\n\
+                     mc_version = \"1.21\"\n\
+                     [[pack.overlays]]\ndirectory = \"/etc/overlays\"\n\
+                     formats = { min = 72, max = 72 }\n";
+        assert!(toml::from_str::<crate::config::SandConfig>(toml).is_err());
+    }
+
+    #[test]
+    fn config_rejects_path_traversing_overlay_directory() {
+        let toml = "[pack]\nnamespace = \"audit\"\ndescription = \"test\"\n\
+                     mc_version = \"1.21\"\n\
+                     [[pack.overlays]]\ndirectory = \"../escape\"\n\
+                     formats = { min = 72, max = 72 }\n";
+        assert!(toml::from_str::<crate::config::SandConfig>(toml).is_err());
+    }
+
+    #[test]
+    fn config_parses_resourcepack_supported_formats_and_overlays() {
+        let toml = "[pack]\nnamespace = \"audit\"\ndescription = \"test\"\n\
+                     mc_version = \"1.21\"\n\
+                     [resourcepack]\ndescription = \"rp\"\n\
+                     supported_formats = { min = 46, max = 48 }\n\
+                     [[resourcepack.overlays]]\ndirectory = \"overlays/rp_26_2\"\n\
+                     formats = 48\n";
+        let config: crate::config::SandConfig = toml::from_str(toml).unwrap();
+        let rp = config.resourcepack.unwrap();
+        assert_eq!(
+            rp.supported_formats,
+            Some(super::records::PackSupportedFormats::Range { min: 46, max: 48 })
+        );
+        assert_eq!(rp.overlays.len(), 1);
+        assert_eq!(rp.overlays[0].directory.as_str(), "overlays/rp_26_2");
+    }
+
+    #[test]
+    fn config_without_compatibility_fields_defaults_to_backward_compatible_shape() {
+        let toml = "[pack]\nnamespace = \"audit\"\ndescription = \"test\"\nmc_version = \"1.21\"\n";
+        let config: crate::config::SandConfig = toml::from_str(toml).unwrap();
+        assert_eq!(config.pack.supported_formats, None);
+        assert!(config.pack.overlays.is_empty());
     }
 
     // ── Component output path computation ─────────────────────────────────────
@@ -902,12 +1129,12 @@ mod tests {
         validate_resourcepack_records_for_project(&project_root, &rp_records).unwrap();
 
         std::fs::create_dir_all(&dist).unwrap();
-        write_pack_mcmeta(&dist, "audit", "data", 71).unwrap();
+        write_pack_mcmeta(&dist, "audit", "data", 71, None, &[]).unwrap();
         for record in &component_records {
             write_component(&dist, &project_root, record).unwrap();
         }
         std::fs::create_dir_all(&rp_dist).unwrap();
-        write_resourcepack_mcmeta(&rp_dist, "resources", 48).unwrap();
+        write_resourcepack_mcmeta(&rp_dist, "resources", 48, None, &[]).unwrap();
         for record in &rp_records {
             write_rp_record(&rp_dist, &project_root, record).unwrap();
         }
@@ -977,7 +1204,7 @@ mod tests {
 
         let render = |dist: &Path| {
             std::fs::create_dir_all(dist).unwrap();
-            write_pack_mcmeta(dist, "audit", "byte-stable", 71).unwrap();
+            write_pack_mcmeta(dist, "audit", "byte-stable", 71, None, &[]).unwrap();
             for record in &records {
                 write_component(dist, &project_root, record).unwrap();
             }
@@ -1486,7 +1713,7 @@ mod tests {
 
         // Write the pack
         std::fs::create_dir_all(&dist).unwrap();
-        write_pack_mcmeta(&dist, "golden", "Golden fixture pack", 71).unwrap();
+        write_pack_mcmeta(&dist, "golden", "Golden fixture pack", 71, None, &[]).unwrap();
         for r in &records {
             write_component(&dist, temp.path(), r).unwrap();
         }
@@ -1534,5 +1761,60 @@ mod tests {
                 .any(|v| v == "golden:tick"),
             "tick tag must reference golden:tick"
         );
+    }
+
+    /// CLI-workflow fixture: a `sand.toml` configuring `supported_formats`
+    /// and `overlays` under `[pack]` parses successfully and drives the same
+    /// `write_pack_mcmeta` call `sand build` uses (step 6 of [`run`]),
+    /// producing the canonical `pack.supported_formats` / `overlays.entries`
+    /// shape in the generated `pack.mcmeta`.
+    #[test]
+    fn golden_fixture_multi_version_pack_toml_drives_expected_mcmeta() {
+        let toml = "[pack]\n\
+                     namespace = \"golden\"\n\
+                     description = \"Golden multi-version pack\"\n\
+                     mc_version = \"26.1\"\n\
+                     pack_format = 71\n\
+                     supported_formats = { min = 71, max = 72 }\n\
+                     \n\
+                     [[pack.overlays]]\n\
+                     directory = \"overlays/26_2\"\n\
+                     formats = { min = 72, max = 72 }\n";
+        let config: crate::config::SandConfig = toml::from_str(toml).unwrap();
+
+        let temp = tempfile::tempdir().unwrap();
+        let dist = temp.path().join("golden");
+        std::fs::create_dir_all(&dist).unwrap();
+
+        write_pack_mcmeta(
+            &dist,
+            config.pack.namespace.as_str(),
+            &config.pack.description,
+            config.pack.pack_format.unwrap(),
+            config.pack.supported_formats,
+            &config.pack.overlays,
+        )
+        .unwrap();
+
+        let mcmeta: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(dist.join("pack.mcmeta")).unwrap())
+                .unwrap();
+        assert_eq!(mcmeta["pack"]["pack_format"], 71);
+        assert_eq!(mcmeta["pack"]["supported_formats"]["min_inclusive"], 71);
+        assert_eq!(mcmeta["pack"]["supported_formats"]["max_inclusive"], 72);
+        let entries = mcmeta["overlays"]["entries"].as_array().unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0]["directory"], "overlays/26_2");
+        assert_eq!(entries[0]["formats"]["min_inclusive"], 72);
+        assert_eq!(entries[0]["formats"]["max_inclusive"], 72);
+
+        // Output-validation hook still accepts the generated pack.
+        std::fs::create_dir_all(dist.join("data/golden/function")).unwrap();
+        std::fs::write(
+            dist.join("data/golden/function/load.mcfunction"),
+            "say loaded",
+        )
+        .unwrap();
+        assert!(super::validate_output::validate_output_dir(&dist).is_ok());
     }
 }

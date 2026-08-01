@@ -29,6 +29,36 @@
 //!         .run(cmd::say("100 ticks!"));
 //! }
 //! ```
+//!
+//! # Handwritten helper audit ([#175](https://github.com/ThatOneToast/sand/issues/175))
+//!
+//! Unlike the generated `_generated` builders (which are checked against the
+//! Minecraft command tree), the helpers below are handwritten and therefore
+//! individually audited and classified:
+//!
+//! | Helper | Classification | Notes |
+//! |---|---|---|
+//! | [`call`] | validated-compatibility | typed `IntoFunctionRef` inputs are well-formed by construction; the `&str`/`String` escape hatch is validated by [`try_call`] |
+//! | [`try_call`] | typed-canonical | validates the resolved resource location before returning |
+//! | [`function`] | explicit-raw | interpolates `id` verbatim; prefer [`try_function`] |
+//! | [`try_function`] | typed-canonical | validates `id` as a resource location |
+//! | [`function_id`] | validated-compatibility | same shape as `call`; raw escape hatch validated by [`try_function_id`] |
+//! | [`try_function_id`] | typed-canonical | validates the resolved resource location before returning |
+//! | [`show_dialog`] | validated-compatibility | dialog side is always typed via `IntoDialogRef`; selector validated by [`try_show_dialog`] |
+//! | [`try_show_dialog`] | typed-canonical | validates the target selector |
+//! | [`tellraw`] | typed-canonical | routes through [`TextComponent`]/[`TextCommand`] |
+//! | [`tellraw_raw`] | explicit-raw | target and JSON interpolated verbatim; prefer [`tellraw`] or [`try_tellraw_raw`] |
+//! | [`try_tellraw_raw`] | validated-compatibility | validates the selector and that `json` parses as JSON syntax |
+//! | [`give`] | validated-compatibility | typed [`IntoGiveItem`] inputs are well-formed by construction; the `&str`/`String` escape hatch is validated by [`try_give`] |
+//! | [`try_give`] | typed-canonical | validates the selector and the item's resource-location shape |
+//! | [`return_fail`] | typed-canonical | fixed, always-valid command text |
+//! | [`return_cmd`] | typed-canonical | fixed command shape; `value` is a plain `i32` |
+//! | [`raw`] | explicit-raw | deliberate escape hatch; constrained to one valid `.mcfunction` line by [`RawCommand`]'s [`Validate`]/[`RenderCommand`] impls (`try_build`/profile-aware rendering) |
+//! | `fn_macros::function_with` | explicit-raw | interpolates `name` verbatim; prefer `fn_macros::try_function_with` or `fn_macros::call_with`/`try_call_with` |
+//! | `fn_macros::try_function_with` | validated-compatibility | validates `name` as a resource location and the NBT source/path |
+//! | `fn_macros::call_with`/`try_call_with` | typed-canonical | fully typed function + NBT reference path (#194) |
+//! | `data::Storage` raw methods (`remove`, `get`, `get_scaled`, `contains`, `get_or_insert`, `merge`) | validated-compatibility | each has a `try_*` counterpart routing through [`DataTarget`]/NBT-path validation |
+//! | `IntoFunctionRef` for `fn() -> Vec<String>` / function items | programmer-error panic (documented, not a `try_*` gap) | see the "unregistered function pointer" rationale on [`crate::function::IntoFunctionRef`] |
 
 // ── Internal modules (sand-core-specific) ─────────────────────────────────────
 
@@ -109,7 +139,7 @@ pub use data::{Storage, StorageKind};
 pub use effect::{EffectGive, effect_clear, effect_clear_effect, effect_give, effect_give_raw};
 pub use fn_macros::{
     FunctionMacroArg, FunctionMacroArgs, call_with, function_with, macro_line, macro_var,
-    try_call_with, try_macro_var,
+    try_call_with, try_function_with, try_macro_var,
 };
 pub use typed_execute::{ConditionedExecute, ExecuteExt, TypedExecute};
 
@@ -145,11 +175,8 @@ pub fn call(id: impl crate::function::IntoFunctionRef) -> String {
 /// (or the `__sand_local:path` sentinel used for not-yet-namespaced local
 /// function pointers) before returning command text.
 pub fn try_call(id: impl crate::function::IntoFunctionRef) -> sand_commands::CommandResult<String> {
-    let line = id.into_function_command();
-    let function_id = line.strip_prefix("function ").unwrap_or(line.as_str());
-    sand_commands::validate::resource_location_shape(function_id, "cmd::try_call", "id")
-        .map_err(|e| e.with_code("SAND-COMMAND-ARG-FUNCTION-ID"))?;
-    Ok(line)
+    let function_id = try_function_id(id)?;
+    Ok(format!("function {function_id}"))
 }
 
 /// `function <namespace:path>` — run a datapack function by resource location.
@@ -184,6 +211,26 @@ pub fn try_function(id: impl std::fmt::Display) -> sand_commands::CommandResult<
 /// ```
 pub fn function_id(id: impl crate::function::IntoFunctionRef) -> String {
     id.into_function_id()
+}
+
+/// Validated counterpart to [`function_id`].
+///
+/// [`IntoFunctionRef`]'s registered-pointer, [`FunctionRef`](crate::resource_ref::FunctionRef),
+/// and [`ResourceLocation`](crate::ResourceLocation) implementors are always
+/// well-formed by construction, but the `&str`/`String` raw-path escape hatch
+/// is not — this validates the resolved `namespace:path` resource location
+/// (or the `__sand_local:path` sentinel used for not-yet-namespaced local
+/// function pointers) before returning it. This closes the raw-string gap in
+/// `function_id` noted in [#175](https://github.com/ThatOneToast/sand/issues/175)
+/// (identified during the #287 review as the same shape of bypass as
+/// [`try_call`]/[`try_function`]).
+pub fn try_function_id(
+    id: impl crate::function::IntoFunctionRef,
+) -> sand_commands::CommandResult<String> {
+    let function_id = id.into_function_id();
+    sand_commands::validate::resource_location_shape(&function_id, "cmd::try_function_id", "id")
+        .map_err(|e| e.with_code("SAND-COMMAND-ARG-FUNCTION-ID"))?;
+    Ok(function_id)
 }
 
 /// Show a typed datapack dialog to one or more players.
@@ -552,6 +599,20 @@ mod tests {
             super::try_tellraw_raw(super::Selector::all_entities().limit(0), r#"{"text":"hi"}"#)
                 .is_err()
         );
+    }
+
+    #[test]
+    fn try_function_id_matches_function_id_for_valid_raw_path() {
+        assert_eq!(
+            super::try_function_id("my_pack:api/do_thing").unwrap(),
+            super::function_id("my_pack:api/do_thing")
+        );
+    }
+
+    #[test]
+    fn try_function_id_rejects_malformed_raw_path() {
+        assert!(super::try_function_id("not a resource location").is_err());
+        assert!(super::try_function_id("Bad Path").is_err());
     }
 
     #[test]

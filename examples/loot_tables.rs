@@ -1,11 +1,12 @@
 //! # Loot tables
 //!
-//! Demonstrates loot tables with pools, conditions, functions,
-//! and convenience constructors.
+//! Demonstrates loot tables with pools, conditions, functions, and typed
+//! item/tag/loot-table-reference/enchantment IDs.
 
+use sand_core::prelude::Text;
 use sand_core::{
-    LootCondition, LootEntry, LootFunction, LootPool, LootTable,
-    LootTableType, NumberProvider,
+    EnchantmentId, EnchantmentSelector, ItemId, LootCondition, LootEntry, LootFunction, LootPool,
+    LootTable, LootTableId, LootTableType, NumberProvider, TagId,
 };
 use sand_macros::component;
 
@@ -16,61 +17,48 @@ use sand_macros::component;
 pub fn zombie_drops() -> LootTable {
     LootTable::entity_drop(
         "my_pack:entities/zombie".parse().unwrap(),
-        vec![
-            // Always drop 0-2 rotten flesh
-            LootPool::new()
-                .rolls(NumberProvider::Constant(1.0))
-                .entry(
-                    LootEntry::item("minecraft:rotten_flesh")
-                        .function(LootFunction::SetCount {
-                            count: NumberProvider::Uniform { min: 0.0, max: 2.0 },
-                            add: false,
-                        })
-                        .function(LootFunction::LootingEnchant {
-                            count: NumberProvider::Uniform { min: 0.0, max: 1.0 },
-                            limit: Some(3),
-                        }),
-                ),
-            // Rare iron ingot drop (2.5% chance + looting bonus)
-            LootPool::new()
-                .rolls(NumberProvider::Constant(1.0))
-                .entry(
-                    LootEntry::item("minecraft:iron_ingot")
-                        .condition(LootCondition::RandomChanceWithLooting {
-                            chance: 0.025,
-                            looting_multiplier: 0.01,
-                        }),
-                ),
-        ],
+        "minecraft:rotten_flesh",
+        0,
+        2,
+        Some(1),
     )
 }
 
 // ── Chest loot ───────────────────────────────────────────────────────────────
-// Uses the chest loot convenience constructor.
+// Typed item entries, an item-tag entry, and a nested loot table reference.
 
 #[component]
 pub fn dungeon_chest() -> LootTable {
-    LootTable::chest_loot(
-        "my_pack:chests/dungeon".parse().unwrap(),
-        vec![
-            // 2-4 rolls of common items
+    LootTable::new("my_pack:chests/dungeon".parse().unwrap())
+        .loot_type(LootTableType::Chest)
+        .pool(
             LootPool::new()
                 .rolls(NumberProvider::Uniform { min: 2.0, max: 4.0 })
-                .entry(LootEntry::item("minecraft:iron_ingot").weight(10))
-                .entry(LootEntry::item("minecraft:gold_ingot").weight(5))
-                .entry(LootEntry::item("minecraft:diamond").weight(1)),
-            // One guaranteed enchanted book
-            LootPool::new()
-                .rolls(NumberProvider::Constant(1.0))
-                .entry(
-                    LootEntry::item("minecraft:book")
-                        .function(LootFunction::EnchantRandomly { options: None }),
-                ),
-        ],
-    )
+                .entry(LootEntry::item(ItemId::minecraft("iron_ingot").unwrap()))
+                .entry(LootEntry::item(ItemId::minecraft("gold_ingot").unwrap()))
+                .entry(LootEntry::tag(TagId::minecraft("logs").unwrap()))
+                .entry(LootEntry::loot_table(LootTableId::custom(
+                    "my_pack:chests/bonus".parse().unwrap(),
+                ))),
+        )
+        .pool(
+            // One guaranteed enchanted book, randomly enchanted from a tag.
+            LootPool::new().rolls(1).entry(LootEntry::Item {
+                name: ItemId::minecraft("book").unwrap().to_string(),
+                weight: None,
+                quality: None,
+                functions: vec![LootFunction::EnchantRandomly {
+                    options: Some(vec![EnchantmentSelector::Tag(
+                        TagId::minecraft("in_enchanting_table").unwrap(),
+                    )]),
+                    only_compatible: true,
+                }],
+                conditions: Vec::new(),
+            }),
+        )
 }
 
-// ── Full loot table with conditions ──────────────────────────────────────────
+// ── Full loot table with conditions and typed set_name text ─────────────────
 // Demonstrates manual construction with conditions and functions.
 
 #[component]
@@ -79,40 +67,49 @@ pub fn boss_loot() -> LootTable {
         .loot_type(LootTableType::Entity)
         .pool(
             LootPool::new()
-                .rolls(NumberProvider::Constant(1.0))
-                // Only drop if killed by a player
+                .rolls(1)
+                // Only drop if killed by a player.
                 .condition(LootCondition::KilledByPlayer)
-                .entry(
-                    LootEntry::item("minecraft:nether_star")
-                        .function(LootFunction::SetCount {
+                .entry(LootEntry::Item {
+                    name: ItemId::minecraft("nether_star").unwrap().to_string(),
+                    weight: None,
+                    quality: None,
+                    functions: vec![
+                        LootFunction::SetCount {
                             count: NumberProvider::Constant(1.0),
                             add: false,
-                        }),
-                )
-                .entry(
-                    LootEntry::item("minecraft:diamond")
-                        .function(LootFunction::SetCount {
+                        },
+                        LootFunction::set_name(Text::new("Heart of the Boss").gold()),
+                    ],
+                    conditions: Vec::new(),
+                })
+                .entry(LootEntry::Item {
+                    name: ItemId::minecraft("diamond").unwrap().to_string(),
+                    weight: None,
+                    quality: None,
+                    functions: vec![
+                        LootFunction::SetCount {
                             count: NumberProvider::Uniform { min: 3.0, max: 7.0 },
                             add: false,
-                        })
-                        .function(LootFunction::LootingEnchant {
-                            count: NumberProvider::Uniform { min: 0.0, max: 2.0 },
-                            limit: Some(10),
-                        }),
-                ),
+                        },
+                        LootFunction::EnchantWithLevels {
+                            levels: NumberProvider::Constant(30.0),
+                            options: Some(EnchantmentSelector::Id(
+                                EnchantmentId::minecraft("sharpness").unwrap(),
+                            )),
+                        },
+                    ],
+                    conditions: Vec::new(),
+                }),
         )
         .pool(
-            // Bonus pool: 50% chance of bonus loot
+            // Bonus pool: 50% chance of bonus loot.
             LootPool::new()
-                .rolls(NumberProvider::Constant(1.0))
+                .rolls(1)
                 .condition(LootCondition::RandomChance { chance: 0.5 })
-                .entry(
-                    LootEntry::item("minecraft:enchanted_golden_apple")
-                        .function(LootFunction::SetCount {
-                            count: NumberProvider::Constant(1.0),
-                            add: false,
-                        }),
-                ),
+                .entry(LootEntry::item(
+                    ItemId::minecraft("enchanted_golden_apple").unwrap(),
+                )),
         )
 }
 
@@ -121,19 +118,26 @@ pub fn boss_loot() -> LootTable {
 
 #[component]
 pub fn tiered_drops() -> LootTable {
-    LootTable::new("my_pack:gameplay/tiered".parse().unwrap())
-        .pool(
-            LootPool::new()
-                .rolls(NumberProvider::Constant(1.0))
-                .entry(LootEntry::alternatives(vec![
-                    // 5% chance: diamond
-                    LootEntry::item("minecraft:diamond")
-                        .condition(LootCondition::RandomChance { chance: 0.05 }),
-                    // 20% chance: gold
-                    LootEntry::item("minecraft:gold_ingot")
-                        .condition(LootCondition::RandomChance { chance: 0.20 }),
-                    // fallback: iron (always matches)
-                    LootEntry::item("minecraft:iron_ingot"),
-                ])),
-        )
+    LootTable::new("my_pack:gameplay/tiered".parse().unwrap()).pool(
+        LootPool::new().rolls(1).entry(LootEntry::alternatives(vec![
+            // 5% chance: diamond
+            LootEntry::Item {
+                name: ItemId::minecraft("diamond").unwrap().to_string(),
+                weight: None,
+                quality: None,
+                functions: Vec::new(),
+                conditions: vec![LootCondition::RandomChance { chance: 0.05 }],
+            },
+            // 20% chance: gold
+            LootEntry::Item {
+                name: ItemId::minecraft("gold_ingot").unwrap().to_string(),
+                weight: None,
+                quality: None,
+                functions: Vec::new(),
+                conditions: vec![LootCondition::RandomChance { chance: 0.20 }],
+            },
+            // fallback: iron (always matches)
+            LootEntry::item(ItemId::minecraft("iron_ingot").unwrap()),
+        ])),
+    )
 }

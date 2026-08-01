@@ -41,6 +41,37 @@ laid out exactly as vanilla expects under `data/trail/...`. Pass
 if the project has resource-pack support enabled (`sand add resourcepack`;
 Trailforge itself doesn't use this).
 
+### `pack_format` vs `supported_formats` and `overlays`
+
+`[pack].pack_format` (derived from `mc_version` unless overridden) is what
+most projects need: a pack built and tested against one Minecraft version.
+
+For packs whose generated content is unchanged across a range of pack-format
+numbers, add `supported_formats` to widen the range Minecraft will accept
+without changing what gets written:
+
+```toml
+[pack]
+supported_formats = { min = 71, max = 72 }
+# or a single value: supported_formats = 71
+```
+
+When different format ranges genuinely need *different* content, add
+`overlays` — vanilla swaps in the overlay directory once the world's format
+falls in that overlay's range:
+
+```toml
+[[pack.overlays]]
+directory = "overlays/26_2"
+formats = { min = 72, max = 72 }
+```
+
+Sand validates `min <= max` and rejects absolute or path-traversing overlay
+directories at `sand.toml` parse time, and only emits the overlay metadata —
+it does not generate or route files into the overlay directory, so its
+contents are the project's own responsibility. `[resourcepack]` accepts the
+same `supported_formats` and `overlays` fields.
+
 ## `sand run`
 
 ```sh

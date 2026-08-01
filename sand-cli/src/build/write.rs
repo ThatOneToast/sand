@@ -3,31 +3,58 @@ use std::path::Path;
 use anyhow::{Context, Result, bail};
 
 use super::records::{
-    ComponentContentType, ComponentRecord, ContentType, OutputExt, ResourcePackRecord,
+    ComponentContentType, ComponentRecord, ContentType, OutputExt, PackOverlay,
+    PackSupportedFormats, ResourcePackRecord,
 };
+
+/// Builds the `pack.mcmeta` JSON body shared by datapacks and resource packs:
+/// `pack_format`/`description`, an optional `pack.supported_formats`, and an
+/// optional `overlays.entries` array. Kept identical to the legacy
+/// `pack_format`-only shape when `supported_formats` is `None` and `overlays`
+/// is empty, so existing single-version packs are byte-for-byte unchanged.
+fn build_mcmeta(
+    description: &str,
+    pack_format: u32,
+    supported_formats: Option<PackSupportedFormats>,
+    overlays: &[PackOverlay],
+) -> serde_json::Value {
+    let mut pack = serde_json::json!({
+        "pack_format": pack_format,
+        "description": description,
+    });
+    if let Some(formats) = supported_formats {
+        pack["supported_formats"] = formats.to_json();
+    }
+
+    let mut mcmeta = serde_json::json!({ "pack": pack });
+    if !overlays.is_empty() {
+        let entries: Vec<serde_json::Value> = overlays.iter().map(PackOverlay::to_json).collect();
+        mcmeta["overlays"] = serde_json::json!({ "entries": entries });
+    }
+    mcmeta
+}
 
 pub fn write_pack_mcmeta(
     dist: &Path,
     namespace: &str,
     description: &str,
     pack_format: u32,
+    supported_formats: Option<PackSupportedFormats>,
+    overlays: &[PackOverlay],
 ) -> Result<()> {
     let _ = namespace; // available for future use
-    let mut pack = serde_json::json!({
-        "pack_format": pack_format,
-        "description": description,
-    });
+    let mut pack_body = build_mcmeta(description, pack_format, supported_formats, overlays);
     // Vanilla requires explicit supported-format bounds for modern packs.
     // Retain pack_format for older tooling while pinning this generated pack
-    // to the exact verified profile used by Sand.
-    if pack_format > 81 {
-        pack["min_format"] = pack_format.into();
-        pack["max_format"] = pack_format.into();
+    // to the exact verified profile used by Sand, unless the project already
+    // configured its own `supported_formats`.
+    if pack_format > 81 && supported_formats.is_none() {
+        pack_body["pack"]["min_format"] = pack_format.into();
+        pack_body["pack"]["max_format"] = pack_format.into();
     }
-    let mcmeta = serde_json::json!({ "pack": pack });
     std::fs::write(
         dist.join("pack.mcmeta"),
-        serde_json::to_string_pretty(&mcmeta)?,
+        serde_json::to_string_pretty(&pack_body)?,
     )?;
     Ok(())
 }
@@ -82,13 +109,14 @@ pub fn write_component(dist: &Path, project_root: &Path, record: &ComponentRecor
     Ok(())
 }
 
-pub fn write_resourcepack_mcmeta(dist: &Path, description: &str, pack_format: u32) -> Result<()> {
-    let mcmeta = serde_json::json!({
-        "pack": {
-            "pack_format": pack_format,
-            "description": description,
-        }
-    });
+pub fn write_resourcepack_mcmeta(
+    dist: &Path,
+    description: &str,
+    pack_format: u32,
+    supported_formats: Option<PackSupportedFormats>,
+    overlays: &[PackOverlay],
+) -> Result<()> {
+    let mcmeta = build_mcmeta(description, pack_format, supported_formats, overlays);
     std::fs::write(
         dist.join("pack.mcmeta"),
         serde_json::to_string_pretty(&mcmeta)?,

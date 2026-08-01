@@ -7,7 +7,18 @@
 use serde_json::Value;
 
 use crate::component::DatapackComponent;
+use crate::error::Result as SandResult;
 use crate::resource_location::ResourceLocation;
+use crate::validation;
+
+const KIND: &str = "worldgen/noise_settings";
+
+/// Minimum documented sea level, mirroring the world-height floor used by
+/// `dimension_type`'s `min_y` validation (`-2032..=2031`).
+const MIN_SEA_LEVEL: i32 = -2032;
+/// Maximum documented sea level, mirroring the world-height ceiling used by
+/// `dimension_type`'s `min_y` validation (`-2032..=2031`).
+const MAX_SEA_LEVEL: i32 = 2031;
 
 /// A noise settings definition (`data/<namespace>/worldgen/noise_settings/<id>.json`).
 ///
@@ -157,7 +168,112 @@ impl DatapackComponent for NoiseSettings {
         Value::Object(map)
     }
 
+    fn validate(&self) -> SandResult<()> {
+        if !(MIN_SEA_LEVEL..=MAX_SEA_LEVEL).contains(&self.sea_level) {
+            return Err(validation::error(
+                &self.location,
+                KIND,
+                "sea_level",
+                &format!(
+                    "sea_level must be in {MIN_SEA_LEVEL}..={MAX_SEA_LEVEL}; received {}",
+                    self.sea_level
+                ),
+            ));
+        }
+        validation::require_json_object(
+            &self.location,
+            KIND,
+            "default_block",
+            &self.default_block,
+        )?;
+        validation::require_json_object(
+            &self.location,
+            KIND,
+            "default_fluid",
+            &self.default_fluid,
+        )?;
+        if let Some(ref v) = self.noise_router {
+            validation::require_json_object(&self.location, KIND, "noise_router", v)?;
+        }
+        if let Some(ref v) = self.spawn_target {
+            validation::require_json_array(&self.location, KIND, "spawn_target", v)?;
+        }
+        if let Some(ref v) = self.surface_rule {
+            validation::require_json_object(&self.location, KIND, "surface_rule", v)?;
+        }
+        Ok(())
+    }
+
     fn component_dir(&self) -> &'static str {
         "worldgen/noise_settings"
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn location() -> ResourceLocation {
+        ResourceLocation::new("my_pack", "custom_overworld").unwrap()
+    }
+
+    #[test]
+    fn defaults_pass_validation() {
+        let settings = NoiseSettings::new(location());
+        assert!(settings.validate().is_ok());
+    }
+
+    #[test]
+    fn sea_level_out_of_range_rejected() {
+        let settings = NoiseSettings::new(location()).sea_level(i32::MAX);
+        let err = settings.validate().unwrap_err().to_string();
+        assert!(err.contains("sea_level"), "{err}");
+    }
+
+    #[test]
+    fn default_block_non_object_rejected() {
+        let settings =
+            NoiseSettings::new(location()).default_block(serde_json::json!("minecraft:stone"));
+        let err = settings.validate().unwrap_err().to_string();
+        assert!(err.contains("default_block"), "{err}");
+    }
+
+    #[test]
+    fn default_fluid_non_object_rejected() {
+        let settings =
+            NoiseSettings::new(location()).default_fluid(serde_json::json!(["minecraft:water"]));
+        assert!(settings.validate().is_err());
+    }
+
+    #[test]
+    fn noise_router_non_object_rejected() {
+        let settings = NoiseSettings::new(location()).noise_router(serde_json::json!([1, 2, 3]));
+        let err = settings.validate().unwrap_err().to_string();
+        assert!(err.contains("noise_router"), "{err}");
+    }
+
+    #[test]
+    fn spawn_target_non_array_rejected() {
+        let settings = NoiseSettings::new(location()).spawn_target(serde_json::json!({"a": 1}));
+        let err = settings.validate().unwrap_err().to_string();
+        assert!(err.contains("spawn_target"), "{err}");
+    }
+
+    #[test]
+    fn surface_rule_non_object_rejected() {
+        let settings = NoiseSettings::new(location()).surface_rule(serde_json::json!([1, 2]));
+        let err = settings.validate().unwrap_err().to_string();
+        assert!(err.contains("surface_rule"), "{err}");
+    }
+
+    #[test]
+    fn raw_sections_valid_shapes_still_accepted() {
+        let settings = NoiseSettings::new(location())
+            .noise_router(serde_json::json!({"barrier": 0.0}))
+            .spawn_target(serde_json::json!([{"priority": 0}]))
+            .surface_rule(serde_json::json!({"type": "minecraft:sequence", "sequence": []}));
+        assert!(settings.validate().is_ok());
+        let json = settings.to_json();
+        assert_eq!(json["surface_rule"]["type"], "minecraft:sequence");
     }
 }

@@ -83,3 +83,31 @@ pub fn mob_enchantments() -> EnchantmentProvider {
         17,
     )
 }
+
+/// A reusable named noise-parameter file for a custom terrain ridge.
+#[component]
+pub fn ridge_noise() -> Noise {
+    Noise::new(
+        ResourceLocation::new("example", "ridges").expect("static ID is valid"),
+        -7,
+        [1.0, 1.0, 1.0],
+    )
+}
+
+/// A density function referencing [`ridge_noise`] by its typed `NoiseId`,
+/// showing how typed density functions connect to noise-parameter files and
+/// to `NoiseSettings::noise_router` (see the `worldgen::density_function`
+/// module docs for the full noise-router example).
+#[component]
+pub fn ridge_density() -> DensityFunction {
+    DensityFunction::new(
+        ResourceLocation::new("example", "ridge_density").expect("static ID is valid"),
+        DensityFunctionExpr::square(DensityFunctionExpr::noise(
+            NoiseId::custom(
+                ResourceLocation::new("example", "ridges").expect("static ID is valid"),
+            ),
+            1.0,
+            1.0,
+        )),
+    )
+}

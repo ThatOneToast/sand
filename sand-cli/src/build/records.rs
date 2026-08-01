@@ -87,6 +87,116 @@ impl std::fmt::Display for RelativePackPath {
     }
 }
 
+// ── PackSupportedFormats / PackOverlay ─────────────────────────────────────────
+
+/// Datapack/resource-pack format compatibility, matching vanilla's
+/// `pack.mcmeta` `pack.supported_formats` field.
+///
+/// Accepts either a single format number in `sand.toml`:
+///
+/// ```toml
+/// supported_formats = 71
+/// ```
+///
+/// or an inclusive min/max range:
+///
+/// ```toml
+/// supported_formats = { min = 71, max = 72 }
+/// ```
+///
+/// Ranges are validated at deserialization time: `min` and `max` must both be
+/// `>= 1`, and `min` must be `<= max`. Invalid ranges fail `sand.toml`
+/// parsing with a diagnostic naming the offending values, rather than
+/// producing a `pack.mcmeta` Minecraft would silently reject.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PackSupportedFormats {
+    /// A single supported format number, equivalent to `min == max`.
+    Single(u32),
+    /// An inclusive `[min, max]` range of supported format numbers.
+    Range { min: u32, max: u32 },
+}
+
+impl PackSupportedFormats {
+    /// Render the JSON value vanilla expects for `pack.supported_formats` (or
+    /// an overlay entry's `formats`): a bare integer for a single format, or
+    /// `{"min_inclusive": .., "max_inclusive": ..}` for a range.
+    pub fn to_json(self) -> serde_json::Value {
+        match self {
+            PackSupportedFormats::Single(n) => serde_json::json!(n),
+            PackSupportedFormats::Range { min, max } => serde_json::json!({
+                "min_inclusive": min,
+                "max_inclusive": max,
+            }),
+        }
+    }
+
+    fn validate_range(min: u32, max: u32) -> Result<(), String> {
+        if min == 0 || max == 0 {
+            return Err(format!(
+                "supported_formats range must use format numbers >= 1 (got min={min}, max={max})"
+            ));
+        }
+        if min > max {
+            return Err(format!(
+                "supported_formats range min ({min}) must be <= max ({max})"
+            ));
+        }
+        Ok(())
+    }
+}
+
+impl<'de> Deserialize<'de> for PackSupportedFormats {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum Raw {
+            Single(u32),
+            Range { min: u32, max: u32 },
+        }
+        match Raw::deserialize(d)? {
+            Raw::Single(n) => {
+                if n == 0 {
+                    return Err(serde::de::Error::custom(
+                        "supported_formats value must be >= 1",
+                    ));
+                }
+                Ok(PackSupportedFormats::Single(n))
+            }
+            Raw::Range { min, max } => {
+                PackSupportedFormats::validate_range(min, max).map_err(serde::de::Error::custom)?;
+                Ok(PackSupportedFormats::Range { min, max })
+            }
+        }
+    }
+}
+
+/// A `pack.mcmeta` overlay entry: an alternate content directory active for a
+/// specific format range, matching vanilla's `overlays.entries`.
+///
+/// ```toml
+/// [[pack.overlays]]
+/// directory = "overlays/26_2"
+/// formats = { min = 72, max = 72 }
+/// ```
+///
+/// `directory` is a [`RelativePackPath`], so absolute paths and `..`
+/// traversal are rejected at `sand.toml` parse time.
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+pub struct PackOverlay {
+    pub directory: RelativePackPath,
+    pub formats: PackSupportedFormats,
+}
+
+impl PackOverlay {
+    /// Render as one entry of vanilla's `pack.mcmeta` `overlays.entries` array.
+    pub fn to_json(&self) -> serde_json::Value {
+        serde_json::json!({
+            "formats": self.formats.to_json(),
+            "directory": self.directory.as_str(),
+        })
+    }
+}
+
 // ── ComponentDirectory ────────────────────────────────────────────────────────
 
 /// A validated datapack component directory (must be an allowed Minecraft

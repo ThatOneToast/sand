@@ -137,7 +137,15 @@ pub(super) fn build_resourcepack(
     let rp_dist_name = format!("{}-resources", config.pack.namespace.as_str());
     let rp_dist = PathBuf::from("dist").join(&rp_dist_name);
     std::fs::create_dir_all(&rp_dist)?;
-    write_resourcepack_mcmeta(&rp_dist, rp_description, rp_format)?;
+    let rp_supported_formats = rp_cfg.and_then(|c| c.supported_formats);
+    let rp_overlays = rp_cfg.map(|c| c.overlays.as_slice()).unwrap_or(&[]);
+    write_resourcepack_mcmeta(
+        &rp_dist,
+        rp_description,
+        rp_format,
+        rp_supported_formats,
+        rp_overlays,
+    )?;
 
     // Write each resource pack record.
     let mut written = 0usize;

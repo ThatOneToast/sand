@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — typed enchantment text, item/tag, slot, and effect fields (#202)
+
+- **Breaking:** `Enchantment` now takes a `TextComponent` description, typed
+  `ItemOrTag`/`EnchantmentOrTag` values (built from `ItemId`, `EnchantmentId`,
+  or `TagId<T>`) for `supported_items`/`primary_items`/`exclusive_set`, and
+  the existing `EquipmentSlotGroup` enum (reused from `sand_components::item`)
+  for `slots`, instead of bare strings or raw JSON.
+- Added a small typed effect slice covering the common `minecraft:damage`,
+  `minecraft:knockback`, and `minecraft:armor_effectiveness` value-effect
+  components (`Enchantment::damage_effect`, `::knockback_effect`,
+  `::armor_effectiveness_effect`), backed by `EnchantmentValueOperation`
+  (`minecraft:add` / `minecraft:set`) and `LevelBasedValue`
+  (`minecraft:linear` or a bare-number constant).
+- Added `EnchantmentEffectComponentId`, a `ResourceLocation`-backed typed ID
+  for effect component keys, allowing custom/namespaced effect components.
+- Renamed the whole-effects-map raw escape hatch to `Enchantment::raw_effects`
+  and added `Enchantment::raw_effect_component` for mixing a single raw
+  effect entry alongside typed ones. Added `Enchantment::raw_description`,
+  `Enchantment::raw_slot`, and `Enchantment::raw_slots` escape hatches.
+- Removed `EnchantmentSlot` and `EnchantmentEffect` in favor of
+  `EquipmentSlotGroup` and the typed effect slice above.
+
 ### Changed — typed loot table item, tag, text, and reference IDs (#185)
 
 - **Breaking:** `LootEntry::item`/`tag`/`loot_table` now take typed `ItemId`,

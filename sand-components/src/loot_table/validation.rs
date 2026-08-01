@@ -1,9 +1,11 @@
 use std::str::FromStr;
 
+use sand_commands::CommandProfile;
 use serde_json::Value;
 
 use super::{
-    LootCondition, LootEntry, LootFunction, LootPool, LootTable, LootTableType, NumberProvider,
+    LootCondition, LootEntry, LootFunction, LootPool, LootTable, LootTableType, LootText,
+    NumberProvider,
 };
 use crate::resource_location::ResourceLocation;
 
@@ -115,6 +117,25 @@ impl NumberProvider {
     }
 }
 
+impl LootText {
+    /// Validate the typed/raw text payload the same way command text is
+    /// validated, bridging [`sand_commands`] error codes into loot table
+    /// validation failures.
+    pub(crate) fn validate_at(&self, path: &str) -> Result {
+        match self {
+            Self::Typed(text) => text
+                .validate_at_path(&CommandProfile::unprofiled(), path)
+                .map_err(|error| fail(path, format!("error[{}] {}", error.code, error.message))),
+            Self::Raw(text) => sand_commands::text::validate_json_text(
+                text.as_value(),
+                &CommandProfile::unprofiled(),
+                path,
+            )
+            .map_err(|error| fail(path, format!("error[{}] {}", error.code, error.message))),
+        }
+    }
+}
+
 impl LootCondition {
     /// Validate stable condition invariants before a component embeds this JSON.
     pub(crate) fn validate_at(&self, path: &str) -> Result {
@@ -184,24 +205,28 @@ impl LootFunction {
                 }
             }
             Self::SetDamage { damage, .. } => damage.validate_at(&format!("{path}.damage"))?,
-            Self::EnchantWithLevels { levels, options } => {
+            Self::EnchantWithLevels { levels, .. } => {
+                // `options` is a typed `EnchantmentSelector`, so it is always a
+                // well-formed resource location by construction.
                 levels.validate_at(&format!("{path}.levels"))?;
-                if let Some(options) = options {
-                    resource_id(options, &format!("{path}.options"))?;
-                }
             }
             Self::EnchantRandomly {
                 options: Some(options),
                 ..
             } => {
+                // Elements are typed `EnchantmentSelector`s; only emptiness needs
+                // checking here.
                 if options.is_empty() {
                     return Err(fail(
                         format!("{path}.options"),
                         "enchantment options must not be empty when present",
                     ));
                 }
-                for (index, option) in options.iter().enumerate() {
-                    resource_id(option, &format!("{path}.options[{index}]"))?;
+            }
+            Self::SetName { name, .. } => name.validate_at(&format!("{path}.name"))?,
+            Self::SetLore { lore, .. } => {
+                for (index, text) in lore.iter().enumerate() {
+                    text.validate_at(&format!("{path}.lore[{index}]"))?;
                 }
             }
             Self::LootingEnchant { count, .. } => count.validate_at(&format!("{path}.count"))?,
@@ -530,15 +555,71 @@ mod tests {
     fn legacy_string_ids_are_checked_only_at_export_validation() {
         let table = LootTable::new(ResourceLocation::new("test", "ids").unwrap())
             .loot_type(LootTableType::Custom("bad type".into()))
-            .random_sequence("test:sequence")
-            .pool(LootPool::new().entry(LootEntry::item("minecraft:diamond")));
+            .random_sequence_raw("test:sequence")
+            .pool(LootPool::new().entry(LootEntry::item_raw("minecraft:diamond")));
         assert_eq!(table.validate_table().unwrap_err().path, "type");
 
         let table = LootTable::new(ResourceLocation::new("test", "entry_id").unwrap())
-            .pool(LootPool::new().entry(LootEntry::item("bad item")));
+            .pool(LootPool::new().entry(LootEntry::item_raw("bad item")));
         assert_eq!(
             table.validate_table().unwrap_err().path,
             "pools[0].entries[0].name"
         );
+    }
+
+    #[test]
+    fn typed_set_name_and_set_lore_are_validated() {
+        use sand_commands::Text;
+
+        use super::super::{LootFunction, LootText};
+
+        let ok = LootFunction::set_name(Text::new("Legendary Sword"));
+        ok.validate_at("functions[0]").unwrap();
+
+        let ok_lore = LootFunction::set_lore(vec![Text::new("Line one"), Text::new("Line two")]);
+        ok_lore.validate_at("functions[1]").unwrap();
+
+        // Raw text escape hatch still runs through the same validator.
+        let raw = LootFunction::SetName {
+            name: LootText::Raw(RawJson::new(json!({"text": "Raw Name"}))),
+            entity: None,
+        };
+        raw.validate_at("functions[2]").unwrap();
+
+        let bad_raw = LootFunction::SetName {
+            name: LootText::Raw(RawJson::new(
+                json!({"selector": "@s", "color": "not-a-color"}),
+            )),
+            entity: None,
+        };
+        assert!(bad_raw.validate_at("functions[3]").is_err());
+    }
+
+    #[test]
+    fn typed_enchantment_entries_serialize_id_and_tag_forms() {
+        use super::super::{EnchantmentSelector, LootFunction};
+        use crate::registry::{EnchantmentId, TagId};
+
+        let with_levels = LootFunction::EnchantWithLevels {
+            levels: NumberProvider::Constant(3.0),
+            options: Some(EnchantmentSelector::Id(
+                EnchantmentId::minecraft("sharpness").unwrap(),
+            )),
+        };
+        with_levels.validate_at("functions[0]").unwrap();
+
+        let randomly = LootFunction::EnchantRandomly {
+            options: Some(vec![EnchantmentSelector::Tag(
+                TagId::minecraft("in_enchanting_table").unwrap(),
+            )]),
+            only_compatible: true,
+        };
+        randomly.validate_at("functions[1]").unwrap();
+
+        let empty_options = LootFunction::EnchantRandomly {
+            options: Some(Vec::new()),
+            only_compatible: true,
+        };
+        assert!(empty_options.validate_at("functions[2]").is_err());
     }
 }

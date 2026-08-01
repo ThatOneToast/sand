@@ -1,12 +1,14 @@
 use std::collections::HashMap;
 use std::fmt::Display;
 
+use sand_commands::TextComponent;
 use serde::Serialize;
 use serde::ser::{SerializeMap, Serializer};
 use serde_json::Value;
 
 use crate::component::{ComponentContent, DatapackComponent};
 use crate::raw::RawJson;
+use crate::registry::{EnchantmentId, ItemId, LootTableId, TagId};
 use crate::resource_location::ResourceLocation;
 
 mod validation;
@@ -376,6 +378,88 @@ impl Serialize for LootCondition {
     }
 }
 
+// ── EnchantmentSelector ─────────────────────────────────────────────────────────
+
+/// A single enchantment or enchantment-tag reference used by loot functions
+/// that select enchantments (`enchant_with_levels`, `enchant_randomly`).
+///
+/// Serializes as a plain `namespace:path` for [`EnchantmentSelector::Id`] and as
+/// a `#namespace:path` tag reference for [`EnchantmentSelector::Tag`].
+pub enum EnchantmentSelector {
+    /// A single enchantment ID.
+    Id(EnchantmentId),
+    /// An enchantment tag reference.
+    Tag(TagId<EnchantmentId>),
+}
+
+impl From<EnchantmentId> for EnchantmentSelector {
+    fn from(id: EnchantmentId) -> Self {
+        EnchantmentSelector::Id(id)
+    }
+}
+
+impl From<TagId<EnchantmentId>> for EnchantmentSelector {
+    fn from(tag: TagId<EnchantmentId>) -> Self {
+        EnchantmentSelector::Tag(tag)
+    }
+}
+
+impl Display for EnchantmentSelector {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            EnchantmentSelector::Id(id) => write!(f, "{id}"),
+            EnchantmentSelector::Tag(tag) => write!(f, "{}", tag.to_tag_string()),
+        }
+    }
+}
+
+impl Serialize for EnchantmentSelector {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&self.to_string())
+    }
+}
+
+// ── LootText ─────────────────────────────────────────────────────────────────
+
+/// Text payload used by loot functions that set item names/lore
+/// (`set_name`, `set_lore`).
+///
+/// Prefer [`LootText::Typed`] (via `From<TextComponent>`/`.into()`) so text is
+/// validated the same way command text is. [`LootText::Raw`] is an explicit
+/// escape hatch for JSON text shapes [`TextComponent`] cannot express.
+pub enum LootText {
+    /// A typed, validated Minecraft text component.
+    Typed(Box<TextComponent>),
+    /// Explicit raw JSON text escape hatch.
+    Raw(RawJson),
+}
+
+impl From<TextComponent> for LootText {
+    fn from(text: TextComponent) -> Self {
+        LootText::Typed(Box::new(text))
+    }
+}
+
+impl From<RawJson> for LootText {
+    fn from(text: RawJson) -> Self {
+        LootText::Raw(text)
+    }
+}
+
+impl Serialize for LootText {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        match self {
+            LootText::Typed(text) => {
+                let value = text
+                    .try_to_json_value()
+                    .map_err(serde::ser::Error::custom)?;
+                value.serialize(serializer)
+            }
+            LootText::Raw(text) => text.serialize(serializer),
+        }
+    }
+}
+
 // ── LootFunction ─────────────────────────────────────────────────────────────
 
 /// Modifies loot entries after they are selected (enchanting, naming, damage, etc.).
@@ -392,18 +476,18 @@ pub enum LootFunction {
     },
     EnchantWithLevels {
         levels: NumberProvider,
-        options: Option<String>,
+        options: Option<EnchantmentSelector>,
     },
     EnchantRandomly {
-        options: Option<Vec<String>>,
+        options: Option<Vec<EnchantmentSelector>>,
         only_compatible: bool,
     },
     SetName {
-        name: Value,
+        name: LootText,
         entity: Option<String>,
     },
     SetLore {
-        lore: Vec<Value>,
+        lore: Vec<LootText>,
         entity: Option<String>,
     },
     LootingEnchant {
@@ -432,6 +516,33 @@ pub enum LootFunction {
         /// Additional function data as raw JSON.
         data: RawJson,
     },
+}
+
+impl LootFunction {
+    /// Creates a `set_name` function from a typed or raw [`LootText`] value.
+    ///
+    /// Accepts `TextComponent` directly via `.into()`:
+    ///
+    /// ```
+    /// use sand_commands::Text;
+    /// use sand_components::LootFunction;
+    ///
+    /// let function = LootFunction::set_name(Text::new("Legendary Sword").gold());
+    /// ```
+    pub fn set_name(name: impl Into<LootText>) -> Self {
+        LootFunction::SetName {
+            name: name.into(),
+            entity: None,
+        }
+    }
+
+    /// Creates a `set_lore` function from typed or raw [`LootText`] lines.
+    pub fn set_lore(lore: impl IntoIterator<Item = impl Into<LootText>>) -> Self {
+        LootFunction::SetLore {
+            lore: lore.into_iter().map(Into::into).collect(),
+            entity: None,
+        }
+    }
 }
 
 impl Serialize for LootFunction {
@@ -602,8 +713,28 @@ pub enum LootEntry {
 }
 
 impl LootEntry {
-    /// Creates a direct item entry with the given item name.
-    pub fn item(name: impl Display) -> Self {
+    /// Creates a direct item entry from a typed [`ItemId`] (preferred path).
+    ///
+    /// ```
+    /// use sand_components::{ItemId, LootEntry};
+    ///
+    /// let entry = LootEntry::item(ItemId::minecraft("diamond").unwrap());
+    /// ```
+    pub fn item(id: ItemId) -> Self {
+        LootEntry::Item {
+            name: id.to_string(),
+            weight: None,
+            quality: None,
+            functions: Vec::new(),
+            conditions: Vec::new(),
+        }
+    }
+
+    /// Creates a direct item entry through the explicit raw compatibility path.
+    ///
+    /// Use this for modded/unsupported item IDs that cannot be expressed as
+    /// [`ItemId`]. Malformed values are still caught by export validation.
+    pub fn item_raw(name: impl Display) -> Self {
         LootEntry::Item {
             name: name.to_string(),
             weight: None,
@@ -613,8 +744,29 @@ impl LootEntry {
         }
     }
 
-    /// Creates an item tag entry that selects random items from the tag.
-    pub fn tag(name: impl Display) -> Self {
+    /// Creates an item tag entry from a typed [`TagId<ItemId>`] (preferred path).
+    ///
+    /// The `TagId` is scoped to `ItemId`, so a block tag cannot be used by
+    /// mistake:
+    ///
+    /// ```compile_fail
+    /// use sand_components::{BlockId, LootEntry, TagId};
+    ///
+    /// let block_tag: TagId<BlockId> = TagId::minecraft("logs").unwrap();
+    /// let _entry = LootEntry::tag(block_tag);
+    /// ```
+    pub fn tag(tag: TagId<ItemId>) -> Self {
+        LootEntry::Tag {
+            name: tag.to_string(),
+            expand: None,
+            weight: None,
+            quality: None,
+            conditions: Vec::new(),
+        }
+    }
+
+    /// Creates an item tag entry through the explicit raw compatibility path.
+    pub fn tag_raw(name: impl Display) -> Self {
         LootEntry::Tag {
             name: name.to_string(),
             expand: None,
@@ -624,8 +776,20 @@ impl LootEntry {
         }
     }
 
-    /// Creates a nested loot table reference entry.
-    pub fn loot_table(value: impl Display) -> Self {
+    /// Creates a nested loot table reference entry from a typed [`LootTableId`]
+    /// (preferred path).
+    pub fn loot_table(id: LootTableId) -> Self {
+        LootEntry::LootTable {
+            value: id.to_string(),
+            weight: None,
+            quality: None,
+            conditions: Vec::new(),
+        }
+    }
+
+    /// Creates a nested loot table reference entry through the explicit raw
+    /// compatibility path.
+    pub fn loot_table_raw(value: impl Display) -> Self {
         LootEntry::LootTable {
             value: value.to_string(),
             weight: None,
@@ -929,8 +1093,15 @@ impl LootTable {
         self
     }
 
-    /// Sets the random sequence seed for deterministic loot generation.
-    pub fn random_sequence(mut self, seq: impl Into<String>) -> Self {
+    /// Sets the random sequence seed for deterministic loot generation using a
+    /// typed [`ResourceLocation`] (preferred path).
+    pub fn random_sequence(mut self, seq: ResourceLocation) -> Self {
+        self.random_sequence = Some(seq.to_string());
+        self
+    }
+
+    /// Sets the random sequence seed through the explicit raw compatibility path.
+    pub fn random_sequence_raw(mut self, seq: impl Into<String>) -> Self {
         self.random_sequence = Some(seq.into());
         self
     }
@@ -964,7 +1135,7 @@ impl LootTable {
     /// LootTable::simple_block_drop(loc, "minecraft:oak_log", 1)
     /// ```
     pub fn simple_block_drop(location: ResourceLocation, item: impl Display, count: i32) -> Self {
-        let entry = LootEntry::item(item.to_string());
+        let entry = LootEntry::item_raw(item.to_string());
         let entry = if let LootEntry::Item {
             name,
             weight,
@@ -1012,7 +1183,7 @@ impl LootTable {
         enchantment: impl Display,
         chances: &[f64],
     ) -> Self {
-        let entry = LootEntry::item(item.to_string());
+        let entry = LootEntry::item_raw(item.to_string());
         let entry = if let LootEntry::Item {
             name,
             weight,
@@ -1071,7 +1242,7 @@ impl LootTable {
             }
         };
 
-        let entry = LootEntry::item(item.to_string());
+        let entry = LootEntry::item_raw(item.to_string());
         let entry = if let LootEntry::Item {
             name,
             weight,
@@ -1138,7 +1309,7 @@ impl LootTable {
                 }
             };
 
-            let entry = LootEntry::item(item.to_string());
+            let entry = LootEntry::item_raw(item.to_string());
             let entry = if let LootEntry::Item {
                 name,
                 quality,
@@ -1236,9 +1407,12 @@ impl LootTable {
 #[cfg(test)]
 mod validation_tests {
     use super::{
-        LootCondition, LootEntry, LootFunction, LootPool, LootTable, LootTableType, NumberProvider,
+        LootCondition, LootEntry, LootFunction, LootPool, LootTable, LootTableType, LootText,
+        NumberProvider,
     };
     use crate::component::DatapackComponent;
+    use crate::raw::RawJson;
+    use crate::resource_location::ResourceLocation;
 
     #[test]
     fn probability_bounds_are_enforced_with_paths() {
@@ -1374,5 +1548,139 @@ mod validation_tests {
                 .to_string()
                 .contains("weight")
         );
+    }
+
+    // ── Golden tests: typed constructors match the old raw string path ───────
+
+    #[test]
+    fn typed_item_entry_matches_raw_item_entry_json() {
+        let typed = LootEntry::item(crate::registry::ItemId::minecraft("diamond").unwrap());
+        let raw = LootEntry::item_raw("minecraft:diamond");
+        assert_eq!(
+            serde_json::to_value(&typed).unwrap(),
+            serde_json::to_value(&raw).unwrap()
+        );
+    }
+
+    #[test]
+    fn typed_tag_entry_matches_raw_tag_entry_json() {
+        let typed = LootEntry::tag(crate::registry::TagId::minecraft("logs").unwrap());
+        let raw = LootEntry::tag_raw("minecraft:logs");
+        assert_eq!(
+            serde_json::to_value(&typed).unwrap(),
+            serde_json::to_value(&raw).unwrap()
+        );
+    }
+
+    #[test]
+    fn typed_loot_table_entry_matches_raw_loot_table_entry_json() {
+        let typed = LootEntry::loot_table(
+            crate::registry::LootTableId::minecraft("chests/simple_dungeon").unwrap(),
+        );
+        let raw = LootEntry::loot_table_raw("minecraft:chests/simple_dungeon");
+        assert_eq!(
+            serde_json::to_value(&typed).unwrap(),
+            serde_json::to_value(&raw).unwrap()
+        );
+    }
+
+    #[test]
+    fn typed_random_sequence_matches_raw_random_sequence_json() {
+        let typed = LootTable::new("test:typed_seq".parse().unwrap())
+            .loot_type(LootTableType::Empty)
+            .random_sequence(ResourceLocation::new("test", "sequence").unwrap());
+        let raw = LootTable::new("test:typed_seq".parse().unwrap())
+            .loot_type(LootTableType::Empty)
+            .random_sequence_raw("test:sequence");
+        assert_eq!(typed.to_json(), raw.to_json());
+    }
+
+    #[test]
+    fn typed_enchant_with_levels_matches_raw_string_json() {
+        let typed = LootFunction::EnchantWithLevels {
+            levels: NumberProvider::Constant(10.0),
+            options: Some(super::EnchantmentSelector::Id(
+                crate::registry::EnchantmentId::minecraft("sharpness").unwrap(),
+            )),
+        };
+        assert_eq!(
+            serde_json::to_value(&typed).unwrap(),
+            serde_json::json!({
+                "function": "minecraft:enchant_with_levels",
+                "levels": 10.0,
+                "options": "minecraft:sharpness",
+            })
+        );
+    }
+
+    #[test]
+    fn typed_enchant_randomly_tag_serializes_hash_prefixed_string() {
+        let typed = LootFunction::EnchantRandomly {
+            options: Some(vec![super::EnchantmentSelector::Tag(
+                crate::registry::TagId::minecraft("in_enchanting_table").unwrap(),
+            )]),
+            only_compatible: true,
+        };
+        assert_eq!(
+            serde_json::to_value(&typed).unwrap(),
+            serde_json::json!({
+                "function": "minecraft:enchant_randomly",
+                "options": ["#minecraft:in_enchanting_table"],
+                "only_compatible": true,
+            })
+        );
+    }
+
+    #[test]
+    fn typed_set_name_matches_raw_json_text_for_plain_string() {
+        use sand_commands::Text;
+
+        let typed = LootFunction::set_name(Text::new("Legendary Sword"));
+        let raw = LootFunction::SetName {
+            name: LootText::Raw(RawJson::new(serde_json::json!({"text": "Legendary Sword"}))),
+            entity: None,
+        };
+        assert_eq!(
+            serde_json::to_value(&typed).unwrap(),
+            serde_json::to_value(&raw).unwrap()
+        );
+    }
+
+    #[test]
+    fn typed_set_lore_matches_raw_json_text_for_plain_strings() {
+        use sand_commands::Text;
+
+        let typed = LootFunction::set_lore(vec![Text::new("Line one"), Text::new("Line two")]);
+        let raw = LootFunction::SetLore {
+            lore: vec![
+                LootText::Raw(RawJson::new(serde_json::json!({"text": "Line one"}))),
+                LootText::Raw(RawJson::new(serde_json::json!({"text": "Line two"}))),
+            ],
+            entity: None,
+        };
+        assert_eq!(
+            serde_json::to_value(&typed).unwrap(),
+            serde_json::to_value(&raw).unwrap()
+        );
+    }
+
+    #[test]
+    fn raw_escape_hatches_still_fail_export_validation_on_bad_ids() {
+        let bad_item = LootTable::new("test:bad_item".parse().unwrap())
+            .pool(LootPool::new().entry(LootEntry::item_raw("not a valid id")));
+        assert!(bad_item.try_content().is_err());
+
+        let bad_tag = LootTable::new("test:bad_tag".parse().unwrap())
+            .pool(LootPool::new().entry(LootEntry::tag_raw("not a valid id")));
+        assert!(bad_tag.try_content().is_err());
+
+        let bad_loot_table = LootTable::new("test:bad_loot_table".parse().unwrap())
+            .pool(LootPool::new().entry(LootEntry::loot_table_raw("not a valid id")));
+        assert!(bad_loot_table.try_content().is_err());
+
+        let bad_sequence = LootTable::new("test:bad_sequence".parse().unwrap())
+            .loot_type(LootTableType::Empty)
+            .random_sequence_raw("not a valid id");
+        assert!(bad_sequence.try_content().is_err());
     }
 }

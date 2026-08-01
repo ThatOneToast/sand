@@ -131,7 +131,8 @@ pub use jukebox_song::JukeboxSong;
 // ── Loot Table ────────────────────────────────────────────────────────────────
 
 pub use loot_table::{
-    LootCondition, LootEntry, LootFunction, LootPool, LootTable, LootTableType, NumberProvider,
+    EnchantmentSelector, LootCondition, LootEntry, LootFunction, LootPool, LootTable,
+    LootTableType, LootText, NumberProvider,
 };
 
 // ── Painting Variant ──────────────────────────────────────────────────────────

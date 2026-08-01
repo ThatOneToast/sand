@@ -335,6 +335,39 @@ pub fn function_with(
     format!("function {name} with {source} {}", path.into())
 }
 
+/// Validated counterpart to [`function_with`].
+///
+/// Raw/unchecked: [`function_with`] interpolates `name` verbatim, with no
+/// resource-location validation, and hand-formats `source`/`path` instead of
+/// routing through a typed [`sand_commands::NbtRef`]/[`DataCommand`](sand_commands::DataCommand)
+/// (see [#175](https://github.com/ThatOneToast/sand/issues/175)). This
+/// validates `name` as a `namespace:path` resource location and validates
+/// `source`/`path` by rendering a throwaway `data get` command through the
+/// same [`DataTarget`]/`NbtPath` validators [`try_call_with`] uses, without
+/// duplicating that validation logic. Prefer [`try_call_with`]/[`call_with`]
+/// when `name` is a typed function reference; use this when `name` must stay
+/// a raw string (e.g. cross-datapack calls not modeled as a local
+/// `#[function]`).
+pub fn try_function_with(
+    name: impl std::fmt::Display,
+    source: DataTarget,
+    path: impl Into<String>,
+) -> CommandResult<String> {
+    let name = name.to_string();
+    sand_commands::validate::resource_location_shape(&name, "cmd::try_function_with", "name")
+        .map_err(|error| error.with_code("SAND-COMMAND-ARG-FUNCTION-ID"))?;
+    let path = path.into();
+
+    // Exercises the canonical DataTarget/NbtPath validators without
+    // maintaining a second parser here — same approach as `try_call_with`.
+    source
+        .path(path.clone())
+        .get()
+        .try_render(&sand_commands::CommandProfile::unprofiled())?;
+
+    Ok(format!("function {name} with {source} {path}"))
+}
+
 /// Call a registered or typed function with a typed NBT compound reference.
 ///
 /// This is the function-reference-integrated normal path. It resolves local
@@ -478,6 +511,55 @@ mod tests {
         assert_eq!(
             cmd,
             "function my_pack:on_hit with entity @s Custom.macro_args"
+        );
+    }
+
+    #[test]
+    fn try_function_with_matches_function_with_for_valid_input() {
+        assert_eq!(
+            try_function_with(
+                "my_pack:init_player",
+                DataTarget::storage(TEMP.id()),
+                "vars"
+            )
+            .unwrap(),
+            function_with(
+                "my_pack:init_player",
+                DataTarget::storage(TEMP.id()),
+                "vars"
+            )
+        );
+    }
+
+    #[test]
+    fn try_function_with_rejects_malformed_name() {
+        assert!(
+            try_function_with(
+                "not a resource location",
+                DataTarget::storage(TEMP.id()),
+                "vars"
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn try_function_with_rejects_invalid_source_or_path() {
+        assert!(
+            try_function_with(
+                "my_pack:init_player",
+                DataTarget::storage("not namespaced"),
+                "vars"
+            )
+            .is_err()
+        );
+        assert!(
+            try_function_with(
+                "my_pack:init_player",
+                DataTarget::storage(TEMP.id()),
+                "bad..path"
+            )
+            .is_err()
         );
     }
 

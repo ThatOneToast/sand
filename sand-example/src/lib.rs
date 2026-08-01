@@ -532,14 +532,14 @@ mod tests {
 
     #[test]
     fn loot_table_json_output() {
-        use sand_core::{LootEntry, LootPool, LootTable, LootTableType, NumberProvider};
+        use sand_core::{ItemId, LootEntry, LootPool, LootTable, LootTableType, NumberProvider};
         let table = LootTable::new("hello_world:chest_loot".parse().unwrap())
             .loot_type(LootTableType::Chest)
             .pool(
                 LootPool::new()
                     .rolls(NumberProvider::Uniform { min: 1.0, max: 3.0 })
-                    .entry(LootEntry::item("minecraft:diamond"))
-                    .entry(LootEntry::item("minecraft:gold_ingot")),
+                    .entry(LootEntry::item(ItemId::minecraft("diamond").unwrap()))
+                    .entry(LootEntry::item(ItemId::minecraft("gold_ingot").unwrap())),
             );
         let json = table.to_json();
         assert_eq!(json["type"].as_str().unwrap(), "minecraft:chest");
@@ -886,12 +886,12 @@ mod tests {
 
     #[test]
     fn loot_table_bonus_rolls() {
-        use sand_core::{LootEntry, LootPool, LootTable, NumberProvider};
+        use sand_core::{ItemId, LootEntry, LootPool, LootTable, NumberProvider};
         let table = LootTable::new("hello_world:bonus_test".parse().unwrap()).pool(
             LootPool::new()
                 .rolls(1)
                 .bonus_rolls(NumberProvider::Uniform { min: 0.0, max: 1.0 })
-                .entry(LootEntry::item("minecraft:diamond")),
+                .entry(LootEntry::item(ItemId::minecraft("diamond").unwrap())),
         );
         let json = table.to_json();
         let pool = &json["pools"][0];
@@ -903,17 +903,17 @@ mod tests {
 
     #[test]
     fn loot_table_multiple_pools() {
-        use sand_core::{LootEntry, LootPool, LootTable};
+        use sand_core::{ItemId, LootEntry, LootPool, LootTable};
         let table = LootTable::new("hello_world:two_pools".parse().unwrap())
             .pool(
                 LootPool::new()
                     .rolls(1)
-                    .entry(LootEntry::item("minecraft:diamond")),
+                    .entry(LootEntry::item(ItemId::minecraft("diamond").unwrap())),
             )
             .pool(
                 LootPool::new()
                     .rolls(2)
-                    .entry(LootEntry::item("minecraft:gold_ingot")),
+                    .entry(LootEntry::item(ItemId::minecraft("gold_ingot").unwrap())),
             );
         let json = table.to_json();
         assert_eq!(json["pools"].as_array().unwrap().len(), 2);
@@ -921,12 +921,14 @@ mod tests {
 
     #[test]
     fn loot_entry_types() {
-        use sand_core::{LootEntry, LootPool, LootTable};
+        use sand_core::{LootEntry, LootPool, LootTable, LootTableId, TagId};
         let table = LootTable::new("hello_world:entry_types".parse().unwrap()).pool(
             LootPool::new()
                 .rolls(1)
-                .entry(LootEntry::tag("minecraft:logs"))
-                .entry(LootEntry::loot_table("minecraft:chests/simple_dungeon"))
+                .entry(LootEntry::tag(TagId::minecraft("logs").unwrap()))
+                .entry(LootEntry::loot_table(
+                    LootTableId::minecraft("chests/simple_dungeon").unwrap(),
+                ))
                 .entry(LootEntry::empty()),
         );
         let json = table.to_json();
@@ -939,11 +941,11 @@ mod tests {
 
     #[test]
     fn loot_condition_composed() {
-        use sand_core::{LootCondition, LootEntry, LootPool, LootTable};
+        use sand_core::{ItemId, LootCondition, LootEntry, LootPool, LootTable};
         let table = LootTable::new("hello_world:conditional".parse().unwrap()).pool(
             LootPool::new()
                 .rolls(1)
-                .entry(LootEntry::item("minecraft:diamond"))
+                .entry(LootEntry::item(ItemId::minecraft("diamond").unwrap()))
                 .condition(LootCondition::AllOf {
                     terms: vec![
                         LootCondition::KilledByPlayer,
@@ -1003,10 +1005,23 @@ mod tests {
 
     #[test]
     fn loot_function_set_name() {
+        use sand_core::prelude::Text;
         use sand_core::{ItemModifier, LootFunction};
-        let modifier = ItemModifier::new("hello_world:named_item".parse().unwrap()).function(
+        let modifier = ItemModifier::new("hello_world:named_item".parse().unwrap())
+            .function(LootFunction::set_name(Text::new("Legendary Sword").gold()));
+        let json = modifier.to_json();
+        assert_eq!(json["function"].as_str().unwrap(), "minecraft:set_name");
+        assert_eq!(json["name"]["color"].as_str().unwrap(), "gold");
+    }
+
+    #[test]
+    fn loot_function_set_name_raw_escape_hatch() {
+        use sand_core::{ItemModifier, LootFunction, LootText, RawJson};
+        let modifier = ItemModifier::new("hello_world:raw_named_item".parse().unwrap()).function(
             LootFunction::SetName {
-                name: serde_json::json!({"text": "Legendary Sword", "color": "gold"}),
+                name: LootText::Raw(RawJson::new(
+                    serde_json::json!({"text": "Legendary Sword", "color": "gold"}),
+                )),
                 entity: None,
             },
         );
@@ -1031,11 +1046,11 @@ mod tests {
 
     #[test]
     fn number_provider_binomial() {
-        use sand_core::{LootEntry, LootPool, LootTable, NumberProvider};
+        use sand_core::{ItemId, LootEntry, LootPool, LootTable, NumberProvider};
         let table = LootTable::new("hello_world:binomial_rolls".parse().unwrap()).pool(
             LootPool::new()
                 .rolls(NumberProvider::Binomial { n: 5, p: 0.4 })
-                .entry(LootEntry::item("minecraft:emerald")),
+                .entry(LootEntry::item(ItemId::minecraft("emerald").unwrap())),
         );
         let json = table.to_json();
         let rolls = &json["pools"][0]["rolls"];

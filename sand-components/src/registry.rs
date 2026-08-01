@@ -216,6 +216,38 @@ registry_id! {
     PotionRegistryId
 }
 
+registry_id! {
+    /// Typed identifier for an enchantment effect component key (e.g.
+    /// `minecraft:damage`, `minecraft:knockback`).
+    ///
+    /// Custom/modded namespaced components are supported via
+    /// [`EnchantmentEffectComponentId::custom`]. See
+    /// [`crate::enchantment`] for the small typed slice of well-known
+    /// vanilla value-effect components ([`EnchantmentEffectComponentId::damage`],
+    /// [`EnchantmentEffectComponentId::knockback`],
+    /// [`EnchantmentEffectComponentId::armor_effectiveness`]).
+    EnchantmentEffectComponentId
+}
+
+impl EnchantmentEffectComponentId {
+    /// `minecraft:damage` — used by Sharpness, Smite, Bane of Arthropods,
+    /// Impaling, and Power.
+    pub fn damage() -> Self {
+        Self::minecraft("damage").expect("\"damage\" is a valid resource path")
+    }
+
+    /// `minecraft:knockback` — used by Knockback and Punch.
+    pub fn knockback() -> Self {
+        Self::minecraft("knockback").expect("\"knockback\" is a valid resource path")
+    }
+
+    /// `minecraft:armor_effectiveness` — used by Breach.
+    pub fn armor_effectiveness() -> Self {
+        Self::minecraft("armor_effectiveness")
+            .expect("\"armor_effectiveness\" is a valid resource path")
+    }
+}
+
 // ── TagId<T> ─────────────────────────────────────────────────────────────────
 
 /// A typed tag identifier scoped to a specific registry kind `T`.

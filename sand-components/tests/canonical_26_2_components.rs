@@ -48,7 +48,7 @@ use sand_components::{
     AdvancementTrigger, AttributeModifier, AttributeOperation, AttributeType, ComponentContent,
     Criterion, CustomItem, DatapackComponent, Enchantment, EnchantmentCost, EnchantmentEntry,
     EnchantmentProvider, EquipmentSlot, EquipmentSlotGroup, EquippableProperties, FoodProperties,
-    ItemComponent, ResourceLocation,
+    ItemComponent, RawJson, ResourceLocation,
 };
 
 fn id(path: &str) -> ResourceLocation {
@@ -791,16 +791,16 @@ fn canonical_26_2_chat_type_with_typed_parameters_and_style() {
 fn canonical_26_2_enchantment_definition() {
     let enchantment = Enchantment::new(id("fire_walker_plus"))
         .description_translate("enchantment.canon.fire_walker_plus")
-        .supported_items("#minecraft:enchantable/foot_armor")
-        .primary_items("minecraft:diamond_boots")
-        .exclusive_set("#minecraft:exclusive_set/boots")
+        .supported_items(TagId::<ItemId>::minecraft("enchantable/foot_armor").unwrap())
+        .primary_items(ItemId::minecraft("diamond_boots").unwrap())
+        .exclusive_set(TagId::<EnchantmentId>::minecraft("exclusive_set/boots").unwrap())
         .weight(5)
         .max_level(3)
         .min_cost(EnchantmentCost::new(10, 8))
         .max_cost(EnchantmentCost::new(40, 8))
         .anvil_cost(4)
-        .slots(["feet"])
-        .effects_raw(serde_json::json!({}));
+        .slots([EquipmentSlotGroup::Feet])
+        .raw_effects(RawJson::new(serde_json::json!({})));
 
     let expected = serde_json::json!({
         "description": {"translate": "enchantment.canon.fire_walker_plus"},

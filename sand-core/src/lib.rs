@@ -295,13 +295,14 @@ pub use sand_components::{
     // Enchantment
     Enchantment,
     EnchantmentCost,
-    EnchantmentEffect,
+    EnchantmentEffectComponentId,
     EnchantmentEntry,
     EnchantmentId,
+    EnchantmentOrTag,
     EnchantmentProvider,
     EnchantmentProviderInt,
     EnchantmentSelection,
-    EnchantmentSlot,
+    EnchantmentValueOperation,
     EntityEquipment,
     EntityFlags,
     // Item predicates
@@ -325,10 +326,12 @@ pub use sand_components::{
     ItemId,
     // Item modifier
     ItemModifier,
+    ItemOrTag,
     ItemPredicate,
     ItemRarity,
     ItemStackComponents,
     JukeboxSong,
+    LevelBasedValue,
     LocationPredicate,
     // Loot table
     LootCondition,

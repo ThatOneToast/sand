@@ -227,7 +227,15 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         sand_module: Some("sand_components::enchantment"),
         api_status: RegistryApiStatus::PartiallyImplemented,
         version_gate: Some("1.21"),
-        notes: "Enchantment struct exists. Data-driven enchantments fully introduced in 1.21. Full effect type coverage is partial.",
+        notes: "Enchantment uses typed TextComponent description, ItemOrTag/EnchantmentOrTag \
+                (ItemId/EnchantmentId/TagId<T>) for supported_items/primary_items/exclusive_set, \
+                and the reused EquipmentSlotGroup enum for slots on the normal path. Effects use a \
+                typed EnchantmentEffectComponentId key plus a small value-effect slice covering \
+                minecraft:damage, minecraft:knockback, and minecraft:armor_effectiveness \
+                (EnchantmentValueOperation + LevelBasedValue); raw_effect_component and raw_effects \
+                remain explicit escape hatches for other/custom effect components. Full vanilla \
+                effect-component coverage is intentionally partial — see module docs. Typed \
+                migration: #202.",
     },
     RegistryCoverage {
         registry_key: "minecraft:enchantment_provider",

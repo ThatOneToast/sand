@@ -30,9 +30,15 @@ pub use sand_components::{
     Criterion,
     CustomItem,
     DyedColor,
+    // Enchantment
+    Enchantment,
+    EnchantmentCost,
+    EnchantmentEffectComponentId,
+    EnchantmentOrTag,
     EnchantmentProvider,
     EnchantmentProviderInt,
     EnchantmentSelection,
+    EnchantmentValueOperation,
     // Item predicates
     EntityPredicate,
     EquipmentModelId,
@@ -44,8 +50,10 @@ pub use sand_components::{
     InventorySlots,
     // Item modifier
     ItemModifier,
+    ItemOrTag,
     ItemPredicate,
     ItemRarity,
+    LevelBasedValue,
     // Loot table
     LootCondition,
     LootEntry,

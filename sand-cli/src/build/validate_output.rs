@@ -47,6 +47,83 @@ fn validate_pack_mcmeta(pack_dir: &Path) -> Result<()> {
         );
     }
 
+    if let Some(supported_formats) = pack.get("supported_formats") {
+        validate_supported_formats_value(supported_formats, "pack.supported_formats")
+            .with_context(|| format!("in pack.mcmeta at '{}'", mcmeta_path.display()))?;
+    }
+
+    if let Some(overlays) = v.get("overlays") {
+        validate_overlays_value(overlays)
+            .with_context(|| format!("in pack.mcmeta at '{}'", mcmeta_path.display()))?;
+    }
+
+    Ok(())
+}
+
+/// Validates a `supported_formats` JSON value against the two shapes Sand
+/// generates: a bare positive integer, or `{"min_inclusive", "max_inclusive"}`
+/// with `min_inclusive <= max_inclusive` and both `>= 1`.
+fn validate_supported_formats_value(value: &serde_json::Value, field: &str) -> Result<()> {
+    if let Some(n) = value.as_u64() {
+        if n == 0 {
+            bail!("'{field}' must be a format number >= 1, got 0");
+        }
+        return Ok(());
+    }
+    if let Some(obj) = value.as_object() {
+        let min = obj.get("min_inclusive").and_then(|v| v.as_u64());
+        let max = obj.get("max_inclusive").and_then(|v| v.as_u64());
+        match (min, max) {
+            (Some(min), Some(max)) => {
+                if min == 0 || max == 0 {
+                    bail!(
+                        "'{field}' range must use format numbers >= 1 (got min_inclusive={min}, max_inclusive={max})"
+                    );
+                }
+                if min > max {
+                    bail!("'{field}' range min_inclusive ({min}) must be <= max_inclusive ({max})");
+                }
+                return Ok(());
+            }
+            _ => bail!(
+                "'{field}' object must have integer 'min_inclusive' and 'max_inclusive' fields"
+            ),
+        }
+    }
+    bail!("'{field}' must be an integer or a {{min_inclusive, max_inclusive}} object");
+}
+
+/// Validates a top-level `overlays` JSON value: must be an object with an
+/// `entries` array, where every entry has a non-empty relative `directory`
+/// string and a structurally valid `formats` value.
+fn validate_overlays_value(value: &serde_json::Value) -> Result<()> {
+    let entries = value
+        .get("entries")
+        .and_then(|v| v.as_array())
+        .ok_or_else(|| anyhow::anyhow!("'overlays' must be an object with an 'entries' array"))?;
+
+    for (i, entry) in entries.iter().enumerate() {
+        let directory = entry
+            .get("directory")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                anyhow::anyhow!("'overlays.entries[{i}]' is missing a string 'directory'")
+            })?;
+        if directory.is_empty()
+            || std::path::Path::new(directory).is_absolute()
+            || std::path::Path::new(directory)
+                .components()
+                .any(|c| matches!(c, std::path::Component::ParentDir))
+        {
+            bail!("'overlays.entries[{i}].directory' ('{directory}') is not a safe relative path");
+        }
+
+        let formats = entry.get("formats").ok_or_else(|| {
+            anyhow::anyhow!("'overlays.entries[{i}]' is missing a 'formats' value")
+        })?;
+        validate_supported_formats_value(formats, &format!("overlays.entries[{i}].formats"))?;
+    }
+
     Ok(())
 }
 
@@ -230,6 +307,88 @@ mod tests {
         assert!(
             err.to_string().contains("pack_format"),
             "error should mention pack_format: {err}"
+        );
+    }
+
+    // ── supported_formats / overlays (#149) ─────────────────────────────────
+
+    #[test]
+    fn accepts_valid_supported_formats_and_overlays() {
+        let temp = tempfile::tempdir().unwrap();
+        let pack = temp.path().join("pack");
+        let data = pack.join("data/golden/function");
+        std::fs::create_dir_all(&data).unwrap();
+        std::fs::write(
+            pack.join("pack.mcmeta"),
+            r#"{"pack":{"pack_format":71,"description":"test",
+                "supported_formats":{"min_inclusive":71,"max_inclusive":72}},
+                "overlays":{"entries":[{"formats":72,"directory":"overlays/26_2"}]}}"#,
+        )
+        .unwrap();
+        std::fs::write(data.join("load.mcfunction"), "say loaded").unwrap();
+        assert!(validate_output_dir(&pack).is_ok());
+    }
+
+    #[test]
+    fn rejects_inverted_supported_formats_range() {
+        let temp = tempfile::tempdir().unwrap();
+        let pack = temp.path().join("pack");
+        let data = pack.join("data/golden/function");
+        std::fs::create_dir_all(&data).unwrap();
+        std::fs::write(
+            pack.join("pack.mcmeta"),
+            r#"{"pack":{"pack_format":71,"description":"test",
+                "supported_formats":{"min_inclusive":72,"max_inclusive":71}}}"#,
+        )
+        .unwrap();
+        std::fs::write(data.join("load.mcfunction"), "say loaded").unwrap();
+        let err = validate_output_dir(&pack).unwrap_err();
+        let rendered = format!("{err:#}");
+        assert!(
+            rendered.contains("min_inclusive"),
+            "error should identify the bad range: {rendered}"
+        );
+    }
+
+    #[test]
+    fn rejects_overlay_entry_missing_directory() {
+        let temp = tempfile::tempdir().unwrap();
+        let pack = temp.path().join("pack");
+        let data = pack.join("data/golden/function");
+        std::fs::create_dir_all(&data).unwrap();
+        std::fs::write(
+            pack.join("pack.mcmeta"),
+            r#"{"pack":{"pack_format":71,"description":"test"},
+                "overlays":{"entries":[{"formats":72}]}}"#,
+        )
+        .unwrap();
+        std::fs::write(data.join("load.mcfunction"), "say loaded").unwrap();
+        let err = validate_output_dir(&pack).unwrap_err();
+        let rendered = format!("{err:#}");
+        assert!(
+            rendered.contains("directory"),
+            "error should mention the missing directory: {rendered}"
+        );
+    }
+
+    #[test]
+    fn rejects_overlay_entry_with_unsafe_directory() {
+        let temp = tempfile::tempdir().unwrap();
+        let pack = temp.path().join("pack");
+        let data = pack.join("data/golden/function");
+        std::fs::create_dir_all(&data).unwrap();
+        std::fs::write(
+            pack.join("pack.mcmeta"),
+            r#"{"pack":{"pack_format":71,"description":"test"},
+                "overlays":{"entries":[{"formats":72,"directory":"../escape"}]}}"#,
+        )
+        .unwrap();
+        std::fs::write(data.join("load.mcfunction"), "say loaded").unwrap();
+        let err = validate_output_dir(&pack).unwrap_err();
+        let rendered = format!("{err:#}");
+        assert!(
+            rendered.contains("safe relative path"),
+            "error should flag the unsafe directory: {rendered}"
         );
     }
 

@@ -297,6 +297,23 @@ pub(crate) fn require_json_object(
     Ok(())
 }
 
+pub(crate) fn require_json_array(
+    location: &ResourceLocation,
+    kind: &str,
+    field: &str,
+    value: &Value,
+) -> Result<()> {
+    if !value.is_array() {
+        return Err(error(
+            location,
+            kind,
+            field,
+            &format!("{field} must be a JSON array"),
+        ));
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -404,5 +421,17 @@ mod tests {
     #[test]
     fn tag_validator_rejects_bare_hash() {
         assert!(validate_resource_or_tag_location_str(&rl(), "kind", "field", "#").is_err());
+    }
+
+    // ── require_json_array ─────────────────────────────────────────────────
+
+    #[test]
+    fn json_array_accepted() {
+        assert!(require_json_array(&rl(), "kind", "field", &serde_json::json!([1, 2])).is_ok());
+    }
+
+    #[test]
+    fn json_array_rejects_object() {
+        assert!(require_json_array(&rl(), "kind", "field", &serde_json::json!({"a": 1})).is_err());
     }
 }

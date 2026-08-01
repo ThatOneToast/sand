@@ -73,9 +73,10 @@ pub use predicates::{
     IntRange, ItemPredicate, LocationPredicate, Range,
 };
 pub use registry::{
-    AdvancementId, BiomeId, BlockId, DamageTypeId, DimensionId, DimensionTypeId, EnchantmentId,
-    EntityTypeId, EquipmentModelId, FunctionId, ItemId, LootTableId, PotionRegistryId, RecipeId,
-    SoundEventId, StatusEffectId, StructureId, TagId,
+    AdvancementId, BiomeId, BlockId, DamageTypeId, DimensionId, DimensionTypeId,
+    EnchantmentEffectComponentId, EnchantmentId, EntityTypeId, EquipmentModelId, FunctionId,
+    ItemId, LootTableId, PotionRegistryId, RecipeId, SoundEventId, StatusEffectId, StructureId,
+    TagId,
 };
 pub use resource_location::{Identifier, PackNamespace, ResourceLocation};
 
@@ -100,7 +101,10 @@ pub use damage_type::{DamageEffects, DamageScaling, DamageType, DeathMessageType
 
 // ── Enchantment ───────────────────────────────────────────────────────────────
 
-pub use enchantment::{Enchantment, EnchantmentCost, EnchantmentEffect, EnchantmentSlot};
+pub use enchantment::{
+    Enchantment, EnchantmentCost, EnchantmentOrTag, EnchantmentValueOperation, ItemOrTag,
+    LevelBasedValue,
+};
 pub use enchantment_provider::{EnchantmentProvider, EnchantmentProviderInt, EnchantmentSelection};
 
 // ── Instrument ────────────────────────────────────────────────────────────────

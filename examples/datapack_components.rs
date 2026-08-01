@@ -56,6 +56,24 @@ pub fn bolt_trim_pattern() -> TrimPattern {
         .description(TextComponent::translate("trim_pattern.example.bolt"))
 }
 
+/// A typed 1.21+ enchantment: typed description, item-tag references, a
+/// typed active slot, and a typed `minecraft:knockback` value effect.
+#[component]
+pub fn swift_step_enchantment() -> Enchantment {
+    Enchantment::new(ResourceLocation::new("example", "swift_step").unwrap())
+        .description(TextComponent::translate("enchantment.example.swift_step"))
+        .supported_items(TagId::<ItemId>::minecraft("enchantable/foot_armor").unwrap())
+        .exclusive_set(TagId::<EnchantmentId>::minecraft("exclusive_set/boots").unwrap())
+        .slot(EquipmentSlotGroup::Feet)
+        .knockback_effect(
+            EnchantmentValueOperation::Add,
+            LevelBasedValue::Linear {
+                base: 0.5,
+                per_level_above_first: 0.25,
+            },
+        )
+}
+
 #[component]
 pub fn mob_enchantments() -> EnchantmentProvider {
     EnchantmentProvider::by_cost_with_difficulty(

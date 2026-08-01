@@ -169,10 +169,11 @@ pub use sand_components::{
     AdvancementTrigger, AttributeId, AttributeModifier, AttributeOperation, AttributeType,
     BannerPattern, BlockPredicate, ConsumableAnimation, ConsumableProperties, Criterion,
     CustomData, CustomItem, DamagePredicate, DamageSourcePredicate, Dimension, DimensionType,
-    DistancePredicate, EnchantmentEntry, EnchantmentProvider, EnchantmentProviderInt,
-    EnchantmentSelection, EnchantmentSlot, EntityEquipment, EntityFlags, EntityPredicate,
-    EquipmentModelId, EquipmentSlot, EquipmentSlotGroup, EquippableProperties, FoodProperties,
-    Ingredient, ItemComponent, ItemModifier, ItemPredicate, ItemRarity, ItemStackComponents,
+    DistancePredicate, Enchantment, EnchantmentCost, EnchantmentEntry, EnchantmentOrTag,
+    EnchantmentProvider, EnchantmentProviderInt, EnchantmentSelection, EnchantmentValueOperation,
+    EntityEquipment, EntityFlags, EntityPredicate, EquipmentModelId, EquipmentSlot,
+    EquipmentSlotGroup, EquippableProperties, FoodProperties, Ingredient, ItemComponent,
+    ItemModifier, ItemOrTag, ItemPredicate, ItemRarity, ItemStackComponents, LevelBasedValue,
     LocationPredicate, LootCondition, LootEntry, LootFunction, LootPool, LootTable, LootTableType,
     MonsterSpawnLightLevel, Predicate, Rarity, RecipeResult, ShapedRecipe, ShapelessRecipe,
     SmithingTransformRecipe, SmithingTrimRecipe, StonecuttingRecipe, Tag, TagEntry, TagRegistry,
@@ -187,9 +188,9 @@ pub use sand_components::{RawComponent, RawJson, RawSnbt};
 
 pub use sand_components::{
     AdvancementId, BiomeId, BlockId, DamageTypeId, DimensionId, DimensionTypeId, EffectId,
-    EnchantmentId, EntityTypeId, FunctionId, ItemId, LootTableId, PotionContents, PotionId,
-    PotionRegistryId, Range, RecipeId, SoundEventId, StatusEffectId, StatusEffectInstance,
-    StructureId, StructureTemplate, SuspiciousStewEffect, TagId,
+    EnchantmentEffectComponentId, EnchantmentId, EntityTypeId, FunctionId, ItemId, LootTableId,
+    PotionContents, PotionId, PotionRegistryId, Range, RecipeId, SoundEventId, StatusEffectId,
+    StatusEffectInstance, StructureId, StructureTemplate, SuspiciousStewEffect, TagId,
 };
 
 // ── Text / chat ───────────────────────────────────────────────────────────────

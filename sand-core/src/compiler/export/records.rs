@@ -865,9 +865,16 @@ mod tests {
     #[test]
     fn valid_enchantment_exports_deterministically() {
         let ench = sand_components::Enchantment::new(test_rl("test", "swift_step"))
-            .description(serde_json::json!("Swift Step"))
-            .supported_items("#minecraft:enchantable/foot_armor")
-            .slot_typed(sand_components::EnchantmentSlot::Feet);
+            .description(sand_commands::TextComponent::translate(
+                "enchantment.test.swift_step",
+            ))
+            .supported_items(
+                sand_components::TagId::<sand_components::ItemId>::minecraft(
+                    "enchantable/foot_armor",
+                )
+                .unwrap(),
+            )
+            .slot(sand_components::EquipmentSlotGroup::Feet);
         let a = component_to_record(&ench, None).unwrap();
         let b = component_to_record(&ench, None).unwrap();
         assert_eq!(a.content, b.content);

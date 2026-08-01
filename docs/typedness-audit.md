@@ -19,6 +19,7 @@ surfaces are not retained as aliases.
 | consumable/equippable sound and model IDs | `Display`/string fields | `SoundEventId` and `EquipmentModelId` | completed; #195 |
 | storage and NBT paths | strings plus typed paths | `StorageLocation`, `NbtRef`, `NbtPath` | follow-up |
 | loot table item/tag/reference/text/enchantment IDs | raw strings and `serde_json::Value` | `ItemId`, `TagId<ItemId>`, `LootTableId`, `TextComponent`-backed `LootText`, `EnchantmentSelector` (`EnchantmentId`/`TagId<EnchantmentId>`), `ResourceLocation` | completed normal paths; predicate/range/target payloads remain raw pending #137; #185 |
+| configured-feature reference and payload | raw `String` feature reference on `PlacedFeature`, no builder for `worldgen/configured_feature/*.json` | `ConfiguredFeatureId`, `ConfiguredFeature` typed constructors for `no_op`/`simple_block`/`fill_layer`/`ore`, shared `BlockState`/`BlockStateProvider` value providers, explicit `ConfiguredFeature::raw`/`PlacedFeature::new_raw_feature` escape hatches | completed typed reference path + small common builder slice; other vanilla feature shapes remain raw pending broader worldgen parity; #189 |
 
 ## Public function-like macro inventory
 

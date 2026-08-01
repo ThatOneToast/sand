@@ -267,6 +267,9 @@ pub use sand_components::{
     BlockPredicate,
     ChatDecoration,
     ChatType,
+    // Worldgen
+    ConfiguredFeature,
+    ConfiguredFeatureId,
     ConsumableAnimation,
     ConsumableProperties,
     // Recipes
@@ -347,6 +350,8 @@ pub use sand_components::{
     MonsterSpawnLightLevel,
     NoiseSettings,
     NumberProvider,
+    OreConfig,
+    OreTarget,
     PaintingVariant,
     PlacedFeature,
     PotionContents,
@@ -362,6 +367,7 @@ pub use sand_components::{
     RawSnbt,
     RecipeId,
     RecipeResult,
+    RuleTest,
     ShapedRecipe,
     ShapelessRecipe,
     SmithingTransformRecipe,

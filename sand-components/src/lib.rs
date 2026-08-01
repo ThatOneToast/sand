@@ -73,10 +73,10 @@ pub use predicates::{
     IntRange, ItemPredicate, LocationPredicate, Range,
 };
 pub use registry::{
-    AdvancementId, BiomeId, BlockId, DamageTypeId, DimensionId, DimensionTypeId,
-    EnchantmentEffectComponentId, EnchantmentId, EntityTypeId, EquipmentModelId, FunctionId,
-    ItemId, LootTableId, PotionRegistryId, RecipeId, SoundEventId, StatusEffectId, StructureId,
-    TagId,
+    AdvancementId, BiomeId, BlockId, ConfiguredFeatureId, DamageTypeId, DimensionId,
+    DimensionTypeId, EnchantmentEffectComponentId, EnchantmentId, EntityTypeId, EquipmentModelId,
+    FunctionId, ItemId, LootTableId, PotionRegistryId, RecipeId, SoundEventId, StatusEffectId,
+    StructureId, TagId,
 };
 pub use resource_location::{Identifier, PackNamespace, ResourceLocation};
 
@@ -178,6 +178,8 @@ pub use wolf_variant::WolfVariant;
 // ── Worldgen ──────────────────────────────────────────────────────────────────
 
 pub use worldgen::biome::BiomeEffects;
+pub use worldgen::providers::{BlockState, BlockStateProvider, WeightedBlockState};
 pub use worldgen::{
-    Biome, Dimension, DimensionType, MonsterSpawnLightLevel, NoiseSettings, PlacedFeature,
+    Biome, ConfiguredFeature, Dimension, DimensionType, MonsterSpawnLightLevel, NoiseSettings,
+    OreConfig, OreTarget, PlacedFeature, RuleTest,
 };

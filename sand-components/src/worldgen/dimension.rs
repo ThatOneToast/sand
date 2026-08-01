@@ -3,8 +3,12 @@
 use serde_json::Value;
 
 use crate::component::DatapackComponent;
+use crate::error::Result as SandResult;
 use crate::registry::DimensionTypeId;
 use crate::resource_location::ResourceLocation;
+use crate::validation;
+
+const KIND: &str = "dimension";
 
 #[derive(Debug, Clone)]
 enum DimensionTypeReference {
@@ -130,6 +134,55 @@ impl DatapackComponent for Dimension {
         })
     }
 
+    fn validate(&self) -> SandResult<()> {
+        if let DimensionTypeReference::Raw(dt) = &self.dimension_type {
+            validation::validate_resource_location_str(&self.location, KIND, "type", dt)?;
+        }
+
+        validation::require_json_object(&self.location, KIND, "generator", &self.generator)?;
+        let generator_type = self.generator.get("type").and_then(Value::as_str);
+        match generator_type {
+            Some(ty) if !ty.trim().is_empty() => {
+                validation::validate_resource_location_str(
+                    &self.location,
+                    KIND,
+                    "generator.type",
+                    ty,
+                )?;
+            }
+            _ => {
+                return Err(validation::error(
+                    &self.location,
+                    KIND,
+                    "generator.type",
+                    "generator must be a JSON object with a non-empty string `type` field",
+                ));
+            }
+        }
+
+        if generator_type == Some("minecraft:noise")
+            && let Some(settings) = self.generator.get("settings")
+        {
+            if let Some(settings_str) = settings.as_str() {
+                validation::validate_resource_location_str(
+                    &self.location,
+                    KIND,
+                    "generator.settings",
+                    settings_str,
+                )?;
+            } else {
+                return Err(validation::error(
+                    &self.location,
+                    KIND,
+                    "generator.settings",
+                    "generator.settings must be a resource location string for a noise generator",
+                ));
+            }
+        }
+
+        Ok(())
+    }
+
     fn component_dir(&self) -> &'static str {
         "dimension"
     }
@@ -167,5 +220,80 @@ mod tests {
         )
         .raw_dimension_type("modded:custom");
         assert_eq!(dimension.to_json()["type"], "modded:custom");
+    }
+
+    #[test]
+    fn valid_dimension_passes_validation() {
+        let dimension = Dimension::new(
+            location(),
+            DimensionTypeId::minecraft("overworld").unwrap(),
+            serde_json::json!({"type": "minecraft:noise", "settings": "minecraft:overworld"}),
+        );
+        assert!(dimension.validate().is_ok());
+    }
+
+    #[test]
+    fn malformed_raw_dimension_type_rejected() {
+        let dimension = Dimension::new_raw_dimension_type(
+            location(),
+            "modded reference",
+            serde_json::json!({"type": "test"}),
+        );
+        let err = dimension.validate().unwrap_err().to_string();
+        assert!(err.contains("type"), "{err}");
+    }
+
+    #[test]
+    fn empty_raw_dimension_type_rejected() {
+        let dimension =
+            Dimension::new_raw_dimension_type(location(), "", serde_json::json!({"type": "test"}));
+        assert!(dimension.validate().is_err());
+    }
+
+    #[test]
+    fn generator_raw_non_object_rejected() {
+        let dimension = Dimension::new(
+            location(),
+            DimensionTypeId::minecraft("overworld").unwrap(),
+            serde_json::json!({"type": "test"}),
+        )
+        .generator_raw(serde_json::json!(["not", "an", "object"]));
+        let err = dimension.validate().unwrap_err().to_string();
+        assert!(err.contains("generator"), "{err}");
+    }
+
+    #[test]
+    fn generator_raw_missing_type_rejected() {
+        let dimension = Dimension::new(
+            location(),
+            DimensionTypeId::minecraft("overworld").unwrap(),
+            serde_json::json!({"type": "test"}),
+        )
+        .generator_raw(serde_json::json!({"settings": "minecraft:overworld"}));
+        let err = dimension.validate().unwrap_err().to_string();
+        assert!(err.contains("generator.type"), "{err}");
+    }
+
+    #[test]
+    fn noise_generator_malformed_settings_id_rejected() {
+        let dimension = Dimension::noise_generator(
+            location(),
+            DimensionTypeId::minecraft("overworld").unwrap(),
+            "Not A Valid Id",
+            serde_json::json!({"type": "minecraft:fixed", "biome": "minecraft:plains"}),
+        );
+        let err = dimension.validate().unwrap_err().to_string();
+        assert!(err.contains("generator.settings"), "{err}");
+    }
+
+    #[test]
+    fn flat_generator_escape_hatch_still_works() {
+        let dimension = Dimension::flat_generator(
+            location(),
+            DimensionTypeId::minecraft("overworld").unwrap(),
+            serde_json::json!({"layers": [{"block": "minecraft:bedrock", "height": 1}]}),
+        );
+        assert!(dimension.validate().is_ok());
+        assert_eq!(dimension.to_json()["generator"]["type"], "minecraft:flat");
     }
 }

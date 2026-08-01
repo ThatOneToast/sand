@@ -27,7 +27,8 @@ use sand_components::dialog::{Dialog, DialogAction, DialogBody, DialogButton};
 use sand_components::item::stack::ItemStack;
 use sand_components::item_modifier::ItemModifier;
 use sand_components::loot_table::{
-    LootCondition, LootEntry, LootFunction, LootPool, LootTable, LootTableType, NumberProvider,
+    EnchantmentSelector, LootCondition, LootEntry, LootFunction, LootPool, LootTable,
+    LootTableType, NumberProvider,
 };
 use sand_components::predicate::Predicate;
 use sand_components::predicates::{DamagePredicate, EntityPredicate, FloatRange};
@@ -446,7 +447,7 @@ fn canonical_26_2_loot_table_pool_entry_function_condition_composition() {
     let build = || {
         LootTable::new(id("chests/dragon_hoard"))
             .loot_type(LootTableType::Chest)
-            .random_sequence("canon:chests/dragon_hoard")
+            .random_sequence(id("chests/dragon_hoard"))
             .pool(
                 LootPool::new()
                     .rolls(NumberProvider::Uniform { min: 1.0, max: 3.0 })
@@ -463,14 +464,16 @@ fn canonical_26_2_loot_table_pool_entry_function_condition_composition() {
                                 }],
                                 conditions: vec![LootCondition::RandomChance { chance: 0.5 }],
                             },
-                            LootEntry::item("minecraft:iron_ingot"),
+                            LootEntry::item(ItemId::minecraft("iron_ingot").unwrap()),
                         ],
                         conditions: vec![],
                     })
                     .condition(LootCondition::KilledByPlayer)
                     .function(LootFunction::EnchantWithLevels {
                         levels: NumberProvider::Constant(30.0),
-                        options: Some("#minecraft:on_random_loot".to_string()),
+                        options: Some(EnchantmentSelector::Tag(
+                            TagId::minecraft("on_random_loot").unwrap(),
+                        )),
                     }),
             )
     };

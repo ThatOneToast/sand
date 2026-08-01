@@ -18,6 +18,7 @@ surfaces are not retained as aliases.
 | enchantment description/item-tag/slot/effect fields | raw JSON description, bare strings for item/tag refs, string slot names, whole-map raw effects | typed `TextComponent`, `ItemOrTag`/`EnchantmentOrTag` (`ItemId`/`EnchantmentId`/`TagId<T>`), reused `EquipmentSlotGroup`, and a typed `minecraft:damage`/`minecraft:knockback`/`minecraft:armor_effectiveness` value-effect slice with `EnchantmentEffectComponentId` | completed normal paths + small effect slice; #202 |
 | consumable/equippable sound and model IDs | `Display`/string fields | `SoundEventId` and `EquipmentModelId` | completed; #195 |
 | storage and NBT paths | strings plus typed paths | `StorageLocation`, `NbtRef`, `NbtPath` | follow-up |
+| loot table item/tag/reference/text/enchantment IDs | raw strings and `serde_json::Value` | `ItemId`, `TagId<ItemId>`, `LootTableId`, `TextComponent`-backed `LootText`, `EnchantmentSelector` (`EnchantmentId`/`TagId<EnchantmentId>`), `ResourceLocation` | completed normal paths; predicate/range/target payloads remain raw pending #137; #185 |
 
 ## Public function-like macro inventory
 

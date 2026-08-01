@@ -301,6 +301,8 @@ pub use sand_components::{
     EnchantmentProvider,
     EnchantmentProviderInt,
     EnchantmentSelection,
+    // Loot table enchantment selector (ID or tag reference)
+    EnchantmentSelector,
     EnchantmentSlot,
     EntityEquipment,
     EntityFlags,
@@ -338,6 +340,7 @@ pub use sand_components::{
     LootTable,
     LootTableId,
     LootTableType,
+    LootText,
     MonsterSpawnLightLevel,
     NoiseSettings,
     NumberProvider,

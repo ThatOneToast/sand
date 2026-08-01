@@ -173,8 +173,13 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         sand_module: Some("sand_components::loot_table"),
         api_status: RegistryApiStatus::PartiallyImplemented,
         version_gate: None,
-        notes: "LootTable, LootPool, LootEntry exist but coverage is partial. Complex pool conditions and entry types are missing. \
-                Follow-up: #185 (route loot table item/tag/text/reference IDs through typed public APIs); \
+        notes: "LootTable, LootPool, LootEntry exist. #185 typed the normal item/tag/loot-table-reference \
+                entry constructors (ItemId, TagId<ItemId>, LootTableId), set_name/set_lore (TextComponent-backed \
+                LootText), enchant_with_levels/enchant_randomly (EnchantmentSelector), and random_sequence \
+                (ResourceLocation), each with explicitly named raw escape hatches still checked by export \
+                validation. LootCondition::{EntityProperties, MatchTool, TimeCheck} and \
+                NumberProvider::Score::target remain raw serde_json::Value predicate/range/target payloads \
+                pending shared predicate/range validation (#137). \
                 #17 (original registry-coverage generation issue) is closed and does not track this specific gap.",
     },
     RegistryCoverage {
@@ -747,7 +752,7 @@ pub const REGISTRY_REMOVED_IN: &[(&str, &str)] = &[];
 /// When a registry genuinely becomes fully typed, remove its entry here in
 /// the same change that promotes its `REGISTRY_COVERAGE` row — that keeps a
 /// promotion from silently slipping in without a corresponding audit.
-pub const KNOWN_PARTIAL_REGISTRIES: &[(&str, &[&str])] = &[("minecraft:loot_table", &["#185"])];
+pub const KNOWN_PARTIAL_REGISTRIES: &[(&str, &[&str])] = &[("minecraft:loot_table", &["#137"])];
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 

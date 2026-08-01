@@ -17,6 +17,7 @@ surfaces are not retained as aliases.
 | enchantment providers | whole-provider raw JSON only | `EnchantmentProvider`, typed IDs/tags, and typed constant/uniform integer providers | completed common vanilla shapes; #188 |
 | consumable/equippable sound and model IDs | `Display`/string fields | `SoundEventId` and `EquipmentModelId` | completed; #195 |
 | storage and NBT paths | strings plus typed paths | `StorageLocation`, `NbtRef`, `NbtPath` | follow-up |
+| loot table item/tag/reference/text/enchantment IDs | raw strings and `serde_json::Value` | `ItemId`, `TagId<ItemId>`, `LootTableId`, `TextComponent`-backed `LootText`, `EnchantmentSelector` (`EnchantmentId`/`TagId<EnchantmentId>`), `ResourceLocation` | completed normal paths; predicate/range/target payloads remain raw pending #137; #185 |
 
 ## Public function-like macro inventory
 

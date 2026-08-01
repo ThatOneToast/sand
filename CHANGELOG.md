@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — typed loot table item, tag, text, and reference IDs (#185)
+
+- **Breaking:** `LootEntry::item`/`tag`/`loot_table` now take typed `ItemId`,
+  `TagId<ItemId>`, and `LootTableId` respectively instead of raw
+  `impl Display` strings. Explicitly named `item_raw`/`tag_raw`/
+  `loot_table_raw` escape hatches preserve modded/unsupported IDs, still
+  checked by export validation.
+- **Breaking:** `LootFunction::SetName`/`SetLore` now take a typed `LootText`
+  (backed by `TextComponent`) instead of raw `serde_json::Value`, validated
+  the same way command text is. `LootFunction::set_name`/`set_lore`
+  convenience constructors accept `TextComponent` directly via `.into()`.
+  `LootText::Raw(RawJson)` remains an explicit escape hatch for JSON text
+  shapes `TextComponent` cannot express.
+- **Breaking:** `LootFunction::EnchantWithLevels`/`EnchantRandomly` now take a
+  typed `EnchantmentSelector` (`EnchantmentId` or `TagId<EnchantmentId>`)
+  instead of raw enchantment/tag strings.
+- **Breaking:** `LootTable::random_sequence` now takes a typed
+  `ResourceLocation`; `random_sequence_raw` is the explicit compatibility
+  path.
+- `LootCondition::{EntityProperties, MatchTool, TimeCheck}` and
+  `NumberProvider::Score::target` remain raw `serde_json::Value` predicate/
+  range/target payloads. They are intentionally left as documented escape
+  hatches pending shared predicate/range validation (#137) rather than
+  inventing a separate loot-only predicate model.
+
 ### Changed — typed advancement display and references (#183)
 
 - **Breaking:** advancement displays now take `TextComponent` title and

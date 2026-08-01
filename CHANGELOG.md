@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — complete the `sand-core::cmd`/`function.rs` handwritten-helper audit (#175)
+
+- Added `cmd::try_function_id`, the validated counterpart to `cmd::function_id`,
+  closing the last raw-string bypass identified during the #287 review of this
+  issue. `cmd::try_call` now shares its resource-location validation with
+  `try_function_id` instead of duplicating it.
+- Added `cmd::fn_macros::try_function_with`, the validated counterpart to
+  `function_with`: it validates the function name as a resource location and
+  the NBT source/path through the same `DataTarget`/`NbtPath` validators
+  `try_call_with` uses, without duplicating that logic.
+- Documented and unit-tested the deliberate decision to keep the
+  `IntoFunctionRef` unregistered-`#[function]`-pointer path a programmer-error
+  panic rather than converting it to `Result`: it signals a build-time macro
+  wiring mistake in the caller's own source, not malformed runtime/user input.
+- Added a module-level classification table to `sand_core::cmd` documenting
+  every handwritten helper as typed-canonical, validated-compatibility,
+  explicit-raw, or documented-panic, completing the audit requested in #175
+  after the #287 partial-progress pass.
+
 ### Added — `pack.mcmeta` `supported_formats` and overlays (#149)
 
 - Added `[pack].supported_formats` and `[pack].overlays` (and the same fields

@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — validated worldgen builders before export (#142)
+
+- `Biome::temperature` / `downfall` now reject non-finite (`NaN`/infinite)
+  values at export instead of panicking inside `serde_json::to_value(...)
+  .unwrap()`; `temperature_modifier` is validated against `"none"` /
+  `"frozen"`.
+- `BiomeEffects` color setters (`fog_color`, `water_color`, `water_fog_color`,
+  `sky_color`, `grass_color`, `foliage_color`) reject values above
+  `0xFFFFFF`, and `ambient_sound` rejects empty or malformed resource
+  locations.
+- `Biome::{carvers,features,spawners,spawn_costs}` now validate the raw JSON
+  wrapper shape (array vs. object) before export.
+- `Dimension::new_raw_dimension_type` / `raw_dimension_type` reject malformed
+  or empty dimension-type references, and `generator_raw` requires an object
+  with a non-empty string `type` field; `noise_generator` validates its
+  `settings` resource ID.
+- `NoiseSettings::sea_level` is bounded to the documented world-height range,
+  and `default_block`, `default_fluid`, `noise_router`, `surface_rule`
+  (objects) and `spawn_target` (array) validate their top-level shape.
+- `PlacedFeature::new` validates the feature ID, and `placement` /
+  `placement_modifier` entries must be non-empty JSON objects with a string
+  `type` field.
+- All of the above are enforced via new `DatapackComponent::validate()`
+  overrides, so the export path rejects invalid worldgen components with a
+  diagnostic naming the component, resource location, and field path instead
+  of panicking or writing malformed JSON. Raw JSON escape hatches remain
+  available for valid modded/unsupported internals.
+
 ### Changed — typed advancement display and references (#183)
 
 - **Breaking:** advancement displays now take `TextComponent` title and

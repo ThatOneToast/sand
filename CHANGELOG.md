@@ -29,6 +29,98 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed `EnchantmentSlot` and `EnchantmentEffect` in favor of
   `EquipmentSlotGroup` and the typed effect slice above.
 
+### Changed — typed loot table item, tag, text, and reference IDs (#185)
+
+- **Breaking:** `LootEntry::item`/`tag`/`loot_table` now take typed `ItemId`,
+  `TagId<ItemId>`, and `LootTableId` respectively instead of raw
+  `impl Display` strings. Explicitly named `item_raw`/`tag_raw`/
+  `loot_table_raw` escape hatches preserve modded/unsupported IDs, still
+  checked by export validation.
+- **Breaking:** `LootFunction::SetName`/`SetLore` now take a typed `LootText`
+  (backed by `TextComponent`) instead of raw `serde_json::Value`, validated
+  the same way command text is. `LootFunction::set_name`/`set_lore`
+  convenience constructors accept `TextComponent` directly via `.into()`.
+  `LootText::Raw(RawJson)` remains an explicit escape hatch for JSON text
+  shapes `TextComponent` cannot express.
+- **Breaking:** `LootFunction::EnchantWithLevels`/`EnchantRandomly` now take a
+  typed `EnchantmentSelector` (`EnchantmentId` or `TagId<EnchantmentId>`)
+  instead of raw enchantment/tag strings.
+- **Breaking:** `LootTable::random_sequence` now takes a typed
+  `ResourceLocation`; `random_sequence_raw` is the explicit compatibility
+  path.
+- `LootCondition::{EntityProperties, MatchTool, TimeCheck}` and
+  `NumberProvider::Score::target` remain raw `serde_json::Value` predicate/
+  range/target payloads. They are intentionally left as documented escape
+  hatches pending shared predicate/range validation (#137) rather than
+  inventing a separate loot-only predicate model.
+
+### Added — complete the `sand-core::cmd`/`function.rs` handwritten-helper audit (#175)
+
+- Added `cmd::try_function_id`, the validated counterpart to `cmd::function_id`,
+  closing the last raw-string bypass identified during the #287 review of this
+  issue. `cmd::try_call` now shares its resource-location validation with
+  `try_function_id` instead of duplicating it.
+- Added `cmd::fn_macros::try_function_with`, the validated counterpart to
+  `function_with`: it validates the function name as a resource location and
+  the NBT source/path through the same `DataTarget`/`NbtPath` validators
+  `try_call_with` uses, without duplicating that logic.
+- Documented and unit-tested the deliberate decision to keep the
+  `IntoFunctionRef` unregistered-`#[function]`-pointer path a programmer-error
+  panic rather than converting it to `Result`: it signals a build-time macro
+  wiring mistake in the caller's own source, not malformed runtime/user input.
+- Added a module-level classification table to `sand_core::cmd` documenting
+  every handwritten helper as typed-canonical, validated-compatibility,
+  explicit-raw, or documented-panic, completing the audit requested in #175
+  after the #287 partial-progress pass.
+
+### Added — `pack.mcmeta` `supported_formats` and overlays (#149)
+
+- Added `[pack].supported_formats` and `[pack].overlays` (and the same fields
+  under `[resourcepack]`) to `sand.toml`, letting a single generated pack
+  declare a `pack_format` range or format-specific overlay directories
+  instead of only a single `pack_format`. `supported_formats` accepts either
+  a bare format number or an inclusive `{ min, max }` table; overlay entries
+  pair a validated relative directory (`RelativePackPath`, rejecting
+  absolute/`..`-traversing paths) with their own `formats` range.
+- `sand.toml` parsing now rejects invalid ranges early (`min > max`, `0`) with
+  a diagnostic naming the offending values, instead of producing a
+  `pack.mcmeta` Minecraft would silently reject.
+- `write_pack_mcmeta`/`write_resourcepack_mcmeta` emit vanilla's
+  `pack.supported_formats` (`{"min_inclusive", "max_inclusive"}` for ranges)
+  and `overlays.entries` when configured, and keep the legacy
+  `pack_format`/`description`-only shape byte-for-byte unchanged when they
+  are not.
+- `sand build`'s output validator now checks any `supported_formats` /
+  `overlays` present in a generated `pack.mcmeta` for structural validity.
+
+### Fixed — validated worldgen builders before export (#142)
+
+- `Biome::temperature` / `downfall` now reject non-finite (`NaN`/infinite)
+  values at export instead of panicking inside `serde_json::to_value(...)
+  .unwrap()`; `temperature_modifier` is validated against `"none"` /
+  `"frozen"`.
+- `BiomeEffects` color setters (`fog_color`, `water_color`, `water_fog_color`,
+  `sky_color`, `grass_color`, `foliage_color`) reject values above
+  `0xFFFFFF`, and `ambient_sound` rejects empty or malformed resource
+  locations.
+- `Biome::{carvers,features,spawners,spawn_costs}` now validate the raw JSON
+  wrapper shape (array vs. object) before export.
+- `Dimension::new_raw_dimension_type` / `raw_dimension_type` reject malformed
+  or empty dimension-type references, and `generator_raw` requires an object
+  with a non-empty string `type` field; `noise_generator` validates its
+  `settings` resource ID.
+- `NoiseSettings::sea_level` is bounded to the documented world-height range,
+  and `default_block`, `default_fluid`, `noise_router`, `surface_rule`
+  (objects) and `spawn_target` (array) validate their top-level shape.
+- `PlacedFeature::new` validates the feature ID, and `placement` /
+  `placement_modifier` entries must be non-empty JSON objects with a string
+  `type` field.
+- All of the above are enforced via new `DatapackComponent::validate()`
+  overrides, so the export path rejects invalid worldgen components with a
+  diagnostic naming the component, resource location, and field path instead
+  of panicking or writing malformed JSON. Raw JSON escape hatches remain
+  available for valid modded/unsupported internals.
+
 ### Changed — typed advancement display and references (#183)
 
 - **Breaking:** advancement displays now take `TextComponent` title and

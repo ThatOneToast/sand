@@ -163,6 +163,28 @@ where
     None
 }
 
+/// `#[function]`-pointer `IntoFunctionRef` implementor.
+///
+/// # Panic-vs-`Result` decision ([#175](https://github.com/ThatOneToast/sand/issues/175))
+///
+/// Every other `IntoFunctionRef` implementor above resolves from *data*
+/// (a string, a validated ref) and so has a validated `try_*` counterpart in
+/// `sand_core::cmd` for its unchecked forms. This impl is different: an
+/// unregistered `fn() -> Vec<String>` reaching here means the function is
+/// missing its `#[function]`/`#[function("path")]` attribute — a build-time
+/// wiring mistake in the *caller's own source*, not malformed runtime input.
+/// There is no sensible "raw" fallback path to fall back to (unlike a
+/// mistyped resource-location string, which is still meaningful text to
+/// report back to the caller), and the panic fires immediately at the
+/// `cmd::call(...)` call site during normal `cargo build`/`cargo test`, long
+/// before any `.mcfunction` export happens.
+///
+/// This is deliberately kept as a documented programmer-error panic rather
+/// than converted to `Result`: doing so would force every `cmd::call(...)`
+/// call site (the common, always-correct path for registered functions) to
+/// handle an error that can only occur from a missing macro attribute, which
+/// is much more naturally caught by a panic during `cargo test` than by
+/// silently threading a `Result` through normal control flow.
 impl<F> IntoFunctionRef for F
 where
     F: Fn() -> Vec<String> + Copy + 'static,
@@ -184,6 +206,57 @@ where
             "unregistered function pointer: the function must be annotated with \
              #[function] or #[function(\"path\")] to be callable via cmd::call()"
         )
+    }
+}
+
+#[cfg(test)]
+mod into_function_ref_tests {
+    use super::*;
+
+    #[test]
+    fn raw_str_and_string_resolve_to_expected_command_and_id() {
+        assert_eq!(
+            "my_pack:api/do_thing".into_function_command(),
+            "function my_pack:api/do_thing"
+        );
+        assert_eq!(
+            "my_pack:api/do_thing".into_function_id(),
+            "my_pack:api/do_thing"
+        );
+        assert_eq!(
+            String::from("my_pack:api/do_thing").into_function_command(),
+            "function my_pack:api/do_thing"
+        );
+    }
+
+    #[test]
+    fn registered_function_pointer_gets_sand_local_namespace_when_unnamespaced() {
+        // `command_for_path`/`id_for_path` (used by the registered function-
+        // pointer impl below) apply the `__sand_local:` sentinel namespace to
+        // bare (unnamespaced) registered paths; the raw `&str`/`String`
+        // escape hatch above does not perform this rewrite; it interpolates
+        // verbatim, matching its documented "used as-is" contract.
+        assert_eq!(
+            command_for_path("do_thing"),
+            format!("function {SAND_LOCAL_NS}:do_thing")
+        );
+        assert_eq!(id_for_path("do_thing"), format!("{SAND_LOCAL_NS}:do_thing"));
+        assert_eq!(command_for_path("ns:do_thing"), "function ns:do_thing");
+        assert_eq!(id_for_path("ns:do_thing"), "ns:do_thing");
+    }
+
+    #[test]
+    #[should_panic(expected = "unregistered function pointer")]
+    fn unregistered_function_pointer_panics_with_actionable_message() {
+        // Documented programmer-error panic (see the rationale on the
+        // `IntoFunctionRef for F where F: Fn() -> Vec<String>` impl above):
+        // an unannotated `#[function]` pointer is a build-time wiring
+        // mistake, not malformed runtime input, so this stays a panic
+        // rather than gaining a `try_*` counterpart.
+        fn not_registered() -> Vec<String> {
+            vec![]
+        }
+        let _ = not_registered.into_function_command();
     }
 }
 

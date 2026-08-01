@@ -168,14 +168,15 @@ pub use sand_components::{
     Advancement, AdvancementDisplay, AdvancementFrame, AdvancementIcon, AdvancementRewards,
     AdvancementTrigger, AttributeId, AttributeModifier, AttributeOperation, AttributeType,
     BannerPattern, BlockPredicate, ConsumableAnimation, ConsumableProperties, Criterion,
-    CustomData, CustomItem, DamagePredicate, DamageSourcePredicate, Dimension, DimensionType,
+    CustomData, CustomItem, DamagePredicate, DamageSourcePredicate, DensityFunction,
+    DensityFunctionBinaryOp, DensityFunctionExpr, DensityFunctionUnaryOp, Dimension, DimensionType,
     DistancePredicate, Enchantment, EnchantmentCost, EnchantmentEntry, EnchantmentOrTag,
     EnchantmentProvider, EnchantmentProviderInt, EnchantmentSelection, EnchantmentValueOperation,
     EntityEquipment, EntityFlags, EntityPredicate, EquipmentModelId, EquipmentSlot,
     EquipmentSlotGroup, EquippableProperties, FoodProperties, Ingredient, ItemComponent,
     ItemModifier, ItemOrTag, ItemPredicate, ItemRarity, ItemStackComponents, LevelBasedValue,
     LocationPredicate, LootCondition, LootEntry, LootFunction, LootPool, LootTable, LootTableType,
-    MonsterSpawnLightLevel, Predicate, Rarity, RecipeResult, ShapedRecipe, ShapelessRecipe,
+    MonsterSpawnLightLevel, Noise, Predicate, Rarity, RecipeResult, ShapedRecipe, ShapelessRecipe,
     SmithingTransformRecipe, SmithingTrimRecipe, StonecuttingRecipe, Tag, TagEntry, TagRegistry,
     ToolProperties, ToolRule, TrimAssetName, TrimMaterial, TrimPattern, TypedTag,
 };
@@ -187,10 +188,11 @@ pub use sand_components::{RawComponent, RawJson, RawSnbt};
 // ── Typed registry identifiers ────────────────────────────────────────────────
 
 pub use sand_components::{
-    AdvancementId, BiomeId, BlockId, DamageTypeId, DimensionId, DimensionTypeId, EffectId,
-    EnchantmentEffectComponentId, EnchantmentId, EntityTypeId, FunctionId, ItemId, LootTableId,
-    PotionContents, PotionId, PotionRegistryId, Range, RecipeId, SoundEventId, StatusEffectId,
-    StatusEffectInstance, StructureId, StructureTemplate, SuspiciousStewEffect, TagId,
+    AdvancementId, BiomeId, BlockId, DamageTypeId, DensityFunctionId, DimensionId, DimensionTypeId,
+    EffectId, EnchantmentEffectComponentId, EnchantmentId, EntityTypeId, FunctionId, ItemId,
+    LootTableId, NoiseId, PotionContents, PotionId, PotionRegistryId, Range, RecipeId,
+    SoundEventId, StatusEffectId, StatusEffectInstance, StructureId, StructureTemplate,
+    SuspiciousStewEffect, TagId,
 };
 
 // ── Text / chat ───────────────────────────────────────────────────────────────

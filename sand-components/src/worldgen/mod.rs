@@ -5,13 +5,19 @@
 //! via the `raw` constructors that accept arbitrary JSON.
 
 pub mod biome;
+pub mod density_function;
 pub mod dimension;
 pub mod dimension_type;
+pub mod noise;
 pub mod noise_settings;
 pub mod placed_feature;
 
 pub use biome::Biome;
+pub use density_function::{
+    DensityFunction, DensityFunctionBinaryOp, DensityFunctionExpr, DensityFunctionUnaryOp,
+};
 pub use dimension::Dimension;
 pub use dimension_type::{DimensionType, MonsterSpawnLightLevel};
+pub use noise::Noise;
 pub use noise_settings::NoiseSettings;
 pub use placed_feature::PlacedFeature;

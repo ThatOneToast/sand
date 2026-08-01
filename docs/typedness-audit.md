@@ -19,6 +19,7 @@ surfaces are not retained as aliases.
 | consumable/equippable sound and model IDs | `Display`/string fields | `SoundEventId` and `EquipmentModelId` | completed; #195 |
 | storage and NBT paths | strings plus typed paths | `StorageLocation`, `NbtRef`, `NbtPath` | follow-up |
 | loot table item/tag/reference/text/enchantment IDs | raw strings and `serde_json::Value` | `ItemId`, `TagId<ItemId>`, `LootTableId`, `TextComponent`-backed `LootText`, `EnchantmentSelector` (`EnchantmentId`/`TagId<EnchantmentId>`), `ResourceLocation` | completed normal paths; predicate/range/target payloads remain raw pending #137; #185 |
+| worldgen noise-parameter and density-function registries | `RawComponent`/raw JSON only (`Missing` in `registry_coverage.rs`) | `worldgen::noise::Noise` (typed `firstOctave`/`amplitudes`), `worldgen::density_function::{DensityFunction, DensityFunctionExpr}` (constant/reference/noise/unary/binary/clamp/y_clamped_gradient), and `NoiseId`/`DensityFunctionId` | completed narrow common-shape coverage with explicit raw escape hatches; full vanilla density-function/noise-router modeling remains raw pending #182; #192 |
 
 ## Public function-like macro inventory
 

@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — typed worldgen noise and density-function components (#192)
+
+- Added `worldgen::noise::Noise` for
+  `data/<namespace>/worldgen/noise/<id>.json`, with typed `firstOctave` and
+  `amplitudes` setters, finite/range validation, and an explicit `raw_field`
+  escape hatch for version-specific additions.
+- Added `worldgen::density_function::{DensityFunction, DensityFunctionExpr}`
+  for `data/<namespace>/worldgen/density_function/<id>.json`, covering the
+  common `constant`, `reference` (to another density function file), `noise`
+  (sampling a `worldgen/noise` file), unary transforms (`abs`, `square`,
+  `cube`, `half_negative`, `quarter_negative`, `squeeze`), binary combinators
+  (`add`, `mul`, `min`, `max`), `clamp`, and `y_clamped_gradient` shapes, plus
+  an explicit `DensityFunctionExpr::raw`/`DensityFunction::new_raw` escape
+  hatch for unsupported/version-specific variants.
+- Added `NoiseId` and `DensityFunctionId` typed registry references;
+  `NoiseSettings::noise_router` examples show how `DensityFunctionExpr::to_json`
+  embeds typed density functions into the still-raw noise router shape (full
+  noise-router/spawn-target/surface-rule typing remains #182's scope).
+- `registry_coverage.rs` moves `minecraft:worldgen/noise` and
+  `minecraft:worldgen/density_function` from `Missing` to
+  `PartiallyImplemented`.
+
 ### Changed — typed enchantment text, item/tag, slot, and effect fields (#202)
 
 - **Breaking:** `Enchantment` now takes a `TextComponent` description, typed

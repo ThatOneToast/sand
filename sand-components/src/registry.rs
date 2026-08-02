@@ -190,6 +190,60 @@ registry_id! {
 }
 
 registry_id! {
+    /// Typed `minecraft:worldgen/structure_set` identifier (e.g. `minecraft:villages`).
+    StructureSetId
+}
+
+registry_id! {
+    /// Typed `minecraft:worldgen/template_pool` identifier
+    /// (e.g. `minecraft:village/plains/town_centers`).
+    TemplatePoolId
+}
+
+impl TemplatePoolId {
+    /// `minecraft:empty` — the vanilla terminal fallback pool.
+    pub fn empty() -> Self {
+        Self::minecraft("empty").expect("\"empty\" is a valid resource path")
+    }
+}
+
+registry_id! {
+    /// Typed `minecraft:worldgen/processor_list` identifier
+    /// (e.g. `minecraft:empty` or `mypack:mossify`).
+    ProcessorListId
+}
+
+impl ProcessorListId {
+    /// `minecraft:empty` — the vanilla no-op processor list.
+    pub fn empty() -> Self {
+        Self::minecraft("empty").expect("\"empty\" is a valid resource path")
+    }
+}
+
+registry_id! {
+    /// Typed identifier for a `.nbt` structure template asset stored under
+    /// `data/<namespace>/structure/` (e.g. `minecraft:village/plains/houses/plains_small_house_1`).
+    ///
+    /// This references the template *file*, not a `worldgen/structure`
+    /// registry entry — see [`StructureId`] for the latter.
+    StructureTemplateId
+}
+
+registry_id! {
+    /// Typed structure *type* identifier — the `type` field of a
+    /// `worldgen/structure` entry (e.g. `minecraft:jigsaw`).
+    StructureTypeId
+}
+
+impl StructureTypeId {
+    /// `minecraft:jigsaw` — the type used by villages, pillager outposts, and
+    /// most custom template-pool driven structures.
+    pub fn jigsaw() -> Self {
+        Self::minecraft("jigsaw").expect("\"jigsaw\" is a valid resource path")
+    }
+}
+
+registry_id! {
     /// Typed sound-event identifier (e.g. `minecraft:entity.player.burp` or `mymod:arcane_chime`).
     SoundEventId
 }

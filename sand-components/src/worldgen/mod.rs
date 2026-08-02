@@ -5,6 +5,7 @@
 //! via the `raw` constructors that accept arbitrary JSON.
 
 pub mod biome;
+pub mod configured_carver;
 pub mod configured_feature;
 pub mod density_function;
 pub mod dimension;
@@ -18,7 +19,8 @@ pub mod structure;
 pub mod structure_set;
 pub mod template_pool;
 
-pub use biome::Biome;
+pub use biome::{Biome, CarvingStep};
+pub use configured_carver::{CarverFloatRange, CaveCarverConfig, ConfiguredCarver};
 pub use configured_feature::{ConfiguredFeature, OreConfig, OreTarget, RuleTest};
 pub use density_function::{
     DensityFunction, DensityFunctionBinaryOp, DensityFunctionExpr, DensityFunctionUnaryOp,

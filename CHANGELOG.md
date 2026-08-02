@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — first-class typed predicate authoring beyond the `LootCondition` wrapper (#204)
+
+- Added `PredicateRoot`, a dedicated typed condition tree for standalone
+  `data/<namespace>/predicate/<id>.json` files: `AllOf`/`AnyOf`/`Inverted`
+  boolean composition, `EntityProperties` (paired with a new typed
+  `EntityPredicateTarget` selector: `This`/`Killer`/`KillerPlayer`/
+  `DirectKiller`/`Custom`), `LocationCheck`, `WeatherCheck`, `TimeCheck`,
+  `RandomChance`, and `Reference` (backed by a new typed `PredicateId`
+  registry wrapper). `PredicateRoot` reuses the existing shared typed
+  predicate model (`EntityPredicate`, `LocationPredicate`, `ItemPredicate`,
+  `DamagePredicate`, `IntRange`/`FloatRange`, …) instead of inventing
+  parallel types.
+- Added `WeatherPredicate` to the shared `sand_components::predicates`
+  model (`raining`/`thundering`, plus a `raw` escape hatch), used by
+  `PredicateRoot::WeatherCheck`.
+- `Predicate` now takes a `PredicateRoot` on the normal path via
+  `Predicate::new`, plus `Predicate::all_of`/`Predicate::any_of`
+  convenience constructors. `PredicateRoot::raw` is the explicit escape
+  hatch for predicate condition shapes not yet modeled.
+- **Breaking:** `Predicate` is no longer a thin wrapper coupling standalone
+  predicate authoring to `LootCondition`; the `condition: LootCondition`
+  field is replaced by `root: PredicateRoot`. `Predicate::from_loot_condition`
+  and `PredicateRoot::from_loot_condition` are added as an explicit
+  compatibility path: they convert overlapping `LootCondition` shapes
+  (boolean composition, random chance, weather, reference) into the typed
+  model and fall back to `PredicateRoot::Raw` (carrying the re-serialized
+  loot-condition JSON) for loot-only condition shapes
+  (`KilledByPlayer`/`MatchTool`/`SurvivesExplosion`/`TableBonus`/
+  `EntityScores`/`BlockStateProperty`/`EntityProperties`/`TimeCheck`/
+  `Custom`), so no existing loot-condition-backed predicate silently loses
+  data.
+- Promoted `minecraft:predicate` from `PartiallyImplemented` to
+  `FullyImplemented` in `registry_coverage.rs`, matching the completed
+  normal-path typed API and export-time validation.
+
 ### Added — typed chicken/cow/pig animal variant registries (#201)
 
 - Added `ChickenVariant`, `CowVariant`, and `PigVariant` typed builders for

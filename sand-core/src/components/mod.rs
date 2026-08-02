@@ -48,6 +48,8 @@ pub use sand_components::{
     EnchantmentValueOperation,
     // Item predicates
     EntityPredicate,
+    // Standalone predicate authoring
+    EntityPredicateTarget,
     EquipmentModelId,
     EquipmentSlot,
     EquipmentSlotGroup,
@@ -83,6 +85,8 @@ pub use sand_components::{
     PoolEntry,
     // Predicate
     Predicate,
+    PredicateId,
+    PredicateRoot,
     // Worldgen: processor lists
     Processor,
     ProcessorList,
@@ -115,5 +119,7 @@ pub use sand_components::{
     TrimMaterial,
     TrimPattern,
     VerticalAnchor,
+    // Weather
+    WeatherPredicate,
     WeightedBlockState,
 };

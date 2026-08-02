@@ -160,6 +160,15 @@ registry_id! {
 }
 
 registry_id! {
+    /// Typed Minecraft predicate identifier (e.g. `mypack:conditions/is_raining`).
+    ///
+    /// Used by [`crate::predicate::PredicateRoot::Reference`] and by
+    /// `minecraft:reference` loot conditions to point at a standalone
+    /// `data/<namespace>/predicate/<id>.json` file.
+    PredicateId
+}
+
+registry_id! {
     /// Typed Minecraft enchantment identifier (e.g. `minecraft:sharpness` or `mymod:arcane`).
     EnchantmentId
 }

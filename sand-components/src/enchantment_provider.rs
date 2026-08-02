@@ -123,18 +123,37 @@ impl EnchantmentSelection {
         Self::Tag(tag)
     }
 
-    fn validate(&self, location: &ResourceLocation) -> SandResult<()> {
+    /// Validate this selection's builder invariants (non-empty explicit
+    /// lists). `kind`/`field` let callers outside `enchantment_provider`
+    /// (e.g. `villager_trade`) report the error against their own owning
+    /// component/field path instead of `"enchantment_provider"`.
+    pub(crate) fn validate_with(
+        &self,
+        location: &ResourceLocation,
+        kind: &str,
+        field: &str,
+    ) -> SandResult<()> {
         if let Self::List(enchantments) = self
             && enchantments.is_empty()
         {
             return Err(validation::error(
                 location,
-                "enchantment_provider",
-                "enchantments",
+                kind,
+                field,
                 "enchantment list must not be empty",
             ));
         }
         Ok(())
+    }
+
+    fn validate(&self, location: &ResourceLocation) -> SandResult<()> {
+        self.validate_with(location, "enchantment_provider", "enchantments")
+    }
+
+    /// Render this selection to its vanilla JSON shape (single ID string,
+    /// array of ID strings, or a `#namespace:path` tag string).
+    pub(crate) fn to_json_value(&self) -> Value {
+        self.to_json()
     }
 
     fn to_json(&self) -> Value {

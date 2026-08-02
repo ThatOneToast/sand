@@ -152,6 +152,9 @@ pub enum ComponentFeature {
     /// Biome-scoped animal variant registries — `chicken_variant`,
     /// `cow_variant`, `pig_variant` (1.21.5+).
     AnimalVariants,
+    /// Data-driven Villager/Wandering Trader trade registries —
+    /// `villager_trade` and `trade_set` (26.1+).
+    VillagerTrades,
 }
 
 impl ComponentFeature {
@@ -166,6 +169,7 @@ impl ComponentFeature {
             Self::TrimAssets => "trim_assets",
             Self::ItemComponents => "item_components",
             Self::AnimalVariants => "animal_variants",
+            Self::VillagerTrades => "villager_trades",
         }
     }
 
@@ -179,6 +183,7 @@ impl ComponentFeature {
         Self::TrimAssets,
         Self::ItemComponents,
         Self::AnimalVariants,
+        Self::VillagerTrades,
     ];
 }
 
@@ -204,6 +209,7 @@ pub struct VersionCaps {
     supports_trim_assets: bool,
     supports_item_components: bool,
     supports_animal_variants: bool,
+    supports_villager_trades: bool,
 }
 
 impl VersionCaps {
@@ -223,6 +229,7 @@ impl VersionCaps {
             supports_trim_assets: true,
             supports_item_components: true,
             supports_animal_variants: true,
+            supports_villager_trades: true,
         }
     }
 
@@ -239,6 +246,7 @@ impl VersionCaps {
             supports_trim_assets: false,
             supports_item_components: false,
             supports_animal_variants: false,
+            supports_villager_trades: false,
         }
     }
 
@@ -253,6 +261,18 @@ impl VersionCaps {
         self
     }
 
+    /// Set whether the data-driven Villager/Wandering Trader trade
+    /// registries (`villager_trade`, `trade_set`; 26.1+) are supported.
+    ///
+    /// Follows the same builder-method pattern as
+    /// [`VersionCaps::with_animal_variants`] for the same reason: it keeps
+    /// [`VersionCaps::from_flags`]/[`VersionCaps::from_profile_flags`] call
+    /// sites stable.
+    pub fn with_villager_trades(mut self, value: bool) -> Self {
+        self.supports_villager_trades = value;
+        self
+    }
+
     /// Check whether a specific feature is supported by this capability set.
     pub fn supports(&self, feature: ComponentFeature) -> bool {
         match feature {
@@ -264,6 +284,7 @@ impl VersionCaps {
             ComponentFeature::TrimAssets => self.supports_trim_assets,
             ComponentFeature::ItemComponents => self.supports_item_components,
             ComponentFeature::AnimalVariants => self.supports_animal_variants,
+            ComponentFeature::VillagerTrades => self.supports_villager_trades,
         }
     }
 
@@ -321,9 +342,11 @@ impl VersionCaps {
             supports_enchantments,
             supports_trim_assets,
             supports_item_components,
-            // Not a constructor parameter — see `with_animal_variants`. Callers
-            // that need to express it chain `.with_animal_variants(true)`.
+            // Not constructor parameters — see `with_animal_variants` /
+            // `with_villager_trades`. Callers that need to express them chain
+            // `.with_animal_variants(true)` / `.with_villager_trades(true)`.
             supports_animal_variants: false,
+            supports_villager_trades: false,
         }
     }
 
@@ -390,6 +413,7 @@ mod tests {
         assert_eq!(ComponentFeature::TrimAssets.name(), "trim_assets");
         assert_eq!(ComponentFeature::ItemComponents.name(), "item_components");
         assert_eq!(ComponentFeature::AnimalVariants.name(), "animal_variants");
+        assert_eq!(ComponentFeature::VillagerTrades.name(), "villager_trades");
     }
 
     #[test]
@@ -415,6 +439,18 @@ mod tests {
 
         let caps = VersionCaps::all_enabled().with_animal_variants(false);
         assert!(!caps.supports(ComponentFeature::AnimalVariants));
+        assert!(caps.supports(ComponentFeature::Dialogs));
+    }
+
+    #[test]
+    fn with_villager_trades_overrides_without_touching_other_flags() {
+        let caps = VersionCaps::from_flags(true, true, true, true, true, true, true)
+            .with_villager_trades(true);
+        assert!(caps.supports(ComponentFeature::VillagerTrades));
+        assert!(caps.supports(ComponentFeature::Dialogs));
+
+        let caps = VersionCaps::all_enabled().with_villager_trades(false);
+        assert!(!caps.supports(ComponentFeature::VillagerTrades));
         assert!(caps.supports(ComponentFeature::Dialogs));
     }
 

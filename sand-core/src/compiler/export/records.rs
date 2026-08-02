@@ -92,6 +92,60 @@ pub(crate) fn component_to_record(
     })
 }
 
+/// Expand a collected list of top-level components/records with each
+/// component's [`DatapackComponent::nested_components`], checking every
+/// nested (namespace, dir, path) key against the full top-level set *before*
+/// any nested record is accepted.
+///
+/// This is the compound-component expansion pass used by
+/// [`super::pipeline::try_export_components_impl`] (`TradeSet`,
+/// `VillagerTradePoolPatch`, and any future component that hoists inline
+/// entries into separate generated resources) — split out as a standalone,
+/// pure function so it can be unit-tested without registering components
+/// through the process-global `inventory` registry.
+pub(crate) fn expand_with_nested(
+    top_level: Vec<(Box<dyn DatapackComponent>, ComponentRecord)>,
+    ctx: Option<&super::ExportCtx>,
+) -> ExportResult<Vec<ComponentRecord>> {
+    let mut seen_paths: std::collections::HashSet<(String, String, String)> = top_level
+        .iter()
+        .map(|(_, record)| {
+            (
+                record.namespace.clone(),
+                record.dir.clone(),
+                record.path.clone(),
+            )
+        })
+        .collect();
+
+    let mut records = Vec::with_capacity(top_level.len());
+    for (comp, record) in top_level {
+        records.push(record);
+        for nested in comp.nested_components() {
+            let nested_record = component_to_record(nested.as_ref(), ctx)?;
+            let key = (
+                nested_record.namespace.clone(),
+                nested_record.dir.clone(),
+                nested_record.path.clone(),
+            );
+            if !seen_paths.insert(key.clone()) {
+                return Err(ComponentExportError::ComponentValidation {
+                    location: nested.resource_location().clone(),
+                    kind: nested_record.dir.clone(),
+                    field: "<generated>".to_string(),
+                    message: format!(
+                        "generated resource path `{}:{}/{}` collides with another component's \
+                         output — rename the entry key or the colliding component",
+                        key.0, key.1, key.2
+                    ),
+                });
+            }
+            records.push(nested_record);
+        }
+    }
+    Ok(records)
+}
+
 fn enrich_error(
     e: sand_components::error::SandError,
     rl: &crate::resource_location::ResourceLocation,
@@ -619,6 +673,53 @@ mod tests {
     }
 
     #[test]
+    fn villager_trade_component_fails_when_villager_trades_not_supported() {
+        use sand_components::villager_trade::{TradeItem, VillagerTrade};
+        use sand_components::{ItemId, ItemStack};
+
+        let trade = VillagerTrade::new(test_rl("test", "trades/emerald_pickaxe"))
+            .wants(TradeItem::new(ItemId::minecraft("emerald").unwrap()).count(12))
+            .gives(ItemStack::new(
+                ItemId::minecraft("diamond_pickaxe").unwrap(),
+            ));
+        let caps = VersionCaps::all_disabled();
+        let ctx = ExportCtx {
+            caps: &caps,
+            requested_version: "1.21.4",
+            is_fallback: false,
+        };
+        let err = component_to_record(&trade, Some(&ctx))
+            .expect_err("villager trades require the villager_trades feature");
+        let msg = err.to_string();
+        assert!(msg.contains("villager_trade"), "must include kind: {msg}");
+        assert!(
+            msg.contains("villager_trades"),
+            "must include feature name: {msg}"
+        );
+    }
+
+    #[test]
+    fn villager_trade_component_succeeds_when_villager_trades_supported() {
+        use sand_components::villager_trade::{TradeItem, VillagerTrade};
+        use sand_components::{ItemId, ItemStack};
+
+        let trade = VillagerTrade::new(test_rl("test", "trades/emerald_pickaxe"))
+            .wants(TradeItem::new(ItemId::minecraft("emerald").unwrap()).count(12))
+            .gives(ItemStack::new(
+                ItemId::minecraft("diamond_pickaxe").unwrap(),
+            ));
+        let caps = VersionCaps::all_enabled();
+        let ctx = ExportCtx {
+            caps: &caps,
+            requested_version: "26.2",
+            is_fallback: false,
+        };
+        let record = component_to_record(&trade, Some(&ctx))
+            .expect("villager trades should succeed when the feature is supported");
+        assert_eq!(record.dir, "villager_trade");
+    }
+
+    #[test]
     fn resolve_export_caps_latest_enables_all_features() {
         let resolved = crate::version::resolve_export_caps("latest").unwrap();
         assert!(!resolved.is_fallback, "latest should be a known profile");
@@ -1033,5 +1134,102 @@ mod tests {
         let record = component_to_record(&variant, Some(&ctx))
             .expect("pig_variant should succeed when animal_variants feature is supported");
         assert_eq!(record.dir, "pig_variant");
+    }
+
+    // ── expand_with_nested (compound components, #296) ─────────────────────────
+
+    /// A test double for a compound component (e.g. `TradeSet`) that hoists a
+    /// fixed set of nested resources alongside its own.
+    struct NestingComponent {
+        loc: crate::resource_location::ResourceLocation,
+        nested_locs: Vec<crate::resource_location::ResourceLocation>,
+    }
+    impl super::DatapackComponent for NestingComponent {
+        fn resource_location(&self) -> &crate::resource_location::ResourceLocation {
+            &self.loc
+        }
+        fn to_json(&self) -> serde_json::Value {
+            serde_json::json!({"parent": true})
+        }
+        fn component_dir(&self) -> &'static str {
+            "test_parent"
+        }
+        fn nested_components(&self) -> Vec<Box<dyn super::DatapackComponent>> {
+            self.nested_locs
+                .iter()
+                .cloned()
+                .map(|loc| {
+                    Box::new(ValidJsonComponent { loc }) as Box<dyn super::DatapackComponent>
+                })
+                .collect()
+        }
+    }
+
+    #[test]
+    fn expand_with_nested_appends_nested_records_after_the_parent() {
+        let parent = NestingComponent {
+            loc: test_rl("test", "parent"),
+            nested_locs: vec![
+                test_rl("test", "parent/child_a"),
+                test_rl("test", "parent/child_b"),
+            ],
+        };
+        let parent_record = component_to_record(&parent, None).unwrap();
+        let top_level: Vec<(Box<dyn super::DatapackComponent>, super::ComponentRecord)> =
+            vec![(Box::new(parent), parent_record)];
+
+        let records = super::expand_with_nested(top_level, None).unwrap();
+        assert_eq!(records.len(), 3);
+        assert_eq!(records[0].path, "parent");
+        assert_eq!(records[1].path, "parent/child_a");
+        assert_eq!(records[2].path, "parent/child_b");
+    }
+
+    #[test]
+    fn expand_with_nested_rejects_collision_with_a_standalone_top_level_component() {
+        let standalone = ValidJsonComponent {
+            loc: test_rl("test", "parent/child_a"),
+        };
+        let standalone_record = component_to_record(&standalone, None).unwrap();
+
+        let parent = NestingComponent {
+            loc: test_rl("test", "parent"),
+            nested_locs: vec![test_rl("test", "parent/child_a")],
+        };
+        let parent_record = component_to_record(&parent, None).unwrap();
+
+        // Order-independent: the colliding standalone component is collected
+        // *before* the compound component whose nested child collides with it.
+        let top_level: Vec<(Box<dyn super::DatapackComponent>, super::ComponentRecord)> = vec![
+            (Box::new(standalone), standalone_record),
+            (Box::new(parent), parent_record),
+        ];
+
+        let err = super::expand_with_nested(top_level, None).unwrap_err();
+        let message = err.to_string();
+        assert!(message.contains("collides"), "{message}");
+        assert!(message.contains("parent/child_a"), "{message}");
+    }
+
+    #[test]
+    fn expand_with_nested_rejects_collision_between_two_nested_children() {
+        let parent_one = NestingComponent {
+            loc: test_rl("test", "parent_one"),
+            nested_locs: vec![test_rl("test", "shared/child")],
+        };
+        let parent_one_record = component_to_record(&parent_one, None).unwrap();
+        let parent_two = NestingComponent {
+            loc: test_rl("test", "parent_two"),
+            nested_locs: vec![test_rl("test", "shared/child")],
+        };
+        let parent_two_record = component_to_record(&parent_two, None).unwrap();
+
+        let top_level: Vec<(Box<dyn super::DatapackComponent>, super::ComponentRecord)> = vec![
+            (Box::new(parent_one), parent_one_record),
+            (Box::new(parent_two), parent_two_record),
+        ];
+
+        let err = super::expand_with_nested(top_level, None).unwrap_err();
+        assert!(err.to_string().contains("shared/child"));
     }
 }

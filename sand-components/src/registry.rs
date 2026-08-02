@@ -352,6 +352,27 @@ registry_id! {
     PigVariantId
 }
 
+registry_id! {
+    /// Typed identifier for the `villager_trade` registry (e.g.
+    /// `minecraft:trades/enchanted_pickaxe` or `mypack:blacksmith/novice/coal_purchase`).
+    /// Introduced in Minecraft 26.1.
+    VillagerTradeId
+}
+
+registry_id! {
+    /// Typed identifier for the `trade_set` registry (e.g.
+    /// `minecraft:armorer/level_1` or `mypack:blacksmith/novice`).
+    /// Introduced in Minecraft 26.1.
+    TradeSetId
+}
+
+registry_id! {
+    /// Typed identifier for a named random sequence (`minecraft:random_sequence`
+    /// scoping), e.g. `minecraft:trade_set/armorer/level_1` or
+    /// `mypack:trade_set/blacksmith/novice`.
+    RandomSequenceId
+}
+
 // ── TagId<T> ─────────────────────────────────────────────────────────────────
 
 /// A typed tag identifier scoped to a specific registry kind `T`.

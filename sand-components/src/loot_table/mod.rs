@@ -86,6 +86,7 @@ impl LootTableType {
 /// Provides numeric values for loot table operations, supporting constants and dynamic calculations.
 ///
 /// Variants include constant values, uniform random ranges, binomial distributions, and score-based values.
+#[derive(Debug, Clone, PartialEq)]
 pub enum NumberProvider {
     /// A constant numeric value.
     Constant(f64),

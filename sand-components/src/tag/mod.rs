@@ -4,7 +4,7 @@ use serde_json::{Value, json};
 
 use crate::component::DatapackComponent;
 use crate::error::{Result, SandError};
-use crate::registry::{BlockId, EntityTypeId, FunctionId, ItemId, TagId};
+use crate::registry::{BlockId, EntityTypeId, FunctionId, ItemId, TagId, VillagerTradeId};
 use crate::resource_location::ResourceLocation;
 
 /// A Minecraft tag file that groups entities, items, blocks, or other objects together.
@@ -93,6 +93,11 @@ tag_registry!(ItemId, "minecraft:item", "tags/item");
 tag_registry!(BlockId, "minecraft:block", "tags/block");
 tag_registry!(EntityTypeId, "minecraft:entity_type", "tags/entity_type");
 tag_registry!(FunctionId, "minecraft:function", "tags/function");
+tag_registry!(
+    VillagerTradeId,
+    "minecraft:villager_trade",
+    "tags/villager_trade"
+);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum EntryKind<T> {

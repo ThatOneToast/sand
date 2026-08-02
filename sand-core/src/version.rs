@@ -251,6 +251,10 @@ pub struct VersionProfile {
     /// Whether this version supports biome-scoped animal variant registries —
     /// `chicken_variant`, `cow_variant`, `pig_variant` (1.21.5+).
     pub supports_animal_variants: bool,
+    /// Whether this version supports the data-driven Villager/Wandering
+    /// Trader trade registries — `villager_trade` and `trade_set` (26.1+).
+    /// Not backported to the legacy `1.21.x` series.
+    pub supports_villager_trades: bool,
     /// When `true` the profile was resolved via a conservative fallback because
     /// the exact version was not in the known table. Users should verify and
     /// may override `pack_format` in `sand.toml`.
@@ -336,6 +340,7 @@ impl VersionProfile {
             supports_chat_types: caps.chat_types,
             supports_enchantments: caps.enchantments,
             supports_animal_variants: caps.animal_variants,
+            supports_villager_trades: caps.villager_trades,
             is_fallback: caps.is_fallback,
         })
     }
@@ -451,6 +456,7 @@ impl VersionProfile {
             "data_components" => self.supports_data_components,
             "26_series" => self.supports_26_series,
             "animal_variants" => self.supports_animal_variants,
+            "villager_trades" => self.supports_villager_trades,
             _ => false,
         }
     }
@@ -472,6 +478,7 @@ impl VersionProfile {
             self.supports_item_components,
         )
         .with_animal_variants(self.supports_animal_variants)
+        .with_villager_trades(self.supports_villager_trades)
     }
 }
 
@@ -490,6 +497,7 @@ struct VersionCaps {
     chat_types: bool,
     enchantments: bool,
     animal_variants: bool,
+    villager_trades: bool,
     is_fallback: bool,
 }
 
@@ -498,6 +506,12 @@ impl Default for VersionCaps {
     ///
     /// Do NOT use this as the fallback for unknown versions — use
     /// [`VersionCaps::conservative`] instead.
+    ///
+    /// `villager_trades` defaults to `false` here (unlike every other flag):
+    /// the registry is new in the 26.x calendar series and was never
+    /// backported to any legacy `1.21.x` release, so every legacy-series arm
+    /// would otherwise need an explicit `villager_trades: false` override.
+    /// Only the `26.1`/`26.2` arms opt in explicitly.
     fn default() -> Self {
         Self {
             data_fmt: 61,
@@ -514,6 +528,7 @@ impl Default for VersionCaps {
             chat_types: true,
             enchantments: true,
             animal_variants: true,
+            villager_trades: false,
             is_fallback: false,
         }
     }
@@ -541,6 +556,7 @@ impl VersionCaps {
             chat_types: false,
             enchantments: false,
             animal_variants: false,
+            villager_trades: false,
             is_fallback: true,
         }
     }
@@ -560,6 +576,7 @@ fn lookup(major: u32, minor: u32, patch: u32) -> VersionCaps {
             data_fmt: 107,
             res_fmt: 88,
             dialogs: true,
+            villager_trades: true,
             is_fallback: false,
             ..VersionCaps::default()
         },
@@ -568,6 +585,7 @@ fn lookup(major: u32, minor: u32, patch: u32) -> VersionCaps {
             data_fmt: 101,
             res_fmt: 84,
             dialogs: true,
+            villager_trades: true,
             is_fallback: false,
             ..VersionCaps::default()
         },
@@ -1064,6 +1082,46 @@ mod tests {
     }
 
     #[test]
+    fn villager_trades_not_in_1_21_11() {
+        // Villager trades are a 26.x-only registry, never backported to 1.21.x.
+        let v = MinecraftVersion::parse("1.21.11").unwrap();
+        let p = VersionProfile::resolve(&v).unwrap();
+        assert!(
+            !p.supports_villager_trades,
+            "1.21.11 predates villager trades"
+        );
+        assert!(!p.supports_feature("villager_trades"));
+    }
+
+    #[test]
+    fn villager_trades_in_26_1() {
+        let v = MinecraftVersion::parse("26.1").unwrap();
+        let p = VersionProfile::resolve(&v).unwrap();
+        assert!(
+            p.supports_villager_trades,
+            "26.1 introduced villager trades"
+        );
+        assert!(p.supports_feature("villager_trades"));
+    }
+
+    #[test]
+    fn villager_trades_in_26_2() {
+        let v = MinecraftVersion::parse("26.2").unwrap();
+        let p = VersionProfile::resolve(&v).unwrap();
+        assert!(p.supports_villager_trades);
+    }
+
+    #[test]
+    fn villager_trades_not_in_26x_unknown() {
+        let v = MinecraftVersion::parse("26.99").unwrap();
+        let p = VersionProfile::resolve(&v).unwrap();
+        assert!(
+            !p.supports_villager_trades,
+            "unverified 26.x profile must not claim villager trade support"
+        );
+    }
+
+    #[test]
     fn function_macros_gated() {
         let old = MinecraftVersion::parse("1.20.1").unwrap();
         let p = VersionProfile::resolve(&old).unwrap();
@@ -1132,6 +1190,7 @@ mod tests {
         assert!(!p.supports_damage_types);
         assert!(!p.supports_chat_types);
         assert!(!p.supports_enchantments);
+        assert!(!p.supports_villager_trades);
     }
 
     #[test]

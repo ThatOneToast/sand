@@ -167,14 +167,14 @@ pub use sand_components::{ChatDecoration, ChatDecorationParameter, ChatStyle, Ch
 pub use sand_components::{
     Advancement, AdvancementDisplay, AdvancementFrame, AdvancementIcon, AdvancementRewards,
     AdvancementTrigger, AttributeId, AttributeModifier, AttributeOperation, AttributeType,
-    BannerPattern, BiomeSelector, BlockPredicate, ConfiguredFeature, ConsumableAnimation,
-    ConsumableProperties, Criterion, CustomData, CustomItem, DamagePredicate,
-    DamageSourcePredicate, DensityFunction, DensityFunctionBinaryOp, DensityFunctionExpr,
-    DensityFunctionUnaryOp, Dimension, DimensionType, DistancePredicate, Enchantment,
-    EnchantmentCost, EnchantmentEntry, EnchantmentOrTag, EnchantmentProvider,
-    EnchantmentProviderInt, EnchantmentSelection, EnchantmentValueOperation, EntityEquipment,
-    EntityFlags, EntityPredicate, EntityPredicateTarget, EquipmentModelId, EquipmentSlot,
-    EquipmentSlotGroup, EquippableProperties, ExclusionZone, FoodProperties,
+    BannerPattern, BiomeSelector, BlockPredicate, CarverFloatRange, CarvingStep, CaveCarverConfig,
+    ConfiguredCarver, ConfiguredFeature, ConsumableAnimation, ConsumableProperties, Criterion,
+    CustomData, CustomItem, DamagePredicate, DamageSourcePredicate, DensityFunction,
+    DensityFunctionBinaryOp, DensityFunctionExpr, DensityFunctionUnaryOp, Dimension, DimensionType,
+    DistancePredicate, Enchantment, EnchantmentCost, EnchantmentEntry, EnchantmentOrTag,
+    EnchantmentProvider, EnchantmentProviderInt, EnchantmentSelection, EnchantmentValueOperation,
+    EntityEquipment, EntityFlags, EntityPredicate, EntityPredicateTarget, EquipmentModelId,
+    EquipmentSlot, EquipmentSlotGroup, EquippableProperties, ExclusionZone, FoodProperties,
     FrequencyReductionMethod, GenerationStep, HeightProvider, Heightmap, Ingredient, IntoItemStack,
     ItemComponent, ItemModifier, ItemOrTag, ItemPredicate, ItemRarity, ItemStack,
     ItemStackComponents, JigsawConfig, LevelBasedValue, LocationPredicate, LootCondition,
@@ -197,10 +197,10 @@ pub use sand_components::{RawComponent, RawJson, RawSnbt};
 // ── Typed registry identifiers ────────────────────────────────────────────────
 
 pub use sand_components::{
-    AdvancementId, BiomeId, BlockId, ConfiguredFeatureId, DamageTypeId, DensityFunctionId,
-    DimensionId, DimensionTypeId, EffectId, EnchantmentEffectComponentId, EnchantmentId,
-    EntityTypeId, FunctionId, ItemId, LootTableId, NoiseId, PotionContents, PotionId,
-    PotionRegistryId, PredicateId, ProcessorListId, RandomSequenceId, Range, RecipeId,
+    AdvancementId, BiomeId, BlockId, ConfiguredCarverId, ConfiguredFeatureId, DamageTypeId,
+    DensityFunctionId, DimensionId, DimensionTypeId, EffectId, EnchantmentEffectComponentId,
+    EnchantmentId, EntityTypeId, FunctionId, ItemId, LootTableId, NoiseId, PotionContents,
+    PotionId, PotionRegistryId, PredicateId, ProcessorListId, RandomSequenceId, Range, RecipeId,
     SoundEventId, StatusEffectId, StatusEffectInstance, StructureId, StructureSetId,
     StructureTemplate, StructureTemplateId, StructureTypeId, SuspiciousStewEffect, TagId,
     TemplatePoolId, TradeSetId, VillagerTradeId,
@@ -255,6 +255,28 @@ mod tests {
         assert_eq!(
             placed.to_json()["feature"],
             "test:worldgen/configured_feature/nothing"
+        );
+    }
+
+    #[test]
+    fn prelude_exports_typed_configured_carver_reference_path() {
+        let carver = ConfiguredCarver::cave(
+            ResourceLocation::new("test", "worldgen/configured_carver/shallow_cave").unwrap(),
+            CaveCarverConfig::new(
+                0.15,
+                HeightProvider::absolute(0),
+                CarverFloatRange::new(0.1, 0.9),
+                VerticalAnchor::Absolute(-54),
+            ),
+        );
+        let biome = crate::Biome::new(
+            ResourceLocation::new("test", "worldgen/biome/shallow_caves").unwrap(),
+            crate::BiomeEffects::new(0xC0D8FF, 0x3F76E4, 0x050533, 0x78A7FF),
+        )
+        .carver_step(CarvingStep::Air, carver.id());
+        assert_eq!(
+            biome.to_json()["carvers"]["air"][0],
+            "test:worldgen/configured_carver/shallow_cave"
         );
     }
 

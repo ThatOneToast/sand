@@ -266,12 +266,17 @@ pub use sand_components::{
     BlockId,
     // Typed predicate model
     BlockPredicate,
+    // Worldgen
+    CarverFloatRange,
+    CarvingStep,
+    CaveCarverConfig,
     ChatDecoration,
     ChatType,
     // Animal variants
     ChickenVariant,
     ChickenVariantId,
-    // Worldgen
+    ConfiguredCarver,
+    ConfiguredCarverId,
     ConfiguredFeature,
     ConfiguredFeatureId,
     ConsumableAnimation,

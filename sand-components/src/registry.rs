@@ -194,6 +194,16 @@ registry_id! {
 }
 
 registry_id! {
+    /// Typed Minecraft configured-carver identifier (e.g. `minecraft:cave` or
+    /// `mymod:arcane_cave`).
+    ///
+    /// Referenced by [`crate::worldgen::Biome::carver_step`]; obtain one for
+    /// a component you authored with
+    /// [`crate::worldgen::ConfiguredCarver::id`].
+    ConfiguredCarverId
+}
+
+registry_id! {
     /// Typed Minecraft dimension-type identifier (e.g. `minecraft:overworld` or `mymod:skylands`).
     DimensionTypeId
 }

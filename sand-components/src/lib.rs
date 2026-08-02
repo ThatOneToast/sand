@@ -81,10 +81,11 @@ pub use predicates::{
     IntRange, ItemPredicate, LocationPredicate, Range,
 };
 pub use registry::{
-    AdvancementId, BiomeId, BlockId, ChickenVariantId, CowVariantId, DamageTypeId, DimensionId,
-    DimensionTypeId, EnchantmentEffectComponentId, EnchantmentId, EntityTypeId, EquipmentModelId,
-    FunctionId, ItemId, LootTableId, PigVariantId, PotionRegistryId, RecipeId, SoundEventId,
-    StatusEffectId, StructureId, TagId,
+    AdvancementId, BiomeId, BlockId, ChickenVariantId, ConfiguredFeatureId, CowVariantId,
+    DamageTypeId, DensityFunctionId, DimensionId, DimensionTypeId, EnchantmentEffectComponentId,
+    EnchantmentId, EntityTypeId, EquipmentModelId, FunctionId, ItemId, LootTableId, NoiseId,
+    PigVariantId, PotionRegistryId, ProcessorListId, RecipeId, SoundEventId, StatusEffectId,
+    StructureId, StructureSetId, StructureTemplateId, StructureTypeId, TagId, TemplatePoolId,
 };
 pub use resource_location::{Identifier, PackNamespace, ResourceLocation};
 
@@ -193,6 +194,13 @@ pub use wolf_variant::WolfVariant;
 // ── Worldgen ──────────────────────────────────────────────────────────────────
 
 pub use worldgen::biome::BiomeEffects;
+pub use worldgen::providers::{BlockState, BlockStateProvider, WeightedBlockState};
 pub use worldgen::{
-    Biome, Dimension, DimensionType, MonsterSpawnLightLevel, NoiseSettings, PlacedFeature,
+    Biome, BiomeSelector, ConfiguredFeature, DensityFunction, DensityFunctionBinaryOp,
+    DensityFunctionExpr, DensityFunctionUnaryOp, Dimension, DimensionType, ExclusionZone,
+    FrequencyReductionMethod, GenerationStep, HeightProvider, Heightmap, JigsawConfig, MobCategory,
+    MonsterSpawnLightLevel, Noise, NoiseSettings, OreConfig, OreTarget, PlacedFeature, PoolElement,
+    PoolEntry, Processor, ProcessorList, ProcessorRule, ProcessorsRef, Projection, RuleTest,
+    SpawnBoundingBox, SpawnEntry, SpawnOverride, SpreadType, Structure, StructureEntry,
+    StructurePlacement, StructureSet, TemplatePool, TerrainAdaptation, VerticalAnchor,
 };

@@ -114,6 +114,23 @@ pub trait DatapackComponent {
         &[]
     }
 
+    /// Additional generated components this component hoists alongside its
+    /// own resource — e.g. [`crate::villager_trade::TradeSet`] hoisting its
+    /// inline [`crate::villager_trade::TradeSet::entry`] closures into
+    /// separate generated `villager_trade` resources, or
+    /// [`crate::villager_trade::VillagerTradePoolPatch`] hoisting its
+    /// `.append(...)` entries.
+    ///
+    /// The default implementation returns an empty list — most components
+    /// map to exactly one output file. The export pipeline validates and
+    /// writes every nested component the same way it does top-level
+    /// components (including version gating and generated-path collision
+    /// detection), after this component's own record has been produced
+    /// successfully.
+    fn nested_components(&self) -> Vec<Box<dyn DatapackComponent>> {
+        Vec::new()
+    }
+
     /// Project-root-relative source path to copy verbatim for binary assets.
     ///
     /// Most datapack components are generated text and should use

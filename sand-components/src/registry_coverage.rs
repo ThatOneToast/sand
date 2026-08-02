@@ -515,19 +515,23 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         registry_key: "minecraft:trade_set",
         datapack_dir: "trade_set",
         tag_dir: None,
-        sand_module: None,
-        api_status: RegistryApiStatus::RawOnly,
+        sand_module: Some("sand_components::villager_trade"),
+        api_status: RegistryApiStatus::PartiallyImplemented,
         version_gate: Some("26.1"),
-        notes: "No typed component builder. Use RawComponent.",
+        notes: "TradeSet supports inline entry hoisting, explicit/tag sources, amount, \
+                allow_duplicates, and random_sequence. Item modifiers/merchant predicates on \
+                referenced trades remain raw JSON escape hatches pending #185/#204; #296.",
     },
     RegistryCoverage {
         registry_key: "minecraft:villager_trade",
         datapack_dir: "villager_trade",
-        tag_dir: None,
-        sand_module: None,
-        api_status: RegistryApiStatus::RawOnly,
+        tag_dir: Some("tags/villager_trade"),
+        sand_module: Some("sand_components::villager_trade"),
+        api_status: RegistryApiStatus::PartiallyImplemented,
         version_gate: Some("26.1"),
-        notes: "No typed component builder. Use RawComponent.",
+        notes: "VillagerTrade types wants/additional_wants/gives/max_uses/reputation_discount/ \
+                merchant_xp/double_trade_price_enchantments. given_item_modifiers and \
+                merchant_predicate remain raw JSON escape hatches pending #185/#204; #296.",
     },
     RegistryCoverage {
         registry_key: "minecraft:wolf_sound_variant",
@@ -750,6 +754,16 @@ pub const TAG_COVERAGE: &[TagCoverage] = &[
         api_status: RegistryApiStatus::FullyImplemented,
         notes: "TypedTag<FunctionId> supports required and optional function and tag references.",
     },
+    TagCoverage {
+        value_registry: "minecraft:villager_trade",
+        datapack_dir: "tags/villager_trade",
+        sand_module: Some("sand_components::villager_trade"),
+        api_status: RegistryApiStatus::PartiallyImplemented,
+        notes: "TagId<VillagerTradeId> is registered via tag_registry! and accepted by \
+                TradeSet::source_tag/TradeSet::include_ref. VillagerTradePoolPatch emits the \
+                additive `replace: false` contribution to known profession/level, Common Smith, \
+                and Wandering Trader pool tags directly rather than through TypedTag; #296.",
+    },
 ];
 
 /// Coverage for public datapack assets omitted from Mojang's registry report.
@@ -799,6 +813,8 @@ pub const REGISTRY_REMOVED_IN: &[(&str, &str)] = &[];
 /// promotion from silently slipping in without a corresponding audit.
 pub const KNOWN_PARTIAL_REGISTRIES: &[(&str, &[&str])] = &[
     ("minecraft:loot_table", &["#137"]),
+    ("minecraft:trade_set", &["#185", "#204", "#296"]),
+    ("minecraft:villager_trade", &["#185", "#204", "#296"]),
     ("minecraft:jukebox_song", &["#321"]),
     ("minecraft:instrument", &["#321"]),
     ("minecraft:trim_material", &["#322"]),

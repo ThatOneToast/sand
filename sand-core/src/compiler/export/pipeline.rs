@@ -167,11 +167,21 @@ pub(crate) fn try_export_components_impl(
     }
 
     // ── ComponentFactories (fallible boundary) ────────────────────────────────
+    //
+    // Collect every top-level component and its record, then expand each
+    // component's `nested_components()` (compound components such as
+    // `TradeSet` and `VillagerTradePoolPatch` hoisting inline entries into
+    // separate generated resources) via `records::expand_with_nested`, which
+    // checks every nested key against the full top-level set *before* any
+    // nested record is accepted — this makes collision detection between a
+    // generated child and an explicit standalone component order-independent.
+    let mut top_level: Vec<(Box<dyn crate::DatapackComponent>, ComponentRecord)> = Vec::new();
     for factory in inventory::iter::<ComponentFactory>() {
         let comp = (factory.make)();
         let record = component_to_record(comp.as_ref(), ctx)?;
-        records.push(record);
+        top_level.push((comp, record));
     }
+    records.extend(super::records::expand_with_nested(top_level, ctx)?);
 
     // ── EventDescriptors + ArmorEventDescriptors ─────────────────────────────
     use crate::events::TickExecutionIrPlans;

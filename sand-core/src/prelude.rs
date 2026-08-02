@@ -175,16 +175,19 @@ pub use sand_components::{
     EnchantmentProvider, EnchantmentProviderInt, EnchantmentSelection, EnchantmentValueOperation,
     EntityEquipment, EntityFlags, EntityPredicate, EntityPredicateTarget, EquipmentModelId,
     EquipmentSlot, EquipmentSlotGroup, EquippableProperties, ExclusionZone, FoodProperties,
-    FrequencyReductionMethod, GenerationStep, HeightProvider, Heightmap, Ingredient, ItemComponent,
-    ItemModifier, ItemOrTag, ItemPredicate, ItemRarity, ItemStackComponents, JigsawConfig,
-    LevelBasedValue, LocationPredicate, LootCondition, LootEntry, LootFunction, LootPool,
-    LootTable, LootTableType, MobCategory, MonsterSpawnLightLevel, Noise, OreConfig, OreTarget,
-    PlacedFeature, PoolElement, PoolEntry, Predicate, PredicateRoot, Processor, ProcessorList,
-    ProcessorRule, ProcessorsRef, Projection, Rarity, RecipeResult, RuleTest, ShapedRecipe,
-    ShapelessRecipe, SmithingTransformRecipe, SmithingTrimRecipe, SpawnBoundingBox, SpawnEntry,
-    SpawnOverride, SpreadType, StonecuttingRecipe, Structure, StructureEntry, StructurePlacement,
-    StructureSet, Tag, TagEntry, TagRegistry, TemplatePool, TerrainAdaptation, ToolProperties,
-    ToolRule, TrimAssetName, TrimMaterial, TrimPattern, TypedTag, VerticalAnchor, WeatherPredicate,
+    FrequencyReductionMethod, GenerationStep, HeightProvider, Heightmap, Ingredient, IntoItemStack,
+    ItemComponent, ItemModifier, ItemOrTag, ItemPredicate, ItemRarity, ItemStack,
+    ItemStackComponents, JigsawConfig, LevelBasedValue, LocationPredicate, LootCondition,
+    LootEntry, LootFunction, LootPool, LootTable, LootTableType, MobCategory,
+    MonsterSpawnLightLevel, Noise, OreConfig, OreTarget, PlacedFeature, PoolElement, PoolEntry,
+    Predicate, PredicateRoot, Processor, ProcessorList, ProcessorRule, ProcessorsRef, Projection,
+    Rarity, RecipeResult, RuleTest, ShapedRecipe, ShapelessRecipe, SmithingTransformRecipe,
+    SmithingTrimRecipe, SpawnBoundingBox, SpawnEntry, SpawnOverride, SpreadType,
+    StonecuttingRecipe, Structure, StructureEntry, StructurePlacement, StructureSet, Tag, TagEntry,
+    TagRegistry, TemplatePool, TerrainAdaptation, ToolProperties, ToolRule, TradeItem, TradeSet,
+    TrimAssetName, TrimMaterial, TrimPattern, TypedTag, VerticalAnchor, VillagerLevel,
+    VillagerProfession, VillagerTrade, VillagerTradePool, VillagerTradePoolPatch, VillagerTradeRef,
+    WanderingTraderPool, WeatherPredicate,
 };
 
 // ── Raw escape hatch types ────────────────────────────────────────────────────
@@ -197,9 +200,10 @@ pub use sand_components::{
     AdvancementId, BiomeId, BlockId, ConfiguredCarverId, ConfiguredFeatureId, DamageTypeId,
     DensityFunctionId, DimensionId, DimensionTypeId, EffectId, EnchantmentEffectComponentId,
     EnchantmentId, EntityTypeId, FunctionId, ItemId, LootTableId, NoiseId, PotionContents,
-    PotionId, PotionRegistryId, PredicateId, ProcessorListId, Range, RecipeId, SoundEventId,
-    StatusEffectId, StatusEffectInstance, StructureId, StructureSetId, StructureTemplate,
-    StructureTemplateId, StructureTypeId, SuspiciousStewEffect, TagId, TemplatePoolId,
+    PotionId, PotionRegistryId, PredicateId, ProcessorListId, RandomSequenceId, Range, RecipeId,
+    SoundEventId, StatusEffectId, StatusEffectInstance, StructureId, StructureSetId,
+    StructureTemplate, StructureTemplateId, StructureTypeId, SuspiciousStewEffect, TagId,
+    TemplatePoolId, TradeSetId, VillagerTradeId,
 };
 
 // ── Text / chat ───────────────────────────────────────────────────────────────

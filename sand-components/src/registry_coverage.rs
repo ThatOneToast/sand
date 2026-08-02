@@ -664,10 +664,10 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         registry_key: "minecraft:worldgen/configured_carver",
         datapack_dir: "worldgen/configured_carver",
         tag_dir: None,
-        sand_module: None,
-        api_status: RegistryApiStatus::Missing,
+        sand_module: Some("sand_components::worldgen::configured_carver"),
+        api_status: RegistryApiStatus::PartiallyImplemented,
         version_gate: None,
-        notes: "Not implemented. Use RawComponent.",
+        notes: "Typed ConfiguredCarverId references and a small common builder slice (cave, nether_cave, sharing CaveCarverConfig); other vanilla carver shapes use the explicit ConfiguredCarver::raw escape hatch.",
     },
     RegistryCoverage {
         registry_key: "minecraft:dimension",

@@ -169,7 +169,8 @@ pub use sand_components::{
     AdvancementTrigger, AttributeId, AttributeModifier, AttributeOperation, AttributeType,
     BannerPattern, BiomeSelector, BlockPredicate, ConfiguredFeature, ConsumableAnimation,
     ConsumableProperties, Criterion, CustomData, CustomItem, DamagePredicate,
-    DamageSourcePredicate, Dimension, DimensionType, DistancePredicate, Enchantment,
+    DamageSourcePredicate, DensityFunction, DensityFunctionBinaryOp, DensityFunctionExpr,
+    DensityFunctionUnaryOp, Dimension, DimensionType, DistancePredicate, Enchantment,
     EnchantmentCost, EnchantmentEntry, EnchantmentOrTag, EnchantmentProvider,
     EnchantmentProviderInt, EnchantmentSelection, EnchantmentValueOperation, EntityEquipment,
     EntityFlags, EntityPredicate, EquipmentModelId, EquipmentSlot, EquipmentSlotGroup,
@@ -177,13 +178,13 @@ pub use sand_components::{
     HeightProvider, Heightmap, Ingredient, ItemComponent, ItemModifier, ItemOrTag, ItemPredicate,
     ItemRarity, ItemStackComponents, JigsawConfig, LevelBasedValue, LocationPredicate,
     LootCondition, LootEntry, LootFunction, LootPool, LootTable, LootTableType, MobCategory,
-    MonsterSpawnLightLevel, OreConfig, OreTarget, PlacedFeature, PoolElement, PoolEntry, Predicate,
-    Processor, ProcessorList, ProcessorRule, ProcessorsRef, Projection, Rarity, RecipeResult,
-    RuleTest, ShapedRecipe, ShapelessRecipe, SmithingTransformRecipe, SmithingTrimRecipe,
-    SpawnBoundingBox, SpawnEntry, SpawnOverride, SpreadType, StonecuttingRecipe, Structure,
-    StructureEntry, StructurePlacement, StructureSet, Tag, TagEntry, TagRegistry, TemplatePool,
-    TerrainAdaptation, ToolProperties, ToolRule, TrimAssetName, TrimMaterial, TrimPattern,
-    TypedTag, VerticalAnchor,
+    MonsterSpawnLightLevel, Noise, OreConfig, OreTarget, PlacedFeature, PoolElement, PoolEntry,
+    Predicate, Processor, ProcessorList, ProcessorRule, ProcessorsRef, Projection, Rarity,
+    RecipeResult, RuleTest, ShapedRecipe, ShapelessRecipe, SmithingTransformRecipe,
+    SmithingTrimRecipe, SpawnBoundingBox, SpawnEntry, SpawnOverride, SpreadType,
+    StonecuttingRecipe, Structure, StructureEntry, StructurePlacement, StructureSet, Tag, TagEntry,
+    TagRegistry, TemplatePool, TerrainAdaptation, ToolProperties, ToolRule, TrimAssetName,
+    TrimMaterial, TrimPattern, TypedTag, VerticalAnchor,
 };
 
 // ── Raw escape hatch types ────────────────────────────────────────────────────
@@ -193,12 +194,12 @@ pub use sand_components::{RawComponent, RawJson, RawSnbt};
 // ── Typed registry identifiers ────────────────────────────────────────────────
 
 pub use sand_components::{
-    AdvancementId, BiomeId, BlockId, ConfiguredFeatureId, DamageTypeId, DimensionId,
-    DimensionTypeId, EffectId, EnchantmentEffectComponentId, EnchantmentId, EntityTypeId,
-    FunctionId, ItemId, LootTableId, PotionContents, PotionId, PotionRegistryId, ProcessorListId,
-    Range, RecipeId, SoundEventId, StatusEffectId, StatusEffectInstance, StructureId,
-    StructureSetId, StructureTemplate, StructureTemplateId, StructureTypeId, SuspiciousStewEffect,
-    TagId, TemplatePoolId,
+    AdvancementId, BiomeId, BlockId, ConfiguredFeatureId, DamageTypeId, DensityFunctionId,
+    DimensionId, DimensionTypeId, EffectId, EnchantmentEffectComponentId, EnchantmentId,
+    EntityTypeId, FunctionId, ItemId, LootTableId, NoiseId, PotionContents, PotionId,
+    PotionRegistryId, ProcessorListId, Range, RecipeId, SoundEventId, StatusEffectId,
+    StatusEffectInstance, StructureId, StructureSetId, StructureTemplate, StructureTemplateId,
+    StructureTypeId, SuspiciousStewEffect, TagId, TemplatePoolId,
 };
 
 // ── Text / chat ───────────────────────────────────────────────────────────────

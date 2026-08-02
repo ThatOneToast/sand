@@ -73,11 +73,11 @@ pub use predicates::{
     IntRange, ItemPredicate, LocationPredicate, Range,
 };
 pub use registry::{
-    AdvancementId, BiomeId, BlockId, ConfiguredFeatureId, DamageTypeId, DimensionId,
-    DimensionTypeId, EnchantmentEffectComponentId, EnchantmentId, EntityTypeId, EquipmentModelId,
-    FunctionId, ItemId, LootTableId, PotionRegistryId, ProcessorListId, RecipeId, SoundEventId,
-    StatusEffectId, StructureId, StructureSetId, StructureTemplateId, StructureTypeId, TagId,
-    TemplatePoolId,
+    AdvancementId, BiomeId, BlockId, ConfiguredFeatureId, DamageTypeId, DensityFunctionId,
+    DimensionId, DimensionTypeId, EnchantmentEffectComponentId, EnchantmentId, EntityTypeId,
+    EquipmentModelId, FunctionId, ItemId, LootTableId, NoiseId, PotionRegistryId, ProcessorListId,
+    RecipeId, SoundEventId, StatusEffectId, StructureId, StructureSetId, StructureTemplateId,
+    StructureTypeId, TagId, TemplatePoolId,
 };
 pub use resource_location::{Identifier, PackNamespace, ResourceLocation};
 
@@ -181,9 +181,10 @@ pub use wolf_variant::WolfVariant;
 pub use worldgen::biome::BiomeEffects;
 pub use worldgen::providers::{BlockState, BlockStateProvider, WeightedBlockState};
 pub use worldgen::{
-    Biome, BiomeSelector, ConfiguredFeature, Dimension, DimensionType, ExclusionZone,
+    Biome, BiomeSelector, ConfiguredFeature, DensityFunction, DensityFunctionBinaryOp,
+    DensityFunctionExpr, DensityFunctionUnaryOp, Dimension, DimensionType, ExclusionZone,
     FrequencyReductionMethod, GenerationStep, HeightProvider, Heightmap, JigsawConfig, MobCategory,
-    MonsterSpawnLightLevel, NoiseSettings, OreConfig, OreTarget, PlacedFeature, PoolElement,
+    MonsterSpawnLightLevel, Noise, NoiseSettings, OreConfig, OreTarget, PlacedFeature, PoolElement,
     PoolEntry, Processor, ProcessorList, ProcessorRule, ProcessorsRef, Projection, RuleTest,
     SpawnBoundingBox, SpawnEntry, SpawnOverride, SpreadType, Structure, StructureEntry,
     StructurePlacement, StructureSet, TemplatePool, TerrainAdaptation, VerticalAnchor,

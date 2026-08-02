@@ -6,8 +6,10 @@
 
 pub mod biome;
 pub mod configured_feature;
+pub mod density_function;
 pub mod dimension;
 pub mod dimension_type;
+pub mod noise;
 pub mod noise_settings;
 pub mod placed_feature;
 pub mod processor_list;
@@ -18,8 +20,12 @@ pub mod template_pool;
 
 pub use biome::Biome;
 pub use configured_feature::{ConfiguredFeature, OreConfig, OreTarget, RuleTest};
+pub use density_function::{
+    DensityFunction, DensityFunctionBinaryOp, DensityFunctionExpr, DensityFunctionUnaryOp,
+};
 pub use dimension::Dimension;
 pub use dimension_type::{DimensionType, MonsterSpawnLightLevel};
+pub use noise::Noise;
 pub use noise_settings::NoiseSettings;
 pub use placed_feature::PlacedFeature;
 pub use processor_list::{Processor, ProcessorList, ProcessorRule};

@@ -190,6 +190,19 @@ registry_id! {
 }
 
 registry_id! {
+    /// Typed Minecraft noise-parameter identifier (e.g. `minecraft:temperature`
+    /// or `mymod:ridges`), referencing `worldgen/noise/<id>.json`.
+    NoiseId
+}
+
+registry_id! {
+    /// Typed Minecraft density-function identifier (e.g.
+    /// `minecraft:overworld/base_3d_noise` or `mymod:ridge_density`),
+    /// referencing `worldgen/density_function/<id>.json`.
+    DensityFunctionId
+}
+
+registry_id! {
     /// Typed Minecraft damage type identifier (e.g. `minecraft:generic` or `mymod:arcane`).
     DamageTypeId
 }

@@ -401,10 +401,14 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         registry_key: "minecraft:chicken_variant",
         datapack_dir: "chicken_variant",
         tag_dir: None,
-        sand_module: None,
-        api_status: RegistryApiStatus::RawOnly,
+        sand_module: Some("sand_components::chicken_variant"),
+        api_status: RegistryApiStatus::PartiallyImplemented,
         version_gate: Some("1.21.5"),
-        notes: "No typed component builder. Use RawComponent. Follow-up: #201.",
+        notes: "ChickenVariant covers asset_id and the minecraft:biome spawn_conditions shape \
+                (shared SpawnCondition model, also used by cow_variant/pig_variant) on the normal \
+                path; other vanilla/modded fields and spawn-condition types use the explicit \
+                raw_field escape hatch. Introduced in 1.21.5. Golden JSON test: \
+                chicken_variant::tests::valid_chicken_variant_json_is_stable. #201.",
     },
     RegistryCoverage {
         registry_key: "minecraft:cow_sound_variant",
@@ -419,10 +423,14 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         registry_key: "minecraft:cow_variant",
         datapack_dir: "cow_variant",
         tag_dir: None,
-        sand_module: None,
-        api_status: RegistryApiStatus::RawOnly,
+        sand_module: Some("sand_components::cow_variant"),
+        api_status: RegistryApiStatus::PartiallyImplemented,
         version_gate: Some("1.21.5"),
-        notes: "No typed component builder. Use RawComponent. Follow-up: #201.",
+        notes: "CowVariant covers asset_id and the minecraft:biome spawn_conditions shape (shared \
+                SpawnCondition model). The vanilla model selector and other fields use the explicit \
+                raw_field escape hatch pending confirmation of its exact accepted values. Introduced \
+                in 1.21.5. Golden JSON test: cow_variant::tests::valid_cow_variant_json_is_stable. \
+                #201.",
     },
     RegistryCoverage {
         registry_key: "minecraft:pig_sound_variant",
@@ -437,10 +445,13 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         registry_key: "minecraft:pig_variant",
         datapack_dir: "pig_variant",
         tag_dir: None,
-        sand_module: None,
-        api_status: RegistryApiStatus::RawOnly,
+        sand_module: Some("sand_components::pig_variant"),
+        api_status: RegistryApiStatus::PartiallyImplemented,
         version_gate: Some("1.21.5"),
-        notes: "No typed component builder. Use RawComponent. Follow-up: #201.",
+        notes: "PigVariant covers asset_id and the minecraft:biome spawn_conditions shape (shared \
+                SpawnCondition model). Other vanilla/modded fields and spawn-condition types use the \
+                explicit raw_field escape hatch. Introduced in 1.21.5. Golden JSON test: \
+                pig_variant::tests::valid_pig_variant_json_is_stable. #201.",
     },
     RegistryCoverage {
         registry_key: "minecraft:sulfur_cube_archetype",

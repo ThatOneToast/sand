@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — typed chicken/cow/pig animal variant registries (#201)
+
+- Added `ChickenVariant`, `CowVariant`, and `PigVariant` typed builders for
+  `data/<namespace>/chicken_variant/`, `cow_variant/`, and `pig_variant/`
+  (Minecraft 1.21.5+). Each covers the `asset_id` texture reference and the
+  `minecraft:biome` `spawn_conditions` shape shared across these registries
+  via a new `SpawnCondition` type (`sand_components::animal_variant`);
+  `raw_field` remains an explicit escape hatch for other vanilla/modded
+  fields (e.g. `cow_variant`'s model selector, or non-biome spawn condition
+  types) not modeled in this narrow first pass.
+- Added `ChickenVariantId`, `CowVariantId`, and `PigVariantId` typed registry
+  identifiers in `sand_components::registry`.
+- Added a new `ComponentFeature::AnimalVariants` version gate (1.21.5+); a
+  new `VersionCaps::with_animal_variants` builder method sets it without
+  changing the existing `VersionCaps::from_flags`/`from_profile_flags`
+  constructor signatures.
+- Verified the confirmed registry set against the checked-in
+  `sand-components/fixtures/registry-coverage/26.2.json` report rather than
+  the previously stale coverage table: `cat_variant` and `frog_variant`
+  already had `RawOnly` coverage rows (unchanged by this slice); the
+  `*_sound_variant` registries and `zombie_nautilus_variant` are separate
+  sound/data registries left `RawOnly` as out of scope for this first pass.
+  Updated `registry_coverage.rs` rows for `chicken_variant`, `cow_variant`,
+  and `pig_variant` from `RawOnly` to `PartiallyImplemented`.
+
 ### Added — typed worldgen noise and density-function components (#192)
 
 - Added `worldgen::noise::Noise` for

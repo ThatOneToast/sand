@@ -268,6 +268,9 @@ pub use sand_components::{
     BlockPredicate,
     ChatDecoration,
     ChatType,
+    // Animal variants
+    ChickenVariant,
+    ChickenVariantId,
     // Worldgen
     ConfiguredFeature,
     ConfiguredFeatureId,
@@ -276,6 +279,8 @@ pub use sand_components::{
     // Recipes
     CookingRecipe,
     CookingType,
+    CowVariant,
+    CowVariantId,
     Criterion,
     CustomData,
     CustomItem,
@@ -370,6 +375,8 @@ pub use sand_components::{
     OreConfig,
     OreTarget,
     PaintingVariant,
+    PigVariant,
+    PigVariantId,
     PlacedFeature,
     // Structure/template pool
     PoolElement,
@@ -401,6 +408,8 @@ pub use sand_components::{
     SmithingTrimRecipe,
     SoundEventId,
     SpawnBoundingBox,
+    // Animal variants (shared spawn-condition model)
+    SpawnCondition,
     SpawnEntry,
     SpawnOverride,
     SpreadType,

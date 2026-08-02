@@ -30,6 +30,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated `worldgen/configured_carver` registry coverage from `Missing` to
   `PartiallyImplemented`.
 
+### Changed — typed biome ambient sound, temperature modifier, and feature references (#182 slice)
+
+- **Breaking:** `BiomeEffects::ambient_sound` now takes a typed `SoundEventId`
+  instead of a bare string; the previous raw-string behavior moved to the
+  explicitly named `BiomeEffects::raw_ambient_sound`.
+- **Breaking:** `Biome::temperature_modifier` now takes a typed
+  `TemperatureModifier` enum (`None`/`Frozen`) instead of a bare string; the
+  previous raw-string behavior moved to `Biome::raw_temperature_modifier`
+  (still validated against `"none"`/`"frozen"`, since vanilla does not yet
+  accept other values).
+- **Breaking:** `Biome::features` (raw `Value`) was renamed to
+  `Biome::raw_features`. Added `Biome::feature(GenerationStep,
+  ConfiguredFeatureId)`, a typed builder that places a `ConfiguredFeatureId`
+  into the correct per-generation-step bucket of the vanilla
+  list-of-lists `features` shape.
+- `Biome::feature` reuses the existing `worldgen::structure::GenerationStep`
+  (vanilla's shared `GenerationStep.Decoration` enum, already added by #187
+  for structure starts) rather than introducing a duplicate biome-local enum,
+  since both structures and biome feature buckets index the same eleven
+  vanilla decoration steps.
+- This is a scoped slice of #182 (typed biome effects + the `Biome`-level
+  part of typed IDs), not the full issue. `Biome::carvers` typing is tracked
+  by #191; `Biome::spawners`/`Biome::spawn_costs` typing, dimension
+  generator typing, noise-settings typing, and placement-modifier typing
+  remain open follow-ups under #182.
+
 ### Added — first-class typed predicate authoring beyond the `LootCondition` wrapper (#204)
 
 - Added `PredicateRoot`, a dedicated typed condition tree for standalone

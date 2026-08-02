@@ -40,18 +40,19 @@ use sand_components::recipe::{
 };
 use sand_components::registry::{
     AdvancementId, BlockId, ConfiguredCarverId, ConfiguredFeatureId, EnchantmentId, FunctionId,
-    ItemId, LootTableId, PredicateId, RecipeId,
+    ItemId, LootTableId, PredicateId, RecipeId, SoundEventId,
 };
 use sand_components::tag::{Tag, TagEntry, TypedTag};
 use sand_components::worldgen::Biome;
 use sand_components::worldgen::ConfiguredCarver;
-use sand_components::worldgen::biome::{BiomeEffects, CarvingStep};
+use sand_components::worldgen::biome::{BiomeEffects, CarvingStep, TemperatureModifier};
 use sand_components::worldgen::configured_carver::{CarverFloatRange, CaveCarverConfig};
 use sand_components::worldgen::configured_feature::ConfiguredFeature;
 use sand_components::worldgen::placed_feature::PlacedFeature;
 use sand_components::worldgen::providers::{
     BlockState, BlockStateProvider, HeightProvider, VerticalAnchor,
 };
+use sand_components::worldgen::structure::GenerationStep;
 use sand_components::{
     Advancement, AdvancementDisplay, AdvancementFrame, AdvancementIcon, AdvancementRewards,
     AdvancementTrigger, AttributeModifier, AttributeOperation, AttributeType, ComponentContent,
@@ -907,8 +908,9 @@ fn canonical_26_2_enchantment_provider() {
 // ── Worldgen ────────────────────────────────────────────────────────────────
 // Wiki: "Biome definition" (https://minecraft.wiki/w/Biome_definition), checked 2026-07-19.
 
-/// Biome with required colors, grass/foliage overrides, an ambient sound, and
-/// non-default precipitation/temperature/downfall.
+/// Biome with required colors, grass/foliage overrides, a typed ambient
+/// sound, typed feature references, and non-default
+/// precipitation/temperature/downfall.
 #[test]
 fn canonical_26_2_worldgen_biome() {
     let biome = Biome::new(
@@ -916,13 +918,19 @@ fn canonical_26_2_worldgen_biome() {
         BiomeEffects::new(0xC0D8FF, 0x3F76E4, 0x050533, 0x78A7FF)
             .grass_color(0x8A_B689)
             .foliage_color(0x71_A74D)
-            .ambient_sound("minecraft:ambient.nether_wastes.loop"),
+            .ambient_sound(SoundEventId::minecraft("ambient.nether_wastes.loop").unwrap()),
     )
     .has_precipitation(false)
     .temperature(2.0)
-    .temperature_modifier("none")
-    .downfall(0.0);
+    .temperature_modifier(TemperatureModifier::None)
+    .downfall(0.0)
+    .feature(
+        GenerationStep::UndergroundOres,
+        ConfiguredFeatureId::minecraft("ore_iron").unwrap(),
+    );
 
+    let mut expected_features: Vec<Vec<&str>> = vec![vec![]; 11];
+    expected_features[GenerationStep::UndergroundOres as usize] = vec!["minecraft:ore_iron"];
     let expected = serde_json::json!({
         "has_precipitation": false,
         "temperature": 2.0,
@@ -936,7 +944,8 @@ fn canonical_26_2_worldgen_biome() {
             "grass_color": 0x8A_B689,
             "foliage_color": 0x71_A74D,
             "ambient_sound": "minecraft:ambient.nether_wastes.loop"
-        }
+        },
+        "features": expected_features,
     });
 
     assert_eq!(biome.to_json(), expected);

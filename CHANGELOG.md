@@ -7,6 +7,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — typed Villager/Wandering Trader trade authoring (26.1+) (#296)
+
+- Added `sand_components::villager_trade` (re-exported at the `sand_components`,
+  `sand_core`, and `sand` crate roots and prelude) covering Minecraft's
+  data-driven `villager_trade`/`trade_set` registries and their Villager
+  Trade tag pools, introduced in Minecraft Java 26.1:
+  - `VillagerTrade` — a standalone `data/<namespace>/villager_trade/<id>.json`
+    blueprint. Typed `wants`/`and_wants` (`TradeItem`: item ID, count number
+    provider, raw component-map escape hatch), `gives` (the shared
+    component-bearing `ItemStack`), `max_uses`, `reputation_discount`,
+    `merchant_xp`, and `double_trade_price_enchantments` (reusing the
+    existing `EnchantmentSelection` union). `given_item_modifiers` and
+    `merchant_predicate` are explicit raw JSON escape hatches
+    (`modify_given_item_raw`, `offered_when_raw`) pending the shared typed
+    item-modifier/predicate reference work tracked by #185/#204.
+  - `TradeSet` — a `data/<namespace>/trade_set/<id>.json` selection group.
+    `TradeSet::entry(key, |trade| ...)` builds inline trades and hoists them
+    into deterministic generated `villager_trade` resources at
+    `<namespace>:<trade_set path>/<entry key>`; the exported `trade_set`
+    references them by that ID. `TradeSet::include`/`include_ref` reuse
+    standalone trades/external references without re-exporting them;
+    `TradeSet::source_tag` selects by a Villager Trade tag instead. Typed
+    `amount`, `allow_duplicates`, and `random_sequence` (new
+    `RandomSequenceId`). `TradeSet::replace_target(VillagerTradePool)` is the
+    only constructor that targets a known vanilla `trade_set` location,
+    making full replacement of vanilla content an explicit call site rather
+    than an implicit side effect of an ordinary `TradeSet::new` namespace.
+  - `VillagerTradePoolPatch` — the additive counterpart: appends generated
+    trades to an existing profession/level, Common Smith, or Wandering
+    Trader pool via a `replace: false` Villager Trade tag contribution,
+    without touching the rest of the vanilla pool. Because
+    `DatapackComponent` resolves a resource location at construction time
+    (not export time) and the target tag always lives under the vanilla
+    `minecraft` namespace, `VillagerTradePoolPatch::profession`/
+    `common_smith`/`wandering_trader`/`custom` take an explicit
+    `PackNamespace` for the generated trade files — this is the one
+    deliberate deviation from the issue's zero-argument example.
+  - `VillagerProfession`, `VillagerLevel`, `WanderingTraderPool`, and
+    `VillagerTradePool` (`Profession`/`CommonSmith`/`WanderingTrader`/
+    `Custom`) are the typed known-pool-target vocabulary used by both
+    `TradeSet::replace_target` and `VillagerTradePoolPatch`.
+  - Both `villager_trade` and `trade_set` compose: `TradeSet`/
+    `VillagerTradePoolPatch` are compound components that emit their own
+    resource plus zero or more nested `villager_trade` resources via the new
+    `DatapackComponent::nested_components` hook. The export pipeline
+    (`sand-core`'s `records::expand_with_nested`) validates and writes every
+    nested component the same way as top-level ones, detecting generated
+    path collisions against explicit standalone components before any file
+    is written.
+  - Added `TagId<VillagerTradeId>` (via `tag_registry!`) and corrected the
+    `minecraft:villager_trade` registry coverage row to include
+    `tag_dir: Some("tags/villager_trade")`.
+  - Version-gated behind a new `ComponentFeature::VillagerTrades` /
+    `VersionCaps::with_villager_trades` (mirroring `AnimalVariants`),
+    enabled only for the `26.1`/`26.2` profiles — this registry was never
+    backported to the legacy `1.21.x` series.
+  - `minecraft:trade_set` and `minecraft:villager_trade` in
+    `REGISTRY_COVERAGE` move from `RawOnly` to `PartiallyImplemented`
+    (tracked in `KNOWN_PARTIAL_REGISTRIES` pending #185/#204 typed item
+    modifiers/predicates).
+
 ### Added — component-bearing custom items as recipe results (#226)
 
 - `RecipeResult` can now carry a `CustomItem`'s data components —

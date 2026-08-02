@@ -187,9 +187,17 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         datapack_dir: "predicate",
         tag_dir: None,
         sand_module: Some("sand_components::predicate"),
-        api_status: RegistryApiStatus::PartiallyImplemented,
+        api_status: RegistryApiStatus::FullyImplemented,
         version_gate: None,
-        notes: "Predicate type exists. EntityPredicate, ItemPredicate, DamagePredicate typed. Location, weather, time predicates are partial.",
+        notes: "#204 added a dedicated PredicateRoot typed condition tree (AllOf/AnyOf/Inverted, \
+                EntityProperties with a typed EntityPredicateTarget, LocationCheck, WeatherCheck, \
+                TimeCheck, RandomChance, Reference via the typed PredicateId, and an explicit Raw \
+                escape hatch), replacing the previous LootCondition-only wrapper. Predicate is no \
+                longer coupled to loot-table condition internals as the only normal authoring path; \
+                Predicate::from_loot_condition remains for LootCondition-based compatibility and \
+                falls back to the Raw escape hatch for loot-only condition shapes. Export-time \
+                validation covers empty all_of/any_of terms, chance/range bounds, and nested \
+                predicate validation.",
     },
     RegistryCoverage {
         registry_key: "minecraft:recipe",

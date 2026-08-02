@@ -532,7 +532,7 @@ pub fn audit_recipe() -> ShapedRecipe {
 pub fn audit_predicate() -> Predicate {
     Predicate::new(
         "sand_audit:chance".parse().unwrap(),
-        LootCondition::RandomChance { chance: 0.5 },
+        PredicateRoot::random_chance(0.5),
     )
 }
 

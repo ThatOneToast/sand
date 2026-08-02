@@ -19,6 +19,7 @@ surfaces are not retained as aliases.
 | consumable/equippable sound and model IDs | `Display`/string fields | `SoundEventId` and `EquipmentModelId` | completed; #195 |
 | storage and NBT paths | strings plus typed paths | `StorageLocation`, `NbtRef`, `NbtPath` | follow-up |
 | loot table item/tag/reference/text/enchantment IDs | raw strings and `serde_json::Value` | `ItemId`, `TagId<ItemId>`, `LootTableId`, `TextComponent`-backed `LootText`, `EnchantmentSelector` (`EnchantmentId`/`TagId<EnchantmentId>`), `ResourceLocation` | completed normal paths; predicate/range/target payloads remain raw pending #137; #185 |
+| standalone predicate authoring | `Predicate` as a thin `LootCondition` wrapper | dedicated `PredicateRoot` typed condition tree (`AllOf`/`AnyOf`/`Inverted`, `EntityProperties` with `EntityPredicateTarget`, `LocationCheck`, `WeatherCheck`, `TimeCheck`, `RandomChance`, `Reference` via typed `PredicateId`) reusing the shared `sand_components::predicates` model, with an explicit `Raw` escape hatch and a `Predicate::from_loot_condition` compatibility path | completed; #204 |
 
 ## Public function-like macro inventory
 

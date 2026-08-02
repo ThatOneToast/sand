@@ -1494,6 +1494,69 @@ impl Serialize for EntityPredicate {
     }
 }
 
+// ── WeatherPredicate ──────────────────────────────────────────────────────────
+
+/// Checks current weather state — used by the standalone `minecraft:weather_check`
+/// predicate condition.
+///
+/// # Example
+/// ```rust
+/// use sand_components::predicates::WeatherPredicate;
+///
+/// let wp = WeatherPredicate::new().raining(true);
+/// ```
+#[derive(Debug, Clone, Default)]
+pub struct WeatherPredicate {
+    pub raining: Option<bool>,
+    pub thundering: Option<bool>,
+    _raw: Option<RawJson>,
+}
+
+impl WeatherPredicate {
+    pub fn validate_at(&self, _path: &str) -> Result<(), String> {
+        Ok(())
+    }
+
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Raw escape hatch — serialize arbitrary JSON as this predicate.
+    pub fn raw(v: RawJson) -> Self {
+        Self {
+            _raw: Some(v),
+            ..Default::default()
+        }
+    }
+
+    pub fn raining(mut self, v: bool) -> Self {
+        self.raining = Some(v);
+        self
+    }
+
+    pub fn thundering(mut self, v: bool) -> Self {
+        self.thundering = Some(v);
+        self
+    }
+}
+
+impl Serialize for WeatherPredicate {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        if let Some(ref raw) = self._raw {
+            return raw.serialize(serializer);
+        }
+        let count = self.raining.is_some() as usize + self.thundering.is_some() as usize;
+        let mut map = serializer.serialize_map(Some(count))?;
+        if let Some(v) = self.raining {
+            map.serialize_entry("raining", &v)?;
+        }
+        if let Some(v) = self.thundering {
+            map.serialize_entry("thundering", &v)?;
+        }
+        map.end()
+    }
+}
+
 // ── From impls for use in trigger builders ────────────────────────────────────
 
 impl From<ItemPredicate> for Value {
@@ -1522,6 +1585,14 @@ impl From<DamagePredicate> for Value {
 
 impl From<LocationPredicate> for Value {
     fn from(p: LocationPredicate) -> Value {
+        p.validate_at("predicate")
+            .unwrap_or_else(|e| panic!("predicate validation failed: {e}"));
+        serde_json::to_value(p).unwrap_or_else(|e| panic!("predicate serialization failed: {e}"))
+    }
+}
+
+impl From<WeatherPredicate> for Value {
+    fn from(p: WeatherPredicate) -> Value {
         p.validate_at("predicate")
             .unwrap_or_else(|e| panic!("predicate validation failed: {e}"));
         serde_json::to_value(p).unwrap_or_else(|e| panic!("predicate serialization failed: {e}"))

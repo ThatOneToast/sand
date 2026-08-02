@@ -559,7 +559,7 @@ mod tests {
     #[test]
     fn predicate_json_output() {
         use sand_core::{LootCondition, Predicate};
-        let pred = Predicate::new(
+        let pred = Predicate::from_loot_condition(
             "hello_world:rare_drop".parse().unwrap(),
             LootCondition::RandomChance { chance: 0.1 },
         );
@@ -569,6 +569,28 @@ mod tests {
             "minecraft:random_chance"
         );
         assert!((json["chance"].as_f64().unwrap() - 0.1).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn predicate_typed_root_output() {
+        use sand_core::{EntityPredicate, EntityPredicateTarget, Predicate, PredicateRoot};
+        let pred = Predicate::new(
+            "hello_world:is_zombie".parse().unwrap(),
+            PredicateRoot::entity_properties(
+                EntityPredicateTarget::This,
+                EntityPredicate::type_("minecraft:zombie"),
+            ),
+        );
+        let json = pred.to_json();
+        assert_eq!(
+            json["condition"].as_str().unwrap(),
+            "minecraft:entity_properties"
+        );
+        assert_eq!(json["entity"].as_str().unwrap(), "this");
+        assert_eq!(
+            json["predicate"]["type"].as_str().unwrap(),
+            "minecraft:zombie"
+        );
     }
 
     // ── ItemModifier component ────────────────────────────────────────────────
@@ -967,7 +989,7 @@ mod tests {
     #[test]
     fn loot_condition_inverted() {
         use sand_core::{LootCondition, Predicate};
-        let pred = Predicate::new(
+        let pred = Predicate::from_loot_condition(
             "hello_world:not_raining".parse().unwrap(),
             LootCondition::Inverted {
                 term: Box::new(LootCondition::WeatherCheck {
@@ -988,7 +1010,7 @@ mod tests {
     #[test]
     fn loot_condition_custom_escape_hatch() {
         use sand_core::{LootCondition, Predicate, RawJson};
-        let pred = Predicate::new(
+        let pred = Predicate::from_loot_condition(
             "hello_world:mod_condition".parse().unwrap(),
             LootCondition::Custom {
                 condition: "mymod:special_condition".into(),
@@ -1064,7 +1086,7 @@ mod tests {
     #[test]
     fn predicate_any_of_nested() {
         use sand_core::{LootCondition, Predicate};
-        let pred = Predicate::new(
+        let pred = Predicate::from_loot_condition(
             "hello_world:day_or_rain".parse().unwrap(),
             LootCondition::AnyOf {
                 terms: vec![

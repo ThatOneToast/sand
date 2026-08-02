@@ -39,15 +39,19 @@ use sand_components::recipe::{
     SmithingTransformRecipe, SmithingTrimRecipe, StonecuttingRecipe,
 };
 use sand_components::registry::{
-    AdvancementId, BlockId, ConfiguredFeatureId, EnchantmentId, FunctionId, ItemId, LootTableId,
-    PredicateId, RecipeId,
+    AdvancementId, BlockId, ConfiguredCarverId, ConfiguredFeatureId, EnchantmentId, FunctionId,
+    ItemId, LootTableId, PredicateId, RecipeId,
 };
 use sand_components::tag::{Tag, TagEntry, TypedTag};
 use sand_components::worldgen::Biome;
-use sand_components::worldgen::biome::BiomeEffects;
+use sand_components::worldgen::ConfiguredCarver;
+use sand_components::worldgen::biome::{BiomeEffects, CarvingStep};
+use sand_components::worldgen::configured_carver::{CarverFloatRange, CaveCarverConfig};
 use sand_components::worldgen::configured_feature::ConfiguredFeature;
 use sand_components::worldgen::placed_feature::PlacedFeature;
-use sand_components::worldgen::providers::{BlockState, BlockStateProvider};
+use sand_components::worldgen::providers::{
+    BlockState, BlockStateProvider, HeightProvider, VerticalAnchor,
+};
 use sand_components::{
     Advancement, AdvancementDisplay, AdvancementFrame, AdvancementIcon, AdvancementRewards,
     AdvancementTrigger, AttributeModifier, AttributeOperation, AttributeType, ComponentContent,
@@ -959,6 +963,71 @@ fn canonical_26_2_worldgen_configured_feature() {
 
     assert_eq!(feature.to_json(), expected);
     assert_eq!(feature.component_dir(), "worldgen/configured_feature");
+}
+
+/// Wiki: "Configured carver" (https://minecraft.wiki/w/Configured_carver), checked 2026-07-31.
+#[test]
+fn canonical_26_2_worldgen_configured_carver() {
+    let carver = ConfiguredCarver::cave(
+        id("worldgen/configured_carver/scorched_cave"),
+        CaveCarverConfig::new(
+            0.15,
+            HeightProvider::absolute(0),
+            CarverFloatRange::new(0.1, 0.9),
+            VerticalAnchor::Absolute(-54),
+        ),
+    );
+
+    let expected = serde_json::json!({
+        "type": "minecraft:cave",
+        "config": {
+            "probability": 0.15,
+            "y": { "absolute": 0 },
+            "yScale": {
+                "type": "minecraft:uniform",
+                "min_inclusive": 0.1,
+                "max_inclusive": 0.9,
+            },
+            "lava_level": { "absolute": -54 },
+        }
+    });
+
+    assert_eq!(carver.to_json(), expected);
+    assert_eq!(carver.component_dir(), "worldgen/configured_carver");
+}
+
+/// A biome referencing a configured carver purely through the typed
+/// `Biome::carver_step` helper — no hand-written carver JSON.
+#[test]
+fn canonical_26_2_worldgen_biome_references_configured_carver() {
+    let carver = ConfiguredCarver::cave(
+        id("worldgen/configured_carver/scorched_cave"),
+        CaveCarverConfig::new(
+            0.15,
+            HeightProvider::absolute(0),
+            CarverFloatRange::new(0.1, 0.9),
+            VerticalAnchor::Absolute(-54),
+        ),
+    );
+
+    let biome = Biome::new(
+        id("worldgen/biome/scorched_wastes"),
+        BiomeEffects::new(0xC0D8FF, 0x3F76E4, 0x050533, 0x78A7FF),
+    )
+    .carver_step(CarvingStep::Air, carver.id())
+    .carver_step(
+        CarvingStep::Liquid,
+        ConfiguredCarverId::minecraft("underwater_cave").unwrap(),
+    );
+
+    assert!(biome.validate().is_ok());
+    assert_eq!(
+        biome.to_json()["carvers"],
+        serde_json::json!({
+            "air": ["canon:worldgen/configured_carver/scorched_cave"],
+            "liquid": ["minecraft:underwater_cave"],
+        })
+    );
 }
 
 /// Wiki: "Placed feature" (https://minecraft.wiki/w/Placed_feature), checked 2026-07-19.

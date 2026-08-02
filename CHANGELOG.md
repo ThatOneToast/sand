@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — typed configured-carver builder used by biomes (#191)
+
+- Added `sand_components::worldgen::configured_carver` with `ConfiguredCarver`,
+  covering `worldgen/configured_carver/<id>.json`. Typed constructors cover the
+  common vanilla cave-shaped carvers — `ConfiguredCarver::cave` and
+  `::nether_cave` — both backed by a shared `CaveCarverConfig` (`probability`,
+  `y` via `worldgen::providers::HeightProvider`, `yScale` via a new
+  `CarverFloatRange` uniform-float provider, and `lava_level` via
+  `worldgen::providers::VerticalAnchor`). `CaveCarverConfig::config_field` is a
+  narrower escape hatch for extra vanilla config keys (e.g.
+  `horizontal_radius_multiplier`) outside the typed slice.
+- Added `ConfiguredCarverId`, and `ConfiguredCarver::id` to obtain one for a
+  component you authored.
+- Added `Biome::carver_step(step, ConfiguredCarverId)` with a new
+  `CarvingStep` (`Air`/`Liquid`) enum, preserving vanilla's step-grouped
+  `{"air": [...], "liquid": [...]}` carvers shape without hand-written JSON.
+- **Breaking:** `Biome::carvers` is renamed to `Biome::raw_carvers`, the
+  explicitly named raw escape hatch for carver references/shapes outside the
+  typed carving-step map; combining it with `Biome::carver_step` on the same
+  biome is a validation error.
+- Updated `worldgen/configured_carver` registry coverage from `Missing` to
+  `PartiallyImplemented`.
+
 ### Added — first-class typed predicate authoring beyond the `LootCondition` wrapper (#204)
 
 - Added `PredicateRoot`, a dedicated typed condition tree for standalone

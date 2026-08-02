@@ -550,7 +550,7 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         sand_module: Some("sand_components::worldgen::biome"),
         api_status: RegistryApiStatus::PartiallyImplemented,
         version_gate: None,
-        notes: "Biome struct exists with basic fields. Spawn costs, effects, mob spawning rules are partial.",
+        notes: "Biome struct has typed ambient sound (SoundEventId), temperature_modifier (enum), and per-generation-step feature references (GenerationStep + ConfiguredFeatureId); #182 slice. Carvers typing is #191; spawners/spawn_costs remain raw Value.",
     },
     RegistryCoverage {
         registry_key: "minecraft:worldgen/placed_feature",

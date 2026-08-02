@@ -182,9 +182,9 @@ pub use worldgen::biome::BiomeEffects;
 pub use worldgen::providers::{BlockState, BlockStateProvider, WeightedBlockState};
 pub use worldgen::{
     Biome, BiomeSelector, ConfiguredFeature, Dimension, DimensionType, ExclusionZone,
-    FrequencyReductionMethod, GenerationStep, HeightProvider, Heightmap, JigsawConfig,
-    MobCategory, MonsterSpawnLightLevel, NoiseSettings, OreConfig, OreTarget, PlacedFeature,
-    PoolElement, PoolEntry, Processor, ProcessorList, ProcessorRule, ProcessorsRef, Projection,
-    RuleTest, SpawnBoundingBox, SpawnEntry, SpawnOverride, SpreadType, Structure, StructureEntry,
+    FrequencyReductionMethod, GenerationStep, HeightProvider, Heightmap, JigsawConfig, MobCategory,
+    MonsterSpawnLightLevel, NoiseSettings, OreConfig, OreTarget, PlacedFeature, PoolElement,
+    PoolEntry, Processor, ProcessorList, ProcessorRule, ProcessorsRef, Projection, RuleTest,
+    SpawnBoundingBox, SpawnEntry, SpawnOverride, SpreadType, Structure, StructureEntry,
     StructurePlacement, StructureSet, TemplatePool, TerrainAdaptation, VerticalAnchor,
 };

@@ -197,8 +197,8 @@ pub use sand_components::{
     DimensionTypeId, EffectId, EnchantmentEffectComponentId, EnchantmentId, EntityTypeId,
     FunctionId, ItemId, LootTableId, PotionContents, PotionId, PotionRegistryId, ProcessorListId,
     Range, RecipeId, SoundEventId, StatusEffectId, StatusEffectInstance, StructureId,
-    StructureSetId, StructureTemplate, StructureTemplateId, StructureTypeId,
-    SuspiciousStewEffect, TagId, TemplatePoolId,
+    StructureSetId, StructureTemplate, StructureTemplateId, StructureTypeId, SuspiciousStewEffect,
+    TagId, TemplatePoolId,
 };
 
 // ── Text / chat ───────────────────────────────────────────────────────────────

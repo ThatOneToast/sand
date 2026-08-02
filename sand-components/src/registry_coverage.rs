@@ -272,18 +272,26 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         datapack_dir: "jukebox_song",
         tag_dir: None,
         sand_module: Some("sand_components::jukebox_song"),
-        api_status: RegistryApiStatus::FullyImplemented,
+        api_status: RegistryApiStatus::PartiallyImplemented,
         version_gate: Some("1.21"),
-        notes: "JukeboxSong. Introduced in 1.21.",
+        notes: "JukeboxSong. Introduced in 1.21. sound_event/song_length/comparator_output are \
+                typed/validated on the normal path, but description is `Option<serde_json::Value>` \
+                behind the unnamed `description()` setter with no typed TextComponent path and no \
+                export-time validation at all. Overstated FullyImplemented found during #193's \
+                audit; tracked by #321.",
     },
     RegistryCoverage {
         registry_key: "minecraft:instrument",
         datapack_dir: "instrument",
         tag_dir: None,
         sand_module: Some("sand_components::instrument"),
-        api_status: RegistryApiStatus::FullyImplemented,
+        api_status: RegistryApiStatus::PartiallyImplemented,
         version_gate: None,
-        notes: "Instrument (goat horn, etc.).",
+        notes: "Instrument (goat horn, etc.). sound_event/use_duration/range are typed/validated on \
+                the normal path, but description is `Option<serde_json::Value>` behind the unnamed \
+                `description()` setter with no typed TextComponent path and no export-time \
+                validation at all. Overstated FullyImplemented found during #193's audit; tracked \
+                by #321.",
     },
     RegistryCoverage {
         registry_key: "minecraft:painting_variant",
@@ -318,7 +326,8 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
                 validated TrimAssetName values on the normal path; raw descriptions/override objects are \
                 explicit. item_model_index remains the legacy pre-1.21.4 field and current \
                 override_armor_assets is not yet modeled. Golden JSON test: \
-                trim::tests::valid_trim_material_json_is_stable. Typed migration: #198.",
+                trim::tests::valid_trim_material_json_is_stable. #198 (typed ID migration) is closed; \
+                the remaining override_armor_assets gap is tracked by #322.",
     },
     RegistryCoverage {
         registry_key: "minecraft:trim_pattern",
@@ -555,7 +564,7 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         sand_module: Some("sand_components::worldgen::biome"),
         api_status: RegistryApiStatus::PartiallyImplemented,
         version_gate: None,
-        notes: "Biome struct exists with basic fields. Spawn costs, effects, mob spawning rules are partial.",
+        notes: "Biome struct has typed ambient sound (SoundEventId), temperature_modifier (enum), and per-generation-step feature references (GenerationStep + ConfiguredFeatureId); #182 slice. Carvers typing is #191; spawners/spawn_costs remain raw Value.",
     },
     RegistryCoverage {
         registry_key: "minecraft:worldgen/placed_feature",
@@ -669,10 +678,10 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         registry_key: "minecraft:worldgen/configured_carver",
         datapack_dir: "worldgen/configured_carver",
         tag_dir: None,
-        sand_module: None,
-        api_status: RegistryApiStatus::Missing,
+        sand_module: Some("sand_components::worldgen::configured_carver"),
+        api_status: RegistryApiStatus::PartiallyImplemented,
         version_gate: None,
-        notes: "Not implemented. Use RawComponent.",
+        notes: "Typed ConfiguredCarverId references and a small common builder slice (cave, nether_cave, sharing CaveCarverConfig); other vanilla carver shapes use the explicit ConfiguredCarver::raw escape hatch.",
     },
     RegistryCoverage {
         registry_key: "minecraft:dimension",
@@ -772,11 +781,15 @@ pub const REGISTRY_REMOVED_IN: &[(&str, &str)] = &[];
 /// Registries known to have normal-path typedness gaps, keyed to the issue(s)
 /// tracking their remaining work.
 ///
-/// This is a small, explicit allowlist rather than a link to
-/// `docs/typedness-audit.md` — that file was removed in #262 (see #174), so
-/// this fixture is now the source of truth `registry_coverage.rs` checks
-/// itself against. Each entry asserts two things about the matching
-/// [`REGISTRY_COVERAGE`] row:
+/// This is a small, explicit allowlist. `docs/typedness-audit.md` (a
+/// separate prose inventory of the same migrations, maintained alongside
+/// each typed-migration PR) is **not** the source of truth this fixture
+/// checks itself against — an earlier version of this comment claimed that
+/// file had been removed in #262; it was not (verified against the current
+/// repository while auditing #193). Keep both updated when a registry's
+/// typedness changes, but treat this table plus [`REGISTRY_COVERAGE`]'s own
+/// `notes` as authoritative for the automated guards below. Each entry here
+/// asserts two things about the matching [`REGISTRY_COVERAGE`] row:
 ///
 /// 1. its `api_status` is **not** [`RegistryApiStatus::FullyImplemented`];
 /// 2. its `notes` mention every listed issue reference.
@@ -784,7 +797,12 @@ pub const REGISTRY_REMOVED_IN: &[(&str, &str)] = &[];
 /// When a registry genuinely becomes fully typed, remove its entry here in
 /// the same change that promotes its `REGISTRY_COVERAGE` row — that keeps a
 /// promotion from silently slipping in without a corresponding audit.
-pub const KNOWN_PARTIAL_REGISTRIES: &[(&str, &[&str])] = &[("minecraft:loot_table", &["#137"])];
+pub const KNOWN_PARTIAL_REGISTRIES: &[(&str, &[&str])] = &[
+    ("minecraft:loot_table", &["#137"]),
+    ("minecraft:jukebox_song", &["#321"]),
+    ("minecraft:instrument", &["#321"]),
+    ("minecraft:trim_material", &["#322"]),
+];
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
@@ -1253,6 +1271,132 @@ mod tests {
                      it: {:?}",
                     entry.registry_key,
                     entry.notes
+                );
+            }
+        }
+    }
+
+    // ── Structural evidence guard (#193) ────────────────────────────────────
+
+    fn collect_rs_files(path: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
+        if path.is_file() {
+            out.push(path.to_path_buf());
+            return;
+        }
+        if path.join("mod.rs").is_file() {
+            if let Ok(entries) = std::fs::read_dir(path) {
+                for entry in entries.flatten() {
+                    let file = entry.path();
+                    if file.extension().is_some_and(|ext| ext == "rs") {
+                        out.push(file);
+                    }
+                }
+            }
+            return;
+        }
+        let single_file = path.with_extension("rs");
+        if single_file.is_file() {
+            out.push(single_file);
+        }
+    }
+
+    /// Finds public setters that take a bare `Value` parameter (not
+    /// `RawJson`) whose name does not identify itself as a raw escape hatch.
+    ///
+    /// This is a source-text heuristic, not a parser: it is deliberately
+    /// simple so its false-positive/false-negative behavior stays legible in
+    /// review, and it is verified against every currently `FullyImplemented`
+    /// module's real source in [`fully_implemented_modules_have_no_unnamed_raw_value_setters`].
+    fn unnamed_raw_value_setters(source: &str) -> Vec<String> {
+        let mut findings = Vec::new();
+        for chunk in source.split("pub fn ").skip(1) {
+            let Some(signature_end) = chunk.find('{') else {
+                continue;
+            };
+            let signature = &chunk[..signature_end];
+            let Some(paren) = signature.find('(') else {
+                continue;
+            };
+            let name = signature[..paren].trim();
+            if name.contains("raw") {
+                continue;
+            }
+            if signature.contains(": Value") && !signature.contains("RawJson") {
+                findings.push(name.to_string());
+            }
+        }
+        findings
+    }
+
+    /// Structural regression guard for #193's core complaint: a
+    /// `FullyImplemented` claim was previously backed only by free-text
+    /// `notes`, which nothing checked against the row's actual source and
+    /// which a future edit could invalidate without anyone re-listing the
+    /// registry in [`KNOWN_PARTIAL_REGISTRIES`]. #321 found exactly this
+    /// shape for `minecraft:jukebox_song`/`minecraft:instrument`: both
+    /// claimed `FullyImplemented` while `description` was a bare
+    /// `serde_json::Value` behind an *unnamed* setter (no typed path, no
+    /// export-time validation, and never manually added to the allowlist).
+    ///
+    /// This test scans the actual current source of every `FullyImplemented`
+    /// row's `sand_module` for that exact anti-pattern so the same class of
+    /// regression fails the build even when nobody remembers to update
+    /// `KNOWN_PARTIAL_REGISTRIES` by hand. It is intentionally a heuristic
+    /// (see [`unnamed_raw_value_setters`]) rather than a full typedness
+    /// checker: it cannot prove a row *is* fully implemented, only catch this
+    /// specific shape once it appears in source.
+    ///
+    /// `sand_core::function` is skipped: it generates `.mcfunction` text via
+    /// a macro rather than a JSON builder, so the setter-shape heuristic does
+    /// not apply.
+    #[test]
+    fn fully_implemented_modules_have_no_unnamed_raw_value_setters() {
+        let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        let modules = REGISTRY_COVERAGE
+            .iter()
+            .filter(|e| e.api_status == RegistryApiStatus::FullyImplemented)
+            .map(|e| (e.registry_key, e.sand_module))
+            .chain(
+                TAG_COVERAGE
+                    .iter()
+                    .filter(|e| e.api_status == RegistryApiStatus::FullyImplemented)
+                    .map(|e| (e.value_registry, e.sand_module)),
+            );
+
+        for (registry_key, sand_module) in modules {
+            let Some(module) = sand_module else { continue };
+            if module == "sand_core::function" {
+                continue;
+            }
+            let Some(relative) = module.strip_prefix("sand_components::") else {
+                continue;
+            };
+            let base = manifest_dir.join("src").join(relative.replace("::", "/"));
+            let mut files = Vec::new();
+            collect_rs_files(&base, &mut files);
+            assert!(
+                !files.is_empty(),
+                "could not locate any source file for '{registry_key}' module '{module}' \
+                 (looked under {}); update the path-derivation logic in this test if the \
+                 module was moved",
+                base.display()
+            );
+            for file in files {
+                let source = std::fs::read_to_string(&file).unwrap_or_else(|error| {
+                    panic!(
+                        "failed to read {} while auditing '{registry_key}': {error}",
+                        file.display()
+                    )
+                });
+                let findings = unnamed_raw_value_setters(&source);
+                assert!(
+                    findings.is_empty(),
+                    "registry '{registry_key}' claims FullyImplemented, but {} exposes \
+                     unnamed setter(s) {findings:?} taking a bare `Value` parameter with no \
+                     typed alternative and no compile-time-visible export validation; either \
+                     rename to an explicit `raw_*` escape hatch, add a typed alternative, or \
+                     downgrade this row to PartiallyImplemented",
+                    file.display()
                 );
             }
         }

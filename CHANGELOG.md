@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — typed configured-feature builder used by placed features (#189)
+
+- Added `sand_components::worldgen::configured_feature` with `ConfiguredFeature`,
+  covering `worldgen/configured_feature/<id>.json`. Typed constructors cover a
+  small common vanilla slice — `ConfiguredFeature::no_op`, `::simple_block`,
+  `::fill_layer`, and `::ore` (with typed `RuleTest`/`OreTarget`/`OreConfig`) —
+  backed by shared `BlockState`/`BlockStateProvider` value providers in the new
+  `sand_components::worldgen::providers` module.
+- Added `ConfiguredFeatureId`, and `ConfiguredFeature::id` to obtain one for a
+  component you authored.
+- **Breaking:** `PlacedFeature::new` now takes a typed `ConfiguredFeatureId`
+  instead of a raw string. `PlacedFeature::new_raw_feature` /
+  `PlacedFeature::raw_feature` are the explicitly named raw escape hatches for
+  modded or version-specific reference syntax; `ConfiguredFeature::raw` is the
+  equivalent escape hatch for feature configs outside the typed slice.
+- Updated `worldgen/configured_feature` registry coverage from `Missing` to
+  `PartiallyImplemented`.
+
 ### Added — typed structure-generation components (#187)
 
 - Added `Structure`, `StructureSet`, `TemplatePool`, and `ProcessorList`

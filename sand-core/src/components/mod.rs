@@ -24,6 +24,8 @@ pub use sand_components::{
     AttributeType,
     // Worldgen: structures
     BiomeSelector,
+    BlockState,
+    BlockStateProvider,
     ConsumableAnimation,
     ConsumableProperties,
     // Recipes
@@ -109,5 +111,5 @@ pub use sand_components::{
     TrimMaterial,
     TrimPattern,
     VerticalAnchor,
-    WorldgenBlockState,
+    WeightedBlockState,
 };

@@ -175,6 +175,16 @@ registry_id! {
 }
 
 registry_id! {
+    /// Typed Minecraft configured-feature identifier (e.g. `minecraft:oak` or
+    /// `mymod:ashen_ore`).
+    ///
+    /// Referenced by [`crate::worldgen::PlacedFeature`]; obtain one for a
+    /// component you authored with
+    /// [`crate::worldgen::ConfiguredFeature::id`].
+    ConfiguredFeatureId
+}
+
+registry_id! {
     /// Typed Minecraft dimension-type identifier (e.g. `minecraft:overworld` or `mymod:skylands`).
     DimensionTypeId
 }

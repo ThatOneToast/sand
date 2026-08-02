@@ -13,7 +13,7 @@ use crate::raw::RawJson;
 use crate::registry::{BlockId, TagId};
 use crate::resource_location::ResourceLocation;
 use crate::validation;
-use crate::worldgen::providers::{Heightmap, WorldgenBlockState};
+use crate::worldgen::providers::{BlockState, Heightmap};
 
 const KIND: &str = "worldgen/processor_list";
 
@@ -29,14 +29,14 @@ pub struct ProcessorRule {
     input_predicate: RawJson,
     location_predicate: Option<RawJson>,
     position_predicate: Option<RawJson>,
-    output_state: WorldgenBlockState,
+    output_state: BlockState,
     output_nbt: Option<String>,
 }
 
 impl ProcessorRule {
     /// `input_predicate` must be a JSON object matching vanilla's block
     /// predicate grammar (e.g. `{"predicate_type": "minecraft:block_match", "block": "minecraft:stone"}`).
-    pub fn new(input_predicate: RawJson, output_state: WorldgenBlockState) -> Self {
+    pub fn new(input_predicate: RawJson, output_state: BlockState) -> Self {
         Self {
             input_predicate,
             location_predicate: None,
@@ -362,7 +362,7 @@ mod tests {
                 "predicate_type": "minecraft:block_match",
                 "block": "minecraft:cobblestone",
             })),
-            WorldgenBlockState::new(BlockId::minecraft("mossy_cobblestone").unwrap()),
+            BlockState::new(BlockId::minecraft("mossy_cobblestone").unwrap()),
         );
         let list = ProcessorList::new(location(), [Processor::Rule(vec![rule])]);
         list.validate().unwrap();

@@ -1,6 +1,7 @@
 //! Typed datapack components.
 
 use sand_core::prelude::*;
+use sand_core::sand_components::worldgen::providers::{BlockState, BlockStateProvider};
 use sand_macros::component;
 
 #[component]
@@ -35,6 +36,28 @@ pub fn bright_overworld() -> DimensionType {
     )
     .ambient_light(0.25)
     .monster_spawn_light_level(MonsterSpawnLightLevel::Constant(7))
+}
+
+/// A minimal typed configured feature: a single simple-block feature that
+/// places one block state.
+#[component]
+pub fn ashen_shrub_feature() -> ConfiguredFeature {
+    ConfiguredFeature::simple_block(
+        ResourceLocation::new("example", "ashen_shrub").expect("static ID is valid"),
+        BlockStateProvider::simple(BlockState::new(
+            BlockId::minecraft("fern").expect("built-in block ID is valid"),
+        )),
+    )
+}
+
+/// A placed feature referencing the typed configured feature above.
+#[component]
+pub fn ashen_shrub_placement() -> PlacedFeature {
+    PlacedFeature::new(
+        ResourceLocation::new("example", "ashen_shrub").expect("static ID is valid"),
+        ashen_shrub_feature().id(),
+    )
+    .placement_modifier(serde_json::json!({ "type": "minecraft:count", "count": 3 }))
 }
 
 #[component]

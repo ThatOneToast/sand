@@ -546,10 +546,10 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         registry_key: "minecraft:worldgen/configured_feature",
         datapack_dir: "worldgen/configured_feature",
         tag_dir: None,
-        sand_module: None,
-        api_status: RegistryApiStatus::Missing,
+        sand_module: Some("sand_components::worldgen::configured_feature"),
+        api_status: RegistryApiStatus::PartiallyImplemented,
         version_gate: None,
-        notes: "Not implemented. Use RawComponent.",
+        notes: "Typed ConfiguredFeatureId references and a small common builder slice (no_op, simple_block, fill_layer, ore); other vanilla feature shapes use the explicit ConfiguredFeature::raw escape hatch.",
     },
     RegistryCoverage {
         registry_key: "minecraft:worldgen/structure",

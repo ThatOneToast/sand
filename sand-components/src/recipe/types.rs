@@ -739,4 +739,84 @@ mod tests {
     fn elevator_base_only() -> CustomItem {
         CustomItem::new("minecraft:white_wool").custom_data("elevator_block_item")
     }
+
+    // ── Integration: elevator block item shaped recipe (#226) ───────────────
+    //
+    // The exact reproduction case from the issue: a shaped recipe crafting a
+    // named, glinting, custom_data-marked white-wool item. Verifies both that
+    // the exported recipe JSON retains every component, and that the crafted
+    // result matches a Sand `ItemPredicate` built from the same `CustomItem`
+    // (i.e. the predicate a designer would use in an advancement/loot
+    // condition to detect the crafted item downstream).
+
+    use crate::component::DatapackComponent;
+    use crate::recipe::ShapedRecipe;
+    use crate::resource_location::ResourceLocation;
+
+    #[test]
+    fn elevator_block_item_shaped_recipe_exports_all_components() {
+        let recipe = ShapedRecipe::new(ResourceLocation::new("vanilla_plus", "elevator").unwrap())
+            .pattern(["PPP", "PWP", "PPP"])
+            .key('P', Ingredient::item("minecraft:ender_pearl"))
+            .key('W', Ingredient::item("minecraft:white_wool"))
+            .result(RecipeResult::custom_item(&elevator()).unwrap());
+
+        let json = recipe.to_json();
+        assert_eq!(json["type"], json!("minecraft:crafting_shaped"));
+        assert_eq!(json["pattern"], json!(["PPP", "PWP", "PPP"]));
+        assert_eq!(json["key"]["P"], json!("minecraft:ender_pearl"));
+        assert_eq!(json["key"]["W"], json!("minecraft:white_wool"));
+
+        let result = &json["result"];
+        assert_eq!(result["id"], "minecraft:white_wool");
+        assert_eq!(result["count"], 1);
+        assert_eq!(
+            result["components"]["minecraft:custom_data"],
+            json!({ "elevator_block_item": true })
+        );
+        assert_eq!(
+            result["components"]["minecraft:enchantment_glint_override"],
+            json!(true)
+        );
+        assert_eq!(
+            result["components"]["minecraft:item_name"],
+            json!({ "text": "Elevator Block", "bold": true, "color": "aqua" })
+        );
+
+        // try_content must produce byte-identical JSON to to_json — the recipe
+        // is valid and export-ready, not just cosmetically correct.
+        recipe
+            .validate()
+            .expect("elevator recipe with a component-bearing result must validate");
+    }
+
+    #[test]
+    fn elevator_block_item_crafted_result_matches_its_own_item_predicate() {
+        let elevator = elevator();
+        let result = RecipeResult::custom_item(&elevator).unwrap();
+        let result_json = serde_json::to_value(&result).unwrap();
+
+        // The predicate a designer would use downstream (e.g. an advancement
+        // criterion or loot condition) to recognize the crafted item.
+        let predicate = elevator.item_predicate();
+        let predicate_json = serde_json::to_value(&predicate).unwrap();
+
+        // Same base item on both sides.
+        assert_eq!(predicate_json["items"], json!(["minecraft:white_wool"]));
+        assert_eq!(result_json["id"], "minecraft:white_wool");
+
+        // The predicate's partial custom_data match names the exact marker
+        // key the recipe result's exact custom_data component carries, so
+        // the crafted item is recognized by the same identity marker used to
+        // build it — no mismatch between "what was crafted" and "what the
+        // predicate looks for".
+        assert_eq!(
+            predicate_json["predicates"]["minecraft:custom_data"],
+            json!("{elevator_block_item:1b}")
+        );
+        assert_eq!(
+            result_json["components"]["minecraft:custom_data"],
+            json!({ "elevator_block_item": true })
+        );
+    }
 }

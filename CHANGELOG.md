@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — component-bearing custom items as recipe results (#226)
+
+- `RecipeResult` can now carry a `CustomItem`'s data components —
+  `minecraft:custom_data` markers, `item_name`/`custom_name`/`lore`,
+  `enchantment_glint_override`, `custom_model_data`, attributes, food/tool/
+  equippable, and raw components — via `RecipeResult::custom_item`/
+  `RecipeResult::from_custom_item` (plus `TryFrom<CustomItem>`/
+  `TryFrom<&CustomItem>` and `CustomItem::recipe_result`), so a crafted item
+  keeps its custom identity instead of collapsing to its base item ID.
+  `CustomItem::stack_components` builds this structured JSON view directly
+  from typed state (never by parsing `CustomItem`'s SNBT-based `Display`
+  string), sharing the same component-serialization machinery `ItemStack`
+  uses. The existing `RecipeResult::item`/`raw`/`new` path is unchanged and
+  never emits an empty `"components"` object.
+- Component-bearing results are gated on the `ComponentFeature::ItemComponents`
+  capability (`sand-version`'s `VersionCaps`), so recipe builders fail with a
+  clear version-gating error on targets that predate structured item
+  components instead of silently stripping them.
+- Component-aware recipe *ingredients* remain explicitly unsupported:
+  `Ingredient::custom_item` always returns a descriptive
+  `SandError::ComponentValidation` — no Minecraft version Sand targets
+  matches recipe ingredients by data component, so this deliberately never
+  degrades to base-item-only matching (per the issue's own risk section,
+  which called out silent degradation as the primary hazard to avoid).
+  Base-item/tag ingredient matching (`Ingredient::item`/`item_id`/`item_tag`)
+  is unaffected.
+- Added the exact "elevator block item" reproduction case from the issue as
+  an integration test: a shaped recipe result and its component export, plus
+  verifying the crafted result's `minecraft:custom_data` marker matches an
+  `ItemPredicate` built from the same source `CustomItem`.
+
 ### Fixed — audited `FullyImplemented` registry-coverage rows and closed a structural guard gap (#193)
 
 - Audited every `RegistryApiStatus::FullyImplemented` row in

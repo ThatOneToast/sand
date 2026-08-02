@@ -212,7 +212,12 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
                 RecipeResult::item take IntoRecipeItemId/TagId<ItemId> on the normal path; raw_item/raw_tag/raw \
                 remain as explicitly named compatibility escape hatches. Not downgraded per #193 (a prior review \
                 pass incorrectly cited #178 as still open; verified closed 2026-07-12 with the typed API already \
-                present on this branch's base).",
+                present on this branch's base). #226 (component-bearing CustomItem recipe results) is also done: \
+                RecipeResult::custom_item/from_custom_item build a result.components object from CustomItem's \
+                typed state, gated on ComponentFeature::ItemComponents; component-free results are unaffected. \
+                Component-aware recipe ingredients remain unsupported by design (Ingredient::custom_item always \
+                returns a capability error) because no targeted Minecraft version matches recipe ingredients by \
+                data component.",
     },
     RegistryCoverage {
         registry_key: "minecraft:item_modifier",

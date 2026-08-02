@@ -27,6 +27,7 @@
 //! | [`structure_template`] | `structure/`                          | [`StructureTemplate`] |
 //! | [`tag`]            | `tags/`                                    | [`Tag`] |
 //! | [`trim`]           | `trim_material/`, `trim_pattern/`          | [`TrimMaterial`], [`TrimPattern`] |
+//! | [`villager_trade`] | `villager_trade/`, `trade_set/`            | [`VillagerTrade`], [`TradeSet`], [`VillagerTradePoolPatch`] |
 //! | [`wolf_variant`]   | `wolf_variant/`                            | [`WolfVariant`] |
 //! | [`worldgen`]       | `worldgen/biome/`, `dimension/`, …         | [`Biome`], [`Dimension`], … |
 
@@ -61,6 +62,7 @@ pub mod structure_template;
 pub mod tag;
 pub mod trim;
 pub(crate) mod validation;
+pub mod villager_trade;
 pub mod wolf_variant;
 pub mod worldgen;
 
@@ -84,9 +86,9 @@ pub use registry::{
     AdvancementId, BiomeId, BlockId, ChickenVariantId, ConfiguredFeatureId, CowVariantId,
     DamageTypeId, DensityFunctionId, DimensionId, DimensionTypeId, EnchantmentEffectComponentId,
     EnchantmentId, EntityTypeId, EquipmentModelId, FunctionId, ItemId, LootTableId, NoiseId,
-    PigVariantId, PotionRegistryId, PredicateId, ProcessorListId, RecipeId, SoundEventId,
-    StatusEffectId, StructureId, StructureSetId, StructureTemplateId, StructureTypeId, TagId,
-    TemplatePoolId,
+    PigVariantId, PotionRegistryId, PredicateId, ProcessorListId, RandomSequenceId, RecipeId,
+    SoundEventId, StatusEffectId, StructureId, StructureSetId, StructureTemplateId,
+    StructureTypeId, TagId, TemplatePoolId, TradeSetId, VillagerTradeId,
 };
 pub use resource_location::{Identifier, PackNamespace, ResourceLocation};
 
@@ -187,6 +189,13 @@ pub use structure_template::StructureTemplate;
 // ── Trim ──────────────────────────────────────────────────────────────────────
 
 pub use trim::{TrimAssetName, TrimMaterial, TrimPattern};
+
+// ── Villager Trades ───────────────────────────────────────────────────────────
+
+pub use villager_trade::{
+    TradeItem, TradeSet, VillagerLevel, VillagerProfession, VillagerTrade, VillagerTradePool,
+    VillagerTradePoolPatch, VillagerTradeRef, WanderingTraderPool,
+};
 
 // ── Wolf Variant ──────────────────────────────────────────────────────────────
 

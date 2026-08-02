@@ -345,6 +345,8 @@ pub use sand_components::{
     // Instrument / Jukebox
     Instrument,
     IntRange,
+    // Item stack (#229)
+    IntoItemStack,
     IntoRecipeItemId,
     InventorySlots,
     ItemComponent,
@@ -354,6 +356,7 @@ pub use sand_components::{
     ItemOrTag,
     ItemPredicate,
     ItemRarity,
+    ItemStack,
     ItemStackComponents,
     JigsawConfig,
     JukeboxSong,
@@ -397,6 +400,8 @@ pub use sand_components::{
     ProcessorRule,
     ProcessorsRef,
     Projection,
+    // Villager trades (26.1+)
+    RandomSequenceId,
     Range,
     Rarity,
     // Raw escape hatch types
@@ -441,12 +446,23 @@ pub use sand_components::{
     Ticks,
     ToolProperties,
     ToolRule,
+    TradeItem,
+    TradeSet,
+    TradeSetId,
     // Trim
     TrimAssetName,
     TrimMaterial,
     TrimPattern,
     TypedTag,
     VerticalAnchor,
+    VillagerLevel,
+    VillagerProfession,
+    VillagerTrade,
+    VillagerTradeId,
+    VillagerTradePool,
+    VillagerTradePoolPatch,
+    VillagerTradeRef,
+    WanderingTraderPool,
     // Weather
     WeatherPredicate,
     // Wolf

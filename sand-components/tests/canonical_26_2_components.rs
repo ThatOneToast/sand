@@ -30,15 +30,17 @@ use sand_components::loot_table::{
     EnchantmentSelector, LootCondition, LootEntry, LootFunction, LootPool, LootTable,
     LootTableType, NumberProvider,
 };
-use sand_components::predicate::Predicate;
-use sand_components::predicates::{DamagePredicate, EntityPredicate, FloatRange};
+use sand_components::predicate::{EntityPredicateTarget, Predicate, PredicateRoot};
+use sand_components::predicates::{
+    DamagePredicate, EntityPredicate, FloatRange, LocationPredicate, WeatherPredicate,
+};
 use sand_components::recipe::{
     CookingRecipe, CookingType, Ingredient, RecipeResult, ShapedRecipe, ShapelessRecipe,
     SmithingTransformRecipe, SmithingTrimRecipe, StonecuttingRecipe,
 };
 use sand_components::registry::{
     AdvancementId, BlockId, ConfiguredFeatureId, EnchantmentId, FunctionId, ItemId, LootTableId,
-    RecipeId,
+    PredicateId, RecipeId,
 };
 use sand_components::tag::{Tag, TagEntry, TypedTag};
 use sand_components::worldgen::Biome;
@@ -212,7 +214,7 @@ fn canonical_26_2_predicate_loot_condition_composition() {
     let mut scores = HashMap::new();
     scores.insert("looting".to_string(), serde_json::json!({"min": 1}));
 
-    let predicate = Predicate::new(
+    let predicate = Predicate::from_loot_condition(
         id("conditions/dragon_drop"),
         LootCondition::AllOf {
             terms: vec![
@@ -249,6 +251,51 @@ fn canonical_26_2_predicate_loot_condition_composition() {
     assert_eq!(
         predicate.resource_location().to_string(),
         "canon:conditions/dragon_drop"
+    );
+    assert_eq!(predicate.component_dir(), "predicate");
+}
+
+/// A standalone predicate file authored through the dedicated `PredicateRoot`
+/// typed condition tree (not a `LootCondition` wrapper): entity properties
+/// with a typed target, a location check, a weather check, and a reference to
+/// another predicate file, composed with `any_of`.
+#[test]
+fn canonical_26_2_predicate_typed_root_composition() {
+    let predicate = Predicate::any_of(
+        id("conditions/hostile_nearby"),
+        [
+            PredicateRoot::entity_properties(
+                EntityPredicateTarget::This,
+                EntityPredicate::type_("minecraft:zombie"),
+            ),
+            PredicateRoot::location(LocationPredicate::new().dimension("minecraft:the_nether")),
+            PredicateRoot::weather(WeatherPredicate::new().thundering(true)),
+            PredicateRoot::reference(PredicateId::minecraft("conditions/is_night").unwrap()),
+        ],
+    );
+
+    let expected = serde_json::json!({
+        "condition": "minecraft:any_of",
+        "terms": [
+            {
+                "condition": "minecraft:entity_properties",
+                "entity": "this",
+                "predicate": {"type": "minecraft:zombie"}
+            },
+            {
+                "condition": "minecraft:location_check",
+                "predicate": {"dimension": "minecraft:the_nether"}
+            },
+            {"condition": "minecraft:weather_check", "thundering": true},
+            {"condition": "minecraft:reference", "name": "minecraft:conditions/is_night"}
+        ]
+    });
+
+    assert_eq!(predicate.to_json(), expected);
+    assert_eq!(content_json(&predicate), expected);
+    assert_eq!(
+        predicate.resource_location().to_string(),
+        "canon:conditions/hostile_nearby"
     );
     assert_eq!(predicate.component_dir(), "predicate");
 }

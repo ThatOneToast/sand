@@ -22,7 +22,7 @@
 //! | [`loot_table`]     | `loot_table/`                              | [`LootTable`], [`LootPool`], [`LootEntry`], … |
 //! | [`painting_variant`] | `painting_variant/`                      | [`PaintingVariant`] |
 //! | [`pig_variant`]    | `pig_variant/`                             | [`PigVariant`] |
-//! | [`predicate`]      | `predicate/`                               | [`Predicate`] |
+//! | [`predicate`]      | `predicate/`                               | [`Predicate`], [`PredicateRoot`], [`EntityPredicateTarget`] |
 //! | [`recipe`]         | `recipe/`                                  | [`ShapedRecipe`], [`ShapelessRecipe`], … |
 //! | [`structure_template`] | `structure/`                          | [`StructureTemplate`] |
 //! | [`tag`]            | `tags/`                                    | [`Tag`] |
@@ -78,14 +78,15 @@ pub use error::{Result, SandError};
 pub use predicates::{
     BlockPredicate, DamagePredicate, DamageSourcePredicate, DamageTagEntry, DistancePredicate,
     EffectPredicate, EntityEquipment, EntityFlags, EntityPredicate, EntityTypeMatch, FloatRange,
-    IntRange, ItemPredicate, LocationPredicate, Range,
+    IntRange, ItemPredicate, LocationPredicate, Range, WeatherPredicate,
 };
 pub use registry::{
     AdvancementId, BiomeId, BlockId, ChickenVariantId, ConfiguredFeatureId, CowVariantId,
     DamageTypeId, DensityFunctionId, DimensionId, DimensionTypeId, EnchantmentEffectComponentId,
     EnchantmentId, EntityTypeId, EquipmentModelId, FunctionId, ItemId, LootTableId, NoiseId,
-    PigVariantId, PotionRegistryId, ProcessorListId, RecipeId, SoundEventId, StatusEffectId,
-    StructureId, StructureSetId, StructureTemplateId, StructureTypeId, TagId, TemplatePoolId,
+    PigVariantId, PotionRegistryId, PredicateId, ProcessorListId, RecipeId, SoundEventId,
+    StatusEffectId, StructureId, StructureSetId, StructureTemplateId, StructureTypeId, TagId,
+    TemplatePoolId,
 };
 pub use resource_location::{Identifier, PackNamespace, ResourceLocation};
 
@@ -161,7 +162,7 @@ pub use painting_variant::PaintingVariant;
 
 // ── Predicate ─────────────────────────────────────────────────────────────────
 
-pub use predicate::Predicate;
+pub use predicate::{EntityPredicateTarget, Predicate, PredicateRoot};
 
 // ── Recipes ───────────────────────────────────────────────────────────────────
 

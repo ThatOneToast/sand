@@ -324,6 +324,8 @@ pub use sand_components::{
     EntityFlags,
     // Item predicates
     EntityPredicate,
+    // Standalone predicate authoring
+    EntityPredicateTarget,
     EntityTypeId,
     EntityTypeMatch,
     EquipmentModelId,
@@ -386,6 +388,8 @@ pub use sand_components::{
     PotionRegistryId,
     // Predicate
     Predicate,
+    PredicateId,
+    PredicateRoot,
     // Processor list
     Processor,
     ProcessorList,
@@ -443,6 +447,8 @@ pub use sand_components::{
     TrimPattern,
     TypedTag,
     VerticalAnchor,
+    // Weather
+    WeatherPredicate,
     // Wolf
     WolfVariant,
 };

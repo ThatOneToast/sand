@@ -19,6 +19,7 @@ surfaces are not retained as aliases.
 | consumable/equippable sound and model IDs | `Display`/string fields | `SoundEventId` and `EquipmentModelId` | completed; #195 |
 | storage and NBT paths | strings plus typed paths | `StorageLocation`, `NbtRef`, `NbtPath` | follow-up |
 | loot table item/tag/reference/text/enchantment IDs | raw strings and `serde_json::Value` | `ItemId`, `TagId<ItemId>`, `LootTableId`, `TextComponent`-backed `LootText`, `EnchantmentSelector` (`EnchantmentId`/`TagId<EnchantmentId>`), `ResourceLocation` | completed normal paths; predicate/range/target payloads remain raw pending #137; #185 |
+| chicken/cow/pig animal variant registries | absent (`RawComponent`/`RawJson` only) | `ChickenVariant`/`CowVariant`/`PigVariant`, shared `SpawnCondition` (`minecraft:biome` condition), `ChickenVariantId`/`CowVariantId`/`PigVariantId` | narrow first pass covering `asset_id` + biome `spawn_conditions`; other fields (e.g. `cow_variant` model selector) and non-biome condition types remain `raw_field`; #201 |
 
 ## Public function-like macro inventory
 

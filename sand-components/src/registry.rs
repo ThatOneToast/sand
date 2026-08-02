@@ -175,8 +175,31 @@ registry_id! {
 }
 
 registry_id! {
+    /// Typed Minecraft configured-feature identifier (e.g. `minecraft:oak` or
+    /// `mymod:ashen_ore`).
+    ///
+    /// Referenced by [`crate::worldgen::PlacedFeature`]; obtain one for a
+    /// component you authored with
+    /// [`crate::worldgen::ConfiguredFeature::id`].
+    ConfiguredFeatureId
+}
+
+registry_id! {
     /// Typed Minecraft dimension-type identifier (e.g. `minecraft:overworld` or `mymod:skylands`).
     DimensionTypeId
+}
+
+registry_id! {
+    /// Typed Minecraft noise-parameter identifier (e.g. `minecraft:temperature`
+    /// or `mymod:ridges`), referencing `worldgen/noise/<id>.json`.
+    NoiseId
+}
+
+registry_id! {
+    /// Typed Minecraft density-function identifier (e.g.
+    /// `minecraft:overworld/base_3d_noise` or `mymod:ridge_density`),
+    /// referencing `worldgen/density_function/<id>.json`.
+    DensityFunctionId
 }
 
 registry_id! {
@@ -187,6 +210,60 @@ registry_id! {
 registry_id! {
     /// Typed Minecraft structure identifier (e.g. `minecraft:village` or `mymod:dungeon`).
     StructureId
+}
+
+registry_id! {
+    /// Typed `minecraft:worldgen/structure_set` identifier (e.g. `minecraft:villages`).
+    StructureSetId
+}
+
+registry_id! {
+    /// Typed `minecraft:worldgen/template_pool` identifier
+    /// (e.g. `minecraft:village/plains/town_centers`).
+    TemplatePoolId
+}
+
+impl TemplatePoolId {
+    /// `minecraft:empty` — the vanilla terminal fallback pool.
+    pub fn empty() -> Self {
+        Self::minecraft("empty").expect("\"empty\" is a valid resource path")
+    }
+}
+
+registry_id! {
+    /// Typed `minecraft:worldgen/processor_list` identifier
+    /// (e.g. `minecraft:empty` or `mypack:mossify`).
+    ProcessorListId
+}
+
+impl ProcessorListId {
+    /// `minecraft:empty` — the vanilla no-op processor list.
+    pub fn empty() -> Self {
+        Self::minecraft("empty").expect("\"empty\" is a valid resource path")
+    }
+}
+
+registry_id! {
+    /// Typed identifier for a `.nbt` structure template asset stored under
+    /// `data/<namespace>/structure/` (e.g. `minecraft:village/plains/houses/plains_small_house_1`).
+    ///
+    /// This references the template *file*, not a `worldgen/structure`
+    /// registry entry — see [`StructureId`] for the latter.
+    StructureTemplateId
+}
+
+registry_id! {
+    /// Typed structure *type* identifier — the `type` field of a
+    /// `worldgen/structure` entry (e.g. `minecraft:jigsaw`).
+    StructureTypeId
+}
+
+impl StructureTypeId {
+    /// `minecraft:jigsaw` — the type used by villages, pillager outposts, and
+    /// most custom template-pool driven structures.
+    pub fn jigsaw() -> Self {
+        Self::minecraft("jigsaw").expect("\"jigsaw\" is a valid resource path")
+    }
 }
 
 registry_id! {

@@ -167,22 +167,23 @@ pub use sand_components::{ChatDecoration, ChatDecorationParameter, ChatStyle, Ch
 pub use sand_components::{
     Advancement, AdvancementDisplay, AdvancementFrame, AdvancementIcon, AdvancementRewards,
     AdvancementTrigger, AttributeId, AttributeModifier, AttributeOperation, AttributeType,
-    BannerPattern, BiomeSelector, BlockPredicate, ConsumableAnimation, ConsumableProperties,
-    Criterion, CustomData, CustomItem, DamagePredicate, DamageSourcePredicate, Dimension,
-    DimensionType, DistancePredicate, Enchantment, EnchantmentCost, EnchantmentEntry,
-    EnchantmentOrTag, EnchantmentProvider, EnchantmentProviderInt, EnchantmentSelection,
-    EnchantmentValueOperation, EntityEquipment, EntityFlags, EntityPredicate, EquipmentModelId,
-    EquipmentSlot, EquipmentSlotGroup, EquippableProperties, ExclusionZone, FoodProperties,
-    FrequencyReductionMethod, GenerationStep, HeightProvider, Heightmap, Ingredient, ItemComponent,
-    ItemModifier, ItemOrTag, ItemPredicate, ItemRarity, ItemStackComponents, JigsawConfig,
-    LevelBasedValue, LocationPredicate, LootCondition, LootEntry, LootFunction, LootPool,
-    LootTable, LootTableType, MobCategory, MonsterSpawnLightLevel, PoolElement, PoolEntry,
-    Predicate, Processor, ProcessorList, ProcessorRule, ProcessorsRef, Projection, Rarity,
-    RecipeResult, ShapedRecipe, ShapelessRecipe, SmithingTransformRecipe, SmithingTrimRecipe,
+    BannerPattern, BiomeSelector, BlockPredicate, ConfiguredFeature, ConsumableAnimation,
+    ConsumableProperties, Criterion, CustomData, CustomItem, DamagePredicate,
+    DamageSourcePredicate, Dimension, DimensionType, DistancePredicate, Enchantment,
+    EnchantmentCost, EnchantmentEntry, EnchantmentOrTag, EnchantmentProvider,
+    EnchantmentProviderInt, EnchantmentSelection, EnchantmentValueOperation, EntityEquipment,
+    EntityFlags, EntityPredicate, EquipmentModelId, EquipmentSlot, EquipmentSlotGroup,
+    EquippableProperties, ExclusionZone, FoodProperties, FrequencyReductionMethod, GenerationStep,
+    HeightProvider, Heightmap, Ingredient, ItemComponent, ItemModifier, ItemOrTag, ItemPredicate,
+    ItemRarity, ItemStackComponents, JigsawConfig, LevelBasedValue, LocationPredicate,
+    LootCondition, LootEntry, LootFunction, LootPool, LootTable, LootTableType, MobCategory,
+    MonsterSpawnLightLevel, OreConfig, OreTarget, PlacedFeature, PoolElement, PoolEntry, Predicate,
+    Processor, ProcessorList, ProcessorRule, ProcessorsRef, Projection, Rarity, RecipeResult,
+    RuleTest, ShapedRecipe, ShapelessRecipe, SmithingTransformRecipe, SmithingTrimRecipe,
     SpawnBoundingBox, SpawnEntry, SpawnOverride, SpreadType, StonecuttingRecipe, Structure,
     StructureEntry, StructurePlacement, StructureSet, Tag, TagEntry, TagRegistry, TemplatePool,
     TerrainAdaptation, ToolProperties, ToolRule, TrimAssetName, TrimMaterial, TrimPattern,
-    TypedTag, VerticalAnchor, WorldgenBlockState,
+    TypedTag, VerticalAnchor,
 };
 
 // ── Raw escape hatch types ────────────────────────────────────────────────────
@@ -192,11 +193,12 @@ pub use sand_components::{RawComponent, RawJson, RawSnbt};
 // ── Typed registry identifiers ────────────────────────────────────────────────
 
 pub use sand_components::{
-    AdvancementId, BiomeId, BlockId, DamageTypeId, DimensionId, DimensionTypeId, EffectId,
-    EnchantmentEffectComponentId, EnchantmentId, EntityTypeId, FunctionId, ItemId, LootTableId,
-    PotionContents, PotionId, PotionRegistryId, ProcessorListId, Range, RecipeId, SoundEventId,
-    StatusEffectId, StatusEffectInstance, StructureId, StructureSetId, StructureTemplate,
-    StructureTemplateId, StructureTypeId, SuspiciousStewEffect, TagId, TemplatePoolId,
+    AdvancementId, BiomeId, BlockId, ConfiguredFeatureId, DamageTypeId, DimensionId,
+    DimensionTypeId, EffectId, EnchantmentEffectComponentId, EnchantmentId, EntityTypeId,
+    FunctionId, ItemId, LootTableId, PotionContents, PotionId, PotionRegistryId, ProcessorListId,
+    Range, RecipeId, SoundEventId, StatusEffectId, StatusEffectInstance, StructureId,
+    StructureSetId, StructureTemplate, StructureTemplateId, StructureTypeId, SuspiciousStewEffect,
+    TagId, TemplatePoolId,
 };
 
 // ── Text / chat ───────────────────────────────────────────────────────────────
@@ -234,6 +236,21 @@ mod tests {
             serde_json::json!({"type": "minecraft:flat", "settings": {}}),
         );
         assert_eq!(dimension.to_json()["type"], "minecraft:overworld");
+    }
+
+    #[test]
+    fn prelude_exports_typed_configured_feature_reference_path() {
+        let feature = ConfiguredFeature::no_op(
+            ResourceLocation::new("test", "worldgen/configured_feature/nothing").unwrap(),
+        );
+        let placed = PlacedFeature::new(
+            ResourceLocation::new("test", "worldgen/placed_feature/nowhere").unwrap(),
+            feature.id(),
+        );
+        assert_eq!(
+            placed.to_json()["feature"],
+            "test:worldgen/configured_feature/nothing"
+        );
     }
 
     #[test]

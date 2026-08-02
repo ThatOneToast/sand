@@ -41,6 +41,8 @@ pub use sand_components::{
     EnchantmentValueOperation,
     // Item predicates
     EntityPredicate,
+    // Standalone predicate authoring
+    EntityPredicateTarget,
     EquipmentModelId,
     EquipmentSlot,
     EquipmentSlotGroup,
@@ -64,6 +66,8 @@ pub use sand_components::{
     NumberProvider,
     // Predicate
     Predicate,
+    PredicateId,
+    PredicateRoot,
     RecipeResult,
     ShapedRecipe,
     ShapelessRecipe,
@@ -78,4 +82,6 @@ pub use sand_components::{
     TrimAssetName,
     TrimMaterial,
     TrimPattern,
+    // Weather
+    WeatherPredicate,
 };

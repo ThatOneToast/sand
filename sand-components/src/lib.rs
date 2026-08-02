@@ -18,7 +18,7 @@
 //! | [`jukebox_song`]   | `jukebox_song/`                            | [`JukeboxSong`] |
 //! | [`loot_table`]     | `loot_table/`                              | [`LootTable`], [`LootPool`], [`LootEntry`], … |
 //! | [`painting_variant`] | `painting_variant/`                      | [`PaintingVariant`] |
-//! | [`predicate`]      | `predicate/`                               | [`Predicate`] |
+//! | [`predicate`]      | `predicate/`                               | [`Predicate`], [`PredicateRoot`], [`EntityPredicateTarget`] |
 //! | [`recipe`]         | `recipe/`                                  | [`ShapedRecipe`], [`ShapelessRecipe`], … |
 //! | [`structure_template`] | `structure/`                          | [`StructureTemplate`] |
 //! | [`tag`]            | `tags/`                                    | [`Tag`] |
@@ -70,13 +70,13 @@ pub use error::{Result, SandError};
 pub use predicates::{
     BlockPredicate, DamagePredicate, DamageSourcePredicate, DamageTagEntry, DistancePredicate,
     EffectPredicate, EntityEquipment, EntityFlags, EntityPredicate, EntityTypeMatch, FloatRange,
-    IntRange, ItemPredicate, LocationPredicate, Range,
+    IntRange, ItemPredicate, LocationPredicate, Range, WeatherPredicate,
 };
 pub use registry::{
     AdvancementId, BiomeId, BlockId, DamageTypeId, DimensionId, DimensionTypeId,
     EnchantmentEffectComponentId, EnchantmentId, EntityTypeId, EquipmentModelId, FunctionId,
-    ItemId, LootTableId, PotionRegistryId, RecipeId, SoundEventId, StatusEffectId, StructureId,
-    TagId,
+    ItemId, LootTableId, PotionRegistryId, PredicateId, RecipeId, SoundEventId, StatusEffectId,
+    StructureId, TagId,
 };
 pub use resource_location::{Identifier, PackNamespace, ResourceLocation};
 
@@ -145,7 +145,7 @@ pub use painting_variant::PaintingVariant;
 
 // ── Predicate ─────────────────────────────────────────────────────────────────
 
-pub use predicate::Predicate;
+pub use predicate::{EntityPredicateTarget, Predicate, PredicateRoot};
 
 // ── Recipes ───────────────────────────────────────────────────────────────────
 

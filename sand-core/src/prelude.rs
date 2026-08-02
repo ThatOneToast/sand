@@ -171,13 +171,14 @@ pub use sand_components::{
     CustomData, CustomItem, DamagePredicate, DamageSourcePredicate, Dimension, DimensionType,
     DistancePredicate, Enchantment, EnchantmentCost, EnchantmentEntry, EnchantmentOrTag,
     EnchantmentProvider, EnchantmentProviderInt, EnchantmentSelection, EnchantmentValueOperation,
-    EntityEquipment, EntityFlags, EntityPredicate, EquipmentModelId, EquipmentSlot,
-    EquipmentSlotGroup, EquippableProperties, FoodProperties, Ingredient, ItemComponent,
-    ItemModifier, ItemOrTag, ItemPredicate, ItemRarity, ItemStackComponents, LevelBasedValue,
-    LocationPredicate, LootCondition, LootEntry, LootFunction, LootPool, LootTable, LootTableType,
-    MonsterSpawnLightLevel, Predicate, Rarity, RecipeResult, ShapedRecipe, ShapelessRecipe,
-    SmithingTransformRecipe, SmithingTrimRecipe, StonecuttingRecipe, Tag, TagEntry, TagRegistry,
-    ToolProperties, ToolRule, TrimAssetName, TrimMaterial, TrimPattern, TypedTag,
+    EntityEquipment, EntityFlags, EntityPredicate, EntityPredicateTarget, EquipmentModelId,
+    EquipmentSlot, EquipmentSlotGroup, EquippableProperties, FoodProperties, Ingredient,
+    ItemComponent, ItemModifier, ItemOrTag, ItemPredicate, ItemRarity, ItemStackComponents,
+    LevelBasedValue, LocationPredicate, LootCondition, LootEntry, LootFunction, LootPool,
+    LootTable, LootTableType, MonsterSpawnLightLevel, Predicate, PredicateRoot, Rarity,
+    RecipeResult, ShapedRecipe, ShapelessRecipe, SmithingTransformRecipe, SmithingTrimRecipe,
+    StonecuttingRecipe, Tag, TagEntry, TagRegistry, ToolProperties, ToolRule, TrimAssetName,
+    TrimMaterial, TrimPattern, TypedTag, WeatherPredicate,
 };
 
 // ── Raw escape hatch types ────────────────────────────────────────────────────
@@ -189,8 +190,9 @@ pub use sand_components::{RawComponent, RawJson, RawSnbt};
 pub use sand_components::{
     AdvancementId, BiomeId, BlockId, DamageTypeId, DimensionId, DimensionTypeId, EffectId,
     EnchantmentEffectComponentId, EnchantmentId, EntityTypeId, FunctionId, ItemId, LootTableId,
-    PotionContents, PotionId, PotionRegistryId, Range, RecipeId, SoundEventId, StatusEffectId,
-    StatusEffectInstance, StructureId, StructureTemplate, SuspiciousStewEffect, TagId,
+    PotionContents, PotionId, PotionRegistryId, PredicateId, Range, RecipeId, SoundEventId,
+    StatusEffectId, StatusEffectInstance, StructureId, StructureTemplate, SuspiciousStewEffect,
+    TagId,
 };
 
 // ── Text / chat ───────────────────────────────────────────────────────────────

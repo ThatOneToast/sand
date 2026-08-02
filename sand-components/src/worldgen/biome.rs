@@ -1,18 +1,20 @@
 //! Biome builder for `data/<namespace>/worldgen/biome/<id>.json`.
 //!
 //! This module types the biome-effects ambient sound reference, the
-//! `temperature_modifier` field, and the per-generation-step `features`
-//! list-of-lists — see [`BiomeEffects::ambient_sound`],
-//! [`Biome::temperature_modifier`], and [`Biome::feature`]. `carvers`,
-//! `spawners`, and `spawn_costs` remain raw `Value` fields; carver typing is
-//! tracked separately (#191) and spawner/spawn-cost typing is deferred
-//! future scope (#182).
+//! `temperature_modifier` field, the per-generation-step `features`
+//! list-of-lists, and the step-grouped `carvers` map — see
+//! [`BiomeEffects::ambient_sound`], [`Biome::temperature_modifier`],
+//! [`Biome::feature`], and [`Biome::carver_step`]. `spawners` and
+//! `spawn_costs` remain raw `Value` fields; their typing is deferred future
+//! scope (#182).
+
+use std::collections::BTreeMap;
 
 use serde_json::Value;
 
 use crate::component::DatapackComponent;
 use crate::error::Result as SandResult;
-use crate::registry::{ConfiguredFeatureId, SoundEventId};
+use crate::registry::{ConfiguredCarverId, ConfiguredFeatureId, SoundEventId};
 use crate::resource_location::ResourceLocation;
 use crate::validation;
 use crate::worldgen::structure::GenerationStep;
@@ -301,6 +303,29 @@ impl BiomeEffects {
     }
 }
 
+// ── CarvingStep ──────────────────────────────────────────────────────────────
+
+/// A vanilla carving step. Biomes group configured carvers by the step in
+/// which they run.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum CarvingStep {
+    /// Carvers that run before surface decoration (most caves and ravines).
+    Air,
+    /// Carvers that run after surface decoration and only affect liquids
+    /// (underwater caves).
+    Liquid,
+}
+
+impl CarvingStep {
+    /// The vanilla lowercase key written into biome JSON (`"air"`/`"liquid"`).
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Air => "air",
+            Self::Liquid => "liquid",
+        }
+    }
+}
+
 // ── Biome ─────────────────────────────────────────────────────────────────────
 
 /// A biome definition (`data/<namespace>/worldgen/biome/<id>.json`).
@@ -316,8 +341,11 @@ pub struct Biome {
     downfall: f32,
     /// Visual and audio effects for this biome.
     effects: BiomeEffects,
-    /// Carvers (raw JSON array, optional).
+    /// Carvers as raw JSON (explicit escape hatch; see [`Biome::raw_carvers`]).
     carvers: Option<Value>,
+    /// Carvers referenced by typed ID, grouped by carving step (see
+    /// [`Biome::carver_step`]). Mutually exclusive with `carvers`.
+    typed_carvers: BTreeMap<CarvingStep, Vec<ConfiguredCarverId>>,
     /// Features (raw JSON array of arrays, or a typed per-step map, optional).
     features: Option<FeaturesValue>,
     /// Creature, monster, ambient spawn lists (raw JSON, optional).
@@ -337,6 +365,7 @@ impl Biome {
             downfall: 0.5,
             effects,
             carvers: None,
+            typed_carvers: BTreeMap::new(),
             features: None,
             spawners: None,
             spawn_costs: None,
@@ -381,8 +410,28 @@ impl Biome {
     }
 
     /// Sets the carvers list as raw JSON.
-    pub fn carvers(mut self, carvers: Value) -> Self {
+    ///
+    /// Prefer [`Biome::carver_step`] with a typed
+    /// [`ConfiguredCarverId`](crate::registry::ConfiguredCarverId) (obtained
+    /// from [`crate::worldgen::ConfiguredCarver::id`]) on the normal path.
+    /// This escape hatch exists for modded carver references or shapes
+    /// outside the typed carving-step map. Mutually exclusive with
+    /// [`Biome::carver_step`].
+    pub fn raw_carvers(mut self, carvers: Value) -> Self {
         self.carvers = Some(carvers);
+        self
+    }
+
+    /// References a configured carver by typed ID under the given carving
+    /// step (`air` or `liquid`), preserving vanilla's step-grouped map/array
+    /// shape (`{"air": [...], "liquid": [...]}`).
+    ///
+    /// Author the referenced carver with
+    /// [`ConfiguredCarver`](crate::worldgen::ConfiguredCarver) and pass
+    /// [`ConfiguredCarver::id`](crate::worldgen::ConfiguredCarver::id) here.
+    /// Mutually exclusive with [`Biome::raw_carvers`].
+    pub fn carver_step(mut self, step: CarvingStep, carver: ConfiguredCarverId) -> Self {
+        self.typed_carvers.entry(step).or_default().push(carver);
         self
     }
 
@@ -453,6 +502,13 @@ impl DatapackComponent for Biome {
 
         if let Some(ref v) = self.carvers {
             map.insert("carvers".to_string(), v.clone());
+        } else if !self.typed_carvers.is_empty() {
+            let mut carvers = serde_json::Map::new();
+            for (step, ids) in &self.typed_carvers {
+                let ids: Vec<Value> = ids.iter().map(|id| Value::String(id.to_string())).collect();
+                carvers.insert(step.as_str().to_string(), Value::Array(ids));
+            }
+            map.insert("carvers".to_string(), Value::Object(carvers));
         }
         if let Some(ref v) = self.features {
             let json = match v {
@@ -500,6 +556,14 @@ impl DatapackComponent for Biome {
         }
         self.effects.validate(&self.location, "effects")?;
         if let Some(ref v) = self.carvers {
+            if !self.typed_carvers.is_empty() {
+                return Err(validation::error(
+                    &self.location,
+                    KIND,
+                    "carvers",
+                    "cannot combine raw_carvers with typed carver_step entries; choose one",
+                ));
+            }
             validation::require_json_array(&self.location, KIND, "carvers", v)?;
         }
         if let Some(FeaturesValue::Raw(ref v)) = self.features {
@@ -537,7 +601,7 @@ mod tests {
             .temperature(0.5)
             .downfall(0.5)
             .temperature_modifier(TemperatureModifier::Frozen)
-            .carvers(serde_json::json!(["minecraft:cave"]))
+            .raw_carvers(serde_json::json!(["minecraft:cave"]))
             .raw_features(serde_json::json!([["minecraft:ore_iron"]]))
             .spawners(serde_json::json!({"monster": []}))
             .spawn_costs(serde_json::json!({}));
@@ -638,7 +702,7 @@ mod tests {
 
     #[test]
     fn carvers_wrong_shape_rejected() {
-        let biome = Biome::new(location(), effects()).carvers(serde_json::json!({"a": 1}));
+        let biome = Biome::new(location(), effects()).raw_carvers(serde_json::json!({"a": 1}));
         let err = biome.validate().unwrap_err().to_string();
         assert!(err.contains("carvers"), "{err}");
     }
@@ -704,12 +768,41 @@ mod tests {
 
     #[test]
     fn raw_carvers_array_escape_hatch_still_works() {
-        let biome =
-            Biome::new(location(), effects()).carvers(serde_json::json!(["modded:custom_carver"]));
+        let biome = Biome::new(location(), effects())
+            .raw_carvers(serde_json::json!(["modded:custom_carver"]));
         assert!(biome.validate().is_ok());
         assert_eq!(
             biome.to_json()["carvers"],
             serde_json::json!(["modded:custom_carver"])
         );
+    }
+
+    #[test]
+    fn typed_carver_step_reference_produces_step_grouped_map() {
+        let carver = ConfiguredCarverId::minecraft("cave").unwrap();
+        let underwater = ConfiguredCarverId::minecraft("underwater_cave").unwrap();
+        let biome = Biome::new(location(), effects())
+            .carver_step(CarvingStep::Air, carver)
+            .carver_step(CarvingStep::Liquid, underwater);
+        assert!(biome.validate().is_ok());
+        assert_eq!(
+            biome.to_json()["carvers"],
+            serde_json::json!({
+                "air": ["minecraft:cave"],
+                "liquid": ["minecraft:underwater_cave"],
+            })
+        );
+    }
+
+    #[test]
+    fn mixing_raw_carvers_and_typed_carver_step_is_rejected() {
+        let biome = Biome::new(location(), effects())
+            .raw_carvers(serde_json::json!(["minecraft:cave"]))
+            .carver_step(
+                CarvingStep::Air,
+                ConfiguredCarverId::minecraft("cave").unwrap(),
+            );
+        let err = biome.validate().unwrap_err().to_string();
+        assert!(err.contains("carvers"), "{err}");
     }
 }

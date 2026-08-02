@@ -22,6 +22,8 @@ pub use sand_components::{
     AttributeModifier,
     AttributeOperation,
     AttributeType,
+    // Worldgen: structures
+    BiomeSelector,
     ConsumableAnimation,
     ConsumableProperties,
     // Recipes
@@ -45,7 +47,13 @@ pub use sand_components::{
     EquipmentSlot,
     EquipmentSlotGroup,
     EquippableProperties,
+    ExclusionZone,
     FoodProperties,
+    FrequencyReductionMethod,
+    GenerationStep,
+    HeightProvider,
+    // Worldgen: shared providers
+    Heightmap,
     Ingredient,
     InventorySlots,
     // Item modifier
@@ -53,6 +61,7 @@ pub use sand_components::{
     ItemOrTag,
     ItemPredicate,
     ItemRarity,
+    JigsawConfig,
     LevelBasedValue,
     // Loot table
     LootCondition,
@@ -61,21 +70,44 @@ pub use sand_components::{
     LootPool,
     LootTable,
     LootTableType,
+    MobCategory,
     NumberProvider,
+    // Worldgen: template pools
+    PoolElement,
+    PoolEntry,
     // Predicate
     Predicate,
+    // Worldgen: processor lists
+    Processor,
+    ProcessorList,
+    ProcessorRule,
+    ProcessorsRef,
+    Projection,
     RecipeResult,
     ShapedRecipe,
     ShapelessRecipe,
     SmithingTransformRecipe,
     SmithingTrimRecipe,
     SoundEventId,
+    SpawnBoundingBox,
+    SpawnEntry,
+    SpawnOverride,
+    SpreadType,
     StonecuttingRecipe,
+    // Worldgen: structure sets
+    Structure,
+    StructureEntry,
+    StructurePlacement,
+    StructureSet,
     // Tag
     Tag,
+    TemplatePool,
+    TerrainAdaptation,
     ToolProperties,
     ToolRule,
     TrimAssetName,
     TrimMaterial,
     TrimPattern,
+    VerticalAnchor,
+    WorldgenBlockState,
 };

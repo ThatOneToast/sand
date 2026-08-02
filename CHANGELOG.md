@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — typed structure-generation components (#187)
+
+- Added `Structure`, `StructureSet`, `TemplatePool`, and `ProcessorList`
+  builders for `data/<namespace>/worldgen/{structure,structure_set,
+  template_pool,processor_list}/<id>.json`, closing the last `Missing`
+  worldgen registries tracked by `registry_coverage.rs`.
+- `Structure::jigsaw` models the common `minecraft:jigsaw` shape (biome
+  tag/entry constraint, generation step, terrain adaptation, spawn overrides,
+  start pool, size, start height, max distance from center); other structure
+  types go through `Structure::new` plus the `raw_field` escape hatch.
+- `StructureSet` models weighted structure entries plus `random_spread` and
+  `concentric_rings` placement, validating spacing/separation ordering,
+  frequency bounds, and distance/count/weight positivity.
+- `TemplatePool` models single, legacy-single, empty, feature, and list pool
+  elements with named or inline processor references; `ProcessorList` models
+  block-ignore, protected-blocks, gravity, jigsaw-replacement, and rule
+  processors with a typed `output_state`.
+- Added `StructureSetId`, `TemplatePoolId`, `ProcessorListId`,
+  `StructureTemplateId`, and `StructureTypeId` typed registry identifiers
+  (reusing the existing `StructureId`).
+- Added a shared `sand_components::worldgen::providers` module
+  (`HeightProvider`, `VerticalAnchor`, `Heightmap`, `WorldgenBlockState`) so
+  height and block-state shapes serialize identically across structure,
+  processor, and future feature builders.
+- Every builder keeps an explicitly named raw escape hatch (`raw_field`,
+  `Processor::Raw`, `PoolElement::Raw`, or inline `RawJson` predicates) for
+  modded or version-specific shapes.
+
 ### Changed — typed enchantment text, item/tag, slot, and effect fields (#202)
 
 - **Breaking:** `Enchantment` now takes a `TextComponent` description, typed

@@ -559,7 +559,7 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         sand_module: Some("sand_components::worldgen::biome"),
         api_status: RegistryApiStatus::PartiallyImplemented,
         version_gate: None,
-        notes: "Biome struct exists with basic fields. Spawn costs, effects, mob spawning rules are partial.",
+        notes: "Biome struct has typed ambient sound (SoundEventId), temperature_modifier (enum), and per-generation-step feature references (GenerationStep + ConfiguredFeatureId); #182 slice. Carvers typing is #191; spawners/spawn_costs remain raw Value.",
     },
     RegistryCoverage {
         registry_key: "minecraft:worldgen/placed_feature",
@@ -673,10 +673,10 @@ pub const REGISTRY_COVERAGE: &[RegistryCoverage] = &[
         registry_key: "minecraft:worldgen/configured_carver",
         datapack_dir: "worldgen/configured_carver",
         tag_dir: None,
-        sand_module: None,
-        api_status: RegistryApiStatus::Missing,
+        sand_module: Some("sand_components::worldgen::configured_carver"),
+        api_status: RegistryApiStatus::PartiallyImplemented,
         version_gate: None,
-        notes: "Not implemented. Use RawComponent.",
+        notes: "Typed ConfiguredCarverId references and a small common builder slice (cave, nether_cave, sharing CaveCarverConfig); other vanilla carver shapes use the explicit ConfiguredCarver::raw escape hatch.",
     },
     RegistryCoverage {
         registry_key: "minecraft:dimension",

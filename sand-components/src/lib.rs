@@ -75,8 +75,8 @@ pub use predicates::{
 pub use registry::{
     AdvancementId, BiomeId, BlockId, DamageTypeId, DimensionId, DimensionTypeId,
     EnchantmentEffectComponentId, EnchantmentId, EntityTypeId, EquipmentModelId, FunctionId,
-    ItemId, LootTableId, PotionRegistryId, RecipeId, SoundEventId, StatusEffectId, StructureId,
-    TagId,
+    ItemId, LootTableId, PotionRegistryId, ProcessorListId, RecipeId, SoundEventId, StatusEffectId,
+    StructureId, StructureSetId, StructureTemplateId, StructureTypeId, TagId, TemplatePoolId,
 };
 pub use resource_location::{Identifier, PackNamespace, ResourceLocation};
 
@@ -179,5 +179,10 @@ pub use wolf_variant::WolfVariant;
 
 pub use worldgen::biome::BiomeEffects;
 pub use worldgen::{
-    Biome, Dimension, DimensionType, MonsterSpawnLightLevel, NoiseSettings, PlacedFeature,
+    Biome, BiomeSelector, Dimension, DimensionType, ExclusionZone, FrequencyReductionMethod,
+    GenerationStep, HeightProvider, Heightmap, JigsawConfig, MobCategory, MonsterSpawnLightLevel,
+    NoiseSettings, PlacedFeature, PoolElement, PoolEntry, Processor, ProcessorList, ProcessorRule,
+    ProcessorsRef, Projection, SpawnBoundingBox, SpawnEntry, SpawnOverride, SpreadType, Structure,
+    StructureEntry, StructurePlacement, StructureSet, TemplatePool, TerrainAdaptation,
+    VerticalAnchor, WorldgenBlockState,
 };

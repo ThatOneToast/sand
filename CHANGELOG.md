@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — audited `FullyImplemented` registry-coverage rows and closed a structural guard gap (#193)
+
+- Audited every `RegistryApiStatus::FullyImplemented` row in
+  `sand-components/src/registry_coverage.rs` against its actual current
+  builder, validation, and test surface (not just its notes text).
+  `minecraft:trim_material`/`minecraft:trim_pattern` (cited by #193 as an
+  overstated example) were already reconciled by the typed trim migration
+  (#198, merged as PR #306) before this audit; `minecraft:trim_pattern`
+  correctly remains `FullyImplemented` and `minecraft:trim_material`
+  correctly remains `PartiallyImplemented`.
+- Found and downgraded two previously-unlisted overstated rows:
+  `minecraft:jukebox_song` and `minecraft:instrument`. Both claimed
+  `FullyImplemented` while their `description` field was a bare
+  `serde_json::Value` behind an unnamed setter, with no typed
+  `TextComponent` path and no export-time validation. Downgraded to
+  `PartiallyImplemented` and filed #321 to add a typed/validated
+  `description` path and an explicitly named raw escape hatch.
+- Filed #322 to model the current (post-1.21.4) `override_armor_assets`
+  field on `TrimMaterial`; `minecraft:trim_material`'s notes were updated to
+  reference #322 instead of the now-closed #198.
+- Added `fully_implemented_modules_have_no_unnamed_raw_value_setters`, a
+  structural regression guard that scans the real source of every
+  `FullyImplemented` row's `sand_module` for the exact anti-pattern found
+  above (an unnamed public setter taking a bare `Value` parameter), so a
+  future regression of this shape fails the build even if nobody manually
+  adds the registry to `KNOWN_PARTIAL_REGISTRIES`. Verified load-bearing by
+  temporarily reverting the `minecraft:jukebox_song` row and confirming the
+  new test fails with a clear diagnostic, then restoring it.
+- Added `minecraft:jukebox_song`, `minecraft:instrument`, and
+  `minecraft:trim_material` to `KNOWN_PARTIAL_REGISTRIES`.
+- Corrected a stale doc comment on `KNOWN_PARTIAL_REGISTRIES` claiming
+  `docs/typedness-audit.md` "was removed in #262" — that file still exists
+  and has been actively maintained by every recent typed-migration PR;
+  updated it alongside this change rather than treating the removal claim
+  as authoritative.
+
 ### Added — typed configured-carver builder used by biomes (#191)
 
 - Added `sand_components::worldgen::configured_carver` with `ConfiguredCarver`,

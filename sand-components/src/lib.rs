@@ -83,12 +83,12 @@ pub use predicates::{
     IntRange, ItemPredicate, LocationPredicate, Range, WeatherPredicate,
 };
 pub use registry::{
-    AdvancementId, BiomeId, BlockId, ChickenVariantId, ConfiguredFeatureId, CowVariantId,
-    DamageTypeId, DensityFunctionId, DimensionId, DimensionTypeId, EnchantmentEffectComponentId,
-    EnchantmentId, EntityTypeId, EquipmentModelId, FunctionId, ItemId, LootTableId, NoiseId,
-    PigVariantId, PotionRegistryId, PredicateId, ProcessorListId, RandomSequenceId, RecipeId,
-    SoundEventId, StatusEffectId, StructureId, StructureSetId, StructureTemplateId,
-    StructureTypeId, TagId, TemplatePoolId, TradeSetId, VillagerTradeId,
+    AdvancementId, BiomeId, BlockId, ChickenVariantId, ConfiguredCarverId, ConfiguredFeatureId,
+    CowVariantId, DamageTypeId, DensityFunctionId, DimensionId, DimensionTypeId,
+    EnchantmentEffectComponentId, EnchantmentId, EntityTypeId, EquipmentModelId, FunctionId,
+    ItemId, LootTableId, NoiseId, PigVariantId, PotionRegistryId, PredicateId, ProcessorListId,
+    RandomSequenceId, RecipeId, SoundEventId, StatusEffectId, StructureId, StructureSetId,
+    StructureTemplateId, StructureTypeId, TagId, TemplatePoolId, TradeSetId, VillagerTradeId,
 };
 pub use resource_location::{Identifier, PackNamespace, ResourceLocation};
 
@@ -206,11 +206,12 @@ pub use wolf_variant::WolfVariant;
 pub use worldgen::biome::BiomeEffects;
 pub use worldgen::providers::{BlockState, BlockStateProvider, WeightedBlockState};
 pub use worldgen::{
-    Biome, BiomeSelector, ConfiguredFeature, DensityFunction, DensityFunctionBinaryOp,
-    DensityFunctionExpr, DensityFunctionUnaryOp, Dimension, DimensionType, ExclusionZone,
-    FrequencyReductionMethod, GenerationStep, HeightProvider, Heightmap, JigsawConfig, MobCategory,
-    MonsterSpawnLightLevel, Noise, NoiseSettings, OreConfig, OreTarget, PlacedFeature, PoolElement,
-    PoolEntry, Processor, ProcessorList, ProcessorRule, ProcessorsRef, Projection, RuleTest,
-    SpawnBoundingBox, SpawnEntry, SpawnOverride, SpreadType, Structure, StructureEntry,
-    StructurePlacement, StructureSet, TemplatePool, TerrainAdaptation, VerticalAnchor,
+    Biome, BiomeSelector, CarverFloatRange, CarvingStep, CaveCarverConfig, ConfiguredCarver,
+    ConfiguredFeature, DensityFunction, DensityFunctionBinaryOp, DensityFunctionExpr,
+    DensityFunctionUnaryOp, Dimension, DimensionType, ExclusionZone, FrequencyReductionMethod,
+    GenerationStep, HeightProvider, Heightmap, JigsawConfig, MobCategory, MonsterSpawnLightLevel,
+    Noise, NoiseSettings, OreConfig, OreTarget, PlacedFeature, PoolElement, PoolEntry, Processor,
+    ProcessorList, ProcessorRule, ProcessorsRef, Projection, RuleTest, SpawnBoundingBox,
+    SpawnEntry, SpawnOverride, SpreadType, Structure, StructureEntry, StructurePlacement,
+    StructureSet, TemplatePool, TerrainAdaptation, VerticalAnchor,
 };

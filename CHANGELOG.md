@@ -68,6 +68,122 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     (tracked in `KNOWN_PARTIAL_REGISTRIES` pending #185/#204 typed item
     modifiers/predicates).
 
+### Added — component-bearing custom items as recipe results (#226)
+
+- `RecipeResult` can now carry a `CustomItem`'s data components —
+  `minecraft:custom_data` markers, `item_name`/`custom_name`/`lore`,
+  `enchantment_glint_override`, `custom_model_data`, attributes, food/tool/
+  equippable, and raw components — via `RecipeResult::custom_item`/
+  `RecipeResult::from_custom_item` (plus `TryFrom<CustomItem>`/
+  `TryFrom<&CustomItem>` and `CustomItem::recipe_result`), so a crafted item
+  keeps its custom identity instead of collapsing to its base item ID.
+  `CustomItem::stack_components` builds this structured JSON view directly
+  from typed state (never by parsing `CustomItem`'s SNBT-based `Display`
+  string), sharing the same component-serialization machinery `ItemStack`
+  uses. The existing `RecipeResult::item`/`raw`/`new` path is unchanged and
+  never emits an empty `"components"` object.
+- Component-bearing results are gated on the `ComponentFeature::ItemComponents`
+  capability (`sand-version`'s `VersionCaps`), so recipe builders fail with a
+  clear version-gating error on targets that predate structured item
+  components instead of silently stripping them.
+- Component-aware recipe *ingredients* remain explicitly unsupported:
+  `Ingredient::custom_item` always returns a descriptive
+  `SandError::ComponentValidation` — no Minecraft version Sand targets
+  matches recipe ingredients by data component, so this deliberately never
+  degrades to base-item-only matching (per the issue's own risk section,
+  which called out silent degradation as the primary hazard to avoid).
+  Base-item/tag ingredient matching (`Ingredient::item`/`item_id`/`item_tag`)
+  is unaffected.
+- Added the exact "elevator block item" reproduction case from the issue as
+  an integration test: a shaped recipe result and its component export, plus
+  verifying the crafted result's `minecraft:custom_data` marker matches an
+  `ItemPredicate` built from the same source `CustomItem`.
+
+### Fixed — audited `FullyImplemented` registry-coverage rows and closed a structural guard gap (#193)
+
+- Audited every `RegistryApiStatus::FullyImplemented` row in
+  `sand-components/src/registry_coverage.rs` against its actual current
+  builder, validation, and test surface (not just its notes text).
+  `minecraft:trim_material`/`minecraft:trim_pattern` (cited by #193 as an
+  overstated example) were already reconciled by the typed trim migration
+  (#198, merged as PR #306) before this audit; `minecraft:trim_pattern`
+  correctly remains `FullyImplemented` and `minecraft:trim_material`
+  correctly remains `PartiallyImplemented`.
+- Found and downgraded two previously-unlisted overstated rows:
+  `minecraft:jukebox_song` and `minecraft:instrument`. Both claimed
+  `FullyImplemented` while their `description` field was a bare
+  `serde_json::Value` behind an unnamed setter, with no typed
+  `TextComponent` path and no export-time validation. Downgraded to
+  `PartiallyImplemented` and filed #321 to add a typed/validated
+  `description` path and an explicitly named raw escape hatch.
+- Filed #322 to model the current (post-1.21.4) `override_armor_assets`
+  field on `TrimMaterial`; `minecraft:trim_material`'s notes were updated to
+  reference #322 instead of the now-closed #198.
+- Added `fully_implemented_modules_have_no_unnamed_raw_value_setters`, a
+  structural regression guard that scans the real source of every
+  `FullyImplemented` row's `sand_module` for the exact anti-pattern found
+  above (an unnamed public setter taking a bare `Value` parameter), so a
+  future regression of this shape fails the build even if nobody manually
+  adds the registry to `KNOWN_PARTIAL_REGISTRIES`. Verified load-bearing by
+  temporarily reverting the `minecraft:jukebox_song` row and confirming the
+  new test fails with a clear diagnostic, then restoring it.
+- Added `minecraft:jukebox_song`, `minecraft:instrument`, and
+  `minecraft:trim_material` to `KNOWN_PARTIAL_REGISTRIES`.
+- Corrected a stale doc comment on `KNOWN_PARTIAL_REGISTRIES` claiming
+  `docs/typedness-audit.md` "was removed in #262" — that file still exists
+  and has been actively maintained by every recent typed-migration PR;
+  updated it alongside this change rather than treating the removal claim
+  as authoritative.
+
+### Added — typed configured-carver builder used by biomes (#191)
+
+- Added `sand_components::worldgen::configured_carver` with `ConfiguredCarver`,
+  covering `worldgen/configured_carver/<id>.json`. Typed constructors cover the
+  common vanilla cave-shaped carvers — `ConfiguredCarver::cave` and
+  `::nether_cave` — both backed by a shared `CaveCarverConfig` (`probability`,
+  `y` via `worldgen::providers::HeightProvider`, `yScale` via a new
+  `CarverFloatRange` uniform-float provider, and `lava_level` via
+  `worldgen::providers::VerticalAnchor`). `CaveCarverConfig::config_field` is a
+  narrower escape hatch for extra vanilla config keys (e.g.
+  `horizontal_radius_multiplier`) outside the typed slice.
+- Added `ConfiguredCarverId`, and `ConfiguredCarver::id` to obtain one for a
+  component you authored.
+- Added `Biome::carver_step(step, ConfiguredCarverId)` with a new
+  `CarvingStep` (`Air`/`Liquid`) enum, preserving vanilla's step-grouped
+  `{"air": [...], "liquid": [...]}` carvers shape without hand-written JSON.
+- **Breaking:** `Biome::carvers` is renamed to `Biome::raw_carvers`, the
+  explicitly named raw escape hatch for carver references/shapes outside the
+  typed carving-step map; combining it with `Biome::carver_step` on the same
+  biome is a validation error.
+- Updated `worldgen/configured_carver` registry coverage from `Missing` to
+  `PartiallyImplemented`.
+
+### Changed — typed biome ambient sound, temperature modifier, and feature references (#182 slice)
+
+- **Breaking:** `BiomeEffects::ambient_sound` now takes a typed `SoundEventId`
+  instead of a bare string; the previous raw-string behavior moved to the
+  explicitly named `BiomeEffects::raw_ambient_sound`.
+- **Breaking:** `Biome::temperature_modifier` now takes a typed
+  `TemperatureModifier` enum (`None`/`Frozen`) instead of a bare string; the
+  previous raw-string behavior moved to `Biome::raw_temperature_modifier`
+  (still validated against `"none"`/`"frozen"`, since vanilla does not yet
+  accept other values).
+- **Breaking:** `Biome::features` (raw `Value`) was renamed to
+  `Biome::raw_features`. Added `Biome::feature(GenerationStep,
+  ConfiguredFeatureId)`, a typed builder that places a `ConfiguredFeatureId`
+  into the correct per-generation-step bucket of the vanilla
+  list-of-lists `features` shape.
+- `Biome::feature` reuses the existing `worldgen::structure::GenerationStep`
+  (vanilla's shared `GenerationStep.Decoration` enum, already added by #187
+  for structure starts) rather than introducing a duplicate biome-local enum,
+  since both structures and biome feature buckets index the same eleven
+  vanilla decoration steps.
+- This is a scoped slice of #182 (typed biome effects + the `Biome`-level
+  part of typed IDs), not the full issue. `Biome::carvers` typing is tracked
+  by #191; `Biome::spawners`/`Biome::spawn_costs` typing, dimension
+  generator typing, noise-settings typing, and placement-modifier typing
+  remain open follow-ups under #182.
+
 ### Added — first-class typed predicate authoring beyond the `LootCondition` wrapper (#204)
 
 - Added `PredicateRoot`, a dedicated typed condition tree for standalone

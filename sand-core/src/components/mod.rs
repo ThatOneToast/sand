@@ -22,11 +22,14 @@ pub use sand_components::{
     AttributeModifier,
     AttributeOperation,
     AttributeType,
+    // Animal variants
+    ChickenVariant,
     ConsumableAnimation,
     ConsumableProperties,
     // Recipes
     CookingRecipe,
     CookingType,
+    CowVariant,
     Criterion,
     CustomItem,
     DyedColor,
@@ -62,6 +65,7 @@ pub use sand_components::{
     LootTable,
     LootTableType,
     NumberProvider,
+    PigVariant,
     // Predicate
     Predicate,
     RecipeResult,

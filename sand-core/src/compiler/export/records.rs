@@ -964,4 +964,74 @@ mod tests {
         assert_eq!(a.content, b.content);
         assert_eq!(a.dir, "jukebox_song");
     }
+
+    // ── Animal variant registries (#201) ────────────────────────────────────────
+
+    #[test]
+    fn chicken_variant_exports_to_its_registry_directory() {
+        let variant = sand_components::ChickenVariant::new(test_rl("test", "cold"))
+            .asset_id("minecraft:entity/chicken/cold_chicken")
+            .spawn_condition(sand_components::SpawnCondition::biome(
+                "minecraft:snowy_taiga",
+                1,
+            ));
+        let record = component_to_record(&variant, None).unwrap();
+        assert_eq!(record.namespace, "test");
+        assert_eq!(record.dir, "chicken_variant");
+        assert_eq!(record.path, "cold");
+        assert!(
+            record
+                .content
+                .contains("\"minecraft:entity/chicken/cold_chicken\"")
+        );
+    }
+
+    #[test]
+    fn cow_variant_exports_to_its_registry_directory() {
+        let variant = sand_components::CowVariant::new(test_rl("test", "warm"))
+            .asset_id("minecraft:entity/cow/warm_cow");
+        let record = component_to_record(&variant, None).unwrap();
+        assert_eq!(record.dir, "cow_variant");
+        assert_eq!(record.path, "warm");
+    }
+
+    #[test]
+    fn pig_variant_exports_to_its_registry_directory() {
+        let variant = sand_components::PigVariant::new(test_rl("test", "cold"))
+            .asset_id("minecraft:entity/pig/cold_pig");
+        let record = component_to_record(&variant, None).unwrap();
+        assert_eq!(record.dir, "pig_variant");
+        assert_eq!(record.path, "cold");
+    }
+
+    #[test]
+    fn animal_variants_use_the_animal_variants_version_gate() {
+        let variant = sand_components::ChickenVariant::new(test_rl("test", "gated"))
+            .asset_id("minecraft:entity/chicken/cold_chicken");
+        let caps = VersionCaps::all_disabled();
+        let ctx = ExportCtx {
+            caps: &caps,
+            requested_version: "1.21.4",
+            is_fallback: false,
+        };
+        let err = component_to_record(&variant, Some(&ctx)).unwrap_err();
+        let message = err.to_string();
+        assert!(message.contains("animal_variants"), "{message}");
+        assert!(message.contains("1.21.4"), "{message}");
+    }
+
+    #[test]
+    fn animal_variants_succeed_when_supported() {
+        let variant = sand_components::PigVariant::new(test_rl("test", "supported"))
+            .asset_id("minecraft:entity/pig/cold_pig");
+        let caps = VersionCaps::all_enabled();
+        let ctx = ExportCtx {
+            caps: &caps,
+            requested_version: "1.21.5",
+            is_fallback: false,
+        };
+        let record = component_to_record(&variant, Some(&ctx))
+            .expect("pig_variant should succeed when animal_variants feature is supported");
+        assert_eq!(record.dir, "pig_variant");
+    }
 }

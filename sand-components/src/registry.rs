@@ -248,6 +248,24 @@ impl EnchantmentEffectComponentId {
     }
 }
 
+registry_id! {
+    /// Typed identifier for the `chicken_variant` registry (e.g.
+    /// `minecraft:cold` or `mymod:arcane_chicken`). Introduced in 1.21.5.
+    ChickenVariantId
+}
+
+registry_id! {
+    /// Typed identifier for the `cow_variant` registry (e.g.
+    /// `minecraft:warm` or `mymod:arcane_cow`). Introduced in 1.21.5.
+    CowVariantId
+}
+
+registry_id! {
+    /// Typed identifier for the `pig_variant` registry (e.g.
+    /// `minecraft:cold` or `mymod:arcane_pig`). Introduced in 1.21.5.
+    PigVariantId
+}
+
 // ── TagId<T> ─────────────────────────────────────────────────────────────────
 
 /// A typed tag identifier scoped to a specific registry kind `T`.
@@ -430,6 +448,22 @@ mod tests {
     fn dimension_id_minecraft() {
         let id = DimensionId::minecraft("overworld").unwrap();
         assert_eq!(id.to_string(), "minecraft:overworld");
+    }
+
+    #[test]
+    fn animal_variant_ids_validate_and_serialize() {
+        let chicken = ChickenVariantId::minecraft("cold").unwrap();
+        let cow = CowVariantId::minecraft("warm").unwrap();
+        let pig: PigVariantId = "mymod:arcane_pig".parse().unwrap();
+        assert_eq!(chicken.to_string(), "minecraft:cold");
+        assert_eq!(cow.to_string(), "minecraft:warm");
+        assert_eq!(pig.to_string(), "mymod:arcane_pig");
+        assert_eq!(
+            serde_json::to_value(chicken).unwrap(),
+            serde_json::json!("minecraft:cold")
+        );
+        assert!("not namespaced".parse::<ChickenVariantId>().is_err());
+        assert!("minecraft:bad path".parse::<CowVariantId>().is_err());
     }
 
     #[test]

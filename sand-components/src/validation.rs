@@ -280,6 +280,57 @@ pub(crate) fn validate_resource_or_tag_location_str(
     validate_resource_location_chars(location, kind, field, value, target)
 }
 
+/// Validates a "biome selector" JSON shape: either a single non-empty biome
+/// ID / tag reference string, or a non-empty array of biome ID / tag
+/// reference strings.
+///
+/// This is the shared shape vanilla uses for biome-scoped spawn conditions
+/// (e.g. `wolf_variant` `biomes`, and the `minecraft:biome` spawn condition
+/// used by the newer `chicken_variant`/`cow_variant`/`pig_variant` registries).
+/// Empty arrays, empty strings, and any other JSON shape (object, number,
+/// bool, null, non-string array entries) are rejected.
+pub(crate) fn validate_biome_selector(
+    location: &ResourceLocation,
+    kind: &str,
+    field: &str,
+    value: &Value,
+) -> Result<()> {
+    match value {
+        Value::String(s) => {
+            require_non_empty(location, kind, field, s)?;
+            validate_resource_or_tag_location_str(location, kind, field, s)?;
+        }
+        Value::Array(items) => {
+            require_non_empty_collection(location, kind, field, items.len())?;
+            for item in items {
+                match item {
+                    Value::String(s) => {
+                        require_non_empty(location, kind, field, s)?;
+                        validate_resource_or_tag_location_str(location, kind, field, s)?;
+                    }
+                    other => {
+                        return Err(error(
+                            location,
+                            kind,
+                            field,
+                            &format!("{field} array entries must be strings; received `{other}`"),
+                        ));
+                    }
+                }
+            }
+        }
+        other => {
+            return Err(error(
+                location,
+                kind,
+                field,
+                &format!("{field} must be a string or an array of strings; received `{other}`"),
+            ));
+        }
+    }
+    Ok(())
+}
+
 pub(crate) fn require_json_object(
     location: &ResourceLocation,
     kind: &str,

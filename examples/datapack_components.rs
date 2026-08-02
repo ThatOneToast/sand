@@ -1,5 +1,6 @@
 //! Typed datapack components.
 
+use sand_components::{PigVariant, SpawnCondition};
 use sand_core::prelude::*;
 use sand_core::sand_components::worldgen::providers::{BlockState, BlockStateProvider};
 use sand_macros::component;
@@ -105,6 +106,18 @@ pub fn mob_enchantments() -> EnchantmentProvider {
         5,
         17,
     )
+}
+
+/// A custom biome-specific pig variant (Minecraft 1.21.5+), spawning only in
+/// snowy biomes with a higher priority than the vanilla default.
+#[component]
+pub fn frostback_pig() -> PigVariant {
+    PigVariant::new(ResourceLocation::new("example", "frostback").unwrap())
+        .asset_id("example:entity/pig/frostback")
+        .spawn_condition(SpawnCondition::biomes(
+            ["minecraft:snowy_taiga", "minecraft:snowy_plains"],
+            1,
+        ))
 }
 
 /// A reusable named noise-parameter file for a custom terrain ridge.

@@ -26,11 +26,14 @@ pub use sand_components::{
     BiomeSelector,
     BlockState,
     BlockStateProvider,
+    // Animal variants
+    ChickenVariant,
     ConsumableAnimation,
     ConsumableProperties,
     // Recipes
     CookingRecipe,
     CookingType,
+    CowVariant,
     Criterion,
     CustomItem,
     DyedColor,
@@ -74,6 +77,7 @@ pub use sand_components::{
     LootTableType,
     MobCategory,
     NumberProvider,
+    PigVariant,
     // Worldgen: template pools
     PoolElement,
     PoolEntry,

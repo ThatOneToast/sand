@@ -149,6 +149,9 @@ pub enum ComponentFeature {
     /// `minecraft:item_name`, etc.). Gates component-bearing recipe results and
     /// other JSON payloads that embed structured item components.
     ItemComponents,
+    /// Biome-scoped animal variant registries — `chicken_variant`,
+    /// `cow_variant`, `pig_variant` (1.21.5+).
+    AnimalVariants,
 }
 
 impl ComponentFeature {
@@ -162,6 +165,7 @@ impl ComponentFeature {
             Self::Enchantments => "enchantments",
             Self::TrimAssets => "trim_assets",
             Self::ItemComponents => "item_components",
+            Self::AnimalVariants => "animal_variants",
         }
     }
 
@@ -174,6 +178,7 @@ impl ComponentFeature {
         Self::Enchantments,
         Self::TrimAssets,
         Self::ItemComponents,
+        Self::AnimalVariants,
     ];
 }
 
@@ -198,6 +203,7 @@ pub struct VersionCaps {
     supports_enchantments: bool,
     supports_trim_assets: bool,
     supports_item_components: bool,
+    supports_animal_variants: bool,
 }
 
 impl VersionCaps {
@@ -216,6 +222,7 @@ impl VersionCaps {
             supports_enchantments: true,
             supports_trim_assets: true,
             supports_item_components: true,
+            supports_animal_variants: true,
         }
     }
 
@@ -231,7 +238,19 @@ impl VersionCaps {
             supports_enchantments: false,
             supports_trim_assets: false,
             supports_item_components: false,
+            supports_animal_variants: false,
         }
+    }
+
+    /// Set whether biome-scoped animal variant registries (`chicken_variant`,
+    /// `cow_variant`, `pig_variant`; 1.21.5+) are supported.
+    ///
+    /// A separate builder method (rather than a constructor parameter) keeps
+    /// [`VersionCaps::from_flags`]/[`VersionCaps::from_profile_flags`] call
+    /// sites stable as new narrowly-scoped features are added.
+    pub fn with_animal_variants(mut self, value: bool) -> Self {
+        self.supports_animal_variants = value;
+        self
     }
 
     /// Check whether a specific feature is supported by this capability set.
@@ -244,6 +263,7 @@ impl VersionCaps {
             ComponentFeature::Enchantments => self.supports_enchantments,
             ComponentFeature::TrimAssets => self.supports_trim_assets,
             ComponentFeature::ItemComponents => self.supports_item_components,
+            ComponentFeature::AnimalVariants => self.supports_animal_variants,
         }
     }
 
@@ -301,6 +321,9 @@ impl VersionCaps {
             supports_enchantments,
             supports_trim_assets,
             supports_item_components,
+            // Not a constructor parameter — see `with_animal_variants`. Callers
+            // that need to express it chain `.with_animal_variants(true)`.
+            supports_animal_variants: false,
         }
     }
 
@@ -366,6 +389,7 @@ mod tests {
         assert_eq!(ComponentFeature::Enchantments.name(), "enchantments");
         assert_eq!(ComponentFeature::TrimAssets.name(), "trim_assets");
         assert_eq!(ComponentFeature::ItemComponents.name(), "item_components");
+        assert_eq!(ComponentFeature::AnimalVariants.name(), "animal_variants");
     }
 
     #[test]
@@ -380,6 +404,18 @@ mod tests {
         assert!(caps.supports(ComponentFeature::ItemComponents));
         assert_eq!(caps.requested_version(), LATEST_KNOWN);
         assert!(!caps.is_fallback());
+    }
+
+    #[test]
+    fn with_animal_variants_overrides_without_touching_other_flags() {
+        let caps = VersionCaps::from_flags(true, true, true, true, true, true, true)
+            .with_animal_variants(true);
+        assert!(caps.supports(ComponentFeature::AnimalVariants));
+        assert!(caps.supports(ComponentFeature::Dialogs));
+
+        let caps = VersionCaps::all_enabled().with_animal_variants(false);
+        assert!(!caps.supports(ComponentFeature::AnimalVariants));
+        assert!(caps.supports(ComponentFeature::Dialogs));
     }
 
     #[test]

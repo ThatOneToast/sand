@@ -1,6 +1,8 @@
 //! Typed datapack components.
 
+use sand_components::{PigVariant, SpawnCondition};
 use sand_core::prelude::*;
+use sand_core::sand_components::worldgen::providers::{BlockState, BlockStateProvider};
 use sand_macros::component;
 
 #[component]
@@ -35,6 +37,28 @@ pub fn bright_overworld() -> DimensionType {
     )
     .ambient_light(0.25)
     .monster_spawn_light_level(MonsterSpawnLightLevel::Constant(7))
+}
+
+/// A minimal typed configured feature: a single simple-block feature that
+/// places one block state.
+#[component]
+pub fn ashen_shrub_feature() -> ConfiguredFeature {
+    ConfiguredFeature::simple_block(
+        ResourceLocation::new("example", "ashen_shrub").expect("static ID is valid"),
+        BlockStateProvider::simple(BlockState::new(
+            BlockId::minecraft("fern").expect("built-in block ID is valid"),
+        )),
+    )
+}
+
+/// A placed feature referencing the typed configured feature above.
+#[component]
+pub fn ashen_shrub_placement() -> PlacedFeature {
+    PlacedFeature::new(
+        ResourceLocation::new("example", "ashen_shrub").expect("static ID is valid"),
+        ashen_shrub_feature().id(),
+    )
+    .placement_modifier(serde_json::json!({ "type": "minecraft:count", "count": 3 }))
 }
 
 #[component]
@@ -81,5 +105,45 @@ pub fn mob_enchantments() -> EnchantmentProvider {
         TagId::<EnchantmentId>::minecraft("on_mob_spawn_equipment").unwrap(),
         5,
         17,
+    )
+}
+
+/// A custom biome-specific pig variant (Minecraft 1.21.5+), spawning only in
+/// snowy biomes with a higher priority than the vanilla default.
+#[component]
+pub fn frostback_pig() -> PigVariant {
+    PigVariant::new(ResourceLocation::new("example", "frostback").unwrap())
+        .asset_id("example:entity/pig/frostback")
+        .spawn_condition(SpawnCondition::biomes(
+            ["minecraft:snowy_taiga", "minecraft:snowy_plains"],
+            1,
+        ))
+}
+
+/// A reusable named noise-parameter file for a custom terrain ridge.
+#[component]
+pub fn ridge_noise() -> Noise {
+    Noise::new(
+        ResourceLocation::new("example", "ridges").expect("static ID is valid"),
+        -7,
+        [1.0, 1.0, 1.0],
+    )
+}
+
+/// A density function referencing [`ridge_noise`] by its typed `NoiseId`,
+/// showing how typed density functions connect to noise-parameter files and
+/// to `NoiseSettings::noise_router` (see the `worldgen::density_function`
+/// module docs for the full noise-router example).
+#[component]
+pub fn ridge_density() -> DensityFunction {
+    DensityFunction::new(
+        ResourceLocation::new("example", "ridge_density").expect("static ID is valid"),
+        DensityFunctionExpr::square(DensityFunctionExpr::noise(
+            NoiseId::custom(
+                ResourceLocation::new("example", "ridges").expect("static ID is valid"),
+            ),
+            1.0,
+            1.0,
+        )),
     )
 }

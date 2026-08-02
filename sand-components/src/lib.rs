@@ -7,8 +7,11 @@
 //! | Module              | Component directory                        | Key types |
 //! |--------------------|--------------------------------------------|-----------|
 //! | [`advancement`]    | `advancement/`                             | [`Advancement`], [`AdvancementTrigger`], … |
+//! | [`animal_variant`] | *(shared spawn-condition model)*           | [`animal_variant::SpawnCondition`] |
 //! | [`banner_pattern`] | `banner_pattern/`                          | [`BannerPattern`] |
 //! | [`chat_type`]      | `chat_type/`                               | [`ChatType`], [`ChatDecoration`] |
+//! | [`chicken_variant`] | `chicken_variant/`                        | [`ChickenVariant`] |
+//! | [`cow_variant`]    | `cow_variant/`                             | [`CowVariant`] |
 //! | [`damage_type`]    | `damage_type/`                             | [`DamageType`], [`DamageScaling`], … |
 //! | [`enchantment`]    | `enchantment/`                             | [`Enchantment`], [`EnchantmentCost`] |
 //! | [`enchantment_provider`] | `enchantment_provider/`              | [`EnchantmentProvider`], [`EnchantmentSelection`] |
@@ -18,6 +21,7 @@
 //! | [`jukebox_song`]   | `jukebox_song/`                            | [`JukeboxSong`] |
 //! | [`loot_table`]     | `loot_table/`                              | [`LootTable`], [`LootPool`], [`LootEntry`], … |
 //! | [`painting_variant`] | `painting_variant/`                      | [`PaintingVariant`] |
+//! | [`pig_variant`]    | `pig_variant/`                             | [`PigVariant`] |
 //! | [`predicate`]      | `predicate/`                               | [`Predicate`], [`PredicateRoot`], [`EntityPredicateTarget`] |
 //! | [`recipe`]         | `recipe/`                                  | [`ShapedRecipe`], [`ShapelessRecipe`], … |
 //! | [`structure_template`] | `structure/`                          | [`StructureTemplate`] |
@@ -27,9 +31,12 @@
 //! | [`worldgen`]       | `worldgen/biome/`, `dimension/`, …         | [`Biome`], [`Dimension`], … |
 
 pub mod advancement;
+pub mod animal_variant;
 pub mod banner_pattern;
 pub mod chat_type;
+pub mod chicken_variant;
 pub mod component;
+pub mod cow_variant;
 pub mod damage_type;
 pub mod dialog;
 pub mod effect;
@@ -42,6 +49,7 @@ pub mod item_modifier;
 pub mod jukebox_song;
 pub mod loot_table;
 pub mod painting_variant;
+pub mod pig_variant;
 pub mod predicate;
 pub mod predicates;
 pub mod raw;
@@ -73,10 +81,12 @@ pub use predicates::{
     IntRange, ItemPredicate, LocationPredicate, Range, WeatherPredicate,
 };
 pub use registry::{
-    AdvancementId, BiomeId, BlockId, DamageTypeId, DimensionId, DimensionTypeId,
-    EnchantmentEffectComponentId, EnchantmentId, EntityTypeId, EquipmentModelId, FunctionId,
-    ItemId, LootTableId, PotionRegistryId, PredicateId, RecipeId, SoundEventId, StatusEffectId,
-    StructureId, TagId,
+    AdvancementId, BiomeId, BlockId, ChickenVariantId, ConfiguredFeatureId, CowVariantId,
+    DamageTypeId, DensityFunctionId, DimensionId, DimensionTypeId, EnchantmentEffectComponentId,
+    EnchantmentId, EntityTypeId, EquipmentModelId, FunctionId, ItemId, LootTableId, NoiseId,
+    PigVariantId, PotionRegistryId, PredicateId, ProcessorListId, RecipeId, SoundEventId,
+    StatusEffectId, StructureId, StructureSetId, StructureTemplateId, StructureTypeId, TagId,
+    TemplatePoolId,
 };
 pub use resource_location::{Identifier, PackNamespace, ResourceLocation};
 
@@ -86,6 +96,13 @@ pub use advancement::{
     Advancement, AdvancementDisplay, AdvancementFrame, AdvancementIcon, AdvancementRewards,
     AdvancementTrigger, Criterion,
 };
+
+// ── Animal Variants ───────────────────────────────────────────────────────────
+
+pub use animal_variant::SpawnCondition;
+pub use chicken_variant::ChickenVariant;
+pub use cow_variant::CowVariant;
+pub use pig_variant::PigVariant;
 
 // ── Banner Pattern ────────────────────────────────────────────────────────────
 
@@ -178,6 +195,13 @@ pub use wolf_variant::WolfVariant;
 // ── Worldgen ──────────────────────────────────────────────────────────────────
 
 pub use worldgen::biome::BiomeEffects;
+pub use worldgen::providers::{BlockState, BlockStateProvider, WeightedBlockState};
 pub use worldgen::{
-    Biome, Dimension, DimensionType, MonsterSpawnLightLevel, NoiseSettings, PlacedFeature,
+    Biome, BiomeSelector, ConfiguredFeature, DensityFunction, DensityFunctionBinaryOp,
+    DensityFunctionExpr, DensityFunctionUnaryOp, Dimension, DimensionType, ExclusionZone,
+    FrequencyReductionMethod, GenerationStep, HeightProvider, Heightmap, JigsawConfig, MobCategory,
+    MonsterSpawnLightLevel, Noise, NoiseSettings, OreConfig, OreTarget, PlacedFeature, PoolElement,
+    PoolEntry, Processor, ProcessorList, ProcessorRule, ProcessorsRef, Projection, RuleTest,
+    SpawnBoundingBox, SpawnEntry, SpawnOverride, SpreadType, Structure, StructureEntry,
+    StructurePlacement, StructureSet, TemplatePool, TerrainAdaptation, VerticalAnchor,
 };

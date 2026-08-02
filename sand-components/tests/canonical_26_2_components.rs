@@ -39,12 +39,15 @@ use sand_components::recipe::{
     SmithingTransformRecipe, SmithingTrimRecipe, StonecuttingRecipe,
 };
 use sand_components::registry::{
-    AdvancementId, EnchantmentId, FunctionId, ItemId, LootTableId, PredicateId, RecipeId,
+    AdvancementId, BlockId, ConfiguredFeatureId, EnchantmentId, FunctionId, ItemId, LootTableId,
+    PredicateId, RecipeId,
 };
 use sand_components::tag::{Tag, TagEntry, TypedTag};
 use sand_components::worldgen::Biome;
 use sand_components::worldgen::biome::BiomeEffects;
+use sand_components::worldgen::configured_feature::ConfiguredFeature;
 use sand_components::worldgen::placed_feature::PlacedFeature;
+use sand_components::worldgen::providers::{BlockState, BlockStateProvider};
 use sand_components::{
     Advancement, AdvancementDisplay, AdvancementFrame, AdvancementIcon, AdvancementRewards,
     AdvancementTrigger, AttributeModifier, AttributeOperation, AttributeType, ComponentContent,
@@ -936,12 +939,34 @@ fn canonical_26_2_worldgen_biome() {
     assert_eq!(biome.component_dir(), "worldgen/biome");
 }
 
+/// Wiki: "Configured feature" (https://minecraft.wiki/w/Configured_feature), checked 2026-07-31.
+#[test]
+fn canonical_26_2_worldgen_configured_feature() {
+    let feature = ConfiguredFeature::simple_block(
+        id("worldgen/configured_feature/scorched_shrub"),
+        BlockStateProvider::simple(BlockState::new(BlockId::minecraft("fern").unwrap())),
+    );
+
+    let expected = serde_json::json!({
+        "type": "minecraft:simple_block",
+        "config": {
+            "to_place": {
+                "type": "minecraft:simple_state_provider",
+                "state": {"Name": "minecraft:fern"}
+            }
+        }
+    });
+
+    assert_eq!(feature.to_json(), expected);
+    assert_eq!(feature.component_dir(), "worldgen/configured_feature");
+}
+
 /// Wiki: "Placed feature" (https://minecraft.wiki/w/Placed_feature), checked 2026-07-19.
 #[test]
 fn canonical_26_2_worldgen_placed_feature() {
     let feature = PlacedFeature::new(
         id("worldgen/placed_feature/scorched_shrub"),
-        "canon:scorched_shrub",
+        ConfiguredFeatureId::custom(ResourceLocation::new("canon", "scorched_shrub").unwrap()),
     )
     .placement_modifier(serde_json::json!({"type": "minecraft:count", "count": 4}))
     .placement_modifier(serde_json::json!({"type": "minecraft:square"}));

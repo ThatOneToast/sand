@@ -184,8 +184,31 @@ registry_id! {
 }
 
 registry_id! {
+    /// Typed Minecraft configured-feature identifier (e.g. `minecraft:oak` or
+    /// `mymod:ashen_ore`).
+    ///
+    /// Referenced by [`crate::worldgen::PlacedFeature`]; obtain one for a
+    /// component you authored with
+    /// [`crate::worldgen::ConfiguredFeature::id`].
+    ConfiguredFeatureId
+}
+
+registry_id! {
     /// Typed Minecraft dimension-type identifier (e.g. `minecraft:overworld` or `mymod:skylands`).
     DimensionTypeId
+}
+
+registry_id! {
+    /// Typed Minecraft noise-parameter identifier (e.g. `minecraft:temperature`
+    /// or `mymod:ridges`), referencing `worldgen/noise/<id>.json`.
+    NoiseId
+}
+
+registry_id! {
+    /// Typed Minecraft density-function identifier (e.g.
+    /// `minecraft:overworld/base_3d_noise` or `mymod:ridge_density`),
+    /// referencing `worldgen/density_function/<id>.json`.
+    DensityFunctionId
 }
 
 registry_id! {
@@ -196,6 +219,60 @@ registry_id! {
 registry_id! {
     /// Typed Minecraft structure identifier (e.g. `minecraft:village` or `mymod:dungeon`).
     StructureId
+}
+
+registry_id! {
+    /// Typed `minecraft:worldgen/structure_set` identifier (e.g. `minecraft:villages`).
+    StructureSetId
+}
+
+registry_id! {
+    /// Typed `minecraft:worldgen/template_pool` identifier
+    /// (e.g. `minecraft:village/plains/town_centers`).
+    TemplatePoolId
+}
+
+impl TemplatePoolId {
+    /// `minecraft:empty` — the vanilla terminal fallback pool.
+    pub fn empty() -> Self {
+        Self::minecraft("empty").expect("\"empty\" is a valid resource path")
+    }
+}
+
+registry_id! {
+    /// Typed `minecraft:worldgen/processor_list` identifier
+    /// (e.g. `minecraft:empty` or `mypack:mossify`).
+    ProcessorListId
+}
+
+impl ProcessorListId {
+    /// `minecraft:empty` — the vanilla no-op processor list.
+    pub fn empty() -> Self {
+        Self::minecraft("empty").expect("\"empty\" is a valid resource path")
+    }
+}
+
+registry_id! {
+    /// Typed identifier for a `.nbt` structure template asset stored under
+    /// `data/<namespace>/structure/` (e.g. `minecraft:village/plains/houses/plains_small_house_1`).
+    ///
+    /// This references the template *file*, not a `worldgen/structure`
+    /// registry entry — see [`StructureId`] for the latter.
+    StructureTemplateId
+}
+
+registry_id! {
+    /// Typed structure *type* identifier — the `type` field of a
+    /// `worldgen/structure` entry (e.g. `minecraft:jigsaw`).
+    StructureTypeId
+}
+
+impl StructureTypeId {
+    /// `minecraft:jigsaw` — the type used by villages, pillager outposts, and
+    /// most custom template-pool driven structures.
+    pub fn jigsaw() -> Self {
+        Self::minecraft("jigsaw").expect("\"jigsaw\" is a valid resource path")
+    }
 }
 
 registry_id! {
@@ -255,6 +332,24 @@ impl EnchantmentEffectComponentId {
         Self::minecraft("armor_effectiveness")
             .expect("\"armor_effectiveness\" is a valid resource path")
     }
+}
+
+registry_id! {
+    /// Typed identifier for the `chicken_variant` registry (e.g.
+    /// `minecraft:cold` or `mymod:arcane_chicken`). Introduced in 1.21.5.
+    ChickenVariantId
+}
+
+registry_id! {
+    /// Typed identifier for the `cow_variant` registry (e.g.
+    /// `minecraft:warm` or `mymod:arcane_cow`). Introduced in 1.21.5.
+    CowVariantId
+}
+
+registry_id! {
+    /// Typed identifier for the `pig_variant` registry (e.g.
+    /// `minecraft:cold` or `mymod:arcane_pig`). Introduced in 1.21.5.
+    PigVariantId
 }
 
 // ── TagId<T> ─────────────────────────────────────────────────────────────────
@@ -439,6 +534,22 @@ mod tests {
     fn dimension_id_minecraft() {
         let id = DimensionId::minecraft("overworld").unwrap();
         assert_eq!(id.to_string(), "minecraft:overworld");
+    }
+
+    #[test]
+    fn animal_variant_ids_validate_and_serialize() {
+        let chicken = ChickenVariantId::minecraft("cold").unwrap();
+        let cow = CowVariantId::minecraft("warm").unwrap();
+        let pig: PigVariantId = "mymod:arcane_pig".parse().unwrap();
+        assert_eq!(chicken.to_string(), "minecraft:cold");
+        assert_eq!(cow.to_string(), "minecraft:warm");
+        assert_eq!(pig.to_string(), "mymod:arcane_pig");
+        assert_eq!(
+            serde_json::to_value(chicken).unwrap(),
+            serde_json::json!("minecraft:cold")
+        );
+        assert!("not namespaced".parse::<ChickenVariantId>().is_err());
+        assert!("minecraft:bad path".parse::<CowVariantId>().is_err());
     }
 
     #[test]

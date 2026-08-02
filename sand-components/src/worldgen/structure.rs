@@ -35,7 +35,11 @@ const TYPED_FIELDS: &[&str] = &[
 ];
 
 /// The world-generation step a structure starts in.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+///
+/// This is vanilla's shared `GenerationStep.Decoration` enum: the same
+/// ordered steps also bucket a biome's per-step `features` list-of-lists
+/// (see [`crate::worldgen::biome::Biome::feature`]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum GenerationStep {
     RawGeneration,
     Lakes,
@@ -65,6 +69,24 @@ impl GenerationStep {
             Self::FluidSprings => "fluid_springs",
             Self::VegetalDecoration => "vegetal_decoration",
             Self::TopLayerModification => "top_layer_modification",
+        }
+    }
+
+    /// The vanilla `GenerationStep.Decoration` ordinal, used to index a
+    /// biome's per-step `features` list-of-lists array.
+    pub(crate) fn index(self) -> usize {
+        match self {
+            Self::RawGeneration => 0,
+            Self::Lakes => 1,
+            Self::LocalModifications => 2,
+            Self::UndergroundStructures => 3,
+            Self::SurfaceStructures => 4,
+            Self::Strongholds => 5,
+            Self::UndergroundOres => 6,
+            Self::UndergroundDecoration => 7,
+            Self::FluidSprings => 8,
+            Self::VegetalDecoration => 9,
+            Self::TopLayerModification => 10,
         }
     }
 }

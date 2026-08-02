@@ -248,6 +248,9 @@ pub struct VersionProfile {
     pub supports_chat_types: bool,
     /// Whether this version supports enchantment data components (1.21+).
     pub supports_enchantments: bool,
+    /// Whether this version supports biome-scoped animal variant registries —
+    /// `chicken_variant`, `cow_variant`, `pig_variant` (1.21.5+).
+    pub supports_animal_variants: bool,
     /// When `true` the profile was resolved via a conservative fallback because
     /// the exact version was not in the known table. Users should verify and
     /// may override `pack_format` in `sand.toml`.
@@ -332,6 +335,7 @@ impl VersionProfile {
             supports_damage_types: caps.damage_types,
             supports_chat_types: caps.chat_types,
             supports_enchantments: caps.enchantments,
+            supports_animal_variants: caps.animal_variants,
             is_fallback: caps.is_fallback,
         })
     }
@@ -446,6 +450,7 @@ impl VersionProfile {
             "item_components" => self.supports_item_components,
             "data_components" => self.supports_data_components,
             "26_series" => self.supports_26_series,
+            "animal_variants" => self.supports_animal_variants,
             _ => false,
         }
     }
@@ -466,6 +471,7 @@ impl VersionProfile {
             self.supports_trim_assets,
             self.supports_item_components,
         )
+        .with_animal_variants(self.supports_animal_variants)
     }
 }
 
@@ -483,6 +489,7 @@ struct VersionCaps {
     damage_types: bool,
     chat_types: bool,
     enchantments: bool,
+    animal_variants: bool,
     is_fallback: bool,
 }
 
@@ -506,6 +513,7 @@ impl Default for VersionCaps {
             damage_types: true,
             chat_types: true,
             enchantments: true,
+            animal_variants: true,
             is_fallback: false,
         }
     }
@@ -532,6 +540,7 @@ impl VersionCaps {
             damage_types: false,
             chat_types: false,
             enchantments: false,
+            animal_variants: false,
             is_fallback: true,
         }
     }
@@ -614,6 +623,7 @@ fn lookup(major: u32, minor: u32, patch: u32) -> VersionCaps {
             data_fmt: 61,
             res_fmt: 46,
             dialogs: false,
+            animal_variants: false,
             is_fallback: false,
             ..VersionCaps::default()
         },
@@ -622,6 +632,7 @@ fn lookup(major: u32, minor: u32, patch: u32) -> VersionCaps {
             data_fmt: 57,
             res_fmt: 42,
             dialogs: false,
+            animal_variants: false,
             is_fallback: false,
             ..VersionCaps::default()
         },
@@ -630,6 +641,7 @@ fn lookup(major: u32, minor: u32, patch: u32) -> VersionCaps {
             data_fmt: 48,
             res_fmt: 34,
             dialogs: false,
+            animal_variants: false,
             is_fallback: false,
             ..VersionCaps::default()
         },
@@ -652,6 +664,7 @@ fn lookup(major: u32, minor: u32, patch: u32) -> VersionCaps {
             dialogs: false,
             jukebox_songs: false,
             enchantments: false,
+            animal_variants: false,
             is_fallback: false,
             ..VersionCaps::default()
         },
@@ -663,6 +676,7 @@ fn lookup(major: u32, minor: u32, patch: u32) -> VersionCaps {
             dialogs: false,
             jukebox_songs: false,
             enchantments: false,
+            animal_variants: false,
             is_fallback: false,
             ..VersionCaps::default()
         },
@@ -674,6 +688,7 @@ fn lookup(major: u32, minor: u32, patch: u32) -> VersionCaps {
             dialogs: false,
             jukebox_songs: false,
             enchantments: false,
+            animal_variants: false,
             is_fallback: false,
             ..VersionCaps::default()
         },
@@ -688,6 +703,7 @@ fn lookup(major: u32, minor: u32, patch: u32) -> VersionCaps {
             resource_pack_overlays: false,
             jukebox_songs: false,
             enchantments: false,
+            animal_variants: false,
             is_fallback: false,
             ..VersionCaps::default()
         },
@@ -707,6 +723,7 @@ fn lookup(major: u32, minor: u32, patch: u32) -> VersionCaps {
             resource_pack_overlays: false,
             jukebox_songs: false,
             enchantments: false,
+            animal_variants: false,
             is_fallback: false,
             ..VersionCaps::default()
         },
@@ -723,6 +740,7 @@ fn lookup(major: u32, minor: u32, patch: u32) -> VersionCaps {
             jukebox_songs: false,
             enchantments: false,
             damage_types: false,
+            animal_variants: false,
             is_fallback: false,
             ..VersionCaps::default()
         },
@@ -745,6 +763,7 @@ fn lookup(major: u32, minor: u32, patch: u32) -> VersionCaps {
             enchantments: false,
             damage_types: false,
             chat_types: false,
+            animal_variants: false,
             is_fallback: false,
             ..VersionCaps::default()
         },
@@ -762,6 +781,7 @@ fn lookup(major: u32, minor: u32, patch: u32) -> VersionCaps {
             enchantments: false,
             damage_types: false,
             chat_types: false,
+            animal_variants: false,
             is_fallback: false,
             ..VersionCaps::default()
         },

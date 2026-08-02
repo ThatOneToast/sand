@@ -42,6 +42,99 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `FullyImplemented` in `registry_coverage.rs`, matching the completed
   normal-path typed API and export-time validation.
 
+### Added — typed chicken/cow/pig animal variant registries (#201)
+
+- Added `ChickenVariant`, `CowVariant`, and `PigVariant` typed builders for
+  `data/<namespace>/chicken_variant/`, `cow_variant/`, and `pig_variant/`
+  (Minecraft 1.21.5+). Each covers the `asset_id` texture reference and the
+  `minecraft:biome` `spawn_conditions` shape shared across these registries
+  via a new `SpawnCondition` type (`sand_components::animal_variant`);
+  `raw_field` remains an explicit escape hatch for other vanilla/modded
+  fields (e.g. `cow_variant`'s model selector, or non-biome spawn condition
+  types) not modeled in this narrow first pass.
+- Added `ChickenVariantId`, `CowVariantId`, and `PigVariantId` typed registry
+  identifiers in `sand_components::registry`.
+- Added a new `ComponentFeature::AnimalVariants` version gate (1.21.5+); a
+  new `VersionCaps::with_animal_variants` builder method sets it without
+  changing the existing `VersionCaps::from_flags`/`from_profile_flags`
+  constructor signatures.
+- Verified the confirmed registry set against the checked-in
+  `sand-components/fixtures/registry-coverage/26.2.json` report rather than
+  the previously stale coverage table: `cat_variant` and `frog_variant`
+  already had `RawOnly` coverage rows (unchanged by this slice); the
+  `*_sound_variant` registries and `zombie_nautilus_variant` are separate
+  sound/data registries left `RawOnly` as out of scope for this first pass.
+  Updated `registry_coverage.rs` rows for `chicken_variant`, `cow_variant`,
+  and `pig_variant` from `RawOnly` to `PartiallyImplemented`.
+
+### Added — typed worldgen noise and density-function components (#192)
+
+- Added `worldgen::noise::Noise` for
+  `data/<namespace>/worldgen/noise/<id>.json`, with typed `firstOctave` and
+  `amplitudes` setters, finite/range validation, and an explicit `raw_field`
+  escape hatch for version-specific additions.
+- Added `worldgen::density_function::{DensityFunction, DensityFunctionExpr}`
+  for `data/<namespace>/worldgen/density_function/<id>.json`, covering the
+  common `constant`, `reference` (to another density function file), `noise`
+  (sampling a `worldgen/noise` file), unary transforms (`abs`, `square`,
+  `cube`, `half_negative`, `quarter_negative`, `squeeze`), binary combinators
+  (`add`, `mul`, `min`, `max`), `clamp`, and `y_clamped_gradient` shapes, plus
+  an explicit `DensityFunctionExpr::raw`/`DensityFunction::new_raw` escape
+  hatch for unsupported/version-specific variants.
+- Added `NoiseId` and `DensityFunctionId` typed registry references;
+  `NoiseSettings::noise_router` examples show how `DensityFunctionExpr::to_json`
+  embeds typed density functions into the still-raw noise router shape (full
+  noise-router/spawn-target/surface-rule typing remains #182's scope).
+- `registry_coverage.rs` moves `minecraft:worldgen/noise` and
+  `minecraft:worldgen/density_function` from `Missing` to
+  `PartiallyImplemented`.
+
+### Added — typed configured-feature builder used by placed features (#189)
+
+- Added `sand_components::worldgen::configured_feature` with `ConfiguredFeature`,
+  covering `worldgen/configured_feature/<id>.json`. Typed constructors cover a
+  small common vanilla slice — `ConfiguredFeature::no_op`, `::simple_block`,
+  `::fill_layer`, and `::ore` (with typed `RuleTest`/`OreTarget`/`OreConfig`) —
+  backed by shared `BlockState`/`BlockStateProvider` value providers in the new
+  `sand_components::worldgen::providers` module.
+- Added `ConfiguredFeatureId`, and `ConfiguredFeature::id` to obtain one for a
+  component you authored.
+- **Breaking:** `PlacedFeature::new` now takes a typed `ConfiguredFeatureId`
+  instead of a raw string. `PlacedFeature::new_raw_feature` /
+  `PlacedFeature::raw_feature` are the explicitly named raw escape hatches for
+  modded or version-specific reference syntax; `ConfiguredFeature::raw` is the
+  equivalent escape hatch for feature configs outside the typed slice.
+- Updated `worldgen/configured_feature` registry coverage from `Missing` to
+  `PartiallyImplemented`.
+
+### Added — typed structure-generation components (#187)
+
+- Added `Structure`, `StructureSet`, `TemplatePool`, and `ProcessorList`
+  builders for `data/<namespace>/worldgen/{structure,structure_set,
+  template_pool,processor_list}/<id>.json`, closing the last `Missing`
+  worldgen registries tracked by `registry_coverage.rs`.
+- `Structure::jigsaw` models the common `minecraft:jigsaw` shape (biome
+  tag/entry constraint, generation step, terrain adaptation, spawn overrides,
+  start pool, size, start height, max distance from center); other structure
+  types go through `Structure::new` plus the `raw_field` escape hatch.
+- `StructureSet` models weighted structure entries plus `random_spread` and
+  `concentric_rings` placement, validating spacing/separation ordering,
+  frequency bounds, and distance/count/weight positivity.
+- `TemplatePool` models single, legacy-single, empty, feature, and list pool
+  elements with named or inline processor references; `ProcessorList` models
+  block-ignore, protected-blocks, gravity, jigsaw-replacement, and rule
+  processors with a typed `output_state`.
+- Added `StructureSetId`, `TemplatePoolId`, `ProcessorListId`,
+  `StructureTemplateId`, and `StructureTypeId` typed registry identifiers
+  (reusing the existing `StructureId`).
+- Added a shared `sand_components::worldgen::providers` module
+  (`HeightProvider`, `VerticalAnchor`, `Heightmap`, `BlockState`, `BlockStateProvider`) so
+  height and block-state shapes serialize identically across structure,
+  processor, and future feature builders.
+- Every builder keeps an explicitly named raw escape hatch (`raw_field`,
+  `Processor::Raw`, `PoolElement::Raw`, or inline `RawJson` predicates) for
+  modded or version-specific shapes.
+
 ### Changed — typed enchantment text, item/tag, slot, and effect fields (#202)
 
 - **Breaking:** `Enchantment` now takes a `TextComponent` description, typed

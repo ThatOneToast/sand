@@ -1926,6 +1926,7 @@ dependencies = [
  "criterion",
  "ctrlc",
  "handlebars",
+ "sand",
  "sand-api-contract",
  "sand-build",
  "sand-components",

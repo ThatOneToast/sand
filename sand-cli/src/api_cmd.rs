@@ -11,6 +11,9 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result, bail};
 use clap::{Args, Subcommand};
+// Force the author-facing facade into the final binary so its distributed
+// contract registrations are present in the installed catalog.
+use sand as _;
 use sand_api_contract::{ApiCatalog, ApiEntry, ApiKind};
 
 /// Inspect the supported public API bundled with this Sand installation.
@@ -64,13 +67,7 @@ pub fn run(args: ApiArgs) -> Result<()> {
             print!("{output}");
         }
         ApiCommand::Export { output } => {
-            let json = catalog
-                .to_json_pretty()
-                .context("failed to serialize the installed API catalog")?;
-            if let Some(path) = output {
-                std::fs::write(&path, json.as_bytes())
-                    .with_context(|| format!("failed to write `{}`", path.display()))?;
-            } else {
+            if let Some(json) = export(&catalog, output.as_deref())? {
                 print!("{json}");
             }
         }
@@ -79,13 +76,26 @@ pub fn run(args: ApiArgs) -> Result<()> {
     Ok(())
 }
 
+fn export(catalog: &ApiCatalog, output: Option<&std::path::Path>) -> Result<Option<String>> {
+    let json = catalog
+        .to_json_pretty()
+        .context("failed to serialize the installed API catalog")?;
+    if let Some(path) = output {
+        std::fs::write(path, json.as_bytes())
+            .with_context(|| format!("failed to write `{}`", path.display()))?;
+        Ok(None)
+    } else {
+        Ok(Some(json))
+    }
+}
+
 fn show(catalog: &ApiCatalog, requested_path: &str) -> Result<String> {
     let requested_path = requested_path.trim();
     if requested_path.is_empty() {
         bail!("API path cannot be empty");
     }
 
-    let Some(entry) = find_entry(catalog, requested_path) else {
+    let Some(entry) = catalog.find(requested_path) else {
         let suggestions = suggestions(catalog, requested_path, 3);
         if suggestions.is_empty() {
             bail!("unknown API path `{requested_path}`");
@@ -97,12 +107,6 @@ fn show(catalog: &ApiCatalog, requested_path: &str) -> Result<String> {
     };
 
     Ok(render_entry(entry))
-}
-
-fn find_entry<'a>(catalog: &'a ApiCatalog, path: &str) -> Option<&'a ApiEntry> {
-    catalog.entries.iter().find(|entry| {
-        entry.canonical_path == path || entry.aliases.iter().any(|alias| alias == path)
-    })
 }
 
 fn render_entry(entry: &ApiEntry) -> String {
@@ -155,27 +159,11 @@ fn list_section(output: &mut String, heading: &str, values: &[String]) {
     }
 }
 
-#[derive(Debug)]
-struct SearchHit<'a> {
-    entry: &'a ApiEntry,
-    score: u32,
-}
-
 fn search(catalog: &ApiCatalog, query: &str) -> Result<String> {
-    let normalized = normalize_query(query)?;
-    let mut hits: Vec<_> = catalog
-        .entries
-        .iter()
-        .filter_map(|entry| {
-            let score = search_score(entry, &normalized);
-            (score > 0).then_some(SearchHit { entry, score })
-        })
-        .collect();
-    hits.sort_by(|a, b| {
-        b.score
-            .cmp(&a.score)
-            .then_with(|| a.entry.canonical_path.cmp(&b.entry.canonical_path))
-    });
+    if query.trim().is_empty() {
+        bail!("search query cannot be empty");
+    }
+    let hits = catalog.search(query);
 
     let mut output = String::new();
     if hits.is_empty() {
@@ -184,86 +172,17 @@ fn search(catalog: &ApiCatalog, query: &str) -> Result<String> {
     }
 
     writeln!(output, "API matches for `{}`:", query.trim()).unwrap();
-    for hit in hits {
+    for entry in hits {
         writeln!(
             output,
             "  {}  [{}]\n    {}",
-            hit.entry.canonical_path,
-            kind_name(hit.entry.kind),
-            hit.entry.summary
+            entry.canonical_path,
+            kind_name(entry.kind),
+            entry.summary
         )
         .unwrap();
     }
     Ok(output)
-}
-
-fn normalize_query(query: &str) -> Result<Vec<String>> {
-    let words: Vec<_> = query
-        .split_whitespace()
-        .map(|word| word.to_lowercase())
-        .filter(|word| !word.is_empty())
-        .collect();
-    if words.is_empty() {
-        bail!("search query cannot be empty");
-    }
-    Ok(words)
-}
-
-/// Stable, explainable lexical rank. Every query word must occur somewhere.
-/// Path matches carry the most weight, then aliases and summary, followed by
-/// domain prose. Exact path/alias matches always sort first.
-fn search_score(entry: &ApiEntry, words: &[String]) -> u32 {
-    let path = entry.canonical_path.to_lowercase();
-    let aliases: Vec<_> = entry
-        .aliases
-        .iter()
-        .map(|alias| alias.to_lowercase())
-        .collect();
-    let summary = entry.summary.to_lowercase();
-    let parameters = entry
-        .parameters
-        .iter()
-        .map(|parameter| format!("{} {}", parameter.name, parameter.description))
-        .collect::<Vec<_>>()
-        .join(" ")
-        .to_lowercase();
-    let guidance = entry
-        .use_when
-        .iter()
-        .chain(entry.avoid_when.iter())
-        .cloned()
-        .collect::<Vec<_>>()
-        .join(" ")
-        .to_lowercase();
-    let minecraft = entry.minecraft.to_lowercase();
-
-    let exact_query = words.join(" ");
-    if path == exact_query || aliases.iter().any(|alias| alias == &exact_query) {
-        return 100_000;
-    }
-
-    let mut total = 0;
-    for word in words {
-        let word_score = if path.split("::").any(|segment| segment == word) {
-            8_000
-        } else if path.contains(word) {
-            6_000
-        } else if aliases.iter().any(|alias| alias.contains(word)) {
-            5_000
-        } else if summary.contains(word) {
-            4_000
-        } else if parameters.contains(word) {
-            2_000
-        } else if guidance.contains(word) {
-            1_500
-        } else if minecraft.contains(word) {
-            1_000
-        } else {
-            return 0;
-        };
-        total += word_score;
-    }
-    total
 }
 
 fn module(catalog: &ApiCatalog, requested_module: &str) -> Result<String> {
@@ -272,22 +191,22 @@ fn module(catalog: &ApiCatalog, requested_module: &str) -> Result<String> {
         bail!("module path cannot be empty");
     }
 
+    let direct_by_kind = catalog.module(requested_module);
     let mut direct: BTreeMap<&str, Vec<&ApiEntry>> = BTreeMap::new();
+    for (kind, entries) in direct_by_kind {
+        direct.insert(kind_heading(kind), entries);
+    }
     let mut nested: BTreeMap<String, usize> = BTreeMap::new();
     let nested_prefix = format!("{requested_module}::");
 
     for entry in &catalog.entries {
-        if entry.canonical_module == requested_module {
-            direct
-                .entry(kind_heading(entry.kind))
-                .or_default()
-                .push(entry);
-        } else if let Some(remainder) = entry.canonical_module.strip_prefix(&nested_prefix) {
-            if let Some(segment) = remainder.split("::").next() {
-                *nested
-                    .entry(format!("{requested_module}::{segment}"))
-                    .or_default() += 1;
-            }
+        if entry.canonical_module != requested_module
+            && let Some(remainder) = entry.canonical_module.strip_prefix(&nested_prefix)
+            && let Some(segment) = remainder.split("::").next()
+        {
+            *nested
+                .entry(format!("{requested_module}::{segment}"))
+                .or_default() += 1;
         }
     }
 
@@ -570,5 +489,33 @@ mod tests {
     fn edit_distance_handles_unicode_without_byte_indexing() {
         assert_eq!(edit_distance("café", "cafe"), 1);
         assert_eq!(edit_distance("predicate", "predicat"), 1);
+    }
+
+    #[test]
+    fn export_to_stdout_or_file_uses_identical_deterministic_json() {
+        let catalog = catalog(vec![entry(
+            "sand::predicate::Predicate",
+            ApiKind::Struct,
+            "A reusable predicate.",
+            "sand::predicate",
+        )]);
+        let stdout = export(&catalog, None).unwrap().unwrap();
+        let directory = tempfile::tempdir().unwrap();
+        let first = directory.path().join("first.json");
+        let second = directory.path().join("second.json");
+        assert!(export(&catalog, Some(&first)).unwrap().is_none());
+        assert!(export(&catalog, Some(&second)).unwrap().is_none());
+
+        let first_bytes = std::fs::read(first).unwrap();
+        let second_bytes = std::fs::read(second).unwrap();
+        assert_eq!(first_bytes, second_bytes);
+        assert_eq!(first_bytes, stdout.as_bytes());
+        let json: serde_json::Value = serde_json::from_slice(&first_bytes).unwrap();
+        assert_eq!(json["schema_version"], 1);
+        assert_eq!(json["sand_version"], "0.1.0");
+        assert_eq!(
+            json["entries"][0]["canonical_path"],
+            "sand::predicate::Predicate"
+        );
     }
 }

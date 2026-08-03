@@ -5,7 +5,7 @@
 //! Pending scopes remain visible in the deterministic report and count toward
 //! a committed ceiling, preventing silent enforced-to-pending regressions.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 use std::fmt;
 use std::fs;
 use std::path::Path;
@@ -21,6 +21,10 @@ const SCOPE_SCHEMA_VERSION: u32 = 1;
 #[serde(deny_unknown_fields)]
 pub struct ScopeManifest {
     pub schema_version: u32,
+    /// Current independently audited all-feature static surface size.
+    pub static_surface_items: usize,
+    /// Maximum number of architectural scopes allowed to remain pending.
+    pub pending_scope_ceiling: usize,
     /// Maximum number of reachable items allowed to remain in active pending
     /// scopes. Lower this when a scope becomes enforced.
     pub pending_item_ceiling: usize,
@@ -76,8 +80,10 @@ pub struct ScopeReportEntry {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ScopeReport {
     pub entries: Vec<ScopeReportEntry>,
+    pub pending_scopes: usize,
     pub pending_items: usize,
     pub enforced_items: usize,
+    pub pending_scope_ceiling: usize,
     pub pending_item_ceiling: usize,
 }
 
@@ -97,10 +103,6 @@ pub enum ScopeFailure {
     InvalidAlias {
         scope: String,
         alias: String,
-    },
-    AliasOverlapsScope {
-        alias: String,
-        scope: String,
     },
     DuplicateAlias(String),
     InvalidTier(String),
@@ -122,6 +124,10 @@ pub enum ScopeFailure {
         identities: Vec<String>,
     },
     PendingCeilingExceeded {
+        actual: usize,
+        ceiling: usize,
+    },
+    PendingScopeCeilingExceeded {
         actual: usize,
         ceiling: usize,
     },
@@ -151,9 +157,6 @@ impl fmt::Display for ScopeFailure {
             }
             Self::InvalidAlias { scope, alias } => {
                 write!(formatter, "scope `{scope}` has invalid alias `{alias}`")
-            }
-            Self::AliasOverlapsScope { alias, scope } => {
-                write!(formatter, "API scope alias `{alias}` overlaps `{scope}`")
             }
             Self::DuplicateAlias(alias) => write!(formatter, "duplicate API scope alias `{alias}`"),
             Self::InvalidTier(tier) => {
@@ -186,6 +189,10 @@ impl fmt::Display for ScopeFailure {
             Self::PendingCeilingExceeded { actual, ceiling } => write!(
                 formatter,
                 "pending API surface grew to {actual} items, above committed ceiling {ceiling}"
+            ),
+            Self::PendingScopeCeilingExceeded { actual, ceiling } => write!(
+                formatter,
+                "pending API scope count grew to {actual}, above committed ceiling {ceiling}"
             ),
         }
     }
@@ -227,6 +234,11 @@ impl ScopeManifest {
         let mut failures = Vec::new();
         let mut pending_items = 0;
         let mut enforced_items = 0;
+        let pending_scopes = self
+            .scopes
+            .iter()
+            .filter(|scope| scope.state == ScopeState::Pending)
+            .count();
 
         let mut unscoped = Vec::new();
         for item in reachable {
@@ -309,11 +321,19 @@ impl ScopeManifest {
                 ceiling: self.pending_item_ceiling,
             });
         }
+        if pending_scopes > self.pending_scope_ceiling {
+            failures.push(ScopeFailure::PendingScopeCeilingExceeded {
+                actual: pending_scopes,
+                ceiling: self.pending_scope_ceiling,
+            });
+        }
         if failures.is_empty() {
             Ok(ScopeReport {
                 entries,
+                pending_scopes,
                 pending_items,
                 enforced_items,
+                pending_scope_ceiling: self.pending_scope_ceiling,
                 pending_item_ceiling: self.pending_item_ceiling,
             })
         } else {
@@ -371,12 +391,6 @@ impl ScopeManifest {
                 }
             }
         }
-        let paths = self
-            .scopes
-            .iter()
-            .map(|scope| scope.canonical_module.as_str())
-            .collect::<Vec<_>>();
-        let mut aliases = BTreeMap::<&str, BTreeSet<&str>>::new();
         for scope in &self.scopes {
             let mut scope_aliases = BTreeSet::new();
             for alias in &scope.aliases {
@@ -388,26 +402,6 @@ impl ScopeManifest {
                 }
                 if !scope_aliases.insert(alias.as_str()) {
                     return Err(ScopeFailure::DuplicateAlias(alias.clone()));
-                }
-                aliases
-                    .entry(alias)
-                    .or_default()
-                    .insert(&scope.canonical_module);
-                for path in &paths {
-                    if alias == path {
-                        return Err(ScopeFailure::AliasOverlapsScope {
-                            alias: alias.clone(),
-                            scope: (*path).to_owned(),
-                        });
-                    }
-                }
-            }
-        }
-        let aliases = aliases.keys().copied().collect::<Vec<_>>();
-        for (index, left) in aliases.iter().enumerate() {
-            for right in aliases.iter().skip(index + 1) {
-                if overlaps(left, right) {
-                    return Err(ScopeFailure::DuplicateAlias((*right).to_owned()));
                 }
             }
         }
@@ -455,8 +449,12 @@ impl fmt::Display for ScopeReport {
         }
         write!(
             formatter,
-            "totals pending={} enforced={} pending_ceiling={}",
-            self.pending_items, self.enforced_items, self.pending_item_ceiling
+            "totals pending_scopes={} pending_items={} enforced_items={} pending_scope_ceiling={} pending_item_ceiling={}",
+            self.pending_scopes,
+            self.pending_items,
+            self.enforced_items,
+            self.pending_scope_ceiling,
+            self.pending_item_ceiling
         )
     }
 }

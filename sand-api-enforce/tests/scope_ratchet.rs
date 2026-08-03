@@ -74,7 +74,7 @@ fn deterministic_report_counts_pending_and_feature_scopes() {
             "event-source module=sand::event state=pending tier=author provider=source recursive=true active=true items=1 contracted=0 aliases=- features=-\n",
             "state-source module=sand::state state=pending tier=advanced provider=source recursive=true active=true items=2 contracted=0 aliases=- features=-\n",
             "systems-source module=sand::systems state=pending tier=author provider=source recursive=true active=false items=0 contracted=0 aliases=- features=systems-all\n",
-            "totals pending=3 enforced=1 pending_ceiling=3"
+            "totals pending_scopes=3 pending_items=3 enforced_items=1 pending_scope_ceiling=3 pending_item_ceiling=3"
         )
     );
 
@@ -124,12 +124,20 @@ fn enforced_to_pending_regression_exceeds_committed_baseline() {
         actual: 4,
         ceiling: 3,
     }));
+    assert!(
+        failures.contains(&ScopeFailure::PendingScopeCeilingExceeded {
+            actual: 4,
+            ceiling: 3,
+        })
+    );
 }
 
 #[test]
 fn invalid_or_item_level_manifest_entries_are_rejected() {
     let base = r#"
         schema_version = 1
+        static_surface_items = 0
+        pending_scope_ceiling = 1
         pending_item_ceiling = 0
         [[scope]]
         id = "command"
@@ -177,6 +185,8 @@ fn invalid_or_item_level_manifest_entries_are_rejected() {
 fn root_direct_and_generator_scopes_partition_the_same_module() {
     let source = r#"
         schema_version = 1
+        static_surface_items = 2
+        pending_scope_ceiling = 3
         pending_item_ceiling = 2
 
         [[scope]]
@@ -235,6 +245,8 @@ fn unscoped_reachable_items_fail_the_ratchet() {
 fn duplicate_alias_in_one_scope_is_rejected_but_shared_prelude_alias_is_allowed() {
     let duplicate = r#"
         schema_version = 1
+        static_surface_items = 0
+        pending_scope_ceiling = 1
         pending_item_ceiling = 0
         [[scope]]
         id = "predicate"

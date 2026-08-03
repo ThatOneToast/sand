@@ -452,7 +452,10 @@ pub mod __private {
     //! compiler/export pipeline. Nothing here is a compatibility promise;
     //! paths exist solely so generated code can reach the implementation
     //! crate through the façade. See docs/architecture/adr-001.
-    pub use sand_api_contract as api_contract;
+    pub mod api_contract {
+        pub use sand_api_contract::*;
+        include!(concat!(env!("OUT_DIR"), "/api_coverage.rs"));
+    }
     pub use sand_core::entity::*;
     pub use sand_core::*;
     pub use sand_core::{cmd, condition, event, events, state};

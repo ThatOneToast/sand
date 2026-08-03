@@ -1,0 +1,290 @@
+# Intentional migration boundaries for the public `sand` facade.
+#
+# This file contains scopes, never individual API exemptions. Source scopes
+# are discovered through the reachable re-export graph. Generator scopes are
+# supplied from the same declaration/schema that emits their Rust API.
+schema_version = 1
+static_surface_items = 11663
+pending_scope_ceiling = 35
+pending_item_ceiling = 11663
+
+[[scope]]
+id = "root-source"
+canonical_module = "sand"
+state = "pending"
+tier = "ordinary"
+provider = "source"
+recursive = false
+aliases = ["sand::prelude"]
+
+[[scope]]
+id = "prelude-unassigned-source"
+canonical_module = "sand::prelude"
+state = "pending"
+tier = "ordinary"
+provider = "source"
+
+[[scope]]
+id = "command-source"
+canonical_module = "sand::command"
+state = "pending"
+tier = "ordinary"
+provider = "source"
+aliases = ["sand::cmd", "sand::prelude"]
+
+[[scope]]
+id = "event-source"
+canonical_module = "sand::event"
+state = "pending"
+tier = "ordinary"
+provider = "source"
+aliases = ["sand::prelude"]
+
+[[scope]]
+id = "events-source"
+canonical_module = "sand::events"
+state = "pending"
+tier = "ordinary"
+provider = "source"
+aliases = ["sand::prelude"]
+
+[[scope]]
+id = "item-source"
+canonical_module = "sand::item"
+state = "pending"
+tier = "ordinary"
+provider = "source"
+aliases = ["sand::prelude"]
+
+[[scope]]
+id = "inventory-source"
+canonical_module = "sand::inventory"
+state = "pending"
+tier = "ordinary"
+provider = "source"
+aliases = ["sand::item", "sand::prelude"]
+
+[[scope]]
+id = "predicate-source"
+canonical_module = "sand::predicate"
+state = "pending"
+tier = "ordinary"
+provider = "source"
+aliases = ["sand::component", "sand::prelude"]
+
+[[scope]]
+id = "state-source"
+canonical_module = "sand::state"
+state = "pending"
+tier = "ordinary"
+provider = "source"
+aliases = ["sand::prelude"]
+
+[[scope]]
+id = "entity-source"
+canonical_module = "sand::entity"
+state = "pending"
+tier = "ordinary"
+provider = "source"
+aliases = ["sand::prelude"]
+
+[[scope]]
+id = "participant-source"
+canonical_module = "sand::participant"
+state = "pending"
+tier = "ordinary"
+provider = "source"
+aliases = ["sand::prelude"]
+
+[[scope]]
+id = "component-source"
+canonical_module = "sand::component"
+state = "pending"
+tier = "ordinary"
+provider = "source"
+aliases = ["sand::prelude"]
+
+[[scope]]
+id = "condition-source"
+canonical_module = "sand::condition"
+state = "pending"
+tier = "ordinary"
+provider = "source"
+aliases = ["sand::prelude"]
+
+[[scope]]
+id = "execute-when-source"
+canonical_module = "sand::execute_when"
+state = "pending"
+tier = "ordinary"
+provider = "source"
+aliases = ["sand::prelude"]
+
+[[scope]]
+id = "resource-ref-source"
+canonical_module = "sand::resource_ref"
+state = "pending"
+tier = "ordinary"
+provider = "source"
+aliases = ["sand::prelude"]
+
+[[scope]]
+id = "version-source"
+canonical_module = "sand::version"
+state = "pending"
+tier = "ordinary"
+provider = "source"
+aliases = ["sand::prelude"]
+
+[[scope]]
+id = "vfx-source"
+canonical_module = "sand::vfx"
+state = "pending"
+tier = "ordinary"
+provider = "source"
+
+[[scope]]
+id = "systems-source"
+canonical_module = "sand::systems"
+state = "pending"
+tier = "ordinary"
+provider = "source"
+
+[[scope]]
+id = "text-source"
+canonical_module = "sand::text"
+state = "pending"
+tier = "ordinary"
+provider = "source"
+aliases = ["sand::prelude"]
+
+[[scope]]
+id = "data-source"
+canonical_module = "sand::data"
+state = "pending"
+tier = "ordinary"
+provider = "source"
+aliases = ["sand::prelude"]
+
+[[scope]]
+id = "vanilla-source"
+canonical_module = "sand::vanilla"
+state = "pending"
+tier = "ordinary"
+provider = "source"
+aliases = ["sand::prelude"]
+
+[[scope]]
+id = "advanced-source"
+canonical_module = "sand::advanced"
+state = "pending"
+tier = "advanced"
+provider = "source"
+
+[[scope]]
+id = "resourcepack-source"
+canonical_module = "sand::resourcepack"
+state = "pending"
+tier = "ordinary"
+provider = "source"
+features = ["resourcepack"]
+
+[[scope]]
+id = "generated-commands"
+canonical_module = "sand::command"
+state = "pending"
+tier = "ordinary"
+provider = "generator:generated_commands"
+aliases = ["sand::cmd", "sand::prelude"]
+
+[[scope]]
+id = "generated-vanilla-registries"
+canonical_module = "sand::vanilla"
+state = "pending"
+tier = "ordinary"
+provider = "generator:generated_registries"
+aliases = ["sand::prelude"]
+
+# Downstream macro expansions are parametric provider scopes. Their public
+# output is audited in the consuming crate; the installed static item ceiling
+# deliberately does not pretend these families have a finite item count.
+
+[[scope]]
+id = "generated-function-macro"
+canonical_module = "sand"
+state = "pending"
+tier = "ordinary"
+provider = "generator:function_macro"
+recursive = false
+
+[[scope]]
+id = "generated-component-macro"
+canonical_module = "sand"
+state = "pending"
+tier = "ordinary"
+provider = "generator:component_macro"
+recursive = false
+
+[[scope]]
+id = "generated-event-macro"
+canonical_module = "sand"
+state = "pending"
+tier = "ordinary"
+provider = "generator:event_macro"
+recursive = false
+
+[[scope]]
+id = "generated-item-macro"
+canonical_module = "sand"
+state = "pending"
+tier = "ordinary"
+provider = "generator:item_macro"
+recursive = false
+
+[[scope]]
+id = "generated-armor-event-macro"
+canonical_module = "sand"
+state = "pending"
+tier = "ordinary"
+provider = "generator:armor_event_macro"
+recursive = false
+
+[[scope]]
+id = "generated-schedule-macro"
+canonical_module = "sand"
+state = "pending"
+tier = "ordinary"
+provider = "generator:schedule_macro"
+recursive = false
+
+[[scope]]
+id = "generated-state-derive"
+canonical_module = "sand"
+state = "pending"
+tier = "ordinary"
+provider = "generator:state_derive"
+recursive = false
+
+[[scope]]
+id = "generated-storage-derive"
+canonical_module = "sand"
+state = "pending"
+tier = "ordinary"
+provider = "generator:storage_derive"
+recursive = false
+
+[[scope]]
+id = "generated-resourcepack-macros"
+canonical_module = "sand::resourcepack"
+state = "pending"
+tier = "ordinary"
+provider = "generator:resourcepack_macros"
+features = ["resourcepack"]
+
+[[scope]]
+id = "generated-entity-state-enum-derive"
+canonical_module = "sand"
+state = "pending"
+tier = "ordinary"
+provider = "generator:entity_state_enum_derive"
+recursive = false

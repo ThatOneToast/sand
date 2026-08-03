@@ -6,6 +6,10 @@
 
 //! # sand-core
 //!
+//! This is an implementation crate. Datapack authors should depend on the
+//! `sand` facade; only items reachable through a supported `sand::` path are
+//! part of Sand's author-facing compatibility contract.
+//!
 //! Core types, traits, command builders, and datapack components for the
 //! [Sand](https://github.com/ThatOneToast/sand) Minecraft datapack toolkit.
 //!

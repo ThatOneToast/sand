@@ -111,6 +111,11 @@ macros, State/EntityStateEnum/SandStorage derives, and resource-pack macro
 output. A generator provider consumes the same parsed input or schema that
 emits its Rust API.
 
+The foundation baseline records 35 pending architectural scopes and 11,663
+pending static identities. No scope is marked enforced by the foundation;
+predicate becomes the first enforced source scope only after its complete
+migration tranche.
+
 Every reachable identity must map to exactly one scope. Enforced scopes reject
 missing contracts during ordinary compilation. Pending scopes remain in the
 deterministic coverage report, and the pending baseline may only decrease.

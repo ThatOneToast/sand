@@ -4,9 +4,9 @@
 # are discovered through the reachable re-export graph. Generator scopes are
 # supplied from the same declaration/schema that emits their Rust API.
 schema_version = 1
-static_surface_items = 11663
-pending_scope_ceiling = 35
-pending_item_ceiling = 11663
+static_surface_items = 11782
+pending_scope_ceiling = 39
+pending_item_ceiling = 11782
 
 [[scope]]
 id = "root-source"
@@ -48,6 +48,7 @@ canonical_module = "sand::events"
 state = "pending"
 tier = "ordinary"
 provider = "source"
+precedence = 100
 aliases = ["sand::prelude"]
 
 [[scope]]
@@ -98,6 +99,7 @@ canonical_module = "sand::participant"
 state = "pending"
 tier = "ordinary"
 provider = "source"
+precedence = 100
 aliases = ["sand::prelude"]
 
 [[scope]]
@@ -146,6 +148,7 @@ canonical_module = "sand::vfx"
 state = "pending"
 tier = "ordinary"
 provider = "source"
+precedence = 100
 
 [[scope]]
 id = "systems-source"
@@ -186,6 +189,7 @@ canonical_module = "sand::advanced"
 state = "pending"
 tier = "advanced"
 provider = "source"
+precedence = 100
 
 [[scope]]
 id = "resourcepack-source"
@@ -210,6 +214,35 @@ state = "pending"
 tier = "ordinary"
 provider = "generator:generated_registries"
 aliases = ["sand::prelude"]
+
+[[scope]]
+id = "generated-resource-ref-family"
+canonical_module = "sand::resource_ref"
+state = "pending"
+tier = "ordinary"
+provider = "generator:generated_resource_refs"
+aliases = ["sand::prelude"]
+
+[[scope]]
+id = "generated-registry-id-wrappers"
+canonical_module = "sand"
+state = "pending"
+tier = "ordinary"
+provider = "generator:generated_registry_ids"
+
+[[scope]]
+id = "generated-effect-registry-enums"
+canonical_module = "sand"
+state = "pending"
+tier = "ordinary"
+provider = "generator:generated_effect_registry_enums"
+
+[[scope]]
+id = "generated-event-markers"
+canonical_module = "sand"
+state = "pending"
+tier = "ordinary"
+provider = "generator:generated_event_markers"
 
 # Downstream macro expansions are parametric provider scopes. Their public
 # output is audited in the consuming crate; the installed static item ceiling

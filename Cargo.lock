@@ -1875,6 +1875,7 @@ version = "0.1.0"
 dependencies = [
  "sand-api-contract",
  "sand-api-enforce",
+ "sand-build",
  "sand-components",
  "sand-core",
  "sand-macros",

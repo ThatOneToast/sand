@@ -113,6 +113,20 @@ fn enforced_scope_rejects_existing_and_new_uncontracted_items() {
 }
 
 #[test]
+fn enforced_scope_rejects_incomplete_alias_metadata() {
+    let incomplete = contract("sand_core::cmd::say", "sand::command::say", &[]);
+    let failures = manifest()
+        .evaluate(&surface(), &[incomplete], &BTreeSet::new())
+        .unwrap_err();
+    assert!(failures.iter().any(|failure| matches!(
+        failure,
+        ScopeFailure::InvalidContracts { scope, diagnostics }
+            if scope == "sand::command"
+                && diagnostics.iter().any(|message| message.contains("aliases differ"))
+    )));
+}
+
+#[test]
 fn enforced_to_pending_regression_exceeds_committed_baseline() {
     let source = include_str!("fixtures/scope-ratchet/api-scopes.toml");
     let regressed = source.replace("state = \"enforced\"", "state = \"pending\"");

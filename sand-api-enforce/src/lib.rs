@@ -14,8 +14,19 @@ use std::path::{Path, PathBuf};
 use sand_api_contract::syntax::{ContractTarget, parse_contract_args, validate_contract};
 use syn::spanned::Spanned;
 
+mod contract_source;
+mod macro_provider;
 mod reachable;
 mod scope;
+
+pub use contract_source::{
+    ContractDeclaration, ContractSourceError, contract_declarations_from_files,
+    resolve_contract_identities,
+};
+pub use macro_provider::{
+    MacroProviderError, event_generated_type_provider, registry_id_provider, resource_ref_provider,
+    vanilla_registry_enum_provider,
+};
 
 pub use reachable::{
     CfgSet, ContractIdentity, GeneratedApi, ReachabilityError, ReachableApi, ReachableKind,

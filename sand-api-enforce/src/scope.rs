@@ -12,7 +12,7 @@ use std::path::Path;
 
 use serde::Deserialize;
 
-use crate::{ContractIdentity, ReachableApi, ReachableOrigin};
+use crate::{ContractIdentity, ReachableApi, ReachableOrigin, audit_reachable_surface};
 
 const SCOPE_SCHEMA_VERSION: u32 = 1;
 
@@ -129,6 +129,10 @@ pub enum ScopeFailure {
         scope: String,
         identities: Vec<String>,
     },
+    InvalidContracts {
+        scope: String,
+        diagnostics: Vec<String>,
+    },
     PendingCeilingExceeded {
         actual: usize,
         ceiling: usize,
@@ -191,6 +195,11 @@ impl fmt::Display for ScopeFailure {
                 formatter,
                 "enforced API scope `{scope}` has missing contracts: {}",
                 identities.join(", ")
+            ),
+            Self::InvalidContracts { scope, diagnostics } => write!(
+                formatter,
+                "enforced API scope `{scope}` has invalid contract identities: {}",
+                diagnostics.join("; ")
             ),
             Self::PendingCeilingExceeded { actual, ceiling } => write!(
                 formatter,
@@ -316,6 +325,30 @@ impl ScopeManifest {
                         failures.push(ScopeFailure::MissingContracts {
                             scope: scope.canonical_module.clone(),
                             identities: missing,
+                        });
+                    }
+                    let matched_identities = matched
+                        .iter()
+                        .map(|item| item.identity.as_str())
+                        .collect::<BTreeSet<_>>();
+                    let scoped_contracts = contracts
+                        .iter()
+                        .filter(|contract| matched_identities.contains(contract.identity.as_str()))
+                        .cloned()
+                        .collect::<Vec<_>>();
+                    let scoped_reachable = matched
+                        .iter()
+                        .map(|item| (*item).clone())
+                        .collect::<Vec<_>>();
+                    if let Err(errors) =
+                        audit_reachable_surface(&scoped_reachable, &scoped_contracts)
+                    {
+                        failures.push(ScopeFailure::InvalidContracts {
+                            scope: scope.canonical_module.clone(),
+                            diagnostics: errors
+                                .into_iter()
+                                .map(|error| error.to_string())
+                                .collect(),
                         });
                     }
                 }

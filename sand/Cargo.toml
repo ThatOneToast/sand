@@ -20,6 +20,8 @@ sand-resourcepack = { path = "../sand-resourcepack", optional = true }
 
 [build-dependencies]
 sand-api-enforce = { path = "../sand-api-enforce" }
+sand-api-contract = { path = "../sand-api-contract" }
+sand-build = { path = "../sand-build" }
 
 [features]
 default = []

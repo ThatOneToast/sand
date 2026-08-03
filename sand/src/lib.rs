@@ -182,7 +182,6 @@ pub mod inventory {
 #[api(
     path = "sand::predicate",
     module = "sand",
-    aliases = ["sand::component::predicate"],
     summary = "Builds reusable Minecraft predicate resources from typed conditions.",
     context = "Predicates package vanilla loot-condition logic under a namespaced identifier so commands and other generated resources can reference the same condition consistently.",
     minecraft = "Generates JSON resources under data/<namespace>/predicate and evaluates them only when referenced by Minecraft.",

@@ -52,6 +52,8 @@
 //! function is only wired into the datapack's actual `.mcfunction` files
 //! through the export pipeline.
 
+extern crate self as sand;
+
 // ── Procedural macros ─────────────────────────────────────────────────────────
 
 /// `#[function]`, `#[component]`, `#[event]`, `#[item]`, `#[armor_event]`,
@@ -74,6 +76,9 @@ pub use sand_macros::{
 /// registers scope-aware lifecycle metadata; `EntityStateEnum` maps fieldless
 /// enum variants to scoreboard integers.
 pub use sand_macros::{EntityStateEnum, State};
+
+/// Defines the authoritative contract for a supported Sand public API item.
+pub use sand_macros::api;
 
 /// `#[derive(SandStorage)]` — generates a typed [`data::StorageSchema`] and
 /// one [`data::StorageField`] accessor per struct field, from a plain Rust
@@ -382,6 +387,7 @@ pub mod __private {
     //! compiler/export pipeline. Nothing here is a compatibility promise;
     //! paths exist solely so generated code can reach the implementation
     //! crate through the façade. See docs/architecture/adr-001.
+    pub use sand_api_contract as api_contract;
     pub use sand_core::entity::*;
     pub use sand_core::*;
     pub use sand_core::{cmd, condition, event, events, state};

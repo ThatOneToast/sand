@@ -6,6 +6,7 @@ members = [
     "sand-cli",
     "sand-core",
     "sand-macros",
+    "sand-api-contract",
     "sand-build",
     "sand-example",
     "sand-resourcepack",

@@ -121,3 +121,16 @@ fn resource_path_validation_compile_tests() {
     t.compile_fail("tests/cases/fail_run_fn_empty.rs");
     t.compile_fail("tests/cases/fail_run_fn_path_only_no_namespace.rs");
 }
+
+#[test]
+fn api_contract_compile_tests() {
+    let t = trybuild::TestCases::new();
+    t.pass("tests/cases/pass_api_contracts.rs");
+    t.compile_fail("tests/cases/fail_api_missing_parameter.rs");
+    t.compile_fail("tests/cases/fail_api_nonexistent_parameter.rs");
+    t.compile_fail("tests/cases/fail_api_duplicate_field.rs");
+    t.compile_fail("tests/cases/fail_api_unknown_field.rs");
+    t.compile_fail("tests/cases/fail_api_malformed_list.rs");
+    t.compile_fail("tests/cases/fail_api_unsupported_item.rs");
+    t.compile_fail("tests/cases/fail_api_duplicate_identity.rs");
+}

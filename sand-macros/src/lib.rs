@@ -48,7 +48,17 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{ItemFn, LitStr, parse_macro_input, token};
 
+mod api_contract;
 mod entity_state;
+
+/// Defines and registers the authoritative public contract for a supported
+/// Sand API item.
+#[proc_macro_attribute]
+pub fn api(attr: TokenStream, item: TokenStream) -> TokenStream {
+    api_contract::expand(attr.into(), item.into())
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
 
 /// Derive a typed state schema, its field constants, and a concrete bound view.
 ///

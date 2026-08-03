@@ -1873,9 +1873,19 @@ dependencies = [
 name = "sand"
 version = "0.1.0"
 dependencies = [
+ "sand-api-contract",
  "sand-core",
  "sand-macros",
  "sand-resourcepack",
+]
+
+[[package]]
+name = "sand-api-contract"
+version = "0.1.0"
+dependencies = [
+ "inventory",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -1886,14 +1896,6 @@ dependencies = [
  "quote",
  "syn",
  "tempfile",
-]
-
-[[package]]
-name = "sand-api-contract"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
 ]
 
 [[package]]

@@ -1896,8 +1896,10 @@ version = "0.1.0"
 dependencies = [
  "proc-macro2",
  "quote",
+ "serde",
  "syn",
  "tempfile",
+ "toml 0.8.23",
 ]
 
 [[package]]

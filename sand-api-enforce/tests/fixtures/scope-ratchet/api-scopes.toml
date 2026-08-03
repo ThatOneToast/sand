@@ -1,0 +1,24 @@
+schema_version = 1
+pending_item_ceiling = 2
+
+[[scope]]
+canonical_module = "sand::cmd"
+state = "enforced"
+tier = "author"
+aliases = ["sand::command"]
+features = []
+generator = "vanilla-commands"
+
+[[scope]]
+canonical_module = "sand::state"
+state = "pending"
+tier = "advanced"
+aliases = []
+features = []
+
+[[scope]]
+canonical_module = "sand::systems"
+state = "pending"
+tier = "author"
+aliases = []
+features = ["systems-all"]

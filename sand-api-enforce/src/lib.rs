@@ -14,11 +14,13 @@ use std::path::{Path, PathBuf};
 use syn::spanned::Spanned;
 
 mod reachable;
+mod scope;
 
 pub use reachable::{
     ContractIdentity, GeneratedApi, ReachabilityError, ReachableApi, ReachableKind, SourceCrate,
     SurfaceGraph, audit_reachable_surface,
 };
+pub use scope::{ApiScope, ScopeFailure, ScopeManifest, ScopeReport, ScopeReportEntry, ScopeState};
 
 /// One source tree included in Sand's supported public surface.
 #[derive(Clone, Debug)]

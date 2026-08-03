@@ -1,45 +1,35 @@
 use proc_macro2::TokenStream;
 use quote::{ToTokens, quote};
-use std::collections::{BTreeMap, BTreeSet};
-use syn::parse::Parser;
-use syn::{
-    ExprArray, FnArg, ImplItemFn, Item, LitStr, Pat, ReturnType, Signature, TraitItemFn, parse2,
+use sand_api_contract::syntax::{
+    ContractArgs, ContractTarget, Description, parse_contract_args, validate_contract,
 };
-
-#[derive(Default)]
-struct ContractArgs {
-    path: Option<LitStr>,
-    module: Option<LitStr>,
-    aliases: Option<Vec<LitStr>>,
-    summary: Option<LitStr>,
-    context: Option<LitStr>,
-    minecraft: Option<LitStr>,
-    use_when: Option<Vec<LitStr>>,
-    avoid_when: Option<Vec<LitStr>>,
-    params: Option<Vec<(syn::Ident, LitStr)>>,
-    returns: Option<LitStr>,
-    example: Option<LitStr>,
-    availability: Option<Vec<LitStr>>,
-}
+use syn::{
+    ImplItemConst, ImplItemFn, ImplItemType, Item, LitStr, TraitItemConst, TraitItemFn,
+    TraitItemType, parse2,
+};
 
 enum Target {
     Item(Item),
     ImplMethod(ImplItemFn),
+    ImplConst(ImplItemConst),
+    ImplType(ImplItemType),
     TraitMethod(TraitItemFn),
+    TraitConst(TraitItemConst),
+    TraitType(TraitItemType),
 }
 
 struct TargetInfo<'a> {
     ident: &'a syn::Ident,
     kind: &'static str,
     signature: TokenStream,
-    function: Option<&'a Signature>,
+    contract_target: ContractTarget<'a>,
 }
 
 pub(crate) fn expand(attr: TokenStream, item: TokenStream) -> syn::Result<TokenStream> {
-    let args = parse_args(attr)?;
-    let target = parse_target(item.clone())?;
-    let info = target_info(&target)?;
-    validate(&args, &info)?;
+    let args = parse_contract_args(attr)?;
+    let mut target = parse_target(item.clone(), args.kind.as_ref())?;
+    let info = target_info(&target, &args)?;
+    validate_contract(&args, &info.contract_target)?;
 
     let summary = required(&args.summary, "summary")?;
     let context = required(&args.context, "context")?;
@@ -50,8 +40,10 @@ pub(crate) fn expand(attr: TokenStream, item: TokenStream) -> syn::Result<TokenS
     let aliases = args.aliases.as_deref().unwrap_or_default();
     let availability = args.availability.as_deref().unwrap_or_default();
     let parameters = args.params.as_deref().unwrap_or_default();
-    let parameter_names = parameters.iter().map(|(name, _)| name.to_string());
-    let parameter_docs = parameters.iter().map(|(_, description)| description);
+    let parameter_names = parameters
+        .iter()
+        .map(|parameter| parameter.name.to_string());
+    let parameter_docs = parameters.iter().map(|parameter| &parameter.text);
     let returns = match &args.returns {
         Some(value) => quote!(::std::option::Option::Some(#value)),
         None => quote!(::std::option::Option::None),
@@ -68,6 +60,8 @@ pub(crate) fn expand(attr: TokenStream, item: TokenStream) -> syn::Result<TokenS
     let signature = &info.signature;
     let (path, module) = identity_tokens(&args, info.ident)?;
     let docs = rustdoc(&args, &path, summary, context, minecraft, example);
+    let member_registrations = member_registrations(&args, &target, &path, aliases, &info)?;
+    add_member_rustdoc(&mut target, &args);
 
     Ok(quote! {
         #docs
@@ -101,6 +95,8 @@ pub(crate) fn expand(attr: TokenStream, item: TokenStream) -> syn::Result<TokenS
                 }
             }
         };
+
+        #member_registrations
     })
 }
 
@@ -109,105 +105,21 @@ impl ToTokens for Target {
         match self {
             Self::Item(item) => item.to_tokens(tokens),
             Self::ImplMethod(item) => item.to_tokens(tokens),
+            Self::ImplConst(item) => item.to_tokens(tokens),
+            Self::ImplType(item) => item.to_tokens(tokens),
             Self::TraitMethod(item) => item.to_tokens(tokens),
+            Self::TraitConst(item) => item.to_tokens(tokens),
+            Self::TraitType(item) => item.to_tokens(tokens),
         }
     }
 }
 
-fn parse_args(tokens: TokenStream) -> syn::Result<ContractArgs> {
-    let mut args = ContractArgs::default();
-    let parser = syn::meta::parser(|meta| {
-        let key = meta
-            .path
-            .get_ident()
-            .ok_or_else(|| meta.error("API contract keys must be identifiers"))?
-            .to_string();
-        match key.as_str() {
-            "path" => set_once(&mut args.path, meta.value()?.parse()?, &meta, "path"),
-            "module" => set_once(&mut args.module, meta.value()?.parse()?, &meta, "module"),
-            "summary" => set_once(&mut args.summary, meta.value()?.parse()?, &meta, "summary"),
-            "context" => set_once(&mut args.context, meta.value()?.parse()?, &meta, "context"),
-            "minecraft" => set_once(
-                &mut args.minecraft,
-                meta.value()?.parse()?,
-                &meta,
-                "minecraft",
-            ),
-            "returns" => set_once(&mut args.returns, meta.value()?.parse()?, &meta, "returns"),
-            "example" => set_once(&mut args.example, meta.value()?.parse()?, &meta, "example"),
-            "aliases" => {
-                let value = parse_string_array(&meta)?;
-                set_once(&mut args.aliases, value, &meta, "aliases")
-            }
-            "use_when" => {
-                let value = parse_string_array(&meta)?;
-                set_once(&mut args.use_when, value, &meta, "use_when")
-            }
-            "avoid_when" => {
-                let value = parse_string_array(&meta)?;
-                set_once(&mut args.avoid_when, value, &meta, "avoid_when")
-            }
-            "availability" => {
-                let value = parse_string_array(&meta)?;
-                set_once(&mut args.availability, value, &meta, "availability")
-            }
-            "params" => {
-                if args.params.is_some() {
-                    return Err(meta.error("duplicate API contract field `params`"));
-                }
-                let mut parameters = Vec::new();
-                let mut names = BTreeSet::new();
-                meta.parse_nested_meta(|parameter| {
-                    let name =
-                        parameter.path.get_ident().cloned().ok_or_else(|| {
-                            parameter.error("parameter names must be identifiers")
-                        })?;
-                    if !names.insert(name.to_string()) {
-                        return Err(parameter
-                            .error(format!("duplicate parameter documentation for `{name}`")));
-                    }
-                    parameters.push((name, parameter.value()?.parse()?));
-                    Ok(())
-                })?;
-                args.params = Some(parameters);
-                Ok(())
-            }
-            _ => Err(meta.error(format!("unknown API contract field `{key}`"))),
-        }
-    });
-    parser.parse2(tokens)?;
-    Ok(args)
-}
-
-fn set_once<T>(
-    slot: &mut Option<T>,
-    value: T,
-    meta: &syn::meta::ParseNestedMeta<'_>,
-    name: &str,
-) -> syn::Result<()> {
-    if slot.replace(value).is_some() {
-        Err(meta.error(format!("duplicate API contract field `{name}`")))
-    } else {
-        Ok(())
+fn parse_target(tokens: TokenStream, kind: Option<&LitStr>) -> syn::Result<Target> {
+    match kind.map(LitStr::value).as_deref() {
+        Some("associated_const") => return parse2(tokens).map(Target::ImplConst),
+        Some("associated_type") => return parse2(tokens).map(Target::ImplType),
+        _ => {}
     }
-}
-
-fn parse_string_array(meta: &syn::meta::ParseNestedMeta<'_>) -> syn::Result<Vec<LitStr>> {
-    let array = meta.value()?.parse::<ExprArray>()?;
-    array
-        .elems
-        .into_iter()
-        .map(|element| match element {
-            syn::Expr::Lit(syn::ExprLit {
-                lit: syn::Lit::Str(value),
-                ..
-            }) => Ok(value),
-            other => Err(syn::Error::new_spanned(other, "expected a string literal")),
-        })
-        .collect()
-}
-
-fn parse_target(tokens: TokenStream) -> syn::Result<Target> {
     if let Ok(item) = parse2::<Item>(tokens.clone())
         && !matches!(item, Item::Verbatim(_))
     {
@@ -216,28 +128,78 @@ fn parse_target(tokens: TokenStream) -> syn::Result<Target> {
     if let Ok(item) = parse2::<ImplItemFn>(tokens.clone()) {
         return Ok(Target::ImplMethod(item));
     }
+    if let Ok(item) = parse2::<ImplItemConst>(tokens.clone()) {
+        return Ok(Target::ImplConst(item));
+    }
+    if let Ok(item) = parse2::<ImplItemType>(tokens.clone()) {
+        return Ok(Target::ImplType(item));
+    }
     if let Ok(item) = parse2::<TraitItemFn>(tokens.clone()) {
         return Ok(Target::TraitMethod(item));
     }
+    if let Ok(item) = parse2::<TraitItemConst>(tokens.clone()) {
+        return Ok(Target::TraitConst(item));
+    }
+    if let Ok(item) = parse2::<TraitItemType>(tokens.clone()) {
+        return Ok(Target::TraitType(item));
+    }
     Err(syn::Error::new_spanned(
         tokens,
-        "#[api] supports modules, structs, enums, traits, functions, methods, trait methods, type aliases, constants, and macros",
+        "#[api] supports modules, structs, enums, traits, functions, methods, associated constants/types, trait methods/items, type aliases, constants, and macros",
     ))
 }
 
-fn target_info(target: &Target) -> syn::Result<TargetInfo<'_>> {
+fn target_info<'a>(target: &'a Target, args: &ContractArgs) -> syn::Result<TargetInfo<'a>> {
+    if !matches!(target, Target::ImplConst(_) | Target::ImplType(_))
+        && let Some(kind) = &args.kind
+    {
+        return Err(syn::Error::new_spanned(
+            kind,
+            "`kind` is only valid for inherent associated constants and types",
+        ));
+    }
     let info = match target {
         Target::ImplMethod(item) => TargetInfo {
             ident: &item.sig.ident,
             kind: "Method",
             signature: item.sig.to_token_stream(),
-            function: Some(&item.sig),
+            contract_target: ContractTarget::Function {
+                ident: &item.sig.ident,
+                signature: &item.sig,
+            },
+        },
+        Target::ImplConst(item) => TargetInfo {
+            ident: &item.ident,
+            kind: "AssociatedConst",
+            signature: item.to_token_stream(),
+            contract_target: ContractTarget::Plain { ident: &item.ident },
+        },
+        Target::ImplType(item) => TargetInfo {
+            ident: &item.ident,
+            kind: "AssociatedType",
+            signature: item.to_token_stream(),
+            contract_target: ContractTarget::Plain { ident: &item.ident },
         },
         Target::TraitMethod(item) => TargetInfo {
             ident: &item.sig.ident,
             kind: "TraitMethod",
             signature: item.sig.to_token_stream(),
-            function: Some(&item.sig),
+            contract_target: ContractTarget::Function {
+                ident: &item.sig.ident,
+                signature: &item.sig,
+            },
+        },
+        Target::TraitConst(item) => TargetInfo {
+            ident: &item.ident,
+            kind: "AssociatedConst",
+            signature: item.to_token_stream(),
+            contract_target: ContractTarget::Plain { ident: &item.ident },
+        },
+        Target::TraitType(item) => TargetInfo {
+            ident: &item.ident,
+            kind: "AssociatedType",
+            signature: item.to_token_stream(),
+            contract_target: ContractTarget::Plain { ident: &item.ident },
         },
         Target::Item(item) => match item {
             Item::Fn(item) => TargetInfo {
@@ -248,7 +210,10 @@ fn target_info(target: &Target) -> syn::Result<TargetInfo<'_>> {
                     "Function"
                 },
                 signature: item.sig.to_token_stream(),
-                function: Some(&item.sig),
+                contract_target: ContractTarget::Function {
+                    ident: &item.sig.ident,
+                    signature: &item.sig,
+                },
             },
             Item::Mod(item) => {
                 let ident = &item.ident;
@@ -256,38 +221,38 @@ fn target_info(target: &Target) -> syn::Result<TargetInfo<'_>> {
                     ident,
                     kind: "Module",
                     signature: quote!(pub mod #ident),
-                    function: None,
+                    contract_target: ContractTarget::Plain { ident },
                 }
             }
             Item::Struct(item) => TargetInfo {
                 ident: &item.ident,
                 kind: "Struct",
                 signature: item.to_token_stream(),
-                function: None,
+                contract_target: ContractTarget::Struct(item),
             },
             Item::Enum(item) => TargetInfo {
                 ident: &item.ident,
                 kind: "Enum",
                 signature: item.to_token_stream(),
-                function: None,
+                contract_target: ContractTarget::Enum(item),
             },
             Item::Trait(item) => TargetInfo {
                 ident: &item.ident,
                 kind: "Trait",
                 signature: item.to_token_stream(),
-                function: None,
+                contract_target: ContractTarget::Plain { ident: &item.ident },
             },
             Item::Type(item) => TargetInfo {
                 ident: &item.ident,
                 kind: "TypeAlias",
                 signature: item.to_token_stream(),
-                function: None,
+                contract_target: ContractTarget::Plain { ident: &item.ident },
             },
             Item::Const(item) => TargetInfo {
                 ident: &item.ident,
                 kind: "Constant",
                 signature: item.to_token_stream(),
-                function: None,
+                contract_target: ContractTarget::Plain { ident: &item.ident },
             },
             Item::Macro(item) => TargetInfo {
                 ident: item.ident.as_ref().ok_or_else(|| {
@@ -295,7 +260,9 @@ fn target_info(target: &Target) -> syn::Result<TargetInfo<'_>> {
                 })?,
                 kind: "Macro",
                 signature: item.to_token_stream(),
-                function: None,
+                contract_target: ContractTarget::Plain {
+                    ident: item.ident.as_ref().expect("checked named macro"),
+                },
             },
             other => {
                 return Err(syn::Error::new_spanned(
@@ -308,85 +275,6 @@ fn target_info(target: &Target) -> syn::Result<TargetInfo<'_>> {
     Ok(info)
 }
 
-fn validate(args: &ContractArgs, info: &TargetInfo<'_>) -> syn::Result<()> {
-    for (name, value) in [
-        ("summary", args.summary.as_ref()),
-        ("context", args.context.as_ref()),
-        ("minecraft", args.minecraft.as_ref()),
-        ("example", args.example.as_ref()),
-    ] {
-        let value = value.ok_or_else(|| {
-            syn::Error::new(
-                info.ident.span(),
-                format!("missing required API contract field `{name}`"),
-            )
-        })?;
-        if value.value().trim().is_empty() {
-            return Err(syn::Error::new_spanned(
-                value,
-                format!("API contract field `{name}` cannot be empty"),
-            ));
-        }
-    }
-    for (name, values) in [
-        ("use_when", args.use_when.as_ref()),
-        ("avoid_when", args.avoid_when.as_ref()),
-    ] {
-        let values = values.ok_or_else(|| {
-            syn::Error::new(
-                info.ident.span(),
-                format!("missing required API contract field `{name}`"),
-            )
-        })?;
-        if values.is_empty() || values.iter().any(|value| value.value().trim().is_empty()) {
-            return Err(syn::Error::new(
-                info.ident.span(),
-                format!("API contract field `{name}` must contain non-empty strings"),
-            ));
-        }
-    }
-    if let Some(path) = &args.path {
-        validate_path(path, "path")?;
-    }
-    if let Some(module) = &args.module {
-        validate_path(module, "module")?;
-    }
-    for alias in args.aliases.as_deref().unwrap_or_default() {
-        validate_path(alias, "alias")?;
-    }
-    let mut aliases = BTreeSet::new();
-    for alias in args.aliases.as_deref().unwrap_or_default() {
-        if !aliases.insert(alias.value()) {
-            return Err(syn::Error::new_spanned(
-                alias,
-                "duplicate API contract alias",
-            ));
-        }
-    }
-
-    match info.function {
-        Some(signature) => validate_function(args, signature),
-        None => {
-            if let Some(parameters) = &args.params {
-                return Err(syn::Error::new_spanned(
-                    parameters.first().map_or_else(
-                        || info.ident.to_token_stream(),
-                        |parameter| parameter.0.to_token_stream(),
-                    ),
-                    "parameter descriptions are only valid on functions and methods",
-                ));
-            }
-            if let Some(returns) = &args.returns {
-                return Err(syn::Error::new_spanned(
-                    returns,
-                    "`returns` is only valid on functions and methods",
-                ));
-            }
-            Ok(())
-        }
-    }
-}
-
 fn fnv1a(bytes: &[u8]) -> u64 {
     let mut hash = 0xcbf29ce484222325_u64;
     for byte in bytes {
@@ -396,77 +284,239 @@ fn fnv1a(bytes: &[u8]) -> u64 {
     hash
 }
 
-fn validate_function(args: &ContractArgs, signature: &Signature) -> syn::Result<()> {
-    let mut actual = Vec::new();
-    for argument in &signature.inputs {
-        match argument {
-            FnArg::Receiver(_) => {}
-            FnArg::Typed(argument) => match argument.pat.as_ref() {
-                Pat::Ident(ident) => actual.push(ident.ident.to_string()),
-                pattern => {
-                    return Err(syn::Error::new_spanned(
-                        pattern,
-                        "contracted public API parameters must use simple identifier patterns",
-                    ));
+fn member_registrations(
+    args: &ContractArgs,
+    target: &Target,
+    parent_path: &TokenStream,
+    parent_aliases: &[LitStr],
+    info: &TargetInfo<'_>,
+) -> syn::Result<TokenStream> {
+    let context = required(&args.context, "context")?;
+    let minecraft = required(&args.minecraft, "minecraft")?;
+    let use_when = required(&args.use_when, "use_when")?;
+    let avoid_when = required(&args.avoid_when, "avoid_when")?;
+    let example = required(&args.example, "example")?;
+    let availability = args.availability.as_deref().unwrap_or_default();
+    let mut registrations = Vec::new();
+
+    match target {
+        Target::Item(Item::Struct(item)) => {
+            for field in &item.fields {
+                if !matches!(field.vis, syn::Visibility::Public(_)) || doc_hidden(&field.attrs) {
+                    continue;
                 }
-            },
+                let ident = field
+                    .ident
+                    .as_ref()
+                    .expect("shared validation rejects tuple fields");
+                let description = description(args.fields.as_deref(), ident)?;
+                let ty = &field.ty;
+                let signature = quote!(pub #ident: #ty);
+                registrations.push(member_registration(
+                    info,
+                    ident,
+                    "Field",
+                    signature,
+                    description,
+                    &member_path(args, info.ident, ident),
+                    parent_path,
+                    parent_aliases,
+                    context,
+                    minecraft,
+                    use_when,
+                    avoid_when,
+                    example,
+                    availability,
+                ));
+            }
         }
+        Target::Item(Item::Enum(item)) => {
+            for variant in &item.variants {
+                if doc_hidden(&variant.attrs) {
+                    continue;
+                }
+                let ident = &variant.ident;
+                let description = description(args.variants.as_deref(), ident)?;
+                let mut signature_variant = variant.clone();
+                signature_variant.attrs.clear();
+                registrations.push(member_registration(
+                    info,
+                    ident,
+                    "Variant",
+                    signature_variant.to_token_stream(),
+                    description,
+                    &member_path(args, info.ident, ident),
+                    parent_path,
+                    parent_aliases,
+                    context,
+                    minecraft,
+                    use_when,
+                    avoid_when,
+                    example,
+                    availability,
+                ));
+            }
+        }
+        _ => {}
     }
-    let documented = args
-        .params
-        .as_deref()
-        .unwrap_or_default()
+
+    Ok(quote!(#(#registrations)*))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn member_registration(
+    info: &TargetInfo<'_>,
+    ident: &syn::Ident,
+    kind: &str,
+    signature: TokenStream,
+    summary: &LitStr,
+    member_path: &TokenStream,
+    parent_path: &TokenStream,
+    parent_aliases: &[LitStr],
+    context: &LitStr,
+    minecraft: &LitStr,
+    use_when: &[LitStr],
+    avoid_when: &[LitStr],
+    example: &LitStr,
+    availability: &[LitStr],
+) -> TokenStream {
+    let member_name = ident.to_string();
+    let identity = format!("{}::{member_name}", info.ident);
+    let registration = syn::Ident::new(
+        &format!("__SAND_API_CONTRACT_{:016X}", fnv1a(identity.as_bytes())),
+        ident.span(),
+    );
+    let kind = syn::Ident::new(kind, ident.span());
+    let aliases = parent_aliases
         .iter()
-        .map(|(name, _)| (name.to_string(), name))
-        .collect::<BTreeMap<_, _>>();
-    for name in &actual {
-        if !documented.contains_key(name) {
-            return Err(syn::Error::new_spanned(
-                signature,
-                format!("missing API contract documentation for parameter `{name}`"),
-            ));
-        }
-    }
-    for (name, ident) in &documented {
-        if !actual.contains(name) {
-            return Err(syn::Error::new_spanned(
-                ident,
-                format!("API contract documents nonexistent parameter `{name}`"),
-            ));
-        }
-    }
-    match (&signature.output, &args.returns) {
-        (ReturnType::Default, Some(value)) => Err(syn::Error::new_spanned(
-            value,
-            "`returns` is not valid on a function without a return value",
-        )),
-        (ReturnType::Type(_, _), None) => Err(syn::Error::new_spanned(
-            signature,
-            "missing required API contract field `returns`",
-        )),
-        _ => Ok(()),
+        .map(|alias| LitStr::new(&format!("{}::{member_name}", alias.value()), alias.span()));
+    quote! {
+        #[doc(hidden)]
+        const #registration: () = {
+            ::sand::__private::api_contract::inventory::submit! {
+                ::sand::__private::api_contract::ApiRegistration {
+                    canonical_path: #member_path,
+                    aliases: &[#(#aliases),*],
+                    canonical_module: #parent_path,
+                    kind: ::sand::__private::api_contract::ApiKind::#kind,
+                    signature: ::std::stringify!(#signature),
+                    summary: #summary,
+                    context: #context,
+                    minecraft: #minecraft,
+                    use_when: &[#(#use_when),*],
+                    avoid_when: &[#(#avoid_when),*],
+                    parameters: &[],
+                    returns: ::std::option::Option::None,
+                    example: #example,
+                    availability: &[#(#availability),*],
+                }
+            }
+        };
     }
 }
 
-fn validate_path(value: &LitStr, role: &str) -> syn::Result<()> {
-    let path = value.value();
-    let valid = (role == "module" && path == "sand")
-        || path.starts_with("sand::")
-            && path.split("::").all(|segment| {
-                !segment.is_empty()
-                    && segment.chars().enumerate().all(|(index, ch)| {
-                        ch == '_'
-                            || ch.is_ascii_alphanumeric() && (index > 0 || !ch.is_ascii_digit())
-                    })
-            });
-    if valid {
-        Ok(())
+fn member_path(args: &ContractArgs, parent: &syn::Ident, member: &syn::Ident) -> TokenStream {
+    if let Some(path) = &args.path {
+        let value = LitStr::new(&format!("{}::{member}", path.value()), member.span());
+        quote!(#value)
     } else {
-        Err(syn::Error::new_spanned(
-            value,
-            format!("invalid canonical API {role}; expected a path beginning with `sand::`"),
+        quote!(::std::concat!(
+            ::std::module_path!(),
+            "::",
+            ::std::stringify!(#parent),
+            "::",
+            ::std::stringify!(#member)
         ))
     }
+}
+
+fn description<'a>(
+    descriptions: Option<&'a [Description]>,
+    ident: &syn::Ident,
+) -> syn::Result<&'a LitStr> {
+    descriptions
+        .unwrap_or_default()
+        .iter()
+        .find(|description| description.name == *ident)
+        .map(|description| &description.text)
+        .ok_or_else(|| syn::Error::new_spanned(ident, "missing nested member description"))
+}
+
+fn add_member_rustdoc(target: &mut Target, args: &ContractArgs) {
+    match target {
+        Target::Item(Item::Struct(item)) => {
+            for field in &mut item.fields {
+                let Some(ident) = &field.ident else { continue };
+                if let Some(description) = args
+                    .fields
+                    .as_deref()
+                    .unwrap_or_default()
+                    .iter()
+                    .find(|description| description.name == *ident)
+                {
+                    let text = &description.text;
+                    field.attrs.push(syn::parse_quote!(#[doc = #text]));
+                    field.attrs.push(syn::parse_quote!(#[doc = ""]));
+                    field
+                        .attrs
+                        .push(member_contract_doc(args, &item.ident, ident));
+                }
+            }
+        }
+        Target::Item(Item::Enum(item)) => {
+            for variant in &mut item.variants {
+                let ident = &variant.ident;
+                if let Some(description) = args
+                    .variants
+                    .as_deref()
+                    .unwrap_or_default()
+                    .iter()
+                    .find(|description| description.name == *ident)
+                {
+                    let text = &description.text;
+                    variant.attrs.push(syn::parse_quote!(#[doc = #text]));
+                    variant.attrs.push(syn::parse_quote!(#[doc = ""]));
+                    variant
+                        .attrs
+                        .push(member_contract_doc(args, &item.ident, ident));
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+fn member_contract_doc(
+    args: &ContractArgs,
+    parent: &syn::Ident,
+    member: &syn::Ident,
+) -> syn::Attribute {
+    if let Some(path) = &args.path {
+        let line = LitStr::new(
+            &format!("API Contract: `sand api show {}::{member}`", path.value()),
+            member.span(),
+        );
+        syn::parse_quote!(#[doc = #line])
+    } else {
+        syn::parse_quote!(#[doc = concat!(
+            "API Contract: `sand api show ",
+            module_path!(),
+            "::",
+            stringify!(#parent),
+            "::",
+            stringify!(#member),
+            "`"
+        )])
+    }
+}
+
+fn doc_hidden(attrs: &[syn::Attribute]) -> bool {
+    attrs.iter().any(|attr| {
+        attr.path().is_ident("doc")
+            && attr
+                .parse_args::<syn::Ident>()
+                .is_ok_and(|ident| ident == "hidden")
+    })
 }
 
 fn identity_tokens(
@@ -532,7 +582,7 @@ fn rustdoc(
         lines.extend(
             parameters
                 .iter()
-                .map(|(name, description)| format!("- `{name}` — {}", description.value())),
+                .map(|parameter| format!("- `{}` — {}", parameter.name, parameter.text.value())),
         );
     }
     if let Some(returns) = &args.returns {
@@ -571,5 +621,34 @@ fn rustdoc(
         #[doc = "```text"]
         #[doc = ::std::concat!("sand api show ", #path)]
         #[doc = "```"]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_inherent_associated_const_and_type_forms() {
+        assert!(matches!(
+            parse_target(
+                quote!(
+                    pub const ENABLED: bool = true;
+                ),
+                Some(&syn::parse_quote!("associated_const"))
+            )
+            .unwrap(),
+            Target::ImplConst(_)
+        ));
+        assert!(matches!(
+            parse_target(
+                quote!(
+                    pub type Output = u32;
+                ),
+                Some(&syn::parse_quote!("associated_type"))
+            )
+            .unwrap(),
+            Target::ImplType(_)
+        ));
     }
 }

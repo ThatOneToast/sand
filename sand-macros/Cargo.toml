@@ -20,6 +20,7 @@ resourcepack = []
 proc-macro = true
 
 [dependencies]
+sand-api-contract = { path = "../sand-api-contract", features = ["syntax"] }
 proc-macro2 = "1"
 quote = "1"
 syn = { version = "2", features = ["full"] }

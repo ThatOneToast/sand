@@ -28,8 +28,20 @@ pub enum ApiKind {
     TraitMethod,
     TypeAlias,
     Constant,
+    AssociatedConst,
+    AssociatedType,
+    Field,
     Macro,
 }
+
+/// Shared parser and validator for the `#[api(...)]` authoring syntax.
+///
+/// This is feature-gated because installed catalogs do not otherwise need a
+/// Rust parser. Procedural macros and build-time surface enforcement enable
+/// the `syntax` feature so they cannot drift into accepting different
+/// contract dialects.
+#[cfg(feature = "syntax")]
+pub mod syntax;
 
 /// Parameter documentation in declaration order.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]

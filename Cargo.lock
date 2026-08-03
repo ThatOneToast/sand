@@ -1886,8 +1886,11 @@ name = "sand-api-contract"
 version = "0.1.0"
 dependencies = [
  "inventory",
+ "proc-macro2",
+ "quote",
  "serde",
  "serde_json",
+ "syn",
 ]
 
 [[package]]
@@ -1896,6 +1899,7 @@ version = "0.1.0"
 dependencies = [
  "proc-macro2",
  "quote",
+ "sand-api-contract",
  "serde",
  "syn",
  "tempfile",
@@ -2000,6 +2004,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "sand",
+ "sand-api-contract",
  "sand-core",
  "sand-macros",
  "syn",

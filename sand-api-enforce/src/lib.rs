@@ -11,6 +11,7 @@ use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use sand_api_contract::syntax::{ContractTarget, parse_contract_args, validate_contract};
 use syn::spanned::Spanned;
 
 mod reachable;
@@ -138,6 +139,7 @@ fn inspect_items(
 ) {
     for item in items {
         let attrs = item_attrs(item);
+        validate_item_contract(item, attrs);
         let excluded = excluded_parent || doc_hidden(attrs) || module.ends_with("::__private");
         match item {
             syn::Item::Mod(value) => {
@@ -168,39 +170,65 @@ fn inspect_items(
                 let owner = compact_tokens(&value.self_ty);
                 for child in &value.items {
                     match child {
-                        syn::ImplItem::Fn(method) => check_public(
-                            &method.vis,
-                            &method.attrs,
-                            source,
-                            method.span(),
-                            &format!("{module}::{owner}::{}", method.sig.ident),
-                            "method",
-                            excluded || doc_hidden(&method.attrs),
-                            contracted_paths,
-                            violations,
-                        ),
-                        syn::ImplItem::Const(constant) => check_public(
-                            &constant.vis,
-                            &constant.attrs,
-                            source,
-                            constant.span(),
-                            &format!("{module}::{owner}::{}", constant.ident),
-                            "associated constant",
-                            excluded || doc_hidden(&constant.attrs),
-                            contracted_paths,
-                            violations,
-                        ),
-                        syn::ImplItem::Type(ty) => check_public(
-                            &ty.vis,
-                            &ty.attrs,
-                            source,
-                            ty.span(),
-                            &format!("{module}::{owner}::{}", ty.ident),
-                            "associated type",
-                            excluded || doc_hidden(&ty.attrs),
-                            contracted_paths,
-                            violations,
-                        ),
+                        syn::ImplItem::Fn(method) => {
+                            validate_attribute_contract(
+                                &method.attrs,
+                                ContractTarget::Function {
+                                    ident: &method.sig.ident,
+                                    signature: &method.sig,
+                                },
+                                None,
+                            );
+                            check_public(
+                                &method.vis,
+                                &method.attrs,
+                                source,
+                                method.span(),
+                                &format!("{module}::{owner}::{}", method.sig.ident),
+                                "method",
+                                excluded || doc_hidden(&method.attrs),
+                                contracted_paths,
+                                violations,
+                            )
+                        }
+                        syn::ImplItem::Const(constant) => {
+                            validate_attribute_contract(
+                                &constant.attrs,
+                                ContractTarget::Plain {
+                                    ident: &constant.ident,
+                                },
+                                Some("associated_const"),
+                            );
+                            check_public(
+                                &constant.vis,
+                                &constant.attrs,
+                                source,
+                                constant.span(),
+                                &format!("{module}::{owner}::{}", constant.ident),
+                                "associated constant",
+                                excluded || doc_hidden(&constant.attrs),
+                                contracted_paths,
+                                violations,
+                            )
+                        }
+                        syn::ImplItem::Type(ty) => {
+                            validate_attribute_contract(
+                                &ty.attrs,
+                                ContractTarget::Plain { ident: &ty.ident },
+                                Some("associated_type"),
+                            );
+                            check_public(
+                                &ty.vis,
+                                &ty.attrs,
+                                source,
+                                ty.span(),
+                                &format!("{module}::{owner}::{}", ty.ident),
+                                "associated type",
+                                excluded || doc_hidden(&ty.attrs),
+                                contracted_paths,
+                                violations,
+                            )
+                        }
                         _ => {}
                     }
                 }
@@ -242,6 +270,29 @@ fn inspect_items(
                             _ => continue,
                         };
                         let child_path = format!("{path}::{name}");
+                        match child {
+                            syn::TraitItem::Fn(method) => validate_attribute_contract(
+                                child_attrs,
+                                ContractTarget::Function {
+                                    ident: &method.sig.ident,
+                                    signature: &method.sig,
+                                },
+                                None,
+                            ),
+                            syn::TraitItem::Const(constant) => validate_attribute_contract(
+                                child_attrs,
+                                ContractTarget::Plain {
+                                    ident: &constant.ident,
+                                },
+                                None,
+                            ),
+                            syn::TraitItem::Type(ty) => validate_attribute_contract(
+                                child_attrs,
+                                ContractTarget::Plain { ident: &ty.ident },
+                                None,
+                            ),
+                            _ => {}
+                        }
                         if !has_api(child_attrs)
                             && !doc_hidden(child_attrs)
                             && !contracted_paths.contains(&child_path)
@@ -289,6 +340,67 @@ fn inspect_items(
             }
         }
     }
+}
+
+fn validate_item_contract(item: &syn::Item, attrs: &[syn::Attribute]) {
+    let target = match item {
+        syn::Item::Fn(item) => ContractTarget::Function {
+            ident: &item.sig.ident,
+            signature: &item.sig,
+        },
+        syn::Item::Struct(item) => ContractTarget::Struct(item),
+        syn::Item::Enum(item) => ContractTarget::Enum(item),
+        syn::Item::Mod(item) => ContractTarget::Plain { ident: &item.ident },
+        syn::Item::Trait(item) => ContractTarget::Plain { ident: &item.ident },
+        syn::Item::Type(item) => ContractTarget::Plain { ident: &item.ident },
+        syn::Item::Const(item) => ContractTarget::Plain { ident: &item.ident },
+        syn::Item::Macro(item) => {
+            let Some(ident) = item.ident.as_ref() else {
+                return;
+            };
+            ContractTarget::Plain { ident }
+        }
+        _ => return,
+    };
+    validate_attribute_contract(attrs, target, None);
+}
+
+fn validate_attribute_contract(
+    attrs: &[syn::Attribute],
+    target: ContractTarget<'_>,
+    expected_kind_hint: Option<&str>,
+) {
+    let Some(attribute) = attrs.iter().find(|attr| is_api_path(attr.path())) else {
+        return;
+    };
+    let syn::Meta::List(list) = &attribute.meta else {
+        panic!("invalid #[api] contract: expected #[api(...)]");
+    };
+    let args = parse_contract_args(list.tokens.clone())
+        .unwrap_or_else(|error| panic!("invalid #[api] contract: {error}"));
+    match (
+        expected_kind_hint,
+        args.kind.as_ref().map(syn::LitStr::value),
+    ) {
+        (Some(expected), Some(actual)) if actual == expected => {}
+        (Some(expected), _) => panic!(
+            "invalid #[api] contract: inherent associated item requires `kind = \"{expected}\"`"
+        ),
+        (None, Some(_)) => panic!(
+            "invalid #[api] contract: `kind` is only valid for inherent associated constants and types"
+        ),
+        (None, None) => {}
+    }
+    validate_contract(&args, &target)
+        .unwrap_or_else(|error| panic!("invalid #[api] contract: {error}"));
+}
+
+fn is_api_path(path: &syn::Path) -> bool {
+    path.is_ident("api")
+        || path
+            .segments
+            .last()
+            .is_some_and(|segment| segment.ident == "api")
 }
 
 fn public_identity(item: &syn::Item) -> Option<(&syn::Visibility, String, &'static str)> {
@@ -369,14 +481,7 @@ fn item_attrs(item: &syn::Item) -> &[syn::Attribute] {
 }
 
 fn has_api(attrs: &[syn::Attribute]) -> bool {
-    attrs.iter().any(|attr| {
-        let path = attr.path();
-        path.is_ident("api")
-            || path
-                .segments
-                .last()
-                .is_some_and(|segment| segment.ident == "api")
-    })
+    attrs.iter().any(|attr| is_api_path(attr.path()))
 }
 
 fn doc_hidden(attrs: &[syn::Attribute]) -> bool {
@@ -437,11 +542,88 @@ mod tests {
         fs::write(
             &source,
             r#"
-                #[api(summary = "complete")]
+                #[api(
+                    summary = "Exposes a supported fixture operation.",
+                    context = "The fixture verifies build-time contract parsing.",
+                    minecraft = "It emits no Minecraft output.",
+                    use_when = ["Testing the surface auditor"],
+                    avoid_when = ["Authoring a datapack"],
+                    example = "supported()",
+                )]
                 pub fn supported() {}
                 #[doc(hidden)]
                 pub fn generated_wiring() {}
                 pub(crate) fn internal() {}
+            "#,
+        )
+        .unwrap();
+        audit(&[SurfaceRoot {
+            source,
+            canonical_module: "sand::fixture".into(),
+        }])
+        .unwrap();
+    }
+
+    #[test]
+    fn associated_item_kind_hints_are_context_audited() {
+        for source_text in [
+            r#"
+                struct Fixture;
+                impl Fixture {
+                    #[api(
+                        summary = "Exposes the fixture default.",
+                        context = "The fixture verifies associated-item classification.",
+                        minecraft = "It emits no Minecraft output.",
+                        use_when = ["Testing the surface auditor"],
+                        avoid_when = ["Authoring a datapack"],
+                        example = "Fixture::DEFAULT",
+                    )]
+                    pub const DEFAULT: bool = true;
+                }
+            "#,
+            r#"
+                #[api(
+                    kind = "associated_const",
+                    summary = "Exposes a free fixture constant.",
+                    context = "The fixture verifies associated-item classification.",
+                    minecraft = "It emits no Minecraft output.",
+                    use_when = ["Testing the surface auditor"],
+                    avoid_when = ["Authoring a datapack"],
+                    example = "DEFAULT",
+                )]
+                pub const DEFAULT: bool = true;
+            "#,
+        ] {
+            let directory = tempfile::tempdir().unwrap();
+            let source = directory.path().join("lib.rs");
+            fs::write(&source, source_text).unwrap();
+            let result = std::panic::catch_unwind(|| {
+                audit(&[SurfaceRoot {
+                    source,
+                    canonical_module: "sand::fixture".into(),
+                }])
+            });
+            assert!(result.is_err(), "invalid kind hint context was accepted");
+        }
+
+        let directory = tempfile::tempdir().unwrap();
+        let source = directory.path().join("lib.rs");
+        fs::write(
+            &source,
+            r#"
+                struct Fixture;
+                impl Fixture {
+                    #[api(
+                        kind = "associated_const",
+                        summary = "Exposes the fixture default.",
+                        context = "The fixture verifies associated-item classification.",
+                        minecraft = "It emits no Minecraft output.",
+                        use_when = ["Testing the surface auditor"],
+                        avoid_when = ["Authoring a datapack"],
+                        example = "Fixture::DEFAULT",
+                    )]
+                    pub const DEFAULT: bool = true;
+                }
             "#,
         )
         .unwrap();

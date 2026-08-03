@@ -6,6 +6,7 @@
 //! an unannotated sibling. Build scripts call this crate so ordinary
 //! `cargo check` and `cargo build` reject new public items without `#[api]`.
 
+use std::collections::BTreeSet;
 use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -46,9 +47,19 @@ impl fmt::Display for Violation {
 /// Inspect every configured root and return all violations in deterministic
 /// source/path order.
 pub fn audit(roots: &[SurfaceRoot]) -> Result<(), Vec<Violation>> {
+    audit_with_contracts(roots, &BTreeSet::new())
+}
+
+/// Inspect roots while accepting exact canonical identities supplied by a
+/// generated or facade-owned contract table. This is used for re-exports,
+/// whose defining item cannot carry Sand's procedural attribute.
+pub fn audit_with_contracts(
+    roots: &[SurfaceRoot],
+    contracted_paths: &BTreeSet<String>,
+) -> Result<(), Vec<Violation>> {
     let mut violations = Vec::new();
     for root in roots {
-        audit_file(root, &mut violations);
+        audit_file(root, contracted_paths, &mut violations);
     }
     violations.sort_by(|left, right| {
         left.source
@@ -76,7 +87,24 @@ pub fn enforce(roots: &[SurfaceRoot]) {
     }
 }
 
-fn audit_file(root: &SurfaceRoot, violations: &mut Vec<Violation>) {
+/// Build-script entry point with exact identities supplied by generated or
+/// facade-owned contract metadata.
+pub fn enforce_with_contracts(roots: &[SurfaceRoot], contracted_paths: &BTreeSet<String>) {
+    if let Err(violations) = audit_with_contracts(roots, contracted_paths) {
+        let rendered = violations
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>()
+            .join("\n");
+        panic!("Sand public API contract enforcement failed:\n{rendered}");
+    }
+}
+
+fn audit_file(
+    root: &SurfaceRoot,
+    contracted_paths: &BTreeSet<String>,
+    violations: &mut Vec<Violation>,
+) {
     let source = fs::read_to_string(&root.source)
         .unwrap_or_else(|error| panic!("failed to read {}: {error}", root.source.display()));
     let parsed = syn::parse_file(&source)
@@ -86,6 +114,7 @@ fn audit_file(root: &SurfaceRoot, violations: &mut Vec<Violation>) {
         &root.source,
         &root.canonical_module,
         false,
+        contracted_paths,
         violations,
     );
 }
@@ -95,6 +124,7 @@ fn inspect_items(
     source: &Path,
     module: &str,
     excluded_parent: bool,
+    contracted_paths: &BTreeSet<String>,
     violations: &mut Vec<Violation>,
 ) {
     for item in items {
@@ -111,10 +141,18 @@ fn inspect_items(
                     &path,
                     "module",
                     excluded,
+                    contracted_paths,
                     violations,
                 );
                 if let Some((_, nested)) = &value.content {
-                    inspect_items(nested, source, &path, excluded, violations);
+                    inspect_items(
+                        nested,
+                        source,
+                        &path,
+                        excluded,
+                        contracted_paths,
+                        violations,
+                    );
                 }
             }
             syn::Item::Impl(value) => {
@@ -129,6 +167,7 @@ fn inspect_items(
                             &format!("{module}::{owner}::{}", method.sig.ident),
                             "method",
                             excluded || doc_hidden(&method.attrs),
+                            contracted_paths,
                             violations,
                         ),
                         syn::ImplItem::Const(constant) => check_public(
@@ -139,6 +178,7 @@ fn inspect_items(
                             &format!("{module}::{owner}::{}", constant.ident),
                             "associated constant",
                             excluded || doc_hidden(&constant.attrs),
+                            contracted_paths,
                             violations,
                         ),
                         syn::ImplItem::Type(ty) => check_public(
@@ -149,6 +189,7 @@ fn inspect_items(
                             &format!("{module}::{owner}::{}", ty.ident),
                             "associated type",
                             excluded || doc_hidden(&ty.attrs),
+                            contracted_paths,
                             violations,
                         ),
                         _ => {}
@@ -165,6 +206,7 @@ fn inspect_items(
                     &path,
                     "trait",
                     excluded,
+                    contracted_paths,
                     violations,
                 );
                 if is_public(&value.vis) && !excluded {
@@ -190,14 +232,12 @@ fn inspect_items(
                             ),
                             _ => continue,
                         };
-                        if !has_api(child_attrs) && !doc_hidden(child_attrs) {
-                            push_violation(
-                                source,
-                                span,
-                                format!("{path}::{name}"),
-                                kind,
-                                violations,
-                            );
+                        let child_path = format!("{path}::{name}");
+                        if !has_api(child_attrs)
+                            && !doc_hidden(child_attrs)
+                            && !contracted_paths.contains(&child_path)
+                        {
+                            push_violation(source, span, child_path, kind, violations);
                         }
                     }
                 }
@@ -233,6 +273,7 @@ fn inspect_items(
                         &format!("{module}::{name}"),
                         kind,
                         excluded,
+                        contracted_paths,
                         violations,
                     );
                 }
@@ -264,9 +305,14 @@ fn check_public(
     canonical_path: &str,
     item_kind: &'static str,
     excluded: bool,
+    contracted_paths: &BTreeSet<String>,
     violations: &mut Vec<Violation>,
 ) {
-    if is_public(visibility) && !excluded && !has_api(attrs) {
+    if is_public(visibility)
+        && !excluded
+        && !has_api(attrs)
+        && !contracted_paths.contains(canonical_path)
+    {
         push_violation(
             source,
             span,

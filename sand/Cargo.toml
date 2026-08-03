@@ -15,7 +15,11 @@ categories = ["game-development", "api-bindings"]
 sand-core = { path = "../sand-core" }
 sand-macros = { path = "../sand-macros" }
 sand-api-contract = { path = "../sand-api-contract" }
+sand-components = { path = "../sand-components" }
 sand-resourcepack = { path = "../sand-resourcepack", optional = true }
+
+[build-dependencies]
+sand-api-enforce = { path = "../sand-api-enforce" }
 
 [features]
 default = []

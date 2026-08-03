@@ -48,4 +48,25 @@ fn generated_registrations_build_an_installed_catalog() {
         catalog.find("sand::testing::Fixture::value").unwrap().kind,
         ApiKind::Method
     );
+
+    let predicate = catalog
+        .find("sand::prelude::Predicate::new")
+        .expect("facade-forwarded predicate method contract");
+    assert_eq!(predicate.canonical_path, "sand::predicate::Predicate::new");
+    assert_eq!(predicate.kind, ApiKind::Method);
+    assert_eq!(
+        predicate
+            .parameters
+            .iter()
+            .map(|parameter| parameter.name.as_str())
+            .collect::<Vec<_>>(),
+        ["location", "root"]
+    );
+
+    let json_once = catalog.to_json_pretty().unwrap();
+    let json_twice = ApiCatalog::installed(env!("CARGO_PKG_VERSION"))
+        .unwrap()
+        .to_json_pretty()
+        .unwrap();
+    assert_eq!(json_once.as_bytes(), json_twice.as_bytes());
 }

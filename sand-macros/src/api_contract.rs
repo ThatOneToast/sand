@@ -450,13 +450,15 @@ fn validate_function(args: &ContractArgs, signature: &Signature) -> syn::Result<
 
 fn validate_path(value: &LitStr, role: &str) -> syn::Result<()> {
     let path = value.value();
-    let valid = path.starts_with("sand::")
-        && path.split("::").all(|segment| {
-            !segment.is_empty()
-                && segment.chars().enumerate().all(|(index, ch)| {
-                    ch == '_' || ch.is_ascii_alphanumeric() && (index > 0 || !ch.is_ascii_digit())
-                })
-        });
+    let valid = (role == "module" && path == "sand")
+        || path.starts_with("sand::")
+            && path.split("::").all(|segment| {
+                !segment.is_empty()
+                    && segment.chars().enumerate().all(|(index, ch)| {
+                        ch == '_'
+                            || ch.is_ascii_alphanumeric() && (index > 0 || !ch.is_ascii_digit())
+                    })
+            });
     if valid {
         Ok(())
     } else {

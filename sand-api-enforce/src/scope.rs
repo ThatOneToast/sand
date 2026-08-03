@@ -44,6 +44,12 @@ pub struct ApiScope {
     /// `source` or `generator:<provider>`. Generated and handwritten APIs can
     /// therefore be ratcheted separately within the same facade module.
     pub provider: String,
+    /// How this scope's reachable items enter enforcement. Facade-graph
+    /// scopes are measured by `sand` itself. Consumer-build scopes are
+    /// parametric proc-macro outputs and require an explicit audit connection
+    /// from the consuming crate before they may become enforced.
+    #[serde(default)]
+    pub enforcement: ScopeEnforcement,
     /// Canonical ownership priority when the same underlying identity is
     /// reachable through multiple topic modules. Higher wins; equal-ranked
     /// candidates remain an error.
@@ -63,6 +69,14 @@ pub struct ApiScope {
 pub enum ScopeState {
     Pending,
     Enforced,
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum ScopeEnforcement {
+    #[default]
+    FacadeGraph,
+    ConsumerBuild,
 }
 
 /// Deterministically sorted status for one configured scope.
@@ -120,6 +134,8 @@ pub enum ScopeFailure {
         scope: String,
         provider: String,
     },
+    DisconnectedEnforcedProvider(String),
+    EmptyEnforcedScope(String),
     UnscopedItems(Vec<String>),
     AmbiguousScope {
         identity: String,
@@ -181,6 +197,14 @@ impl fmt::Display for ScopeFailure {
                     "scope `{scope}` has invalid provider `{provider}`"
                 )
             }
+            Self::DisconnectedEnforcedProvider(scope) => write!(
+                formatter,
+                "enforced API scope `{scope}` requires a connected consumer-build provider audit"
+            ),
+            Self::EmptyEnforcedScope(scope) => write!(
+                formatter,
+                "enforced API scope `{scope}` has no reachable items and no connected provider audit"
+            ),
             Self::UnscopedItems(identities) => write!(
                 formatter,
                 "reachable APIs are not assigned to a contract scope: {}",
@@ -238,6 +262,19 @@ impl ScopeManifest {
         contracts: &[ContractIdentity],
         enabled_features: &BTreeSet<String>,
     ) -> Result<ScopeReport, Vec<ScopeFailure>> {
+        self.evaluate_with_provider_audits(reachable, contracts, enabled_features, &BTreeSet::new())
+    }
+
+    /// Evaluate the ratchet with consumer-build provider audits connected by
+    /// stable scope id. This separate capability prevents a zero-item
+    /// parametric scope from becoming vacuously enforced in the facade build.
+    pub fn evaluate_with_provider_audits(
+        &self,
+        reachable: &[ReachableApi],
+        contracts: &[ContractIdentity],
+        enabled_features: &BTreeSet<String>,
+        connected_provider_audits: &BTreeSet<String>,
+    ) -> Result<ScopeReport, Vec<ScopeFailure>> {
         if let Err(error) = self.validate() {
             return Err(vec![error]);
         }
@@ -254,6 +291,15 @@ impl ScopeManifest {
             .iter()
             .filter(|scope| scope.state == ScopeState::Pending)
             .count();
+
+        for scope in &self.scopes {
+            if scope.state == ScopeState::Enforced
+                && scope.enforcement == ScopeEnforcement::ConsumerBuild
+                && !connected_provider_audits.contains(&scope.id)
+            {
+                failures.push(ScopeFailure::DisconnectedEnforcedProvider(scope.id.clone()));
+            }
+        }
 
         let mut owners = BTreeMap::<&str, &str>::new();
         let mut unscoped = Vec::new();
@@ -312,6 +358,12 @@ impl ScopeManifest {
                 .iter()
                 .filter(|item| contracted.contains(item.identity.as_str()))
                 .count();
+            if scope.state == ScopeState::Enforced
+                && matched.is_empty()
+                && !connected_provider_audits.contains(&scope.id)
+            {
+                failures.push(ScopeFailure::EmptyEnforcedScope(scope.id.clone()));
+            }
             match scope.state {
                 ScopeState::Pending => pending_items += matched.len(),
                 ScopeState::Enforced => {

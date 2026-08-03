@@ -9,7 +9,7 @@ use sand_api_enforce::{
     CfgSet, ContractIdentity, GeneratedApi, ReachableKind, ScopeManifest, ScopeState, SourceCrate,
     SurfaceGraph, contract_declarations_from_files, event_generated_type_provider,
     registry_id_provider, resolve_contract_identities, resource_ref_provider,
-    vanilla_registry_enum_provider,
+    validate_contract_lookup_namespace, vanilla_registry_enum_provider,
 };
 
 fn main() {
@@ -299,7 +299,6 @@ fn reachable_kind(kind: ApiKind) -> ReachableKind {
 
 fn reject_duplicate_contract_identities(contracts: &[ContractIdentity]) {
     let mut identities = BTreeSet::new();
-    let mut paths = BTreeSet::new();
     for contract in contracts {
         if !identities.insert(contract.identity.as_str()) {
             panic!(
@@ -307,13 +306,9 @@ fn reject_duplicate_contract_identities(contracts: &[ContractIdentity]) {
                 contract.identity
             );
         }
-        if !paths.insert(contract.canonical_path.as_str()) {
-            panic!(
-                "multiple authoritative API contracts claim `{}`",
-                contract.canonical_path
-            );
-        }
     }
+    validate_contract_lookup_namespace(contracts)
+        .unwrap_or_else(|error| panic!("invalid authoritative API lookup namespace: {error}"));
 }
 
 fn panic_errors<T: ToString>(heading: &str, errors: &[T]) -> ! {

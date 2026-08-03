@@ -3,6 +3,7 @@ use std::collections::BTreeSet;
 use sand_api_enforce::{
     ContractSourceError, ReachableApi, ReachableKind, ReachableOrigin, SourceCrate, SurfaceGraph,
     contract_declarations_from_files, resolve_contract_identities,
+    validate_contract_lookup_namespace,
 };
 use tempfile::tempdir;
 
@@ -13,6 +14,26 @@ fn api(identity: &str, paths: &[&str]) -> ReachableApi {
         origin: ReachableOrigin::Source,
         paths: paths.iter().map(|path| (*path).to_owned()).collect(),
     }
+}
+
+#[test]
+fn canonical_and_alias_paths_share_one_collision_checked_namespace() {
+    let contracts = vec![
+        sand_api_enforce::ContractIdentity {
+            identity: "lower::First".into(),
+            canonical_path: "sand::first".into(),
+            aliases: BTreeSet::from(["sand::shared".into()]),
+        },
+        sand_api_enforce::ContractIdentity {
+            identity: "lower::Second".into(),
+            canonical_path: "sand::shared".into(),
+            aliases: BTreeSet::new(),
+        },
+    ];
+    assert!(matches!(
+        validate_contract_lookup_namespace(&contracts),
+        Err(ContractSourceError::DuplicateLookupPath { path, .. }) if path == "sand::shared"
+    ));
 }
 
 #[test]

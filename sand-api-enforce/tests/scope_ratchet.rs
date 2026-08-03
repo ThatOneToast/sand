@@ -244,6 +244,60 @@ fn root_direct_and_generator_scopes_partition_the_same_module() {
 }
 
 #[test]
+fn parametric_scope_cannot_be_enforced_without_connected_consumer_audit() {
+    let pending = r#"
+        schema_version = 1
+        static_surface_items = 0
+        pending_scope_ceiling = 1
+        pending_item_ceiling = 0
+
+        [[scope]]
+        id = "generated-state-derive"
+        canonical_module = "sand"
+        state = "pending"
+        tier = "ordinary"
+        provider = "generator:state_derive"
+        enforcement = "consumer_build"
+        recursive = false
+    "#;
+    let manifest = ScopeManifest::from_toml(pending).unwrap();
+    assert!(manifest.evaluate(&[], &[], &BTreeSet::new()).is_ok());
+
+    let enforced = pending
+        .replace("state = \"pending\"", "state = \"enforced\"")
+        .replace("pending_scope_ceiling = 1", "pending_scope_ceiling = 0");
+    let manifest = ScopeManifest::from_toml(&enforced).unwrap();
+    let failures = manifest.evaluate(&[], &[], &BTreeSet::new()).unwrap_err();
+    assert!(
+        failures.contains(&ScopeFailure::DisconnectedEnforcedProvider(
+            "generated-state-derive".into()
+        ))
+    );
+    assert!(failures.contains(&ScopeFailure::EmptyEnforcedScope(
+        "generated-state-derive".into()
+    )));
+
+    let disguised = enforced.replace(
+        "enforcement = \"consumer_build\"",
+        "enforcement = \"facade_graph\"",
+    );
+    let failures = ScopeManifest::from_toml(&disguised)
+        .unwrap()
+        .evaluate(&[], &[], &BTreeSet::new())
+        .unwrap_err();
+    assert!(failures.contains(&ScopeFailure::EmptyEnforcedScope(
+        "generated-state-derive".into()
+    )));
+
+    let connected = BTreeSet::from(["generated-state-derive".to_owned()]);
+    assert!(
+        manifest
+            .evaluate_with_provider_audits(&[], &[], &BTreeSet::new(), &connected)
+            .is_ok()
+    );
+}
+
+#[test]
 fn unscoped_reachable_items_fail_the_ratchet() {
     let mut surface = surface();
     surface.push(api("sand_core::vfx::Vfx", &["sand::vfx::Vfx"]));

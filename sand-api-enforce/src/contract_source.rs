@@ -32,6 +32,10 @@ pub enum ContractSourceError {
     Parse(String),
     MissingCanonicalPath(PathBuf),
     DuplicateCanonicalPath(String),
+    DuplicateLookupPath {
+        path: String,
+        identities: Vec<String>,
+    },
     DuplicateIdentity {
         identity: String,
         paths: Vec<String>,
@@ -59,6 +63,11 @@ impl fmt::Display for ContractSourceError {
             Self::DuplicateCanonicalPath(path) => {
                 write!(formatter, "duplicate build-time API contract path `{path}`")
             }
+            Self::DuplicateLookupPath { path, identities } => write!(
+                formatter,
+                "API lookup path `{path}` is claimed by multiple identities: {}",
+                identities.join(", ")
+            ),
             Self::DuplicateIdentity { identity, paths } => write!(
                 formatter,
                 "reachable API `{identity}` has multiple contracts: {}",
@@ -87,6 +96,26 @@ impl fmt::Display for ContractSourceError {
 }
 
 impl std::error::Error for ContractSourceError {}
+
+/// Reject collisions across the combined canonical-path and alias namespace.
+pub fn validate_contract_lookup_namespace(
+    contracts: &[ContractIdentity],
+) -> Result<(), ContractSourceError> {
+    let mut paths = BTreeMap::<&str, &str>::new();
+    for contract in contracts {
+        for path in std::iter::once(contract.canonical_path.as_str())
+            .chain(contract.aliases.iter().map(String::as_str))
+        {
+            if let Some(existing) = paths.insert(path, contract.identity.as_str()) {
+                return Err(ContractSourceError::DuplicateLookupPath {
+                    path: path.to_owned(),
+                    identities: vec![existing.to_owned(), contract.identity.clone()],
+                });
+            }
+        }
+    }
+    Ok(())
+}
 
 /// Read `#[api]` and facade-owned `register!` declarations from Rust files.
 pub fn contract_declarations_from_files(

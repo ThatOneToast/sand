@@ -254,6 +254,7 @@ canonical_module = "sand"
 state = "pending"
 tier = "ordinary"
 provider = "generator:function_macro"
+enforcement = "consumer_build"
 recursive = false
 
 [[scope]]
@@ -262,6 +263,7 @@ canonical_module = "sand"
 state = "pending"
 tier = "ordinary"
 provider = "generator:component_macro"
+enforcement = "consumer_build"
 recursive = false
 
 [[scope]]
@@ -270,6 +272,7 @@ canonical_module = "sand"
 state = "pending"
 tier = "ordinary"
 provider = "generator:event_macro"
+enforcement = "consumer_build"
 recursive = false
 
 [[scope]]
@@ -278,6 +281,7 @@ canonical_module = "sand"
 state = "pending"
 tier = "ordinary"
 provider = "generator:item_macro"
+enforcement = "consumer_build"
 recursive = false
 
 [[scope]]
@@ -286,6 +290,7 @@ canonical_module = "sand"
 state = "pending"
 tier = "ordinary"
 provider = "generator:armor_event_macro"
+enforcement = "consumer_build"
 recursive = false
 
 [[scope]]
@@ -294,6 +299,7 @@ canonical_module = "sand"
 state = "pending"
 tier = "ordinary"
 provider = "generator:schedule_macro"
+enforcement = "consumer_build"
 recursive = false
 
 [[scope]]
@@ -302,6 +308,7 @@ canonical_module = "sand"
 state = "pending"
 tier = "ordinary"
 provider = "generator:state_derive"
+enforcement = "consumer_build"
 recursive = false
 
 [[scope]]
@@ -310,6 +317,7 @@ canonical_module = "sand"
 state = "pending"
 tier = "ordinary"
 provider = "generator:storage_derive"
+enforcement = "consumer_build"
 recursive = false
 
 [[scope]]
@@ -318,6 +326,7 @@ canonical_module = "sand::resourcepack"
 state = "pending"
 tier = "ordinary"
 provider = "generator:resourcepack_macros"
+enforcement = "consumer_build"
 features = ["resourcepack"]
 
 [[scope]]
@@ -326,4 +335,5 @@ canonical_module = "sand"
 state = "pending"
 tier = "ordinary"
 provider = "generator:entity_state_enum_derive"
+enforcement = "consumer_build"
 recursive = false

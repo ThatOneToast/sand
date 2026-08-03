@@ -13,6 +13,13 @@ use std::path::{Path, PathBuf};
 
 use syn::spanned::Spanned;
 
+mod reachable;
+
+pub use reachable::{
+    ContractIdentity, GeneratedApi, ReachabilityError, ReachableApi, ReachableKind, SourceCrate,
+    SurfaceGraph, audit_reachable_surface,
+};
+
 /// One source tree included in Sand's supported public surface.
 #[derive(Clone, Debug)]
 pub struct SurfaceRoot {

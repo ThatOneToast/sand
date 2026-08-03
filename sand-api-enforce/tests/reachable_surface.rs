@@ -25,6 +25,10 @@ fn fixture(features: &[&str]) -> (tempfile::TempDir, Vec<sand_api_enforce::Reach
                 }
             }
             #[path = "alternate.rs"] pub mod path_module;
+            #[cfg_attr(feature = "extras", path = "conditional_alt.rs")]
+            pub mod conditional_path;
+            #[cfg_attr(feature = "extras", doc(hidden))]
+            pub mod conditional_visibility { pub struct ConditionallyVisible; }
             mod macros { #[macro_export] macro_rules! root_command { () => {} } }
             mod private_source { pub struct Forwarded; impl Forwarded { pub fn create() -> Self { Self } } }
             pub use private_source::Forwarded as RootForwarded;
@@ -76,6 +80,16 @@ fn fixture(features: &[&str]) -> (tempfile::TempDir, Vec<sand_api_enforce::Reach
     )
     .unwrap();
     fs::write(
+        core.join("conditional_path.rs"),
+        "pub struct DefaultPathThing;",
+    )
+    .unwrap();
+    fs::write(
+        core.join("conditional_alt.rs"),
+        "pub struct AlternatePathThing;",
+    )
+    .unwrap();
+    fs::write(
         facade.join("lib.rs"),
         r#"
             extern crate core_lib as implementation;
@@ -84,6 +98,8 @@ fn fixture(features: &[&str]) -> (tempfile::TempDir, Vec<sand_api_enforce::Reach
             pub use core_lib::model::r#type as KeywordType;
             pub use core_lib::RootForwarded;
             pub use implementation::path_module::PathThing;
+            pub use implementation::conditional_path::*;
+            pub use implementation::conditional_visibility::ConditionallyVisible;
             pub use core_lib::root_command;
             pub mod prelude { pub use core_lib::model::*; }
             pub use core_lib::generated::GeneratedBuilder;
@@ -240,6 +256,43 @@ fn feature_selection_and_narrow_exclusions_are_machine_visible() {
         with_feature
             .iter()
             .any(|item| item.identity == "core_lib::model::feature_helper")
+    );
+}
+
+#[test]
+fn cfg_attr_selects_doc_hidden_and_module_path_from_the_same_cfg_set() {
+    let (_directory, without_feature) = fixture(&[]);
+    assert!(
+        without_feature.iter().any(|item| {
+            item.identity == "core_lib::conditional_visibility::ConditionallyVisible"
+        })
+    );
+    assert!(
+        without_feature
+            .iter()
+            .any(|item| item.identity == "core_lib::conditional_path::DefaultPathThing")
+    );
+    assert!(
+        !without_feature
+            .iter()
+            .any(|item| { item.identity == "core_lib::conditional_path::AlternatePathThing" })
+    );
+
+    let (_directory, with_feature) = fixture(&["extras"]);
+    assert!(
+        !with_feature.iter().any(|item| {
+            item.identity == "core_lib::conditional_visibility::ConditionallyVisible"
+        })
+    );
+    assert!(
+        with_feature
+            .iter()
+            .any(|item| item.identity == "core_lib::conditional_path::AlternatePathThing")
+    );
+    assert!(
+        !with_feature
+            .iter()
+            .any(|item| item.identity == "core_lib::conditional_path::DefaultPathThing")
     );
 }
 
@@ -869,6 +922,28 @@ fn unknown_cfg_is_a_hard_error_instead_of_enabling_the_item() {
     assert!(matches!(
         SurfaceGraph::load_with_cfg(
             [SourceCrate { name: "facade".into(), root: facade }],
+            CfgSet::default(),
+            [],
+        ),
+        Err(ReachabilityError::UnknownCfg { predicate, .. }) if predicate == "unknown_platform"
+    ));
+}
+
+#[test]
+fn unknown_cfg_attr_predicate_is_a_hard_error_even_for_exclusion_attributes() {
+    let directory = tempfile::tempdir().unwrap();
+    let facade = directory.path().join("facade.rs");
+    fs::write(
+        &facade,
+        "#[cfg_attr(unknown_platform, doc(hidden))] pub struct Accidental;",
+    )
+    .unwrap();
+    assert!(matches!(
+        SurfaceGraph::load_with_cfg(
+            [SourceCrate {
+                name: "facade".into(),
+                root: facade
+            }],
             CfgSet::default(),
             [],
         ),

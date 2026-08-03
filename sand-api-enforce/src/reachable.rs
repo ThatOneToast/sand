@@ -406,7 +406,10 @@ impl SurfaceGraph {
                     } else {
                         let exposed =
                             self.expose_declaration(&resolved_target, &alias_path, found)?;
-                        if !exposed && self.is_mapped_target(&target) {
+                        if !exposed
+                            && !self.known_excluded(&resolved_target)
+                            && self.is_mapped_target(&target)
+                        {
                             return Err(ReachabilityError::UnresolvedReexport {
                                 source: use_record.source.clone(),
                                 line: use_record.line,
@@ -468,6 +471,15 @@ impl SurfaceGraph {
             return Some((value, value.excluded));
         }
         None
+    }
+
+    fn known_excluded(&self, identity: &str) -> bool {
+        self.declaration(identity)
+            .is_some_and(|(_, excluded)| excluded)
+            || self
+                .generated
+                .iter()
+                .any(|generated| generated.identity == identity && generated.excluded)
     }
 
     fn expose_module(
@@ -1114,11 +1126,12 @@ fn parse_items(
         if !cfg_enabled(attrs, cfg, source_file)? {
             continue;
         }
-        let excluded =
-            excluded_parent || super::doc_hidden(attrs) || module_id.ends_with("::__private");
+        let excluded = excluded_parent
+            || doc_hidden(attrs, cfg, source_file)?
+            || module_id.ends_with("::__private");
         match item {
-            syn::Item::Fn(value) if proc_macro_declaration(value, source_file)?.is_some() => {
-                let (name, kind) = proc_macro_declaration(value, source_file)?
+            syn::Item::Fn(value) if proc_macro_declaration(value, cfg, source_file)?.is_some() => {
+                let (name, kind) = proc_macro_declaration(value, cfg, source_file)?
                     .expect("the match guard established a proc-macro declaration");
                 let identity = format!("{crate_name}::{name}");
                 index
@@ -1138,10 +1151,7 @@ fn parse_items(
                 );
             }
             syn::Item::Macro(value)
-                if value
-                    .attrs
-                    .iter()
-                    .any(|attr| attr.path().is_ident("macro_export")) =>
+                if has_attr(&value.attrs, "macro_export", cfg, source_file)? =>
             {
                 let Some(name) = value.ident.as_ref().map(ident_name) else {
                     continue;
@@ -1194,7 +1204,7 @@ fn parse_items(
                     )?;
                 } else {
                     let directory = module_search_directory(source_file);
-                    let path = module_path(&value.attrs, &directory, &name);
+                    let path = module_path(&value.attrs, &directory, &name, cfg, source_file)?;
                     parse_module_file(crate_name, &path, &child_id, excluded, cfg, index)?;
                 }
             }
@@ -1219,7 +1229,7 @@ fn parse_items(
                             Some((
                                 ident_name(&method.sig.ident),
                                 ReachableKind::Method,
-                                excluded || super::doc_hidden(&method.attrs),
+                                excluded || doc_hidden(&method.attrs, cfg, source_file)?,
                             ))
                         }
                         syn::ImplItem::Const(item)
@@ -1229,7 +1239,7 @@ fn parse_items(
                             Some((
                                 ident_name(&item.ident),
                                 ReachableKind::AssociatedConst,
-                                excluded || super::doc_hidden(&item.attrs),
+                                excluded || doc_hidden(&item.attrs, cfg, source_file)?,
                             ))
                         }
                         syn::ImplItem::Type(item)
@@ -1239,7 +1249,7 @@ fn parse_items(
                             Some((
                                 ident_name(&item.ident),
                                 ReachableKind::AssociatedType,
-                                excluded || super::doc_hidden(&item.attrs),
+                                excluded || doc_hidden(&item.attrs, cfg, source_file)?,
                             ))
                         }
                         _ => None,
@@ -1258,7 +1268,7 @@ fn parse_items(
             _ => {
                 if let Some((name, kind, members)) = declaration_parts(item, cfg, source_file)? {
                     let identity = format!("{module_id}::{name}");
-                    if public_item(item) {
+                    if public_item(item, cfg, source_file)? {
                         index
                             .modules
                             .entry(module_id.to_owned())
@@ -1306,7 +1316,11 @@ fn declaration_parts(
                         .ident
                         .as_ref()
                         .map_or_else(|| index.to_string(), ident_name);
-                    fields.push((name, ReachableKind::Field, super::doc_hidden(&field.attrs)));
+                    fields.push((
+                        name,
+                        ReachableKind::Field,
+                        doc_hidden(&field.attrs, cfg, source)?,
+                    ));
                 }
             }
             Some((ident_name(&value.ident), ReachableKind::Struct, fields))
@@ -1318,7 +1332,7 @@ fn declaration_parts(
                     fields.push((
                         ident_name(field.ident.as_ref().expect("union field is named")),
                         ReachableKind::Field,
-                        super::doc_hidden(&field.attrs),
+                        doc_hidden(&field.attrs, cfg, source)?,
                     ));
                 }
             }
@@ -1331,7 +1345,7 @@ fn declaration_parts(
                     continue;
                 }
                 let variant_name = ident_name(&variant.ident);
-                let hidden = super::doc_hidden(&variant.attrs);
+                let hidden = doc_hidden(&variant.attrs, cfg, source)?;
                 members.push((variant_name.clone(), ReachableKind::Variant, hidden));
                 for (index, field) in variant.fields.iter().enumerate() {
                     if cfg_enabled(&field.attrs, cfg, source)? {
@@ -1342,7 +1356,7 @@ fn declaration_parts(
                         members.push((
                             format!("{variant_name}::{field_name}"),
                             ReachableKind::Field,
-                            hidden || super::doc_hidden(&field.attrs),
+                            hidden || doc_hidden(&field.attrs, cfg, source)?,
                         ));
                     }
                 }
@@ -1357,20 +1371,20 @@ fn declaration_parts(
                         Some((
                             ident_name(&method.sig.ident),
                             ReachableKind::TraitMethod,
-                            super::doc_hidden(&method.attrs),
+                            doc_hidden(&method.attrs, cfg, source)?,
                         ))
                     }
                     syn::TraitItem::Const(item) if cfg_enabled(&item.attrs, cfg, source)? => {
                         Some((
                             ident_name(&item.ident),
                             ReachableKind::AssociatedConst,
-                            super::doc_hidden(&item.attrs),
+                            doc_hidden(&item.attrs, cfg, source)?,
                         ))
                     }
                     syn::TraitItem::Type(item) if cfg_enabled(&item.attrs, cfg, source)? => Some((
                         ident_name(&item.ident),
                         ReachableKind::AssociatedType,
-                        super::doc_hidden(&item.attrs),
+                        doc_hidden(&item.attrs, cfg, source)?,
                     )),
                     _ => None,
                 };
@@ -1388,8 +1402,8 @@ fn declaration_parts(
     })
 }
 
-fn public_item(item: &syn::Item) -> bool {
-    match item {
+fn public_item(item: &syn::Item, cfg: &CfgSet, source: &Path) -> Result<bool, ReachabilityError> {
+    Ok(match item {
         syn::Item::Struct(v) => super::is_public(&v.vis),
         syn::Item::Union(v) => super::is_public(&v.vis),
         syn::Item::Enum(v) => super::is_public(&v.vis),
@@ -1398,32 +1412,37 @@ fn public_item(item: &syn::Item) -> bool {
         syn::Item::Type(v) => super::is_public(&v.vis),
         syn::Item::Const(v) => super::is_public(&v.vis),
         syn::Item::Static(v) => super::is_public(&v.vis),
-        syn::Item::Macro(v) => v
-            .attrs
-            .iter()
-            .any(|attr| attr.path().is_ident("macro_export")),
+        syn::Item::Macro(v) => has_attr(&v.attrs, "macro_export", cfg, source)?,
         _ => false,
-    }
+    })
 }
 
 fn proc_macro_declaration(
     function: &syn::ItemFn,
+    cfg: &CfgSet,
     source: &Path,
 ) -> Result<Option<(String, ReachableKind)>, ReachabilityError> {
     let mut declaration = None;
-    for attr in &function.attrs {
-        let candidate = if attr.path().is_ident("proc_macro") {
+    for attr in effective_attributes(&function.attrs, cfg, source)? {
+        let candidate = if attr.meta.path().is_ident("proc_macro") {
             Some((
                 ident_name(&function.sig.ident),
                 ReachableKind::FunctionLikeMacro,
             ))
-        } else if attr.path().is_ident("proc_macro_attribute") {
+        } else if attr.meta.path().is_ident("proc_macro_attribute") {
             Some((
                 ident_name(&function.sig.ident),
                 ReachableKind::AttributeMacro,
             ))
-        } else if attr.path().is_ident("proc_macro_derive") {
-            let arguments = attr
+        } else if attr.meta.path().is_ident("proc_macro_derive") {
+            let syn::Meta::List(list) = &attr.meta else {
+                return Err(ReachabilityError::Parse(format!(
+                    "{}:{}: malformed proc_macro_derive declaration",
+                    source.display(),
+                    attr.line
+                )));
+            };
+            let arguments = list
                 .parse_args_with(
                     syn::punctuated::Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated,
                 )
@@ -1431,21 +1450,21 @@ fn proc_macro_declaration(
                     ReachabilityError::Parse(format!(
                         "{}:{}: malformed proc_macro_derive declaration: {error}",
                         source.display(),
-                        attr.span().start().line
+                        attr.line
                     ))
                 })?;
             let Some(syn::Meta::Path(name)) = arguments.first() else {
                 return Err(ReachabilityError::Parse(format!(
                     "{}:{}: proc_macro_derive requires an exported derive name",
                     source.display(),
-                    attr.span().start().line
+                    attr.line
                 )));
             };
             let Some(name) = name.segments.last() else {
                 return Err(ReachabilityError::Parse(format!(
                     "{}:{}: proc_macro_derive has an empty exported name",
                     source.display(),
-                    attr.span().start().line
+                    attr.line
                 )));
             };
             Some((ident_name(&name.ident), ReachableKind::DeriveMacro))
@@ -1585,27 +1604,36 @@ fn resolve_type_identity(crate_name: &str, module_id: &str, ty: &syn::Type) -> S
     }
 }
 
-fn module_path(attrs: &[syn::Attribute], directory: &Path, name: &str) -> PathBuf {
-    if let Some(relative) = attrs.iter().find_map(|attr| {
-        if !attr.path().is_ident("path") {
-            return None;
-        }
-        match &attr.meta {
-            syn::Meta::NameValue(value) => match &value.value {
-                syn::Expr::Lit(value) => match &value.lit {
-                    syn::Lit::Str(path) => Some(path.value()),
+fn module_path(
+    attrs: &[syn::Attribute],
+    directory: &Path,
+    name: &str,
+    cfg: &CfgSet,
+    source: &Path,
+) -> Result<PathBuf, ReachabilityError> {
+    if let Some(relative) = effective_attributes(attrs, cfg, source)?
+        .iter()
+        .find_map(|attr| {
+            if !attr.meta.path().is_ident("path") {
+                return None;
+            }
+            match &attr.meta {
+                syn::Meta::NameValue(value) => match &value.value {
+                    syn::Expr::Lit(value) => match &value.lit {
+                        syn::Lit::Str(path) => Some(path.value()),
+                        _ => None,
+                    },
                     _ => None,
                 },
                 _ => None,
-            },
-            _ => None,
-        }
-    }) {
-        return directory.join(relative);
+            }
+        })
+    {
+        return Ok(directory.join(relative));
     }
     let sibling = directory.join(format!("{name}.rs"));
     let nested = directory.join(name).join("mod.rs");
-    if sibling.exists() { sibling } else { nested }
+    Ok(if sibling.exists() { sibling } else { nested })
 }
 
 fn module_search_directory(source_file: &Path) -> PathBuf {
@@ -1623,23 +1651,141 @@ fn cfg_enabled(
     cfg: &CfgSet,
     source: &Path,
 ) -> Result<bool, ReachabilityError> {
-    for attr in attrs.iter().filter(|attr| attr.path().is_ident("cfg")) {
-        let meta = attr
-            .parse_args::<syn::Meta>()
-            .map_err(|error| ReachabilityError::Parse(format!("{}: {error}", source.display())))?;
+    for attr in effective_attributes(attrs, cfg, source)?
+        .iter()
+        .filter(|attr| attr.meta.path().is_ident("cfg"))
+    {
+        let syn::Meta::List(list) = &attr.meta else {
+            return Err(ReachabilityError::Parse(format!(
+                "{}:{}: malformed cfg attribute",
+                source.display(),
+                attr.line
+            )));
+        };
+        let meta = list.parse_args::<syn::Meta>().map_err(|error| {
+            ReachabilityError::Parse(format!("{}:{}: {error}", source.display(), attr.line))
+        })?;
         match eval_cfg(&meta, cfg) {
             Ok(true) => {}
             Ok(false) => return Ok(false),
             Err(predicate) => {
                 return Err(ReachabilityError::UnknownCfg {
                     source: source.to_path_buf(),
-                    line: attr.span().start().line,
+                    line: attr.line,
                     predicate,
                 });
             }
         }
     }
     Ok(true)
+}
+
+#[derive(Clone)]
+struct EffectiveAttribute {
+    meta: syn::Meta,
+    line: usize,
+}
+
+fn effective_attributes(
+    attrs: &[syn::Attribute],
+    cfg: &CfgSet,
+    source: &Path,
+) -> Result<Vec<EffectiveAttribute>, ReachabilityError> {
+    let mut output = Vec::new();
+    for attr in attrs {
+        expand_attribute_meta(
+            attr.meta.clone(),
+            attr.span().start().line,
+            cfg,
+            source,
+            &mut output,
+        )?;
+    }
+    Ok(output)
+}
+
+fn expand_attribute_meta(
+    meta: syn::Meta,
+    line: usize,
+    cfg: &CfgSet,
+    source: &Path,
+    output: &mut Vec<EffectiveAttribute>,
+) -> Result<(), ReachabilityError> {
+    if !meta.path().is_ident("cfg_attr") {
+        output.push(EffectiveAttribute { meta, line });
+        return Ok(());
+    }
+    let syn::Meta::List(list) = &meta else {
+        return Err(ReachabilityError::Parse(format!(
+            "{}:{line}: malformed cfg_attr attribute",
+            source.display()
+        )));
+    };
+    let arguments = list
+        .parse_args_with(syn::punctuated::Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated)
+        .map_err(|error| {
+            ReachabilityError::Parse(format!(
+                "{}:{line}: malformed cfg_attr attribute: {error}",
+                source.display()
+            ))
+        })?;
+    let mut arguments = arguments.into_iter();
+    let Some(predicate) = arguments.next() else {
+        return Err(ReachabilityError::Parse(format!(
+            "{}:{line}: cfg_attr requires a predicate and an attribute",
+            source.display()
+        )));
+    };
+    let nested = arguments.collect::<Vec<_>>();
+    if nested.is_empty() {
+        return Err(ReachabilityError::Parse(format!(
+            "{}:{line}: cfg_attr requires an attribute",
+            source.display()
+        )));
+    }
+    let enabled = eval_cfg(&predicate, cfg).map_err(|predicate| ReachabilityError::UnknownCfg {
+        source: source.to_path_buf(),
+        line,
+        predicate,
+    })?;
+    if enabled {
+        for nested in nested {
+            expand_attribute_meta(nested, line, cfg, source, output)?;
+        }
+    }
+    Ok(())
+}
+
+fn has_attr(
+    attrs: &[syn::Attribute],
+    name: &str,
+    cfg: &CfgSet,
+    source: &Path,
+) -> Result<bool, ReachabilityError> {
+    Ok(effective_attributes(attrs, cfg, source)?
+        .iter()
+        .any(|attr| attr.meta.path().is_ident(name)))
+}
+
+fn doc_hidden(
+    attrs: &[syn::Attribute],
+    cfg: &CfgSet,
+    source: &Path,
+) -> Result<bool, ReachabilityError> {
+    Ok(effective_attributes(attrs, cfg, source)?
+        .iter()
+        .any(|attr| match &attr.meta {
+            syn::Meta::List(list) if list.path.is_ident("doc") => list
+                .parse_args_with(
+                    syn::punctuated::Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated,
+                )
+                .is_ok_and(|items| {
+                    items.iter().any(
+                        |item| matches!(item, syn::Meta::Path(path) if path.is_ident("hidden")),
+                    )
+                }),
+            _ => false,
+        }))
 }
 
 fn eval_cfg(meta: &syn::Meta, cfg: &CfgSet) -> Result<bool, String> {

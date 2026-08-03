@@ -14,6 +14,7 @@ canonical_module = "sand"
 state = "pending"
 tier = "ordinary"
 provider = "source"
+precedence = 100
 recursive = false
 aliases = ["sand::prelude"]
 
@@ -23,6 +24,7 @@ canonical_module = "sand::prelude"
 state = "pending"
 tier = "ordinary"
 provider = "source"
+precedence = 0
 
 [[scope]]
 id = "command-source"
@@ -62,6 +64,7 @@ canonical_module = "sand::inventory"
 state = "pending"
 tier = "ordinary"
 provider = "source"
+precedence = 100
 aliases = ["sand::item", "sand::prelude"]
 
 [[scope]]
@@ -70,6 +73,7 @@ canonical_module = "sand::predicate"
 state = "pending"
 tier = "ordinary"
 provider = "source"
+precedence = 100
 aliases = ["sand::component", "sand::prelude"]
 
 [[scope]]
@@ -156,6 +160,7 @@ canonical_module = "sand::text"
 state = "pending"
 tier = "ordinary"
 provider = "source"
+precedence = 100
 aliases = ["sand::prelude"]
 
 [[scope]]
@@ -164,6 +169,7 @@ canonical_module = "sand::data"
 state = "pending"
 tier = "ordinary"
 provider = "source"
+precedence = 100
 aliases = ["sand::prelude"]
 
 [[scope]]

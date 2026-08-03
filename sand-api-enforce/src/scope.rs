@@ -5,7 +5,7 @@
 //! Pending scopes remain visible in the deterministic report and count toward
 //! a committed ceiling, preventing silent enforced-to-pending regressions.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::fs;
 use std::path::Path;
@@ -44,6 +44,11 @@ pub struct ApiScope {
     /// `source` or `generator:<provider>`. Generated and handwritten APIs can
     /// therefore be ratcheted separately within the same facade module.
     pub provider: String,
+    /// Canonical ownership priority when the same underlying identity is
+    /// reachable through multiple topic modules. Higher wins; equal-ranked
+    /// candidates remain an error.
+    #[serde(default = "default_precedence")]
+    pub precedence: u16,
     /// Whether this scope owns descendants or only direct children.
     #[serde(default = "default_recursive")]
     pub recursive: bool,
@@ -70,6 +75,7 @@ pub struct ScopeReportEntry {
     pub aliases: Vec<String>,
     pub features: Vec<String>,
     pub provider: String,
+    pub precedence: u16,
     pub recursive: bool,
     pub active: bool,
     pub reachable_items: usize,
@@ -240,20 +246,38 @@ impl ScopeManifest {
             .filter(|scope| scope.state == ScopeState::Pending)
             .count();
 
+        let mut owners = BTreeMap::<&str, &str>::new();
         let mut unscoped = Vec::new();
         for item in reachable {
-            let owners = self
+            let candidates = self
                 .scopes
                 .iter()
                 .filter(|scope| scope.matches(item))
                 .collect::<Vec<_>>();
-            match owners.as_slice() {
+            match candidates.as_slice() {
                 [] => unscoped.push(item.identity.clone()),
-                [_] => {}
-                _ => failures.push(ScopeFailure::AmbiguousScope {
-                    identity: item.identity.clone(),
-                    scopes: owners.iter().map(|scope| scope.id.clone()).collect(),
-                }),
+                [scope] => {
+                    owners.insert(&item.identity, &scope.id);
+                }
+                _ => {
+                    let highest = candidates
+                        .iter()
+                        .map(|scope| ownership_rank(scope))
+                        .max()
+                        .expect("non-empty candidates");
+                    let winners = candidates
+                        .iter()
+                        .filter(|scope| ownership_rank(scope) == highest)
+                        .collect::<Vec<_>>();
+                    if let [scope] = winners.as_slice() {
+                        owners.insert(&item.identity, &scope.id);
+                    } else {
+                        failures.push(ScopeFailure::AmbiguousScope {
+                            identity: item.identity.clone(),
+                            scopes: winners.iter().map(|scope| scope.id.clone()).collect(),
+                        });
+                    }
+                }
             }
         }
         unscoped.sort();
@@ -269,7 +293,7 @@ impl ScopeManifest {
             let mut matched = if active {
                 reachable
                     .iter()
-                    .filter(|item| scope.matches(item))
+                    .filter(|item| owners.get(item.identity.as_str()) == Some(&scope.id.as_str()))
                     .collect::<Vec<_>>()
             } else {
                 Vec::new()
@@ -308,6 +332,7 @@ impl ScopeManifest {
                 aliases,
                 features,
                 provider: scope.provider.clone(),
+                precedence: scope.precedence,
                 recursive: scope.recursive,
                 active,
                 reachable_items: matched.len(),
@@ -433,12 +458,13 @@ impl fmt::Display for ScopeReport {
             let features = joined_or_dash(&entry.features);
             writeln!(
                 formatter,
-                "{} module={} state={} tier={} provider={} recursive={} active={} items={} contracted={} aliases={} features={}",
+                "{} module={} state={} tier={} provider={} precedence={} recursive={} active={} items={} contracted={} aliases={} features={}",
                 entry.id,
                 entry.canonical_module,
                 state,
                 entry.tier,
                 entry.provider,
+                entry.precedence,
                 entry.recursive,
                 entry.active,
                 entry.reachable_items,
@@ -474,6 +500,10 @@ fn valid_api_path(path: &str) -> bool {
 
 fn default_recursive() -> bool {
     true
+}
+
+fn default_precedence() -> u16 {
+    50
 }
 
 fn valid_provider(provider: &str) -> bool {
@@ -534,4 +564,8 @@ fn scope_selectors_overlap(left: &ApiScope, right: &ApiScope) -> bool {
         (false, true) => within(&left.canonical_module, &right.canonical_module),
         (false, false) => left.canonical_module == right.canonical_module,
     }
+}
+
+fn ownership_rank(scope: &ApiScope) -> (u16, usize) {
+    (scope.precedence, scope.canonical_module.split("::").count())
 }

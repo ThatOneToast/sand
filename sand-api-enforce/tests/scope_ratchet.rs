@@ -70,10 +70,10 @@ fn deterministic_report_counts_pending_and_feature_scopes() {
     assert_eq!(
         report.to_string(),
         concat!(
-            "command-source module=sand::command state=enforced tier=author provider=source recursive=true active=true items=1 contracted=1 aliases=sand::cmd features=-\n",
-            "event-source module=sand::event state=pending tier=author provider=source recursive=true active=true items=1 contracted=0 aliases=- features=-\n",
-            "state-source module=sand::state state=pending tier=advanced provider=source recursive=true active=true items=2 contracted=0 aliases=- features=-\n",
-            "systems-source module=sand::systems state=pending tier=author provider=source recursive=true active=false items=0 contracted=0 aliases=- features=systems-all\n",
+            "command-source module=sand::command state=enforced tier=author provider=source precedence=50 recursive=true active=true items=1 contracted=1 aliases=sand::cmd features=-\n",
+            "event-source module=sand::event state=pending tier=author provider=source precedence=50 recursive=true active=true items=1 contracted=0 aliases=- features=-\n",
+            "state-source module=sand::state state=pending tier=advanced provider=source precedence=50 recursive=true active=true items=2 contracted=0 aliases=- features=-\n",
+            "systems-source module=sand::systems state=pending tier=author provider=source precedence=50 recursive=true active=false items=0 contracted=0 aliases=- features=systems-all\n",
             "totals pending_scopes=3 pending_items=3 enforced_items=1 pending_scope_ceiling=3 pending_item_ceiling=3"
         )
     );
@@ -268,4 +268,68 @@ fn duplicate_alias_in_one_scope_is_rejected_but_shared_prelude_alias_is_allowed(
             "aliases = [\"sand::prelude\"]\n[[scope]]\nid = \"event\"\ncanonical_module = \"sand::event\"\nstate = \"pending\"\ntier = \"author\"\nprovider = \"source\"\naliases = [\"sand::prelude\"]",
         );
     ScopeManifest::from_toml(&shared).unwrap();
+}
+
+#[test]
+fn canonical_precedence_assigns_aliases_to_one_topic_scope() {
+    let source = r#"
+        schema_version = 1
+        static_surface_items = 1
+        pending_scope_ceiling = 3
+        pending_item_ceiling = 1
+
+        [[scope]]
+        id = "prelude"
+        canonical_module = "sand::prelude"
+        state = "pending"
+        tier = "author"
+        provider = "source"
+        precedence = 0
+
+        [[scope]]
+        id = "component"
+        canonical_module = "sand::component"
+        state = "pending"
+        tier = "author"
+        provider = "source"
+
+        [[scope]]
+        id = "predicate"
+        canonical_module = "sand::predicate"
+        state = "pending"
+        tier = "author"
+        provider = "source"
+        precedence = 100
+    "#;
+    let reachable = [api(
+        "sand_components::predicate::Predicate",
+        &[
+            "sand::component::Predicate",
+            "sand::predicate::Predicate",
+            "sand::prelude::Predicate",
+        ],
+    )];
+    let report = ScopeManifest::from_toml(source)
+        .unwrap()
+        .evaluate(&reachable, &[], &BTreeSet::new())
+        .unwrap();
+    assert_eq!(report.pending_items, 1);
+    assert_eq!(
+        report
+            .entries
+            .iter()
+            .find(|entry| entry.id == "predicate")
+            .unwrap()
+            .reachable_items,
+        1
+    );
+    assert_eq!(
+        report
+            .entries
+            .iter()
+            .find(|entry| entry.id == "component")
+            .unwrap()
+            .reachable_items,
+        0
+    );
 }

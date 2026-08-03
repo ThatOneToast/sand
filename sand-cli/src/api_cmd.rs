@@ -14,7 +14,7 @@ use clap::{Args, Subcommand};
 // Force the author-facing facade into the final binary so its distributed
 // contract registrations are present in the installed catalog.
 use sand as _;
-use sand_api_contract::{ApiCatalog, ApiEntry, ApiKind};
+use sand_api_contract::{ApiCatalog, ApiEntry, ApiKind, CoverageStatus};
 
 /// Inspect the supported public API bundled with this Sand installation.
 #[derive(Debug, Args)]
@@ -50,8 +50,11 @@ enum ApiCommand {
 
 /// Run an `api` command against the contracts linked into the installed CLI.
 pub fn run(args: ApiArgs) -> Result<()> {
-    let catalog = ApiCatalog::installed(env!("CARGO_PKG_VERSION"))
-        .context("failed to collect the installed Sand API contracts")?;
+    let catalog = ApiCatalog::installed_with_coverage(
+        env!("CARGO_PKG_VERSION"),
+        sand::__private::api_contract::installed_coverage(),
+    )
+    .context("failed to collect the installed Sand API contracts")?;
 
     match args.command {
         ApiCommand::Show { path } => {
@@ -89,6 +92,17 @@ fn export(catalog: &ApiCatalog, output: Option<&std::path::Path>) -> Result<Opti
     }
 }
 
+fn coverage_notice(catalog: &ApiCatalog) -> String {
+    if catalog.coverage.status == CoverageStatus::Complete {
+        String::new()
+    } else {
+        format!(
+            "API contract migration is partial: {} static items and {} scopes remain pending.\n\n",
+            catalog.coverage.pending_item_ceiling, catalog.coverage.pending_scope_ceiling
+        )
+    }
+}
+
 fn show(catalog: &ApiCatalog, requested_path: &str) -> Result<String> {
     let requested_path = requested_path.trim();
     if requested_path.is_empty() {
@@ -106,7 +120,11 @@ fn show(catalog: &ApiCatalog, requested_path: &str) -> Result<String> {
         );
     };
 
-    Ok(render_entry(entry))
+    Ok(format!(
+        "{}{}",
+        coverage_notice(catalog),
+        render_entry(entry)
+    ))
 }
 
 fn render_entry(entry: &ApiEntry) -> String {
@@ -165,7 +183,7 @@ fn search(catalog: &ApiCatalog, query: &str) -> Result<String> {
     }
     let hits = catalog.search(query);
 
-    let mut output = String::new();
+    let mut output = coverage_notice(catalog);
     if hits.is_empty() {
         writeln!(output, "No APIs matched `{}`.", query.trim()).unwrap();
         return Ok(output);
@@ -229,7 +247,7 @@ fn module(catalog: &ApiCatalog, requested_module: &str) -> Result<String> {
         );
     }
 
-    let mut output = format!("Module {requested_module}\n");
+    let mut output = format!("{}Module {requested_module}\n", coverage_notice(catalog));
     if direct.is_empty() && nested.is_empty() {
         output.push_str("\nNo direct APIs are registered for this module.\n");
         return Ok(output);
@@ -364,6 +382,13 @@ mod tests {
         ApiCatalog {
             schema_version: 1,
             sand_version: "0.1.0".into(),
+            coverage: sand_api_contract::ApiCoverage {
+                status: CoverageStatus::Complete,
+                static_surface_items: entries.len(),
+                pending_item_ceiling: 0,
+                pending_scope_ceiling: 0,
+                pending_scopes: Vec::new(),
+            },
             entries,
         }
     }
@@ -534,9 +559,37 @@ mod tests {
         let json: serde_json::Value = serde_json::from_slice(&first_bytes).unwrap();
         assert_eq!(json["schema_version"], 1);
         assert_eq!(json["sand_version"], "0.1.0");
+        assert_eq!(json["coverage"]["status"], "complete");
         assert_eq!(
             json["entries"][0]["canonical_path"],
             "sand::predicate::Predicate"
+        );
+    }
+
+    #[test]
+    fn partial_catalogs_are_never_rendered_as_complete() {
+        let mut catalog = catalog(vec![entry(
+            "sand::predicate::Predicate",
+            ApiKind::Struct,
+            "A reusable predicate.",
+            "sand::predicate",
+        )]);
+        catalog.coverage = sand_api_contract::ApiCoverage {
+            status: CoverageStatus::Partial,
+            static_surface_items: 11_663,
+            pending_item_ceiling: 11_663,
+            pending_scope_ceiling: 35,
+            pending_scopes: vec!["predicate-source".into()],
+        };
+
+        let shown = show(&catalog, "sand::predicate::Predicate").unwrap();
+        assert!(shown.starts_with(
+            "API contract migration is partial: 11663 static items and 35 scopes remain pending."
+        ));
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&catalog.to_json_pretty().unwrap()).unwrap()
+                ["coverage"]["pending_scopes"][0],
+            "predicate-source"
         );
     }
 }

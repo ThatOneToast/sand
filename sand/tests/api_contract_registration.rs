@@ -40,7 +40,12 @@ fn generated_registrations_build_an_installed_catalog() {
     assert_eq!(contract_fixture(7), 7);
     assert_eq!(Fixture.value(), 1);
 
-    let catalog = ApiCatalog::installed(env!("CARGO_PKG_VERSION")).unwrap();
+    let coverage = sand::__private::api_contract::installed_coverage();
+    assert_eq!(coverage.static_surface_items, 11_663);
+    assert_eq!(coverage.pending_item_ceiling, 11_663);
+    assert_eq!(coverage.pending_scope_ceiling, 35);
+    assert_eq!(coverage.pending_scopes.len(), 35);
+    let catalog = ApiCatalog::installed_with_coverage(env!("CARGO_PKG_VERSION"), coverage).unwrap();
     let function = catalog.find("sand::prelude::contract_fixture").unwrap();
     assert_eq!(function.kind, ApiKind::Function);
     assert_eq!(function.parameters[0].name, "value");
@@ -64,9 +69,12 @@ fn generated_registrations_build_an_installed_catalog() {
     );
 
     let json_once = catalog.to_json_pretty().unwrap();
-    let json_twice = ApiCatalog::installed(env!("CARGO_PKG_VERSION"))
-        .unwrap()
-        .to_json_pretty()
-        .unwrap();
+    let json_twice = ApiCatalog::installed_with_coverage(
+        env!("CARGO_PKG_VERSION"),
+        sand::__private::api_contract::installed_coverage(),
+    )
+    .unwrap()
+    .to_json_pretty()
+    .unwrap();
     assert_eq!(json_once.as_bytes(), json_twice.as_bytes());
 }

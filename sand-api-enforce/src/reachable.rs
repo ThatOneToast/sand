@@ -72,6 +72,9 @@ pub enum ReachableKind {
     Constant,
     Static,
     Macro,
+    FunctionLikeMacro,
+    AttributeMacro,
+    DeriveMacro,
 }
 
 /// One underlying item and every public path by which the facade exposes it.
@@ -1036,6 +1039,26 @@ fn parse_items(
         let excluded =
             excluded_parent || super::doc_hidden(attrs) || module_id.ends_with("::__private");
         match item {
+            syn::Item::Fn(value) if proc_macro_declaration(value, source_file)?.is_some() => {
+                let (name, kind) = proc_macro_declaration(value, source_file)?
+                    .expect("the match guard established a proc-macro declaration");
+                let identity = format!("{crate_name}::{name}");
+                index
+                    .modules
+                    .entry(crate_name.to_owned())
+                    .or_default()
+                    .declarations
+                    .insert(name, identity.clone());
+                index.declarations.insert(
+                    identity,
+                    Declaration {
+                        kind,
+                        members: Vec::new(),
+                        excluded,
+                        alias_target: None,
+                    },
+                );
+            }
             syn::Item::Macro(value)
                 if value
                     .attrs
@@ -1303,6 +1326,66 @@ fn public_item(item: &syn::Item) -> bool {
             .any(|attr| attr.path().is_ident("macro_export")),
         _ => false,
     }
+}
+
+fn proc_macro_declaration(
+    function: &syn::ItemFn,
+    source: &Path,
+) -> Result<Option<(String, ReachableKind)>, ReachabilityError> {
+    let mut declaration = None;
+    for attr in &function.attrs {
+        let candidate = if attr.path().is_ident("proc_macro") {
+            Some((
+                ident_name(&function.sig.ident),
+                ReachableKind::FunctionLikeMacro,
+            ))
+        } else if attr.path().is_ident("proc_macro_attribute") {
+            Some((
+                ident_name(&function.sig.ident),
+                ReachableKind::AttributeMacro,
+            ))
+        } else if attr.path().is_ident("proc_macro_derive") {
+            let arguments = attr
+                .parse_args_with(
+                    syn::punctuated::Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated,
+                )
+                .map_err(|error| {
+                    ReachabilityError::Parse(format!(
+                        "{}:{}: malformed proc_macro_derive declaration: {error}",
+                        source.display(),
+                        attr.span().start().line
+                    ))
+                })?;
+            let Some(syn::Meta::Path(name)) = arguments.first() else {
+                return Err(ReachabilityError::Parse(format!(
+                    "{}:{}: proc_macro_derive requires an exported derive name",
+                    source.display(),
+                    attr.span().start().line
+                )));
+            };
+            let Some(name) = name.segments.last() else {
+                return Err(ReachabilityError::Parse(format!(
+                    "{}:{}: proc_macro_derive has an empty exported name",
+                    source.display(),
+                    attr.span().start().line
+                )));
+            };
+            Some((ident_name(&name.ident), ReachableKind::DeriveMacro))
+        } else {
+            None
+        };
+        if let Some(candidate) = candidate {
+            if declaration.is_some() {
+                return Err(ReachabilityError::Parse(format!(
+                    "{}:{}: a function cannot declare more than one proc-macro export",
+                    source.display(),
+                    function.span().start().line
+                )));
+            }
+            declaration = Some(candidate);
+        }
+    }
+    Ok(declaration)
 }
 
 fn flatten_use(

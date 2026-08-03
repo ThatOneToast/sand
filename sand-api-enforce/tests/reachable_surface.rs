@@ -614,6 +614,77 @@ fn path_modules_raw_identifiers_extern_aliases_and_macro_root_are_resolved() {
 }
 
 #[test]
+fn proc_macro_exports_use_macro_namespace_names_kinds_and_aliases() {
+    let directory = tempfile::tempdir().unwrap();
+    let macros = directory.path().join("macros.rs");
+    let facade = directory.path().join("facade.rs");
+    fs::write(
+        &macros,
+        r#"
+            extern crate proc_macro;
+            use proc_macro::TokenStream;
+            #[proc_macro]
+            pub fn make_command(input: TokenStream) -> TokenStream { input }
+            #[proc_macro_attribute]
+            pub fn tracked(_attr: TokenStream, item: TokenStream) -> TokenStream { item }
+            #[proc_macro_derive(EntityStateEnum, attributes(state))]
+            pub fn derive_entity_state(input: TokenStream) -> TokenStream { input }
+        "#,
+    )
+    .unwrap();
+    fs::write(
+        &facade,
+        r#"
+            pub use macro_crate::{make_command as command, tracked};
+            pub use macro_crate::EntityStateEnum;
+            pub mod prelude {
+                pub use macro_crate::EntityStateEnum as StateEnum;
+            }
+        "#,
+    )
+    .unwrap();
+
+    let graph = SurfaceGraph::load(
+        [
+            SourceCrate {
+                name: "macro_crate".into(),
+                root: macros,
+            },
+            SourceCrate {
+                name: "facade".into(),
+                root: facade,
+            },
+        ],
+        [],
+        [],
+    )
+    .unwrap();
+    let reachable = graph.reachable_from("facade").unwrap();
+    assert_eq!(
+        item(&reachable, "macro_crate::make_command").kind,
+        ReachableKind::FunctionLikeMacro
+    );
+    assert_eq!(
+        item(&reachable, "macro_crate::tracked").kind,
+        ReachableKind::AttributeMacro
+    );
+    let derive = item(&reachable, "macro_crate::EntityStateEnum");
+    assert_eq!(derive.kind, ReachableKind::DeriveMacro);
+    assert_eq!(
+        derive.paths,
+        BTreeSet::from([
+            "facade::EntityStateEnum".into(),
+            "facade::prelude::StateEnum".into(),
+        ])
+    );
+    assert!(
+        !reachable
+            .iter()
+            .any(|api| api.identity == "macro_crate::derive_entity_state")
+    );
+}
+
+#[test]
 fn unresolved_reexport_inside_mapped_workspace_is_a_hard_error_with_edge_context() {
     let directory = tempfile::tempdir().unwrap();
     let core = directory.path().join("core.rs");

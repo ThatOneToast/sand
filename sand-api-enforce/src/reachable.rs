@@ -368,6 +368,20 @@ impl SurfaceGraph {
         for (name, identity) in &module.declarations {
             self.expose_declaration(identity, &format!("{public_path}::{name}"), found)?;
         }
+        for generated in self.generated.iter().filter(|generated| {
+            !generated.excluded && generated_parent(&generated.identity) == Some(module_id)
+        }) {
+            let name = generated
+                .identity
+                .rsplit("::")
+                .next()
+                .expect("generated identities contain an item name");
+            self.expose_declaration(
+                &generated.identity,
+                &format!("{public_path}::{name}"),
+                found,
+            )?;
+        }
         for (name, child) in &module.modules {
             let child_path = format!("{public_path}::{name}");
             self.expose_module(child, &child_path, found)?;
@@ -646,6 +660,10 @@ impl SurfaceGraph {
             .next()
             .is_some_and(|name| self.crates.contains_key(name))
     }
+}
+
+fn generated_parent(identity: &str) -> Option<&str> {
+    identity.rsplit_once("::").map(|(parent, _)| parent)
 }
 
 /// Require exactly one central contract record per reachable identity and

@@ -261,6 +261,64 @@ fn controlled_generator_provider_participates_in_the_same_audit() {
 }
 
 #[test]
+fn generated_children_of_empty_include_module_flow_through_glob_reexports() {
+    let directory = tempfile::tempdir().unwrap();
+    let core = directory.path().join("core.rs");
+    let facade = directory.path().join("facade.rs");
+    fs::write(
+        &core,
+        r#"
+            pub mod cmd {
+                mod _generated { include!("generated_commands.rs"); }
+                pub use _generated::*;
+            }
+        "#,
+    )
+    .unwrap();
+    fs::write(
+        &facade,
+        r#"
+            pub use sand_core::cmd::*;
+            pub use sand_core::cmd::Teleport as TeleportCommand;
+        "#,
+    )
+    .unwrap();
+    let graph = SurfaceGraph::load(
+        [
+            SourceCrate {
+                name: "sand_core".into(),
+                root: core,
+            },
+            SourceCrate {
+                name: "sand".into(),
+                root: facade,
+            },
+        ],
+        [],
+        [GeneratedApi {
+            identity: "sand_core::cmd::_generated::Teleport".into(),
+            provider: "generated_commands".into(),
+            kind: ReachableKind::Struct,
+            members: vec![("to".into(), ReachableKind::Method)],
+            excluded: false,
+        }],
+    )
+    .unwrap();
+    let reachable = graph.reachable_from("sand").unwrap();
+    assert_eq!(
+        item(&reachable, "sand_core::cmd::_generated::Teleport").paths,
+        BTreeSet::from(["sand::Teleport".into(), "sand::TeleportCommand".into()])
+    );
+    assert_eq!(
+        item(&reachable, "sand_core::cmd::_generated::Teleport::to").paths,
+        BTreeSet::from([
+            "sand::Teleport::to".into(),
+            "sand::TeleportCommand::to".into(),
+        ])
+    );
+}
+
+#[test]
 fn missing_contract_alias_drift_and_duplicate_canonical_paths_fail() {
     let (_directory, reachable) = fixture(&[]);
     let mut contracts = contracts_for(&reachable);

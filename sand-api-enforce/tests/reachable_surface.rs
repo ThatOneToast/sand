@@ -739,7 +739,7 @@ fn proc_macro_exports_use_macro_namespace_names_kinds_and_aliases() {
             #[proc_macro_attribute]
             pub fn tracked(_attr: TokenStream, item: TokenStream) -> TokenStream { item }
             #[proc_macro_derive(EncodedState, attributes(state))]
-            pub fn derive_entity_state(input: TokenStream) -> TokenStream { input }
+            pub fn derive_encoded_state(input: TokenStream) -> TokenStream { input }
         "#,
     )
     .unwrap();
@@ -791,7 +791,7 @@ fn proc_macro_exports_use_macro_namespace_names_kinds_and_aliases() {
     assert!(
         !reachable
             .iter()
-            .any(|api| api.identity == "macro_crate::derive_entity_state")
+            .any(|api| api.identity == "macro_crate::derive_encoded_state")
     );
 }
 

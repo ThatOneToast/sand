@@ -8,10 +8,20 @@
 //! are supplied by their generator rather than guessed after expansion.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use quote::ToTokens;
+use syn::spanned::Spanned;
+
+/// Explicit cfg environment used while parsing the selected Cargo target.
+#[derive(Clone, Debug, Default)]
+pub struct CfgSet {
+    pub features: BTreeSet<String>,
+    pub flags: BTreeMap<String, bool>,
+    pub key_values: BTreeMap<String, BTreeSet<String>>,
+}
 
 /// One local crate whose source can participate in facade re-exports.
 #[derive(Clone, Debug)]
@@ -84,6 +94,17 @@ pub enum ReachabilityError {
     Io(String),
     Parse(String),
     UnknownFacade(String),
+    UnknownCfg {
+        source: PathBuf,
+        line: usize,
+        predicate: String,
+    },
+    UnresolvedReexport {
+        source: PathBuf,
+        line: usize,
+        facade_path: String,
+        target: String,
+    },
     MissingContract {
         identity: String,
         paths: Vec<String>,
@@ -101,6 +122,61 @@ pub enum ReachabilityError {
     DuplicateCanonicalPath(String),
 }
 
+impl fmt::Display for ReachabilityError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Io(message) | Self::Parse(message) => formatter.write_str(message),
+            Self::UnknownFacade(facade) => write!(formatter, "unknown facade crate `{facade}`"),
+            Self::UnknownCfg {
+                source,
+                line,
+                predicate,
+            } => write!(
+                formatter,
+                "{}:{line}: cfg predicate `{predicate}` was not supplied by the target configuration",
+                source.display()
+            ),
+            Self::UnresolvedReexport {
+                source,
+                line,
+                facade_path,
+                target,
+            } => write!(
+                formatter,
+                "{}:{line}: public facade edge `{facade_path}` cannot resolve mapped workspace target `{target}`",
+                source.display()
+            ),
+            Self::MissingContract { identity, paths } => write!(
+                formatter,
+                "reachable API `{identity}` ({}) is missing a contract",
+                paths.join(", ")
+            ),
+            Self::ContractNotReachable(identity) => {
+                write!(formatter, "contract identity `{identity}` is not reachable")
+            }
+            Self::CanonicalPathNotReachable { identity, path } => write!(
+                formatter,
+                "contract `{identity}` selects unreachable canonical path `{path}`"
+            ),
+            Self::AliasSetMismatch {
+                identity,
+                expected,
+                actual,
+            } => write!(
+                formatter,
+                "contract `{identity}` aliases differ: expected [{}], actual [{}]",
+                expected.join(", "),
+                actual.join(", ")
+            ),
+            Self::DuplicateCanonicalPath(path) => {
+                write!(formatter, "duplicate canonical API path `{path}`")
+            }
+        }
+    }
+}
+
+impl std::error::Error for ReachabilityError {}
+
 /// Parsed local workspace graph and its selected Cargo features.
 pub struct SurfaceGraph {
     crates: BTreeMap<String, CrateIndex>,
@@ -111,6 +187,7 @@ pub struct SurfaceGraph {
 struct CrateIndex {
     modules: BTreeMap<String, Module>,
     declarations: BTreeMap<String, Declaration>,
+    extern_aliases: BTreeMap<String, String>,
 }
 
 #[derive(Default)]
@@ -125,6 +202,7 @@ struct Declaration {
     kind: ReachableKind,
     members: Vec<MemberRecord>,
     excluded: bool,
+    alias_target: Option<String>,
 }
 
 type MemberRecord = (String, ReachableKind, bool);
@@ -133,6 +211,8 @@ type DeclarationParts = (String, ReachableKind, Vec<MemberRecord>);
 struct UseRecord {
     prefix: Vec<String>,
     leaf: UseLeaf,
+    source: PathBuf,
+    line: usize,
 }
 
 enum UseLeaf {
@@ -146,13 +226,22 @@ impl SurfaceGraph {
         features: impl IntoIterator<Item = String>,
         generated: impl IntoIterator<Item = GeneratedApi>,
     ) -> Result<Self, ReachabilityError> {
-        let features = features.into_iter().collect::<BTreeSet<_>>();
+        let cfg = CfgSet {
+            features: features.into_iter().collect(),
+            ..CfgSet::default()
+        };
+        Self::load_with_cfg(crates, cfg, generated)
+    }
+
+    pub fn load_with_cfg(
+        crates: impl IntoIterator<Item = SourceCrate>,
+        cfg: CfgSet,
+        generated: impl IntoIterator<Item = GeneratedApi>,
+    ) -> Result<Self, ReachabilityError> {
         let mut indices = BTreeMap::new();
         for spec in crates {
             let mut index = CrateIndex::default();
-            parse_module_file(
-                &spec.name, &spec.root, &spec.name, false, &features, &mut index,
-            )?;
+            parse_module_file(&spec.name, &spec.root, &spec.name, false, &cfg, &mut index)?;
             indices.insert(spec.name, index);
         }
         Ok(Self {
@@ -169,7 +258,7 @@ impl SurfaceGraph {
         }
         let mut found = BTreeMap::<String, ReachableApi>::new();
         let mut visiting = BTreeSet::new();
-        self.walk_module(facade, facade, facade, &mut visiting, &mut found);
+        self.walk_module(facade, facade, facade, &mut visiting, &mut found)?;
         let mut values = found.into_values().collect::<Vec<_>>();
         values.sort_by(|left, right| left.identity.cmp(&right.identity));
         Ok(values)
@@ -182,15 +271,15 @@ impl SurfaceGraph {
         public_path: &str,
         visiting: &mut BTreeSet<(String, String)>,
         found: &mut BTreeMap<String, ReachableApi>,
-    ) {
+    ) -> Result<(), ReachabilityError> {
         if !visiting.insert((module_id.to_owned(), public_path.to_owned())) {
-            return;
+            return Ok(());
         }
         let Some(module) = self.module(module_id) else {
-            return;
+            return Ok(());
         };
         if module.excluded {
-            return;
+            return Ok(());
         }
 
         for (name, identity) in &module.declarations {
@@ -199,7 +288,7 @@ impl SurfaceGraph {
         for (name, child) in &module.modules {
             let child_path = format!("{public_path}::{name}");
             self.expose_module(child, &child_path, found);
-            self.walk_module(owner_crate, child, &child_path, visiting, found);
+            self.walk_module(owner_crate, child, &child_path, visiting, found)?;
         }
         for use_record in &module.uses {
             let resolved = self.resolve_use_target(owner_crate, module_id, &use_record.prefix);
@@ -207,19 +296,45 @@ impl SurfaceGraph {
                 UseLeaf::Name { source, exported } => {
                     let target = format!("{resolved}::{source}");
                     let alias_path = format!("{public_path}::{exported}");
-                    if self.module(&target).is_some() {
-                        self.expose_module(&target, &alias_path, found);
-                        self.walk_module(owner_crate, &target, &alias_path, visiting, found);
+                    let resolved_target = self
+                        .resolve_export(&target, &mut BTreeSet::new())
+                        .unwrap_or_else(|| target.clone());
+                    if self.module(&resolved_target).is_some() {
+                        self.expose_module(&resolved_target, &alias_path, found);
+                        self.walk_module(
+                            owner_crate,
+                            &resolved_target,
+                            &alias_path,
+                            visiting,
+                            found,
+                        )?;
                     } else {
-                        self.expose_declaration(&target, &alias_path, found);
+                        let exposed = self.expose_declaration(&resolved_target, &alias_path, found);
+                        if !exposed && self.is_mapped_target(&target) {
+                            return Err(ReachabilityError::UnresolvedReexport {
+                                source: use_record.source.clone(),
+                                line: use_record.line,
+                                facade_path: alias_path,
+                                target,
+                            });
+                        }
                     }
                 }
                 UseLeaf::Glob => {
-                    self.walk_module(owner_crate, &resolved, public_path, visiting, found);
+                    if self.module(&resolved).is_none() && self.is_mapped_target(&resolved) {
+                        return Err(ReachabilityError::UnresolvedReexport {
+                            source: use_record.source.clone(),
+                            line: use_record.line,
+                            facade_path: public_path.to_owned(),
+                            target: format!("{resolved}::*"),
+                        });
+                    }
+                    self.walk_module(owner_crate, &resolved, public_path, visiting, found)?;
                 }
             }
         }
         visiting.remove(&(module_id.to_owned(), public_path.to_owned()));
+        Ok(())
     }
 
     fn module(&self, identity: &str) -> Option<&Module> {
@@ -257,7 +372,7 @@ impl SurfaceGraph {
         identity: &str,
         path: &str,
         found: &mut BTreeMap<String, ReachableApi>,
-    ) {
+    ) -> bool {
         let resolved = self
             .resolve_export(identity, &mut BTreeSet::new())
             .unwrap_or_else(|| identity.to_owned());
@@ -280,11 +395,30 @@ impl SurfaceGraph {
                     );
                 }
             }
-            return;
+            if declaration.kind == ReachableKind::TypeAlias
+                && let Some(target) = &declaration.alias_target
+                && let Some(target_identity) = self.resolve_export(target, &mut BTreeSet::new())
+                && let Some((target, false)) = self.declaration(&target_identity)
+            {
+                for (name, kind, excluded) in &target.members {
+                    if !excluded {
+                        insert_path(
+                            found,
+                            &format!("{target_identity}::{name}"),
+                            *kind,
+                            ReachableOrigin::Source,
+                            &format!("{path}::{name}"),
+                        );
+                    }
+                }
+            }
+            return true;
         }
+        let mut exposed = false;
         for generated in &self.generated {
             if generated.identity == resolved && !generated.excluded {
                 let origin = ReachableOrigin::Generator(generated.provider.clone());
+                exposed = true;
                 insert_path(found, &resolved, generated.kind, origin.clone(), path);
                 for (name, kind) in &generated.members {
                     insert_path(
@@ -297,10 +431,12 @@ impl SurfaceGraph {
                 }
             }
         }
+        exposed
     }
 
     fn resolve_export(&self, identity: &str, seen: &mut BTreeSet<String>) -> Option<String> {
-        if self.declaration(identity).is_some()
+        if self.module(identity).is_some()
+            || self.declaration(identity).is_some()
             || self
                 .generated
                 .iter()
@@ -333,13 +469,29 @@ impl SurfaceGraph {
     }
 
     fn resolve_use_target(&self, crate_name: &str, module_id: &str, prefix: &[String]) -> String {
-        let resolved = resolve_qualified_use_target(crate_name, module_id, prefix);
+        let mut prefix = prefix.to_vec();
+        if let Some(first) = prefix.first_mut()
+            && let Some(alias) = self
+                .crates
+                .get(crate_name)
+                .and_then(|index| index.extern_aliases.get(first))
+        {
+            *first = alias.clone();
+        }
+        let resolved = resolve_qualified_use_target(crate_name, module_id, &prefix);
         let first = resolved.split("::").next().unwrap_or_default();
         if self.crates.contains_key(first) {
             resolved
         } else {
             format!("{crate_name}::{resolved}")
         }
+    }
+
+    fn is_mapped_target(&self, target: &str) -> bool {
+        target
+            .split("::")
+            .next()
+            .is_some_and(|name| self.crates.contains_key(name))
     }
 }
 
@@ -432,7 +584,7 @@ fn parse_module_file(
     file: &Path,
     module_id: &str,
     excluded_parent: bool,
-    features: &BTreeSet<String>,
+    cfg: &CfgSet,
     index: &mut CrateIndex,
 ) -> Result<(), ReachabilityError> {
     let source = fs::read_to_string(file)
@@ -445,7 +597,7 @@ fn parse_module_file(
         module_id,
         &parsed.items,
         excluded_parent,
-        features,
+        cfg,
         index,
     )
 }
@@ -456,7 +608,7 @@ fn parse_items(
     module_id: &str,
     items: &[syn::Item],
     excluded_parent: bool,
-    features: &BTreeSet<String>,
+    cfg: &CfgSet,
     index: &mut CrateIndex,
 ) -> Result<(), ReachabilityError> {
     index
@@ -466,14 +618,48 @@ fn parse_items(
         .excluded |= excluded_parent;
     for item in items {
         let attrs = super::item_attrs(item);
-        if !cfg_enabled(attrs, features) {
+        if !cfg_enabled(attrs, cfg, source_file)? {
             continue;
         }
         let excluded =
             excluded_parent || super::doc_hidden(attrs) || module_id.ends_with("::__private");
         match item {
+            syn::Item::Macro(value)
+                if value
+                    .attrs
+                    .iter()
+                    .any(|attr| attr.path().is_ident("macro_export")) =>
+            {
+                let Some(name) = value.ident.as_ref().map(ident_name) else {
+                    continue;
+                };
+                let identity = format!("{crate_name}::{name}");
+                index
+                    .modules
+                    .entry(crate_name.to_owned())
+                    .or_default()
+                    .declarations
+                    .insert(name, identity.clone());
+                index.declarations.insert(
+                    identity,
+                    Declaration {
+                        kind: ReachableKind::Macro,
+                        members: Vec::new(),
+                        excluded,
+                        alias_target: None,
+                    },
+                );
+            }
+            syn::Item::ExternCrate(value) => {
+                let source = ident_name(&value.ident);
+                let alias = value
+                    .rename
+                    .as_ref()
+                    .map_or_else(|| source.clone(), |(_, alias)| ident_name(alias));
+                index.extern_aliases.insert(alias, source);
+            }
             syn::Item::Mod(value) => {
-                let name = value.ident.to_string();
+                let name = ident_name(&value.ident);
                 let child_id = format!("{module_id}::{name}");
                 if super::is_public(&value.vis) {
                     index
@@ -490,21 +676,21 @@ fn parse_items(
                         &child_id,
                         nested,
                         excluded,
-                        features,
+                        cfg,
                         index,
                     )?;
                 } else {
-                    let directory = source_file.parent().unwrap_or_else(|| Path::new("."));
-                    let sibling = directory.join(format!("{name}.rs"));
-                    let nested = directory.join(&name).join("mod.rs");
-                    let path = if sibling.exists() { sibling } else { nested };
-                    parse_module_file(crate_name, &path, &child_id, excluded, features, index)?;
+                    let directory = module_search_directory(source_file);
+                    let path = module_path(&value.attrs, &directory, &name);
+                    parse_module_file(crate_name, &path, &child_id, excluded, cfg, index)?;
                 }
             }
             syn::Item::Use(value) if super::is_public(&value.vis) && !excluded => {
                 flatten_use(
                     Vec::new(),
                     &value.tree,
+                    source_file,
+                    value.span().start().line,
                     &mut index.modules.entry(module_id.to_owned()).or_default().uses,
                 );
             }
@@ -514,21 +700,22 @@ fn parse_items(
                     kind: ReachableKind::Struct,
                     members: Vec::new(),
                     excluded,
+                    alias_target: None,
                 });
                 for child in &value.items {
                     let member = match child {
                         syn::ImplItem::Fn(method) if super::is_public(&method.vis) => Some((
-                            method.sig.ident.to_string(),
+                            ident_name(&method.sig.ident),
                             ReachableKind::Method,
                             excluded || super::doc_hidden(&method.attrs),
                         )),
                         syn::ImplItem::Const(item) if super::is_public(&item.vis) => Some((
-                            item.ident.to_string(),
+                            ident_name(&item.ident),
                             ReachableKind::AssociatedConst,
                             excluded || super::doc_hidden(&item.attrs),
                         )),
                         syn::ImplItem::Type(item) if super::is_public(&item.vis) => Some((
-                            item.ident.to_string(),
+                            ident_name(&item.ident),
                             ReachableKind::AssociatedType,
                             excluded || super::doc_hidden(&item.attrs),
                         )),
@@ -554,10 +741,15 @@ fn parse_items(
                         kind,
                         members: Vec::new(),
                         excluded,
+                        alias_target: None,
                     });
                     declaration.kind = kind;
                     declaration.excluded |= excluded;
                     declaration.members.extend(members);
+                    if let syn::Item::Type(alias) = item {
+                        declaration.alias_target =
+                            Some(resolve_type_identity(crate_name, module_id, &alias.ty));
+                    }
                 }
             }
         }
@@ -578,21 +770,21 @@ fn declaration_parts(item: &syn::Item) -> Option<DeclarationParts> {
                     let name = field
                         .ident
                         .as_ref()
-                        .map_or_else(|| index.to_string(), ToString::to_string);
+                        .map_or_else(|| index.to_string(), ident_name);
                     (name, ReachableKind::Field, super::doc_hidden(&field.attrs))
                 })
                 .collect();
-            Some((value.ident.to_string(), ReachableKind::Struct, fields))
+            Some((ident_name(&value.ident), ReachableKind::Struct, fields))
         }
         syn::Item::Enum(value) => Some((
-            value.ident.to_string(),
+            ident_name(&value.ident),
             ReachableKind::Enum,
             value
                 .variants
                 .iter()
                 .map(|variant| {
                     (
-                        variant.ident.to_string(),
+                        ident_name(&variant.ident),
                         ReachableKind::Variant,
                         super::doc_hidden(&variant.attrs),
                     )
@@ -600,24 +792,24 @@ fn declaration_parts(item: &syn::Item) -> Option<DeclarationParts> {
                 .collect(),
         )),
         syn::Item::Trait(value) => Some((
-            value.ident.to_string(),
+            ident_name(&value.ident),
             ReachableKind::Trait,
             value
                 .items
                 .iter()
                 .filter_map(|child| match child {
                     syn::TraitItem::Fn(method) => Some((
-                        method.sig.ident.to_string(),
+                        ident_name(&method.sig.ident),
                         ReachableKind::TraitMethod,
                         super::doc_hidden(&method.attrs),
                     )),
                     syn::TraitItem::Const(item) => Some((
-                        item.ident.to_string(),
+                        ident_name(&item.ident),
                         ReachableKind::AssociatedConst,
                         super::doc_hidden(&item.attrs),
                     )),
                     syn::TraitItem::Type(item) => Some((
-                        item.ident.to_string(),
+                        ident_name(&item.ident),
                         ReachableKind::AssociatedType,
                         super::doc_hidden(&item.attrs),
                     )),
@@ -625,17 +817,9 @@ fn declaration_parts(item: &syn::Item) -> Option<DeclarationParts> {
                 })
                 .collect(),
         )),
-        syn::Item::Fn(value) => plain(value.sig.ident.to_string(), ReachableKind::Function),
-        syn::Item::Type(value) => plain(value.ident.to_string(), ReachableKind::TypeAlias),
-        syn::Item::Const(value) => plain(value.ident.to_string(), ReachableKind::Constant),
-        syn::Item::Macro(value)
-            if value
-                .attrs
-                .iter()
-                .any(|attr| attr.path().is_ident("macro_export")) =>
-        {
-            plain(value.ident.as_ref()?.to_string(), ReachableKind::Macro)
-        }
+        syn::Item::Fn(value) => plain(ident_name(&value.sig.ident), ReachableKind::Function),
+        syn::Item::Type(value) => plain(ident_name(&value.ident), ReachableKind::TypeAlias),
+        syn::Item::Const(value) => plain(ident_name(&value.ident), ReachableKind::Constant),
         _ => None,
     }
 }
@@ -656,34 +840,46 @@ fn public_item(item: &syn::Item) -> bool {
     }
 }
 
-fn flatten_use(prefix: Vec<String>, tree: &syn::UseTree, output: &mut Vec<UseRecord>) {
+fn flatten_use(
+    prefix: Vec<String>,
+    tree: &syn::UseTree,
+    source: &Path,
+    line: usize,
+    output: &mut Vec<UseRecord>,
+) {
     match tree {
         syn::UseTree::Path(path) => {
             let mut next = prefix;
-            next.push(path.ident.to_string());
-            flatten_use(next, &path.tree, output);
+            next.push(ident_name(&path.ident));
+            flatten_use(next, &path.tree, source, line, output);
         }
         syn::UseTree::Name(name) => output.push(UseRecord {
             prefix,
             leaf: UseLeaf::Name {
-                source: name.ident.to_string(),
-                exported: name.ident.to_string(),
+                source: ident_name(&name.ident),
+                exported: ident_name(&name.ident),
             },
+            source: source.to_path_buf(),
+            line,
         }),
         syn::UseTree::Rename(rename) => output.push(UseRecord {
             prefix,
             leaf: UseLeaf::Name {
-                source: rename.ident.to_string(),
-                exported: rename.rename.to_string(),
+                source: ident_name(&rename.ident),
+                exported: ident_name(&rename.rename),
             },
+            source: source.to_path_buf(),
+            line,
         }),
         syn::UseTree::Glob(_) => output.push(UseRecord {
             prefix,
             leaf: UseLeaf::Glob,
+            source: source.to_path_buf(),
+            line,
         }),
         syn::UseTree::Group(group) => {
             for child in &group.items {
-                flatten_use(prefix.clone(), child, output);
+                flatten_use(prefix.clone(), child, source, line, output);
             }
         }
     }
@@ -739,42 +935,120 @@ fn resolve_type_identity(crate_name: &str, module_id: &str, ty: &syn::Type) -> S
     }
 }
 
-fn cfg_enabled(attrs: &[syn::Attribute], features: &BTreeSet<String>) -> bool {
-    attrs
-        .iter()
-        .filter(|attr| attr.path().is_ident("cfg"))
-        .all(|attr| {
-            attr.parse_args::<syn::Meta>()
-                .map_or(true, |meta| eval_cfg(&meta, features))
-        })
+fn module_path(attrs: &[syn::Attribute], directory: &Path, name: &str) -> PathBuf {
+    if let Some(relative) = attrs.iter().find_map(|attr| {
+        if !attr.path().is_ident("path") {
+            return None;
+        }
+        match &attr.meta {
+            syn::Meta::NameValue(value) => match &value.value {
+                syn::Expr::Lit(value) => match &value.lit {
+                    syn::Lit::Str(path) => Some(path.value()),
+                    _ => None,
+                },
+                _ => None,
+            },
+            _ => None,
+        }
+    }) {
+        return directory.join(relative);
+    }
+    let sibling = directory.join(format!("{name}.rs"));
+    let nested = directory.join(name).join("mod.rs");
+    if sibling.exists() { sibling } else { nested }
 }
 
-fn eval_cfg(meta: &syn::Meta, features: &BTreeSet<String>) -> bool {
+fn module_search_directory(source_file: &Path) -> PathBuf {
+    let parent = source_file.parent().unwrap_or_else(|| Path::new("."));
+    match source_file.file_name().and_then(|name| name.to_str()) {
+        Some("lib.rs" | "main.rs" | "mod.rs") => parent.to_path_buf(),
+        _ => source_file
+            .file_stem()
+            .map_or_else(|| parent.to_path_buf(), |stem| parent.join(stem)),
+    }
+}
+
+fn cfg_enabled(
+    attrs: &[syn::Attribute],
+    cfg: &CfgSet,
+    source: &Path,
+) -> Result<bool, ReachabilityError> {
+    for attr in attrs.iter().filter(|attr| attr.path().is_ident("cfg")) {
+        let meta = attr
+            .parse_args::<syn::Meta>()
+            .map_err(|error| ReachabilityError::Parse(format!("{}: {error}", source.display())))?;
+        match eval_cfg(&meta, cfg) {
+            Ok(true) => {}
+            Ok(false) => return Ok(false),
+            Err(predicate) => {
+                return Err(ReachabilityError::UnknownCfg {
+                    source: source.to_path_buf(),
+                    line: attr.span().start().line,
+                    predicate,
+                });
+            }
+        }
+    }
+    Ok(true)
+}
+
+fn eval_cfg(meta: &syn::Meta, cfg: &CfgSet) -> Result<bool, String> {
     match meta {
         syn::Meta::NameValue(value) if value.path.is_ident("feature") => match &value.value {
             syn::Expr::Lit(expr) => match &expr.lit {
-                syn::Lit::Str(value) => features.contains(&value.value()),
-                _ => true,
+                syn::Lit::Str(value) => Ok(cfg.features.contains(&value.value())),
+                _ => Err(meta.to_token_stream().to_string()),
             },
-            _ => true,
+            _ => Err(meta.to_token_stream().to_string()),
         },
+        syn::Meta::NameValue(value) => {
+            let Some(key) = value.path.get_ident().map(ident_name) else {
+                return Err(meta.to_token_stream().to_string());
+            };
+            let syn::Expr::Lit(expr) = &value.value else {
+                return Err(meta.to_token_stream().to_string());
+            };
+            let syn::Lit::Str(value) = &expr.lit else {
+                return Err(meta.to_token_stream().to_string());
+            };
+            let Some(values) = cfg.key_values.get(&key) else {
+                return Err(meta.to_token_stream().to_string());
+            };
+            Ok(values.contains(&value.value()))
+        }
+        syn::Meta::Path(path) => {
+            let Some(flag) = path.get_ident().map(ident_name) else {
+                return Err(meta.to_token_stream().to_string());
+            };
+            cfg.flags.get(&flag).copied().ok_or(flag)
+        }
         syn::Meta::List(list) if list.path.is_ident("all") => list
             .parse_args_with(
                 syn::punctuated::Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated,
             )
-            .map_or(true, |items| {
-                items.iter().all(|item| eval_cfg(item, features))
+            .map_err(|_| meta.to_token_stream().to_string())?
+            .iter()
+            .try_fold(true, |enabled, item| {
+                eval_cfg(item, cfg).map(|item_enabled| enabled && item_enabled)
             }),
         syn::Meta::List(list) if list.path.is_ident("any") => list
             .parse_args_with(
                 syn::punctuated::Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated,
             )
-            .map_or(true, |items| {
-                items.iter().any(|item| eval_cfg(item, features))
+            .map_err(|_| meta.to_token_stream().to_string())?
+            .iter()
+            .try_fold(false, |enabled, item| {
+                eval_cfg(item, cfg).map(|item_enabled| enabled || item_enabled)
             }),
         syn::Meta::List(list) if list.path.is_ident("not") => list
             .parse_args::<syn::Meta>()
-            .map_or(true, |item| !eval_cfg(&item, features)),
-        _ => true,
+            .map_err(|_| meta.to_token_stream().to_string())
+            .and_then(|item| eval_cfg(&item, cfg).map(|enabled| !enabled)),
+        _ => Err(meta.to_token_stream().to_string()),
     }
+}
+
+fn ident_name(ident: &syn::Ident) -> String {
+    let name = ident.to_string();
+    name.strip_prefix("r#").unwrap_or(&name).to_owned()
 }

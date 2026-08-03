@@ -64,15 +64,15 @@ provider record is itself a build error.
 
 - Load every local crate that can feed the facade from an explicit crate map;
   do not follow arbitrary dependencies outside the supported boundary.
-- Model Cargo target cfg values in addition to the feature evaluator proven
-  here. Run each supported feature configuration, not merely `--all-features`
-  when features are mutually exclusive.
-- Add `#[path]`, raw identifiers, `extern crate` aliases, and macro namespace
-  handling before replacing the current build gate.
-- Preserve source spans on graph nodes so diagnostics point to both the
-  reachable facade edge and underlying declaration.
-- Make unresolved public re-exports a hard error. The proof currently ignores
-  unknown external targets because its fixture graph is deliberately local.
+- Populate `CfgSet` from Cargo's feature and target environment and run each
+  supported feature configuration, not merely `--all-features` when features
+  are mutually exclusive. Unknown cfg predicates now fail closed.
+- The graph handles `#[path]`, raw identifiers, `extern crate` aliases, and
+  `macro_export`'s crate-root namespace. Extend the same normalization if Sand
+  adopts additional namespace-affecting syntax.
+- Unresolved public re-exports into the explicit workspace crate map now fail
+  with source line and facade-edge context. Preserve definition spans too when
+  the proof is connected to user-facing diagnostics.
 - Keep exclusions structural and narrow: `pub(crate)`, `pub(super)`,
   `#[doc(hidden)]`, `__private`, and generator records explicitly marked as
   internal. Emit an auditable exclusion report.

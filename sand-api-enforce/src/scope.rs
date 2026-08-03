@@ -12,7 +12,7 @@ use std::path::Path;
 
 use serde::Deserialize;
 
-use crate::{ContractIdentity, ReachableApi};
+use crate::{ContractIdentity, ReachableApi, ReachableOrigin};
 
 const SCOPE_SCHEMA_VERSION: u32 = 1;
 
@@ -32,15 +32,21 @@ pub struct ScopeManifest {
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ApiScope {
+    /// Stable review-facing name for this migration unit.
+    pub id: String,
     pub canonical_module: String,
     pub state: ScopeState,
     pub tier: String,
+    /// `source` or `generator:<provider>`. Generated and handwritten APIs can
+    /// therefore be ratcheted separately within the same facade module.
+    pub provider: String,
+    /// Whether this scope owns descendants or only direct children.
+    #[serde(default = "default_recursive")]
+    pub recursive: bool,
     #[serde(default)]
     pub aliases: Vec<String>,
     #[serde(default)]
     pub features: Vec<String>,
-    #[serde(default)]
-    pub generator: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq)]
@@ -53,12 +59,14 @@ pub enum ScopeState {
 /// Deterministically sorted status for one configured scope.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ScopeReportEntry {
+    pub id: String,
     pub canonical_module: String,
     pub state: ScopeState,
     pub tier: String,
     pub aliases: Vec<String>,
     pub features: Vec<String>,
-    pub generator: Option<String>,
+    pub provider: String,
+    pub recursive: bool,
     pub active: bool,
     pub reachable_items: usize,
     pub contracted_items: usize,
@@ -79,6 +87,8 @@ pub enum ScopeFailure {
     Toml(String),
     UnsupportedSchema(u32),
     InvalidCanonicalModule(String),
+    InvalidScopeId(String),
+    DuplicateScopeId(String),
     DuplicateCanonicalScope(String),
     OverlappingScopes {
         left: String,
@@ -98,9 +108,14 @@ pub enum ScopeFailure {
         scope: String,
         feature: String,
     },
-    InvalidGenerator {
+    InvalidProvider {
         scope: String,
-        generator: String,
+        provider: String,
+    },
+    UnscopedItems(Vec<String>),
+    AmbiguousScope {
+        identity: String,
+        scopes: Vec<String>,
     },
     MissingContracts {
         scope: String,
@@ -123,6 +138,8 @@ impl fmt::Display for ScopeFailure {
             Self::InvalidCanonicalModule(path) => {
                 write!(formatter, "invalid canonical API scope `{path}`")
             }
+            Self::InvalidScopeId(id) => write!(formatter, "invalid API scope id `{id}`"),
+            Self::DuplicateScopeId(id) => write!(formatter, "duplicate API scope id `{id}`"),
             Self::DuplicateCanonicalScope(path) => {
                 write!(formatter, "duplicate canonical API scope `{path}`")
             }
@@ -145,12 +162,22 @@ impl fmt::Display for ScopeFailure {
             Self::InvalidFeature { scope, feature } => {
                 write!(formatter, "scope `{scope}` has invalid feature `{feature}`")
             }
-            Self::InvalidGenerator { scope, generator } => {
+            Self::InvalidProvider { scope, provider } => {
                 write!(
                     formatter,
-                    "scope `{scope}` has invalid generator `{generator}`"
+                    "scope `{scope}` has invalid provider `{provider}`"
                 )
             }
+            Self::UnscopedItems(identities) => write!(
+                formatter,
+                "reachable APIs are not assigned to a contract scope: {}",
+                identities.join(", ")
+            ),
+            Self::AmbiguousScope { identity, scopes } => write!(
+                formatter,
+                "reachable API `{identity}` belongs to multiple scopes: {}",
+                scopes.join(", ")
+            ),
             Self::MissingContracts { scope, identities } => write!(
                 formatter,
                 "enforced API scope `{scope}` has missing contracts: {}",
@@ -201,6 +228,27 @@ impl ScopeManifest {
         let mut pending_items = 0;
         let mut enforced_items = 0;
 
+        let mut unscoped = Vec::new();
+        for item in reachable {
+            let owners = self
+                .scopes
+                .iter()
+                .filter(|scope| scope.matches(item))
+                .collect::<Vec<_>>();
+            match owners.as_slice() {
+                [] => unscoped.push(item.identity.clone()),
+                [_] => {}
+                _ => failures.push(ScopeFailure::AmbiguousScope {
+                    identity: item.identity.clone(),
+                    scopes: owners.iter().map(|scope| scope.id.clone()).collect(),
+                }),
+            }
+        }
+        unscoped.sort();
+        if !unscoped.is_empty() {
+            failures.push(ScopeFailure::UnscopedItems(unscoped));
+        }
+
         for scope in &self.scopes {
             let active = scope
                 .features
@@ -241,18 +289,20 @@ impl ScopeManifest {
             let mut features = scope.features.clone();
             features.sort();
             entries.push(ScopeReportEntry {
+                id: scope.id.clone(),
                 canonical_module: scope.canonical_module.clone(),
                 state: scope.state,
                 tier: scope.tier.clone(),
                 aliases,
                 features,
-                generator: scope.generator.clone(),
+                provider: scope.provider.clone(),
+                recursive: scope.recursive,
                 active,
                 reachable_items: matched.len(),
                 contracted_items,
             });
         }
-        entries.sort_by(|left, right| left.canonical_module.cmp(&right.canonical_module));
+        entries.sort_by(|left, right| left.id.cmp(&right.id));
         if pending_items > self.pending_item_ceiling {
             failures.push(ScopeFailure::PendingCeilingExceeded {
                 actual: pending_items,
@@ -275,15 +325,16 @@ impl ScopeManifest {
         if self.schema_version != SCOPE_SCHEMA_VERSION {
             return Err(ScopeFailure::UnsupportedSchema(self.schema_version));
         }
-        let mut canonical = BTreeSet::new();
+        let mut ids = BTreeSet::new();
         for scope in &self.scopes {
+            if !valid_label(&scope.id) {
+                return Err(ScopeFailure::InvalidScopeId(scope.id.clone()));
+            }
+            if !ids.insert(scope.id.as_str()) {
+                return Err(ScopeFailure::DuplicateScopeId(scope.id.clone()));
+            }
             if !valid_api_path(&scope.canonical_module) {
                 return Err(ScopeFailure::InvalidCanonicalModule(
-                    scope.canonical_module.clone(),
-                ));
-            }
-            if !canonical.insert(scope.canonical_module.as_str()) {
-                return Err(ScopeFailure::DuplicateCanonicalScope(
                     scope.canonical_module.clone(),
                 ));
             }
@@ -298,13 +349,26 @@ impl ScopeManifest {
                     });
                 }
             }
-            if let Some(generator) = &scope.generator
-                && !valid_label(generator)
-            {
-                return Err(ScopeFailure::InvalidGenerator {
+            if !valid_provider(&scope.provider) {
+                return Err(ScopeFailure::InvalidProvider {
                     scope: scope.canonical_module.clone(),
-                    generator: generator.clone(),
+                    provider: scope.provider.clone(),
                 });
+            }
+        }
+        for (index, left) in self.scopes.iter().enumerate() {
+            for right in self.scopes.iter().skip(index + 1) {
+                if scope_selectors_overlap(left, right) {
+                    if left.canonical_module == right.canonical_module {
+                        return Err(ScopeFailure::DuplicateCanonicalScope(
+                            left.canonical_module.clone(),
+                        ));
+                    }
+                    return Err(ScopeFailure::OverlappingScopes {
+                        left: left.canonical_module.clone(),
+                        right: right.canonical_module.clone(),
+                    });
+                }
             }
         }
         let paths = self
@@ -312,18 +376,9 @@ impl ScopeManifest {
             .iter()
             .map(|scope| scope.canonical_module.as_str())
             .collect::<Vec<_>>();
-        for (index, left) in paths.iter().enumerate() {
-            for right in paths.iter().skip(index + 1) {
-                if overlaps(left, right) {
-                    return Err(ScopeFailure::OverlappingScopes {
-                        left: (*left).to_owned(),
-                        right: (*right).to_owned(),
-                    });
-                }
-            }
-        }
-        let mut aliases = BTreeMap::<&str, &str>::new();
+        let mut aliases = BTreeMap::<&str, BTreeSet<&str>>::new();
         for scope in &self.scopes {
+            let mut scope_aliases = BTreeSet::new();
             for alias in &scope.aliases {
                 if !valid_api_path(alias) || alias == &scope.canonical_module {
                     return Err(ScopeFailure::InvalidAlias {
@@ -331,11 +386,15 @@ impl ScopeManifest {
                         alias: alias.clone(),
                     });
                 }
-                if aliases.insert(alias, &scope.canonical_module).is_some() {
+                if !scope_aliases.insert(alias.as_str()) {
                     return Err(ScopeFailure::DuplicateAlias(alias.clone()));
                 }
+                aliases
+                    .entry(alias)
+                    .or_default()
+                    .insert(&scope.canonical_module);
                 for path in &paths {
-                    if overlaps(alias, path) {
+                    if alias == path {
                         return Err(ScopeFailure::AliasOverlapsScope {
                             alias: alias.clone(),
                             scope: (*path).to_owned(),
@@ -358,10 +417,14 @@ impl ScopeManifest {
 
 impl ApiScope {
     fn matches(&self, item: &ReachableApi) -> bool {
-        item.paths.iter().any(|path| {
-            within(path, &self.canonical_module)
-                || self.aliases.iter().any(|alias| within(path, alias))
-        })
+        provider_matches(&self.provider, &item.origin)
+            && item.paths.iter().any(|path| {
+                if self.recursive {
+                    within(path, &self.canonical_module)
+                } else {
+                    direct_child(path, &self.canonical_module)
+                }
+            })
     }
 }
 
@@ -374,19 +437,20 @@ impl fmt::Display for ScopeReport {
             };
             let aliases = joined_or_dash(&entry.aliases);
             let features = joined_or_dash(&entry.features);
-            let generator = entry.generator.as_deref().unwrap_or("-");
             writeln!(
                 formatter,
-                "{} state={} tier={} active={} items={} contracted={} aliases={} features={} generator={}",
+                "{} module={} state={} tier={} provider={} recursive={} active={} items={} contracted={} aliases={} features={}",
+                entry.id,
                 entry.canonical_module,
                 state,
                 entry.tier,
+                entry.provider,
+                entry.recursive,
                 entry.active,
                 entry.reachable_items,
                 entry.contracted_items,
                 aliases,
-                features,
-                generator
+                features
             )?;
         }
         write!(
@@ -407,9 +471,25 @@ fn joined_or_dash(values: &[String]) -> String {
 
 fn valid_api_path(path: &str) -> bool {
     let mut segments = path.split("::");
-    matches!(segments.next(), Some("sand"))
-        && segments.clone().next().is_some()
-        && segments.all(valid_api_segment)
+    matches!(segments.next(), Some("sand")) && segments.all(valid_api_segment)
+}
+
+fn default_recursive() -> bool {
+    true
+}
+
+fn valid_provider(provider: &str) -> bool {
+    provider == "source" || provider.strip_prefix("generator:").is_some_and(valid_label)
+}
+
+fn provider_matches(provider: &str, origin: &ReachableOrigin) -> bool {
+    match (provider, origin) {
+        ("source", ReachableOrigin::Source) => true,
+        (provider, ReachableOrigin::Generator(generator)) => {
+            provider.strip_prefix("generator:") == Some(generator.as_str())
+        }
+        _ => false,
+    }
 }
 
 fn valid_label(label: &str) -> bool {
@@ -436,6 +516,24 @@ fn within(path: &str, scope: &str) -> bool {
             .is_some_and(|rest| rest.starts_with("::"))
 }
 
+fn direct_child(path: &str, scope: &str) -> bool {
+    path.strip_prefix(scope)
+        .and_then(|rest| rest.strip_prefix("::"))
+        .is_some_and(|rest| !rest.is_empty() && !rest.contains("::"))
+}
+
 fn overlaps(left: &str, right: &str) -> bool {
     within(left, right) || within(right, left)
+}
+
+fn scope_selectors_overlap(left: &ApiScope, right: &ApiScope) -> bool {
+    if left.provider != right.provider {
+        return false;
+    }
+    match (left.recursive, right.recursive) {
+        (true, true) => overlaps(&left.canonical_module, &right.canonical_module),
+        (true, false) => within(&right.canonical_module, &left.canonical_module),
+        (false, true) => within(&left.canonical_module, &right.canonical_module),
+        (false, false) => left.canonical_module == right.canonical_module,
+    }
 }

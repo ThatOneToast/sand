@@ -71,6 +71,7 @@ fn fixture(features: &[&str]) -> (tempfile::TempDir, Vec<sand_api_enforce::Reach
         features.iter().map(|feature| (*feature).to_owned()),
         [GeneratedApi {
             identity: "core_lib::generated::GeneratedBuilder".into(),
+            provider: "fixture_generator".into(),
             kind: ReachableKind::Struct,
             members: vec![("build".into(), ReachableKind::Method)],
             excluded: false,
@@ -194,6 +195,10 @@ fn controlled_generator_provider_participates_in_the_same_audit() {
     assert_eq!(
         item(&reachable, "core_lib::generated::GeneratedBuilder::build").kind,
         ReachableKind::Method
+    );
+    assert_eq!(
+        item(&reachable, "core_lib::generated::GeneratedBuilder").origin,
+        sand_api_enforce::ReachableOrigin::Generator("fixture_generator".into())
     );
 }
 

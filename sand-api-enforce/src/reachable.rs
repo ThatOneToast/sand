@@ -25,11 +25,22 @@ pub struct SourceCrate {
 pub struct GeneratedApi {
     /// Internal identity, for example `sand_core::cmd::generated::Teleport`.
     pub identity: String,
+    /// Stable generator-provider scope, for example `generated_commands`.
+    pub provider: String,
     pub kind: ReachableKind,
     /// Associated items emitted with a generated type.
     pub members: Vec<(String, ReachableKind)>,
     /// Whether the generator intentionally emits compiler-only wiring.
     pub excluded: bool,
+}
+
+/// Where a reachable declaration came from. Scope enforcement partitions
+/// source declarations and generated families even when they share a
+/// canonical facade module.
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub enum ReachableOrigin {
+    Source,
+    Generator(String),
 }
 
 /// Item categories needed to prove complete surface traversal.
@@ -56,6 +67,7 @@ pub enum ReachableKind {
 pub struct ReachableApi {
     pub identity: String,
     pub kind: ReachableKind,
+    pub origin: ReachableOrigin,
     pub paths: BTreeSet<String>,
 }
 
@@ -230,7 +242,13 @@ impl SurfaceGraph {
         found: &mut BTreeMap<String, ReachableApi>,
     ) {
         if self.module(identity).is_some_and(|module| !module.excluded) {
-            insert_path(found, identity, ReachableKind::Module, path);
+            insert_path(
+                found,
+                identity,
+                ReachableKind::Module,
+                ReachableOrigin::Source,
+                path,
+            );
         }
     }
 
@@ -244,13 +262,20 @@ impl SurfaceGraph {
             .resolve_export(identity, &mut BTreeSet::new())
             .unwrap_or_else(|| identity.to_owned());
         if let Some((declaration, false)) = self.declaration(&resolved) {
-            insert_path(found, &resolved, declaration.kind, path);
+            insert_path(
+                found,
+                &resolved,
+                declaration.kind,
+                ReachableOrigin::Source,
+                path,
+            );
             for (name, kind, excluded) in &declaration.members {
                 if !excluded {
                     insert_path(
                         found,
                         &format!("{resolved}::{name}"),
                         *kind,
+                        ReachableOrigin::Source,
                         &format!("{path}::{name}"),
                     );
                 }
@@ -259,12 +284,14 @@ impl SurfaceGraph {
         }
         for generated in &self.generated {
             if generated.identity == resolved && !generated.excluded {
-                insert_path(found, &resolved, generated.kind, path);
+                let origin = ReachableOrigin::Generator(generated.provider.clone());
+                insert_path(found, &resolved, generated.kind, origin.clone(), path);
                 for (name, kind) in &generated.members {
                     insert_path(
                         found,
                         &format!("{resolved}::{name}"),
                         *kind,
+                        origin.clone(),
                         &format!("{path}::{name}"),
                     );
                 }
@@ -385,6 +412,7 @@ fn insert_path(
     found: &mut BTreeMap<String, ReachableApi>,
     identity: &str,
     kind: ReachableKind,
+    origin: ReachableOrigin,
     path: &str,
 ) {
     found
@@ -392,6 +420,7 @@ fn insert_path(
         .or_insert_with(|| ReachableApi {
             identity: identity.to_owned(),
             kind,
+            origin,
             paths: BTreeSet::new(),
         })
         .paths

@@ -17,8 +17,8 @@ mod reachable;
 mod scope;
 
 pub use reachable::{
-    ContractIdentity, GeneratedApi, ReachabilityError, ReachableApi, ReachableKind, SourceCrate,
-    SurfaceGraph, audit_reachable_surface,
+    ContractIdentity, GeneratedApi, ReachabilityError, ReachableApi, ReachableKind,
+    ReachableOrigin, SourceCrate, SurfaceGraph, audit_reachable_surface,
 };
 pub use scope::{ApiScope, ScopeFailure, ScopeManifest, ScopeReport, ScopeReportEntry, ScopeState};
 

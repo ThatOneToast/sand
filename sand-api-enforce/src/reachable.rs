@@ -374,10 +374,14 @@ impl SurfaceGraph {
             self.walk_module(child, &child_path, visiting, found)?;
         }
         for use_record in module.uses.iter().filter(|record| record.public) {
-            let resolved = self.resolve_use_target(defining_crate, module_id, &use_record.prefix);
             match &use_record.leaf {
                 UseLeaf::Name { source, exported } => {
-                    let target = format!("{resolved}::{source}");
+                    let target = self.resolve_named_use_target(
+                        defining_crate,
+                        module_id,
+                        &use_record.prefix,
+                        source,
+                    );
                     let alias_path = format!("{public_path}::{exported}");
                     let resolved_target = self
                         .resolve_export(&target, &mut BTreeSet::new())
@@ -399,6 +403,8 @@ impl SurfaceGraph {
                     }
                 }
                 UseLeaf::Glob => {
+                    let resolved =
+                        self.resolve_use_target(defining_crate, module_id, &use_record.prefix);
                     if let Some((declaration, false)) = self.declaration(&resolved) {
                         if declaration.kind != ReachableKind::Enum {
                             return Err(ReachabilityError::UnresolvedReexport {
@@ -565,12 +571,20 @@ impl SurfaceGraph {
         let module = self.module(module_id)?;
         let owner_crate = module_id.split("::").next()?;
         for use_record in &module.uses {
-            let resolved = self.resolve_use_target(owner_crate, module_id, &use_record.prefix);
             let candidate = match &use_record.leaf {
                 UseLeaf::Name { source, exported } if exported == name => {
-                    Some(format!("{resolved}::{source}"))
+                    Some(self.resolve_named_use_target(
+                        owner_crate,
+                        module_id,
+                        &use_record.prefix,
+                        source,
+                    ))
                 }
-                UseLeaf::Glob => Some(format!("{resolved}::{name}")),
+                UseLeaf::Glob => {
+                    let resolved =
+                        self.resolve_use_target(owner_crate, module_id, &use_record.prefix);
+                    Some(join_path(&resolved, &[name.to_owned()]))
+                }
                 _ => None,
             };
             if let Some(candidate) = candidate
@@ -601,6 +615,29 @@ impl SurfaceGraph {
         } else {
             format!("{crate_name}::{resolved}")
         }
+    }
+
+    fn resolve_named_use_target(
+        &self,
+        crate_name: &str,
+        module_id: &str,
+        prefix: &[String],
+        source: &str,
+    ) -> String {
+        if prefix.is_empty() {
+            if self.crates.contains_key(source) {
+                return source.to_owned();
+            }
+            let local = format!("{module_id}::{source}");
+            if self.module(&local).is_some() || self.declaration(&local).is_some() {
+                return local;
+            }
+            return format!("{crate_name}::{source}");
+        }
+        join_path(
+            &self.resolve_use_target(crate_name, module_id, prefix),
+            &[source.to_owned()],
+        )
     }
 
     fn is_mapped_target(&self, target: &str) -> bool {
@@ -1483,7 +1520,9 @@ fn resolve_qualified_use_target(crate_name: &str, module_id: &str, prefix: &[Str
 }
 
 fn join_path(base: &str, rest: &[String]) -> String {
-    if rest.is_empty() {
+    if base.is_empty() {
+        rest.join("::")
+    } else if rest.is_empty() {
         base.to_owned()
     } else {
         format!("{base}::{}", rest.join("::"))

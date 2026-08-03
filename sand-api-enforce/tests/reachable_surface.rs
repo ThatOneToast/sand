@@ -726,6 +726,51 @@ fn crate_paths_inside_reexported_external_modules_use_the_defining_crate() {
 }
 
 #[test]
+fn loaded_external_crate_root_can_be_reexported_without_extern_crate_declaration() {
+    let directory = tempfile::tempdir().unwrap();
+    let resourcepack = directory.path().join("resourcepack.rs");
+    let facade = directory.path().join("facade.rs");
+    fs::write(&resourcepack, "pub struct ResourcePack;").unwrap();
+    fs::write(
+        &facade,
+        "pub use sand_resourcepack as resourcepack; pub use ::sand_resourcepack as absolute_resourcepack;",
+    )
+    .unwrap();
+
+    let graph = SurfaceGraph::load(
+        [
+            SourceCrate {
+                name: "sand_resourcepack".into(),
+                root: resourcepack,
+            },
+            SourceCrate {
+                name: "sand".into(),
+                root: facade,
+            },
+        ],
+        [],
+        [],
+    )
+    .unwrap();
+    let reachable = graph.reachable_from("sand").unwrap();
+    assert_eq!(
+        item(&reachable, "sand_resourcepack").paths,
+        BTreeSet::from([
+            "sand::absolute_resourcepack".into(),
+            "sand::resourcepack".into(),
+        ])
+    );
+    assert_eq!(
+        item(&reachable, "sand_resourcepack::ResourcePack").paths,
+        BTreeSet::from([
+            "sand::absolute_resourcepack::ResourcePack".into(),
+            "sand::resourcepack::ResourcePack".into(),
+        ])
+    );
+    assert!(!reachable.iter().any(|api| api.identity.contains("::::")));
+}
+
+#[test]
 fn unresolved_reexport_inside_mapped_workspace_is_a_hard_error_with_edge_context() {
     let directory = tempfile::tempdir().unwrap();
     let core = directory.path().join("core.rs");

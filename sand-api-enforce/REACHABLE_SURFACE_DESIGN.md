@@ -65,6 +65,13 @@ the proc macro; for command/registry generation, it must consume the existing
 command/registry schema. A generator that emits author-facing Rust without a
 provider record is itself a build error.
 
+The foundation connects installed command/registry and checked-in declarative
+providers. Parametric proc-macro/derive scopes declare `consumer_build`
+enforcement and fail closed if marked enforced without a named consuming-build
+audit. The `SandStorage` acceptance fixture executes the real derive, shares
+its generated-member model with its provider, and proves a missing generated
+accessor stops normal compilation.
+
 ## Production integration requirements
 
 - Load every local crate that can feed the facade from an explicit crate map;

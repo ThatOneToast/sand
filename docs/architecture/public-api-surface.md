@@ -120,6 +120,13 @@ macros, State/EntityStateEnum/SandStorage derives, and resource-pack macro
 output. A generator provider consumes the same parsed input or schema that
 emits its Rust API.
 
+The static providers are connected to the facade build. Input-dependent
+attribute/derive scopes are marked `consumer_build`; they remain pending and
+cannot be changed to enforced until a consuming-crate build connects the
+corresponding provider audit. The foundation proves this mechanism with the
+real `SandStorage` derive, but does not claim every downstream generator has
+been migrated.
+
 The foundation baseline records 39 pending architectural scopes and 11,782
 pending static identities. No scope is marked enforced by the foundation;
 predicate becomes the first enforced source scope only after its complete

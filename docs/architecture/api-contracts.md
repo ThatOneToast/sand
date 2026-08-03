@@ -52,6 +52,16 @@ observe re-exports or arbitrary generated code. Sand therefore uses a hybrid:
    deterministic aggregate baseline. A migration may mark a scope enforced
    only in the same change that supplies every contract for that scope.
 
+Static installed generators are connected now: command and vanilla-registry
+providers emit deterministic JSON beside their Rust, while checked-in
+declarative families derive their shape from the generator body and
+invocations. Input-dependent procedural macros and derives use
+`consumer_build` scopes. Those scopes cannot be marked enforced until their
+consumer-side provider audit is explicitly connected; zero-item enforcement
+is rejected rather than passing vacuously. The real `SandStorage` fixture
+shares its generated-member model between macro expansion and the build
+provider and proves a missing generated accessor fails ordinary `cargo check`.
+
 Rustdoc JSON is useful as an independent audit oracle, but it is not the build
 gate because its JSON format is not a stable Rust interface.
 
@@ -72,7 +82,15 @@ provider-backed comparison: an undocumented inherent method reached through a
 glob re-export causes an ordinary `cargo check` to fail. The repository has no
 enforced scope in the foundation, but changing any boundary to `enforced`
 immediately activates missing-contract and exact canonical/alias validation in
-the normal Sand build.
+the normal Sand build. Parametric `consumer_build` boundaries additionally
+require their named provider-audit connection.
+
+`#[api]` defaults to the facade's hidden registration transport. Definitions
+in lower implementation crates use `registry = ::sand_api_contract`, which
+keeps the dependency graph acyclic while feeding the same runtime inventory
+and build-time facade identity audit. A two-crate compile/runtime fixture
+verifies the lower definition, inherent method, facade alias, and installed
+catalog entry together.
 
 ## Contract and catalog layers
 

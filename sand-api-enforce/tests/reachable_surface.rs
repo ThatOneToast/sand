@@ -16,6 +16,14 @@ fn fixture(features: &[&str]) -> (tempfile::TempDir, Vec<sand_api_enforce::Reach
         core.join("lib.rs"),
         r#"
             pub mod model;
+            mod extensions {
+                use crate::model::Thing as Imported;
+                type PrivateAlias = Imported;
+                impl PrivateAlias {
+                    pub fn from_private_alias() {}
+                    #[cfg(feature = "extras")] pub fn feature_method() {}
+                }
+            }
             #[path = "alternate.rs"] pub mod path_module;
             mod macros { #[macro_export] macro_rules! root_command { () => {} } }
             mod private_source { pub struct Forwarded; impl Forwarded { pub fn create() -> Self { Self } } }
@@ -28,17 +36,27 @@ fn fixture(features: &[&str]) -> (tempfile::TempDir, Vec<sand_api_enforce::Reach
     fs::write(
         core.join("model.rs"),
         r#"
-            pub struct Thing { pub value: u32, hidden: u32 }
+            pub struct Thing {
+                pub value: u32,
+                #[cfg(feature = "extras")] pub extra: u32,
+                hidden: u32,
+            }
             impl Thing {
                 pub fn new(value: u32) -> Self { Self { value, hidden: 0 } }
                 pub const DEFAULT: u32 = 1;
                 fn implementation_detail(&self) -> u32 { self.hidden }
             }
-            pub enum Mode { Fast, Slow }
+            pub enum Mode {
+                Fast,
+                Slow { code: u32, #[cfg(feature = "extras")] detail: u32 },
+            }
+            pub union Bits { pub integer: u32, pub float: f32 }
+            pub static CURRENT: u32 = 1;
             pub trait ContractTrait {
                 type Output;
                 const VERSION: u32;
                 fn render(&self) -> Self::Output;
+                #[cfg(feature = "extras")] fn render_extra(&self);
             }
             pub type Alias = Thing;
             pub struct r#type;
@@ -61,7 +79,8 @@ fn fixture(features: &[&str]) -> (tempfile::TempDir, Vec<sand_api_enforce::Reach
         facade.join("lib.rs"),
         r#"
             extern crate core_lib as implementation;
-            pub use core_lib::model::{Thing as Builder, ContractTrait, Alias};
+            pub use core_lib::model::{self, Thing as Builder, ContractTrait, Alias};
+            pub use core_lib::model::Mode::*;
             pub use core_lib::model::r#type as KeywordType;
             pub use core_lib::RootForwarded;
             pub use implementation::path_module::PathThing;
@@ -149,7 +168,11 @@ fn extracts_explicit_and_glob_reexports_with_associated_surface() {
     let thing = item(&reachable, "core_lib::model::Thing");
     assert_eq!(
         thing.paths,
-        BTreeSet::from(["facade::Builder".into(), "facade::prelude::Thing".into()])
+        BTreeSet::from([
+            "facade::Builder".into(),
+            "facade::model::Thing".into(),
+            "facade::prelude::Thing".into(),
+        ])
     );
     assert_eq!(
         item(&reachable, "core_lib::model::Thing::value").kind,
@@ -176,6 +199,8 @@ fn extracts_explicit_and_glob_reexports_with_associated_surface() {
         BTreeSet::from([
             "facade::Alias::new".into(),
             "facade::Builder::new".into(),
+            "facade::model::Alias::new".into(),
+            "facade::model::Thing::new".into(),
             "facade::prelude::Alias::new".into(),
             "facade::prelude::Thing::new".into(),
         ])
@@ -270,6 +295,124 @@ fn missing_contract_alias_drift_and_duplicate_canonical_paths_fail() {
             .iter()
             .any(|error| { matches!(error, ReachabilityError::DuplicateCanonicalPath(_)) })
     );
+
+    let mut contracts = contracts_for(&reachable);
+    contracts.push(contracts[0].clone());
+    assert!(
+        audit_reachable_surface(&reachable, &contracts)
+            .unwrap_err()
+            .iter()
+            .any(|error| matches!(error, ReachabilityError::DuplicateContractIdentity(_)))
+    );
+}
+
+#[test]
+fn member_cfg_static_union_variant_fields_external_impls_and_grouped_exports_are_complete() {
+    let (_, without) = fixture(&[]);
+    assert_eq!(
+        item(&without, "core_lib::model::CURRENT").kind,
+        ReachableKind::Static
+    );
+    assert_eq!(
+        item(&without, "core_lib::model::Bits").kind,
+        ReachableKind::Union
+    );
+    assert_eq!(
+        item(&without, "core_lib::model::Mode::Slow::code").kind,
+        ReachableKind::Field
+    );
+    assert!(
+        item(&without, "core_lib::model::Mode::Fast")
+            .paths
+            .contains("facade::Fast")
+    );
+    assert!(
+        item(&without, "core_lib::model")
+            .paths
+            .contains("facade::model")
+    );
+    assert!(
+        item(&without, "core_lib::model::Thing::from_private_alias")
+            .paths
+            .contains("facade::Builder::from_private_alias")
+    );
+    assert!(!without.iter().any(|api| api.identity.ends_with("::extra")
+        || api.identity.ends_with("::detail")
+        || api.identity.ends_with("::render_extra")
+        || api.identity.ends_with("::feature_method")));
+
+    let (_, with) = fixture(&["extras"]);
+    for identity in [
+        "core_lib::model::Thing::extra",
+        "core_lib::model::Mode::Slow::detail",
+        "core_lib::model::ContractTrait::render_extra",
+        "core_lib::model::Thing::feature_method",
+    ] {
+        item(&with, identity);
+    }
+}
+
+#[test]
+fn conflicting_source_and_generator_or_generator_providers_fail_closed() {
+    let directory = tempfile::tempdir().unwrap();
+    let core = directory.path().join("core.rs");
+    let facade = directory.path().join("facade.rs");
+    fs::write(&core, "pub struct Thing;").unwrap();
+    fs::write(&facade, "pub use core_lib::Thing;").unwrap();
+    let crates = [
+        SourceCrate {
+            name: "core_lib".into(),
+            root: core,
+        },
+        SourceCrate {
+            name: "facade".into(),
+            root: facade,
+        },
+    ];
+
+    let graph = SurfaceGraph::load(
+        crates.clone(),
+        [],
+        [GeneratedApi {
+            identity: "core_lib::Thing".into(),
+            provider: "bad_generator".into(),
+            kind: ReachableKind::Enum,
+            members: vec![],
+            excluded: false,
+        }],
+    )
+    .unwrap();
+    assert!(matches!(
+        graph.reachable_from("facade"),
+        Err(ReachabilityError::ConflictingReachableDefinition { .. })
+    ));
+
+    let error = SurfaceGraph::load(
+        crates,
+        [],
+        [
+            GeneratedApi {
+                identity: "core_lib::generated::Only".into(),
+                provider: "first".into(),
+                kind: ReachableKind::Struct,
+                members: vec![],
+                excluded: false,
+            },
+            GeneratedApi {
+                identity: "core_lib::generated::Only".into(),
+                provider: "second".into(),
+                kind: ReachableKind::Struct,
+                members: vec![],
+                excluded: false,
+            },
+        ],
+    )
+    .err()
+    .expect("duplicate generator identity must fail while constructing the graph");
+    assert!(matches!(
+        error,
+        ReachabilityError::ConflictingReachableDefinition { .. }
+    ));
 }
 
 #[test]
@@ -468,4 +611,48 @@ fn unknown_cfg_is_a_hard_error_instead_of_enabling_the_item() {
         ),
         Err(ReachabilityError::UnknownCfg { predicate, .. }) if predicate == "unknown_platform"
     ));
+}
+
+#[test]
+fn public_impl_for_unmodeled_generated_owner_fails_closed() {
+    let directory = tempfile::tempdir().unwrap();
+    let facade = directory.path().join("facade.rs");
+    fs::write(
+        &facade,
+        "some_generator!(Generated); impl Generated { pub fn exposed() {} } pub use crate::Generated as Exported;",
+    )
+    .unwrap();
+    assert!(matches!(
+        SurfaceGraph::load(
+            [SourceCrate {
+                name: "facade".into(),
+                root: facade,
+            }],
+            [],
+            [],
+        ),
+        Err(ReachabilityError::UnresolvedImplOwner { module, self_type })
+            if module == "facade" && self_type == "Generated"
+    ));
+
+    let graph = SurfaceGraph::load(
+        [SourceCrate {
+            name: "facade".into(),
+            root: directory.path().join("facade.rs"),
+        }],
+        [],
+        [GeneratedApi {
+            identity: "facade::Generated".into(),
+            provider: "fixture_generator".into(),
+            kind: ReachableKind::Struct,
+            members: vec![],
+            excluded: false,
+        }],
+    )
+    .expect("a controlled provider models the generated owner");
+    let reachable = graph.reachable_from("facade").unwrap();
+    assert_eq!(
+        item(&reachable, "facade::Generated::exposed").origin,
+        sand_api_enforce::ReachableOrigin::Generator("fixture_generator".into())
+    );
 }

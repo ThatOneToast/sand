@@ -5,7 +5,7 @@ use clap::{Parser, Subcommand};
 use colored::Colorize;
 
 use sand_cli::scaffold::{ScaffoldOptions, name_to_namespace, validate_name};
-use sand_cli::{add_cmd, build, join_cmd, run_cmd, scaffold};
+use sand_cli::{add_cmd, api_cmd, build, join_cmd, run_cmd, scaffold};
 
 // ── CLI definition ────────────────────────────────────────────────────────────
 
@@ -22,6 +22,8 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Inspect Sand's supported public API contracts
+    Api(api_cmd::ApiArgs),
     /// Create a new Sand datapack project in a new directory
     New(NewArgs),
     /// Initialize a Sand project in the current directory
@@ -176,6 +178,7 @@ fn main() {
 fn run() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
+        Commands::Api(args) => api_cmd::run(args),
         Commands::New(args) => cmd_new(args),
         Commands::Init(args) => cmd_init(args),
         Commands::Build {

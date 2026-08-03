@@ -1889,6 +1889,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "sand-api-contract"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "sand-build"
 version = "0.1.0"
 dependencies = [
@@ -1916,6 +1924,7 @@ dependencies = [
  "criterion",
  "ctrlc",
  "handlebars",
+ "sand-api-contract",
  "sand-build",
  "sand-components",
  "sand-core",

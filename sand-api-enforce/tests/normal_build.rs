@@ -16,9 +16,7 @@ fn normal_cargo_check_rejects_an_unannotated_public_api() {
     assert!(!output.status.success(), "fixture unexpectedly compiled");
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
-        stderr.contains(
-            "public API `sand::fixture::forgotten_api` (function) is missing #[api]"
-        ),
+        stderr.contains("public API `sand::fixture::forgotten_api` (function) is missing #[api]"),
         "unexpected cargo diagnostic:\n{stderr}"
     );
 }

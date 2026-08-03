@@ -22,8 +22,13 @@ The maintainable stable design is a hybrid:
 5. Compare the resulting identities and paths with a central contract index.
    Require one contract per underlying identity, one reachable canonical path,
    and the exact discovered alias set.
-6. Run the comparison from `sand/build.rs`, parameterized by Cargo's
-   `CARGO_FEATURE_*` environment, so ordinary `cargo check` is the gate.
+6. Run the comparison from `sand/build.rs` so ordinary `cargo check` is the
+   gate. The source audit enables the union of supported facade features on
+   every build (preventing default-build headroom from hiding a new gated API)
+   and uses Cargo's current target cfg. The foundation has no enforced
+   repository scope; changing one to `enforced` activates the same
+   provider-backed missing-contract and canonical/alias comparison proven by
+   the fixtures.
 
 `reachable.rs` and `tests/reachable_surface.rs` are an executable proof of the
 graph and comparison portions of this design.
@@ -64,9 +69,10 @@ provider record is itself a build error.
 
 - Load every local crate that can feed the facade from an explicit crate map;
   do not follow arbitrary dependencies outside the supported boundary.
-- Populate `CfgSet` from Cargo's feature and target environment and run each
-  supported feature configuration, not merely `--all-features` when features
-  are mutually exclusive. Unknown cfg predicates now fail closed.
+- Populate `CfgSet` with all supported facade features and Cargo's target
+  environment. If mutually exclusive features are introduced later, split the
+  checked baselines into the complete supported matrix. Unknown cfg predicates
+  fail closed.
 - The graph handles `#[path]`, raw identifiers, `extern crate` aliases, and
   `macro_export`'s crate-root namespace. Extend the same normalization if Sand
   adopts additional namespace-affecting syntax.

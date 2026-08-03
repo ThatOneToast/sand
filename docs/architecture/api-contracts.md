@@ -44,8 +44,13 @@ observe re-exports or arbitrary generated code. Sand therefore uses a hybrid:
    underlying identity. The graph derives the complete alias set and rejects
    missing contracts, unreachable paths, alias drift, and duplicate canonical
    identities.
-5. `sand/build.rs` runs the audit during ordinary `cargo check` and
-   `cargo build` for scopes that have completed migration.
+5. `sand/build.rs` runs that graph and scope audit during ordinary
+   `cargo check` and `cargo build`, regardless of the build's selected facade
+   features. It consumes generated command/registry artifacts, discovers
+   checked-in macro families, resolves contracts from the mapped source
+   crates, partitions all 11,782 static identities, and byte-compares the
+   deterministic aggregate baseline. A migration may mark a scope enforced
+   only in the same change that supplies every contract for that scope.
 
 Rustdoc JSON is useful as an independent audit oracle, but it is not the build
 gate because its JSON format is not a stable Rust interface.
@@ -61,6 +66,13 @@ uncontracted addition fails the normal build. Pending scopes remain visible in
 reports and exported coverage metadata. Migration lowers the pending baseline;
 the ratchet rejects a later increase. Completion of #327 requires zero pending
 supported scopes.
+
+The executable `reachable-enforced-missing` fixture exercises the same
+provider-backed comparison: an undocumented inherent method reached through a
+glob re-export causes an ordinary `cargo check` to fail. The repository has no
+enforced scope in the foundation, but changing any boundary to `enforced`
+immediately activates missing-contract and exact canonical/alias validation in
+the normal Sand build.
 
 ## Contract and catalog layers
 

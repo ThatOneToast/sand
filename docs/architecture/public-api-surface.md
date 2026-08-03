@@ -41,29 +41,33 @@ Canonical path precedence is:
 
 A module re-export alias applies prefix substitution to all of its reachable
 descendants. The source graph derives aliases from explicit, renamed, chained,
-and glob re-exports. Contracts do not maintain a second hand-written alias
-list. An identity exposed by multiple candidate topic modules without an
-ownership rule is an error; two identities selecting one canonical path is
-also an error.
+and glob re-exports. A contract records the canonical lookup path and useful
+aliases for installed metadata, but an enforced scope requires that declaration
+to equal the graph-derived path set. An identity exposed by multiple candidate
+topic modules without an ownership rule is an error; two identities selecting
+one canonical path is also an error.
 
 `advanced` is a supported tier, not an exemption. `__private` is excluded with
 a structural reason.
 
 ## Current all-feature baseline
 
-The baseline was measured at prototype commit `827c259` with rustc/rustdoc
-1.96.0 and all facade features enabled. Rustdoc JSON was used as an independent
-audit oracle: the audit traversed the public `sand` module/use graph, resolved
-cross-crate re-exports, counted each underlying definition once, and separately
-enumerated public fields, enum variants and variant fields, inherent items, and
-trait items.
+The checked baseline is reproduced by `sand/build.rs` on stable Rust 1.96.0.
+Every normal build enables the union of Sand's supported facade features for
+the source audit, uses the current Cargo target cfg, reads declarations from
+the explicit workspace crate map, and consumes provider artifacts generated
+beside generated Rust. The measured aggregate is byte-compared with
+`sand/api-surface-baseline.txt`; that file records kinds, origins, and
+scope-level counts, never item exemptions.
 
-The current installed static surface contains **11,663 unique API elements**:
+The current installed static surface contains **11,782 unique API elements**:
 
 | Kind | Count |
 | --- | ---: |
 | Modules | 80 |
-| Procedural macros | 15 |
+| Attribute procedural macros | 8 |
+| Derive procedural macros | 3 |
+| Function-like procedural macros | 4 |
 | Declarative macros | 3 |
 | Structs | 970 |
 | Enums | 170 |
@@ -71,32 +75,36 @@ The current installed static surface contains **11,663 unique API elements**:
 | Type aliases | 16 |
 | Constants | 12 |
 | Statics | 1 |
-| Functions and methods | 3,333 |
+| Free functions | 554 |
+| Inherent methods | 2,844 |
+| Trait methods | 54 |
 | Associated constants | 18 |
 | Associated types | 2 |
 | Public fields | 1,099 |
 | Enum variants | 5,906 |
 
-10,513 identities have two or more facade paths; only 1,150 have one path.
-Counting Rustdoc pages therefore gives the wrong answer: alias modules create
-duplicate pages, while members are embedded in their owner's page.
-
-Generated static families account for 6,113 identities:
+Generated static families account for 6,396 identities:
 
 - vanilla registries: 4 enums, 4 inherent functions, and 4,859 variants
   (4,867 total); and
-- generated command builders: 486 structs and 760 functions/methods
-  (1,246 total).
+- generated command builders: 486 structs and 769 functions/methods
+  (1,255 total);
+- typed registry-ID wrappers: 130 identities;
+- effect registry enums: 93 identities;
+- generated event marker types: 25 identities; and
+- typed resource-reference wrappers: 26 identities.
 
-The remaining static surface is 5,535 handwritten identities plus 15 proc
-macro entry points. Input-dependent items emitted into downstream crates by
-attributes and derives are parametric families, so they do not have an honest
-finite installed count. Each such generator is a separate enforced provider
-scope.
+The remaining 5,386 identities come from ordinary source declarations,
+including the 15 exported procedural macros. Input-dependent items emitted
+into downstream crates by attributes and derives are parametric families, so
+they do not have an honest finite installed count. Each such generator is a
+separate provider scope.
 
-The current `sand::predicate` facade reaches 195 identities: one module, 12
-structs, three enums, 61 methods, 88 public fields, and 30 variants. The
-prototype catalog's 14 linked entries therefore did not cover that scope.
+The current `sand::predicate` source scope owns 234 identities. Only nine of
+those identities currently resolve to pilot contracts, so the prototype
+catalog did not cover that module. The measured surface also preserves legal
+but undesirable field/method lookup collisions as distinct identities; the
+predicate migration must remove those collisions before it can be enforced.
 
 ## Intentional migration scopes
 
@@ -106,12 +114,13 @@ resource_ref, version, vfx, systems, text, data, vanilla, advanced, and
 resourcepack. `prelude` is an alias projection rather than an owning scope.
 
 Generator scopes separately cover generated commands, vanilla registries,
+checked-in registry/effect/event/resource-reference macro families,
 function/component/event/item/armor-event/schedule/entity-archetype attribute
 macros, State/EntityStateEnum/SandStorage derives, and resource-pack macro
 output. A generator provider consumes the same parsed input or schema that
 emits its Rust API.
 
-The foundation baseline records 35 pending architectural scopes and 11,663
+The foundation baseline records 39 pending architectural scopes and 11,782
 pending static identities. No scope is marked enforced by the foundation;
 predicate becomes the first enforced source scope only after its complete
 migration tranche.
@@ -123,7 +132,8 @@ Issue #327 completes only at zero pending source and generator scopes.
 
 ## Known canonical defects to resolve during migration
 
-The current facade contains 598 identities reachable only through the prelude,
+The current facade contains 402 source identities owned by the temporary
+`prelude-unassigned-source` scope,
 including component families that lack the promised canonical topic path.
 Migration must add a canonical topic re-export or deliberately remove each
 such promise; it must not make the prelude canonical by accident.

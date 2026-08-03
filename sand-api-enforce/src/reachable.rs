@@ -690,6 +690,64 @@ fn insert_path(
     origin: ReachableOrigin,
     path: &str,
 ) -> Result<(), ReachabilityError> {
+    let tagged_identity = disambiguated_identity(identity, kind);
+    if let Some(entry) = found.get_mut(&tagged_identity) {
+        if entry.kind != kind || entry.origin != origin {
+            return Err(conflicting_definition(identity, entry, kind, origin));
+        }
+        entry.paths.insert(path.to_owned());
+        return Ok(());
+    }
+
+    if let Some(existing) = found.get(identity)
+        && existing.kind != kind
+        && existing.origin == origin
+        && member_namespaces_may_overlap(existing.kind, kind)
+    {
+        let mut existing = found
+            .remove(identity)
+            .expect("the conflicting base identity was just observed");
+        let existing_identity = disambiguated_identity(identity, existing.kind);
+        existing.identity.clone_from(&existing_identity);
+        found.insert(existing_identity, existing);
+        found.insert(
+            tagged_identity.clone(),
+            ReachableApi {
+                identity: tagged_identity,
+                kind,
+                origin,
+                paths: BTreeSet::from([path.to_owned()]),
+            },
+        );
+        return Ok(());
+    }
+
+    // Once a collision has split an identity, later aliases must join the
+    // kind-specific record rather than recreating an ambiguous base record.
+    let prior_collision = found.values().find(|candidate| {
+        candidate
+            .identity
+            .strip_prefix(identity)
+            .is_some_and(|suffix| suffix.starts_with('#'))
+    });
+    if !found.contains_key(identity)
+        && let Some(existing) = prior_collision
+    {
+        if existing.origin != origin || !member_namespaces_may_overlap(existing.kind, kind) {
+            return Err(conflicting_definition(identity, existing, kind, origin));
+        }
+        found.insert(
+            tagged_identity.clone(),
+            ReachableApi {
+                identity: tagged_identity,
+                kind,
+                origin,
+                paths: BTreeSet::from([path.to_owned()]),
+            },
+        );
+        return Ok(());
+    }
+
     let entry = found
         .entry(identity.to_owned())
         .or_insert_with(|| ReachableApi {
@@ -699,16 +757,54 @@ fn insert_path(
             paths: BTreeSet::new(),
         });
     if entry.kind != kind || entry.origin != origin {
-        return Err(ReachabilityError::ConflictingReachableDefinition {
-            identity: identity.to_owned(),
-            first_kind: entry.kind,
-            first_origin: entry.origin.clone(),
-            second_kind: kind,
-            second_origin: origin,
-        });
+        return Err(conflicting_definition(identity, entry, kind, origin));
     }
     entry.paths.insert(path.to_owned());
     Ok(())
+}
+
+fn disambiguated_identity(identity: &str, kind: ReachableKind) -> String {
+    format!("{identity}#{}", kind_identity_tag(kind))
+}
+
+fn kind_identity_tag(kind: ReachableKind) -> &'static str {
+    match kind {
+        ReachableKind::Field => "field",
+        ReachableKind::Method => "method",
+        ReachableKind::AssociatedConst => "associated-const",
+        ReachableKind::AssociatedType => "associated-type",
+        _ => "item",
+    }
+}
+
+fn member_namespaces_may_overlap(left: ReachableKind, right: ReachableKind) -> bool {
+    matches!(left, ReachableKind::Field)
+        && matches!(
+            right,
+            ReachableKind::Method | ReachableKind::AssociatedConst | ReachableKind::AssociatedType
+        )
+        || matches!(right, ReachableKind::Field)
+            && matches!(
+                left,
+                ReachableKind::Method
+                    | ReachableKind::AssociatedConst
+                    | ReachableKind::AssociatedType
+            )
+}
+
+fn conflicting_definition(
+    identity: &str,
+    existing: &ReachableApi,
+    kind: ReachableKind,
+    origin: ReachableOrigin,
+) -> ReachabilityError {
+    ReachabilityError::ConflictingReachableDefinition {
+        identity: identity.to_owned(),
+        first_kind: existing.kind,
+        first_origin: existing.origin.clone(),
+        second_kind: kind,
+        second_origin: origin,
+    }
 }
 
 fn parse_module_file(

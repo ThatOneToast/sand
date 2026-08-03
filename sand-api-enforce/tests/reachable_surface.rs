@@ -416,6 +416,54 @@ fn conflicting_source_and_generator_or_generator_providers_fail_closed() {
 }
 
 #[test]
+fn field_and_method_name_collision_has_distinct_identities_and_ambiguous_lookup_fails() {
+    let directory = tempfile::tempdir().unwrap();
+    let core = directory.path().join("core.rs");
+    let facade = directory.path().join("facade.rs");
+    fs::write(
+        &core,
+        r#"
+            pub struct BlockPredicate { pub blocks: Vec<String> }
+            impl BlockPredicate { pub fn blocks(&self) -> &[String] { &self.blocks } }
+        "#,
+    )
+    .unwrap();
+    fs::write(&facade, "pub use core_lib::BlockPredicate;").unwrap();
+    let graph = SurfaceGraph::load(
+        [
+            SourceCrate {
+                name: "core_lib".into(),
+                root: core,
+            },
+            SourceCrate {
+                name: "facade".into(),
+                root: facade,
+            },
+        ],
+        [],
+        [],
+    )
+    .unwrap();
+    let reachable = graph.reachable_from("facade").unwrap();
+    let field = item(&reachable, "core_lib::BlockPredicate::blocks#field");
+    let method = item(&reachable, "core_lib::BlockPredicate::blocks#method");
+    assert_eq!(field.kind, ReachableKind::Field);
+    assert_eq!(method.kind, ReachableKind::Method);
+    assert_eq!(field.paths, method.paths);
+    assert_eq!(
+        field.paths,
+        BTreeSet::from(["facade::BlockPredicate::blocks".into()])
+    );
+
+    let errors = audit_reachable_surface(&reachable, &contracts_for(&reachable)).unwrap_err();
+    assert!(errors.iter().any(|error| matches!(
+        error,
+        ReachabilityError::DuplicateCanonicalPath(path)
+            if path == "facade::BlockPredicate::blocks"
+    )));
+}
+
+#[test]
 fn architecture_01_explicit_reexport_is_reachable() {
     let (_, api) = fixture(&[]);
     assert!(

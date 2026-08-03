@@ -6,6 +6,7 @@ use std::fs;
 use std::path::Path;
 
 use proc_macro2::{TokenStream, TokenTree};
+use quote::ToTokens;
 
 use crate::{GeneratedApi, ReachableKind};
 
@@ -199,6 +200,69 @@ pub fn event_generated_type_provider(path: &Path) -> Result<Vec<GeneratedApi>, M
             excluded: false,
         })
         .collect())
+}
+
+/// Describe public associated items emitted by the real `SandStorage` derive
+/// from the same annotated struct declaration consumed by macro expansion.
+/// Field accessor names come directly from named fields; no parallel member
+/// manifest is maintained by the fixture or consuming build script.
+pub fn sand_storage_derive_provider(
+    path: &Path,
+    identity_module: &str,
+) -> Result<Vec<GeneratedApi>, MacroProviderError> {
+    let source = fs::read_to_string(path)
+        .map_err(|error| MacroProviderError::Io(format!("{}: {error}", path.display())))?;
+    let file = syn::parse_file(&source)
+        .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
+    let mut generated = Vec::new();
+    for item in &file.items {
+        let syn::Item::Struct(structure) = item else {
+            continue;
+        };
+        let derives_sand_storage = structure.attrs.iter().any(|attribute| {
+            if !attribute.path().is_ident("derive") {
+                return false;
+            }
+            attribute
+                .parse_args_with(
+                    syn::punctuated::Punctuated::<syn::Path, syn::Token![,]>::parse_terminated,
+                )
+                .is_ok_and(|derives| {
+                    derives.iter().any(|derive| {
+                        derive
+                            .segments
+                            .last()
+                            .is_some_and(|segment| segment.ident == "SandStorage")
+                    })
+                })
+        });
+        if !derives_sand_storage {
+            continue;
+        }
+        let derive_input = syn::parse2::<syn::DeriveInput>(structure.to_token_stream())
+            .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
+        let members = sand_api_contract::syntax::sand_storage_generated_member_names(&derive_input)
+            .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
+        let owner = format!("{identity_module}::{}", structure.ident);
+        for (index, name) in members.into_iter().enumerate() {
+            generated.push(GeneratedApi {
+                identity: format!("{owner}::{name}"),
+                provider: "sand_storage_derive".into(),
+                kind: if index == 0 {
+                    ReachableKind::AssociatedConst
+                } else {
+                    ReachableKind::Method
+                },
+                members: Vec::new(),
+                excluded: false,
+            });
+        }
+    }
+    if generated.is_empty() {
+        return Err(MacroProviderError::MissingGeneratedTypes);
+    }
+    generated.sort_by(|left, right| left.identity.cmp(&right.identity));
+    Ok(generated)
 }
 
 fn named_generator(file: &syn::File, macro_name: &str) -> Result<TokenStream, MacroProviderError> {

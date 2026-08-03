@@ -516,6 +516,32 @@ impl SurfaceGraph {
                     )?;
                 }
             }
+            for generated in self.generated.iter().filter(|generated| {
+                !generated.excluded && generated_parent(&generated.identity) == Some(&resolved)
+            }) {
+                let name = generated
+                    .identity
+                    .rsplit("::")
+                    .next()
+                    .expect("generated member identities contain a member name");
+                let origin = ReachableOrigin::Generator(generated.provider.clone());
+                insert_path(
+                    found,
+                    &generated.identity,
+                    generated.kind,
+                    origin.clone(),
+                    &format!("{path}::{name}"),
+                )?;
+                for (member, kind) in &generated.members {
+                    insert_path(
+                        found,
+                        &format!("{}::{member}", generated.identity),
+                        *kind,
+                        origin.clone(),
+                        &format!("{path}::{name}::{member}"),
+                    )?;
+                }
+            }
             if declaration.kind == ReachableKind::TypeAlias
                 && let Some(target) = &declaration.alias_target
                 && let Some(target_identity) = self.resolve_export(target, &mut BTreeSet::new())

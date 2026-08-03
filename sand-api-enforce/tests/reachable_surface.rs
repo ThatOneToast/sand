@@ -685,7 +685,7 @@ fn proc_macro_exports_use_macro_namespace_names_kinds_and_aliases() {
             pub fn make_command(input: TokenStream) -> TokenStream { input }
             #[proc_macro_attribute]
             pub fn tracked(_attr: TokenStream, item: TokenStream) -> TokenStream { item }
-            #[proc_macro_derive(EntityStateEnum, attributes(state))]
+            #[proc_macro_derive(EncodedState, attributes(state))]
             pub fn derive_entity_state(input: TokenStream) -> TokenStream { input }
         "#,
     )
@@ -694,9 +694,9 @@ fn proc_macro_exports_use_macro_namespace_names_kinds_and_aliases() {
         &facade,
         r#"
             pub use macro_crate::{make_command as command, tracked};
-            pub use macro_crate::EntityStateEnum;
+            pub use macro_crate::EncodedState;
             pub mod prelude {
-                pub use macro_crate::EntityStateEnum as StateEnum;
+                pub use macro_crate::EncodedState as StateEnum;
             }
         "#,
     )
@@ -726,12 +726,12 @@ fn proc_macro_exports_use_macro_namespace_names_kinds_and_aliases() {
         item(&reachable, "macro_crate::tracked").kind,
         ReachableKind::AttributeMacro
     );
-    let derive = item(&reachable, "macro_crate::EntityStateEnum");
+    let derive = item(&reachable, "macro_crate::EncodedState");
     assert_eq!(derive.kind, ReachableKind::DeriveMacro);
     assert_eq!(
         derive.paths,
         BTreeSet::from([
-            "facade::EntityStateEnum".into(),
+            "facade::EncodedState".into(),
             "facade::prelude::StateEnum".into(),
         ])
     );

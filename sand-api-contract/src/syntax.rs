@@ -7,6 +7,41 @@ use quote::ToTokens;
 use syn::parse::Parser;
 use syn::{ExprArray, FnArg, ItemEnum, ItemStruct, LitStr, Pat, ReturnType, Signature};
 
+/// Public associated names emitted by `#[derive(SandStorage)]`.
+///
+/// The derive expansion and build-time provider share this function, so a
+/// field change cannot alter the generated Rust API without altering the
+/// enforced provider surface during the same compilation.
+pub fn sand_storage_generated_member_names(input: &syn::DeriveInput) -> syn::Result<Vec<String>> {
+    let syn::Data::Struct(structure) = &input.data else {
+        return Err(syn::Error::new_spanned(
+            &input.ident,
+            "SandStorage can only be derived for a struct",
+        ));
+    };
+    let syn::Fields::Named(fields) = &structure.fields else {
+        return Err(syn::Error::new_spanned(
+            &input.ident,
+            "SandStorage requires named fields",
+        ));
+    };
+    if fields.named.is_empty() {
+        return Err(syn::Error::new_spanned(
+            &input.ident,
+            "SandStorage requires at least one named field",
+        ));
+    }
+    Ok(std::iter::once("SCHEMA".to_owned())
+        .chain(fields.named.iter().map(|field| {
+            field
+                .ident
+                .as_ref()
+                .expect("named fields have identifiers")
+                .to_string()
+        }))
+        .collect())
+}
+
 /// One explicitly described function parameter or nested API member.
 #[derive(Clone)]
 pub struct Description {
@@ -484,5 +519,16 @@ mod tests {
         ))
         .unwrap();
         assert_eq!(args.variants.unwrap().len(), 2);
+    }
+
+    #[test]
+    fn sand_storage_members_come_from_the_derive_declaration() {
+        let input: syn::DeriveInput = syn::parse_quote! {
+            struct PlayerMagic { mana: i32, school: String }
+        };
+        assert_eq!(
+            sand_storage_generated_member_names(&input).unwrap(),
+            ["SCHEMA", "mana", "school"]
+        );
     }
 }

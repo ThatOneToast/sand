@@ -1,0 +1,21 @@
+schema_version = 1
+static_surface_items = 3
+pending_scope_ceiling = 0
+pending_item_ceiling = 0
+
+[[scope]]
+id = "fixture-source"
+canonical_module = "sand"
+state = "enforced"
+tier = "author"
+provider = "source"
+recursive = true
+
+[[scope]]
+id = "sand-storage-generated"
+canonical_module = "sand"
+state = "enforced"
+tier = "generated"
+provider = "generator:sand_storage_derive"
+enforcement = "consumer_build"
+recursive = true

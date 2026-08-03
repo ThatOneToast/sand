@@ -3604,12 +3604,18 @@ fn sand_storage_derive_impl(input: syn::DeriveInput) -> Result<TokenStream, syn:
             ));
         }
     };
+    let generated_member_names =
+        sand_api_contract::syntax::sand_storage_generated_member_names(&input)?;
+    let schema_ident = syn::Ident::new(&generated_member_names[0], struct_name.span());
 
     // ── Build field accessor methods ─────────────────────────────────────────
     let mut methods = Vec::new();
 
-    for field in fields {
-        let field_ident = field.ident.as_ref().expect("named field has ident");
+    for (field, generated_name) in fields.iter().zip(generated_member_names.iter().skip(1)) {
+        let field_ident = syn::Ident::new(
+            generated_name,
+            field.ident.as_ref().expect("named field has ident").span(),
+        );
         let field_ty = &field.ty;
 
         // Check for #[sand(path = "...")] override
@@ -3639,7 +3645,7 @@ fn sand_storage_derive_impl(input: syn::DeriveInput) -> Result<TokenStream, syn:
 
         methods.push(quote! {
             pub fn #field_ident() -> ::sand::__private::state::StorageField<#struct_name, #field_ty> {
-                Self::SCHEMA.field(#key_str)
+                Self::#schema_ident.field(#key_str)
             }
         });
     }
@@ -3649,7 +3655,7 @@ fn sand_storage_derive_impl(input: syn::DeriveInput) -> Result<TokenStream, syn:
 
     let expanded = quote! {
         impl #struct_name {
-            pub const SCHEMA: ::sand::__private::state::StorageSchema<#struct_name> =
+            pub const #schema_ident: ::sand::__private::state::StorageSchema<#struct_name> =
                 ::sand::__private::state::StorageSchema::new(#storage_lit, #root_lit);
 
             #( #methods )*

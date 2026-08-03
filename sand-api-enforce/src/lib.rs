@@ -25,7 +25,7 @@ pub use contract_source::{
 };
 pub use macro_provider::{
     MacroProviderError, event_generated_type_provider, registry_id_provider, resource_ref_provider,
-    vanilla_registry_enum_provider,
+    sand_storage_derive_provider, vanilla_registry_enum_provider,
 };
 
 pub use reachable::{

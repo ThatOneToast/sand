@@ -168,13 +168,14 @@ impl ApiCatalog {
     /// and descriptive-field matches receive progressively lower weights.
     pub fn search(&self, query: &str) -> Vec<&ApiEntry> {
         let query = query.trim().to_lowercase();
-        if query.is_empty() {
+        let words = query.split_whitespace().collect::<Vec<_>>();
+        if words.is_empty() {
             return Vec::new();
         }
         let mut results = self
             .entries
             .iter()
-            .filter_map(|entry| search_score(entry, &query).map(|score| (score, entry)))
+            .filter_map(|entry| search_score(entry, &query, &words).map(|score| (score, entry)))
             .collect::<Vec<_>>();
         results.sort_by(|(left_score, left), (right_score, right)| {
             right_score
@@ -297,45 +298,47 @@ fn valid_path(path: &str) -> bool {
         })
 }
 
-fn search_score(entry: &ApiEntry, query: &str) -> Option<u32> {
+fn search_score(entry: &ApiEntry, query: &str, words: &[&str]) -> Option<u32> {
     let path = entry.canonical_path.to_lowercase();
     if path == query {
-        return Some(1_000);
+        return Some(10_000);
     }
-    let mut score = 0;
-    if path.rsplit("::").next() == Some(query) {
-        score += 500;
-    } else if path.contains(query) {
-        score += 300;
-    }
-    if entry
+    let aliases = entry
         .aliases
         .iter()
-        .any(|alias| alias.to_lowercase() == query)
-    {
-        score += 450;
-    } else if entry
-        .aliases
-        .iter()
-        .any(|alias| alias.to_lowercase().contains(query))
-    {
-        score += 250;
+        .map(|alias| alias.to_lowercase())
+        .collect::<Vec<_>>();
+    if aliases.iter().any(|alias| alias == query) {
+        return Some(9_000);
     }
-    if entry.summary.to_lowercase().contains(query) {
-        score += 120;
-    }
-    for text in entry
+    let summary = entry.summary.to_lowercase();
+    let descriptive = entry
         .parameters
         .iter()
         .map(|parameter| parameter.description.as_str())
         .chain(entry.use_when.iter().map(String::as_str))
+        .chain(entry.avoid_when.iter().map(String::as_str))
         .chain(std::iter::once(entry.minecraft.as_str()))
-    {
-        if text.to_lowercase().contains(query) {
-            score += 20;
-        }
-    }
-    (score > 0).then_some(score)
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_lowercase();
+
+    words.iter().try_fold(0_u32, |score, word| {
+        let word_score = if path.rsplit("::").next() == Some(*word) {
+            500
+        } else if path.contains(word) {
+            300
+        } else if aliases.iter().any(|alias| alias.contains(word)) {
+            250
+        } else if summary.contains(word) {
+            120
+        } else if descriptive.contains(word) {
+            20
+        } else {
+            return None;
+        };
+        Some(score + word_score)
+    })
 }
 
 #[cfg(test)]
@@ -388,5 +391,10 @@ mod tests {
             catalog.search("equipment")[0].canonical_path,
             REGISTRATION.canonical_path
         );
+        assert_eq!(
+            catalog.search("equipment inspect")[0].canonical_path,
+            REGISTRATION.canonical_path
+        );
+        assert!(catalog.search("equipment missing").is_empty());
     }
 }

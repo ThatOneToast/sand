@@ -210,7 +210,10 @@ fn module(catalog: &ApiCatalog, requested_module: &str) -> Result<String> {
         }
     }
 
-    if direct.is_empty() && nested.is_empty() {
+    let contracted_module = catalog
+        .find(requested_module)
+        .is_some_and(|entry| entry.kind == ApiKind::Module);
+    if direct.is_empty() && nested.is_empty() && !contracted_module {
         let modules: BTreeSet<_> = catalog
             .entries
             .iter()
@@ -227,6 +230,10 @@ fn module(catalog: &ApiCatalog, requested_module: &str) -> Result<String> {
     }
 
     let mut output = format!("Module {requested_module}\n");
+    if direct.is_empty() && nested.is_empty() {
+        output.push_str("\nNo direct APIs are registered for this module.\n");
+        return Ok(output);
+    }
     for (heading, entries) in &mut direct {
         entries.sort_by(|a, b| a.canonical_path.cmp(&b.canonical_path));
         writeln!(output, "\n{heading}").unwrap();
@@ -483,6 +490,20 @@ mod tests {
         assert!(rendered.contains("Structs\n  sand::predicate::Predicate"));
         assert!(rendered.contains("Nested modules\n  sand::predicate::condition (1 API)"));
         assert!(!rendered.contains("sand::predicate::condition::Entity"));
+    }
+
+    #[test]
+    fn module_accepts_a_contracted_module_without_children() {
+        let catalog = catalog(vec![entry(
+            "sand::inventory",
+            ApiKind::Module,
+            "Typed inventory locations.",
+            "sand",
+        )]);
+        assert_eq!(
+            module(&catalog, "sand::inventory").unwrap(),
+            "Module sand::inventory\n\nNo direct APIs are registered for this module.\n"
+        );
     }
 
     #[test]

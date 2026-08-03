@@ -501,7 +501,7 @@ mod tests {
     fn coverage_is_sorted_and_complete_status_is_validated() {
         let coverage = ApiCoverage {
             status: CoverageStatus::Partial,
-            static_surface_items: 11_663,
+            static_surface_items: 200,
             pending_item_ceiling: 195,
             pending_scope_ceiling: 2,
             pending_scopes: vec!["predicate-source".into(), "command-source".into()],

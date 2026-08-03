@@ -69,4 +69,9 @@ fn main() {
             );
         }
     }
+
+    // Make the exact provider artifacts available to the facade's build
+    // audit. Cargo forwards this as DEP_SAND_CORE_API_PROVIDER_DIR because
+    // sand-core owns the `sand_core` links key.
+    println!("cargo::metadata=api_provider_dir={}", out_dir.display());
 }

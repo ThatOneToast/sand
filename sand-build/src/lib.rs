@@ -31,6 +31,7 @@
 //! Requires a Java runtime new enough for the selected server on `PATH`
 //! (Java 21 for the stable baseline; Java 25 for Minecraft 26.2).
 
+mod api_provider;
 mod cache;
 mod codegen;
 mod download;
@@ -39,6 +40,9 @@ mod manifest;
 mod registry_fixture;
 mod report;
 
+pub use api_provider::{
+    ApiProviderCatalog, GeneratedProviderEntry, PROVIDER_SCHEMA_VERSION, read_api_provider,
+};
 pub use error::{Error, Result};
 pub use registry_fixture::refresh_registry_coverage_fixture;
 
@@ -193,7 +197,7 @@ pub fn generate_to_dir(mc_version: &str, out_dir: &std::path::Path) -> Result<()
     let reports_dir = report::ensure_reports(&version_id, &jar_path)?;
 
     // 4. Codegen.
-    codegen::generate_all(&reports_dir, out_dir)?;
+    codegen::generate_all(&reports_dir, out_dir, &version_id)?;
 
     Ok(())
 }

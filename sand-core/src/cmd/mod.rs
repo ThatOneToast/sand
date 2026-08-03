@@ -483,6 +483,10 @@ mod tests {
     const GENERATED_COMMANDS: &str = include_str!(concat!(env!("OUT_DIR"), "/commands.rs"));
     const GENERATED_REGISTRIES: &str = include_str!(concat!(env!("OUT_DIR"), "/registries.rs"));
     const GENERATED_BLOCK_STATES: &str = include_str!(concat!(env!("OUT_DIR"), "/block_states.rs"));
+    const GENERATED_COMMAND_API: &str =
+        include_str!(concat!(env!("OUT_DIR"), "/commands.api.json"));
+    const GENERATED_REGISTRY_API: &str =
+        include_str!(concat!(env!("OUT_DIR"), "/registries.api.json"));
 
     fn generated_api_health(
         commands: &str,
@@ -557,6 +561,30 @@ mod tests {
                 "commands.rs is missing representative generated builder `{generated_symbol}`"
             );
         }
+    }
+
+    #[test]
+    fn generated_provider_metadata_covers_every_public_generated_item() {
+        let commands: serde_json::Value = serde_json::from_str(GENERATED_COMMAND_API).unwrap();
+        let registries: serde_json::Value = serde_json::from_str(GENERATED_REGISTRY_API).unwrap();
+        let command_entries = commands["entries"].as_array().unwrap();
+        let registry_entries = registries["entries"].as_array().unwrap();
+
+        let command_rust_items = GENERATED_COMMANDS
+            .lines()
+            .filter(|line| {
+                let line = line.trim_start();
+                line.starts_with("pub struct ") || line.starts_with("pub fn ")
+            })
+            .count();
+        assert_eq!(command_entries.len(), command_rust_items);
+        assert_eq!(command_entries.len(), 1_255);
+
+        assert_eq!(registry_entries.len(), 4_867);
+        assert!(registry_entries.iter().any(|entry| {
+            entry["definition_identity"] == "sand_core::generated::Item::Diamond"
+                && entry["contract"]["canonical_path"] == "sand::vanilla::Item::Diamond"
+        }));
     }
 
     #[test]

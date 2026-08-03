@@ -1915,6 +1915,7 @@ dependencies = [
  "hex",
  "indicatif",
  "reqwest",
+ "sand-api-contract",
  "sand-version",
  "serde",
  "serde_json",

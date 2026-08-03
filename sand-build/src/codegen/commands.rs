@@ -2,8 +2,10 @@ use std::fmt::Write as FmtWrite;
 use std::path::Path;
 
 use heck::{ToPascalCase, ToSnakeCase};
+use sand_api_contract::{ApiEntry, ApiKind, ApiParameter};
 use serde_json::Value;
 
+use crate::api_provider::{ApiProviderCatalog, GeneratedProviderEntry};
 use crate::error::Result;
 
 /// Top-level commands to skip entirely (they use redirects or are aliases).
@@ -539,12 +541,201 @@ fn emit_variant(code: &mut String, ev: &EmittedVariant) {
     writeln!(code).unwrap();
 }
 
+fn argument_description(arg: &ArgInfo, usage: &str) -> String {
+    match arg.parser.as_str() {
+        "brigadier:bool" => format!("The boolean `<{}>` argument in `/{usage}`.", arg.name),
+        "brigadier:integer" => format!("The integer `<{}>` argument in `/{usage}`.", arg.name),
+        "brigadier:float" | "brigadier:double" => {
+            format!("The numeric `<{}>` argument in `/{usage}`.", arg.name)
+        }
+        "minecraft:entity" | "minecraft:game_profile" => format!(
+            "The typed entity or player selection for `<{}>` in `/{usage}`.",
+            arg.name
+        ),
+        "minecraft:block_pos" | "minecraft:column_pos" => {
+            format!(
+                "The typed block position for `<{}>` in `/{usage}`.",
+                arg.name
+            )
+        }
+        "minecraft:resource_location"
+        | "minecraft:dimension"
+        | "minecraft:function"
+        | "minecraft:loot_table"
+        | "minecraft:loot_predicate"
+        | "minecraft:loot_modifier" => format!(
+            "The validated resource location for `<{}>` in `/{usage}`.",
+            arg.name
+        ),
+        parser => format!(
+            "The `<{}>` command-tree argument parsed by Minecraft as `{parser}` in `/{usage}`.",
+            arg.name
+        ),
+    }
+}
+
+fn command_api_entries(
+    ev: &EmittedVariant,
+    minecraft_version: &str,
+) -> Vec<GeneratedProviderEntry> {
+    let variant = &ev.command;
+    let literals = variant.literal_segments();
+    let command_name = literals.first().copied().unwrap_or("command");
+    let mut usage = String::new();
+    for (index, segment) in variant.full_path.iter().enumerate() {
+        if index > 0 {
+            usage.push(' ');
+        }
+        match segment {
+            PathSegment::Literal(literal) => usage.push_str(literal),
+            PathSegment::Arg(arg) => write!(usage, "<{}>", arg.name).unwrap(),
+        }
+    }
+    for arg in &variant.optional_args {
+        write!(usage, " [<{}>]", arg.name).unwrap();
+    }
+
+    let required = variant.required_args();
+    let parameters = required
+        .iter()
+        .map(|arg| ApiParameter {
+            name: arg.name.clone(),
+            description: argument_description(arg, &usage),
+        })
+        .collect::<Vec<_>>();
+    let params_signature = required
+        .iter()
+        .map(|arg| {
+            let (param_type, _, _) = map_arg_parser(&literals, arg);
+            format!("{}: {param_type}", arg.name)
+        })
+        .collect::<Vec<_>>()
+        .join(", ");
+    let call_args = required
+        .iter()
+        .map(|arg| arg.name.as_str())
+        .collect::<Vec<_>>()
+        .join(", ");
+    let struct_path = format!("sand::command::{}", ev.struct_name);
+    let function_path = format!("sand::command::{}", ev.fn_name);
+    let availability = vec![format!("minecraft = {minecraft_version}")];
+    let context = format!(
+        "Sand generates this typed API from Minecraft {minecraft_version}'s command tree for `/{usage}`."
+    );
+    let minecraft = format!("Renders the exact Minecraft command syntax `/{usage}`.");
+    let use_when = vec![format!(
+        "Emitting Minecraft's `/{command_name}` command with typed arguments"
+    )];
+    let avoid_when = vec![format!(
+        "The target Minecraft version does not support the `/{usage}` command shape"
+    )];
+
+    let implementation_struct = format!("sand_core::cmd::_generated::{}", ev.struct_name);
+    let mut result = vec![GeneratedProviderEntry {
+        definition_identity: implementation_struct.clone(),
+        definition_kind: ApiKind::Struct,
+        parent_identity: None,
+        member_name: None,
+        contract: ApiEntry {
+            canonical_path: struct_path.clone(),
+            aliases: vec![format!("sand::cmd::{}", ev.struct_name)],
+            canonical_module: "sand::command".into(),
+            kind: ApiKind::Struct,
+            signature: format!("pub struct {} {{ /* private fields */ }}", ev.struct_name),
+            summary: format!("Builds and renders Minecraft's `/{usage}` command form."),
+            context: context.clone(),
+            minecraft: minecraft.clone(),
+            use_when: use_when.clone(),
+            avoid_when: avoid_when.clone(),
+            parameters: Vec::new(),
+            returns: None,
+            example: format!("let command = sand::command::{}({call_args});", ev.fn_name),
+            availability: availability.clone(),
+        },
+    }];
+
+    result.push(GeneratedProviderEntry {
+        definition_identity: format!("sand_core::cmd::_generated::{}", ev.fn_name),
+        definition_kind: ApiKind::Function,
+        parent_identity: None,
+        member_name: None,
+        contract: ApiEntry {
+            canonical_path: function_path,
+            aliases: vec![format!("sand::cmd::{}", ev.fn_name)],
+            canonical_module: "sand::command".into(),
+            kind: ApiKind::Function,
+            signature: format!(
+                "pub fn {}({params_signature}) -> {}",
+                ev.fn_name, ev.struct_name
+            ),
+            summary: format!("Starts a typed Minecraft `/{usage}` command."),
+            context: context.clone(),
+            minecraft: minecraft.clone(),
+            use_when: use_when.clone(),
+            avoid_when: avoid_when.clone(),
+            parameters,
+            returns: Some(format!(
+                "A `{}` builder that renders `/{usage}`.",
+                ev.struct_name
+            )),
+            example: format!("let command = sand::command::{}({call_args});", ev.fn_name),
+            availability: availability.clone(),
+        },
+    });
+
+    result.extend(variant.optional_args.iter().map(|arg| {
+        let (param_type, _, _) = map_arg_parser(&literals, arg);
+        GeneratedProviderEntry {
+            definition_identity: format!("{implementation_struct}::{}", arg.name),
+            definition_kind: ApiKind::Method,
+            parent_identity: Some(implementation_struct.clone()),
+            member_name: Some(arg.name.clone()),
+            contract: ApiEntry {
+            canonical_path: format!("{struct_path}::{}", arg.name),
+            aliases: vec![format!("sand::cmd::{}::{}", ev.struct_name, arg.name)],
+            canonical_module: "sand::command".into(),
+            kind: ApiKind::Method,
+            signature: format!(
+                "pub fn {name}(self, {name}: {param_type}) -> Self",
+                name = arg.name
+            ),
+            summary: format!(
+                "Sets the optional `<{}>` argument for Minecraft's `/{usage}` command.",
+                arg.name
+            ),
+            context: context.clone(),
+            minecraft: minecraft.clone(),
+            use_when: vec![format!(
+                "Supplying Minecraft's optional `<{}>` argument to `/{command_name}`",
+                arg.name
+            )],
+            avoid_when: vec![format!(
+                "Leaving the optional `<{}>` argument unset so Minecraft uses its default behavior",
+                arg.name
+            )],
+            parameters: vec![ApiParameter {
+                name: arg.name.clone(),
+                description: argument_description(arg, &usage),
+            }],
+            returns: Some("The command builder with the optional argument set.".into()),
+            example: format!(
+                "let command = sand::command::{}({call_args}).{}({});",
+                ev.fn_name, arg.name, arg.name
+            ),
+                availability: availability.clone(),
+            },
+        }
+    }));
+
+    result
+}
+
 // ---------------------------------------------------------------------------
 // Public entry point
 // ---------------------------------------------------------------------------
 
 /// Parse `commands.json` and write `commands.rs` to `out_dir`.
-pub fn generate(reports_dir: &Path, out_dir: &Path) -> Result<()> {
+pub fn generate(reports_dir: &Path, out_dir: &Path, minecraft_version: &str) -> Result<()> {
     let path = reports_dir.join("commands.json");
     let content = std::fs::read_to_string(&path)?;
     let root: Value = serde_json::from_str(&content)?;
@@ -576,15 +767,19 @@ pub fn generate(reports_dir: &Path, out_dir: &Path) -> Result<()> {
 
     // Generate code.
     let mut code = String::new();
+    let mut api_entries = Vec::new();
     writeln!(code, "// Generated by sand-build. Do not edit manually.").unwrap();
     writeln!(code).unwrap();
 
     for ev in &emitted {
         emit_variant(&mut code, ev);
+        api_entries.extend(command_api_entries(ev, minecraft_version));
     }
 
     let out_path = out_dir.join("commands.rs");
     std::fs::write(out_path, code)?;
+    ApiProviderCatalog::new("generated_commands", minecraft_version, api_entries)
+        .write_json(&out_dir.join("commands.api.json"))?;
     Ok(())
 }
 
@@ -668,7 +863,7 @@ mod tests {
 
         let out = dir.path().join("out");
         std::fs::create_dir_all(&out).unwrap();
-        generate(&reports, &out).unwrap();
+        generate(&reports, &out, "test-version").unwrap();
 
         let generated = std::fs::read_to_string(out.join("commands.rs")).unwrap();
         assert!(generated.contains("pub struct Kill"), "missing Kill struct");
@@ -678,6 +873,32 @@ mod tests {
         assert!(
             generated.contains("impl Command for Say"),
             "missing Command impl"
+        );
+
+        let provider = crate::read_api_provider(&out.join("commands.api.json")).unwrap();
+        assert_eq!(provider.provider, "generated_commands");
+        assert_eq!(provider.minecraft_version, "test-version");
+        let rust_public_items = generated
+            .lines()
+            .filter(|line| {
+                let line = line.trim_start();
+                line.starts_with("pub struct ") || line.starts_with("pub fn ")
+            })
+            .count();
+        assert_eq!(provider.entries.len(), rust_public_items);
+        assert!(provider.entries.iter().any(|entry| {
+            entry.definition_identity == "sand_core::cmd::_generated::say"
+                && entry.contract.canonical_path == "sand::command::say"
+                && entry.contract.minecraft.contains("/say <message>")
+        }));
+
+        let second_out = dir.path().join("out-second");
+        std::fs::create_dir_all(&second_out).unwrap();
+        generate(&reports, &second_out, "test-version").unwrap();
+        assert_eq!(
+            std::fs::read(out.join("commands.api.json")).unwrap(),
+            std::fs::read(second_out.join("commands.api.json")).unwrap(),
+            "provider metadata must be byte-for-byte deterministic"
         );
     }
 
@@ -760,7 +981,7 @@ mod tests {
 
         let out = dir.path().join("out");
         std::fs::create_dir_all(&out).unwrap();
-        generate(&reports, &out).unwrap();
+        generate(&reports, &out, "test-version").unwrap();
 
         let generated = std::fs::read_to_string(out.join("commands.rs")).unwrap();
 

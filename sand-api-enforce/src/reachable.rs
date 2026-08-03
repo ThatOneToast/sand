@@ -338,7 +338,7 @@ impl SurfaceGraph {
         }
         let mut found = BTreeMap::<String, ReachableApi>::new();
         let mut visiting = BTreeSet::new();
-        self.walk_module(facade, facade, facade, &mut visiting, &mut found)?;
+        self.walk_module(facade, facade, &mut visiting, &mut found)?;
         let mut values = found.into_values().collect::<Vec<_>>();
         values.sort_by(|left, right| left.identity.cmp(&right.identity));
         Ok(values)
@@ -346,7 +346,6 @@ impl SurfaceGraph {
 
     fn walk_module(
         &self,
-        owner_crate: &str,
         module_id: &str,
         public_path: &str,
         visiting: &mut BTreeSet<(String, String)>,
@@ -361,6 +360,10 @@ impl SurfaceGraph {
         if module.excluded {
             return Ok(());
         }
+        let defining_crate = module_id
+            .split("::")
+            .next()
+            .expect("module identities always start with a crate name");
 
         for (name, identity) in &module.declarations {
             self.expose_declaration(identity, &format!("{public_path}::{name}"), found)?;
@@ -368,10 +371,10 @@ impl SurfaceGraph {
         for (name, child) in &module.modules {
             let child_path = format!("{public_path}::{name}");
             self.expose_module(child, &child_path, found)?;
-            self.walk_module(owner_crate, child, &child_path, visiting, found)?;
+            self.walk_module(child, &child_path, visiting, found)?;
         }
         for use_record in module.uses.iter().filter(|record| record.public) {
-            let resolved = self.resolve_use_target(owner_crate, module_id, &use_record.prefix);
+            let resolved = self.resolve_use_target(defining_crate, module_id, &use_record.prefix);
             match &use_record.leaf {
                 UseLeaf::Name { source, exported } => {
                     let target = format!("{resolved}::{source}");
@@ -381,13 +384,7 @@ impl SurfaceGraph {
                         .unwrap_or_else(|| target.clone());
                     if self.module(&resolved_target).is_some() {
                         self.expose_module(&resolved_target, &alias_path, found)?;
-                        self.walk_module(
-                            owner_crate,
-                            &resolved_target,
-                            &alias_path,
-                            visiting,
-                            found,
-                        )?;
+                        self.walk_module(&resolved_target, &alias_path, visiting, found)?;
                     } else {
                         let exposed =
                             self.expose_declaration(&resolved_target, &alias_path, found)?;
@@ -432,7 +429,7 @@ impl SurfaceGraph {
                             target: format!("{resolved}::*"),
                         });
                     }
-                    self.walk_module(owner_crate, &resolved, public_path, visiting, found)?;
+                    self.walk_module(&resolved, public_path, visiting, found)?;
                 }
             }
         }

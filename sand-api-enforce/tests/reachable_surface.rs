@@ -685,6 +685,47 @@ fn proc_macro_exports_use_macro_namespace_names_kinds_and_aliases() {
 }
 
 #[test]
+fn crate_paths_inside_reexported_external_modules_use_the_defining_crate() {
+    let directory = tempfile::tempdir().unwrap();
+    let core = directory.path().join("core");
+    let facade = directory.path().join("facade.rs");
+    fs::create_dir_all(&core).unwrap();
+    fs::write(
+        core.join("lib.rs"),
+        "pub mod cmd; pub mod function { pub struct Function; }",
+    )
+    .unwrap();
+    fs::write(core.join("cmd.rs"), "pub use crate::function::Function;").unwrap();
+    fs::write(&facade, "pub use core_lib::cmd as command;").unwrap();
+
+    let graph = SurfaceGraph::load(
+        [
+            SourceCrate {
+                name: "core_lib".into(),
+                root: core.join("lib.rs"),
+            },
+            SourceCrate {
+                name: "facade".into(),
+                root: facade,
+            },
+        ],
+        [],
+        [],
+    )
+    .unwrap();
+    let reachable = graph.reachable_from("facade").unwrap();
+    assert_eq!(
+        item(&reachable, "core_lib::function::Function").paths,
+        BTreeSet::from(["facade::command::Function".into()])
+    );
+    assert!(
+        !reachable
+            .iter()
+            .any(|api| api.identity.starts_with("facade::function"))
+    );
+}
+
+#[test]
 fn unresolved_reexport_inside_mapped_workspace_is_a_hard_error_with_edge_context() {
     let directory = tempfile::tempdir().unwrap();
     let core = directory.path().join("core.rs");

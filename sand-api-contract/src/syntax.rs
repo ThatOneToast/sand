@@ -19,6 +19,12 @@ pub struct Description {
 pub struct ContractArgs {
     /// Narrow item-kind hint for syntax that is ambiguous outside its enclosing impl.
     pub kind: Option<LitStr>,
+    /// Rust path used only to transport the link-time registration.
+    ///
+    /// Facade users normally omit this and register through Sand's hidden
+    /// re-export. API-defining implementation crates set it to their direct
+    /// `sand-api-contract` dependency, avoiding a dependency on the facade.
+    pub registry: Option<syn::Path>,
     pub path: Option<LitStr>,
     pub module: Option<LitStr>,
     pub aliases: Option<Vec<LitStr>>,
@@ -69,6 +75,12 @@ pub fn parse_contract_args(tokens: TokenStream) -> syn::Result<ContractArgs> {
             .to_string();
         match key.as_str() {
             "kind" => set_once(&mut args.kind, meta.value()?.parse()?, &meta, "kind"),
+            "registry" => set_once(
+                &mut args.registry,
+                meta.value()?.parse()?,
+                &meta,
+                "registry",
+            ),
             "path" => set_once(&mut args.path, meta.value()?.parse()?, &meta, "path"),
             "module" => set_once(&mut args.module, meta.value()?.parse()?, &meta, "module"),
             "summary" => set_once(&mut args.summary, meta.value()?.parse()?, &meta, "summary"),

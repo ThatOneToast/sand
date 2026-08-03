@@ -58,9 +58,14 @@ pub(crate) fn expand(attr: TokenStream, item: TokenStream) -> syn::Result<TokenS
         info.ident.span(),
     );
     let signature = &info.signature;
+    let registry = args
+        .registry
+        .clone()
+        .unwrap_or_else(|| syn::parse_quote!(::sand::__private::api_contract));
     let (path, module) = identity_tokens(&args, info.ident)?;
     let docs = rustdoc(&args, &path, summary, context, minecraft, example);
-    let member_registrations = member_registrations(&args, &target, &path, aliases, &info)?;
+    let member_registrations =
+        member_registrations(&args, &target, &path, aliases, &info, &registry)?;
     add_member_rustdoc(&mut target, &args);
 
     Ok(quote! {
@@ -69,12 +74,12 @@ pub(crate) fn expand(attr: TokenStream, item: TokenStream) -> syn::Result<TokenS
 
         #[doc(hidden)]
         const #registration: () = {
-            ::sand::__private::api_contract::inventory::submit! {
-                ::sand::__private::api_contract::ApiRegistration {
+            #registry::inventory::submit! {
+                #registry::ApiRegistration {
                     canonical_path: #path,
                     aliases: &[#(#aliases),*],
                     canonical_module: #module,
-                    kind: ::sand::__private::api_contract::ApiKind::#kind,
+                    kind: #registry::ApiKind::#kind,
                     signature: ::std::stringify!(#signature),
                     summary: #summary,
                     context: #context,
@@ -83,7 +88,7 @@ pub(crate) fn expand(attr: TokenStream, item: TokenStream) -> syn::Result<TokenS
                     avoid_when: &[#(#avoid_when),*],
                     parameters: &[
                         #(
-                            ::sand::__private::api_contract::StaticApiParameter {
+                            #registry::StaticApiParameter {
                                 name: #parameter_names,
                                 description: #parameter_docs,
                             }
@@ -290,6 +295,7 @@ fn member_registrations(
     parent_path: &TokenStream,
     parent_aliases: &[LitStr],
     info: &TargetInfo<'_>,
+    registry: &syn::Path,
 ) -> syn::Result<TokenStream> {
     let context = required(&args.context, "context")?;
     let minecraft = required(&args.minecraft, "minecraft")?;
@@ -327,6 +333,7 @@ fn member_registrations(
                     avoid_when,
                     example,
                     availability,
+                    registry,
                 ));
             }
         }
@@ -354,6 +361,7 @@ fn member_registrations(
                     avoid_when,
                     example,
                     availability,
+                    registry,
                 ));
             }
         }
@@ -379,6 +387,7 @@ fn member_registration(
     avoid_when: &[LitStr],
     example: &LitStr,
     availability: &[LitStr],
+    registry: &syn::Path,
 ) -> TokenStream {
     let member_name = ident.to_string();
     let identity = format!("{}::{member_name}", info.ident);
@@ -393,12 +402,12 @@ fn member_registration(
     quote! {
         #[doc(hidden)]
         const #registration: () = {
-            ::sand::__private::api_contract::inventory::submit! {
-                ::sand::__private::api_contract::ApiRegistration {
+            #registry::inventory::submit! {
+                #registry::ApiRegistration {
                     canonical_path: #member_path,
                     aliases: &[#(#aliases),*],
                     canonical_module: #parent_path,
-                    kind: ::sand::__private::api_contract::ApiKind::#kind,
+                    kind: #registry::ApiKind::#kind,
                     signature: ::std::stringify!(#signature),
                     summary: #summary,
                     context: #context,

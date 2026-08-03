@@ -285,6 +285,9 @@ fn kind_name(kind: ApiKind) -> &'static str {
         ApiKind::TraitMethod => "trait method",
         ApiKind::TypeAlias => "type alias",
         ApiKind::Constant => "constant",
+        ApiKind::AssociatedConst => "associated constant",
+        ApiKind::AssociatedType => "associated type",
+        ApiKind::Field => "field",
         ApiKind::Macro => "macro",
     }
 }
@@ -301,6 +304,9 @@ fn kind_heading(kind: ApiKind) -> &'static str {
         ApiKind::TraitMethod => "Trait methods",
         ApiKind::TypeAlias => "Type aliases",
         ApiKind::Constant => "Constants",
+        ApiKind::AssociatedConst => "Associated constants",
+        ApiKind::AssociatedType => "Associated types",
+        ApiKind::Field => "Fields",
         ApiKind::Macro => "Macros",
     }
 }

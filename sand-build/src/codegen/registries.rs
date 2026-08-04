@@ -305,6 +305,12 @@ mod tests {
         assert!(generated.contains("\"minecraft:stone\""));
 
         let provider = crate::read_api_provider(&out.join("registries.api.json")).unwrap();
+        crate::validate_api_provider_source(
+            &provider,
+            &out.join("registries.rs"),
+            "sand_core::generated",
+        )
+        .unwrap();
         assert_eq!(provider.provider, "generated_registries");
         assert_eq!(provider.minecraft_version, "test-version");
         assert_eq!(provider.entries.len(), 4);
@@ -313,30 +319,6 @@ mod tests {
                 && entry.contract.minecraft.contains("`minecraft:stone`")
                 && entry.definition_identity == "sand_core::generated::Item::Stone"
         }));
-
-        let rust_enum_count = generated
-            .lines()
-            .filter(|line| line.trim_start().starts_with("pub enum "))
-            .count();
-        let rust_method_count = generated
-            .lines()
-            .filter(|line| line.trim_start().starts_with("pub fn resource_location("))
-            .count();
-        let rust_variant_count = generated
-            .lines()
-            .filter(|line| {
-                let trimmed = line.trim();
-                line.starts_with("    ")
-                    && !line.starts_with("        ")
-                    && trimmed.ends_with(',')
-                    && !trimmed.contains(':')
-            })
-            .count();
-        assert_eq!(
-            provider.entries.len(),
-            rust_enum_count + rust_method_count + rust_variant_count,
-            "every generated public enum, variant, and method needs provider metadata"
-        );
 
         let second_out = dir.path().join("out-second");
         std::fs::create_dir_all(&second_out).unwrap();

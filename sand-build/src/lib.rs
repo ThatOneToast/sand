@@ -42,6 +42,7 @@ mod report;
 
 pub use api_provider::{
     ApiProviderCatalog, GeneratedProviderEntry, PROVIDER_SCHEMA_VERSION, read_api_provider,
+    validate_api_provider_source,
 };
 pub use error::{Error, Result};
 pub use registry_fixture::refresh_registry_coverage_fixture;

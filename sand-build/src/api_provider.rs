@@ -1,9 +1,11 @@
 //! Deterministic metadata emitted beside generated Rust APIs.
 //!
 //! Provider catalogs are generated from the same in-memory declarations as
-//! the Rust source. They are therefore suitable input for the facade's public
-//! surface audit; parsing generated Rust a second time is neither necessary
-//! nor authoritative.
+//! the Rust source. At the consuming facade boundary, Sand also parses the
+//! emitted Rust into a structural identity set and requires byte-independent
+//! set equality with the provider. The provider remains authoritative for
+//! contracts; the structural projection proves it describes every emitted
+//! public declaration and no nonexistent one.
 
 use std::collections::BTreeSet;
 use std::path::Path;
@@ -177,6 +179,198 @@ pub fn read_api_provider(path: &Path) -> Result<ApiProviderCatalog> {
     Ok(catalog)
 }
 
+/// Prove that a provider is an exact structural description of the public
+/// declarations in the generated Rust file included beneath `root_identity`.
+///
+/// Provider metadata and Rust are deliberately parsed as separate artifacts
+/// here. Even though generators normally emit both from the same declaration
+/// model, this consumer-side comparison prevents a later write, formatter, or
+/// generator bug from adding a reachable public item that the provider does
+/// not report (or reporting an item that Rust does not actually contain).
+pub fn validate_api_provider_source(
+    catalog: &ApiProviderCatalog,
+    rust_path: &Path,
+    root_identity: &str,
+) -> std::result::Result<(), String> {
+    catalog.validate()?;
+    let source = std::fs::read_to_string(rust_path)
+        .map_err(|error| format!("failed to read {}: {error}", rust_path.display()))?;
+    let syntax = syn::parse_file(&source)
+        .map_err(|error| format!("failed to parse {}: {error}", rust_path.display()))?;
+    let actual = public_source_declarations(&syntax, root_identity)?;
+    let expected = catalog
+        .entries
+        .iter()
+        .map(|entry| (entry.definition_identity.clone(), entry.definition_kind))
+        .collect::<BTreeSet<_>>();
+    if actual == expected {
+        return Ok(());
+    }
+
+    let missing = expected.difference(&actual).cloned().collect::<Vec<_>>();
+    let unreported = actual.difference(&expected).cloned().collect::<Vec<_>>();
+    Err(format!(
+        "provider `{}` does not exactly match generated Rust {} beneath `{root_identity}`; missing from Rust: {}; public but unreported: {}",
+        catalog.provider,
+        rust_path.display(),
+        format_declarations(&missing),
+        format_declarations(&unreported),
+    ))
+}
+
+fn public_source_declarations(
+    syntax: &syn::File,
+    root: &str,
+) -> std::result::Result<BTreeSet<(String, ApiKind)>, String> {
+    let mut declarations = BTreeSet::new();
+    collect_public_source_declarations(&syntax.items, root, &mut declarations)?;
+    Ok(declarations)
+}
+
+fn collect_public_source_declarations(
+    items: &[syn::Item],
+    root: &str,
+    declarations: &mut BTreeSet<(String, ApiKind)>,
+) -> std::result::Result<(), String> {
+    for item in items {
+        match item {
+            syn::Item::Mod(item) if public(&item.vis) => {
+                let identity = format!("{root}::{}", item.ident);
+                declarations.insert((identity.clone(), ApiKind::Module));
+                let Some((_, items)) = &item.content else {
+                    return Err(format!(
+                        "generated public module `{identity}` is out-of-line and cannot be structurally verified"
+                    ));
+                };
+                collect_public_source_declarations(items, &identity, declarations)?;
+            }
+            syn::Item::Struct(item) if public(&item.vis) => {
+                let owner = format!("{root}::{}", item.ident);
+                declarations.insert((owner.clone(), ApiKind::Struct));
+                for (index, field) in item.fields.iter().enumerate() {
+                    if public(&field.vis) {
+                        let name = field
+                            .ident
+                            .as_ref()
+                            .map_or_else(|| index.to_string(), ToString::to_string);
+                        declarations.insert((format!("{owner}::{name}"), ApiKind::Field));
+                    }
+                }
+            }
+            syn::Item::Enum(item) if public(&item.vis) => {
+                let owner = format!("{root}::{}", item.ident);
+                declarations.insert((owner.clone(), ApiKind::Enum));
+                for variant in &item.variants {
+                    let variant_owner = format!("{owner}::{}", variant.ident);
+                    declarations.insert((variant_owner.clone(), ApiKind::Variant));
+                    for (index, field) in variant.fields.iter().enumerate() {
+                        let name = field
+                            .ident
+                            .as_ref()
+                            .map_or_else(|| index.to_string(), ToString::to_string);
+                        declarations.insert((format!("{variant_owner}::{name}"), ApiKind::Field));
+                    }
+                }
+            }
+            syn::Item::Trait(item) if public(&item.vis) => {
+                let owner = format!("{root}::{}", item.ident);
+                declarations.insert((owner.clone(), ApiKind::Trait));
+                for member in &item.items {
+                    let (name, kind) = match member {
+                        syn::TraitItem::Fn(item) => (&item.sig.ident, ApiKind::TraitMethod),
+                        syn::TraitItem::Const(item) => (&item.ident, ApiKind::AssociatedConst),
+                        syn::TraitItem::Type(item) => (&item.ident, ApiKind::AssociatedType),
+                        _ => continue,
+                    };
+                    declarations.insert((format!("{owner}::{name}"), kind));
+                }
+            }
+            syn::Item::Fn(item) if public(&item.vis) => {
+                declarations.insert((format!("{root}::{}", item.sig.ident), ApiKind::Function));
+            }
+            syn::Item::Type(item) if public(&item.vis) => {
+                declarations.insert((format!("{root}::{}", item.ident), ApiKind::TypeAlias));
+            }
+            syn::Item::Const(item) if public(&item.vis) => {
+                declarations.insert((format!("{root}::{}", item.ident), ApiKind::Constant));
+            }
+            syn::Item::Static(item) if public(&item.vis) => {
+                declarations.insert((format!("{root}::{}", item.ident), ApiKind::Constant));
+            }
+            syn::Item::Impl(item) if item.trait_.is_none() => {
+                let syn::Type::Path(owner) = item.self_ty.as_ref() else {
+                    continue;
+                };
+                let Some(owner) = owner.path.segments.last() else {
+                    continue;
+                };
+                let owner = format!("{root}::{}", owner.ident);
+                for member in &item.items {
+                    let (visibility, name, kind) = match member {
+                        syn::ImplItem::Fn(item) => (&item.vis, &item.sig.ident, ApiKind::Method),
+                        syn::ImplItem::Const(item) => {
+                            (&item.vis, &item.ident, ApiKind::AssociatedConst)
+                        }
+                        syn::ImplItem::Type(item) => {
+                            (&item.vis, &item.ident, ApiKind::AssociatedType)
+                        }
+                        _ => continue,
+                    };
+                    if public(visibility) {
+                        declarations.insert((format!("{owner}::{name}"), kind));
+                    }
+                }
+            }
+            syn::Item::Union(item) if public(&item.vis) => {
+                return Err(format!(
+                    "generated public union `{root}::{}` has no API contract kind",
+                    item.ident
+                ));
+            }
+            syn::Item::Macro(item)
+                if item
+                    .attrs
+                    .iter()
+                    .any(|attribute| attribute.path().is_ident("macro_export")) =>
+            {
+                let Some(name) = &item.ident else {
+                    return Err("generated #[macro_export] declaration has no name".into());
+                };
+                declarations.insert((format!("{root}::{name}"), ApiKind::Macro));
+            }
+            syn::Item::Use(item) if public(&item.vis) => {
+                return Err(format!(
+                    "generated public re-export beneath `{root}` cannot be structurally verified by declaration parity"
+                ));
+            }
+            syn::Item::ExternCrate(item) if public(&item.vis) => {
+                return Err(format!(
+                    "generated public extern crate `{}` beneath `{root}` cannot be structurally verified by declaration parity",
+                    item.ident
+                ));
+            }
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
+fn public(visibility: &syn::Visibility) -> bool {
+    matches!(visibility, syn::Visibility::Public(_))
+}
+
+fn format_declarations(declarations: &[(String, ApiKind)]) -> String {
+    if declarations.is_empty() {
+        "none".into()
+    } else {
+        declarations
+            .iter()
+            .map(|(identity, kind)| format!("{identity} ({kind:?})"))
+            .collect::<Vec<_>>()
+            .join(", ")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use sand_api_contract::ApiKind;
@@ -238,5 +432,48 @@ mod tests {
         member.member_name = Some("method".into());
         let catalog = ApiProviderCatalog::new("fixture", "test", vec![member]);
         assert!(catalog.validate().unwrap_err().contains("is not member"));
+    }
+
+    #[test]
+    fn generated_source_must_exactly_match_provider_structure() {
+        let directory = tempfile::tempdir().unwrap();
+        let rust = directory.path().join("generated.rs");
+        std::fs::write(&rust, "pub struct Generated;\n").unwrap();
+        let catalog = ApiProviderCatalog::new(
+            "fixture",
+            "test",
+            vec![entry(
+                "core::generated::Generated",
+                "sand::generated::Generated",
+            )],
+        );
+        validate_api_provider_source(&catalog, &rust, "core::generated").unwrap();
+
+        // This simulates an opaque generator (or a post-generation mutation)
+        // emitting an extra reachable item without changing its provider.
+        std::fs::write(&rust, "pub struct Generated;\npub fn bypass() {}\n").unwrap();
+        let error = validate_api_provider_source(&catalog, &rust, "core::generated")
+            .expect_err("unreported public declaration must fail closed");
+        assert!(error.contains("public but unreported"), "{error}");
+        assert!(
+            error.contains("core::generated::bypass (Function)"),
+            "{error}"
+        );
+
+        std::fs::write(
+            &rust,
+            "pub struct Generated;\npub mod hidden_bypass { pub struct Extra; }\n",
+        )
+        .unwrap();
+        let error = validate_api_provider_source(&catalog, &rust, "core::generated")
+            .expect_err("unreported public module contents must fail closed");
+        assert!(
+            error.contains("core::generated::hidden_bypass (Module)"),
+            "{error}"
+        );
+        assert!(
+            error.contains("core::generated::hidden_bypass::Extra (Struct)"),
+            "{error}"
+        );
     }
 }

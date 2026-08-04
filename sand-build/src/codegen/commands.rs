@@ -876,16 +876,14 @@ mod tests {
         );
 
         let provider = crate::read_api_provider(&out.join("commands.api.json")).unwrap();
+        crate::validate_api_provider_source(
+            &provider,
+            &out.join("commands.rs"),
+            "sand_core::cmd::_generated",
+        )
+        .unwrap();
         assert_eq!(provider.provider, "generated_commands");
         assert_eq!(provider.minecraft_version, "test-version");
-        let rust_public_items = generated
-            .lines()
-            .filter(|line| {
-                let line = line.trim_start();
-                line.starts_with("pub struct ") || line.starts_with("pub fn ")
-            })
-            .count();
-        assert_eq!(provider.entries.len(), rust_public_items);
         assert!(provider.entries.iter().any(|entry| {
             entry.definition_identity == "sand_core::cmd::_generated::say"
                 && entry.contract.canonical_path == "sand::command::say"

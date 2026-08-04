@@ -13,4 +13,10 @@ pub struct PlayerMagic {
 const _: sand::__private::state::StorageSchema<PlayerMagic> = PlayerMagic::SCHEMA;
 const _: fn() -> sand::__private::state::StorageField<PlayerMagic, i32> = PlayerMagic::mana;
 
-include!(concat!(env!("OUT_DIR"), "/api_enforcement.rs"));
+// Compiler diagnostics are build wiring, not an author-facing generated API.
+// Keeping the opaque include under `__private` makes that exclusion explicit
+// to the facade surface model while still compiling it during a normal check.
+#[doc(hidden)]
+pub mod __private {
+    include!(concat!(env!("OUT_DIR"), "/api_enforcement.rs"));
+}

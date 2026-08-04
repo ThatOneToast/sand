@@ -169,10 +169,26 @@ fn generated_providers(
 ) -> Result<(Vec<GeneratedApi>, Vec<ContractIdentity>), String> {
     let mut generated = Vec::new();
     let mut contracts = Vec::new();
-    for filename in ["commands.api.json", "registries.api.json"] {
+    for (filename, rust_filename, root_identity) in [
+        (
+            "commands.api.json",
+            "commands.rs",
+            "sand_core::cmd::_generated",
+        ),
+        (
+            "registries.api.json",
+            "registries.rs",
+            "sand_core::generated",
+        ),
+    ] {
         let path = directory.join(filename);
         let catalog = sand_build::read_api_provider(&path)
             .map_err(|error| format!("{}: {error}", path.display()))?;
+        sand_build::validate_api_provider_source(
+            &catalog,
+            &directory.join(rust_filename),
+            root_identity,
+        )?;
         let mut parents = BTreeMap::<String, GeneratedApi>::new();
         for entry in &catalog.entries {
             contracts.push(ContractIdentity {

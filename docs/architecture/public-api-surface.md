@@ -126,6 +126,10 @@ Reachable item-position `include!` calls are fail-closed. Literal file paths
 are parsed into the source graph. Build-output expressions must be explicitly
 bound to a named provider that owns generated declarations in that exact
 module; Sand currently binds the command and vanilla-registry output modules.
+For those modules the facade build separately parses the emitted Rust and
+requires its public identity/kind set to equal the provider exactly. Editing a
+generated file to add a public item, or declaring provider metadata for an item
+that was not emitted, therefore stops normal compilation.
 An unbound opaque include stops an ordinary build before it can conceal a new
 public declaration.
 

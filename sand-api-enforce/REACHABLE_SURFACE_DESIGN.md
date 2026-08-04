@@ -77,7 +77,10 @@ as source in its containing module. An opaque expression such as an `OUT_DIR`
 include fails when that module becomes facade-reachable unless the build graph
 explicitly binds the module to a named provider that owns declarations beneath
 it. A binding covers exactly one opaque include, preventing a second generated
-file from silently borrowing the first provider's audit.
+file from silently borrowing the first provider's audit. The command and
+registry consumers additionally parse the emitted file and compare its exact
+public identity/kind set with that provider, so an extra declaration inside the
+bound file cannot borrow the provider either.
 
 ## Production integration requirements
 

@@ -6,8 +6,8 @@ use std::path::{Path, PathBuf};
 
 use sand_api_contract::ApiKind;
 use sand_api_enforce::{
-    CfgSet, ContractIdentity, GeneratedApi, ReachableKind, ScopeManifest, ScopeState, SourceCrate,
-    SurfaceGraph, contract_declarations_from_files, discover_facade_feature_union,
+    CfgSet, ContractIdentity, GeneratedApi, ReachableKind, ScopeManifest, ScopeState, SurfaceGraph,
+    contract_declarations_from_files, discover_facade_feature_union, discover_local_source_crates,
     event_generated_type_provider, registry_id_provider, resolve_contract_identities,
     resource_ref_provider, validate_contract_lookup_namespace, vanilla_registry_enum_provider,
 };
@@ -63,8 +63,13 @@ fn main() {
     // a newly added feature-gated API to escape a default `cargo check`.
     let enabled_features = discover_facade_feature_union(Path::new("Cargo.toml"))
         .unwrap_or_else(|error| panic!("failed to discover Sand facade features: {error}"));
+    let source_crates = discover_local_source_crates(Path::new("Cargo.toml"))
+        .unwrap_or_else(|error| panic!("failed to discover local Sand source crates: {error}"));
+    for source_crate in &source_crates {
+        println!("cargo:rerun-if-changed={}", source_crate.root.display());
+    }
     let graph = SurfaceGraph::load_with_cfg(
-        source_crates(workspace),
+        source_crates.clone(),
         cargo_cfg(enabled_features.clone()),
         generated,
     )
@@ -73,8 +78,9 @@ fn main() {
         .reachable_from("sand")
         .unwrap_or_else(|error| panic!("failed to extract Sand public facade: {error}"));
 
-    let source_declarations = contract_declarations_from_files(contract_source_files(workspace))
-        .unwrap_or_else(|error| panic!("invalid build-time API contract source: {error}"));
+    let source_declarations =
+        contract_declarations_from_files(contract_source_files(&source_crates))
+            .unwrap_or_else(|error| panic!("invalid build-time API contract source: {error}"));
     let mut contracts = resolve_contract_identities(&reachable, &source_declarations)
         .unwrap_or_else(|errors| panic_errors("invalid source API contract identities", &errors));
     contracts.extend(validate_generated_contracts(
@@ -97,38 +103,17 @@ fn main() {
     write_coverage(&manifest, &report, &reachable);
 }
 
-fn source_crates(workspace: &Path) -> Vec<SourceCrate> {
-    [
-        ("sand", "sand/src/lib.rs"),
-        ("sand_core", "sand-core/src/lib.rs"),
-        ("sand_commands", "sand-commands/src/lib.rs"),
-        ("sand_components", "sand-components/src/lib.rs"),
-        ("sand_macros", "sand-macros/src/lib.rs"),
-        ("sand_resourcepack", "sand-resourcepack/src/lib.rs"),
-        ("sand_version", "sand-version/src/lib.rs"),
-    ]
-    .into_iter()
-    .map(|(name, root)| SourceCrate {
-        name: name.to_owned(),
-        root: workspace.join(root),
-    })
-    .collect()
-}
-
-fn contract_source_files(workspace: &Path) -> Vec<PathBuf> {
+fn contract_source_files(source_crates: &[sand_api_enforce::SourceCrate]) -> Vec<PathBuf> {
     let mut files = Vec::new();
-    for directory in [
-        "sand/src",
-        "sand-core/src",
-        "sand-commands/src",
-        "sand-components/src",
-        "sand-macros/src",
-        "sand-resourcepack/src",
-        "sand-version/src",
-    ] {
-        collect_rust_files(&workspace.join(directory), &mut files);
+    for source_crate in source_crates {
+        let directory = source_crate
+            .root
+            .parent()
+            .expect("library source root has a parent directory");
+        collect_rust_files(directory, &mut files);
     }
     files.sort();
+    files.dedup();
     files
 }
 

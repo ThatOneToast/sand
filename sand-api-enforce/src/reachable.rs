@@ -30,6 +30,149 @@ pub struct SourceCrate {
     pub root: PathBuf,
 }
 
+/// Discover the facade crate and the transitive closure of its local path
+/// dependencies directly from Cargo manifests.
+///
+/// Keeping this list in source would let a newly added workspace crate be
+/// publicly re-exported without ever entering the reachability graph. Only
+/// normal dependencies participate: build dependencies cannot be re-exported
+/// by the library, and dev dependencies are not part of a normal build.
+pub fn discover_local_source_crates(
+    facade_manifest: &Path,
+) -> Result<Vec<SourceCrate>, ReachabilityError> {
+    let facade_manifest = facade_manifest.canonicalize().map_err(|error| {
+        ReachabilityError::Io(format!("{}: {error}", facade_manifest.display()))
+    })?;
+    let mut pending = vec![(None, facade_manifest)];
+    let mut manifests = BTreeMap::<String, PathBuf>::new();
+    let mut crates = BTreeMap::<String, SourceCrate>::new();
+
+    while let Some((dependency_name, manifest_path)) = pending.pop() {
+        let text = fs::read_to_string(&manifest_path).map_err(|error| {
+            ReachabilityError::Io(format!("{}: {error}", manifest_path.display()))
+        })?;
+        let manifest = text.parse::<toml::Value>().map_err(|error| {
+            ReachabilityError::Parse(format!("{}: {error}", manifest_path.display()))
+        })?;
+        let crate_name = dependency_name.unwrap_or_else(|| manifest_crate_name(&manifest));
+        let manifest_directory = manifest_path.parent().expect("manifest has a parent");
+        let root = manifest
+            .get("lib")
+            .and_then(|lib| lib.get("path"))
+            .and_then(toml::Value::as_str)
+            .map_or_else(
+                || manifest_directory.join("src/lib.rs"),
+                |path| manifest_directory.join(path),
+            );
+        let root = root
+            .canonicalize()
+            .map_err(|error| ReachabilityError::Io(format!("{}: {error}", root.display())))?;
+
+        if let Some(previous) = manifests.insert(crate_name.clone(), manifest_path.clone()) {
+            if previous != manifest_path {
+                return Err(ReachabilityError::Parse(format!(
+                    "local dependency crate name `{crate_name}` maps to both {} and {}; rename one dependency explicitly",
+                    previous.display(),
+                    manifest_path.display()
+                )));
+            }
+            continue;
+        }
+        crates.insert(
+            crate_name.clone(),
+            SourceCrate {
+                name: crate_name,
+                root,
+            },
+        );
+
+        for (name, path) in local_dependency_paths(&manifest, manifest_directory)? {
+            let dependency_manifest = path.join("Cargo.toml").canonicalize().map_err(|error| {
+                ReachabilityError::Io(format!("{}: {error}", path.join("Cargo.toml").display()))
+            })?;
+            pending.push((Some(name), dependency_manifest));
+        }
+    }
+
+    Ok(crates.into_values().collect())
+}
+
+fn manifest_crate_name(manifest: &toml::Value) -> String {
+    manifest
+        .get("lib")
+        .and_then(|lib| lib.get("name"))
+        .and_then(toml::Value::as_str)
+        .or_else(|| {
+            manifest
+                .get("package")
+                .and_then(|package| package.get("name"))
+                .and_then(toml::Value::as_str)
+        })
+        .expect("Cargo manifest must have a package or library name")
+        .replace('-', "_")
+}
+
+fn local_dependency_paths(
+    manifest: &toml::Value,
+    manifest_directory: &Path,
+) -> Result<Vec<(String, PathBuf)>, ReachabilityError> {
+    let mut dependencies = BTreeMap::new();
+    collect_local_dependencies(
+        manifest.get("dependencies"),
+        manifest_directory,
+        &mut dependencies,
+    )?;
+    if let Some(targets) = manifest.get("target").and_then(toml::Value::as_table) {
+        for target in targets.values() {
+            collect_local_dependencies(
+                target.get("dependencies"),
+                manifest_directory,
+                &mut dependencies,
+            )?;
+        }
+    }
+    Ok(dependencies.into_iter().collect())
+}
+
+fn collect_local_dependencies(
+    table: Option<&toml::Value>,
+    manifest_directory: &Path,
+    dependencies: &mut BTreeMap<String, PathBuf>,
+) -> Result<(), ReachabilityError> {
+    let Some(table) = table.and_then(toml::Value::as_table) else {
+        return Ok(());
+    };
+    for (dependency_key, specification) in table {
+        let Some(specification) = specification.as_table() else {
+            continue;
+        };
+        if specification
+            .get("workspace")
+            .and_then(toml::Value::as_bool)
+            == Some(true)
+        {
+            return Err(ReachabilityError::Parse(format!(
+                "local dependency `{dependency_key}` uses `workspace = true`; give the facade dependency an explicit path so source auditing cannot be ambiguous"
+            )));
+        }
+        let Some(path) = specification.get("path").and_then(toml::Value::as_str) else {
+            continue;
+        };
+        let crate_name = dependency_key.replace('-', "_");
+        let path = manifest_directory.join(path);
+        if let Some(previous) = dependencies.insert(crate_name.clone(), path.clone())
+            && previous != path
+        {
+            return Err(ReachabilityError::Parse(format!(
+                "local dependency crate name `{crate_name}` has conflicting paths {} and {}",
+                previous.display(),
+                path.display()
+            )));
+        }
+    }
+    Ok(())
+}
+
 /// A declaration emitted by a controlled code generator.
 #[derive(Clone, Debug)]
 pub struct GeneratedApi {

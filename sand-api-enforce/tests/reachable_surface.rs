@@ -1095,3 +1095,160 @@ fn public_impl_for_unmodeled_generated_owner_fails_closed() {
         sand_api_enforce::ReachableOrigin::Generator("fixture_generator".into())
     );
 }
+
+#[test]
+fn reachable_api_producing_derive_requires_connected_provider() {
+    let directory = tempfile::tempdir().unwrap();
+    let facade = directory.path().join("facade.rs");
+    fs::write(
+        &facade,
+        "#[derive(Debug, SandStorage)] pub struct Storage { value: i32 }",
+    )
+    .unwrap();
+    let graph = SurfaceGraph::load(
+        [SourceCrate {
+            name: "facade".into(),
+            root: facade.clone(),
+        }],
+        [],
+        [],
+    )
+    .unwrap();
+    assert!(matches!(
+        graph.reachable_from("facade"),
+        Err(ReachabilityError::UnboundApiProducer { producer, owner, .. })
+            if producer == "SandStorage" && owner == "facade::Storage"
+    ));
+
+    let graph = SurfaceGraph::load(
+        [SourceCrate {
+            name: "facade".into(),
+            root: facade,
+        }],
+        [],
+        [GeneratedApi {
+            identity: "facade::Storage::SCHEMA".into(),
+            provider: "storage_provider".into(),
+            kind: ReachableKind::AssociatedConst,
+            members: vec![],
+            excluded: false,
+        }],
+    )
+    .unwrap()
+    .bind_api_producer("facade::Storage", "SandStorage", "storage_provider")
+    .unwrap();
+    let reachable = graph.reachable_from("facade").unwrap();
+    assert_eq!(
+        item(&reachable, "facade::Storage::SCHEMA").origin,
+        sand_api_enforce::ReachableOrigin::Generator("storage_provider".into())
+    );
+}
+
+#[test]
+fn trait_only_and_builtin_derives_do_not_require_providers() {
+    let directory = tempfile::tempdir().unwrap();
+    let facade = directory.path().join("facade.rs");
+    fs::write(
+        &facade,
+        "#[derive(Debug, Clone, EntityStateEnum)] pub enum Mode { Active }",
+    )
+    .unwrap();
+    let graph = SurfaceGraph::load(
+        [SourceCrate {
+            name: "facade".into(),
+            root: facade,
+        }],
+        [],
+        [],
+    )
+    .unwrap();
+    assert!(graph.reachable_from("facade").is_ok());
+}
+
+#[test]
+fn producer_binding_is_per_declaration_and_cannot_exempt_a_new_derive() {
+    let directory = tempfile::tempdir().unwrap();
+    let facade = directory.path().join("facade.rs");
+    fs::write(
+        &facade,
+        "#[derive(SandStorage)] pub struct Covered; #[derive(SandStorage)] pub struct Added;",
+    )
+    .unwrap();
+    let graph = SurfaceGraph::load(
+        [SourceCrate {
+            name: "facade".into(),
+            root: facade,
+        }],
+        [],
+        [GeneratedApi {
+            identity: "facade::Covered::SCHEMA".into(),
+            provider: "storage_provider".into(),
+            kind: ReachableKind::AssociatedConst,
+            members: vec![],
+            excluded: false,
+        }],
+    )
+    .unwrap()
+    .bind_api_producer("facade::Covered", "SandStorage", "storage_provider")
+    .unwrap();
+    assert!(matches!(
+        graph.reachable_from("facade"),
+        Err(ReachabilityError::UnboundApiProducer { owner, .. }) if owner == "facade::Added"
+    ));
+}
+
+#[test]
+fn api_producing_derive_inside_generated_transcriber_requires_provider() {
+    let directory = tempfile::tempdir().unwrap();
+    let facade = directory.path().join("facade.rs");
+    fs::write(
+        &facade,
+        r#"
+        #[macro_export]
+        macro_rules! storage_family {
+            ($name:ident) => {
+                #[derive(Debug, SandStorage)]
+                pub struct $name { value: i32 }
+            };
+        }
+        "#,
+    )
+    .unwrap();
+    let graph = SurfaceGraph::load(
+        [SourceCrate {
+            name: "facade".into(),
+            root: facade.clone(),
+        }],
+        [],
+        [],
+    )
+    .unwrap();
+    assert!(matches!(
+        graph.reachable_from("facade"),
+        Err(ReachabilityError::UnboundApiProducer { producer, owner, .. })
+            if producer == "SandStorage" && owner == "facade::storage_family"
+    ));
+
+    let graph = SurfaceGraph::load(
+        [SourceCrate {
+            name: "facade".into(),
+            root: facade,
+        }],
+        [],
+        [GeneratedApi {
+            identity: "facade::GeneratedStorage".into(),
+            provider: "storage_family_provider".into(),
+            kind: ReachableKind::Struct,
+            members: vec![("SCHEMA".into(), ReachableKind::AssociatedConst)],
+            excluded: false,
+        }],
+    )
+    .unwrap()
+    .bind_api_producer(
+        "facade::storage_family",
+        "SandStorage",
+        "storage_family_provider",
+    )
+    .unwrap();
+    assert!(graph.reachable_from("facade").is_ok());
+}

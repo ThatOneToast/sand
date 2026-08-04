@@ -278,6 +278,16 @@ pub enum ReachabilityError {
         provider: String,
         dynamic_includes: usize,
     },
+    UnboundApiProducer {
+        source: PathBuf,
+        line: usize,
+        producer: String,
+        owner: String,
+    },
+    InvalidApiProducerProvider {
+        producer: String,
+        provider: String,
+    },
     MissingContract {
         identity: String,
         paths: Vec<String>,
@@ -349,6 +359,20 @@ impl fmt::Display for ReachabilityError {
                 formatter,
                 "generated include binding `{module}` -> `{provider}` requires exactly one opaque include and at least one matching generated API declaration beneath that module (found {dynamic_includes} opaque includes)"
             ),
+            Self::UnboundApiProducer {
+                source,
+                line,
+                producer,
+                owner,
+            } => write!(
+                formatter,
+                "{}:{line}: reachable API source `{owner}` uses API-producing Sand macro `{producer}` without a connected generated API provider",
+                source.display()
+            ),
+            Self::InvalidApiProducerProvider { producer, provider } => write!(
+                formatter,
+                "API-producing Sand macro `{producer}` is bound to provider `{provider}`, but that provider owns no generated declarations"
+            ),
             Self::MissingContract { identity, paths } => write!(
                 formatter,
                 "reachable API `{identity}` ({}) is missing a contract",
@@ -398,6 +422,8 @@ pub struct SurfaceGraph {
     crates: BTreeMap<String, CrateIndex>,
     generated: Vec<GeneratedApi>,
     include_providers: BTreeMap<String, String>,
+    api_producer_bindings: BTreeMap<(String, String), String>,
+    transcriber_producers: Vec<ApiProducerUse>,
 }
 
 #[derive(Default)]
@@ -407,6 +433,7 @@ struct CrateIndex {
     extern_aliases: BTreeMap<String, String>,
     type_aliases: BTreeMap<String, String>,
     pending_impls: Vec<PendingImpl>,
+    transcriber_producers: Vec<ApiProducerUse>,
 }
 
 struct PendingImpl {
@@ -440,6 +467,15 @@ struct Declaration {
     alias_target: Option<String>,
     definition: SourceDefinition,
     member_definitions: BTreeMap<String, SourceDefinition>,
+    api_producers: Vec<ApiProducerUse>,
+}
+
+#[derive(Clone)]
+struct ApiProducerUse {
+    name: String,
+    source: PathBuf,
+    line: usize,
+    owner: String,
 }
 
 type MemberRecord = (String, ReachableKind, bool);
@@ -518,11 +554,46 @@ impl SurfaceGraph {
                 });
             }
         }
+        let transcriber_producers = indices
+            .values_mut()
+            .flat_map(|index| std::mem::take(&mut index.transcriber_producers))
+            .collect();
         Ok(Self {
             crates: indices,
             generated,
             include_providers: BTreeMap::new(),
+            api_producer_bindings: BTreeMap::new(),
+            transcriber_producers,
         })
+    }
+
+    /// Connect one source declaration using a known Sand macro that can emit
+    /// additional public items to the generator provider which models them.
+    ///
+    /// Built-in/inert attributes and derives that only implement traits do not
+    /// need a binding. Binding the same producer on another declaration is not
+    /// sufficient: every occurrence is an explicit edge, so adding a new
+    /// derived API fails closed. The deliberately small producer set is
+    /// recognized by [`api_producing_sand_macro`].
+    pub fn bind_api_producer(
+        mut self,
+        owner: impl Into<String>,
+        producer: impl Into<String>,
+        provider: impl Into<String>,
+    ) -> Result<Self, ReachabilityError> {
+        let owner = owner.into();
+        let producer = producer.into();
+        let provider = provider.into();
+        if !self
+            .generated
+            .iter()
+            .any(|item| !item.excluded && item.provider == provider)
+        {
+            return Err(ReachabilityError::InvalidApiProducerProvider { producer, provider });
+        }
+        self.api_producer_bindings
+            .insert((owner, producer), provider);
+        Ok(self)
     }
 
     /// Bind a non-literal `include!` in `module` to the named provider that
@@ -569,9 +640,31 @@ impl SurfaceGraph {
         let mut found = BTreeMap::<String, ReachableApi>::new();
         let mut visiting = BTreeSet::new();
         self.walk_module(facade, facade, &mut visiting, &mut found)?;
+        for producer in &self.transcriber_producers {
+            self.require_api_producer_binding(producer)?;
+        }
         let mut values = found.into_values().collect::<Vec<_>>();
         values.sort_by(|left, right| left.identity.cmp(&right.identity));
         Ok(values)
+    }
+
+    fn require_api_producer_binding(
+        &self,
+        producer: &ApiProducerUse,
+    ) -> Result<(), ReachabilityError> {
+        if self
+            .api_producer_bindings
+            .contains_key(&(producer.owner.clone(), producer.name.clone()))
+        {
+            Ok(())
+        } else {
+            Err(ReachabilityError::UnboundApiProducer {
+                source: producer.source.clone(),
+                line: producer.line,
+                producer: producer.name.clone(),
+                owner: producer.owner.clone(),
+            })
+        }
     }
 
     fn walk_module(
@@ -767,6 +860,9 @@ impl SurfaceGraph {
             self.require_audited_includes(owner, module)?;
         }
         if let Some((declaration, false)) = self.declaration(&resolved) {
+            for producer in &declaration.api_producers {
+                self.require_api_producer_binding(producer)?;
+            }
             insert_path(
                 found,
                 &resolved,
@@ -1394,13 +1490,26 @@ fn parse_items(
         .modules
         .entry(module_id.to_owned())
         .or_default()
-        .excluded |= excluded_parent;
+        .excluded |= excluded_parent || module_id.ends_with("::__private");
     for item in items {
         let attrs = super::item_attrs(item);
         if !cfg_enabled(attrs, cfg, source_file)? {
             continue;
         }
         let excluded = excluded_parent || module_id.ends_with("::__private");
+        if !excluded
+            && let syn::Item::Macro(value) = item
+            && let Some(name) = &value.ident
+        {
+            let owner = format!("{module_id}::{}", ident_name(name));
+            index
+                .transcriber_producers
+                .extend(api_producers_from_macro_transcriber(
+                    &value.mac.tokens,
+                    source_file,
+                    &owner,
+                ));
+        }
         match item {
             syn::Item::Macro(value) if value.mac.path.is_ident("include") => {
                 if let Ok(path) = syn::parse2::<syn::LitStr>(value.mac.tokens.clone()) {
@@ -1433,7 +1542,7 @@ fn parse_items(
                     .declarations
                     .insert(name, identity.clone());
                 index.declarations.insert(
-                    identity,
+                    identity.clone(),
                     Declaration {
                         kind,
                         members: Vec::new(),
@@ -1441,6 +1550,12 @@ fn parse_items(
                         alias_target: None,
                         definition: source_definition(source_file, value.span().start()),
                         member_definitions: BTreeMap::new(),
+                        api_producers: api_producers_from_attrs(
+                            &value.attrs,
+                            cfg,
+                            source_file,
+                            &identity,
+                        )?,
                     },
                 );
             }
@@ -1466,6 +1581,7 @@ fn parse_items(
                         alias_target: None,
                         definition: source_definition(source_file, value.span().start()),
                         member_definitions: BTreeMap::new(),
+                        api_producers: Vec::new(),
                     },
                 );
             }
@@ -1598,6 +1714,12 @@ fn parse_items(
                                 alias_target: None,
                                 definition: source_definition(source_file, item.span().start()),
                                 member_definitions: BTreeMap::new(),
+                                api_producers: api_producers_from_attrs(
+                                    attrs,
+                                    cfg,
+                                    source_file,
+                                    &identity,
+                                )?,
                             });
                     declaration.kind = kind;
                     declaration.excluded |= excluded;
@@ -1776,6 +1898,155 @@ fn source_definition(source: &Path, location: proc_macro2::LineColumn) -> Source
         line: location.line,
         column: location.column,
     }
+}
+
+fn api_producers_from_attrs(
+    attrs: &[syn::Attribute],
+    cfg: &CfgSet,
+    source: &Path,
+    owner: &str,
+) -> Result<Vec<ApiProducerUse>, ReachabilityError> {
+    let mut producers = Vec::new();
+    for attr in effective_attributes(attrs, cfg, source)? {
+        if attr.meta.path().is_ident("derive") {
+            let syn::Meta::List(list) = &attr.meta else {
+                continue;
+            };
+            let derives = list
+                .parse_args_with(
+                    syn::punctuated::Punctuated::<syn::Path, syn::Token![,]>::parse_terminated,
+                )
+                .map_err(|error| {
+                    ReachabilityError::Parse(format!(
+                        "{}:{}: malformed derive attribute: {error}",
+                        source.display(),
+                        attr.line
+                    ))
+                })?;
+            for derive in derives {
+                let Some(name) = derive
+                    .segments
+                    .last()
+                    .map(|segment| segment.ident.to_string())
+                else {
+                    continue;
+                };
+                if api_producing_sand_macro(&name) {
+                    producers.push(ApiProducerUse {
+                        name,
+                        source: source.to_owned(),
+                        line: attr.line,
+                        owner: owner.to_owned(),
+                    });
+                }
+            }
+        } else if let Some(name) = attr
+            .meta
+            .path()
+            .segments
+            .last()
+            .map(|segment| segment.ident.to_string())
+            && api_producing_sand_macro(&name)
+        {
+            producers.push(ApiProducerUse {
+                name,
+                source: source.to_owned(),
+                line: attr.line,
+                owner: owner.to_owned(),
+            });
+        }
+    }
+    Ok(producers)
+}
+
+// Only macros which introduce additional inherent or sibling public items
+// belong here. Trait-only derives (including EntityStateEnum) deliberately do
+// not participate, nor do attributes which preserve the annotated item's
+// public shape.
+fn api_producing_sand_macro(name: &str) -> bool {
+    matches!(name, "SandStorage" | "State" | "item")
+}
+
+fn api_producers_from_macro_transcriber(
+    tokens: &proc_macro2::TokenStream,
+    source: &Path,
+    owner: &str,
+) -> Vec<ApiProducerUse> {
+    fn visit(
+        tokens: proc_macro2::TokenStream,
+        source: &Path,
+        owner: &str,
+        output: &mut Vec<ApiProducerUse>,
+    ) {
+        let tokens = tokens.into_iter().collect::<Vec<_>>();
+        for (index, token) in tokens.iter().enumerate() {
+            let proc_macro2::TokenTree::Punct(hash) = token else {
+                continue;
+            };
+            let Some(proc_macro2::TokenTree::Group(attribute)) = tokens.get(index + 1) else {
+                continue;
+            };
+            if hash.as_char() != '#' || attribute.delimiter() != proc_macro2::Delimiter::Bracket {
+                continue;
+            }
+            let attribute_tokens = attribute.stream().into_iter().collect::<Vec<_>>();
+            let Some(proc_macro2::TokenTree::Ident(first)) = attribute_tokens.first() else {
+                continue;
+            };
+            if first == "derive" {
+                let Some(proc_macro2::TokenTree::Group(arguments)) = attribute_tokens.get(1) else {
+                    continue;
+                };
+                for candidate in arguments.stream() {
+                    let proc_macro2::TokenTree::Ident(candidate) = candidate else {
+                        continue;
+                    };
+                    let name = candidate.to_string();
+                    if api_producing_sand_macro(&name) {
+                        output.push(ApiProducerUse {
+                            name,
+                            source: source.to_owned(),
+                            line: hash.span().start().line,
+                            owner: owner.to_owned(),
+                        });
+                    }
+                }
+            } else {
+                let name = attribute_tokens
+                    .iter()
+                    .rev()
+                    .find_map(|token| match token {
+                        proc_macro2::TokenTree::Ident(ident) => Some(ident.to_string()),
+                        proc_macro2::TokenTree::Group(_) => None,
+                        _ => None,
+                    })
+                    .unwrap_or_else(|| first.to_string());
+                if api_producing_sand_macro(&name) {
+                    output.push(ApiProducerUse {
+                        name,
+                        source: source.to_owned(),
+                        line: hash.span().start().line,
+                        owner: owner.to_owned(),
+                    });
+                }
+            }
+        }
+        for token in tokens {
+            if let proc_macro2::TokenTree::Group(group) = token {
+                visit(group.stream(), source, owner, output);
+            }
+        }
+    }
+
+    let mut producers = Vec::new();
+    visit(tokens.clone(), source, owner, &mut producers);
+    producers.sort_by(|left, right| {
+        (&left.owner, &left.name, left.line).cmp(&(&right.owner, &right.name, right.line))
+    });
+    producers.dedup_by(|left, right| {
+        left.owner == right.owner && left.name == right.name && left.line == right.line
+    });
+    producers
 }
 
 fn public_item(item: &syn::Item, cfg: &CfgSet, source: &Path) -> Result<bool, ReachabilityError> {

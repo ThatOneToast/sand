@@ -29,7 +29,13 @@ fn main() {
         [],
         generated,
     )
-    .expect("extract fixture surface with derive provider");
+    .expect("extract fixture surface with derive provider")
+    .bind_api_producer(
+        "sand::PlayerMagic",
+        "SandStorage",
+        "sand_storage_derive",
+    )
+    .expect("connect SandStorage to its generated API provider");
     let reachable = graph.reachable_from("sand").expect("resolve fixture facade");
     let mut contracts = vec![
         contract("sand::PlayerMagic"),

@@ -462,6 +462,18 @@ mod tests {
 
         std::fs::write(
             &rust,
+            "pub struct Generated;\nimpl Generated { pub fn bypass(&self) {} }\n",
+        )
+        .unwrap();
+        let error = validate_api_provider_source(&catalog, &rust, "core::generated")
+            .expect_err("unreported public associated item must fail closed");
+        assert!(
+            error.contains("core::generated::Generated::bypass (Method)"),
+            "{error}"
+        );
+
+        std::fs::write(
+            &rust,
             "pub struct Generated;\npub mod hidden_bypass { pub struct Extra; }\n",
         )
         .unwrap();

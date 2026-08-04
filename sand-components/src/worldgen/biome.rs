@@ -412,7 +412,7 @@ impl Biome {
     /// Sets the carvers list as raw JSON.
     ///
     /// Prefer [`Biome::carver_step`] with a typed
-    /// [`ConfiguredCarverId`](crate::registry::ConfiguredCarverId) (obtained
+    /// [`ConfiguredCarverId`] (obtained
     /// from [`crate::worldgen::ConfiguredCarver::id`]) on the normal path.
     /// This escape hatch exists for modded carver references or shapes
     /// outside the typed carving-step map. Mutually exclusive with

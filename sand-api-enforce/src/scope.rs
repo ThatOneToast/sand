@@ -149,6 +149,11 @@ pub enum ScopeFailure {
         scope: String,
         diagnostics: Vec<String>,
     },
+    NonCanonicalContractPath {
+        identity: String,
+        selected: String,
+        required_scope: String,
+    },
     PendingCeilingExceeded {
         actual: usize,
         ceiling: usize,
@@ -224,6 +229,14 @@ impl fmt::Display for ScopeFailure {
                 formatter,
                 "enforced API scope `{scope}` has invalid contract identities: {}",
                 diagnostics.join("; ")
+            ),
+            Self::NonCanonicalContractPath {
+                identity,
+                selected,
+                required_scope,
+            } => write!(
+                formatter,
+                "API contract `{identity}` selects `{selected}` as canonical, but its owning topic scope requires a path under `{required_scope}`"
             ),
             Self::PendingCeilingExceeded { actual, ceiling } => write!(
                 formatter,
@@ -338,6 +351,28 @@ impl ScopeManifest {
         unscoped.sort();
         if !unscoped.is_empty() {
             failures.push(ScopeFailure::UnscopedItems(unscoped));
+        }
+
+        // Scope ownership is also canonical-path ownership. This prevents a
+        // contract from selecting an arbitrary reachable alias (especially a
+        // prelude re-export) while the manifest assigns the identity to a
+        // higher-precedence topic module.
+        for contract in contracts {
+            let Some(scope_id) = owners.get(contract.identity.as_str()) else {
+                continue;
+            };
+            let scope = self
+                .scopes
+                .iter()
+                .find(|scope| scope.id == **scope_id)
+                .expect("owners only contain validated scope ids");
+            if !within(&contract.canonical_path, &scope.canonical_module) {
+                failures.push(ScopeFailure::NonCanonicalContractPath {
+                    identity: contract.identity.clone(),
+                    selected: contract.canonical_path.clone(),
+                    required_scope: scope.canonical_module.clone(),
+                });
+            }
         }
 
         for scope in &self.scopes {

@@ -13,6 +13,7 @@ fn api(identity: &str, paths: &[&str]) -> ReachableApi {
         kind: ReachableKind::Struct,
         origin: ReachableOrigin::Source,
         paths: paths.iter().map(|path| (*path).to_owned()).collect(),
+        definition: None,
     }
 }
 
@@ -200,4 +201,84 @@ fn repository_contract_sources_are_the_actual_authored_declarations() {
     assert_eq!(declarations.len(), 14);
     assert_eq!(declarations.first().unwrap().canonical_path, "sand::data");
     assert_eq!(declarations.last().unwrap().canonical_path, "sand::vanilla");
+}
+
+fn contract_binding_fixture(dummy_attributes: &str, features: &[&str]) -> ContractSourceError {
+    let temp = tempdir().unwrap();
+    let facade = temp.path().join("sand.rs");
+    let implementation = temp.path().join("lower.rs");
+    std::fs::write(&facade, "pub use lower::Supported;\n").unwrap();
+    std::fs::write(
+        &implementation,
+        format!(
+            r#"
+            pub struct Supported;
+
+            {dummy_attributes}
+            #[api(
+                path = "sand::Supported",
+                summary = "Attempts to impersonate the supported item.",
+                context = "This contract is deliberately attached to the wrong declaration.",
+                minecraft = "It must not describe the reachable Minecraft API.",
+                use_when = ["Never"],
+                avoid_when = ["Always"],
+                example = "compile_error!(\"unreachable example\");"
+            )]
+            struct Dummy;
+            "#
+        ),
+    )
+    .unwrap();
+    let graph = SurfaceGraph::load(
+        [
+            SourceCrate {
+                name: "sand".into(),
+                root: facade,
+            },
+            SourceCrate {
+                name: "lower".into(),
+                root: implementation.clone(),
+            },
+        ],
+        features.iter().map(|feature| (*feature).to_owned()),
+        [],
+    )
+    .unwrap();
+    let reachable = graph.reachable_from("sand").unwrap();
+    let declarations = contract_declarations_from_files([implementation]).unwrap();
+    resolve_contract_identities(&reachable, &declarations)
+        .unwrap_err()
+        .into_iter()
+        .next()
+        .unwrap()
+}
+
+#[test]
+fn private_dummy_contract_cannot_satisfy_a_reachable_item() {
+    assert!(matches!(
+        contract_binding_fixture("", &[]),
+        ContractSourceError::ContractAttachedToDifferentItem { canonical_path, .. }
+            if canonical_path == "sand::Supported"
+    ));
+}
+
+#[test]
+fn cfg_disabled_dummy_contract_cannot_satisfy_a_reachable_item() {
+    assert!(matches!(
+        contract_binding_fixture("#[cfg(any())]", &[]),
+        ContractSourceError::ContractAttachedToDifferentItem { canonical_path, .. }
+            if canonical_path == "sand::Supported"
+    ));
+}
+
+#[test]
+fn cfg_attr_disabled_dummy_contract_cannot_satisfy_a_reachable_item() {
+    assert!(matches!(
+        contract_binding_fixture(
+            "#[cfg_attr(feature = \"disable_dummy\", cfg(any()))]",
+            &["disable_dummy"],
+        ),
+        ContractSourceError::ContractAttachedToDifferentItem { canonical_path, .. }
+            if canonical_path == "sand::Supported"
+    ));
 }

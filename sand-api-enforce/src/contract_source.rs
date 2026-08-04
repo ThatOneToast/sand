@@ -14,9 +14,10 @@ use std::path::{Path, PathBuf};
 use sand_api_contract::syntax::parse_contract_args;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
+use syn::spanned::Spanned;
 use syn::{Attribute, Item, LitStr, Token};
 
-use crate::{ContractIdentity, ReachableApi};
+use crate::{ContractIdentity, ReachableApi, SourceDefinition};
 
 /// One contract identity as authored in Rust source.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -24,6 +25,9 @@ pub struct ContractDeclaration {
     pub canonical_path: String,
     pub aliases: BTreeSet<String>,
     pub source: PathBuf,
+    /// Source item carrying `#[api]`. Facade-owned `register!` providers have
+    /// no attached definition and are resolved by their explicit path.
+    pub definition: Option<SourceDefinition>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -48,6 +52,11 @@ pub enum ContractSourceError {
     AliasTargetsDifferentIdentity {
         canonical_path: String,
         alias: String,
+    },
+    ContractAttachedToDifferentItem {
+        canonical_path: String,
+        annotated: SourceDefinition,
+        reachable: Option<SourceDefinition>,
     },
 }
 
@@ -90,6 +99,26 @@ impl fmt::Display for ContractSourceError {
             } => write!(
                 formatter,
                 "API contract alias `{alias}` does not resolve to the same item as `{canonical_path}`"
+            ),
+            Self::ContractAttachedToDifferentItem {
+                canonical_path,
+                annotated,
+                reachable,
+            } => write!(
+                formatter,
+                "API contract `{canonical_path}` is attached to {}:{}:{} but that path resolves to {}",
+                annotated.source.display(),
+                annotated.line,
+                annotated.column,
+                reachable.as_ref().map_or_else(
+                    || "a generated API without a source declaration".to_owned(),
+                    |definition| format!(
+                        "{}:{}:{}",
+                        definition.source.display(),
+                        definition.line,
+                        definition.column
+                    ),
+                )
             ),
         }
     }
@@ -174,6 +203,16 @@ pub fn resolve_contract_identities(
             });
             continue;
         };
+        if let Some(annotated) = &declaration.definition
+            && item.definition.as_ref() != Some(annotated)
+        {
+            errors.push(ContractSourceError::ContractAttachedToDifferentItem {
+                canonical_path: declaration.canonical_path.clone(),
+                annotated: annotated.clone(),
+                reachable: item.definition.clone(),
+            });
+            continue;
+        }
         let mut aliases_valid = true;
         for alias in &declaration.aliases {
             match by_path.get(alias.as_str()).map(Vec::as_slice) {
@@ -243,7 +282,11 @@ fn inspect_items(
             .iter()
             .find(|attribute| attribute.path().is_ident("api"))
         {
-            let declaration = declaration_from_attribute(attribute, source)?;
+            let declaration = declaration_from_attribute(
+                attribute,
+                source,
+                Some(source_definition(source, item.span().start())),
+            )?;
             let parent_path = declaration.canonical_path.clone();
             let parent_aliases = declaration.aliases.clone();
             let args = api_args(attribute, source)?;
@@ -262,6 +305,7 @@ fn inspect_items(
                         .map(|alias| format!("{alias}::{name}"))
                         .collect(),
                     source: source.to_owned(),
+                    definition: member_source_definition(item, &name, source),
                 });
             }
         }
@@ -280,7 +324,7 @@ fn inspect_items(
                         syn::ImplItem::Macro(value) => &value.attrs,
                         _ => continue,
                     };
-                    inspect_attributes(attrs, source, declarations)?;
+                    inspect_attributes(attrs, source, member.span().start(), declarations)?;
                 }
             }
             Item::Trait(item) => {
@@ -292,7 +336,7 @@ fn inspect_items(
                         syn::TraitItem::Macro(value) => &value.attrs,
                         _ => continue,
                     };
-                    inspect_attributes(attrs, source, declarations)?;
+                    inspect_attributes(attrs, source, member.span().start(), declarations)?;
                 }
             }
             Item::Macro(item) if item.mac.path.is_ident("register") => {
@@ -310,6 +354,7 @@ fn inspect_items(
                     canonical_path: path,
                     aliases: parsed.aliases,
                     source: source.to_owned(),
+                    definition: None,
                 });
             }
             _ => {}
@@ -321,13 +366,18 @@ fn inspect_items(
 fn inspect_attributes(
     attributes: &[Attribute],
     source: &Path,
+    location: proc_macro2::LineColumn,
     declarations: &mut Vec<ContractDeclaration>,
 ) -> Result<(), ContractSourceError> {
     if let Some(attribute) = attributes
         .iter()
         .find(|attribute| attribute.path().is_ident("api"))
     {
-        declarations.push(declaration_from_attribute(attribute, source)?);
+        declarations.push(declaration_from_attribute(
+            attribute,
+            source,
+            Some(source_definition(source, location)),
+        )?);
     }
     Ok(())
 }
@@ -335,6 +385,7 @@ fn inspect_attributes(
 fn declaration_from_attribute(
     attribute: &Attribute,
     source: &Path,
+    definition: Option<SourceDefinition>,
 ) -> Result<ContractDeclaration, ContractSourceError> {
     let args = api_args(attribute, source)?;
     let canonical_path = args
@@ -350,7 +401,38 @@ fn declaration_from_attribute(
             .map(|alias| alias.value())
             .collect(),
         source: source.to_owned(),
+        definition,
     })
+}
+
+fn source_definition(source: &Path, location: proc_macro2::LineColumn) -> SourceDefinition {
+    SourceDefinition {
+        source: fs::canonicalize(source).unwrap_or_else(|_| source.to_path_buf()),
+        line: location.line,
+        column: location.column,
+    }
+}
+
+fn member_source_definition(item: &Item, name: &str, source: &Path) -> Option<SourceDefinition> {
+    let location = match item {
+        Item::Struct(value) => value.fields.iter().enumerate().find_map(|(index, field)| {
+            let field_name = field
+                .ident
+                .as_ref()
+                .map_or_else(|| index.to_string(), ToString::to_string);
+            (field_name == name).then(|| field.span().start())
+        }),
+        Item::Union(value) => value.fields.named.iter().find_map(|field| {
+            (field.ident.as_ref().is_some_and(|ident| ident == name)).then(|| field.span().start())
+        }),
+        Item::Enum(value) => value
+            .variants
+            .iter()
+            .find(|variant| variant.ident == name)
+            .map(|variant| variant.span().start()),
+        _ => None,
+    }?;
+    Some(source_definition(source, location))
 }
 
 fn api_args(

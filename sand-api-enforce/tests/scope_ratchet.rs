@@ -11,6 +11,7 @@ fn api(identity: &str, paths: &[&str]) -> ReachableApi {
         kind: ReachableKind::Function,
         origin: ReachableOrigin::Source,
         paths: paths.iter().map(|path| (*path).to_owned()).collect(),
+        definition: None,
     }
 }
 
@@ -20,6 +21,7 @@ fn generated_api(identity: &str, provider: &str, paths: &[&str]) -> ReachableApi
         kind: ReachableKind::Function,
         origin: ReachableOrigin::Generator(provider.into()),
         paths: paths.iter().map(|path| (*path).to_owned()).collect(),
+        definition: None,
     }
 }
 
@@ -400,4 +402,48 @@ fn canonical_precedence_assigns_aliases_to_one_topic_scope() {
             .reachable_items,
         0
     );
+}
+
+#[test]
+fn topic_precedence_rejects_selecting_the_prelude_alias_as_canonical() {
+    let source = r#"
+        schema_version = 1
+        static_surface_items = 1
+        pending_scope_ceiling = 2
+        pending_item_ceiling = 1
+
+        [[scope]]
+        id = "prelude"
+        canonical_module = "sand::prelude"
+        state = "pending"
+        tier = "author"
+        provider = "source"
+        precedence = 0
+
+        [[scope]]
+        id = "predicate"
+        canonical_module = "sand::predicate"
+        state = "pending"
+        tier = "author"
+        provider = "source"
+        precedence = 100
+    "#;
+    let reachable = [api(
+        "sand_components::predicate::Predicate",
+        &["sand::predicate::Predicate", "sand::prelude::Predicate"],
+    )];
+    let prelude_canonical = contract(
+        "sand_components::predicate::Predicate",
+        "sand::prelude::Predicate",
+        &["sand::predicate::Predicate"],
+    );
+    let failures = ScopeManifest::from_toml(source)
+        .unwrap()
+        .evaluate(&reachable, &[prelude_canonical], &BTreeSet::new())
+        .unwrap_err();
+    assert!(failures.contains(&ScopeFailure::NonCanonicalContractPath {
+        identity: "sand_components::predicate::Predicate".into(),
+        selected: "sand::prelude::Predicate".into(),
+        required_scope: "sand::predicate".into(),
+    }));
 }

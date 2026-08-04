@@ -84,6 +84,16 @@ pub struct ReachableApi {
     pub kind: ReachableKind,
     pub origin: ReachableOrigin,
     pub paths: BTreeSet<String>,
+    /// Exact source declaration that produced this identity. Generated APIs
+    /// deliberately have no source declaration and are audited by providers.
+    pub definition: Option<SourceDefinition>,
+}
+
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct SourceDefinition {
+    pub source: PathBuf,
+    pub line: usize,
+    pub column: usize,
 }
 
 /// The central canonical choice for one reachable identity.
@@ -230,6 +240,7 @@ struct PendingImpl {
     module_id: String,
     self_ty: syn::Type,
     members: Vec<MemberRecord>,
+    member_definitions: BTreeMap<String, SourceDefinition>,
     excluded: bool,
 }
 
@@ -239,6 +250,7 @@ struct Module {
     modules: BTreeMap<String, String>,
     uses: Vec<UseRecord>,
     excluded: bool,
+    definition: Option<SourceDefinition>,
 }
 
 struct Declaration {
@@ -246,6 +258,8 @@ struct Declaration {
     members: Vec<MemberRecord>,
     excluded: bool,
     alias_target: Option<String>,
+    definition: SourceDefinition,
+    member_definitions: BTreeMap<String, SourceDefinition>,
 }
 
 type MemberRecord = (String, ReachableKind, bool);
@@ -443,6 +457,7 @@ impl SurfaceGraph {
                                     *kind,
                                     ReachableOrigin::Source,
                                     &format!("{public_path}::{name}"),
+                                    declaration.member_definitions.get(name).cloned(),
                                 )?;
                             }
                         }
@@ -499,6 +514,8 @@ impl SurfaceGraph {
                 ReachableKind::Module,
                 ReachableOrigin::Source,
                 path,
+                self.module(identity)
+                    .and_then(|module| module.definition.clone()),
             )?;
         }
         Ok(())
@@ -520,6 +537,7 @@ impl SurfaceGraph {
                 declaration.kind,
                 ReachableOrigin::Source,
                 path,
+                Some(declaration.definition.clone()),
             )?;
             for (name, kind, excluded) in &declaration.members {
                 if !excluded {
@@ -529,6 +547,7 @@ impl SurfaceGraph {
                         *kind,
                         ReachableOrigin::Source,
                         &format!("{path}::{name}"),
+                        declaration.member_definitions.get(name).cloned(),
                     )?;
                 }
             }
@@ -547,6 +566,7 @@ impl SurfaceGraph {
                     generated.kind,
                     origin.clone(),
                     &format!("{path}::{name}"),
+                    None,
                 )?;
                 for (member, kind) in &generated.members {
                     insert_path(
@@ -555,6 +575,7 @@ impl SurfaceGraph {
                         *kind,
                         origin.clone(),
                         &format!("{path}::{name}::{member}"),
+                        None,
                     )?;
                 }
             }
@@ -571,6 +592,7 @@ impl SurfaceGraph {
                             *kind,
                             ReachableOrigin::Source,
                             &format!("{path}::{name}"),
+                            target.member_definitions.get(name).cloned(),
                         )?;
                     }
                 }
@@ -586,6 +608,7 @@ impl SurfaceGraph {
                     generated.kind,
                     ReachableOrigin::Generator(generated.provider.clone()),
                     path,
+                    None,
                 )?;
             }
             return Ok(true);
@@ -595,7 +618,7 @@ impl SurfaceGraph {
             if generated.identity == resolved && !generated.excluded {
                 let origin = ReachableOrigin::Generator(generated.provider.clone());
                 exposed = true;
-                insert_path(found, &resolved, generated.kind, origin.clone(), path)?;
+                insert_path(found, &resolved, generated.kind, origin.clone(), path, None)?;
                 for (name, kind) in &generated.members {
                     insert_path(
                         found,
@@ -603,6 +626,7 @@ impl SurfaceGraph {
                         *kind,
                         origin.clone(),
                         &format!("{path}::{name}"),
+                        None,
                     )?;
                 }
             }
@@ -786,10 +810,14 @@ fn insert_path(
     kind: ReachableKind,
     origin: ReachableOrigin,
     path: &str,
+    definition: Option<SourceDefinition>,
 ) -> Result<(), ReachabilityError> {
     let tagged_identity = disambiguated_identity(identity, kind);
     if let Some(entry) = found.get_mut(&tagged_identity) {
         if entry.kind != kind || entry.origin != origin {
+            return Err(conflicting_definition(identity, entry, kind, origin));
+        }
+        if entry.definition != definition {
             return Err(conflicting_definition(identity, entry, kind, origin));
         }
         entry.paths.insert(path.to_owned());
@@ -814,6 +842,7 @@ fn insert_path(
                 kind,
                 origin,
                 paths: BTreeSet::from([path.to_owned()]),
+                definition,
             },
         );
         return Ok(());
@@ -840,6 +869,7 @@ fn insert_path(
                 kind,
                 origin,
                 paths: BTreeSet::from([path.to_owned()]),
+                definition,
             },
         );
         return Ok(());
@@ -852,6 +882,7 @@ fn insert_path(
             kind,
             origin: origin.clone(),
             paths: BTreeSet::new(),
+            definition,
         });
     if entry.kind != kind || entry.origin != origin {
         return Err(conflicting_definition(identity, entry, kind, origin));
@@ -941,6 +972,9 @@ fn resolve_pending_impls(crate_name: &str, index: &mut CrateIndex) -> Vec<(Strin
             resolve_index_export(crate_name, &owner, index, &mut BTreeSet::new()).unwrap_or(owner);
         if let Some(declaration) = index.declarations.get_mut(&owner) {
             declaration.members.extend(pending_impl.members);
+            declaration
+                .member_definitions
+                .extend(pending_impl.member_definitions);
         } else {
             unresolved.push((owner, pending_impl));
         }
@@ -1149,6 +1183,8 @@ fn parse_items(
                         members: Vec::new(),
                         excluded,
                         alias_target: None,
+                        definition: source_definition(source_file, value.span().start()),
+                        member_definitions: BTreeMap::new(),
                     },
                 );
             }
@@ -1172,6 +1208,8 @@ fn parse_items(
                         members: Vec::new(),
                         excluded,
                         alias_target: None,
+                        definition: source_definition(source_file, value.span().start()),
+                        member_definitions: BTreeMap::new(),
                     },
                 );
             }
@@ -1186,6 +1224,11 @@ fn parse_items(
             syn::Item::Mod(value) => {
                 let name = ident_name(&value.ident);
                 let child_id = format!("{module_id}::{name}");
+                index
+                    .modules
+                    .entry(child_id.clone())
+                    .or_default()
+                    .definition = Some(source_definition(source_file, value.span().start()));
                 if super::is_public(&value.vis) {
                     index
                         .modules
@@ -1222,6 +1265,7 @@ fn parse_items(
             }
             syn::Item::Impl(value) if value.trait_.is_none() => {
                 let mut members = Vec::new();
+                let mut member_definitions = BTreeMap::new();
                 for child in &value.items {
                     let member = match child {
                         syn::ImplItem::Fn(method)
@@ -1257,14 +1301,14 @@ fn parse_items(
                         _ => None,
                     };
                     if let Some(member) = member {
-                        let line = match child {
-                            syn::ImplItem::Const(value) => value.span().start().line,
-                            syn::ImplItem::Fn(value) => value.span().start().line,
-                            syn::ImplItem::Type(value) => value.span().start().line,
+                        let location = match child {
+                            syn::ImplItem::Const(value) => value.span().start(),
+                            syn::ImplItem::Fn(value) => value.span().start(),
+                            syn::ImplItem::Type(value) => value.span().start(),
                             _ => unreachable!("only public associated items produce members"),
                         };
                         member_definitions
-                            .insert(member.0.clone(), source_definition(source_file, line));
+                            .insert(member.0.clone(), source_definition(source_file, location));
                         members.push(member);
                     }
                 }
@@ -1272,6 +1316,7 @@ fn parse_items(
                     module_id: module_id.to_owned(),
                     self_ty: (*value.self_ty).clone(),
                     members,
+                    member_definitions,
                     excluded,
                 });
             }
@@ -1295,10 +1340,15 @@ fn parse_items(
                                 members: Vec::new(),
                                 excluded,
                                 alias_target: None,
+                                definition: source_definition(source_file, item.span().start()),
+                                member_definitions: BTreeMap::new(),
                             });
                     declaration.kind = kind;
                     declaration.excluded |= excluded;
                     declaration.members.extend(members);
+                    declaration
+                        .member_definitions
+                        .extend(member_definitions(item, source_file));
                     if let syn::Item::Type(alias) = item {
                         let target = resolve_type_identity(crate_name, module_id, &alias.ty);
                         declaration.alias_target = Some(target.clone());
@@ -1405,6 +1455,71 @@ fn declaration_parts(
         syn::Item::Static(value) => plain(ident_name(&value.ident), ReachableKind::Static),
         _ => None,
     })
+}
+
+fn member_definitions(item: &syn::Item, source: &Path) -> BTreeMap<String, SourceDefinition> {
+    let mut definitions = BTreeMap::new();
+    match item {
+        syn::Item::Struct(value) => {
+            for (index, field) in value.fields.iter().enumerate() {
+                let name = field
+                    .ident
+                    .as_ref()
+                    .map_or_else(|| index.to_string(), ident_name);
+                definitions.insert(name, source_definition(source, field.span().start()));
+            }
+        }
+        syn::Item::Union(value) => {
+            for field in &value.fields.named {
+                let name = ident_name(field.ident.as_ref().expect("union field is named"));
+                definitions.insert(name, source_definition(source, field.span().start()));
+            }
+        }
+        syn::Item::Enum(value) => {
+            for variant in &value.variants {
+                let variant_name = ident_name(&variant.ident);
+                definitions.insert(
+                    variant_name.clone(),
+                    source_definition(source, variant.span().start()),
+                );
+                for (index, field) in variant.fields.iter().enumerate() {
+                    let field_name = field
+                        .ident
+                        .as_ref()
+                        .map_or_else(|| index.to_string(), ident_name);
+                    definitions.insert(
+                        format!("{variant_name}::{field_name}"),
+                        source_definition(source, field.span().start()),
+                    );
+                }
+            }
+        }
+        syn::Item::Trait(value) => {
+            for member in &value.items {
+                let (name, location) = match member {
+                    syn::TraitItem::Const(value) => {
+                        (ident_name(&value.ident), value.span().start())
+                    }
+                    syn::TraitItem::Fn(value) => {
+                        (ident_name(&value.sig.ident), value.span().start())
+                    }
+                    syn::TraitItem::Type(value) => (ident_name(&value.ident), value.span().start()),
+                    _ => continue,
+                };
+                definitions.insert(name, source_definition(source, location));
+            }
+        }
+        _ => {}
+    }
+    definitions
+}
+
+fn source_definition(source: &Path, location: proc_macro2::LineColumn) -> SourceDefinition {
+    SourceDefinition {
+        source: fs::canonicalize(source).unwrap_or_else(|_| source.to_path_buf()),
+        line: location.line,
+        column: location.column,
+    }
 }
 
 fn public_item(item: &syn::Item, cfg: &CfgSet, source: &Path) -> Result<bool, ReachabilityError> {

@@ -49,7 +49,7 @@ observe re-exports or arbitrary generated code. Sand therefore uses a hybrid:
    `cargo check` and `cargo build`, regardless of the build's selected facade
    features. It consumes generated command/registry artifacts, discovers
    checked-in macro families, resolves contracts from the mapped source
-   crates, partitions all 11,837 static identities, and byte-compares the
+   crates, partitions all 11,835 static identities, and byte-compares the
    deterministic aggregate baseline. A migration may mark a scope enforced
    only in the same change that supplies every contract for that scope.
 

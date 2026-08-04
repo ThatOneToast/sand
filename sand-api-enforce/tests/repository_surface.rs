@@ -12,18 +12,18 @@ fn checked_repository_surface_baseline_is_complete_and_partitioned() {
         lines[1],
         "configuration=all-supported-features,current-target"
     );
-    assert_eq!(lines[2], "total=11837");
+    assert_eq!(lines[2], "total=11835");
 
     let kinds = prefixed_counts(&lines, "kind ");
-    assert_eq!(kinds.values().sum::<usize>(), 11_837);
+    assert_eq!(kinds.values().sum::<usize>(), 11_835);
     assert_eq!(kinds["field"], 1_120);
     assert_eq!(kinds["variant"], 5_907);
     assert_eq!(kinds["attribute_macro"], 8);
     assert_eq!(kinds["derive_macro"], 3);
 
     let origins = prefixed_counts(&lines, "origin ");
-    assert_eq!(origins.values().sum::<usize>(), 11_837);
-    assert_eq!(origins["source"], 5_439);
+    assert_eq!(origins.values().sum::<usize>(), 11_835);
+    assert_eq!(origins["source"], 5_437);
     assert_eq!(origins["generator:generated_commands"], 1_255);
     assert_eq!(origins["generator:generated_registries"], 4_867);
     assert_eq!(origins["generator:generated_registry_ids"], 130);
@@ -40,11 +40,11 @@ fn checked_repository_surface_baseline_is_complete_and_partitioned() {
         .iter()
         .map(|line| numeric_field(line, "items="))
         .sum::<usize>();
-    assert_eq!(scoped_items, 11_837);
+    assert_eq!(scoped_items, 11_835);
     assert_eq!(
         lines.last().copied(),
         Some(
-            "totals pending_scopes=39 pending_items=11837 enforced_items=0 pending_scope_ceiling=39 pending_item_ceiling=11837"
+            "totals pending_scopes=39 pending_items=11835 enforced_items=0 pending_scope_ceiling=39 pending_item_ceiling=11835"
         )
     );
 }

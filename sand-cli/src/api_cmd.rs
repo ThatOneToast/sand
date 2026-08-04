@@ -582,15 +582,15 @@ mod tests {
         )]);
         catalog.coverage = sand_api_contract::ApiCoverage {
             status: CoverageStatus::Partial,
-            static_surface_items: 11_837,
-            pending_item_ceiling: 11_837,
+            static_surface_items: 11_835,
+            pending_item_ceiling: 11_835,
             pending_scope_ceiling: 39,
             pending_scopes: vec!["predicate-source".into()],
         };
 
         let shown = show(&catalog, "sand::predicate::Predicate").unwrap();
         assert!(shown.starts_with(
-            "API contract migration is partial: 11837 static items and 39 scopes remain pending."
+            "API contract migration is partial: 11835 static items and 39 scopes remain pending."
         ));
         assert_eq!(
             serde_json::from_str::<serde_json::Value>(&catalog.to_json_pretty().unwrap()).unwrap()

@@ -41,8 +41,8 @@ fn generated_registrations_build_an_installed_catalog() {
     assert_eq!(Fixture.value(), 1);
 
     let coverage = sand::__private::api_contract::installed_coverage();
-    assert_eq!(coverage.static_surface_items, 11_837);
-    assert_eq!(coverage.pending_item_ceiling, 11_837);
+    assert_eq!(coverage.static_surface_items, 11_835);
+    assert_eq!(coverage.pending_item_ceiling, 11_835);
     assert_eq!(coverage.pending_scope_ceiling, 39);
     assert_eq!(coverage.pending_scopes.len(), 39);
     let catalog = ApiCatalog::installed_with_coverage(env!("CARGO_PKG_VERSION"), coverage).unwrap();

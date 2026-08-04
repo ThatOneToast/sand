@@ -4,9 +4,9 @@
 # are discovered through the reachable re-export graph. Generator scopes are
 # supplied from the same declaration/schema that emits their Rust API.
 schema_version = 1
-static_surface_items = 11837
+static_surface_items = 11835
 pending_scope_ceiling = 39
-pending_item_ceiling = 11837
+pending_item_ceiling = 11835
 
 [[scope]]
 id = "root-source"

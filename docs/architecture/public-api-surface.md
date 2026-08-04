@@ -62,11 +62,11 @@ beside generated Rust. The measured aggregate is byte-compared with
 `sand/api-surface-baseline.txt`; that file records kinds, origins, and
 scope-level counts, never item exemptions.
 
-The current installed static surface contains **11,837 unique API elements**:
+The current installed static surface contains **11,835 unique API elements**:
 
 | Kind | Count |
 | --- | ---: |
-| Modules | 82 |
+| Modules | 80 |
 | Attribute procedural macros | 8 |
 | Derive procedural macros | 3 |
 | Function-like procedural macros | 4 |
@@ -96,7 +96,7 @@ Generated static families account for 6,398 identities:
 - generated event marker types: 25 identities; and
 - typed resource-reference wrappers: 26 identities.
 
-The remaining 5,439 identities come from ordinary source declarations,
+The remaining 5,437 identities come from ordinary source declarations,
 including the 15 exported procedural macros. Input-dependent items emitted
 into downstream crates by attributes and derives are parametric families, so
 they do not have an honest finite installed count. Each such generator is a
@@ -140,7 +140,7 @@ corresponding provider audit. The foundation proves this mechanism with the
 real `SandStorage` derive, but does not claim every downstream generator has
 been migrated.
 
-The foundation baseline records 39 pending architectural scopes and 11,837
+The foundation baseline records 39 pending architectural scopes and 11,835
 pending static identities. No scope is marked enforced by the foundation;
 predicate becomes the first enforced source scope only after its complete
 migration tranche.

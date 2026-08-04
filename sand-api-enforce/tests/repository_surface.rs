@@ -12,24 +12,24 @@ fn checked_repository_surface_baseline_is_complete_and_partitioned() {
         lines[1],
         "configuration=all-supported-features,current-target"
     );
-    assert_eq!(lines[2], "total=11782");
+    assert_eq!(lines[2], "total=12067");
 
     let kinds = prefixed_counts(&lines, "kind ");
-    assert_eq!(kinds.values().sum::<usize>(), 11_782);
-    assert_eq!(kinds["field"], 1_099);
-    assert_eq!(kinds["variant"], 5_906);
+    assert_eq!(kinds.values().sum::<usize>(), 12_067);
+    assert_eq!(kinds["field"], 1_120);
+    assert_eq!(kinds["variant"], 5_907);
     assert_eq!(kinds["attribute_macro"], 8);
     assert_eq!(kinds["derive_macro"], 3);
 
     let origins = prefixed_counts(&lines, "origin ");
-    assert_eq!(origins.values().sum::<usize>(), 11_782);
-    assert_eq!(origins["source"], 5_386);
+    assert_eq!(origins.values().sum::<usize>(), 12_067);
+    assert_eq!(origins["source"], 5_439);
     assert_eq!(origins["generator:generated_commands"], 1_255);
     assert_eq!(origins["generator:generated_registries"], 4_867);
-    assert_eq!(origins["generator:generated_registry_ids"], 130);
-    assert_eq!(origins["generator:generated_effect_registry_enums"], 93);
-    assert_eq!(origins["generator:generated_event_markers"], 25);
-    assert_eq!(origins["generator:generated_resource_refs"], 26);
+    assert_eq!(origins["generator:generated_registry_ids"], 285);
+    assert_eq!(origins["generator:generated_effect_registry_enums"], 105);
+    assert_eq!(origins["generator:generated_event_markers"], 84);
+    assert_eq!(origins["generator:generated_resource_refs"], 32);
 
     let scope_lines = lines
         .iter()
@@ -40,11 +40,11 @@ fn checked_repository_surface_baseline_is_complete_and_partitioned() {
         .iter()
         .map(|line| numeric_field(line, "items="))
         .sum::<usize>();
-    assert_eq!(scoped_items, 11_782);
+    assert_eq!(scoped_items, 12_067);
     assert_eq!(
         lines.last().copied(),
         Some(
-            "totals pending_scopes=39 pending_items=11782 enforced_items=0 pending_scope_ceiling=39 pending_item_ceiling=11782"
+            "totals pending_scopes=39 pending_items=12067 enforced_items=0 pending_scope_ceiling=39 pending_item_ceiling=12067"
         )
     );
 }

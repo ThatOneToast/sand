@@ -380,6 +380,9 @@ fn write_coverage(
         writeln!(surface, "origin {origin}={count}").unwrap();
     }
     writeln!(surface, "{report}").unwrap();
+    let report_path = output_dir.join("api_surface_report.txt");
+    fs::write(&report_path, &surface)
+        .unwrap_or_else(|error| panic!("failed to write {}: {error}", report_path.display()));
     let baseline = fs::read_to_string("api-surface-baseline.txt")
         .unwrap_or_else(|error| panic!("failed to read api-surface-baseline.txt: {error}"));
     if baseline != surface {
@@ -401,9 +404,6 @@ fn write_coverage(
             "Sand API aggregate surface differs from api-surface-baseline.txt; classify the scope-level change and update the deterministic baseline ({difference})"
         );
     }
-    let report_path = output_dir.join("api_surface_report.txt");
-    fs::write(&report_path, surface)
-        .unwrap_or_else(|error| panic!("failed to write {}: {error}", report_path.display()));
 }
 
 fn kind_name(kind: ReachableKind) -> &'static str {

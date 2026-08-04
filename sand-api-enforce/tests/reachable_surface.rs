@@ -325,7 +325,7 @@ fn generated_children_of_empty_include_module_flow_through_glob_reexports() {
         &core,
         r#"
             pub mod cmd {
-                mod _generated { include!("generated_commands.rs"); }
+                mod _generated { include!(concat!(env!("OUT_DIR"), "/generated_commands.rs")); }
                 pub use _generated::*;
             }
         "#,
@@ -359,6 +359,8 @@ fn generated_children_of_empty_include_module_flow_through_glob_reexports() {
             excluded: false,
         }],
     )
+    .unwrap()
+    .bind_generated_include("sand_core::cmd::_generated", "generated_commands")
     .unwrap();
     let reachable = graph.reachable_from("sand").unwrap();
     assert_eq!(
@@ -372,6 +374,102 @@ fn generated_children_of_empty_include_module_flow_through_glob_reexports() {
             "sand::TeleportCommand::to".into(),
         ])
     );
+}
+
+#[test]
+fn reachable_nonliteral_include_without_a_provider_fails_closed() {
+    let directory = tempfile::tempdir().unwrap();
+    let facade = directory.path().join("facade.rs");
+    fs::write(
+        &facade,
+        r#"
+            pub mod generated {
+                include!(concat!(env!("OUT_DIR"), "/untracked.rs"));
+            }
+        "#,
+    )
+    .unwrap();
+
+    let graph = SurfaceGraph::load(
+        [SourceCrate {
+            name: "facade".into(),
+            root: facade,
+        }],
+        [],
+        [],
+    )
+    .unwrap();
+    assert!(matches!(
+        graph.reachable_from("facade"),
+        Err(ReachabilityError::UnboundInclude { module, expression, .. })
+            if module == "facade::generated" && expression.contains("OUT_DIR")
+    ));
+}
+
+#[test]
+fn literal_include_is_parsed_as_source_without_a_provider() {
+    let directory = tempfile::tempdir().unwrap();
+    let facade = directory.path().join("facade.rs");
+    fs::write(&facade, r#"pub mod included { include!("included.rs"); }"#).unwrap();
+    fs::write(
+        directory.path().join("included.rs"),
+        "pub struct LiteralItem; impl LiteralItem { pub fn create() -> Self { Self } }",
+    )
+    .unwrap();
+
+    let graph = SurfaceGraph::load(
+        [SourceCrate {
+            name: "facade".into(),
+            root: facade,
+        }],
+        [],
+        [],
+    )
+    .unwrap();
+    let reachable = graph.reachable_from("facade").unwrap();
+    assert_eq!(
+        item(&reachable, "facade::included::LiteralItem").paths,
+        BTreeSet::from(["facade::included::LiteralItem".into()])
+    );
+    assert_eq!(
+        item(&reachable, "facade::included::LiteralItem::create").kind,
+        ReachableKind::Method
+    );
+}
+
+#[test]
+fn generated_include_binding_must_name_a_provider_that_owns_the_module() {
+    let directory = tempfile::tempdir().unwrap();
+    let facade = directory.path().join("facade.rs");
+    fs::write(
+        &facade,
+        r#"pub mod generated { include!(concat!(env!("OUT_DIR"), "/generated.rs")); }"#,
+    )
+    .unwrap();
+    let graph = SurfaceGraph::load(
+        [SourceCrate {
+            name: "facade".into(),
+            root: facade,
+        }],
+        [],
+        [GeneratedApi {
+            identity: "facade::other::Generated".into(),
+            provider: "named_provider".into(),
+            kind: ReachableKind::Struct,
+            members: vec![],
+            excluded: false,
+        }],
+    )
+    .unwrap();
+    assert!(matches!(
+        graph.bind_generated_include("facade::generated", "named_provider"),
+        Err(ReachabilityError::InvalidIncludeProvider {
+            module,
+            provider,
+            dynamic_includes: 1,
+        })
+            if module == "facade::generated" && provider == "named_provider"
+    ));
 }
 
 #[test]

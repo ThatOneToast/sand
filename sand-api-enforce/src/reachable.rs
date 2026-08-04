@@ -267,6 +267,17 @@ pub enum ReachabilityError {
         module: String,
         self_type: String,
     },
+    UnboundInclude {
+        source: PathBuf,
+        line: usize,
+        module: String,
+        expression: String,
+    },
+    InvalidIncludeProvider {
+        module: String,
+        provider: String,
+        dynamic_includes: usize,
+    },
     MissingContract {
         identity: String,
         paths: Vec<String>,
@@ -320,6 +331,24 @@ impl fmt::Display for ReachabilityError {
                 formatter,
                 "inherent impl in `{module}` has public associated API but its owner `{self_type}` cannot be resolved to a local declaration"
             ),
+            Self::UnboundInclude {
+                source,
+                line,
+                module,
+                expression,
+            } => write!(
+                formatter,
+                "{}:{line}: reachable module `{module}` contains include!({expression}) that is neither a literal source include nor bound to a named generated API provider",
+                source.display()
+            ),
+            Self::InvalidIncludeProvider {
+                module,
+                provider,
+                dynamic_includes,
+            } => write!(
+                formatter,
+                "generated include binding `{module}` -> `{provider}` requires exactly one opaque include and at least one matching generated API declaration beneath that module (found {dynamic_includes} opaque includes)"
+            ),
             Self::MissingContract { identity, paths } => write!(
                 formatter,
                 "reachable API `{identity}` ({}) is missing a contract",
@@ -368,6 +397,7 @@ impl std::error::Error for ReachabilityError {}
 pub struct SurfaceGraph {
     crates: BTreeMap<String, CrateIndex>,
     generated: Vec<GeneratedApi>,
+    include_providers: BTreeMap<String, String>,
 }
 
 #[derive(Default)]
@@ -394,6 +424,13 @@ struct Module {
     uses: Vec<UseRecord>,
     excluded: bool,
     definition: Option<SourceDefinition>,
+    dynamic_includes: Vec<IncludeSite>,
+}
+
+struct IncludeSite {
+    source: PathBuf,
+    line: usize,
+    expression: String,
 }
 
 struct Declaration {
@@ -484,7 +521,39 @@ impl SurfaceGraph {
         Ok(Self {
             crates: indices,
             generated,
+            include_providers: BTreeMap::new(),
         })
+    }
+
+    /// Bind a non-literal `include!` in `module` to the named provider that
+    /// owns the generated declarations emitted there.
+    ///
+    /// This is intentionally an explicit build-graph edge. Merely placing a
+    /// provider somewhere in the catalog cannot exempt an opaque include: the
+    /// provider must actually own at least one declaration below this module.
+    pub fn bind_generated_include(
+        mut self,
+        module: impl Into<String>,
+        provider: impl Into<String>,
+    ) -> Result<Self, ReachabilityError> {
+        let module = module.into();
+        let provider = provider.into();
+        let prefix = format!("{module}::");
+        let dynamic_includes = self
+            .module(&module)
+            .map_or(0, |module| module.dynamic_includes.len());
+        let owns_declaration = self.generated.iter().any(|item| {
+            item.provider == provider && !item.excluded && item.identity.starts_with(&prefix)
+        });
+        if dynamic_includes != 1 || !owns_declaration {
+            return Err(ReachabilityError::InvalidIncludeProvider {
+                module,
+                provider,
+                dynamic_includes,
+            });
+        }
+        self.include_providers.insert(module, provider);
+        Ok(self)
     }
 
     /// Extract all supported items reachable through `facade`, including
@@ -521,6 +590,7 @@ impl SurfaceGraph {
         if module.excluded {
             return Ok(());
         }
+        self.require_audited_includes(module_id, module)?;
         let defining_crate = module_id
             .split("::")
             .next()
@@ -627,6 +697,23 @@ impl SurfaceGraph {
         self.crates.get(crate_name)?.modules.get(identity)
     }
 
+    fn require_audited_includes(
+        &self,
+        module_id: &str,
+        module: &Module,
+    ) -> Result<(), ReachabilityError> {
+        if module.dynamic_includes.is_empty() || self.include_providers.contains_key(module_id) {
+            return Ok(());
+        }
+        let include = &module.dynamic_includes[0];
+        Err(ReachabilityError::UnboundInclude {
+            source: include.source.clone(),
+            line: include.line,
+            module: module_id.to_owned(),
+            expression: include.expression.clone(),
+        })
+    }
+
     fn declaration(&self, identity: &str) -> Option<(&Declaration, bool)> {
         let crate_name = identity.split("::").next()?;
         if let Some(value) = self.crates.get(crate_name)?.declarations.get(identity) {
@@ -673,6 +760,12 @@ impl SurfaceGraph {
         let resolved = self
             .resolve_export(identity, &mut BTreeSet::new())
             .unwrap_or_else(|| identity.to_owned());
+        if let Some((owner, _)) = resolved.rsplit_once("::")
+            && let Some(module) = self.module(owner)
+            && !module.excluded
+        {
+            self.require_audited_includes(owner, module)?;
+        }
         if let Some((declaration, false)) = self.declaration(&resolved) {
             insert_path(
                 found,
@@ -1309,6 +1402,26 @@ fn parse_items(
         }
         let excluded = excluded_parent || module_id.ends_with("::__private");
         match item {
+            syn::Item::Macro(value) if value.mac.path.is_ident("include") => {
+                if let Ok(path) = syn::parse2::<syn::LitStr>(value.mac.tokens.clone()) {
+                    let included = source_file
+                        .parent()
+                        .expect("a Rust source file has a parent directory")
+                        .join(path.value());
+                    parse_module_file(crate_name, &included, module_id, excluded, cfg, index)?;
+                } else {
+                    index
+                        .modules
+                        .entry(module_id.to_owned())
+                        .or_default()
+                        .dynamic_includes
+                        .push(IncludeSite {
+                            source: source_file.to_owned(),
+                            line: value.span().start().line,
+                            expression: value.mac.tokens.to_string(),
+                        });
+                }
+            }
             syn::Item::Fn(value) if proc_macro_declaration(value, cfg, source_file)?.is_some() => {
                 let (name, kind) = proc_macro_declaration(value, cfg, source_file)?
                     .expect("the match guard established a proc-macro declaration");

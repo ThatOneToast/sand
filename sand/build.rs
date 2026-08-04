@@ -73,6 +73,10 @@ fn main() {
         cargo_cfg(enabled_features.clone()),
         generated,
     )
+    .and_then(|graph| graph.bind_generated_include("sand_core::generated", "generated_registries"))
+    .and_then(|graph| {
+        graph.bind_generated_include("sand_core::cmd::_generated", "generated_commands")
+    })
     .unwrap_or_else(|error| panic!("failed to construct Sand public facade graph: {error}"));
     let reachable = graph
         .reachable_from("sand")

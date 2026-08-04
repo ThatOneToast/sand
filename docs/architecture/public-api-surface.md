@@ -122,6 +122,13 @@ macros, State/EntityStateEnum/SandStorage derives, and resource-pack macro
 output. A generator provider consumes the same parsed input or schema that
 emits its Rust API.
 
+Reachable item-position `include!` calls are fail-closed. Literal file paths
+are parsed into the source graph. Build-output expressions must be explicitly
+bound to a named provider that owns generated declarations in that exact
+module; Sand currently binds the command and vanilla-registry output modules.
+An unbound opaque include stops an ordinary build before it can conceal a new
+public declaration.
+
 The static providers are connected to the facade build. Input-dependent
 attribute/derive scopes are marked `consumer_build`; they remain pending and
 cannot be changed to enforced until a consuming-crate build connects the

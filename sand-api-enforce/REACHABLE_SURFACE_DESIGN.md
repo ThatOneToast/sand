@@ -72,6 +72,13 @@ audit. The `SandStorage` acceptance fixture executes the real derive, shares
 its generated-member model with its provider, and proves a missing generated
 accessor stops normal compilation.
 
+Item-position `include!` is part of the same boundary. A literal path is parsed
+as source in its containing module. An opaque expression such as an `OUT_DIR`
+include fails when that module becomes facade-reachable unless the build graph
+explicitly binds the module to a named provider that owns declarations beneath
+it. A binding covers exactly one opaque include, preventing a second generated
+file from silently borrowing the first provider's audit.
+
 ## Production integration requirements
 
 - Load every local crate that can feed the facade from an explicit crate map;

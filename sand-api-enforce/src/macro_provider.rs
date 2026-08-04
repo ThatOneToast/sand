@@ -366,6 +366,11 @@ fn generated_enum_members(tokens: TokenStream) -> BTreeSet<(String, ReachableKin
         if preceded_by_dollar {
             continue;
         }
+        let starts_variant = index == 0
+            || matches!(tokens.get(index - 1), Some(TokenTree::Punct(punct)) if matches!(punct.as_char(), ',' | '+' | '*' | '?'));
+        if !starts_variant {
+            continue;
+        }
         let variant = ident.to_string();
         members.insert((variant.clone(), ReachableKind::Variant));
         let Some(TokenTree::Group(fields)) = tokens.get(index + 1) else {

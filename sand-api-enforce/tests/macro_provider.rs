@@ -348,7 +348,7 @@ fn effect_provider_growth_follows_macro_body_and_invocation() {
         r#"
 macro_rules! vanilla_registry_enum {
     ($name:ident { $($variant:ident => $path:literal),+ }) => {
-        pub enum $name { $($variant,)+ Custom(String), FutureOwned }
+        pub enum $name { $($variant,)+ Custom(String), FutureOwned = DISCRIMINANT }
         impl $name {
             pub fn custom() -> Self { todo!() }
             pub fn newly_added() {}
@@ -374,6 +374,12 @@ vanilla_registry_enum! { Effect { Speed => "speed", Future => "future" } }
             "missing {member}"
         );
     }
+    assert!(
+        !provider[0]
+            .members
+            .iter()
+            .any(|(name, _)| name == "DISCRIMINANT")
+    );
 }
 use std::collections::BTreeSet;
 use std::fs;

@@ -86,9 +86,10 @@ accessor stops normal compilation.
 - Unresolved public re-exports into the explicit workspace crate map now fail
   with source line and facade-edge context. Preserve definition spans too when
   the proof is connected to user-facing diagnostics.
-- Keep exclusions structural and narrow: `pub(crate)`, `pub(super)`,
-  `#[doc(hidden)]`, `__private`, and generator records explicitly marked as
-  internal. Emit an auditable exclusion report.
+- Keep exclusions structural and narrow: Rust-private visibility, the named
+  `__private` module boundary, and generator records explicitly marked as
+  internal. `#[doc(hidden)]` only controls Rustdoc presentation and does not
+  remove a reachable item from enforcement.
 - Have the contract index reference the stable underlying identity separately
   from its canonical facade path. Canonical paths and aliases are graph output,
   not free-form strings maintained independently.
@@ -107,5 +108,6 @@ The integration fixture executes coverage for:
 - type aliases;
 - enabled and disabled feature-gated functions;
 - controlled generated types and generated methods;
-- `pub(crate)`, private, `#[doc(hidden)]`, and `__private` exclusions;
+- `pub(crate)`/private and `__private` exclusions, plus proof that an arbitrary
+  `#[doc(hidden)] pub` item remains enforced;
 - missing identities, incomplete alias sets, and duplicate canonical paths.

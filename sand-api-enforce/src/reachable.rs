@@ -330,8 +330,12 @@ impl SurfaceGraph {
         })
     }
 
-    /// Extract all non-hidden items reachable through `facade`, including
+    /// Extract all supported items reachable through `facade`, including
     /// aliases introduced by explicit and glob re-exports.
+    ///
+    /// `#[doc(hidden)]` is documentation presentation, not a support-boundary
+    /// escape hatch. Only an explicitly named `__private` module is excluded;
+    /// public hidden items elsewhere remain visible to scope enforcement.
     pub fn reachable_from(&self, facade: &str) -> Result<Vec<ReachableApi>, ReachabilityError> {
         if !self.crates.contains_key(facade) {
             return Err(ReachabilityError::UnknownFacade(facade.to_owned()));
@@ -1126,9 +1130,7 @@ fn parse_items(
         if !cfg_enabled(attrs, cfg, source_file)? {
             continue;
         }
-        let excluded = excluded_parent
-            || doc_hidden(attrs, cfg, source_file)?
-            || module_id.ends_with("::__private");
+        let excluded = excluded_parent || module_id.ends_with("::__private");
         match item {
             syn::Item::Fn(value) if proc_macro_declaration(value, cfg, source_file)?.is_some() => {
                 let (name, kind) = proc_macro_declaration(value, cfg, source_file)?
@@ -1229,7 +1231,7 @@ fn parse_items(
                             Some((
                                 ident_name(&method.sig.ident),
                                 ReachableKind::Method,
-                                excluded || doc_hidden(&method.attrs, cfg, source_file)?,
+                                excluded,
                             ))
                         }
                         syn::ImplItem::Const(item)
@@ -1239,7 +1241,7 @@ fn parse_items(
                             Some((
                                 ident_name(&item.ident),
                                 ReachableKind::AssociatedConst,
-                                excluded || doc_hidden(&item.attrs, cfg, source_file)?,
+                                excluded,
                             ))
                         }
                         syn::ImplItem::Type(item)
@@ -1249,12 +1251,20 @@ fn parse_items(
                             Some((
                                 ident_name(&item.ident),
                                 ReachableKind::AssociatedType,
-                                excluded || doc_hidden(&item.attrs, cfg, source_file)?,
+                                excluded,
                             ))
                         }
                         _ => None,
                     };
                     if let Some(member) = member {
+                        let line = match child {
+                            syn::ImplItem::Const(value) => value.span().start().line,
+                            syn::ImplItem::Fn(value) => value.span().start().line,
+                            syn::ImplItem::Type(value) => value.span().start().line,
+                            _ => unreachable!("only public associated items produce members"),
+                        };
+                        member_definitions
+                            .insert(member.0.clone(), source_definition(source_file, line));
                         members.push(member);
                     }
                 }
@@ -1316,11 +1326,7 @@ fn declaration_parts(
                         .ident
                         .as_ref()
                         .map_or_else(|| index.to_string(), ident_name);
-                    fields.push((
-                        name,
-                        ReachableKind::Field,
-                        doc_hidden(&field.attrs, cfg, source)?,
-                    ));
+                    fields.push((name, ReachableKind::Field, false));
                 }
             }
             Some((ident_name(&value.ident), ReachableKind::Struct, fields))
@@ -1332,7 +1338,7 @@ fn declaration_parts(
                     fields.push((
                         ident_name(field.ident.as_ref().expect("union field is named")),
                         ReachableKind::Field,
-                        doc_hidden(&field.attrs, cfg, source)?,
+                        false,
                     ));
                 }
             }
@@ -1345,8 +1351,7 @@ fn declaration_parts(
                     continue;
                 }
                 let variant_name = ident_name(&variant.ident);
-                let hidden = doc_hidden(&variant.attrs, cfg, source)?;
-                members.push((variant_name.clone(), ReachableKind::Variant, hidden));
+                members.push((variant_name.clone(), ReachableKind::Variant, false));
                 for (index, field) in variant.fields.iter().enumerate() {
                     if cfg_enabled(&field.attrs, cfg, source)? {
                         let field_name = field
@@ -1356,7 +1361,7 @@ fn declaration_parts(
                         members.push((
                             format!("{variant_name}::{field_name}"),
                             ReachableKind::Field,
-                            hidden || doc_hidden(&field.attrs, cfg, source)?,
+                            false,
                         ));
                     }
                 }
@@ -1371,20 +1376,20 @@ fn declaration_parts(
                         Some((
                             ident_name(&method.sig.ident),
                             ReachableKind::TraitMethod,
-                            doc_hidden(&method.attrs, cfg, source)?,
+                            false,
                         ))
                     }
                     syn::TraitItem::Const(item) if cfg_enabled(&item.attrs, cfg, source)? => {
                         Some((
                             ident_name(&item.ident),
                             ReachableKind::AssociatedConst,
-                            doc_hidden(&item.attrs, cfg, source)?,
+                            false,
                         ))
                     }
                     syn::TraitItem::Type(item) if cfg_enabled(&item.attrs, cfg, source)? => Some((
                         ident_name(&item.ident),
                         ReachableKind::AssociatedType,
-                        doc_hidden(&item.attrs, cfg, source)?,
+                        false,
                     )),
                     _ => None,
                 };
@@ -1765,27 +1770,6 @@ fn has_attr(
     Ok(effective_attributes(attrs, cfg, source)?
         .iter()
         .any(|attr| attr.meta.path().is_ident(name)))
-}
-
-fn doc_hidden(
-    attrs: &[syn::Attribute],
-    cfg: &CfgSet,
-    source: &Path,
-) -> Result<bool, ReachabilityError> {
-    Ok(effective_attributes(attrs, cfg, source)?
-        .iter()
-        .any(|attr| match &attr.meta {
-            syn::Meta::List(list) if list.path.is_ident("doc") => list
-                .parse_args_with(
-                    syn::punctuated::Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated,
-                )
-                .is_ok_and(|items| {
-                    items.iter().any(
-                        |item| matches!(item, syn::Meta::Path(path) if path.is_ident("hidden")),
-                    )
-                }),
-            _ => false,
-        }))
 }
 
 fn eval_cfg(meta: &syn::Meta, cfg: &CfgSet) -> Result<bool, String> {

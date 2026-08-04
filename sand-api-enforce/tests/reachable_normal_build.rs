@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use std::process::Command;
 
 #[test]
-fn ordinary_cargo_check_rejects_uncontracted_inherent_method_in_enforced_scope() {
+fn ordinary_cargo_check_rejects_doc_hidden_uncontracted_method_in_enforced_scope() {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let fixture = manifest_dir.join("tests/fixtures/reachable-enforced-missing/Cargo.toml");
     let target = tempfile::tempdir().expect("temporary target directory");

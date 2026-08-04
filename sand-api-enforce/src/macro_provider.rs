@@ -20,6 +20,7 @@ pub enum MacroProviderError {
     MissingNamedGenerator(String),
     MissingGeneratedVariants,
     MissingGeneratedEvents,
+    UnsupportedGeneratedShape(String),
 }
 
 impl fmt::Display for MacroProviderError {
@@ -42,6 +43,7 @@ impl fmt::Display for MacroProviderError {
             Self::MissingGeneratedEvents => formatter.write_str(
                 "gamemode_transition! and status_effect_marker! have no generated event types",
             ),
+            Self::UnsupportedGeneratedShape(message) => formatter.write_str(message),
         }
     }
 }
@@ -87,12 +89,15 @@ pub fn vanilla_registry_enum_provider(
     let file = syn::parse_file(&source)
         .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
     let generator = named_generator(&file, "vanilla_registry_enum")?;
-    let methods = public_function_names(generator.clone());
-    if methods.is_empty() {
+    let shape = generated_type_shape(&generator, "name", &["name"], GeneratedTypeKind::Enum)?;
+    if shape.members.is_empty() {
         return Err(MacroProviderError::MissingPublicMethods);
     }
-    let macro_variants = generated_enum_variants(generator);
-    if macro_variants.is_empty() {
+    let macro_members = generated_enum_members(generator);
+    if !macro_members
+        .iter()
+        .any(|(_, kind)| *kind == ReachableKind::Variant)
+    {
         return Err(MacroProviderError::MissingGeneratedVariants);
     }
 
@@ -107,14 +112,9 @@ pub fn vanilla_registry_enum_provider(
         let (name, body) = invocation_name_and_body(item.mac.tokens.clone(), path)?;
         let mut members = invocation_variants(body)
             .into_iter()
-            .chain(macro_variants.iter().cloned())
             .map(|variant| (variant, ReachableKind::Variant))
-            .chain(
-                methods
-                    .iter()
-                    .cloned()
-                    .map(|method| (method, ReachableKind::Method)),
-            )
+            .chain(macro_members.iter().cloned())
+            .chain(shape.members.iter().cloned())
             .collect::<Vec<_>>();
         members.sort();
         members.dedup();
@@ -142,19 +142,33 @@ pub fn event_generated_type_provider(path: &Path) -> Result<Vec<GeneratedApi>, M
     let file = syn::parse_file(&source)
         .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
     let gamemode_generator = named_generator(&file, "gamemode_transition")?;
-    let gamemode_types = public_struct_metavariables(gamemode_generator);
+    let gamemode_types = public_struct_metavariables(gamemode_generator.clone());
     if !["enter", "exit"]
         .into_iter()
         .all(|name| gamemode_types.contains(name))
     {
         return Err(MacroProviderError::MissingGeneratedEvents);
     }
+    let enter_shape = generated_type_shape(
+        &gamemode_generator,
+        "enter",
+        &["enter", "exit"],
+        GeneratedTypeKind::Struct,
+    )?;
+    let exit_shape = generated_type_shape(
+        &gamemode_generator,
+        "exit",
+        &["enter", "exit"],
+        GeneratedTypeKind::Struct,
+    )?;
     let status_generator = named_generator(&file, "status_effect_marker")?;
-    if !public_struct_metavariables(status_generator).contains("ty") {
+    if !public_struct_metavariables(status_generator.clone()).contains("ty") {
         return Err(MacroProviderError::MissingGeneratedEvents);
     }
+    let status_shape =
+        generated_type_shape(&status_generator, "ty", &["ty"], GeneratedTypeKind::Struct)?;
 
-    let mut names = BTreeSet::new();
+    let mut generated = Vec::new();
     for item in &file.items {
         let syn::Item::Macro(item) = item else {
             continue;
@@ -176,7 +190,12 @@ pub fn event_generated_type_provider(path: &Path) -> Result<Vec<GeneratedApi>, M
                     path.display()
                 )));
             }
-            names.extend(identifiers[identifiers.len() - 2..].iter().cloned());
+            for (name, shape) in identifiers[identifiers.len() - 2..]
+                .iter()
+                .zip([&enter_shape, &exit_shape])
+            {
+                generated.push(generated_event(name, shape));
+            }
         } else if item.mac.path.is_ident("status_effect_marker") {
             let name = identifiers.first().ok_or_else(|| {
                 MacroProviderError::Parse(format!(
@@ -184,22 +203,25 @@ pub fn event_generated_type_provider(path: &Path) -> Result<Vec<GeneratedApi>, M
                     path.display()
                 ))
             })?;
-            names.insert(name.clone());
+            generated.push(generated_event(name, &status_shape));
         }
     }
-    if names.is_empty() {
+    if generated.is_empty() {
         return Err(MacroProviderError::MissingGeneratedEvents);
     }
-    Ok(names
-        .into_iter()
-        .map(|name| GeneratedApi {
-            identity: format!("sand_core::events::{name}"),
-            provider: "generated_event_markers".into(),
-            kind: ReachableKind::Struct,
-            members: Vec::new(),
-            excluded: false,
-        })
-        .collect())
+    generated.sort_by(|left, right| left.identity.cmp(&right.identity));
+    generated.dedup_by(|left, right| left.identity == right.identity);
+    Ok(generated)
+}
+
+fn generated_event(name: &str, shape: &GeneratedTypeShape) -> GeneratedApi {
+    GeneratedApi {
+        identity: format!("sand_core::events::{name}"),
+        provider: "generated_event_markers".into(),
+        kind: ReachableKind::Struct,
+        members: shape.members.clone(),
+        excluded: false,
+    }
 }
 
 /// Describe public associated items emitted by the real `SandStorage` derive
@@ -325,27 +347,58 @@ fn invocation_variants(tokens: TokenStream) -> BTreeSet<String> {
         .collect()
 }
 
-fn generated_enum_variants(tokens: TokenStream) -> BTreeSet<String> {
+fn generated_enum_members(tokens: TokenStream) -> BTreeSet<(String, ReachableKind)> {
     let Some(body) = find_enum_body(tokens) else {
         return BTreeSet::new();
     };
     let tokens = body.into_iter().collect::<Vec<_>>();
-    tokens
-        .iter()
-        .enumerate()
-        .filter_map(|(index, token)| {
-            let TokenTree::Ident(ident) = token else {
-                return None;
-            };
-            let preceded_by_dollar = index
-                .checked_sub(1)
-                .and_then(|previous| tokens.get(previous))
-                .is_some_and(
-                    |token| matches!(token, TokenTree::Punct(punct) if punct.as_char() == '$'),
-                );
-            (!preceded_by_dollar).then(|| ident.to_string())
-        })
-        .collect()
+    let mut members = BTreeSet::new();
+    for (index, token) in tokens.iter().enumerate() {
+        let TokenTree::Ident(ident) = token else {
+            continue;
+        };
+        let preceded_by_dollar = index
+            .checked_sub(1)
+            .and_then(|previous| tokens.get(previous))
+            .is_some_and(
+                |token| matches!(token, TokenTree::Punct(punct) if punct.as_char() == '$'),
+            );
+        if preceded_by_dollar {
+            continue;
+        }
+        let variant = ident.to_string();
+        members.insert((variant.clone(), ReachableKind::Variant));
+        let Some(TokenTree::Group(fields)) = tokens.get(index + 1) else {
+            continue;
+        };
+        match fields.delimiter() {
+            proc_macro2::Delimiter::Parenthesis => {
+                let field_count = fields
+                    .stream()
+                    .into_iter()
+                    .filter(
+                        |token| matches!(token, TokenTree::Punct(punct) if punct.as_char() == ','),
+                    )
+                    .count()
+                    + 1;
+                for field in 0..field_count {
+                    members.insert((format!("{variant}::{field}"), ReachableKind::Field));
+                }
+            }
+            proc_macro2::Delimiter::Brace => {
+                let field_tokens = fields.stream().into_iter().collect::<Vec<_>>();
+                for segment in field_tokens.split(
+                    |token| matches!(token, TokenTree::Punct(punct) if punct.as_char() == ','),
+                ) {
+                    if let Some(name) = segment.iter().find_map(token_ident) {
+                        members.insert((format!("{variant}::{name}"), ReachableKind::Field));
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    members
 }
 
 fn find_enum_body(tokens: TokenStream) -> Option<TokenStream> {
@@ -388,8 +441,8 @@ fn declarative_type_family_provider(
             _ => None,
         })
         .ok_or(MacroProviderError::MissingGenerator)?;
-    let methods = public_function_names(generator);
-    if methods.is_empty() {
+    let shape = generated_type_shape(&generator, "name", &["name"], GeneratedTypeKind::Struct)?;
+    if shape.members.is_empty() {
         return Err(MacroProviderError::MissingPublicMethods);
     }
     let mut names = BTreeSet::new();
@@ -425,28 +478,306 @@ fn declarative_type_family_provider(
             identity: format!("{identity_module}::{name}"),
             provider: provider.into(),
             kind: ReachableKind::Struct,
-            members: methods
-                .iter()
-                .map(|method| (method.clone(), ReachableKind::Method))
-                .collect(),
+            members: shape.members.clone(),
             excluded: false,
         })
         .collect())
 }
 
-fn public_function_names(tokens: TokenStream) -> BTreeSet<String> {
-    let flattened = flatten(tokens);
-    flattened
-        .windows(3)
-        .filter_map(|tokens| match tokens {
-            [
-                TokenTree::Ident(public),
-                TokenTree::Ident(function),
-                TokenTree::Ident(name),
-            ] if public == "pub" && function == "fn" => Some(name.to_string()),
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum GeneratedTypeKind {
+    Struct,
+    Enum,
+}
+
+#[derive(Clone, Debug)]
+struct GeneratedTypeShape {
+    members: Vec<(String, ReachableKind)>,
+}
+
+/// Inspect the expansion arm itself. This deliberately fails closed when a
+/// generator starts emitting another public top-level item: provider support
+/// must land in the same change as the new Rust-visible shape.
+fn generated_type_shape(
+    generator: &TokenStream,
+    metavariable: &str,
+    allowed_metavariables: &[&str],
+    expected: GeneratedTypeKind,
+) -> Result<GeneratedTypeShape, MacroProviderError> {
+    let body = expansion_body(generator.clone()).ok_or_else(|| {
+        MacroProviderError::UnsupportedGeneratedShape(
+            "declarative generator has no auditable `=> { ... }` expansion arm".into(),
+        )
+    })?;
+    let tokens = body.into_iter().collect::<Vec<_>>();
+    let mut saw_type = false;
+    let mut members = BTreeSet::new();
+    let mut index = 0;
+    while index < tokens.len() {
+        if matches!(tokens.get(index), Some(TokenTree::Punct(punct)) if punct.as_char() == '$')
+            && let Some(TokenTree::Group(group)) = tokens.get(index + 1)
+            && repetition_emits_api_item(group.stream())
+        {
+            return Err(unsupported(
+                "generator emits API items inside a repetition that the provider cannot identify",
+            ));
+        }
+        if is_ident(tokens.get(index), "pub") {
+            if matches!(tokens.get(index + 1), Some(TokenTree::Group(_))) {
+                index += 1;
+                continue;
+            }
+            let kind = tokens
+                .get(index + 1)
+                .and_then(token_ident)
+                .unwrap_or_default();
+            match kind.as_str() {
+                "struct" | "enum" => {
+                    let actual = if kind == "struct" {
+                        GeneratedTypeKind::Struct
+                    } else {
+                        GeneratedTypeKind::Enum
+                    };
+                    let (name, after_name) = generated_name(&tokens, index + 2);
+                    let is_allowed = name
+                        .as_deref()
+                        .is_some_and(|name| allowed_metavariables.contains(&name));
+                    if !is_allowed || actual != expected {
+                        return Err(unsupported(format!(
+                            "generator emits unsupported public {kind} `{}`; expected only `${metavariable}`",
+                            name.unwrap_or_else(|| "<unknown>".into())
+                        )));
+                    }
+                    let is_target = name.as_deref() == Some(metavariable);
+                    saw_type |= is_target;
+                    if is_target && expected == GeneratedTypeKind::Struct {
+                        collect_public_fields(&tokens, after_name, &mut members)?;
+                    }
+                }
+                _ => {
+                    return Err(unsupported(format!(
+                        "generator emits unsupported public top-level `{kind}` item"
+                    )));
+                }
+            }
+        } else if is_ident(tokens.get(index), "impl") {
+            let Some(body_index) = tokens[index + 1..]
+                .iter()
+                .position(|token| matches!(token, TokenTree::Group(group) if group.delimiter() == proc_macro2::Delimiter::Brace))
+                .map(|offset| index + 1 + offset)
+            else {
+                return Err(unsupported("generator contains an impl without a body"));
+            };
+            let header = &tokens[index + 1..body_index];
+            let is_trait_impl = header.iter().any(|token| is_ident(Some(token), "for"));
+            let TokenTree::Group(group) = &tokens[body_index] else {
+                unreachable!()
+            };
+            if is_trait_impl {
+                if trait_impl_self_is_metavariable(header, metavariable) {
+                    collect_trait_associated_items(group.stream(), &mut members)?;
+                }
+            } else if header_mentions_metavariable(header, metavariable) {
+                collect_public_associated_items(group.stream(), &mut members)?;
+            }
+            index = body_index;
+        }
+        index += 1;
+    }
+    if !saw_type {
+        return Err(unsupported(format!(
+            "generator does not emit public `${metavariable}`"
+        )));
+    }
+    Ok(GeneratedTypeShape {
+        members: members.into_iter().collect(),
+    })
+}
+
+fn unsupported(message: impl Into<String>) -> MacroProviderError {
+    MacroProviderError::UnsupportedGeneratedShape(message.into())
+}
+
+fn expansion_body(tokens: TokenStream) -> Option<TokenStream> {
+    let tokens = tokens.into_iter().collect::<Vec<_>>();
+    for window in tokens.windows(3) {
+        if matches!(&window[0], TokenTree::Punct(punct) if punct.as_char() == '=')
+            && matches!(&window[1], TokenTree::Punct(punct) if punct.as_char() == '>')
+            && let TokenTree::Group(group) = &window[2]
+            && group.delimiter() == proc_macro2::Delimiter::Brace
+        {
+            return Some(group.stream());
+        }
+    }
+    tokens.into_iter().find_map(|token| match token {
+        TokenTree::Group(group) => expansion_body(group.stream()),
+        _ => None,
+    })
+}
+
+fn generated_name(tokens: &[TokenTree], index: usize) -> (Option<String>, usize) {
+    match (tokens.get(index), tokens.get(index + 1)) {
+        (Some(TokenTree::Punct(dollar)), Some(TokenTree::Ident(name)))
+            if dollar.as_char() == '$' =>
+        {
+            (Some(name.to_string()), index + 2)
+        }
+        (Some(TokenTree::Ident(name)), _) => (Some(name.to_string()), index + 1),
+        _ => (None, index),
+    }
+}
+
+fn collect_public_fields(
+    tokens: &[TokenTree],
+    after_name: usize,
+    members: &mut BTreeSet<(String, ReachableKind)>,
+) -> Result<(), MacroProviderError> {
+    let fields = tokens[after_name..]
+        .iter()
+        .take_while(|token| !matches!(token, TokenTree::Punct(punct) if punct.as_char() == ';'))
+        .find_map(|token| match token {
+            TokenTree::Group(group)
+                if matches!(
+                    group.delimiter(),
+                    proc_macro2::Delimiter::Brace | proc_macro2::Delimiter::Parenthesis
+                ) =>
+            {
+                Some(group)
+            }
             _ => None,
-        })
-        .collect()
+        });
+    let Some(fields) = fields else {
+        return Ok(());
+    };
+    let delimiter = fields.delimiter();
+    let field_tokens = fields.stream().into_iter().collect::<Vec<_>>();
+    let field_segments = field_tokens
+        .split(|token| matches!(token, TokenTree::Punct(punct) if punct.as_char() == ','));
+    for (field_index, field) in field_segments.enumerate() {
+        let Some(public_index) = field.iter().position(|token| is_ident(Some(token), "pub")) else {
+            continue;
+        };
+        if matches!(field.get(public_index + 1), Some(TokenTree::Group(_))) {
+            continue;
+        }
+        let name = if delimiter == proc_macro2::Delimiter::Parenthesis {
+            field_index.to_string()
+        } else {
+            field
+                .get(public_index + 1)
+                .and_then(token_ident)
+                .ok_or_else(|| unsupported("generated public named field has no stable name"))?
+        };
+        members.insert((name, ReachableKind::Field));
+    }
+    Ok(())
+}
+
+fn collect_public_associated_items(
+    tokens: TokenStream,
+    members: &mut BTreeSet<(String, ReachableKind)>,
+) -> Result<(), MacroProviderError> {
+    let tokens = tokens.into_iter().collect::<Vec<_>>();
+    for index in 0..tokens.len() {
+        if matches!(tokens.get(index), Some(TokenTree::Punct(punct)) if punct.as_char() == '$')
+            && let Some(TokenTree::Group(group)) = tokens.get(index + 1)
+            && repetition_emits_api_item(group.stream())
+        {
+            return Err(unsupported(
+                "generator emits associated items inside an unmodeled repetition",
+            ));
+        }
+        if !is_ident(tokens.get(index), "pub") {
+            continue;
+        }
+        if matches!(tokens.get(index + 1), Some(TokenTree::Group(_))) {
+            continue;
+        }
+        let item = tokens
+            .get(index + 1)
+            .and_then(token_ident)
+            .unwrap_or_default();
+        let kind = match item.as_str() {
+            "fn" => ReachableKind::Method,
+            "const" => ReachableKind::AssociatedConst,
+            "type" => ReachableKind::AssociatedType,
+            _ => {
+                return Err(unsupported(format!(
+                    "generator emits unsupported public associated `{item}` item"
+                )));
+            }
+        };
+        let name = tokens
+            .get(index + 2)
+            .and_then(token_ident)
+            .ok_or_else(|| unsupported(format!("generated public `{item}` has no stable name")))?;
+        members.insert((name, kind));
+    }
+    Ok(())
+}
+
+fn collect_trait_associated_items(
+    tokens: TokenStream,
+    members: &mut BTreeSet<(String, ReachableKind)>,
+) -> Result<(), MacroProviderError> {
+    let tokens = tokens.into_iter().collect::<Vec<_>>();
+    for index in 0..tokens.len() {
+        if matches!(tokens.get(index), Some(TokenTree::Punct(punct)) if punct.as_char() == '$')
+            && let Some(TokenTree::Group(group)) = tokens.get(index + 1)
+            && repetition_emits_api_item(group.stream())
+        {
+            return Err(unsupported(
+                "generator emits trait items inside an unmodeled repetition",
+            ));
+        }
+        let Some(item) = tokens.get(index).and_then(token_ident) else {
+            continue;
+        };
+        let kind = match item.as_str() {
+            "fn" => ReachableKind::TraitMethod,
+            "const" => ReachableKind::AssociatedConst,
+            "type" => ReachableKind::AssociatedType,
+            _ => continue,
+        };
+        let name = tokens
+            .get(index + 1)
+            .and_then(token_ident)
+            .ok_or_else(|| unsupported(format!("generated trait `{item}` has no stable name")))?;
+        members.insert((name, kind));
+    }
+    Ok(())
+}
+
+fn header_mentions_metavariable(tokens: &[TokenTree], name: &str) -> bool {
+    tokens.windows(2).any(|window| {
+        matches!(&window[0], TokenTree::Punct(punct) if punct.as_char() == '$')
+            && matches!(&window[1], TokenTree::Ident(ident) if ident == name)
+    })
+}
+
+fn trait_impl_self_is_metavariable(tokens: &[TokenTree], name: &str) -> bool {
+    let Some(for_index) = tokens.iter().position(|token| is_ident(Some(token), "for")) else {
+        return false;
+    };
+    header_mentions_metavariable(&tokens[for_index + 1..], name)
+}
+
+fn repetition_emits_api_item(tokens: TokenStream) -> bool {
+    let flattened = flatten(tokens);
+    flattened.iter().any(|token| {
+        matches!(token, TokenTree::Ident(ident) if matches!(ident.to_string().as_str(), "pub" | "fn" | "const" | "type" | "struct" | "enum" | "union" | "trait" | "static" | "mod" | "use"))
+    })
+}
+
+fn token_ident(token: &TokenTree) -> Option<String> {
+    match token {
+        TokenTree::Ident(ident) => Some(ident.to_string()),
+        _ => None,
+    }
+}
+
+fn is_ident(token: Option<&TokenTree>, expected: &str) -> bool {
+    matches!(token, Some(TokenTree::Ident(ident)) if ident == expected)
 }
 
 fn public_struct_metavariables(tokens: TokenStream) -> BTreeSet<String> {

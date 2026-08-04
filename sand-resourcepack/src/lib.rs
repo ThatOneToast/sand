@@ -172,7 +172,9 @@ pub use sprite::Color;
 pub use stat::BarStat;
 pub use unicode::{advance_x, bar_char, bar_text_json, element_char, element_text_json};
 
-/// Re-exported so proc macros can write `::sand_resourcepack::inventory::submit!`
-/// without requiring users to add `inventory` as a direct dependency.
+/// Macro-expansion wiring. This named boundary is deliberately outside the
+/// supported author-facing facade even though generated code must reach it.
 #[doc(hidden)]
-pub use inventory;
+pub mod __private {
+    pub use inventory;
+}

@@ -15,6 +15,7 @@ use sand_api_contract::syntax::{ContractTarget, parse_contract_args, validate_co
 use syn::spanned::Spanned;
 
 mod contract_source;
+mod features;
 mod macro_provider;
 mod reachable;
 mod scope;
@@ -23,6 +24,7 @@ pub use contract_source::{
     ContractDeclaration, ContractSourceError, contract_declarations_from_files,
     resolve_contract_identities, validate_contract_lookup_namespace,
 };
+pub use features::discover_facade_feature_union;
 pub use macro_provider::{
     MacroProviderError, event_generated_type_provider, registry_id_provider, resource_ref_provider,
     sand_storage_derive_provider, vanilla_registry_enum_provider,
@@ -30,7 +32,7 @@ pub use macro_provider::{
 
 pub use reachable::{
     CfgSet, ContractIdentity, GeneratedApi, ReachabilityError, ReachableApi, ReachableKind,
-    ReachableOrigin, SourceCrate, SurfaceGraph, audit_reachable_surface,
+    ReachableOrigin, SourceCrate, SourceDefinition, SurfaceGraph, audit_reachable_surface,
 };
 pub use scope::{
     ApiScope, ScopeEnforcement, ScopeFailure, ScopeManifest, ScopeReport, ScopeReportEntry,

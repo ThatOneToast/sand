@@ -2344,7 +2344,7 @@ fn expand_hud_bar(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
                 frame_width: #effective_fw_lit,
             };
 
-            ::sand::__private::rp::inventory::submit!(
+            ::sand::__private::rp::__private::inventory::submit!(
                 ::sand::__private::rp::ResourcePackDescriptor {
                     name: #name,
                     make: #factory_ident,
@@ -2377,7 +2377,7 @@ fn expand_hud_bar(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
                 frame_width: 0u32,  // unknown for user-supplied PNGs
             };
 
-            ::sand::__private::rp::inventory::submit!(
+            ::sand::__private::rp::__private::inventory::submit!(
                 ::sand::__private::rp::ResourcePackDescriptor {
                     name: #name,
                     make: #factory_ident,
@@ -2496,7 +2496,7 @@ fn expand_hud_element(input: TokenStream) -> syn::Result<proc_macro2::TokenStrea
                 char_width: #effective_cw_lit,
             };
 
-            ::sand::__private::rp::inventory::submit!(
+            ::sand::__private::rp::__private::inventory::submit!(
                 ::sand::__private::rp::ResourcePackDescriptor {
                     name: #name,
                     make: #factory_ident,
@@ -2527,7 +2527,7 @@ fn expand_hud_element(input: TokenStream) -> syn::Result<proc_macro2::TokenStrea
                 char_width: 0u32,  // unknown for user-supplied PNGs
             };
 
-            ::sand::__private::rp::inventory::submit!(
+            ::sand::__private::rp::__private::inventory::submit!(
                 ::sand::__private::rp::ResourcePackDescriptor {
                     name: #name,
                     make: #factory_ident,
@@ -2581,7 +2581,7 @@ fn expand_texture(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
             })
         }
 
-        ::sand::__private::rp::inventory::submit!(
+        ::sand::__private::rp::__private::inventory::submit!(
             ::sand::__private::rp::ResourcePackDescriptor {
                 name: #id,
                 make: #factory_ident,

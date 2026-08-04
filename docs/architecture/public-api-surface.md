@@ -14,7 +14,7 @@ modules, the curated prelude, feature-gated facade APIs, the explicitly tiered
 The following are not independently supported surfaces:
 
 - public items in implementation crates that have no supported `sand::` path;
-- `sand::__private` and `#[doc(hidden)]` compiler or macro wiring;
+- compiler or macro wiring structurally contained by `sand::__private`;
 - private, `pub(crate)`, and `pub(super)` declarations; and
 - downstream application items that are not generated Sand API families.
 
@@ -23,6 +23,8 @@ packages may need Rust `pub` visibility for composition. That visibility alone
 does not create a compatibility promise. If direct use of one of those crates
 is intentionally supported later, it requires a separate declared contract
 surface.
+`#[doc(hidden)]` changes Rustdoc presentation only and cannot remove a
+reachable item from an enforced supported scope.
 
 ## Canonical identity
 

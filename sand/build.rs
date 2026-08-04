@@ -7,9 +7,9 @@ use std::path::{Path, PathBuf};
 use sand_api_contract::ApiKind;
 use sand_api_enforce::{
     CfgSet, ContractIdentity, GeneratedApi, ReachableKind, ScopeManifest, ScopeState, SourceCrate,
-    SurfaceGraph, contract_declarations_from_files, event_generated_type_provider,
-    registry_id_provider, resolve_contract_identities, resource_ref_provider,
-    validate_contract_lookup_namespace, vanilla_registry_enum_provider,
+    SurfaceGraph, contract_declarations_from_files, discover_facade_feature_union,
+    event_generated_type_provider, registry_id_provider, resolve_contract_identities,
+    resource_ref_provider, validate_contract_lookup_namespace, vanilla_registry_enum_provider,
 };
 
 fn main() {
@@ -61,7 +61,8 @@ fn main() {
     // The ratchet is an all-supported-features baseline on every build. Using
     // only the current Cargo selection would leave enough global headroom for
     // a newly added feature-gated API to escape a default `cargo check`.
-    let enabled_features = all_facade_features();
+    let enabled_features = discover_facade_feature_union(Path::new("Cargo.toml"))
+        .unwrap_or_else(|error| panic!("failed to discover Sand facade features: {error}"));
     let graph = SurfaceGraph::load_with_cfg(
         source_crates(workspace),
         cargo_cfg(enabled_features.clone()),
@@ -147,23 +148,6 @@ fn collect_rust_files(directory: &Path, files: &mut Vec<PathBuf>) {
             files.push(path);
         }
     }
-}
-
-fn all_facade_features() -> BTreeSet<String> {
-    [
-        "resourcepack",
-        "systems-damage",
-        "systems-cooldowns",
-        "systems-lifecycle",
-        "systems-player-data",
-        "systems-movement",
-        "systems-inventory",
-        "systems-entities",
-        "systems-all",
-    ]
-    .into_iter()
-    .map(str::to_owned)
-    .collect()
 }
 
 fn cargo_cfg(features: BTreeSet<String>) -> CfgSet {

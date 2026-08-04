@@ -19,9 +19,10 @@ The compatibility boundary is the author-facing API reachable through the
 - public Rust APIs emitted by Sand-owned generators.
 
 An implementation crate's `pub` item is not supported merely because it is
-Rust-visible. It becomes supported only when a non-hidden `sand` facade path
-reaches it. `sand::__private`, `#[doc(hidden)]` compiler wiring, and private or
-crate-private implementation items are outside the boundary.
+Rust-visible. It becomes supported only when a `sand` facade path reaches it.
+`sand::__private` compiler wiring and private or crate-private implementation
+items are outside the boundary. `#[doc(hidden)]` alone is not an exclusion: a
+reachable item in a supported topic module remains subject to the ratchet.
 
 One underlying item has one canonical identity. Topic-module paths take
 precedence over prelude paths; the latter are aliases. Other deliberate

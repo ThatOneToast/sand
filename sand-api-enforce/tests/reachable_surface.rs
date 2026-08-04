@@ -235,8 +235,11 @@ fn feature_selection_and_narrow_exclusions_are_machine_visible() {
             .iter()
             .any(|item| item.identity.ends_with("feature_helper"))
     );
+    // Documentation visibility is not an enforcement exclusion. A reachable
+    // hidden item remains part of the supported surface unless it lives under
+    // the explicit `__private` boundary.
     assert!(
-        !without_feature
+        without_feature
             .iter()
             .any(|item| item.identity.contains("GeneratedWire"))
     );
@@ -260,7 +263,7 @@ fn feature_selection_and_narrow_exclusions_are_machine_visible() {
 }
 
 #[test]
-fn cfg_attr_selects_doc_hidden_and_module_path_from_the_same_cfg_set() {
+fn cfg_attr_doc_hidden_cannot_remove_surface_and_path_still_uses_cfg_set() {
     let (_directory, without_feature) = fixture(&[]);
     assert!(
         without_feature.iter().any(|item| {
@@ -280,7 +283,7 @@ fn cfg_attr_selects_doc_hidden_and_module_path_from_the_same_cfg_set() {
 
     let (_directory, with_feature) = fixture(&["extras"]);
     assert!(
-        !with_feature.iter().any(|item| {
+        with_feature.iter().any(|item| {
             item.identity == "core_lib::conditional_visibility::ConditionallyVisible"
         })
     );
@@ -677,10 +680,10 @@ fn architecture_08_generated_command_provider_is_reachable() {
 }
 
 #[test]
-fn architecture_09_narrow_internal_exclusions_are_absent() {
+fn architecture_09_only_explicit_private_boundaries_are_absent() {
     let (_, api) = fixture(&[]);
     assert!(
-        !api.iter()
+        api.iter()
             .any(|item| item.identity.contains("GeneratedWire"))
     );
     assert!(

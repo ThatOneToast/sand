@@ -244,6 +244,136 @@ resource_ref!(FixtureRef);
 }
 
 #[test]
+fn type_family_counts_a_parenthesized_second_expansion_arm() {
+    let temp = tempdir().unwrap();
+    let source = temp.path().join("resource_ref.rs");
+    fs::write(
+        &source,
+        r#"
+macro_rules! resource_ref {
+    ($name:ident) => {
+        pub struct $name;
+        impl $name { pub fn audited() {} }
+    };
+    ($name:ident, bypass) => (
+        pub struct $name;
+        impl $name { pub fn untracked() {} }
+    );
+}
+resource_ref!(FixtureRef);
+"#,
+    )
+    .unwrap();
+
+    let error = resource_ref_provider(&source).unwrap_err().to_string();
+    assert!(error.contains("2 expansion arms"), "{error}");
+}
+
+#[test]
+fn type_family_counts_a_bracketed_second_expansion_arm() {
+    let temp = tempdir().unwrap();
+    let source = temp.path().join("resource_ref.rs");
+    fs::write(
+        &source,
+        r#"
+macro_rules! resource_ref {
+    ($name:ident) => {
+        pub struct $name;
+        impl $name { pub fn audited() {} }
+    };
+    ($name:ident, bypass) => [
+        pub struct $name;
+        impl $name { pub fn untracked() {} }
+    ];
+}
+resource_ref!(FixtureRef);
+"#,
+    )
+    .unwrap();
+
+    let error = resource_ref_provider(&source).unwrap_err().to_string();
+    assert!(error.contains("2 expansion arms"), "{error}");
+}
+
+#[test]
+fn type_family_rejects_an_unmodeled_item_helper_macro() {
+    let temp = tempdir().unwrap();
+    let source = temp.path().join("resource_ref.rs");
+    fs::write(
+        &source,
+        r#"
+macro_rules! resource_ref {
+    ($name:ident) => {
+        pub struct $name;
+        impl $name { pub fn audited() {} }
+        emit_extra_api!($name);
+    };
+}
+resource_ref!(FixtureRef);
+"#,
+    )
+    .unwrap();
+
+    let error = resource_ref_provider(&source).unwrap_err().to_string();
+    assert!(error.contains("unmodeled `emit_extra_api!`"), "{error}");
+    assert!(error.contains("item-producing positions"), "{error}");
+}
+
+#[test]
+fn type_family_allows_macros_inside_method_bodies() {
+    let temp = tempdir().unwrap();
+    let source = temp.path().join("resource_ref.rs");
+    fs::write(
+        &source,
+        r#"
+macro_rules! resource_ref {
+    ($name:ident) => {
+        pub struct $name;
+        impl $name {
+            pub fn audited() { expression_helper!(); }
+        }
+    };
+}
+resource_ref!(FixtureRef);
+"#,
+    )
+    .unwrap();
+
+    let provider = resource_ref_provider(&source).unwrap();
+    assert_eq!(
+        provider[0].members,
+        [("audited".into(), ReachableKind::Method)]
+    );
+}
+
+#[test]
+fn type_family_allows_a_macro_in_an_associated_const_expression() {
+    let temp = tempdir().unwrap();
+    let source = temp.path().join("resource_ref.rs");
+    fs::write(
+        &source,
+        r#"
+macro_rules! resource_ref {
+    ($name:ident) => {
+        pub struct $name;
+        impl $name {
+            pub const LABEL: &'static str = expression_helper!();
+        }
+    };
+}
+resource_ref!(FixtureRef);
+"#,
+    )
+    .unwrap();
+
+    let provider = resource_ref_provider(&source).unwrap();
+    assert_eq!(
+        provider[0].members,
+        [("LABEL".into(), ReachableKind::AssociatedConst)]
+    );
+}
+
+#[test]
 fn type_family_rejects_an_unmodeled_public_top_level_item() {
     let temp = tempdir().unwrap();
     let source = temp.path().join("resource_ref.rs");

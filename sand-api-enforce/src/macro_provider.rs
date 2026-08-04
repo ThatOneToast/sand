@@ -511,6 +511,7 @@ fn generated_type_shape(
 ) -> Result<GeneratedTypeShape, MacroProviderError> {
     let body = expansion_body(generator.clone())?;
     let tokens = body.into_iter().collect::<Vec<_>>();
+    reject_item_position_macro_invocations(&tokens, "top level")?;
     let mut saw_type = false;
     let mut members = BTreeSet::new();
     let mut index = 0;
@@ -604,7 +605,7 @@ fn expansion_body(tokens: TokenStream) -> Result<TokenStream, MacroProviderError
     let bodies = expansion_bodies(tokens);
     match bodies.len() {
         0 => Err(unsupported(
-            "declarative generator has no auditable `=> { ... }` expansion arm",
+            "declarative generator has no auditable `=> <delimited tokens>` expansion arm",
         )),
         1 => Ok(bodies.into_iter().next().expect("one expansion body")),
         count => Err(unsupported(format!(
@@ -621,7 +622,6 @@ fn expansion_bodies(tokens: TokenStream) -> Vec<TokenStream> {
             if matches!(&window[0], TokenTree::Punct(punct) if punct.as_char() == '=')
                 && matches!(&window[1], TokenTree::Punct(punct) if punct.as_char() == '>')
                 && let TokenTree::Group(group) = &window[2]
-                && group.delimiter() == proc_macro2::Delimiter::Brace
             {
                 Some(group.stream())
             } else {
@@ -705,6 +705,7 @@ fn collect_public_associated_items(
     members: &mut BTreeSet<(String, ReachableKind)>,
 ) -> Result<(), MacroProviderError> {
     let tokens = tokens.into_iter().collect::<Vec<_>>();
+    reject_item_position_macro_invocations(&tokens, "inherent impl")?;
     for index in 0..tokens.len() {
         if matches!(tokens.get(index), Some(TokenTree::Punct(punct)) if punct.as_char() == '$')
             && let Some(TokenTree::Group(group)) = tokens.get(index + 1)
@@ -754,7 +755,64 @@ fn repetition_emits_api_item(tokens: TokenStream) -> bool {
     let flattened = flatten(tokens);
     flattened.iter().any(|token| {
         matches!(token, TokenTree::Ident(ident) if matches!(ident.to_string().as_str(), "pub" | "fn" | "const" | "type" | "struct" | "enum" | "union" | "trait" | "static" | "mod" | "use"))
+    }) || flattened.windows(2).any(|window| {
+        matches!(&window[0], TokenTree::Ident(_))
+            && matches!(&window[1], TokenTree::Punct(punct) if punct.as_char() == '!')
     })
+}
+
+/// Reject macros in positions where their expansion can add facade API.
+///
+/// Groups are intentionally opaque here. A macro nested in an attribute,
+/// function body, field type, or expression cannot add an item alongside the
+/// generated type. Direct calls at the transcriber top level can emit types,
+/// functions, modules, or re-exports, while direct calls in an inherent impl
+/// can emit associated items. Those shapes require a dedicated provider rather
+/// than trusting an arbitrary helper expansion.
+fn reject_item_position_macro_invocations(
+    tokens: &[TokenTree],
+    position: &str,
+) -> Result<(), MacroProviderError> {
+    for (index, window) in tokens.windows(3).enumerate() {
+        let [
+            TokenTree::Ident(name),
+            TokenTree::Punct(bang),
+            TokenTree::Group(_),
+        ] = window
+        else {
+            continue;
+        };
+        if bang.as_char() == '!' && macro_path_starts_at_item_boundary(tokens, index) {
+            return Err(unsupported(format!(
+                "generator invokes unmodeled `{name}!` macro at {position}; helper macros in item-producing positions are not auditable"
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn macro_path_starts_at_item_boundary(tokens: &[TokenTree], name_index: usize) -> bool {
+    let mut path_start = name_index;
+    while path_start >= 3
+        && matches!(&tokens[path_start - 1], TokenTree::Punct(colon) if colon.as_char() == ':')
+        && matches!(&tokens[path_start - 2], TokenTree::Punct(colon) if colon.as_char() == ':')
+        && matches!(&tokens[path_start - 3], TokenTree::Ident(_))
+    {
+        path_start -= 3;
+    }
+    if path_start == 0 {
+        return true;
+    }
+    match &tokens[path_start - 1] {
+        TokenTree::Punct(punct) => punct.as_char() == ';',
+        TokenTree::Group(group) => {
+            group.delimiter() == proc_macro2::Delimiter::Brace
+                || (group.delimiter() == proc_macro2::Delimiter::Bracket
+                    && path_start >= 2
+                    && matches!(&tokens[path_start - 2], TokenTree::Punct(hash) if hash.as_char() == '#'))
+        }
+        _ => false,
+    }
 }
 
 fn token_ident(token: &TokenTree) -> Option<String> {

@@ -509,11 +509,7 @@ fn generated_type_shape(
     allowed_metavariables: &[&str],
     expected: GeneratedTypeKind,
 ) -> Result<GeneratedTypeShape, MacroProviderError> {
-    let body = expansion_body(generator.clone()).ok_or_else(|| {
-        MacroProviderError::UnsupportedGeneratedShape(
-            "declarative generator has no auditable `=> { ... }` expansion arm".into(),
-        )
-    })?;
+    let body = expansion_body(generator.clone())?;
     let tokens = body.into_iter().collect::<Vec<_>>();
     let mut saw_type = false;
     let mut members = BTreeSet::new();
@@ -574,15 +570,16 @@ fn generated_type_shape(
                 return Err(unsupported("generator contains an impl without a body"));
             };
             let header = &tokens[index + 1..body_index];
-            let is_trait_impl = header.iter().any(|token| is_ident(Some(token), "for"));
             let TokenTree::Group(group) = &tokens[body_index] else {
                 unreachable!()
             };
-            if is_trait_impl {
-                if trait_impl_self_is_metavariable(header, metavariable) {
-                    collect_trait_associated_items(group.stream(), &mut members)?;
-                }
-            } else if header_mentions_metavariable(header, metavariable) {
+            // A trait implementation makes the trait's already-existing items
+            // callable for this type, but it does not declare new public API
+            // identities on the concrete type. The source graph owns the
+            // trait and its associated items once; providers only add members
+            // declared by an inherent implementation.
+            let is_trait_impl = header.iter().any(|token| is_ident(Some(token), "for"));
+            if !is_trait_impl && header_mentions_metavariable(header, metavariable) {
                 collect_public_associated_items(group.stream(), &mut members)?;
             }
             index = body_index;
@@ -603,21 +600,46 @@ fn unsupported(message: impl Into<String>) -> MacroProviderError {
     MacroProviderError::UnsupportedGeneratedShape(message.into())
 }
 
-fn expansion_body(tokens: TokenStream) -> Option<TokenStream> {
-    let tokens = tokens.into_iter().collect::<Vec<_>>();
-    for window in tokens.windows(3) {
-        if matches!(&window[0], TokenTree::Punct(punct) if punct.as_char() == '=')
-            && matches!(&window[1], TokenTree::Punct(punct) if punct.as_char() == '>')
-            && let TokenTree::Group(group) = &window[2]
-            && group.delimiter() == proc_macro2::Delimiter::Brace
-        {
-            return Some(group.stream());
-        }
+fn expansion_body(tokens: TokenStream) -> Result<TokenStream, MacroProviderError> {
+    let bodies = expansion_bodies(tokens);
+    match bodies.len() {
+        0 => Err(unsupported(
+            "declarative generator has no auditable `=> { ... }` expansion arm",
+        )),
+        1 => Ok(bodies.into_iter().next().expect("one expansion body")),
+        count => Err(unsupported(format!(
+            "declarative generator has {count} expansion arms; multi-arm generators are not auditable by this provider"
+        ))),
     }
-    tokens.into_iter().find_map(|token| match token {
-        TokenTree::Group(group) => expansion_body(group.stream()),
-        _ => None,
-    })
+}
+
+fn expansion_bodies(tokens: TokenStream) -> Vec<TokenStream> {
+    let tokens = tokens.into_iter().collect::<Vec<_>>();
+    let bodies = tokens
+        .windows(3)
+        .filter_map(|window| {
+            if matches!(&window[0], TokenTree::Punct(punct) if punct.as_char() == '=')
+                && matches!(&window[1], TokenTree::Punct(punct) if punct.as_char() == '>')
+                && let TokenTree::Group(group) = &window[2]
+                && group.delimiter() == proc_macro2::Delimiter::Brace
+            {
+                Some(group.stream())
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+    if !bodies.is_empty() {
+        return bodies;
+    }
+    tokens
+        .into_iter()
+        .filter_map(|token| match token {
+            TokenTree::Group(group) => Some(expansion_bodies(group.stream())),
+            _ => None,
+        })
+        .flatten()
+        .collect()
 }
 
 fn generated_name(tokens: &[TokenTree], index: usize) -> (Option<String>, usize) {
@@ -721,50 +743,11 @@ fn collect_public_associated_items(
     Ok(())
 }
 
-fn collect_trait_associated_items(
-    tokens: TokenStream,
-    members: &mut BTreeSet<(String, ReachableKind)>,
-) -> Result<(), MacroProviderError> {
-    let tokens = tokens.into_iter().collect::<Vec<_>>();
-    for index in 0..tokens.len() {
-        if matches!(tokens.get(index), Some(TokenTree::Punct(punct)) if punct.as_char() == '$')
-            && let Some(TokenTree::Group(group)) = tokens.get(index + 1)
-            && repetition_emits_api_item(group.stream())
-        {
-            return Err(unsupported(
-                "generator emits trait items inside an unmodeled repetition",
-            ));
-        }
-        let Some(item) = tokens.get(index).and_then(token_ident) else {
-            continue;
-        };
-        let kind = match item.as_str() {
-            "fn" => ReachableKind::TraitMethod,
-            "const" => ReachableKind::AssociatedConst,
-            "type" => ReachableKind::AssociatedType,
-            _ => continue,
-        };
-        let name = tokens
-            .get(index + 1)
-            .and_then(token_ident)
-            .ok_or_else(|| unsupported(format!("generated trait `{item}` has no stable name")))?;
-        members.insert((name, kind));
-    }
-    Ok(())
-}
-
 fn header_mentions_metavariable(tokens: &[TokenTree], name: &str) -> bool {
     tokens.windows(2).any(|window| {
         matches!(&window[0], TokenTree::Punct(punct) if punct.as_char() == '$')
             && matches!(&window[1], TokenTree::Ident(ident) if ident == name)
     })
-}
-
-fn trait_impl_self_is_metavariable(tokens: &[TokenTree], name: &str) -> bool {
-    let Some(for_index) = tokens.iter().position(|token| is_ident(Some(token), "for")) else {
-        return false;
-    };
-    header_mentions_metavariable(&tokens[for_index + 1..], name)
 }
 
 fn repetition_emits_api_item(tokens: TokenStream) -> bool {

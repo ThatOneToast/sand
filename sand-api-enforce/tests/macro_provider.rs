@@ -17,7 +17,6 @@ fn repository_resource_ref_family_comes_from_generator_and_invocations() {
             && item.members
                 == [
                     ("external".into(), ReachableKind::Method),
-                    ("fmt".into(), ReachableKind::TraitMethod),
                     ("location".into(), ReachableKind::Method),
                     ("new".into(), ReachableKind::Method),
                 ]
@@ -36,14 +35,9 @@ fn repository_registry_id_family_tracks_every_invocation() {
         item.provider == "generated_registry_ids"
             && item.members
                 == [
-                    ("Err".into(), ReachableKind::AssociatedType),
                     ("as_resource_location".into(), ReachableKind::Method),
                     ("custom".into(), ReachableKind::Method),
-                    ("fmt".into(), ReachableKind::TraitMethod),
-                    ("from".into(), ReachableKind::TraitMethod),
-                    ("from_str".into(), ReachableKind::TraitMethod),
                     ("minecraft".into(), ReachableKind::Method),
-                    ("serialize".into(), ReachableKind::TraitMethod),
                 ]
     }));
 }
@@ -146,26 +140,16 @@ fn event_provider_covers_exact_checked_in_generated_marker_types() {
         .iter()
         .find(|item| item.identity.ends_with("PlayerEnteredSurvivalEvent"))
         .unwrap();
-    assert_eq!(
-        survival.members,
-        [("dispatch".into(), ReachableKind::TraitMethod)]
-    );
+    assert!(survival.members.is_empty());
     let speed = provider
         .iter()
         .find(|item| item.identity.ends_with("::Speed"))
         .unwrap();
-    assert_eq!(
-        speed.members,
-        [
-            ("CONDITION".into(), ReachableKind::AssociatedConst),
-            ("EFFECT_ID".into(), ReachableKind::AssociatedConst),
-            ("TRACKER_ID".into(), ReachableKind::AssociatedConst),
-        ]
-    );
+    assert!(speed.members.is_empty());
 }
 
 #[test]
-fn type_family_models_public_fields_and_every_associated_item_shape() {
+fn type_family_models_public_fields_and_inherent_associated_items_only() {
     let temp = tempdir().unwrap();
     let source = temp.path().join("resource_ref.rs");
     fs::write(
@@ -195,14 +179,68 @@ resource_ref!(FixtureRef);
         provider[0].members,
         [
             ("DEFAULT".into(), ReachableKind::AssociatedConst),
-            ("ENABLED".into(), ReachableKind::AssociatedConst),
-            ("Output".into(), ReachableKind::AssociatedType),
             ("View".into(), ReachableKind::AssociatedType),
-            ("execute".into(), ReachableKind::TraitMethod),
             ("raw".into(), ReachableKind::Field),
             ("view".into(), ReachableKind::Method),
         ]
     );
+}
+
+#[test]
+fn trait_impls_do_not_inflate_concrete_type_api_identities() {
+    let temp = tempdir().unwrap();
+    let source = temp.path().join("resource_ref.rs");
+    fs::write(
+        &source,
+        r#"
+macro_rules! resource_ref {
+    ($name:ident) => {
+        pub struct $name;
+        impl $name { pub fn inherent() {} }
+        impl PublicTrait for $name {
+            type Output = String;
+            const ENABLED: bool = true;
+            fn execute(&self) {}
+        }
+    };
+}
+resource_ref!(FixtureRef);
+"#,
+    )
+    .unwrap();
+
+    let provider = resource_ref_provider(&source).unwrap();
+    assert_eq!(
+        provider[0].members,
+        [("inherent".into(), ReachableKind::Method)]
+    );
+}
+
+#[test]
+fn type_family_rejects_a_second_expansion_arm_instead_of_auditing_only_the_first() {
+    let temp = tempdir().unwrap();
+    let source = temp.path().join("resource_ref.rs");
+    fs::write(
+        &source,
+        r#"
+macro_rules! resource_ref {
+    ($name:ident) => {
+        pub struct $name;
+        impl $name { pub fn audited() {} }
+    };
+    ($name:ident, bypass) => {
+        pub struct $name;
+        impl $name { pub fn untracked() {} }
+    };
+}
+resource_ref!(FixtureRef);
+"#,
+    )
+    .unwrap();
+
+    let error = resource_ref_provider(&source).unwrap_err().to_string();
+    assert!(error.contains("2 expansion arms"), "{error}");
+    assert!(error.contains("not auditable"), "{error}");
 }
 
 #[test]

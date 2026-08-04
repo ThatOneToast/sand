@@ -366,7 +366,7 @@ impl ScopeManifest {
                 .iter()
                 .find(|scope| scope.id == **scope_id)
                 .expect("owners only contain validated scope ids");
-            if !within(&contract.canonical_path, &scope.canonical_module) {
+            if !scope.matches_path(&contract.canonical_path) {
                 failures.push(ScopeFailure::NonCanonicalContractPath {
                     identity: contract.identity.clone(),
                     selected: contract.canonical_path.clone(),
@@ -557,13 +557,15 @@ impl ScopeManifest {
 impl ApiScope {
     fn matches(&self, item: &ReachableApi) -> bool {
         provider_matches(&self.provider, &item.origin)
-            && item.paths.iter().any(|path| {
-                if self.recursive {
-                    within(path, &self.canonical_module)
-                } else {
-                    direct_child(path, &self.canonical_module)
-                }
-            })
+            && item.paths.iter().any(|path| self.matches_path(path))
+    }
+
+    fn matches_path(&self, path: &str) -> bool {
+        if self.recursive {
+            within(path, &self.canonical_module)
+        } else {
+            direct_child(path, &self.canonical_module)
+        }
     }
 }
 

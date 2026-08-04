@@ -447,3 +447,40 @@ fn topic_precedence_rejects_selecting_the_prelude_alias_as_canonical() {
         required_scope: "sand::predicate".into(),
     }));
 }
+
+#[test]
+fn nonrecursive_scope_rejects_descendant_alias_as_canonical() {
+    let source = r#"
+        schema_version = 1
+        static_surface_items = 1
+        pending_scope_ceiling = 1
+        pending_item_ceiling = 1
+
+        [[scope]]
+        id = "root"
+        canonical_module = "sand"
+        state = "pending"
+        tier = "author"
+        provider = "source"
+        recursive = false
+    "#;
+    let reachable = [api(
+        "sand_components::Predicate",
+        &["sand::Predicate", "sand::prelude::Predicate"],
+    )];
+    let descendant_canonical = contract(
+        "sand_components::Predicate",
+        "sand::prelude::Predicate",
+        &["sand::Predicate"],
+    );
+
+    let failures = ScopeManifest::from_toml(source)
+        .unwrap()
+        .evaluate(&reachable, &[descendant_canonical], &BTreeSet::new())
+        .unwrap_err();
+    assert!(failures.contains(&ScopeFailure::NonCanonicalContractPath {
+        identity: "sand_components::Predicate".into(),
+        selected: "sand::prelude::Predicate".into(),
+        required_scope: "sand".into(),
+    }));
+}

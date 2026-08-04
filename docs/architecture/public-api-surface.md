@@ -62,7 +62,7 @@ beside generated Rust. The measured aggregate is byte-compared with
 `sand/api-surface-baseline.txt`; that file records kinds, origins, and
 scope-level counts, never item exemptions.
 
-The current installed static surface contains **12,067 unique API elements**:
+The current installed static surface contains **11,837 unique API elements**:
 
 | Kind | Count |
 | --- | ---: |
@@ -79,22 +79,22 @@ The current installed static surface contains **12,067 unique API elements**:
 | Statics | 1 |
 | Free functions | 557 |
 | Inherent methods | 2,859 |
-| Trait methods | 202 |
-| Associated constants | 72 |
-| Associated types | 35 |
+| Trait methods | 56 |
+| Associated constants | 21 |
+| Associated types | 2 |
 | Public fields | 1,120 |
 | Enum variants | 5,907 |
 
-Generated static families account for 6,628 identities:
+Generated static families account for 6,398 identities:
 
 - vanilla registries: 4 enums, 4 inherent functions, and 4,859 variants
   (4,867 total); and
 - generated command builders: 486 structs and 769 functions/methods
   (1,255 total);
-- typed registry-ID wrappers: 285 identities;
-- effect registry enums: 105 identities;
-- generated event marker types: 84 identities; and
-- typed resource-reference wrappers: 32 identities.
+- typed registry-ID wrappers: 130 identities;
+- effect registry enums: 95 identities;
+- generated event marker types: 25 identities; and
+- typed resource-reference wrappers: 26 identities.
 
 The remaining 5,439 identities come from ordinary source declarations,
 including the 15 exported procedural macros. Input-dependent items emitted
@@ -129,7 +129,7 @@ corresponding provider audit. The foundation proves this mechanism with the
 real `SandStorage` derive, but does not claim every downstream generator has
 been migrated.
 
-The foundation baseline records 39 pending architectural scopes and 12,067
+The foundation baseline records 39 pending architectural scopes and 11,837
 pending static identities. No scope is marked enforced by the foundation;
 predicate becomes the first enforced source scope only after its complete
 migration tranche.

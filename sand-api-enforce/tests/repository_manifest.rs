@@ -9,8 +9,8 @@ fn repository_surface_manifest_records_the_audited_pending_baseline() {
     )
     .unwrap();
 
-    assert_eq!(manifest.static_surface_items, 12_067);
-    assert_eq!(manifest.pending_item_ceiling, 12_067);
+    assert_eq!(manifest.static_surface_items, 11_837);
+    assert_eq!(manifest.pending_item_ceiling, 11_837);
     assert_eq!(manifest.pending_scope_ceiling, 39);
     assert_eq!(manifest.scopes.len(), 39);
     assert!(

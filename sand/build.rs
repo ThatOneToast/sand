@@ -13,6 +13,8 @@ use sand_api_enforce::{
     resource_ref_provider, validate_contract_lookup_namespace, vanilla_registry_enum_provider,
 };
 
+const PLACEHOLDER_SURFACE_PROFILE: &str = "placeholder-codegen";
+
 fn main() {
     let workspace = Path::new("..");
     for source in [
@@ -27,6 +29,7 @@ fn main() {
         "api-surface-profiles.toml",
         "api-surface-baseline.txt",
         "api-surface-baseline-1.21.4.txt",
+        "api-surface-baseline-placeholder.txt",
     ] {
         println!("cargo:rerun-if-changed={source}");
     }
@@ -45,9 +48,14 @@ fn main() {
     );
     let providers = generated_providers(&provider_dir)
         .unwrap_or_else(|error| panic!("invalid generated API provider: {error}"));
+    println!("cargo:rustc-check-cfg=cfg(sand_placeholder_codegen)");
+    if providers.placeholder {
+        println!("cargo:rustc-cfg=sand_placeholder_codegen");
+    }
     let profile = profiles
         .select(&providers.versions)
         .unwrap_or_else(|error| panic!("cannot select Sand API surface profile: {error}"));
+    let placeholder_codegen = providers.placeholder;
     manifest.static_surface_items = profile.static_surface_items;
     manifest.pending_item_ceiling = profile.pending_item_ceiling;
     let mut generated = providers.apis;
@@ -81,7 +89,7 @@ fn main() {
     }
     let graph = SurfaceGraph::load_with_cfg(
         source_crates.clone(),
-        cargo_cfg(enabled_features.clone()),
+        cargo_cfg(enabled_features.clone(), placeholder_codegen),
         generated,
     )
     .and_then(|graph| {
@@ -203,9 +211,22 @@ fn main() {
             InertItemMacroClassification::InventoryCollectionWiring,
         )
     })
-    .and_then(|graph| graph.bind_generated_include("sand_core::generated", "generated_registries"))
     .and_then(|graph| {
-        graph.bind_generated_include("sand_core::cmd::_generated", "generated_commands")
+        if placeholder_codegen {
+            graph.bind_placeholder_generated_include("sand_core::generated", "generated_registries")
+        } else {
+            graph.bind_generated_include("sand_core::generated", "generated_registries")
+        }
+    })
+    .and_then(|graph| {
+        if placeholder_codegen {
+            graph.bind_placeholder_generated_include(
+                "sand_core::cmd::_generated",
+                "generated_commands",
+            )
+        } else {
+            graph.bind_generated_include("sand_core::cmd::_generated", "generated_commands")
+        }
     })
     .unwrap_or_else(|error| panic!("failed to construct Sand public facade graph: {error}"));
     let reachable = graph
@@ -269,8 +290,9 @@ fn collect_rust_files(directory: &Path, files: &mut Vec<PathBuf>) {
     }
 }
 
-fn cargo_cfg(features: BTreeSet<String>) -> CfgSet {
+fn cargo_cfg(features: BTreeSet<String>, placeholder_codegen: bool) -> CfgSet {
     let mut flags = BTreeMap::from([("test".to_owned(), false)]);
+    flags.insert("sand_placeholder_codegen".to_owned(), placeholder_codegen);
     let mut key_values = BTreeMap::new();
     for (key, value) in env::vars_os() {
         let Some(key) = key.to_str().and_then(|key| key.strip_prefix("CARGO_CFG_")) else {
@@ -298,29 +320,46 @@ struct GeneratedProviders {
     apis: Vec<GeneratedApi>,
     contracts: Vec<ContractIdentity>,
     versions: BTreeMap<String, String>,
+    placeholder: bool,
 }
 
 fn generated_providers(directory: &Path) -> Result<GeneratedProviders, String> {
     let mut generated = Vec::new();
     let mut contracts = Vec::new();
     let mut provider_versions = BTreeMap::new();
-    for (filename, rust_filename, root_identity) in [
+    let mut placeholder_modes = BTreeSet::new();
+    for (filename, rust_filename, root_identity, expected_provider) in [
         (
             "commands.api.json",
             "commands.rs",
             "sand_core::cmd::_generated",
+            "generated_commands",
         ),
         (
             "registries.api.json",
             "registries.rs",
             "sand_core::generated",
+            "generated_registries",
         ),
     ] {
         let path = directory.join(filename);
         let catalog = sand_build::read_api_provider(&path)
             .map_err(|error| format!("{}: {error}", path.display()))?;
+        if catalog.provider != expected_provider {
+            return Err(format!(
+                "{} declares provider `{}`, expected `{expected_provider}`",
+                path.display(),
+                catalog.provider
+            ));
+        }
+        placeholder_modes.insert(catalog.placeholder);
+        let surface_profile = if catalog.placeholder {
+            PLACEHOLDER_SURFACE_PROFILE.to_owned()
+        } else {
+            catalog.minecraft_version.clone()
+        };
         if provider_versions
-            .insert(catalog.provider.clone(), catalog.minecraft_version.clone())
+            .insert(catalog.provider.clone(), surface_profile)
             .is_some()
         {
             return Err(format!(
@@ -375,10 +414,19 @@ fn generated_providers(directory: &Path) -> Result<GeneratedProviders, String> {
     }
     generated.sort_by(|left, right| left.identity.cmp(&right.identity));
     contracts.sort_by(|left, right| left.identity.cmp(&right.identity));
+    if placeholder_modes.len() != 1 {
+        return Err(
+            "generated API providers mix placeholder and real codegen artifacts".to_owned(),
+        );
+    }
     Ok(GeneratedProviders {
         apis: generated,
         contracts,
         versions: provider_versions,
+        placeholder: placeholder_modes
+            .into_iter()
+            .next()
+            .expect("two provider files were read"),
     })
 }
 

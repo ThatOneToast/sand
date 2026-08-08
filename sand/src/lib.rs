@@ -422,6 +422,7 @@ pub mod data {
     example = "let item: sand::prelude::ItemId = sand::vanilla::Item::Diamond.into();"
 )]
 pub mod vanilla {
+    #[cfg(not(sand_placeholder_codegen))]
     pub use sand_core::generated::{Block, EntityType, Item, SoundEvent};
 }
 

@@ -86,6 +86,17 @@ The verified profiles are:
 | 26.2 (latest/default) | 11,835 | 1,255 | 4,867 | `api-surface-baseline.txt` |
 
 The handwritten source contribution is 5,437 identities in both profiles.
+An explicit `SAND_ALLOW_PLACEHOLDER_CODEGEN=1` fallback uses a third,
+source-only `placeholder-codegen` profile with 5,713 identities (5,437 source
+identities plus 276 checked-in generator identities). The fallback writer
+atomically replaces generated Rust and both provider catalogs; the catalogs
+are machine-marked empty placeholders and must agree. The facade keeps the
+contracted `sand::vanilla` module but cfg-disables its unavailable generated
+re-exports. Placeholder mode therefore still runs the exact source/scope
+ratchet, while real providers cannot select or weaken that profile. It is a
+compile-only recovery mode: generated API health tests intentionally reject
+the placeholder sources.
+
 The following detailed kind count describes the latest/default 26.2 surface:
 
 | Kind | Count |

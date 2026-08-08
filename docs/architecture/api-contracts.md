@@ -132,6 +132,14 @@ therefore unsupported until its exact report has been audited and registered;
 an unknown version or a directory containing mixed-version providers fails
 closed during ordinary compilation.
 
+The explicitly opted-in codegen-failure path emits empty, marked provider
+catalogs from the same helper that emits its placeholder Rust. Those catalogs
+select a separate exact 5,713-item source-only profile; they cannot be mixed
+with real catalogs or contain declarations. The facade's source and checked-in
+generator scopes remain fully audited in this recovery mode, while unavailable
+vanilla re-exports are cfg-disabled and generated API health tests continue to
+reject the placeholders.
+
 ## Prototype audit
 
 The original eight-commit prototype was retained as a starting point and

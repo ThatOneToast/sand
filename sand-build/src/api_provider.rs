@@ -24,7 +24,15 @@ pub struct ApiProviderCatalog {
     pub schema_version: u32,
     pub provider: String,
     pub minecraft_version: String,
+    /// Whether this is the explicit empty fallback emitted after opted-in
+    /// code-generation failure.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub placeholder: bool,
     pub entries: Vec<GeneratedProviderEntry>,
+}
+
+fn is_false(value: &bool) -> bool {
+    !value
 }
 
 /// One generated declaration and the contract for its facade identity.
@@ -65,7 +73,18 @@ impl ApiProviderCatalog {
             schema_version: PROVIDER_SCHEMA_VERSION,
             provider: provider.into(),
             minecraft_version: minecraft_version.into(),
+            placeholder: false,
             entries,
+        }
+    }
+
+    fn placeholder(provider: impl Into<String>, minecraft_version: impl Into<String>) -> Self {
+        Self {
+            schema_version: PROVIDER_SCHEMA_VERSION,
+            provider: provider.into(),
+            minecraft_version: minecraft_version.into(),
+            placeholder: true,
+            entries: Vec::new(),
         }
     }
 
@@ -75,6 +94,12 @@ impl ApiProviderCatalog {
             return Err(format!(
                 "unsupported provider schema {}, expected {PROVIDER_SCHEMA_VERSION}",
                 self.schema_version
+            ));
+        }
+        if self.placeholder && !self.entries.is_empty() {
+            return Err(format!(
+                "placeholder provider `{}` must not contain generated declarations",
+                self.provider
             ));
         }
         let mut paths = BTreeSet::new();
@@ -170,6 +195,36 @@ impl ApiProviderCatalog {
         std::fs::write(path, bytes)?;
         Ok(())
     }
+}
+
+/// Write the complete empty code-generation fallback, including authoritative
+/// provider catalogs for the absent generated declarations.
+///
+/// Callers must expose this only behind Sand's explicit placeholder opt-in.
+/// The provider marker lets the facade select its separately ratcheted
+/// source-only profile instead of mistaking the empty output for real codegen.
+pub fn write_placeholder_codegen(out_dir: &Path, minecraft_version: &str) -> Result<()> {
+    // These crate-visible uninhabited shims keep handwritten interoperability
+    // impls type-checking while deliberately exposing no generated facade API.
+    // Because they are not `pub`, the matching registry provider is empty and
+    // source parity independently verifies that claim.
+    std::fs::write(
+        out_dir.join("registries.rs"),
+        "// Generation failed\n\
+         pub(crate) enum Item {}\n\
+         impl Item { pub(crate) fn resource_location(&self) -> &'static str { match *self {} } }\n\
+         pub(crate) enum Block {}\n\
+         impl Block { pub(crate) fn resource_location(&self) -> &'static str { match *self {} } }\n\
+         pub(crate) enum EntityType {}\n\
+         impl EntityType { pub(crate) fn resource_location(&self) -> &'static str { match *self {} } }\n",
+    )?;
+    std::fs::write(out_dir.join("block_states.rs"), "// Generation failed\n")?;
+    std::fs::write(out_dir.join("commands.rs"), "// Generation failed\n")?;
+    ApiProviderCatalog::placeholder("generated_commands", minecraft_version)
+        .write_json(&out_dir.join("commands.api.json"))?;
+    ApiProviderCatalog::placeholder("generated_registries", minecraft_version)
+        .write_json(&out_dir.join("registries.api.json"))?;
+    Ok(())
 }
 
 /// Read and validate a generated provider catalog.
@@ -432,6 +487,69 @@ mod tests {
         member.member_name = Some("method".into());
         let catalog = ApiProviderCatalog::new("fixture", "test", vec![member]);
         assert!(catalog.validate().unwrap_err().contains("is not member"));
+    }
+
+    #[test]
+    fn placeholder_codegen_replaces_stale_sources_and_providers() {
+        let directory = tempfile::tempdir().unwrap();
+        for filename in [
+            "commands.rs",
+            "registries.rs",
+            "block_states.rs",
+            "commands.api.json",
+            "registries.api.json",
+        ] {
+            std::fs::write(directory.path().join(filename), "stale").unwrap();
+        }
+
+        write_placeholder_codegen(directory.path(), "fixture-version").unwrap();
+
+        for (provider_file, rust_file, provider, root) in [
+            (
+                "commands.api.json",
+                "commands.rs",
+                "generated_commands",
+                "core::cmd::_generated",
+            ),
+            (
+                "registries.api.json",
+                "registries.rs",
+                "generated_registries",
+                "core::generated",
+            ),
+        ] {
+            let catalog = read_api_provider(&directory.path().join(provider_file)).unwrap();
+            assert_eq!(catalog.provider, provider);
+            assert_eq!(catalog.minecraft_version, "fixture-version");
+            assert!(catalog.placeholder);
+            assert!(catalog.entries.is_empty());
+            validate_api_provider_source(&catalog, &directory.path().join(rust_file), root)
+                .unwrap();
+        }
+        assert!(
+            std::fs::read_to_string(directory.path().join("registries.rs"))
+                .unwrap()
+                .contains("pub(crate) enum Item {}")
+        );
+        assert_eq!(
+            std::fs::read_to_string(directory.path().join("block_states.rs")).unwrap(),
+            "// Generation failed\n"
+        );
+    }
+
+    #[test]
+    fn placeholder_provider_cannot_claim_generated_declarations() {
+        let mut catalog = ApiProviderCatalog::placeholder("fixture", "test");
+        catalog.entries.push(entry(
+            "core::generated::Generated",
+            "sand::generated::Generated",
+        ));
+        assert!(
+            catalog
+                .validate()
+                .unwrap_err()
+                .contains("must not contain generated declarations")
+        );
     }
 
     #[test]

@@ -1024,6 +1024,54 @@ fn generated_include_binding_must_name_a_provider_that_owns_the_module() {
 }
 
 #[test]
+fn placeholder_include_binding_requires_one_include_and_zero_declarations() {
+    let directory = tempfile::tempdir().unwrap();
+    let facade = directory.path().join("facade.rs");
+    fs::write(
+        &facade,
+        r#"pub mod generated { include!(concat!(env!("OUT_DIR"), "/generated.rs")); }"#,
+    )
+    .unwrap();
+    let empty = SurfaceGraph::load(
+        [SourceCrate {
+            name: "facade".into(),
+            root: facade.clone(),
+        }],
+        [],
+        [],
+    )
+    .unwrap()
+    .bind_placeholder_generated_include("facade::generated", "named_provider")
+    .unwrap();
+    empty.reachable_from("facade").unwrap();
+
+    let populated = SurfaceGraph::load(
+        [SourceCrate {
+            name: "facade".into(),
+            root: facade,
+        }],
+        [],
+        [GeneratedApi {
+            identity: "facade::generated::Generated".into(),
+            provider: "named_provider".into(),
+            producer: None,
+            kind: ReachableKind::Struct,
+            members: vec![],
+            excluded: false,
+        }],
+    )
+    .unwrap();
+    assert!(matches!(
+        populated.bind_placeholder_generated_include("facade::generated", "named_provider"),
+        Err(ReachabilityError::InvalidPlaceholderIncludeProvider {
+            dynamic_includes: 1,
+            generated_declarations: 1,
+            ..
+        })
+    ));
+}
+
+#[test]
 fn missing_contract_alias_drift_and_duplicate_canonical_paths_fail() {
     let (_directory, reachable) = fixture(&[]);
     let mut contracts = contracts_for(&reachable);

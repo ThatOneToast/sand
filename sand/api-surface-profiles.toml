@@ -4,6 +4,16 @@
 # separately reviewed deterministic baseline.
 schema_version = 1
 
+# Explicit source-only profile used solely when sand-core code generation has
+# failed and SAND_ALLOW_PLACEHOLDER_CODEGEN=1 was requested. Empty provider
+# catalogs carry a machine-validated placeholder marker; real catalogs cannot
+# select this ratchet.
+[[profile]]
+minecraft_version = "placeholder-codegen"
+static_surface_items = 5713
+pending_item_ceiling = 5713
+baseline = "api-surface-baseline-placeholder.txt"
+
 [[profile]]
 minecraft_version = "1.21.4"
 static_surface_items = 10925

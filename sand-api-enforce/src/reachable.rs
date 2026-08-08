@@ -300,6 +300,12 @@ pub enum ReachabilityError {
         provider: String,
         dynamic_includes: usize,
     },
+    InvalidPlaceholderIncludeProvider {
+        module: String,
+        provider: String,
+        dynamic_includes: usize,
+        generated_declarations: usize,
+    },
     UnboundItemMacro {
         source: PathBuf,
         line: usize,
@@ -431,6 +437,15 @@ impl fmt::Display for ReachabilityError {
             } => write!(
                 formatter,
                 "generated include binding `{module}` -> `{provider}` requires exactly one opaque include and at least one matching generated API declaration beneath that module (found {dynamic_includes} opaque includes)"
+            ),
+            Self::InvalidPlaceholderIncludeProvider {
+                module,
+                provider,
+                dynamic_includes,
+                generated_declarations,
+            } => write!(
+                formatter,
+                "placeholder include binding `{module}` -> `{provider}` requires exactly one opaque include and no matching generated API declarations (found {dynamic_includes} opaque includes and {generated_declarations} declarations)"
             ),
             Self::UnboundItemMacro {
                 source,
@@ -885,6 +900,43 @@ impl SurfaceGraph {
                 module,
                 provider,
                 dynamic_includes,
+            });
+        }
+        self.include_providers.insert(module, provider);
+        Ok(self)
+    }
+
+    /// Bind an opaque include to an explicitly validated empty placeholder
+    /// provider.
+    ///
+    /// This is deliberately separate from [`Self::bind_generated_include`]:
+    /// normal generator providers must own declarations, while an opted-in
+    /// codegen-failure catalog must be empty. The caller is responsible for
+    /// validating the signed placeholder marker in the provider artifact.
+    pub fn bind_placeholder_generated_include(
+        mut self,
+        module: impl Into<String>,
+        provider: impl Into<String>,
+    ) -> Result<Self, ReachabilityError> {
+        let module = module.into();
+        let provider = provider.into();
+        let prefix = format!("{module}::");
+        let dynamic_includes = self
+            .module(&module)
+            .map_or(0, |module| module.dynamic_includes.len());
+        let generated_declarations = self
+            .generated
+            .iter()
+            .filter(|item| {
+                item.provider == provider && !item.excluded && item.identity.starts_with(&prefix)
+            })
+            .count();
+        if dynamic_includes != 1 || generated_declarations != 0 {
+            return Err(ReachabilityError::InvalidPlaceholderIncludeProvider {
+                module,
+                provider,
+                dynamic_includes,
+                generated_declarations,
             });
         }
         self.include_providers.insert(module, provider);

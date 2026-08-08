@@ -46,9 +46,12 @@ fn main() {
                  The generated_api_health tests will fail until real codegen succeeds.\n\
                  Remove SAND_ALLOW_PLACEHOLDER_CODEGEN for a hard build error."
             );
-            let _ = std::fs::write(out_dir.join("registries.rs"), "// Generation failed\n");
-            let _ = std::fs::write(out_dir.join("block_states.rs"), "// Generation failed\n");
-            let _ = std::fs::write(out_dir.join("commands.rs"), "// Generation failed\n");
+            sand_build::write_placeholder_codegen(&out_dir, &version).unwrap_or_else(|write_error| {
+                panic!(
+                    "failed to write explicit placeholder codegen artifacts to {}: {write_error}",
+                    out_dir.display()
+                )
+            });
         }
         Err(e) => {
             // Default and strict: fail immediately with an actionable error.

@@ -1353,6 +1353,27 @@ fn alias_to_unmodeled_external_type_fails_closed() {
 }
 
 #[test]
+fn one_super_segment_resolves_exactly_one_lexical_parent() {
+    let (_directory, graph) = item_macro_graph(
+        r#"
+            pub mod parent {
+                pub struct Thing;
+                impl Thing { pub fn new() -> Self { Self } }
+                pub mod child { pub type Alias = super::Thing; }
+            }
+            pub use parent::child::Alias;
+        "#,
+        [],
+    );
+    let api = graph.reachable_from("facade").unwrap();
+    assert!(
+        item(&api, "facade::parent::Thing::new")
+            .paths
+            .contains("facade::Alias::new")
+    );
+}
+
+#[test]
 fn architecture_07_features_and_target_cfgs_select_exact_surface() {
     let (_, api) = fixture(&[]);
     assert!(

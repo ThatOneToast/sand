@@ -49,6 +49,14 @@ to equal the graph-derived path set. An identity exposed by multiple candidate
 topic modules without an ownership rule is an error; two identities selecting
 one canonical path is also an error.
 
+Type-alias targets use the same lexical resolver as impl ownership, including
+relative, `self`, `super`, `crate`, import, extern-alias, alias-chain, and
+generated-type targets. Sand-owned inherent members remain one underlying
+identity when reached through an alias. Unknown third-party nominal targets
+fail closed. Standard-library and primitive/container targets are a deliberate
+language boundary: the Sand alias itself is supported, but the graph does not
+claim the Rust standard library's inherent API as Sand-owned surface.
+
 Public re-export edges are fail-closed: named, glob, and chained edges must
 resolve to an explicitly modeled source crate. A third-party facade export
 cannot disappear from the contract graph merely because its dependency source

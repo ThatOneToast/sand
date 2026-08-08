@@ -3726,10 +3726,7 @@ fn resolve_qualified_use_target(crate_name: &str, module_id: &str, prefix: &[Str
         return join_path(module_id, &segments);
     }
     if segments.first().is_some_and(|s| s == "super") {
-        let mut base = module_id
-            .rsplit_once("::")
-            .map_or(crate_name, |(base, _)| base)
-            .to_owned();
+        let mut base = module_id.to_owned();
         while segments.first().is_some_and(|s| s == "super") {
             segments.remove(0);
             base = base

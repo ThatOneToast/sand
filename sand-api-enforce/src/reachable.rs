@@ -15,6 +15,8 @@ use std::path::{Path, PathBuf};
 use quote::ToTokens;
 use syn::spanned::Spanned;
 
+use crate::macro_provider::audit_inert_macro_transcriber;
+
 /// Explicit cfg environment used while parsing the selected Cargo target.
 #[derive(Clone, Debug, Default)]
 pub struct CfgSet {
@@ -303,6 +305,13 @@ pub enum ReachabilityError {
         provider: String,
         invocations: usize,
     },
+    InvalidInertItemMacro {
+        module: String,
+        macro_path: String,
+        classification: InertItemMacroClassification,
+        invocations: usize,
+        reason: String,
+    },
     UnboundApiProducer {
         source: PathBuf,
         line: usize,
@@ -413,6 +422,16 @@ impl fmt::Display for ReachabilityError {
                 formatter,
                 "item macro binding `({module}, {macro_path}!)` -> `{provider}` requires at least one exact invocation and at least one provider-owned generated declaration beneath that module (found {invocations} invocations)"
             ),
+            Self::InvalidInertItemMacro {
+                module,
+                macro_path,
+                classification,
+                invocations,
+                reason,
+            } => write!(
+                formatter,
+                "inert item macro binding `({module}, {macro_path}!)` as {classification:?} is invalid (found {invocations} exact invocations): {reason}"
+            ),
             Self::UnboundApiProducer {
                 source,
                 line,
@@ -496,6 +515,7 @@ pub struct SurfaceGraph {
     generated: Vec<GeneratedApi>,
     include_providers: BTreeMap<String, String>,
     item_macro_providers: BTreeMap<(String, String), String>,
+    inert_item_macros: BTreeMap<(String, String), InertItemMacroClassification>,
     api_producer_bindings: BTreeMap<(String, String), String>,
     transcriber_producers: Vec<ApiProducerUse>,
 }
@@ -528,7 +548,39 @@ struct Module {
     definition: Option<SourceDefinition>,
     dynamic_includes: Vec<IncludeSite>,
     item_macros: Vec<ItemMacroSite>,
+    macro_rules: BTreeMap<String, proc_macro2::TokenStream>,
     api_producers: Vec<ApiProducerUse>,
+}
+
+/// A narrow reason why an item-position macro intentionally emits no public
+/// API identity and therefore needs no generated declaration provider.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum InertItemMacroClassification {
+    /// A local `macro_rules!` family whose expansion arms have been proven to
+    /// emit only private items and trait implementations.
+    LocalTraitImplOnly,
+    /// `inventory::collect!` registers compiler/linker wiring but declares no
+    /// Rust item reachable through Sand's facade.
+    InventoryCollectionWiring,
+    /// `thread_local!` declares internal storage. This classification is only
+    /// valid for the exact `thread_local` or `std::thread_local` macro path.
+    ThreadLocalStorageWiring,
+}
+
+impl InertItemMacroClassification {
+    pub const fn reason(self) -> &'static str {
+        match self {
+            Self::LocalTraitImplOnly => {
+                "structurally audited local trait implementations/private items"
+            }
+            Self::InventoryCollectionWiring => {
+                "inventory linker registration with no facade identity"
+            }
+            Self::ThreadLocalStorageWiring => {
+                "internal thread-local compiler wiring with no facade identity"
+            }
+        }
+    }
 }
 
 struct IncludeSite {
@@ -651,6 +703,7 @@ impl SurfaceGraph {
             generated,
             include_providers: BTreeMap::new(),
             item_macro_providers: BTreeMap::new(),
+            inert_item_macros: BTreeMap::new(),
             api_producer_bindings: BTreeMap::new(),
             transcriber_producers,
         })
@@ -783,6 +836,96 @@ impl SurfaceGraph {
         }
         self.item_macro_providers
             .insert((module, macro_path), provider);
+        Ok(self)
+    }
+
+    /// Classify one exact item-position macro invocation family as producing
+    /// no facade API identity.
+    ///
+    /// Unlike [`Self::bind_item_macro_provider`], this creates no generated
+    /// declarations. Local macro families are accepted only after their
+    /// transcribers pass the structural trait-impl/private-item audit.
+    /// External classifications are restricted to two documented compiler
+    /// wiring macros and cannot be applied to an arbitrary spelling.
+    pub fn bind_inert_item_macro(
+        mut self,
+        module: impl Into<String>,
+        macro_path: impl Into<String>,
+        classification: InertItemMacroClassification,
+    ) -> Result<Self, ReachabilityError> {
+        let module = module.into();
+        let macro_path = macro_path.into();
+        let invocations = self.module(&module).map_or(0, |parsed| {
+            parsed
+                .item_macros
+                .iter()
+                .filter(|site| site.macro_path == macro_path)
+                .count()
+        });
+        let invalid = |reason: String| ReachabilityError::InvalidInertItemMacro {
+            module: module.clone(),
+            macro_path: macro_path.clone(),
+            classification,
+            invocations,
+            reason,
+        };
+        if invocations == 0 {
+            return Err(invalid("the exact module/path has no invocation".into()));
+        }
+        if self
+            .item_macro_providers
+            .contains_key(&(module.clone(), macro_path.clone()))
+        {
+            return Err(invalid(
+                "the same invocation already has a generated API provider".into(),
+            ));
+        }
+        if let Some(existing) = self
+            .inert_item_macros
+            .get(&(module.clone(), macro_path.clone()))
+            && *existing != classification
+        {
+            return Err(invalid(format!(
+                "the same invocation is already classified as {existing:?}"
+            )));
+        }
+        match classification {
+            InertItemMacroClassification::LocalTraitImplOnly => {
+                if macro_path.contains("::") {
+                    return Err(invalid(
+                        "local inert families must resolve to a bare macro_rules name in the exact defining module".into(),
+                    ));
+                }
+                let transcriber = self
+                    .module(&module)
+                    .and_then(|parsed| parsed.macro_rules.get(&macro_path))
+                    .ok_or_else(|| {
+                        invalid(
+                            "no matching local macro_rules definition exists in the exact module"
+                                .into(),
+                        )
+                    })?;
+                audit_inert_macro_transcriber(transcriber)
+                    .map_err(|error| invalid(error.to_string()))?;
+            }
+            InertItemMacroClassification::InventoryCollectionWiring => {
+                if macro_path != "inventory::collect" {
+                    return Err(invalid(
+                        "inventory wiring is valid only for `inventory::collect!`".into(),
+                    ));
+                }
+            }
+            InertItemMacroClassification::ThreadLocalStorageWiring => {
+                if !matches!(macro_path.as_str(), "thread_local" | "std::thread_local") {
+                    return Err(invalid(
+                        "thread-local wiring is valid only for `thread_local!` or `std::thread_local!`"
+                            .into(),
+                    ));
+                }
+            }
+        }
+        self.inert_item_macros
+            .insert((module, macro_path), classification);
         Ok(self)
     }
 
@@ -1046,9 +1189,9 @@ impl SurfaceGraph {
         module: &Module,
     ) -> Result<(), ReachabilityError> {
         if let Some(site) = module.item_macros.iter().find(|site| {
-            !self
-                .item_macro_providers
-                .contains_key(&(module_id.to_owned(), site.macro_path.clone()))
+            let key = (module_id.to_owned(), site.macro_path.clone());
+            !self.item_macro_providers.contains_key(&key)
+                && !self.inert_item_macros.contains_key(&key)
         }) {
             return Err(ReachabilityError::UnboundItemMacro {
                 source: site.source.clone(),
@@ -1761,6 +1904,12 @@ fn parse_items(
             && let syn::Item::Macro(value) = item
             && let Some(name) = &value.ident
         {
+            index
+                .modules
+                .entry(module_id.to_owned())
+                .or_default()
+                .macro_rules
+                .insert(ident_name(name), value.mac.tokens.clone());
             let owner = format!("{module_id}::{}", ident_name(name));
             if has_attr(&value.attrs, "macro_export", cfg, source_file)? {
                 index

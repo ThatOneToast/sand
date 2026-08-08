@@ -31,9 +31,9 @@ pub use macro_provider::{
 };
 
 pub use reachable::{
-    CfgSet, ContractIdentity, GeneratedApi, GeneratedProducer, ReachabilityError, ReachableApi,
-    ReachableKind, ReachableOrigin, SourceCrate, SourceDefinition, SurfaceGraph,
-    audit_reachable_surface, discover_local_source_crates,
+    CfgSet, ContractIdentity, GeneratedApi, GeneratedProducer, InertItemMacroClassification,
+    ReachabilityError, ReachableApi, ReachableKind, ReachableOrigin, SourceCrate, SourceDefinition,
+    SurfaceGraph, audit_reachable_surface, discover_local_source_crates,
 };
 pub use scope::{
     ApiScope, ScopeEnforcement, ScopeFailure, ScopeManifest, ScopeReport, ScopeReportEntry,

@@ -2,8 +2,8 @@ use std::collections::BTreeSet;
 use std::fs;
 
 use sand_api_enforce::{
-    CfgSet, ContractIdentity, GeneratedApi, GeneratedProducer, ReachabilityError, ReachableKind,
-    SourceCrate, SurfaceGraph, audit_reachable_surface,
+    CfgSet, ContractIdentity, GeneratedApi, GeneratedProducer, InertItemMacroClassification,
+    ReachabilityError, ReachableKind, SourceCrate, SurfaceGraph, audit_reachable_surface,
 };
 
 fn fixture(features: &[&str]) -> (tempfile::TempDir, Vec<sand_api_enforce::ReachableApi>) {
@@ -345,6 +345,165 @@ fn item_macro_binding_does_not_cover_the_same_spelling_in_another_module() {
             ..
         } if module == "facade::nested" && macro_path == "family"
     ));
+}
+
+#[test]
+fn local_inert_item_macro_requires_an_exact_invocation_and_audited_definition() {
+    let (_directory, graph) = item_macro_graph(
+        r#"
+            trait Marker {}
+            macro_rules! marker_family {
+                ($name:ident) => {
+                    struct PrivateHelper;
+                    impl Marker for $name {}
+                };
+            }
+            struct Subject;
+            marker_family!(Subject);
+        "#,
+        [],
+    );
+    let reachable = graph
+        .bind_inert_item_macro(
+            "facade",
+            "marker_family",
+            InertItemMacroClassification::LocalTraitImplOnly,
+        )
+        .unwrap()
+        .reachable_from("facade")
+        .unwrap();
+    assert!(reachable.is_empty());
+
+    let (_directory, graph) = item_macro_graph("macro_rules! marker_family { () => {} }", []);
+    assert!(matches!(
+        graph.bind_inert_item_macro(
+            "facade",
+            "marker_family",
+            InertItemMacroClassification::LocalTraitImplOnly,
+        ),
+        Err(ReachabilityError::InvalidInertItemMacro { invocations: 0, .. })
+    ));
+}
+
+#[test]
+fn inert_item_macro_binding_is_not_another_modules_exemption() {
+    let (_directory, graph) = item_macro_graph(
+        r#"
+            macro_rules! marker_family { () => { struct RootPrivate; }; }
+            marker_family!();
+            pub mod nested {
+                macro_rules! marker_family { () => { struct NestedPrivate; }; }
+                marker_family!();
+            }
+        "#,
+        [],
+    );
+    let error = graph
+        .bind_inert_item_macro(
+            "facade",
+            "marker_family",
+            InertItemMacroClassification::LocalTraitImplOnly,
+        )
+        .unwrap()
+        .reachable_from("facade")
+        .unwrap_err();
+    assert!(matches!(
+        error,
+        ReachabilityError::UnboundItemMacro { module, macro_path, .. }
+            if module == "facade::nested" && macro_path == "marker_family"
+    ));
+}
+
+#[test]
+fn inert_transcriber_rejects_public_items_and_inherent_members() {
+    for (source, expected) in [
+        (
+            "macro_rules! family { () => { pub struct Escaped; }; } family!();",
+            "public declaration",
+        ),
+        (
+            "struct Subject; macro_rules! family { () => { impl Subject { pub fn escaped() {} } }; } family!();",
+            "inherent impl",
+        ),
+    ] {
+        let (_directory, graph) = item_macro_graph(source, []);
+        let error = graph
+            .bind_inert_item_macro(
+                "facade",
+                "family",
+                InertItemMacroClassification::LocalTraitImplOnly,
+            )
+            .err()
+            .unwrap()
+            .to_string();
+        assert!(error.contains(expected), "{error}");
+    }
+}
+
+#[test]
+fn inert_transcriber_rejects_nested_item_macros_and_repetition() {
+    for (source, expected) in [
+        (
+            "trait Marker {} struct Subject; macro_rules! family { () => { impl Marker for Subject { helper!(); } }; } family!();",
+            "unmodeled `helper!`",
+        ),
+        (
+            "macro_rules! family { ($($name:ident),*) => { $(struct $name;)* }; } family!(One, Two);",
+            "unaudited repetition",
+        ),
+    ] {
+        let (_directory, graph) = item_macro_graph(source, []);
+        let error = graph
+            .bind_inert_item_macro(
+                "facade",
+                "family",
+                InertItemMacroClassification::LocalTraitImplOnly,
+            )
+            .err()
+            .unwrap()
+            .to_string();
+        assert!(error.contains(expected), "{error}");
+    }
+}
+
+#[test]
+fn external_compiler_wiring_classifications_are_path_specific() {
+    let (_directory, graph) = item_macro_graph("inventory::collect!(Descriptor);", []);
+    graph
+        .bind_inert_item_macro(
+            "facade",
+            "inventory::collect",
+            InertItemMacroClassification::InventoryCollectionWiring,
+        )
+        .unwrap()
+        .reachable_from("facade")
+        .unwrap();
+
+    let (_directory, graph) = item_macro_graph("other::collect!(Descriptor);", []);
+    let error = graph
+        .bind_inert_item_macro(
+            "facade",
+            "other::collect",
+            InertItemMacroClassification::InventoryCollectionWiring,
+        )
+        .err()
+        .unwrap()
+        .to_string();
+    assert!(
+        error.contains("valid only for `inventory::collect!`"),
+        "{error}"
+    );
+
+    let (_directory, graph) = item_macro_graph("thread_local! { static VALUE: u8 = 0; }", []);
+    graph
+        .bind_inert_item_macro(
+            "facade",
+            "thread_local",
+            InertItemMacroClassification::ThreadLocalStorageWiring,
+        )
+        .unwrap()
+        .reachable_from("facade")
+        .unwrap();
 }
 
 #[test]

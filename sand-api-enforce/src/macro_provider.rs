@@ -23,6 +23,102 @@ pub enum MacroProviderError {
     UnsupportedGeneratedShape(String),
 }
 
+/// Prove that a local `macro_rules!` transcriber cannot add an API identity.
+///
+/// Every expansion arm is inspected. The deliberately conservative grammar
+/// accepts private items and trait implementations, but rejects public items,
+/// inherent implementations, item-position helper macros, and repetitions.
+/// Those rejected forms can grow the reachable surface and therefore require
+/// a real generated-API provider instead of an inert classification.
+pub(crate) fn audit_inert_macro_transcriber(
+    tokens: &TokenStream,
+) -> Result<(), MacroProviderError> {
+    let bodies = expansion_bodies(tokens.clone());
+    if bodies.is_empty() {
+        return Err(unsupported(
+            "inert declarative macro has no auditable `=> <delimited tokens>` expansion arm",
+        ));
+    }
+    for body in bodies {
+        audit_inert_item_sequence(body, "transcriber top level")?;
+    }
+    Ok(())
+}
+
+fn audit_inert_item_sequence(
+    stream: TokenStream,
+    position: &str,
+) -> Result<(), MacroProviderError> {
+    let tokens = stream.into_iter().collect::<Vec<_>>();
+    reject_any_repetition(&tokens, position)?;
+    reject_item_position_macro_invocations(&tokens, position)?;
+
+    let mut index = 0;
+    while index < tokens.len() {
+        if is_ident(tokens.get(index), "pub") {
+            return Err(unsupported(format!(
+                "inert macro emits a public declaration at {position}"
+            )));
+        }
+        if is_ident(tokens.get(index), "impl") {
+            let body_index = tokens[index + 1..]
+                .iter()
+                .position(|token| {
+                    matches!(token, TokenTree::Group(group) if group.delimiter() == proc_macro2::Delimiter::Brace)
+                })
+                .map(|offset| index + 1 + offset)
+                .ok_or_else(|| unsupported("inert macro contains an impl without a body"))?;
+            if !tokens[index + 1..body_index]
+                .iter()
+                .any(|token| is_ident(Some(token), "for"))
+            {
+                return Err(unsupported(
+                    "inert macro emits an inherent impl; associated API requires a provider",
+                ));
+            }
+            let TokenTree::Group(body) = &tokens[body_index] else {
+                unreachable!()
+            };
+            audit_inert_trait_impl_body(body.stream())?;
+            index = body_index;
+        } else if is_ident(tokens.get(index), "mod")
+            && let Some(TokenTree::Group(body)) = tokens[index + 1..].iter().find(|token| {
+                matches!(token, TokenTree::Group(group) if group.delimiter() == proc_macro2::Delimiter::Brace)
+            })
+        {
+            audit_inert_item_sequence(body.stream(), "nested module")?;
+        }
+        index += 1;
+    }
+    Ok(())
+}
+
+fn audit_inert_trait_impl_body(stream: TokenStream) -> Result<(), MacroProviderError> {
+    let tokens = stream.into_iter().collect::<Vec<_>>();
+    reject_any_repetition(&tokens, "trait impl")?;
+    reject_item_position_macro_invocations(&tokens, "trait impl")?;
+    if tokens.iter().any(|token| is_ident(Some(token), "pub")) {
+        return Err(unsupported(
+            "inert macro emits explicit visibility inside a trait impl",
+        ));
+    }
+    Ok(())
+}
+
+fn reject_any_repetition(tokens: &[TokenTree], position: &str) -> Result<(), MacroProviderError> {
+    for (index, token) in tokens.iter().enumerate() {
+        if matches!(token, TokenTree::Punct(punct) if punct.as_char() == '$')
+            && matches!(tokens.get(index + 1), Some(TokenTree::Group(_)))
+            && matches!(tokens.get(index + 2), Some(TokenTree::Punct(punct)) if matches!(punct.as_char(), '*' | '+' | '?'))
+        {
+            return Err(unsupported(format!(
+                "inert macro contains an unaudited repetition at {position}"
+            )));
+        }
+    }
+    Ok(())
+}
+
 impl fmt::Display for MacroProviderError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {

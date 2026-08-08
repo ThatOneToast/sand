@@ -610,15 +610,15 @@ mod tests {
         )]);
         catalog.coverage = sand_api_contract::ApiCoverage {
             status: CoverageStatus::Partial,
-            static_surface_items: 11_835,
-            pending_item_ceiling: 11_835,
-            pending_scope_ceiling: 39,
+            static_surface_items: 11_736,
+            pending_item_ceiling: 11_613,
+            pending_scope_ceiling: 38,
             pending_scopes: vec!["predicate-source".into()],
         };
 
         let shown = show(&catalog, "sand::predicate::Predicate").unwrap();
         assert!(shown.starts_with(
-            "API contract migration is partial: 11835 static items and 39 scopes remain pending."
+            "API contract migration is partial: 11613 static items and 38 scopes remain pending."
         ));
         assert_eq!(
             serde_json::from_str::<serde_json::Value>(&catalog.to_json_pretty().unwrap()).unwrap()
@@ -674,7 +674,7 @@ mod tests {
         let catalog = generated_catalog();
         let constructor = show(catalog, "sand::prelude::Predicate::new").unwrap();
         assert!(constructor.contains("sand::predicate::Predicate::new"));
-        assert!(constructor.contains("location: PredicateId"));
+        assert!(constructor.contains("location : PredicateId"));
 
         let generated_id = show(catalog, "sand::component::PredicateId::minecraft").unwrap();
         assert!(generated_id.contains("sand::predicate::PredicateId::minecraft"));

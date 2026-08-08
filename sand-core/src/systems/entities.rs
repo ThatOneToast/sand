@@ -92,9 +92,8 @@ impl Interactable {
     pub fn tag(mut self, tag: impl Into<String>) -> Self {
         let t = tag.into();
         self.fixed_tag = Some(t.clone());
-        self.entity_filter = Some(
-            EntityPredicate::new().nbt(RawSnbt::new(format!("{{Tags:[\"{t}\"]}}"))),
-        );
+        self.entity_filter =
+            Some(EntityPredicate::new().nbt(RawSnbt::new(format!("{{Tags:[\"{t}\"]}}"))));
         self
     }
 

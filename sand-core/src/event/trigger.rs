@@ -27,9 +27,9 @@
 //! ```
 
 use crate::AdvancementTrigger;
+use sand_components::ItemId;
 use sand_components::advancement::InventorySlotsPredicate;
 use sand_components::predicates::{DamagePredicate, EntityPredicate, IntRange, ItemPredicate};
-use sand_components::ItemId;
 
 // ── TickTrigger ─────────────────────────────────────────────────────────────
 

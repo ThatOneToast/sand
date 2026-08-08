@@ -1268,10 +1268,11 @@ fn unknown_custom_derives_and_attributes_fail_closed() {
             [],
         )
         .unwrap();
-        assert!(matches!(
-            graph.reachable_from("facade"),
-            Err(ReachabilityError::UnclassifiedApiMacro { .. })
-        ));
+        let result = graph.reachable_from("facade");
+        assert!(
+            matches!(result, Err(ReachabilityError::UnclassifiedApiMacro { .. })),
+            "qualified or aliased macro escaped: {source}: {result:?}"
+        );
     }
 
     let directory = tempfile::tempdir().unwrap();
@@ -1302,6 +1303,11 @@ fn qualified_and_aliased_macros_cannot_impersonate_audited_names() {
         "use evil::ApiMaker as Debug; #[derive(Debug)] pub struct Thing;",
         "use evil::ApiMaker as api; #[api] pub struct Thing;",
         "use sand::SandStorage as StorageDerive; #[derive(StorageDerive)] pub struct Thing { value: i32 }",
+        "use evil as serde; #[derive(serde::Serialize)] pub struct Thing;",
+        "extern crate evil as serde; #[derive(serde::Serialize)] pub struct Thing;",
+        "mod serde { pub use evil::ApiMaker as Serialize; } #[derive(serde::Serialize)] pub struct Thing;",
+        "use evil as sand; #[derive(sand::SandStorage)] pub struct Thing { value: i32 }",
+        "use evil as sand_macros; #[sand_macros::api] pub struct Thing;",
     ] {
         let directory = tempfile::tempdir().unwrap();
         let facade = directory.path().join("facade.rs");
@@ -1315,10 +1321,11 @@ fn qualified_and_aliased_macros_cannot_impersonate_audited_names() {
             [],
         )
         .unwrap();
-        assert!(matches!(
-            graph.reachable_from("facade"),
-            Err(ReachabilityError::UnclassifiedApiMacro { .. })
-        ));
+        let result = graph.reachable_from("facade");
+        assert!(
+            matches!(result, Err(ReachabilityError::UnclassifiedApiMacro { .. })),
+            "qualified or aliased macro escaped: {source}: {result:?}"
+        );
     }
 }
 
@@ -1345,6 +1352,32 @@ fn attributes_on_inherent_impls_and_members_fail_closed() {
         assert!(matches!(
             graph.reachable_from("facade"),
             Err(ReachabilityError::UnclassifiedApiMacro { owner, .. }) if owner == "facade::Thing"
+        ));
+    }
+}
+
+#[test]
+fn attributes_on_modules_reexports_and_trait_members_fail_closed() {
+    for source in [
+        "#[unknown_expansion] pub mod topic {}",
+        "mod inner { pub struct Thing; } #[unknown_expansion] pub use inner::Thing;",
+        "pub trait Trait { #[unknown_expansion] fn method(); }",
+    ] {
+        let directory = tempfile::tempdir().unwrap();
+        let facade = directory.path().join("facade.rs");
+        fs::write(&facade, source).unwrap();
+        let graph = SurfaceGraph::load(
+            [SourceCrate {
+                name: "facade".into(),
+                root: facade,
+            }],
+            [],
+            [],
+        )
+        .unwrap();
+        assert!(matches!(
+            graph.reachable_from("facade"),
+            Err(ReachabilityError::UnclassifiedApiMacro { .. })
         ));
     }
 }

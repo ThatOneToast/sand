@@ -66,9 +66,10 @@ Producer connections are declaration-specific and exact: the provider must
 claim the same owner and the complete `(identity, kind)` set derived from that
 source declaration. A partial, wrong-owner, or wrong-kind claim is rejected.
 Unknown, qualified-untrusted, or suspiciously aliased custom attributes and
-derives on reachable declarations and impls fail closed; unsupported producer
-templates remain pending consumer-build work rather than accepting a
-fabricated family claim.
+derives on reachable declarations, modules, re-exports, traits, and impls fail
+closed. Qualified macro roots are checked for local-module, import, and extern
+alias shadowing. Unsupported producer templates remain pending consumer-build
+work rather than accepting a fabricated family claim.
 
 Rustdoc JSON is useful as an independent audit oracle, but it is not the build
 gate because its JSON format is not a stable Rust interface.

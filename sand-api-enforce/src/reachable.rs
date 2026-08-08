@@ -495,6 +495,7 @@ struct Module {
     excluded: bool,
     definition: Option<SourceDefinition>,
     dynamic_includes: Vec<IncludeSite>,
+    api_producers: Vec<ApiProducerUse>,
 }
 
 struct IncludeSite {
@@ -523,6 +524,7 @@ struct ApiProducerUse {
     unclassified_form: Option<&'static str>,
     requires_binding: bool,
     bare_name: bool,
+    qualified_root: Option<String>,
 }
 
 type MemberRecord = (String, ReachableKind, bool);
@@ -746,6 +748,17 @@ impl SurfaceGraph {
                 form: "macro imported under an audited bare name",
             });
         }
+        if let Some(root) = &producer.qualified_root
+            && self.qualified_macro_root_is_shadowed(producer, root)
+        {
+            return Err(ReachabilityError::UnclassifiedApiMacro {
+                source: producer.source.clone(),
+                line: producer.line,
+                owner: producer.owner.clone(),
+                name: producer.name.clone(),
+                form: "qualified macro path with a shadowed crate root",
+            });
+        }
         if !producer.requires_binding {
             return Ok(());
         }
@@ -782,6 +795,26 @@ impl SurfaceGraph {
         })
     }
 
+    fn qualified_macro_root_is_shadowed(&self, producer: &ApiProducerUse, root: &str) -> bool {
+        let Some((module_id, _)) = producer.owner.rsplit_once("::") else {
+            return false;
+        };
+        let crate_name = module_id.split("::").next().unwrap_or(module_id);
+        let local_module = self.module(&format!("{module_id}::{root}")).is_some();
+        let module_shadow = self.module(module_id).is_some_and(|module| {
+            local_module
+                || module.uses.iter().any(|record| {
+                    matches!(&record.leaf, UseLeaf::Name { exported, .. } if exported == root)
+                })
+        });
+        let extern_shadow = self
+            .crates
+            .get(crate_name)
+            .and_then(|index| index.extern_aliases.get(root))
+            .is_some_and(|target| target != root);
+        module_shadow || extern_shadow
+    }
+
     fn walk_module(
         &self,
         module_id: &str,
@@ -799,6 +832,9 @@ impl SurfaceGraph {
             return Ok(());
         }
         self.require_audited_includes(module_id, module)?;
+        for producer in &module.api_producers {
+            self.require_api_producer_binding(producer)?;
+        }
         let defining_crate = module_id
             .split("::")
             .next()
@@ -1722,6 +1758,18 @@ fn parse_items(
                 let child_id = format!("{module_id}::{name}");
                 index
                     .modules
+                    .entry(module_id.to_owned())
+                    .or_default()
+                    .api_producers
+                    .extend(api_producers_from_attrs(
+                        &value.attrs,
+                        cfg,
+                        source_file,
+                        &child_id,
+                        Some(item),
+                    )?);
+                index
+                    .modules
                     .entry(child_id.clone())
                     .or_default()
                     .definition = Some(source_definition(source_file, value.span().start()));
@@ -1750,6 +1798,19 @@ fn parse_items(
                 }
             }
             syn::Item::Use(value) if !excluded => {
+                let owner = format!("{module_id}::<use@{}>", value.span().start().line);
+                index
+                    .modules
+                    .entry(module_id.to_owned())
+                    .or_default()
+                    .api_producers
+                    .extend(api_producers_from_attrs(
+                        &value.attrs,
+                        cfg,
+                        source_file,
+                        &owner,
+                        Some(item),
+                    )?);
                 flatten_use(
                     Vec::new(),
                     &value.tree,
@@ -1842,6 +1903,22 @@ fn parse_items(
             _ => {
                 if let Some((name, kind, members)) = declaration_parts(item, cfg, source_file)? {
                     let identity = format!("{module_id}::{name}");
+                    let mut api_producers =
+                        api_producers_from_attrs(attrs, cfg, source_file, &identity, Some(item))?;
+                    if let syn::Item::Trait(trait_item) = item {
+                        for member in &trait_item.items {
+                            let member_attrs = trait_item_attrs(member);
+                            if cfg_enabled(member_attrs, cfg, source_file)? {
+                                api_producers.extend(api_producers_from_attrs(
+                                    member_attrs,
+                                    cfg,
+                                    source_file,
+                                    &identity,
+                                    None,
+                                )?);
+                            }
+                        }
+                    }
                     if public_item(item, cfg, source_file)? {
                         index
                             .modules
@@ -1861,13 +1938,7 @@ fn parse_items(
                                 alias_target: None,
                                 definition: source_definition(source_file, item.span().start()),
                                 member_definitions: BTreeMap::new(),
-                                api_producers: api_producers_from_attrs(
-                                    attrs,
-                                    cfg,
-                                    source_file,
-                                    &identity,
-                                    Some(item),
-                                )?,
+                                api_producers,
                             });
                     declaration.kind = kind;
                     declaration.excluded |= excluded;
@@ -2081,6 +2152,14 @@ fn api_producers_from_attrs(
                     continue;
                 };
                 let bare_name = derive.segments.len() == 1;
+                let qualified_root = (!bare_name).then(|| {
+                    derive
+                        .segments
+                        .first()
+                        .expect("a qualified derive has a first segment")
+                        .ident
+                        .to_string()
+                });
                 let trusted = bare_name || trusted_qualified_derive(&derive);
                 if !trusted || (!api_producing_sand_macro(&name) && !trait_only_derive(&name)) {
                     producers.push(ApiProducerUse {
@@ -2092,6 +2171,7 @@ fn api_producers_from_attrs(
                         unclassified_form: Some("derive"),
                         requires_binding: false,
                         bare_name,
+                        qualified_root,
                     });
                 } else if api_producing_sand_macro(&name) {
                     producers.push(ApiProducerUse {
@@ -2103,8 +2183,9 @@ fn api_producers_from_attrs(
                         unclassified_form: None,
                         requires_binding: true,
                         bare_name,
+                        qualified_root,
                     });
-                } else if bare_name {
+                } else {
                     // A bare built-in or audited trait-only derive can still
                     // be shadowed by a macro import. Defer that namespace
                     // check until this declaration is proven reachable.
@@ -2116,7 +2197,8 @@ fn api_producers_from_attrs(
                         expected_generated: None,
                         unclassified_form: None,
                         requires_binding: false,
-                        bare_name: true,
+                        bare_name,
+                        qualified_root,
                     });
                 }
             }
@@ -2129,6 +2211,13 @@ fn api_producers_from_attrs(
         {
             let path = attr.meta.path();
             let bare_name = path.segments.len() == 1;
+            let qualified_root = (!bare_name).then(|| {
+                path.segments
+                    .first()
+                    .expect("a qualified attribute has a first segment")
+                    .ident
+                    .to_string()
+            });
             let trusted = bare_name || trusted_qualified_attribute(path);
             if !trusted || (!api_producing_sand_macro(&name) && !shape_preserving_attribute(&name))
             {
@@ -2141,6 +2230,7 @@ fn api_producers_from_attrs(
                     unclassified_form: Some("attribute"),
                     requires_binding: false,
                     bare_name,
+                    qualified_root,
                 });
             } else if api_producing_sand_macro(&name) {
                 producers.push(ApiProducerUse {
@@ -2152,8 +2242,9 @@ fn api_producers_from_attrs(
                     unclassified_form: None,
                     requires_binding: true,
                     bare_name,
+                    qualified_root,
                 });
-            } else if bare_name && potentially_imported_attribute(&name) {
+            } else if potentially_imported_attribute(&name) {
                 producers.push(ApiProducerUse {
                     source: source.to_owned(),
                     line: attr.line,
@@ -2162,7 +2253,8 @@ fn api_producers_from_attrs(
                     expected_generated: None,
                     unclassified_form: None,
                     requires_binding: false,
-                    bare_name: true,
+                    bare_name,
+                    qualified_root,
                 });
             }
         }
@@ -2420,6 +2512,7 @@ fn api_producers_from_macro_transcriber(
                             unclassified_form: None,
                             requires_binding: true,
                             bare_name: true,
+                            qualified_root: None,
                         });
                     } else if !trait_only_derive(&name) {
                         output.push(ApiProducerUse {
@@ -2431,6 +2524,7 @@ fn api_producers_from_macro_transcriber(
                             unclassified_form: Some("derive in exported macro transcriber"),
                             requires_binding: false,
                             bare_name: true,
+                            qualified_root: None,
                         });
                     }
                 }
@@ -2454,6 +2548,7 @@ fn api_producers_from_macro_transcriber(
                         unclassified_form: None,
                         requires_binding: true,
                         bare_name: true,
+                        qualified_root: None,
                     });
                 } else if !shape_preserving_attribute(&name) {
                     output.push(ApiProducerUse {
@@ -2465,6 +2560,7 @@ fn api_producers_from_macro_transcriber(
                         unclassified_form: Some("attribute in exported macro transcriber"),
                         requires_binding: false,
                         bare_name: true,
+                        qualified_root: None,
                     });
                 }
             }
@@ -2510,6 +2606,16 @@ fn impl_item_attrs(item: &syn::ImplItem) -> &[syn::Attribute] {
         syn::ImplItem::Type(item) => &item.attrs,
         syn::ImplItem::Macro(item) => &item.attrs,
         syn::ImplItem::Verbatim(_) | _ => &[],
+    }
+}
+
+fn trait_item_attrs(item: &syn::TraitItem) -> &[syn::Attribute] {
+    match item {
+        syn::TraitItem::Const(item) => &item.attrs,
+        syn::TraitItem::Fn(item) => &item.attrs,
+        syn::TraitItem::Type(item) => &item.attrs,
+        syn::TraitItem::Macro(item) => &item.attrs,
+        _ => &[],
     }
 }
 

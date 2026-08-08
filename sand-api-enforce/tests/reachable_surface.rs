@@ -2,8 +2,8 @@ use std::collections::BTreeSet;
 use std::fs;
 
 use sand_api_enforce::{
-    CfgSet, ContractIdentity, GeneratedApi, ReachabilityError, ReachableKind, SourceCrate,
-    SurfaceGraph, audit_reachable_surface,
+    CfgSet, ContractIdentity, GeneratedApi, GeneratedProducer, ReachabilityError, ReachableKind,
+    SourceCrate, SurfaceGraph, audit_reachable_surface,
 };
 
 fn fixture(features: &[&str]) -> (tempfile::TempDir, Vec<sand_api_enforce::ReachableApi>) {
@@ -138,6 +138,7 @@ fn fixture(features: &[&str]) -> (tempfile::TempDir, Vec<sand_api_enforce::Reach
         [GeneratedApi {
             identity: "core_lib::generated::GeneratedBuilder".into(),
             provider: "generated_commands".into(),
+            producer: None,
             kind: ReachableKind::Struct,
             members: vec![("build".into(), ReachableKind::Method)],
             excluded: false,
@@ -354,6 +355,7 @@ fn generated_children_of_empty_include_module_flow_through_glob_reexports() {
         [GeneratedApi {
             identity: "sand_core::cmd::_generated::Teleport".into(),
             provider: "generated_commands".into(),
+            producer: None,
             kind: ReachableKind::Struct,
             members: vec![("to".into(), ReachableKind::Method)],
             excluded: false,
@@ -455,6 +457,7 @@ fn generated_include_binding_must_name_a_provider_that_owns_the_module() {
         [GeneratedApi {
             identity: "facade::other::Generated".into(),
             provider: "named_provider".into(),
+            producer: None,
             kind: ReachableKind::Struct,
             members: vec![],
             excluded: false,
@@ -588,6 +591,7 @@ fn conflicting_source_and_generator_or_generator_providers_fail_closed() {
         [GeneratedApi {
             identity: "core_lib::Thing".into(),
             provider: "bad_generator".into(),
+            producer: None,
             kind: ReachableKind::Enum,
             members: vec![],
             excluded: false,
@@ -606,6 +610,7 @@ fn conflicting_source_and_generator_or_generator_providers_fail_closed() {
             GeneratedApi {
                 identity: "core_lib::generated::Only".into(),
                 provider: "first".into(),
+                producer: None,
                 kind: ReachableKind::Struct,
                 members: vec![],
                 excluded: false,
@@ -613,6 +618,7 @@ fn conflicting_source_and_generator_or_generator_providers_fail_closed() {
             GeneratedApi {
                 identity: "core_lib::generated::Only".into(),
                 provider: "second".into(),
+                producer: None,
                 kind: ReachableKind::Struct,
                 members: vec![],
                 excluded: false,
@@ -1083,6 +1089,7 @@ fn public_impl_for_unmodeled_generated_owner_fails_closed() {
         [GeneratedApi {
             identity: "facade::Generated".into(),
             provider: "fixture_generator".into(),
+            producer: None,
             kind: ReachableKind::Struct,
             members: vec![],
             excluded: false,
@@ -1126,13 +1133,30 @@ fn reachable_api_producing_derive_requires_connected_provider() {
             root: facade,
         }],
         [],
-        [GeneratedApi {
-            identity: "facade::Storage::SCHEMA".into(),
-            provider: "storage_provider".into(),
-            kind: ReachableKind::AssociatedConst,
-            members: vec![],
-            excluded: false,
-        }],
+        [
+            GeneratedApi {
+                identity: "facade::Storage::SCHEMA".into(),
+                provider: "storage_provider".into(),
+                producer: Some(GeneratedProducer {
+                    owner: "facade::Storage".into(),
+                    name: "SandStorage".into(),
+                }),
+                kind: ReachableKind::AssociatedConst,
+                members: vec![],
+                excluded: false,
+            },
+            GeneratedApi {
+                identity: "facade::Storage::value".into(),
+                provider: "storage_provider".into(),
+                producer: Some(GeneratedProducer {
+                    owner: "facade::Storage".into(),
+                    name: "SandStorage".into(),
+                }),
+                kind: ReachableKind::Method,
+                members: vec![],
+                excluded: false,
+            },
+        ],
     )
     .unwrap()
     .bind_api_producer("facade::Storage", "SandStorage", "storage_provider")
@@ -1142,6 +1166,86 @@ fn reachable_api_producing_derive_requires_connected_provider() {
         item(&reachable, "facade::Storage::SCHEMA").origin,
         sand_api_enforce::ReachableOrigin::Generator("storage_provider".into())
     );
+}
+
+#[test]
+fn producer_binding_requires_the_exact_owner_output_set() {
+    let directory = tempfile::tempdir().unwrap();
+    let facade = directory.path().join("facade.rs");
+    fs::write(
+        &facade,
+        "#[derive(SandStorage)] pub struct Storage { value: i32 }",
+    )
+    .unwrap();
+    let graph = SurfaceGraph::load(
+        [SourceCrate {
+            name: "facade".into(),
+            root: facade,
+        }],
+        [],
+        [GeneratedApi {
+            identity: "facade::Storage::SCHEMA".into(),
+            provider: "partial_provider".into(),
+            producer: Some(GeneratedProducer {
+                owner: "facade::Storage".into(),
+                name: "SandStorage".into(),
+            }),
+            kind: ReachableKind::AssociatedConst,
+            members: vec![],
+            excluded: false,
+        }],
+    )
+    .unwrap();
+    assert!(matches!(
+        graph.bind_api_producer("facade::Storage", "SandStorage", "partial_provider"),
+        Err(ReachabilityError::InvalidApiProducerProvider { expected, actual, .. })
+            if expected == ["facade::Storage::SCHEMA", "facade::Storage::value"]
+                && actual == ["facade::Storage::SCHEMA"]
+    ));
+}
+
+#[test]
+fn unknown_custom_derives_and_attributes_fail_closed() {
+    for source in [
+        "#[derive(UnknownExpansion)] pub struct Thing;",
+        "#[unknown_expansion] pub struct Thing;",
+        "use some_crate::UnknownExpansion as Alias; #[derive(Alias)] pub struct Thing;",
+    ] {
+        let directory = tempfile::tempdir().unwrap();
+        let facade = directory.path().join("facade.rs");
+        fs::write(&facade, source).unwrap();
+        let graph = SurfaceGraph::load(
+            [SourceCrate {
+                name: "facade".into(),
+                root: facade,
+            }],
+            [],
+            [],
+        )
+        .unwrap();
+        assert!(matches!(
+            graph.reachable_from("facade"),
+            Err(ReachabilityError::UnclassifiedApiMacro { .. })
+        ));
+    }
+
+    let directory = tempfile::tempdir().unwrap();
+    let facade = directory.path().join("facade.rs");
+    fs::write(
+        &facade,
+        "mod implementation { #[derive(InternalMacro)] pub struct Internal; } pub struct Public;",
+    )
+    .unwrap();
+    let graph = SurfaceGraph::load(
+        [SourceCrate {
+            name: "facade".into(),
+            root: facade,
+        }],
+        [],
+        [],
+    )
+    .unwrap();
+    assert!(graph.reachable_from("facade").is_ok());
 }
 
 #[test]
@@ -1171,7 +1275,7 @@ fn producer_binding_is_per_declaration_and_cannot_exempt_a_new_derive() {
     let facade = directory.path().join("facade.rs");
     fs::write(
         &facade,
-        "#[derive(SandStorage)] pub struct Covered; #[derive(SandStorage)] pub struct Added;",
+        "#[derive(SandStorage)] pub struct Covered { value: i32 } #[derive(SandStorage)] pub struct Added { value: i32 }",
     )
     .unwrap();
     let graph = SurfaceGraph::load(
@@ -1180,13 +1284,30 @@ fn producer_binding_is_per_declaration_and_cannot_exempt_a_new_derive() {
             root: facade,
         }],
         [],
-        [GeneratedApi {
-            identity: "facade::Covered::SCHEMA".into(),
-            provider: "storage_provider".into(),
-            kind: ReachableKind::AssociatedConst,
-            members: vec![],
-            excluded: false,
-        }],
+        [
+            GeneratedApi {
+                identity: "facade::Covered::SCHEMA".into(),
+                provider: "storage_provider".into(),
+                producer: Some(GeneratedProducer {
+                    owner: "facade::Covered".into(),
+                    name: "SandStorage".into(),
+                }),
+                kind: ReachableKind::AssociatedConst,
+                members: vec![],
+                excluded: false,
+            },
+            GeneratedApi {
+                identity: "facade::Covered::value".into(),
+                provider: "storage_provider".into(),
+                producer: Some(GeneratedProducer {
+                    owner: "facade::Covered".into(),
+                    name: "SandStorage".into(),
+                }),
+                kind: ReachableKind::Method,
+                members: vec![],
+                excluded: false,
+            },
+        ],
     )
     .unwrap()
     .bind_api_producer("facade::Covered", "SandStorage", "storage_provider")
@@ -1238,17 +1359,22 @@ fn api_producing_derive_inside_generated_transcriber_requires_provider() {
         [GeneratedApi {
             identity: "facade::GeneratedStorage".into(),
             provider: "storage_family_provider".into(),
+            producer: Some(GeneratedProducer {
+                owner: "facade::storage_family".into(),
+                name: "SandStorage".into(),
+            }),
             kind: ReachableKind::Struct,
             members: vec![("SCHEMA".into(), ReachableKind::AssociatedConst)],
             excluded: false,
         }],
     )
-    .unwrap()
-    .bind_api_producer(
+    .unwrap();
+    assert!(matches!(
+        graph.bind_api_producer(
         "facade::storage_family",
         "SandStorage",
         "storage_family_provider",
-    )
-    .unwrap();
-    assert!(graph.reachable_from("facade").is_ok());
+        ),
+        Err(ReachabilityError::InvalidApiProducerProvider { expected, .. }) if expected.is_empty()
+    ));
 }

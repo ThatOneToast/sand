@@ -202,6 +202,7 @@ fn generated_providers(
                     GeneratedApi {
                         identity: entry.definition_identity.clone(),
                         provider: catalog.provider.clone(),
+                        producer: None,
                         kind: reachable_kind(entry.definition_kind),
                         members: Vec::new(),
                         excluded: false,

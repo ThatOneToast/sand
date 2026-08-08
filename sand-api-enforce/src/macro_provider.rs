@@ -8,7 +8,7 @@ use std::path::Path;
 use proc_macro2::{TokenStream, TokenTree};
 use quote::ToTokens;
 
-use crate::{GeneratedApi, ReachableKind};
+use crate::{GeneratedApi, GeneratedProducer, ReachableKind};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum MacroProviderError {
@@ -121,6 +121,7 @@ pub fn vanilla_registry_enum_provider(
         generated.push(GeneratedApi {
             identity: format!("sand_components::effect::{name}"),
             provider: "generated_effect_registry_enums".into(),
+            producer: None,
             kind: ReachableKind::Enum,
             members,
             excluded: false,
@@ -218,6 +219,7 @@ fn generated_event(name: &str, shape: &GeneratedTypeShape) -> GeneratedApi {
     GeneratedApi {
         identity: format!("sand_core::events::{name}"),
         provider: "generated_event_markers".into(),
+        producer: None,
         kind: ReachableKind::Struct,
         members: shape.members.clone(),
         excluded: false,
@@ -270,6 +272,10 @@ pub fn sand_storage_derive_provider(
             generated.push(GeneratedApi {
                 identity: format!("{owner}::{name}"),
                 provider: "sand_storage_derive".into(),
+                producer: Some(GeneratedProducer {
+                    owner: owner.clone(),
+                    name: "SandStorage".into(),
+                }),
                 kind: if index == 0 {
                     ReachableKind::AssociatedConst
                 } else {
@@ -482,6 +488,7 @@ fn declarative_type_family_provider(
         .map(|name| GeneratedApi {
             identity: format!("{identity_module}::{name}"),
             provider: provider.into(),
+            producer: None,
             kind: ReachableKind::Struct,
             members: shape.members.clone(),
             excluded: false,

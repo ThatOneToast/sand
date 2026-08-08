@@ -180,11 +180,24 @@ pub struct GeneratedApi {
     pub identity: String,
     /// Stable generator-provider scope, for example `generated_commands`.
     pub provider: String,
+    /// Exact source declaration and macro use which emitted this family.
+    ///
+    /// Provider names group generated APIs into ratchet scopes; they are not
+    /// proof that a particular macro invocation was modeled. API-producing
+    /// derives and attributes therefore require this declaration-level edge.
+    pub producer: Option<GeneratedProducer>,
     pub kind: ReachableKind,
     /// Associated items emitted with a generated type.
     pub members: Vec<(String, ReachableKind)>,
     /// Whether the generator intentionally emits compiler-only wiring.
     pub excluded: bool,
+}
+
+/// The source-side macro invocation modeled by a generated declaration.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GeneratedProducer {
+    pub owner: String,
+    pub name: String,
 }
 
 /// Where a reachable declaration came from. Scope enforcement partitions
@@ -285,8 +298,18 @@ pub enum ReachabilityError {
         owner: String,
     },
     InvalidApiProducerProvider {
+        owner: String,
         producer: String,
         provider: String,
+        expected: Vec<String>,
+        actual: Vec<String>,
+    },
+    UnclassifiedApiMacro {
+        source: PathBuf,
+        line: usize,
+        owner: String,
+        name: String,
+        form: &'static str,
     },
     MissingContract {
         identity: String,
@@ -369,9 +392,28 @@ impl fmt::Display for ReachabilityError {
                 "{}:{line}: reachable API source `{owner}` uses API-producing Sand macro `{producer}` without a connected generated API provider",
                 source.display()
             ),
-            Self::InvalidApiProducerProvider { producer, provider } => write!(
+            Self::InvalidApiProducerProvider {
+                owner,
+                producer,
+                provider,
+                expected,
+                actual,
+            } => write!(
                 formatter,
-                "API-producing Sand macro `{producer}` is bound to provider `{provider}`, but that provider owns no generated declarations"
+                "API-producing macro `{producer}` on `{owner}` is bound to provider `{provider}`, but its generated identities differ: expected [{}], actual [{}]",
+                expected.join(", "),
+                actual.join(", ")
+            ),
+            Self::UnclassifiedApiMacro {
+                source,
+                line,
+                owner,
+                name,
+                form,
+            } => write!(
+                formatter,
+                "{}:{line}: reachable API source `{owner}` uses unclassified custom {form} `{name}`; classify it as an API producer, shape-preserving inert macro, or trait-only derive",
+                source.display()
             ),
             Self::MissingContract { identity, paths } => write!(
                 formatter,
@@ -476,6 +518,8 @@ struct ApiProducerUse {
     source: PathBuf,
     line: usize,
     owner: String,
+    expected_generated: Option<BTreeSet<String>>,
+    unclassified_form: Option<&'static str>,
 }
 
 type MemberRecord = (String, ReachableKind, bool);
@@ -584,12 +628,35 @@ impl SurfaceGraph {
         let owner = owner.into();
         let producer = producer.into();
         let provider = provider.into();
-        if !self
+        let expected = self
+            .crates
+            .values()
+            .flat_map(|index| index.declarations.values())
+            .flat_map(|declaration| &declaration.api_producers)
+            .chain(self.transcriber_producers.iter())
+            .find(|usage| usage.owner == owner && usage.name == producer)
+            .and_then(|usage| usage.expected_generated.clone())
+            .unwrap_or_default();
+        let actual = self
             .generated
             .iter()
-            .any(|item| !item.excluded && item.provider == provider)
-        {
-            return Err(ReachabilityError::InvalidApiProducerProvider { producer, provider });
+            .filter(|item| {
+                !item.excluded
+                    && item.provider == provider
+                    && item.producer.as_ref().is_some_and(|generated| {
+                        generated.owner == owner && generated.name == producer
+                    })
+            })
+            .map(|item| item.identity.clone())
+            .collect::<BTreeSet<_>>();
+        if expected.is_empty() || actual != expected {
+            return Err(ReachabilityError::InvalidApiProducerProvider {
+                owner,
+                producer,
+                provider,
+                expected: expected.into_iter().collect(),
+                actual: actual.into_iter().collect(),
+            });
         }
         self.api_producer_bindings
             .insert((owner, producer), provider);
@@ -652,6 +719,15 @@ impl SurfaceGraph {
         &self,
         producer: &ApiProducerUse,
     ) -> Result<(), ReachabilityError> {
+        if let Some(form) = producer.unclassified_form {
+            return Err(ReachabilityError::UnclassifiedApiMacro {
+                source: producer.source.clone(),
+                line: producer.line,
+                owner: producer.owner.clone(),
+                name: producer.name.clone(),
+                form,
+            });
+        }
         if self
             .api_producer_bindings
             .contains_key(&(producer.owner.clone(), producer.name.clone()))
@@ -1502,13 +1578,15 @@ fn parse_items(
             && let Some(name) = &value.ident
         {
             let owner = format!("{module_id}::{}", ident_name(name));
-            index
-                .transcriber_producers
-                .extend(api_producers_from_macro_transcriber(
-                    &value.mac.tokens,
-                    source_file,
-                    &owner,
-                ));
+            if has_attr(&value.attrs, "macro_export", cfg, source_file)? {
+                index
+                    .transcriber_producers
+                    .extend(api_producers_from_macro_transcriber(
+                        &value.mac.tokens,
+                        source_file,
+                        &owner,
+                    )?);
+            }
         }
         match item {
             syn::Item::Macro(value) if value.mac.path.is_ident("include") => {
@@ -1555,6 +1633,7 @@ fn parse_items(
                             cfg,
                             source_file,
                             &identity,
+                            None,
                         )?,
                     },
                 );
@@ -1719,6 +1798,7 @@ fn parse_items(
                                     cfg,
                                     source_file,
                                     &identity,
+                                    Some(item),
                                 )?,
                             });
                     declaration.kind = kind;
@@ -1905,6 +1985,7 @@ fn api_producers_from_attrs(
     cfg: &CfgSet,
     source: &Path,
     owner: &str,
+    item: Option<&syn::Item>,
 ) -> Result<Vec<ApiProducerUse>, ReachabilityError> {
     let mut producers = Vec::new();
     for attr in effective_attributes(attrs, cfg, source)? {
@@ -1933,10 +2014,21 @@ fn api_producers_from_attrs(
                 };
                 if api_producing_sand_macro(&name) {
                     producers.push(ApiProducerUse {
+                        expected_generated: expected_generated_identities(&name, owner, item)?,
                         name,
                         source: source.to_owned(),
                         line: attr.line,
                         owner: owner.to_owned(),
+                        unclassified_form: None,
+                    });
+                } else if !trait_only_derive(&name) {
+                    producers.push(ApiProducerUse {
+                        source: source.to_owned(),
+                        line: attr.line,
+                        owner: owner.to_owned(),
+                        name,
+                        expected_generated: None,
+                        unclassified_form: Some("derive"),
                     });
                 }
             }
@@ -1946,14 +2038,26 @@ fn api_producers_from_attrs(
             .segments
             .last()
             .map(|segment| segment.ident.to_string())
-            && api_producing_sand_macro(&name)
         {
-            producers.push(ApiProducerUse {
-                name,
-                source: source.to_owned(),
-                line: attr.line,
-                owner: owner.to_owned(),
-            });
+            if api_producing_sand_macro(&name) {
+                producers.push(ApiProducerUse {
+                    expected_generated: expected_generated_identities(&name, owner, item)?,
+                    name,
+                    source: source.to_owned(),
+                    line: attr.line,
+                    owner: owner.to_owned(),
+                    unclassified_form: None,
+                });
+            } else if !shape_preserving_attribute(&name) {
+                producers.push(ApiProducerUse {
+                    source: source.to_owned(),
+                    line: attr.line,
+                    owner: owner.to_owned(),
+                    name,
+                    expected_generated: None,
+                    unclassified_form: Some("attribute"),
+                });
+            }
         }
     }
     Ok(producers)
@@ -1967,17 +2071,135 @@ fn api_producing_sand_macro(name: &str) -> bool {
     matches!(name, "SandStorage" | "State" | "item")
 }
 
+fn expected_generated_identities(
+    producer: &str,
+    owner: &str,
+    item: Option<&syn::Item>,
+) -> Result<Option<BTreeSet<String>>, ReachabilityError> {
+    if producer != "SandStorage" {
+        // State and item emit sibling APIs whose names require their macro's
+        // shared semantic parser. Until those providers expose exact claims,
+        // the occurrence remains deliberately unbindable and fails closed.
+        return Ok(None);
+    }
+    let Some(item) = item else {
+        // A macro_rules! definition is a template, not a concrete derive
+        // occurrence. Consumer-side expansion providers must bind actual
+        // invocation owners instead of fabricating one here.
+        return Ok(None);
+    };
+    let input = syn::parse2::<syn::DeriveInput>(item.to_token_stream()).map_err(|error| {
+        ReachabilityError::Parse(format!(
+            "cannot model SandStorage output for `{owner}`: {error}"
+        ))
+    })?;
+    let names = sand_api_contract::syntax::sand_storage_generated_member_names(&input).map_err(
+        |error| {
+            ReachabilityError::Parse(format!(
+                "cannot model SandStorage output for `{owner}`: {error}"
+            ))
+        },
+    )?;
+    Ok(Some(
+        names
+            .into_iter()
+            .map(|name| format!("{owner}::{name}"))
+            .collect(),
+    ))
+}
+
+// These derives are known to implement traits only. Adding a derive here is a
+// deliberate assertion about its expansion shape, not a general exemption for
+// macros from a particular crate.
+fn trait_only_derive(name: &str) -> bool {
+    matches!(
+        name,
+        "Args"
+            | "Clone"
+            | "Copy"
+            | "Debug"
+            | "Default"
+            | "Deserialize"
+            | "EntityStateEnum"
+            | "Eq"
+            | "Error"
+            | "Hash"
+            | "Ord"
+            | "Parser"
+            | "PartialEq"
+            | "PartialOrd"
+            | "Serialize"
+            | "Subcommand"
+            | "ValueEnum"
+    )
+}
+
+// Rust built-ins plus audited helper/attribute macros which preserve the
+// annotated item's author-facing declaration. Sand attributes in this list
+// may emit private registration wiring, but no additional supported API item.
+fn shape_preserving_attribute(name: &str) -> bool {
+    matches!(
+        name,
+        "allow"
+            | "api"
+            | "arg"
+            | "armor_event"
+            | "automatically_derived"
+            | "cfg"
+            | "cold"
+            | "command"
+            | "component"
+            | "default"
+            | "deny"
+            | "deprecated"
+            | "diagnostic"
+            | "doc"
+            | "entity_archetype"
+            | "error"
+            | "export_name"
+            | "forbid"
+            | "from"
+            | "function"
+            | "inline"
+            | "link"
+            | "link_name"
+            | "link_section"
+            | "macro_export"
+            | "must_use"
+            | "no_mangle"
+            | "non_exhaustive"
+            | "on_unimplemented"
+            | "path"
+            | "proc_macro"
+            | "proc_macro_attribute"
+            | "proc_macro_derive"
+            | "repr"
+            | "sand"
+            | "schedule"
+            | "serde"
+            | "should_panic"
+            | "state"
+            | "target_feature"
+            | "test"
+            | "tick"
+            | "track_caller"
+            | "used"
+            | "value"
+            | "warn"
+    )
+}
+
 fn api_producers_from_macro_transcriber(
     tokens: &proc_macro2::TokenStream,
     source: &Path,
     owner: &str,
-) -> Vec<ApiProducerUse> {
+) -> Result<Vec<ApiProducerUse>, ReachabilityError> {
     fn visit(
         tokens: proc_macro2::TokenStream,
         source: &Path,
         owner: &str,
         output: &mut Vec<ApiProducerUse>,
-    ) {
+    ) -> Result<(), ReachabilityError> {
         let tokens = tokens.into_iter().collect::<Vec<_>>();
         for (index, token) in tokens.iter().enumerate() {
             let proc_macro2::TokenTree::Punct(hash) = token else {
@@ -2008,6 +2230,17 @@ fn api_producers_from_macro_transcriber(
                             source: source.to_owned(),
                             line: hash.span().start().line,
                             owner: owner.to_owned(),
+                            expected_generated: None,
+                            unclassified_form: None,
+                        });
+                    } else if !trait_only_derive(&name) {
+                        output.push(ApiProducerUse {
+                            source: source.to_owned(),
+                            line: hash.span().start().line,
+                            owner: owner.to_owned(),
+                            name,
+                            expected_generated: None,
+                            unclassified_form: Some("derive in exported macro transcriber"),
                         });
                     }
                 }
@@ -2027,26 +2260,38 @@ fn api_producers_from_macro_transcriber(
                         source: source.to_owned(),
                         line: hash.span().start().line,
                         owner: owner.to_owned(),
+                        expected_generated: None,
+                        unclassified_form: None,
+                    });
+                } else if !shape_preserving_attribute(&name) {
+                    output.push(ApiProducerUse {
+                        source: source.to_owned(),
+                        line: hash.span().start().line,
+                        owner: owner.to_owned(),
+                        name,
+                        expected_generated: None,
+                        unclassified_form: Some("attribute in exported macro transcriber"),
                     });
                 }
             }
         }
         for token in tokens {
             if let proc_macro2::TokenTree::Group(group) = token {
-                visit(group.stream(), source, owner, output);
+                visit(group.stream(), source, owner, output)?;
             }
         }
+        Ok(())
     }
 
     let mut producers = Vec::new();
-    visit(tokens.clone(), source, owner, &mut producers);
+    visit(tokens.clone(), source, owner, &mut producers)?;
     producers.sort_by(|left, right| {
         (&left.owner, &left.name, left.line).cmp(&(&right.owner, &right.name, right.line))
     });
     producers.dedup_by(|left, right| {
         left.owner == right.owner && left.name == right.name && left.line == right.line
     });
-    producers
+    Ok(producers)
 }
 
 fn public_item(item: &syn::Item, cfg: &CfgSet, source: &Path) -> Result<bool, ReachabilityError> {

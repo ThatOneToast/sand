@@ -138,7 +138,6 @@ pub use instrument::Instrument;
 
 pub use item::definition::CustomItemDefinition;
 pub use item::matcher::{IntoItemMatcher, ItemMatcher, ItemMatcherConsumer, TryIntoItemPredicate};
-pub use item::predicates::InventorySlots;
 pub use item::stack::{IntoItemStack, ItemStack, MAX_STACK_SIZE};
 pub use item::{
     AttributeId, AttributeModifier, AttributeOperation, AttributeType, ConsumableAnimation,

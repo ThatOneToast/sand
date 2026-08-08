@@ -157,13 +157,6 @@ fn main() {
     })
     .and_then(|graph| {
         graph.bind_inert_item_macro(
-            "sand_components::item::predicates",
-            "impl_into_value",
-            InertItemMacroClassification::LocalTraitImplOnly,
-        )
-    })
-    .and_then(|graph| {
-        graph.bind_inert_item_macro(
             "sand_commands::export_registry",
             "thread_local",
             InertItemMacroClassification::ThreadLocalStorageWiring,

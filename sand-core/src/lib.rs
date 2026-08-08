@@ -357,7 +357,6 @@ pub use sand_components::{
     // Item stack (#229)
     IntoItemStack,
     IntoRecipeItemId,
-    InventorySlots,
     ItemComponent,
     ItemId,
     // Item modifier

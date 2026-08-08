@@ -51,7 +51,6 @@ use sand_commands::TextComponent;
 
 pub mod definition;
 pub mod matcher;
-pub mod predicates;
 pub mod stack;
 
 // ── ItemRarity ────────────────────────────────────────────────────────────────

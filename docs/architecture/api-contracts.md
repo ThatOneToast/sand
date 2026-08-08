@@ -137,8 +137,10 @@ catalogs from the same helper that emits its placeholder Rust. Those catalogs
 select a separate exact 5,713-item source-only profile; they cannot be mixed
 with real catalogs or contain declarations. The facade's source and checked-in
 generator scopes remain fully audited in this recovery mode, while unavailable
-vanilla re-exports are cfg-disabled and generated API health tests continue to
-reject the placeholders.
+vanilla re-exports are cfg-disabled. This is a compile-only recovery mode:
+`sand-core` test targets reference generated command symbols and are unavailable
+until real codegen succeeds. Provider tests validate the empty marker and exact
+source parity instead.
 
 ## Prototype audit
 

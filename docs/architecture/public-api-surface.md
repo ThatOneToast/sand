@@ -94,8 +94,9 @@ are machine-marked empty placeholders and must agree. The facade keeps the
 contracted `sand::vanilla` module but cfg-disables its unavailable generated
 re-exports. Placeholder mode therefore still runs the exact source/scope
 ratchet, while real providers cannot select or weaken that profile. It is a
-compile-only recovery mode: generated API health tests intentionally reject
-the placeholder sources.
+compile-only recovery mode: `sand-core` test targets reference unavailable
+generated command symbols and therefore require real codegen. Provider tests
+instead prove placeholder marking, empty catalogs, and exact source parity.
 
 The following detailed kind count describes the latest/default 26.2 surface:
 

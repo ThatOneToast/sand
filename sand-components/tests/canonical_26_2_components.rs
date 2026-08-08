@@ -19,8 +19,6 @@
 //!   ([`CustomItem`]/[`ItemStack`]/[`RecipeResult::from_custom_item`]), which
 //!   this file covers via [`custom_item_components`].
 
-use std::collections::HashMap;
-
 use sand_commands::Text;
 use sand_components::TagId;
 use sand_components::dialog::{Dialog, DialogAction, DialogBody, DialogButton};
@@ -39,8 +37,8 @@ use sand_components::recipe::{
     SmithingTransformRecipe, SmithingTrimRecipe, StonecuttingRecipe,
 };
 use sand_components::registry::{
-    AdvancementId, BlockId, ConfiguredCarverId, ConfiguredFeatureId, EnchantmentId, FunctionId,
-    ItemId, LootTableId, PredicateId, RecipeId, SoundEventId,
+    AdvancementId, BlockId, ConfiguredCarverId, ConfiguredFeatureId, DimensionId, EnchantmentId,
+    EntityTypeId, FunctionId, ItemId, LootTableId, PredicateId, RecipeId, SoundEventId,
 };
 use sand_components::tag::{Tag, TagEntry, TypedTag};
 use sand_components::worldgen::Biome;
@@ -98,7 +96,9 @@ fn canonical_26_2_advancement_display_icon_criteria_rewards_parent() {
             .criterion(
                 "killed_dragon",
                 Criterion::new(AdvancementTrigger::PlayerKilledEntity {
-                    entity: Some(EntityPredicate::type_("minecraft:ender_dragon")),
+                    entity: Some(EntityPredicate::type_(
+                        EntityTypeId::minecraft("ender_dragon").unwrap(),
+                    )),
                     killing_blow: Some(DamagePredicate::new().dealt(FloatRange::at_least(1.0))),
                 }),
             )
@@ -171,7 +171,9 @@ fn canonical_26_2_advancement_display_icon_criteria_rewards_parent() {
 #[test]
 fn compat_1_21_4_advancement_entity_predicate_schema_is_unnamespaced() {
     let trigger = AdvancementTrigger::PlayerKilledEntity {
-        entity: Some(EntityPredicate::type_("minecraft:ender_dragon")),
+        entity: Some(EntityPredicate::type_(
+            EntityTypeId::minecraft("ender_dragon").unwrap(),
+        )),
         killing_blow: None,
     };
 
@@ -212,32 +214,32 @@ fn compat_1_21_4_advancement_entity_predicate_schema_is_unnamespaced() {
 // ── Predicates ──────────────────────────────────────────────────────────────
 // Wiki: "Predicate" (https://minecraft.wiki/w/Predicate), checked 2026-07-19.
 
-/// A standalone predicate file composing boolean logic (`all_of`/`inverted`),
-/// probability, entity-score, and weather `LootCondition` variants.
+/// A standalone predicate file composing typed boolean/probability/weather
+/// conditions with explicit raw escape hatches for unsupported condition kinds.
 #[test]
-fn canonical_26_2_predicate_loot_condition_composition() {
-    let mut scores = HashMap::new();
-    scores.insert("looting".to_string(), serde_json::json!({"min": 1}));
-
-    let predicate = Predicate::from_loot_condition(
-        id("conditions/dragon_drop"),
-        LootCondition::AllOf {
-            terms: vec![
-                LootCondition::RandomChance { chance: 0.25 },
-                LootCondition::KilledByPlayer,
-                LootCondition::Inverted {
-                    term: Box::new(LootCondition::SurvivesExplosion),
-                },
-                LootCondition::EntityScores {
-                    entity: "this".to_string(),
-                    scores,
-                },
-                LootCondition::WeatherCheck {
-                    raining: Some(true),
-                    thundering: None,
-                },
-            ],
-        },
+fn canonical_26_2_predicate_typed_and_raw_composition() {
+    let predicate = Predicate::new(
+        id("conditions/dragon_drop").into(),
+        PredicateRoot::all_of([
+            PredicateRoot::random_chance(0.25),
+            PredicateRoot::raw(RawJson::new(serde_json::json!({
+                "condition": "minecraft:killed_by_player"
+            })))
+            .unwrap(),
+            PredicateRoot::inverted(
+                PredicateRoot::raw(RawJson::new(serde_json::json!({
+                    "condition": "minecraft:survives_explosion"
+                })))
+                .unwrap(),
+            ),
+            PredicateRoot::raw(RawJson::new(serde_json::json!({
+                "condition": "minecraft:entity_scores",
+                "entity": "this",
+                "scores": {"looting": {"min": 1}}
+            })))
+            .unwrap(),
+            PredicateRoot::weather(WeatherPredicate::new().raining(true)),
+        ]),
     );
 
     let expected = serde_json::json!({
@@ -267,13 +269,15 @@ fn canonical_26_2_predicate_loot_condition_composition() {
 #[test]
 fn canonical_26_2_predicate_typed_root_composition() {
     let predicate = Predicate::any_of(
-        id("conditions/hostile_nearby"),
+        id("conditions/hostile_nearby").into(),
         [
             PredicateRoot::entity_properties(
                 EntityPredicateTarget::This,
-                EntityPredicate::type_("minecraft:zombie"),
+                EntityPredicate::type_(EntityTypeId::minecraft("zombie").unwrap()),
             ),
-            PredicateRoot::location(LocationPredicate::new().dimension("minecraft:the_nether")),
+            PredicateRoot::location(
+                LocationPredicate::new().dimension(DimensionId::minecraft("the_nether").unwrap()),
+            ),
             PredicateRoot::weather(WeatherPredicate::new().thundering(true)),
             PredicateRoot::reference(PredicateId::minecraft("conditions/is_night").unwrap()),
         ],
@@ -285,7 +289,7 @@ fn canonical_26_2_predicate_typed_root_composition() {
             {
                 "condition": "minecraft:entity_properties",
                 "entity": "this",
-                "predicate": {"type": "minecraft:zombie"}
+                "predicate": {"minecraft:entity_type": "minecraft:zombie"}
             },
             {
                 "condition": "minecraft:location_check",

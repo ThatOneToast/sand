@@ -8,8 +8,8 @@
 //! conditions, and selectors.
 
 use sand_core::{
-    EntityPredicate, EntityPredicateTarget, IntRange, LocationPredicate, Predicate, PredicateId,
-    PredicateRoot, RawJson, WeatherPredicate,
+    DimensionId, EntityPredicate, EntityPredicateTarget, EntityTypeId, IntRange, LocationPredicate,
+    Predicate, PredicateId, PredicateRoot, RawJson, WeatherPredicate,
 };
 use sand_macros::component;
 
@@ -23,7 +23,7 @@ pub fn is_baby_zombie() -> Predicate {
         "my_pack:is_baby_zombie".parse().unwrap(),
         PredicateRoot::entity_properties(
             EntityPredicateTarget::This,
-            EntityPredicate::type_("minecraft:zombie")
+            EntityPredicate::type_(EntityTypeId::minecraft("zombie").unwrap())
                 .flags(sand_core::EntityFlags::new().baby(true)),
         ),
     )
@@ -38,7 +38,9 @@ pub fn dangerous_moment() -> Predicate {
     Predicate::any_of(
         "my_pack:dangerous_moment".parse().unwrap(),
         [
-            PredicateRoot::location(LocationPredicate::new().dimension("minecraft:the_nether")),
+            PredicateRoot::location(
+                LocationPredicate::new().dimension(DimensionId::minecraft("the_nether").unwrap()),
+            ),
             PredicateRoot::weather(WeatherPredicate::new().thundering(true)),
             PredicateRoot::time(IntRange::between(13000, 23000)),
         ],
@@ -69,6 +71,7 @@ pub fn modded_condition() -> Predicate {
         PredicateRoot::raw(RawJson::new(serde_json::json!({
             "condition": "mymod:phase_check",
             "phase": 2
-        }))),
+        })))
+        .unwrap(),
     )
 }

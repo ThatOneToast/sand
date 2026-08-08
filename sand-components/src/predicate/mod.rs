@@ -8,24 +8,19 @@
 //! ([`crate::predicates::EntityPredicate`], [`crate::predicates::LocationPredicate`],
 //! [`crate::predicates::WeatherPredicate`], …) rather than duplicating those
 //! shapes, and keeps an explicit [`crate::raw::RawJson`] escape hatch
-//! (`PredicateRoot::Raw`) for predicate condition types Sand does not yet
+//! (`PredicateRoot::raw`) for predicate condition types Sand does not yet
 //! model.
-//!
-//! A standalone predicate authored this way is exactly the same JSON shape
-//! Minecraft loot tables use for conditions; [`PredicateRoot::from_loot_condition`]
-//! converts a legacy [`LootCondition`] tree into a [`PredicateRoot`] where the
-//! shapes overlap, so existing `LootCondition`-based authoring keeps working.
 //!
 //! ```rust
 //! use sand_components::predicate::{EntityPredicateTarget, Predicate, PredicateRoot};
 //! use sand_components::predicates::EntityPredicate;
-//! use sand_components::{DatapackComponent, ResourceLocation};
+//! use sand_components::{DatapackComponent, EntityTypeId, PredicateId};
 //!
 //! let is_zombie = Predicate::new(
-//!     ResourceLocation::new("example", "is_zombie").unwrap(),
+//!     PredicateId::minecraft("is_zombie").unwrap(),
 //!     PredicateRoot::entity_properties(
 //!         EntityPredicateTarget::This,
-//!         EntityPredicate::type_("minecraft:zombie"),
+//!         EntityPredicate::type_(EntityTypeId::minecraft("zombie").unwrap()),
 //!     ),
 //! );
 //! assert_eq!(is_zombie.component_dir(), "predicate");
@@ -35,12 +30,11 @@
 //! );
 //! ```
 
-use serde::{Serialize, Serializer, ser::SerializeMap};
+use serde::{Serialize, Serializer};
 use serde_json::Value;
 
 use crate::component::{ComponentContent, DatapackComponent};
 use crate::error::{Result, SandError};
-use crate::loot_table::LootCondition;
 use crate::predicates::{EntityPredicate, IntRange, LocationPredicate, WeatherPredicate};
 use crate::raw::RawJson;
 use crate::registry::PredicateId;
@@ -62,8 +56,6 @@ pub enum EntityPredicateTarget {
     KillerPlayer,
     /// The entity directly responsible for the damage (e.g. an arrow, not its shooter).
     DirectKiller,
-    /// A custom/future target string, kept as an explicit typed extension point.
-    Custom(String),
 }
 
 impl EntityPredicateTarget {
@@ -73,7 +65,6 @@ impl EntityPredicateTarget {
             Self::Killer => "killer",
             Self::KillerPlayer => "killer_player",
             Self::DirectKiller => "direct_killer",
-            Self::Custom(s) => s,
         }
     }
 }
@@ -94,7 +85,10 @@ impl Serialize for EntityPredicateTarget {
 /// checks, random chance, and references to other predicate files. Use
 /// [`PredicateRoot::raw`] for condition types not yet modeled.
 #[derive(Debug, Clone)]
-pub enum PredicateRoot {
+pub struct PredicateRoot(PredicateRootKind);
+
+#[derive(Debug, Clone)]
+enum PredicateRootKind {
     /// All nested conditions must be true (AND). Must not be empty.
     AllOf(Vec<PredicateRoot>),
     /// At least one nested condition must be true (OR). Must not be empty.
@@ -118,89 +112,66 @@ pub enum PredicateRoot {
 }
 
 impl PredicateRoot {
+    /// `minecraft:all_of` — requires every nested condition to succeed.
+    pub fn all_of(terms: impl IntoIterator<Item = PredicateRoot>) -> Self {
+        Self(PredicateRootKind::AllOf(terms.into_iter().collect()))
+    }
+
+    /// `minecraft:any_of` — requires at least one nested condition to succeed.
+    pub fn any_of(terms: impl IntoIterator<Item = PredicateRoot>) -> Self {
+        Self(PredicateRootKind::AnyOf(terms.into_iter().collect()))
+    }
+
     /// `minecraft:entity_properties` — checks properties of a loot/predicate-context entity.
     pub fn entity_properties(target: EntityPredicateTarget, predicate: EntityPredicate) -> Self {
-        Self::EntityProperties(target, Box::new(predicate))
+        Self(PredicateRootKind::EntityProperties(
+            target,
+            Box::new(predicate),
+        ))
     }
 
     /// `minecraft:location_check` — checks the current location.
     pub fn location(predicate: LocationPredicate) -> Self {
-        Self::LocationCheck(Box::new(predicate))
+        Self(PredicateRootKind::LocationCheck(Box::new(predicate)))
     }
 
     /// `minecraft:weather_check` — checks current weather state.
     pub fn weather(predicate: WeatherPredicate) -> Self {
-        Self::WeatherCheck(predicate)
+        Self(PredicateRootKind::WeatherCheck(predicate))
     }
 
     /// `minecraft:time_check` — checks the current game time against a range.
     pub fn time(range: IntRange) -> Self {
-        Self::TimeCheck(range)
+        Self(PredicateRootKind::TimeCheck(range))
     }
 
     /// `minecraft:random_chance` — random probability check.
     pub fn random_chance(chance: f64) -> Self {
-        Self::RandomChance(chance)
+        Self(PredicateRootKind::RandomChance(chance))
     }
 
     /// `minecraft:reference` — reference to another standalone predicate file.
-    pub fn reference(id: impl Into<PredicateId>) -> Self {
-        Self::Reference(id.into())
+    pub fn reference(id: PredicateId) -> Self {
+        Self(PredicateRootKind::Reference(id))
     }
 
     /// `minecraft:inverted` — negates a nested condition.
     pub fn inverted(term: PredicateRoot) -> Self {
-        Self::Inverted(Box::new(term))
+        Self(PredicateRootKind::Inverted(Box::new(term)))
     }
 
     /// Explicit raw escape hatch for predicate condition types not yet modeled.
-    pub fn raw(json: RawJson) -> Self {
-        Self::Raw(json)
-    }
-
-    /// Convert a [`LootCondition`] into a [`PredicateRoot`] where the shapes
-    /// overlap (boolean composition, weather, and reference). Loot-only
-    /// condition variants (`KilledByPlayer`, `MatchTool`, `SurvivesExplosion`,
-    /// `TableBonus`, `EntityScores`, `BlockStateProperty`, `EntityProperties`,
-    /// `TimeCheck`, `Custom`, or an unparsable `Reference` name) fall back to
-    /// [`PredicateRoot::Raw`] carrying the re-serialized loot-condition JSON,
-    /// so the conversion never fails or silently drops data.
-    pub fn from_loot_condition(condition: &LootCondition) -> Self {
-        match condition {
-            LootCondition::AllOf { terms } => {
-                Self::AllOf(terms.iter().map(Self::from_loot_condition).collect())
-            }
-            LootCondition::AnyOf { terms } => {
-                Self::AnyOf(terms.iter().map(Self::from_loot_condition).collect())
-            }
-            LootCondition::Inverted { term } => {
-                Self::Inverted(Box::new(Self::from_loot_condition(term)))
-            }
-            LootCondition::RandomChance { chance } => Self::RandomChance(*chance),
-            LootCondition::WeatherCheck {
-                raining,
-                thundering,
-            } => {
-                let mut predicate = WeatherPredicate::new();
-                if let Some(v) = raining {
-                    predicate = predicate.raining(*v);
-                }
-                if let Some(v) = thundering {
-                    predicate = predicate.thundering(*v);
-                }
-                Self::WeatherCheck(predicate)
-            }
-            LootCondition::Reference { name } => match name.parse::<ResourceLocation>() {
-                Ok(rl) => Self::Reference(PredicateId::custom(rl)),
-                Err(_) => Self::Raw(RawJson::new(loot_condition_to_value(condition))),
-            },
-            other => Self::Raw(RawJson::new(loot_condition_to_value(other))),
-        }
+    pub fn raw(json: RawJson) -> serde_json::Result<Self> {
+        let object =
+            serde_json::from_value::<serde_json::Map<String, Value>>(json.as_value().clone())?;
+        Ok(Self(PredicateRootKind::Raw(RawJson::new(Value::Object(
+            object,
+        )))))
     }
 
     fn validate_at(&self, path: &str) -> std::result::Result<(), (String, String)> {
-        match self {
-            Self::AllOf(terms) | Self::AnyOf(terms) => {
+        match &self.0 {
+            PredicateRootKind::AllOf(terms) | PredicateRootKind::AnyOf(terms) => {
                 if terms.is_empty() {
                     return Err((format!("{path}.terms"), "terms must not be empty".into()));
                 }
@@ -209,20 +180,20 @@ impl PredicateRoot {
                 }
                 Ok(())
             }
-            Self::Inverted(term) => term.validate_at(&format!("{path}.term")),
-            Self::EntityProperties(_, predicate) => predicate
+            PredicateRootKind::Inverted(term) => term.validate_at(&format!("{path}.term")),
+            PredicateRootKind::EntityProperties(_, predicate) => predicate
                 .validate_at(&format!("{path}.predicate"))
                 .map_err(|message| (format!("{path}.predicate"), message)),
-            Self::LocationCheck(predicate) => predicate
+            PredicateRootKind::LocationCheck(predicate) => predicate
                 .validate_at(path)
                 .map_err(|message| (path.to_string(), message)),
-            Self::WeatherCheck(predicate) => predicate
+            PredicateRootKind::WeatherCheck(predicate) => predicate
                 .validate_at(path)
                 .map_err(|message| (path.to_string(), message)),
-            Self::TimeCheck(range) => range
+            PredicateRootKind::TimeCheck(range) => range
                 .validate_at(&format!("{path}.value"))
                 .map_err(|message| (format!("{path}.value"), message)),
-            Self::RandomChance(chance) => {
+            PredicateRootKind::RandomChance(chance) => {
                 if !chance.is_finite() || !(0.0..=1.0).contains(chance) {
                     return Err((
                         format!("{path}.chance"),
@@ -231,96 +202,81 @@ impl PredicateRoot {
                 }
                 Ok(())
             }
-            Self::Reference(_) | Self::Raw(_) => Ok(()),
+            PredicateRootKind::Reference(_) => Ok(()),
+            PredicateRootKind::Raw(json) if json.as_value().is_object() => Ok(()),
+            PredicateRootKind::Raw(_) => Err((
+                path.to_string(),
+                "raw predicate roots must be JSON objects".into(),
+            )),
         }
     }
 }
 
-fn loot_condition_to_value(condition: &LootCondition) -> Value {
-    serde_json::to_value(condition)
-        .unwrap_or_else(|error| panic!("loot condition serialization failed: {error}"))
-}
-
-impl Serialize for PredicateRoot {
-    fn serialize<S: Serializer>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error> {
-        match self {
-            Self::AllOf(terms) => {
-                let mut map = serializer.serialize_map(Some(2))?;
-                map.serialize_entry("condition", "minecraft:all_of")?;
-                map.serialize_entry("terms", terms)?;
-                map.end()
+impl PredicateRoot {
+    fn render_for(
+        &self,
+        caps: Option<&sand_version::VersionCaps>,
+    ) -> std::result::Result<Value, String> {
+        match &self.0 {
+            PredicateRootKind::AllOf(terms) => render_terms("minecraft:all_of", terms, caps),
+            PredicateRootKind::AnyOf(terms) => render_terms("minecraft:any_of", terms, caps),
+            PredicateRootKind::Inverted(term) => Ok(serde_json::json!({
+                "condition": "minecraft:inverted",
+                "term": term.render_for(caps)?,
+            })),
+            PredicateRootKind::EntityProperties(target, predicate) => Ok(serde_json::json!({
+                "condition": "minecraft:entity_properties",
+                "entity": target,
+                "predicate": predicate.render_for_advancement(caps)?,
+            })),
+            PredicateRootKind::LocationCheck(predicate) => Ok(serde_json::json!({
+                "condition": "minecraft:location_check",
+                "predicate": predicate.render_for_advancement(caps)?,
+            })),
+            PredicateRootKind::WeatherCheck(predicate) => {
+                let mut object = serde_json::to_value(predicate)
+                    .map_err(|error| error.to_string())?
+                    .as_object()
+                    .cloned()
+                    .ok_or_else(|| {
+                        "weather predicates must serialize as JSON objects".to_string()
+                    })?;
+                object.insert(
+                    "condition".into(),
+                    Value::String("minecraft:weather_check".into()),
+                );
+                Ok(Value::Object(object))
             }
-            Self::AnyOf(terms) => {
-                let mut map = serializer.serialize_map(Some(2))?;
-                map.serialize_entry("condition", "minecraft:any_of")?;
-                map.serialize_entry("terms", terms)?;
-                map.end()
+            PredicateRootKind::TimeCheck(range) => Ok(serde_json::json!({
+                "condition": "minecraft:time_check",
+                "value": range,
+            })),
+            PredicateRootKind::RandomChance(chance) => Ok(serde_json::json!({
+                "condition": "minecraft:random_chance",
+                "chance": chance,
+            })),
+            PredicateRootKind::Reference(id) => Ok(serde_json::json!({
+                "condition": "minecraft:reference",
+                "name": id,
+            })),
+            PredicateRootKind::Raw(json) if json.as_value().is_object() => {
+                Ok(json.as_value().clone())
             }
-            Self::Inverted(term) => {
-                let mut map = serializer.serialize_map(Some(2))?;
-                map.serialize_entry("condition", "minecraft:inverted")?;
-                map.serialize_entry("term", term)?;
-                map.end()
-            }
-            Self::EntityProperties(target, predicate) => {
-                let mut map = serializer.serialize_map(Some(3))?;
-                map.serialize_entry("condition", "minecraft:entity_properties")?;
-                map.serialize_entry("entity", target)?;
-                map.serialize_entry("predicate", predicate)?;
-                map.end()
-            }
-            Self::LocationCheck(predicate) => {
-                let mut map = serializer.serialize_map(Some(2))?;
-                map.serialize_entry("condition", "minecraft:location_check")?;
-                map.serialize_entry("predicate", predicate)?;
-                map.end()
-            }
-            Self::WeatherCheck(predicate) => {
-                let mut map = serializer.serialize_map(None)?;
-                map.serialize_entry("condition", "minecraft:weather_check")?;
-                // Weather fields are flattened directly onto the wrapper object,
-                // matching the vanilla `minecraft:weather_check` shape.
-                let value = serde_json::to_value(predicate).map_err(serde::ser::Error::custom)?;
-                if let Value::Object(object) = value {
-                    for (key, value) in object {
-                        map.serialize_entry(&key, &value)?;
-                    }
-                }
-                map.end()
-            }
-            Self::TimeCheck(range) => {
-                let mut map = serializer.serialize_map(Some(2))?;
-                map.serialize_entry("condition", "minecraft:time_check")?;
-                map.serialize_entry("value", range)?;
-                map.end()
-            }
-            Self::RandomChance(chance) => {
-                let mut map = serializer.serialize_map(Some(2))?;
-                map.serialize_entry("condition", "minecraft:random_chance")?;
-                map.serialize_entry("chance", chance)?;
-                map.end()
-            }
-            Self::Reference(id) => {
-                let mut map = serializer.serialize_map(Some(2))?;
-                map.serialize_entry("condition", "minecraft:reference")?;
-                map.serialize_entry("name", id)?;
-                map.end()
-            }
-            Self::Raw(json) => {
-                let mut map = serializer.serialize_map(None)?;
-                if let Value::Object(object) = json.as_value() {
-                    for (key, value) in object {
-                        map.serialize_entry(key, value)?;
-                    }
-                } else {
-                    return Err(serde::ser::Error::custom(
-                        "PredicateRoot::Raw must be a JSON object",
-                    ));
-                }
-                map.end()
-            }
+            PredicateRootKind::Raw(_) => Err("raw predicate roots must be JSON objects".into()),
         }
     }
+}
+
+fn render_terms(
+    condition: &str,
+    terms: &[PredicateRoot],
+    caps: Option<&sand_version::VersionCaps>,
+) -> std::result::Result<Value, String> {
+    let terms = terms
+        .iter()
+        .map(|term| term.render_for(caps))
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    Ok(serde_json::json!({"condition": condition, "terms": terms}))
 }
 
 // ── Predicate ─────────────────────────────────────────────────────────────────
@@ -330,54 +286,37 @@ impl Serialize for PredicateRoot {
 ///
 /// Emits to `data/<namespace>/predicate/<id>.json`.
 pub struct Predicate {
-    /// The resource location for this predicate.
-    pub location: ResourceLocation,
-    /// The typed condition tree for this predicate.
-    pub root: PredicateRoot,
+    location: PredicateId,
+    root: PredicateRoot,
 }
 
 impl Predicate {
-    /// Create a new predicate with the given resource location and typed condition tree.
-    pub fn new(location: ResourceLocation, root: PredicateRoot) -> Self {
+    /// Create a new predicate with the given typed predicate ID and condition tree.
+    pub fn new(location: PredicateId, root: PredicateRoot) -> Self {
         Self { location, root }
     }
 
     /// Convenience constructor for `minecraft:all_of`.
-    pub fn all_of(
-        location: ResourceLocation,
-        terms: impl IntoIterator<Item = PredicateRoot>,
-    ) -> Self {
-        Self::new(location, PredicateRoot::AllOf(terms.into_iter().collect()))
+    pub fn all_of(location: PredicateId, terms: impl IntoIterator<Item = PredicateRoot>) -> Self {
+        Self::new(location, PredicateRoot::all_of(terms))
     }
 
     /// Convenience constructor for `minecraft:any_of`.
-    pub fn any_of(
-        location: ResourceLocation,
-        terms: impl IntoIterator<Item = PredicateRoot>,
-    ) -> Self {
-        Self::new(location, PredicateRoot::AnyOf(terms.into_iter().collect()))
-    }
-
-    /// Construct a predicate directly from a legacy [`LootCondition`], converting
-    /// it to a [`PredicateRoot`] via [`PredicateRoot::from_loot_condition`].
-    ///
-    /// Kept for compatibility with existing `LootCondition`-based authoring;
-    /// prefer [`Predicate::new`] with a [`PredicateRoot`] for new code.
-    pub fn from_loot_condition(location: ResourceLocation, condition: LootCondition) -> Self {
-        Self::new(location, PredicateRoot::from_loot_condition(&condition))
+    pub fn any_of(location: PredicateId, terms: impl IntoIterator<Item = PredicateRoot>) -> Self {
+        Self::new(location, PredicateRoot::any_of(terms))
     }
 }
 
 impl DatapackComponent for Predicate {
     fn resource_location(&self) -> &ResourceLocation {
-        &self.location
+        self.location.as_resource_location()
     }
 
     fn validate(&self) -> Result<()> {
         self.root
             .validate_at("predicate")
             .map_err(|(field, message)| SandError::ComponentValidation {
-                location: self.location.clone(),
+                location: self.location.as_resource_location().clone(),
                 kind: "predicate".to_string(),
                 field,
                 message,
@@ -385,15 +324,29 @@ impl DatapackComponent for Predicate {
     }
 
     fn to_json(&self) -> Value {
-        serde_json::to_value(&self.root)
+        self.root
+            .render_for(None)
             .unwrap_or_else(|error| panic!("predicate serialization failed: {error}"))
     }
 
     fn try_content(&self) -> Result<ComponentContent> {
+        self.try_content_for(None)
+    }
+
+    fn try_content_for(
+        &self,
+        caps: Option<&sand_version::VersionCaps>,
+    ) -> Result<ComponentContent> {
         self.validate()?;
-        serde_json::to_value(&self.root)
+        self.root
+            .render_for(caps)
             .map(ComponentContent::Json)
-            .map_err(SandError::Serialization)
+            .map_err(|message| SandError::ComponentValidation {
+                location: self.location.as_resource_location().clone(),
+                kind: "predicate".into(),
+                field: "predicate".into(),
+                message,
+            })
     }
 
     fn component_dir(&self) -> &'static str {
@@ -406,9 +359,10 @@ mod tests {
     use super::*;
     use crate::component::DatapackComponent;
     use crate::predicates::{EntityFlags, FloatRange};
+    use crate::registry::{BiomeId, DimensionId, EntityTypeId};
 
-    fn loc(path: &str) -> ResourceLocation {
-        format!("test:{path}").parse().unwrap()
+    fn loc(path: &str) -> PredicateId {
+        PredicateId::custom(format!("test:{path}").parse().unwrap())
     }
 
     #[test]
@@ -440,21 +394,27 @@ mod tests {
             loc("is_baby_zombie"),
             PredicateRoot::entity_properties(
                 EntityPredicateTarget::This,
-                EntityPredicate::type_("minecraft:zombie").flags(EntityFlags::new().baby(true)),
+                EntityPredicate::type_(EntityTypeId::minecraft("zombie").unwrap())
+                    .flags(EntityFlags::new().baby(true)),
             ),
         );
         let json = predicate.to_json();
         assert_eq!(json["condition"], "minecraft:entity_properties");
         assert_eq!(json["entity"], "this");
-        assert_eq!(json["predicate"]["type"], "minecraft:zombie");
-        assert_eq!(json["predicate"]["flags"]["is_baby"], true);
+        assert_eq!(
+            json["predicate"]["minecraft:entity_type"],
+            "minecraft:zombie"
+        );
+        assert_eq!(json["predicate"]["minecraft:flags"]["is_baby"], true);
     }
 
     #[test]
     fn location_check_json_shape() {
         let predicate = Predicate::new(
             loc("in_overworld"),
-            PredicateRoot::location(LocationPredicate::new().dimension("minecraft:overworld")),
+            PredicateRoot::location(
+                LocationPredicate::new().dimension(DimensionId::minecraft("overworld").unwrap()),
+            ),
         );
         let json = predicate.to_json();
         assert_eq!(json["condition"], "minecraft:location_check");
@@ -503,7 +463,8 @@ mod tests {
             PredicateRoot::raw(RawJson::new(serde_json::json!({
                 "condition": "mymod:custom_condition",
                 "level": 10
-            }))),
+            })))
+            .unwrap(),
         );
         let json = predicate.to_json();
         assert_eq!(json["condition"], "mymod:custom_condition");
@@ -512,11 +473,8 @@ mod tests {
 
     #[test]
     fn raw_escape_hatch_rejects_non_object() {
-        let predicate = Predicate::new(
-            loc("bad_raw"),
-            PredicateRoot::raw(RawJson::new(serde_json::json!(5))),
-        );
-        assert!(predicate.try_content().is_err());
+        let error = PredicateRoot::raw(RawJson::new(serde_json::json!(5))).unwrap_err();
+        assert!(error.to_string().contains("map"));
     }
 
     #[test]
@@ -558,31 +516,66 @@ mod tests {
     }
 
     #[test]
-    fn from_loot_condition_converts_overlapping_shapes() {
-        let predicate = Predicate::from_loot_condition(
-            loc("converted"),
-            LootCondition::AllOf {
-                terms: vec![
-                    LootCondition::RandomChance { chance: 0.25 },
-                    LootCondition::WeatherCheck {
-                        raining: Some(true),
-                        thundering: None,
-                    },
-                ],
-            },
+    fn profiled_entity_predicate_uses_target_schema() {
+        let predicate = Predicate::new(
+            loc("profiled_entity"),
+            PredicateRoot::entity_properties(
+                EntityPredicateTarget::This,
+                EntityPredicate::type_(EntityTypeId::minecraft("zombie").unwrap()),
+            ),
         );
-        let json = predicate.to_json();
-        assert_eq!(json["condition"], "minecraft:all_of");
-        let terms = json["terms"].as_array().unwrap();
-        assert_eq!(terms[0]["condition"], "minecraft:random_chance");
-        assert_eq!(terms[1]["condition"], "minecraft:weather_check");
+        let legacy = sand_version::VersionCaps::from_profile_flags(
+            "1.21.4", false, false, true, true, true, true, true, true,
+        );
+        let modern = sand_version::VersionCaps::all_enabled();
+
+        let ComponentContent::Json(legacy_json) = predicate.try_content_for(Some(&legacy)).unwrap()
+        else {
+            panic!("predicates are JSON components")
+        };
+        let ComponentContent::Json(modern_json) = predicate.try_content_for(Some(&modern)).unwrap()
+        else {
+            panic!("predicates are JSON components")
+        };
+        assert_eq!(legacy_json["predicate"]["type"], "minecraft:zombie");
+        assert!(
+            legacy_json["predicate"]
+                .get("minecraft:entity_type")
+                .is_none()
+        );
+        assert_eq!(
+            modern_json["predicate"]["minecraft:entity_type"],
+            "minecraft:zombie"
+        );
+        assert!(modern_json["predicate"].get("type").is_none());
     }
 
     #[test]
-    fn from_loot_condition_falls_back_to_raw_for_loot_only_shapes() {
-        let predicate =
-            Predicate::from_loot_condition(loc("killed_by_player"), LootCondition::KilledByPlayer);
-        let json = predicate.to_json();
-        assert_eq!(json["condition"], "minecraft:killed_by_player");
+    fn profiled_location_predicate_uses_target_schema_and_rejects_unknown_legacy() {
+        let predicate = Predicate::new(
+            loc("profiled_location"),
+            PredicateRoot::location(
+                LocationPredicate::new().biome(BiomeId::minecraft("plains").unwrap()),
+            ),
+        );
+        let supported = sand_version::VersionCaps::from_profile_flags(
+            "1.21.4", false, false, true, true, true, true, true, true,
+        );
+        let unsupported = sand_version::VersionCaps::from_profile_flags(
+            "1.18.2", false, false, false, false, false, false, false, false,
+        );
+
+        let ComponentContent::Json(json) = predicate.try_content_for(Some(&supported)).unwrap()
+        else {
+            panic!("predicates are JSON components")
+        };
+        assert_eq!(json["predicate"]["biomes"], "minecraft:plains");
+        assert!(json["predicate"].get("biome").is_none());
+
+        let error = predicate
+            .try_content_for(Some(&unsupported))
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("1.21.4+"));
     }
 }

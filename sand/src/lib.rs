@@ -192,8 +192,8 @@ pub mod inventory {
 pub mod predicate {
     pub use sand_components::{
         BlockPredicate, DamagePredicate, DamageSourcePredicate, DistancePredicate, EntityEquipment,
-        EntityFlags, EntityPredicate, EntityPredicateTarget, ItemPredicate, LocationPredicate,
-        LootCondition, Predicate, PredicateId, PredicateRoot, WeatherPredicate,
+        EffectPredicate, EntityFlags, EntityPredicate, EntityPredicateTarget, FloatRange, IntRange,
+        ItemPredicate, LocationPredicate, Predicate, PredicateId, PredicateRoot, WeatherPredicate,
     };
 }
 

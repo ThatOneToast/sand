@@ -1129,7 +1129,7 @@ impl SurfaceGraph {
     }
 
     fn macro_name_is_shadowed(&self, producer: &ApiProducerUse) -> bool {
-        let Some((module_id, _)) = producer.owner.rsplit_once("::") else {
+        let Some(module_id) = self.producer_defining_module(&producer.owner) else {
             return false;
         };
         let Some(module) = self.module(module_id) else {
@@ -1147,7 +1147,7 @@ impl SurfaceGraph {
     }
 
     fn qualified_macro_root_is_shadowed(&self, producer: &ApiProducerUse, root: &str) -> bool {
-        let Some((module_id, _)) = producer.owner.rsplit_once("::") else {
+        let Some(module_id) = self.producer_defining_module(&producer.owner) else {
             return false;
         };
         let crate_name = module_id.split("::").next().unwrap_or(module_id);
@@ -1164,6 +1164,16 @@ impl SurfaceGraph {
             .and_then(|index| index.extern_aliases.get(root))
             .is_some_and(|target| target != root);
         module_shadow || extern_shadow
+    }
+
+    fn producer_defining_module<'a>(&self, owner: &'a str) -> Option<&'a str> {
+        let (mut candidate, _) = owner.rsplit_once("::")?;
+        loop {
+            if self.module(candidate).is_some() {
+                return Some(candidate);
+            }
+            (candidate, _) = candidate.rsplit_once("::")?;
+        }
     }
 
     fn walk_module(
@@ -2385,6 +2395,13 @@ fn parse_items(
                     let identity = format!("{module_id}::{name}");
                     let mut api_producers =
                         api_producers_from_attrs(attrs, cfg, source_file, &identity, Some(item))?;
+                    api_producers.extend(api_producers_from_nested_declaration_attrs(
+                        item,
+                        attrs,
+                        cfg,
+                        source_file,
+                        &identity,
+                    )?);
                     if let syn::Item::Trait(trait_item) = item {
                         for member in &trait_item.items {
                             let member_attrs = trait_item_attrs(member);
@@ -2447,6 +2464,80 @@ fn parse_items(
         }
     }
     Ok(())
+}
+
+fn api_producers_from_nested_declaration_attrs(
+    item: &syn::Item,
+    parent_attrs: &[syn::Attribute],
+    cfg: &CfgSet,
+    source: &Path,
+    owner: &str,
+) -> Result<Vec<ApiProducerUse>, ReachabilityError> {
+    let context = helper_attribute_context(parent_attrs, cfg, source)?;
+    let mut producers = Vec::new();
+    let mut inspect = |attrs: &[syn::Attribute], nested_owner: String, target| {
+        if !cfg_enabled(attrs, cfg, source)? {
+            return Ok(());
+        }
+        producers.extend(api_producers_from_attrs_with_context(
+            attrs,
+            cfg,
+            source,
+            &nested_owner,
+            None,
+            &context,
+            target,
+        )?);
+        Ok::<_, ReachabilityError>(())
+    };
+    match item {
+        syn::Item::Struct(value) => {
+            for (index, field) in value.fields.iter().enumerate() {
+                let name = field
+                    .ident
+                    .as_ref()
+                    .map_or_else(|| index.to_string(), ident_name);
+                inspect(
+                    &field.attrs,
+                    format!("{owner}::{name}"),
+                    AttributeTarget::Field,
+                )?;
+            }
+        }
+        syn::Item::Union(value) => {
+            for field in &value.fields.named {
+                let name = ident_name(field.ident.as_ref().expect("union field is named"));
+                inspect(
+                    &field.attrs,
+                    format!("{owner}::{name}"),
+                    AttributeTarget::Field,
+                )?;
+            }
+        }
+        syn::Item::Enum(value) => {
+            for variant in &value.variants {
+                let variant_name = ident_name(&variant.ident);
+                inspect(
+                    &variant.attrs,
+                    format!("{owner}::{variant_name}"),
+                    AttributeTarget::Variant,
+                )?;
+                for (index, field) in variant.fields.iter().enumerate() {
+                    let field_name = field
+                        .ident
+                        .as_ref()
+                        .map_or_else(|| index.to_string(), ident_name);
+                    inspect(
+                        &field.attrs,
+                        format!("{owner}::{variant_name}::{field_name}"),
+                        AttributeTarget::Field,
+                    )?;
+                }
+            }
+        }
+        _ => {}
+    }
+    Ok(producers)
 }
 
 fn declaration_parts(
@@ -2617,6 +2708,78 @@ fn api_producers_from_attrs(
     owner: &str,
     item: Option<&syn::Item>,
 ) -> Result<Vec<ApiProducerUse>, ReachabilityError> {
+    let helper_context = helper_attribute_context(attrs, cfg, source)?;
+    api_producers_from_attrs_with_context(
+        attrs,
+        cfg,
+        source,
+        owner,
+        item,
+        &helper_context,
+        AttributeTarget::Declaration,
+    )
+}
+
+#[derive(Clone, Copy)]
+enum AttributeTarget {
+    Declaration,
+    Variant,
+    Field,
+}
+
+#[derive(Default)]
+struct HelperAttributeContext {
+    derives: BTreeSet<String>,
+}
+
+fn helper_attribute_context(
+    attrs: &[syn::Attribute],
+    cfg: &CfgSet,
+    source: &Path,
+) -> Result<HelperAttributeContext, ReachabilityError> {
+    let mut context = HelperAttributeContext::default();
+    for attr in effective_attributes(attrs, cfg, source)? {
+        if attr.meta.path().is_ident("derive") {
+            let syn::Meta::List(list) = attr.meta else {
+                continue;
+            };
+            let derives = list
+                .parse_args_with(
+                    syn::punctuated::Punctuated::<syn::Path, syn::Token![,]>::parse_terminated,
+                )
+                .map_err(|error| {
+                    ReachabilityError::Parse(format!(
+                        "{}:{}: malformed derive attribute: {error}",
+                        source.display(),
+                        attr.line
+                    ))
+                })?;
+            for derive in derives {
+                let Some(name) = derive
+                    .segments
+                    .last()
+                    .map(|segment| ident_name(&segment.ident))
+                else {
+                    continue;
+                };
+                if derive.segments.len() == 1 || trusted_qualified_derive(&derive) {
+                    context.derives.insert(name);
+                }
+            }
+        }
+    }
+    Ok(context)
+}
+
+fn api_producers_from_attrs_with_context(
+    attrs: &[syn::Attribute],
+    cfg: &CfgSet,
+    source: &Path,
+    owner: &str,
+    item: Option<&syn::Item>,
+    helper_context: &HelperAttributeContext,
+    target: AttributeTarget,
+) -> Result<Vec<ApiProducerUse>, ReachabilityError> {
     let mut producers = Vec::new();
     for attr in effective_attributes(attrs, cfg, source)? {
         if attr.meta.path().is_ident("derive") {
@@ -2710,7 +2873,15 @@ fn api_producers_from_attrs(
                     .to_string()
             });
             let trusted = bare_name || trusted_qualified_attribute(path);
-            if !trusted || (!api_producing_sand_macro(&name) && !shape_preserving_attribute(&name))
+            let helper = bare_name && valid_derive_helper(&name, helper_context, target);
+            let inert = builtin_or_inert_attribute(&name)
+                || matches!(path_segments(path).as_slice(), [tool, attribute]
+                    if tool == "diagnostic" && attribute == "on_unimplemented");
+            if !trusted
+                || (!api_producing_sand_macro(&name)
+                    && !inert
+                    && !shape_preserving_sand_attribute(&name)
+                    && !helper)
             {
                 producers.push(ApiProducerUse {
                     source: source.to_owned(),
@@ -2735,7 +2906,22 @@ fn api_producers_from_attrs(
                     bare_name,
                     qualified_root,
                 });
-            } else if potentially_imported_attribute(&name) {
+            } else if helper {
+                // Derive helpers are inert only because the matching derive
+                // declares them. Keep a reachable occurrence so an imported
+                // proc macro cannot impersonate that helper name.
+                producers.push(ApiProducerUse {
+                    source: source.to_owned(),
+                    line: attr.line,
+                    owner: owner.to_owned(),
+                    name,
+                    expected_generated: None,
+                    unclassified_form: None,
+                    requires_binding: false,
+                    bare_name: true,
+                    qualified_root: None,
+                });
+            } else if shape_preserving_sand_attribute(&name) {
                 producers.push(ApiProducerUse {
                     source: source.to_owned(),
                     line: attr.line,
@@ -2751,6 +2937,53 @@ fn api_producers_from_attrs(
         }
     }
     Ok(producers)
+}
+
+fn valid_derive_helper(
+    name: &str,
+    context: &HelperAttributeContext,
+    target: AttributeTarget,
+) -> bool {
+    let has = |derive: &str| context.derives.contains(derive);
+    match name {
+        "serde" => has("Serialize") || has("Deserialize"),
+        "error" => {
+            has("Error")
+                && matches!(
+                    target,
+                    AttributeTarget::Declaration | AttributeTarget::Variant
+                )
+        }
+        "from" | "source" | "backtrace" => has("Error") && matches!(target, AttributeTarget::Field),
+        "command" => {
+            (has("Args") || has("Parser") || has("Subcommand"))
+                && matches!(
+                    target,
+                    AttributeTarget::Declaration | AttributeTarget::Variant
+                )
+        }
+        "arg" => {
+            (has("Args") || has("Parser") || has("Subcommand"))
+                && matches!(target, AttributeTarget::Field)
+        }
+        "group" => {
+            (has("Args") || has("Parser"))
+                && matches!(
+                    target,
+                    AttributeTarget::Declaration | AttributeTarget::Field
+                )
+        }
+        "value" => has("ValueEnum") && matches!(target, AttributeTarget::Variant),
+        "state" => has("State") && matches!(target, AttributeTarget::Field),
+        "sand" => {
+            has("SandStorage")
+                && matches!(
+                    target,
+                    AttributeTarget::Declaration | AttributeTarget::Field
+                )
+        }
+        _ => false,
+    }
 }
 
 // Only macros which introduce additional inherent or sibling public items
@@ -2869,7 +3102,7 @@ fn trusted_qualified_attribute(path: &syn::Path) -> bool {
     )
 }
 
-fn potentially_imported_attribute(name: &str) -> bool {
+fn shape_preserving_sand_attribute(name: &str) -> bool {
     matches!(
         name,
         "api"
@@ -2903,32 +3136,23 @@ fn trusted_macro_import(name: &str, path: &[String]) -> bool {
     )
 }
 
-// Rust built-ins plus audited helper/attribute macros which preserve the
-// annotated item's author-facing declaration. Sand attributes in this list
-// may emit private registration wiring, but no additional supported API item.
-fn shape_preserving_attribute(name: &str) -> bool {
+// Language/compiler attributes are inert without relying on a proc-macro
+// namespace lookup. Derive helper attributes deliberately do not belong here:
+// they are accepted by `valid_derive_helper` only on a form whose parent has
+// the derive that declares that helper.
+fn builtin_or_inert_attribute(name: &str) -> bool {
     matches!(
         name,
         "allow"
-            | "api"
-            | "arg"
-            | "armor_event"
             | "automatically_derived"
             | "cfg"
             | "cold"
-            | "command"
-            | "component"
             | "default"
             | "deny"
             | "deprecated"
-            | "diagnostic"
             | "doc"
-            | "entity_archetype"
-            | "error"
             | "export_name"
             | "forbid"
-            | "from"
-            | "function"
             | "inline"
             | "link"
             | "link_name"
@@ -2937,23 +3161,16 @@ fn shape_preserving_attribute(name: &str) -> bool {
             | "must_use"
             | "no_mangle"
             | "non_exhaustive"
-            | "on_unimplemented"
             | "path"
             | "proc_macro"
             | "proc_macro_attribute"
             | "proc_macro_derive"
             | "repr"
-            | "sand"
-            | "schedule"
-            | "serde"
             | "should_panic"
-            | "state"
             | "target_feature"
             | "test"
-            | "tick"
             | "track_caller"
             | "used"
-            | "value"
             | "warn"
     )
 }
@@ -3041,7 +3258,7 @@ fn api_producers_from_macro_transcriber(
                         bare_name: true,
                         qualified_root: None,
                     });
-                } else if !shape_preserving_attribute(&name) {
+                } else if !builtin_or_inert_attribute(&name) {
                     output.push(ApiProducerUse {
                         source: source.to_owned(),
                         line: hash.span().start().line,

@@ -1829,6 +1829,87 @@ fn unknown_custom_derives_and_attributes_fail_closed() {
 }
 
 #[test]
+fn bare_custom_attributes_are_not_trusted_without_their_derive_context() {
+    for source in [
+        "#[serde(rename_all = \"snake_case\")] pub struct Thing;",
+        "#[derive(Debug)] #[command(name = \"spoofed\")] pub struct Thing;",
+        "#[derive(Debug)] pub enum Thing { #[value(name = \"spoofed\")] Value }",
+        "#[derive(Debug)] pub struct Thing { #[state(default = 1)] pub value: i32 }",
+        "#[derive(Serialize)] pub struct Thing { #[error(transparent)] pub value: i32 }",
+        "#[derive(Error)] pub enum Thing { Bad(#[serde(skip)] i32) }",
+        "use evil::serde; #[derive(Serialize)] #[serde(rename_all = \"snake_case\")] pub struct Thing;",
+        "use evil::error; #[derive(Error)] pub enum Thing { #[error(\"bad\")] Bad }",
+        "#[tick] pub fn thing() {}",
+    ] {
+        let directory = tempfile::tempdir().unwrap();
+        let facade = directory.path().join("facade.rs");
+        fs::write(&facade, source).unwrap();
+        let graph = SurfaceGraph::load(
+            [SourceCrate {
+                name: "facade".into(),
+                root: facade,
+            }],
+            [],
+            [],
+        )
+        .unwrap();
+        let result = graph.reachable_from("facade");
+        assert!(
+            matches!(result, Err(ReachabilityError::UnclassifiedApiMacro { .. })),
+            "bare custom attribute escaped without its helper derive: {source}: {result:?}"
+        );
+    }
+}
+
+#[test]
+fn real_derive_helpers_are_accepted_only_on_the_forms_the_derive_owns() {
+    let directory = tempfile::tempdir().unwrap();
+    let facade = directory.path().join("facade.rs");
+    fs::write(
+        &facade,
+        r#"
+            #[derive(Serialize, Deserialize)]
+            #[serde(rename_all = "snake_case")]
+            pub struct Wire {
+                #[serde(default)]
+                pub value: i32,
+            }
+
+            pub struct Cause;
+            #[derive(Error)]
+            pub enum Problem {
+                #[error("bad input")]
+                Bad(#[from] Cause),
+            }
+
+            #[derive(Parser)]
+            #[command(name = "sand")]
+            pub struct Cli {
+                #[arg(long)]
+                pub verbose: bool,
+            }
+
+            #[derive(ValueEnum)]
+            pub enum Mode {
+                #[value(name = "fast")]
+                Fast,
+            }
+        "#,
+    )
+    .unwrap();
+    let graph = SurfaceGraph::load(
+        [SourceCrate {
+            name: "facade".into(),
+            root: facade,
+        }],
+        [],
+        [],
+    )
+    .unwrap();
+    graph.reachable_from("facade").unwrap();
+}
+
+#[test]
 fn qualified_and_aliased_macros_cannot_impersonate_audited_names() {
     for source in [
         "#[derive(evil::Debug)] pub struct Thing;",

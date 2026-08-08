@@ -1199,8 +1199,53 @@ fn producer_binding_requires_the_exact_owner_output_set() {
     assert!(matches!(
         graph.bind_api_producer("facade::Storage", "SandStorage", "partial_provider"),
         Err(ReachabilityError::InvalidApiProducerProvider { expected, actual, .. })
-            if expected == ["facade::Storage::SCHEMA", "facade::Storage::value"]
-                && actual == ["facade::Storage::SCHEMA"]
+            if expected == ["facade::Storage::SCHEMA [AssociatedConst]", "facade::Storage::value [Method]"]
+                && actual == ["facade::Storage::SCHEMA [AssociatedConst]"]
+    ));
+}
+
+#[test]
+fn producer_binding_requires_exact_output_kinds() {
+    let directory = tempfile::tempdir().unwrap();
+    let facade = directory.path().join("facade.rs");
+    fs::write(
+        &facade,
+        "#[derive(SandStorage)] pub struct Storage { value: i32 }",
+    )
+    .unwrap();
+    let producer = Some(GeneratedProducer {
+        owner: "facade::Storage".into(),
+        name: "SandStorage".into(),
+    });
+    let graph = SurfaceGraph::load(
+        [SourceCrate {
+            name: "facade".into(),
+            root: facade,
+        }],
+        [],
+        [
+            GeneratedApi {
+                identity: "facade::Storage::SCHEMA".into(),
+                provider: "wrong_kinds".into(),
+                producer: producer.clone(),
+                kind: ReachableKind::Method,
+                members: vec![],
+                excluded: false,
+            },
+            GeneratedApi {
+                identity: "facade::Storage::value".into(),
+                provider: "wrong_kinds".into(),
+                producer,
+                kind: ReachableKind::AssociatedConst,
+                members: vec![],
+                excluded: false,
+            },
+        ],
+    )
+    .unwrap();
+    assert!(matches!(
+        graph.bind_api_producer("facade::Storage", "SandStorage", "wrong_kinds"),
+        Err(ReachabilityError::InvalidApiProducerProvider { .. })
     ));
 }
 
@@ -1246,6 +1291,62 @@ fn unknown_custom_derives_and_attributes_fail_closed() {
     )
     .unwrap();
     assert!(graph.reachable_from("facade").is_ok());
+}
+
+#[test]
+fn qualified_and_aliased_macros_cannot_impersonate_audited_names() {
+    for source in [
+        "#[derive(evil::Debug)] pub struct Thing;",
+        "#[evil::api] pub struct Thing;",
+        "#[derive(evil::SandStorage)] pub struct Thing { value: i32 }",
+        "use evil::ApiMaker as Debug; #[derive(Debug)] pub struct Thing;",
+        "use evil::ApiMaker as api; #[api] pub struct Thing;",
+        "use sand::SandStorage as StorageDerive; #[derive(StorageDerive)] pub struct Thing { value: i32 }",
+    ] {
+        let directory = tempfile::tempdir().unwrap();
+        let facade = directory.path().join("facade.rs");
+        fs::write(&facade, source).unwrap();
+        let graph = SurfaceGraph::load(
+            [SourceCrate {
+                name: "facade".into(),
+                root: facade,
+            }],
+            [],
+            [],
+        )
+        .unwrap();
+        assert!(matches!(
+            graph.reachable_from("facade"),
+            Err(ReachabilityError::UnclassifiedApiMacro { .. })
+        ));
+    }
+}
+
+#[test]
+fn attributes_on_inherent_impls_and_members_fail_closed() {
+    for source in [
+        "pub struct Thing; #[unknown_expansion] impl Thing {}",
+        "pub struct Thing; impl Thing { #[unknown_expansion] pub fn existing() {} }",
+        "pub struct Thing; trait Marker {} #[unknown_expansion] impl Marker for Thing {}",
+        "pub struct Thing; trait Marker { fn run(); } impl Marker for Thing { #[unknown_expansion] fn run() {} }",
+    ] {
+        let directory = tempfile::tempdir().unwrap();
+        let facade = directory.path().join("facade.rs");
+        fs::write(&facade, source).unwrap();
+        let graph = SurfaceGraph::load(
+            [SourceCrate {
+                name: "facade".into(),
+                root: facade,
+            }],
+            [],
+            [],
+        )
+        .unwrap();
+        assert!(matches!(
+            graph.reachable_from("facade"),
+            Err(ReachabilityError::UnclassifiedApiMacro { owner, .. }) if owner == "facade::Thing"
+        ));
+    }
 }
 
 #[test]

@@ -63,10 +63,11 @@ is rejected rather than passing vacuously. The real `SandStorage` fixture
 shares its generated-member model between macro expansion and the build
 provider and proves a missing generated accessor fails ordinary `cargo check`.
 Producer connections are declaration-specific and exact: the provider must
-claim the same owner and the complete identity set derived from that source
-declaration. A partial or wrong-owner claim is rejected. Unknown custom
-attributes and derives on reachable declarations fail closed; unsupported
-producer templates remain pending consumer-build work rather than accepting a
+claim the same owner and the complete `(identity, kind)` set derived from that
+source declaration. A partial, wrong-owner, or wrong-kind claim is rejected.
+Unknown, qualified-untrusted, or suspiciously aliased custom attributes and
+derives on reachable declarations and impls fail closed; unsupported producer
+templates remain pending consumer-build work rather than accepting a
 fabricated family claim.
 
 Rustdoc JSON is useful as an independent audit oracle, but it is not the build

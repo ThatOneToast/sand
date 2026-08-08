@@ -29,6 +29,7 @@
 use crate::AdvancementTrigger;
 use sand_components::advancement::InventorySlotsPredicate;
 use sand_components::predicates::{DamagePredicate, EntityPredicate, IntRange, ItemPredicate};
+use sand_components::ItemId;
 
 // ── TickTrigger ─────────────────────────────────────────────────────────────
 
@@ -417,7 +418,9 @@ impl MultiKillTrigger {
     pub fn build(self) -> AdvancementTrigger {
         AdvancementTrigger::KilledByArrow {
             unique_entity_types: self.unique_entity_types,
-            fired_from_weapon: Some(ItemPredicate::id(crate::generated::Item::Crossbow)),
+            fired_from_weapon: Some(ItemPredicate::id(
+                ItemId::minecraft("crossbow").expect("crossbow is a valid vanilla item ID"),
+            )),
             victims: self.victims,
         }
     }

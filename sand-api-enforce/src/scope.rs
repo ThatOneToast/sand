@@ -548,23 +548,6 @@ impl ScopeManifest {
                 });
             }
         }
-        let mut recorded = BTreeSet::new();
-        for id in &self.enforced_scope_baseline {
-            if !recorded.insert(id.as_str()) {
-                return Err(ScopeFailure::DuplicateEnforcedScopeBaseline(id.clone()));
-            }
-            let Some(scope) = self.scopes.iter().find(|scope| scope.id == *id) else {
-                return Err(ScopeFailure::UnknownEnforcedScopeBaseline(id.clone()));
-            };
-            if scope.state != ScopeState::Enforced {
-                return Err(ScopeFailure::RecordedScopeNotEnforced(id.clone()));
-            }
-        }
-        for scope in &self.scopes {
-            if scope.state == ScopeState::Enforced && !recorded.contains(scope.id.as_str()) {
-                return Err(ScopeFailure::EnforcedScopeNotRecorded(scope.id.clone()));
-            }
-        }
         for (index, left) in self.scopes.iter().enumerate() {
             for right in self.scopes.iter().skip(index + 1) {
                 if scope_selectors_overlap(left, right) {
@@ -592,6 +575,26 @@ impl ScopeManifest {
                 if !scope_aliases.insert(alias.as_str()) {
                     return Err(ScopeFailure::DuplicateAlias(alias.clone()));
                 }
+            }
+        }
+        // Validate the append-only promotion ledger after the scope topology.
+        // This preserves the most actionable diagnostic when a malformed
+        // manifest has both a duplicate/overlap and an unrecorded promotion.
+        let mut recorded = BTreeSet::new();
+        for id in &self.enforced_scope_baseline {
+            if !recorded.insert(id.as_str()) {
+                return Err(ScopeFailure::DuplicateEnforcedScopeBaseline(id.clone()));
+            }
+            let Some(scope) = self.scopes.iter().find(|scope| scope.id == *id) else {
+                return Err(ScopeFailure::UnknownEnforcedScopeBaseline(id.clone()));
+            };
+            if scope.state != ScopeState::Enforced {
+                return Err(ScopeFailure::RecordedScopeNotEnforced(id.clone()));
+            }
+        }
+        for scope in &self.scopes {
+            if scope.state == ScopeState::Enforced && !recorded.contains(scope.id.as_str()) {
+                return Err(ScopeFailure::EnforcedScopeNotRecorded(scope.id.clone()));
             }
         }
         Ok(())

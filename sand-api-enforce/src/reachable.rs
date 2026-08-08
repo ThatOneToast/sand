@@ -1660,18 +1660,23 @@ impl SurfaceGraph {
                     && let Some(module_record) = index.modules.get(module)
                 {
                     for record in &module_record.uses {
-                        if let UseLeaf::Name { source, exported } = &record.leaf
-                            && exported == first
-                        {
-                            candidates.push(join_path(
-                                &self.resolve_named_use_target(
-                                    crate_name,
-                                    module,
-                                    &record.prefix,
-                                    source,
-                                ),
-                                rest,
-                            ));
+                        match &record.leaf {
+                            UseLeaf::Name { source, exported } if exported == first => {
+                                candidates.push(join_path(
+                                    &self.resolve_named_use_target(
+                                        crate_name,
+                                        module,
+                                        &record.prefix,
+                                        source,
+                                    ),
+                                    rest,
+                                ));
+                            }
+                            UseLeaf::Glob => candidates.push(join_path(
+                                &self.resolve_use_target(crate_name, module, &record.prefix),
+                                &target.segments,
+                            )),
+                            _ => {}
                         }
                     }
                 }
@@ -1687,13 +1692,47 @@ impl SurfaceGraph {
                 return Ok(resolved);
             }
         }
-        if !target.nominal || standard_library_alias_target(&target.segments) {
+        if !target.nominal
+            || standard_library_alias_target(&target.segments)
+                && !self.alias_root_is_lexically_bound(crate_name, &target.module_id, first)
+        {
             return Ok(rendered);
         }
         Err(ReachabilityError::UnresolvedTypeAliasTarget {
             identity: alias_identity.to_owned(),
             target: rendered,
         })
+    }
+
+    fn alias_root_is_lexically_bound(&self, crate_name: &str, module_id: &str, root: &str) -> bool {
+        if self
+            .crates
+            .get(crate_name)
+            .is_some_and(|index| index.extern_aliases.contains_key(root))
+        {
+            return true;
+        }
+        let Some(index) = self.crates.get(crate_name) else {
+            return false;
+        };
+        let mut scope = Some(module_id);
+        while let Some(module_id) = scope {
+            if let Some(module) = index.modules.get(module_id)
+                && (module.modules.contains_key(root)
+                    || module.declarations.contains_key(root)
+                    || module.uses.iter().any(|record| {
+                        matches!(&record.leaf, UseLeaf::Glob)
+                            || matches!(&record.leaf, UseLeaf::Name { exported, .. } if exported == root)
+                    }))
+            {
+                return true;
+            }
+            scope = module_id
+                .rsplit_once("::")
+                .map(|(parent, _)| parent)
+                .filter(|parent| parent.starts_with(crate_name));
+        }
+        false
     }
 
     fn resolve_alias_chain(

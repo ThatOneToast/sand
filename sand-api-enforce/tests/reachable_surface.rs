@@ -1353,6 +1353,95 @@ fn alias_to_unmodeled_external_type_fails_closed() {
 }
 
 #[test]
+fn standard_library_names_shadowed_by_local_imports_keep_underlying_members() {
+    for shadow in ["std", "core", "alloc"] {
+        let source = format!(
+            r#"
+                mod third_party {{
+                    pub struct Thing;
+                    impl Thing {{ pub fn undocumented() {{}} }}
+                }}
+                use crate::third_party as {shadow};
+                pub type Escape = {shadow}::Thing;
+            "#
+        );
+        let (_directory, graph) = item_macro_graph(&source, []);
+        let api = graph.reachable_from("facade").unwrap();
+        let method = item(&api, "facade::third_party::Thing::undocumented");
+        assert!(method.paths.contains("facade::Escape::undocumented"));
+
+        let contracts = contracts_for(&api)
+            .into_iter()
+            .filter(|contract| contract.identity != "facade::third_party::Thing::undocumented")
+            .collect::<Vec<_>>();
+        assert!(
+            audit_reachable_surface(&api, &contracts)
+                .unwrap_err()
+                .iter()
+                .any(|error| matches!(
+                    error,
+                    ReachabilityError::MissingContract { identity, .. }
+                        if identity == "facade::third_party::Thing::undocumented"
+                ))
+        );
+    }
+}
+
+#[test]
+fn standard_library_names_shadowed_by_external_aliases_fail_closed() {
+    for shadow in ["std", "core", "alloc"] {
+        for declaration in [
+            format!("extern crate third_party as {shadow};"),
+            format!("use third_party as {shadow};"),
+        ] {
+            let source = format!("{declaration} pub type Escape = {shadow}::Thing;");
+            let (_directory, graph) = item_macro_graph(&source, []);
+            assert!(matches!(
+                graph.reachable_from("facade"),
+                Err(ReachabilityError::UnresolvedTypeAliasTarget { identity, target })
+                    if identity == "facade::Escape" && target == format!("{shadow}::Thing")
+            ));
+        }
+    }
+}
+
+#[test]
+fn standard_library_names_exported_by_local_globs_keep_underlying_members() {
+    for shadow in ["std", "core", "alloc"] {
+        let source = format!(
+            r#"
+                mod source {{
+                    pub mod {shadow} {{
+                        pub struct Thing;
+                        impl Thing {{ pub fn undocumented() {{}} }}
+                    }}
+                }}
+                use crate::source::*;
+                pub type Escape = {shadow}::Thing;
+            "#
+        );
+        let (_directory, graph) = item_macro_graph(&source, []);
+        let api = graph.reachable_from("facade").unwrap();
+        let method = item(
+            &api,
+            &format!("facade::source::{shadow}::Thing::undocumented"),
+        );
+        assert!(method.paths.contains("facade::Escape::undocumented"));
+    }
+}
+
+#[test]
+fn unresolved_external_glob_cannot_spoof_the_standard_library_boundary() {
+    let (_directory, graph) =
+        item_macro_graph("use third_party::*; pub type Escape = std::Thing;", []);
+    assert!(matches!(
+        graph.reachable_from("facade"),
+        Err(ReachabilityError::UnresolvedTypeAliasTarget { identity, target })
+            if identity == "facade::Escape" && target == "std::Thing"
+    ));
+}
+
+#[test]
 fn one_super_segment_resolves_exactly_one_lexical_parent() {
     let (_directory, graph) = item_macro_graph(
         r#"

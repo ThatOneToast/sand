@@ -133,6 +133,13 @@ that was not emitted, therefore stops normal compilation.
 An unbound opaque include stops an ordinary build before it can conceal a new
 public declaration.
 
+Checked-in item macro families use the same exact-edge rule. The facade build
+binds `resource_ref!`, `registry_id!`, `vanilla_registry_enum!`,
+`gamemode_transition!`, and `status_effect_marker!` by both their defining
+module and lexical macro path to their structural providers. A same-named
+macro in another module remains unclassified, and an unbound item macro that
+can emit facade declarations stops reachability extraction.
+
 The static providers are connected to the facade build. Input-dependent
 attribute/derive scopes are marked `consumer_build`; they remain pending and
 cannot be changed to enforced until a consuming-crate build connects the

@@ -73,6 +73,41 @@ fn main() {
         cargo_cfg(enabled_features.clone()),
         generated,
     )
+    .and_then(|graph| {
+        graph.bind_item_macro_provider(
+            "sand_core::resource_ref",
+            "resource_ref",
+            "generated_resource_refs",
+        )
+    })
+    .and_then(|graph| {
+        graph.bind_item_macro_provider(
+            "sand_components::registry",
+            "registry_id",
+            "generated_registry_ids",
+        )
+    })
+    .and_then(|graph| {
+        graph.bind_item_macro_provider(
+            "sand_components::effect",
+            "vanilla_registry_enum",
+            "generated_effect_registry_enums",
+        )
+    })
+    .and_then(|graph| {
+        graph.bind_item_macro_provider(
+            "sand_core::events",
+            "gamemode_transition",
+            "generated_event_markers",
+        )
+    })
+    .and_then(|graph| {
+        graph.bind_item_macro_provider(
+            "sand_core::events",
+            "status_effect_marker",
+            "generated_event_markers",
+        )
+    })
     .and_then(|graph| graph.bind_generated_include("sand_core::generated", "generated_registries"))
     .and_then(|graph| {
         graph.bind_generated_include("sand_core::cmd::_generated", "generated_commands")

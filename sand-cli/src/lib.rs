@@ -8,6 +8,8 @@
 #[doc(hidden)]
 pub mod add_cmd;
 #[doc(hidden)]
+pub mod api_cmd;
+#[doc(hidden)]
 pub mod build;
 #[doc(hidden)]
 pub mod config;

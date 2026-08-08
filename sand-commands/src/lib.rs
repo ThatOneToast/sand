@@ -2,6 +2,10 @@
 
 //! Typed Minecraft command builders.
 //!
+//! This is an implementation crate behind `sand::command`. Authors should use
+//! the facade; public implementation paths are supported only when the
+//! reachable-surface manifest assigns them a canonical `sand::` identity.
+//!
 //! Historical command builders implement [`Build`] for deterministic string
 //! compatibility. Migrated typed foundations additionally implement
 //! [`RenderCommand`], whose fallible profile-aware path is the normal choice

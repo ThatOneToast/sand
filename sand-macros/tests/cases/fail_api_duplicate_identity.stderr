@@ -1,0 +1,23 @@
+error[E0428]: the name `__SAND_API_CONTRACT_C6A69924300B0458` is defined multiple times
+  --> tests/cases/fail_api_duplicate_identity.rs:14:1
+   |
+ 3 | / #[api(
+ 4 | |     path = "sand::predicate::create",
+ 5 | |     summary = "Creates a predicate from one condition.",
+ 6 | |     context = "Predicates let generated resources share conditions.",
+...  |
+10 | |     example = "create()",
+11 | | )]
+   | |__- previous definition of the value `__SAND_API_CONTRACT_C6A69924300B0458` here
+...
+14 | / #[api(
+15 | |     path = "sand::predicate::create",
+16 | |     summary = "Builds a predicate from one condition.",
+17 | |     context = "Predicates let generated resources share conditions.",
+...  |
+21 | |     example = "build()",
+22 | | )]
+   | |__^ `__SAND_API_CONTRACT_C6A69924300B0458` redefined here
+   |
+   = note: `__SAND_API_CONTRACT_C6A69924300B0458` must be defined only once in the value namespace of this module
+   = note: this error originates in the attribute macro `api` (in Nightly builds, run with -Z macro-backtrace for more info)

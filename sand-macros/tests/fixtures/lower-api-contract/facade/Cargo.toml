@@ -1,0 +1,15 @@
+[package]
+name = "fixture-facade"
+version = "0.0.0"
+edition.workspace = true
+build = "build.rs"
+
+[lib]
+name = "sand"
+
+[dependencies]
+lower-api-provider = { path = "../lower" }
+sand-api-contract = { path = "../../../../../sand-api-contract" }
+
+[build-dependencies]
+sand-api-enforce = { path = "../../../../../sand-api-enforce" }

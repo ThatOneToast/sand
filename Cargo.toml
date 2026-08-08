@@ -2,9 +2,11 @@
 resolver = "3"
 members = [
     "sand",
+    "sand-api-enforce",
     "sand-cli",
     "sand-core",
     "sand-macros",
+    "sand-api-contract",
     "sand-build",
     "sand-example",
     "sand-resourcepack",

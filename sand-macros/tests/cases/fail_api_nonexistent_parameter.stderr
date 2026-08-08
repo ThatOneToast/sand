@@ -1,0 +1,5 @@
+error: API contract documents nonexistent parameter `condition`
+  --> tests/cases/fail_api_nonexistent_parameter.rs:10:46
+   |
+10 |     params(id = "The predicate identifier.", condition = "A parameter that does not exist."),
+   |                                              ^^^^^^^^^

@@ -6,6 +6,10 @@
 
 //! # sand-core
 //!
+//! This is an implementation crate. Datapack authors should depend on the
+//! `sand` facade; only items reachable through a supported `sand::` path are
+//! part of Sand's author-facing compatibility contract.
+//!
 //! Core types, traits, command builders, and datapack components for the
 //! [Sand](https://github.com/ThatOneToast/sand) Minecraft datapack toolkit.
 //!
@@ -591,6 +595,21 @@ impl sand_commands::selector::IntoEntityType for generated::EntityType {
     fn into_entity_type(self) -> String {
         self.resource_location().to_owned()
     }
+}
+
+/// Compiler and facade wiring that is deliberately outside Sand's supported
+/// author-facing API surface.
+#[doc(hidden)]
+pub mod __private {
+    /// Exact generated contract providers selected by this `sand-core` build.
+    ///
+    /// Keeping these as embedded build outputs lets the installed CLI inspect
+    /// its own command and vanilla-registry APIs without source parsing,
+    /// network access, or a second version-selection mechanism.
+    pub const GENERATED_API_PROVIDER_CATALOGS: &[&str] = &[
+        include_str!(concat!(env!("OUT_DIR"), "/commands.api.json")),
+        include_str!(concat!(env!("OUT_DIR"), "/registries.api.json")),
+    ];
 }
 
 impl From<generated::Item> for sand_components::registry::ItemId {

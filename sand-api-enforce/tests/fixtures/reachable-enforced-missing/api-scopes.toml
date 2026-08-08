@@ -1,0 +1,13 @@
+schema_version = 1
+static_surface_items = 3
+enforced_scope_baseline = ["api-source"]
+pending_scope_ceiling = 0
+pending_item_ceiling = 0
+
+[[scope]]
+id = "api-source"
+canonical_module = "sand::api"
+state = "enforced"
+tier = "author"
+provider = "source"
+recursive = true

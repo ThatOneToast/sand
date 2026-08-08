@@ -1,0 +1,5 @@
+error: duplicate API contract field `summary`
+ --> tests/cases/fail_api_duplicate_field.rs:5:5
+  |
+5 |     summary = "Creates another predicate.",
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

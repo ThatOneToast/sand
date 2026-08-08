@@ -1,0 +1,5 @@
+error: missing API contract documentation for parameter `condition`
+  --> tests/cases/fail_api_missing_parameter.rs:14:5
+   |
+14 | pub fn create(id: &str, condition: bool) -> bool { condition && !id.is_empty() }
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

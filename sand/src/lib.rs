@@ -52,6 +52,10 @@
 //! function is only wired into the datapack's actual `.mcfunction` files
 //! through the export pipeline.
 
+extern crate self as sand;
+
+mod api_contracts;
+
 // ── Procedural macros ─────────────────────────────────────────────────────────
 
 /// `#[function]`, `#[component]`, `#[event]`, `#[item]`, `#[armor_event]`,
@@ -74,6 +78,9 @@ pub use sand_macros::{
 /// registers scope-aware lifecycle metadata; `EntityStateEnum` maps fieldless
 /// enum variants to scoreboard integers.
 pub use sand_macros::{EntityStateEnum, State};
+
+/// Defines the authoritative contract for a supported Sand public API item.
+pub use sand_macros::api;
 
 /// `#[derive(SandStorage)]` — generates a typed [`data::StorageSchema`] and
 /// one [`data::StorageField`] accessor per struct field, from a plain Rust
@@ -151,10 +158,42 @@ pub use sand_core::item;
 /// the entity/block factory handles in this module only construct locations.
 /// NBT reads and snapshots share [`data::NbtRef`], while live mutation and
 /// matching use vanilla `/item` and `execute if items`.
+#[api(
+    path = "sand::inventory",
+    module = "sand",
+    summary = "Constructs typed live inventory and equipment locations.",
+    context = "Inventory locations distinguish live Minecraft slots from NBT snapshots and make slot bounds and entity-versus-block ownership explicit.",
+    minecraft = "Renders vanilla item-command locations and execute-if-items targets for entities and block containers.",
+    use_when = ["Mutating or matching a live inventory slot", "Addressing bounded player, entity, or container slots"],
+    avoid_when = ["Reading an offline snapshot or arbitrary NBT path"],
+    example = "let slot = sand::inventory::EntityInventory::hotbar(0)?;"
+)]
 pub mod inventory {
     pub use sand_core::item::{
         BlockInventory, ContainerIndex, EnderChestIndex, EntityInventory, EntityInventorySlot,
         HotbarIndex, InventoryIndex, ItemLocation, ItemLocationError, MainInventoryIndex,
+    };
+}
+
+/// Predicate resources and the typed conditions used to build them.
+///
+/// This is the canonical predicate API path. Prelude and component-module
+/// appearances are aliases of these same contracts.
+#[api(
+    path = "sand::predicate",
+    module = "sand",
+    summary = "Builds reusable Minecraft predicate resources from typed conditions.",
+    context = "Predicates package vanilla loot-condition logic under a namespaced identifier so commands and other generated resources can reference the same condition consistently.",
+    minecraft = "Generates JSON resources under data/<namespace>/predicate and evaluates them only when referenced by Minecraft.",
+    use_when = ["Sharing entity, equipment, item, or location checks", "Referencing a condition from commands or generated resources"],
+    avoid_when = ["Tracking mutable runtime state", "Performing scoreboard arithmetic"],
+    example = "use sand::predicate::{Predicate, PredicateRoot};"
+)]
+pub mod predicate {
+    pub use sand_components::{
+        BlockPredicate, DamagePredicate, DamageSourcePredicate, DistancePredicate, EntityEquipment,
+        EntityFlags, EntityPredicate, EntityPredicateTarget, ItemPredicate, LocationPredicate,
+        LootCondition, Predicate, PredicateId, PredicateRoot, WeatherPredicate,
     };
 }
 
@@ -296,6 +335,16 @@ pub use sand_core::ResourceLocation;
 /// a chat component is needed (`Text::new("Hello").gold().bold(true)`); it
 /// implements `Display`, so it renders directly to the JSON text component
 /// Minecraft expects wherever a command takes one.
+#[api(
+    path = "sand::text",
+    module = "sand",
+    summary = "Provides typed Minecraft text components and interaction events.",
+    context = "Minecraft text is structured JSON rather than an unvalidated display string; these builders preserve that structure across commands, dialogs, and books.",
+    minecraft = "Renders JSON text components accepted by tellraw, titles, dialogs, books, and other vanilla text fields.",
+    use_when = ["Formatting player-visible text", "Adding click or hover behavior"],
+    avoid_when = ["Emitting a plain command token that is not a text component"],
+    example = "let message = sand::text::Text::new(\"Ready\").gold();"
+)]
 pub mod text {
     pub use sand_core::prelude::{
         ChatColor, ClickEvent, EntityHoverId, HoverEvent, IntoTextEntityType, Text, TextComponent,
@@ -308,6 +357,16 @@ pub mod text {
 /// `StorageVar` — also available from [`state`] since storage-backed values
 /// are one kind of state). Use this module when working with NBT/storage
 /// data directly rather than through a typed state wrapper.
+#[api(
+    path = "sand::data",
+    module = "sand",
+    summary = "Models typed NBT, SNBT, and command-storage locations.",
+    context = "The data module is the focused API for persistent structured values that do not fit a scoreboard and for commands that read or mutate Minecraft NBT.",
+    minecraft = "Generates data-command targets, validated NBT paths, SNBT values, and namespaced command-storage references.",
+    use_when = ["Persisting structured datapack state", "Reading or modifying entity, block, or storage NBT"],
+    avoid_when = ["A scoreboard-backed integer or flag is the simpler state model"],
+    example = "use sand::data::{NbtPath, StorageLocation};"
+)]
 pub mod data {
     pub use sand_core::cmd::{DataModifyOperation, DataSource, DataTarget, NbtCompound, NbtValue};
     pub use sand_core::state::{
@@ -352,7 +411,18 @@ pub mod data {
 /// let wool: BlockId = vanilla::Block::WhiteWool.into();
 /// let marker = EntityQuery::entities().entity_type(vanilla::EntityType::Marker);
 /// ```
+#[api(
+    path = "sand::vanilla",
+    module = "sand",
+    summary = "Exposes generated typed identifiers from Minecraft's registries.",
+    context = "Registry enums make vanilla identifiers discoverable and typo-resistant while converting into Sand's canonical identifier wrappers.",
+    minecraft = "Values map exactly to registry identifiers from Sand's verified Minecraft data-generator input.",
+    use_when = ["Referencing a vanilla item, block, entity type, or sound", "Avoiding raw minecraft namespace strings"],
+    avoid_when = ["Referencing custom or modded content that needs a typed custom identifier"],
+    example = "let item: sand::prelude::ItemId = sand::vanilla::Item::Diamond.into();"
+)]
 pub mod vanilla {
+    #[cfg(not(sand_placeholder_codegen))]
     pub use sand_core::generated::{Block, EntityType, Item, SoundEvent};
 }
 
@@ -382,6 +452,11 @@ pub mod __private {
     //! compiler/export pipeline. Nothing here is a compatibility promise;
     //! paths exist solely so generated code can reach the implementation
     //! crate through the façade. See docs/architecture/adr-001.
+    pub mod api_contract {
+        pub use sand_api_contract::*;
+        pub use sand_core::__private::GENERATED_API_PROVIDER_CATALOGS;
+        include!(concat!(env!("OUT_DIR"), "/api_coverage.rs"));
+    }
     pub use sand_core::entity::*;
     pub use sand_core::*;
     pub use sand_core::{cmd, condition, event, events, state};

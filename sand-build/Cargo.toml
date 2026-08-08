@@ -22,6 +22,8 @@ heck = "0.5"
 thiserror = "2"
 dirs = "5"
 sand-version = { path = "../sand-version" }
+sand-api-contract = { path = "../sand-api-contract" }
+syn = { version = "2", features = ["full"] }
 
 [features]
 integration-tests = []

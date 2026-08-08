@@ -1,0 +1,5 @@
+error: unsupported #[api] item form
+  --> tests/cases/fail_api_unsupported_item.rs:11:1
+   |
+11 | pub static PREDICATE: &str = "demo:test";
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

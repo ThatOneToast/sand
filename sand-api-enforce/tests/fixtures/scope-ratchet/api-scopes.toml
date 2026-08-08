@@ -1,0 +1,35 @@
+schema_version = 1
+static_surface_items = 5
+enforced_scope_baseline = ["command-source"]
+pending_scope_ceiling = 3
+pending_item_ceiling = 3
+
+[[scope]]
+id = "command-source"
+canonical_module = "sand::command"
+state = "enforced"
+tier = "author"
+provider = "source"
+aliases = ["sand::cmd"]
+
+[[scope]]
+id = "state-source"
+canonical_module = "sand::state"
+state = "pending"
+tier = "advanced"
+provider = "source"
+
+[[scope]]
+id = "event-source"
+canonical_module = "sand::event"
+state = "pending"
+tier = "author"
+provider = "source"
+
+[[scope]]
+id = "systems-source"
+canonical_module = "sand::systems"
+state = "pending"
+tier = "author"
+provider = "source"
+features = ["systems-all"]

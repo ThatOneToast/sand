@@ -1966,7 +1966,9 @@ name = "sand-components"
 version = "0.1.0"
 dependencies = [
  "inventory",
+ "sand-api-contract",
  "sand-commands",
+ "sand-macros",
  "sand-version",
  "serde",
  "serde_json",

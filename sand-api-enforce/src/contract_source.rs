@@ -280,7 +280,7 @@ fn inspect_items(
     for item in items {
         if let Some(attribute) = crate::item_attrs(item)
             .iter()
-            .find(|attribute| attribute.path().is_ident("api"))
+            .find(|attribute| is_api_path(attribute.path()))
         {
             let declaration = declaration_from_attribute(
                 attribute,
@@ -371,7 +371,7 @@ fn inspect_attributes(
 ) -> Result<(), ContractSourceError> {
     if let Some(attribute) = attributes
         .iter()
-        .find(|attribute| attribute.path().is_ident("api"))
+        .find(|attribute| is_api_path(attribute.path()))
     {
         declarations.push(declaration_from_attribute(
             attribute,
@@ -380,6 +380,14 @@ fn inspect_attributes(
         )?);
     }
     Ok(())
+}
+
+fn is_api_path(path: &syn::Path) -> bool {
+    path.is_ident("api")
+        || path
+            .segments
+            .last()
+            .is_some_and(|segment| segment.ident == "api")
 }
 
 fn declaration_from_attribute(

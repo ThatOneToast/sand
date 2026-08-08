@@ -67,6 +67,16 @@ use crate::registry::{BiomeId, BlockId, DamageTypeId, DimensionId, EntityTypeId,
 /// assert_eq!(serde_json::to_value(&exact).unwrap(), json!(3));
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::predicate::IntRange",
+    summary = "Represents an exact, bounded, or one-sided integer predicate range.",
+    context = "Counts, durations, amplifiers, and game times share this validated integer range.",
+    minecraft = "Serializes an exact integer or an object with min and max members.",
+    use_when = ["Constraining discrete Minecraft values"],
+    avoid_when = ["A floating-point damage or distance range is required"],
+    example = "IntRange::between(1, 5)",
+)]
 pub struct IntRange {
     min: Option<i64>,
     max: Option<i64>,
@@ -82,6 +92,20 @@ impl IntRange {
         Ok(())
     }
     /// Match exactly `n`.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::IntRange::exact",
+        summary = "Matches one exact integer value.",
+        context = "Exact integer ranges are compact and avoid repeating equal minimum and maximum bounds.",
+        minecraft = "Serializes directly as one integer.",
+        use_when = ["Matching one discrete count, duration, or level"],
+        avoid_when = ["More than one value should be accepted"],
+        params(
+            n = "The only accepted value."
+        ),
+        returns = "An exact IntRange.",
+        example = "IntRange::exact(5)",
+    )]
     pub fn exact(n: i64) -> Self {
         Self {
             min: Some(n),
@@ -90,6 +114,20 @@ impl IntRange {
     }
 
     /// Match at least `min`.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::IntRange::at_least",
+        summary = "Creates a range matching values at or above the bound.",
+        context = "IntRange provides a shared typed bound for Minecraft predicate fields.",
+        minecraft = "Serializes only the min member of the range object.",
+        use_when = ["Expressing a one-sided predicate bound"],
+        avoid_when = ["Both a lower and upper bound are required"],
+        params(
+            min = "The inclusive lower bound."
+        ),
+        returns = "A one-sided IntRange.",
+        example = "IntRange::at_least(5)",
+    )]
     pub fn at_least(min: i64) -> Self {
         Self {
             min: Some(min),
@@ -98,6 +136,20 @@ impl IntRange {
     }
 
     /// Match at most `max`.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::IntRange::at_most",
+        summary = "Creates a range matching values at or below the bound.",
+        context = "IntRange provides a shared typed bound for Minecraft predicate fields.",
+        minecraft = "Serializes only the max member of the range object.",
+        use_when = ["Expressing a one-sided predicate bound"],
+        avoid_when = ["Both a lower and upper bound are required"],
+        params(
+            max = "The inclusive upper bound."
+        ),
+        returns = "A one-sided IntRange.",
+        example = "IntRange::at_most(5)",
+    )]
     pub fn at_most(max: i64) -> Self {
         Self {
             min: None,
@@ -106,6 +158,21 @@ impl IntRange {
     }
 
     /// Match between `min` and `max` (inclusive).
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::IntRange::between",
+        summary = "Creates a range matching values between two inclusive bounds.",
+        context = "IntRange validates bound order before predicate export.",
+        minecraft = "Serializes min and max members in the range object.",
+        use_when = ["Expressing a closed predicate interval"],
+        avoid_when = ["Only one side of the interval is bounded"],
+        params(
+            min = "The inclusive lower bound.",
+            max = "The inclusive upper bound."
+        ),
+        returns = "A bounded IntRange.",
+        example = "IntRange::between(2, 8)",
+    )]
     pub fn between(min: i64, max: i64) -> Self {
         Self {
             min: Some(min),
@@ -148,6 +215,16 @@ impl Serialize for IntRange {
 /// assert_eq!(serde_json::to_value(&r).unwrap(), json!({"min": 1.5}));
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::predicate::FloatRange",
+    summary = "Represents a bounded or one-sided floating-point predicate range.",
+    context = "Damage and distance conditions share this range representation and validate finite ordered bounds.",
+    minecraft = "Serializes min and max members while omitting unbounded sides.",
+    use_when = ["Constraining damage amounts or distances"],
+    avoid_when = ["An exact integer count is required"],
+    example = "FloatRange::between(1.5, 4.0)",
+)]
 pub struct FloatRange {
     min: Option<f64>,
     max: Option<f64>,
@@ -170,6 +247,20 @@ impl FloatRange {
         Ok(())
     }
     /// Match at least `min`.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::FloatRange::at_least",
+        summary = "Creates a range matching values at or above the bound.",
+        context = "FloatRange provides a shared typed bound for Minecraft predicate fields.",
+        minecraft = "Serializes only the min member of the range object.",
+        use_when = ["Expressing a one-sided predicate bound"],
+        avoid_when = ["Both a lower and upper bound are required"],
+        params(
+            min = "The inclusive lower bound."
+        ),
+        returns = "A one-sided FloatRange.",
+        example = "FloatRange::at_least(5.0)",
+    )]
     pub fn at_least(min: f64) -> Self {
         Self {
             min: Some(min),
@@ -178,6 +269,20 @@ impl FloatRange {
     }
 
     /// Match at most `max`.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::FloatRange::at_most",
+        summary = "Creates a range matching values at or below the bound.",
+        context = "FloatRange provides a shared typed bound for Minecraft predicate fields.",
+        minecraft = "Serializes only the max member of the range object.",
+        use_when = ["Expressing a one-sided predicate bound"],
+        avoid_when = ["Both a lower and upper bound are required"],
+        params(
+            max = "The inclusive upper bound."
+        ),
+        returns = "A one-sided FloatRange.",
+        example = "FloatRange::at_most(5.0)",
+    )]
     pub fn at_most(max: f64) -> Self {
         Self {
             min: None,
@@ -186,6 +291,21 @@ impl FloatRange {
     }
 
     /// Match between `min` and `max` (inclusive).
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::FloatRange::between",
+        summary = "Creates a range matching values between two inclusive bounds.",
+        context = "FloatRange validates bound order before predicate export.",
+        minecraft = "Serializes min and max members in the range object.",
+        use_when = ["Expressing a closed predicate interval"],
+        avoid_when = ["Only one side of the interval is bounded"],
+        params(
+            min = "The inclusive lower bound.",
+            max = "The inclusive upper bound."
+        ),
+        returns = "A bounded FloatRange.",
+        example = "FloatRange::between(2.0, 8.0)",
+    )]
     pub fn between(min: f64, max: f64) -> Self {
         Self {
             min: Some(min),
@@ -218,6 +338,17 @@ impl Serialize for FloatRange {
 /// let d = DistancePredicate::horizontal_at_most(16.0);
 /// ```
 #[derive(Debug, Clone, Default, Serialize)]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::predicate::DistancePredicate",
+    aliases = ["sand::prelude::DistancePredicate"],
+    summary = "Constrains displacement along axes and by horizontal or absolute distance.",
+    context = "Advancement and entity predicates use this model to compare a subject with a context reference point.",
+    minecraft = "Serializes vanilla x, y, z, horizontal, and absolute distance ranges.",
+    use_when = ["Restricting a trigger by relative distance"],
+    avoid_when = ["Selecting entities around a command position"],
+    example = "DistancePredicate::horizontal_at_most(16.0)",
+)]
 pub struct DistancePredicate {
     #[serde(skip_serializing_if = "Option::is_none")]
     x: Option<FloatRange>,
@@ -247,11 +378,38 @@ impl DistancePredicate {
         Ok(())
     }
 
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::DistancePredicate::new",
+        aliases = ["sand::prelude::DistancePredicate::new"],
+        summary = "Creates an unconstrained DistancePredicate.",
+        context = "Builder methods add only the DistancePredicate requirements relevant to the surrounding condition.",
+        minecraft = "Serializes an empty predicate object until constraints are added.",
+        use_when = ["Building a typed predicate incrementally"],
+        avoid_when = ["No constraints will be added"],
+        returns = "An empty DistancePredicate builder.",
+        example = "DistancePredicate::new()",
+    )]
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Require horizontal distance to be at most `max` blocks.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::DistancePredicate::horizontal_at_most",
+        aliases = ["sand::prelude::DistancePredicate::horizontal_at_most"],
+        summary = "Caps horizontal displacement.",
+        context = "Adds one typed DistancePredicate constraint without disturbing its other requirements.",
+        minecraft = "Sets horizontal to an inclusive maximum.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            max = "Greatest horizontal distance in blocks."
+        ),
+        returns = "The updated DistancePredicate predicate.",
+        example = "DistancePredicate::horizontal_at_most(16.0)",
+    )]
     pub fn horizontal_at_most(max: f64) -> Self {
         Self {
             horizontal: Some(FloatRange::at_most(max)),
@@ -260,6 +418,21 @@ impl DistancePredicate {
     }
 
     /// Require absolute 3D distance to be at most `max` blocks.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::DistancePredicate::absolute_at_most",
+        aliases = ["sand::prelude::DistancePredicate::absolute_at_most"],
+        summary = "Caps three-dimensional displacement.",
+        context = "Adds one typed DistancePredicate constraint without disturbing its other requirements.",
+        minecraft = "Sets absolute to an inclusive maximum.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            max = "Greatest absolute distance in blocks."
+        ),
+        returns = "The updated DistancePredicate predicate.",
+        example = "DistancePredicate::absolute_at_most(16.0)",
+    )]
     pub fn absolute_at_most(max: f64) -> Self {
         Self {
             absolute: Some(FloatRange::at_most(max)),
@@ -267,22 +440,97 @@ impl DistancePredicate {
         }
     }
 
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::DistancePredicate::x",
+        aliases = ["sand::prelude::DistancePredicate::x"],
+        summary = "Constrains x-axis displacement.",
+        context = "Adds one typed DistancePredicate constraint without disturbing its other requirements.",
+        minecraft = "Writes the x range.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            r = "Accepted x-axis distance range."
+        ),
+        returns = "The updated DistancePredicate predicate.",
+        example = "DistancePredicate::new().x(FloatRange::at_most(8.0))",
+    )]
     pub fn x(mut self, r: FloatRange) -> Self {
         self.x = Some(r);
         self
     }
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::DistancePredicate::y",
+        aliases = ["sand::prelude::DistancePredicate::y"],
+        summary = "Constrains y-axis displacement.",
+        context = "Adds one typed DistancePredicate constraint without disturbing its other requirements.",
+        minecraft = "Writes the y range.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            r = "Accepted y-axis distance range."
+        ),
+        returns = "The updated DistancePredicate predicate.",
+        example = "DistancePredicate::new().y(FloatRange::at_most(8.0))",
+    )]
     pub fn y(mut self, r: FloatRange) -> Self {
         self.y = Some(r);
         self
     }
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::DistancePredicate::z",
+        aliases = ["sand::prelude::DistancePredicate::z"],
+        summary = "Constrains z-axis displacement.",
+        context = "Adds one typed DistancePredicate constraint without disturbing its other requirements.",
+        minecraft = "Writes the z range.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            r = "Accepted z-axis distance range."
+        ),
+        returns = "The updated DistancePredicate predicate.",
+        example = "DistancePredicate::new().z(FloatRange::at_most(8.0))",
+    )]
     pub fn z(mut self, r: FloatRange) -> Self {
         self.z = Some(r);
         self
     }
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::DistancePredicate::horizontal",
+        aliases = ["sand::prelude::DistancePredicate::horizontal"],
+        summary = "Constrains horizontal displacement.",
+        context = "Adds one typed DistancePredicate constraint without disturbing its other requirements.",
+        minecraft = "Writes the horizontal range.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            r = "Accepted horizontal distance range."
+        ),
+        returns = "The updated DistancePredicate predicate.",
+        example = "DistancePredicate::new().horizontal(FloatRange::at_most(8.0))",
+    )]
     pub fn horizontal(mut self, r: FloatRange) -> Self {
         self.horizontal = Some(r);
         self
     }
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::DistancePredicate::absolute",
+        aliases = ["sand::prelude::DistancePredicate::absolute"],
+        summary = "Constrains three-dimensional displacement.",
+        context = "Adds one typed DistancePredicate constraint without disturbing its other requirements.",
+        minecraft = "Writes the absolute range.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            r = "Accepted three-dimensional distance range."
+        ),
+        returns = "The updated DistancePredicate predicate.",
+        example = "DistancePredicate::new().absolute(FloatRange::at_most(8.0))",
+    )]
     pub fn absolute(mut self, r: FloatRange) -> Self {
         self.absolute = Some(r);
         self
@@ -300,6 +548,16 @@ impl DistancePredicate {
 /// # use sand_components::predicates::IntRange;
 /// ```
 #[derive(Debug, Clone, Default)]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::predicate::EffectPredicate",
+    summary = "Constrains one active status effect's amplifier, duration, and display flags.",
+    context = "Entity predicates map an EffectId to this value to describe the required live effect state.",
+    minecraft = "Serializes one entry in the vanilla effects predicate object.",
+    use_when = ["Matching the strength or duration of an active effect"],
+    avoid_when = ["Applying or removing an effect"],
+    example = "EffectPredicate::new().amplifier(IntRange::at_least(1))",
+)]
 pub struct EffectPredicate {
     amplifier: Option<IntRange>,
     duration: Option<IntRange>,
@@ -318,22 +576,89 @@ impl EffectPredicate {
         Ok(())
     }
 
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::EffectPredicate::new",
+        summary = "Creates an unconstrained EffectPredicate.",
+        context = "Builder methods add only the EffectPredicate requirements relevant to the surrounding condition.",
+        minecraft = "Serializes an empty predicate object until constraints are added.",
+        use_when = ["Building a typed predicate incrementally"],
+        avoid_when = ["No constraints will be added"],
+        returns = "An empty EffectPredicate builder.",
+        example = "EffectPredicate::new()",
+    )]
     pub fn new() -> Self {
         Self::default()
     }
 
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::EffectPredicate::amplifier",
+        summary = "Constrains the effect amplifier.",
+        context = "Adds one typed EffectPredicate constraint without disturbing its other requirements.",
+        minecraft = "Writes the amplifier requirement.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            r = "Required effect amplifier."
+        ),
+        returns = "The updated EffectPredicate predicate.",
+        example = "EffectPredicate::new().amplifier(IntRange::at_least(1))",
+    )]
     pub fn amplifier(mut self, r: IntRange) -> Self {
         self.amplifier = Some(r);
         self
     }
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::EffectPredicate::duration",
+        summary = "Constrains the remaining duration.",
+        context = "Adds one typed EffectPredicate constraint without disturbing its other requirements.",
+        minecraft = "Writes the duration requirement.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            r = "Required remaining duration."
+        ),
+        returns = "The updated EffectPredicate predicate.",
+        example = "EffectPredicate::new().duration(IntRange::at_least(1))",
+    )]
     pub fn duration(mut self, r: IntRange) -> Self {
         self.duration = Some(r);
         self
     }
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::EffectPredicate::ambient",
+        summary = "Constrains the ambient state.",
+        context = "Adds one typed EffectPredicate constraint without disturbing its other requirements.",
+        minecraft = "Writes the ambient requirement.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            v = "Required ambient state."
+        ),
+        returns = "The updated EffectPredicate predicate.",
+        example = "EffectPredicate::new().ambient(true)",
+    )]
     pub fn ambient(mut self, v: bool) -> Self {
         self.ambient = Some(v);
         self
     }
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::EffectPredicate::visible",
+        summary = "Constrains the particle visibility.",
+        context = "Adds one typed EffectPredicate constraint without disturbing its other requirements.",
+        minecraft = "Writes the visible requirement.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            v = "Required particle visibility."
+        ),
+        returns = "The updated EffectPredicate predicate.",
+        example = "EffectPredicate::new().visible(true)",
+    )]
     pub fn visible(mut self, v: bool) -> Self {
         self.visible = Some(v);
         self
@@ -371,6 +696,17 @@ impl Serialize for EffectPredicate {
 
 /// Describes what caused damage — used inside [`DamagePredicate`].
 #[derive(Debug, Clone, Default, Serialize)]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::predicate::DamageSourcePredicate",
+    aliases = ["sand::prelude::DamageSourcePredicate"],
+    summary = "Matches the typed cause and participating entities of a damage event.",
+    context = "The source model separates damage-type tags, the responsible entity, and the immediate damaging entity.",
+    minecraft = "Serializes vanilla damage-source properties nested in a damage predicate.",
+    use_when = ["Distinguishing projectile, environmental, or entity-caused damage"],
+    avoid_when = ["Issuing a damage command"],
+    example = "DamageSourcePredicate::new().requires_tag(tag)",
+)]
 pub struct DamageSourcePredicate {
     #[serde(skip_serializing_if = "Option::is_none")]
     source_entity: Option<Box<EntityPredicate>>,
@@ -389,10 +725,7 @@ struct DamageTagEntry {
 
 impl DamageTagEntry {
     fn required(id: TagId<DamageTypeId>) -> Self {
-        Self {
-            id,
-            expected: true,
-        }
+        Self { id, expected: true }
     }
 
     fn excluded(id: TagId<DamageTypeId>) -> Self {
@@ -414,10 +747,37 @@ impl DamageSourcePredicate {
         Ok(())
     }
 
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::DamageSourcePredicate::new",
+        aliases = ["sand::prelude::DamageSourcePredicate::new"],
+        summary = "Creates an unconstrained DamageSourcePredicate.",
+        context = "Builder methods add only the DamageSourcePredicate requirements relevant to the surrounding condition.",
+        minecraft = "Serializes an empty predicate object until constraints are added.",
+        use_when = ["Building a typed predicate incrementally"],
+        avoid_when = ["No constraints will be added"],
+        returns = "An empty DamageSourcePredicate builder.",
+        example = "DamageSourcePredicate::new()",
+    )]
     pub fn new() -> Self {
         Self::default()
     }
     /// Require the damage type to belong to `tag`.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::DamageSourcePredicate::requires_tag",
+        aliases = ["sand::prelude::DamageSourcePredicate::requires_tag"],
+        summary = "Requires a damage-type tag.",
+        context = "Adds one typed DamageSourcePredicate constraint without disturbing its other requirements.",
+        minecraft = "Adds a tag predicate expected to be true.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            tag = "Damage-type tag tested against the event."
+        ),
+        returns = "The updated DamageSourcePredicate predicate.",
+        example = "DamageSourcePredicate::new().requires_tag(tag)",
+    )]
     pub fn requires_tag(mut self, tag: TagId<DamageTypeId>) -> Self {
         self.tags
             .get_or_insert_with(Vec::new)
@@ -425,16 +785,61 @@ impl DamageSourcePredicate {
         self
     }
     /// Require the damage type not to belong to `tag`.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::DamageSourcePredicate::excludes_tag",
+        aliases = ["sand::prelude::DamageSourcePredicate::excludes_tag"],
+        summary = "Excludes a damage-type tag.",
+        context = "Adds one typed DamageSourcePredicate constraint without disturbing its other requirements.",
+        minecraft = "Adds a tag predicate expected to be false.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            tag = "Damage-type tag tested against the event."
+        ),
+        returns = "The updated DamageSourcePredicate predicate.",
+        example = "DamageSourcePredicate::new().excludes_tag(tag)",
+    )]
     pub fn excludes_tag(mut self, tag: TagId<DamageTypeId>) -> Self {
         self.tags
             .get_or_insert_with(Vec::new)
             .push(DamageTagEntry::excluded(tag));
         self
     }
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::DamageSourcePredicate::source_entity",
+        aliases = ["sand::prelude::DamageSourcePredicate::source_entity"],
+        summary = "Constrains the responsible entity.",
+        context = "Adds one typed DamageSourcePredicate constraint without disturbing its other requirements.",
+        minecraft = "Nests the entity predicate in source_entity.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            ep = "Required properties of the responsible entity."
+        ),
+        returns = "The updated DamageSourcePredicate predicate.",
+        example = "DamageSourcePredicate::new().source_entity(EntityPredicate::new())",
+    )]
     pub fn source_entity(mut self, ep: EntityPredicate) -> Self {
         self.source_entity = Some(Box::new(ep));
         self
     }
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::DamageSourcePredicate::direct_entity",
+        aliases = ["sand::prelude::DamageSourcePredicate::direct_entity"],
+        summary = "Constrains the immediate damaging entity.",
+        context = "Adds one typed DamageSourcePredicate constraint without disturbing its other requirements.",
+        minecraft = "Nests the entity predicate in direct_entity.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            ep = "Required properties of the immediate damaging entity."
+        ),
+        returns = "The updated DamageSourcePredicate predicate.",
+        example = "DamageSourcePredicate::new().direct_entity(EntityPredicate::new())",
+    )]
     pub fn direct_entity(mut self, ep: EntityPredicate) -> Self {
         self.direct_entity = Some(Box::new(ep));
         self
@@ -472,6 +877,17 @@ impl DamageSourcePredicate {
 ///     .blocked(false);
 /// ```
 #[derive(Debug, Clone, Default)]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::predicate::DamagePredicate",
+    aliases = ["sand::prelude::DamagePredicate"],
+    summary = "Matches the amount, source, and blocking state of a damage event.",
+    context = "Damage-sensitive advancements and entity conditions combine dealt and taken amounts with a typed source model.",
+    minecraft = "Serializes vanilla damage requirements for damage-related triggers.",
+    use_when = ["Constraining a trigger by how damage occurred"],
+    avoid_when = ["Applying damage or tracking mutable health"],
+    example = "DamagePredicate::new().taken(FloatRange::at_least(4.0))",
+)]
 pub struct DamagePredicate {
     dealt: Option<FloatRange>,
     taken: Option<FloatRange>,
@@ -501,11 +917,38 @@ impl DamagePredicate {
         Ok(())
     }
 
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::DamagePredicate::new",
+        aliases = ["sand::prelude::DamagePredicate::new"],
+        summary = "Creates an unconstrained DamagePredicate.",
+        context = "Builder methods add only the DamagePredicate requirements relevant to the surrounding condition.",
+        minecraft = "Serializes an empty predicate object until constraints are added.",
+        use_when = ["Building a typed predicate incrementally"],
+        avoid_when = ["No constraints will be added"],
+        returns = "An empty DamagePredicate builder.",
+        example = "DamagePredicate::new()",
+    )]
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Raw escape hatch — serialize arbitrary JSON as this predicate.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::DamagePredicate::raw",
+        aliases = ["sand::prelude::DamagePredicate::raw"],
+        summary = "Creates a DamagePredicate from an unsupported raw JSON shape.",
+        context = "The explicit escape hatch preserves access to modded or newly introduced fields without weakening typed builder methods.",
+        minecraft = "Emits the supplied JSON value in place of the typed predicate object.",
+        use_when = ["Minecraft supports a predicate field Sand does not yet model"],
+        avoid_when = ["Typed builder methods cover the required fields"],
+        params(
+            v = "The complete raw JSON predicate value."
+        ),
+        returns = "A raw DamagePredicate.",
+        example = "DamagePredicate::raw(RawJson::new(json!({{}})))",
+    )]
     pub fn raw(v: RawJson) -> Self {
         Self {
             _raw: Some(v),
@@ -513,22 +956,97 @@ impl DamagePredicate {
         }
     }
 
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::DamagePredicate::dealt",
+        aliases = ["sand::prelude::DamagePredicate::dealt"],
+        summary = "Constrains raw damage dealt.",
+        context = "Adds one typed DamagePredicate constraint without disturbing its other requirements.",
+        minecraft = "Writes the dealt range.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            r = "Accepted range for raw damage dealt."
+        ),
+        returns = "The updated DamagePredicate predicate.",
+        example = "DamagePredicate::new().dealt(FloatRange::at_least(2.0))",
+    )]
     pub fn dealt(mut self, r: FloatRange) -> Self {
         self.dealt = Some(r);
         self
     }
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::DamagePredicate::taken",
+        aliases = ["sand::prelude::DamagePredicate::taken"],
+        summary = "Constrains damage taken after mitigation.",
+        context = "Adds one typed DamagePredicate constraint without disturbing its other requirements.",
+        minecraft = "Writes the taken range.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            r = "Accepted range for damage taken after mitigation."
+        ),
+        returns = "The updated DamagePredicate predicate.",
+        example = "DamagePredicate::new().taken(FloatRange::at_least(2.0))",
+    )]
     pub fn taken(mut self, r: FloatRange) -> Self {
         self.taken = Some(r);
         self
     }
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::DamagePredicate::blocked",
+        aliases = ["sand::prelude::DamagePredicate::blocked"],
+        summary = "Requires a shield-blocking state.",
+        context = "Adds one typed DamagePredicate constraint without disturbing its other requirements.",
+        minecraft = "Writes the blocked boolean.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            v = "Whether the event must be blocked."
+        ),
+        returns = "The updated DamagePredicate predicate.",
+        example = "DamagePredicate::new().blocked(true)",
+    )]
     pub fn blocked(mut self, v: bool) -> Self {
         self.blocked = Some(v);
         self
     }
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::DamagePredicate::source_entity",
+        aliases = ["sand::prelude::DamagePredicate::source_entity"],
+        summary = "Constrains the responsible entity.",
+        context = "Adds one typed DamagePredicate constraint without disturbing its other requirements.",
+        minecraft = "Nests source_entity.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            ep = "Required responsible-entity properties."
+        ),
+        returns = "The updated DamagePredicate predicate.",
+        example = "DamagePredicate::new().source_entity(EntityPredicate::new())",
+    )]
     pub fn source_entity(mut self, ep: EntityPredicate) -> Self {
         self.source_entity = Some(ep);
         self
     }
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::DamagePredicate::type_",
+        aliases = ["sand::prelude::DamagePredicate::type_"],
+        summary = "Constrains the damage source.",
+        context = "Adds one typed DamagePredicate constraint without disturbing its other requirements.",
+        minecraft = "Nests the type predicate.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            dsp = "Required damage-source properties."
+        ),
+        returns = "The updated DamagePredicate predicate.",
+        example = "DamagePredicate::new().type_(DamageSourcePredicate::new())",
+    )]
     pub fn type_(mut self, dsp: DamageSourcePredicate) -> Self {
         self.type_ = Some(dsp);
         self
@@ -595,6 +1113,17 @@ impl Serialize for DamagePredicate {
 /// # Ok::<(), sand_components::SandError>(())
 /// ```
 #[derive(Debug, Clone, Default)]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::predicate::LocationPredicate",
+    aliases = ["sand::prelude::LocationPredicate"],
+    summary = "Matches biome, dimension, block, smokey state, and world coordinates.",
+    context = "World-sensitive entity and standalone predicates compose these location properties in one typed value.",
+    minecraft = "Serializes the vanilla location predicate object.",
+    use_when = ["Restricting a condition by world position or environment"],
+    avoid_when = ["Moving an entity or changing the world"],
+    example = "LocationPredicate::new().dimension(DimensionId::minecraft(\"overworld\")?)",
+)]
 pub struct LocationPredicate {
     biome: Option<BiomeId>,
     dimension: Option<DimensionId>,
@@ -621,11 +1150,38 @@ impl LocationPredicate {
         }
         Ok(())
     }
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::LocationPredicate::new",
+        aliases = ["sand::prelude::LocationPredicate::new"],
+        summary = "Creates an unconstrained LocationPredicate.",
+        context = "Builder methods add only the LocationPredicate requirements relevant to the surrounding condition.",
+        minecraft = "Serializes an empty predicate object until constraints are added.",
+        use_when = ["Building a typed predicate incrementally"],
+        avoid_when = ["No constraints will be added"],
+        returns = "An empty LocationPredicate builder.",
+        example = "LocationPredicate::new()",
+    )]
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Raw escape hatch — serialize arbitrary JSON as this predicate.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::LocationPredicate::raw",
+        aliases = ["sand::prelude::LocationPredicate::raw"],
+        summary = "Creates a LocationPredicate from an unsupported raw JSON shape.",
+        context = "The explicit escape hatch preserves access to modded or newly introduced fields without weakening typed builder methods.",
+        minecraft = "Emits the supplied JSON value in place of the typed predicate object.",
+        use_when = ["Minecraft supports a predicate field Sand does not yet model"],
+        avoid_when = ["Typed builder methods cover the required fields"],
+        params(
+            v = "The complete raw JSON predicate value."
+        ),
+        returns = "A raw LocationPredicate.",
+        example = "LocationPredicate::raw(RawJson::new(json!({{}})))",
+    )]
     pub fn raw(v: RawJson) -> Self {
         Self {
             _raw: Some(v),
@@ -633,30 +1189,135 @@ impl LocationPredicate {
         }
     }
 
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::LocationPredicate::biome",
+        aliases = ["sand::prelude::LocationPredicate::biome"],
+        summary = "Requires one biome.",
+        context = "Adds one typed LocationPredicate constraint without disturbing its other requirements.",
+        minecraft = "Writes the typed biome identifier.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            biome = "Required biome identifier."
+        ),
+        returns = "The updated LocationPredicate predicate.",
+        example = "LocationPredicate::new().biome(id)",
+    )]
     pub fn biome(mut self, biome: BiomeId) -> Self {
         self.biome = Some(biome);
         self
     }
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::LocationPredicate::dimension",
+        aliases = ["sand::prelude::LocationPredicate::dimension"],
+        summary = "Requires one dimension.",
+        context = "Adds one typed LocationPredicate constraint without disturbing its other requirements.",
+        minecraft = "Writes the typed dimension identifier.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            dimension = "Required dimension identifier."
+        ),
+        returns = "The updated LocationPredicate predicate.",
+        example = "LocationPredicate::new().dimension(id)",
+    )]
     pub fn dimension(mut self, dimension: DimensionId) -> Self {
         self.dimension = Some(dimension);
         self
     }
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::LocationPredicate::smokey",
+        aliases = ["sand::prelude::LocationPredicate::smokey"],
+        summary = "Requires the bee-smokey state.",
+        context = "Adds one typed LocationPredicate constraint without disturbing its other requirements.",
+        minecraft = "Writes the smokey boolean.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            v = "Whether the position must be smokey."
+        ),
+        returns = "The updated LocationPredicate predicate.",
+        example = "LocationPredicate::new().smokey(true)",
+    )]
     pub fn smokey(mut self, v: bool) -> Self {
         self.smokey = Some(v);
         self
     }
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::LocationPredicate::block",
+        aliases = ["sand::prelude::LocationPredicate::block"],
+        summary = "Constrains the block at the position.",
+        context = "Adds one typed LocationPredicate constraint without disturbing its other requirements.",
+        minecraft = "Nests a block predicate.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            bp = "Required block properties."
+        ),
+        returns = "The updated LocationPredicate predicate.",
+        example = "LocationPredicate::new().block(BlockPredicate::new())",
+    )]
     pub fn block(mut self, bp: BlockPredicate) -> Self {
         self.block = Some(bp);
         self
     }
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::LocationPredicate::x",
+        aliases = ["sand::prelude::LocationPredicate::x"],
+        summary = "Constrains the x-coordinate.",
+        context = "Adds one typed LocationPredicate constraint without disturbing its other requirements.",
+        minecraft = "Writes position.x.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            r = "Accepted x-coordinate range."
+        ),
+        returns = "The updated LocationPredicate predicate.",
+        example = "LocationPredicate::new().x(FloatRange::between(0.0, 16.0))",
+    )]
     pub fn x(mut self, r: FloatRange) -> Self {
         self.x = Some(r);
         self
     }
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::LocationPredicate::y",
+        aliases = ["sand::prelude::LocationPredicate::y"],
+        summary = "Constrains the y-coordinate.",
+        context = "Adds one typed LocationPredicate constraint without disturbing its other requirements.",
+        minecraft = "Writes position.y.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            r = "Accepted y-coordinate range."
+        ),
+        returns = "The updated LocationPredicate predicate.",
+        example = "LocationPredicate::new().y(FloatRange::between(0.0, 16.0))",
+    )]
     pub fn y(mut self, r: FloatRange) -> Self {
         self.y = Some(r);
         self
     }
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::LocationPredicate::z",
+        aliases = ["sand::prelude::LocationPredicate::z"],
+        summary = "Constrains the z-coordinate.",
+        context = "Adds one typed LocationPredicate constraint without disturbing its other requirements.",
+        minecraft = "Writes position.z.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            r = "Accepted z-coordinate range."
+        ),
+        returns = "The updated LocationPredicate predicate.",
+        example = "LocationPredicate::new().z(FloatRange::between(0.0, 16.0))",
+    )]
     pub fn z(mut self, r: FloatRange) -> Self {
         self.z = Some(r);
         self
@@ -782,6 +1443,17 @@ impl Serialize for LocationPredicate {
 /// # Ok::<(), sand_components::SandError>(())
 /// ```
 #[derive(Debug, Clone, Default)]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::predicate::BlockPredicate",
+    aliases = ["sand::prelude::BlockPredicate"],
+    summary = "Matches a block by typed identity, tag, state, or block-entity data.",
+    context = "Block conditions in location predicates need one composable description of the block at the tested position.",
+    minecraft = "Serializes the vanilla block predicate nested under a location check.",
+    use_when = ["Restricting a location by the block occupying it"],
+    avoid_when = ["Testing or placing a block through commands"],
+    example = "BlockPredicate::new().blocks(vec![BlockId::minecraft(\"stone\")?])",
+)]
 pub struct BlockPredicate {
     blocks: Option<Vec<BlockId>>,
     tag: Option<TagId<BlockId>>,
@@ -800,11 +1472,38 @@ impl BlockPredicate {
         }
         Ok(())
     }
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::BlockPredicate::new",
+        aliases = ["sand::prelude::BlockPredicate::new"],
+        summary = "Creates an unconstrained BlockPredicate.",
+        context = "Builder methods add only the BlockPredicate requirements relevant to the surrounding condition.",
+        minecraft = "Serializes an empty predicate object until constraints are added.",
+        use_when = ["Building a typed predicate incrementally"],
+        avoid_when = ["No constraints will be added"],
+        returns = "An empty BlockPredicate builder.",
+        example = "BlockPredicate::new()",
+    )]
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Raw escape hatch.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::BlockPredicate::raw",
+        aliases = ["sand::prelude::BlockPredicate::raw"],
+        summary = "Creates a BlockPredicate from an unsupported raw JSON shape.",
+        context = "The explicit escape hatch preserves access to modded or newly introduced fields without weakening typed builder methods.",
+        minecraft = "Emits the supplied JSON value in place of the typed predicate object.",
+        use_when = ["Minecraft supports a predicate field Sand does not yet model"],
+        avoid_when = ["Typed builder methods cover the required fields"],
+        params(
+            v = "The complete raw JSON predicate value."
+        ),
+        returns = "A raw BlockPredicate.",
+        example = "BlockPredicate::raw(RawJson::new(json!({{}})))",
+    )]
     pub fn raw(v: RawJson) -> Self {
         Self {
             _raw: Some(v),
@@ -812,18 +1511,78 @@ impl BlockPredicate {
         }
     }
 
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::BlockPredicate::blocks",
+        aliases = ["sand::prelude::BlockPredicate::blocks"],
+        summary = "Matches typed block identifiers.",
+        context = "Adds one typed BlockPredicate constraint without disturbing its other requirements.",
+        minecraft = "Writes the blocks array.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            ids = "Accepted block identifiers."
+        ),
+        returns = "The updated BlockPredicate predicate.",
+        example = "BlockPredicate::new().blocks(vec![block])",
+    )]
     pub fn blocks(mut self, ids: Vec<BlockId>) -> Self {
         self.blocks = Some(ids);
         self
     }
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::BlockPredicate::tag",
+        aliases = ["sand::prelude::BlockPredicate::tag"],
+        summary = "Matches a typed block tag.",
+        context = "Adds one typed BlockPredicate constraint without disturbing its other requirements.",
+        minecraft = "Writes the block tag.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            tag = "Tag whose members are accepted."
+        ),
+        returns = "The updated BlockPredicate predicate.",
+        example = "BlockPredicate::new().tag(tag)",
+    )]
     pub fn tag(mut self, tag: TagId<BlockId>) -> Self {
         self.tag = Some(tag);
         self
     }
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::BlockPredicate::nbt",
+        aliases = ["sand::prelude::BlockPredicate::nbt"],
+        summary = "Matches block-entity data.",
+        context = "Adds one typed BlockPredicate constraint without disturbing its other requirements.",
+        minecraft = "Writes the SNBT fragment.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            nbt = "Block-entity data that must match."
+        ),
+        returns = "The updated BlockPredicate predicate.",
+        example = "BlockPredicate::new().nbt(nbt)",
+    )]
     pub fn nbt(mut self, nbt: RawSnbt) -> Self {
         self.nbt = Some(nbt);
         self
     }
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::BlockPredicate::state",
+        aliases = ["sand::prelude::BlockPredicate::state"],
+        summary = "Matches block-state properties.",
+        context = "Adds one typed BlockPredicate constraint without disturbing its other requirements.",
+        minecraft = "Writes the state property map.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            state = "Exact property names and values."
+        ),
+        returns = "The updated BlockPredicate predicate.",
+        example = "BlockPredicate::new().state(properties)",
+    )]
     pub fn state(mut self, state: BTreeMap<String, String>) -> Self {
         self.state = Some(state);
         self
@@ -876,6 +1635,17 @@ impl Serialize for BlockPredicate {
 /// # Ok::<(), sand_components::SandError>(())
 /// ```
 #[derive(Debug, Clone, Default)]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::predicate::ItemPredicate",
+    aliases = ["sand::prelude::ItemPredicate", "sand::component::ItemPredicate"],
+    summary = "Describes typed properties required of a Minecraft item stack.",
+    context = "Item predicates express the item identity, count, components, enchantments, and related constraints consumed by vanilla condition formats.",
+    minecraft = "Serializes an item predicate nested in loot, advancement, equipment, or execute-if-items conditions.",
+    use_when = ["Matching equipment or inventory contents", "Constraining an item-sensitive trigger"],
+    avoid_when = ["Constructing a new item stack rather than matching one"],
+    example = "ItemPredicate::new().item(ItemId::minecraft(\"diamond\")?)",
+)]
 pub struct ItemPredicate {
     items: Option<Vec<ItemId>>,
     count: Option<IntRange>,
@@ -926,11 +1696,38 @@ impl ItemPredicate {
         Ok(())
     }
     /// Match any item.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::ItemPredicate::new",
+        aliases = ["sand::component::ItemPredicate::new", "sand::prelude::ItemPredicate::new"],
+        summary = "Creates an unconstrained ItemPredicate.",
+        context = "Builder methods add only the ItemPredicate requirements relevant to the surrounding condition.",
+        minecraft = "Serializes an empty predicate object until constraints are added.",
+        use_when = ["Building a typed predicate incrementally"],
+        avoid_when = ["No constraints will be added"],
+        returns = "An empty ItemPredicate builder.",
+        example = "ItemPredicate::new()",
+    )]
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Raw escape hatch — serialize arbitrary JSON verbatim as this predicate.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::ItemPredicate::raw",
+        aliases = ["sand::component::ItemPredicate::raw", "sand::prelude::ItemPredicate::raw"],
+        summary = "Creates a ItemPredicate from an unsupported raw JSON shape.",
+        context = "The explicit escape hatch preserves access to modded or newly introduced fields without weakening typed builder methods.",
+        minecraft = "Emits the supplied JSON value in place of the typed predicate object.",
+        use_when = ["Minecraft supports a predicate field Sand does not yet model"],
+        avoid_when = ["Typed builder methods cover the required fields"],
+        params(
+            v = "The complete raw JSON predicate value."
+        ),
+        returns = "A raw ItemPredicate.",
+        example = "ItemPredicate::raw(RawJson::new(json!({{}})))",
+    )]
     pub fn raw(v: RawJson) -> Self {
         Self {
             _raw: Some(v),
@@ -939,35 +1736,126 @@ impl ItemPredicate {
     }
 
     /// Match a specific item ID.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::ItemPredicate::id",
+        aliases = ["sand::component::ItemPredicate::id","sand::prelude::ItemPredicate::id"],
+        summary = "Creates a predicate for one typed item.",
+        context = "Adds one domain-specific ItemPredicate requirement without disturbing its other constraints.",
+        minecraft = "Initializes the item identity.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            id = "Item identifier to match."
+        ),
+        returns = "The updated ItemPredicate predicate.",
+        example = "ItemPredicate::id(item)",
+    )]
     pub fn id(id: impl Into<ItemId>) -> Self {
         Self::new().item(id)
     }
 
     /// Add a required item ID (creates an `items` array).
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::ItemPredicate::item",
+        aliases = ["sand::component::ItemPredicate::item","sand::prelude::ItemPredicate::item"],
+        summary = "Requires one typed item identity.",
+        context = "Adds one domain-specific ItemPredicate requirement without disturbing its other constraints.",
+        minecraft = "Writes the item identifier.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            id = "Item identifier to match."
+        ),
+        returns = "The updated ItemPredicate predicate.",
+        example = "ItemPredicate::new().item(item)",
+    )]
     pub fn item(mut self, id: impl Into<ItemId>) -> Self {
         self.items.get_or_insert_with(Vec::new).push(id.into());
         self
     }
 
     /// Require at least `min` items in the slot.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::ItemPredicate::count_min",
+        aliases = ["sand::component::ItemPredicate::count_min","sand::prelude::ItemPredicate::count_min"],
+        summary = "Sets the inclusive minimum stack count.",
+        context = "Adds one domain-specific ItemPredicate requirement without disturbing its other constraints.",
+        minecraft = "Writes count.min.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            min = "Inclusive minimum stack count."
+        ),
+        returns = "The updated ItemPredicate predicate.",
+        example = "ItemPredicate::new().count_min(1)",
+    )]
     pub fn count_min(mut self, min: i64) -> Self {
         self.count = Some(IntRange::at_least(min));
         self
     }
 
     /// Require at most `max` items in the slot.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::ItemPredicate::count_max",
+        aliases = ["sand::component::ItemPredicate::count_max","sand::prelude::ItemPredicate::count_max"],
+        summary = "Sets the inclusive maximum stack count.",
+        context = "Adds one domain-specific ItemPredicate requirement without disturbing its other constraints.",
+        minecraft = "Writes count.max.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            max = "Inclusive maximum stack count."
+        ),
+        returns = "The updated ItemPredicate predicate.",
+        example = "ItemPredicate::new().count_max(1)",
+    )]
     pub fn count_max(mut self, max: i64) -> Self {
         self.count = Some(IntRange::at_most(max));
         self
     }
 
     /// Require between `min` and `max` items in the slot.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::ItemPredicate::count_range",
+        aliases = ["sand::component::ItemPredicate::count_range","sand::prelude::ItemPredicate::count_range"],
+        summary = "Sets an inclusive stack-count interval.",
+        context = "Adds one domain-specific ItemPredicate requirement without disturbing its other constraints.",
+        minecraft = "Writes both count bounds.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            min = "Inclusive minimum stack count.",
+            max = "Inclusive maximum stack count."
+        ),
+        returns = "The updated ItemPredicate predicate.",
+        example = "ItemPredicate::new().count_range(1, 16)",
+    )]
     pub fn count_range(mut self, min: i64, max: i64) -> Self {
         self.count = Some(IntRange::between(min, max));
         self
     }
 
     /// Set the count predicate directly.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::ItemPredicate::count",
+        aliases = ["sand::component::ItemPredicate::count","sand::prelude::ItemPredicate::count"],
+        summary = "Sets a typed stack-count range.",
+        context = "Adds one domain-specific ItemPredicate requirement without disturbing its other constraints.",
+        minecraft = "Writes the count range.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            r = "Accepted stack counts."
+        ),
+        returns = "The updated ItemPredicate predicate.",
+        example = "ItemPredicate::new().count(IntRange::at_least(1))",
+    )]
     pub fn count(mut self, r: IntRange) -> Self {
         self.count = Some(r);
         self
@@ -986,6 +1874,21 @@ impl ItemPredicate {
     /// even one unrelated key.
     ///
     /// Calling this multiple times ANDs the keys together into one partial-match compound.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::ItemPredicate::custom_data_key",
+        aliases = ["sand::component::ItemPredicate::custom_data_key","sand::prelude::ItemPredicate::custom_data_key"],
+        summary = "Requires a key in item custom data.",
+        context = "Adds one domain-specific ItemPredicate requirement without disturbing its other constraints.",
+        minecraft = "Writes a custom_data presence predicate.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            key = "Exact custom-data key required."
+        ),
+        returns = "The updated ItemPredicate predicate.",
+        example = "ItemPredicate::new().custom_data_key(\"quest_item\")",
+    )]
     pub fn custom_data_key(mut self, key: impl Into<String>) -> Self {
         self.custom_data_keys.push(key.into());
         self
@@ -996,6 +1899,21 @@ impl ItemPredicate {
     /// Values under `components` must equal the item's component data exactly.
     /// Prefer [`custom_data_key`](Self::custom_data_key) or
     /// [`raw_predicates`](Self::raw_predicates) for partial matching.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::ItemPredicate::raw_components",
+        aliases = ["sand::component::ItemPredicate::raw_components","sand::prelude::ItemPredicate::raw_components"],
+        summary = "Supplies unsupported raw item component values.",
+        context = "Adds one domain-specific ItemPredicate requirement without disturbing its other constraints.",
+        minecraft = "Merges JSON into the item components section.",
+        use_when = ["Minecraft supports item data Sand does not yet model"],
+        avoid_when = ["A typed item method expresses the requirement"],
+        params(
+            v = "JSON object containing component values."
+        ),
+        returns = "The updated ItemPredicate predicate.",
+        example = "ItemPredicate::new().raw_components(raw)",
+    )]
     pub fn raw_components(mut self, v: RawJson) -> Self {
         self.raw_components = Some(v);
         self
@@ -1006,6 +1924,21 @@ impl ItemPredicate {
     /// Merged into the same `predicates` bag as [`custom_data_key`](Self::custom_data_key).
     /// The value must be a JSON object mapping predicate condition IDs
     /// (e.g. `"minecraft:enchantments"`) to their predicate payload.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::ItemPredicate::raw_predicates",
+        aliases = ["sand::component::ItemPredicate::raw_predicates","sand::prelude::ItemPredicate::raw_predicates"],
+        summary = "Supplies unsupported raw item component predicate tests.",
+        context = "Adds one domain-specific ItemPredicate requirement without disturbing its other constraints.",
+        minecraft = "Merges JSON into the item predicates section.",
+        use_when = ["Minecraft supports item data Sand does not yet model"],
+        avoid_when = ["A typed item method expresses the requirement"],
+        params(
+            v = "JSON object containing component predicate tests."
+        ),
+        returns = "The updated ItemPredicate predicate.",
+        example = "ItemPredicate::new().raw_predicates(raw)",
+    )]
     pub fn raw_predicates(mut self, v: RawJson) -> Self {
         self.raw_predicates = Some(v);
         self
@@ -1105,6 +2038,17 @@ impl Serialize for ItemPredicate {
 /// # Ok::<(), sand_components::SandError>(())
 /// ```
 #[derive(Debug, Clone, Default)]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::predicate::EntityPredicate",
+    aliases = ["sand::prelude::EntityPredicate", "sand::component::EntityPredicate"],
+    summary = "Describes typed properties required of a Minecraft entity.",
+    context = "Entity predicates combine identity, flags, equipment, effects, location, distance, and nested relationships for vanilla condition evaluation.",
+    minecraft = "Serializes the entity predicate object nested inside advancement, loot, or standalone predicate conditions.",
+    use_when = ["Checking entity equipment or flags", "Restricting an event or loot condition by entity properties"],
+    avoid_when = ["Selecting live command targets without a predicate context"],
+    example = "EntityPredicate::new().equipment(EntityEquipment::new())",
+)]
 pub struct EntityPredicate {
     entity_type: Option<EntityTypeMatch>,
     nbt: Option<RawSnbt>,
@@ -1133,6 +2077,17 @@ impl Serialize for EntityTypeMatch {
 
 /// Boolean entity flags checked in predicates.
 #[derive(Debug, Clone, Default, Serialize)]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::predicate::EntityFlags",
+    aliases = ["sand::prelude::EntityFlags"],
+    summary = "Matches boolean runtime flags exposed by vanilla entity predicates.",
+    context = "Flags describe observable entity state such as fire, movement stance, swimming, or age.",
+    minecraft = "Serializes the vanilla flags object nested in an entity predicate.",
+    use_when = ["Restricting a condition by entity state flags"],
+    avoid_when = ["Changing those flags or selecting unrelated entity properties"],
+    example = "EntityFlags::new().sneaking(true)",
+)]
 pub struct EntityFlags {
     #[serde(skip_serializing_if = "Option::is_none")]
     is_on_fire: Option<bool>,
@@ -1147,25 +2102,112 @@ pub struct EntityFlags {
 }
 
 impl EntityFlags {
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::EntityFlags::new",
+        aliases = ["sand::prelude::EntityFlags::new"],
+        summary = "Creates an unconstrained EntityFlags.",
+        context = "Builder methods add only the EntityFlags requirements relevant to the surrounding condition.",
+        minecraft = "Serializes an empty predicate object until constraints are added.",
+        use_when = ["Building a typed predicate incrementally"],
+        avoid_when = ["No constraints will be added"],
+        returns = "An empty EntityFlags builder.",
+        example = "EntityFlags::new()",
+    )]
     pub fn new() -> Self {
         Self::default()
     }
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::EntityFlags::on_fire",
+        aliases = ["sand::prelude::EntityFlags::on_fire"],
+        summary = "Requires a specific burning state.",
+        context = "Adds one domain-specific EntityFlags requirement without disturbing its other constraints.",
+        minecraft = "Writes the on_fire flag.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            v = "Required burning state."
+        ),
+        returns = "The updated EntityFlags predicate.",
+        example = "EntityFlags::new().on_fire(true)",
+    )]
     pub fn on_fire(mut self, v: bool) -> Self {
         self.is_on_fire = Some(v);
         self
     }
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::EntityFlags::sneaking",
+        aliases = ["sand::prelude::EntityFlags::sneaking"],
+        summary = "Requires a specific sneaking state.",
+        context = "Adds one domain-specific EntityFlags requirement without disturbing its other constraints.",
+        minecraft = "Writes the sneaking flag.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            v = "Required sneaking state."
+        ),
+        returns = "The updated EntityFlags predicate.",
+        example = "EntityFlags::new().sneaking(true)",
+    )]
     pub fn sneaking(mut self, v: bool) -> Self {
         self.is_sneaking = Some(v);
         self
     }
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::EntityFlags::sprinting",
+        aliases = ["sand::prelude::EntityFlags::sprinting"],
+        summary = "Requires a specific sprinting state.",
+        context = "Adds one domain-specific EntityFlags requirement without disturbing its other constraints.",
+        minecraft = "Writes the sprinting flag.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            v = "Required sprinting state."
+        ),
+        returns = "The updated EntityFlags predicate.",
+        example = "EntityFlags::new().sprinting(true)",
+    )]
     pub fn sprinting(mut self, v: bool) -> Self {
         self.is_sprinting = Some(v);
         self
     }
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::EntityFlags::swimming",
+        aliases = ["sand::prelude::EntityFlags::swimming"],
+        summary = "Requires a specific swimming state.",
+        context = "Adds one domain-specific EntityFlags requirement without disturbing its other constraints.",
+        minecraft = "Writes the swimming flag.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            v = "Required swimming state."
+        ),
+        returns = "The updated EntityFlags predicate.",
+        example = "EntityFlags::new().swimming(true)",
+    )]
     pub fn swimming(mut self, v: bool) -> Self {
         self.is_swimming = Some(v);
         self
     }
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::EntityFlags::baby",
+        aliases = ["sand::prelude::EntityFlags::baby"],
+        summary = "Requires a specific baby-age state.",
+        context = "Adds one domain-specific EntityFlags requirement without disturbing its other constraints.",
+        minecraft = "Writes the baby flag.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            v = "Required baby-age state."
+        ),
+        returns = "The updated EntityFlags predicate.",
+        example = "EntityFlags::new().baby(true)",
+    )]
     pub fn baby(mut self, v: bool) -> Self {
         self.is_baby = Some(v);
         self
@@ -1174,6 +2216,17 @@ impl EntityFlags {
 
 /// Equipment slot predicates for entity equipment checks.
 #[derive(Debug, Clone, Default, Serialize)]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::predicate::EntityEquipment",
+    aliases = ["sand::prelude::EntityEquipment"],
+    summary = "Matches item predicates in the six vanilla entity equipment slots.",
+    context = "Keeping each slot typed makes equipment conditions composable within EntityPredicate.",
+    minecraft = "Serializes head, chest, legs, feet, mainhand, and offhand item requirements.",
+    use_when = ["Checking worn armor or held items"],
+    avoid_when = ["Addressing inventory slots for mutation"],
+    example = "EntityEquipment::new().head(ItemPredicate::id(item))",
+)]
 pub struct EntityEquipment {
     #[serde(skip_serializing_if = "Option::is_none")]
     head: Option<ItemPredicate>,
@@ -1190,29 +2243,131 @@ pub struct EntityEquipment {
 }
 
 impl EntityEquipment {
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::EntityEquipment::new",
+        aliases = ["sand::prelude::EntityEquipment::new"],
+        summary = "Creates an unconstrained EntityEquipment.",
+        context = "Builder methods add only the EntityEquipment requirements relevant to the surrounding condition.",
+        minecraft = "Serializes an empty predicate object until constraints are added.",
+        use_when = ["Building a typed predicate incrementally"],
+        avoid_when = ["No constraints will be added"],
+        returns = "An empty EntityEquipment builder.",
+        example = "EntityEquipment::new()",
+    )]
     pub fn new() -> Self {
         Self::default()
     }
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::EntityEquipment::head",
+        aliases = ["sand::prelude::EntityEquipment::head"],
+        summary = "Constrains the entity's head slot.",
+        context = "Adds one domain-specific EntityEquipment requirement without disturbing its other constraints.",
+        minecraft = "Writes an item predicate under head.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            p = "Item requirements for the head slot."
+        ),
+        returns = "The updated EntityEquipment predicate.",
+        example = "EntityEquipment::new().head(ItemPredicate::new())",
+    )]
     pub fn head(mut self, p: ItemPredicate) -> Self {
         self.head = Some(p);
         self
     }
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::EntityEquipment::chest",
+        aliases = ["sand::prelude::EntityEquipment::chest"],
+        summary = "Constrains the entity's chest slot.",
+        context = "Adds one domain-specific EntityEquipment requirement without disturbing its other constraints.",
+        minecraft = "Writes an item predicate under chest.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            p = "Item requirements for the chest slot."
+        ),
+        returns = "The updated EntityEquipment predicate.",
+        example = "EntityEquipment::new().chest(ItemPredicate::new())",
+    )]
     pub fn chest(mut self, p: ItemPredicate) -> Self {
         self.chest = Some(p);
         self
     }
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::EntityEquipment::legs",
+        aliases = ["sand::prelude::EntityEquipment::legs"],
+        summary = "Constrains the entity's legs slot.",
+        context = "Adds one domain-specific EntityEquipment requirement without disturbing its other constraints.",
+        minecraft = "Writes an item predicate under legs.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            p = "Item requirements for the legs slot."
+        ),
+        returns = "The updated EntityEquipment predicate.",
+        example = "EntityEquipment::new().legs(ItemPredicate::new())",
+    )]
     pub fn legs(mut self, p: ItemPredicate) -> Self {
         self.legs = Some(p);
         self
     }
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::EntityEquipment::feet",
+        aliases = ["sand::prelude::EntityEquipment::feet"],
+        summary = "Constrains the entity's feet slot.",
+        context = "Adds one domain-specific EntityEquipment requirement without disturbing its other constraints.",
+        minecraft = "Writes an item predicate under feet.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            p = "Item requirements for the feet slot."
+        ),
+        returns = "The updated EntityEquipment predicate.",
+        example = "EntityEquipment::new().feet(ItemPredicate::new())",
+    )]
     pub fn feet(mut self, p: ItemPredicate) -> Self {
         self.feet = Some(p);
         self
     }
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::EntityEquipment::mainhand",
+        aliases = ["sand::prelude::EntityEquipment::mainhand"],
+        summary = "Constrains the entity's mainhand slot.",
+        context = "Adds one domain-specific EntityEquipment requirement without disturbing its other constraints.",
+        minecraft = "Writes an item predicate under mainhand.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            p = "Item requirements for the mainhand slot."
+        ),
+        returns = "The updated EntityEquipment predicate.",
+        example = "EntityEquipment::new().mainhand(ItemPredicate::new())",
+    )]
     pub fn mainhand(mut self, p: ItemPredicate) -> Self {
         self.mainhand = Some(p);
         self
     }
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::EntityEquipment::offhand",
+        aliases = ["sand::prelude::EntityEquipment::offhand"],
+        summary = "Constrains the entity's offhand slot.",
+        context = "Adds one domain-specific EntityEquipment requirement without disturbing its other constraints.",
+        minecraft = "Writes an item predicate under offhand.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            p = "Item requirements for the offhand slot."
+        ),
+        returns = "The updated EntityEquipment predicate.",
+        example = "EntityEquipment::new().offhand(ItemPredicate::new())",
+    )]
     pub fn offhand(mut self, p: ItemPredicate) -> Self {
         self.offhand = Some(p);
         self
@@ -1252,11 +2407,38 @@ impl EntityPredicate {
         Ok(())
     }
     /// Match any entity.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::EntityPredicate::new",
+        aliases = ["sand::component::EntityPredicate::new", "sand::prelude::EntityPredicate::new"],
+        summary = "Creates an unconstrained EntityPredicate.",
+        context = "Builder methods add only the EntityPredicate requirements relevant to the surrounding condition.",
+        minecraft = "Serializes an empty predicate object until constraints are added.",
+        use_when = ["Building a typed predicate incrementally"],
+        avoid_when = ["No constraints will be added"],
+        returns = "An empty EntityPredicate builder.",
+        example = "EntityPredicate::new()",
+    )]
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Raw escape hatch — serialize arbitrary JSON verbatim as this predicate.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::EntityPredicate::raw",
+        aliases = ["sand::component::EntityPredicate::raw", "sand::prelude::EntityPredicate::raw"],
+        summary = "Creates a EntityPredicate from an unsupported raw JSON shape.",
+        context = "The explicit escape hatch preserves access to modded or newly introduced fields without weakening typed builder methods.",
+        minecraft = "Emits the supplied JSON value in place of the typed predicate object.",
+        use_when = ["Minecraft supports a predicate field Sand does not yet model"],
+        avoid_when = ["Typed builder methods cover the required fields"],
+        params(
+            v = "The complete raw JSON predicate value."
+        ),
+        returns = "A raw EntityPredicate.",
+        example = "EntityPredicate::raw(RawJson::new(json!({{}})))",
+    )]
     pub fn raw(v: RawJson) -> Self {
         Self {
             _raw: Some(v),
@@ -1265,47 +2447,168 @@ impl EntityPredicate {
     }
 
     /// Match a specific entity type ID.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::EntityPredicate::type_",
+        aliases = ["sand::component::EntityPredicate::type_","sand::prelude::EntityPredicate::type_"],
+        summary = "Creates a predicate for one entity type.",
+        context = "Adds one domain-specific EntityPredicate requirement without disturbing its other constraints.",
+        minecraft = "Initializes the type field.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            entity_type = "Entity type identifier to match."
+        ),
+        returns = "The updated EntityPredicate predicate.",
+        example = "EntityPredicate::type_(entity_type)",
+    )]
     pub fn type_(entity_type: impl Into<EntityTypeId>) -> Self {
         Self::new().with_type(entity_type)
     }
 
     /// Set (or override) the entity type.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::EntityPredicate::with_type",
+        aliases = ["sand::component::EntityPredicate::with_type","sand::prelude::EntityPredicate::with_type"],
+        summary = "Requires one entity type.",
+        context = "Adds one domain-specific EntityPredicate requirement without disturbing its other constraints.",
+        minecraft = "Writes one typed entity identifier.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            entity_type = "Entity type identifier to match."
+        ),
+        returns = "The updated EntityPredicate predicate.",
+        example = "EntityPredicate::new().with_type(entity_type)",
+    )]
     pub fn with_type(mut self, entity_type: impl Into<EntityTypeId>) -> Self {
         self.entity_type = Some(EntityTypeMatch::Single(entity_type.into()));
         self
     }
 
     /// Match any of the given entity type IDs.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::EntityPredicate::with_type_any",
+        aliases = ["sand::component::EntityPredicate::with_type_any","sand::prelude::EntityPredicate::with_type_any"],
+        summary = "Accepts any entity type in a typed list.",
+        context = "Adds one domain-specific EntityPredicate requirement without disturbing its other constraints.",
+        minecraft = "Writes entity-type alternatives.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            types = "Non-empty accepted entity identifiers."
+        ),
+        returns = "The updated EntityPredicate predicate.",
+        example = "EntityPredicate::new().with_type_any(vec![zombie, skeleton])",
+    )]
     pub fn with_type_any(mut self, types: Vec<EntityTypeId>) -> Self {
         self.entity_type = Some(EntityTypeMatch::AnyOf(types));
         self
     }
 
     /// Require the entity to match this SNBT string.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::EntityPredicate::nbt",
+        aliases = ["sand::component::EntityPredicate::nbt","sand::prelude::EntityPredicate::nbt"],
+        summary = "Constrains entity NBT data.",
+        context = "Adds one domain-specific EntityPredicate requirement without disturbing its other constraints.",
+        minecraft = "Writes the SNBT fragment.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            nbt = "Entity data fragment that must match."
+        ),
+        returns = "The updated EntityPredicate predicate.",
+        example = "EntityPredicate::new().nbt(nbt)",
+    )]
     pub fn nbt(mut self, nbt: RawSnbt) -> Self {
         self.nbt = Some(nbt);
         self
     }
 
     /// Require the entity to be at a location matching this predicate.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::EntityPredicate::location",
+        aliases = ["sand::component::EntityPredicate::location","sand::prelude::EntityPredicate::location"],
+        summary = "Constrains the entity's location.",
+        context = "Adds one domain-specific EntityPredicate requirement without disturbing its other constraints.",
+        minecraft = "Nests a location predicate.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            lp = "World-location requirements."
+        ),
+        returns = "The updated EntityPredicate predicate.",
+        example = "EntityPredicate::new().location(LocationPredicate::new())",
+    )]
     pub fn location(mut self, lp: LocationPredicate) -> Self {
         self.location = Some(lp);
         self
     }
 
     /// Require specific boolean entity flags.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::EntityPredicate::flags",
+        aliases = ["sand::component::EntityPredicate::flags","sand::prelude::EntityPredicate::flags"],
+        summary = "Constrains entity state flags.",
+        context = "Adds one domain-specific EntityPredicate requirement without disturbing its other constraints.",
+        minecraft = "Nests the flags object.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            flags = "Required fire, movement, and age flags."
+        ),
+        returns = "The updated EntityPredicate predicate.",
+        example = "EntityPredicate::new().flags(EntityFlags::new())",
+    )]
     pub fn flags(mut self, flags: EntityFlags) -> Self {
         self.flags = Some(flags);
         self
     }
 
     /// Require the entity to wear/hold specific equipment.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::EntityPredicate::equipment",
+        aliases = ["sand::component::EntityPredicate::equipment","sand::prelude::EntityPredicate::equipment"],
+        summary = "Constrains worn or held items.",
+        context = "Adds one domain-specific EntityPredicate requirement without disturbing its other constraints.",
+        minecraft = "Nests slot-specific item predicates.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            eq = "Required equipment by slot."
+        ),
+        returns = "The updated EntityPredicate predicate.",
+        example = "EntityPredicate::new().equipment(EntityEquipment::new())",
+    )]
     pub fn equipment(mut self, eq: EntityEquipment) -> Self {
         self.equipment = Some(eq);
         self
     }
 
     /// Require an active status effect (by effect ID).
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::EntityPredicate::effect",
+        aliases = ["sand::component::EntityPredicate::effect","sand::prelude::EntityPredicate::effect"],
+        summary = "Constrains one active status effect.",
+        context = "Adds one domain-specific EntityPredicate requirement without disturbing its other constraints.",
+        minecraft = "Adds a typed effect and requirements to effects.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            effect_id = "Status effect that must be active.",
+            pred = "Required amplifier, duration, and flags."
+        ),
+        returns = "The updated EntityPredicate predicate.",
+        example = "EntityPredicate::new().effect(effect_id, EffectPredicate::new())",
+    )]
     pub fn effect(mut self, effect_id: impl Into<EffectId>, pred: EffectPredicate) -> Self {
         self.effects
             .get_or_insert_with(BTreeMap::new)
@@ -1424,6 +2727,17 @@ impl Serialize for EntityPredicate {
 /// let wp = WeatherPredicate::new().raining(true);
 /// ```
 #[derive(Debug, Clone, Default)]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::predicate::WeatherPredicate",
+    aliases = ["sand::component::WeatherPredicate", "sand::prelude::WeatherPredicate"],
+    summary = "Matches the world's raining and thundering states.",
+    context = "Standalone weather roots use this reusable value to keep both vanilla weather flags explicit.",
+    minecraft = "Serializes raining and thundering fields in a weather-check condition.",
+    use_when = ["Gating a predicate on current weather"],
+    avoid_when = ["Changing weather or tracking a forecast"],
+    example = "WeatherPredicate::new().raining(true)",
+)]
 pub struct WeatherPredicate {
     raining: Option<bool>,
     thundering: Option<bool>,
@@ -1435,11 +2749,38 @@ impl WeatherPredicate {
         Ok(())
     }
 
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::WeatherPredicate::new",
+        aliases = ["sand::component::WeatherPredicate::new", "sand::prelude::WeatherPredicate::new"],
+        summary = "Creates an unconstrained WeatherPredicate.",
+        context = "Builder methods add only the WeatherPredicate requirements relevant to the surrounding condition.",
+        minecraft = "Serializes an empty predicate object until constraints are added.",
+        use_when = ["Building a typed predicate incrementally"],
+        avoid_when = ["No constraints will be added"],
+        returns = "An empty WeatherPredicate builder.",
+        example = "WeatherPredicate::new()",
+    )]
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Raw escape hatch — serialize arbitrary JSON as this predicate.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::WeatherPredicate::raw",
+        aliases = ["sand::component::WeatherPredicate::raw", "sand::prelude::WeatherPredicate::raw"],
+        summary = "Creates a WeatherPredicate from an unsupported raw JSON shape.",
+        context = "The explicit escape hatch preserves access to modded or newly introduced fields without weakening typed builder methods.",
+        minecraft = "Emits the supplied JSON value in place of the typed predicate object.",
+        use_when = ["Minecraft supports a predicate field Sand does not yet model"],
+        avoid_when = ["Typed builder methods cover the required fields"],
+        params(
+            v = "The complete raw JSON predicate value."
+        ),
+        returns = "A raw WeatherPredicate.",
+        example = "WeatherPredicate::raw(RawJson::new(json!({{}})))",
+    )]
     pub fn raw(v: RawJson) -> Self {
         Self {
             _raw: Some(v),
@@ -1447,11 +2788,41 @@ impl WeatherPredicate {
         }
     }
 
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::WeatherPredicate::raining",
+        aliases = ["sand::component::WeatherPredicate::raining","sand::prelude::WeatherPredicate::raining"],
+        summary = "Requires a specific rain state.",
+        context = "Adds one domain-specific WeatherPredicate requirement without disturbing its other constraints.",
+        minecraft = "Writes the raining boolean.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            v = "Whether rain must be active."
+        ),
+        returns = "The updated WeatherPredicate predicate.",
+        example = "WeatherPredicate::new().raining(true)",
+    )]
     pub fn raining(mut self, v: bool) -> Self {
         self.raining = Some(v);
         self
     }
 
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::WeatherPredicate::thundering",
+        aliases = ["sand::component::WeatherPredicate::thundering","sand::prelude::WeatherPredicate::thundering"],
+        summary = "Requires a specific thunder state.",
+        context = "Adds one domain-specific WeatherPredicate requirement without disturbing its other constraints.",
+        minecraft = "Writes the thundering boolean.",
+        use_when = ["Composing this property into a larger predicate"],
+        avoid_when = ["The property should remain unconstrained"],
+        params(
+            v = "Whether thunder must be active."
+        ),
+        returns = "The updated WeatherPredicate predicate.",
+        example = "WeatherPredicate::new().thundering(true)",
+    )]
     pub fn thundering(mut self, v: bool) -> Self {
         self.thundering = Some(v);
         self

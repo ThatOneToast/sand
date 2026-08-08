@@ -47,6 +47,23 @@ use crate::resource_location::ResourceLocation;
 /// Corresponds to the vanilla `entity` field: which loot-context entity the
 /// nested [`EntityPredicate`] is checked against.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::predicate::EntityPredicateTarget",
+    aliases = ["sand::component::EntityPredicateTarget", "sand::prelude::EntityPredicateTarget"],
+    summary = "Names the loot-context entity inspected by an entity-properties condition.",
+    context = "Vanilla predicate evaluation supplies contextual entity roles instead of command selectors.",
+    minecraft = "Serializes to the entity role accepted by minecraft:entity_properties.",
+    use_when = ["Choosing which contextual entity a nested EntityPredicate examines"],
+    avoid_when = ["Addressing an entity selected directly by a command"],
+    example = "EntityPredicateTarget::This",
+    variants(
+            This = "Targets the entity at the center of the current predicate context.",
+            Killer = "Targets the entity credited with killing the context entity.",
+            KillerPlayer = "Targets the player credited with killing the context entity.",
+            DirectKiller = "Targets the immediate damaging entity, such as an arrow rather than its shooter."
+        ),
+)]
 pub enum EntityPredicateTarget {
     /// The entity the loot/predicate context is centered on.
     This,
@@ -85,6 +102,17 @@ impl Serialize for EntityPredicateTarget {
 /// checks, random chance, and references to other predicate files. Use
 /// [`PredicateRoot::raw`] for condition types not yet modeled.
 #[derive(Debug, Clone)]
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::predicate::PredicateRoot",
+    aliases = ["sand::prelude::PredicateRoot", "sand::component::PredicateRoot"],
+    summary = "Models the typed root condition tree of a standalone predicate.",
+    context = "The opaque builder captures boolean composition and common vanilla condition families while retaining an explicit, fallible raw escape hatch for unsupported shapes.",
+    minecraft = "Serializes to one vanilla loot-condition object in a predicate JSON resource.",
+    use_when = ["Composing reusable boolean or world-state checks", "Converting an existing loot condition"],
+    avoid_when = ["A typed condition exists and Raw would discard its validation"],
+    example = "PredicateRoot::inverted(PredicateRoot::random_chance(0.1))",
+)]
 pub struct PredicateRoot(PredicateRootKind);
 
 #[derive(Debug, Clone)]
@@ -113,16 +141,62 @@ enum PredicateRootKind {
 
 impl PredicateRoot {
     /// `minecraft:all_of` — requires every nested condition to succeed.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::PredicateRoot::all_of",
+        aliases = ["sand::component::PredicateRoot::all_of", "sand::prelude::PredicateRoot::all_of"],
+        summary = "Combines predicate roots so every nested condition must succeed.",
+        context = "Boolean composition keeps a reusable predicate tree typed without dropping to raw JSON.",
+        minecraft = "Emits minecraft:all_of with a non-empty terms array.",
+        use_when = ["Combining several independently meaningful predicate conditions"],
+        avoid_when = ["The condition list may be empty"],
+        params(
+            terms = "The non-empty sequence of condition roots to combine."
+        ),
+        returns = "A composed predicate root.",
+        example = "PredicateRoot::all_of([PredicateRoot::random_chance(0.5)])",
+    )]
     pub fn all_of(terms: impl IntoIterator<Item = PredicateRoot>) -> Self {
         Self(PredicateRootKind::AllOf(terms.into_iter().collect()))
     }
 
     /// `minecraft:any_of` — requires at least one nested condition to succeed.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::PredicateRoot::any_of",
+        aliases = ["sand::component::PredicateRoot::any_of", "sand::prelude::PredicateRoot::any_of"],
+        summary = "Combines predicate roots so at least one nested condition must succeed.",
+        context = "Boolean composition keeps a reusable predicate tree typed without dropping to raw JSON.",
+        minecraft = "Emits minecraft:any_of with a non-empty terms array.",
+        use_when = ["Combining several independently meaningful predicate conditions"],
+        avoid_when = ["The condition list may be empty"],
+        params(
+            terms = "The non-empty sequence of condition roots to combine."
+        ),
+        returns = "A composed predicate root.",
+        example = "PredicateRoot::any_of([PredicateRoot::random_chance(0.5)])",
+    )]
     pub fn any_of(terms: impl IntoIterator<Item = PredicateRoot>) -> Self {
         Self(PredicateRootKind::AnyOf(terms.into_iter().collect()))
     }
 
     /// `minecraft:entity_properties` — checks properties of a loot/predicate-context entity.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::PredicateRoot::entity_properties",
+        aliases = ["sand::component::PredicateRoot::entity_properties", "sand::prelude::PredicateRoot::entity_properties"],
+        summary = "Checks typed properties of an entity in the current predicate context.",
+        context = "Loot contexts name entities by roles such as this, killer, or killer_player; this constructor keeps that role separate from the property model.",
+        minecraft = "Emits minecraft:entity_properties with entity and predicate fields.",
+        use_when = ["Testing entity type, equipment, flags, or location", "Selecting a loot-context entity role"],
+        avoid_when = ["The entity must be found through a command selector outside a loot context"],
+        params(
+            target = "The loot-context entity role to inspect.",
+            predicate = "The typed properties required of that entity."
+        ),
+        returns = "An entity-properties predicate root.",
+        example = "PredicateRoot::entity_properties(EntityPredicateTarget::This, EntityPredicate::new())",
+    )]
     pub fn entity_properties(target: EntityPredicateTarget, predicate: EntityPredicate) -> Self {
         Self(PredicateRootKind::EntityProperties(
             target,
@@ -131,36 +205,141 @@ impl PredicateRoot {
     }
 
     /// `minecraft:location_check` — checks the current location.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::PredicateRoot::location",
+        aliases = ["sand::component::PredicateRoot::location", "sand::prelude::PredicateRoot::location"],
+        summary = "Checks typed properties of the current predicate location.",
+        context = "Typed root constructors map Sand domain values to a precise vanilla loot-condition shape.",
+        minecraft = "minecraft:location_check with a nested location predicate.",
+        use_when = ["Building a standalone predicate from typed conditions"],
+        avoid_when = ["The check belongs in mutable scoreboard or command state"],
+        params(
+            predicate = "The biome, dimension, block, or coordinate requirements."
+        ),
+        returns = "A typed predicate root.",
+        example = "PredicateRoot::location(LocationPredicate::new())",
+    )]
     pub fn location(predicate: LocationPredicate) -> Self {
         Self(PredicateRootKind::LocationCheck(Box::new(predicate)))
     }
 
     /// `minecraft:weather_check` — checks current weather state.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::PredicateRoot::weather",
+        aliases = ["sand::component::PredicateRoot::weather", "sand::prelude::PredicateRoot::weather"],
+        summary = "Checks rain or thunder in the current world.",
+        context = "Typed root constructors map Sand domain values to a precise vanilla loot-condition shape.",
+        minecraft = "minecraft:weather_check with the requested weather flags.",
+        use_when = ["Building a standalone predicate from typed conditions"],
+        avoid_when = ["The check belongs in mutable scoreboard or command state"],
+        params(
+            predicate = "The required raining and thundering state."
+        ),
+        returns = "A typed predicate root.",
+        example = "PredicateRoot::weather(WeatherPredicate::new().raining(true))",
+    )]
     pub fn weather(predicate: WeatherPredicate) -> Self {
         Self(PredicateRootKind::WeatherCheck(predicate))
     }
 
     /// `minecraft:time_check` — checks the current game time against a range.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::PredicateRoot::time",
+        aliases = ["sand::component::PredicateRoot::time", "sand::prelude::PredicateRoot::time"],
+        summary = "Checks the current game time against an integer range.",
+        context = "Typed root constructors map Sand domain values to a precise vanilla loot-condition shape.",
+        minecraft = "minecraft:time_check with the range in its value field.",
+        use_when = ["Building a standalone predicate from typed conditions"],
+        avoid_when = ["The check belongs in mutable scoreboard or command state"],
+        params(
+            range = "The accepted game-time values."
+        ),
+        returns = "A typed predicate root.",
+        example = "PredicateRoot::time(IntRange::between(0, 12000))",
+    )]
     pub fn time(range: IntRange) -> Self {
         Self(PredicateRootKind::TimeCheck(range))
     }
 
     /// `minecraft:random_chance` — random probability check.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::PredicateRoot::random_chance",
+        aliases = ["sand::component::PredicateRoot::random_chance", "sand::prelude::PredicateRoot::random_chance"],
+        summary = "Creates a predicate that succeeds with a fixed probability.",
+        context = "Random chance is useful for nondeterministic gates that do not depend on entity or world state.",
+        minecraft = "Emits minecraft:random_chance; validation requires a finite value from 0.0 through 1.0.",
+        use_when = ["Applying a probability gate to loot or a command branch"],
+        avoid_when = ["The outcome must be deterministic or stateful"],
+        params(
+            chance = "Inclusive probability from 0.0 to 1.0."
+        ),
+        returns = "A random-chance predicate root.",
+        example = "PredicateRoot::random_chance(0.25)",
+    )]
     pub fn random_chance(chance: f64) -> Self {
         Self(PredicateRootKind::RandomChance(chance))
     }
 
     /// `minecraft:reference` — reference to another standalone predicate file.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::PredicateRoot::reference",
+        aliases = ["sand::component::PredicateRoot::reference", "sand::prelude::PredicateRoot::reference"],
+        summary = "Delegates evaluation to another named predicate resource.",
+        context = "Typed root constructors map Sand domain values to a precise vanilla loot-condition shape.",
+        minecraft = "minecraft:reference with the referenced predicate name.",
+        use_when = ["Building a standalone predicate from typed conditions"],
+        avoid_when = ["The check belongs in mutable scoreboard or command state"],
+        params(
+            id = "The typed identifier of the predicate resource to evaluate."
+        ),
+        returns = "A typed predicate root.",
+        example = "PredicateRoot::reference(other_id)",
+    )]
     pub fn reference(id: PredicateId) -> Self {
         Self(PredicateRootKind::Reference(id))
     }
 
     /// `minecraft:inverted` — negates a nested condition.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::PredicateRoot::inverted",
+        aliases = ["sand::component::PredicateRoot::inverted", "sand::prelude::PredicateRoot::inverted"],
+        summary = "Negates a nested predicate condition.",
+        context = "Typed root constructors map Sand domain values to a precise vanilla loot-condition shape.",
+        minecraft = "minecraft:inverted with the nested term field.",
+        use_when = ["Building a standalone predicate from typed conditions"],
+        avoid_when = ["The check belongs in mutable scoreboard or command state"],
+        params(
+            term = "The condition whose result is negated."
+        ),
+        returns = "A typed predicate root.",
+        example = "PredicateRoot::inverted(PredicateRoot::random_chance(0.5))",
+    )]
     pub fn inverted(term: PredicateRoot) -> Self {
         Self(PredicateRootKind::Inverted(Box::new(term)))
     }
 
     /// Explicit raw escape hatch for predicate condition types not yet modeled.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::PredicateRoot::raw",
+        aliases = ["sand::component::PredicateRoot::raw", "sand::prelude::PredicateRoot::raw"],
+        summary = "Validates an unsupported predicate condition supplied as raw JSON.",
+        context = "The fallible escape hatch preserves access to new or modded conditions while rejecting non-object roots.",
+        minecraft = "The object is emitted verbatim as a vanilla or modded condition.",
+        use_when = ["Using a condition shape Sand does not yet model"],
+        avoid_when = ["A typed PredicateRoot constructor can express the condition"],
+        params(
+            json = "A JSON object containing the complete predicate condition."
+        ),
+        returns = "A validated raw predicate root, or a JSON shape error.",
+        example = "PredicateRoot::raw(RawJson::new(json!({\"condition\": \"minecraft:survives_explosion\"})))?",
+    )]
     pub fn raw(json: RawJson) -> serde_json::Result<Self> {
         let object =
             serde_json::from_value::<serde_json::Map<String, Value>>(json.as_value().clone())?;
@@ -285,6 +464,17 @@ fn render_terms(
 /// advancements, selectors, or loot tables.
 ///
 /// Emits to `data/<namespace>/predicate/<id>.json`.
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::predicate::Predicate",
+    aliases = ["sand::prelude::Predicate", "sand::component::Predicate"],
+    summary = "Represents one reusable namespaced Minecraft predicate resource.",
+    context = "A predicate gives a typed condition tree a stable resource identity so commands, loot tables, advancements, and other resources can share it.",
+    minecraft = "Exports data/<namespace>/predicate/<path>.json containing the root loot-condition object.",
+    use_when = ["A condition is referenced from more than one place", "A command uses execute if predicate"],
+    avoid_when = ["The condition is only a transient scoreboard calculation"],
+    example = "Predicate::new(id, PredicateRoot::random_chance(0.25))",
+)]
 pub struct Predicate {
     location: PredicateId,
     root: PredicateRoot,
@@ -292,16 +482,64 @@ pub struct Predicate {
 
 impl Predicate {
     /// Create a new predicate with the given typed predicate ID and condition tree.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::Predicate::new",
+        aliases = ["sand::prelude::Predicate::new", "sand::component::Predicate::new"],
+        summary = "Creates a reusable Minecraft predicate resource.",
+        context = "The constructor binds a validated namespaced resource location to the typed condition emitted for that predicate.",
+        minecraft = "Generates a predicate JSON resource whose condition is evaluated only when Minecraft references it.",
+        use_when = ["Entity property checks", "Equipment predicates", "Location or weather checks"],
+        avoid_when = ["Mutable runtime state", "Scoreboard arithmetic"],
+        params(
+            location = "The typed namespaced identifier of the generated predicate.",
+            root = "The root typed condition evaluated by the predicate."
+        ),
+        returns = "A predicate component ready for registration with #[component].",
+        example = "Predicate::new(PredicateId::custom(\"demo:is_ready\".parse()?), PredicateRoot::random_chance(0.25))",
+    )]
     pub fn new(location: PredicateId, root: PredicateRoot) -> Self {
         Self { location, root }
     }
 
     /// Convenience constructor for `minecraft:all_of`.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::Predicate::all_of",
+        aliases = ["sand::component::Predicate::all_of", "sand::prelude::Predicate::all_of"],
+        summary = "Creates a named predicate requiring every nested condition to succeed.",
+        context = "This convenience constructor binds boolean composition directly to a reusable predicate resource.",
+        minecraft = "Exports minecraft:all_of as the root condition of the named predicate.",
+        use_when = ["Defining a reusable boolean combination in one expression"],
+        avoid_when = ["A single root condition is clearer"],
+        params(
+            location = "The typed namespaced identifier of the predicate resource.",
+            terms = "The non-empty sequence of condition roots to combine."
+        ),
+        returns = "A predicate component ready for registration.",
+        example = "Predicate::all_of(id, [PredicateRoot::random_chance(0.5)])",
+    )]
     pub fn all_of(location: PredicateId, terms: impl IntoIterator<Item = PredicateRoot>) -> Self {
         Self::new(location, PredicateRoot::all_of(terms))
     }
 
     /// Convenience constructor for `minecraft:any_of`.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        path = "sand::predicate::Predicate::any_of",
+        aliases = ["sand::component::Predicate::any_of", "sand::prelude::Predicate::any_of"],
+        summary = "Creates a named predicate requiring at least one nested condition to succeed.",
+        context = "This convenience constructor binds boolean composition directly to a reusable predicate resource.",
+        minecraft = "Exports minecraft:any_of as the root condition of the named predicate.",
+        use_when = ["Defining a reusable boolean combination in one expression"],
+        avoid_when = ["A single root condition is clearer"],
+        params(
+            location = "The typed namespaced identifier of the predicate resource.",
+            terms = "The non-empty sequence of condition roots to combine."
+        ),
+        returns = "A predicate component ready for registration.",
+        example = "Predicate::any_of(id, [PredicateRoot::random_chance(0.5)])",
+    )]
     pub fn any_of(location: PredicateId, terms: impl IntoIterator<Item = PredicateRoot>) -> Self {
         Self::new(location, PredicateRoot::any_of(terms))
     }

@@ -2075,6 +2075,172 @@ fn qualified_and_aliased_macros_cannot_impersonate_audited_names() {
 }
 
 #[test]
+fn reexported_items_audit_every_private_defining_ancestor() {
+    for source in [
+        r#"
+            mod implementation {
+                #[unknown_expansion]
+                mod nested { pub struct Exposed; }
+            }
+            pub use implementation::nested::Exposed;
+        "#,
+        r#"
+            mod implementation {
+                unknown_items!();
+                pub mod nested { pub struct Exposed; }
+            }
+            pub use implementation::nested::Exposed;
+        "#,
+        r#"
+            mod implementation {
+                include!(env!("GENERATED_API"));
+                pub mod nested { pub struct Exposed; }
+            }
+            pub use implementation::nested::Exposed;
+        "#,
+        r#"
+            mod implementation {
+                extern "C" {}
+                pub mod nested { pub struct Exposed; }
+            }
+            pub use implementation::nested::Exposed;
+        "#,
+    ] {
+        let directory = tempfile::tempdir().unwrap();
+        let facade = directory.path().join("facade.rs");
+        fs::write(&facade, source).unwrap();
+        let graph = SurfaceGraph::load(
+            [SourceCrate {
+                name: "facade".into(),
+                root: facade,
+            }],
+            [],
+            [],
+        )
+        .unwrap();
+        assert!(
+            matches!(
+                graph.reachable_from("facade"),
+                Err(ReachabilityError::UnclassifiedApiMacro { .. })
+                    | Err(ReachabilityError::UnboundItemMacro { .. })
+                    | Err(ReachabilityError::UnboundInclude { .. })
+                    | Err(ReachabilityError::UnsupportedReachableSyntax { .. })
+            ),
+            "private defining ancestor escaped the audit: {source}"
+        );
+    }
+}
+
+#[test]
+fn resolved_impl_owners_keep_the_impls_lexical_macro_namespace() {
+    let directory = tempfile::tempdir().unwrap();
+    let facade = directory.path().join("facade.rs");
+    fs::write(
+        &facade,
+        r#"
+            pub struct Exposed;
+            mod implementations {
+                use evil::api;
+                #[api]
+                impl crate::Exposed { pub fn method() {} }
+            }
+        "#,
+    )
+    .unwrap();
+    let graph = SurfaceGraph::load(
+        [SourceCrate {
+            name: "facade".into(),
+            root: facade,
+        }],
+        [],
+        [],
+    )
+    .unwrap();
+    assert!(matches!(
+        graph.reachable_from("facade"),
+        Err(ReachabilityError::UnclassifiedApiMacro { owner, .. }) if owner == "facade::Exposed"
+    ));
+}
+
+#[test]
+fn macro_namespace_shadowing_in_lexical_ancestors_fails_closed() {
+    for source in [
+        r#"
+            use evil::Debug;
+            mod implementation {
+                pub mod nested { #[derive(Debug)] pub struct Exposed; }
+            }
+            pub use implementation::nested::Exposed;
+        "#,
+        r#"
+            use evil as serde;
+            mod implementation {
+                pub mod nested { #[derive(serde::Serialize)] pub struct Exposed; }
+            }
+            pub use implementation::nested::Exposed;
+        "#,
+    ] {
+        let directory = tempfile::tempdir().unwrap();
+        let facade = directory.path().join("facade.rs");
+        fs::write(&facade, source).unwrap();
+        let graph = SurfaceGraph::load(
+            [SourceCrate {
+                name: "facade".into(),
+                root: facade,
+            }],
+            [],
+            [],
+        )
+        .unwrap();
+        assert!(
+            matches!(
+                graph.reachable_from("facade"),
+                Err(ReachabilityError::UnclassifiedApiMacro { .. })
+            ),
+            "ancestor macro namespace spoof escaped: {source}"
+        );
+    }
+}
+
+#[test]
+fn ordinary_nested_definitions_and_trusted_ancestor_imports_remain_supported() {
+    for source in [
+        r#"
+            mod implementation {
+                pub mod nested { #[derive(Debug)] pub struct Exposed; }
+            }
+            pub use implementation::nested::Exposed;
+        "#,
+        r#"
+            use serde::Serialize;
+            mod implementation {
+                pub mod nested { #[derive(Serialize)] pub struct Exposed; }
+            }
+            pub use implementation::nested::Exposed;
+        "#,
+    ] {
+        let directory = tempfile::tempdir().unwrap();
+        let facade = directory.path().join("facade.rs");
+        fs::write(&facade, source).unwrap();
+        let graph = SurfaceGraph::load(
+            [SourceCrate {
+                name: "facade".into(),
+                root: facade,
+            }],
+            [],
+            [],
+        )
+        .unwrap();
+        let reachable = graph.reachable_from("facade").unwrap();
+        assert!(
+            reachable
+                .iter()
+                .any(|api| api.identity.ends_with("::Exposed"))
+        );
+    }
+}
+
+#[test]
 fn attributes_on_inherent_impls_and_members_fail_closed() {
     for source in [
         "pub struct Thing; #[unknown_expansion] impl Thing {}",

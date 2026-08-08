@@ -678,6 +678,11 @@ struct ApiProducerUse {
     source: PathBuf,
     line: usize,
     owner: String,
+    /// Original lexical owner used for macro namespace resolution. This is
+    /// intentionally separate from `owner`: pending impls are rebound to the
+    /// resolved self type after parsing, but their attributes still resolve in
+    /// the module where the impl was written.
+    lexical_owner: String,
     expected_generated: Option<BTreeSet<(String, ReachableKind)>>,
     unclassified_form: Option<&'static str>,
     requires_binding: bool,
@@ -1129,35 +1134,68 @@ impl SurfaceGraph {
     }
 
     fn macro_name_is_shadowed(&self, producer: &ApiProducerUse) -> bool {
-        let Some(module_id) = self.producer_defining_module(&producer.owner) else {
+        let Some(module_id) = self.producer_defining_module(&producer.lexical_owner) else {
             return false;
         };
-        let Some(module) = self.module(module_id) else {
-            return false;
-        };
-        module.uses.iter().any(|record| match &record.leaf {
-            UseLeaf::Glob => true,
-            UseLeaf::Name { source, exported } if exported == &producer.name => {
-                let mut path = record.prefix.clone();
-                path.push(source.clone());
-                !trusted_macro_import(&producer.name, &path)
-            }
-            _ => false,
-        })
+        self.module_ancestors(module_id)
+            .into_iter()
+            .any(|(ancestor_id, module)| {
+                module.uses.iter().any(|record| match &record.leaf {
+                    UseLeaf::Glob => {
+                        self.glob_may_shadow_macro(ancestor_id, &record.prefix, &producer.name)
+                    }
+                    UseLeaf::Name { source, exported } if exported == &producer.name => {
+                        let mut path = record.prefix.clone();
+                        path.push(source.clone());
+                        !trusted_macro_import(&producer.name, &path)
+                    }
+                    _ => false,
+                })
+            })
+    }
+
+    fn glob_may_shadow_macro(&self, importing_module: &str, prefix: &[String], name: &str) -> bool {
+        let crate_name = importing_module
+            .split("::")
+            .next()
+            .expect("module identities start with a crate name");
+        let target = self.resolve_use_target(crate_name, importing_module, prefix);
+        // An unmapped dependency glob is opaque and therefore remains a
+        // conservative rejection. For mapped modules we can prove whether the
+        // exact macro namespace name is present instead of rejecting ordinary
+        // local preludes that export only types, traits, and functions.
+        if self.module(&target).is_none() {
+            return true;
+        }
+        let candidate = format!("{target}::{name}");
+        self.resolve_export(&candidate, &mut BTreeSet::new())
+            .and_then(|identity| self.declaration(&identity))
+            .is_some_and(|(declaration, excluded)| {
+                !excluded
+                    && matches!(
+                        declaration.kind,
+                        ReachableKind::Macro
+                            | ReachableKind::FunctionLikeMacro
+                            | ReachableKind::AttributeMacro
+                            | ReachableKind::DeriveMacro
+                    )
+            })
     }
 
     fn qualified_macro_root_is_shadowed(&self, producer: &ApiProducerUse, root: &str) -> bool {
-        let Some(module_id) = self.producer_defining_module(&producer.owner) else {
+        let Some(module_id) = self.producer_defining_module(&producer.lexical_owner) else {
             return false;
         };
         let crate_name = module_id.split("::").next().unwrap_or(module_id);
-        let local_module = self.module(&format!("{module_id}::{root}")).is_some();
-        let module_shadow = self.module(module_id).is_some_and(|module| {
-            local_module
+        let module_shadow =
+            self.module_ancestors(module_id)
+                .into_iter()
+                .any(|(ancestor_id, module)| {
+                    self.module(&format!("{ancestor_id}::{root}")).is_some()
                 || module.uses.iter().any(|record| {
                     matches!(&record.leaf, UseLeaf::Name { exported, .. } if exported == root)
                 })
-        });
+                });
         let extern_shadow = self
             .crates
             .get(crate_name)
@@ -1176,6 +1214,23 @@ impl SurfaceGraph {
         }
     }
 
+    fn module_ancestors<'a>(&'a self, module_id: &'a str) -> Vec<(&'a str, &'a Module)> {
+        let mut end = module_id.len();
+        let mut reversed = Vec::new();
+        loop {
+            let candidate = &module_id[..end];
+            if let Some(module) = self.module(candidate) {
+                reversed.push((candidate, module));
+            }
+            let Some(separator) = candidate.rfind("::") else {
+                break;
+            };
+            end = separator;
+        }
+        reversed.reverse();
+        reversed
+    }
+
     fn walk_module(
         &self,
         module_id: &str,
@@ -1192,12 +1247,7 @@ impl SurfaceGraph {
         if module.excluded {
             return Ok(());
         }
-        self.require_audited_includes(module_id, module)?;
-        self.require_supported_syntax(module_id, module)?;
-        self.require_item_macro_bindings(module_id, module)?;
-        for producer in &module.api_producers {
-            self.require_api_producer_binding(producer)?;
-        }
+        self.require_module_chain_audited(module_id)?;
         let defining_crate = module_id
             .split("::")
             .next()
@@ -1301,6 +1351,25 @@ impl SurfaceGraph {
         self.crates.get(crate_name)?.modules.get(identity)
     }
 
+    /// Audit every lexical module that participates in defining an exposed
+    /// item. A private module is not itself part of the facade, but macros,
+    /// includes, attributes, and unsupported syntax in that module or one of
+    /// its private ancestors can still change the shape of a re-exported item.
+    fn require_module_chain_audited(&self, module_id: &str) -> Result<(), ReachabilityError> {
+        for (ancestor_id, module) in self.module_ancestors(module_id) {
+            if module.excluded {
+                continue;
+            }
+            self.require_audited_includes(ancestor_id, module)?;
+            self.require_supported_syntax(ancestor_id, module)?;
+            self.require_item_macro_bindings(ancestor_id, module)?;
+            for producer in &module.api_producers {
+                self.require_api_producer_binding(producer)?;
+            }
+        }
+        Ok(())
+    }
+
     fn require_audited_includes(
         &self,
         module_id: &str,
@@ -1395,6 +1464,7 @@ impl SurfaceGraph {
         found: &mut BTreeMap<String, ReachableApi>,
     ) -> Result<(), ReachabilityError> {
         if self.module(identity).is_some_and(|module| !module.excluded) {
+            self.require_module_chain_audited(identity)?;
             insert_path(
                 found,
                 identity,
@@ -1417,13 +1487,8 @@ impl SurfaceGraph {
         let resolved = self
             .resolve_export(identity, &mut BTreeSet::new())
             .unwrap_or_else(|| identity.to_owned());
-        if let Some((owner, _)) = resolved.rsplit_once("::")
-            && let Some(module) = self.module(owner)
-            && !module.excluded
-        {
-            self.require_audited_includes(owner, module)?;
-            self.require_supported_syntax(owner, module)?;
-            self.require_item_macro_bindings(owner, module)?;
+        if let Some((owner, _)) = resolved.rsplit_once("::") {
+            self.require_module_chain_audited(owner)?;
         }
         if let Some((declaration, false)) = self.declaration(&resolved) {
             self.require_associated_item_macro_bindings(&resolved)?;
@@ -1483,6 +1548,13 @@ impl SurfaceGraph {
                 && let Some(target_identity) = self.resolve_export(target, &mut BTreeSet::new())
                 && let Some((target, false)) = self.declaration(&target_identity)
             {
+                if let Some((owner, _)) = target_identity.rsplit_once("::") {
+                    self.require_module_chain_audited(owner)?;
+                }
+                self.require_associated_item_macro_bindings(&target_identity)?;
+                for producer in &target.api_producers {
+                    self.require_api_producer_binding(producer)?;
+                }
                 for (name, kind, excluded) in &target.members {
                     if !excluded {
                         insert_path(
@@ -1515,6 +1587,9 @@ impl SurfaceGraph {
         let mut exposed = false;
         for generated in &self.generated {
             if generated.identity == resolved && !generated.excluded {
+                if let Some((owner, _)) = resolved.rsplit_once("::") {
+                    self.require_module_chain_audited(owner)?;
+                }
                 let origin = ReachableOrigin::Generator(generated.provider.clone());
                 exposed = true;
                 insert_path(found, &resolved, generated.kind, origin.clone(), path, None)?;
@@ -2228,7 +2303,7 @@ fn parse_items(
                 let child_id = format!("{module_id}::{name}");
                 index
                     .modules
-                    .entry(module_id.to_owned())
+                    .entry(child_id.clone())
                     .or_default()
                     .api_producers
                     .extend(api_producers_from_attrs(
@@ -2810,6 +2885,7 @@ fn api_producers_from_attrs_with_context(
                         source: source.to_owned(),
                         line: attr.line,
                         owner: owner.to_owned(),
+                        lexical_owner: owner.to_owned(),
                         name,
                         expected_generated: None,
                         unclassified_form: Some("derive"),
@@ -2824,6 +2900,7 @@ fn api_producers_from_attrs_with_context(
                         source: source.to_owned(),
                         line: attr.line,
                         owner: owner.to_owned(),
+                        lexical_owner: owner.to_owned(),
                         unclassified_form: None,
                         requires_binding: true,
                         bare_name,
@@ -2837,6 +2914,7 @@ fn api_producers_from_attrs_with_context(
                         source: source.to_owned(),
                         line: attr.line,
                         owner: owner.to_owned(),
+                        lexical_owner: owner.to_owned(),
                         name,
                         expected_generated: None,
                         unclassified_form: None,
@@ -2877,6 +2955,7 @@ fn api_producers_from_attrs_with_context(
                     source: source.to_owned(),
                     line: attr.line,
                     owner: owner.to_owned(),
+                    lexical_owner: owner.to_owned(),
                     name,
                     expected_generated: None,
                     unclassified_form: Some("attribute"),
@@ -2891,6 +2970,7 @@ fn api_producers_from_attrs_with_context(
                     source: source.to_owned(),
                     line: attr.line,
                     owner: owner.to_owned(),
+                    lexical_owner: owner.to_owned(),
                     unclassified_form: None,
                     requires_binding: true,
                     bare_name,
@@ -2904,6 +2984,7 @@ fn api_producers_from_attrs_with_context(
                     source: source.to_owned(),
                     line: attr.line,
                     owner: owner.to_owned(),
+                    lexical_owner: owner.to_owned(),
                     name,
                     expected_generated: None,
                     unclassified_form: None,
@@ -2916,6 +2997,7 @@ fn api_producers_from_attrs_with_context(
                     source: source.to_owned(),
                     line: attr.line,
                     owner: owner.to_owned(),
+                    lexical_owner: owner.to_owned(),
                     name,
                     expected_generated: None,
                     unclassified_form: None,
@@ -3206,6 +3288,7 @@ fn api_producers_from_macro_transcriber(
                             source: source.to_owned(),
                             line: hash.span().start().line,
                             owner: owner.to_owned(),
+                            lexical_owner: owner.to_owned(),
                             expected_generated: None,
                             unclassified_form: None,
                             requires_binding: true,
@@ -3217,6 +3300,7 @@ fn api_producers_from_macro_transcriber(
                             source: source.to_owned(),
                             line: hash.span().start().line,
                             owner: owner.to_owned(),
+                            lexical_owner: owner.to_owned(),
                             name,
                             expected_generated: None,
                             unclassified_form: Some("derive in exported macro transcriber"),
@@ -3242,6 +3326,7 @@ fn api_producers_from_macro_transcriber(
                         source: source.to_owned(),
                         line: hash.span().start().line,
                         owner: owner.to_owned(),
+                        lexical_owner: owner.to_owned(),
                         expected_generated: None,
                         unclassified_form: None,
                         requires_binding: true,
@@ -3253,6 +3338,7 @@ fn api_producers_from_macro_transcriber(
                         source: source.to_owned(),
                         line: hash.span().start().line,
                         owner: owner.to_owned(),
+                        lexical_owner: owner.to_owned(),
                         name,
                         expected_generated: None,
                         unclassified_form: Some("attribute in exported macro transcriber"),

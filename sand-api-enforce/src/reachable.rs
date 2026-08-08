@@ -399,7 +399,7 @@ impl fmt::Display for ReachabilityError {
                 target,
             } => write!(
                 formatter,
-                "{}:{line}: public facade edge `{facade_path}` cannot resolve mapped workspace target `{target}`",
+                "{}:{line}: public facade edge `{facade_path}` cannot resolve audited source target `{target}`; external dependencies must not be re-exported through the supported facade unless their source is explicitly modeled",
                 source.display()
             ),
             Self::UnresolvedImplOwner { module, self_type } => write!(
@@ -1244,10 +1244,7 @@ impl SurfaceGraph {
                     } else {
                         let exposed =
                             self.expose_declaration(&resolved_target, &alias_path, found)?;
-                        if !exposed
-                            && !self.known_excluded(&resolved_target)
-                            && self.is_mapped_target(&target)
-                        {
+                        if !exposed && !self.known_excluded(&resolved_target) {
                             return Err(ReachabilityError::UnresolvedReexport {
                                 source: use_record.source.clone(),
                                 line: use_record.line,
@@ -1283,7 +1280,7 @@ impl SurfaceGraph {
                         }
                         continue;
                     }
-                    if self.module(&resolved).is_none() && self.is_mapped_target(&resolved) {
+                    if self.module(&resolved).is_none() {
                         return Err(ReachabilityError::UnresolvedReexport {
                             source: use_record.source.clone(),
                             line: use_record.line,
@@ -1620,13 +1617,6 @@ impl SurfaceGraph {
             &self.resolve_use_target(crate_name, module_id, prefix),
             &[source.to_owned()],
         )
-    }
-
-    fn is_mapped_target(&self, target: &str) -> bool {
-        target
-            .split("::")
-            .next()
-            .is_some_and(|name| self.crates.contains_key(name))
     }
 }
 

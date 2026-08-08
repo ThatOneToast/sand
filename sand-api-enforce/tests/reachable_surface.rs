@@ -1552,6 +1552,136 @@ fn unresolved_reexport_inside_mapped_workspace_is_a_hard_error_with_edge_context
 }
 
 #[test]
+fn named_and_glob_reexports_from_mapped_source_remain_reachable() {
+    let directory = tempfile::tempdir().unwrap();
+    let dependency = directory.path().join("dependency.rs");
+    let facade = directory.path().join("facade.rs");
+    fs::write(
+        &dependency,
+        "pub struct Named; pub mod group { pub struct ThroughGlob; }",
+    )
+    .unwrap();
+    fs::write(
+        &facade,
+        "pub use mapped_dependency::Named; pub use mapped_dependency::group::*;",
+    )
+    .unwrap();
+    let graph = SurfaceGraph::load(
+        [
+            SourceCrate {
+                name: "mapped_dependency".into(),
+                root: dependency,
+            },
+            SourceCrate {
+                name: "facade".into(),
+                root: facade,
+            },
+        ],
+        [],
+        [],
+    )
+    .unwrap();
+
+    let reachable = graph.reachable_from("facade").unwrap();
+    assert_eq!(
+        item(&reachable, "mapped_dependency::Named").paths,
+        BTreeSet::from(["facade::Named".into()])
+    );
+    assert_eq!(
+        item(&reachable, "mapped_dependency::group::ThroughGlob").paths,
+        BTreeSet::from(["facade::ThroughGlob".into()])
+    );
+}
+
+#[test]
+fn named_reexport_from_unmapped_external_crate_fails_closed() {
+    let directory = tempfile::tempdir().unwrap();
+    let facade = directory.path().join("facade.rs");
+    fs::write(&facade, "pub use external_dependency::Thing;").unwrap();
+    let graph = SurfaceGraph::load(
+        [SourceCrate {
+            name: "facade".into(),
+            root: facade.clone(),
+        }],
+        [],
+        [],
+    )
+    .unwrap();
+
+    assert!(matches!(
+        graph.reachable_from("facade"),
+        Err(ReachabilityError::UnresolvedReexport {
+            source,
+            line: 1,
+            facade_path,
+            target,
+        }) if source == facade
+            && facade_path == "facade::Thing"
+            && target == "facade::external_dependency::Thing"
+    ));
+}
+
+#[test]
+fn glob_reexport_from_unmapped_external_crate_fails_closed() {
+    let directory = tempfile::tempdir().unwrap();
+    let facade = directory.path().join("facade.rs");
+    fs::write(&facade, "pub use external_dependency::*;").unwrap();
+    let graph = SurfaceGraph::load(
+        [SourceCrate {
+            name: "facade".into(),
+            root: facade.clone(),
+        }],
+        [],
+        [],
+    )
+    .unwrap();
+
+    assert!(matches!(
+        graph.reachable_from("facade"),
+        Err(ReachabilityError::UnresolvedReexport {
+            source,
+            line: 1,
+            facade_path,
+            target,
+        }) if source == facade
+            && facade_path == "facade"
+            && target == "facade::external_dependency::*"
+    ));
+}
+
+#[test]
+fn chained_reexport_from_unmapped_external_crate_fails_closed() {
+    let directory = tempfile::tempdir().unwrap();
+    let facade = directory.path().join("facade.rs");
+    fs::write(
+        &facade,
+        "mod bridge { pub use external_dependency::Thing; } pub use bridge::Thing;",
+    )
+    .unwrap();
+    let graph = SurfaceGraph::load(
+        [SourceCrate {
+            name: "facade".into(),
+            root: facade.clone(),
+        }],
+        [],
+        [],
+    )
+    .unwrap();
+
+    assert!(matches!(
+        graph.reachable_from("facade"),
+        Err(ReachabilityError::UnresolvedReexport {
+            source,
+            line: 1,
+            facade_path,
+            target,
+        }) if source == facade
+            && facade_path == "facade::Thing"
+            && target == "facade::bridge::Thing"
+    ));
+}
+
+#[test]
 fn unknown_cfg_is_a_hard_error_instead_of_enabling_the_item() {
     let directory = tempfile::tempdir().unwrap();
     let facade = directory.path().join("facade.rs");

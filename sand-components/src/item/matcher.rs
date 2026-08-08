@@ -213,7 +213,10 @@ impl ItemMatcher {
 
         let mut pred = ItemPredicate::new();
         for item in &self.items {
-            pred = pred.item(item.clone());
+            pred = pred.item(
+                item.parse::<ItemId>()
+                    .expect("ItemMatcher stores IDs constructed from validated ItemId values"),
+            );
         }
         if let Some(count) = self.count {
             pred = pred.count(count);
@@ -502,7 +505,10 @@ mod tests {
         let pred = matcher
             .try_render_for(ItemMatcherConsumer::Predicate, Some(&modern_caps()))
             .unwrap();
-        assert_eq!(pred.items, Some(vec!["minecraft:bow".to_string()]));
+        assert_eq!(
+            serde_json::to_value(pred).unwrap()["items"],
+            serde_json::json!(["minecraft:bow"])
+        );
     }
 
     #[test]

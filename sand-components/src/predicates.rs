@@ -27,23 +27,25 @@
 //! ```rust
 //! use sand_components::predicates::EntityPredicate;
 //! use sand_components::raw::RawJson;
+//! use sand_components::EntityTypeId;
 //! use serde_json::json;
 //!
 //! // Typed (preferred):
-//! let ep = EntityPredicate::type_("minecraft:zombie");
+//! let ep = EntityPredicate::type_(EntityTypeId::minecraft("zombie")?);
 //!
 //! // Raw escape hatch (for modded entities or unsupported fields):
 //! let raw = EntityPredicate::raw(RawJson::new(json!({"type": "mymod:dragon", "nbt": "{Phase:1b}"})));
+//! # Ok::<(), sand_components::SandError>(())
 //! ```
 
 use serde::{Serialize, Serializer, ser::SerializeMap};
 use serde_json::Value;
 
-use crate::effect::EffectId;
-use crate::raw::RawJson;
+use std::collections::BTreeMap;
 
-/// Alias for integer predicate ranges in fluent examples.
-pub type Range = IntRange;
+use crate::effect::EffectId;
+use crate::raw::{RawJson, RawSnbt};
+use crate::registry::{BiomeId, BlockId, DamageTypeId, DimensionId, EntityTypeId, ItemId, TagId};
 
 // ── IntRange ──────────────────────────────────────────────────────────────────
 
@@ -66,12 +68,12 @@ pub type Range = IntRange;
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct IntRange {
-    pub min: Option<i64>,
-    pub max: Option<i64>,
+    min: Option<i64>,
+    max: Option<i64>,
 }
 
 impl IntRange {
-    pub fn validate_at(&self, path: &str) -> Result<(), String> {
+    pub(crate) fn validate_at(&self, path: &str) -> Result<(), String> {
         if let (Some(min), Some(max)) = (self.min, self.max)
             && min > max
         {
@@ -147,12 +149,12 @@ impl Serialize for IntRange {
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct FloatRange {
-    pub min: Option<f64>,
-    pub max: Option<f64>,
+    min: Option<f64>,
+    max: Option<f64>,
 }
 
 impl FloatRange {
-    pub fn validate_at(&self, path: &str) -> Result<(), String> {
+    pub(crate) fn validate_at(&self, path: &str) -> Result<(), String> {
         for (name, value) in [("min", self.min), ("max", self.max)] {
             if let Some(value) = value
                 && !value.is_finite()
@@ -218,19 +220,19 @@ impl Serialize for FloatRange {
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct DistancePredicate {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub x: Option<FloatRange>,
+    x: Option<FloatRange>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub y: Option<FloatRange>,
+    y: Option<FloatRange>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub z: Option<FloatRange>,
+    z: Option<FloatRange>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub horizontal: Option<FloatRange>,
+    horizontal: Option<FloatRange>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub absolute: Option<FloatRange>,
+    absolute: Option<FloatRange>,
 }
 
 impl DistancePredicate {
-    pub fn validate_at(&self, path: &str) -> Result<(), String> {
+    pub(crate) fn validate_at(&self, path: &str) -> Result<(), String> {
         for (name, range) in [
             ("x", &self.x),
             ("y", &self.y),
@@ -299,15 +301,14 @@ impl DistancePredicate {
 /// ```
 #[derive(Debug, Clone, Default)]
 pub struct EffectPredicate {
-    pub effect: Option<EffectId>,
-    pub amplifier: Option<IntRange>,
-    pub duration: Option<IntRange>,
-    pub ambient: Option<bool>,
-    pub visible: Option<bool>,
+    amplifier: Option<IntRange>,
+    duration: Option<IntRange>,
+    ambient: Option<bool>,
+    visible: Option<bool>,
 }
 
 impl EffectPredicate {
-    pub fn validate_at(&self, path: &str) -> Result<(), String> {
+    pub(crate) fn validate_at(&self, path: &str) -> Result<(), String> {
         if let Some(range) = &self.amplifier {
             range.validate_at(&format!("{path}.amplifier"))?;
         }
@@ -319,15 +320,6 @@ impl EffectPredicate {
 
     pub fn new() -> Self {
         Self::default()
-    }
-
-    /// Match an effect using either the enum-style [`EffectId`] or the shared
-    /// resource-location-backed [`crate::StatusEffectId`].
-    pub fn has(effect: impl Into<EffectId>) -> Self {
-        Self {
-            effect: Some(effect.into()),
-            ..Default::default()
-        }
     }
 
     pub fn amplifier(mut self, r: IntRange) -> Self {
@@ -344,11 +336,6 @@ impl EffectPredicate {
     }
     pub fn visible(mut self, v: bool) -> Self {
         self.visible = Some(v);
-        self
-    }
-
-    fn without_effect(mut self) -> Self {
-        self.effect = None;
         self
     }
 
@@ -376,13 +363,7 @@ impl EffectPredicate {
 
 impl Serialize for EffectPredicate {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        if let Some(ref effect) = self.effect {
-            let mut map = serializer.serialize_map(Some(1))?;
-            map.serialize_entry(&effect.to_string(), &self.clone().without_effect())?;
-            map.end()
-        } else {
-            self.serialize_fields(serializer)
-        }
+        self.serialize_fields(serializer)
     }
 }
 
@@ -392,54 +373,38 @@ impl Serialize for EffectPredicate {
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct DamageSourcePredicate {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub is_explosion: Option<bool>,
+    source_entity: Option<Box<EntityPredicate>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub is_fire: Option<bool>,
+    direct_entity: Option<Box<EntityPredicate>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub is_magic: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub is_projectile: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub is_lightning: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub bypasses_armor: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub bypasses_invulnerability: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub bypasses_magic: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub source_entity: Option<Box<EntityPredicate>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub direct_entity: Option<Box<EntityPredicate>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub tags: Option<Vec<DamageTagEntry>>,
+    tags: Option<Vec<DamageTagEntry>>,
 }
 
-/// A tag membership check used in [`DamageSourcePredicate::tags`].
+/// Serialized representation of a typed damage-tag membership check.
 #[derive(Debug, Clone, Serialize)]
-pub struct DamageTagEntry {
-    pub id: String,
-    pub expected: bool,
+struct DamageTagEntry {
+    id: TagId<DamageTypeId>,
+    expected: bool,
 }
 
 impl DamageTagEntry {
-    pub fn is(id: impl Into<String>) -> Self {
+    fn required(id: TagId<DamageTypeId>) -> Self {
         Self {
-            id: id.into(),
+            id,
             expected: true,
         }
     }
 
-    pub fn is_not(id: impl Into<String>) -> Self {
+    fn excluded(id: TagId<DamageTypeId>) -> Self {
         Self {
-            id: id.into(),
+            id,
             expected: false,
         }
     }
 }
 
 impl DamageSourcePredicate {
-    pub fn validate_at(&self, path: &str) -> Result<(), String> {
+    pub(crate) fn validate_at(&self, path: &str) -> Result<(), String> {
         if let Some(entity) = &self.source_entity {
             entity.validate_at(&format!("{path}.source_entity"))?;
         }
@@ -452,32 +417,18 @@ impl DamageSourcePredicate {
     pub fn new() -> Self {
         Self::default()
     }
-    pub fn is_explosion(mut self, v: bool) -> Self {
-        self.is_explosion = Some(v);
+    /// Require the damage type to belong to `tag`.
+    pub fn requires_tag(mut self, tag: TagId<DamageTypeId>) -> Self {
+        self.tags
+            .get_or_insert_with(Vec::new)
+            .push(DamageTagEntry::required(tag));
         self
     }
-    pub fn is_fire(mut self, v: bool) -> Self {
-        self.is_fire = Some(v);
-        self
-    }
-    pub fn is_magic(mut self, v: bool) -> Self {
-        self.is_magic = Some(v);
-        self
-    }
-    pub fn is_projectile(mut self, v: bool) -> Self {
-        self.is_projectile = Some(v);
-        self
-    }
-    pub fn is_lightning(mut self, v: bool) -> Self {
-        self.is_lightning = Some(v);
-        self
-    }
-    pub fn bypasses_armor(mut self, v: bool) -> Self {
-        self.bypasses_armor = Some(v);
-        self
-    }
-    pub fn tag(mut self, entry: DamageTagEntry) -> Self {
-        self.tags.get_or_insert_with(Vec::new).push(entry);
+    /// Require the damage type not to belong to `tag`.
+    pub fn excludes_tag(mut self, tag: TagId<DamageTypeId>) -> Self {
+        self.tags
+            .get_or_insert_with(Vec::new)
+            .push(DamageTagEntry::excluded(tag));
         self
     }
     pub fn source_entity(mut self, ep: EntityPredicate) -> Self {
@@ -493,20 +444,6 @@ impl DamageSourcePredicate {
         &self,
         caps: Option<&sand_version::VersionCaps>,
     ) -> Result<Value, String> {
-        if self.is_explosion.is_some()
-            || self.is_fire.is_some()
-            || self.is_magic.is_some()
-            || self.is_projectile.is_some()
-            || self.is_lightning.is_some()
-            || self.bypasses_armor.is_some()
-            || self.bypasses_invulnerability.is_some()
-            || self.bypasses_magic.is_some()
-        {
-            return Err(
-                "legacy damage-source boolean fields have no verified representation in the selected advancement schema; use DamageSourcePredicate::tag(...) or a version-verified raw DamagePredicate instead"
-                    .into(),
-            );
-        }
         let mut value = serde_json::to_value(self).map_err(|error| error.to_string())?;
         let object = value
             .as_object_mut()
@@ -536,16 +473,16 @@ impl DamageSourcePredicate {
 /// ```
 #[derive(Debug, Clone, Default)]
 pub struct DamagePredicate {
-    pub dealt: Option<FloatRange>,
-    pub taken: Option<FloatRange>,
-    pub blocked: Option<bool>,
-    pub source_entity: Option<EntityPredicate>,
-    pub type_: Option<DamageSourcePredicate>,
+    dealt: Option<FloatRange>,
+    taken: Option<FloatRange>,
+    blocked: Option<bool>,
+    source_entity: Option<EntityPredicate>,
+    type_: Option<DamageSourcePredicate>,
     _raw: Option<RawJson>,
 }
 
 impl DamagePredicate {
-    pub fn validate_at(&self, path: &str) -> Result<(), String> {
+    pub(crate) fn validate_at(&self, path: &str) -> Result<(), String> {
         if self._raw.is_some() {
             return Ok(());
         }
@@ -649,27 +586,28 @@ impl Serialize for DamagePredicate {
 ///
 /// # Example
 /// ```rust
+/// use sand_components::{BiomeId, DimensionId};
 /// use sand_components::predicates::LocationPredicate;
 ///
 /// let lp = LocationPredicate::new()
-///     .biome("minecraft:plains")
-///     .dimension("minecraft:overworld");
+///     .biome(BiomeId::minecraft("plains")?)
+///     .dimension(DimensionId::minecraft("overworld")?);
+/// # Ok::<(), sand_components::SandError>(())
 /// ```
 #[derive(Debug, Clone, Default)]
 pub struct LocationPredicate {
-    pub biome: Option<String>,
-    pub dimension: Option<String>,
-    pub feature: Option<String>,
-    pub smokey: Option<bool>,
-    pub block: Option<BlockPredicate>,
-    pub x: Option<FloatRange>,
-    pub y: Option<FloatRange>,
-    pub z: Option<FloatRange>,
+    biome: Option<BiomeId>,
+    dimension: Option<DimensionId>,
+    smokey: Option<bool>,
+    block: Option<BlockPredicate>,
+    x: Option<FloatRange>,
+    y: Option<FloatRange>,
+    z: Option<FloatRange>,
     _raw: Option<RawJson>,
 }
 
 impl LocationPredicate {
-    pub fn validate_at(&self, path: &str) -> Result<(), String> {
+    pub(crate) fn validate_at(&self, path: &str) -> Result<(), String> {
         if self._raw.is_some() {
             return Ok(());
         }
@@ -695,16 +633,12 @@ impl LocationPredicate {
         }
     }
 
-    pub fn biome(mut self, b: impl Into<String>) -> Self {
-        self.biome = Some(b.into());
+    pub fn biome(mut self, biome: BiomeId) -> Self {
+        self.biome = Some(biome);
         self
     }
-    pub fn dimension(mut self, d: impl Into<String>) -> Self {
-        self.dimension = Some(d.into());
-        self
-    }
-    pub fn feature(mut self, f: impl Into<String>) -> Self {
-        self.feature = Some(f.into());
+    pub fn dimension(mut self, dimension: DimensionId) -> Self {
+        self.dimension = Some(dimension);
         self
     }
     pub fn smokey(mut self, v: bool) -> Self {
@@ -736,7 +670,6 @@ impl LocationPredicate {
         self._raw.is_none()
             && self.biome.is_none()
             && self.dimension.is_none()
-            && self.feature.is_none()
             && self.smokey.is_none()
             && self.block.is_none()
             && self.x.is_none()
@@ -773,17 +706,12 @@ impl LocationPredicate {
                 caps.requested_version()
             ));
         }
-        if let Some(feature) = &self.feature {
-            return Err(format!(
-                "typed location field `feature` (`{feature}`) has no verified representation in the current advancement location-predicate codec; use LocationPredicate::raw(...) with version-verified JSON"
-            ));
-        }
         let mut object = serde_json::Map::new();
         if let Some(biome) = &self.biome {
-            object.insert("biomes".into(), Value::String(biome.clone()));
+            object.insert("biomes".into(), Value::String(biome.to_string()));
         }
         if let Some(dimension) = &self.dimension {
-            object.insert("dimension".into(), Value::String(dimension.clone()));
+            object.insert("dimension".into(), Value::String(dimension.to_string()));
         }
         if let Some(smokey) = self.smokey {
             object.insert("smokey".into(), Value::Bool(smokey));
@@ -822,9 +750,6 @@ impl Serialize for LocationPredicate {
         if let Some(ref v) = self.dimension {
             map.serialize_entry("dimension", v)?;
         }
-        if let Some(ref v) = self.feature {
-            map.serialize_entry("feature", v)?;
-        }
         if let Some(v) = self.smokey {
             map.serialize_entry("smokey", &v)?;
         }
@@ -850,22 +775,23 @@ impl Serialize for LocationPredicate {
 ///
 /// # Example
 /// ```rust
-/// use sand_components::predicates::BlockPredicate;
+/// use sand_components::{BlockId, predicates::BlockPredicate};
 ///
 /// let bp = BlockPredicate::new()
-///     .blocks(vec!["minecraft:oak_log".to_string(), "minecraft:birch_log".to_string()]);
+///     .blocks(vec![BlockId::minecraft("oak_log")?, BlockId::minecraft("birch_log")?]);
+/// # Ok::<(), sand_components::SandError>(())
 /// ```
 #[derive(Debug, Clone, Default)]
 pub struct BlockPredicate {
-    pub blocks: Option<Vec<String>>,
-    pub tag: Option<String>,
-    pub nbt: Option<String>,
-    pub state: Option<std::collections::HashMap<String, String>>,
+    blocks: Option<Vec<BlockId>>,
+    tag: Option<TagId<BlockId>>,
+    nbt: Option<RawSnbt>,
+    state: Option<BTreeMap<String, String>>,
     _raw: Option<RawJson>,
 }
 
 impl BlockPredicate {
-    pub fn validate_at(&self, path: &str) -> Result<(), String> {
+    pub(crate) fn validate_at(&self, path: &str) -> Result<(), String> {
         if self._raw.is_some() {
             return Ok(());
         }
@@ -886,20 +812,20 @@ impl BlockPredicate {
         }
     }
 
-    pub fn blocks(mut self, ids: Vec<String>) -> Self {
+    pub fn blocks(mut self, ids: Vec<BlockId>) -> Self {
         self.blocks = Some(ids);
         self
     }
-    pub fn tag(mut self, t: impl Into<String>) -> Self {
-        self.tag = Some(t.into());
+    pub fn tag(mut self, tag: TagId<BlockId>) -> Self {
+        self.tag = Some(tag);
         self
     }
-    pub fn nbt(mut self, n: impl Into<String>) -> Self {
-        self.nbt = Some(n.into());
+    pub fn nbt(mut self, nbt: RawSnbt) -> Self {
+        self.nbt = Some(nbt);
         self
     }
-    pub fn state(mut self, s: std::collections::HashMap<String, String>) -> Self {
-        self.state = Some(s);
+    pub fn state(mut self, state: BTreeMap<String, String>) -> Self {
+        self.state = Some(state);
         self
     }
 }
@@ -917,7 +843,7 @@ impl Serialize for BlockPredicate {
             map.serialize_entry("tag", v)?;
         }
         if let Some(ref v) = self.nbt {
-            map.serialize_entry("nbt", v)?;
+            map.serialize_entry("nbt", v.as_str())?;
         }
         if let Some(ref v) = self.state {
             map.serialize_entry("state", v)?;
@@ -935,23 +861,24 @@ impl Serialize for BlockPredicate {
 ///
 /// # Example
 /// ```rust
-/// use sand_components::predicates::ItemPredicate;
+/// use sand_components::{ItemId, predicates::ItemPredicate};
 /// use sand_components::raw::RawJson;
 /// use serde_json::json;
 ///
 /// // Fully typed:
-/// let pred = ItemPredicate::id("minecraft:diamond_sword")
+/// let pred = ItemPredicate::id(ItemId::minecraft("diamond_sword")?)
 ///     .count_min(1)
 ///     .custom_data_key("my_sword");
 ///
 /// // Raw escape hatch for unsupported component predicates:
-/// let raw_pred = ItemPredicate::id("minecraft:bow")
+/// let raw_pred = ItemPredicate::id(ItemId::minecraft("bow")?)
 ///     .raw_predicates(RawJson::new(json!({"minecraft:enchantments": {"levels": {"min": 1}}})));
+/// # Ok::<(), sand_components::SandError>(())
 /// ```
 #[derive(Debug, Clone, Default)]
 pub struct ItemPredicate {
-    pub items: Option<Vec<String>>,
-    pub count: Option<IntRange>,
+    items: Option<Vec<ItemId>>,
+    count: Option<IntRange>,
     /// Named custom_data keys that must be truthy (emits as component check).
     custom_data_keys: Vec<String>,
     /// Raw component JSON for unsupported predicates.
@@ -961,7 +888,7 @@ pub struct ItemPredicate {
 }
 
 impl ItemPredicate {
-    pub fn validate_at(&self, path: &str) -> Result<(), String> {
+    pub(crate) fn validate_at(&self, path: &str) -> Result<(), String> {
         if self._raw.is_some() {
             return Ok(());
         }
@@ -1012,12 +939,12 @@ impl ItemPredicate {
     }
 
     /// Match a specific item ID.
-    pub fn id(id: impl Into<String>) -> Self {
+    pub fn id(id: impl Into<ItemId>) -> Self {
         Self::new().item(id)
     }
 
     /// Add a required item ID (creates an `items` array).
-    pub fn item(mut self, id: impl Into<String>) -> Self {
+    pub fn item(mut self, id: impl Into<ItemId>) -> Self {
         self.items.get_or_insert_with(Vec::new).push(id.into());
         self
     }
@@ -1171,33 +1098,34 @@ impl Serialize for ItemPredicate {
 ///
 /// # Example
 /// ```rust
-/// use sand_components::predicates::EntityPredicate;
+/// use sand_components::{EntityTypeId, RawSnbt, predicates::EntityPredicate};
 ///
-/// let ep = EntityPredicate::type_("minecraft:zombie")
-///     .nbt("{IsBaby:1b}");
+/// let ep = EntityPredicate::type_(EntityTypeId::minecraft("zombie")?)
+///     .nbt(RawSnbt::new("{IsBaby:1b}"));
+/// # Ok::<(), sand_components::SandError>(())
 /// ```
 #[derive(Debug, Clone, Default)]
 pub struct EntityPredicate {
-    pub entity_type: Option<EntityTypeMatch>,
-    pub nbt: Option<String>,
-    pub location: Option<LocationPredicate>,
-    pub flags: Option<EntityFlags>,
-    pub equipment: Option<EntityEquipment>,
-    pub effects: Option<std::collections::BTreeMap<String, EffectPredicate>>,
+    entity_type: Option<EntityTypeMatch>,
+    nbt: Option<RawSnbt>,
+    location: Option<LocationPredicate>,
+    flags: Option<EntityFlags>,
+    equipment: Option<EntityEquipment>,
+    effects: Option<BTreeMap<String, EffectPredicate>>,
     _raw: Option<RawJson>,
 }
 
 /// How to match entity types — single type or any of a list.
 #[derive(Debug, Clone)]
-pub enum EntityTypeMatch {
-    Single(String),
-    AnyOf(Vec<String>),
+enum EntityTypeMatch {
+    Single(EntityTypeId),
+    AnyOf(Vec<EntityTypeId>),
 }
 
 impl Serialize for EntityTypeMatch {
     fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
         match self {
-            EntityTypeMatch::Single(t) => s.serialize_str(t),
+            EntityTypeMatch::Single(t) => t.serialize(s),
             EntityTypeMatch::AnyOf(types) => types.serialize(s),
         }
     }
@@ -1207,15 +1135,15 @@ impl Serialize for EntityTypeMatch {
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct EntityFlags {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub is_on_fire: Option<bool>,
+    is_on_fire: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub is_sneaking: Option<bool>,
+    is_sneaking: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub is_sprinting: Option<bool>,
+    is_sprinting: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub is_swimming: Option<bool>,
+    is_swimming: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub is_baby: Option<bool>,
+    is_baby: Option<bool>,
 }
 
 impl EntityFlags {
@@ -1248,17 +1176,17 @@ impl EntityFlags {
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct EntityEquipment {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub head: Option<ItemPredicate>,
+    head: Option<ItemPredicate>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub chest: Option<ItemPredicate>,
+    chest: Option<ItemPredicate>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub legs: Option<ItemPredicate>,
+    legs: Option<ItemPredicate>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub feet: Option<ItemPredicate>,
+    feet: Option<ItemPredicate>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub mainhand: Option<ItemPredicate>,
+    mainhand: Option<ItemPredicate>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub offhand: Option<ItemPredicate>,
+    offhand: Option<ItemPredicate>,
 }
 
 impl EntityEquipment {
@@ -1292,7 +1220,7 @@ impl EntityEquipment {
 }
 
 impl EntityPredicate {
-    pub fn validate_at(&self, path: &str) -> Result<(), String> {
+    pub(crate) fn validate_at(&self, path: &str) -> Result<(), String> {
         if self._raw.is_some() {
             return Ok(());
         }
@@ -1337,25 +1265,25 @@ impl EntityPredicate {
     }
 
     /// Match a specific entity type ID.
-    pub fn type_(entity_type: impl Into<String>) -> Self {
+    pub fn type_(entity_type: impl Into<EntityTypeId>) -> Self {
         Self::new().with_type(entity_type)
     }
 
     /// Set (or override) the entity type.
-    pub fn with_type(mut self, entity_type: impl Into<String>) -> Self {
+    pub fn with_type(mut self, entity_type: impl Into<EntityTypeId>) -> Self {
         self.entity_type = Some(EntityTypeMatch::Single(entity_type.into()));
         self
     }
 
     /// Match any of the given entity type IDs.
-    pub fn with_type_any(mut self, types: Vec<String>) -> Self {
+    pub fn with_type_any(mut self, types: Vec<EntityTypeId>) -> Self {
         self.entity_type = Some(EntityTypeMatch::AnyOf(types));
         self
     }
 
     /// Require the entity to match this SNBT string.
-    pub fn nbt(mut self, nbt: impl Into<String>) -> Self {
-        self.nbt = Some(nbt.into());
+    pub fn nbt(mut self, nbt: RawSnbt) -> Self {
+        self.nbt = Some(nbt);
         self
     }
 
@@ -1380,18 +1308,8 @@ impl EntityPredicate {
     /// Require an active status effect (by effect ID).
     pub fn effect(mut self, effect_id: impl Into<EffectId>, pred: EffectPredicate) -> Self {
         self.effects
-            .get_or_insert_with(std::collections::BTreeMap::new)
-            .insert(effect_id.into().to_string(), pred.without_effect());
-        self
-    }
-
-    /// Require the entity to have the effect named by [`EffectPredicate::has`].
-    pub fn effect_predicate(mut self, pred: EffectPredicate) -> Self {
-        if let Some(effect) = pred.effect.clone() {
-            self.effects
-                .get_or_insert_with(std::collections::BTreeMap::new)
-                .insert(effect.to_string(), pred.without_effect());
-        }
+            .get_or_insert_with(BTreeMap::new)
+            .insert(effect_id.into().to_string(), pred);
         self
     }
 
@@ -1422,7 +1340,7 @@ impl EntityPredicate {
         if let Some(nbt) = &self.nbt {
             object.insert(
                 key("nbt", "minecraft:nbt").into(),
-                Value::String(nbt.clone()),
+                Value::String(nbt.as_str().to_owned()),
             );
         }
         if let Some(location) = &self.location {
@@ -1476,7 +1394,7 @@ impl Serialize for EntityPredicate {
             map.serialize_entry("type", v)?;
         }
         if let Some(ref v) = self.nbt {
-            map.serialize_entry("nbt", v)?;
+            map.serialize_entry("nbt", v.as_str())?;
         }
         if let Some(ref v) = self.location {
             map.serialize_entry("location", v)?;
@@ -1507,13 +1425,13 @@ impl Serialize for EntityPredicate {
 /// ```
 #[derive(Debug, Clone, Default)]
 pub struct WeatherPredicate {
-    pub raining: Option<bool>,
-    pub thundering: Option<bool>,
+    raining: Option<bool>,
+    thundering: Option<bool>,
     _raw: Option<RawJson>,
 }
 
 impl WeatherPredicate {
-    pub fn validate_at(&self, _path: &str) -> Result<(), String> {
+    pub(crate) fn validate_at(&self, _path: &str) -> Result<(), String> {
         Ok(())
     }
 
@@ -1606,6 +1524,14 @@ mod tests {
     use super::*;
     use serde_json::json;
 
+    fn item(path: &str) -> ItemId {
+        ItemId::minecraft(path).unwrap()
+    }
+
+    fn entity_type(path: &str) -> EntityTypeId {
+        EntityTypeId::minecraft(path).unwrap()
+    }
+
     #[test]
     fn int_range_exact() {
         let r = IntRange::exact(5);
@@ -1691,21 +1617,21 @@ mod tests {
 
     #[test]
     fn item_predicate_id_only() {
-        let p = ItemPredicate::id("minecraft:diamond");
+        let p = ItemPredicate::id(item("diamond"));
         let v = serde_json::to_value(&p).unwrap();
         assert_eq!(v["items"], json!(["minecraft:diamond"]));
     }
 
     #[test]
     fn item_predicate_with_count() {
-        let p = ItemPredicate::id("minecraft:diamond").count_min(5);
+        let p = ItemPredicate::id(item("diamond")).count_min(5);
         let v = serde_json::to_value(&p).unwrap();
         assert_eq!(v["count"], json!({"min": 5}));
     }
 
     #[test]
     fn item_predicate_custom_data_key() {
-        let p = ItemPredicate::id("minecraft:diamond_sword").custom_data_key("my_sword");
+        let p = ItemPredicate::id(item("diamond_sword")).custom_data_key("my_sword");
         let v = serde_json::to_value(&p).unwrap();
         // Partial NBT match, not exact `components` equality — see #233/#232.
         assert_eq!(v["predicates"]["minecraft:custom_data"], "{my_sword:1b}");
@@ -1714,7 +1640,7 @@ mod tests {
 
     #[test]
     fn item_predicate_custom_data_key_multiple_keys_and() {
-        let p = ItemPredicate::id("minecraft:white_wool")
+        let p = ItemPredicate::id(item("white_wool"))
             .custom_data_key("elevator")
             .custom_data_key("floor");
         let v = serde_json::to_value(&p).unwrap();
@@ -1726,7 +1652,7 @@ mod tests {
 
     #[test]
     fn item_predicate_raw_predicates_merges_with_custom_data() {
-        let p = ItemPredicate::id("minecraft:bow")
+        let p = ItemPredicate::id(item("bow"))
             .custom_data_key("enchanted_bow")
             .raw_predicates(RawJson::new(
                 json!({"minecraft:enchantments": {"levels": {"min": 1}}}),
@@ -1753,14 +1679,14 @@ mod tests {
 
     #[test]
     fn entity_predicate_type() {
-        let ep = EntityPredicate::type_("minecraft:zombie");
+        let ep = EntityPredicate::type_(entity_type("zombie"));
         let v = serde_json::to_value(&ep).unwrap();
         assert_eq!(v["type"], "minecraft:zombie");
     }
 
     #[test]
     fn entity_predicate_nbt() {
-        let ep = EntityPredicate::type_("minecraft:cow").nbt("{IsBaby:1b}");
+        let ep = EntityPredicate::type_(entity_type("cow")).nbt(RawSnbt::new("{IsBaby:1b}"));
         let v = serde_json::to_value(&ep).unwrap();
         assert_eq!(v["nbt"], "{IsBaby:1b}");
     }
@@ -1775,8 +1701,8 @@ mod tests {
 
     #[test]
     fn entity_predicate_equipment() {
-        let ep = EntityPredicate::type_("minecraft:player")
-            .equipment(EntityEquipment::new().feet(ItemPredicate::id("minecraft:diamond_boots")));
+        let ep = EntityPredicate::type_(entity_type("player"))
+            .equipment(EntityEquipment::new().feet(ItemPredicate::id(item("diamond_boots"))));
         let v = serde_json::to_value(&ep).unwrap();
         assert_eq!(
             v["equipment"]["feet"]["items"],
@@ -1805,48 +1731,43 @@ mod tests {
     }
 
     #[test]
-    fn effect_predicate_has_vanilla() {
-        let pred = EffectPredicate::has(EffectId::Speed)
-            .amplifier(Range::exact(1))
-            .duration(Range::at_least(200))
+    fn effect_predicate_serializes_constraints() {
+        let pred = EffectPredicate::new()
+            .amplifier(IntRange::exact(1))
+            .duration(IntRange::at_least(200))
             .ambient(false)
             .visible(true);
         assert_eq!(
             serde_json::to_value(&pred).unwrap(),
             json!({
-                "minecraft:speed": {
-                    "amplifier": 1,
-                    "duration": {"min": 200},
-                    "ambient": false,
-                    "visible": true
-                }
+                "amplifier": 1,
+                "duration": {"min": 200},
+                "ambient": false,
+                "visible": true
             })
         );
     }
 
     #[test]
-    fn effect_predicate_has_custom() {
-        let pred = EffectPredicate::has(EffectId::custom("mymod:arcane_burn").unwrap())
-            .duration(Range::at_most(100));
+    fn entity_predicate_accepts_custom_effect_id() {
+        let pred = EntityPredicate::new().effect(
+            EffectId::custom("mymod:arcane_burn").unwrap(),
+            EffectPredicate::new().duration(IntRange::at_most(100)),
+        );
         assert_eq!(
             serde_json::to_value(&pred).unwrap(),
-            json!({"mymod:arcane_burn": {"duration": {"max": 100}}})
+            json!({"effects": {"mymod:arcane_burn": {"duration": {"max": 100}}}})
         );
     }
 
     #[test]
     fn shared_status_effect_id_uses_existing_typed_predicate_paths() {
         let effect = crate::StatusEffectId::minecraft("speed").unwrap();
-        let single = EffectPredicate::has(effect.clone()).amplifier(IntRange::exact(1));
-        assert_eq!(
-            serde_json::to_value(single).unwrap(),
-            json!({"minecraft:speed": {"amplifier": 1}})
-        );
-
-        let entity = EntityPredicate::new().effect(effect, EffectPredicate::new());
+        let entity = EntityPredicate::new()
+            .effect(effect, EffectPredicate::new().amplifier(IntRange::exact(1)));
         assert_eq!(
             serde_json::to_value(entity).unwrap()["effects"]["minecraft:speed"],
-            json!({})
+            json!({"amplifier": 1})
         );
     }
 
@@ -1874,8 +1795,8 @@ mod tests {
     #[test]
     fn location_predicate_biome_dimension() {
         let lp = LocationPredicate::new()
-            .biome("minecraft:plains")
-            .dimension("minecraft:overworld");
+            .biome(BiomeId::minecraft("plains").unwrap())
+            .dimension(DimensionId::minecraft("overworld").unwrap());
         let v = serde_json::to_value(&lp).unwrap();
         assert_eq!(v["biome"], "minecraft:plains");
         assert_eq!(v["dimension"], "minecraft:overworld");
@@ -1890,7 +1811,7 @@ mod tests {
 
     #[test]
     fn block_predicate_tag() {
-        let bp = BlockPredicate::new().tag("minecraft:logs");
+        let bp = BlockPredicate::new().tag(TagId::minecraft("logs").unwrap());
         let v = serde_json::to_value(&bp).unwrap();
         assert_eq!(v["tag"], "minecraft:logs");
     }
@@ -1898,11 +1819,12 @@ mod tests {
     #[test]
     fn damage_source_predicate_tags() {
         let dsp = DamageSourcePredicate::new()
-            .is_fire(true)
-            .tag(DamageTagEntry::is("minecraft:is_fire"));
+            .requires_tag(TagId::minecraft("is_fire").unwrap())
+            .excludes_tag(TagId::minecraft("bypasses_armor").unwrap());
         let v = serde_json::to_value(&dsp).unwrap();
-        assert_eq!(v["is_fire"], true);
         assert_eq!(v["tags"][0]["id"], "minecraft:is_fire");
         assert_eq!(v["tags"][0]["expected"], true);
+        assert_eq!(v["tags"][1]["id"], "minecraft:bypasses_armor");
+        assert_eq!(v["tags"][1]["expected"], false);
     }
 }

@@ -298,7 +298,6 @@ pub use sand_components::{
     DamagePredicate,
     DamageScaling,
     DamageSourcePredicate,
-    DamageTagEntry,
     DamageType,
     DamageTypeId,
     DeathMessageType,
@@ -336,7 +335,6 @@ pub use sand_components::{
     // Standalone predicate authoring
     EntityPredicateTarget,
     EntityTypeId,
-    EntityTypeMatch,
     EquipmentModelId,
     EquipmentSlot,
     EquipmentSlotGroup,
@@ -410,7 +408,6 @@ pub use sand_components::{
     Projection,
     // Villager trades (26.1+)
     RandomSequenceId,
-    Range,
     Rarity,
     // Raw escape hatch types
     RawComponent,

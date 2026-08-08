@@ -82,9 +82,9 @@ pub use raw::{RawCommand, RawComponent, RawJson, RawSnbt};
 
 pub use error::{Result, SandError};
 pub use predicates::{
-    BlockPredicate, DamagePredicate, DamageSourcePredicate, DamageTagEntry, DistancePredicate,
-    EffectPredicate, EntityEquipment, EntityFlags, EntityPredicate, EntityTypeMatch, FloatRange,
-    IntRange, ItemPredicate, LocationPredicate, Range, WeatherPredicate,
+    BlockPredicate, DamagePredicate, DamageSourcePredicate, DistancePredicate, EffectPredicate,
+    EntityEquipment, EntityFlags, EntityPredicate, FloatRange, IntRange, ItemPredicate,
+    LocationPredicate, WeatherPredicate,
 };
 pub use registry::{
     AdvancementId, BiomeId, BlockId, ChickenVariantId, ConfiguredCarverId, ConfiguredFeatureId,

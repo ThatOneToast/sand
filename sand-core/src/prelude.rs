@@ -200,7 +200,7 @@ pub use sand_components::{
     AdvancementId, BiomeId, BlockId, ConfiguredCarverId, ConfiguredFeatureId, DamageTypeId,
     DensityFunctionId, DimensionId, DimensionTypeId, EffectId, EnchantmentEffectComponentId,
     EnchantmentId, EntityTypeId, FunctionId, ItemId, LootTableId, NoiseId, PotionContents,
-    PotionId, PotionRegistryId, PredicateId, ProcessorListId, RandomSequenceId, Range, RecipeId,
+    PotionId, PotionRegistryId, PredicateId, ProcessorListId, RandomSequenceId, RecipeId,
     SoundEventId, StatusEffectId, StatusEffectInstance, StructureId, StructureSetId,
     StructureTemplate, StructureTemplateId, StructureTypeId, SuspiciousStewEffect, TagId,
     TemplatePoolId, TradeSetId, VillagerTradeId,

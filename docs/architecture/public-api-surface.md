@@ -49,6 +49,11 @@ to equal the graph-derived path set. An identity exposed by multiple candidate
 topic modules without an ownership rule is an error; two identities selecting
 one canonical path is also an error.
 
+Public re-export edges are fail-closed: named, glob, and chained edges must
+resolve to an explicitly modeled source crate. A third-party facade export
+cannot disappear from the contract graph merely because its dependency source
+was not loaded.
+
 `advanced` is a supported tier, not an exemption. `__private` is excluded with
 a structural reason.
 
@@ -150,6 +155,15 @@ repetition is written as explicit trait impls so it does not require a weaker
 exception. External inert classifications are limited to the exact
 `inventory::collect!` linker-registration and `thread_local!` storage spellings
 used by compiler/export wiring.
+
+Reachability audits the full lexical ancestor chain of every exposed
+declaration, including items reached by re-export from a private module. Module
+attributes and API producers, opaque includes, item and associated-position
+macros, and unsupported foreign syntax in those ancestors must all be modeled.
+Macro namespace checks likewise include ancestor imports, modules, extern
+aliases, and resolvable globs, so a trusted derive or attribute name cannot be
+shadowed above its defining module. Custom helper attributes are accepted only
+on the declaration forms and under the derive that defines them.
 
 The static providers are connected to the facade build. Input-dependent
 attribute/derive scopes are marked `consumer_build`; they remain pending and

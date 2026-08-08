@@ -80,6 +80,12 @@ The checked-in surface manifest is scope-based. Each canonical facade module
 or generator family is either `pending` or `enforced`, with its tier, aliases,
 and feature availability recorded. It does not list uncovered items.
 
+Promoted scope ids are also appended to `enforced_scope_baseline`. Validation
+requires that every recorded id remain enforced and that every enforced scope
+be recorded. This per-scope ledger prevents an enforced-to-pending regression
+from being concealed by promoting a different scope while leaving the
+aggregate pending-scope and pending-item ceilings unchanged.
+
 For an enforced scope, every reachable item must have a valid contract and an
 uncontracted addition fails the normal build. Pending scopes remain visible in
 reports and exported coverage metadata. Migration lowers the pending baseline;

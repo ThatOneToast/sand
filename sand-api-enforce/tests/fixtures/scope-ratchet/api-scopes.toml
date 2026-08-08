@@ -1,5 +1,6 @@
 schema_version = 1
 static_surface_items = 5
+enforced_scope_baseline = ["command-source"]
 pending_scope_ceiling = 3
 pending_item_ceiling = 3
 

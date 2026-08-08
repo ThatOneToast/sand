@@ -131,7 +131,14 @@ fn enforced_scope_rejects_incomplete_alias_metadata() {
 #[test]
 fn enforced_to_pending_regression_exceeds_committed_baseline() {
     let source = include_str!("fixtures/scope-ratchet/api-scopes.toml");
-    let regressed = source.replace("state = \"enforced\"", "state = \"pending\"");
+    // Exercise the aggregate ceilings independently of the stronger
+    // per-scope ledger check below.
+    let regressed = source
+        .replace("state = \"enforced\"", "state = \"pending\"")
+        .replace(
+            "enforced_scope_baseline = [\"command-source\"]",
+            "enforced_scope_baseline = []",
+        );
     let failures = ScopeManifest::from_toml(&regressed)
         .unwrap()
         .evaluate(&surface(), &[], &BTreeSet::new())
@@ -149,10 +156,32 @@ fn enforced_to_pending_regression_exceeds_committed_baseline() {
 }
 
 #[test]
+fn per_scope_baseline_rejects_an_aggregate_neutral_state_swap() {
+    let source = include_str!("fixtures/scope-ratchet/api-scopes.toml");
+    let swapped = source
+        .replacen(
+            "id = \"command-source\"\ncanonical_module = \"sand::command\"\nstate = \"enforced\"",
+            "id = \"command-source\"\ncanonical_module = \"sand::command\"\nstate = \"pending\"",
+            1,
+        )
+        .replacen(
+            "id = \"event-source\"\ncanonical_module = \"sand::event\"\nstate = \"pending\"",
+            "id = \"event-source\"\ncanonical_module = \"sand::event\"\nstate = \"enforced\"",
+            1,
+        );
+
+    assert_eq!(
+        ScopeManifest::from_toml(&swapped).unwrap_err(),
+        ScopeFailure::RecordedScopeNotEnforced("command-source".into())
+    );
+}
+
+#[test]
 fn invalid_or_item_level_manifest_entries_are_rejected() {
     let base = r#"
         schema_version = 1
         static_surface_items = 0
+        enforced_scope_baseline = []
         pending_scope_ceiling = 1
         pending_item_ceiling = 0
         [[scope]]
@@ -202,6 +231,7 @@ fn root_direct_and_generator_scopes_partition_the_same_module() {
     let source = r#"
         schema_version = 1
         static_surface_items = 2
+        enforced_scope_baseline = []
         pending_scope_ceiling = 3
         pending_item_ceiling = 2
 
@@ -250,6 +280,7 @@ fn parametric_scope_cannot_be_enforced_without_connected_consumer_audit() {
     let pending = r#"
         schema_version = 1
         static_surface_items = 0
+        enforced_scope_baseline = []
         pending_scope_ceiling = 1
         pending_item_ceiling = 0
 
@@ -267,6 +298,10 @@ fn parametric_scope_cannot_be_enforced_without_connected_consumer_audit() {
 
     let enforced = pending
         .replace("state = \"pending\"", "state = \"enforced\"")
+        .replace(
+            "enforced_scope_baseline = []",
+            "enforced_scope_baseline = [\"generated-state-derive\"]",
+        )
         .replace("pending_scope_ceiling = 1", "pending_scope_ceiling = 0");
     let manifest = ScopeManifest::from_toml(&enforced).unwrap();
     let failures = manifest.evaluate(&[], &[], &BTreeSet::new()).unwrap_err();
@@ -316,6 +351,7 @@ fn duplicate_alias_in_one_scope_is_rejected_but_shared_prelude_alias_is_allowed(
     let duplicate = r#"
         schema_version = 1
         static_surface_items = 0
+        enforced_scope_baseline = []
         pending_scope_ceiling = 1
         pending_item_ceiling = 0
         [[scope]]
@@ -345,6 +381,7 @@ fn canonical_precedence_assigns_aliases_to_one_topic_scope() {
     let source = r#"
         schema_version = 1
         static_surface_items = 1
+        enforced_scope_baseline = []
         pending_scope_ceiling = 3
         pending_item_ceiling = 1
 
@@ -409,6 +446,7 @@ fn topic_precedence_rejects_selecting_the_prelude_alias_as_canonical() {
     let source = r#"
         schema_version = 1
         static_surface_items = 1
+        enforced_scope_baseline = []
         pending_scope_ceiling = 2
         pending_item_ceiling = 1
 
@@ -453,6 +491,7 @@ fn nonrecursive_scope_rejects_descendant_alias_as_canonical() {
     let source = r#"
         schema_version = 1
         static_surface_items = 1
+        enforced_scope_baseline = []
         pending_scope_ceiling = 1
         pending_item_ceiling = 1
 

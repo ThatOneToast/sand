@@ -23,6 +23,12 @@ pub struct ScopeManifest {
     pub schema_version: u32,
     /// Current independently audited all-feature static surface size.
     pub static_surface_items: usize,
+    /// Append-only record of scope ids which have crossed the enforcement
+    /// boundary. This makes a per-scope regression visible even when another
+    /// scope is promoted in the same change and the aggregate ceilings stay
+    /// unchanged.
+    #[serde(default)]
+    pub enforced_scope_baseline: Vec<String>,
     /// Maximum number of architectural scopes allowed to remain pending.
     pub pending_scope_ceiling: usize,
     /// Maximum number of reachable items allowed to remain in active pending
@@ -115,6 +121,10 @@ pub enum ScopeFailure {
     InvalidCanonicalModule(String),
     InvalidScopeId(String),
     DuplicateScopeId(String),
+    DuplicateEnforcedScopeBaseline(String),
+    UnknownEnforcedScopeBaseline(String),
+    EnforcedScopeNotRecorded(String),
+    RecordedScopeNotEnforced(String),
     DuplicateCanonicalScope(String),
     OverlappingScopes {
         left: String,
@@ -177,6 +187,23 @@ impl fmt::Display for ScopeFailure {
             }
             Self::InvalidScopeId(id) => write!(formatter, "invalid API scope id `{id}`"),
             Self::DuplicateScopeId(id) => write!(formatter, "duplicate API scope id `{id}`"),
+            Self::DuplicateEnforcedScopeBaseline(id) => {
+                write!(formatter, "duplicate enforced-scope baseline id `{id}`")
+            }
+            Self::UnknownEnforcedScopeBaseline(id) => {
+                write!(
+                    formatter,
+                    "enforced-scope baseline names unknown scope `{id}`"
+                )
+            }
+            Self::EnforcedScopeNotRecorded(id) => write!(
+                formatter,
+                "enforced API scope `{id}` is absent from the append-only enforced-scope baseline"
+            ),
+            Self::RecordedScopeNotEnforced(id) => write!(
+                formatter,
+                "API scope `{id}` is recorded as enforced and cannot return to pending"
+            ),
             Self::DuplicateCanonicalScope(path) => {
                 write!(formatter, "duplicate canonical API scope `{path}`")
             }
@@ -519,6 +546,23 @@ impl ScopeManifest {
                     scope: scope.canonical_module.clone(),
                     provider: scope.provider.clone(),
                 });
+            }
+        }
+        let mut recorded = BTreeSet::new();
+        for id in &self.enforced_scope_baseline {
+            if !recorded.insert(id.as_str()) {
+                return Err(ScopeFailure::DuplicateEnforcedScopeBaseline(id.clone()));
+            }
+            let Some(scope) = self.scopes.iter().find(|scope| scope.id == *id) else {
+                return Err(ScopeFailure::UnknownEnforcedScopeBaseline(id.clone()));
+            };
+            if scope.state != ScopeState::Enforced {
+                return Err(ScopeFailure::RecordedScopeNotEnforced(id.clone()));
+            }
+        }
+        for scope in &self.scopes {
+            if scope.state == ScopeState::Enforced && !recorded.contains(scope.id.as_str()) {
+                return Err(ScopeFailure::EnforcedScopeNotRecorded(scope.id.clone()));
             }
         }
         for (index, left) in self.scopes.iter().enumerate() {

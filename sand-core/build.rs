@@ -75,6 +75,14 @@ fn main() {
         }
     }
 
+    sand_build::registry_id_contract_provider(
+        std::path::Path::new("../sand-components/src/registry.rs"),
+        &version,
+    )
+    .and_then(|catalog| catalog.write_json(&out_dir.join("registry_ids.api.json")))
+    .unwrap_or_else(|error| panic!("failed to generate registry-ID API contracts: {error}"));
+    println!("cargo:rerun-if-changed=../sand-components/src/registry.rs");
+
     // Make the exact provider artifacts available to the facade's build
     // audit. Cargo forwards this as DEP_SAND_CORE_API_PROVIDER_DIR because
     // sand-core owns the `sand_core` links key.

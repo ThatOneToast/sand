@@ -1915,6 +1915,7 @@ dependencies = [
  "heck",
  "hex",
  "indicatif",
+ "proc-macro2",
  "reqwest",
  "sand-api-contract",
  "sand-version",

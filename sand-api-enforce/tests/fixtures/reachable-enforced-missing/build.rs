@@ -19,13 +19,18 @@ fn main() {
     let reachable = graph.reachable_from("sand").expect("resolve facade");
     let contracts = [
         ContractIdentity {
-            identity: "sand::api".into(),
-            canonical_path: "sand::api".into(),
+            identity: "sand::predicate".into(),
+            canonical_path: "sand::predicate".into(),
             aliases: BTreeSet::new(),
         },
         ContractIdentity {
-            identity: "sand::api::Builder".into(),
-            canonical_path: "sand::api::Builder".into(),
+            identity: "sand::predicate::Builder".into(),
+            canonical_path: "sand::predicate::Builder".into(),
+            aliases: BTreeSet::new(),
+        },
+        ContractIdentity {
+            identity: "sand::predicate::Choice".into(),
+            canonical_path: "sand::predicate::Choice".into(),
             aliases: BTreeSet::new(),
         },
     ];

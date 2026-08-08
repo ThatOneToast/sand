@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use std::process::Command;
 
 #[test]
-fn ordinary_cargo_check_rejects_doc_hidden_uncontracted_method_in_enforced_scope() {
+fn ordinary_cargo_check_rejects_new_predicate_method_field_and_variant() {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let fixture = manifest_dir.join("tests/fixtures/reachable-enforced-missing/Cargo.toml");
     let target = tempfile::tempdir().expect("temporary target directory");
@@ -16,7 +16,9 @@ fn ordinary_cargo_check_rejects_doc_hidden_uncontracted_method_in_enforced_scope
     assert!(!output.status.success(), "fixture unexpectedly compiled");
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
-        stderr.contains("enforced API scope `sand::api` has missing contracts: sand::api::Builder::uncontracted_method"),
+        stderr.contains("sand::predicate::Builder::uncontracted_field")
+            && stderr.contains("sand::predicate::Builder::uncontracted_method")
+            && stderr.contains("sand::predicate::Choice::UncontractedVariant"),
         "unexpected cargo diagnostic:\n{stderr}"
     );
 }

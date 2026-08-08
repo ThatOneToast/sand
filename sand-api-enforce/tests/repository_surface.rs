@@ -58,9 +58,10 @@ fn checked_repository_profiles_bind_exact_versioned_baselines() {
     let sand = workspace.join("sand");
     let profiles = SurfaceProfileManifest::from_path(&sand.join("api-surface-profiles.toml"))
         .expect("repository surface profiles must be valid");
-    assert_eq!(profiles.profiles.len(), 2);
+    assert_eq!(profiles.profiles.len(), 3);
 
     let expected = [
+        ("placeholder-codegen", 5_713, 0, 0),
         ("1.21.4", 10_925, 924, 4_288),
         ("26.2", 11_835, 1_255, 4_867),
     ];
@@ -79,8 +80,20 @@ fn checked_repository_profiles_bind_exact_versioned_baselines() {
         let origins = prefixed_counts(&lines, "origin ");
         assert_eq!(origins.values().sum::<usize>(), total);
         assert_eq!(origins["source"], 5_437);
-        assert_eq!(origins["generator:generated_commands"], commands);
-        assert_eq!(origins["generator:generated_registries"], registries);
+        assert_eq!(
+            origins
+                .get("generator:generated_commands")
+                .copied()
+                .unwrap_or_default(),
+            commands
+        );
+        assert_eq!(
+            origins
+                .get("generator:generated_registries")
+                .copied()
+                .unwrap_or_default(),
+            registries
+        );
         assert_eq!(
             numeric_field(lines.last().unwrap(), "pending_items="),
             total

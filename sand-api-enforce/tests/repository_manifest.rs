@@ -39,9 +39,39 @@ fn repository_surface_manifest_records_the_audited_pending_baseline() {
         &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../sand/api-surface-profiles.toml"),
     )
     .unwrap();
-    assert_eq!(profiles.profiles.len(), 2);
-    assert_eq!(profiles.profiles[0].minecraft_version, "1.21.4");
-    assert_eq!(profiles.profiles[0].static_surface_items, 10_925);
-    assert_eq!(profiles.profiles[1].minecraft_version, "26.2");
-    assert_eq!(profiles.profiles[1].static_surface_items, 11_835);
+    let exact_profiles = profiles
+        .profiles
+        .iter()
+        .map(|profile| {
+            (
+                profile.minecraft_version.as_str(),
+                profile.static_surface_items,
+                profile.pending_item_ceiling,
+                profile.baseline.to_string_lossy().into_owned(),
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        exact_profiles,
+        [
+            (
+                "placeholder-codegen",
+                5_713,
+                5_713,
+                "api-surface-baseline-placeholder.txt".to_owned(),
+            ),
+            (
+                "1.21.4",
+                10_925,
+                10_925,
+                "api-surface-baseline-1.21.4.txt".to_owned(),
+            ),
+            (
+                "26.2",
+                11_835,
+                11_835,
+                "api-surface-baseline.txt".to_owned(),
+            ),
+        ]
+    );
 }

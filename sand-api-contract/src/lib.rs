@@ -199,6 +199,36 @@ impl ApiCatalog {
         )
     }
 
+    /// Builds a catalog from owned entries plus an explicit scope report.
+    ///
+    /// Generated API providers use this after combining their build-selected
+    /// entries with the registrations linked into the executable. The same
+    /// ordering, identity, alias, and coverage validation therefore applies
+    /// to handwritten and generated contracts.
+    pub fn from_entries_with_coverage(
+        sand_version: impl Into<String>,
+        mut entries: Vec<ApiEntry>,
+        mut coverage: ApiCoverage,
+    ) -> Result<Self, CatalogError> {
+        for entry in &mut entries {
+            entry.aliases.sort();
+            entry.aliases.dedup();
+            entry.availability.sort();
+            entry.availability.dedup();
+        }
+        entries.sort_by(|left, right| left.canonical_path.cmp(&right.canonical_path));
+        validate_entries(&entries)?;
+        coverage.pending_scopes.sort();
+        coverage.pending_scopes.dedup();
+        validate_coverage(&coverage)?;
+        Ok(Self {
+            schema_version: SCHEMA_VERSION,
+            sand_version: sand_version.into(),
+            coverage,
+            entries,
+        })
+    }
+
     /// Builds a catalog from explicit registrations, primarily for generated
     /// catalogs and focused tests.
     pub fn from_registrations<'a>(
@@ -216,23 +246,13 @@ impl ApiCatalog {
     pub fn from_registrations_with_coverage<'a>(
         sand_version: impl Into<String>,
         registrations: impl IntoIterator<Item = &'a ApiRegistration>,
-        mut coverage: ApiCoverage,
+        coverage: ApiCoverage,
     ) -> Result<Self, CatalogError> {
-        let mut entries = registrations
+        let entries = registrations
             .into_iter()
             .map(ApiEntry::from)
             .collect::<Vec<_>>();
-        entries.sort_by(|left, right| left.canonical_path.cmp(&right.canonical_path));
-        validate_entries(&entries)?;
-        coverage.pending_scopes.sort();
-        coverage.pending_scopes.dedup();
-        validate_coverage(&coverage)?;
-        Ok(Self {
-            schema_version: SCHEMA_VERSION,
-            sand_version: sand_version.into(),
-            coverage,
-            entries,
-        })
+        Self::from_entries_with_coverage(sand_version, entries, coverage)
     }
 
     /// Resolves either a canonical path or a declared alias.
@@ -474,6 +494,24 @@ mod tests {
             first.to_json_pretty().unwrap(),
             second.to_json_pretty().unwrap()
         );
+    }
+
+    #[test]
+    fn owned_entries_use_the_same_deterministic_validation() {
+        let mut entry = ApiEntry::from(&REGISTRATION);
+        entry.aliases = vec![
+            "sand::prelude::EquipmentPredicate::slot".into(),
+            "sand::prelude::EquipmentPredicate::slot".into(),
+        ];
+        entry.availability = vec!["z".into(), "a".into(), "a".into()];
+        let catalog =
+            ApiCatalog::from_entries_with_coverage("0.1.0", vec![entry], ApiCoverage::unverified())
+                .unwrap();
+        assert_eq!(
+            catalog.entries[0].aliases,
+            ["sand::prelude::EquipmentPredicate::slot"]
+        );
+        assert_eq!(catalog.entries[0].availability, ["a", "z"]);
     }
 
     #[test]

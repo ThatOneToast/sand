@@ -453,6 +453,7 @@ pub mod __private {
     //! crate through the façade. See docs/architecture/adr-001.
     pub mod api_contract {
         pub use sand_api_contract::*;
+        pub use sand_core::__private::GENERATED_API_PROVIDER_CATALOGS;
         include!(concat!(env!("OUT_DIR"), "/api_coverage.rs"));
     }
     pub use sand_core::entity::*;

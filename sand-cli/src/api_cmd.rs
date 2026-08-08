@@ -50,11 +50,7 @@ enum ApiCommand {
 
 /// Run an `api` command against the contracts linked into the installed CLI.
 pub fn run(args: ApiArgs) -> Result<()> {
-    let catalog = ApiCatalog::installed_with_coverage(
-        env!("CARGO_PKG_VERSION"),
-        sand::__private::api_contract::installed_coverage(),
-    )
-    .context("failed to collect the installed Sand API contracts")?;
+    let catalog = installed_catalog()?;
 
     match args.command {
         ApiCommand::Show { path } => {
@@ -77,6 +73,31 @@ pub fn run(args: ApiArgs) -> Result<()> {
     }
 
     Ok(())
+}
+
+fn installed_catalog() -> Result<ApiCatalog> {
+    let coverage = sand::__private::api_contract::installed_coverage();
+    let linked = ApiCatalog::installed_with_coverage(env!("CARGO_PKG_VERSION"), coverage.clone())
+        .context("failed to collect linked Sand API contracts")?;
+    let mut entries = linked.entries;
+
+    for provider_json in sand::__private::api_contract::GENERATED_API_PROVIDER_CATALOGS {
+        let provider: sand_build::ApiProviderCatalog = serde_json::from_str(provider_json)
+            .context("failed to parse an installed generated API provider")?;
+        provider
+            .validate()
+            .map_err(anyhow::Error::msg)
+            .with_context(|| {
+                format!(
+                    "installed generated API provider `{}` is invalid",
+                    provider.provider
+                )
+            })?;
+        entries.extend(provider.entries.into_iter().map(|entry| entry.contract));
+    }
+
+    ApiCatalog::from_entries_with_coverage(env!("CARGO_PKG_VERSION"), entries, coverage)
+        .context("failed to assemble the installed Sand API catalog")
 }
 
 fn export(catalog: &ApiCatalog, output: Option<&std::path::Path>) -> Result<Option<String>> {
@@ -361,8 +382,15 @@ fn edit_distance(left: &str, right: &str) -> usize {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::OnceLock;
+
     use super::*;
     use sand_api_contract::ApiParameter;
+
+    fn generated_catalog() -> &'static ApiCatalog {
+        static CATALOG: OnceLock<ApiCatalog> = OnceLock::new();
+        CATALOG.get_or_init(|| installed_catalog().unwrap())
+    }
 
     fn entry(path: &str, kind: ApiKind, summary: &str, module: &str) -> ApiEntry {
         ApiEntry {
@@ -597,5 +625,47 @@ mod tests {
                 ["coverage"]["pending_scopes"][0],
             "predicate-source"
         );
+    }
+
+    #[test]
+    fn installed_show_includes_generated_command_and_registry_contracts() {
+        let catalog = generated_catalog();
+        let command = show(catalog, "sand::command::say").unwrap();
+        assert!(command.contains("pub fn say(message: impl Into<String>) -> Say"));
+        assert!(command.contains("Minecraft `/say <message>` command"));
+
+        let registry = show(catalog, "sand::vanilla::Item::Diamond").unwrap();
+        assert!(registry.contains("Selects the vanilla registry entry `minecraft:diamond`."));
+        assert!(registry.contains("minecraft = "));
+    }
+
+    #[test]
+    fn installed_search_finds_generated_registry_contracts() {
+        let rendered = search(generated_catalog(), "diamond registry").unwrap();
+        assert!(rendered.contains("sand::vanilla::Item::Diamond"));
+    }
+
+    #[test]
+    fn installed_module_groups_generated_command_contracts() {
+        let rendered = module(generated_catalog(), "sand::command").unwrap();
+        assert!(rendered.contains("Functions\n"));
+        assert!(rendered.contains("sand::command::say"));
+    }
+
+    #[test]
+    fn installed_generated_export_is_byte_deterministic() {
+        let first = export(generated_catalog(), None).unwrap().unwrap();
+        let second = export(generated_catalog(), None).unwrap().unwrap();
+        assert_eq!(first.as_bytes(), second.as_bytes());
+
+        let json: serde_json::Value = serde_json::from_str(&first).unwrap();
+        let paths = json["entries"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|entry| entry["canonical_path"].as_str().unwrap())
+            .collect::<BTreeSet<_>>();
+        assert!(paths.contains("sand::command::say"));
+        assert!(paths.contains("sand::vanilla::Item::Diamond"));
     }
 }

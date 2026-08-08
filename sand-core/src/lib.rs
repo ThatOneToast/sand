@@ -597,6 +597,21 @@ impl sand_commands::selector::IntoEntityType for generated::EntityType {
     }
 }
 
+/// Compiler and facade wiring that is deliberately outside Sand's supported
+/// author-facing API surface.
+#[doc(hidden)]
+pub mod __private {
+    /// Exact generated contract providers selected by this `sand-core` build.
+    ///
+    /// Keeping these as embedded build outputs lets the installed CLI inspect
+    /// its own command and vanilla-registry APIs without source parsing,
+    /// network access, or a second version-selection mechanism.
+    pub const GENERATED_API_PROVIDER_CATALOGS: &[&str] = &[
+        include_str!(concat!(env!("OUT_DIR"), "/commands.api.json")),
+        include_str!(concat!(env!("OUT_DIR"), "/registries.api.json")),
+    ];
+}
+
 impl From<generated::Item> for sand_components::registry::ItemId {
     fn from(item: generated::Item) -> Self {
         item.resource_location()

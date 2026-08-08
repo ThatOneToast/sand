@@ -605,6 +605,7 @@ pub mod __private {
     pub const GENERATED_API_PROVIDER_CATALOGS: &[&str] = &[
         include_str!(concat!(env!("OUT_DIR"), "/commands.api.json")),
         include_str!(concat!(env!("OUT_DIR"), "/registries.api.json")),
+        include_str!(concat!(env!("OUT_DIR"), "/registry_ids.api.json")),
     ];
 }
 

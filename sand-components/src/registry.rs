@@ -38,7 +38,7 @@ use crate::resource_location::ResourceLocation;
 // ── Macro to avoid repetition ────────────────────────────────────────────────
 
 macro_rules! registry_id {
-    ($(#[$meta:meta])* $name:ident) => {
+    ($(@contract($($api:tt)*);)? $(#[$meta:meta])* $name:ident) => {
         $(#[$meta])*
         #[derive(Debug, Clone, PartialEq, Eq, Hash)]
         pub struct $name(ResourceLocation);
@@ -160,9 +160,19 @@ registry_id! {
 }
 
 registry_id! {
+    @contract(
+        path = "sand::predicate::PredicateId",
+        aliases = ["sand::component::PredicateId", "sand::prelude::PredicateId"],
+        subject = "standalone predicate resource",
+        minecraft = "Serializes as a namespaced reference to data/<namespace>/predicate/<path>.json wherever Minecraft accepts a predicate resource identifier.",
+        use_when = ["Referring to a Predicate from another resource or command", "Representing a custom or non-vanilla predicate identifier"],
+        avoid_when = ["Building the predicate condition tree itself", "Passing an unvalidated namespace:path string"],
+        example_namespace = "demo",
+        example_path = "conditions/is_raining"
+    );
     /// Typed Minecraft predicate identifier (e.g. `mypack:conditions/is_raining`).
     ///
-    /// Used by [`crate::predicate::PredicateRoot::Reference`] and by
+    /// Used by [`crate::predicate::PredicateRoot::reference`] and by
     /// `minecraft:reference` loot conditions to point at a standalone
     /// `data/<namespace>/predicate/<id>.json` file.
     PredicateId

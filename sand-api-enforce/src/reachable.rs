@@ -15,7 +15,10 @@ use std::path::{Path, PathBuf};
 use quote::ToTokens;
 use syn::spanned::Spanned;
 
-use crate::macro_provider::audit_inert_macro_transcriber;
+use crate::macro_provider::{
+    audit_inert_macro_transcriber, audit_inventory_collection_invocation,
+    audit_thread_local_invocation,
+};
 
 /// Explicit cfg environment used while parsing the selected Cargo target.
 #[derive(Clone, Debug, Default)]
@@ -305,12 +308,30 @@ pub enum ReachabilityError {
         provider: String,
         invocations: usize,
     },
+    UnboundAssociatedItemMacro {
+        source: PathBuf,
+        line: usize,
+        owner: String,
+        macro_path: String,
+    },
+    InvalidAssociatedItemMacroProvider {
+        owner: String,
+        macro_path: String,
+        provider: String,
+        invocations: usize,
+    },
     InvalidInertItemMacro {
         module: String,
         macro_path: String,
         classification: InertItemMacroClassification,
         invocations: usize,
         reason: String,
+    },
+    UnsupportedReachableSyntax {
+        source: PathBuf,
+        line: usize,
+        module: String,
+        syntax: &'static str,
     },
     UnboundApiProducer {
         source: PathBuf,
@@ -422,6 +443,25 @@ impl fmt::Display for ReachabilityError {
                 formatter,
                 "item macro binding `({module}, {macro_path}!)` -> `{provider}` requires at least one exact invocation and at least one provider-owned generated declaration beneath that module (found {invocations} invocations)"
             ),
+            Self::UnboundAssociatedItemMacro {
+                source,
+                line,
+                owner,
+                macro_path,
+            } => write!(
+                formatter,
+                "{}:{line}: reachable API `{owner}` invokes associated-item macro `{macro_path}!` without an exact generated API provider binding",
+                source.display()
+            ),
+            Self::InvalidAssociatedItemMacroProvider {
+                owner,
+                macro_path,
+                provider,
+                invocations,
+            } => write!(
+                formatter,
+                "associated item macro binding `({owner}, {macro_path}!)` -> `{provider}` requires at least one exact invocation and provider-owned generated output directly beneath that owner (found {invocations} invocations)"
+            ),
             Self::InvalidInertItemMacro {
                 module,
                 macro_path,
@@ -431,6 +471,16 @@ impl fmt::Display for ReachabilityError {
             } => write!(
                 formatter,
                 "inert item macro binding `({module}, {macro_path}!)` as {classification:?} is invalid (found {invocations} exact invocations): {reason}"
+            ),
+            Self::UnsupportedReachableSyntax {
+                source,
+                line,
+                module,
+                syntax,
+            } => write!(
+                formatter,
+                "{}:{line}: reachable module `{module}` contains unsupported `{syntax}` syntax whose public surface cannot be modeled",
+                source.display()
             ),
             Self::UnboundApiProducer {
                 source,
@@ -515,9 +565,11 @@ pub struct SurfaceGraph {
     generated: Vec<GeneratedApi>,
     include_providers: BTreeMap<String, String>,
     item_macro_providers: BTreeMap<(String, String), String>,
+    associated_item_macro_providers: BTreeMap<(String, String), String>,
     inert_item_macros: BTreeMap<(String, String), InertItemMacroClassification>,
     api_producer_bindings: BTreeMap<(String, String), String>,
     transcriber_producers: Vec<ApiProducerUse>,
+    associated_item_macros: Vec<AssociatedMacroSite>,
 }
 
 #[derive(Default)]
@@ -528,6 +580,7 @@ struct CrateIndex {
     type_aliases: BTreeMap<String, String>,
     pending_impls: Vec<PendingImpl>,
     transcriber_producers: Vec<ApiProducerUse>,
+    associated_item_macros: Vec<AssociatedMacroSite>,
 }
 
 struct PendingImpl {
@@ -537,6 +590,7 @@ struct PendingImpl {
     member_definitions: BTreeMap<String, SourceDefinition>,
     api_producers: Vec<ApiProducerUse>,
     excluded: bool,
+    item_macros: Vec<ItemMacroSite>,
 }
 
 #[derive(Default)]
@@ -549,6 +603,7 @@ struct Module {
     dynamic_includes: Vec<IncludeSite>,
     item_macros: Vec<ItemMacroSite>,
     macro_rules: BTreeMap<String, proc_macro2::TokenStream>,
+    unsupported_syntax: Vec<UnsupportedSyntaxSite>,
     api_producers: Vec<ApiProducerUse>,
 }
 
@@ -593,6 +648,18 @@ struct ItemMacroSite {
     source: PathBuf,
     line: usize,
     macro_path: String,
+    tokens: proc_macro2::TokenStream,
+}
+
+struct AssociatedMacroSite {
+    owner: String,
+    site: ItemMacroSite,
+}
+
+struct UnsupportedSyntaxSite {
+    source: PathBuf,
+    line: usize,
+    syntax: &'static str,
 }
 
 struct Declaration {
@@ -698,14 +765,20 @@ impl SurfaceGraph {
             .values_mut()
             .flat_map(|index| std::mem::take(&mut index.transcriber_producers))
             .collect();
+        let associated_item_macros = indices
+            .values_mut()
+            .flat_map(|index| std::mem::take(&mut index.associated_item_macros))
+            .collect();
         Ok(Self {
             crates: indices,
             generated,
             include_providers: BTreeMap::new(),
             item_macro_providers: BTreeMap::new(),
+            associated_item_macro_providers: BTreeMap::new(),
             inert_item_macros: BTreeMap::new(),
             api_producer_bindings: BTreeMap::new(),
             transcriber_producers,
+            associated_item_macros,
         })
     }
 
@@ -839,6 +912,42 @@ impl SurfaceGraph {
         Ok(self)
     }
 
+    /// Bind a macro invocation inside one exact inherent impl or trait to the
+    /// generated associated identities it emits. An ordinary module-level
+    /// binding cannot cover this site, and output owned by another type or
+    /// trait cannot satisfy it.
+    pub fn bind_associated_item_macro_provider(
+        mut self,
+        owner: impl Into<String>,
+        macro_path: impl Into<String>,
+        provider: impl Into<String>,
+    ) -> Result<Self, ReachabilityError> {
+        let owner = owner.into();
+        let macro_path = macro_path.into();
+        let provider = provider.into();
+        let invocations = self
+            .associated_item_macros
+            .iter()
+            .filter(|site| site.owner == owner && site.site.macro_path == macro_path)
+            .count();
+        let owns_direct_output = self.generated.iter().any(|item| {
+            item.provider == provider
+                && !item.excluded
+                && generated_parent(&item.identity) == Some(owner.as_str())
+        });
+        if invocations == 0 || !owns_direct_output {
+            return Err(ReachabilityError::InvalidAssociatedItemMacroProvider {
+                owner,
+                macro_path,
+                provider,
+                invocations,
+            });
+        }
+        self.associated_item_macro_providers
+            .insert((owner, macro_path), provider);
+        Ok(self)
+    }
+
     /// Classify one exact item-position macro invocation family as producing
     /// no facade API identity.
     ///
@@ -914,6 +1023,15 @@ impl SurfaceGraph {
                         "inventory wiring is valid only for `inventory::collect!`".into(),
                     ));
                 }
+                for site in self
+                    .module(&module)
+                    .into_iter()
+                    .flat_map(|parsed| &parsed.item_macros)
+                    .filter(|site| site.macro_path == macro_path)
+                {
+                    audit_inventory_collection_invocation(&site.tokens)
+                        .map_err(|error| invalid(error.to_string()))?;
+                }
             }
             InertItemMacroClassification::ThreadLocalStorageWiring => {
                 if !matches!(macro_path.as_str(), "thread_local" | "std::thread_local") {
@@ -921,6 +1039,15 @@ impl SurfaceGraph {
                         "thread-local wiring is valid only for `thread_local!` or `std::thread_local!`"
                             .into(),
                     ));
+                }
+                for site in self
+                    .module(&module)
+                    .into_iter()
+                    .flat_map(|parsed| &parsed.item_macros)
+                    .filter(|site| site.macro_path == macro_path)
+                {
+                    audit_thread_local_invocation(&site.tokens)
+                        .map_err(|error| invalid(error.to_string()))?;
                 }
             }
         }
@@ -1056,6 +1183,7 @@ impl SurfaceGraph {
             return Ok(());
         }
         self.require_audited_includes(module_id, module)?;
+        self.require_supported_syntax(module_id, module)?;
         self.require_item_macro_bindings(module_id, module)?;
         for producer in &module.api_producers {
             self.require_api_producer_binding(producer)?;
@@ -1203,6 +1331,39 @@ impl SurfaceGraph {
         Ok(())
     }
 
+    fn require_supported_syntax(
+        &self,
+        module_id: &str,
+        module: &Module,
+    ) -> Result<(), ReachabilityError> {
+        if let Some(site) = module.unsupported_syntax.first() {
+            return Err(ReachabilityError::UnsupportedReachableSyntax {
+                source: site.source.clone(),
+                line: site.line,
+                module: module_id.to_owned(),
+                syntax: site.syntax,
+            });
+        }
+        Ok(())
+    }
+
+    fn require_associated_item_macro_bindings(&self, owner: &str) -> Result<(), ReachabilityError> {
+        if let Some(site) = self.associated_item_macros.iter().find(|site| {
+            site.owner == owner
+                && !self
+                    .associated_item_macro_providers
+                    .contains_key(&(owner.to_owned(), site.site.macro_path.clone()))
+        }) {
+            return Err(ReachabilityError::UnboundAssociatedItemMacro {
+                source: site.site.source.clone(),
+                line: site.site.line,
+                owner: owner.to_owned(),
+                macro_path: site.site.macro_path.clone(),
+            });
+        }
+        Ok(())
+    }
+
     fn declaration(&self, identity: &str) -> Option<(&Declaration, bool)> {
         let crate_name = identity.split("::").next()?;
         if let Some(value) = self.crates.get(crate_name)?.declarations.get(identity) {
@@ -1254,9 +1415,11 @@ impl SurfaceGraph {
             && !module.excluded
         {
             self.require_audited_includes(owner, module)?;
+            self.require_supported_syntax(owner, module)?;
             self.require_item_macro_bindings(owner, module)?;
         }
         if let Some((declaration, false)) = self.declaration(&resolved) {
+            self.require_associated_item_macro_bindings(&resolved)?;
             for producer in &declaration.api_producers {
                 self.require_api_producer_binding(producer)?;
             }
@@ -1699,6 +1862,22 @@ fn resolve_pending_impls(crate_name: &str, index: &mut CrateIndex) -> Vec<(Strin
         );
         let owner =
             resolve_index_export(crate_name, &owner, index, &mut BTreeSet::new()).unwrap_or(owner);
+        index
+            .associated_item_macros
+            .extend(
+                pending_impl
+                    .item_macros
+                    .iter()
+                    .map(|site| AssociatedMacroSite {
+                        owner: owner.clone(),
+                        site: ItemMacroSite {
+                            source: site.source.clone(),
+                            line: site.line,
+                            macro_path: site.macro_path.clone(),
+                            tokens: site.tokens.clone(),
+                        },
+                    }),
+            );
         if let Some(declaration) = index.declarations.get_mut(&owner) {
             declaration.members.extend(pending_impl.members);
             declaration
@@ -1904,12 +2083,19 @@ fn parse_items(
             && let syn::Item::Macro(value) = item
             && let Some(name) = &value.ident
         {
-            index
-                .modules
-                .entry(module_id.to_owned())
-                .or_default()
+            let macro_name = ident_name(name);
+            let parsed_module = index.modules.entry(module_id.to_owned()).or_default();
+            if parsed_module
                 .macro_rules
-                .insert(ident_name(name), value.mac.tokens.clone());
+                .insert(macro_name.clone(), value.mac.tokens.clone())
+                .is_some()
+            {
+                return Err(ReachabilityError::Parse(format!(
+                    "{}:{}: duplicate or shadowed macro_rules definition `{macro_name}` in `{module_id}` cannot be resolved lexically",
+                    source_file.display(),
+                    value.span().start().line
+                )));
+            }
             let owner = format!("{module_id}::{}", ident_name(name));
             if has_attr(&value.attrs, "macro_export", cfg, source_file)? {
                 index
@@ -2014,6 +2200,19 @@ fn parse_items(
                         source: source_file.to_owned(),
                         line: value.span().start().line,
                         macro_path,
+                        tokens: value.mac.tokens.clone(),
+                    });
+            }
+            syn::Item::ForeignMod(value) if !excluded => {
+                index
+                    .modules
+                    .entry(module_id.to_owned())
+                    .or_default()
+                    .unsupported_syntax
+                    .push(UnsupportedSyntaxSite {
+                        source: source_file.to_owned(),
+                        line: value.span().start().line,
+                        syntax: "extern block",
                     });
             }
             syn::Item::ExternCrate(value) => {
@@ -2094,6 +2293,7 @@ fn parse_items(
             syn::Item::Impl(value) => {
                 let mut members = Vec::new();
                 let mut member_definitions = BTreeMap::new();
+                let mut item_macros = Vec::new();
                 let provisional_owner = format!("{module_id}::<impl>");
                 let mut api_producers = api_producers_from_attrs(
                     &value.attrs,
@@ -2112,6 +2312,14 @@ fn parse_items(
                             &provisional_owner,
                             None,
                         )?);
+                        if let syn::ImplItem::Macro(item) = child {
+                            item_macros.push(ItemMacroSite {
+                                source: source_file.to_owned(),
+                                line: item.span().start().line,
+                                macro_path: path_segments(&item.mac.path).join("::"),
+                                tokens: item.mac.tokens.clone(),
+                            });
+                        }
                     }
                     let member = if value.trait_.is_some() {
                         None
@@ -2169,6 +2377,7 @@ fn parse_items(
                     member_definitions,
                     api_producers,
                     excluded,
+                    item_macros,
                 });
             }
             _ => {
@@ -2187,6 +2396,17 @@ fn parse_items(
                                     &identity,
                                     None,
                                 )?);
+                                if let syn::TraitItem::Macro(item) = member {
+                                    index.associated_item_macros.push(AssociatedMacroSite {
+                                        owner: identity.clone(),
+                                        site: ItemMacroSite {
+                                            source: source_file.to_owned(),
+                                            line: item.span().start().line,
+                                            macro_path: path_segments(&item.mac.path).join("::"),
+                                            tokens: item.mac.tokens.clone(),
+                                        },
+                                    });
+                                }
                             }
                         }
                     }

@@ -7,6 +7,7 @@ use std::path::Path;
 
 use proc_macro2::{TokenStream, TokenTree};
 use quote::ToTokens;
+use syn::parse::{Parse, ParseStream};
 
 use crate::{GeneratedApi, GeneratedProducer, ReachableKind};
 
@@ -41,6 +42,72 @@ pub(crate) fn audit_inert_macro_transcriber(
     }
     for body in bodies {
         audit_inert_item_sequence(body, "transcriber top level")?;
+    }
+    Ok(())
+}
+
+/// Prove that an `inventory::collect!` invocation contains exactly one type.
+///
+/// The external macro is compiler/linker wiring, but its invocation still has
+/// to be checked: classifying only its spelling would let arbitrary tokens
+/// piggyback on the inert binding if the upstream macro ever accepted them.
+pub(crate) fn audit_inventory_collection_invocation(
+    tokens: &TokenStream,
+) -> Result<(), MacroProviderError> {
+    syn::parse2::<syn::Type>(tokens.clone())
+        .map(|_| ())
+        .map_err(|error| {
+            unsupported(format!(
+                "inventory::collect! must contain exactly one type: {error}"
+            ))
+        })
+}
+
+struct ThreadLocalDeclarations {
+    visibilities: Vec<syn::Visibility>,
+}
+
+impl Parse for ThreadLocalDeclarations {
+    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
+        let mut visibilities = Vec::new();
+        while !input.is_empty() {
+            let _attrs = input.call(syn::Attribute::parse_outer)?;
+            let visibility: syn::Visibility = input.parse()?;
+            input.parse::<syn::Token![static]>()?;
+            input.parse::<syn::Ident>()?;
+            input.parse::<syn::Token![:]>()?;
+            input.parse::<syn::Type>()?;
+            input.parse::<syn::Token![=]>()?;
+            input.parse::<syn::Expr>()?;
+            input.parse::<syn::Token![;]>()?;
+            visibilities.push(visibility);
+        }
+        if visibilities.is_empty() {
+            return Err(input.error("thread_local! must declare at least one static"));
+        }
+        Ok(Self { visibilities })
+    }
+}
+
+/// Prove that a `thread_local!` invocation consists solely of non-public
+/// static declarations. Restricted visibility remains internal to the source
+/// crate and therefore cannot create a supported facade identity.
+pub(crate) fn audit_thread_local_invocation(
+    tokens: &TokenStream,
+) -> Result<(), MacroProviderError> {
+    let declarations = syn::parse2::<ThreadLocalDeclarations>(tokens.clone()).map_err(|error| {
+        unsupported(format!(
+            "thread_local! payload is not structurally understood: {error}"
+        ))
+    })?;
+    if declarations
+        .visibilities
+        .iter()
+        .any(|visibility| matches!(visibility, syn::Visibility::Public(_)))
+    {
+        return Err(unsupported(
+            "thread_local! inert wiring cannot declare a public static",
+        ));
     }
     Ok(())
 }

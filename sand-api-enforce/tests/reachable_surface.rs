@@ -507,6 +507,168 @@ fn external_compiler_wiring_classifications_are_path_specific() {
 }
 
 #[test]
+fn external_inert_bindings_structurally_audit_every_invocation_payload() {
+    for source in [
+        "thread_local! { pub static ESCAPED: u8 = 0; }",
+        "thread_local! { static VALUE: u8 = 0 }",
+    ] {
+        let (_directory, graph) = item_macro_graph(source, []);
+        let error = graph
+            .bind_inert_item_macro(
+                "facade",
+                "thread_local",
+                InertItemMacroClassification::ThreadLocalStorageWiring,
+            )
+            .err()
+            .unwrap()
+            .to_string();
+        assert!(error.contains("thread_local!"), "{error}");
+    }
+
+    let (_directory, graph) =
+        item_macro_graph("inventory::collect!(Descriptor; pub struct Escaped;);", []);
+    let error = graph
+        .bind_inert_item_macro(
+            "facade",
+            "inventory::collect",
+            InertItemMacroClassification::InventoryCollectionWiring,
+        )
+        .err()
+        .unwrap()
+        .to_string();
+    assert!(error.contains("exactly one type"), "{error}");
+}
+
+#[test]
+fn associated_item_macros_fail_closed_and_require_exact_owner_output() {
+    for source in [
+        "pub struct Subject; impl Subject { generated_members!(); }",
+        "pub trait Subject { generated_members!(); }",
+    ] {
+        let (_directory, graph) = item_macro_graph(
+            source,
+            [GeneratedApi {
+                identity: "facade::Subject::generated".into(),
+                provider: "associated_fixture".into(),
+                producer: None,
+                kind: ReachableKind::Method,
+                members: Vec::new(),
+                excluded: false,
+            }],
+        );
+        assert!(matches!(
+            graph.reachable_from("facade"),
+            Err(ReachabilityError::UnboundAssociatedItemMacro {
+                owner,
+                macro_path,
+                ..
+            }) if owner == "facade::Subject" && macro_path == "generated_members"
+        ));
+    }
+
+    let (_directory, graph) = item_macro_graph(
+        "pub struct Subject; impl Subject { generated_members!(); }",
+        [GeneratedApi {
+            identity: "facade::Other::generated".into(),
+            provider: "associated_fixture".into(),
+            producer: None,
+            kind: ReachableKind::Method,
+            members: Vec::new(),
+            excluded: false,
+        }],
+    );
+    assert!(matches!(
+        graph.bind_associated_item_macro_provider(
+            "facade::Subject",
+            "generated_members",
+            "associated_fixture",
+        ),
+        Err(ReachabilityError::InvalidAssociatedItemMacroProvider {
+            owner,
+            invocations: 1,
+            ..
+        }) if owner == "facade::Subject"
+    ));
+
+    let (_directory, graph) = item_macro_graph(
+        "pub struct Subject; impl Subject { generated_members!(); }",
+        [GeneratedApi {
+            identity: "facade::Subject::generated".into(),
+            provider: "associated_fixture".into(),
+            producer: None,
+            kind: ReachableKind::Method,
+            members: Vec::new(),
+            excluded: false,
+        }],
+    );
+    let reachable = graph
+        .bind_associated_item_macro_provider(
+            "facade::Subject",
+            "generated_members",
+            "associated_fixture",
+        )
+        .unwrap()
+        .reachable_from("facade")
+        .unwrap();
+    assert_eq!(
+        item(&reachable, "facade::Subject::generated").kind,
+        ReachableKind::Method
+    );
+}
+
+#[test]
+fn duplicate_local_macro_definitions_are_rejected_instead_of_overwritten() {
+    let directory = tempfile::tempdir().unwrap();
+    let root = directory.path().join("lib.rs");
+    fs::write(
+        &root,
+        "macro_rules! family { () => {}; } macro_rules! family { ($x:ident) => {}; }",
+    )
+    .unwrap();
+    let error = SurfaceGraph::load(
+        [SourceCrate {
+            name: "facade".into(),
+            root,
+        }],
+        [],
+        [],
+    )
+    .err()
+    .unwrap()
+    .to_string();
+    assert!(
+        error.contains("duplicate or shadowed macro_rules"),
+        "{error}"
+    );
+}
+
+#[test]
+fn reachable_foreign_modules_fail_closed_but_unexposed_ones_do_not() {
+    let (_directory, graph) = item_macro_graph(
+        "pub mod ffi { unsafe extern \"C\" { pub fn escaped(); } }",
+        [],
+    );
+    assert!(matches!(
+        graph.reachable_from("facade"),
+        Err(ReachabilityError::UnsupportedReachableSyntax {
+            module,
+            syntax: "extern block",
+            ..
+        }) if module == "facade::ffi"
+    ));
+
+    let (_directory, graph) = item_macro_graph(
+        "mod implementation { unsafe extern \"C\" { pub fn internal_only(); } } pub struct Supported;",
+        [],
+    );
+    let reachable = graph.reachable_from("facade").unwrap();
+    assert_eq!(
+        item(&reachable, "facade::Supported").kind,
+        ReachableKind::Struct
+    );
+}
+
+#[test]
 fn exported_macro_declaration_attributes_are_classified_and_cannot_be_spoofed() {
     let (_directory, graph) = item_macro_graph(
         r#"

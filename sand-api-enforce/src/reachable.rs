@@ -789,7 +789,7 @@ impl SurfaceGraph {
     /// need a binding. Binding the same producer on another declaration is not
     /// sufficient: every occurrence is an explicit edge, so adding a new
     /// derived API fails closed. The deliberately small producer set is
-    /// recognized by [`api_producing_sand_macro`].
+    /// recognized by the internal `api_producing_sand_macro` classifier.
     pub fn bind_api_producer(
         mut self,
         owner: impl Into<String>,

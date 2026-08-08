@@ -12,7 +12,7 @@ impl AdvancementEvent for UsedDashWandEvent {
     type Trigger = UsingItemTrigger;
 
     fn trigger() -> Self::Trigger {
-        UsingItemTrigger::new().item(ItemPredicate::id("minecraft:stick"))
+        UsingItemTrigger::new().item(ItemPredicate::id(ItemId::minecraft("stick").unwrap()))
     }
 
     fn guard() -> Option<Condition> {

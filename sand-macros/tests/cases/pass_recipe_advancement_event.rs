@@ -13,7 +13,9 @@ impl AdvancementEvent for AteChorusFruitEvent {
     type Trigger = ConsumeItemTrigger;
 
     fn trigger() -> Self::Trigger {
-        ConsumeItemTrigger::new().item(ItemPredicate::id("minecraft:chorus_fruit"))
+        ConsumeItemTrigger::new().item(ItemPredicate::id(
+            ItemId::minecraft("chorus_fruit").unwrap(),
+        ))
     }
 
     fn guard() -> Option<Condition> {
@@ -69,5 +71,8 @@ fn main() {
             }
         }
     }
-    assert!(found_guard, "on_ate_chorus_fruit event descriptor not found");
+    assert!(
+        found_guard,
+        "on_ate_chorus_fruit event descriptor not found"
+    );
 }

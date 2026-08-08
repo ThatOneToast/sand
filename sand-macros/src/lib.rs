@@ -749,7 +749,7 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
 ///
 ///     fn trigger() -> Self::Trigger {
 ///         ConsumeItemTrigger::new()
-///             .item(ItemPredicate::id("minecraft:golden_apple"))
+///             .item(ItemPredicate::id(ItemId::minecraft("golden_apple")?))
 ///     }
 /// }
 ///

@@ -16,6 +16,15 @@ fn fixture(features: &[&str]) -> (tempfile::TempDir, Vec<sand_api_enforce::Reach
         core.join("lib.rs"),
         r#"
             pub mod model;
+            pub type QualifiedAlias = model::Thing;
+            pub mod aliases {
+                use crate::model::Thing as Imported;
+                use crate::model as domain;
+                pub type ImportedAlias = Imported;
+                pub type ModuleAlias = domain::Thing;
+                pub type SuperAlias = super::model::Thing;
+                pub type CrateAlias = crate::model::Thing;
+            }
             mod extensions {
                 use crate::model::Thing as Imported;
                 type PrivateAlias = Imported;
@@ -93,7 +102,10 @@ fn fixture(features: &[&str]) -> (tempfile::TempDir, Vec<sand_api_enforce::Reach
         facade.join("lib.rs"),
         r#"
             extern crate core_lib as implementation;
+            pub type ExternAlias = implementation::model::Thing;
+            pub type GeneratedAlias = core_lib::generated::GeneratedBuilder;
             pub use core_lib::model::{self, Thing as Builder, ContractTrait, Alias};
+            pub use core_lib::{QualifiedAlias, aliases::*};
             pub use core_lib::model::Mode::*;
             pub use core_lib::model::r#type as KeywordType;
             pub use core_lib::RootForwarded;
@@ -746,6 +758,12 @@ fn extracts_explicit_and_glob_reexports_with_associated_surface() {
         BTreeSet::from([
             "facade::Alias::new".into(),
             "facade::Builder::new".into(),
+            "facade::CrateAlias::new".into(),
+            "facade::ExternAlias::new".into(),
+            "facade::ImportedAlias::new".into(),
+            "facade::ModuleAlias::new".into(),
+            "facade::QualifiedAlias::new".into(),
+            "facade::SuperAlias::new".into(),
             "facade::model::Alias::new".into(),
             "facade::model::Thing::new".into(),
             "facade::prelude::Alias::new".into(),
@@ -1275,6 +1293,63 @@ fn architecture_06_type_alias_members_share_underlying_identity() {
         !api.iter()
             .any(|item| item.identity == "core_lib::model::Alias::new")
     );
+}
+
+#[test]
+fn relative_imported_and_qualified_aliases_cannot_hide_inherent_members() {
+    let (_, api) = fixture(&[]);
+    let method = item(&api, "core_lib::model::Thing::new");
+    for alias_path in [
+        "facade::QualifiedAlias::new",
+        "facade::ImportedAlias::new",
+        "facade::ModuleAlias::new",
+        "facade::SuperAlias::new",
+        "facade::CrateAlias::new",
+        "facade::ExternAlias::new",
+    ] {
+        assert!(
+            method.paths.contains(alias_path),
+            "missing alias member path {alias_path}; found {:?}",
+            method.paths
+        );
+    }
+
+    let contracts = contracts_for(&api)
+        .into_iter()
+        .filter(|contract| contract.identity != "core_lib::model::Thing::new")
+        .collect::<Vec<_>>();
+    let errors = audit_reachable_surface(&api, &contracts).unwrap_err();
+    assert!(errors.iter().any(|error| matches!(
+        error,
+        ReachabilityError::MissingContract { identity, paths }
+            if identity == "core_lib::model::Thing::new"
+                && paths.contains(&"facade::QualifiedAlias::new".into())
+    )));
+}
+
+#[test]
+fn alias_to_generated_type_preserves_generated_member_identity() {
+    let (_, api) = fixture(&[]);
+    let member = item(&api, "core_lib::generated::GeneratedBuilder::build");
+    assert_eq!(
+        member.origin,
+        sand_api_enforce::ReachableOrigin::Generator("generated_commands".into())
+    );
+    assert!(member.paths.contains("facade::GeneratedAlias::build"));
+    assert!(
+        !api.iter()
+            .any(|item| item.identity == "facade::GeneratedAlias::build")
+    );
+}
+
+#[test]
+fn alias_to_unmodeled_external_type_fails_closed() {
+    let (_directory, graph) = item_macro_graph("pub type Escape = third_party::Thing;", []);
+    assert!(matches!(
+        graph.reachable_from("facade"),
+        Err(ReachabilityError::UnresolvedTypeAliasTarget { identity, target })
+            if identity == "facade::Escape" && target == "third_party::Thing"
+    ));
 }
 
 #[test]

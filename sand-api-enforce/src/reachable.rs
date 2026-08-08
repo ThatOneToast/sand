@@ -285,6 +285,10 @@ pub enum ReachabilityError {
         module: String,
         self_type: String,
     },
+    UnresolvedTypeAliasTarget {
+        identity: String,
+        target: String,
+    },
     UnboundInclude {
         source: PathBuf,
         line: usize,
@@ -405,6 +409,10 @@ impl fmt::Display for ReachabilityError {
             Self::UnresolvedImplOwner { module, self_type } => write!(
                 formatter,
                 "inherent impl in `{module}` has public associated API but its owner `{self_type}` cannot be resolved to a local declaration"
+            ),
+            Self::UnresolvedTypeAliasTarget { identity, target } => write!(
+                formatter,
+                "reachable type alias `{identity}` targets `{target}`, which cannot be resolved to an audited local or generated type"
             ),
             Self::UnboundInclude {
                 source,
@@ -666,10 +674,17 @@ struct Declaration {
     kind: ReachableKind,
     members: Vec<MemberRecord>,
     excluded: bool,
-    alias_target: Option<String>,
+    alias_target: Option<AliasTarget>,
     definition: SourceDefinition,
     member_definitions: BTreeMap<String, SourceDefinition>,
     api_producers: Vec<ApiProducerUse>,
+}
+
+#[derive(Clone)]
+struct AliasTarget {
+    module_id: String,
+    segments: Vec<String>,
+    nominal: bool,
 }
 
 #[derive(Clone)]
@@ -1545,28 +1560,9 @@ impl SurfaceGraph {
             }
             if declaration.kind == ReachableKind::TypeAlias
                 && let Some(target) = &declaration.alias_target
-                && let Some(target_identity) = self.resolve_export(target, &mut BTreeSet::new())
-                && let Some((target, false)) = self.declaration(&target_identity)
             {
-                if let Some((owner, _)) = target_identity.rsplit_once("::") {
-                    self.require_module_chain_audited(owner)?;
-                }
-                self.require_associated_item_macro_bindings(&target_identity)?;
-                for producer in &target.api_producers {
-                    self.require_api_producer_binding(producer)?;
-                }
-                for (name, kind, excluded) in &target.members {
-                    if !excluded {
-                        insert_path(
-                            found,
-                            &format!("{target_identity}::{name}"),
-                            *kind,
-                            ReachableOrigin::Source,
-                            &format!("{path}::{name}"),
-                            target.member_definitions.get(name).cloned(),
-                        )?;
-                    }
-                }
+                let target_identity = self.resolve_alias_target(&resolved, target)?;
+                self.expose_alias_members(&target_identity, path, found)?;
             }
             for generated in self
                 .generated
@@ -1606,6 +1602,185 @@ impl SurfaceGraph {
             }
         }
         Ok(exposed)
+    }
+
+    fn resolve_alias_target(
+        &self,
+        alias_identity: &str,
+        target: &AliasTarget,
+    ) -> Result<String, ReachabilityError> {
+        let first = self.resolve_alias_target_once(alias_identity, target)?;
+        self.resolve_alias_chain(&first, &mut BTreeSet::new())
+    }
+
+    fn resolve_alias_target_once(
+        &self,
+        alias_identity: &str,
+        target: &AliasTarget,
+    ) -> Result<String, ReachabilityError> {
+        let crate_name = alias_identity
+            .split("::")
+            .next()
+            .expect("declaration identities contain a crate name");
+        let rendered = target.segments.join("::");
+        let first = target
+            .segments
+            .first()
+            .map(String::as_str)
+            .unwrap_or_default();
+        let explicit = matches!(first, "crate" | "self" | "super")
+            || self.crates.contains_key(first)
+            || self
+                .crates
+                .get(crate_name)
+                .is_some_and(|index| index.extern_aliases.contains_key(first));
+
+        let mut candidates = Vec::new();
+        if explicit {
+            let mut segments = target.segments.clone();
+            if let Some(first) = segments.first_mut()
+                && let Some(external) = self
+                    .crates
+                    .get(crate_name)
+                    .and_then(|index| index.extern_aliases.get(first))
+            {
+                *first = external.clone();
+            }
+            candidates.push(resolve_qualified_use_target(
+                crate_name,
+                &target.module_id,
+                &segments,
+            ));
+        } else {
+            let mut scope = Some(target.module_id.as_str());
+            while let Some(module) = scope {
+                candidates.push(join_path(module, &target.segments));
+                if let Some((first, rest)) = target.segments.split_first()
+                    && let Some(index) = self.crates.get(crate_name)
+                    && let Some(module_record) = index.modules.get(module)
+                {
+                    for record in &module_record.uses {
+                        if let UseLeaf::Name { source, exported } = &record.leaf
+                            && exported == first
+                        {
+                            candidates.push(join_path(
+                                &self.resolve_named_use_target(
+                                    crate_name,
+                                    module,
+                                    &record.prefix,
+                                    source,
+                                ),
+                                rest,
+                            ));
+                        }
+                    }
+                }
+                scope = module
+                    .rsplit_once("::")
+                    .map(|(parent, _)| parent)
+                    .filter(|parent| parent.starts_with(crate_name));
+            }
+        }
+
+        for candidate in candidates {
+            if let Some(resolved) = self.resolve_export(&candidate, &mut BTreeSet::new()) {
+                return Ok(resolved);
+            }
+        }
+        if !target.nominal || standard_library_alias_target(&target.segments) {
+            return Ok(rendered);
+        }
+        Err(ReachabilityError::UnresolvedTypeAliasTarget {
+            identity: alias_identity.to_owned(),
+            target: rendered,
+        })
+    }
+
+    fn resolve_alias_chain(
+        &self,
+        identity: &str,
+        seen: &mut BTreeSet<String>,
+    ) -> Result<String, ReachabilityError> {
+        if !seen.insert(identity.to_owned()) {
+            return Err(ReachabilityError::UnresolvedTypeAliasTarget {
+                identity: identity.to_owned(),
+                target: identity.to_owned(),
+            });
+        }
+        let Some((declaration, false)) = self.declaration(identity) else {
+            return Ok(identity.to_owned());
+        };
+        if declaration.kind != ReachableKind::TypeAlias {
+            return Ok(identity.to_owned());
+        }
+        let Some(target) = &declaration.alias_target else {
+            return Ok(identity.to_owned());
+        };
+        let resolved = self.resolve_alias_target_once(identity, target)?;
+        if resolved == identity {
+            return Err(ReachabilityError::UnresolvedTypeAliasTarget {
+                identity: identity.to_owned(),
+                target: target.segments.join("::"),
+            });
+        }
+        if seen.contains(&resolved) {
+            return Err(ReachabilityError::UnresolvedTypeAliasTarget {
+                identity: identity.to_owned(),
+                target: target.segments.join("::"),
+            });
+        }
+        self.resolve_alias_chain(&resolved, seen)
+    }
+
+    fn expose_alias_members(
+        &self,
+        target_identity: &str,
+        path: &str,
+        found: &mut BTreeMap<String, ReachableApi>,
+    ) -> Result<(), ReachabilityError> {
+        if let Some((target, false)) = self.declaration(target_identity) {
+            if let Some((owner, _)) = target_identity.rsplit_once("::") {
+                self.require_module_chain_audited(owner)?;
+            }
+            self.require_associated_item_macro_bindings(target_identity)?;
+            for producer in &target.api_producers {
+                self.require_api_producer_binding(producer)?;
+            }
+            for (name, kind, excluded) in &target.members {
+                if !excluded {
+                    insert_path(
+                        found,
+                        &format!("{target_identity}::{name}"),
+                        *kind,
+                        ReachableOrigin::Source,
+                        &format!("{path}::{name}"),
+                        target.member_definitions.get(name).cloned(),
+                    )?;
+                }
+            }
+            return Ok(());
+        }
+        if let Some(generated) = self
+            .generated
+            .iter()
+            .find(|generated| generated.identity == target_identity && !generated.excluded)
+        {
+            if let Some((owner, _)) = target_identity.rsplit_once("::") {
+                self.require_module_chain_audited(owner)?;
+            }
+            let origin = ReachableOrigin::Generator(generated.provider.clone());
+            for (name, kind) in &generated.members {
+                insert_path(
+                    found,
+                    &format!("{target_identity}::{name}"),
+                    *kind,
+                    origin.clone(),
+                    &format!("{path}::{name}"),
+                    None,
+                )?;
+            }
+        }
+        Ok(())
     }
 
     fn resolve_export(&self, identity: &str, seen: &mut BTreeSet<String>) -> Option<String> {
@@ -2520,9 +2695,11 @@ fn parse_items(
                         .member_definitions
                         .extend(member_definitions(item, source_file));
                     if let syn::Item::Type(alias) = item {
-                        let target = resolve_type_identity(crate_name, module_id, &alias.ty);
-                        declaration.alias_target = Some(target.clone());
-                        index.type_aliases.insert(identity, target);
+                        let target = alias_target(module_id, &alias.ty);
+                        index
+                            .type_aliases
+                            .insert(identity, alias_target_index_identity(crate_name, &target));
+                        declaration.alias_target = Some(target);
                     }
                 }
             }
@@ -3578,16 +3755,71 @@ fn join_path(base: &str, rest: &[String]) -> String {
     }
 }
 
-fn resolve_type_identity(crate_name: &str, module_id: &str, ty: &syn::Type) -> String {
-    let raw = ty.to_token_stream().to_string().replace(' ', "");
-    let base = raw.split('<').next().unwrap_or(&raw);
-    if let Some(relative) = base.strip_prefix("crate::") {
-        format!("{crate_name}::{relative}")
-    } else if base.contains("::") {
-        base.to_owned()
-    } else {
-        format!("{module_id}::{base}")
+fn alias_target(module_id: &str, ty: &syn::Type) -> AliasTarget {
+    let (segments, nominal) = match ty {
+        syn::Type::Path(path) if path.qself.is_none() => (path_segments(&path.path), true),
+        _ => (
+            vec![ty.to_token_stream().to_string().replace(' ', "")],
+            false,
+        ),
+    };
+    AliasTarget {
+        module_id: module_id.to_owned(),
+        segments,
+        nominal,
     }
+}
+
+fn alias_target_index_identity(crate_name: &str, target: &AliasTarget) -> String {
+    let first = target
+        .segments
+        .first()
+        .map(String::as_str)
+        .unwrap_or_default();
+    if matches!(first, "crate" | "self" | "super") || first == crate_name {
+        resolve_qualified_use_target(crate_name, &target.module_id, &target.segments)
+    } else {
+        join_path(&target.module_id, &target.segments)
+    }
+}
+
+fn standard_library_alias_target(segments: &[String]) -> bool {
+    // Sand contracts own Sand-defined identities. A transparent alias to a
+    // language/prelude type remains a Sand alias, but does not adopt the
+    // standard library's inherent API as Sand-owned contracts. Other
+    // unresolved external targets still fail closed above.
+    matches!(
+        segments.first().map(String::as_str),
+        Some("std" | "core" | "alloc")
+    ) || matches!(
+    segments,
+    [name]
+        if matches!(
+            name.as_str(),
+            "bool"
+                | "char"
+                | "str"
+                | "u8"
+                | "u16"
+                | "u32"
+                | "u64"
+                | "u128"
+                | "usize"
+                | "i8"
+                | "i16"
+                | "i32"
+                | "i64"
+                | "i128"
+                | "isize"
+                | "f32"
+                | "f64"
+                | "String"
+                | "Vec"
+                | "Box"
+                | "Option"
+                | "Result"
+        )
+    )
 }
 
 fn module_path(

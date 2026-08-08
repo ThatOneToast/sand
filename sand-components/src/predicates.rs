@@ -93,6 +93,7 @@ impl IntRange {
     }
     /// Match exactly `n`.
     #[sand_macros::api(
+        kind = "method",
         registry = sand_api_contract,
         path = "sand::predicate::IntRange::exact",
         summary = "Matches one exact integer value.",
@@ -115,6 +116,7 @@ impl IntRange {
 
     /// Match at least `min`.
     #[sand_macros::api(
+        kind = "method",
         registry = sand_api_contract,
         path = "sand::predicate::IntRange::at_least",
         summary = "Creates a range matching values at or above the bound.",
@@ -137,6 +139,7 @@ impl IntRange {
 
     /// Match at most `max`.
     #[sand_macros::api(
+        kind = "method",
         registry = sand_api_contract,
         path = "sand::predicate::IntRange::at_most",
         summary = "Creates a range matching values at or below the bound.",
@@ -159,6 +162,7 @@ impl IntRange {
 
     /// Match between `min` and `max` (inclusive).
     #[sand_macros::api(
+        kind = "method",
         registry = sand_api_contract,
         path = "sand::predicate::IntRange::between",
         summary = "Creates a range matching values between two inclusive bounds.",
@@ -248,6 +252,7 @@ impl FloatRange {
     }
     /// Match at least `min`.
     #[sand_macros::api(
+        kind = "method",
         registry = sand_api_contract,
         path = "sand::predicate::FloatRange::at_least",
         summary = "Creates a range matching values at or above the bound.",
@@ -270,6 +275,7 @@ impl FloatRange {
 
     /// Match at most `max`.
     #[sand_macros::api(
+        kind = "method",
         registry = sand_api_contract,
         path = "sand::predicate::FloatRange::at_most",
         summary = "Creates a range matching values at or below the bound.",
@@ -292,6 +298,7 @@ impl FloatRange {
 
     /// Match between `min` and `max` (inclusive).
     #[sand_macros::api(
+        kind = "method",
         registry = sand_api_contract,
         path = "sand::predicate::FloatRange::between",
         summary = "Creates a range matching values between two inclusive bounds.",
@@ -379,6 +386,7 @@ impl DistancePredicate {
     }
 
     #[sand_macros::api(
+        kind = "method",
         registry = sand_api_contract,
         path = "sand::predicate::DistancePredicate::new",
         aliases = ["sand::prelude::DistancePredicate::new"],
@@ -396,6 +404,7 @@ impl DistancePredicate {
 
     /// Require horizontal distance to be at most `max` blocks.
     #[sand_macros::api(
+        kind = "method",
         registry = sand_api_contract,
         path = "sand::predicate::DistancePredicate::horizontal_at_most",
         aliases = ["sand::prelude::DistancePredicate::horizontal_at_most"],
@@ -419,6 +428,7 @@ impl DistancePredicate {
 
     /// Require absolute 3D distance to be at most `max` blocks.
     #[sand_macros::api(
+        kind = "method",
         registry = sand_api_contract,
         path = "sand::predicate::DistancePredicate::absolute_at_most",
         aliases = ["sand::prelude::DistancePredicate::absolute_at_most"],
@@ -577,6 +587,7 @@ impl EffectPredicate {
     }
 
     #[sand_macros::api(
+        kind = "method",
         registry = sand_api_contract,
         path = "sand::predicate::EffectPredicate::new",
         summary = "Creates an unconstrained EffectPredicate.",
@@ -748,6 +759,7 @@ impl DamageSourcePredicate {
     }
 
     #[sand_macros::api(
+        kind = "method",
         registry = sand_api_contract,
         path = "sand::predicate::DamageSourcePredicate::new",
         aliases = ["sand::prelude::DamageSourcePredicate::new"],
@@ -918,6 +930,7 @@ impl DamagePredicate {
     }
 
     #[sand_macros::api(
+        kind = "method",
         registry = sand_api_contract,
         path = "sand::predicate::DamagePredicate::new",
         aliases = ["sand::prelude::DamagePredicate::new"],
@@ -935,6 +948,7 @@ impl DamagePredicate {
 
     /// Raw escape hatch — serialize arbitrary JSON as this predicate.
     #[sand_macros::api(
+        kind = "method",
         registry = sand_api_contract,
         path = "sand::predicate::DamagePredicate::raw",
         aliases = ["sand::prelude::DamagePredicate::raw"],
@@ -1151,6 +1165,7 @@ impl LocationPredicate {
         Ok(())
     }
     #[sand_macros::api(
+        kind = "method",
         registry = sand_api_contract,
         path = "sand::predicate::LocationPredicate::new",
         aliases = ["sand::prelude::LocationPredicate::new"],
@@ -1168,6 +1183,7 @@ impl LocationPredicate {
 
     /// Raw escape hatch — serialize arbitrary JSON as this predicate.
     #[sand_macros::api(
+        kind = "method",
         registry = sand_api_contract,
         path = "sand::predicate::LocationPredicate::raw",
         aliases = ["sand::prelude::LocationPredicate::raw"],
@@ -1473,6 +1489,7 @@ impl BlockPredicate {
         Ok(())
     }
     #[sand_macros::api(
+        kind = "method",
         registry = sand_api_contract,
         path = "sand::predicate::BlockPredicate::new",
         aliases = ["sand::prelude::BlockPredicate::new"],
@@ -1490,6 +1507,7 @@ impl BlockPredicate {
 
     /// Raw escape hatch.
     #[sand_macros::api(
+        kind = "method",
         registry = sand_api_contract,
         path = "sand::predicate::BlockPredicate::raw",
         aliases = ["sand::prelude::BlockPredicate::raw"],
@@ -1697,6 +1715,7 @@ impl ItemPredicate {
     }
     /// Match any item.
     #[sand_macros::api(
+        kind = "method",
         registry = sand_api_contract,
         path = "sand::predicate::ItemPredicate::new",
         aliases = ["sand::component::ItemPredicate::new", "sand::prelude::ItemPredicate::new"],
@@ -1714,6 +1733,7 @@ impl ItemPredicate {
 
     /// Raw escape hatch — serialize arbitrary JSON verbatim as this predicate.
     #[sand_macros::api(
+        kind = "method",
         registry = sand_api_contract,
         path = "sand::predicate::ItemPredicate::raw",
         aliases = ["sand::component::ItemPredicate::raw", "sand::prelude::ItemPredicate::raw"],
@@ -1737,6 +1757,7 @@ impl ItemPredicate {
 
     /// Match a specific item ID.
     #[sand_macros::api(
+        kind = "method",
         registry = sand_api_contract,
         path = "sand::predicate::ItemPredicate::id",
         aliases = ["sand::component::ItemPredicate::id","sand::prelude::ItemPredicate::id"],
@@ -2103,6 +2124,7 @@ pub struct EntityFlags {
 
 impl EntityFlags {
     #[sand_macros::api(
+        kind = "method",
         registry = sand_api_contract,
         path = "sand::predicate::EntityFlags::new",
         aliases = ["sand::prelude::EntityFlags::new"],
@@ -2244,6 +2266,7 @@ pub struct EntityEquipment {
 
 impl EntityEquipment {
     #[sand_macros::api(
+        kind = "method",
         registry = sand_api_contract,
         path = "sand::predicate::EntityEquipment::new",
         aliases = ["sand::prelude::EntityEquipment::new"],
@@ -2408,6 +2431,7 @@ impl EntityPredicate {
     }
     /// Match any entity.
     #[sand_macros::api(
+        kind = "method",
         registry = sand_api_contract,
         path = "sand::predicate::EntityPredicate::new",
         aliases = ["sand::component::EntityPredicate::new", "sand::prelude::EntityPredicate::new"],
@@ -2425,6 +2449,7 @@ impl EntityPredicate {
 
     /// Raw escape hatch — serialize arbitrary JSON verbatim as this predicate.
     #[sand_macros::api(
+        kind = "method",
         registry = sand_api_contract,
         path = "sand::predicate::EntityPredicate::raw",
         aliases = ["sand::component::EntityPredicate::raw", "sand::prelude::EntityPredicate::raw"],
@@ -2448,6 +2473,7 @@ impl EntityPredicate {
 
     /// Match a specific entity type ID.
     #[sand_macros::api(
+        kind = "method",
         registry = sand_api_contract,
         path = "sand::predicate::EntityPredicate::type_",
         aliases = ["sand::component::EntityPredicate::type_","sand::prelude::EntityPredicate::type_"],
@@ -2750,6 +2776,7 @@ impl WeatherPredicate {
     }
 
     #[sand_macros::api(
+        kind = "method",
         registry = sand_api_contract,
         path = "sand::predicate::WeatherPredicate::new",
         aliases = ["sand::component::WeatherPredicate::new", "sand::prelude::WeatherPredicate::new"],
@@ -2767,6 +2794,7 @@ impl WeatherPredicate {
 
     /// Raw escape hatch — serialize arbitrary JSON as this predicate.
     #[sand_macros::api(
+        kind = "method",
         registry = sand_api_contract,
         path = "sand::predicate::WeatherPredicate::raw",
         aliases = ["sand::component::WeatherPredicate::raw", "sand::prelude::WeatherPredicate::raw"],

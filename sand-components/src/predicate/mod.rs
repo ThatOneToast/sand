@@ -142,6 +142,7 @@ enum PredicateRootKind {
 impl PredicateRoot {
     /// `minecraft:all_of` — requires every nested condition to succeed.
     #[sand_macros::api(
+        kind = "method",
         registry = sand_api_contract,
         path = "sand::predicate::PredicateRoot::all_of",
         aliases = ["sand::component::PredicateRoot::all_of", "sand::prelude::PredicateRoot::all_of"],
@@ -162,6 +163,7 @@ impl PredicateRoot {
 
     /// `minecraft:any_of` — requires at least one nested condition to succeed.
     #[sand_macros::api(
+        kind = "method",
         registry = sand_api_contract,
         path = "sand::predicate::PredicateRoot::any_of",
         aliases = ["sand::component::PredicateRoot::any_of", "sand::prelude::PredicateRoot::any_of"],
@@ -182,6 +184,7 @@ impl PredicateRoot {
 
     /// `minecraft:entity_properties` — checks properties of a loot/predicate-context entity.
     #[sand_macros::api(
+        kind = "method",
         registry = sand_api_contract,
         path = "sand::predicate::PredicateRoot::entity_properties",
         aliases = ["sand::component::PredicateRoot::entity_properties", "sand::prelude::PredicateRoot::entity_properties"],
@@ -206,6 +209,7 @@ impl PredicateRoot {
 
     /// `minecraft:location_check` — checks the current location.
     #[sand_macros::api(
+        kind = "method",
         registry = sand_api_contract,
         path = "sand::predicate::PredicateRoot::location",
         aliases = ["sand::component::PredicateRoot::location", "sand::prelude::PredicateRoot::location"],
@@ -226,6 +230,7 @@ impl PredicateRoot {
 
     /// `minecraft:weather_check` — checks current weather state.
     #[sand_macros::api(
+        kind = "method",
         registry = sand_api_contract,
         path = "sand::predicate::PredicateRoot::weather",
         aliases = ["sand::component::PredicateRoot::weather", "sand::prelude::PredicateRoot::weather"],
@@ -246,6 +251,7 @@ impl PredicateRoot {
 
     /// `minecraft:time_check` — checks the current game time against a range.
     #[sand_macros::api(
+        kind = "method",
         registry = sand_api_contract,
         path = "sand::predicate::PredicateRoot::time",
         aliases = ["sand::component::PredicateRoot::time", "sand::prelude::PredicateRoot::time"],
@@ -266,6 +272,7 @@ impl PredicateRoot {
 
     /// `minecraft:random_chance` — random probability check.
     #[sand_macros::api(
+        kind = "method",
         registry = sand_api_contract,
         path = "sand::predicate::PredicateRoot::random_chance",
         aliases = ["sand::component::PredicateRoot::random_chance", "sand::prelude::PredicateRoot::random_chance"],
@@ -286,6 +293,7 @@ impl PredicateRoot {
 
     /// `minecraft:reference` — reference to another standalone predicate file.
     #[sand_macros::api(
+        kind = "method",
         registry = sand_api_contract,
         path = "sand::predicate::PredicateRoot::reference",
         aliases = ["sand::component::PredicateRoot::reference", "sand::prelude::PredicateRoot::reference"],
@@ -306,6 +314,7 @@ impl PredicateRoot {
 
     /// `minecraft:inverted` — negates a nested condition.
     #[sand_macros::api(
+        kind = "method",
         registry = sand_api_contract,
         path = "sand::predicate::PredicateRoot::inverted",
         aliases = ["sand::component::PredicateRoot::inverted", "sand::prelude::PredicateRoot::inverted"],
@@ -326,6 +335,7 @@ impl PredicateRoot {
 
     /// Explicit raw escape hatch for predicate condition types not yet modeled.
     #[sand_macros::api(
+        kind = "method",
         registry = sand_api_contract,
         path = "sand::predicate::PredicateRoot::raw",
         aliases = ["sand::component::PredicateRoot::raw", "sand::prelude::PredicateRoot::raw"],
@@ -483,6 +493,7 @@ pub struct Predicate {
 impl Predicate {
     /// Create a new predicate with the given typed predicate ID and condition tree.
     #[sand_macros::api(
+        kind = "method",
         registry = sand_api_contract,
         path = "sand::predicate::Predicate::new",
         aliases = ["sand::prelude::Predicate::new", "sand::component::Predicate::new"],
@@ -504,6 +515,7 @@ impl Predicate {
 
     /// Convenience constructor for `minecraft:all_of`.
     #[sand_macros::api(
+        kind = "method",
         registry = sand_api_contract,
         path = "sand::predicate::Predicate::all_of",
         aliases = ["sand::component::Predicate::all_of", "sand::prelude::Predicate::all_of"],
@@ -525,6 +537,7 @@ impl Predicate {
 
     /// Convenience constructor for `minecraft:any_of`.
     #[sand_macros::api(
+        kind = "method",
         registry = sand_api_contract,
         path = "sand::predicate::Predicate::any_of",
         aliases = ["sand::component::Predicate::any_of", "sand::prelude::Predicate::any_of"],

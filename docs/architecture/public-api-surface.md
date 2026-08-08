@@ -140,6 +140,17 @@ module and lexical macro path to their structural providers. A same-named
 macro in another module remains unclassified, and an unbound item macro that
 can emit facade declarations stops reachability extraction.
 
+Item macros that intentionally emit no facade identity are classified on an
+equally exact module/path edge. Local `macro_rules!` families are accepted only
+when every transcriber arm passes a structural audit that rejects public
+declarations, inherent impls, nested item macros, and repetition. This covers
+the conversion and sealed/trait-implementation families in NBT, tags, item
+predicates, and events. The one tuple-arity event family that relied on
+repetition is written as explicit trait impls so it does not require a weaker
+exception. External inert classifications are limited to the exact
+`inventory::collect!` linker-registration and `thread_local!` storage spellings
+used by compiler/export wiring.
+
 The static providers are connected to the facade build. Input-dependent
 attribute/derive scopes are marked `consumer_build`; they remain pending and
 cannot be changed to enforced until a consuming-crate build connects the

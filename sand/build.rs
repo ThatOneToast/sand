@@ -6,10 +6,11 @@ use std::path::{Path, PathBuf};
 
 use sand_api_contract::ApiKind;
 use sand_api_enforce::{
-    CfgSet, ContractIdentity, GeneratedApi, ReachableKind, ScopeManifest, ScopeState, SurfaceGraph,
-    contract_declarations_from_files, discover_facade_feature_union, discover_local_source_crates,
-    event_generated_type_provider, registry_id_provider, resolve_contract_identities,
-    resource_ref_provider, validate_contract_lookup_namespace, vanilla_registry_enum_provider,
+    CfgSet, ContractIdentity, GeneratedApi, InertItemMacroClassification, ReachableKind,
+    ScopeManifest, ScopeState, SurfaceGraph, contract_declarations_from_files,
+    discover_facade_feature_union, discover_local_source_crates, event_generated_type_provider,
+    registry_id_provider, resolve_contract_identities, resource_ref_provider,
+    validate_contract_lookup_namespace, vanilla_registry_enum_provider,
 };
 
 fn main() {
@@ -106,6 +107,90 @@ fn main() {
             "sand_core::events",
             "status_effect_marker",
             "generated_event_markers",
+        )
+    })
+    .and_then(|graph| {
+        graph.bind_inert_item_macro(
+            "sand_commands::nbt",
+            "nbt_from",
+            InertItemMacroClassification::LocalTraitImplOnly,
+        )
+    })
+    .and_then(|graph| {
+        graph.bind_inert_item_macro(
+            "sand_components::tag",
+            "tag_registry",
+            InertItemMacroClassification::LocalTraitImplOnly,
+        )
+    })
+    .and_then(|graph| {
+        graph.bind_inert_item_macro(
+            "sand_core::events",
+            "adv_event",
+            InertItemMacroClassification::LocalTraitImplOnly,
+        )
+    })
+    .and_then(|graph| {
+        graph.bind_inert_item_macro(
+            "sand_core::events",
+            "player_event",
+            InertItemMacroClassification::LocalTraitImplOnly,
+        )
+    })
+    .and_then(|graph| {
+        graph.bind_inert_item_macro(
+            "sand_components::item::predicates",
+            "impl_into_value",
+            InertItemMacroClassification::LocalTraitImplOnly,
+        )
+    })
+    .and_then(|graph| {
+        graph.bind_inert_item_macro(
+            "sand_commands::export_registry",
+            "thread_local",
+            InertItemMacroClassification::ThreadLocalStorageWiring,
+        )
+    })
+    .and_then(|graph| {
+        graph.bind_inert_item_macro(
+            "sand_core::function",
+            "thread_local",
+            InertItemMacroClassification::ThreadLocalStorageWiring,
+        )
+    })
+    .and_then(|graph| {
+        graph.bind_inert_item_macro(
+            "sand_core::function",
+            "inventory::collect",
+            InertItemMacroClassification::InventoryCollectionWiring,
+        )
+    })
+    .and_then(|graph| {
+        graph.bind_inert_item_macro(
+            "sand_core::state::registry",
+            "inventory::collect",
+            InertItemMacroClassification::InventoryCollectionWiring,
+        )
+    })
+    .and_then(|graph| {
+        graph.bind_inert_item_macro(
+            "sand_core::entity::archetype",
+            "inventory::collect",
+            InertItemMacroClassification::InventoryCollectionWiring,
+        )
+    })
+    .and_then(|graph| {
+        graph.bind_inert_item_macro(
+            "sand_components::dialog",
+            "inventory::collect",
+            InertItemMacroClassification::InventoryCollectionWiring,
+        )
+    })
+    .and_then(|graph| {
+        graph.bind_inert_item_macro(
+            "sand_resourcepack::descriptor",
+            "inventory::collect",
+            InertItemMacroClassification::InventoryCollectionWiring,
         )
     })
     .and_then(|graph| graph.bind_generated_include("sand_core::generated", "generated_registries"))

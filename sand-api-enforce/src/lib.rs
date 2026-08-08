@@ -17,6 +17,7 @@ use syn::spanned::Spanned;
 mod contract_source;
 mod features;
 mod macro_provider;
+mod profile;
 mod reachable;
 mod scope;
 
@@ -29,6 +30,7 @@ pub use macro_provider::{
     MacroProviderError, event_generated_type_provider, registry_id_provider, resource_ref_provider,
     sand_storage_derive_provider, vanilla_registry_enum_provider,
 };
+pub use profile::{SurfaceProfile, SurfaceProfileManifest};
 
 pub use reachable::{
     CfgSet, ContractIdentity, GeneratedApi, GeneratedProducer, InertItemMacroClassification,

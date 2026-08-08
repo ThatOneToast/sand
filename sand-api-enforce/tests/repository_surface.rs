@@ -1,6 +1,8 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
+use sand_api_enforce::SurfaceProfileManifest;
+
 #[test]
 fn checked_repository_surface_baseline_is_complete_and_partitioned() {
     let workspace = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
@@ -12,7 +14,8 @@ fn checked_repository_surface_baseline_is_complete_and_partitioned() {
         lines[1],
         "configuration=all-supported-features,current-target"
     );
-    assert_eq!(lines[2], "total=11835");
+    assert_eq!(lines[2], "minecraft_version=26.2");
+    assert_eq!(lines[3], "total=11835");
 
     let kinds = prefixed_counts(&lines, "kind ");
     assert_eq!(kinds.values().sum::<usize>(), 11_835);
@@ -47,6 +50,42 @@ fn checked_repository_surface_baseline_is_complete_and_partitioned() {
             "totals pending_scopes=39 pending_items=11835 enforced_items=0 pending_scope_ceiling=39 pending_item_ceiling=11835"
         )
     );
+}
+
+#[test]
+fn checked_repository_profiles_bind_exact_versioned_baselines() {
+    let workspace = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let sand = workspace.join("sand");
+    let profiles = SurfaceProfileManifest::from_path(&sand.join("api-surface-profiles.toml"))
+        .expect("repository surface profiles must be valid");
+    assert_eq!(profiles.profiles.len(), 2);
+
+    let expected = [
+        ("1.21.4", 10_925, 924, 4_288),
+        ("26.2", 11_835, 1_255, 4_867),
+    ];
+    for (version, total, commands, registries) in expected {
+        let profile = profiles
+            .profiles
+            .iter()
+            .find(|profile| profile.minecraft_version == version)
+            .unwrap();
+        assert_eq!(profile.static_surface_items, total);
+        assert_eq!(profile.pending_item_ceiling, total);
+        let baseline = std::fs::read_to_string(sand.join(&profile.baseline)).unwrap();
+        let lines = baseline.lines().collect::<Vec<_>>();
+        assert_eq!(lines[2], format!("minecraft_version={version}"));
+        assert_eq!(lines[3], format!("total={total}"));
+        let origins = prefixed_counts(&lines, "origin ");
+        assert_eq!(origins.values().sum::<usize>(), total);
+        assert_eq!(origins["source"], 5_437);
+        assert_eq!(origins["generator:generated_commands"], commands);
+        assert_eq!(origins["generator:generated_registries"], registries);
+        assert_eq!(
+            numeric_field(lines.last().unwrap(), "pending_items="),
+            total
+        );
+    }
 }
 
 fn prefixed_counts(lines: &[&str], prefix: &str) -> BTreeMap<String, usize> {

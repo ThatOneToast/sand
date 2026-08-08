@@ -7,10 +7,10 @@ use std::path::{Path, PathBuf};
 use sand_api_contract::ApiKind;
 use sand_api_enforce::{
     CfgSet, ContractIdentity, GeneratedApi, InertItemMacroClassification, ReachableKind,
-    ScopeManifest, ScopeState, SurfaceGraph, contract_declarations_from_files,
-    discover_facade_feature_union, discover_local_source_crates, event_generated_type_provider,
-    registry_id_provider, resolve_contract_identities, resource_ref_provider,
-    validate_contract_lookup_namespace, vanilla_registry_enum_provider,
+    ScopeManifest, ScopeState, SurfaceGraph, SurfaceProfileManifest,
+    contract_declarations_from_files, discover_facade_feature_union, discover_local_source_crates,
+    event_generated_type_provider, registry_id_provider, resolve_contract_identities,
+    resource_ref_provider, validate_contract_lookup_namespace, vanilla_registry_enum_provider,
 };
 
 fn main() {
@@ -24,14 +24,18 @@ fn main() {
         "../sand-resourcepack/src",
         "../sand-version/src",
         "api-scopes.toml",
+        "api-surface-profiles.toml",
         "api-surface-baseline.txt",
+        "api-surface-baseline-1.21.4.txt",
     ] {
         println!("cargo:rerun-if-changed={source}");
     }
     println!("cargo:rerun-if-env-changed=DEP_SAND_CORE_API_PROVIDER_DIR");
 
-    let manifest = ScopeManifest::from_path("api-scopes.toml")
+    let mut manifest = ScopeManifest::from_path("api-scopes.toml")
         .unwrap_or_else(|error| panic!("invalid Sand API scope manifest: {error}"));
+    let profiles = SurfaceProfileManifest::from_path(Path::new("api-surface-profiles.toml"))
+        .unwrap_or_else(|error| panic!("invalid Sand API surface profiles: {error}"));
     let provider_dir = PathBuf::from(
         env::var_os("DEP_SAND_CORE_API_PROVIDER_DIR").unwrap_or_else(|| {
             panic!(
@@ -39,9 +43,15 @@ fn main() {
             )
         }),
     );
-    let (generated, generated_contracts) = generated_providers(&provider_dir)
+    let providers = generated_providers(&provider_dir)
         .unwrap_or_else(|error| panic!("invalid generated API provider: {error}"));
-    let mut generated = generated;
+    let profile = profiles
+        .select(&providers.versions)
+        .unwrap_or_else(|error| panic!("cannot select Sand API surface profile: {error}"));
+    manifest.static_surface_items = profile.static_surface_items;
+    manifest.pending_item_ceiling = profile.pending_item_ceiling;
+    let mut generated = providers.apis;
+    let generated_contracts = providers.contracts;
     generated.extend(
         resource_ref_provider(&workspace.join("sand-core/src/resource_ref.rs"))
             .unwrap_or_else(|error| panic!("invalid resource_ref! API provider: {error}")),
@@ -224,7 +234,7 @@ fn main() {
         );
     }
 
-    write_coverage(&manifest, &report, &reachable);
+    write_coverage(&manifest, &report, &reachable, profile);
 }
 
 fn contract_source_files(source_crates: &[sand_api_enforce::SourceCrate]) -> Vec<PathBuf> {
@@ -284,11 +294,16 @@ fn cargo_cfg(features: BTreeSet<String>) -> CfgSet {
     }
 }
 
-fn generated_providers(
-    directory: &Path,
-) -> Result<(Vec<GeneratedApi>, Vec<ContractIdentity>), String> {
+struct GeneratedProviders {
+    apis: Vec<GeneratedApi>,
+    contracts: Vec<ContractIdentity>,
+    versions: BTreeMap<String, String>,
+}
+
+fn generated_providers(directory: &Path) -> Result<GeneratedProviders, String> {
     let mut generated = Vec::new();
     let mut contracts = Vec::new();
+    let mut provider_versions = BTreeMap::new();
     for (filename, rust_filename, root_identity) in [
         (
             "commands.api.json",
@@ -304,6 +319,15 @@ fn generated_providers(
         let path = directory.join(filename);
         let catalog = sand_build::read_api_provider(&path)
             .map_err(|error| format!("{}: {error}", path.display()))?;
+        if provider_versions
+            .insert(catalog.provider.clone(), catalog.minecraft_version.clone())
+            .is_some()
+        {
+            return Err(format!(
+                "duplicate generated provider `{}`",
+                catalog.provider
+            ));
+        }
         sand_build::validate_api_provider_source(
             &catalog,
             &directory.join(rust_filename),
@@ -351,7 +375,11 @@ fn generated_providers(
     }
     generated.sort_by(|left, right| left.identity.cmp(&right.identity));
     contracts.sort_by(|left, right| left.identity.cmp(&right.identity));
-    Ok((generated, contracts))
+    Ok(GeneratedProviders {
+        apis: generated,
+        contracts,
+        versions: provider_versions,
+    })
 }
 
 fn validate_generated_contracts(
@@ -436,6 +464,7 @@ fn write_coverage(
     manifest: &ScopeManifest,
     report: &sand_api_enforce::ScopeReport,
     reachable: &[sand_api_enforce::ReachableApi],
+    profile: &sand_api_enforce::SurfaceProfile,
 ) {
     let mut pending = report
         .entries
@@ -496,8 +525,9 @@ fn write_coverage(
         *origins.entry(origin).or_default() += 1;
     }
     let mut surface = format!(
-        "schema_version=1\nconfiguration=all-supported-features,current-target\ntotal={}\n",
-        reachable.len()
+        "schema_version=1\nconfiguration=all-supported-features,current-target\nminecraft_version={}\ntotal={}\n",
+        profile.minecraft_version,
+        reachable.len(),
     );
     for (kind, count) in kinds {
         writeln!(surface, "kind {kind}={count}").unwrap();
@@ -509,8 +539,12 @@ fn write_coverage(
     let report_path = output_dir.join("api_surface_report.txt");
     fs::write(&report_path, &surface)
         .unwrap_or_else(|error| panic!("failed to write {}: {error}", report_path.display()));
-    let baseline = fs::read_to_string("api-surface-baseline.txt")
-        .unwrap_or_else(|error| panic!("failed to read api-surface-baseline.txt: {error}"));
+    let baseline = fs::read_to_string(&profile.baseline).unwrap_or_else(|error| {
+        panic!(
+            "failed to read selected API surface baseline {}: {error}",
+            profile.baseline.display()
+        )
+    });
     if baseline != surface {
         let difference = baseline
             .lines()
@@ -527,7 +561,8 @@ fn write_coverage(
                 },
             );
         panic!(
-            "Sand API aggregate surface differs from api-surface-baseline.txt; classify the scope-level change and update the deterministic baseline ({difference})"
+            "Sand API aggregate surface differs from selected profile baseline {}; classify the scope-level change and update that deterministic baseline ({difference})",
+            profile.baseline.display()
         );
     }
 }

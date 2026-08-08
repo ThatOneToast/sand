@@ -123,6 +123,15 @@ information. Summary, context, Minecraft behavior, use/avoid guidance,
 parameter meaning, return meaning, and examples may not be filled with generic
 identifier-derived prose.
 
+Generated command and registry surfaces are versioned profiles, not one loose
+aggregate allowance. Their authoritative provider catalogs embed the resolved
+Minecraft version. The facade build requires every provider to agree, selects
+that exact version from `sand/api-surface-profiles.toml`, and byte-compares the
+measured report with the profile's baseline. A new Minecraft codegen target is
+therefore unsupported until its exact report has been audited and registered;
+an unknown version or a directory containing mixed-version providers fails
+closed during ordinary compilation.
+
 ## Prototype audit
 
 The original eight-commit prototype was retained as a starting point and

@@ -22,6 +22,7 @@ const SCOPE_SCHEMA_VERSION: u32 = 1;
 pub struct ScopeManifest {
     pub schema_version: u32,
     /// Current independently audited all-feature static surface size.
+    #[serde(default)]
     pub static_surface_items: usize,
     /// Append-only record of scope ids which have crossed the enforcement
     /// boundary. This makes a per-scope regression visible even when another
@@ -33,6 +34,7 @@ pub struct ScopeManifest {
     pub pending_scope_ceiling: usize,
     /// Maximum number of reachable items allowed to remain in active pending
     /// scopes. Lower this when a scope becomes enforced.
+    #[serde(default)]
     pub pending_item_ceiling: usize,
     #[serde(rename = "scope")]
     pub scopes: Vec<ApiScope>,

@@ -65,17 +65,28 @@ was not loaded.
 `advanced` is a supported tier, not an exemption. `__private` is excluded with
 a structural reason.
 
-## Current all-feature baseline
+## Version-keyed all-feature baselines
 
-The checked baseline is reproduced by `sand/build.rs` on stable Rust 1.96.0.
+The checked baselines are reproduced by `sand/build.rs` on stable Rust 1.96.0.
 Every normal build enables the union of Sand's supported facade features for
 the source audit, uses the current Cargo target cfg, reads declarations from
 the explicit workspace crate map, and consumes provider artifacts generated
-beside generated Rust. The measured aggregate is byte-compared with
-`sand/api-surface-baseline.txt`; that file records kinds, origins, and
-scope-level counts, never item exemptions.
+beside generated Rust. Command and registry provider catalogs embed their
+resolved Minecraft version. Both catalogs must agree, and that exact value
+selects a reviewed entry in `sand/api-surface-profiles.toml`; unknown or mixed
+versions fail compilation. Each profile binds its own exact item ceiling and
+byte-for-byte report baseline. The reports record their Minecraft version,
+kinds, origins, and scope-level counts, never item exemptions.
 
-The current installed static surface contains **11,835 unique API elements**:
+The verified profiles are:
+
+| Minecraft version | Static identities | Commands | Registries | Baseline |
+| --- | ---: | ---: | ---: | --- |
+| 1.21.4 (compatibility) | 10,925 | 924 | 4,288 | `api-surface-baseline-1.21.4.txt` |
+| 26.2 (latest/default) | 11,835 | 1,255 | 4,867 | `api-surface-baseline.txt` |
+
+The handwritten source contribution is 5,437 identities in both profiles.
+The following detailed kind count describes the latest/default 26.2 surface:
 
 | Kind | Count |
 | --- | ---: |

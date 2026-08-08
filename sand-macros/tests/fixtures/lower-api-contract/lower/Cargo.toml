@@ -1,0 +1,8 @@
+[package]
+name = "lower-api-provider"
+version = "0.0.0"
+edition.workspace = true
+
+[dependencies]
+sand-api-contract = { path = "../../../../../sand-api-contract" }
+sand-macros = { path = "../../../.." }

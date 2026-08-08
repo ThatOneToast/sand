@@ -12,6 +12,8 @@ keywords = ["minecraft", "datapack", "cli", "gamedev", "toolkit"]
 categories = ["command-line-utilities", "game-development"]
 
 [dependencies]
+sand = { path = "../sand" }
+sand-api-contract = { path = "../sand-api-contract" }
 sand-build = { path = "../sand-build" }
 sand-components = { path = "../sand-components" }
 sand-core = { path = "../sand-core" }

@@ -1,0 +1,5 @@
+error: missing API contract documentation for field `enabled`
+  --> tests/cases/fail_api_missing_field.rs:12:38
+   |
+12 | pub struct Config { pub id: u32, pub enabled: bool }
+   |                                      ^^^^^^^

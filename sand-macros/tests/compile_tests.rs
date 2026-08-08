@@ -121,3 +121,23 @@ fn resource_path_validation_compile_tests() {
     t.compile_fail("tests/cases/fail_run_fn_empty.rs");
     t.compile_fail("tests/cases/fail_run_fn_path_only_no_namespace.rs");
 }
+
+#[test]
+fn api_contract_compile_tests() {
+    let t = trybuild::TestCases::new();
+    t.pass("tests/cases/pass_api_contracts.rs");
+    t.pass("tests/cases/pass_api_members.rs");
+    t.compile_fail("tests/cases/fail_api_missing_parameter.rs");
+    t.compile_fail("tests/cases/fail_api_nonexistent_parameter.rs");
+    t.compile_fail("tests/cases/fail_api_duplicate_field.rs");
+    t.compile_fail("tests/cases/fail_api_unknown_field.rs");
+    t.compile_fail("tests/cases/fail_api_malformed_list.rs");
+    t.compile_fail("tests/cases/fail_api_unsupported_item.rs");
+    t.compile_fail("tests/cases/fail_api_duplicate_identity.rs");
+    t.compile_fail("tests/cases/fail_api_missing_field.rs");
+    t.compile_fail("tests/cases/fail_api_unknown_field_doc.rs");
+    t.compile_fail("tests/cases/fail_api_missing_variant.rs");
+    t.compile_fail("tests/cases/fail_api_unknown_variant_doc.rs");
+    t.compile_fail("tests/cases/fail_api_members_on_function.rs");
+    t.compile_fail("tests/cases/fail_api_public_tuple_field.rs");
+}

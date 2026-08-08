@@ -1,0 +1,5 @@
+error: field descriptions are only valid on structs with public named fields
+  --> tests/cases/fail_api_members_on_function.rs:10:12
+   |
+10 |     fields(value = "Functions do not have fields.")
+   |            ^^^^^

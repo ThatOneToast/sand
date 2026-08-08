@@ -8,6 +8,7 @@ repository.workspace = true
 homepage.workspace = true
 authors.workspace = true
 rust-version.workspace = true
+links = "sand_core"
 keywords = ["minecraft", "datapack", "commands", "gamedev"]
 categories = ["game-development", "data-structures"]
 

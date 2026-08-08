@@ -1,0 +1,5 @@
+error: missing API contract documentation for variant `Pending`
+  --> tests/cases/fail_api_missing_variant.rs:12:26
+   |
+12 | pub enum Status { Ready, Pending }
+   |                          ^^^^^^^

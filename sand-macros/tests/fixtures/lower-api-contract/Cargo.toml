@@ -1,0 +1,6 @@
+[workspace]
+members = ["lower", "facade"]
+resolver = "3"
+
+[workspace.package]
+edition = "2024"

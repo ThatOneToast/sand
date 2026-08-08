@@ -1,0 +1,5 @@
+error: unknown API contract field `stability`
+  --> tests/cases/fail_api_unknown_field.rs:10:5
+   |
+10 |     stability = "forever",
+   |     ^^^^^^^^^

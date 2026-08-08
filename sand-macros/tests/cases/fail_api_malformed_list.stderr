@@ -1,0 +1,5 @@
+error: expected square brackets
+ --> tests/cases/fail_api_malformed_list.rs:7:16
+  |
+7 |     use_when = "Sharing conditions",
+  |                ^^^^^^^^^^^^^^^^^^^^

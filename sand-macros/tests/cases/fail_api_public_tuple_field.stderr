@@ -1,0 +1,5 @@
+error: contracted public tuple fields are unsupported; use named fields or make them private
+  --> tests/cases/fail_api_public_tuple_field.rs:11:24
+   |
+11 | pub struct PredicateId(pub u32);
+   |                        ^^^^^^^

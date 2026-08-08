@@ -1,0 +1,5 @@
+error: API contract documents nonexistent variant `Missing` on `Status`
+  --> tests/cases/fail_api_unknown_variant_doc.rs:10:55
+   |
+10 |     variants(Ready = "Marks a configured predicate.", Missing = "Does not exist.")
+   |                                                       ^^^^^^^

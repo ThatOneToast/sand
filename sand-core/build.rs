@@ -28,8 +28,9 @@ fn main() {
 
     // Explicit opt-in placeholder fallback. When codegen fails and this is set
     // (and strict is NOT), write `// Generation failed` placeholder files so
-    // the include! macros still compile. The generated_api_health tests then
-    // fail on those placeholders — they can never silently pass.
+    // ordinary facade include! sites still compile. Sand-core test targets
+    // require generated symbols and are unavailable in this recovery mode;
+    // provider tests validate the marker and source parity instead.
     let allow_placeholders = std::env::var("SAND_ALLOW_PLACEHOLDER_CODEGEN")
         .map(|v| matches!(v.trim(), "1" | "true" | "yes"))
         .unwrap_or(false);
@@ -38,17 +39,21 @@ fn main() {
         Ok(()) => {}
         Err(e) if allow_placeholders && !strict => {
             // Explicitly opted-in lenient mode: write placeholder files so the
-            // include! macros still compile. The generated_api_health tests
-            // will fail on these placeholders.
+            // ordinary include! sites still compile. Test-only code may refer
+            // to absent generated symbols, so this guarantees `check`, not a
+            // runnable sand-core test suite.
             println!(
                 "cargo:warning=sand-core codegen FAILED for MC {version}: {e}\n\
                  Placeholder files written because SAND_ALLOW_PLACEHOLDER_CODEGEN=1.\n\
-                 The generated_api_health tests will fail until real codegen succeeds.\n\
+                 Sand-core tests are unavailable until real codegen succeeds.\n\
                  Remove SAND_ALLOW_PLACEHOLDER_CODEGEN for a hard build error."
             );
-            let _ = std::fs::write(out_dir.join("registries.rs"), "// Generation failed\n");
-            let _ = std::fs::write(out_dir.join("block_states.rs"), "// Generation failed\n");
-            let _ = std::fs::write(out_dir.join("commands.rs"), "// Generation failed\n");
+            sand_build::write_placeholder_codegen(&out_dir, &version).unwrap_or_else(|write_error| {
+                panic!(
+                    "failed to write explicit placeholder codegen artifacts to {}: {write_error}",
+                    out_dir.display()
+                )
+            });
         }
         Err(e) => {
             // Default and strict: fail immediately with an actionable error.
@@ -64,9 +69,14 @@ fn main() {
                  server (Java 21 for the stable baseline; Java 25 for 26.2) and either\n\
                  network access or a cached jar in ~/.sand/cache/{version}/.\n\
                  \n\
-                 To compile sand-core with empty placeholder APIs (generated_api_health\n\
-                 tests will fail), set SAND_ALLOW_PLACEHOLDER_CODEGEN=1."
+                 To compile ordinary facade code with empty placeholder APIs (sand-core\n\
+                 test builds are unavailable), set SAND_ALLOW_PLACEHOLDER_CODEGEN=1."
             );
         }
     }
+
+    // Make the exact provider artifacts available to the facade's build
+    // audit. Cargo forwards this as DEP_SAND_CORE_API_PROVIDER_DIR because
+    // sand-core owns the `sand_core` links key.
+    println!("cargo::metadata=api_provider_dir={}", out_dir.display());
 }

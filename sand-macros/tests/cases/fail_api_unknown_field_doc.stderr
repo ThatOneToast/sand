@@ -1,0 +1,5 @@
+error: API contract documents nonexistent field `missing` on `Config`
+  --> tests/cases/fail_api_unknown_field_doc.rs:10:45
+   |
+10 |     fields(id = "Identifies the resource.", missing = "Does not exist.")
+   |                                             ^^^^^^^

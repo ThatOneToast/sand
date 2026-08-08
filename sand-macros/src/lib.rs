@@ -48,7 +48,17 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{ItemFn, LitStr, parse_macro_input, token};
 
+mod api_contract;
 mod entity_state;
+
+/// Defines and registers the authoritative public contract for a supported
+/// Sand API item.
+#[proc_macro_attribute]
+pub fn api(attr: TokenStream, item: TokenStream) -> TokenStream {
+    api_contract::expand(attr.into(), item.into())
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
 
 /// Derive a typed state schema, its field constants, and a concrete bound view.
 ///
@@ -2334,7 +2344,7 @@ fn expand_hud_bar(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
                 frame_width: #effective_fw_lit,
             };
 
-            ::sand::__private::rp::inventory::submit!(
+            ::sand::__private::rp::__private::inventory::submit!(
                 ::sand::__private::rp::ResourcePackDescriptor {
                     name: #name,
                     make: #factory_ident,
@@ -2367,7 +2377,7 @@ fn expand_hud_bar(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
                 frame_width: 0u32,  // unknown for user-supplied PNGs
             };
 
-            ::sand::__private::rp::inventory::submit!(
+            ::sand::__private::rp::__private::inventory::submit!(
                 ::sand::__private::rp::ResourcePackDescriptor {
                     name: #name,
                     make: #factory_ident,
@@ -2486,7 +2496,7 @@ fn expand_hud_element(input: TokenStream) -> syn::Result<proc_macro2::TokenStrea
                 char_width: #effective_cw_lit,
             };
 
-            ::sand::__private::rp::inventory::submit!(
+            ::sand::__private::rp::__private::inventory::submit!(
                 ::sand::__private::rp::ResourcePackDescriptor {
                     name: #name,
                     make: #factory_ident,
@@ -2517,7 +2527,7 @@ fn expand_hud_element(input: TokenStream) -> syn::Result<proc_macro2::TokenStrea
                 char_width: 0u32,  // unknown for user-supplied PNGs
             };
 
-            ::sand::__private::rp::inventory::submit!(
+            ::sand::__private::rp::__private::inventory::submit!(
                 ::sand::__private::rp::ResourcePackDescriptor {
                     name: #name,
                     make: #factory_ident,
@@ -2571,7 +2581,7 @@ fn expand_texture(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
             })
         }
 
-        ::sand::__private::rp::inventory::submit!(
+        ::sand::__private::rp::__private::inventory::submit!(
             ::sand::__private::rp::ResourcePackDescriptor {
                 name: #id,
                 make: #factory_ident,
@@ -3594,12 +3604,18 @@ fn sand_storage_derive_impl(input: syn::DeriveInput) -> Result<TokenStream, syn:
             ));
         }
     };
+    let generated_member_names =
+        sand_api_contract::syntax::sand_storage_generated_member_names(&input)?;
+    let schema_ident = syn::Ident::new(&generated_member_names[0], struct_name.span());
 
     // ── Build field accessor methods ─────────────────────────────────────────
     let mut methods = Vec::new();
 
-    for field in fields {
-        let field_ident = field.ident.as_ref().expect("named field has ident");
+    for (field, generated_name) in fields.iter().zip(generated_member_names.iter().skip(1)) {
+        let field_ident = syn::Ident::new(
+            generated_name,
+            field.ident.as_ref().expect("named field has ident").span(),
+        );
         let field_ty = &field.ty;
 
         // Check for #[sand(path = "...")] override
@@ -3629,7 +3645,7 @@ fn sand_storage_derive_impl(input: syn::DeriveInput) -> Result<TokenStream, syn:
 
         methods.push(quote! {
             pub fn #field_ident() -> ::sand::__private::state::StorageField<#struct_name, #field_ty> {
-                Self::SCHEMA.field(#key_str)
+                Self::#schema_ident.field(#key_str)
             }
         });
     }
@@ -3639,7 +3655,7 @@ fn sand_storage_derive_impl(input: syn::DeriveInput) -> Result<TokenStream, syn:
 
     let expanded = quote! {
         impl #struct_name {
-            pub const SCHEMA: ::sand::__private::state::StorageSchema<#struct_name> =
+            pub const #schema_ident: ::sand::__private::state::StorageSchema<#struct_name> =
                 ::sand::__private::state::StorageSchema::new(#storage_lit, #root_lit);
 
             #( #methods )*

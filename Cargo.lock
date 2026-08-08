@@ -1873,9 +1873,38 @@ dependencies = [
 name = "sand"
 version = "0.1.0"
 dependencies = [
+ "sand-api-contract",
+ "sand-api-enforce",
+ "sand-build",
+ "sand-components",
  "sand-core",
  "sand-macros",
  "sand-resourcepack",
+]
+
+[[package]]
+name = "sand-api-contract"
+version = "0.1.0"
+dependencies = [
+ "inventory",
+ "proc-macro2",
+ "quote",
+ "serde",
+ "serde_json",
+ "syn",
+]
+
+[[package]]
+name = "sand-api-enforce"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "sand-api-contract",
+ "serde",
+ "syn",
+ "tempfile",
+ "toml 0.8.23",
 ]
 
 [[package]]
@@ -1887,10 +1916,12 @@ dependencies = [
  "hex",
  "indicatif",
  "reqwest",
+ "sand-api-contract",
  "sand-version",
  "serde",
  "serde_json",
  "sha1",
+ "syn",
  "tempfile",
  "thiserror 2.0.18",
 ]
@@ -1906,6 +1937,8 @@ dependencies = [
  "criterion",
  "ctrlc",
  "handlebars",
+ "sand",
+ "sand-api-contract",
  "sand-build",
  "sand-components",
  "sand-core",
@@ -1974,6 +2007,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "sand",
+ "sand-api-contract",
  "sand-core",
  "sand-macros",
  "syn",

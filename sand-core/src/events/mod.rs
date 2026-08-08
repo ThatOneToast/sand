@@ -490,25 +490,185 @@ pub trait SameCycleEventGroup: event_group_private::Sealed {
     fn dependencies() -> Vec<SameCycleEventDependency>;
 }
 
-macro_rules! impl_same_cycle_event_group {
-    ($($event:ident),+ $(,)?) => {
-        impl<$($event: SandEvent + 'static),+> event_group_private::Sealed for ($($event,)+) {}
+impl<A: SandEvent + 'static, B: SandEvent + 'static> event_group_private::Sealed for (A, B) {}
 
-        impl<$($event: SandEvent + 'static),+> SameCycleEventGroup for ($($event,)+) {
-            fn dependencies() -> Vec<SameCycleEventDependency> {
-                vec![$(SameCycleEventDependency::of::<$event>()),+]
-            }
-        }
-    };
+impl<A: SandEvent + 'static, B: SandEvent + 'static> SameCycleEventGroup for (A, B) {
+    fn dependencies() -> Vec<SameCycleEventDependency> {
+        vec![
+            SameCycleEventDependency::of::<A>(),
+            SameCycleEventDependency::of::<B>(),
+        ]
+    }
 }
 
-impl_same_cycle_event_group!(A, B);
-impl_same_cycle_event_group!(A, B, C);
-impl_same_cycle_event_group!(A, B, C, D);
-impl_same_cycle_event_group!(A, B, C, D, E);
-impl_same_cycle_event_group!(A, B, C, D, E, F);
-impl_same_cycle_event_group!(A, B, C, D, E, F, G);
-impl_same_cycle_event_group!(A, B, C, D, E, F, G, H);
+impl<A: SandEvent + 'static, B: SandEvent + 'static, C: SandEvent + 'static>
+    event_group_private::Sealed for (A, B, C)
+{
+}
+
+impl<A: SandEvent + 'static, B: SandEvent + 'static, C: SandEvent + 'static> SameCycleEventGroup
+    for (A, B, C)
+{
+    fn dependencies() -> Vec<SameCycleEventDependency> {
+        vec![
+            SameCycleEventDependency::of::<A>(),
+            SameCycleEventDependency::of::<B>(),
+            SameCycleEventDependency::of::<C>(),
+        ]
+    }
+}
+
+impl<A: SandEvent + 'static, B: SandEvent + 'static, C: SandEvent + 'static, D: SandEvent + 'static>
+    event_group_private::Sealed for (A, B, C, D)
+{
+}
+
+impl<A: SandEvent + 'static, B: SandEvent + 'static, C: SandEvent + 'static, D: SandEvent + 'static>
+    SameCycleEventGroup for (A, B, C, D)
+{
+    fn dependencies() -> Vec<SameCycleEventDependency> {
+        vec![
+            SameCycleEventDependency::of::<A>(),
+            SameCycleEventDependency::of::<B>(),
+            SameCycleEventDependency::of::<C>(),
+            SameCycleEventDependency::of::<D>(),
+        ]
+    }
+}
+
+impl<
+    A: SandEvent + 'static,
+    B: SandEvent + 'static,
+    C: SandEvent + 'static,
+    D: SandEvent + 'static,
+    E: SandEvent + 'static,
+> event_group_private::Sealed for (A, B, C, D, E)
+{
+}
+
+impl<
+    A: SandEvent + 'static,
+    B: SandEvent + 'static,
+    C: SandEvent + 'static,
+    D: SandEvent + 'static,
+    E: SandEvent + 'static,
+> SameCycleEventGroup for (A, B, C, D, E)
+{
+    fn dependencies() -> Vec<SameCycleEventDependency> {
+        vec![
+            SameCycleEventDependency::of::<A>(),
+            SameCycleEventDependency::of::<B>(),
+            SameCycleEventDependency::of::<C>(),
+            SameCycleEventDependency::of::<D>(),
+            SameCycleEventDependency::of::<E>(),
+        ]
+    }
+}
+
+impl<
+    A: SandEvent + 'static,
+    B: SandEvent + 'static,
+    C: SandEvent + 'static,
+    D: SandEvent + 'static,
+    E: SandEvent + 'static,
+    F: SandEvent + 'static,
+> event_group_private::Sealed for (A, B, C, D, E, F)
+{
+}
+
+impl<
+    A: SandEvent + 'static,
+    B: SandEvent + 'static,
+    C: SandEvent + 'static,
+    D: SandEvent + 'static,
+    E: SandEvent + 'static,
+    F: SandEvent + 'static,
+> SameCycleEventGroup for (A, B, C, D, E, F)
+{
+    fn dependencies() -> Vec<SameCycleEventDependency> {
+        vec![
+            SameCycleEventDependency::of::<A>(),
+            SameCycleEventDependency::of::<B>(),
+            SameCycleEventDependency::of::<C>(),
+            SameCycleEventDependency::of::<D>(),
+            SameCycleEventDependency::of::<E>(),
+            SameCycleEventDependency::of::<F>(),
+        ]
+    }
+}
+
+impl<
+    A: SandEvent + 'static,
+    B: SandEvent + 'static,
+    C: SandEvent + 'static,
+    D: SandEvent + 'static,
+    E: SandEvent + 'static,
+    F: SandEvent + 'static,
+    G: SandEvent + 'static,
+> event_group_private::Sealed for (A, B, C, D, E, F, G)
+{
+}
+
+impl<
+    A: SandEvent + 'static,
+    B: SandEvent + 'static,
+    C: SandEvent + 'static,
+    D: SandEvent + 'static,
+    E: SandEvent + 'static,
+    F: SandEvent + 'static,
+    G: SandEvent + 'static,
+> SameCycleEventGroup for (A, B, C, D, E, F, G)
+{
+    fn dependencies() -> Vec<SameCycleEventDependency> {
+        vec![
+            SameCycleEventDependency::of::<A>(),
+            SameCycleEventDependency::of::<B>(),
+            SameCycleEventDependency::of::<C>(),
+            SameCycleEventDependency::of::<D>(),
+            SameCycleEventDependency::of::<E>(),
+            SameCycleEventDependency::of::<F>(),
+            SameCycleEventDependency::of::<G>(),
+        ]
+    }
+}
+
+impl<
+    A: SandEvent + 'static,
+    B: SandEvent + 'static,
+    C: SandEvent + 'static,
+    D: SandEvent + 'static,
+    E: SandEvent + 'static,
+    F: SandEvent + 'static,
+    G: SandEvent + 'static,
+    H: SandEvent + 'static,
+> event_group_private::Sealed for (A, B, C, D, E, F, G, H)
+{
+}
+
+impl<
+    A: SandEvent + 'static,
+    B: SandEvent + 'static,
+    C: SandEvent + 'static,
+    D: SandEvent + 'static,
+    E: SandEvent + 'static,
+    F: SandEvent + 'static,
+    G: SandEvent + 'static,
+    H: SandEvent + 'static,
+> SameCycleEventGroup for (A, B, C, D, E, F, G, H)
+{
+    fn dependencies() -> Vec<SameCycleEventDependency> {
+        vec![
+            SameCycleEventDependency::of::<A>(),
+            SameCycleEventDependency::of::<B>(),
+            SameCycleEventDependency::of::<C>(),
+            SameCycleEventDependency::of::<D>(),
+            SameCycleEventDependency::of::<E>(),
+            SameCycleEventDependency::of::<F>(),
+            SameCycleEventDependency::of::<G>(),
+            SameCycleEventDependency::of::<H>(),
+        ]
+    }
+}
 
 /// Lifecycle resources a [`SandEvent`] owns: objectives to create at load time,
 /// commands to run before each observation, and commands to run after a

@@ -291,6 +291,18 @@ pub enum ReachabilityError {
         provider: String,
         dynamic_includes: usize,
     },
+    UnboundItemMacro {
+        source: PathBuf,
+        line: usize,
+        module: String,
+        macro_path: String,
+    },
+    InvalidItemMacroProvider {
+        module: String,
+        macro_path: String,
+        provider: String,
+        invocations: usize,
+    },
     UnboundApiProducer {
         source: PathBuf,
         line: usize,
@@ -382,6 +394,25 @@ impl fmt::Display for ReachabilityError {
                 formatter,
                 "generated include binding `{module}` -> `{provider}` requires exactly one opaque include and at least one matching generated API declaration beneath that module (found {dynamic_includes} opaque includes)"
             ),
+            Self::UnboundItemMacro {
+                source,
+                line,
+                module,
+                macro_path,
+            } => write!(
+                formatter,
+                "{}:{line}: reachable module `{module}` invokes item-position macro `{macro_path}!` without an exact generated API provider binding",
+                source.display()
+            ),
+            Self::InvalidItemMacroProvider {
+                module,
+                macro_path,
+                provider,
+                invocations,
+            } => write!(
+                formatter,
+                "item macro binding `({module}, {macro_path}!)` -> `{provider}` requires at least one exact invocation and at least one provider-owned generated declaration beneath that module (found {invocations} invocations)"
+            ),
             Self::UnboundApiProducer {
                 source,
                 line,
@@ -464,6 +495,7 @@ pub struct SurfaceGraph {
     crates: BTreeMap<String, CrateIndex>,
     generated: Vec<GeneratedApi>,
     include_providers: BTreeMap<String, String>,
+    item_macro_providers: BTreeMap<(String, String), String>,
     api_producer_bindings: BTreeMap<(String, String), String>,
     transcriber_producers: Vec<ApiProducerUse>,
 }
@@ -495,6 +527,7 @@ struct Module {
     excluded: bool,
     definition: Option<SourceDefinition>,
     dynamic_includes: Vec<IncludeSite>,
+    item_macros: Vec<ItemMacroSite>,
     api_producers: Vec<ApiProducerUse>,
 }
 
@@ -502,6 +535,12 @@ struct IncludeSite {
     source: PathBuf,
     line: usize,
     expression: String,
+}
+
+struct ItemMacroSite {
+    source: PathBuf,
+    line: usize,
+    macro_path: String,
 }
 
 struct Declaration {
@@ -611,6 +650,7 @@ impl SurfaceGraph {
             crates: indices,
             generated,
             include_providers: BTreeMap::new(),
+            item_macro_providers: BTreeMap::new(),
             api_producer_bindings: BTreeMap::new(),
             transcriber_producers,
         })
@@ -702,6 +742,47 @@ impl SurfaceGraph {
             });
         }
         self.include_providers.insert(module, provider);
+        Ok(self)
+    }
+
+    /// Bind ordinary item-position invocations of one exact macro path in a
+    /// defining module to the provider which models their generated surface.
+    ///
+    /// The key is lexical and intentionally narrow: binding `family!` in one
+    /// module neither classifies another macro nor the same spelling in a
+    /// different module. The provider must own a concrete generated
+    /// declaration below the defining module, so an unrelated catalog entry
+    /// cannot turn the binding into an exemption.
+    pub fn bind_item_macro_provider(
+        mut self,
+        module: impl Into<String>,
+        macro_path: impl Into<String>,
+        provider: impl Into<String>,
+    ) -> Result<Self, ReachabilityError> {
+        let module = module.into();
+        let macro_path = macro_path.into();
+        let provider = provider.into();
+        let invocations = self.module(&module).map_or(0, |parsed| {
+            parsed
+                .item_macros
+                .iter()
+                .filter(|site| site.macro_path == macro_path)
+                .count()
+        });
+        let prefix = format!("{module}::");
+        let owns_declaration = self.generated.iter().any(|item| {
+            item.provider == provider && !item.excluded && item.identity.starts_with(&prefix)
+        });
+        if invocations == 0 || !owns_declaration {
+            return Err(ReachabilityError::InvalidItemMacroProvider {
+                module,
+                macro_path,
+                provider,
+                invocations,
+            });
+        }
+        self.item_macro_providers
+            .insert((module, macro_path), provider);
         Ok(self)
     }
 
@@ -832,6 +913,7 @@ impl SurfaceGraph {
             return Ok(());
         }
         self.require_audited_includes(module_id, module)?;
+        self.require_item_macro_bindings(module_id, module)?;
         for producer in &module.api_producers {
             self.require_api_producer_binding(producer)?;
         }
@@ -958,6 +1040,26 @@ impl SurfaceGraph {
         })
     }
 
+    fn require_item_macro_bindings(
+        &self,
+        module_id: &str,
+        module: &Module,
+    ) -> Result<(), ReachabilityError> {
+        if let Some(site) = module.item_macros.iter().find(|site| {
+            !self
+                .item_macro_providers
+                .contains_key(&(module_id.to_owned(), site.macro_path.clone()))
+        }) {
+            return Err(ReachabilityError::UnboundItemMacro {
+                source: site.source.clone(),
+                line: site.line,
+                module: module_id.to_owned(),
+                macro_path: site.macro_path.clone(),
+            });
+        }
+        Ok(())
+    }
+
     fn declaration(&self, identity: &str) -> Option<(&Declaration, bool)> {
         let crate_name = identity.split("::").next()?;
         if let Some(value) = self.crates.get(crate_name)?.declarations.get(identity) {
@@ -1009,6 +1111,7 @@ impl SurfaceGraph {
             && !module.excluded
         {
             self.require_audited_includes(owner, module)?;
+            self.require_item_macro_bindings(owner, module)?;
         }
         if let Some((declaration, false)) = self.declaration(&resolved) {
             for producer in &declaration.api_producers {
@@ -1733,7 +1836,7 @@ fn parse_items(
                     .declarations
                     .insert(name, identity.clone());
                 index.declarations.insert(
-                    identity,
+                    identity.clone(),
                     Declaration {
                         kind: ReachableKind::Macro,
                         members: Vec::new(),
@@ -1741,9 +1844,28 @@ fn parse_items(
                         alias_target: None,
                         definition: source_definition(source_file, value.span().start()),
                         member_definitions: BTreeMap::new(),
-                        api_producers: Vec::new(),
+                        api_producers: api_producers_from_attrs(
+                            &value.attrs,
+                            cfg,
+                            source_file,
+                            &identity,
+                            Some(item),
+                        )?,
                     },
                 );
+            }
+            syn::Item::Macro(value) if value.ident.is_none() => {
+                let macro_path = path_segments(&value.mac.path).join("::");
+                index
+                    .modules
+                    .entry(module_id.to_owned())
+                    .or_default()
+                    .item_macros
+                    .push(ItemMacroSite {
+                        source: source_file.to_owned(),
+                        line: value.span().start().line,
+                        macro_path,
+                    });
             }
             syn::Item::ExternCrate(value) => {
                 let source = ident_name(&value.ident);

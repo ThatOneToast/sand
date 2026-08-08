@@ -178,6 +178,215 @@ fn contracts_for(reachable: &[sand_api_enforce::ReachableApi]) -> Vec<ContractId
         .collect()
 }
 
+fn item_macro_graph(
+    source: &str,
+    generated: impl IntoIterator<Item = GeneratedApi>,
+) -> (tempfile::TempDir, SurfaceGraph) {
+    let directory = tempfile::tempdir().unwrap();
+    let facade = directory.path().join("facade");
+    fs::create_dir_all(&facade).unwrap();
+    fs::write(facade.join("lib.rs"), source).unwrap();
+    let graph = SurfaceGraph::load(
+        [SourceCrate {
+            name: "facade".into(),
+            root: facade.join("lib.rs"),
+        }],
+        [],
+        generated,
+    )
+    .unwrap();
+    (directory, graph)
+}
+
+#[test]
+fn reachable_item_macro_fails_closed_until_its_exact_provider_is_bound() {
+    let (_directory, graph) = item_macro_graph(
+        r#"
+            macro_rules! family { ($name:ident) => { pub struct $name; }; }
+            family!(Generated);
+        "#,
+        [GeneratedApi {
+            identity: "facade::Generated".into(),
+            provider: "fixture_family".into(),
+            producer: None,
+            kind: ReachableKind::Struct,
+            members: Vec::new(),
+            excluded: false,
+        }],
+    );
+
+    assert!(matches!(
+        graph.reachable_from("facade"),
+        Err(ReachabilityError::UnboundItemMacro {
+            module,
+            macro_path,
+            ..
+        }) if module == "facade" && macro_path == "family"
+    ));
+}
+
+#[test]
+fn item_macro_binding_requires_an_invocation_and_provider_output_below_the_module() {
+    let (_directory, graph) = item_macro_graph(
+        r#"
+            macro_rules! family { ($name:ident) => { pub struct $name; }; }
+            family!(Generated);
+        "#,
+        [GeneratedApi {
+            identity: "elsewhere::Generated".into(),
+            provider: "fixture_family".into(),
+            producer: None,
+            kind: ReachableKind::Struct,
+            members: Vec::new(),
+            excluded: false,
+        }],
+    );
+
+    assert!(matches!(
+        graph.bind_item_macro_provider("facade", "family", "fixture_family"),
+        Err(ReachabilityError::InvalidItemMacroProvider {
+            module,
+            macro_path,
+            provider,
+            invocations: 1,
+        }) if module == "facade" && macro_path == "family" && provider == "fixture_family"
+    ));
+
+    let (_directory, graph) = item_macro_graph(
+        "pub struct Handwritten;",
+        [GeneratedApi {
+            identity: "facade::Generated".into(),
+            provider: "fixture_family".into(),
+            producer: None,
+            kind: ReachableKind::Struct,
+            members: Vec::new(),
+            excluded: false,
+        }],
+    );
+    assert!(matches!(
+        graph.bind_item_macro_provider("facade", "family", "fixture_family"),
+        Err(ReachabilityError::InvalidItemMacroProvider { invocations: 0, .. })
+    ));
+}
+
+#[test]
+fn exact_item_macro_binding_exposes_provider_owned_output() {
+    let (_directory, graph) = item_macro_graph(
+        r#"
+            macro_rules! family { ($name:ident) => { pub struct $name; }; }
+            family!(Generated);
+        "#,
+        [GeneratedApi {
+            identity: "facade::Generated".into(),
+            provider: "fixture_family".into(),
+            producer: None,
+            kind: ReachableKind::Struct,
+            members: vec![("create".into(), ReachableKind::Method)],
+            excluded: false,
+        }],
+    );
+    let reachable = graph
+        .bind_item_macro_provider("facade", "family", "fixture_family")
+        .unwrap()
+        .reachable_from("facade")
+        .unwrap();
+
+    assert_eq!(
+        item(&reachable, "facade::Generated").kind,
+        ReachableKind::Struct
+    );
+    assert_eq!(
+        item(&reachable, "facade::Generated::create").origin,
+        sand_api_enforce::ReachableOrigin::Generator("fixture_family".into())
+    );
+}
+
+#[test]
+fn item_macro_binding_does_not_cover_the_same_spelling_in_another_module() {
+    let (_directory, graph) = item_macro_graph(
+        r#"
+            macro_rules! family { ($name:ident) => { pub struct $name; }; }
+            family!(RootGenerated);
+            pub mod nested {
+                macro_rules! family { ($name:ident) => { pub struct $name; }; }
+                family!(NestedGenerated);
+            }
+        "#,
+        [
+            GeneratedApi {
+                identity: "facade::RootGenerated".into(),
+                provider: "fixture_family".into(),
+                producer: None,
+                kind: ReachableKind::Struct,
+                members: Vec::new(),
+                excluded: false,
+            },
+            GeneratedApi {
+                identity: "facade::nested::NestedGenerated".into(),
+                provider: "fixture_family".into(),
+                producer: None,
+                kind: ReachableKind::Struct,
+                members: Vec::new(),
+                excluded: false,
+            },
+        ],
+    );
+    let error = graph
+        .bind_item_macro_provider("facade", "family", "fixture_family")
+        .unwrap()
+        .reachable_from("facade")
+        .unwrap_err();
+
+    assert!(matches!(
+        error,
+        ReachabilityError::UnboundItemMacro {
+            module,
+            macro_path,
+            ..
+        } if module == "facade::nested" && macro_path == "family"
+    ));
+}
+
+#[test]
+fn exported_macro_declaration_attributes_are_classified_and_cannot_be_spoofed() {
+    let (_directory, graph) = item_macro_graph(
+        r#"
+            #[unknown_contract_attribute]
+            #[macro_export]
+            macro_rules! exported { () => {}; }
+        "#,
+        [],
+    );
+    assert!(matches!(
+        graph.reachable_from("facade"),
+        Err(ReachabilityError::UnclassifiedApiMacro {
+            owner,
+            name,
+            form: "attribute",
+            ..
+        }) if owner == "facade::exported" && name == "unknown_contract_attribute"
+    ));
+
+    let (_directory, graph) = item_macro_graph(
+        r#"
+            use impostor::api;
+            #[api]
+            #[macro_export]
+            macro_rules! exported { () => {}; }
+        "#,
+        [],
+    );
+    assert!(matches!(
+        graph.reachable_from("facade"),
+        Err(ReachabilityError::UnclassifiedApiMacro {
+            owner,
+            name,
+            form: "macro imported under an audited bare name",
+            ..
+        }) if owner == "facade::exported" && name == "api"
+    ));
+}
+
 #[test]
 fn extracts_explicit_and_glob_reexports_with_associated_surface() {
     let (_directory, reachable) = fixture(&[]);
@@ -1096,7 +1305,11 @@ fn public_impl_for_unmodeled_generated_owner_fails_closed() {
         }],
     )
     .expect("a controlled provider models the generated owner");
-    let reachable = graph.reachable_from("facade").unwrap();
+    let reachable = graph
+        .bind_item_macro_provider("facade", "some_generator", "fixture_generator")
+        .unwrap()
+        .reachable_from("facade")
+        .unwrap();
     assert_eq!(
         item(&reachable, "facade::Generated::exposed").origin,
         sand_api_enforce::ReachableOrigin::Generator("fixture_generator".into())

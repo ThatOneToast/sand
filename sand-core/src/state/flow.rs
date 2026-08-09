@@ -232,7 +232,7 @@ impl<S: TypedGameState> FlowTransitionBuilder<S> {
     pub fn done(mut self) -> StateFlow<S> {
         let guard_plans = match self.guard {
             Some(guard) => guard
-                .to_execute_plans(false)
+                .rendered_plans(false)
                 .into_iter()
                 .map(|plan| plan.into_iter().collect())
                 .collect(),
@@ -290,7 +290,7 @@ impl<'a, S: TypedGameState> StateTransitionBuilder<'a, S> {
         let mut condition = self
             .from
             .map(|from| self.state.is(from))
-            .unwrap_or_else(|| Condition::entity(self.state.selector()));
+            .unwrap_or_else(|| Condition::entity_raw(self.state.selector()));
         if let Some(guard) = self.guard {
             condition = condition.and(guard);
         }
@@ -632,7 +632,7 @@ mod tests {
             state
                 .transition()
                 .from(Phase::Fighting)
-                .when(Condition::entity("@s[tag=low]"))
+                .when(Condition::entity_raw("@s[tag=low]"))
                 .to(Phase::Enraged),
             vec![
                 "execute if score @s boss_phase matches 1 if entity @s[tag=low] run scoreboard players set @s boss_phase 2"
@@ -644,11 +644,11 @@ mod tests {
     fn flow_priority_hook_order_and_tick_cadence_are_deterministic() {
         let flow = StateFlow::players(&PHASE)
             .transition(Phase::Fighting, Phase::Enraged)
-            .when(Condition::entity("@s[tag=low]"))
+            .when(Condition::entity_raw("@s[tag=low]"))
             .priority(100)
             .done()
             .transition(Phase::Fighting, Phase::Defeated)
-            .when(Condition::entity("@s[tag=dead]"))
+            .when(Condition::entity_raw("@s[tag=dead]"))
             .priority(50)
             .done()
             .on_exit(Phase::Fighting, "say exit")

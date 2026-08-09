@@ -183,11 +183,11 @@ impl Timer {
     ///
     /// Raw compatibility escape hatch — prefer [`Timer::try_expired`].
     pub fn expired(&self, selector: &str) -> crate::condition::Condition {
-        crate::condition::Condition::Score {
-            selector: selector.to_string(),
-            objective: self.objective_name(),
-            range: crate::condition::ScoreRange::Eq(0),
-        }
+        crate::condition::Condition::score(
+            selector.to_string(),
+            self.objective_name(),
+            crate::condition::ScoreRange::Eq(0),
+        )
     }
 
     /// Validated counterpart to [`Timer::expired`] — takes a typed
@@ -195,6 +195,7 @@ impl Timer {
     /// holder because the result lowers to `execute if score <holder> …`.
     ///
     /// ```
+    /// use sand_core::execute_when::when;
     /// use sand_core::state::{Ticks, Timer};
     /// use sand_commands::ScoreHolder;
     ///
@@ -202,7 +203,7 @@ impl Timer {
     ///
     /// let cond = BLINK.try_expired(ScoreHolder::self_()).unwrap();
     /// assert_eq!(
-    ///     cond.execute_commands(false, "say ok"),
+    ///     when(cond).then_one("say ok"),
     ///     vec!["execute if score @s blink_cd matches 0 run say ok"]
     /// );
     /// assert!(BLINK.try_expired(ScoreHolder::wildcard()).is_err());
@@ -220,11 +221,11 @@ impl Timer {
     ///
     /// Raw compatibility escape hatch — prefer [`Timer::try_active`].
     pub fn active(&self, selector: &str) -> crate::condition::Condition {
-        crate::condition::Condition::Score {
-            selector: selector.to_string(),
-            objective: self.objective_name(),
-            range: crate::condition::ScoreRange::Gte(1),
-        }
+        crate::condition::Condition::score(
+            selector.to_string(),
+            self.objective_name(),
+            crate::condition::ScoreRange::Gte(1),
+        )
     }
 
     /// Validated counterpart to [`Timer::active`] — see
@@ -349,10 +350,10 @@ mod tests {
 
     #[test]
     fn timer_expired_condition() {
-        use crate::condition::{Condition, ScoreRange};
+        use crate::condition::{ConditionKind, ScoreRange};
         let cond = BLINK.expired("@s");
-        match cond {
-            Condition::Score {
+        match cond.kind() {
+            ConditionKind::Score {
                 selector,
                 objective,
                 range: ScoreRange::Eq(0),
@@ -366,11 +367,11 @@ mod tests {
 
     #[test]
     fn timer_active_condition() {
-        use crate::condition::{Condition, ScoreRange};
+        use crate::condition::{ConditionKind, ScoreRange};
         let cond = BLINK.active("@s");
         assert!(matches!(
-            cond,
-            Condition::Score {
+            cond.kind(),
+            ConditionKind::Score {
                 range: ScoreRange::Gte(1),
                 ..
             }

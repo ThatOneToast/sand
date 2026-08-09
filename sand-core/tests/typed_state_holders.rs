@@ -6,6 +6,7 @@
 //! compatibility counterpart for equivalent valid input.
 
 use sand_commands::{ScoreHolder, Selector};
+use sand_core::execute_when::when;
 use sand_core::state::{Cooldown, Flag, Ticks, Timer};
 
 static CASTING: Flag = Flag::new("casting");
@@ -52,7 +53,7 @@ fn flag_typed_fake_player_holder_is_supported() {
 fn flag_typed_single_entity_selector_is_supported_for_conditions() {
     let cond = CASTING.try_of(single_entity()).unwrap().is_true();
     assert_eq!(
-        cond.execute_commands(false, "say ok"),
+        when(cond).then_one("say ok"),
         vec!["execute if score @e[limit=1] casting matches 1 run say ok"]
     );
 }
@@ -181,12 +182,12 @@ fn timer_typed_holders_cover_player_fake_and_single_entity() {
 fn timer_conditions_generate_the_expected_commands() {
     let expired = BLINK.try_expired(ScoreHolder::self_()).unwrap();
     assert_eq!(
-        expired.execute_commands(false, "say ok"),
+        when(expired).then_one("say ok"),
         vec!["execute if score @s blink_t matches 0 run say ok"]
     );
     let active = BLINK.try_active(ScoreHolder::self_()).unwrap();
     assert_eq!(
-        active.execute_commands(false, "say ok"),
+        when(active).then_one("say ok"),
         vec!["execute if score @s blink_t matches 1.. run say ok"]
     );
 }
@@ -258,20 +259,16 @@ fn cooldown_typed_holders_cover_player_fake_and_single_entity() {
 fn cooldown_conditions_generate_the_expected_commands() {
     let ready = DASH.try_ready(ScoreHolder::self_()).unwrap();
     assert_eq!(
-        ready.execute_commands(false, "say ok"),
+        when(ready.clone()).then_one("say ok"),
         vec!["execute if score @s dash_cd matches 0 run say ok"]
     );
     let active = DASH.try_active(ScoreHolder::self_()).unwrap();
     assert_eq!(
-        active.execute_commands(false, "say ok"),
+        when(active).then_one("say ok"),
         vec!["execute if score @s dash_cd matches 1.. run say ok"]
     );
     let expired = DASH.try_expired(ScoreHolder::self_()).unwrap();
-    assert_eq!(
-        expired.execute_commands(false, "say ok"),
-        ready.execute_commands(false, "say ok"),
-        "`expired` is an alias of `ready`"
-    );
+    assert_eq!(expired, ready, "`expired` is an alias of `ready`");
 }
 
 #[test]

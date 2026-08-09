@@ -114,7 +114,7 @@ impl EventConfig {
     /// The returned commands, in order:
     /// 1. `advancement revoke @s only <id>` — if `reset == AfterFire`
     /// 2. `execute unless <guard> run return 0` — if a guard was declared
-    ///    (one command per OR branch — see [`Condition::execute_commands`])
+    ///    (one command per lowered OR branch)
     ///
     /// Prepend these to your handler function's command list.
     pub fn reward_prologue(&self, advancement_id: &str) -> Vec<String> {

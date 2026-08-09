@@ -28,36 +28,36 @@ pub(crate) fn collect_sand_player_state_predicates(
     condition: &crate::condition::Condition,
     predicates: &mut std::collections::BTreeMap<&'static str, &'static str>,
 ) {
-    match condition {
-        crate::condition::Condition::Predicate(path) => {
+    use crate::condition::ConditionKind;
+
+    match condition.kind() {
+        ConditionKind::Predicate(path) => {
             if let Some((predicate_path, flag)) =
                 sand_player_state_predicate(&format!("predicate {path}"))
             {
                 predicates.insert(predicate_path, flag);
             }
         }
-        crate::condition::Condition::Raw(fragment) => {
+        ConditionKind::Raw(fragment) => {
             if let Some((predicate_path, flag)) = sand_player_state_predicate(fragment) {
                 predicates.insert(predicate_path, flag);
             }
         }
-        crate::condition::Condition::Not(inner) => {
+        ConditionKind::Not(inner) => {
             collect_sand_player_state_predicates(inner, predicates);
         }
-        crate::condition::Condition::All(conditions)
-        | crate::condition::Condition::Any(conditions) => {
+        ConditionKind::All(conditions) | ConditionKind::Any(conditions) => {
             for condition in conditions {
                 collect_sand_player_state_predicates(condition, predicates);
             }
         }
-        crate::condition::Condition::Score { .. }
-        | crate::condition::Condition::ScoreCompare { .. }
-        | crate::condition::Condition::Flag { .. }
-        | crate::condition::Condition::Entity(_)
-        | crate::condition::Condition::StorageExists { .. }
-        | crate::condition::Condition::NbtExists { .. }
-        | crate::condition::Condition::ItemsEntity { .. }
-        | crate::condition::Condition::ItemsBlock { .. } => {}
+        ConditionKind::Score { .. }
+        | ConditionKind::ScoreCompare { .. }
+        | ConditionKind::Flag { .. }
+        | ConditionKind::Entity(_)
+        | ConditionKind::NbtExists { .. }
+        | ConditionKind::ItemsEntity { .. }
+        | ConditionKind::ItemsBlock { .. } => {}
     }
 }
 
@@ -147,10 +147,10 @@ mod tests {
     #[test]
     fn nested_persistent_conditions_collect_sand_owned_predicates() {
         let condition = crate::condition::Condition::all([
-            crate::condition::Condition::entity("@s[tag=ready]"),
+            crate::condition::Condition::entity_raw("@s[tag=ready]"),
             !crate::condition::Condition::any([
-                crate::condition::Condition::predicate("__sand_local:__sand/player_sneaking"),
-                crate::condition::Condition::predicate("__sand_local:__sand/player_sprinting"),
+                crate::condition::Condition::predicate_raw("__sand_local:__sand/player_sneaking"),
+                crate::condition::Condition::predicate_raw("__sand_local:__sand/player_sprinting"),
             ]),
         ]);
         let mut predicates = std::collections::BTreeMap::new();

@@ -39,9 +39,9 @@ fn main() {
             match descriptor.dispatch {
                 sand_core::EventDispatch::Advancement { guard, .. } => {
                     let guard = guard.expect("Event<T> guard must be typed Condition guard");
-                    let commands = guard()
-                        .expect("dash wand guard should be present")
-                        .execute_commands(true, "return 0");
+                    let condition = guard().expect("dash wand guard should be present");
+                    let commands =
+                        sand_core::execute_when::unless(condition).then_one("return 0");
                     assert!(commands
                         .iter()
                         .any(|cmd| cmd.contains("score @s mana matches 25..")));

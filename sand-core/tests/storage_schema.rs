@@ -68,7 +68,10 @@ fn storage_schema_and_fields_emit_commands() {
         MANA.remove(),
         "data remove storage arcane:players player.magic.mana"
     );
-    assert!(matches!(MANA.exists(), Condition::NbtExists { .. }));
+    assert_eq!(
+        when(MANA.exists()).then_one("say present"),
+        ["execute if data storage arcane:players player.magic.mana run say present"]
+    );
 }
 
 #[test]

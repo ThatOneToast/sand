@@ -751,4 +751,48 @@ mod tests {
             23
         );
     }
+
+    #[test]
+    fn installed_condition_scope_exposes_typed_opaque_contracts() {
+        let catalog = generated_catalog();
+        let entity = show(catalog, "sand::prelude::Condition::entity").unwrap();
+        assert!(entity.contains("sand::condition::Condition::entity"));
+        assert!(entity.contains("selector : sand_commands :: Selector"));
+        assert!(entity.contains("at least one entity"));
+
+        let raw = show(catalog, "sand::condition::Condition::raw").unwrap();
+        assert!(raw.contains("escape hatch"));
+        assert!(raw.contains("without a leading if or unless"));
+
+        let search_results = search(catalog, "typed runtime condition").unwrap();
+        assert!(search_results.contains("sand::condition::Condition"));
+
+        let grouped = module(catalog, "sand::condition").unwrap();
+        assert!(grouped.contains("Structs\n  sand::condition::Condition"));
+        assert!(grouped.contains("sand::condition::Condition (11 APIs)"));
+        assert!(!grouped.contains("ExecuteClause"));
+        assert!(!grouped.contains("ExecutePlan"));
+        assert!(!grouped.contains("ScoreRange"));
+    }
+
+    #[test]
+    fn installed_condition_catalog_matches_the_enforced_identity_count() {
+        let entries = generated_catalog()
+            .entries
+            .iter()
+            .filter(|entry| {
+                entry.canonical_path == "sand::condition"
+                    || entry.canonical_path.starts_with("sand::condition::")
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(entries.len(), 13);
+        assert_eq!(
+            entries
+                .iter()
+                .map(|entry| entry.canonical_path.as_str())
+                .collect::<BTreeSet<_>>()
+                .len(),
+            13
+        );
+    }
 }

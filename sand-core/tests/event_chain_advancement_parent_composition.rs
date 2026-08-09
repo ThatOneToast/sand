@@ -4,6 +4,7 @@
 //! (`after_any`/`after_all`, combined with a second occurrence clause,
 //! combined with `.within(...)`, combined with a direct `#[event]` handler).
 
+use sand_commands::Selector;
 use sand_core::condition::Condition;
 use sand_core::events::{
     ChainEventDispatch, EventSetup, PlayerSneakEvent, SandEvent, SandEventDispatch,
@@ -39,8 +40,8 @@ impl SandEvent for SecondChildWithWhile {
     fn dispatch() -> impl Into<SandEventDispatch> {
         SandEventDispatch::chain::<AdvancementParent>()
             .while_::<PlayerSneakEvent>()
-            .when(Condition::entity("@s[tag=ready]"))
-            .unless(Condition::entity("@s[tag=blocked]"))
+            .when(Condition::entity(Selector::self_().tag("ready")))
+            .unless(Condition::entity(Selector::self_().tag("blocked")))
     }
 }
 

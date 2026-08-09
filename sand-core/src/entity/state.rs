@@ -219,11 +219,11 @@ impl StatePredicate {
     /// Turn this predicate into an `@s` condition.
     #[must_use]
     pub fn condition(&self) -> Condition {
-        Condition::Score {
-            selector: "@s".into(),
-            objective: self.objective.clone(),
-            range: self.condition_range.clone(),
-        }
+        Condition::score(
+            "@s".into(),
+            self.objective.clone(),
+            self.condition_range.clone(),
+        )
     }
 }
 
@@ -362,11 +362,11 @@ impl<T: 'static> EntityScoreAccessor<T> {
             self.field.descriptor.name,
             range,
         )?;
-        Ok(Condition::Score {
-            selector: self.holder.to_string(),
-            objective: predicate.objective,
-            range: predicate.condition_range,
-        })
+        Ok(Condition::score(
+            self.holder.to_string(),
+            predicate.objective,
+            predicate.condition_range,
+        ))
     }
 }
 
@@ -839,11 +839,7 @@ fn mutation<F: EntityStateField>(
 }
 
 fn holder_condition(holder: &str, objective: String, range: ScoreRange) -> Condition {
-    Condition::Score {
-        selector: holder.to_string(),
-        objective,
-        range,
-    }
+    Condition::score(holder.to_string(), objective, range)
 }
 
 pub(crate) fn objective_name(namespace: &str, schema: &str, field: &str) -> String {

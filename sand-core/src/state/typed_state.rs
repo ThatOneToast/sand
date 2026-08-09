@@ -223,11 +223,11 @@ impl<'a, S: TypedGameState> GameStateRef<'a, S> {
     ///
     /// Renders as `if score <sel> <obj> matches <variant.to_score()>`.
     pub fn is(&self, variant: S) -> Condition {
-        Condition::Score {
-            selector: self.selector.clone(),
-            objective: self.state.objective_name(),
-            range: ScoreRange::Eq(variant.to_score()),
-        }
+        Condition::score(
+            self.selector.clone(),
+            self.state.objective_name(),
+            ScoreRange::Eq(variant.to_score()),
+        )
     }
 
     /// Condition: state does NOT equal the given variant.

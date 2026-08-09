@@ -162,10 +162,10 @@ mod tests {
             cache_selected_item(),
             vec!["data modify storage boss_phases:cache last_item set from entity @s SelectedItem"]
         );
-        assert!(matches!(
-            PLAYER.health_percent().of("@s").lte(50),
-            Condition::Score { .. }
-        ));
+        assert_eq!(
+            when(PLAYER.health_percent().of("@s").lte(50)).then_one("say low health"),
+            ["execute if score @s boss_health_pct matches ..50 run say low health"]
+        );
         assert_eq!(
             start_fight(),
             vec!["scoreboard players set @s boss_phase 1"]

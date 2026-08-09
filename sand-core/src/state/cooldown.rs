@@ -219,6 +219,7 @@ impl Cooldown {
     /// holder because the result lowers to `execute if score <holder> …`.
     ///
     /// ```
+    /// use sand_core::execute_when::when;
     /// use sand_core::state::{Cooldown, Ticks};
     /// use sand_commands::ScoreHolder;
     ///
@@ -226,7 +227,7 @@ impl Cooldown {
     ///
     /// let cond = DASH.try_ready(ScoreHolder::self_()).unwrap();
     /// assert_eq!(
-    ///     cond.execute_commands(false, "say ok"),
+    ///     when(cond).then_one("say ok"),
     ///     vec!["execute if score @s dash matches 0 run say ok"]
     /// );
     /// assert!(DASH.try_ready(ScoreHolder::wildcard()).is_err());

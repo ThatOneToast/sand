@@ -374,6 +374,7 @@ impl Flag {
     /// holder because the result lowers to `execute if score <holder> …`.
     ///
     /// ```
+    /// use sand_core::execute_when::when;
     /// use sand_core::state::Flag;
     /// use sand_commands::ScoreHolder;
     ///
@@ -381,7 +382,7 @@ impl Flag {
     ///
     /// let cond = CASTING.try_when_true(ScoreHolder::self_()).unwrap();
     /// assert_eq!(
-    ///     cond.execute_commands(false, "say ok"),
+    ///     when(cond).then_one("say ok"),
     ///     vec!["execute if score @s casting matches 1 run say ok"]
     /// );
     /// ```

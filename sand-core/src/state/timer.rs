@@ -195,6 +195,7 @@ impl Timer {
     /// holder because the result lowers to `execute if score <holder> …`.
     ///
     /// ```
+    /// use sand_core::execute_when::when;
     /// use sand_core::state::{Ticks, Timer};
     /// use sand_commands::ScoreHolder;
     ///
@@ -202,7 +203,7 @@ impl Timer {
     ///
     /// let cond = BLINK.try_expired(ScoreHolder::self_()).unwrap();
     /// assert_eq!(
-    ///     cond.execute_commands(false, "say ok"),
+    ///     when(cond).then_one("say ok"),
     ///     vec!["execute if score @s blink_cd matches 0 run say ok"]
     /// );
     /// assert!(BLINK.try_expired(ScoreHolder::wildcard()).is_err());

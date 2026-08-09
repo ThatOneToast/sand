@@ -797,12 +797,21 @@ inventory::collect!(ArmorEventDescriptor);
 // Production callers are unaffected either way — Sand's own export
 // pipeline is not itself multi-threaded internally.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 
 type DynFnEntry = (String, Vec<String>);
 
 thread_local! {
     static REGISTRY: RefCell<Vec<DynFnEntry>> = const { RefCell::new(Vec::new()) };
+    static INTERNAL_SCORE_TEMP_REQUESTED: Cell<bool> = const { Cell::new(false) };
+}
+
+pub(crate) fn request_internal_score_temp() {
+    INTERNAL_SCORE_TEMP_REQUESTED.set(true);
+}
+
+pub(crate) fn take_internal_score_temp_request() -> bool {
+    INTERNAL_SCORE_TEMP_REQUESTED.replace(false)
 }
 
 /// Register an anonymous function body at runtime.

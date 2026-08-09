@@ -1169,6 +1169,33 @@ mod tests {
     }
 
     #[test]
+    fn concurrent_if_else_exports_keep_independent_score_setup_requests() {
+        let barrier = std::sync::Arc::new(std::sync::Barrier::new(2));
+        let threads = (0..2)
+            .map(|index| {
+                let barrier = std::sync::Arc::clone(&barrier);
+                std::thread::spawn(move || {
+                    let _commands = if_(Condition::raw(format!(
+                        "score @s concurrent_{index} matches 1"
+                    )))
+                    .then_all(["say yes"])
+                    .else_all(["say no"]);
+                    barrier.wait();
+                    crate::state::score::drain_internal_score_setup()
+                })
+            })
+            .collect::<Vec<_>>();
+
+        for thread in threads {
+            let setup = thread.join().expect("concurrent export thread succeeds");
+            assert!(
+                setup.contains(&"scoreboard objectives add __sand_tmp dummy".to_string()),
+                "each export thread must retain its own score setup request: {setup:?}"
+            );
+        }
+    }
+
+    #[test]
     fn if_else_any_condition_keeps_one_fallback_after_all_success_checks() {
         reset_dynamic_branch_registry_for_test();
         let cmds = if_(Condition::any([

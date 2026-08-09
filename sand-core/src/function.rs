@@ -797,12 +797,46 @@ inventory::collect!(ArmorEventDescriptor);
 // Production callers are unaffected either way — Sand's own export
 // pipeline is not itself multi-threaded internally.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 
 type DynFnEntry = (String, Vec<String>);
 
 thread_local! {
     static REGISTRY: RefCell<Vec<DynFnEntry>> = const { RefCell::new(Vec::new()) };
+    static INTERNAL_SCORE_TEMP_REQUESTED: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Clears function-adjacent thread-local export state on entry and every exit.
+///
+/// The export pipeline can fail after consuming score setup but before draining
+/// dynamic functions. Keeping both registries behind one scope prevents a later
+/// export on the same thread from inheriting only half of that failed export.
+pub(crate) struct ExportFunctionRegistryScope;
+
+impl ExportFunctionRegistryScope {
+    pub(crate) fn enter() -> Self {
+        clear_function_export_state();
+        Self
+    }
+}
+
+impl Drop for ExportFunctionRegistryScope {
+    fn drop(&mut self) {
+        clear_function_export_state();
+    }
+}
+
+fn clear_function_export_state() {
+    REGISTRY.with_borrow_mut(Vec::clear);
+    INTERNAL_SCORE_TEMP_REQUESTED.set(false);
+}
+
+pub(crate) fn request_internal_score_temp() {
+    INTERNAL_SCORE_TEMP_REQUESTED.set(true);
+}
+
+pub(crate) fn take_internal_score_temp_request() -> bool {
+    INTERNAL_SCORE_TEMP_REQUESTED.replace(false)
 }
 
 /// Register an anonymous function body at runtime.

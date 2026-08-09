@@ -230,25 +230,15 @@ pub fn drain_constant_setup() -> Vec<String> {
     commands
 }
 
-fn expression_temp_requested() -> &'static Mutex<bool> {
-    static REQUESTED: OnceLock<Mutex<bool>> = OnceLock::new();
-    REQUESTED.get_or_init(|| Mutex::new(false))
-}
-
-fn request_expression_temp() {
-    *expression_temp_requested()
-        .lock()
-        .expect("score expression registry poisoned") = true;
+pub(crate) fn request_expression_temp() {
+    crate::function::request_internal_score_temp();
 }
 
 /// Drain all internally managed score setup. Used by the exporter.
 #[doc(hidden)]
 pub fn drain_internal_score_setup() -> Vec<String> {
     let mut commands = drain_constant_setup();
-    let mut requested = expression_temp_requested()
-        .lock()
-        .expect("score expression registry poisoned");
-    if std::mem::take(&mut *requested) {
+    if crate::function::take_internal_score_temp_request() {
         commands.insert(
             0,
             format!("scoreboard objectives add {SCORE_EXPRESSION_TEMP_OBJECTIVE} dummy"),

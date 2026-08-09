@@ -12,3 +12,11 @@ pub mod predicate {
         UncontractedVariant,
     }
 }
+
+pub mod execute_when {
+    pub struct WhenBuilder;
+
+    impl WhenBuilder {
+        pub fn uncontracted_branch(self) {}
+    }
+}

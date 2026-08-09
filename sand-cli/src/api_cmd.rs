@@ -711,4 +711,44 @@ mod tests {
             123
         );
     }
+
+    #[test]
+    fn installed_execute_when_scope_exposes_exclusive_branch_contracts() {
+        let catalog = generated_catalog();
+        let when_contract = show(catalog, "sand::prelude::when").unwrap();
+        assert!(when_contract.contains("sand::execute_when::when"));
+        assert!(when_contract.contains("execute-if"));
+
+        let else_contract = show(catalog, "sand::execute_when::IfThenBuilder::else_all").unwrap();
+        assert!(else_contract.contains("else"));
+        assert!(else_contract.contains("mutually exclusive"));
+
+        let grouped = module(catalog, "sand::execute_when").unwrap();
+        assert!(grouped.contains("Functions\n"));
+        assert!(grouped.contains("sand::execute_when::if_"));
+        assert!(grouped.contains("Structs\n"));
+        assert!(grouped.contains("sand::execute_when::WhenBuilder"));
+        assert!(grouped.contains("sand::execute_when::WhenBuilder (5 APIs)"));
+    }
+
+    #[test]
+    fn installed_execute_when_catalog_matches_the_enforced_identity_count() {
+        let entries = generated_catalog()
+            .entries
+            .iter()
+            .filter(|entry| {
+                entry.canonical_path == "sand::execute_when"
+                    || entry.canonical_path.starts_with("sand::execute_when::")
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(entries.len(), 23);
+        assert_eq!(
+            entries
+                .iter()
+                .map(|entry| entry.canonical_path.as_str())
+                .collect::<BTreeSet<_>>()
+                .len(),
+            23
+        );
+    }
 }

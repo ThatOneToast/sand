@@ -122,8 +122,8 @@ fn if_else_branches_survive_after_event_make() {
     let branches = drain_branches();
     assert_eq!(
         branches.len(),
-        3,
-        "if_/else_all should register success, failure, and dispatcher functions: {branches:?}"
+        4,
+        "if_/else_all should register success, failure, success-wrapper, and dispatcher functions: {branches:?}"
     );
     assert!(
         branches
@@ -141,24 +141,23 @@ fn if_else_branches_survive_after_event_make() {
     let dispatcher = branches
         .iter()
         .find(|(_, cmds)| {
-            cmds.iter()
-                .any(|command| command.contains("return run function"))
+            cmds.first()
+                .is_some_and(|command| command.starts_with("scoreboard players set #sand_if_"))
         })
         .expect("single-decision dispatcher not found");
     assert!(
         dispatcher
             .1
             .first()
-            .is_some_and(|command| command.starts_with("execute if")
-                && command.contains("return run function")),
-        "dispatcher success decision: {dispatcher:?}"
+            .is_some_and(|command| command.starts_with("scoreboard players set #sand_if_")),
+        "dispatcher initializes one decision score: {dispatcher:?}"
     );
     assert!(
         dispatcher
             .1
             .last()
-            .is_some_and(|command| command.starts_with("return run function")),
-        "dispatcher fallback: {dispatcher:?}"
+            .is_some_and(|command| command.contains("matches 0 run function")),
+        "dispatcher failure arm uses the snapshotted decision: {dispatcher:?}"
     );
 
     // The event calls the dispatcher once; it cannot re-test after either arm.

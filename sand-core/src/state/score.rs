@@ -235,7 +235,7 @@ fn expression_temp_requested() -> &'static Mutex<bool> {
     REQUESTED.get_or_init(|| Mutex::new(false))
 }
 
-fn request_expression_temp() {
+pub(crate) fn request_expression_temp() {
     *expression_temp_requested()
         .lock()
         .expect("score expression registry poisoned") = true;

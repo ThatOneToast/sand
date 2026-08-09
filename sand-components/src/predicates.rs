@@ -961,7 +961,7 @@ impl DamagePredicate {
             v = "The complete raw JSON predicate value."
         ),
         returns = "A raw DamagePredicate.",
-        example = "DamagePredicate::raw(RawJson::new(json!({{}})))",
+        example = "DamagePredicate::raw(RawJson::new(json!({})))",
     )]
     pub fn raw(v: RawJson) -> Self {
         Self {
@@ -1196,7 +1196,7 @@ impl LocationPredicate {
             v = "The complete raw JSON predicate value."
         ),
         returns = "A raw LocationPredicate.",
-        example = "LocationPredicate::raw(RawJson::new(json!({{}})))",
+        example = "LocationPredicate::raw(RawJson::new(json!({})))",
     )]
     pub fn raw(v: RawJson) -> Self {
         Self {
@@ -1520,7 +1520,7 @@ impl BlockPredicate {
             v = "The complete raw JSON predicate value."
         ),
         returns = "A raw BlockPredicate.",
-        example = "BlockPredicate::raw(RawJson::new(json!({{}})))",
+        example = "BlockPredicate::raw(RawJson::new(json!({})))",
     )]
     pub fn raw(v: RawJson) -> Self {
         Self {
@@ -1746,7 +1746,7 @@ impl ItemPredicate {
             v = "The complete raw JSON predicate value."
         ),
         returns = "A raw ItemPredicate.",
-        example = "ItemPredicate::raw(RawJson::new(json!({{}})))",
+        example = "ItemPredicate::raw(RawJson::new(json!({})))",
     )]
     pub fn raw(v: RawJson) -> Self {
         Self {
@@ -2462,7 +2462,7 @@ impl EntityPredicate {
             v = "The complete raw JSON predicate value."
         ),
         returns = "A raw EntityPredicate.",
-        example = "EntityPredicate::raw(RawJson::new(json!({{}})))",
+        example = "EntityPredicate::raw(RawJson::new(json!({})))",
     )]
     pub fn raw(v: RawJson) -> Self {
         Self {
@@ -2807,7 +2807,7 @@ impl WeatherPredicate {
             v = "The complete raw JSON predicate value."
         ),
         returns = "A raw WeatherPredicate.",
-        example = "WeatherPredicate::raw(RawJson::new(json!({{}})))",
+        example = "WeatherPredicate::raw(RawJson::new(json!({})))",
     )]
     pub fn raw(v: RawJson) -> Self {
         Self {

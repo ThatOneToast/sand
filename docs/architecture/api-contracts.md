@@ -94,10 +94,11 @@ supported scopes.
 
 The executable `reachable-enforced-missing` fixture exercises the same
 provider-backed comparison for migrated boundaries: an undocumented predicate
-method, public field, enum variant, or execute-branch builder method causes an
-ordinary `cargo check` to fail. The normal Sand build enforces the 119-item
-`predicate-source` scope, the four-item generated `PredicateId` partition, and
-the 22-item `execute-when-source` scope. Parametric `consumer_build` boundaries
+method, public field, enum variant, execute-branch builder method, or condition
+method causes an ordinary `cargo check` to fail. The normal Sand build enforces
+the 119-item `predicate-source` scope, the four-item generated `PredicateId`
+partition, the 22-item `execute-when-source` scope, and the 12-item opaque
+`condition-source` scope. Parametric `consumer_build` boundaries
 additionally require their named provider-audit connection.
 
 `#[api]` defaults to the facade's hidden registration transport. Definitions
@@ -142,7 +143,7 @@ closed during ordinary compilation.
 
 The explicitly opted-in codegen-failure path emits empty, marked provider
 catalogs from the same helper that emits its placeholder Rust. Those catalogs
-select a separate exact 5,614-item source-only profile; they cannot be mixed
+select a separate exact 5,538-item source-only profile; they cannot be mixed
 with real catalogs or contain declarations. The facade's source and checked-in
 generator scopes remain fully audited in this recovery mode, while unavailable
 vanilla re-exports are cfg-disabled. This is a compile-only recovery mode:

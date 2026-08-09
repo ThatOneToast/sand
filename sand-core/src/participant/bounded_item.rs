@@ -251,10 +251,10 @@ impl BoundedItemSnapshot {
     /// source occurrence.
     pub fn is_present(&self) -> crate::condition::Condition {
         let base = self.schema.staged_base();
-        crate::condition::Condition::NbtExists {
-            target: base.location().clone(),
-            path: NbtPath::raw(format!("{}{{present:1b}}", base.path_value().as_str())),
-        }
+        crate::condition::Condition::nbt_exists(
+            base.location().clone(),
+            NbtPath::raw(format!("{}{{present:1b}}", base.path_value().as_str())),
+        )
     }
 
     /// The negation of [`Self::is_present`].
@@ -391,10 +391,10 @@ pub(crate) fn persist_macro_body(schema: &BoundedItemSchema, source: &ItemSnapsh
 pub(crate) fn load_macro_body(schema: &BoundedItemSchema) -> Vec<String> {
     let src = schema.subject_base();
     let dest = schema.staged_base();
-    let present_guard = crate::condition::Condition::NbtExists {
-        target: src.location().clone(),
-        path: NbtPath::raw(format!("{}{{present:1b}}", src.path_value().as_str())),
-    };
+    let present_guard = crate::condition::Condition::nbt_exists(
+        src.location().clone(),
+        NbtPath::raw(format!("{}{{present:1b}}", src.path_value().as_str())),
+    );
     let mut commands = reset_to_absence(&dest);
     commands.extend(gated_copy(
         &present_guard,

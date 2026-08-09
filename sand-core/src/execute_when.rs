@@ -980,7 +980,7 @@ mod tests {
 
     #[test]
     fn when_predicate() {
-        let cmds = when(Condition::predicate("my_pack:can_cast")).then_one("say ok");
+        let cmds = when(Condition::predicate_raw("my_pack:can_cast")).then_one("say ok");
         assert_eq!(
             cmds,
             vec!["execute if predicate my_pack:can_cast run say ok"]
@@ -989,7 +989,7 @@ mod tests {
 
     #[test]
     fn when_entity() {
-        let cmds = when(Condition::entity("@s[tag=ready]")).then_one("say ok");
+        let cmds = when(Condition::entity_raw("@s[tag=ready]")).then_one("say ok");
         assert_eq!(cmds, vec!["execute if entity @s[tag=ready] run say ok"]);
     }
 

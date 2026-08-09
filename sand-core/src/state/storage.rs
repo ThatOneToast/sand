@@ -157,10 +157,7 @@ impl<T> StorageSchema<T> {
     }
 
     pub fn exists(&self) -> Condition {
-        Condition::NbtExists {
-            target: DataTarget::storage(self.storage),
-            path: NbtPath::new(self.root),
-        }
+        Condition::nbt_exists(DataTarget::storage(self.storage), NbtPath::new(self.root))
     }
 }
 
@@ -254,10 +251,10 @@ impl<Schema, T> StorageField<Schema, T> {
     }
 
     pub fn exists(&self) -> Condition {
-        Condition::NbtExists {
-            target: DataTarget::storage(self.storage),
-            path: NbtPath::new(self.full_path()),
-        }
+        Condition::nbt_exists(
+            DataTarget::storage(self.storage),
+            NbtPath::new(self.full_path()),
+        )
     }
 
     pub fn copy_from<OtherSchema, U>(&self, source: StorageField<OtherSchema, U>) -> String {
@@ -413,10 +410,7 @@ impl<T> StorageVar<T> {
 
     /// Build a `Condition` that checks `if data storage <storage> <path>`.
     pub fn exists(&self) -> Condition {
-        Condition::NbtExists {
-            target: DataTarget::storage(self.storage),
-            path: NbtPath::new(self.path),
-        }
+        Condition::nbt_exists(DataTarget::storage(self.storage), NbtPath::new(self.path))
     }
 }
 
@@ -425,7 +419,7 @@ impl<T> StorageVar<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::condition::Condition;
+    use crate::condition::{Condition, ConditionKind};
 
     static MANA: StorageVar<i32> = StorageVar::new("sand:data", "player.mana");
     static NAME: StorageVar<String> = StorageVar::new("sand:data", "player.name");
@@ -549,8 +543,8 @@ mod tests {
     #[test]
     fn exists_condition() {
         let cond = MANA.exists();
-        match &cond {
-            Condition::NbtExists { target, path } => {
+        match cond.kind() {
+            ConditionKind::NbtExists { target, path } => {
                 assert_eq!(target.to_string(), "storage sand:data");
                 assert_eq!(path.as_str(), "player.mana");
             }
@@ -609,11 +603,8 @@ mod tests {
     #[test]
     fn nbt_path_exists() {
         let p = Nbt::storage("sand:data").path("player.mana");
-        let cond = Condition::NbtExists {
-            target: p.location().clone(),
-            path: p.path_value().clone(),
-        };
-        assert!(matches!(cond, Condition::NbtExists { .. }));
+        let cond = Condition::data_exists(&p);
+        assert!(matches!(cond.kind(), ConditionKind::NbtExists { .. }));
     }
 
     #[test]
@@ -654,7 +645,10 @@ mod tests {
             MAGIC.remove(),
             "data remove storage arcane:players player.magic"
         );
-        assert!(matches!(MAGIC.exists(), Condition::NbtExists { .. }));
+        assert!(matches!(
+            MAGIC.exists().kind(),
+            ConditionKind::NbtExists { .. }
+        ));
     }
 
     #[test]
@@ -679,7 +673,10 @@ mod tests {
             MAGIC_MANA.remove(),
             "data remove storage arcane:players player.magic.mana"
         );
-        assert!(matches!(MAGIC_MANA.exists(), Condition::NbtExists { .. }));
+        assert!(matches!(
+            MAGIC_MANA.exists().kind(),
+            ConditionKind::NbtExists { .. }
+        ));
     }
 
     #[test]

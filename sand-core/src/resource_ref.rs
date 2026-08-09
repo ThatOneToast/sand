@@ -12,7 +12,7 @@
 //! let can_cast = PredicateRef::new("my_pack:can_cast").unwrap();
 //! let heal = FunctionRef::new("my_pack:heal").unwrap();
 //!
-//! let cond = Condition::predicate(&can_cast);
+//! let cond = Condition::predicate(can_cast);
 //! let cmd = format!("function {heal}");
 //! ```
 
@@ -127,15 +127,6 @@ impl sand_components::dialog::IntoDialogRef for &DialogRef {
     }
 }
 
-// ── Condition::predicate integration ─────────────────────────────────────────
-
-impl crate::condition::Condition {
-    /// Build a predicate condition from a typed [`PredicateRef`].
-    pub fn predicate_ref(r: &PredicateRef) -> Self {
-        crate::condition::Condition::Predicate(r.to_string())
-    }
-}
-
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -183,10 +174,10 @@ mod tests {
     #[test]
     fn predicate_ref_condition() {
         let r = PredicateRef::new("my_pack:can_cast").unwrap();
-        let cond = Condition::predicate_ref(&r);
-        match cond {
-            Condition::Predicate(s) => assert_eq!(s, "my_pack:can_cast"),
-            other => panic!("unexpected: {other:?}"),
-        }
+        let cond = Condition::predicate(r);
+        assert_eq!(
+            cond.execute_commands(false, "say yes"),
+            ["execute if predicate my_pack:can_cast run say yes"]
+        );
     }
 }

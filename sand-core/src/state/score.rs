@@ -22,8 +22,20 @@ use std::marker::PhantomData;
 use std::ops::RangeBounds;
 use std::sync::{Mutex, OnceLock};
 
-use crate::condition::{Condition, ScoreCompareOp, ScoreOperand, ScoreRange};
+#[cfg(test)]
+use crate::condition::ConditionKind;
+use crate::condition::{Condition, ScoreCompareOp, ScoreRange};
 use crate::execute_when::Conditional;
+
+/// One owned scoreboard entry used by score operations and comparisons.
+///
+/// Callers normally obtain an operand from [`ScoreRef::operand`] or
+/// [`ScoreConst::ref_`] rather than constructing one directly.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ScoreOperand {
+    pub(crate) selector: String,
+    pub(crate) objective: String,
+}
 use crate::state::storage::StorageField;
 
 // ── Name utilities ────────────────────────────────────────────────────────────
@@ -933,11 +945,7 @@ impl<'a, T> ScoreRef<'a, T> {
     }
 
     fn compare<O: Into<ScoreOperand>>(self, op: ScoreCompareOp, other: O) -> Condition {
-        Condition::ScoreCompare {
-            left: self.operand(),
-            op,
-            right: other.into(),
-        }
+        Condition::score_compare(self.operand(), op, other.into())
     }
 
     /// Compare this score to another score entry (`=`).
@@ -983,51 +991,31 @@ impl<'a, T> ScoreRef<'a, T> {
     /// `if score <sel> <obj> matches <n>` — equal to `n`.
     pub fn eq(self, n: i32) -> Condition {
         let objective = self.obj();
-        Condition::Score {
-            selector: self.selector,
-            objective,
-            range: ScoreRange::Eq(n),
-        }
+        Condition::score(self.selector, objective, ScoreRange::Eq(n))
     }
 
     /// `unless score <sel> <obj> matches <n>` — not equal to `n`.
     pub fn ne(self, n: i32) -> Condition {
         let objective = self.obj();
-        Condition::Not(Box::new(Condition::Score {
-            selector: self.selector,
-            objective,
-            range: ScoreRange::Eq(n),
-        }))
+        !Condition::score(self.selector, objective, ScoreRange::Eq(n))
     }
 
     /// `if score <sel> <obj> matches <n+1>..` — strictly greater than `n`.
     pub fn gt(self, n: i32) -> Condition {
         let objective = self.obj();
-        Condition::Score {
-            selector: self.selector,
-            objective,
-            range: ScoreRange::Gt(n),
-        }
+        Condition::score(self.selector, objective, ScoreRange::Gt(n))
     }
 
     /// `if score <sel> <obj> matches <n>..` — greater than or equal to `n`.
     pub fn gte(self, n: i32) -> Condition {
         let objective = self.obj();
-        Condition::Score {
-            selector: self.selector,
-            objective,
-            range: ScoreRange::Gte(n),
-        }
+        Condition::score(self.selector, objective, ScoreRange::Gte(n))
     }
 
     /// `if score <sel> <obj> matches ..<n-1>` — strictly less than `n`.
     pub fn lt(self, n: i32) -> Condition {
         let objective = self.obj();
-        Condition::Score {
-            selector: self.selector,
-            objective,
-            range: ScoreRange::Lt(n),
-        }
+        Condition::score(self.selector, objective, ScoreRange::Lt(n))
     }
 
     /// Condition: score equals zero.
@@ -1053,32 +1041,28 @@ impl<'a, T> ScoreRef<'a, T> {
     /// `if score <sel> <obj> matches ..<n>` — less than or equal to `n`.
     pub fn lte(self, n: i32) -> Condition {
         let objective = self.obj();
-        Condition::Score {
-            selector: self.selector,
-            objective,
-            range: ScoreRange::Lte(n),
-        }
+        Condition::score(self.selector, objective, ScoreRange::Lte(n))
     }
 
     /// `if score <sel> <obj> matches <min>..<max>` — inside an inclusive range.
     pub fn between(self, min: i32, max: i32) -> Condition {
         let objective = self.obj();
-        Condition::Score {
-            selector: self.selector,
+        Condition::score(
+            self.selector,
             objective,
-            range: ScoreRange::Between(Some(min), Some(max)),
-        }
+            ScoreRange::Between(Some(min), Some(max)),
+        )
     }
 
     /// `unless score <sel> <obj> matches <min>..<max>` — outside an inclusive range.
     pub fn outside(self, min: i32, max: i32) -> Condition {
-        Condition::Not(Box::new(self.between(min, max)))
+        !self.between(min, max)
     }
 
     /// Validated `matches <n+1>..` — strictly greater than `n`.
     ///
     /// Rejects `n == i32::MAX`, which describes a range no `i32` score can
-    /// satisfy (see [`ScoreRange::is_satisfiable`]).
+    /// satisfy; for example, no `i32` score can be greater than `i32::MAX`.
     pub fn try_gt(self, n: i32) -> sand_commands::CommandResult<Condition> {
         ScoreRange::Gt(n).validate()?;
         Ok(self.gt(n))
@@ -1116,11 +1100,7 @@ impl<'a, T> ScoreRef<'a, T> {
             Bound::Unbounded => None,
         };
         let objective = self.obj();
-        Condition::Score {
-            selector: self.selector,
-            objective,
-            range: ScoreRange::Between(lo, hi),
-        }
+        Condition::score(self.selector, objective, ScoreRange::Between(lo, hi))
     }
 
     /// Validated counterpart to [`ScoreRef::matches`] — rejects a range whose
@@ -1143,11 +1123,11 @@ impl<'a, T> ScoreRef<'a, T> {
         };
         ScoreRange::Between(lo, hi).validate()?;
         let objective = self.obj();
-        Ok(Condition::Score {
-            selector: self.selector,
+        Ok(Condition::score(
+            self.selector,
             objective,
-            range: ScoreRange::Between(lo, hi),
-        })
+            ScoreRange::Between(lo, hi),
+        ))
     }
 }
 
@@ -1226,43 +1206,43 @@ impl<T> ScoreExpr<T> {
 
     pub fn eq(self, n: i32) -> Conditional {
         let temp = self.temp();
-        self.lowered(Condition::Score {
-            selector: temp.selector,
-            objective: temp.objective,
-            range: ScoreRange::Eq(n),
-        })
+        self.lowered(Condition::score(
+            temp.selector,
+            temp.objective,
+            ScoreRange::Eq(n),
+        ))
     }
     pub fn gt(self, n: i32) -> Conditional {
         let temp = self.temp();
-        self.lowered(Condition::Score {
-            selector: temp.selector,
-            objective: temp.objective,
-            range: ScoreRange::Gt(n),
-        })
+        self.lowered(Condition::score(
+            temp.selector,
+            temp.objective,
+            ScoreRange::Gt(n),
+        ))
     }
     pub fn gte(self, n: i32) -> Conditional {
         let temp = self.temp();
-        self.lowered(Condition::Score {
-            selector: temp.selector,
-            objective: temp.objective,
-            range: ScoreRange::Gte(n),
-        })
+        self.lowered(Condition::score(
+            temp.selector,
+            temp.objective,
+            ScoreRange::Gte(n),
+        ))
     }
     pub fn lt(self, n: i32) -> Conditional {
         let temp = self.temp();
-        self.lowered(Condition::Score {
-            selector: temp.selector,
-            objective: temp.objective,
-            range: ScoreRange::Lt(n),
-        })
+        self.lowered(Condition::score(
+            temp.selector,
+            temp.objective,
+            ScoreRange::Lt(n),
+        ))
     }
     pub fn lte(self, n: i32) -> Conditional {
         let temp = self.temp();
-        self.lowered(Condition::Score {
-            selector: temp.selector,
-            objective: temp.objective,
-            range: ScoreRange::Lte(n),
-        })
+        self.lowered(Condition::score(
+            temp.selector,
+            temp.objective,
+            ScoreRange::Lte(n),
+        ))
     }
     pub fn matches(self, range: impl RangeBounds<i32>) -> Conditional {
         use std::ops::Bound;
@@ -1277,51 +1257,51 @@ impl<T> ScoreExpr<T> {
             Bound::Unbounded => None,
         };
         let temp = self.temp();
-        self.lowered(Condition::Score {
-            selector: temp.selector,
-            objective: temp.objective,
-            range: ScoreRange::Between(lo, hi),
-        })
+        self.lowered(Condition::score(
+            temp.selector,
+            temp.objective,
+            ScoreRange::Between(lo, hi),
+        ))
     }
     pub fn eq_score<O: Into<ScoreOperand>>(self, other: O) -> Conditional {
         let left = self.temp();
-        self.lowered(Condition::ScoreCompare {
+        self.lowered(Condition::score_compare(
             left,
-            op: ScoreCompareOp::Eq,
-            right: other.into(),
-        })
+            ScoreCompareOp::Eq,
+            other.into(),
+        ))
     }
     pub fn gt_score<O: Into<ScoreOperand>>(self, other: O) -> Conditional {
         let left = self.temp();
-        self.lowered(Condition::ScoreCompare {
+        self.lowered(Condition::score_compare(
             left,
-            op: ScoreCompareOp::Gt,
-            right: other.into(),
-        })
+            ScoreCompareOp::Gt,
+            other.into(),
+        ))
     }
     pub fn gte_score<O: Into<ScoreOperand>>(self, other: O) -> Conditional {
         let left = self.temp();
-        self.lowered(Condition::ScoreCompare {
+        self.lowered(Condition::score_compare(
             left,
-            op: ScoreCompareOp::Gte,
-            right: other.into(),
-        })
+            ScoreCompareOp::Gte,
+            other.into(),
+        ))
     }
     pub fn lt_score<O: Into<ScoreOperand>>(self, other: O) -> Conditional {
         let left = self.temp();
-        self.lowered(Condition::ScoreCompare {
+        self.lowered(Condition::score_compare(
             left,
-            op: ScoreCompareOp::Lt,
-            right: other.into(),
-        })
+            ScoreCompareOp::Lt,
+            other.into(),
+        ))
     }
     pub fn lte_score<O: Into<ScoreOperand>>(self, other: O) -> Conditional {
         let left = self.temp();
-        self.lowered(Condition::ScoreCompare {
+        self.lowered(Condition::score_compare(
             left,
-            op: ScoreCompareOp::Lte,
-            right: other.into(),
-        })
+            ScoreCompareOp::Lte,
+            other.into(),
+        ))
     }
 }
 
@@ -1330,8 +1310,6 @@ impl<T> ScoreExpr<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::condition::Condition;
-
     static MANA: ScoreVar<i32> = ScoreVar::new("mana");
     static LONG: ScoreVar<i32> = ScoreVar::new("this_is_a_very_long_name_that_exceeds_limit");
 
@@ -1465,8 +1443,8 @@ mod tests {
     #[test]
     fn condition_gte() {
         let cond = MANA.of("@s").gte(25);
-        match cond {
-            Condition::Score {
+        match cond.kind() {
+            ConditionKind::Score {
                 selector,
                 objective,
                 range: ScoreRange::Gte(25),
@@ -1481,8 +1459,8 @@ mod tests {
     #[test]
     fn condition_lte() {
         let cond = MANA.of("@s").lte(100);
-        match cond {
-            Condition::Score {
+        match cond.kind() {
+            ConditionKind::Score {
                 range: ScoreRange::Lte(100),
                 ..
             } => {}
@@ -1493,14 +1471,14 @@ mod tests {
     #[test]
     fn condition_ne_wraps_not() {
         let cond = MANA.of("@s").ne(0);
-        assert!(matches!(cond, Condition::Not(_)));
+        assert!(matches!(cond.kind(), ConditionKind::Not(_)));
     }
 
     #[test]
     fn condition_matches_range() {
         let cond = MANA.of("@s").matches(1..=100);
-        match cond {
-            Condition::Score {
+        match cond.kind() {
+            ConditionKind::Score {
                 range: ScoreRange::Between(Some(1), Some(100)),
                 ..
             } => {}
@@ -1511,8 +1489,8 @@ mod tests {
     #[test]
     fn condition_between() {
         let cond = MANA.of("@s").between(10, 100);
-        match cond {
-            Condition::Score {
+        match cond.kind() {
+            ConditionKind::Score {
                 range: ScoreRange::Between(Some(10), Some(100)),
                 ..
             } => {}
@@ -1568,8 +1546,8 @@ mod tests {
     fn is_zero_condition() {
         let cond = MANA.is_zero("@s");
         assert!(matches!(
-            cond,
-            Condition::Score {
+            cond.kind(),
+            ConditionKind::Score {
                 range: ScoreRange::Eq(0),
                 ..
             }
@@ -1579,15 +1557,15 @@ mod tests {
     #[test]
     fn is_nonzero_condition() {
         let cond = MANA.is_nonzero("@s");
-        assert!(matches!(cond, Condition::Not(_)));
+        assert!(matches!(cond.kind(), ConditionKind::Not(_)));
     }
 
     #[test]
     fn positive_condition() {
         let cond = MANA.positive("@s");
         assert!(matches!(
-            cond,
-            Condition::Score {
+            cond.kind(),
+            ConditionKind::Score {
                 range: ScoreRange::Gt(0),
                 ..
             }
@@ -1598,8 +1576,8 @@ mod tests {
     fn negative_condition() {
         let cond = MANA.negative("@s");
         assert!(matches!(
-            cond,
-            Condition::Score {
+            cond.kind(),
+            ConditionKind::Score {
                 range: ScoreRange::Lt(0),
                 ..
             }
@@ -1610,8 +1588,8 @@ mod tests {
     fn scoreref_is_zero() {
         let cond = MANA.of("@s").is_zero();
         assert!(matches!(
-            cond,
-            Condition::Score {
+            cond.kind(),
+            ConditionKind::Score {
                 range: ScoreRange::Eq(0),
                 ..
             }
@@ -1622,8 +1600,8 @@ mod tests {
     fn scoreref_positive() {
         let cond = MANA.of("@s").positive();
         assert!(matches!(
-            cond,
-            Condition::Score {
+            cond.kind(),
+            ConditionKind::Score {
                 range: ScoreRange::Gt(0),
                 ..
             }
@@ -1633,14 +1611,14 @@ mod tests {
     #[test]
     fn condition_outside_wraps_not() {
         let cond = MANA.of("@s").outside(10, 100);
-        assert!(matches!(cond, Condition::Not(_)));
+        assert!(matches!(cond.kind(), ConditionKind::Not(_)));
     }
 
     #[test]
     fn condition_matches_open_end() {
         let cond = MANA.of("@s").matches(25..);
-        match cond {
-            Condition::Score {
+        match cond.kind() {
+            ConditionKind::Score {
                 range: ScoreRange::Between(Some(25), None),
                 ..
             } => {}

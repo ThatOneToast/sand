@@ -20,7 +20,7 @@ pub use crate::{all, any, cmd, mcfunction};
 // ── Conditions & execute wiring ───────────────────────────────────────────────
 
 pub use crate::cmd::{ConditionedExecute, ExecuteExt, TypedExecute};
-pub use crate::condition::{Condition, ExecutePlan};
+pub use crate::condition::Condition;
 pub use crate::execute_when::{if_, unless, when};
 
 // ── Command builders ──────────────────────────────────────────────────────────
@@ -349,8 +349,14 @@ mod tests {
             DamageTracker::last_damage_at_least("@s", DamageThreshold::raw_stat(10));
 
         assert_eq!(DamageThreshold::hearts(1.0).to_raw_stat(), 10);
-        assert!(matches!(current, Condition::Score { .. }));
-        assert!(matches!(last, Condition::Score { .. }));
+        assert_eq!(
+            when(current).then_one("say current"),
+            ["execute if score @s sd_dmg_delta matches 10.. run say current"]
+        );
+        assert_eq!(
+            when(last).then_one("say last"),
+            ["execute if score @s sd_dmg_last matches 10.. run say last"]
+        );
     }
 
     #[cfg(feature = "systems-player-data")]

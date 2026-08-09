@@ -17,7 +17,7 @@
 //! - **Commands** — the [`crate::cmd`] module (as `cmd::...`) plus typed
 //!   command builders: `Execute`/`TypedExecute`, `Selector` and target types,
 //!   `Actionbar`, `Bossbar`, `Title`, particles, and `Damage`.
-//! - **Conditions** — [`Condition`], [`ExecutePlan`], and the grouped-branch
+//! - **Conditions** — [`Condition`] and the grouped-branch
 //!   helpers `if_`/`unless`/`when` from [`crate::execute_when`].
 //! - **State** — `ScoreVar`, `Flag`, `Timer`, `Cooldown`, `GameState`/
 //!   `TypedGameState`, and storage types (`StorageVar`, `StorageSchema`,

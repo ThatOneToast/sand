@@ -64,11 +64,11 @@ impl BoundedDependency {
             type_id,
             type_name,
             window,
-            condition: Condition::Score {
-                selector: "@s".to_string(),
-                objective: format!("se_{key}_wa"),
-                range: ScoreRange::Lte(window.ticks() as i32 - 1),
-            },
+            condition: Condition::score(
+                "@s".to_string(),
+                format!("se_{key}_wa"),
+                ScoreRange::Lte(window.ticks() as i32 - 1),
+            ),
         }
     }
 }
@@ -1379,7 +1379,7 @@ mod tests {
     }
     impl PersistentSandEvent for PersistentA {
         fn persistent_condition() -> PersistentEventCondition {
-            PersistentEventCondition::players(Condition::entity("@s[tag=a]"))
+            PersistentEventCondition::players(Condition::entity_raw("@s[tag=a]"))
         }
     }
     impl SandEvent for PersistentB {
@@ -1389,7 +1389,7 @@ mod tests {
     }
     impl PersistentSandEvent for PersistentB {
         fn persistent_condition() -> PersistentEventCondition {
-            PersistentEventCondition::players(Condition::entity("@s[tag=b]"))
+            PersistentEventCondition::players(Condition::entity_raw("@s[tag=b]"))
         }
     }
     impl SandEvent for PersistentLeaf {
@@ -1399,7 +1399,7 @@ mod tests {
     }
     impl PersistentSandEvent for PersistentLeaf {
         fn persistent_condition() -> PersistentEventCondition {
-            PersistentEventCondition::players(Condition::entity("@s[tag=leaf]"))
+            PersistentEventCondition::players(Condition::entity_raw("@s[tag=leaf]"))
         }
     }
     impl SandEvent for SetupPersistent {
@@ -1417,11 +1417,11 @@ mod tests {
     }
     impl PersistentSandEvent for SetupPersistent {
         fn persistent_condition() -> PersistentEventCondition {
-            PersistentEventCondition::players(Condition::Score {
-                selector: "@s".into(),
-                objective: "needs_setup".into(),
-                range: crate::condition::ScoreRange::Eq(1),
-            })
+            PersistentEventCondition::players(Condition::score(
+                "@s".into(),
+                "needs_setup".into(),
+                crate::condition::ScoreRange::Eq(1),
+            ))
         }
     }
 
@@ -2002,14 +2002,14 @@ mod tests {
         };
         assert_eq!(
             bounded[0].condition,
-            Condition::Score {
-                selector: "@s".to_string(),
-                objective: format!(
+            Condition::score(
+                "@s".to_string(),
+                format!(
                     "se_{}_wa",
                     tick_event_resource_key(std::any::type_name::<BoundedParent>())
                 ),
-                range: ScoreRange::Lte(0),
-            }
+                ScoreRange::Lte(0),
+            )
         );
     }
 }

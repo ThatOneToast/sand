@@ -267,30 +267,30 @@ impl DamageTracker {
 
     /// Condition: `selector` was damaged this tick (delta > 0).
     pub fn damaged_this_tick(selector: &str) -> Condition {
-        Condition::Score {
-            selector: selector.to_string(),
-            objective: DAMAGE_DELTA_OBJ.to_string(),
-            range: ScoreRange::Gte(1),
-        }
+        Condition::score(
+            selector.to_string(),
+            DAMAGE_DELTA_OBJ.to_string(),
+            ScoreRange::Gte(1),
+        )
     }
 
     /// Condition: `selector` was NOT damaged this tick (delta == 0).
     pub fn not_damaged_this_tick(selector: &str) -> Condition {
-        Condition::Score {
-            selector: selector.to_string(),
-            objective: DAMAGE_DELTA_OBJ.to_string(),
-            range: ScoreRange::Eq(0),
-        }
+        Condition::score(
+            selector.to_string(),
+            DAMAGE_DELTA_OBJ.to_string(),
+            ScoreRange::Eq(0),
+        )
     }
 
     /// Condition: `selector` took at least `threshold` damage this tick.
     pub fn current_damage_at_least(selector: &str, threshold: DamageThreshold) -> Condition {
         let min_raw = threshold.to_query_raw_stat("current_damage_at_least");
-        Condition::Score {
-            selector: selector.to_string(),
-            objective: DAMAGE_DELTA_OBJ.to_string(),
-            range: ScoreRange::Gte(min_raw),
-        }
+        Condition::score(
+            selector.to_string(),
+            DAMAGE_DELTA_OBJ.to_string(),
+            ScoreRange::Gte(min_raw),
+        )
     }
 
     /// Condition: the last recorded damage for `selector` was at least `threshold`.
@@ -298,49 +298,49 @@ impl DamageTracker {
     /// Uses `sd_dmg_last`, which persists between damage events.
     pub fn last_damage_at_least(selector: &str, threshold: DamageThreshold) -> Condition {
         let min_raw = threshold.to_query_raw_stat("last_damage_at_least");
-        Condition::Score {
-            selector: selector.to_string(),
-            objective: DAMAGE_LAST_OBJ.to_string(),
-            range: ScoreRange::Gte(min_raw),
-        }
+        Condition::score(
+            selector.to_string(),
+            DAMAGE_LAST_OBJ.to_string(),
+            ScoreRange::Gte(min_raw),
+        )
     }
 
     /// Condition: `selector` was last hurt within `ticks` ticks ago.
     pub fn hurt_within(selector: &str, ticks: Ticks) -> Condition {
-        Condition::Score {
-            selector: selector.to_string(),
-            objective: DAMAGE_HURT_AGE_OBJ.to_string(),
-            range: ScoreRange::Lte(ticks.get() as i32),
-        }
+        Condition::score(
+            selector.to_string(),
+            DAMAGE_HURT_AGE_OBJ.to_string(),
+            ScoreRange::Lte(ticks.get() as i32),
+        )
     }
 
     // ── Raw score accessors (advanced use) ────────────────────────────────────
 
     /// The raw current-tick delta objective name.
     pub fn current_damage_raw(selector: &str) -> Condition {
-        Condition::Score {
-            selector: selector.to_string(),
-            objective: DAMAGE_DELTA_OBJ.to_string(),
-            range: ScoreRange::Gte(1),
-        }
+        Condition::score(
+            selector.to_string(),
+            DAMAGE_DELTA_OBJ.to_string(),
+            ScoreRange::Gte(1),
+        )
     }
 
     /// The raw last-damage objective name.
     pub fn last_damage_raw(selector: &str) -> Condition {
-        Condition::Score {
-            selector: selector.to_string(),
-            objective: DAMAGE_LAST_OBJ.to_string(),
-            range: ScoreRange::Gte(1),
-        }
+        Condition::score(
+            selector.to_string(),
+            DAMAGE_LAST_OBJ.to_string(),
+            ScoreRange::Gte(1),
+        )
     }
 
     /// The ticks-since-hurt objective name (for use with ScoreVar).
     pub fn ticks_since_hurt(selector: &str) -> Condition {
-        Condition::Score {
-            selector: selector.to_string(),
-            objective: DAMAGE_HURT_AGE_OBJ.to_string(),
-            range: ScoreRange::Gte(0),
-        }
+        Condition::score(
+            selector.to_string(),
+            DAMAGE_HURT_AGE_OBJ.to_string(),
+            ScoreRange::Gte(0),
+        )
     }
 
     // ── Additional helpers (no cause inference) ───────────────────────────────
@@ -366,11 +366,11 @@ impl DamageTracker {
     ///
     /// Useful for ability cooldown windows that reset on damage.
     pub fn not_hurt_for(selector: &str, ticks: Ticks) -> Condition {
-        Condition::Score {
-            selector: selector.to_string(),
-            objective: DAMAGE_HURT_AGE_OBJ.to_string(),
-            range: ScoreRange::Gte(ticks.get() as i32 + 1),
-        }
+        Condition::score(
+            selector.to_string(),
+            DAMAGE_HURT_AGE_OBJ.to_string(),
+            ScoreRange::Gte(ticks.get() as i32 + 1),
+        )
     }
 
     /// Reset the last-recorded damage delta for `selector` to 0.
@@ -399,6 +399,14 @@ pub fn recently_damaged(selector: &str) -> Condition {
 mod tests {
     use super::*;
     use crate::condition::Condition;
+
+    fn condition_command(condition: Condition) -> String {
+        condition
+            .execute_commands(false, "say matched")
+            .into_iter()
+            .next()
+            .expect("damage conditions lower to one command")
+    }
 
     #[test]
     fn define_produces_five_objectives() {
@@ -562,55 +570,40 @@ mod tests {
 
     #[test]
     fn damaged_this_tick_condition() {
-        let cond = DamageTracker::damaged_this_tick("@s");
-        match cond {
-            Condition::Score {
-                selector,
-                objective,
-                range: ScoreRange::Gte(1),
-            } => {
-                assert_eq!(selector, "@s");
-                assert_eq!(objective, DAMAGE_DELTA_OBJ);
-            }
-            other => panic!("unexpected: {other:?}"),
-        }
+        assert_eq!(
+            condition_command(DamageTracker::damaged_this_tick("@s")),
+            format!("execute if score @s {DAMAGE_DELTA_OBJ} matches 1.. run say matched")
+        );
     }
 
     #[test]
     fn not_damaged_this_tick_condition() {
-        let cond = DamageTracker::not_damaged_this_tick("@s");
-        assert!(matches!(
-            cond,
-            Condition::Score {
-                range: ScoreRange::Eq(0),
-                ..
-            }
-        ));
+        assert_eq!(
+            condition_command(DamageTracker::not_damaged_this_tick("@s")),
+            format!("execute if score @s {DAMAGE_DELTA_OBJ} matches 0 run say matched")
+        );
     }
 
     #[test]
     fn current_damage_at_least_hearts() {
-        let cond = DamageTracker::current_damage_at_least("@s", DamageThreshold::hearts(1.0));
-        assert!(matches!(
-            cond,
-            Condition::Score {
-                range: ScoreRange::Gte(10),
-                ..
-            }
-        ));
+        assert_eq!(
+            condition_command(DamageTracker::current_damage_at_least(
+                "@s",
+                DamageThreshold::hearts(1.0),
+            )),
+            format!("execute if score @s {DAMAGE_DELTA_OBJ} matches 10.. run say matched")
+        );
     }
 
     #[test]
     fn last_damage_at_least_half_heart() {
-        let cond = DamageTracker::last_damage_at_least("@s", DamageThreshold::hearts(0.5));
-        match cond {
-            Condition::Score {
-                objective,
-                range: ScoreRange::Gte(5),
-                ..
-            } => assert_eq!(objective, DAMAGE_LAST_OBJ),
-            other => panic!("unexpected: {other:?}"),
-        }
+        assert_eq!(
+            condition_command(DamageTracker::last_damage_at_least(
+                "@s",
+                DamageThreshold::hearts(0.5),
+            )),
+            format!("execute if score @s {DAMAGE_LAST_OBJ} matches 5.. run say matched")
+        );
     }
 
     #[test]
@@ -666,82 +659,45 @@ mod tests {
 
     #[test]
     fn hurt_within_ticks() {
-        let cond = DamageTracker::hurt_within("@s", Ticks::new(20));
-        match cond {
-            Condition::Score {
-                objective,
-                range: ScoreRange::Lte(20),
-                ..
-            } => assert_eq!(objective, DAMAGE_HURT_AGE_OBJ),
-            other => panic!("unexpected: {other:?}"),
-        }
+        assert_eq!(
+            condition_command(DamageTracker::hurt_within("@s", Ticks::new(20))),
+            format!("execute if score @s {DAMAGE_HURT_AGE_OBJ} matches ..20 run say matched")
+        );
     }
 
     #[test]
     fn free_fn_recently_damaged() {
-        let cond = recently_damaged("@s");
-        assert!(matches!(
-            cond,
-            Condition::Score {
-                range: ScoreRange::Gte(1),
-                ..
-            }
-        ));
+        assert_eq!(
+            condition_command(recently_damaged("@s")),
+            format!("execute if score @s {DAMAGE_DELTA_OBJ} matches 1.. run say matched")
+        );
     }
 
     // ── New helpers: was_hurt, not_hurt_for, clear_recent_damage ─────────────
 
     #[test]
     fn was_hurt_is_alias_for_damaged_this_tick() {
-        let a = DamageTracker::was_hurt("@s");
-        let b = DamageTracker::damaged_this_tick("@s");
-        // Both must be Gte(1) on the delta objective
-        assert!(matches!(
-            a,
-            Condition::Score {
-                range: ScoreRange::Gte(1),
-                ..
-            }
-        ));
-        assert!(matches!(
-            b,
-            Condition::Score {
-                range: ScoreRange::Gte(1),
-                ..
-            }
-        ));
-        // Same objective
-        if let (Condition::Score { objective: oa, .. }, Condition::Score { objective: ob, .. }) =
-            (a, b)
-        {
-            assert_eq!(oa, ob);
-        }
+        assert_eq!(
+            condition_command(DamageTracker::was_hurt("@s")),
+            condition_command(DamageTracker::damaged_this_tick("@s"))
+        );
     }
 
     #[test]
     fn not_hurt_for_uses_age_gte_n_plus_one() {
-        let cond = DamageTracker::not_hurt_for("@s", Ticks::new(20));
-        match cond {
-            Condition::Score {
-                ref objective,
-                range: ScoreRange::Gte(21),
-                ..
-            } => assert_eq!(objective, DAMAGE_HURT_AGE_OBJ),
-            other => panic!("unexpected: {other:?}"),
-        }
+        assert_eq!(
+            condition_command(DamageTracker::not_hurt_for("@s", Ticks::new(20))),
+            format!("execute if score @s {DAMAGE_HURT_AGE_OBJ} matches 21.. run say matched")
+        );
     }
 
     #[test]
     fn not_hurt_for_zero_ticks() {
         // not_hurt_for(0) → age >= 1, i.e. "not hurt this tick"
-        let cond = DamageTracker::not_hurt_for("@s", Ticks::new(0));
-        assert!(matches!(
-            cond,
-            Condition::Score {
-                range: ScoreRange::Gte(1),
-                ..
-            }
-        ));
+        assert_eq!(
+            condition_command(DamageTracker::not_hurt_for("@s", Ticks::new(0))),
+            format!("execute if score @s {DAMAGE_HURT_AGE_OBJ} matches 1.. run say matched")
+        );
     }
 
     #[test]
@@ -750,22 +706,14 @@ mod tests {
         // not_hurt_for(0) → age >= 1 (not hurt this tick)
         // They use different objectives so they are not direct complements,
         // but both should produce Gte conditions.
-        let hurt = DamageTracker::was_hurt("@s");
-        let safe = DamageTracker::not_hurt_for("@s", Ticks::new(10));
-        assert!(matches!(
-            hurt,
-            Condition::Score {
-                range: ScoreRange::Gte(1),
-                ..
-            }
-        ));
-        assert!(matches!(
-            safe,
-            Condition::Score {
-                range: ScoreRange::Gte(11),
-                ..
-            }
-        ));
+        assert_eq!(
+            condition_command(DamageTracker::was_hurt("@s")),
+            format!("execute if score @s {DAMAGE_DELTA_OBJ} matches 1.. run say matched")
+        );
+        assert_eq!(
+            condition_command(DamageTracker::not_hurt_for("@s", Ticks::new(10))),
+            format!("execute if score @s {DAMAGE_HURT_AGE_OBJ} matches 11.. run say matched")
+        );
     }
 
     #[test]

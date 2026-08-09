@@ -82,12 +82,12 @@ The verified profiles are:
 
 | Minecraft version | Static identities | Commands | Registries | Baseline |
 | --- | ---: | ---: | ---: | --- |
-| 1.21.4 (compatibility) | 10,826 | 924 | 4,288 | `api-surface-baseline-1.21.4.txt` |
-| 26.2 (latest/default) | 11,736 | 1,255 | 4,867 | `api-surface-baseline.txt` |
+| 1.21.4 (compatibility) | 10,750 | 924 | 4,288 | `api-surface-baseline-1.21.4.txt` |
+| 26.2 (latest/default) | 11,660 | 1,255 | 4,867 | `api-surface-baseline.txt` |
 
-The handwritten source contribution is 5,338 identities in both profiles.
+The handwritten source contribution is 5,262 identities in both profiles.
 An explicit `SAND_ALLOW_PLACEHOLDER_CODEGEN=1` fallback uses a third,
-source-only `placeholder-codegen` profile with 5,614 identities (5,338 source
+source-only `placeholder-codegen` profile with 5,538 identities (5,262 source
 identities plus 276 checked-in generator identities). The fallback writer
 atomically replaces generated Rust and both provider catalogs; the catalogs
 are machine-marked empty placeholders and must agree. The facade keeps the
@@ -132,7 +132,7 @@ Generated static families account for 6,398 identities:
 - generated event marker types: 25 identities; and
 - typed resource-reference wrappers: 26 identities.
 
-The remaining 5,336 identities come from ordinary source declarations,
+The remaining 5,262 identities come from ordinary source declarations,
 including the 15 exported procedural macros. Input-dependent items emitted
 into downstream crates by attributes and derives are parametric families, so
 they do not have an honest finite installed count. Each such generator is a
@@ -152,6 +152,13 @@ enforced and contracted at their `sand-core` definitions. Two Rust-visible
 test/setup helpers became private, and the public if/else builder now lowers
 through one generated dispatcher so a success arm that changes the tested
 state cannot make the failure arm run afterward.
+
+The migrated `sand::condition` scope owns 12 supported identities: an opaque
+`Condition` plus 11 typed constructors and combinators. Its audit removed 75
+accidental identities by hiding variants, payload fields, lowering plans,
+range/comparison internals, and obsolete string-rendering compatibility APIs.
+`ScoreOperand` moved to the pending state scope where the public score API that
+uses it is actually owned.
 
 ## Intentional migration scopes
 
@@ -212,10 +219,10 @@ corresponding provider audit. The foundation proves this mechanism with the
 real `SandStorage` derive, but does not claim every downstream generator has
 been migrated.
 
-After the execute-when tranche, the exact 26.2 profile records 11,734 static
-identities: 145 enforced predicate/branch identities and 11,589 identities
-across 37 pending scopes. The 1.21.4 and explicit placeholder profiles enforce
-the same 145 source/generated identities against their independently generated
+After the condition tranche, the exact 26.2 profile records 11,660 static
+identities: 157 enforced predicate, branch, and condition identities and 11,503
+identities across 36 pending scopes. The 1.21.4 and explicit placeholder profiles enforce
+the same 157 source/generated identities against their independently generated
 totals.
 
 Every reachable identity must map to exactly one scope. Enforced scopes reject

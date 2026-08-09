@@ -43,6 +43,16 @@ fn main() {
             canonical_path: "sand::execute_when::WhenBuilder".into(),
             aliases: BTreeSet::new(),
         },
+        ContractIdentity {
+            identity: "sand::condition".into(),
+            canonical_path: "sand::condition".into(),
+            aliases: BTreeSet::new(),
+        },
+        ContractIdentity {
+            identity: "sand::condition::Condition".into(),
+            canonical_path: "sand::condition::Condition".into(),
+            aliases: BTreeSet::new(),
+        },
     ];
     let manifest = ScopeManifest::from_path("api-scopes.toml").expect("parse scope manifest");
     if let Err(failures) = manifest.evaluate(&reachable, &contracts, &BTreeSet::new()) {

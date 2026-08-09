@@ -279,13 +279,24 @@ pub use sand_core::participant;
 /// `LootTable`, `Dialog`, …) are already re-exported from the [`prelude`].
 pub use sand_core::components as component;
 
-/// Typed conditions (`Condition`) and `execute`-plan composition helpers.
-/// [`condition::Condition`] is what `all!`/`any!` build and what
-/// `TypedExecute::when(...)` accepts; see [`execute_when`] for the
-/// `if_`/`unless`/`when` grouped-branch API used to express `if/else`-style
-/// command logic (see `trail:claim_striders` in `examples/book_project` for
-/// a worked example of `if_(...).then_all(...).else_all(...)`).
-pub use sand_core::condition;
+/// Typed conditions used by `execute`, event guards, and grouped branches.
+/// [`condition::Condition`] is an opaque expression tree: construct it through
+/// typed score, selector, predicate, NBT, or item APIs, then compose it with
+/// `all!`, `any!`, `!`, or the methods on `Condition`. See [`execute_when`] for
+/// the `if_`/`unless`/`when` grouped-branch API.
+#[api(
+    path = "sand::condition",
+    module = "sand",
+    summary = "Composes typed Minecraft conditions without exposing Sand's lowering representation.",
+    context = "Conditions are shared by execute commands, event guards, state checks, and grouped branches, so one typed expression model keeps their boolean behavior consistent.",
+    minecraft = "Lowers condition trees into one or more execute-if or execute-unless clause plans, distributing nested alternatives when required.",
+    use_when = ["Combining typed score, entity, predicate, NBT, or item checks", "Passing a reusable guard to execute or event APIs"],
+    avoid_when = ["Choosing Rust generation-time control flow", "Hand-writing execute syntax that an existing typed condition represents"],
+    example = "let ready = Condition::entity(Selector::self_().tag(\"ready\"));"
+)]
+pub mod condition {
+    pub use sand_core::condition::*;
+}
 
 /// Grouped-branch `execute` composition: `if_(condition)`, `unless(condition)`,
 /// and `when(condition)`, each returning a builder with `.then_all(...)`

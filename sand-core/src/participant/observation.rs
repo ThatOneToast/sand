@@ -237,10 +237,10 @@ impl CorrelatedEntityObservation {
     /// A `Condition` true exactly when the underlying relation resolved to
     /// an entity for this invocation.
     pub fn is_present(&self) -> Condition {
-        Condition::StorageExists {
-            location: self.schema.storage().to_string(),
-            path: format!("{}{{present:1b}}", self.schema.present_path()),
-        }
+        Condition::nbt_exists(
+            sand_commands::DataTarget::storage(self.schema.storage().to_string()),
+            sand_commands::NbtPath::new(format!("{}{{present:1b}}", self.schema.present_path())),
+        )
     }
 
     /// The negation of [`Self::is_present`].
@@ -493,10 +493,10 @@ mod tests {
             role: EntityParticipantRole::Attacker,
             evidence: CorrelationEvidence::ATTACKER_RELATION,
         };
-        match (observation.is_present(), observation.is_absent()) {
-            (Condition::StorageExists { .. }, Condition::Not(inner)) => {
-                assert!(matches!(*inner, Condition::StorageExists { .. }));
-            }
+        let present = observation.is_present();
+        let absent = observation.is_absent();
+        match absent.kind() {
+            crate::condition::ConditionKind::Not(inner) => assert_eq!(inner.as_ref(), &present),
             other => panic!("unexpected condition shape: {other:?}"),
         }
     }

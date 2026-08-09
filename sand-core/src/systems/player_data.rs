@@ -757,22 +757,34 @@ mod tests {
                 "execute unless score @s arcane_class matches -2147483648.. run scoreboard players set @s arcane_class 0",
             ]
         );
-        assert!(matches!(
-            MANA_FIELD.of("@s").gte(25),
-            Condition::Score { .. }
-        ));
-        assert!(matches!(
-            WAND_FIELD.of("@s").is_true(),
-            Condition::Flag { .. }
-        ));
-        assert!(matches!(
-            CAST_FIELD.of("@s").ready(),
-            Condition::Score { .. }
-        ));
-        assert!(matches!(
-            CLASS_FIELD.of("@s").is(Class::Mage),
-            Condition::Score { .. }
-        ));
+        assert_eq!(
+            MANA_FIELD
+                .of("@s")
+                .gte(25)
+                .execute_commands(false, "say mana"),
+            ["execute if score @s arcane_mana matches 25.. run say mana"]
+        );
+        assert_eq!(
+            WAND_FIELD
+                .of("@s")
+                .is_true()
+                .execute_commands(false, "say wand"),
+            ["execute if score @s arcane_wand matches 1 run say wand"]
+        );
+        assert_eq!(
+            CAST_FIELD
+                .of("@s")
+                .ready()
+                .execute_commands(false, "say ready"),
+            ["execute if score @s arcane_cast matches 0 run say ready"]
+        );
+        assert_eq!(
+            CLASS_FIELD
+                .of("@s")
+                .is(Class::Mage)
+                .execute_commands(false, "say mage"),
+            ["execute if score @s arcane_class matches 1 run say mage"]
+        );
     }
 
     #[test]

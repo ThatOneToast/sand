@@ -340,10 +340,10 @@ impl ItemSnapshot {
     /// location actually had an item at capture time.
     pub fn is_present(&self) -> Condition {
         let base = self.schema.base_path();
-        Condition::NbtExists {
-            target: base.location().clone(),
-            path: NbtPath::raw(format!("{}{{present:1b}}", base.path_value().as_str())),
-        }
+        Condition::nbt_exists(
+            base.location().clone(),
+            NbtPath::raw(format!("{}{{present:1b}}", base.path_value().as_str())),
+        )
     }
 
     /// The negation of [`ItemSnapshot::is_present`] — true when the

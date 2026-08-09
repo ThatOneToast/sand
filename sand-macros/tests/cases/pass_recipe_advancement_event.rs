@@ -60,7 +60,8 @@ fn main() {
             if let sand_core::EventDispatch::Advancement { guard, .. } = descriptor.dispatch {
                 let guard_fn = guard.expect("guard must be registered");
                 let condition = guard_fn().expect("guard should return Some");
-                let guard_cmds = condition.execute_commands(true, "return 0");
+                let guard_cmds =
+                    sand_core::execute_when::unless(condition).then_one("return 0");
                 assert!(
                     guard_cmds
                         .iter()

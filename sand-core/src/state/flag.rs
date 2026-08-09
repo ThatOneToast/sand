@@ -374,6 +374,7 @@ impl Flag {
     /// holder because the result lowers to `execute if score <holder> …`.
     ///
     /// ```
+    /// use sand_core::execute_when::when;
     /// use sand_core::state::Flag;
     /// use sand_commands::ScoreHolder;
     ///
@@ -381,7 +382,7 @@ impl Flag {
     ///
     /// let cond = CASTING.try_when_true(ScoreHolder::self_()).unwrap();
     /// assert_eq!(
-    ///     cond.execute_commands(false, "say ok"),
+    ///     when(cond).then_one("say ok"),
     ///     vec!["execute if score @s casting matches 1 run say ok"]
     /// );
     /// ```
@@ -451,21 +452,13 @@ impl<'a> FlagRef<'a> {
     /// `if score <sel> <obj> matches 1` — flag is `true`.
     pub fn is_true(self) -> Condition {
         let objective = self.obj();
-        Condition::Flag {
-            selector: self.selector,
-            objective,
-            value: true,
-        }
+        Condition::flag(self.selector, objective, true)
     }
 
     /// `if score <sel> <obj> matches 0` — flag is `false`.
     pub fn is_false(self) -> Condition {
         let objective = self.obj();
-        Condition::Flag {
-            selector: self.selector,
-            objective,
-            value: false,
-        }
+        Condition::flag(self.selector, objective, false)
     }
 
     /// Alias for [`is_true`](FlagRef::is_true).
@@ -484,7 +477,7 @@ impl<'a> FlagRef<'a> {
 
     /// `unless score <sel> <obj> matches 1` — flag is not `true` (missing or non-1).
     ///
-    /// Lowers to `Condition::Not(is_true())`, which generates `unless score … matches 1`.
+    /// Lowers to `ConditionKind::Not(is_true())`, which generates `unless score … matches 1`.
     /// This matches both score = 0 **and** missing scores, unlike `is_false()` which
     /// requires the score to exist and equal exactly 0.
     ///
@@ -494,7 +487,7 @@ impl<'a> FlagRef<'a> {
     /// unless(HAS_CELLS.of("@s").is_true()).then_all([...]);  // equivalent
     /// ```
     pub fn is_not_true(self) -> Condition {
-        Condition::Not(Box::new(self.is_true()))
+        !self.is_true()
     }
 }
 
@@ -503,7 +496,7 @@ impl<'a> FlagRef<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::condition::Condition;
+    use crate::condition::ConditionKind;
 
     static CASTING: Flag = Flag::new("casting");
 
@@ -535,8 +528,8 @@ mod tests {
     #[test]
     fn condition_is_true() {
         let cond = CASTING.of("@s").is_true();
-        match cond {
-            Condition::Flag {
+        match cond.kind() {
+            ConditionKind::Flag {
                 selector,
                 objective,
                 value: true,
@@ -551,8 +544,8 @@ mod tests {
     #[test]
     fn condition_is_false() {
         let cond = CASTING.of("@s").is_false();
-        match cond {
-            Condition::Flag { value: false, .. } => {}
+        match cond.kind() {
+            ConditionKind::Flag { value: false, .. } => {}
             other => panic!("unexpected: {other:?}"),
         }
     }
@@ -561,11 +554,11 @@ mod tests {
     fn is_set_is_unset_aliases() {
         let a = CASTING.of("@s").is_set();
         let b = CASTING.of("@s").is_true();
-        assert!(matches!(a, Condition::Flag { value: true, .. }));
-        assert!(matches!(b, Condition::Flag { value: true, .. }));
+        assert!(matches!(a.kind(), ConditionKind::Flag { value: true, .. }));
+        assert!(matches!(b.kind(), ConditionKind::Flag { value: true, .. }));
 
         let c = CASTING.of("@s").is_unset();
-        assert!(matches!(c, Condition::Flag { value: false, .. }));
+        assert!(matches!(c.kind(), ConditionKind::Flag { value: false, .. }));
     }
 
     #[test]
@@ -629,32 +622,35 @@ mod tests {
     fn when_true_shorthand() {
         let a = CASTING.when_true("@s");
         let b = CASTING.of("@s").is_true();
-        assert!(matches!(a, Condition::Flag { value: true, .. }));
-        assert!(matches!(b, Condition::Flag { value: true, .. }));
+        assert!(matches!(a.kind(), ConditionKind::Flag { value: true, .. }));
+        assert!(matches!(b.kind(), ConditionKind::Flag { value: true, .. }));
     }
 
     #[test]
     fn when_false_shorthand() {
         let cond = CASTING.when_false("@s");
-        assert!(matches!(cond, Condition::Flag { value: false, .. }));
+        assert!(matches!(
+            cond.kind(),
+            ConditionKind::Flag { value: false, .. }
+        ));
     }
 
     #[test]
     fn unless_true_shorthand() {
         let cond = CASTING.unless_true("@s");
-        assert!(matches!(cond, Condition::Not(_)));
+        assert!(matches!(cond.kind(), ConditionKind::Not(_)));
     }
 
     #[test]
     fn is_not_true_is_distinct_from_is_false() {
         let not_true = CASTING.of("@s").is_not_true();
         assert!(
-            matches!(not_true, Condition::Not(_)),
+            matches!(not_true.kind(), ConditionKind::Not(_)),
             "is_not_true should wrap in Not"
         );
         let is_false = CASTING.of("@s").is_false();
         assert!(
-            matches!(is_false, Condition::Flag { value: false, .. }),
+            matches!(is_false.kind(), ConditionKind::Flag { value: false, .. }),
             "is_false should be Flag(false)"
         );
     }

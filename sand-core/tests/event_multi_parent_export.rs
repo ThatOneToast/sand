@@ -1,5 +1,6 @@
 //! Export coverage for deterministic same-cycle multi-parent composition.
 
+use sand_commands::Selector;
 use sand_core::condition::Condition;
 use sand_core::events::{
     ChainEventDispatch, EventSetup, PlayerSneakEvent, SandEvent, SandEventDispatch,
@@ -72,8 +73,8 @@ impl SandEvent for AllChild {
     fn dispatch() -> impl Into<SandEventDispatch> {
         SandEventDispatch::after_all::<(ParentB, ParentA)>()
             .while_::<PlayerSneakEvent>()
-            .when(Condition::entity("@s[tag=ready]"))
-            .unless(Condition::entity("@s[tag=blocked]"))
+            .when(Condition::entity(Selector::self_().tag("ready")))
+            .unless(Condition::entity(Selector::self_().tag("blocked")))
     }
 }
 impl SandEvent for MixedChild {

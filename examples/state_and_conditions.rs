@@ -27,7 +27,13 @@ pub fn try_dash() {
         .when(all![
             MANA.of("@s").gte(25),
             CASTING.of("@s").is_false(),
-            any![DASH.ready("@s"), Condition::predicate("example:dash_override")],
+            any![
+                DASH.ready("@s"),
+                Condition::predicate(
+                    PredicateRef::new("example:dash_override")
+                        .expect("static predicate resource is valid"),
+                ),
+            ],
         ])
         .run(Actionbar::show(
             Selector::self_(),

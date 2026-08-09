@@ -273,7 +273,7 @@ fn entries_for(name: &str, contract: RegistryContract) -> Result<Vec<GeneratedPr
                     .iter()
                     .map(|alias| format!("{alias}::{method}"))
                     .collect(),
-                canonical_module: module.clone(),
+                canonical_module: path.clone(),
                 kind: ApiKind::Method,
                 signature,
                 summary,
@@ -348,6 +348,15 @@ mod tests {
         let provider = repository_provider();
         assert_eq!(provider.provider, "generated_registry_id_contracts");
         assert_eq!(provider.entries.len(), 4);
+        assert_eq!(
+            provider.entries[0].contract.canonical_module,
+            "sand::predicate"
+        );
+        assert!(
+            provider.entries[1..]
+                .iter()
+                .all(|entry| { entry.contract.canonical_module == "sand::predicate::PredicateId" })
+        );
         provider.validate().unwrap();
 
         let paths = provider

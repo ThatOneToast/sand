@@ -686,8 +686,9 @@ mod tests {
         let grouped = module(catalog, "sand::predicate").unwrap();
         assert!(grouped.contains("Structs\n"));
         assert!(grouped.contains("sand::predicate::Predicate"));
-        assert!(grouped.contains("Methods\n"));
-        assert!(grouped.contains("sand::predicate::EntityEquipment::mainhand"));
+        assert!(!grouped.contains("Methods\n"));
+        assert!(grouped.contains("sand::predicate::EntityEquipment (7 APIs)"));
+        assert!(grouped.contains("sand::predicate::PredicateId (3 APIs)"));
     }
 
     #[test]

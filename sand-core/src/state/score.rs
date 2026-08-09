@@ -1062,7 +1062,7 @@ impl<'a, T> ScoreRef<'a, T> {
     /// Validated `matches <n+1>..` — strictly greater than `n`.
     ///
     /// Rejects `n == i32::MAX`, which describes a range no `i32` score can
-    /// satisfy (see [`ScoreRange::is_satisfiable`]).
+    /// satisfy; for example, no `i32` score can be greater than `i32::MAX`.
     pub fn try_gt(self, n: i32) -> sand_commands::CommandResult<Condition> {
         ScoreRange::Gt(n).validate()?;
         Ok(self.gt(n))

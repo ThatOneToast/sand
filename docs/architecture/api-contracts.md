@@ -93,12 +93,12 @@ the ratchet rejects a later increase. Completion of #327 requires zero pending
 supported scopes.
 
 The executable `reachable-enforced-missing` fixture exercises the same
-provider-backed comparison for the first migrated boundary: an undocumented
-predicate method, public field, and enum variant cause an ordinary
-`cargo check` to fail. The normal Sand build now enforces the 119-item
-`predicate-source` scope and the four-item generated `PredicateId` partition.
-Parametric `consumer_build` boundaries additionally require their named
-provider-audit connection.
+provider-backed comparison for migrated boundaries: an undocumented predicate
+method, public field, enum variant, or execute-branch builder method causes an
+ordinary `cargo check` to fail. The normal Sand build enforces the 119-item
+`predicate-source` scope, the four-item generated `PredicateId` partition, and
+the 22-item `execute-when-source` scope. Parametric `consumer_build` boundaries
+additionally require their named provider-audit connection.
 
 `#[api]` defaults to the facade's hidden registration transport. Definitions
 in lower implementation crates use `registry = ::sand_api_contract`, which

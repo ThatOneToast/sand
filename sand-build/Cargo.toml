@@ -22,7 +22,7 @@ heck = "0.5"
 thiserror = "2"
 dirs = "5"
 sand-version = { path = "../sand-version" }
-sand-api-contract = { path = "../sand-api-contract" }
+sand-api-contract = { path = "../sand-api-contract", features = ["syntax"] }
 syn = { version = "2", features = ["full"] }
 proc-macro2 = "1"
 

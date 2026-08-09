@@ -7,6 +7,8 @@ use quote::ToTokens;
 use syn::parse::Parser;
 use syn::{ExprArray, FnArg, ItemEnum, ItemStruct, LitStr, Pat, ReturnType, Signature};
 
+pub mod registry_id;
+
 /// Public associated names emitted by `#[derive(SandStorage)]`.
 ///
 /// The derive expansion and build-time provider share this function, so a

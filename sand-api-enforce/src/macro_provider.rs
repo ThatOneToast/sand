@@ -230,12 +230,110 @@ pub fn resource_ref_provider(path: &Path) -> Result<Vec<GeneratedApi>, MacroProv
 
 /// Expand the typed registry-ID wrapper family from `registry_id!`.
 pub fn registry_id_provider(path: &Path) -> Result<Vec<GeneratedApi>, MacroProviderError> {
-    declarative_type_family_provider(
-        path,
-        "registry_id",
-        "sand_components::registry",
-        "generated_registry_ids",
-    )
+    let source = fs::read_to_string(path)
+        .map_err(|error| MacroProviderError::Io(format!("{}: {error}", path.display())))?;
+    let file = syn::parse_file(&source)
+        .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
+    let imports_generator = file.items.iter().any(|item| match item {
+        syn::Item::Use(item) => {
+            let tokens = item.tree.to_token_stream().to_string();
+            tokens == "sand_macros :: registry_id"
+        }
+        _ => false,
+    });
+    if !imports_generator {
+        return Err(MacroProviderError::MissingNamedGenerator(
+            "sand_macros::registry_id".into(),
+        ));
+    }
+    if file.items.iter().any(|item| {
+        matches!(item, syn::Item::Macro(item) if item.ident.as_ref().is_some_and(|ident| ident == "registry_id"))
+    }) {
+        return Err(unsupported(
+            "local registry_id! shadows the audited sand_macros generator",
+        ));
+    }
+    let mut generated = Vec::new();
+    for item in file.items {
+        let syn::Item::Macro(item) = item else {
+            continue;
+        };
+        if !item.mac.path.is_ident("registry_id") {
+            continue;
+        }
+        let expansion = sand_api_contract::syntax::registry_id::expand(item.mac.tokens)
+            .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
+        let expanded = syn::parse2::<syn::File>(expansion.rust)
+            .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
+        let public_types = expanded
+            .items
+            .iter()
+            .filter_map(|item| match item {
+                syn::Item::Struct(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
+                    Some(item.ident.to_string())
+                }
+                syn::Item::Enum(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
+                    Some(item.ident.to_string())
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        let [name] = public_types.as_slice() else {
+            return Err(unsupported(format!(
+                "registry_id! expansion must emit exactly one public type; found {:?}",
+                public_types
+            )));
+        };
+        let owner = name.as_str();
+        let mut members = BTreeSet::new();
+        for item in &expanded.items {
+            let syn::Item::Impl(block) = item else {
+                continue;
+            };
+            let owns_generated_type = matches!(
+                block.self_ty.as_ref(),
+                syn::Type::Path(path) if path.qself.is_none() && path.path.is_ident(owner)
+            );
+            if block.trait_.is_some() || !owns_generated_type {
+                continue;
+            }
+            for member in &block.items {
+                match member {
+                    syn::ImplItem::Fn(method)
+                        if matches!(method.vis, syn::Visibility::Public(_)) =>
+                    {
+                        members.insert((method.sig.ident.to_string(), ReachableKind::Method));
+                    }
+                    syn::ImplItem::Const(constant)
+                        if matches!(constant.vis, syn::Visibility::Public(_)) =>
+                    {
+                        members
+                            .insert((constant.ident.to_string(), ReachableKind::AssociatedConst));
+                    }
+                    syn::ImplItem::Type(ty) if matches!(ty.vis, syn::Visibility::Public(_)) => {
+                        members.insert((ty.ident.to_string(), ReachableKind::AssociatedType));
+                    }
+                    _ => {}
+                }
+            }
+        }
+        if members.is_empty() {
+            return Err(MacroProviderError::MissingPublicMethods);
+        }
+        generated.push(GeneratedApi {
+            identity: format!("sand_components::registry::{name}"),
+            provider: "generated_registry_ids".into(),
+            producer: None,
+            kind: ReachableKind::Struct,
+            members: members.into_iter().collect(),
+            excluded: false,
+        });
+    }
+    if generated.is_empty() {
+        return Err(MacroProviderError::MissingGeneratedTypes);
+    }
+    generated.sort_by(|left, right| left.identity.cmp(&right.identity));
+    Ok(generated)
 }
 
 /// Expand the checked-in vanilla registry enums in `effect.rs`.

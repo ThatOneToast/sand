@@ -30,68 +30,11 @@
 use std::fmt;
 use std::marker::PhantomData;
 
+use sand_macros::registry_id;
 use serde::{Serialize, Serializer};
 
 use crate::error::Result;
 use crate::resource_location::ResourceLocation;
-
-// ── Macro to avoid repetition ────────────────────────────────────────────────
-
-macro_rules! registry_id {
-    ($(@contract($($api:tt)*);)? $(#[$meta:meta])* $name:ident) => {
-        $(#[$meta])*
-        #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-        pub struct $name(ResourceLocation);
-
-        impl $name {
-            /// Construct a `minecraft:<path>` ID.  Returns an error if `path` is invalid.
-            pub fn minecraft(path: impl AsRef<str>) -> Result<Self> {
-                Ok(Self(ResourceLocation::minecraft(path)?))
-            }
-
-            /// Wrap any [`ResourceLocation`] as this registry ID.
-            pub fn custom(rl: ResourceLocation) -> Self {
-                Self(rl)
-            }
-
-            /// Access the inner [`ResourceLocation`].
-            pub fn as_resource_location(&self) -> &ResourceLocation {
-                &self.0
-            }
-        }
-
-        impl From<ResourceLocation> for $name {
-            fn from(rl: ResourceLocation) -> Self {
-                Self(rl)
-            }
-        }
-
-        impl From<$name> for ResourceLocation {
-            fn from(id: $name) -> Self {
-                id.0
-            }
-        }
-
-        impl fmt::Display for $name {
-            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                self.0.fmt(f)
-            }
-        }
-
-        impl Serialize for $name {
-            fn serialize<S: Serializer>(&self, s: S) -> std::result::Result<S::Ok, S::Error> {
-                self.0.serialize(s)
-            }
-        }
-
-        impl std::str::FromStr for $name {
-            type Err = crate::error::SandError;
-            fn from_str(s: &str) -> Result<Self> {
-                Ok(Self(s.parse()?))
-            }
-        }
-    };
-}
 
 registry_id! {
     /// Typed Minecraft item identifier (e.g. `minecraft:diamond_sword` or `mymod:arcane_blade`).

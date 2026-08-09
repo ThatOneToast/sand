@@ -234,16 +234,27 @@ pub fn registry_id_provider(path: &Path) -> Result<Vec<GeneratedApi>, MacroProvi
         .map_err(|error| MacroProviderError::Io(format!("{}: {error}", path.display())))?;
     let file = syn::parse_file(&source)
         .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
-    let imports_generator = file.items.iter().any(|item| match item {
-        syn::Item::Use(item) => {
-            let tokens = item.tree.to_token_stream().to_string();
-            tokens == "sand_macros :: registry_id"
-        }
-        _ => false,
-    });
-    if !imports_generator {
+    let bindings = file
+        .items
+        .iter()
+        .filter_map(|item| match item {
+            syn::Item::Use(item) => Some(item),
+            _ => None,
+        })
+        .flat_map(registry_id_bindings)
+        .collect::<Vec<_>>();
+    let exact_imports = bindings
+        .iter()
+        .filter(|binding| binding.target == "sand_macros::registry_id")
+        .collect::<Vec<_>>();
+    if exact_imports.len() != 1 || !exact_imports[0].unconditional {
         return Err(MacroProviderError::MissingNamedGenerator(
-            "sand_macros::registry_id".into(),
+            "unconditional sand_macros::registry_id".into(),
+        ));
+    }
+    if bindings.len() != 1 {
+        return Err(unsupported(
+            "a competing import also binds `registry_id` in the macro namespace",
         ));
     }
     if file.items.iter().any(|item| {
@@ -265,75 +276,256 @@ pub fn registry_id_provider(path: &Path) -> Result<Vec<GeneratedApi>, MacroProvi
             .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
         let expanded = syn::parse2::<syn::File>(expansion.rust)
             .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
-        let public_types = expanded
-            .items
-            .iter()
-            .filter_map(|item| match item {
-                syn::Item::Struct(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
-                    Some(item.ident.to_string())
-                }
-                syn::Item::Enum(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
-                    Some(item.ident.to_string())
-                }
-                _ => None,
-            })
-            .collect::<Vec<_>>();
-        let [name] = public_types.as_slice() else {
-            return Err(unsupported(format!(
-                "registry_id! expansion must emit exactly one public type; found {:?}",
-                public_types
-            )));
-        };
-        let owner = name.as_str();
-        let mut members = BTreeSet::new();
-        for item in &expanded.items {
-            let syn::Item::Impl(block) = item else {
-                continue;
-            };
-            let owns_generated_type = matches!(
-                block.self_ty.as_ref(),
-                syn::Type::Path(path) if path.qself.is_none() && path.path.is_ident(owner)
-            );
-            if block.trait_.is_some() || !owns_generated_type {
-                continue;
-            }
-            for member in &block.items {
-                match member {
-                    syn::ImplItem::Fn(method)
-                        if matches!(method.vis, syn::Visibility::Public(_)) =>
-                    {
-                        members.insert((method.sig.ident.to_string(), ReachableKind::Method));
-                    }
-                    syn::ImplItem::Const(constant)
-                        if matches!(constant.vis, syn::Visibility::Public(_)) =>
-                    {
-                        members
-                            .insert((constant.ident.to_string(), ReachableKind::AssociatedConst));
-                    }
-                    syn::ImplItem::Type(ty) if matches!(ty.vis, syn::Visibility::Public(_)) => {
-                        members.insert((ty.ident.to_string(), ReachableKind::AssociatedType));
-                    }
-                    _ => {}
-                }
-            }
-        }
-        if members.is_empty() {
-            return Err(MacroProviderError::MissingPublicMethods);
-        }
-        generated.push(GeneratedApi {
-            identity: format!("sand_components::registry::{name}"),
-            provider: "generated_registry_ids".into(),
-            producer: None,
-            kind: ReachableKind::Struct,
-            members: members.into_iter().collect(),
-            excluded: false,
-        });
+        generated.push(registry_api_from_expansion(&expanded)?);
     }
     if generated.is_empty() {
         return Err(MacroProviderError::MissingGeneratedTypes);
     }
     generated.sort_by(|left, right| left.identity.cmp(&right.identity));
     Ok(generated)
+}
+
+#[derive(Clone, Debug)]
+struct RegistryImportBinding {
+    target: String,
+    unconditional: bool,
+}
+
+fn registry_id_bindings(item: &syn::ItemUse) -> Vec<RegistryImportBinding> {
+    fn visit(
+        tree: &syn::UseTree,
+        prefix: &mut Vec<String>,
+        unconditional: bool,
+        bindings: &mut Vec<RegistryImportBinding>,
+    ) {
+        match tree {
+            syn::UseTree::Path(path) => {
+                prefix.push(path.ident.to_string());
+                visit(&path.tree, prefix, unconditional, bindings);
+                prefix.pop();
+            }
+            syn::UseTree::Name(name) if name.ident == "registry_id" => {
+                let mut target = prefix.clone();
+                target.push(name.ident.to_string());
+                bindings.push(RegistryImportBinding {
+                    target: target.join("::"),
+                    unconditional,
+                });
+            }
+            syn::UseTree::Rename(rename) if rename.rename == "registry_id" => {
+                let mut target = prefix.clone();
+                target.push(rename.ident.to_string());
+                bindings.push(RegistryImportBinding {
+                    target: target.join("::"),
+                    unconditional,
+                });
+            }
+            syn::UseTree::Group(group) => {
+                for tree in &group.items {
+                    visit(tree, prefix, unconditional, bindings);
+                }
+            }
+            syn::UseTree::Glob(_) => bindings.push(RegistryImportBinding {
+                target: format!("{}::*", prefix.join("::")),
+                unconditional,
+            }),
+            _ => {}
+        }
+    }
+
+    let mut bindings = Vec::new();
+    visit(
+        &item.tree,
+        &mut Vec::new(),
+        item.attrs.is_empty(),
+        &mut bindings,
+    );
+    bindings
+}
+
+fn registry_api_from_expansion(file: &syn::File) -> Result<GeneratedApi, MacroProviderError> {
+    let mut root = None::<(String, ReachableKind)>;
+    for item in &file.items {
+        let candidate = match item {
+            syn::Item::Struct(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
+                let public_fields = item
+                    .fields
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, field)| matches!(field.vis, syn::Visibility::Public(_)))
+                    .map(|(index, field)| {
+                        field
+                            .ident
+                            .as_ref()
+                            .map_or_else(|| index.to_string(), ToString::to_string)
+                    })
+                    .collect::<Vec<_>>();
+                if !public_fields.is_empty() {
+                    return Err(unsupported(format!(
+                        "registry_id! expansion emits unsupported public fields: {}",
+                        public_fields.join(", ")
+                    )));
+                }
+                Some((item.ident.to_string(), ReachableKind::Struct))
+            }
+            syn::Item::Enum(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
+                return Err(unsupported(format!(
+                    "registry_id! expansion changed public root `{}` to an enum with variants: {}",
+                    item.ident,
+                    item.variants
+                        .iter()
+                        .map(|variant| variant.ident.to_string())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )));
+            }
+            syn::Item::Union(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
+                return Err(unsupported(format!(
+                    "registry_id! expansion changed public root `{}` to a union",
+                    item.ident
+                )));
+            }
+            item if public_top_level_identity(item).is_some() => {
+                return Err(unsupported(format!(
+                    "registry_id! expansion emits unsupported extra public identity `{}`",
+                    public_top_level_identity(item).unwrap()
+                )));
+            }
+            syn::Item::Macro(item)
+                if item
+                    .attrs
+                    .iter()
+                    .any(|attribute| attribute.path().is_ident("macro_export")) =>
+            {
+                return Err(unsupported(
+                    "registry_id! expansion emits an unsupported exported macro",
+                ));
+            }
+            _ => None,
+        };
+        if let Some(candidate) = candidate
+            && root.replace(candidate).is_some()
+        {
+            return Err(unsupported(
+                "registry_id! expansion emits more than one public root type",
+            ));
+        }
+    }
+    let Some((name, kind)) = root else {
+        return Err(unsupported(
+            "registry_id! expansion does not emit one supported public root type",
+        ));
+    };
+    let mut members = BTreeSet::new();
+    for item in &file.items {
+        let syn::Item::Impl(block) = item else {
+            continue;
+        };
+        let owns_generated_type = matches!(
+            block.self_ty.as_ref(),
+            syn::Type::Path(path) if path.qself.is_none() && path.path.is_ident(&name)
+        );
+        if block.trait_.is_some() || !owns_generated_type {
+            continue;
+        }
+        for member in &block.items {
+            match member {
+                syn::ImplItem::Fn(method) if matches!(method.vis, syn::Visibility::Public(_)) => {
+                    members.insert((method.sig.ident.to_string(), ReachableKind::Method));
+                }
+                syn::ImplItem::Const(constant)
+                    if matches!(constant.vis, syn::Visibility::Public(_)) =>
+                {
+                    members.insert((constant.ident.to_string(), ReachableKind::AssociatedConst));
+                }
+                syn::ImplItem::Type(ty) if matches!(ty.vis, syn::Visibility::Public(_)) => {
+                    members.insert((ty.ident.to_string(), ReachableKind::AssociatedType));
+                }
+                syn::ImplItem::Macro(_) => {
+                    return Err(unsupported(
+                        "registry_id! inherent impl contains an unauditable macro invocation",
+                    ));
+                }
+                _ => {}
+            }
+        }
+    }
+    if members.is_empty() {
+        return Err(MacroProviderError::MissingPublicMethods);
+    }
+    Ok(GeneratedApi {
+        identity: format!("sand_components::registry::{name}"),
+        provider: "generated_registry_ids".into(),
+        producer: None,
+        kind,
+        members: members.into_iter().collect(),
+        excluded: false,
+    })
+}
+
+fn public_top_level_identity(item: &syn::Item) -> Option<String> {
+    match item {
+        syn::Item::Const(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
+            Some(item.ident.to_string())
+        }
+        syn::Item::Fn(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
+            Some(item.sig.ident.to_string())
+        }
+        syn::Item::Mod(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
+            Some(item.ident.to_string())
+        }
+        syn::Item::Static(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
+            Some(item.ident.to_string())
+        }
+        syn::Item::Trait(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
+            Some(item.ident.to_string())
+        }
+        syn::Item::Type(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
+            Some(item.ident.to_string())
+        }
+        syn::Item::Use(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
+            Some(item.tree.to_token_stream().to_string())
+        }
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod registry_expansion_tests {
+    use super::*;
+
+    fn error(source: TokenStream) -> String {
+        let file = syn::parse2::<syn::File>(source).unwrap();
+        registry_api_from_expansion(&file).unwrap_err().to_string()
+    }
+
+    #[test]
+    fn public_struct_field_growth_fails_closed() {
+        let error = error(quote::quote! {
+            pub struct ExampleId(pub ResourceLocation);
+            impl ExampleId { pub fn minecraft() {} }
+        });
+        assert!(error.contains("unsupported public fields: 0"));
+    }
+
+    #[test]
+    fn enum_variant_growth_fails_closed() {
+        let error = error(quote::quote! {
+            pub enum ExampleId { Vanilla, Custom(ResourceLocation) }
+            impl ExampleId { pub fn minecraft() {} }
+        });
+        assert!(error.contains("enum with variants: Vanilla, Custom"));
+    }
+
+    #[test]
+    fn extra_public_top_level_identity_fails_closed() {
+        let error = error(quote::quote! {
+            pub struct ExampleId(ResourceLocation);
+            impl ExampleId { pub fn minecraft() {} }
+            pub fn leaked_helper() {}
+        });
+        assert!(error.contains("extra public identity `leaked_helper`"));
+    }
 }
 
 /// Expand the checked-in vanilla registry enums in `effect.rs`.

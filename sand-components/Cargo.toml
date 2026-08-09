@@ -8,6 +8,7 @@ repository.workspace = true
 homepage.workspace = true
 authors.workspace = true
 rust-version.workspace = true
+links = "sand_components"
 keywords = ["minecraft", "datapack", "components", "gamedev"]
 categories = ["game-development", "data-structures"]
 
@@ -20,3 +21,7 @@ sand-api-contract = { path = "../sand-api-contract" }
 sand-macros = { path = "../sand-macros" }
 sand-version = { path = "../sand-version" }
 inventory = "0.3"
+
+[build-dependencies]
+sand-build = { path = "../sand-build" }
+sand-version = { path = "../sand-version" }

@@ -46,6 +46,40 @@ pub fn registry_id_contract_provider(
     ))
 }
 
+/// Validate and install the provider artifact published by the packaged
+/// `sand-components` dependency into a consuming crate's output directory.
+pub fn install_registry_id_contract_provider(
+    source: &Path,
+    destination: &Path,
+    minecraft_version: &str,
+) -> Result<()> {
+    let catalog = crate::read_api_provider(source)?;
+    if catalog.provider != "generated_registry_id_contracts" {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            format!(
+                "{} declares provider `{}`, expected `generated_registry_id_contracts`",
+                source.display(),
+                catalog.provider
+            ),
+        )
+        .into());
+    }
+    if catalog.minecraft_version != minecraft_version {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            format!(
+                "{} targets Minecraft {}, expected {minecraft_version}",
+                source.display(),
+                catalog.minecraft_version
+            ),
+        )
+        .into());
+    }
+    catalog.validate().map_err(std::io::Error::other)?;
+    catalog.write_json(destination)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -165,5 +199,34 @@ mod tests {
             .unwrap_err()
             .to_string();
         assert!(error.contains("missing registry contract field `example_path`"));
+    }
+
+    #[test]
+    fn packaged_components_provider_installs_without_workspace_sibling_sources() {
+        let workspace = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let package_layout = tempfile::tempdir().unwrap();
+        let components = package_layout.path().join("registry-package");
+        let core = package_layout.path().join("consumer-package");
+        std::fs::create_dir_all(components.join("src")).unwrap();
+        std::fs::create_dir_all(core.join("out")).unwrap();
+        std::fs::copy(
+            workspace.join("sand-components/src/registry.rs"),
+            components.join("src/registry.rs"),
+        )
+        .unwrap();
+
+        let published = components.join("registry_ids.api.json");
+        registry_id_contract_provider(&components.join("src/registry.rs"), "package-test")
+            .unwrap()
+            .write_json(&published)
+            .unwrap();
+        let installed = core.join("out/registry_ids.api.json");
+        install_registry_id_contract_provider(&published, &installed, "package-test").unwrap();
+
+        assert_eq!(
+            std::fs::read(published).unwrap(),
+            std::fs::read(installed).unwrap()
+        );
+        assert!(!core.join("../sand-components/src/registry.rs").exists());
     }
 }

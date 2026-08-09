@@ -75,13 +75,21 @@ fn main() {
         }
     }
 
-    sand_build::registry_id_contract_provider(
-        std::path::Path::new("../sand-components/src/registry.rs"),
+    let registry_provider = std::path::PathBuf::from(
+        std::env::var_os("DEP_SAND_COMPONENTS_API_PROVIDER_FILE").unwrap_or_else(|| {
+            panic!(
+                "sand-components did not publish its registry-ID API provider metadata; \
+                 rebuild the packaged sand-components dependency"
+            )
+        }),
+    );
+    sand_build::install_registry_id_contract_provider(
+        &registry_provider,
+        &out_dir.join("registry_ids.api.json"),
         &version,
     )
-    .and_then(|catalog| catalog.write_json(&out_dir.join("registry_ids.api.json")))
-    .unwrap_or_else(|error| panic!("failed to generate registry-ID API contracts: {error}"));
-    println!("cargo:rerun-if-changed=../sand-components/src/registry.rs");
+    .unwrap_or_else(|error| panic!("failed to install registry-ID API contracts: {error}"));
+    println!("cargo:rerun-if-env-changed=DEP_SAND_COMPONENTS_API_PROVIDER_FILE");
 
     // Make the exact provider artifacts available to the facade's build
     // audit. Cargo forwards this as DEP_SAND_CORE_API_PROVIDER_DIR because

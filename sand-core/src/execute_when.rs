@@ -1210,7 +1210,6 @@ mod tests {
             assert!(setup.contains(&"scoreboard objectives add __sand_tmp dummy".to_string()));
         }
 
-        let _next_export = crate::function::ExportFunctionRegistryScope::enter();
         assert!(crate::drain_dyn_fns().is_empty());
         assert!(crate::state::score::drain_internal_score_setup().is_empty());
     }

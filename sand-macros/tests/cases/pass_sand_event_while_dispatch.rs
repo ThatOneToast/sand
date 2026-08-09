@@ -20,12 +20,12 @@ impl<T> SandEvent for State<T> {
     fn dispatch() -> impl Into<SandEventDispatch> {
         SandEventDispatch::tick()
             .as_players()
-            .when(Condition::entity("@s[tag=state]"))
+            .when(Condition::entity(Selector::self_().tag("state")))
     }
 }
 impl<T> PersistentSandEvent for State<T> {
     fn persistent_condition() -> PersistentEventCondition {
-        PersistentEventCondition::players(Condition::entity("@s[tag=state]"))
+        PersistentEventCondition::players(Condition::entity(Selector::self_().tag("state")))
     }
 }
 
@@ -35,8 +35,8 @@ impl SandEvent for Child {
     fn dispatch() -> impl Into<SandEventDispatch> {
         SandEventDispatch::chain::<Parent>()
             .while_::<State<Active>>()
-            .when(Condition::entity("@s[tag=ready]"))
-            .unless(Condition::entity("@s[tag=blocked]"))
+            .when(Condition::entity(Selector::self_().tag("ready")))
+            .unless(Condition::entity(Selector::self_().tag("blocked")))
     }
 }
 

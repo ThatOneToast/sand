@@ -364,10 +364,7 @@ impl ItemLocation {
     /// Typed `execute if data` existence check for the stack compound.
     pub fn exists(&self) -> Condition {
         let reference = self.nbt();
-        Condition::NbtExists {
-            target: reference.location().clone(),
-            path: reference.path_value().clone(),
-        }
+        Condition::data_exists(&reference)
     }
 
     /// True when the live slot contains no item.
@@ -383,13 +380,11 @@ impl ItemLocation {
         let item = item.into();
         match self.item_target_slot()? {
             ItemCommandLocation::Entity { target, slot } => {
-                Ok(Condition::ItemsEntity { target, slot, item })
+                Ok(Condition::items_entity(target, slot, item))
             }
-            ItemCommandLocation::Block { position, slot } => Ok(Condition::ItemsBlock {
-                position,
-                slot,
-                item,
-            }),
+            ItemCommandLocation::Block { position, slot } => {
+                Ok(Condition::items_block(position, slot, item))
+            }
         }
     }
 

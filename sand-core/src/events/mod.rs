@@ -2515,7 +2515,7 @@ impl PersistentSandEvent for PlayerSneakEvent {
         let predicate = condition
             .strip_prefix("predicate ")
             .expect("the shared sneaking source is a predicate condition");
-        PersistentEventCondition::players(crate::condition::Condition::predicate(predicate))
+        PersistentEventCondition::players(crate::condition::Condition::predicate_raw(predicate))
     }
 }
 
@@ -2539,7 +2539,7 @@ impl SandEvent for PlayerSprintEvent {
 }
 impl PersistentSandEvent for PlayerSprintEvent {
     fn persistent_condition() -> PersistentEventCondition {
-        PersistentEventCondition::players(crate::condition::Condition::predicate(
+        PersistentEventCondition::players(crate::condition::Condition::predicate_raw(
             "__sand_local:__sand/player_sprinting",
         ))
     }
@@ -2595,7 +2595,7 @@ impl SandEvent for PlayerSwimmingEvent {
 }
 impl PersistentSandEvent for PlayerSwimmingEvent {
     fn persistent_condition() -> PersistentEventCondition {
-        PersistentEventCondition::players(crate::condition::Condition::predicate(
+        PersistentEventCondition::players(crate::condition::Condition::predicate_raw(
             "__sand_local:__sand/player_swimming",
         ))
     }
@@ -2650,7 +2650,7 @@ impl SandEvent for PlayerFlyingEvent {
 }
 impl PersistentSandEvent for PlayerFlyingEvent {
     fn persistent_condition() -> PersistentEventCondition {
-        PersistentEventCondition::players(crate::condition::Condition::entity(
+        PersistentEventCondition::players(crate::condition::Condition::entity_raw(
             "@s[nbt={abilities:{flying:1b}}]",
         ))
     }
@@ -2706,7 +2706,7 @@ impl SandEvent for PlayerOnFireEvent {
 }
 impl PersistentSandEvent for PlayerOnFireEvent {
     fn persistent_condition() -> PersistentEventCondition {
-        PersistentEventCondition::players(crate::condition::Condition::predicate(
+        PersistentEventCondition::players(crate::condition::Condition::predicate_raw(
             "__sand_local:__sand/player_on_fire",
         ))
     }
@@ -2763,7 +2763,7 @@ impl SandEvent for PlayerInCreativeEvent {
 }
 impl PersistentSandEvent for PlayerInCreativeEvent {
     fn persistent_condition() -> PersistentEventCondition {
-        PersistentEventCondition::players(crate::condition::Condition::entity(
+        PersistentEventCondition::players(crate::condition::Condition::entity_raw(
             "@s[gamemode=creative]",
         ))
     }
@@ -2778,7 +2778,7 @@ impl SandEvent for PlayerInAdventureEvent {
 }
 impl PersistentSandEvent for PlayerInAdventureEvent {
     fn persistent_condition() -> PersistentEventCondition {
-        PersistentEventCondition::players(crate::condition::Condition::entity(
+        PersistentEventCondition::players(crate::condition::Condition::entity_raw(
             "@s[gamemode=adventure]",
         ))
     }
@@ -2793,7 +2793,7 @@ impl SandEvent for PlayerInSpectatorEvent {
 }
 impl PersistentSandEvent for PlayerInSpectatorEvent {
     fn persistent_condition() -> PersistentEventCondition {
-        PersistentEventCondition::players(crate::condition::Condition::entity(
+        PersistentEventCondition::players(crate::condition::Condition::entity_raw(
             "@s[gamemode=spectator]",
         ))
     }

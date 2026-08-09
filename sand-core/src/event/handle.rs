@@ -78,11 +78,11 @@ impl<E> EventHandle<E> {
     /// }
     /// ```
     pub fn condition(&self) -> Condition {
-        Condition::Score {
-            selector: "@s".into(),
-            objective: self.objective_name().to_string(),
-            range: ScoreRange::Eq(1),
-        }
+        Condition::score(
+            "@s".into(),
+            self.objective_name().to_string(),
+            ScoreRange::Eq(1),
+        )
     }
 
     /// Command to enable this event for the given selector.
@@ -206,11 +206,11 @@ impl RawEventHandle {
     }
 
     pub fn condition(&self) -> Condition {
-        Condition::Score {
-            selector: "@s".into(),
-            objective: self.objective_name().to_string(),
-            range: ScoreRange::Eq(1),
-        }
+        Condition::score(
+            "@s".into(),
+            self.objective_name().to_string(),
+            ScoreRange::Eq(1),
+        )
     }
 
     pub fn enable(&self, selector: impl std::fmt::Display) -> String {

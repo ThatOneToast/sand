@@ -20,7 +20,7 @@ pub use crate::{all, any, cmd, mcfunction};
 // ── Conditions & execute wiring ───────────────────────────────────────────────
 
 pub use crate::cmd::{ConditionedExecute, ExecuteExt, TypedExecute};
-pub use crate::condition::{Condition, ExecutePlan};
+pub use crate::condition::Condition;
 pub use crate::execute_when::{if_, unless, when};
 
 // ── Command builders ──────────────────────────────────────────────────────────

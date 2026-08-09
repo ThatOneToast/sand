@@ -207,11 +207,11 @@ impl Cooldown {
     ///
     /// Raw compatibility escape hatch — prefer [`Cooldown::try_ready`].
     pub fn ready(&self, selector: &str) -> Condition {
-        Condition::Score {
-            selector: selector.to_string(),
-            objective: self.objective_name(),
-            range: crate::condition::ScoreRange::Eq(0),
-        }
+        Condition::score(
+            selector.to_string(),
+            self.objective_name(),
+            crate::condition::ScoreRange::Eq(0),
+        )
     }
 
     /// Validated counterpart to [`Cooldown::ready`] — takes a typed
@@ -241,11 +241,11 @@ impl Cooldown {
     ///
     /// Raw compatibility escape hatch — prefer [`Cooldown::try_active`].
     pub fn active(&self, selector: &str) -> Condition {
-        Condition::Score {
-            selector: selector.to_string(),
-            objective: self.objective_name(),
-            range: crate::condition::ScoreRange::Gte(1),
-        }
+        Condition::score(
+            selector.to_string(),
+            self.objective_name(),
+            crate::condition::ScoreRange::Gte(1),
+        )
     }
 
     /// Validated counterpart to [`Cooldown::active`] — see
@@ -381,7 +381,7 @@ impl Cooldown {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::condition::{Condition, ScoreRange};
+    use crate::condition::{ConditionKind, ScoreRange};
 
     static DASH: Cooldown = Cooldown::new("dash", Ticks::new(60));
 
@@ -428,8 +428,8 @@ mod tests {
     #[test]
     fn ready_condition() {
         let cond = DASH.ready("@s");
-        match cond {
-            Condition::Score {
+        match cond.kind() {
+            ConditionKind::Score {
                 selector,
                 objective,
                 range: ScoreRange::Eq(0),
@@ -444,8 +444,8 @@ mod tests {
     #[test]
     fn active_condition() {
         let cond = DASH.active("@s");
-        match cond {
-            Condition::Score {
+        match cond.kind() {
+            ConditionKind::Score {
                 range: ScoreRange::Gte(1),
                 ..
             } => {}
@@ -459,15 +459,15 @@ mod tests {
         let b = DASH.ready("@s");
         // Both should be Eq(0)
         assert!(matches!(
-            a,
-            Condition::Score {
+            a.kind(),
+            ConditionKind::Score {
                 range: ScoreRange::Eq(0),
                 ..
             }
         ));
         assert!(matches!(
-            b,
-            Condition::Score {
+            b.kind(),
+            ConditionKind::Score {
                 range: ScoreRange::Eq(0),
                 ..
             }

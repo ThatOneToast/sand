@@ -4,7 +4,7 @@
 //! the `!` operator ([`std::ops::Not`]) without writing any raw execute syntax.
 //!
 //! Nested `Any` inside `All` is correctly lowered into multiple execute commands
-//! via [`Condition::to_execute_plans`] — see that method for the full semantics.
+//! by Sand's typed execute and branch builders.
 //!
 //! # Example
 //! ```rust,ignore
@@ -28,7 +28,7 @@
 ///
 /// `None` on either end of `Between` means the range is open on that side.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ScoreRange {
+pub(crate) enum ScoreRange {
     /// `matches <n>` — exactly equal.
     Eq(i32),
     /// `matches <n+1>..` — strictly greater than n.
@@ -43,39 +43,14 @@ pub enum ScoreRange {
     Between(Option<i32>, Option<i32>),
 }
 
-/// One scoreboard entry used by score-to-score comparisons.
-///
-/// This is public so typed score operands can be reused by the expression API,
-/// but callers normally obtain one from [`ScoreRef`](crate::state::ScoreRef).
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ScoreOperand {
-    /// The score holder or entity selector.
-    pub(crate) selector: String,
-    /// The (already Minecraft-safe) objective name.
-    pub(crate) objective: String,
-}
-
 /// Vanilla operators accepted by `execute if score <left> <op> <right>`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ScoreCompareOp {
+pub(crate) enum ScoreCompareOp {
     Eq,
     Gt,
     Gte,
     Lt,
     Lte,
-}
-
-impl ScoreCompareOp {
-    /// Render the vanilla scoreboard comparison operator.
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Eq => "=",
-            Self::Gt => ">",
-            Self::Gte => ">=",
-            Self::Lt => "<",
-            Self::Lte => "<=",
-        }
-    }
 }
 
 impl ScoreRange {
@@ -150,9 +125,14 @@ impl ScoreRange {
 /// to turn a `Condition` into complete execute commands.
 ///
 /// Nested `Any` inside `All` is automatically distributed into multiple execute
-/// commands by [`execute_commands`](Condition::execute_commands).
+/// commands by Sand's typed execute and branch builders.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Condition {
+pub struct Condition {
+    kind: ConditionKind,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum ConditionKind {
     /// `if score <selector> <objective> matches <range>`
     Score {
         selector: String,
@@ -161,9 +141,9 @@ pub enum Condition {
     },
     /// `if score <left selector> <left objective> <op> <right selector> <right objective>`.
     ScoreCompare {
-        left: ScoreOperand,
+        left: crate::state::score::ScoreOperand,
         op: ScoreCompareOp,
-        right: ScoreOperand,
+        right: crate::state::score::ScoreOperand,
     },
     /// `if score <selector> <flag_objective> matches 1` (or `0` when `value = false`)
     Flag {
@@ -175,8 +155,6 @@ pub enum Condition {
     Predicate(String),
     /// `if entity <selector>`
     Entity(String),
-    /// `if data storage <location> <path>`
-    StorageExists { location: String, path: String },
     /// `if data <storage|entity|block> <path>` using the unified NBT model.
     NbtExists {
         target: sand_commands::DataTarget,
@@ -214,51 +192,135 @@ pub enum Condition {
 }
 
 impl Condition {
+    pub(crate) fn kind(&self) -> &ConditionKind {
+        &self.kind
+    }
+
+    pub(crate) fn score(selector: String, objective: String, range: ScoreRange) -> Self {
+        Self {
+            kind: ConditionKind::Score {
+                selector,
+                objective,
+                range,
+            },
+        }
+    }
+
+    pub(crate) fn score_compare(
+        left: crate::state::score::ScoreOperand,
+        op: ScoreCompareOp,
+        right: crate::state::score::ScoreOperand,
+    ) -> Self {
+        Self {
+            kind: ConditionKind::ScoreCompare { left, op, right },
+        }
+    }
+
+    pub(crate) fn flag(selector: String, objective: String, value: bool) -> Self {
+        Self {
+            kind: ConditionKind::Flag {
+                selector,
+                objective,
+                value,
+            },
+        }
+    }
+
+    pub(crate) fn predicate_raw(location: impl Into<String>) -> Self {
+        Self {
+            kind: ConditionKind::Predicate(location.into()),
+        }
+    }
+
+    pub(crate) fn entity_raw(selector: impl Into<String>) -> Self {
+        Self {
+            kind: ConditionKind::Entity(selector.into()),
+        }
+    }
+
+    pub(crate) fn nbt_exists(
+        target: sand_commands::DataTarget,
+        path: sand_commands::NbtPath,
+    ) -> Self {
+        Self {
+            kind: ConditionKind::NbtExists { target, path },
+        }
+    }
+
+    pub(crate) fn items_entity(
+        target: sand_commands::Selector,
+        slot: sand_commands::ItemSlot,
+        item: String,
+    ) -> Self {
+        Self {
+            kind: ConditionKind::ItemsEntity { target, slot, item },
+        }
+    }
+
+    pub(crate) fn items_block(
+        position: sand_commands::BlockPos,
+        slot: sand_commands::ItemSlot,
+        item: String,
+    ) -> Self {
+        Self {
+            kind: ConditionKind::ItemsBlock {
+                position,
+                slot,
+                item,
+            },
+        }
+    }
+
     /// Invert a condition.
     ///
     /// Also available as the `!` operator via [`std::ops::Not`].
     pub fn negate(cond: Condition) -> Self {
-        Condition::Not(Box::new(cond))
+        Self {
+            kind: ConditionKind::Not(Box::new(cond)),
+        }
     }
 
     /// All of the given conditions must hold.
     pub fn all(conds: impl IntoIterator<Item = Condition>) -> Self {
-        Condition::All(conds.into_iter().collect())
+        Self {
+            kind: ConditionKind::All(conds.into_iter().collect()),
+        }
     }
 
     /// Any of the given conditions must hold.
     pub fn any(conds: impl IntoIterator<Item = Condition>) -> Self {
-        Condition::Any(conds.into_iter().collect())
+        Self {
+            kind: ConditionKind::Any(conds.into_iter().collect()),
+        }
     }
 
     /// Condition on a named predicate resource.
     ///
     /// ```rust,ignore
-    /// let c = Condition::predicate("my_pack:can_cast");
+    /// let predicate = PredicateRef::new("my_pack:can_cast")?;
+    /// let c = Condition::predicate(predicate);
     /// ```
-    pub fn predicate(location: impl Into<String>) -> Self {
-        Condition::Predicate(location.into())
+    pub fn predicate(predicate: crate::resource_ref::PredicateRef) -> Self {
+        Self::predicate_raw(predicate.to_string())
     }
 
     /// Condition on an entity selector.
     ///
     /// ```rust,ignore
-    /// let c = Condition::entity("@s[tag=ready]");
+    /// let c = Condition::entity(Selector::self_().tag("ready"));
     /// ```
-    pub fn entity(selector: impl Into<String>) -> Self {
-        Condition::Entity(selector.into())
+    pub fn entity(selector: sand_commands::Selector) -> Self {
+        Self::entity_raw(selector.to_string())
     }
 
-    /// Condition on a named storage path existing.
+    /// Condition on a typed NBT reference existing.
     ///
     /// ```rust,ignore
-    /// let c = Condition::storage_exists("example:state", "player.mana");
+    /// let mana = Nbt::storage("example:state").path("player.mana");
+    /// let c = Condition::data_exists(&mana);
     /// ```
-    pub fn storage_exists(location: impl Into<String>, path: impl Into<String>) -> Self {
-        Condition::StorageExists {
-            location: location.into(),
-            path: path.into(),
-        }
+    pub fn data_exists<T>(reference: &sand_commands::NbtRef<T>) -> Self {
+        Self::nbt_exists(reference.location().clone(), reference.path_value().clone())
     }
 
     /// Explicit raw `execute if/unless` fragment escape hatch.
@@ -289,14 +351,16 @@ impl Condition {
             "Condition::raw fragment must not include a leading `if`/`unless` keyword — it is \
              added automatically when rendering: {fragment:?}"
         );
-        Condition::Raw(fragment)
+        Self {
+            kind: ConditionKind::Raw(fragment),
+        }
     }
 }
 
 impl std::ops::Not for Condition {
     type Output = Condition;
     fn not(self) -> Self::Output {
-        Condition::Not(Box::new(self))
+        Condition::negate(self)
     }
 }
 
@@ -312,12 +376,12 @@ impl Condition {
     /// let cond = MANA.of("@s").gte(25).and(DASH.ready("@s"));
     /// ```
     pub fn and(self, other: Condition) -> Condition {
-        match self {
-            Condition::All(mut conds) => {
+        match self.kind {
+            ConditionKind::All(mut conds) => {
                 conds.push(other);
-                Condition::All(conds)
+                Condition::all(conds)
             }
-            _ => Condition::All(vec![self, other]),
+            kind => Condition::all([Condition { kind }, other]),
         }
     }
 
@@ -330,12 +394,12 @@ impl Condition {
     /// let cond = MANA.of("@s").gte(100).or(SHIELD.of("@s").is_true());
     /// ```
     pub fn or(self, other: Condition) -> Condition {
-        match self {
-            Condition::Any(mut conds) => {
+        match self.kind {
+            ConditionKind::Any(mut conds) => {
                 conds.push(other);
-                Condition::Any(conds)
+                Condition::any(conds)
             }
-            _ => Condition::Any(vec![self, other]),
+            kind => Condition::any([Condition { kind }, other]),
         }
     }
 
@@ -362,16 +426,16 @@ impl Condition {
 
 /// One normalized typed condition clause.
 #[derive(Debug, Clone)]
-pub struct ExecuteClause {
+pub(crate) struct ExecuteClause {
     /// Whether this clause renders with `unless` instead of `if`.
-    pub negated: bool,
+    negated: bool,
     /// Structured condition body.
-    pub condition: sand_commands::ConditionIr,
+    pub(crate) condition: sand_commands::ConditionIr,
 }
 
 impl ExecuteClause {
     /// Convert this clause into an ordered execute operation.
-    pub fn into_operation(self) -> sand_commands::ExecuteOp {
+    pub(crate) fn into_operation(self) -> sand_commands::ExecuteOp {
         if self.negated {
             sand_commands::ExecuteOp::Unless(self.condition)
         } else {
@@ -380,19 +444,16 @@ impl ExecuteClause {
     }
 
     /// Compatibility renderer for callers that still consume clause strings.
-    pub fn render(&self) -> String {
+    pub(crate) fn render(&self) -> String {
         format!("{} {}", if_kw(self.negated), self.condition.render())
     }
 }
 
 /// A normalized typed execute plan. Multiple plans are OR-alternatives.
-pub type ExecuteIrPlan = Vec<ExecuteClause>;
-
-/// Compatibility plan type retained for existing public callers.
-pub type ExecutePlan = Vec<String>;
+pub(crate) type ExecuteIrPlan = Vec<ExecuteClause>;
 
 impl Condition {
-    /// Expand this condition into a list of [`ExecutePlan`]s.
+    /// Expand this condition into normalized typed execute plans.
     ///
     /// Each plan is a list of `if/unless …` clause strings to chain in a single
     /// `execute … run <cmd>` command. Multiple plans are OR-alternatives — the
@@ -401,18 +462,18 @@ impl Condition {
     /// | Condition | negated=false | negated=true |
     /// |---|---|---|
     /// | Leaf | `[[if clause]]` | `[[unless clause]]` |
-    /// | `Not(c)` | `c.to_execute_plans(true)` | `c.to_execute_plans(false)` |
+    /// | `Not(c)` | `c.rendered_plans(true)` | `c.rendered_plans(false)` |
     /// | `All(cs)` | Cartesian product of children | Union of negated children |
     /// | `Any(cs)` | Union of children | Cartesian product of negated children |
     ///
     /// The Cartesian product of `[[a], [b]]` and `[[c], [d]]` is
     /// `[[a, c], [a, d], [b, c], [b, d]]`.
-    pub fn to_ir_plans(&self, negated: bool) -> Vec<ExecuteIrPlan> {
-        use sand_commands::{ConditionIr, DataTarget, ScoreCmp, ScoreHolder, Selector};
+    pub(crate) fn to_ir_plans(&self, negated: bool) -> Vec<ExecuteIrPlan> {
+        use sand_commands::{ConditionIr, ScoreCmp, ScoreHolder, Selector};
 
         let clause = |condition| vec![vec![ExecuteClause { negated, condition }]];
-        match self {
-            Condition::Score {
+        match &self.kind {
+            ConditionKind::Score {
                 selector,
                 objective,
                 range,
@@ -421,7 +482,7 @@ impl Condition {
                 objective: objective.clone(),
                 range: range.render(),
             }),
-            Condition::ScoreCompare { left, op, right } => {
+            ConditionKind::ScoreCompare { left, op, right } => {
                 let op = match op {
                     ScoreCompareOp::Eq => ScoreCmp::Eq,
                     ScoreCompareOp::Gt => ScoreCmp::Gt,
@@ -437,7 +498,7 @@ impl Condition {
                     right_objective: right.objective.clone(),
                 })
             }
-            Condition::Flag {
+            ConditionKind::Flag {
                 selector,
                 objective,
                 value,
@@ -446,22 +507,18 @@ impl Condition {
                 objective: objective.clone(),
                 range: if *value { "1" } else { "0" }.to_string(),
             }),
-            Condition::Predicate(loc) => clause(ConditionIr::Predicate(loc.clone())),
-            Condition::Entity(sel) => clause(ConditionIr::Entity(Selector::raw(sel.clone()))),
-            Condition::StorageExists { location, path } => clause(ConditionIr::Data {
-                target: DataTarget::storage(location.clone()),
-                path: path.clone(),
-            }),
-            Condition::NbtExists { target, path } => clause(ConditionIr::Data {
+            ConditionKind::Predicate(loc) => clause(ConditionIr::Predicate(loc.clone())),
+            ConditionKind::Entity(sel) => clause(ConditionIr::Entity(Selector::raw(sel.clone()))),
+            ConditionKind::NbtExists { target, path } => clause(ConditionIr::Data {
                 target: target.clone(),
                 path: path.as_str().to_string(),
             }),
-            Condition::ItemsEntity { target, slot, item } => clause(ConditionIr::ItemsEntity {
+            ConditionKind::ItemsEntity { target, slot, item } => clause(ConditionIr::ItemsEntity {
                 target: target.clone(),
                 slot: slot.clone(),
                 item: item.clone(),
             }),
-            Condition::ItemsBlock {
+            ConditionKind::ItemsBlock {
                 position,
                 slot,
                 item,
@@ -470,14 +527,14 @@ impl Condition {
                 slot: slot.clone(),
                 item: item.clone(),
             }),
-            Condition::Raw(fragment) => clause(ConditionIr::Raw(fragment.clone())),
+            ConditionKind::Raw(fragment) => clause(ConditionIr::Raw(fragment.clone())),
 
             // Not: flip the negated flag and delegate
-            Condition::Not(inner) => inner.to_ir_plans(!negated),
+            ConditionKind::Not(inner) => inner.to_ir_plans(!negated),
 
             // All(cs) negated=false → AND  → Cartesian product of each child's plans
             // All(cs) negated=true  → NOT(AND) = OR of NOTs → union of negated children
-            Condition::All(conds) => {
+            ConditionKind::All(conds) => {
                 if negated {
                     // NOT(a AND b) = NOT a OR NOT b
                     conds.iter().flat_map(|c| c.to_ir_plans(true)).collect()
@@ -490,7 +547,7 @@ impl Condition {
 
             // Any(cs) negated=false → OR  → union of children's plans
             // Any(cs) negated=true  → NOT(OR) = AND of NOTs → Cartesian product of negated children
-            Condition::Any(conds) => {
+            ConditionKind::Any(conds) => {
                 if negated {
                     // NOT(a OR b) = NOT a AND NOT b
                     let sub_plan_sets: Vec<Vec<ExecuteIrPlan>> =
@@ -503,8 +560,7 @@ impl Condition {
         }
     }
 
-    /// Compatibility rendering of [`Condition::to_ir_plans`].
-    pub fn to_execute_plans(&self, negated: bool) -> Vec<ExecutePlan> {
+    pub(crate) fn rendered_plans(&self, negated: bool) -> Vec<Vec<String>> {
         self.to_ir_plans(negated)
             .into_iter()
             .map(|plan| plan.into_iter().map(|clause| clause.render()).collect())
@@ -513,14 +569,13 @@ impl Condition {
 
     /// Build complete `execute … run <cmd>` command strings for this condition.
     ///
-    /// Uses [`to_execute_plans`](Condition::to_execute_plans) internally, so
-    /// nested `Any` inside `All` correctly expands into multiple commands.
+    /// Nested `Any` inside `All` correctly expands into multiple commands.
     ///
     /// - Simple conditions and `All`: typically one command.
     /// - `Any`: one command per sub-condition.
     /// - `Not(Any)`: one command with de Morgan–applied `unless` clauses.
     /// - `All([a, Any([b, c])])`: two commands.
-    pub fn execute_commands(&self, negated: bool, run: &str) -> Vec<String> {
+    pub(crate) fn execute_commands(&self, negated: bool, run: &str) -> Vec<String> {
         self.to_ir_plans(negated)
             .into_iter()
             .map(|clauses| {
@@ -538,21 +593,9 @@ impl Condition {
             .collect()
     }
 
-    /// Render this condition as a flat list of `if/unless …` clause strings.
-    ///
-    /// This is a best-effort rendering for simple conditions. For `Any` nested
-    /// inside `All`, use [`execute_commands`](Condition::execute_commands) or
-    /// [`to_execute_plans`](Condition::to_execute_plans) instead, which correctly
-    /// expand OR conditions into multiple commands.
-    ///
-    /// `negated = true` flips `if` → `unless` (and vice-versa).
-    pub fn render_clauses(&self, negated: bool) -> Vec<String> {
-        // Delegate to to_execute_plans and flatten — this loses OR structure for
-        // nested Any, but is preserved for simple use-cases and backwards compat.
-        self.to_execute_plans(negated)
-            .into_iter()
-            .flatten()
-            .collect()
+    #[cfg(test)]
+    fn render_clauses(&self, negated: bool) -> Vec<String> {
+        self.rendered_plans(negated).into_iter().flatten().collect()
     }
 }
 
@@ -592,19 +635,11 @@ mod tests {
     use super::*;
 
     fn score(sel: &str, obj: &str, range: ScoreRange) -> Condition {
-        Condition::Score {
-            selector: sel.to_string(),
-            objective: obj.to_string(),
-            range,
-        }
+        Condition::score(sel.to_string(), obj.to_string(), range)
     }
 
     fn flag(sel: &str, obj: &str, value: bool) -> Condition {
-        Condition::Flag {
-            selector: sel.to_string(),
-            objective: obj.to_string(),
-            value,
-        }
+        Condition::flag(sel.to_string(), obj.to_string(), value)
     }
 
     // ── ScoreRange rendering ──────────────────────────────────────────────────
@@ -692,7 +727,7 @@ mod tests {
     #[test]
     fn score_plan_if() {
         let c = score("@s", "mana", ScoreRange::Gte(25));
-        let plans = c.to_execute_plans(false);
+        let plans = c.rendered_plans(false);
         assert_eq!(plans, vec![vec!["if score @s mana matches 25.."]]);
     }
 
@@ -700,7 +735,7 @@ mod tests {
     fn normalization_retains_typed_condition_nodes() {
         let condition = Condition::all([
             score("@s", "mana", ScoreRange::Gte(10)),
-            Condition::predicate("demo:can_cast"),
+            Condition::predicate_raw("demo:can_cast"),
             Condition::raw("block ~ ~-1 ~ minecraft:stone"),
         ]);
         let plans = condition.to_ir_plans(false);
@@ -723,16 +758,17 @@ mod tests {
     #[test]
     fn score_plan_unless() {
         let c = score("@s", "mana", ScoreRange::Gte(25));
-        let plans = c.to_execute_plans(true);
+        let plans = c.rendered_plans(true);
         assert_eq!(plans, vec![vec!["unless score @s mana matches 25.."]]);
     }
 
     #[test]
     fn storage_exists_plan() {
-        let c = Condition::storage_exists("ex:state", "mana");
-        let plans = c.to_execute_plans(false);
+        let reference = sand_commands::Nbt::storage("ex:state").path("mana");
+        let c = Condition::data_exists(&reference);
+        let plans = c.rendered_plans(false);
         assert_eq!(plans, vec![vec!["if data storage ex:state mana"]]);
-        let plans_neg = c.to_execute_plans(true);
+        let plans_neg = c.rendered_plans(true);
         assert_eq!(plans_neg, vec![vec!["unless data storage ex:state mana"]]);
     }
 
@@ -768,14 +804,16 @@ mod tests {
 
     #[test]
     fn predicate_clause() {
-        let c = Condition::predicate("my_pack:can_cast");
+        let c = Condition::predicate(
+            crate::resource_ref::PredicateRef::new("my_pack:can_cast").unwrap(),
+        );
         let clauses = c.render_clauses(false);
         assert_eq!(clauses, vec!["if predicate my_pack:can_cast"]);
     }
 
     #[test]
     fn entity_clause() {
-        let c = Condition::entity("@s[tag=ready]");
+        let c = Condition::entity(sand_commands::Selector::self_().tag("ready"));
         let clauses = c.render_clauses(false);
         assert_eq!(clauses, vec!["if entity @s[tag=ready]"]);
     }
@@ -861,7 +899,7 @@ mod tests {
         let c = Condition::all([
             score("@s", "mana", ScoreRange::Gte(25)),
             flag("@s", "casting", false),
-            Condition::predicate("my_pack:can_cast"),
+            Condition::predicate_raw("my_pack:can_cast"),
         ]);
         let cmds = c.execute_commands(false, "say cast");
         assert_eq!(
@@ -940,14 +978,14 @@ mod tests {
     #[test]
     fn raw_condition_if() {
         let c = Condition::raw("score @s sync_jumps < @s jumps");
-        let plans = c.to_execute_plans(false);
+        let plans = c.rendered_plans(false);
         assert_eq!(plans, vec![vec!["if score @s sync_jumps < @s jumps"]]);
     }
 
     #[test]
     fn raw_condition_unless() {
         let c = Condition::raw("entity @s[tag=busy]");
-        let plans = c.to_execute_plans(true);
+        let plans = c.rendered_plans(true);
         assert_eq!(plans, vec![vec!["unless entity @s[tag=busy]"]]);
     }
 
@@ -984,7 +1022,7 @@ mod tests {
         // embedded "if" elsewhere in the fragment must not false-positive.
         let c = Condition::raw("score @s iffy_score matches 1");
         assert_eq!(
-            c.to_execute_plans(false),
+            c.rendered_plans(false),
             vec![vec!["if score @s iffy_score matches 1"]]
         );
     }
@@ -996,7 +1034,7 @@ mod tests {
         // All([]) is a vacuous AND — always true — and must render as one
         // plan with zero clauses (an unconditional execute), not zero plans.
         let c = Condition::all([]);
-        assert_eq!(c.to_execute_plans(false), vec![Vec::<String>::new()]);
+        assert_eq!(c.rendered_plans(false), vec![Vec::<String>::new()]);
     }
 
     #[test]
@@ -1004,13 +1042,14 @@ mod tests {
         // Any([]) is a vacuous OR — always false / unsatisfiable — and must
         // render as zero plans (never matches), not one vacuous plan.
         let c = Condition::any([]);
-        let plans: Vec<Vec<String>> = c.to_execute_plans(false);
+        let plans: Vec<Vec<String>> = c.rendered_plans(false);
         assert!(plans.is_empty(), "expected zero plans, got: {plans:?}");
     }
 
     #[test]
     fn storage_exists_execute() {
-        let c = Condition::storage_exists("ex:state", "mana");
+        let reference = sand_commands::Nbt::storage("ex:state").path("mana");
+        let c = Condition::data_exists(&reference);
         let cmds = c.execute_commands(false, "say has mana");
         assert_eq!(
             cmds,
@@ -1039,8 +1078,8 @@ mod tests {
         let c = flag("@s", "sprinting", true);
         // a.and(b).and(c) should be a flat All([a, b, c]), not All([All([a,b]), c])
         let cond = a.and(b).and(c);
-        match &cond {
-            Condition::All(v) => assert_eq!(v.len(), 3, "expected flat All([a,b,c])"),
+        match cond.kind() {
+            ConditionKind::All(v) => assert_eq!(v.len(), 3, "expected flat All([a,b,c])"),
             other => panic!("expected All, got {other:?}"),
         }
     }
@@ -1060,8 +1099,8 @@ mod tests {
         let b = score("@s", "rage", ScoreRange::Gte(50));
         let c = score("@s", "ki", ScoreRange::Gte(10));
         let cond = a.or(b).or(c);
-        match &cond {
-            Condition::Any(v) => assert_eq!(v.len(), 3, "expected flat Any([a,b,c])"),
+        match cond.kind() {
+            ConditionKind::Any(v) => assert_eq!(v.len(), 3, "expected flat Any([a,b,c])"),
             other => panic!("expected Any, got {other:?}"),
         }
     }

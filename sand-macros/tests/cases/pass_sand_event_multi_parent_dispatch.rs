@@ -17,7 +17,7 @@ struct AnyChild;
 impl SandEvent for AnyChild {
     fn dispatch() -> impl Into<SandEventDispatch> {
         SandEventDispatch::after_any::<(Parent<1>, Parent<2>, Parent<3>)>()
-            .when(Condition::entity("@s[tag=ready]"))
+            .when(Condition::entity(Selector::self_().tag("ready")))
     }
 }
 
@@ -28,7 +28,7 @@ impl SandEvent for AllChild {
             Parent<1>, Parent<2>, Parent<3>, Parent<4>,
             Parent<5>, Parent<6>, Parent<7>, Parent<8>,
         )>()
-        .unless(Condition::entity("@s[tag=blocked]"))
+        .unless(Condition::entity(Selector::self_().tag("blocked")))
     }
 }
 

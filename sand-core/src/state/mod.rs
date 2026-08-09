@@ -19,7 +19,9 @@ pub use flag::{Flag, FlagRef};
 pub use flow::{FlowTransitionBuilder, IntoStateCommands, StateFlow, StateTransitionBuilder};
 #[doc(hidden)]
 pub use registry::{StateDescriptor, StateLifecycle};
-pub use score::{ScoreConst, ScoreConstants, ScoreExpr, ScoreOperation, ScoreRef, ScoreVar};
+pub use score::{
+    ScoreConst, ScoreConstants, ScoreExpr, ScoreOperand, ScoreOperation, ScoreRef, ScoreVar,
+};
 pub use storage::{
     BlockNbt, DataCommand, EntityNbt, Nbt, NbtLocation, NbtPath, NbtRef, NbtTarget, SnbtCompound,
     SnbtValue, StorageField, StorageLocation, StorageSchema, StorageVar, UntypedNbt,

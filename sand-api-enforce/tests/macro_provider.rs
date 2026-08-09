@@ -43,6 +43,59 @@ fn repository_registry_id_family_tracks_every_invocation() {
 }
 
 #[test]
+fn registry_id_provider_rejects_a_local_shadow_of_the_shared_generator() {
+    let temp = tempdir().unwrap();
+    let source = temp.path().join("registry.rs");
+    std::fs::write(
+        &source,
+        r#"
+        use sand_macros::registry_id;
+        macro_rules! registry_id {
+            ($name:ident) => { pub struct $name; };
+        }
+        registry_id!(ShadowedId);
+        "#,
+    )
+    .unwrap();
+    let error = registry_id_provider(&source).unwrap_err().to_string();
+    assert!(error.contains("shadows the audited sand_macros generator"));
+}
+
+#[test]
+fn registry_id_provider_rejects_a_cfg_disabled_trusted_import() {
+    let temp = tempdir().unwrap();
+    let source = temp.path().join("registry.rs");
+    std::fs::write(
+        &source,
+        r#"
+        #[cfg(any())]
+        use sand_macros::registry_id;
+        registry_id!(UnavailableId);
+        "#,
+    )
+    .unwrap();
+    let error = registry_id_provider(&source).unwrap_err().to_string();
+    assert!(error.contains("unconditional sand_macros::registry_id"));
+}
+
+#[test]
+fn registry_id_provider_rejects_a_competing_import_binding() {
+    let temp = tempdir().unwrap();
+    let source = temp.path().join("registry.rs");
+    std::fs::write(
+        &source,
+        r#"
+        use sand_macros::registry_id;
+        use another_generator::wrapper as registry_id;
+        registry_id!(AmbiguousId);
+        "#,
+    )
+    .unwrap();
+    let error = registry_id_provider(&source).unwrap_err().to_string();
+    assert!(error.contains("competing import"));
+}
+
+#[test]
 fn generator_method_and_invocation_growth_changes_provider_without_a_list_edit() {
     let temp = tempdir().unwrap();
     let source = temp.path().join("resource_ref.rs");

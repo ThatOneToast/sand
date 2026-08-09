@@ -310,8 +310,10 @@ impl AdvancementEvent for ObtainedGrappleCoreEvent {
     type Trigger = InventoryChangedTrigger;
 
     fn trigger() -> Self::Trigger {
-        InventoryChangedTrigger::new()
-            .item(ItemPredicate::id("minecraft:heart_of_the_sea").custom_data_key("grapple_core"))
+        InventoryChangedTrigger::new().item(
+            ItemPredicate::id(ItemId::minecraft("heart_of_the_sea").unwrap())
+                .custom_data_key("grapple_core"),
+        )
     }
 
     fn guard() -> Option<Condition> {

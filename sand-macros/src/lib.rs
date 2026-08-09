@@ -60,6 +60,16 @@ pub fn api(attr: TokenStream, item: TokenStream) -> TokenStream {
         .into()
 }
 
+/// Emits one typed registry identifier and, when requested, its definition-owned
+/// API contract Rustdoc from the same semantic declaration.
+#[proc_macro]
+pub fn registry_id(input: TokenStream) -> TokenStream {
+    sand_api_contract::syntax::registry_id::expand(input.into())
+        .map(|expansion| expansion.rust)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
 /// Derive a typed state schema, its field constants, and a concrete bound view.
 ///
 /// Player/global schemas own objective provisioning and support score
@@ -749,7 +759,7 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
 ///
 ///     fn trigger() -> Self::Trigger {
 ///         ConsumeItemTrigger::new()
-///             .item(ItemPredicate::id("minecraft:golden_apple"))
+///             .item(ItemPredicate::id(ItemId::minecraft("golden_apple")?))
 ///     }
 /// }
 ///

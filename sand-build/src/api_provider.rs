@@ -188,7 +188,8 @@ impl ApiProviderCatalog {
         Ok(())
     }
 
-    pub(crate) fn write_json(&self, path: &Path) -> Result<()> {
+    /// Write validated provider metadata with deterministic pretty-JSON bytes.
+    pub fn write_json(&self, path: &Path) -> Result<()> {
         self.validate().map_err(std::io::Error::other)?;
         let mut bytes = serde_json::to_vec_pretty(self)?;
         bytes.push(b'\n');

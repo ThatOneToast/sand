@@ -298,7 +298,6 @@ pub use sand_components::{
     DamagePredicate,
     DamageScaling,
     DamageSourcePredicate,
-    DamageTagEntry,
     DamageType,
     DamageTypeId,
     DeathMessageType,
@@ -336,7 +335,6 @@ pub use sand_components::{
     // Standalone predicate authoring
     EntityPredicateTarget,
     EntityTypeId,
-    EntityTypeMatch,
     EquipmentModelId,
     EquipmentSlot,
     EquipmentSlotGroup,
@@ -357,7 +355,6 @@ pub use sand_components::{
     // Item stack (#229)
     IntoItemStack,
     IntoRecipeItemId,
-    InventorySlots,
     ItemComponent,
     ItemId,
     // Item modifier
@@ -411,7 +408,6 @@ pub use sand_components::{
     Projection,
     // Villager trades (26.1+)
     RandomSequenceId,
-    Range,
     Rarity,
     // Raw escape hatch types
     RawComponent,
@@ -609,6 +605,7 @@ pub mod __private {
     pub const GENERATED_API_PROVIDER_CATALOGS: &[&str] = &[
         include_str!(concat!(env!("OUT_DIR"), "/commands.api.json")),
         include_str!(concat!(env!("OUT_DIR"), "/registries.api.json")),
+        include_str!(concat!(env!("OUT_DIR"), "/registry_ids.api.json")),
     ];
 }
 

@@ -38,6 +38,7 @@ mod download;
 mod error;
 mod manifest;
 mod registry_fixture;
+mod registry_id_contracts;
 mod report;
 
 pub use api_provider::{
@@ -46,6 +47,9 @@ pub use api_provider::{
 };
 pub use error::{Error, Result};
 pub use registry_fixture::refresh_registry_coverage_fixture;
+pub use registry_id_contracts::{
+    install_registry_id_contract_provider, registry_id_contract_provider,
+};
 
 struct VersionCacheLock {
     path: std::path::PathBuf,

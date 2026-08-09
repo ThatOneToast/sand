@@ -20,7 +20,7 @@
 //!
 //! ```rust,ignore
 //! use sand_core::event::builder::{EventBuilder, EventConfig};
-//! use sand_core::{AdvancementTrigger, ItemPredicate};
+//! use sand_core::{AdvancementTrigger, ItemId, ItemPredicate};
 //! use sand_core::event::{EventReset, EventVisibility};
 //! use sand_macros::component;
 //!
@@ -29,7 +29,7 @@
 //! fn eat_apple_config() -> EventConfig {
 //!     EventBuilder::new()
 //!         .trigger(AdvancementTrigger::ConsumeItem {
-//!             item: Some(ItemPredicate::id("minecraft:apple")),
+//!             item: Some(ItemPredicate::id(ItemId::minecraft("apple").unwrap())),
 //!         })
 //!         .guard(MANA.of("@s").lt(100))
 //!         .score(&MANA)
@@ -343,7 +343,9 @@ mod tests {
     fn advancement_has_correct_trigger() {
         let config = EventBuilder::new()
             .trigger(AdvancementTrigger::ConsumeItem {
-                item: Some(ItemPredicate::id("minecraft:golden_apple")),
+                item: Some(ItemPredicate::id(
+                    sand_components::ItemId::minecraft("golden_apple").unwrap(),
+                )),
             })
             .build();
 
@@ -368,7 +370,9 @@ mod tests {
     fn advancement_entity_kill_trigger() {
         let config = EventBuilder::new()
             .trigger(AdvancementTrigger::PlayerKilledEntity {
-                entity: Some(EntityPredicate::type_("minecraft:ender_dragon")),
+                entity: Some(EntityPredicate::type_(
+                    sand_components::EntityTypeId::minecraft("ender_dragon").unwrap(),
+                )),
                 killing_blow: None,
             })
             .build();
@@ -597,7 +601,9 @@ mod tests {
     fn trigger_clone_preserves_consume_item() {
         let config = EventBuilder::new()
             .trigger(AdvancementTrigger::ConsumeItem {
-                item: Some(ItemPredicate::id("minecraft:apple")),
+                item: Some(ItemPredicate::id(
+                    sand_components::ItemId::minecraft("apple").unwrap(),
+                )),
             })
             .build();
 

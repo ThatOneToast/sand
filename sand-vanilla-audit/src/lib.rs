@@ -6,6 +6,22 @@ use sand_core::prelude::*;
 use sand_core::{FloatRange, IntRange, NumberProvider};
 use sand_macros::{State, component, event, function};
 
+fn item_id(path: &str) -> ItemId {
+    ItemId::minecraft(path).unwrap()
+}
+
+fn block_id(path: &str) -> BlockId {
+    BlockId::minecraft(path).unwrap()
+}
+
+fn entity_type_id(path: &str) -> EntityTypeId {
+    EntityTypeId::minecraft(path).unwrap()
+}
+
+fn biome_id(path: &str) -> BiomeId {
+    BiomeId::minecraft(path).unwrap()
+}
+
 #[allow(dead_code)]
 #[derive(State)]
 #[state(namespace = "sand_audit", scope = player)]
@@ -262,7 +278,7 @@ pub struct SemanticAdvancementParent;
 impl SandEvent for SemanticAdvancementParent {
     fn dispatch() -> impl Into<SandEventDispatch> {
         SandEventDispatch::AdvancementTrigger(AdvancementTrigger::ItemUsedOnBlock {
-            item: Some(ItemPredicate::id("minecraft:honeycomb").custom_data_key("sand_audit_item")),
+            item: Some(ItemPredicate::id(item_id("honeycomb")).custom_data_key("sand_audit_item")),
             location: None,
         })
     }
@@ -347,7 +363,7 @@ pub fn audit_placed_block_filtered() -> Advancement {
             "event",
             Criterion::new(AdvancementTrigger::placed_block(
                 Some(BlockId::minecraft("white_wool").unwrap()),
-                Some(ItemPredicate::id("minecraft:white_wool").custom_data_key("elevator")),
+                Some(ItemPredicate::id(item_id("white_wool")).custom_data_key("elevator")),
                 None,
                 None,
             )),
@@ -364,7 +380,7 @@ pub fn audit_item_used_on_block_filtered() -> Advancement {
         .criterion(
             "event",
             Criterion::new(AdvancementTrigger::ItemUsedOnBlock {
-                item: Some(ItemPredicate::id("minecraft:white_wool").custom_data_key("elevator")),
+                item: Some(ItemPredicate::id(item_id("white_wool")).custom_data_key("elevator")),
                 location: None,
             }),
         )
@@ -382,7 +398,7 @@ pub fn semantic_placed_block() -> Advancement {
             "event",
             Criterion::new(AdvancementTrigger::placed_block(
                 Some(BlockId::minecraft("white_wool").unwrap()),
-                Some(ItemPredicate::id("minecraft:white_wool").custom_data_key("elevator")),
+                Some(ItemPredicate::id(item_id("white_wool")).custom_data_key("elevator")),
                 None,
                 None,
             )),
@@ -401,11 +417,11 @@ pub fn semantic_item_used_on_block() -> Advancement {
             "event",
             Criterion::new(AdvancementTrigger::ItemUsedOnBlock {
                 item: Some(
-                    ItemPredicate::id("minecraft:honeycomb").custom_data_key("sand_audit_item"),
+                    ItemPredicate::id(item_id("honeycomb")).custom_data_key("sand_audit_item"),
                 ),
                 location: Some(
                     LocationPredicate::new()
-                        .block(BlockPredicate::new().blocks(vec!["minecraft:copper_block".into()])),
+                        .block(BlockPredicate::new().blocks(vec![block_id("copper_block")])),
                 ),
             }),
         )
@@ -426,9 +442,9 @@ pub fn audit_profiled_trigger_matrix() -> Advancement {
             "entity",
             Criterion::new(AdvancementTrigger::PlayerKilledEntity {
                 entity: Some(
-                    EntityPredicate::type_("minecraft:zombie").location(
+                    EntityPredicate::type_(entity_type_id("zombie")).location(
                         LocationPredicate::new()
-                            .biome("minecraft:plains")
+                            .biome(biome_id("plains"))
                             .y(FloatRange::at_least(0.0)),
                     ),
                 ),
@@ -440,7 +456,7 @@ pub fn audit_profiled_trigger_matrix() -> Advancement {
             Criterion::new(AdvancementTrigger::Location {
                 location: Some(
                     LocationPredicate::new()
-                        .biome("minecraft:plains")
+                        .biome(biome_id("plains"))
                         .y(FloatRange::at_least(0.0)),
                 ),
             }),
@@ -448,13 +464,13 @@ pub fn audit_profiled_trigger_matrix() -> Advancement {
         .criterion(
             "slept_location",
             Criterion::new(AdvancementTrigger::SleptInBed {
-                location: Some(LocationPredicate::new().biome("minecraft:plains")),
+                location: Some(LocationPredicate::new().biome(biome_id("plains"))),
             }),
         )
         .criterion(
             "hero_location",
             Criterion::new(AdvancementTrigger::HeroOfTheVillage {
-                location: Some(LocationPredicate::new().biome("minecraft:plains")),
+                location: Some(LocationPredicate::new().biome(biome_id("plains"))),
             }),
         )
         .criterion(
@@ -464,7 +480,7 @@ pub fn audit_profiled_trigger_matrix() -> Advancement {
                 damage: Some(
                     DamagePredicate::new().type_(
                         DamageSourcePredicate::new()
-                            .direct_entity(EntityPredicate::type_("minecraft:arrow")),
+                            .direct_entity(EntityPredicate::type_(entity_type_id("arrow"))),
                     ),
                 ),
             }),
@@ -472,7 +488,7 @@ pub fn audit_profiled_trigger_matrix() -> Advancement {
         .criterion(
             "item",
             Criterion::new(AdvancementTrigger::ConsumeItem {
-                item: Some(ItemPredicate::id("minecraft:apple").custom_data_key("sand_audit")),
+                item: Some(ItemPredicate::id(item_id("apple")).custom_data_key("sand_audit")),
             }),
         )
         .criterion(
@@ -482,10 +498,10 @@ pub fn audit_profiled_trigger_matrix() -> Advancement {
         .criterion(
             "allay",
             Criterion::new(AdvancementTrigger::AllayDropItemOnBlock {
-                item: Some(ItemPredicate::id("minecraft:cake")),
+                item: Some(ItemPredicate::id(item_id("cake"))),
                 location: Some(
                     LocationPredicate::new()
-                        .block(BlockPredicate::new().blocks(vec!["minecraft:note_block".into()])),
+                        .block(BlockPredicate::new().blocks(vec![block_id("note_block")])),
                 ),
             }),
         )
@@ -493,29 +509,29 @@ pub fn audit_profiled_trigger_matrix() -> Advancement {
             "killed_by_arrow",
             Criterion::new(AdvancementTrigger::KilledByArrow {
                 unique_entity_types: Some(IntRange::at_least(2)),
-                fired_from_weapon: Some(ItemPredicate::id("minecraft:crossbow")),
-                victims: Some(vec![EntityPredicate::type_("minecraft:phantom")]),
+                fired_from_weapon: Some(ItemPredicate::id(item_id("crossbow"))),
+                victims: Some(vec![EntityPredicate::type_(entity_type_id("phantom"))]),
             }),
         )
         .criterion(
             "recipe_crafted",
             Criterion::new(AdvancementTrigger::RecipeCrafted {
                 recipe_id: "minecraft:decorated_pot".into(),
-                ingredients: vec![ItemPredicate::id("minecraft:brick")],
+                ingredients: vec![ItemPredicate::id(item_id("brick"))],
             }),
         )
         .criterion(
             "pickup_by_entity",
             Criterion::new(AdvancementTrigger::ThrownItemPickedUpByEntity {
-                item: Some(ItemPredicate::id("minecraft:cookie")),
-                entity: Some(EntityPredicate::type_("minecraft:allay")),
+                item: Some(ItemPredicate::id(item_id("cookie"))),
+                entity: Some(EntityPredicate::type_(entity_type_id("allay"))),
             }),
         )
         .criterion(
             "pickup_by_player",
             Criterion::new(AdvancementTrigger::ThrownItemPickedUpByPlayer {
-                item: Some(ItemPredicate::id("minecraft:cookie")),
-                entity: Some(EntityPredicate::type_("minecraft:allay")),
+                item: Some(ItemPredicate::id(item_id("cookie"))),
+                entity: Some(EntityPredicate::type_(entity_type_id("allay"))),
             }),
         )
 }

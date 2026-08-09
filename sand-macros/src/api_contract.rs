@@ -121,6 +121,7 @@ impl ToTokens for Target {
 
 fn parse_target(tokens: TokenStream, kind: Option<&LitStr>) -> syn::Result<Target> {
     match kind.map(LitStr::value).as_deref() {
+        Some("method") => return parse2(tokens).map(Target::ImplMethod),
         Some("associated_const") => return parse2(tokens).map(Target::ImplConst),
         Some("associated_type") => return parse2(tokens).map(Target::ImplType),
         _ => {}
@@ -155,12 +156,14 @@ fn parse_target(tokens: TokenStream, kind: Option<&LitStr>) -> syn::Result<Targe
 }
 
 fn target_info<'a>(target: &'a Target, args: &ContractArgs) -> syn::Result<TargetInfo<'a>> {
-    if !matches!(target, Target::ImplConst(_) | Target::ImplType(_))
-        && let Some(kind) = &args.kind
+    if !matches!(
+        target,
+        Target::ImplMethod(_) | Target::ImplConst(_) | Target::ImplType(_)
+    ) && let Some(kind) = &args.kind
     {
         return Err(syn::Error::new_spanned(
             kind,
-            "`kind` is only valid for inherent associated constants and types",
+            "`kind` is only valid for inherent methods, associated constants, and associated types",
         ));
     }
     let info = match target {

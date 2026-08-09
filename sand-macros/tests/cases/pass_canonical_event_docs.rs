@@ -19,7 +19,9 @@ impl AdvancementEvent for AteGoldenApple {
     type Trigger = ConsumeItemTrigger;
 
     fn trigger() -> Self::Trigger {
-        ConsumeItemTrigger::new().item(ItemPredicate::id("minecraft:golden_apple"))
+        ConsumeItemTrigger::new().item(ItemPredicate::id(
+            ItemId::minecraft("golden_apple").unwrap(),
+        ))
     }
 }
 

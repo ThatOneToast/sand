@@ -49,7 +49,7 @@ observe re-exports or arbitrary generated code. Sand therefore uses a hybrid:
    `cargo check` and `cargo build`, regardless of the build's selected facade
    features. It consumes generated command/registry artifacts, discovers
    checked-in macro families, resolves contracts from the mapped source
-   crates, partitions all 11,835 static identities, and byte-compares the
+   crates, partitions all 11,736 static identities in the latest profile, and byte-compares the
    deterministic aggregate baseline. A migration may mark a scope enforced
    only in the same change that supplies every contract for that scope.
 
@@ -93,12 +93,12 @@ the ratchet rejects a later increase. Completion of #327 requires zero pending
 supported scopes.
 
 The executable `reachable-enforced-missing` fixture exercises the same
-provider-backed comparison: an undocumented inherent method reached through a
-glob re-export causes an ordinary `cargo check` to fail. The repository has no
-enforced scope in the foundation, but changing any boundary to `enforced`
-immediately activates missing-contract and exact canonical/alias validation in
-the normal Sand build. Parametric `consumer_build` boundaries additionally
-require their named provider-audit connection.
+provider-backed comparison for the first migrated boundary: an undocumented
+predicate method, public field, and enum variant cause an ordinary
+`cargo check` to fail. The normal Sand build now enforces the 119-item
+`predicate-source` scope and the four-item generated `PredicateId` partition.
+Parametric `consumer_build` boundaries additionally require their named
+provider-audit connection.
 
 `#[api]` defaults to the facade's hidden registration transport. Definitions
 in lower implementation crates use `registry = ::sand_api_contract`, which
@@ -106,6 +106,14 @@ keeps the dependency graph acyclic while feeding the same runtime inventory
 and build-time facade identity audit. A two-crate compile/runtime fixture
 verifies the lower definition, inherent method, facade alias, and installed
 catalog entry together.
+
+The predicate tranche places handwritten contracts on the underlying
+`sand-components` definitions. Consequently the attribute derives signatures
+and parameter names, emits Rustdoc, and registers installed metadata from the
+same declaration. `PredicateId` follows the equivalent generator rule: its
+semantic `registry_id!` input emits both the wrapper API and four deterministic
+contract entries. The facade forwarding table no longer owns predicate
+signatures.
 
 ## Contract and catalog layers
 
@@ -134,7 +142,7 @@ closed during ordinary compilation.
 
 The explicitly opted-in codegen-failure path emits empty, marked provider
 catalogs from the same helper that emits its placeholder Rust. Those catalogs
-select a separate exact 5,713-item source-only profile; they cannot be mixed
+select a separate exact 5,614-item source-only profile; they cannot be mixed
 with real catalogs or contain declarations. The facade's source and checked-in
 generator scopes remain fully audited in this recovery mode, while unavailable
 vanilla re-exports are cfg-disabled. This is a compile-only recovery mode:

@@ -51,7 +51,6 @@ use sand_commands::TextComponent;
 
 pub mod definition;
 pub mod matcher;
-pub mod predicates;
 pub mod stack;
 
 // ── ItemRarity ────────────────────────────────────────────────────────────────
@@ -1526,7 +1525,11 @@ impl CustomItem {
     }
 
     pub fn item_predicate(&self) -> TypedItemPredicate {
-        let mut pred = TypedItemPredicate::id(&self.base);
+        let mut pred = TypedItemPredicate::id(
+            self.base
+                .parse::<crate::ItemId>()
+                .expect("CustomItem base IDs are validated during construction"),
+        );
         if let Some(key) = self.custom_data.as_ref().and_then(CustomData::marker_key) {
             pred = pred.custom_data_key(key);
         }

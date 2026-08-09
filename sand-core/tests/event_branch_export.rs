@@ -120,9 +120,10 @@ fn if_else_branches_survive_after_event_make() {
     let event_cmds = simulate_event_body_if_else();
 
     let branches = drain_branches();
-    assert!(
-        branches.len() >= 2,
-        "if_/else_all should register 2 branch functions: {branches:?}"
+    assert_eq!(
+        branches.len(),
+        3,
+        "if_/else_all should register success, failure, and dispatcher functions: {branches:?}"
     );
     assert!(
         branches
@@ -137,17 +138,35 @@ fn if_else_branches_survive_after_event_make() {
         "else-branch not found: {branches:?}"
     );
 
-    // if_ produces 2 parent lines (if + unless)
-    assert_eq!(event_cmds.len(), 2);
+    let dispatcher = branches
+        .iter()
+        .find(|(_, cmds)| {
+            cmds.iter()
+                .any(|command| command.contains("return run function"))
+        })
+        .expect("single-decision dispatcher not found");
     assert!(
-        event_cmds[0].starts_with("execute if"),
-        "then arm: {}",
-        event_cmds[0]
+        dispatcher
+            .1
+            .first()
+            .is_some_and(|command| command.starts_with("execute if")
+                && command.contains("return run function")),
+        "dispatcher success decision: {dispatcher:?}"
     );
     assert!(
-        event_cmds[1].starts_with("execute unless"),
-        "else arm: {}",
-        event_cmds[1]
+        dispatcher
+            .1
+            .last()
+            .is_some_and(|command| command.starts_with("return run function")),
+        "dispatcher fallback: {dispatcher:?}"
+    );
+
+    // The event calls the dispatcher once; it cannot re-test after either arm.
+    assert_eq!(event_cmds.len(), 1);
+    assert!(
+        event_cmds[0].starts_with("function __sand_local:sand/branches/"),
+        "event should call one dispatcher: {}",
+        event_cmds[0]
     );
 }
 

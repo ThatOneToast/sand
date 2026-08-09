@@ -860,7 +860,9 @@ mod tests {
                 "kill",
                 sand_components::Criterion::new(
                     sand_components::AdvancementTrigger::PlayerKilledEntity {
-                        entity: Some(sand_components::EntityPredicate::type_("minecraft:zombie")),
+                        entity: Some(sand_components::EntityPredicate::type_(
+                            sand_components::EntityTypeId::minecraft("zombie").unwrap(),
+                        )),
                         killing_blow: None,
                     },
                 ),

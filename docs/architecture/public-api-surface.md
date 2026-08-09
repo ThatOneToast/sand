@@ -82,12 +82,12 @@ The verified profiles are:
 
 | Minecraft version | Static identities | Commands | Registries | Baseline |
 | --- | ---: | ---: | ---: | --- |
-| 1.21.4 (compatibility) | 10,925 | 924 | 4,288 | `api-surface-baseline-1.21.4.txt` |
-| 26.2 (latest/default) | 11,835 | 1,255 | 4,867 | `api-surface-baseline.txt` |
+| 1.21.4 (compatibility) | 10,826 | 924 | 4,288 | `api-surface-baseline-1.21.4.txt` |
+| 26.2 (latest/default) | 11,736 | 1,255 | 4,867 | `api-surface-baseline.txt` |
 
-The handwritten source contribution is 5,437 identities in both profiles.
+The handwritten source contribution is 5,338 identities in both profiles.
 An explicit `SAND_ALLOW_PLACEHOLDER_CODEGEN=1` fallback uses a third,
-source-only `placeholder-codegen` profile with 5,713 identities (5,437 source
+source-only `placeholder-codegen` profile with 5,614 identities (5,338 source
 identities plus 276 checked-in generator identities). The fallback writer
 atomically replaces generated Rust and both provider catalogs; the catalogs
 are machine-marked empty placeholders and must agree. The facade keeps the
@@ -107,19 +107,19 @@ The following detailed kind count describes the latest/default 26.2 surface:
 | Derive procedural macros | 3 |
 | Function-like procedural macros | 4 |
 | Declarative macros | 3 |
-| Structs | 972 |
-| Enums | 170 |
+| Structs | 975 |
+| Enums | 169 |
 | Traits | 38 |
-| Type aliases | 16 |
+| Type aliases | 15 |
 | Constants | 18 |
 | Statics | 1 |
 | Free functions | 557 |
-| Inherent methods | 2,859 |
+| Inherent methods | 2,843 |
 | Trait methods | 56 |
 | Associated constants | 21 |
 | Associated types | 2 |
-| Public fields | 1,120 |
-| Enum variants | 5,907 |
+| Public fields | 1,047 |
+| Enum variants | 5,896 |
 
 Generated static families account for 6,398 identities:
 
@@ -132,17 +132,20 @@ Generated static families account for 6,398 identities:
 - generated event marker types: 25 identities; and
 - typed resource-reference wrappers: 26 identities.
 
-The remaining 5,437 identities come from ordinary source declarations,
+The remaining 5,338 identities come from ordinary source declarations,
 including the 15 exported procedural macros. Input-dependent items emitted
 into downstream crates by attributes and derives are parametric families, so
 they do not have an honest finite installed count. Each such generator is a
 separate provider scope.
 
-The current `sand::predicate` source scope owns 234 identities. Only nine of
-those identities currently resolve to pilot contracts, so the prototype
-catalog did not cover that module. The measured surface also preserves legal
-but undesirable field/method lookup collisions as distinct identities; the
-predicate migration must remove those collisions before it can be enforced.
+The migrated `sand::predicate` source scope owns 119 identities, all enforced
+and contracted at their underlying definitions. Its four reachable
+`PredicateId` identities are generated from the semantic `registry_id!`
+declaration and form a separate enforced generator partition. Privatizing
+builder state and validation plumbing, making `PredicateRoot` opaque, removing
+obsolete compatibility paths, and typing domain identifiers reduced the
+module from its 234-identity foundation baseline without losing an intentional
+author operation.
 
 ## Intentional migration scopes
 
@@ -203,10 +206,10 @@ corresponding provider audit. The foundation proves this mechanism with the
 real `SandStorage` derive, but does not claim every downstream generator has
 been migrated.
 
-The foundation baseline records 39 pending architectural scopes and 11,835
-pending static identities. No scope is marked enforced by the foundation;
-predicate becomes the first enforced source scope only after its complete
-migration tranche.
+After the predicate tranche, the exact 26.2 profile records 11,736 static
+identities: 123 enforced predicate identities and 11,613 identities across 38
+pending scopes. The 1.21.4 and explicit placeholder profiles enforce the same
+123 source/generated identities against their independently generated totals.
 
 Every reachable identity must map to exactly one scope. Enforced scopes reject
 missing contracts during ordinary compilation. Pending scopes remain in the
@@ -220,6 +223,10 @@ The current facade contains 404 source identities owned by the temporary
 including component families that lack the promised canonical topic path.
 Migration must add a canonical topic re-export or deliberately remove each
 such promise; it must not make the prelude canonical by accident.
+
+The remaining 126 registry-ID wrapper identities are likewise assigned to a
+low-precedence pending prelude projection until their canonical topic modules
+are established. `PredicateId` is no longer in that provisional partition.
 
 Broad whole-module exports also expose graph, compiler, registry, and lowering
 types that ordinary authors do not use. Each scope audit should narrow those

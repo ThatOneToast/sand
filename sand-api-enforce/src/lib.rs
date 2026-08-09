@@ -196,7 +196,7 @@ fn inspect_items(
                                     ident: &method.sig.ident,
                                     signature: &method.sig,
                                 },
-                                None,
+                                Some("method"),
                             );
                             check_public(
                                 &method.vis,
@@ -402,11 +402,12 @@ fn validate_attribute_contract(
         args.kind.as_ref().map(syn::LitStr::value),
     ) {
         (Some(expected), Some(actual)) if actual == expected => {}
+        (Some("method"), None) => {}
         (Some(expected), _) => panic!(
             "invalid #[api] contract: inherent associated item requires `kind = \"{expected}\"`"
         ),
         (None, Some(_)) => panic!(
-            "invalid #[api] contract: `kind` is only valid for inherent associated constants and types"
+            "invalid #[api] contract: `kind` is only valid for inherent methods, associated constants, and associated types"
         ),
         (None, None) => {}
     }

@@ -157,13 +157,6 @@ fn main() {
     })
     .and_then(|graph| {
         graph.bind_inert_item_macro(
-            "sand_components::item::predicates",
-            "impl_into_value",
-            InertItemMacroClassification::LocalTraitImplOnly,
-        )
-    })
-    .and_then(|graph| {
-        graph.bind_inert_item_macro(
             "sand_commands::export_registry",
             "thread_local",
             InertItemMacroClassification::ThreadLocalStorageWiring,
@@ -412,6 +405,43 @@ fn generated_providers(directory: &Path) -> Result<GeneratedProviders, String> {
         }
         generated.extend(parents.into_values());
     }
+
+    let registry_id_path = directory.join("registry_ids.api.json");
+    let registry_id_catalog = sand_build::read_api_provider(&registry_id_path)
+        .map_err(|error| format!("{}: {error}", registry_id_path.display()))?;
+    if registry_id_catalog.provider != "generated_registry_id_contracts" {
+        return Err(format!(
+            "{} declares provider `{}`, expected `generated_registry_id_contracts`",
+            registry_id_path.display(),
+            registry_id_catalog.provider
+        ));
+    }
+    if registry_id_catalog.placeholder {
+        return Err(format!(
+            "{} cannot be a placeholder catalog because registry-ID wrappers are generated from checked-in source",
+            registry_id_path.display()
+        ));
+    }
+    if placeholder_modes == BTreeSet::from([false])
+        && provider_versions
+            .values()
+            .any(|version| version != &registry_id_catalog.minecraft_version)
+    {
+        return Err(format!(
+            "{} targets Minecraft {}, which does not match the selected generated provider versions {:?}",
+            registry_id_path.display(),
+            registry_id_catalog.minecraft_version,
+            provider_versions.values().collect::<BTreeSet<_>>()
+        ));
+    }
+    for entry in registry_id_catalog.entries {
+        contracts.push(ContractIdentity {
+            identity: entry.definition_identity,
+            canonical_path: entry.contract.canonical_path,
+            aliases: entry.contract.aliases.into_iter().collect(),
+        });
+    }
+
     generated.sort_by(|left, right| left.identity.cmp(&right.identity));
     contracts.sort_by(|left, right| left.identity.cmp(&right.identity));
     if placeholder_modes.len() != 1 {

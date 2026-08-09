@@ -17,7 +17,10 @@ fn filtered_placed_block() -> Advancement {
         "event",
         Criterion::new(AdvancementTrigger::placed_block(
             Some(BlockId::minecraft("white_wool").unwrap()),
-            Some(ItemPredicate::id("minecraft:white_wool").custom_data_key("elevator")),
+            Some(
+                ItemPredicate::id(ItemId::minecraft("white_wool").unwrap())
+                    .custom_data_key("elevator"),
+            ),
             None,
             None,
         )),

@@ -62,7 +62,6 @@ pub use sand_components::{
     // Worldgen: shared providers
     Heightmap,
     Ingredient,
-    InventorySlots,
     // Item modifier
     ItemModifier,
     ItemOrTag,

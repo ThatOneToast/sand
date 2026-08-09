@@ -11,7 +11,9 @@ impl AdvancementEvent for AteGoldenAppleEvent {
 
     fn trigger() -> Self::Trigger {
         // Typed predicate — no raw serde_json
-        ConsumeItemTrigger::new().item(ItemPredicate::id("minecraft:golden_apple"))
+        ConsumeItemTrigger::new().item(ItemPredicate::id(
+            ItemId::minecraft("golden_apple").unwrap(),
+        ))
     }
 
     fn guard() -> Option<Condition> {
@@ -54,8 +56,9 @@ impl AdvancementEvent for UsedDashWandEvent {
     type Trigger = UsingItemTrigger;
 
     fn trigger() -> Self::Trigger {
-        UsingItemTrigger::new()
-            .item(ItemPredicate::id("minecraft:stick").custom_data_key("arcane_wand"))
+        UsingItemTrigger::new().item(
+            ItemPredicate::id(ItemId::minecraft("stick").unwrap()).custom_data_key("arcane_wand"),
+        )
     }
 
     fn guard() -> Option<Condition> {

@@ -26,7 +26,7 @@ use sand_commands::Vec3;
 
 use crate::function::IntoFunctionRef;
 use crate::{Advancement, AdvancementRewards, AdvancementTrigger, Criterion, ResourceLocation};
-use sand_components::predicates::EntityPredicate;
+use sand_components::{RawSnbt, predicates::EntityPredicate};
 
 /// Width and height of the interaction entity's hitbox in blocks.
 #[derive(Debug, Clone, Copy)]
@@ -92,7 +92,8 @@ impl Interactable {
     pub fn tag(mut self, tag: impl Into<String>) -> Self {
         let t = tag.into();
         self.fixed_tag = Some(t.clone());
-        self.entity_filter = Some(EntityPredicate::new().nbt(format!("{{Tags:[\"{t}\"]}}")));
+        self.entity_filter =
+            Some(EntityPredicate::new().nbt(RawSnbt::new(format!("{{Tags:[\"{t}\"]}}"))));
         self
     }
 

@@ -610,15 +610,15 @@ mod tests {
         )]);
         catalog.coverage = sand_api_contract::ApiCoverage {
             status: CoverageStatus::Partial,
-            static_surface_items: 11_835,
-            pending_item_ceiling: 11_835,
-            pending_scope_ceiling: 39,
+            static_surface_items: 11_736,
+            pending_item_ceiling: 11_613,
+            pending_scope_ceiling: 38,
             pending_scopes: vec!["predicate-source".into()],
         };
 
         let shown = show(&catalog, "sand::predicate::Predicate").unwrap();
         assert!(shown.starts_with(
-            "API contract migration is partial: 11835 static items and 39 scopes remain pending."
+            "API contract migration is partial: 11613 static items and 38 scopes remain pending."
         ));
         assert_eq!(
             serde_json::from_str::<serde_json::Value>(&catalog.to_json_pretty().unwrap()).unwrap()
@@ -667,5 +667,48 @@ mod tests {
             .collect::<BTreeSet<_>>();
         assert!(paths.contains("sand::command::say"));
         assert!(paths.contains("sand::vanilla::Item::Diamond"));
+    }
+
+    #[test]
+    fn installed_predicate_scope_exposes_source_and_generated_contracts() {
+        let catalog = generated_catalog();
+        let constructor = show(catalog, "sand::prelude::Predicate::new").unwrap();
+        assert!(constructor.contains("sand::predicate::Predicate::new"));
+        assert!(constructor.contains("location : PredicateId"));
+
+        let generated_id = show(catalog, "sand::component::PredicateId::minecraft").unwrap();
+        assert!(generated_id.contains("sand::predicate::PredicateId::minecraft"));
+        assert!(generated_id.contains("Validates the path and emits minecraft:<path>"));
+
+        let equipment = search(catalog, "equipment predicate").unwrap();
+        assert!(equipment.contains("sand::predicate::EntityEquipment"));
+
+        let grouped = module(catalog, "sand::predicate").unwrap();
+        assert!(grouped.contains("Structs\n"));
+        assert!(grouped.contains("sand::predicate::Predicate"));
+        assert!(!grouped.contains("Methods\n"));
+        assert!(grouped.contains("sand::predicate::EntityEquipment (7 APIs)"));
+        assert!(grouped.contains("sand::predicate::PredicateId (3 APIs)"));
+    }
+
+    #[test]
+    fn installed_predicate_catalog_matches_the_enforced_identity_count() {
+        let entries = generated_catalog()
+            .entries
+            .iter()
+            .filter(|entry| {
+                entry.canonical_path == "sand::predicate"
+                    || entry.canonical_path.starts_with("sand::predicate::")
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(entries.len(), 123);
+        assert_eq!(
+            entries
+                .iter()
+                .map(|entry| entry.canonical_path.as_str())
+                .collect::<BTreeSet<_>>()
+                .len(),
+            123
+        );
     }
 }

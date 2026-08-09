@@ -4,8 +4,8 @@
 # are discovered through the reachable re-export graph. Generator scopes are
 # supplied from the same declaration/schema that emits their Rust API.
 schema_version = 1
-enforced_scope_baseline = []
-pending_scope_ceiling = 39
+enforced_scope_baseline = ["predicate-source", "generated-predicate-id-wrapper"]
+pending_scope_ceiling = 38
 
 [[scope]]
 id = "root-source"
@@ -70,10 +70,19 @@ aliases = ["sand::item", "sand::prelude"]
 [[scope]]
 id = "predicate-source"
 canonical_module = "sand::predicate"
-state = "pending"
+state = "enforced"
 tier = "ordinary"
 provider = "source"
 precedence = 100
+aliases = ["sand::component", "sand::prelude"]
+
+[[scope]]
+id = "generated-predicate-id-wrapper"
+canonical_module = "sand::predicate"
+state = "enforced"
+tier = "ordinary"
+provider = "generator:generated_registry_ids"
+precedence = 200
 aliases = ["sand::component", "sand::prelude"]
 
 [[scope]]
@@ -224,10 +233,11 @@ aliases = ["sand::prelude"]
 
 [[scope]]
 id = "generated-registry-id-wrappers"
-canonical_module = "sand"
+canonical_module = "sand::prelude"
 state = "pending"
 tier = "ordinary"
 provider = "generator:generated_registry_ids"
+precedence = 0
 
 [[scope]]
 id = "generated-effect-registry-enums"

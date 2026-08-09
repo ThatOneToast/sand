@@ -1210,13 +1210,10 @@ impl AdvancementTrigger {
     /// Build an `InventoryChanged` trigger matching any of the given item IDs.
     ///
     /// Items are generated registry values implementing `Display`.
-    pub fn inventory_changed(items: Vec<impl std::fmt::Display>) -> Self {
+    pub fn inventory_changed(items: Vec<impl Into<ItemId>>) -> Self {
         AdvancementTrigger::InventoryChanged {
             slots: None,
-            items: items
-                .into_iter()
-                .map(|i| ItemPredicate::id(i.to_string()))
-                .collect(),
+            items: items.into_iter().map(ItemPredicate::id).collect(),
         }
     }
 }
@@ -2479,10 +2476,23 @@ fn render_location_and_item_conditions(
         }
         let mut bp = crate::predicates::BlockPredicate::new();
         if let Some(block) = block_shorthand {
-            bp = bp.blocks(vec![block.clone()]);
+            bp = bp.blocks(vec![block.parse().map_err(|error| {
+                crate::error::SandError::ComponentValidation {
+                    location: ResourceLocation::new("sand", "advancement_trigger")
+                        .expect("static resource location is always valid"),
+                    kind: consumer.trigger_id().to_string(),
+                    field: "conditions.block".to_string(),
+                    message: format!("invalid block identifier `{block}`: {error}"),
+                }
+            })?]);
         }
         if let Some(state) = state_shorthand {
-            bp = bp.state(state.clone());
+            bp = bp.state(
+                state
+                    .iter()
+                    .map(|(key, value)| (key.clone(), value.clone()))
+                    .collect(),
+            );
         }
         loc = loc.block(bp);
     }
@@ -3026,6 +3036,18 @@ mod tests {
         value.parse().unwrap()
     }
 
+    fn entity_type_id(path: &str) -> crate::registry::EntityTypeId {
+        crate::registry::EntityTypeId::minecraft(path).unwrap()
+    }
+
+    fn biome_id(path: &str) -> crate::registry::BiomeId {
+        crate::registry::BiomeId::minecraft(path).unwrap()
+    }
+
+    fn block_id(path: &str) -> BlockId {
+        BlockId::minecraft(path).unwrap()
+    }
+
     fn item_id(value: &str) -> ItemId {
         value.parse().unwrap()
     }
@@ -3048,7 +3070,7 @@ mod tests {
     #[test]
     fn consume_item_typed() {
         let t = AdvancementTrigger::ConsumeItem {
-            item: Some(ItemPredicate::id("minecraft:golden_apple")),
+            item: Some(ItemPredicate::id(item_id("minecraft:golden_apple"))),
         };
         let v = serde_json::to_value(&t).unwrap();
         assert_eq!(v["trigger"], "minecraft:consume_item");
@@ -3061,7 +3083,7 @@ mod tests {
     #[test]
     fn player_killed_entity_typed() {
         let t = AdvancementTrigger::PlayerKilledEntity {
-            entity: Some(EntityPredicate::type_("minecraft:ender_dragon")),
+            entity: Some(EntityPredicate::type_(entity_type_id("ender_dragon"))),
             killing_blow: None,
         };
         let v = serde_json::to_value(&t).unwrap();
@@ -3101,7 +3123,7 @@ mod tests {
     fn inventory_changed_items() {
         let t = AdvancementTrigger::InventoryChanged {
             slots: None,
-            items: vec![ItemPredicate::id("minecraft:diamond")],
+            items: vec![ItemPredicate::id(item_id("minecraft:diamond"))],
         };
         let v = serde_json::to_value(&t).unwrap();
         assert_eq!(
@@ -3113,7 +3135,7 @@ mod tests {
     #[test]
     fn location_trigger_typed() {
         let t = AdvancementTrigger::Location {
-            location: Some(LocationPredicate::new().biome("minecraft:plains")),
+            location: Some(LocationPredicate::new().biome(biome_id("plains"))),
         };
         let v = serde_json::to_value(&t).unwrap();
         assert_eq!(v["conditions"]["location"]["biome"], "minecraft:plains");
@@ -3148,7 +3170,7 @@ mod tests {
             .criterion(
                 "killed_dragon",
                 Criterion::new(AdvancementTrigger::PlayerKilledEntity {
-                    entity: Some(EntityPredicate::type_("minecraft:ender_dragon")),
+                    entity: Some(EntityPredicate::type_(entity_type_id("ender_dragon"))),
                     killing_blow: None,
                 }),
             )
@@ -3982,7 +4004,7 @@ mod tests {
     // ── Version-aware placed_block rendering golden tests (#232, #233) ────────
 
     fn elevator_wool_item_predicate() -> ItemPredicate {
-        ItemPredicate::id("minecraft:white_wool").custom_data_key("elevator")
+        ItemPredicate::id(item_id("minecraft:white_wool")).custom_data_key("elevator")
     }
 
     fn caps_1_21_4() -> sand_version::VersionCaps {
@@ -4282,7 +4304,7 @@ mod tests {
     fn item_used_on_block_modern_render_uses_location_check_and_match_tool() {
         let trigger = AdvancementTrigger::ItemUsedOnBlock {
             item: Some(elevator_wool_item_predicate()),
-            location: Some(LocationPredicate::new().biome("minecraft:plains")),
+            location: Some(LocationPredicate::new().biome(biome_id("plains"))),
         };
         let v = trigger.render_for(None).unwrap();
         let location = v["conditions"]["location"].as_array().unwrap();
@@ -4295,7 +4317,7 @@ mod tests {
     #[test]
     fn entity_conditions_render_as_loot_conditions_for_each_schema_family() {
         let trigger = AdvancementTrigger::PlayerKilledEntity {
-            entity: Some(EntityPredicate::type_("minecraft:ender_dragon")),
+            entity: Some(EntityPredicate::type_(entity_type_id("ender_dragon"))),
             killing_blow: None,
         };
         let stable = trigger.render_for(Some(&caps_1_21_4())).unwrap();
@@ -4327,7 +4349,7 @@ mod tests {
         let trigger = AdvancementTrigger::Location {
             location: Some(
                 LocationPredicate::new()
-                    .biome("minecraft:plains")
+                    .biome(biome_id("plains"))
                     .y(FloatRange::at_least(64.0)),
             ),
         };
@@ -4347,13 +4369,10 @@ mod tests {
     #[test]
     fn allay_drop_uses_location_and_match_tool_consumers() {
         let trigger = AdvancementTrigger::AllayDropItemOnBlock {
-            item: Some(ItemPredicate::id("minecraft:cake")),
-            location: Some(
-                LocationPredicate::new().block(
-                    crate::predicates::BlockPredicate::new()
-                        .blocks(vec!["minecraft:note_block".into()]),
-                ),
-            ),
+            item: Some(ItemPredicate::id(item_id("minecraft:cake"))),
+            location: Some(LocationPredicate::new().block(
+                crate::predicates::BlockPredicate::new().blocks(vec![block_id("note_block")]),
+            )),
         };
         let value = trigger.render_for(Some(&caps_1_21_4())).unwrap();
         let conditions = value["conditions"]["location"].as_array().unwrap();
@@ -4378,7 +4397,7 @@ mod tests {
     #[test]
     fn nested_equipment_component_filter_rejects_legacy_profile() {
         let trigger = AdvancementTrigger::PlayerKilledEntity {
-            entity: Some(EntityPredicate::type_("minecraft:zombie").equipment(
+            entity: Some(EntityPredicate::type_(entity_type_id("zombie")).equipment(
                 crate::predicates::EntityEquipment::new().head(elevator_wool_item_predicate()),
             )),
             killing_blow: None,
@@ -4392,19 +4411,25 @@ mod tests {
     }
 
     #[test]
-    fn unverified_damage_source_boole_fail_instead_of_weakening() {
+    fn typed_damage_source_tags_render_for_supported_profiles() {
         let trigger = AdvancementTrigger::PlayerHurtEntity {
             entity: None,
             damage: Some(
-                DamagePredicate::new().type_(DamageSourcePredicate::new().is_projectile(true)),
+                DamagePredicate::new().type_(
+                    DamageSourcePredicate::new().requires_tag(
+                        crate::registry::TagId::<crate::registry::DamageTypeId>::minecraft(
+                            "is_projectile",
+                        )
+                        .unwrap(),
+                    ),
+                ),
             ),
         };
-        let error = trigger
-            .render_for(Some(&caps_1_21_4()))
-            .unwrap_err()
-            .to_string();
-        assert!(error.contains("minecraft:player_hurt_entity"), "{error}");
-        assert!(error.contains("damage-source boolean"), "{error}");
+        let rendered = trigger.render_for(Some(&caps_1_21_4())).unwrap();
+        assert_eq!(
+            rendered["conditions"]["damage"]["type"]["tags"][0],
+            serde_json::json!({"id": "minecraft:is_projectile", "expected": true})
+        );
     }
 
     #[test]
@@ -4471,7 +4496,7 @@ mod tests {
     #[test]
     fn legacy_typed_location_filters_fail_but_raw_remains_user_owned() {
         let typed = AdvancementTrigger::Location {
-            location: Some(LocationPredicate::new().biome("minecraft:plains")),
+            location: Some(LocationPredicate::new().biome(biome_id("plains"))),
         };
         let error = typed
             .render_for(Some(&caps_1_18_2()))
@@ -4509,20 +4534,20 @@ mod tests {
         let triggers = [
             AdvancementTrigger::KilledByArrow {
                 unique_entity_types: Some(IntRange::at_least(2)),
-                fired_from_weapon: Some(ItemPredicate::id("minecraft:crossbow")),
-                victims: Some(vec![EntityPredicate::type_("minecraft:phantom")]),
+                fired_from_weapon: Some(ItemPredicate::id(item_id("minecraft:crossbow"))),
+                victims: Some(vec![EntityPredicate::type_(entity_type_id("phantom"))]),
             },
             AdvancementTrigger::RecipeCrafted {
                 recipe_id: "minecraft:decorated_pot".into(),
-                ingredients: vec![ItemPredicate::id("minecraft:brick")],
+                ingredients: vec![ItemPredicate::id(item_id("minecraft:brick"))],
             },
             AdvancementTrigger::ThrownItemPickedUpByEntity {
-                item: Some(ItemPredicate::id("minecraft:cookie")),
-                entity: Some(EntityPredicate::type_("minecraft:allay")),
+                item: Some(ItemPredicate::id(item_id("minecraft:cookie"))),
+                entity: Some(EntityPredicate::type_(entity_type_id("allay"))),
             },
             AdvancementTrigger::ThrownItemPickedUpByPlayer {
-                item: Some(ItemPredicate::id("minecraft:cookie")),
-                entity: Some(EntityPredicate::type_("minecraft:allay")),
+                item: Some(ItemPredicate::id(item_id("minecraft:cookie"))),
+                entity: Some(EntityPredicate::type_(entity_type_id("allay"))),
             },
         ];
         for caps in [caps_1_21_4(), sand_version::VersionCaps::all_enabled()] {
@@ -4584,9 +4609,10 @@ mod tests {
         let trigger = AdvancementTrigger::PlacedBlock {
             block: Some("minecraft:white_wool".into()),
             item: None,
-            location: Some(LocationPredicate::new().block(
-                crate::predicates::BlockPredicate::new().blocks(vec!["minecraft:dirt".into()]),
-            )),
+            location: Some(
+                LocationPredicate::new()
+                    .block(crate::predicates::BlockPredicate::new().blocks(vec![block_id("dirt")])),
+            ),
             state: None,
         };
         let error = trigger.render_for(None).unwrap_err().to_string();

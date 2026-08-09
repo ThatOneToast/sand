@@ -17,7 +17,7 @@
 //!
 //! // Typed (preferred):
 //! let trigger = ConsumeItemTrigger::new()
-//!     .item(ItemPredicate::id("minecraft:golden_apple"))
+//!     .item(ItemPredicate::id(sand_core::generated::Item::GoldenApple))
 //!     .build();
 //!
 //! // Raw JSON escape hatch:
@@ -27,6 +27,7 @@
 //! ```
 
 use crate::AdvancementTrigger;
+use sand_components::ItemId;
 use sand_components::advancement::InventorySlotsPredicate;
 use sand_components::predicates::{DamagePredicate, EntityPredicate, IntRange, ItemPredicate};
 
@@ -417,7 +418,9 @@ impl MultiKillTrigger {
     pub fn build(self) -> AdvancementTrigger {
         AdvancementTrigger::KilledByArrow {
             unique_entity_types: self.unique_entity_types,
-            fired_from_weapon: Some(ItemPredicate::id("minecraft:crossbow")),
+            fired_from_weapon: Some(ItemPredicate::id(
+                ItemId::minecraft("crossbow").expect("crossbow is a valid vanilla item ID"),
+            )),
             victims: self.victims,
         }
     }
@@ -512,7 +515,7 @@ mod tests {
     #[test]
     fn consume_item_typed_predicate() {
         let trigger = ConsumeItemTrigger::new()
-            .item(ItemPredicate::id("minecraft:golden_apple"))
+            .item(ItemPredicate::id(crate::generated::Item::GoldenApple))
             .build();
         let v = serde_json::to_value(&trigger).unwrap();
         assert_eq!(
@@ -536,7 +539,7 @@ mod tests {
     #[test]
     fn player_killed_entity_typed_predicate() {
         let trigger = PlayerKilledEntityTrigger::new()
-            .entity(EntityPredicate::type_("minecraft:zombie"))
+            .entity(EntityPredicate::type_(crate::generated::EntityType::Zombie))
             .build();
         let v = serde_json::to_value(&trigger).unwrap();
         assert_eq!(v["conditions"]["entity"]["type"], "minecraft:zombie");
@@ -545,7 +548,7 @@ mod tests {
     #[test]
     fn inventory_changed_typed_item_predicate() {
         let trigger = InventoryChangedTrigger::new()
-            .item(ItemPredicate::id("minecraft:diamond"))
+            .item(ItemPredicate::id(crate::generated::Item::Diamond))
             .build();
         let v = serde_json::to_value(&trigger).unwrap();
         let items = &v["conditions"]["items"];

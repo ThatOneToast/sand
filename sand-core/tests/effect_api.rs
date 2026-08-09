@@ -1,6 +1,6 @@
 use sand_core::cmd::{self, Selector};
 use sand_core::{
-    EffectId, PotionContents, PotionId, PotionRegistryId, Range, StatusEffectId,
+    EffectId, IntRange, PotionContents, PotionId, PotionRegistryId, StatusEffectId,
     StatusEffectInstance, Ticks,
 };
 use serde_json::json;
@@ -64,17 +64,20 @@ fn shared_registry_ids_and_compatibility_enums_share_the_public_api() {
 
 #[test]
 fn effect_predicate_uses_public_core_api() {
-    let pred = sand_core::EffectPredicate::has(EffectId::Speed)
-        .amplifier(Range::exact(1))
-        .duration(Range::at_least(200));
+    let pred = sand_core::EntityPredicate::new().effect(
+        EffectId::Speed,
+        sand_core::EffectPredicate::new()
+            .amplifier(IntRange::exact(1))
+            .duration(IntRange::at_least(200)),
+    );
 
     assert_eq!(
         serde_json::to_value(pred).unwrap(),
         json!({
-            "minecraft:speed": {
+            "effects": {"minecraft:speed": {
                 "amplifier": 1,
                 "duration": {"min": 200}
-            }
+            }}
         })
     );
 }

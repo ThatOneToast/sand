@@ -500,7 +500,7 @@ mod tests {
         use sand_core::prelude::Text;
         use sand_core::{
             Advancement, AdvancementDisplay, AdvancementFrame, AdvancementIcon, AdvancementRewards,
-            AdvancementTrigger, Criterion, EntityPredicate, ItemId,
+            AdvancementTrigger, Criterion, EntityPredicate, EntityTypeId, ItemId,
         };
         let adv = Advancement::new("hello_world:kill_zombie".parse().unwrap())
             .display(
@@ -514,7 +514,9 @@ mod tests {
             .criterion(
                 "kill",
                 Criterion::new(AdvancementTrigger::PlayerKilledEntity {
-                    entity: Some(EntityPredicate::type_("minecraft:zombie")),
+                    entity: Some(EntityPredicate::type_(
+                        EntityTypeId::minecraft("zombie").unwrap(),
+                    )),
                     killing_blow: None,
                 }),
             )
@@ -558,10 +560,10 @@ mod tests {
 
     #[test]
     fn predicate_json_output() {
-        use sand_core::{LootCondition, Predicate};
-        let pred = Predicate::from_loot_condition(
+        use sand_core::{Predicate, PredicateRoot};
+        let pred = Predicate::new(
             "hello_world:rare_drop".parse().unwrap(),
-            LootCondition::RandomChance { chance: 0.1 },
+            PredicateRoot::random_chance(0.1),
         );
         let json = pred.to_json();
         assert_eq!(
@@ -573,12 +575,14 @@ mod tests {
 
     #[test]
     fn predicate_typed_root_output() {
-        use sand_core::{EntityPredicate, EntityPredicateTarget, Predicate, PredicateRoot};
+        use sand_core::{
+            EntityPredicate, EntityPredicateTarget, EntityTypeId, Predicate, PredicateRoot,
+        };
         let pred = Predicate::new(
             "hello_world:is_zombie".parse().unwrap(),
             PredicateRoot::entity_properties(
                 EntityPredicateTarget::This,
-                EntityPredicate::type_("minecraft:zombie"),
+                EntityPredicate::type_(EntityTypeId::minecraft("zombie").unwrap()),
             ),
         );
         let json = pred.to_json();
@@ -588,7 +592,7 @@ mod tests {
         );
         assert_eq!(json["entity"].as_str().unwrap(), "this");
         assert_eq!(
-            json["predicate"]["type"].as_str().unwrap(),
+            json["predicate"]["minecraft:entity_type"].as_str().unwrap(),
             "minecraft:zombie"
         );
     }
@@ -987,16 +991,13 @@ mod tests {
     }
 
     #[test]
-    fn loot_condition_inverted() {
-        use sand_core::{LootCondition, Predicate};
-        let pred = Predicate::from_loot_condition(
+    fn predicate_inverted() {
+        use sand_core::{Predicate, PredicateRoot, WeatherPredicate};
+        let pred = Predicate::new(
             "hello_world:not_raining".parse().unwrap(),
-            LootCondition::Inverted {
-                term: Box::new(LootCondition::WeatherCheck {
-                    raining: Some(true),
-                    thundering: None,
-                }),
-            },
+            PredicateRoot::inverted(PredicateRoot::weather(
+                WeatherPredicate::new().raining(true),
+            )),
         );
         let json = pred.to_json();
         assert_eq!(json["condition"].as_str().unwrap(), "minecraft:inverted");
@@ -1008,14 +1009,15 @@ mod tests {
     }
 
     #[test]
-    fn loot_condition_custom_escape_hatch() {
-        use sand_core::{LootCondition, Predicate, RawJson};
-        let pred = Predicate::from_loot_condition(
+    fn predicate_custom_escape_hatch() {
+        use sand_core::{Predicate, PredicateRoot, RawJson};
+        let pred = Predicate::new(
             "hello_world:mod_condition".parse().unwrap(),
-            LootCondition::Custom {
-                condition: "mymod:special_condition".into(),
-                data: RawJson::new(serde_json::json!({"level": 10})),
-            },
+            PredicateRoot::raw(RawJson::new(serde_json::json!({
+                "condition": "mymod:special_condition",
+                "level": 10
+            })))
+            .unwrap(),
         );
         let json = pred.to_json();
         assert_eq!(
@@ -1085,21 +1087,13 @@ mod tests {
 
     #[test]
     fn predicate_any_of_nested() {
-        use sand_core::{LootCondition, Predicate};
-        let pred = Predicate::from_loot_condition(
+        use sand_core::{IntRange, Predicate, PredicateRoot, WeatherPredicate};
+        let pred = Predicate::new(
             "hello_world:day_or_rain".parse().unwrap(),
-            LootCondition::AnyOf {
-                terms: vec![
-                    LootCondition::TimeCheck {
-                        value: serde_json::json!({"min": 0, "max": 12000}),
-                        period: None,
-                    },
-                    LootCondition::WeatherCheck {
-                        raining: Some(true),
-                        thundering: None,
-                    },
-                ],
-            },
+            PredicateRoot::any_of([
+                PredicateRoot::time(IntRange::between(0, 12000)),
+                PredicateRoot::weather(WeatherPredicate::new().raining(true)),
+            ]),
         );
         let json = pred.to_json();
         assert_eq!(json["condition"].as_str().unwrap(), "minecraft:any_of");

@@ -7,6 +7,8 @@ use quote::ToTokens;
 use syn::parse::Parser;
 use syn::{ExprArray, FnArg, ItemEnum, ItemStruct, LitStr, Pat, ReturnType, Signature};
 
+pub mod registry_id;
+
 /// Public associated names emitted by `#[derive(SandStorage)]`.
 ///
 /// The derive expansion and build-time provider share this function, so a
@@ -259,11 +261,11 @@ pub fn validate_contract(args: &ContractArgs, target: &ContractTarget<'_>) -> sy
     }
     if let Some(kind) = &args.kind {
         match kind.value().as_str() {
-            "associated_const" | "associated_type" => {}
+            "method" | "associated_const" | "associated_type" => {}
             _ => {
                 return Err(syn::Error::new_spanned(
                     kind,
-                    "`kind` must be `associated_const` or `associated_type`",
+                    "`kind` must be `method`, `associated_const`, or `associated_type`",
                 ));
             }
         }

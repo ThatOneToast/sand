@@ -471,6 +471,19 @@ fn public_top_level_identity(item: &syn::Item) -> Option<String> {
         syn::Item::Fn(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
             Some(item.sig.ident.to_string())
         }
+        syn::Item::ExternCrate(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
+            Some(format!("extern crate {}", item.ident))
+        }
+        syn::Item::ForeignMod(item)
+            if item.items.iter().any(|foreign| match foreign {
+                syn::ForeignItem::Fn(item) => matches!(item.vis, syn::Visibility::Public(_)),
+                syn::ForeignItem::Static(item) => matches!(item.vis, syn::Visibility::Public(_)),
+                syn::ForeignItem::Type(item) => matches!(item.vis, syn::Visibility::Public(_)),
+                _ => false,
+            }) =>
+        {
+            Some("public foreign item".into())
+        }
         syn::Item::Mod(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
             Some(item.ident.to_string())
         }
@@ -480,11 +493,17 @@ fn public_top_level_identity(item: &syn::Item) -> Option<String> {
         syn::Item::Trait(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
             Some(item.ident.to_string())
         }
+        syn::Item::TraitAlias(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
+            Some(item.ident.to_string())
+        }
         syn::Item::Type(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
             Some(item.ident.to_string())
         }
         syn::Item::Use(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
             Some(item.tree.to_token_stream().to_string())
+        }
+        item if item.to_token_stream().to_string().starts_with("pub ") => {
+            Some("unclassified public item".into())
         }
         _ => None,
     }
@@ -525,6 +544,16 @@ mod registry_expansion_tests {
             pub fn leaked_helper() {}
         });
         assert!(error.contains("extra public identity `leaked_helper`"));
+    }
+
+    #[test]
+    fn public_extern_crate_fails_closed() {
+        let error = error(quote::quote! {
+            pub struct ExampleId(ResourceLocation);
+            impl ExampleId { pub fn minecraft() {} }
+            pub extern crate serde as leaked_serde;
+        });
+        assert!(error.contains("extra public identity `extern crate serde`"));
     }
 }
 

@@ -126,6 +126,17 @@ impl ScoreRange {
 ///
 /// Nested `Any` inside `All` is automatically distributed into multiple execute
 /// commands by Sand's typed execute and branch builders.
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::condition::Condition",
+    aliases = ["sand::prelude::Condition"],
+    summary = "Represents a typed boolean test evaluated by Minecraft commands.",
+    context = "State, inventory, entity, and resource helpers produce Conditions so authors can compose gameplay tests without assembling execute syntax by hand.",
+    minecraft = "Lowers to one or more execute if or execute unless command plans; disjunctions may require multiple plans because vanilla execute has no direct OR clause.",
+    use_when = ["Guarding commands with Minecraft runtime state", "Combining typed score, entity, item, data, or predicate tests"],
+    avoid_when = ["The decision can be made once while generating the datapack", "A dedicated typed helper already performs the complete operation"],
+    example = "let ready = MANA.of(\"@s\").gte(25).and(CASTING.of(\"@s\").is_false());"
+)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Condition {
     kind: ConditionKind,
@@ -274,6 +285,20 @@ impl Condition {
     /// Invert a condition.
     ///
     /// Also available as the `!` operator via [`std::ops::Not`].
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        kind = "method",
+        path = "sand::condition::Condition::negate",
+        aliases = ["sand::prelude::Condition::negate"],
+        summary = "Inverts a typed runtime condition.",
+        context = "The named constructor is useful when an inverted condition must be passed or returned as a value; the ! operator provides equivalent expression syntax.",
+        minecraft = "Swaps execute-if and execute-unless polarity and applies De Morgan lowering to composed conditions.",
+        use_when = ["Passing an inverted condition to another API", "Constructing a negation without operator syntax"],
+        avoid_when = ["The ! operator is clearer at the call site", "Rust generation-time control flow is intended"],
+        params(cond = "The typed condition whose truth value is inverted."),
+        returns = "A condition that succeeds exactly when the input condition fails.",
+        example = "Condition::negate(READY.of(\"@s\").is_true())"
+    )]
     pub fn negate(cond: Condition) -> Self {
         Self {
             kind: ConditionKind::Not(Box::new(cond)),
@@ -281,6 +306,20 @@ impl Condition {
     }
 
     /// All of the given conditions must hold.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        kind = "method",
+        path = "sand::condition::Condition::all",
+        aliases = ["sand::prelude::Condition::all"],
+        summary = "Requires every supplied runtime condition to succeed.",
+        context = "This constructor forms a reusable conjunction from a dynamic or fixed-size collection; an empty collection represents the boolean identity true.",
+        minecraft = "Chains compatible execute-if clauses and distributes nested disjunctions into multiple command plans when necessary.",
+        use_when = ["Every condition must guard the same command or branch", "Building a conjunction from an iterator"],
+        avoid_when = ["Only two conditions are being combined and and is clearer", "The tests guard different commands"],
+        params(conds = "The conditions that must all succeed; an empty iterator creates an unconditional condition."),
+        returns = "A conjunction that succeeds when every supplied condition succeeds.",
+        example = "Condition::all([MANA.of(\"@s\").gte(25), READY.of(\"@s\").is_true()])"
+    )]
     pub fn all(conds: impl IntoIterator<Item = Condition>) -> Self {
         Self {
             kind: ConditionKind::All(conds.into_iter().collect()),
@@ -288,6 +327,20 @@ impl Condition {
     }
 
     /// Any of the given conditions must hold.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        kind = "method",
+        path = "sand::condition::Condition::any",
+        aliases = ["sand::prelude::Condition::any"],
+        summary = "Allows any supplied runtime condition to satisfy a branch.",
+        context = "This constructor forms a disjunction from a dynamic or fixed-size collection; an empty collection represents false. Because vanilla execute lacks OR, overlapping alternatives can run the guarded command more than once.",
+        minecraft = "Lowers alternatives into separate execute command plans; negating the result produces a conjunction of unless clauses.",
+        use_when = ["Independent alternatives may enable the same idempotent branch", "Building a disjunction from an iterator"],
+        avoid_when = ["Multiple alternatives may succeed and repeating the guarded effect would be incorrect", "Each alternative should run different commands"],
+        params(conds = "The alternative conditions; an empty iterator creates a condition that never succeeds."),
+        returns = "A disjunction represented by one command plan per alternative.",
+        example = "Condition::any([HAS_KEY.of(\"@s\").is_true(), IS_ADMIN.of(\"@s\").is_true()])"
+    )]
     pub fn any(conds: impl IntoIterator<Item = Condition>) -> Self {
         Self {
             kind: ConditionKind::Any(conds.into_iter().collect()),
@@ -300,6 +353,20 @@ impl Condition {
     /// let predicate = PredicateRef::new("my_pack:can_cast")?;
     /// let c = Condition::predicate(predicate);
     /// ```
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        kind = "method",
+        path = "sand::condition::Condition::predicate",
+        aliases = ["sand::prelude::Condition::predicate"],
+        summary = "Tests a typed named Minecraft predicate resource.",
+        context = "Predicate resources package reusable loot-condition logic under a validated identity that commands can evaluate without duplicating the condition tree.",
+        minecraft = "Renders execute if predicate <namespace:path>, or the corresponding execute-unless form when negated.",
+        use_when = ["Reusing a predicate resource as a command guard", "Testing loot-condition behavior exposed through a named predicate"],
+        avoid_when = ["Building the predicate JSON resource itself", "Mutable scoreboard or storage state is the actual condition"],
+        params(predicate = "The typed namespaced reference to the predicate resource to evaluate."),
+        returns = "A runtime condition referencing the named predicate.",
+        example = "Condition::predicate(PredicateRef::new(\"demo:can_cast\")?)"
+    )]
     pub fn predicate(predicate: crate::resource_ref::PredicateRef) -> Self {
         Self::predicate_raw(predicate.to_string())
     }
@@ -309,6 +376,20 @@ impl Condition {
     /// ```rust,ignore
     /// let c = Condition::entity(Selector::self_().tag("ready"));
     /// ```
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        kind = "method",
+        path = "sand::condition::Condition::entity",
+        aliases = ["sand::prelude::Condition::entity"],
+        summary = "Tests whether a typed selector matches at least one entity.",
+        context = "The typed selector preserves its filters and validation while the Condition records only the existence test, not an execution-context change.",
+        minecraft = "Renders execute if entity <selector>, succeeding when the selector finds one or more entities.",
+        use_when = ["Checking whether a filtered entity set is non-empty", "Guarding a branch on an entity tag, type, distance, or score filter"],
+        avoid_when = ["Commands must execute as or at each matched entity", "An unchecked raw selector fragment is required"],
+        params(selector = "The typed entity selector whose match set is tested for existence."),
+        returns = "A condition that succeeds when the selector matches at least one entity.",
+        example = "Condition::entity(Selector::all_players().tag(\"ready\"))"
+    )]
     pub fn entity(selector: sand_commands::Selector) -> Self {
         Self::entity_raw(selector.to_string())
     }
@@ -319,6 +400,20 @@ impl Condition {
     /// let mana = Nbt::storage("example:state").path("player.mana");
     /// let c = Condition::data_exists(&mana);
     /// ```
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        kind = "method",
+        path = "sand::condition::Condition::data_exists",
+        aliases = ["sand::prelude::Condition::data_exists"],
+        summary = "Tests whether a typed Minecraft NBT path exists.",
+        context = "NbtRef retains both the typed data target and parsed path so storage, entity, and block data can share one existence-check API.",
+        minecraft = "Renders execute if data <target> <path>, or execute unless data when the condition is negated.",
+        use_when = ["Guarding commands on optional storage, entity, or block NBT", "Checking whether a typed state field has been materialized"],
+        avoid_when = ["Reading or comparing the value stored at the path", "Testing whether a live inventory slot contains an item"],
+        params(reference = "The typed NBT target and path whose existence Minecraft should test."),
+        returns = "A condition that succeeds when the referenced NBT path exists.",
+        example = "Condition::data_exists(&Nbt::storage(\"demo:state\").path(\"player.mana\"))"
+    )]
     pub fn data_exists<T>(reference: &sand_commands::NbtRef<T>) -> Self {
         Self::nbt_exists(reference.location().clone(), reference.path_value().clone())
     }
@@ -340,6 +435,20 @@ impl Condition {
     /// keyword — that would render as a malformed doubled keyword (e.g.
     /// `"if if score ..."`). This is checked eagerly, at construction, rather
     /// than silently accepted and only visible in generated datapack output.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        kind = "method",
+        path = "sand::condition::Condition::raw",
+        aliases = ["sand::prelude::Condition::raw"],
+        summary = "Creates an explicit escape hatch for unsupported execute-condition syntax.",
+        context = "Raw fragments keep uncommon or newly added Minecraft grammar usable without pretending it has Sand's typed or validation guarantees.",
+        minecraft = "Places the fragment verbatim after the generated if or unless keyword in an execute command.",
+        use_when = ["Minecraft supports a condition form Sand has not typed yet", "A modded execute-condition grammar must pass through unchanged"],
+        avoid_when = ["A typed Condition constructor is available", "The fragment comes from untrusted input or requires Minecraft grammar validation"],
+        params(fragment = "The execute-condition fragment without a leading if or unless keyword."),
+        returns = "A raw condition containing the supplied command fragment.",
+        example = "Condition::raw(\"block ~ ~-1 ~ minecraft:white_wool\")"
+    )]
     pub fn raw(fragment: impl Into<String>) -> Self {
         let fragment = fragment.into();
         let trimmed = fragment.trim_start();
@@ -375,6 +484,20 @@ impl Condition {
     /// ```rust,ignore
     /// let cond = MANA.of("@s").gte(25).and(DASH.ready("@s"));
     /// ```
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        kind = "method",
+        path = "sand::condition::Condition::and",
+        aliases = ["sand::prelude::Condition::and"],
+        summary = "Requires this condition and another condition to both succeed.",
+        context = "Binary conjunction provides readable fluent composition and flattens adjacent conjunctions without exposing the internal condition tree.",
+        minecraft = "Combines both tests into the same execute plan, distributing nested alternatives when required.",
+        use_when = ["Adding one required guard to an existing condition", "Building a fluent all-of expression"],
+        avoid_when = ["Either test succeeding should be sufficient", "The conditions guard different commands"],
+        params(other = "The additional typed condition that must also succeed."),
+        returns = "A condition requiring both operands.",
+        example = "has_mana.and(cooldown_ready)"
+    )]
     pub fn and(self, other: Condition) -> Condition {
         match self.kind {
             ConditionKind::All(mut conds) => {
@@ -393,6 +516,20 @@ impl Condition {
     /// ```rust,ignore
     /// let cond = MANA.of("@s").gte(100).or(SHIELD.of("@s").is_true());
     /// ```
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        kind = "method",
+        path = "sand::condition::Condition::or",
+        aliases = ["sand::prelude::Condition::or"],
+        summary = "Allows this condition or another condition to satisfy a branch.",
+        context = "Binary disjunction provides fluent composition, but overlapping alternatives can repeat the guarded effect because vanilla execute has no direct OR clause.",
+        minecraft = "Lowers the operands into alternative execute plans rather than a single short-circuiting clause.",
+        use_when = ["Either alternative may enable the same idempotent branch", "Building a fluent any-of expression"],
+        avoid_when = ["Both alternatives may succeed and duplicate execution would be incorrect", "The alternatives should run different commands"],
+        params(other = "The alternative typed condition that may satisfy the branch."),
+        returns = "A condition represented by the alternative plans of both operands.",
+        example = "has_key.or(is_admin)"
+    )]
     pub fn or(self, other: Condition) -> Condition {
         match self.kind {
             ConditionKind::Any(mut conds) => {
@@ -410,6 +547,20 @@ impl Condition {
     /// ```rust,ignore
     /// let cond = MANA.of("@s").gte(25).and_not(CASTING.of("@s").is_true());
     /// ```
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        kind = "method",
+        path = "sand::condition::Condition::and_not",
+        aliases = ["sand::prelude::Condition::and_not"],
+        summary = "Requires this condition to succeed and another condition to fail.",
+        context = "This fluent convenience expresses self.and(!other) while preserving typed boolean composition.",
+        minecraft = "Combines this operand's execute-if clauses with the other operand's execute-unless clauses, distributing nested alternatives when required.",
+        use_when = ["Adding an exclusion to an existing condition", "Expressing an allowed-unless-blocked guard"],
+        avoid_when = ["The exclusion needs separate commands", "Explicit and plus ! syntax is clearer for a complex operand"],
+        params(other = "The typed condition that must not succeed."),
+        returns = "A condition requiring this operand and the negation of the other operand.",
+        example = "has_mana.and_not(is_silenced)"
+    )]
     pub fn and_not(self, other: Condition) -> Condition {
         self.and(!other)
     }
@@ -417,6 +568,20 @@ impl Condition {
     /// Either `self` holds or `other` must **not** hold.
     ///
     /// Equivalent to `self.or(!other)`.
+    #[sand_macros::api(
+        registry = sand_api_contract,
+        kind = "method",
+        path = "sand::condition::Condition::or_not",
+        aliases = ["sand::prelude::Condition::or_not"],
+        summary = "Allows this condition to succeed or another condition to fail.",
+        context = "This fluent convenience expresses self.or(!other); like every disjunction, overlapping alternatives can repeat the guarded effect.",
+        minecraft = "Lowers this operand's plans and the negated operand's plans as execute alternatives.",
+        use_when = ["A branch is allowed by a positive test or by absence of a blocker"],
+        avoid_when = ["Both alternatives may succeed and duplicate execution would be incorrect", "The boolean intent is clearer as an explicit or plus ! expression"],
+        params(other = "The typed condition whose failure provides the alternative."),
+        returns = "A condition satisfied by this operand or the negation of the other operand.",
+        example = "is_admin.or_not(is_locked)"
+    )]
     pub fn or_not(self, other: Condition) -> Condition {
         self.or(!other)
     }

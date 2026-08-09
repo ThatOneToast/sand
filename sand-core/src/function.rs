@@ -806,6 +806,31 @@ thread_local! {
     static INTERNAL_SCORE_TEMP_REQUESTED: Cell<bool> = const { Cell::new(false) };
 }
 
+/// Clears function-adjacent thread-local export state on entry and every exit.
+///
+/// The export pipeline can fail after consuming score setup but before draining
+/// dynamic functions. Keeping both registries behind one scope prevents a later
+/// export on the same thread from inheriting only half of that failed export.
+pub(crate) struct ExportFunctionRegistryScope;
+
+impl ExportFunctionRegistryScope {
+    pub(crate) fn enter() -> Self {
+        clear_function_export_state();
+        Self
+    }
+}
+
+impl Drop for ExportFunctionRegistryScope {
+    fn drop(&mut self) {
+        clear_function_export_state();
+    }
+}
+
+fn clear_function_export_state() {
+    REGISTRY.with_borrow_mut(Vec::clear);
+    INTERNAL_SCORE_TEMP_REQUESTED.set(false);
+}
+
 pub(crate) fn request_internal_score_temp() {
     INTERNAL_SCORE_TEMP_REQUESTED.set(true);
 }

@@ -139,6 +139,12 @@ pub(crate) fn try_export_components_impl(
             }
         })?;
 
+    // Dynamic helpers and their compiler-managed score setup are one export
+    // transaction. Clear both on entry and on every success/error/unwind exit,
+    // so a failure between their separate drain phases cannot leak a partial
+    // registry into the next export on this thread.
+    let _function_registry_scope = crate::function::ExportFunctionRegistryScope::enter();
+
     // Dialog callback IDs and registrations are process-global. Hold this for
     // the complete factory/export lifecycle so repeated or concurrent exports
     // cannot inherit callback state from one another. Callback registration

@@ -1196,6 +1196,26 @@ mod tests {
     }
 
     #[test]
+    fn failed_export_scope_cannot_leak_helpers_after_score_setup_was_consumed() {
+        {
+            let _scope = crate::function::ExportFunctionRegistryScope::enter();
+            let commands = if_(Condition::raw("score @s failed_export matches 1"))
+                .then_all(["say yes"])
+                .else_all(["say no"]);
+            assert_eq!(commands.len(), 1);
+
+            // Reproduce the dangerous pipeline ordering: consume score setup,
+            // then leave through an error before dynamic helpers are drained.
+            let setup = crate::state::score::drain_internal_score_setup();
+            assert!(setup.contains(&"scoreboard objectives add __sand_tmp dummy".to_string()));
+        }
+
+        let _next_export = crate::function::ExportFunctionRegistryScope::enter();
+        assert!(crate::drain_dyn_fns().is_empty());
+        assert!(crate::state::score::drain_internal_score_setup().is_empty());
+    }
+
+    #[test]
     fn if_else_any_condition_keeps_one_fallback_after_all_success_checks() {
         reset_dynamic_branch_registry_for_test();
         let cmds = if_(Condition::any([

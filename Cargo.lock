@@ -1982,6 +1982,7 @@ version = "0.1.0"
 dependencies = [
  "inventory",
  "sand",
+ "sand-api-contract",
  "sand-build",
  "sand-commands",
  "sand-components",

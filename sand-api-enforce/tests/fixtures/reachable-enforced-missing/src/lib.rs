@@ -20,3 +20,11 @@ pub mod execute_when {
         pub fn uncontracted_branch(self) {}
     }
 }
+
+pub mod condition {
+    pub struct Condition;
+
+    impl Condition {
+        pub fn uncontracted_leaf(self) {}
+    }
+}

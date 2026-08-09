@@ -41,10 +41,10 @@ fn generated_registrations_build_an_installed_catalog() {
     assert_eq!(Fixture.value(), 1);
 
     let coverage = sand::__private::api_contract::installed_coverage();
-    assert_eq!(coverage.static_surface_items, 11_734);
-    assert_eq!(coverage.pending_item_ceiling, 11_589);
-    assert_eq!(coverage.pending_scope_ceiling, 37);
-    assert_eq!(coverage.pending_scopes.len(), 37);
+    assert_eq!(coverage.static_surface_items, 11_660);
+    assert_eq!(coverage.pending_item_ceiling, 11_503);
+    assert_eq!(coverage.pending_scope_ceiling, 36);
+    assert_eq!(coverage.pending_scopes.len(), 36);
     let catalog = ApiCatalog::installed_with_coverage(env!("CARGO_PKG_VERSION"), coverage).unwrap();
     let function = catalog.find("sand::prelude::contract_fixture").unwrap();
     assert_eq!(function.kind, ApiKind::Function);
@@ -74,6 +74,16 @@ fn generated_registrations_build_an_installed_catalog() {
     assert_eq!(branch.canonical_path, "sand::execute_when::if_");
     assert_eq!(branch.kind, ApiKind::Function);
     assert_eq!(branch.parameters[0].name, "cond");
+
+    let condition = catalog
+        .find("sand::prelude::Condition::entity")
+        .expect("definition-owned condition method contract");
+    assert_eq!(
+        condition.canonical_path,
+        "sand::condition::Condition::entity"
+    );
+    assert_eq!(condition.kind, ApiKind::Method);
+    assert_eq!(condition.parameters[0].name, "selector");
 
     let json_once = catalog.to_json_pretty().unwrap();
     let json_twice = ApiCatalog::installed_with_coverage(

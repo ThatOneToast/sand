@@ -198,11 +198,15 @@ fn repository_contract_sources_are_the_actual_authored_declarations() {
         workspace.join("sand/src/api_contracts.rs"),
         workspace.join("sand-components/src/predicate/mod.rs"),
         workspace.join("sand-components/src/predicates.rs"),
+        workspace.join("sand-core/src/condition.rs"),
         workspace.join("sand-core/src/execute_when.rs"),
     ])
     .unwrap();
-    assert_eq!(declarations.len(), 147);
-    assert_eq!(declarations.first().unwrap().canonical_path, "sand::data");
+    assert_eq!(declarations.len(), 160);
+    assert_eq!(
+        declarations.first().unwrap().canonical_path,
+        "sand::condition"
+    );
     assert_eq!(declarations.last().unwrap().canonical_path, "sand::vanilla");
     let predicate_new = declarations
         .iter()
@@ -220,6 +224,12 @@ fn repository_contract_sources_are_the_actual_authored_declarations() {
         .unwrap();
     assert!(branch.source.ends_with("sand-core/src/execute_when.rs"));
     assert!(branch.definition.is_some());
+    let condition = declarations
+        .iter()
+        .find(|declaration| declaration.canonical_path == "sand::condition::Condition::entity")
+        .unwrap();
+    assert!(condition.source.ends_with("sand-core/src/condition.rs"));
+    assert!(condition.definition.is_some());
 }
 
 fn contract_binding_fixture(dummy_attributes: &str, features: &[&str]) -> ContractSourceError {

@@ -292,7 +292,19 @@ pub use sand_core::condition;
 /// (and, for `if_`, `.else_all(...)`) that accepts command lists built with
 /// `mcfunction!`. Use this instead of hand-writing parallel `execute if`/
 /// `execute unless` command pairs.
-pub use sand_core::execute_when;
+#[api(
+    path = "sand::execute_when",
+    module = "sand",
+    summary = "Builds typed conditional command branches with explicit evaluation semantics.",
+    context = "The branch builders distinguish one-time grouped evaluation from per-command condition checks so state-changing command sequences behave predictably.",
+    minecraft = "Emits execute-if or execute-unless commands and registers grouped arms as generated helper functions in the datapack.",
+    use_when = ["Running commands under a typed Condition", "Expressing an if/else command branch"],
+    avoid_when = ["A typed command builder already exposes the required conditional form", "Rust control flow is being used only to decide what code to generate"],
+    example = "when(READY.of(\"@s\").is_true()).then_one(\"say ready\");"
+)]
+pub mod execute_when {
+    pub use sand_core::execute_when::*;
+}
 
 /// Typed resource references: `FunctionRef`, `AdvancementRef`, `DialogRef`,
 /// `LootTableRef`, `PredicateRef`, and similar `namespace:path`-validated

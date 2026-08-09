@@ -132,7 +132,7 @@ Generated static families account for 6,398 identities:
 - generated event marker types: 25 identities; and
 - typed resource-reference wrappers: 26 identities.
 
-The remaining 5,338 identities come from ordinary source declarations,
+The remaining 5,336 identities come from ordinary source declarations,
 including the 15 exported procedural macros. Input-dependent items emitted
 into downstream crates by attributes and derives are parametric families, so
 they do not have an honest finite installed count. Each such generator is a
@@ -146,6 +146,12 @@ builder state and validation plumbing, making `PredicateRoot` opaque, removing
 obsolete compatibility paths, and typing domain identifiers reduced the
 module from its 234-identity foundation baseline without losing an intentional
 author operation.
+
+The migrated `sand::execute_when` scope owns 22 supported identities, all
+enforced and contracted at their `sand-core` definitions. Two Rust-visible
+test/setup helpers became private, and the public if/else builder now lowers
+through one generated dispatcher so a success arm that changes the tested
+state cannot make the failure arm run afterward.
 
 ## Intentional migration scopes
 
@@ -206,10 +212,11 @@ corresponding provider audit. The foundation proves this mechanism with the
 real `SandStorage` derive, but does not claim every downstream generator has
 been migrated.
 
-After the predicate tranche, the exact 26.2 profile records 11,736 static
-identities: 123 enforced predicate identities and 11,613 identities across 38
-pending scopes. The 1.21.4 and explicit placeholder profiles enforce the same
-123 source/generated identities against their independently generated totals.
+After the execute-when tranche, the exact 26.2 profile records 11,734 static
+identities: 145 enforced predicate/branch identities and 11,589 identities
+across 37 pending scopes. The 1.21.4 and explicit placeholder profiles enforce
+the same 145 source/generated identities against their independently generated
+totals.
 
 Every reachable identity must map to exactly one scope. Enforced scopes reject
 missing contracts during ordinary compilation. Pending scopes remain in the
@@ -218,7 +225,7 @@ Issue #327 completes only at zero pending source and generator scopes.
 
 ## Known canonical defects to resolve during migration
 
-The current facade contains 404 source identities owned by the temporary
+The current facade contains 396 source identities owned by the temporary
 `prelude-unassigned-source` scope,
 including component families that lack the promised canonical topic path.
 Migration must add a canonical topic re-export or deliberately remove each

@@ -51,6 +51,8 @@ thiserror = "2"
 inventory = "0.3"
 sand-commands = { path = "../sand-commands" }
 sand-components = { path = "../sand-components" }
+sand-api-contract = { path = "../sand-api-contract" }
+sand-macros = { path = "../sand-macros" }
 sand-version = { path = "../sand-version" }
 
 [build-dependencies]

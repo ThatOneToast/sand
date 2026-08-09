@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use std::process::Command;
 
 #[test]
-fn ordinary_cargo_check_rejects_new_predicate_method_field_and_variant() {
+fn ordinary_cargo_check_rejects_new_members_in_enforced_source_scopes() {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let fixture = manifest_dir.join("tests/fixtures/reachable-enforced-missing/Cargo.toml");
     let target = tempfile::tempdir().expect("temporary target directory");
@@ -18,7 +18,8 @@ fn ordinary_cargo_check_rejects_new_predicate_method_field_and_variant() {
     assert!(
         stderr.contains("sand::predicate::Builder::uncontracted_field")
             && stderr.contains("sand::predicate::Builder::uncontracted_method")
-            && stderr.contains("sand::predicate::Choice::UncontractedVariant"),
+            && stderr.contains("sand::predicate::Choice::UncontractedVariant")
+            && stderr.contains("sand::execute_when::WhenBuilder::uncontracted_branch"),
         "unexpected cargo diagnostic:\n{stderr}"
     );
 }

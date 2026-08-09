@@ -1,12 +1,20 @@
 schema_version = 1
-static_surface_items = 6
-enforced_scope_baseline = ["predicate-source"]
+static_surface_items = 9
+enforced_scope_baseline = ["predicate-source", "execute-when-source"]
 pending_scope_ceiling = 0
 pending_item_ceiling = 0
 
 [[scope]]
 id = "predicate-source"
 canonical_module = "sand::predicate"
+state = "enforced"
+tier = "author"
+provider = "source"
+recursive = true
+
+[[scope]]
+id = "execute-when-source"
+canonical_module = "sand::execute_when"
 state = "enforced"
 tier = "author"
 provider = "source"

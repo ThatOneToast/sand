@@ -637,6 +637,10 @@ mod tests {
         let registry = show(catalog, "sand::vanilla::Item::Diamond").unwrap();
         assert!(registry.contains("Selects the vanilla registry entry `minecraft:diamond`."));
         assert!(registry.contains("minecraft = "));
+
+        let prelude_registry = show(catalog, "sand::prelude::vanilla::Item::Diamond").unwrap();
+        assert!(prelude_registry.contains("sand::vanilla::Item::Diamond"));
+        assert!(prelude_registry.contains("sand::prelude::vanilla::Item::Diamond"));
     }
 
     #[test]

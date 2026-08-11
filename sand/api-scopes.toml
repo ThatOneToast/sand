@@ -4,8 +4,8 @@
 # are discovered through the reachable re-export graph. Generator scopes are
 # supplied from the same declaration/schema that emits their Rust API.
 schema_version = 1
-enforced_scope_baseline = ["predicate-source", "generated-predicate-id-wrapper", "execute-when-source", "condition-source", "resource-ref-source", "generated-resource-id-wrappers", "version-source"]
-pending_scope_ceiling = 33
+enforced_scope_baseline = ["predicate-source", "generated-predicate-id-wrapper", "execute-when-source", "condition-source", "resource-ref-source", "generated-resource-id-wrappers", "version-source", "generated-vanilla-registries"]
+pending_scope_ceiling = 32
 
 [[scope]]
 id = "root-source"
@@ -218,7 +218,7 @@ aliases = ["sand::cmd", "sand::prelude"]
 [[scope]]
 id = "generated-vanilla-registries"
 canonical_module = "sand::vanilla"
-state = "pending"
+state = "enforced"
 tier = "ordinary"
 provider = "generator:generated_registries"
 aliases = ["sand::prelude"]

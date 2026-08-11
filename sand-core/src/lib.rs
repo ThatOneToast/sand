@@ -225,9 +225,7 @@ pub use state::{
 pub use state::{GameState, GameStateRef, TypedGameState};
 #[doc(hidden)]
 pub use state::{StateDescriptor, StateLifecycle};
-pub use vfx::{
-    IntoParticleStep, IntoSoundStep, IntoVfxSelector, Vfx, VfxParticle, VfxSound, VfxStep,
-};
+pub use vfx::{Vfx, VfxParticle, VfxParticleVisibility, VfxSound, VfxStep};
 
 // ── McFunction (sand-core-specific component) ─────────────────────────────────
 

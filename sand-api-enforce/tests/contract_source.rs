@@ -126,6 +126,106 @@ fn reads_attribute_members_and_facade_provider_contracts() {
 }
 
 #[test]
+fn inherent_contracts_inherit_their_type_aliases_unless_authored_explicitly() {
+    let temp = tempdir().unwrap();
+    let source = temp.path().join("contracts.rs");
+    std::fs::write(
+        &source,
+        r#"
+        #[api(
+            path = "sand::topic::Thing",
+            aliases = ["sand::prelude::Thing"],
+            summary = "Names a topic value.",
+            context = "The type is re-exported through the prelude.",
+            minecraft = "Represents a checked Minecraft value.",
+            use_when = ["A topic value is required"],
+            avoid_when = ["Compiler wiring is required"],
+            example = "let value = Thing;"
+        )]
+        pub struct Thing;
+
+        impl Thing {
+            #[api(
+                path = "sand::topic::Thing::build",
+                summary = "Builds a topic value.",
+                context = "The constructor is available through every type alias.",
+                minecraft = "Creates the checked Minecraft value.",
+                use_when = ["A new value is needed"],
+                avoid_when = ["An existing value is available"],
+                returns = "A topic value.",
+                example = "Thing::build()"
+            )]
+            pub fn build() -> Self { Self }
+
+            #[api(
+                path = "sand::topic::Thing::explicit",
+                aliases = ["sand::advanced::Thing::explicit"],
+                summary = "Uses an intentionally different alias.",
+                context = "This proves authored aliases are never overwritten.",
+                minecraft = "Reads the checked Minecraft value.",
+                use_when = ["The advanced route is required"],
+                avoid_when = ["The ordinary alias should be used"],
+                returns = "A topic value.",
+                example = "Thing::explicit()"
+            )]
+            pub fn explicit() -> Self { Self }
+        }
+
+        #[api(
+            path = "sand::topic::Describe",
+            aliases = ["sand::prelude::Describe"],
+            summary = "Defines a fixture trait.",
+            context = "The trait is re-exported through the prelude.",
+            minecraft = "Describes a checked Minecraft fixture value.",
+            use_when = ["A fixture behavior is required"],
+            avoid_when = ["A concrete value is sufficient"],
+            example = "Describe::describe()"
+        )]
+        pub trait Describe {
+            #[api(
+                path = "sand::topic::Describe::describe",
+                summary = "Describes a fixture value.",
+                context = "The associated method inherits every trait alias.",
+                minecraft = "Describes the checked Minecraft fixture value.",
+                use_when = ["Testing associated aliases"],
+                avoid_when = ["Authoring a production value"],
+                returns = "A fixture description.",
+                example = "Describe::describe()"
+            )]
+            fn describe() -> &'static str;
+        }
+        "#,
+    )
+    .unwrap();
+
+    let declarations = contract_declarations_from_files([source]).unwrap();
+    let build = declarations
+        .iter()
+        .find(|declaration| declaration.canonical_path == "sand::topic::Thing::build")
+        .unwrap();
+    assert_eq!(
+        build.aliases,
+        BTreeSet::from(["sand::prelude::Thing::build".to_owned()])
+    );
+    let explicit = declarations
+        .iter()
+        .find(|declaration| declaration.canonical_path == "sand::topic::Thing::explicit")
+        .unwrap();
+    assert_eq!(
+        explicit.aliases,
+        BTreeSet::from(["sand::advanced::Thing::explicit".to_owned()])
+    );
+    let trait_method = declarations
+        .iter()
+        .find(|declaration| declaration.canonical_path == "sand::topic::Describe::describe")
+        .unwrap();
+    assert_eq!(
+        trait_method.aliases,
+        BTreeSet::from(["sand::prelude::Describe::describe".to_owned()])
+    );
+}
+
+#[test]
 fn resolves_paths_to_one_underlying_identity_and_rejects_bogus_aliases() {
     let reachable = vec![api(
         "sand_components::predicate::Predicate",
@@ -201,16 +301,17 @@ fn repository_contract_sources_are_the_actual_authored_declarations() {
         workspace.join("sand-core/src/condition.rs"),
         workspace.join("sand-core/src/execute_when.rs"),
         workspace.join("sand-core/src/version.rs"),
+        workspace.join("sand-core/src/vfx.rs"),
     ])
     .unwrap();
-    assert_eq!(declarations.len(), 204);
+    assert_eq!(declarations.len(), 249);
     assert_eq!(
         declarations.first().unwrap().canonical_path,
         "sand::condition"
     );
     assert_eq!(
         declarations.last().unwrap().canonical_path,
-        "sand::version::VersionProfile::supports"
+        "sand::vfx::VfxStep::Sound::0"
     );
     let predicate_new = declarations
         .iter()
@@ -240,6 +341,19 @@ fn repository_contract_sources_are_the_actual_authored_declarations() {
         .unwrap();
     assert!(resource_module.source.ends_with("sand/src/lib.rs"));
     assert!(resource_module.definition.is_some());
+    let vfx_play = declarations
+        .iter()
+        .find(|declaration| declaration.canonical_path == "sand::vfx::Vfx::play")
+        .unwrap();
+    assert_eq!(
+        vfx_play.aliases,
+        BTreeSet::from([
+            "sand::cmd::Vfx::play".to_owned(),
+            "sand::command::Vfx::play".to_owned(),
+            "sand::prelude::Vfx::play".to_owned(),
+            "sand::prelude::cmd::Vfx::play".to_owned(),
+        ])
+    );
 }
 
 fn contract_binding_fixture(dummy_attributes: &str, features: &[&str]) -> ContractSourceError {

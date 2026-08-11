@@ -336,7 +336,7 @@ fn inspect_items(
                         syn::ImplItem::Macro(value) => &value.attrs,
                         _ => continue,
                     };
-                    inspect_attributes(attrs, source, member.span().start(), declarations)?;
+                    inspect_attributes(attrs, source, member.span().start(), declarations, true)?;
                 }
             }
             Item::Trait(item) => {
@@ -348,7 +348,7 @@ fn inspect_items(
                         syn::TraitItem::Macro(value) => &value.attrs,
                         _ => continue,
                     };
-                    inspect_attributes(attrs, source, member.span().start(), declarations)?;
+                    inspect_attributes(attrs, source, member.span().start(), declarations, true)?;
                 }
             }
             Item::Macro(item) if item.mac.path.is_ident("register") => {
@@ -380,16 +380,31 @@ fn inspect_attributes(
     source: &Path,
     location: proc_macro2::LineColumn,
     declarations: &mut Vec<ContractDeclaration>,
+    derive_parent_aliases: bool,
 ) -> Result<(), ContractSourceError> {
     if let Some(attribute) = attributes
         .iter()
         .find(|attribute| is_api_path(attribute.path()))
     {
-        declarations.push(declaration_from_attribute(
-            attribute,
-            source,
-            Some(source_definition(source, location)),
-        )?);
+        let args = api_args(attribute, source)?;
+        let aliases_are_authored = args.aliases.is_some();
+        let mut declaration =
+            declaration_from_args(args, source, Some(source_definition(source, location)))?;
+        if !aliases_are_authored
+            && derive_parent_aliases
+            && let Some((parent_path, member)) = declaration.canonical_path.rsplit_once("::")
+            && let Some(parent_aliases) = declarations
+                .iter()
+                .rev()
+                .find(|parent| parent.canonical_path == parent_path)
+                .map(|parent| &parent.aliases)
+        {
+            declaration.aliases = parent_aliases
+                .iter()
+                .map(|alias| format!("{alias}::{member}"))
+                .collect();
+        }
+        declarations.push(declaration);
     }
     Ok(())
 }
@@ -407,7 +422,14 @@ fn declaration_from_attribute(
     source: &Path,
     definition: Option<SourceDefinition>,
 ) -> Result<ContractDeclaration, ContractSourceError> {
-    let args = api_args(attribute, source)?;
+    declaration_from_args(api_args(attribute, source)?, source, definition)
+}
+
+fn declaration_from_args(
+    args: sand_api_contract::syntax::ContractArgs,
+    source: &Path,
+    definition: Option<SourceDefinition>,
+) -> Result<ContractDeclaration, ContractSourceError> {
     let canonical_path = args
         .path
         .map(|path| path.value())

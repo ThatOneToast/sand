@@ -354,7 +354,7 @@ pub mod version {
 }
 
 /// Particle/sound VFX sequencing: `Vfx`, `VfxParticle`, `VfxSound`, and the
-/// `VfxStep` trait used to build a reusable, composable effect
+/// `VfxStep` enum used to build a reusable, composable effect
 /// (`Vfx::new(name).particle(...).sound(...)`) that emits its commands with
 /// `.play_at(selector)`.
 pub use sand_core::vfx;

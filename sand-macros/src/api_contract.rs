@@ -386,9 +386,10 @@ fn member_registrations(
                         let ty = &field.ty;
                         quote!(pub #ty)
                     };
+                    let member_name = format!("{ident}::{field_name}");
                     registrations.push(member_registration_text(
                         info,
-                        &field_name,
+                        &member_name,
                         "Field",
                         signature,
                         description,

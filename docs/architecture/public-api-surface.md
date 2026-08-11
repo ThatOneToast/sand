@@ -108,22 +108,22 @@ The following detailed kind count describes the latest/default 26.2 surface:
 | Function-like procedural macros | 4 |
 | Declarative macros | 3 |
 | Structs | 970 |
-| Enums | 166 |
+| Enums | 167 |
 | Traits | 38 |
 | Type aliases | 13 |
-| Constants | 18 |
+| Constants | 17 |
 | Statics | 1 |
 | Free functions | 556 |
 | Inherent methods | 2,816 |
 | Trait methods | 56 |
 | Associated constants | 21 |
 | Associated types | 2 |
-| Public fields | 1,013 |
-| Enum variants | 5,872 |
+| Public fields | 991 |
+| Enum variants | 5,886 |
 
 Generated static families account for 6,378 identities:
 
-- vanilla registries: 4 enums, 4 inherent functions, and 4,859 variants
+- vanilla registries: 4 enums, 4 inherent methods, and 4,859 variants
   (4,867 total); and
 - generated command builders: 486 structs and 769 functions/methods
   (1,255 total);
@@ -132,7 +132,7 @@ Generated static families account for 6,378 identities:
 - effect registry enums: 95 identities;
 - generated event marker types: 25 identities.
 
-The remaining 5,262 identities come from ordinary source declarations,
+The remaining 5,254 identities come from ordinary source declarations,
 including the 15 exported procedural macros. Input-dependent items emitted
 into downstream crates by attributes and derives are parametric families, so
 they do not have an honest finite installed count. Each such generator is a
@@ -159,6 +159,14 @@ accidental identities by hiding variants, payload fields, lowering plans,
 range/comparison internals, and obsolete string-rendering compatibility APIs.
 `ScoreOperand` moved to the pending state scope where the public score API that
 uses it is actually owned.
+
+The generated `sand::vanilla` scope is enforced as one versioned family rather
+than 4,859 handwritten variant contracts. Its registry schema emits the enum,
+`resource_location` method, exact vanilla variants, Rustdoc, and deterministic
+contracts together. The 26.2 profile owns 4,867 identities and the 1.21.4
+profile owns 4,288. The explicit placeholder profile owns zero registry
+identities but must still connect and validate its empty provider/source parity;
+an empty catalog cannot silently claim a real Minecraft profile.
 
 ## Intentional migration scopes
 

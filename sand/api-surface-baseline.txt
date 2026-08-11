@@ -51,7 +51,7 @@ generated-resourcepack-macros module=sand::resourcepack state=pending tier=ordin
 generated-schedule-macro module=sand state=pending tier=ordinary provider=generator:schedule_macro precedence=50 recursive=false active=true items=0 contracted=0 aliases=- features=-
 generated-state-derive module=sand state=pending tier=ordinary provider=generator:state_derive precedence=50 recursive=false active=true items=0 contracted=0 aliases=- features=-
 generated-storage-derive module=sand state=pending tier=ordinary provider=generator:storage_derive precedence=50 recursive=false active=true items=0 contracted=0 aliases=- features=-
-generated-vanilla-registries module=sand::vanilla state=pending tier=ordinary provider=generator:generated_registries precedence=50 recursive=true active=true items=4867 contracted=4867 aliases=sand::prelude features=-
+generated-vanilla-registries module=sand::vanilla state=enforced tier=ordinary provider=generator:generated_registries precedence=50 recursive=true active=true items=4867 contracted=4867 aliases=sand::prelude features=-
 inventory-source module=sand::inventory state=pending tier=ordinary provider=source precedence=100 recursive=true active=true items=94 contracted=1 aliases=sand::item,sand::prelude features=-
 item-source module=sand::item state=pending tier=ordinary provider=source precedence=50 recursive=true active=true items=38 contracted=0 aliases=sand::prelude features=-
 participant-source module=sand::participant state=pending tier=ordinary provider=source precedence=100 recursive=true active=true items=183 contracted=0 aliases=sand::prelude features=-
@@ -66,4 +66,4 @@ text-source module=sand::text state=pending tier=ordinary provider=source preced
 vanilla-source module=sand::vanilla state=pending tier=ordinary provider=source precedence=50 recursive=true active=true items=0 contracted=0 aliases=sand::prelude features=-
 version-source module=sand::version state=enforced tier=ordinary provider=source precedence=50 recursive=true active=true items=42 contracted=42 aliases=sand::prelude features=-
 vfx-source module=sand::vfx state=pending tier=ordinary provider=source precedence=100 recursive=true active=true items=48 contracted=0 aliases=- features=-
-totals pending_scopes=33 pending_items=11410 enforced_items=222 pending_scope_ceiling=33 pending_item_ceiling=11410
+totals pending_scopes=32 pending_items=6543 enforced_items=5089 pending_scope_ceiling=32 pending_item_ceiling=6543

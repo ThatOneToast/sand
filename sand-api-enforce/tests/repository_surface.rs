@@ -47,7 +47,7 @@ fn checked_repository_surface_baseline_is_complete_and_partitioned() {
     assert_eq!(
         lines.last().copied(),
         Some(
-            "totals pending_scopes=33 pending_items=11410 enforced_items=222 pending_scope_ceiling=33 pending_item_ceiling=11410"
+            "totals pending_scopes=32 pending_items=6543 enforced_items=5089 pending_scope_ceiling=32 pending_item_ceiling=6543"
         )
     );
 }
@@ -72,7 +72,11 @@ fn checked_repository_profiles_bind_exact_versioned_baselines() {
             .find(|profile| profile.minecraft_version == version)
             .unwrap();
         assert_eq!(profile.static_surface_items, total);
-        assert_eq!(profile.pending_item_ceiling, total - 222);
+        let enforced_registries = registries;
+        assert_eq!(
+            profile.pending_item_ceiling,
+            total - 222 - enforced_registries
+        );
         let baseline = std::fs::read_to_string(sand.join(&profile.baseline)).unwrap();
         let lines = baseline.lines().collect::<Vec<_>>();
         assert_eq!(lines[2], format!("minecraft_version={version}"));
@@ -96,7 +100,7 @@ fn checked_repository_profiles_bind_exact_versioned_baselines() {
         );
         assert_eq!(
             numeric_field(lines.last().unwrap(), "pending_items="),
-            total - 222
+            total - 222 - enforced_registries
         );
     }
 }

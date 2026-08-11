@@ -30,8 +30,11 @@ pub fn try_dash() {
             any![
                 DASH.ready("@s"),
                 Condition::predicate(
-                    PredicateRef::new("example:dash_override")
-                        .expect("static predicate resource is valid"),
+                    PredicateId::custom(
+                        "example:dash_override"
+                            .parse()
+                            .expect("static predicate resource is valid"),
+                    ),
                 ),
             ],
         ])

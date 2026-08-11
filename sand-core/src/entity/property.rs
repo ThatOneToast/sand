@@ -22,7 +22,7 @@ use crate::entity::kind::{EntityKind, PlayerKind};
 use crate::entity::state::{
     EntityEnum, EntityEnumValue, EntityFlag, EntityScore, EntityStateField,
 };
-use crate::resource_ref::FunctionRef;
+use crate::resource_ref::FunctionId;
 
 /// A typed identifier for an event that requests a property refresh.
 ///
@@ -65,7 +65,7 @@ pub enum RefreshPolicy {
     /// periodic work does not run while an entity's chunk is unloaded.
     Every(Ticks),
     /// Refresh when the canonical datapack function is dispatched.
-    OnFunction(FunctionRef),
+    OnFunction(FunctionId),
     /// Refresh when Sand dispatches the named typed event.
     OnEvent(EntityEventId),
     /// Generate no automatic scheduling; user code explicitly requests work.
@@ -299,13 +299,13 @@ impl HealthBinding {
     }
 }
 
-// Keeps bindings Eq even though FunctionRef-backed policies are owned values.
+// Keeps bindings Eq even though FunctionId-backed policies are owned values.
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum RefreshPolicyRef {
     Initialize,
     WhenSourceChanges,
     Every(Ticks),
-    OnFunction(FunctionRef),
+    OnFunction(FunctionId),
     OnEvent(EntityEventId),
     Manual,
 }

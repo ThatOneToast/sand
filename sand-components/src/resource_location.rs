@@ -5,6 +5,9 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::error::{Result, SandError};
 
+/// Sentinel namespace for resources whose pack namespace is resolved during export.
+pub(crate) const SAND_LOCAL_NS: &str = "__sand_local";
+
 /// A validated Minecraft resource location in the form `namespace:path`.
 ///
 /// - **namespace** must match `[a-z0-9_.-]+`

@@ -76,6 +76,17 @@ struct Contract {
     avoid_when: Option<Vec<LitStr>>,
     example_namespace: Option<LitStr>,
     example_path: Option<LitStr>,
+    availability: Option<Vec<LitStr>>,
+    local: Option<LocalContract>,
+}
+
+#[derive(Default)]
+struct LocalContract {
+    minecraft: Option<LitStr>,
+    use_when: Option<Vec<LitStr>>,
+    avoid_when: Option<Vec<LitStr>>,
+    example_path: Option<LitStr>,
+    availability: Option<Vec<LitStr>>,
 }
 
 /// Expand one `registry_id!` invocation and derive metadata from its emitted AST.
@@ -83,6 +94,31 @@ pub fn expand(input: TokenStream) -> syn::Result<RegistryIdExpansion> {
     let invocation = syn::parse2::<Invocation>(input)?;
     let name = &invocation.name;
     let attributes = &invocation.attributes;
+    let contract = invocation.contract.map(parse_contract).transpose()?;
+    let local_constructor = contract
+        .as_ref()
+        .and_then(|contract| contract.local.as_ref())
+        .is_some();
+    if local_constructor && name != "DialogId" {
+        return Err(syn::Error::new_spanned(
+            name,
+            "the local registry contract capability is only supported for DialogId",
+        ));
+    }
+    let local_methods = local_constructor.then(|| {
+        quote! {
+            pub fn local(path: impl AsRef<str>) -> Self {
+                Self::try_local(path).expect("invalid local dialog path")
+            }
+
+            pub fn try_local(path: impl AsRef<str>) -> Result<Self> {
+                Ok(Self(ResourceLocation::new(
+                    crate::resource_location::SAND_LOCAL_NS,
+                    path,
+                )?))
+            }
+        }
+    });
     let base = quote! {
         #(#attributes)*
         #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -100,6 +136,8 @@ pub fn expand(input: TokenStream) -> syn::Result<RegistryIdExpansion> {
             pub fn as_resource_location(&self) -> &ResourceLocation {
                 &self.0
             }
+
+            #local_methods
         }
 
         impl From<ResourceLocation> for #name {
@@ -126,8 +164,8 @@ pub fn expand(input: TokenStream) -> syn::Result<RegistryIdExpansion> {
         }
     };
     let mut file = syn::parse2::<syn::File>(base)?;
-    let definitions = match invocation.contract {
-        Some(tokens) => definitions(&file, &invocation.name, parse_contract(tokens)?)?,
+    let definitions = match contract {
+        Some(contract) => definitions(&file, &invocation.name, contract)?,
         None => Vec::new(),
     };
     if definitions.is_empty() {
@@ -188,10 +226,67 @@ fn parse_contract(tokens: TokenStream) -> syn::Result<Contract> {
                 &meta,
                 &name,
             ),
+            "availability" => set_once(
+                &mut contract.availability,
+                parse_strings(meta.value()?.parse()?)?,
+                &meta,
+                &name,
+            ),
+            "local" => set_once(
+                &mut contract.local,
+                parse_local_contract(&meta)?,
+                &meta,
+                &name,
+            ),
             _ => Err(meta.error(format!("unknown registry contract field `{name}`"))),
         }
     });
     syn::parse::Parser::parse2(parser, tokens)?;
+    Ok(contract)
+}
+
+fn parse_local_contract(meta: &syn::meta::ParseNestedMeta<'_>) -> syn::Result<LocalContract> {
+    let mut contract = LocalContract::default();
+    meta.parse_nested_meta(|meta| {
+        let name = meta
+            .path
+            .get_ident()
+            .ok_or_else(|| meta.error("local registry contract keys must be identifiers"))?
+            .to_string();
+        match name.as_str() {
+            "minecraft" => set_once(
+                &mut contract.minecraft,
+                meta.value()?.parse()?,
+                &meta,
+                &name,
+            ),
+            "use_when" => set_once(
+                &mut contract.use_when,
+                parse_strings(meta.value()?.parse()?)?,
+                &meta,
+                &name,
+            ),
+            "avoid_when" => set_once(
+                &mut contract.avoid_when,
+                parse_strings(meta.value()?.parse()?)?,
+                &meta,
+                &name,
+            ),
+            "example_path" => set_once(
+                &mut contract.example_path,
+                meta.value()?.parse()?,
+                &meta,
+                &name,
+            ),
+            "availability" => set_once(
+                &mut contract.availability,
+                parse_strings(meta.value()?.parse()?)?,
+                &meta,
+                &name,
+            ),
+            _ => Err(meta.error(format!("unknown local registry contract field `{name}`"))),
+        }
+    })?;
     Ok(contract)
 }
 
@@ -262,6 +357,7 @@ fn definitions(
     name: &syn::Ident,
     contract: Contract,
 ) -> syn::Result<Vec<RegistryApiDefinition>> {
+    let local = contract.local;
     let path = required(contract.path, "path")?;
     if path.rsplit("::").next() != Some(name.to_string().as_str()) {
         return Err(syn::Error::new_spanned(
@@ -286,7 +382,10 @@ fn definitions(
     let example_namespace = required(contract.example_namespace, "example_namespace")?;
     let example_path = required(contract.example_path, "example_path")?;
     let identity = format!("sand_components::registry::{name}");
-    let availability = vec!["all configurations".to_owned()];
+    let availability = match contract.availability {
+        Some(values) => required_list(Some(values), "availability")?,
+        None => vec!["all configurations".to_owned()],
+    };
     let structure = file
         .items
         .iter()
@@ -432,6 +531,97 @@ fn definitions(
         format!("Does not change serialization; it exposes the validated namespace and path Minecraft uses for the {subject}."),
         &[], "A borrowed view of the identifier's validated namespace and path.",
         format!("let id = {name}::custom(ResourceLocation::new(\"{example_namespace}\", \"{example_path}\")?); let location = id.as_resource_location();"))?);
+    if let Some(local) = local {
+        if name != "DialogId" {
+            return Err(syn::Error::new_spanned(
+                name,
+                "the local registry contract capability is only supported for DialogId",
+            ));
+        }
+        let minecraft = required(local.minecraft, "local.minecraft")?;
+        let use_when = required_list(local.use_when, "local.use_when")?;
+        let avoid_when = required_list(local.avoid_when, "local.avoid_when")?;
+        let example_path = required(local.example_path, "local.example_path")?;
+        let availability = required_list(local.availability, "local.availability")?;
+        let item = find("local")?;
+        let try_item = find("try_local")?;
+        let parameters = parameter_names(&item.sig)?;
+        if parameters.len() != 1 || parameters[0] != "path" {
+            return Err(syn::Error::new_spanned(
+                &item.sig,
+                "DialogId local constructor must have exactly one `path` parameter",
+            ));
+        }
+        let try_parameters = parameter_names(&try_item.sig)?;
+        if try_parameters.len() != 1 || try_parameters[0] != "path" {
+            return Err(syn::Error::new_spanned(
+                &try_item.sig,
+                "DialogId fallible local constructor must have exactly one `path` parameter",
+            ));
+        }
+        let visibility = &item.vis;
+        let signature = &item.sig;
+        result.push(RegistryApiDefinition {
+            definition_identity: format!("{identity}::local"),
+            definition_kind: ApiKind::Method,
+            parent_identity: Some(identity.clone()),
+            member_name: Some("local".into()),
+            contract: ApiEntry {
+                canonical_path: format!("{path}::local"),
+                aliases: aliases
+                    .iter()
+                    .map(|alias| format!("{alias}::local"))
+                    .collect(),
+                canonical_module: path.clone(),
+                kind: ApiKind::Method,
+                signature: quote!(#visibility #signature).to_string(),
+                summary: "Constructs a local dialog identifier for a trusted literal path.".into(),
+                context: "This convenience constructor keeps the local namespace unresolved until Sand knows the project namespace and panics when a dynamic path is invalid; use try_local for user-provided input.".into(),
+                minecraft: minecraft.clone(),
+                use_when,
+                avoid_when,
+                parameters: vec![ApiParameter {
+                    name: "path".into(),
+                    description: "The validated dialog path inside the current Sand project's namespace.".into(),
+                }],
+                returns: Some("The local dialog identifier.".into()),
+                example: format!("let dialog = DialogId::local(\"{example_path}\");"),
+                availability: availability.clone(),
+            },
+        });
+        let visibility = &try_item.vis;
+        let signature = &try_item.sig;
+        result.push(RegistryApiDefinition {
+            definition_identity: format!("{identity}::try_local"),
+            definition_kind: ApiKind::Method,
+            parent_identity: Some(identity.clone()),
+            member_name: Some("try_local".into()),
+            contract: ApiEntry {
+                canonical_path: format!("{path}::try_local"),
+                aliases: aliases
+                    .iter()
+                    .map(|alias| format!("{alias}::try_local"))
+                    .collect(),
+                canonical_module: path.clone(),
+                kind: ApiKind::Method,
+                signature: quote!(#visibility #signature).to_string(),
+                summary: "Fallibly constructs a local dialog identifier.".into(),
+                context: "Use this constructor for a path supplied at runtime; it keeps the namespace unresolved until Sand exports the current project.".into(),
+                minecraft: format!(
+                    "{minecraft} This fallible form validates the path before it can reach generated Minecraft resources."
+                ),
+                use_when: vec!["Accepting a local dialog path from configuration or another runtime source".into()],
+                avoid_when: vec!["A trusted literal path can use DialogId::local".into()],
+                parameters: vec![ApiParameter {
+                    name: "path".into(),
+                    description: "The dialog path inside the current Sand project's namespace to validate.".into(),
+                }],
+                returns: Some("The local dialog identifier, or an error when the path is invalid.".into()),
+                example: format!("let dialog = DialogId::try_local(\"{example_path}\")?;"),
+                availability,
+            },
+        });
+    }
     Ok(result)
 }
 
@@ -544,6 +734,10 @@ fn doc_attributes(entry: &ApiEntry) -> Vec<Attribute> {
     lines.extend(entry.use_when.iter().map(|value| format!("- {value}")));
     lines.extend([String::new(), "# Avoid when".into()]);
     lines.extend(entry.avoid_when.iter().map(|value| format!("- {value}")));
+    if entry.availability != ["all configurations"] {
+        lines.extend([String::new(), "# Availability".into()]);
+        lines.extend(entry.availability.iter().map(|value| format!("- {value}")));
+    }
     lines.extend([
         String::new(),
         "# Example".into(),
@@ -600,6 +794,26 @@ mod tests {
                 _ => None,
             })
             .collect()
+    }
+
+    fn dialog_invocation(local: &str) -> TokenStream {
+        format!(
+            r#"@contract(
+                path = "sand::resource_ref::DialogId",
+                aliases = ["sand::prelude::DialogId"],
+                subject = "Minecraft dialog resource",
+                minecraft = "Serializes a dialog resource identifier.",
+                use_when = ["Opening a dialog"],
+                avoid_when = ["Building dialog JSON"],
+                example_namespace = "demo",
+                example_path = "menu/welcome",
+                availability = ["Minecraft Java 1.21.6+"],
+                local({local})
+            );
+            DialogId"#
+        )
+        .parse()
+        .unwrap()
     }
 
     #[test]
@@ -685,5 +899,104 @@ mod tests {
                 "sand api show sand::predicate::DocumentedId::{method}"
             )));
         }
+    }
+
+    #[test]
+    fn dialog_local_capability_derives_exact_members_and_rustdoc() {
+        let expansion = expand(dialog_invocation(
+            r#"minecraft = "Uses Sand's export-time namespace sentinel.",
+               use_when = ["Referring to a dialog from this project"],
+               avoid_when = ["Referring to a foreign dialog"],
+               example_path = "welcome",
+               availability = ["Minecraft Java 1.21.6+"]"#,
+        ))
+        .unwrap();
+        assert_eq!(expansion.definitions.len(), 6);
+        let local = expansion
+            .definitions
+            .iter()
+            .find(|definition| definition.member_name.as_deref() == Some("local"))
+            .unwrap();
+        assert_eq!(
+            local.contract.canonical_path,
+            "sand::resource_ref::DialogId::local"
+        );
+        assert_eq!(local.contract.parameters[0].name, "path");
+        assert_eq!(local.contract.availability, ["Minecraft Java 1.21.6+"]);
+        let file = syn::parse2::<syn::File>(expansion.rust).unwrap();
+        let implementation = file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Impl(item) if item.trait_.is_none() => Some(item),
+                _ => None,
+            })
+            .unwrap();
+        let local_method = implementation
+            .items
+            .iter()
+            .find_map(|item| match item {
+                syn::ImplItem::Fn(item) if item.sig.ident == "local" => Some(item),
+                _ => None,
+            })
+            .unwrap();
+        let local_docs = docs(&local_method.attrs).join("\n");
+        assert!(local_docs.contains("# Availability"));
+        assert!(local_docs.contains("sand api show sand::resource_ref::DialogId::local"));
+    }
+
+    #[test]
+    fn dialog_local_capability_requires_complete_known_semantics() {
+        let missing = match expand(dialog_invocation(
+            r#"minecraft = "Uses Sand's export-time namespace sentinel.",
+               use_when = ["Referring to a dialog from this project"],
+               avoid_when = ["Referring to a foreign dialog"],
+               example_path = "welcome""#,
+        )) {
+            Ok(_) => panic!("missing local availability unexpectedly expanded"),
+            Err(error) => error.to_string(),
+        };
+        assert!(missing.contains("missing registry contract field `local.availability`"));
+
+        let unknown = match expand(dialog_invocation(
+            r#"minecraft = "Uses Sand's export-time namespace sentinel.",
+               use_when = ["Referring to a dialog from this project"],
+               avoid_when = ["Referring to a foreign dialog"],
+               example_path = "welcome",
+               availability = ["Minecraft Java 1.21.6+"],
+               typo = "no""#,
+        )) {
+            Ok(_) => panic!("unknown local key unexpectedly expanded"),
+            Err(error) => error.to_string(),
+        };
+        assert!(unknown.contains("unknown local registry contract field `typo`"));
+
+        let duplicate = match expand(dialog_invocation(
+            r#"minecraft = "Uses Sand's export-time namespace sentinel.",
+               use_when = ["Referring to a dialog from this project"],
+               avoid_when = ["Referring to a foreign dialog"],
+               example_path = "welcome",
+               availability = ["Minecraft Java 1.21.6+"],
+               availability = ["Minecraft Java 26.x"]"#,
+        )) {
+            Ok(_) => panic!("duplicate local key unexpectedly expanded"),
+            Err(error) => error.to_string(),
+        };
+        assert!(duplicate.contains("duplicate registry contract field `availability`"));
+
+        let wrong_type: TokenStream = r#"@contract(
+                path = "sand::resource_ref::NotDialogId",
+                aliases = [], subject = "thing", minecraft = "thing",
+                use_when = ["thing"], avoid_when = ["thing"],
+                example_namespace = "demo", example_path = "thing",
+                local(minecraft = "thing", use_when = ["thing"], avoid_when = ["thing"], example_path = "thing", availability = ["all configurations"])
+            ); NotDialogId"#
+            .parse()
+            .unwrap();
+        let error = match expand(wrong_type) {
+            Ok(_) => panic!("local capability unexpectedly expanded on another type"),
+            Err(error) => error.to_string(),
+        };
+        assert!(error.contains("only supported for DialogId"));
     }
 }

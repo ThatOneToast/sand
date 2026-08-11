@@ -39,8 +39,8 @@
 //!   registry identifiers
 //!   (`ItemId`, `EntityTypeId`, `EffectId`, …).
 //! - **Text** — `Text`, `TextComponent`, `ChatColor`, click/hover events.
-//! - **Resource refs** — `ResourceLocation` and typed refs (`FunctionRef`,
-//!   `DialogRef`, `AdvancementRef`, `LootTableRef`, `PredicateRef`).
+//! - **Resource refs** — `ResourceLocation` and typed refs (`FunctionId`,
+//!   `DialogId`, `AdvancementId`, `LootTableId`, `PredicateId`).
 //! - **Version** — `MinecraftVersion`, `VersionProfile`.
 //! - **Vanilla** — the [`crate::vanilla`] module path (not its individual
 //!   variants) is brought into scope, so `vanilla::Item::Diamond` /

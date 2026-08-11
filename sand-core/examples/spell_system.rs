@@ -95,7 +95,7 @@ fn maybe_welcome_dialog(profile: &VersionProfile) -> Option<Dialog> {
     }
 
     Some(
-        Dialog::notice("spells:welcome")
+        Dialog::notice("spells:welcome".parse().unwrap())
             .title("Welcome to the Spell System!")
             .body(DialogBody::text(
                 "You have 100 mana. Run /function spells:fireball to cast!",

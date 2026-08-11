@@ -756,7 +756,7 @@ fn custom_item_components_attributes_food_enchantments_custom_data_equippable() 
 /// tooltip, and explicit width.
 #[test]
 fn canonical_26_2_dialog_notice_with_button_action() {
-    let dialog = Dialog::notice("canon:welcome")
+    let dialog = Dialog::notice("canon:welcome".parse().unwrap())
         .title("Welcome!")
         .body(DialogBody::text("Choose an option."))
         .button(

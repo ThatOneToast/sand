@@ -10,7 +10,7 @@ use sand_api_enforce::{
     ScopeManifest, ScopeState, SurfaceGraph, SurfaceProfileManifest,
     contract_declarations_from_files, discover_facade_feature_union, discover_local_source_crates,
     event_generated_type_provider, registry_id_provider, resolve_contract_identities,
-    resource_ref_provider, validate_contract_lookup_namespace, vanilla_registry_enum_provider,
+    validate_contract_lookup_namespace, vanilla_registry_enum_provider,
 };
 
 const PLACEHOLDER_SURFACE_PROFILE: &str = "placeholder-codegen";
@@ -61,10 +61,6 @@ fn main() {
     let mut generated = providers.apis;
     let generated_contracts = providers.contracts;
     generated.extend(
-        resource_ref_provider(&workspace.join("sand-core/src/resource_ref.rs"))
-            .unwrap_or_else(|error| panic!("invalid resource_ref! API provider: {error}")),
-    );
-    generated.extend(
         registry_id_provider(&workspace.join("sand-components/src/registry.rs"))
             .unwrap_or_else(|error| panic!("invalid registry_id! API provider: {error}")),
     );
@@ -92,13 +88,6 @@ fn main() {
         cargo_cfg(enabled_features.clone(), placeholder_codegen),
         generated,
     )
-    .and_then(|graph| {
-        graph.bind_item_macro_provider(
-            "sand_core::resource_ref",
-            "resource_ref",
-            "generated_resource_refs",
-        )
-    })
     .and_then(|graph| {
         graph.bind_item_macro_provider(
             "sand_components::registry",

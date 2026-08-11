@@ -4,8 +4,8 @@
 # are discovered through the reachable re-export graph. Generator scopes are
 # supplied from the same declaration/schema that emits their Rust API.
 schema_version = 1
-enforced_scope_baseline = ["predicate-source", "generated-predicate-id-wrapper", "execute-when-source", "condition-source"]
-pending_scope_ceiling = 36
+enforced_scope_baseline = ["predicate-source", "generated-predicate-id-wrapper", "execute-when-source", "condition-source", "resource-ref-source", "generated-resource-id-wrappers"]
+pending_scope_ceiling = 34
 
 [[scope]]
 id = "root-source"
@@ -82,7 +82,7 @@ canonical_module = "sand::predicate"
 state = "enforced"
 tier = "ordinary"
 provider = "generator:generated_registry_ids"
-precedence = 200
+precedence = 300
 aliases = ["sand::component", "sand::prelude"]
 
 [[scope]]
@@ -137,10 +137,10 @@ aliases = ["sand::prelude"]
 [[scope]]
 id = "resource-ref-source"
 canonical_module = "sand::resource_ref"
-state = "pending"
+state = "enforced"
 tier = "ordinary"
 provider = "source"
-aliases = ["sand::prelude"]
+precedence = 200
 
 [[scope]]
 id = "version-source"
@@ -224,12 +224,12 @@ provider = "generator:generated_registries"
 aliases = ["sand::prelude"]
 
 [[scope]]
-id = "generated-resource-ref-family"
+id = "generated-resource-id-wrappers"
 canonical_module = "sand::resource_ref"
-state = "pending"
+state = "enforced"
 tier = "ordinary"
-provider = "generator:generated_resource_refs"
-aliases = ["sand::prelude"]
+provider = "generator:generated_registry_ids"
+precedence = 200
 
 [[scope]]
 id = "generated-registry-id-wrappers"

@@ -88,7 +88,7 @@ pub use predicates::{
 };
 pub use registry::{
     AdvancementId, BiomeId, BlockId, ChickenVariantId, ConfiguredCarverId, ConfiguredFeatureId,
-    CowVariantId, DamageTypeId, DensityFunctionId, DimensionId, DimensionTypeId,
+    CowVariantId, DamageTypeId, DensityFunctionId, DialogId, DimensionId, DimensionTypeId,
     EnchantmentEffectComponentId, EnchantmentId, EntityTypeId, EquipmentModelId, FunctionId,
     ItemId, LootTableId, NoiseId, PigVariantId, PotionRegistryId, PredicateId, ProcessorListId,
     RandomSequenceId, RecipeId, SoundEventId, StatusEffectId, StructureId, StructureSetId,

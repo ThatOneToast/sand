@@ -145,7 +145,7 @@ pub use typed_execute::{ConditionedExecute, ExecuteExt, TypedExecute};
 
 /// Call a function by resolved reference.
 ///
-/// Accepts registered `#[function]` pointers, [`FunctionRef`](crate::resource_ref::FunctionRef),
+/// Accepts registered `#[function]` pointers, [`FunctionId`](crate::resource_ref::FunctionId),
 /// [`ResourceLocation`](crate::ResourceLocation), and raw path strings.
 ///
 /// # Examples
@@ -157,7 +157,7 @@ pub use typed_execute::{ConditionedExecute, ExecuteExt, TypedExecute};
 /// cmd::call(ate_golden_apple);
 ///
 /// // External function ref
-/// cmd::call(FunctionRef::external("other_pack:api/do_thing").unwrap());
+/// cmd::call("other_pack:api/do_thing".parse::<FunctionId>().unwrap());
 ///
 /// // Resource location
 /// cmd::call(ResourceLocation::new("my_pack", "my_func").unwrap());
@@ -168,7 +168,7 @@ pub fn call(id: impl crate::function::IntoFunctionRef) -> String {
 
 /// Validated counterpart to [`call`].
 ///
-/// [`crate::function::IntoFunctionRef`]'s registered-pointer, [`FunctionRef`](crate::resource_ref::FunctionRef),
+/// [`crate::function::IntoFunctionRef`]'s registered-pointer, [`FunctionId`](crate::resource_ref::FunctionId),
 /// and [`ResourceLocation`](crate::ResourceLocation) implementors are always
 /// well-formed by construction, but the `&str`/`String` raw-path escape hatch
 /// is not — this validates the resolved `namespace:path` resource location
@@ -215,7 +215,7 @@ pub fn function_id(id: impl crate::function::IntoFunctionRef) -> String {
 
 /// Validated counterpart to [`function_id`].
 ///
-/// [`IntoFunctionRef`]'s registered-pointer, [`FunctionRef`](crate::resource_ref::FunctionRef),
+/// [`IntoFunctionRef`]'s registered-pointer, [`FunctionId`](crate::resource_ref::FunctionId),
 /// and [`ResourceLocation`](crate::ResourceLocation) implementors are always
 /// well-formed by construction, but the `&str`/`String` raw-path escape hatch
 /// is not — this validates the resolved `namespace:path` resource location
@@ -243,10 +243,10 @@ pub fn try_function_id(
 /// ```rust,ignore
 /// use sand_core::prelude::*;
 ///
-/// cmd::show_dialog(Selector::self_(), DialogRef::local("welcome"));
+/// cmd::show_dialog(Selector::self_(), DialogId::local("welcome"));
 /// cmd::show_dialog(
 ///     Selector::all_players(),
-///     DialogRef::external("other_pack:settings").unwrap(),
+///     DialogId::custom("other_pack:settings".parse().unwrap()),
 /// );
 /// ```
 pub fn show_dialog(
@@ -478,7 +478,7 @@ pub use _generated::*;
 
 #[cfg(test)]
 mod tests {
-    use crate::resource_ref::DialogRef;
+    use crate::resource_ref::DialogId;
 
     const GENERATED_COMMANDS: &str = include_str!(concat!(env!("OUT_DIR"), "/commands.rs"));
     const GENERATED_REGISTRIES: &str = include_str!(concat!(env!("OUT_DIR"), "/registries.rs"));
@@ -697,8 +697,8 @@ mod tests {
     #[test]
     fn try_show_dialog_matches_show_dialog_for_valid_selector() {
         assert_eq!(
-            super::try_show_dialog(super::Selector::self_(), DialogRef::local("welcome")).unwrap(),
-            super::show_dialog(super::Selector::self_(), DialogRef::local("welcome"))
+            super::try_show_dialog(super::Selector::self_(), DialogId::local("welcome")).unwrap(),
+            super::show_dialog(super::Selector::self_(), DialogId::local("welcome"))
         );
     }
 
@@ -707,7 +707,7 @@ mod tests {
         assert!(
             super::try_show_dialog(
                 super::Selector::all_entities().limit(0),
-                DialogRef::local("welcome")
+                DialogId::local("welcome")
             )
             .is_err()
         );
@@ -716,7 +716,7 @@ mod tests {
     #[test]
     fn show_dialog_local_ref() {
         assert_eq!(
-            super::show_dialog(super::Selector::self_(), DialogRef::local("welcome")),
+            super::show_dialog(super::Selector::self_(), DialogId::local("welcome")),
             "dialog show @s __sand_local:welcome"
         );
     }
@@ -726,7 +726,7 @@ mod tests {
         assert_eq!(
             super::show_dialog(
                 super::Selector::all_players(),
-                DialogRef::external("other_pack:settings").unwrap()
+                DialogId::custom("other_pack:settings".parse().unwrap())
             ),
             "dialog show @a other_pack:settings"
         );

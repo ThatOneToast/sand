@@ -202,7 +202,7 @@ fn repository_contract_sources_are_the_actual_authored_declarations() {
         workspace.join("sand-core/src/execute_when.rs"),
     ])
     .unwrap();
-    assert_eq!(declarations.len(), 160);
+    assert_eq!(declarations.len(), 161);
     assert_eq!(
         declarations.first().unwrap().canonical_path,
         "sand::condition"
@@ -230,6 +230,12 @@ fn repository_contract_sources_are_the_actual_authored_declarations() {
         .unwrap();
     assert!(condition.source.ends_with("sand-core/src/condition.rs"));
     assert!(condition.definition.is_some());
+    let resource_module = declarations
+        .iter()
+        .find(|declaration| declaration.canonical_path == "sand::resource_ref")
+        .unwrap();
+    assert!(resource_module.source.ends_with("sand/src/lib.rs"));
+    assert!(resource_module.definition.is_some());
 }
 
 fn contract_binding_fixture(dummy_attributes: &str, features: &[&str]) -> ContractSourceError {

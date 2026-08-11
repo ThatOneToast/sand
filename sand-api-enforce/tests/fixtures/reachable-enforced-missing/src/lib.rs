@@ -28,3 +28,14 @@ pub mod condition {
         pub fn uncontracted_leaf(self) {}
     }
 }
+
+pub mod resource_ref {
+    pub struct DialogId;
+
+    impl DialogId {
+        pub fn uncontracted_local(path: &str) -> Self {
+            let _ = path;
+            Self
+        }
+    }
+}

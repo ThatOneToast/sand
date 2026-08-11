@@ -48,14 +48,14 @@ inventory::collect!(FunctionPointerTypeEntry);
 /// Trait for types that can be resolved to a `function <id>` command string.
 ///
 /// This enables `cmd::call(...)` to accept local function pointers,
-/// [`FunctionRef`](crate::resource_ref::FunctionRef) values, [`ResourceLocation`](crate::ResourceLocation) values, and raw path strings.
+/// [`FunctionId`](crate::resource_ref::FunctionId) values, [`ResourceLocation`](crate::ResourceLocation) values, and raw path strings.
 ///
 /// # Implementors
 ///
 /// | Type | Resolution |
 /// |---|---|
-/// | [`FunctionRef`](crate::resource_ref::FunctionRef) | Uses the ref's `Display` → `"function namespace:path"` |
-/// | `&FunctionRef` | Same as above |
+/// | [`FunctionId`](crate::resource_ref::FunctionId) | Uses the ID's `Display` → `"function namespace:path"` |
+/// | `&FunctionId` | Same as above |
 /// | [`ResourceLocation`](crate::ResourceLocation) | Uses the location's `Display` → `"function namespace:path"` |
 /// | `&str` | Used as-is → `"function raw_path"` |
 /// | `String` | Used as-is → `"function raw_path"` |
@@ -73,7 +73,7 @@ pub trait IntoFunctionRef {
     fn into_function_id(self) -> String;
 }
 
-impl IntoFunctionRef for crate::resource_ref::FunctionRef {
+impl IntoFunctionRef for crate::resource_ref::FunctionId {
     fn into_function_command(self) -> String {
         format!("function {self}")
     }
@@ -82,7 +82,7 @@ impl IntoFunctionRef for crate::resource_ref::FunctionRef {
     }
 }
 
-impl IntoFunctionRef for &crate::resource_ref::FunctionRef {
+impl IntoFunctionRef for &crate::resource_ref::FunctionId {
     fn into_function_command(self) -> String {
         format!("function {self}")
     }

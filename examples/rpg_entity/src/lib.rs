@@ -117,9 +117,9 @@ pub fn rpg_zombie() -> EntityArchetype<ZombieKind, ZombieState> {
         .migration(Migration::new(
             1,
             2,
-            FunctionRef::new("rpg:migrate_v1_v2").unwrap(),
+            "rpg:migrate_v1_v2".parse::<FunctionId>().unwrap(),
         ))
-        .initialize_with(FunctionRef::new("rpg:initialized").unwrap())
+        .initialize_with("rpg:initialized".parse::<FunctionId>().unwrap())
         .derive(
             EntityDerivation::new("max_health", ZombieState::max_health, health_curve)
                 .fixed_point(hundredths()),
@@ -158,7 +158,7 @@ pub fn rpg_zombie() -> EntityArchetype<ZombieKind, ZombieState> {
         )
         .on(
             EntityTransition::flag_enabled(ZombieState::sick),
-            EntityAction::Run(FunctionRef::new("rpg:sickness_started").unwrap()),
+            EntityAction::Run("rpg:sickness_started".parse::<FunctionId>().unwrap()),
         )
 }
 

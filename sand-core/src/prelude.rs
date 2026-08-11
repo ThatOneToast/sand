@@ -39,9 +39,7 @@ pub use crate::item::{
     BlockInventory, ContainerIndex, EnderChestIndex, EntityInventory, EntityInventorySlot,
     HotbarIndex, InventoryIndex, ItemLocation, MainInventoryIndex,
 };
-pub use crate::vfx::{
-    IntoParticleStep, IntoSoundStep, IntoVfxSelector, Vfx, VfxParticle, VfxSound, VfxStep,
-};
+pub use crate::vfx::{Vfx, VfxParticle, VfxParticleVisibility, VfxSound, VfxStep};
 
 // ── State variables ───────────────────────────────────────────────────────────
 

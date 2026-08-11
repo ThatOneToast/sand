@@ -210,6 +210,7 @@ impl ApiCatalog {
         mut entries: Vec<ApiEntry>,
         mut coverage: ApiCoverage,
     ) -> Result<Self, CatalogError> {
+        inherit_associated_aliases(&mut entries);
         for entry in &mut entries {
             entry.aliases.sort();
             entry.aliases.dedup();
@@ -299,6 +300,35 @@ impl ApiCatalog {
     /// Stable pretty JSON with a trailing newline for command-line output.
     pub fn to_json_pretty(&self) -> Result<String, serde_json::Error> {
         serde_json::to_string_pretty(self).map(|json| format!("{json}\n"))
+    }
+}
+
+/// Mirrors Rust's associated-item reachability for catalog entries whose
+/// contract intentionally names only the canonical path.  A method or
+/// associated item of an aliased public type is reachable through each type
+/// alias as well; deriving those paths here keeps link-time registrations,
+/// build-time enforcement, and installed metadata in agreement without
+/// repeating fragile alias lists on every method contract.
+fn inherit_associated_aliases(entries: &mut [ApiEntry]) {
+    let parent_aliases = entries
+        .iter()
+        .filter(|entry| matches!(entry.kind, ApiKind::Struct | ApiKind::Enum | ApiKind::Trait))
+        .map(|entry| (entry.canonical_path.clone(), entry.aliases.clone()))
+        .collect::<BTreeMap<_, _>>();
+    for entry in entries {
+        if !entry.aliases.is_empty() {
+            continue;
+        }
+        let Some((parent, member)) = entry.canonical_path.rsplit_once("::") else {
+            continue;
+        };
+        let Some(aliases) = parent_aliases.get(parent) else {
+            continue;
+        };
+        entry.aliases = aliases
+            .iter()
+            .map(|alias| format!("{alias}::{member}"))
+            .collect();
     }
 }
 
@@ -488,6 +518,40 @@ mod tests {
         availability: &["feature = predicates"],
     };
 
+    static ALIASED_TYPE: ApiRegistration = ApiRegistration {
+        canonical_path: "sand::topic::Thing",
+        aliases: &["sand::prelude::Thing"],
+        canonical_module: "sand::topic",
+        kind: ApiKind::Struct,
+        signature: "pub struct Thing",
+        summary: "Names a typed fixture value.",
+        context: "The fixture exposes an aliased public type.",
+        minecraft: "Represents a checked Minecraft fixture value.",
+        use_when: &["Testing associated aliases"],
+        avoid_when: &["Authoring a production value"],
+        parameters: &[],
+        returns: None,
+        example: "let value = Thing;",
+        availability: &[],
+    };
+
+    static ASSOCIATED_ITEM: ApiRegistration = ApiRegistration {
+        canonical_path: "sand::topic::Thing::build",
+        aliases: &[],
+        canonical_module: "sand::topic",
+        kind: ApiKind::Method,
+        signature: "pub fn build() -> Thing",
+        summary: "Builds a typed fixture value.",
+        context: "The fixture intentionally omits repeated aliases.",
+        minecraft: "Creates the checked Minecraft fixture value.",
+        use_when: &["Testing associated aliases"],
+        avoid_when: &["Authoring a production value"],
+        parameters: &[],
+        returns: Some("A fixture value."),
+        example: "Thing::build()",
+        availability: &[],
+    };
+
     #[test]
     fn export_is_deterministic() {
         let first = ApiCatalog::from_registrations("0.1.0", [&REGISTRATION]).unwrap();
@@ -535,6 +599,15 @@ mod tests {
             REGISTRATION.canonical_path
         );
         assert!(catalog.search("equipment missing").is_empty());
+    }
+
+    #[test]
+    fn associated_items_inherit_aliased_type_lookup_paths() {
+        let catalog =
+            ApiCatalog::from_registrations("0.1.0", [&ALIASED_TYPE, &ASSOCIATED_ITEM]).unwrap();
+        let method = catalog.find("sand::prelude::Thing::build").unwrap();
+        assert_eq!(method.canonical_path, "sand::topic::Thing::build");
+        assert_eq!(method.aliases, ["sand::prelude::Thing::build"]);
     }
 
     #[test]

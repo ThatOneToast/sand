@@ -885,4 +885,48 @@ mod tests {
             43
         );
     }
+
+    #[test]
+    fn installed_vfx_scope_exposes_typed_steps_and_inherited_aliases() {
+        let catalog = generated_catalog();
+        let raw_command = show(catalog, "sand::prelude::Vfx::command").unwrap();
+        assert!(raw_command.contains("sand::vfx::Vfx::command"));
+        assert!(raw_command.contains("RawCommand"));
+        assert!(raw_command.contains("explicitly raw Minecraft command"));
+
+        let visibility = show(catalog, "sand::cmd::VfxParticleVisibility::Normal").unwrap();
+        assert!(visibility.contains("sand::vfx::VfxParticleVisibility::Normal"));
+        assert!(visibility.contains("normal distance-limited"));
+
+        let search_results = search(catalog, "forced particle visibility").unwrap();
+        assert!(search_results.contains("sand::vfx::VfxParticleVisibility"));
+
+        let grouped = module(catalog, "sand::vfx").unwrap();
+        assert!(grouped.contains("Structs\n"));
+        assert!(grouped.contains("Enums\n"));
+        assert!(grouped.contains("sand::vfx::Vfx"));
+        assert!(grouped.contains("sand::vfx::VfxParticleVisibility"));
+        assert!(grouped.contains("sand::vfx::Vfx (12 APIs)"));
+    }
+
+    #[test]
+    fn installed_vfx_catalog_matches_the_enforced_identity_count() {
+        let entries = generated_catalog()
+            .entries
+            .iter()
+            .filter(|entry| {
+                entry.canonical_path == "sand::vfx"
+                    || entry.canonical_path.starts_with("sand::vfx::")
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(entries.len(), 45);
+        assert_eq!(
+            entries
+                .iter()
+                .map(|entry| entry.canonical_path.as_str())
+                .collect::<BTreeSet<_>>()
+                .len(),
+            45
+        );
+    }
 }

@@ -49,3 +49,17 @@ pub mod version {
         }
     }
 }
+
+pub mod vfx {
+    pub struct Vfx;
+
+    impl Vfx {
+        pub fn uncontracted_step(self) -> Self {
+            self
+        }
+    }
+
+    pub enum Visibility {
+        UncontractedMode,
+    }
+}

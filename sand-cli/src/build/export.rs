@@ -13,6 +13,7 @@
 //! twice.
 
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
 
@@ -148,9 +149,27 @@ pub(super) fn run_exporter(
     for (key, value) in env {
         cmd.env(key, value);
     }
-    let output = cmd
-        .output()
-        .with_context(|| format!("failed to run {} '{}'", exporter.label(), binary.display()))?;
+    // Cargo has just produced these executables. Some Unix filesystems can
+    // briefly reject their first launch with ETXTBSY while the writer closes;
+    // retry only that transient condition, keeping ordinary spawn errors
+    // immediate and attributable to the selected exporter.
+    let mut busy_retries = 0;
+    let output = loop {
+        match cmd.output() {
+            Ok(output) => break output,
+            Err(error)
+                if error.kind() == std::io::ErrorKind::ExecutableFileBusy && busy_retries < 3 =>
+            {
+                busy_retries += 1;
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            Err(error) => {
+                return Err(error).with_context(|| {
+                    format!("failed to run {} '{}'", exporter.label(), binary.display())
+                });
+            }
+        }
+    };
     if !output.status.success() {
         bail!(
             "{} `{}` failed:\n{}",

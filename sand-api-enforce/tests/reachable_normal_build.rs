@@ -22,7 +22,9 @@ fn ordinary_cargo_check_rejects_new_members_in_enforced_source_scopes() {
             && stderr.contains("sand::execute_when::WhenBuilder::uncontracted_branch")
             && stderr.contains("sand::condition::Condition::uncontracted_leaf")
             && stderr.contains("sand::resource_ref::DialogId::uncontracted_local")
-            && stderr.contains("sand::version::VersionProfile::uncontracted_capability"),
+            && stderr.contains("sand::version::VersionProfile::uncontracted_capability")
+            && stderr.contains("sand::vfx::Vfx::uncontracted_step")
+            && stderr.contains("sand::vfx::Visibility::UncontractedMode"),
         "unexpected cargo diagnostic:\n{stderr}"
     );
 }

@@ -929,4 +929,25 @@ mod tests {
             45
         );
     }
+
+    #[test]
+    fn installed_advanced_catalog_exposes_only_the_version_aware_export_hook() {
+        let catalog = generated_catalog();
+        let hook = show(catalog, "sand::advanced::try_export_components_json").unwrap();
+        assert!(hook.contains("version-validated JSON"));
+        assert!(hook.contains("mc_version"));
+
+        let grouped = module(catalog, "sand::advanced").unwrap();
+        assert!(grouped.contains("Functions\n  sand::advanced::try_export_components_json"));
+
+        let entries = catalog
+            .entries
+            .iter()
+            .filter(|entry| {
+                entry.canonical_path == "sand::advanced"
+                    || entry.canonical_path.starts_with("sand::advanced::")
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(entries.len(), 2);
+    }
 }

@@ -56,20 +56,7 @@ pub fn on_join(event: Event<OnJoinEvent>) {
 /// `pub use my_module::*;` to ensure they are also linked.
 #[doc(hidden)]
 pub fn __sand_export(namespace: &str, mc_version: &str) {
-    // Resolve the version profile and gate components against it.
-    let resolved = match sand::advanced::resolve_export_caps(mc_version) {
-        Ok(resolved) => resolved,
-        Err(e) => {
-            eprintln!("sand export failed: {e}");
-            std::process::exit(1);
-        }
-    };
-    match sand::advanced::try_export_components_json_for_version(
-        namespace,
-        &resolved.caps,
-        &resolved.version,
-        resolved.is_fallback,
-    ) {
+    match sand::advanced::try_export_components_json(namespace, mc_version) {
         Ok(json) => println!("{json}"),
         Err(e) => {
             eprintln!("sand export failed: {e}");

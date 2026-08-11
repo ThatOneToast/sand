@@ -48,7 +48,7 @@ fn special_kill(event: SpecialKillEvent) {
 
 #[test]
 fn prelude_alone_resolves_bare_sand_event_participant_accessors() {
-    let json = sand::advanced::try_export_components_json("preludespecial")
+    let json = sand::advanced::try_export_components_json("preludespecial", "26.2")
         .expect("export must succeed through the facade");
     assert!(json.contains("direct_kill"));
     assert!(json.contains("special_kill"));

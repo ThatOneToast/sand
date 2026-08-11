@@ -52,7 +52,7 @@ fn facade_on_hurt_entity(event: Event<sand::event::vanilla::PlayerDamagesEntity>
 
 #[test]
 fn export_includes_facade_declarations() {
-    let json = sand::advanced::try_export_components_json("facade_ns")
+    let json = sand::advanced::try_export_components_json("facade_ns", "26.2")
         .expect("export must succeed through the facade");
     assert!(json.contains("facade_hello"));
     assert!(json.contains("facade_root"));
@@ -90,6 +90,6 @@ fn prelude_only_inventory_try_methods_compile_and_validate() {
 fn prelude_does_not_leak_compiler_internals() {
     // These modules exist, but their contents are deliberately not in the
     // prelude; reaching them requires an explicit advanced/__private path.
-    let json = sand::advanced::try_export_components_json("facade_ns2");
+    let json = sand::advanced::try_export_components_json("facade_ns2", "26.2");
     assert!(json.is_ok());
 }

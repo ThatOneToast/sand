@@ -82,14 +82,8 @@ sand_core::inventory::submit! {
 }
 
 fn export_at(version: &str) -> Result<String, String> {
-    let resolved = sand_core::advanced::resolve_export_caps(version).expect("known profile");
-    sand_core::try_export_components_json_for_version(
-        "regtest_scopepack",
-        &resolved.caps,
-        &resolved.version,
-        resolved.is_fallback,
-    )
-    .map_err(|error| error.to_string())
+    sand_core::advanced::try_export_components_json("regtest_scopepack", version)
+        .map_err(|error| error.to_string())
 }
 
 fn hash_of(json: &str) -> u64 {

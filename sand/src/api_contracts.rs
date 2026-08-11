@@ -76,3 +76,19 @@ register! {
     returns: None,
     example: "let effect = sand::vfx::Vfx::new(\"level_up\");"
 }
+
+register! {
+    path: "sand::advanced",
+    aliases: [],
+    module: "sand",
+    kind: Module,
+    signature: "pub mod advanced",
+    summary: "Provides the narrow custom-export hook outside ordinary datapack authoring.",
+    context: "The advanced module deliberately exposes one version-aware JSON export operation without turning compiler wiring into a supported API.",
+    minecraft: "The hook validates resources against the configured Minecraft release before emitting their datapack JSON.",
+    use_when: ["Embedding Sand export in a custom build integration"],
+    avoid_when: ["Using the normal sand build workflow or typed datapack builders"],
+    params: [],
+    returns: None,
+    example: "let json = sand::advanced::try_export_components_json(\"example\", \"26.2\")?;"
+}

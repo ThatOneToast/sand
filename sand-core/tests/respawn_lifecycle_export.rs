@@ -259,14 +259,8 @@ fn old_non_spectator_tag_gate_is_absent() {
 #[test]
 fn generated_commands_validate_across_the_supported_range() {
     for version in ["1.18.0", "1.21.4", "26.2"] {
-        let resolved = sand_core::advanced::resolve_export_caps(version).expect("known profile");
-        sand_core::try_export_components_json_for_version(
-            "respawnpack",
-            &resolved.caps,
-            &resolved.version,
-            resolved.is_fallback,
-        )
-        .unwrap_or_else(|error| panic!("{version} export must validate: {error}"));
+        sand_core::advanced::try_export_components_json("respawnpack", version)
+            .unwrap_or_else(|error| panic!("{version} export must validate: {error}"));
     }
 }
 

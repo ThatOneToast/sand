@@ -300,14 +300,15 @@ fn repository_contract_sources_are_the_actual_authored_declarations() {
         workspace.join("sand-components/src/predicates.rs"),
         workspace.join("sand-core/src/condition.rs"),
         workspace.join("sand-core/src/execute_when.rs"),
+        workspace.join("sand-core/src/advanced.rs"),
         workspace.join("sand-core/src/version.rs"),
         workspace.join("sand-core/src/vfx.rs"),
     ])
     .unwrap();
-    assert_eq!(declarations.len(), 249);
+    assert_eq!(declarations.len(), 251);
     assert_eq!(
         declarations.first().unwrap().canonical_path,
-        "sand::condition"
+        "sand::advanced"
     );
     assert_eq!(
         declarations.last().unwrap().canonical_path,

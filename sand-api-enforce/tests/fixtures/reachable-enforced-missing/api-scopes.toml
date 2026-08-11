@@ -1,6 +1,6 @@
 schema_version = 1
-static_surface_items = 22
-enforced_scope_baseline = ["predicate-source", "execute-when-source", "condition-source", "resource-ref-source", "version-source", "vfx-source"]
+static_surface_items = 24
+enforced_scope_baseline = ["predicate-source", "execute-when-source", "condition-source", "resource-ref-source", "version-source", "vfx-source", "advanced-source"]
 pending_scope_ceiling = 0
 pending_item_ceiling = 0
 
@@ -49,5 +49,13 @@ id = "vfx-source"
 canonical_module = "sand::vfx"
 state = "enforced"
 tier = "author"
+provider = "source"
+recursive = true
+
+[[scope]]
+id = "advanced-source"
+canonical_module = "sand::advanced"
+state = "enforced"
+tier = "advanced"
 provider = "source"
 recursive = true

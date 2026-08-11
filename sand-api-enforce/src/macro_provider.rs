@@ -190,12 +190,14 @@ impl fmt::Display for MacroProviderError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Io(message) | Self::Parse(message) => formatter.write_str(message),
-            Self::MissingGenerator => formatter.write_str("resource_ref! generator is missing"),
+            Self::MissingGenerator => {
+                formatter.write_str("declarative type-family generator is missing")
+            }
             Self::MissingGeneratedTypes => {
-                formatter.write_str("resource_ref! has no checked-in type declarations")
+                formatter.write_str("declarative type-family has no checked-in type declarations")
             }
             Self::MissingPublicMethods => {
-                formatter.write_str("resource_ref! does not generate public methods")
+                formatter.write_str("declarative type-family does not generate public methods")
             }
             Self::MissingNamedGenerator(name) => {
                 write!(formatter, "{name}! generator is missing")
@@ -213,18 +215,23 @@ impl fmt::Display for MacroProviderError {
 
 impl std::error::Error for MacroProviderError {}
 
-/// Expand the auditable public shape of every checked-in `resource_ref!`
-/// invocation without executing a macro or duplicating its family members.
+/// Test helper for auditing a small declarative type family without executing
+/// its macro or duplicating its generated members.
 ///
-/// Public method names are read from the generator body itself. Adding a
-/// method or an invocation therefore grows this provider during the same
-/// ordinary build that grows the Rust surface.
-pub fn resource_ref_provider(path: &Path) -> Result<Vec<GeneratedApi>, MacroProviderError> {
+/// Production families must use a declaration-specific provider such as
+/// [`registry_id_provider`]. This helper is retained only for isolated parser
+/// fixtures that exercise the fail-closed structural grammar.
+#[doc(hidden)]
+pub fn declarative_type_family_fixture_provider(
+    path: &Path,
+    macro_name: &str,
+    identity_module: &str,
+) -> Result<Vec<GeneratedApi>, MacroProviderError> {
     declarative_type_family_provider(
         path,
-        "resource_ref",
-        "sand_core::resource_ref",
-        "generated_resource_refs",
+        macro_name,
+        identity_module,
+        "fixture_declarative_type_family",
     )
 }
 

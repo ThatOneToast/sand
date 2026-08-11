@@ -1,26 +1,17 @@
 use sand_api_enforce::{
-    ReachableKind, event_generated_type_provider, registry_id_provider, resource_ref_provider,
-    vanilla_registry_enum_provider,
+    ReachableKind, declarative_type_family_fixture_provider, event_generated_type_provider,
+    registry_id_provider, vanilla_registry_enum_provider,
 };
 use tempfile::tempdir;
 
-#[test]
-fn repository_resource_ref_family_comes_from_generator_and_invocations() {
-    let workspace = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .unwrap();
-    let provider = resource_ref_provider(&workspace.join("sand-core/src/resource_ref.rs")).unwrap();
-    assert_eq!(provider.len(), 6);
-    assert!(provider.iter().all(|item| {
-        item.provider == "generated_resource_refs"
-            && item.kind == ReachableKind::Struct
-            && item.members
-                == [
-                    ("external".into(), ReachableKind::Method),
-                    ("location".into(), ReachableKind::Method),
-                    ("new".into(), ReachableKind::Method),
-                ]
-    }));
+fn fixture_provider(
+    source: &std::path::Path,
+) -> Result<Vec<sand_api_enforce::GeneratedApi>, sand_api_enforce::MacroProviderError> {
+    declarative_type_family_fixture_provider(
+        source,
+        "resource_ref",
+        "fixture::declarative_type_family",
+    )
 }
 
 #[test]
@@ -30,16 +21,35 @@ fn repository_registry_id_family_tracks_every_invocation() {
         .unwrap();
     let provider =
         registry_id_provider(&workspace.join("sand-components/src/registry.rs")).unwrap();
-    assert_eq!(provider.len(), 34);
-    assert!(provider.iter().all(|item| {
-        item.provider == "generated_registry_ids"
-            && item.members
-                == [
-                    ("as_resource_location".into(), ReachableKind::Method),
-                    ("custom".into(), ReachableKind::Method),
-                    ("minecraft".into(), ReachableKind::Method),
-                ]
-    }));
+    assert_eq!(provider.len(), 35);
+    let dialog = provider
+        .iter()
+        .find(|item| item.identity.ends_with("::DialogId"))
+        .unwrap();
+    assert_eq!(
+        dialog.members,
+        [
+            ("as_resource_location".into(), ReachableKind::Method),
+            ("custom".into(), ReachableKind::Method),
+            ("local".into(), ReachableKind::Method),
+            ("minecraft".into(), ReachableKind::Method),
+            ("try_local".into(), ReachableKind::Method),
+        ]
+    );
+    assert!(
+        provider
+            .iter()
+            .filter(|item| !item.identity.ends_with("::DialogId"))
+            .all(|item| {
+                item.provider == "generated_registry_ids"
+                    && item.members
+                        == [
+                            ("as_resource_location".into(), ReachableKind::Method),
+                            ("custom".into(), ReachableKind::Method),
+                            ("minecraft".into(), ReachableKind::Method),
+                        ]
+            })
+    );
 }
 
 #[test]
@@ -116,7 +126,7 @@ fn generator_method_and_invocation_growth_changes_provider_without_a_list_edit()
         "#,
     )
     .unwrap();
-    let provider = resource_ref_provider(&source).unwrap();
+    let provider = fixture_provider(&source).unwrap();
     assert_eq!(provider.len(), 2);
     assert!(
         provider.iter().all(|item| {
@@ -227,7 +237,7 @@ resource_ref!(FixtureRef);
 "#,
     )
     .unwrap();
-    let provider = resource_ref_provider(&source).unwrap();
+    let provider = fixture_provider(&source).unwrap();
     assert_eq!(
         provider[0].members,
         [
@@ -262,7 +272,7 @@ resource_ref!(FixtureRef);
     )
     .unwrap();
 
-    let provider = resource_ref_provider(&source).unwrap();
+    let provider = fixture_provider(&source).unwrap();
     assert_eq!(
         provider[0].members,
         [("inherent".into(), ReachableKind::Method)]
@@ -291,7 +301,7 @@ resource_ref!(FixtureRef);
     )
     .unwrap();
 
-    let error = resource_ref_provider(&source).unwrap_err().to_string();
+    let error = fixture_provider(&source).unwrap_err().to_string();
     assert!(error.contains("2 expansion arms"), "{error}");
     assert!(error.contains("not auditable"), "{error}");
 }
@@ -318,7 +328,7 @@ resource_ref!(FixtureRef);
     )
     .unwrap();
 
-    let error = resource_ref_provider(&source).unwrap_err().to_string();
+    let error = fixture_provider(&source).unwrap_err().to_string();
     assert!(error.contains("2 expansion arms"), "{error}");
 }
 
@@ -344,7 +354,7 @@ resource_ref!(FixtureRef);
     )
     .unwrap();
 
-    let error = resource_ref_provider(&source).unwrap_err().to_string();
+    let error = fixture_provider(&source).unwrap_err().to_string();
     assert!(error.contains("2 expansion arms"), "{error}");
 }
 
@@ -367,7 +377,7 @@ resource_ref!(FixtureRef);
     )
     .unwrap();
 
-    let error = resource_ref_provider(&source).unwrap_err().to_string();
+    let error = fixture_provider(&source).unwrap_err().to_string();
     assert!(error.contains("unmodeled `emit_extra_api!`"), "{error}");
     assert!(error.contains("item-producing positions"), "{error}");
 }
@@ -392,7 +402,7 @@ resource_ref!(FixtureRef);
     )
     .unwrap();
 
-    let provider = resource_ref_provider(&source).unwrap();
+    let provider = fixture_provider(&source).unwrap();
     assert_eq!(
         provider[0].members,
         [("audited".into(), ReachableKind::Method)]
@@ -419,7 +429,7 @@ resource_ref!(FixtureRef);
     )
     .unwrap();
 
-    let provider = resource_ref_provider(&source).unwrap();
+    let provider = fixture_provider(&source).unwrap();
     assert_eq!(
         provider[0].members,
         [("LABEL".into(), ReachableKind::AssociatedConst)]
@@ -445,7 +455,7 @@ resource_ref!(FixtureRef);
 "#,
     )
     .unwrap();
-    let error = resource_ref_provider(&source).unwrap_err().to_string();
+    let error = fixture_provider(&source).unwrap_err().to_string();
     assert!(
         error.contains("unsupported public top-level `fn`"),
         "{error}"
@@ -470,7 +480,7 @@ resource_ref!(FixtureRef, HiddenOne, HiddenTwo);
 "#,
     )
     .unwrap();
-    let error = resource_ref_provider(&source).unwrap_err().to_string();
+    let error = fixture_provider(&source).unwrap_err().to_string();
     assert!(error.contains("inside a repetition"), "{error}");
 }
 

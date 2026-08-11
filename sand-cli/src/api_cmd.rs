@@ -795,4 +795,49 @@ mod tests {
             13
         );
     }
+
+    #[test]
+    fn installed_resource_reference_scope_uses_canonical_ids_and_aliases() {
+        let catalog = generated_catalog();
+        let function = show(catalog, "sand::prelude::FunctionId::minecraft").unwrap();
+        assert!(function.contains("sand::resource_ref::FunctionId::minecraft"));
+        assert!(function.contains("function resource"));
+
+        let predicate = show(catalog, "sand::resource_ref::PredicateId").unwrap();
+        assert!(predicate.contains("sand::predicate::PredicateId"));
+
+        let local = show(catalog, "sand::resource_ref::DialogId::local").unwrap();
+        assert!(local.contains("trusted literal path"));
+        assert!(local.contains("Minecraft Java 1.21.6+"));
+
+        let search_results = search(catalog, "dialog namespace sentinel").unwrap();
+        assert!(search_results.contains("sand::resource_ref::DialogId::local"));
+
+        let grouped = module(catalog, "sand::resource_ref").unwrap();
+        assert!(grouped.contains("Structs\n"));
+        assert!(grouped.contains("sand::resource_ref::DialogId"));
+        assert!(grouped.contains("sand::resource_ref::DialogId (5 APIs)"));
+        assert!(grouped.contains("sand::resource_ref::FunctionId (3 APIs)"));
+    }
+
+    #[test]
+    fn installed_resource_reference_catalog_matches_the_enforced_identity_count() {
+        let entries = generated_catalog()
+            .entries
+            .iter()
+            .filter(|entry| {
+                entry.canonical_path == "sand::resource_ref"
+                    || entry.canonical_path.starts_with("sand::resource_ref::")
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(entries.len(), 23);
+        assert_eq!(
+            entries
+                .iter()
+                .map(|entry| entry.canonical_path.as_str())
+                .collect::<BTreeSet<_>>()
+                .len(),
+            23
+        );
+    }
 }

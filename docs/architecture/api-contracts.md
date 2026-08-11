@@ -49,7 +49,7 @@ observe re-exports or arbitrary generated code. Sand therefore uses a hybrid:
    `cargo check` and `cargo build`, regardless of the build's selected facade
    features. It consumes generated command/registry artifacts, discovers
    checked-in macro families, resolves contracts from the mapped source
-   crates, partitions all 11,736 static identities in the latest profile, and byte-compares the
+   crates, partitions all 11,640 static identities in the latest profile, and byte-compares the
    deterministic aggregate baseline. A migration may mark a scope enforced
    only in the same change that supplies every contract for that scope.
 
@@ -97,8 +97,9 @@ provider-backed comparison for migrated boundaries: an undocumented predicate
 method, public field, enum variant, execute-branch builder method, or condition
 method causes an ordinary `cargo check` to fail. The normal Sand build enforces
 the 119-item `predicate-source` scope, the four-item generated `PredicateId`
-partition, the 22-item `execute-when-source` scope, and the 12-item opaque
-`condition-source` scope. Parametric `consumer_build` boundaries
+partition, the 22-item `execute-when-source` scope, the 12-item opaque
+`condition-source` scope, the one-item `resource-ref-source` module, and the
+22-item generated resource-ID partition. Parametric `consumer_build` boundaries
 additionally require their named provider-audit connection.
 
 `#[api]` defaults to the facade's hidden registration transport. Definitions
@@ -113,8 +114,11 @@ The predicate tranche places handwritten contracts on the underlying
 and parameter names, emits Rustdoc, and registers installed metadata from the
 same declaration. `PredicateId` follows the equivalent generator rule: its
 semantic `registry_id!` input emits both the wrapper API and four deterministic
-contract entries. The facade forwarding table no longer owns predicate
-signatures.
+contract entries. The same declaration model now contracts the
+resource-reference family: existing registry IDs are canonically grouped under
+`sand::resource_ref`, while `DialogId` adds its explicit local-namespace
+capability from that generator input. The facade forwarding table no longer
+owns those signatures.
 
 ## Contract and catalog layers
 
@@ -143,7 +147,7 @@ closed during ordinary compilation.
 
 The explicitly opted-in codegen-failure path emits empty, marked provider
 catalogs from the same helper that emits its placeholder Rust. Those catalogs
-select a separate exact 5,538-item source-only profile; they cannot be mixed
+select a separate exact 5,518-item source-only profile; they cannot be mixed
 with real catalogs or contain declarations. The facade's source and checked-in
 generator scopes remain fully audited in this recovery mode, while unavailable
 vanilla re-exports are cfg-disabled. This is a compile-only recovery mode:

@@ -255,7 +255,7 @@ pub fn claim_striders() {
 /// Opens the trailhead menu dialog for the current player.
 #[function("trail:menu")]
 pub fn open_menu() {
-    cmd::show_dialog(Selector::self_(), DialogRef::local("trailhead"));
+    cmd::show_dialog(Selector::self_(), DialogId::local("trailhead"));
 }
 // ANCHOR_END: fn_open_menu
 

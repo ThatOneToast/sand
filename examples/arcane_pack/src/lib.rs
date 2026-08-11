@@ -288,7 +288,7 @@ pub fn resonance_relic_item() -> CustomItem {
 /// Opens the local welcome dialog for the current player.
 #[function("arcane:open_welcome_menu")]
 pub fn open_welcome_menu() {
-    cmd::show_dialog(Selector::self_(), DialogRef::local("welcome"));
+    cmd::show_dialog(Selector::self_(), DialogId::local("welcome"));
 }
 
 // -- EventHandle: lifecycle control for advancement events -----------------

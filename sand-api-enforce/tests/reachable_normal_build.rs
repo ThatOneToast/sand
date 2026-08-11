@@ -20,7 +20,8 @@ fn ordinary_cargo_check_rejects_new_members_in_enforced_source_scopes() {
             && stderr.contains("sand::predicate::Builder::uncontracted_method")
             && stderr.contains("sand::predicate::Choice::UncontractedVariant")
             && stderr.contains("sand::execute_when::WhenBuilder::uncontracted_branch")
-            && stderr.contains("sand::condition::Condition::uncontracted_leaf"),
+            && stderr.contains("sand::condition::Condition::uncontracted_leaf")
+            && stderr.contains("sand::resource_ref::DialogId::uncontracted_local"),
         "unexpected cargo diagnostic:\n{stderr}"
     );
 }

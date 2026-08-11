@@ -307,6 +307,7 @@ pub use sand_components::{
     DensityFunctionExpr,
     DensityFunctionId,
     DensityFunctionUnaryOp,
+    DialogId,
     Dimension,
     DimensionId,
     DimensionType,

@@ -79,7 +79,7 @@ that arm.
 {{#include ../../examples/book_project/src/lib.rs:fn_open_menu}}
 ```
 
-`cmd::show_dialog` opens a dialog by reference (`DialogRef::local(...)`)
+`cmd::show_dialog` opens a dialog by reference (`DialogId::local(...)`)
 rather than needing the full `Dialog` value in scope — see chapter 12 for
 `trailhead_dialog`, the definition this reference points at.
 

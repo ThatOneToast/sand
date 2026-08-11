@@ -31,7 +31,7 @@ use crate::entity::property::{
 use crate::entity::state::{
     EntityFlag, EntityState, EntityStateField, StateSchema, dirty_name, objective_name,
 };
-use crate::resource_ref::FunctionRef;
+use crate::resource_ref::FunctionId;
 use crate::state::Ticks;
 
 /// Which externally existing entities an adoption scan may initialize.
@@ -189,13 +189,13 @@ pub struct Migration {
     /// Version written only after the callback completes.
     pub to: u32,
     /// Canonical typed migration function.
-    pub action: FunctionRef,
+    pub action: FunctionId,
 }
 
 impl Migration {
     /// Construct a migration step.
     #[must_use]
-    pub fn new(from: u32, to: u32, action: FunctionRef) -> Self {
+    pub fn new(from: u32, to: u32, action: FunctionId) -> Self {
         Self { from, to, action }
     }
 }
@@ -233,8 +233,8 @@ pub struct EntityArchetype<K, S> {
     version: u32,
     adoption: Option<Adoption>,
     reconcile: ReconcilePolicy,
-    initialize: Option<FunctionRef>,
-    cleanup: Option<FunctionRef>,
+    initialize: Option<FunctionId>,
+    cleanup: Option<FunctionId>,
     migrations: Vec<Migration>,
     derivations: Vec<EntityDerivation>,
     transitions: Vec<EntityTransitionRule>,
@@ -295,7 +295,7 @@ where
 
     /// Run a typed function after state/native setup and before completion is marked.
     #[must_use]
-    pub fn initialize_with(mut self, function: FunctionRef) -> Self {
+    pub fn initialize_with(mut self, function: FunctionId) -> Self {
         self.initialize = Some(function);
         self
     }
@@ -306,7 +306,7 @@ where
     /// unloaded entity. This callback is guaranteed only when the generated
     /// cleanup function is explicitly invoked while the entity is loaded.
     #[must_use]
-    pub fn cleanup_with(mut self, function: FunctionRef) -> Self {
+    pub fn cleanup_with(mut self, function: FunctionId) -> Self {
         self.cleanup = Some(function);
         self
     }
@@ -613,9 +613,9 @@ pub struct ArchetypeDefinition {
     /// Reconciliation policy.
     pub reconcile: ReconcilePolicy,
     /// Optional initialization callback.
-    pub initialize: Option<FunctionRef>,
+    pub initialize: Option<FunctionId>,
     /// Optional cleanup callback.
-    pub cleanup: Option<FunctionRef>,
+    pub cleanup: Option<FunctionId>,
     /// Ordered migrations.
     pub migrations: Vec<Migration>,
     /// Cached, dirty-driven stat derivations.
@@ -820,7 +820,7 @@ impl EntityTransition {
 #[non_exhaustive]
 pub enum EntityAction {
     /// Call a canonical registered datapack function.
-    Run(FunctionRef),
+    Run(FunctionId),
     /// Dispatch a typed event function.
     Dispatch(crate::entity::property::EntityEventId),
     /// Add or refresh a typed status effect.
@@ -2132,7 +2132,7 @@ fn render_lowered_curve(
                 callback,
                 inputs: _,
             } => {
-                let callback = FunctionRef::new(callback).map_err(|error| {
+                let callback = callback.parse::<FunctionId>().map_err(|error| {
                     EntityDiagnostic::InvalidRawExtension {
                         archetype: definition.id.to_string(),
                         extension: lowered.target_objective().into(),
@@ -3516,7 +3516,7 @@ mod tests {
 
     #[test]
     fn migration_gap_is_structured_error() {
-        let function = FunctionRef::new("rpg:migrate").unwrap();
+        let function = "rpg:migrate".parse::<FunctionId>().unwrap();
         let archetype = EntityArchetype::<ZombieKind, MobState>::new(
             ResourceLocation::new("rpg", "bad_migration").unwrap(),
         )
@@ -3562,7 +3562,7 @@ mod tests {
         )
         .on(
             EntityTransition::threshold(LEVEL, 10, ThresholdDirection::Rising),
-            EntityAction::Run(FunctionRef::new("rpg:on_level_ten").unwrap()),
+            EntityAction::Run("rpg:on_level_ten".parse::<FunctionId>().unwrap()),
         );
         let compiled = compile_definition(&archetype.definition(), &profile()).unwrap();
         let reconcile = compiled
@@ -3639,7 +3639,7 @@ mod tests {
                 10_001,
                 ThresholdDirection::Falling,
             ),
-            EntityAction::Run(FunctionRef::new("rpg:low_health").unwrap()),
+            EntityAction::Run("rpg:low_health".parse::<FunctionId>().unwrap()),
         );
         let error = compile_definition(&archetype.definition(), &profile()).unwrap_err();
         assert_eq!(error.code(), "SAND-ENTITY-RANGE");

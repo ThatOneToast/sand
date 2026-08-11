@@ -89,6 +89,7 @@ fn main() {
         &version,
     )
     .unwrap_or_else(|error| panic!("failed to install registry-ID API contracts: {error}"));
+    println!("cargo:rerun-if-changed={}", registry_provider.display());
     println!("cargo:rerun-if-env-changed=DEP_SAND_COMPONENTS_API_PROVIDER_FILE");
 
     // Make the exact provider artifacts available to the facade's build

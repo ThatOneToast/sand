@@ -317,11 +317,22 @@ pub mod execute_when {
     pub use sand_core::execute_when::*;
 }
 
-/// Typed resource references: `FunctionRef`, `AdvancementRef`, `DialogRef`,
-/// `LootTableRef`, `PredicateRef`, and similar `namespace:path`-validated
-/// handles used where a command needs to point at another generated
-/// resource (e.g. `cmd::show_dialog(selector, DialogRef::local("trailhead"))`).
-pub use sand_core::resource_ref;
+/// Typed references to Minecraft resources owned by a datapack.
+#[api(
+    path = "sand::resource_ref",
+    module = "sand",
+    summary = "Groups typed identifiers for Minecraft resources referenced by Sand APIs.",
+    context = "Resource-kind-specific IDs prevent a function, predicate, dialog, or generated data resource from being passed where a different Minecraft resource kind is required.",
+    minecraft = "Each ID serializes as the validated namespace:path location Minecraft uses to find its corresponding datapack resource.",
+    use_when = ["Connecting one Sand resource or command to another by identity", "Validating a datapack resource location before export"],
+    avoid_when = ["Building the JSON payload of the resource itself", "Passing an unchecked namespace:path string to a typed API"],
+    example = "let dialog = resource_ref::DialogId::local(\"welcome\");"
+)]
+pub mod resource_ref {
+    pub use sand_core::resource_ref::{
+        AdvancementId, DialogId, FunctionId, LootTableId, PredicateId, RecipeId,
+    };
+}
 
 /// The Minecraft version model: `MinecraftVersion`, `VersionProfile`, and the
 /// capability-gating machinery that determines which command/component

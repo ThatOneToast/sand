@@ -53,6 +53,16 @@ fn main() {
             canonical_path: "sand::condition::Condition".into(),
             aliases: BTreeSet::new(),
         },
+        ContractIdentity {
+            identity: "sand::resource_ref".into(),
+            canonical_path: "sand::resource_ref".into(),
+            aliases: BTreeSet::new(),
+        },
+        ContractIdentity {
+            identity: "sand::resource_ref::DialogId".into(),
+            canonical_path: "sand::resource_ref::DialogId".into(),
+            aliases: BTreeSet::new(),
+        },
     ];
     let manifest = ScopeManifest::from_path("api-scopes.toml").expect("parse scope manifest");
     if let Err(failures) = manifest.evaluate(&reachable, &contracts, &BTreeSet::new()) {

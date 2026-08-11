@@ -25,7 +25,7 @@ pub(crate) fn resolve_resource_pack_format(mc_version: &str) -> (u32, bool) {
             let latest = MinecraftVersion::parse(LATEST_KNOWN).unwrap();
             let profile = VersionProfile::resolve(&latest).unwrap();
             let meta = profile.resourcepack_metadata();
-            return (meta.pack_format, true);
+            return (meta.pack_format(), true);
         }
     };
 
@@ -34,7 +34,7 @@ pub(crate) fn resolve_resource_pack_format(mc_version: &str) -> (u32, bool) {
         VersionProfile::resolve(&latest).unwrap()
     });
     let meta = profile.resourcepack_metadata();
-    (meta.pack_format, meta.is_fallback)
+    (meta.pack_format(), meta.is_fallback())
 }
 
 #[cfg(test)]
@@ -93,7 +93,7 @@ mod tests {
             // Also confirm the wrapper agrees with VersionProfile directly.
             let v = MinecraftVersion::parse(ver).unwrap();
             let p = VersionProfile::resolve(&v).unwrap();
-            let from_profile = p.resourcepack_metadata().pack_format;
+            let from_profile = p.resourcepack_metadata().pack_format();
             assert_eq!(
                 from_wrapper, from_profile,
                 "wrapper and VersionProfile diverged for {ver}: wrapper={from_wrapper}, profile={from_profile}"
@@ -113,7 +113,7 @@ mod tests {
             let profile_fmt = VersionProfile::resolve(&v)
                 .unwrap()
                 .resourcepack_metadata()
-                .pack_format;
+                .pack_format();
             assert_eq!(
                 wrapper_fmt, profile_fmt,
                 "format mismatch for {ver}: resolve_resource_pack_format={wrapper_fmt}, VersionProfile={profile_fmt}"

@@ -138,6 +138,9 @@ fn api_contract_compile_tests() {
     t.compile_fail("tests/cases/fail_api_unknown_field_doc.rs");
     t.compile_fail("tests/cases/fail_api_missing_variant.rs");
     t.compile_fail("tests/cases/fail_api_unknown_variant_doc.rs");
+    t.compile_fail("tests/cases/fail_api_missing_variant_field.rs");
+    t.compile_fail("tests/cases/fail_api_unknown_variant_field.rs");
+    t.compile_fail("tests/cases/fail_api_duplicate_variant_field.rs");
     t.compile_fail("tests/cases/fail_api_members_on_function.rs");
     t.compile_fail("tests/cases/fail_api_public_tuple_field.rs");
 }

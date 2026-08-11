@@ -142,7 +142,7 @@ pub fn interop_example() {
 /// Invoked by the generated `sand_export` binary.
 #[doc(hidden)]
 pub fn __sand_export(namespace: &str, mc_version: &str) {
-    let resolved = match sand_core::version::resolve_export_caps(mc_version) {
+    let resolved = match sand_core::advanced::resolve_export_caps(mc_version) {
         Ok(resolved) => resolved,
         Err(e) => {
             eprintln!("sand export failed: {e}");

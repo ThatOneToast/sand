@@ -112,7 +112,7 @@ pub fn player_join_advancement() -> sand_core::Advancement {
 /// constructor functions to run before `main`.
 #[doc(hidden)]
 pub fn __sand_export(namespace: &str, mc_version: &str) {
-    let resolved = match sand_core::version::resolve_export_caps(mc_version) {
+    let resolved = match sand_core::advanced::resolve_export_caps(mc_version) {
         Ok(resolved) => resolved,
         Err(e) => {
             eprintln!("sand export failed: {e}");

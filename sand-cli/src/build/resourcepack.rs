@@ -96,7 +96,7 @@ pub(super) fn build_resourcepack(
                 .unwrap()
             });
             let meta = p.resourcepack_metadata();
-            (meta.pack_format, meta.is_fallback)
+            (meta.pack_format(), meta.is_fallback())
         } else {
             (
                 sand_resourcepack::resource_pack_format_for(mc_version),

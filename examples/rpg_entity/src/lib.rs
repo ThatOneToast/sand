@@ -165,7 +165,7 @@ pub fn rpg_zombie() -> EntityArchetype<ZombieKind, ZombieState> {
 /// Export hook used by the standard `sand_export` binary.
 #[doc(hidden)]
 pub fn __sand_export(namespace: &str, mc_version: &str) {
-    let resolved = sand::version::resolve_export_caps(mc_version)
+    let resolved = sand::advanced::resolve_export_caps(mc_version)
         .unwrap_or_else(|error| panic!("invalid export profile: {error}"));
     let json = sand::advanced::try_export_components_json_for_version(
         namespace,

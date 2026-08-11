@@ -69,14 +69,17 @@ impl Relation {
         let Some((major, minor, patch)) = min else {
             return Ok(());
         };
-        if profile.requested.is_at_least(major, minor, patch) {
+        if profile
+            .requested()
+            .is_at_least_components(major, minor, patch)
+        {
             Ok(())
         } else {
             Err(SandError::VersionGating {
                 location: format!("execute on {}", self.keyword()),
                 kind: "entity_relation".to_string(),
-                requested_version: profile.resolved_name.clone(),
-                is_fallback: profile.is_fallback,
+                requested_version: profile.resolved_name().to_owned(),
+                is_fallback: profile.is_fallback(),
                 feature_name: format!("entity_relation_{}", self.keyword()),
                 fallback_note: format!(
                     " (`execute on {}` requires Minecraft {major}.{minor}.{patch}+ — \

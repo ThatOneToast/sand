@@ -20,6 +20,28 @@ pub enum Status {
 }
 
 #[api(
+    path = "sand::testing::VersionFailure",
+    summary = "Reports why a version request could not be resolved.",
+    context = "The error keeps malformed input distinct from syntactically valid but unknown releases.",
+    minecraft = "Resolution determines the pack formats and Minecraft features Sand may target.",
+    use_when = ["Reporting a version configuration error"],
+    avoid_when = ["Representing an accepted target version"],
+    example = "VersionFailure::Parse(\"bad\".to_owned())",
+    variants(
+        Parse = "Carries malformed version text.",
+        Unknown = "Carries an unverified version and the recovery hint."
+    ),
+    variant_fields(
+        Parse = ["The original malformed version text."],
+        Unknown(requested = "The syntactically valid version that has no verified profile.", hint = "The recommended recovery action.")
+    )
+)]
+pub enum VersionFailure {
+    Parse(String),
+    Unknown { requested: String, hint: String },
+}
+
+#[api(
     path = "sand::testing::ResourceInfo",
     summary = "Carries the stable identity and enabled state of a resource.",
     context = "Resource metadata is inspected by author tooling before datapack emission.",

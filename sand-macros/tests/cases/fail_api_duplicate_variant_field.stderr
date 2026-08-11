@@ -1,0 +1,5 @@
+error: duplicate variant field documentation for `Parse::0`
+  --> tests/cases/fail_api_duplicate_variant_field.rs:13:9
+   |
+13 |         Parse = ["A duplicate description."]
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

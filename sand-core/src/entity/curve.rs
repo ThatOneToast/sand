@@ -804,7 +804,7 @@ impl StatCurve {
     /// pointer address, supplies deterministic identity.
     #[must_use]
     pub fn custom(
-        function: crate::resource_ref::FunctionRef,
+        function: crate::resource_ref::FunctionId,
         callback: impl Fn(&CurveInputs, FixedPoint) -> Result<FixedValue, CurveEvaluationError>
         + Send
         + Sync
@@ -820,7 +820,7 @@ impl StatCurve {
     /// only for callbacks that genuinely have no state inputs.
     #[must_use]
     pub fn custom_with_raw_inputs(
-        function: crate::resource_ref::FunctionRef,
+        function: crate::resource_ref::FunctionId,
         inputs: impl IntoIterator<Item = impl Into<String>>,
         callback: impl Fn(&CurveInputs, FixedPoint) -> Result<FixedValue, CurveEvaluationError>
         + Send
@@ -2183,7 +2183,9 @@ mod tests {
             BTreeSet::from(["level".to_string(), "rarity".to_string()])
         );
         let custom = StatCurve::custom(
-            crate::resource_ref::FunctionRef::new("rpg:custom").unwrap(),
+            "rpg:custom"
+                .parse::<crate::resource_ref::FunctionId>()
+                .unwrap(),
             |_inputs, fixed| Ok(FixedValue::from_units(fixed.scale())),
         );
         assert_eq!(custom.lowering_strategy(), LoweringStrategy::CustomCallback);
@@ -2289,7 +2291,9 @@ mod tests {
     #[test]
     fn custom_callback_is_typed_and_missing_inputs_are_reported() {
         let custom = StatCurve::custom(
-            crate::resource_ref::FunctionRef::new("rpg:double_level").unwrap(),
+            "rpg:double_level"
+                .parse::<crate::resource_ref::FunctionId>()
+                .unwrap(),
             |inputs, fixed| {
                 let level = inputs
                     .get("level")

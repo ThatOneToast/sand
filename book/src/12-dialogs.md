@@ -31,11 +31,11 @@ compiler error, not a dialog button that silently does nothing at runtime.
 ```rust,ignore
 #[function("trail:menu")]
 pub fn open_menu() {
-    cmd::show_dialog(Selector::self_(), DialogRef::local("trailhead"));
+    cmd::show_dialog(Selector::self_(), DialogId::local("trailhead"));
 }
 ```
 
-`DialogRef::local("trailhead")` references the dialog by its ID string
+`DialogId::local("trailhead")` references the dialog by its ID string
 rather than requiring the `trailhead_dialog()` function be in scope —
 useful when the dialog is opened from a different module than the one that
 defines it, or (as here) opened from a plain function rather than another

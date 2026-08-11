@@ -9,7 +9,7 @@ pub fn start() {
 
 #[function]
 pub fn open_welcome_menu() {
-    cmd::show_dialog(Selector::self_(), DialogRef::local("welcome"));
+    cmd::show_dialog(Selector::self_(), DialogId::local("welcome"));
 }
 
 #[component]
@@ -24,7 +24,7 @@ pub fn welcome_dialog() -> Dialog {
         )
         .button(
             DialogButton::new(Text::new("Rules").yellow())
-                .action(DialogAction::open_dialog(DialogRef::local("rules"))),
+                .action(DialogAction::open_dialog(DialogId::local("rules"))),
         )
 }
 

@@ -83,7 +83,7 @@ impl EventConfig {
     ///   validated here — invalid input panics with an actionable diagnostic
     ///   instead of silently producing a malformed advancement/revoke command.
     /// - `reward_fn` — the mcfunction to call. Accepts a
-    ///   [`FunctionRef`](crate::resource_ref::FunctionRef) (preferred), a
+    ///   [`FunctionId`](crate::resource_ref::FunctionId) (preferred), a
     ///   [`ResourceLocation`](crate::ResourceLocation), or a raw `&str`/`String`
     ///   via [`IntoFunctionRef`].
     pub fn advancement(

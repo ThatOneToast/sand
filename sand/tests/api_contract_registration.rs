@@ -41,10 +41,10 @@ fn generated_registrations_build_an_installed_catalog() {
     assert_eq!(Fixture.value(), 1);
 
     let coverage = sand::__private::api_contract::installed_coverage();
-    assert_eq!(coverage.static_surface_items, 11_660);
-    assert_eq!(coverage.pending_item_ceiling, 11_503);
-    assert_eq!(coverage.pending_scope_ceiling, 36);
-    assert_eq!(coverage.pending_scopes.len(), 36);
+    assert_eq!(coverage.static_surface_items, 11_640);
+    assert_eq!(coverage.pending_item_ceiling, 11_460);
+    assert_eq!(coverage.pending_scope_ceiling, 34);
+    assert_eq!(coverage.pending_scopes.len(), 34);
     let catalog = ApiCatalog::installed_with_coverage(env!("CARGO_PKG_VERSION"), coverage).unwrap();
     let function = catalog.find("sand::prelude::contract_fixture").unwrap();
     assert_eq!(function.kind, ApiKind::Function);

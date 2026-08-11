@@ -62,16 +62,12 @@ pub use crate::systems::player_data::{
     PlayerDataSchema, PlayerSchema, ScoreField, TimerField, TimerFieldRef,
 };
 
-// ── Resource refs ─────────────────────────────────────────────────────────────
-
-pub use crate::ResourceLocation;
-pub use crate::resource_ref::{
-    AdvancementRef, DialogRef, FunctionRef, LootTableRef, PredicateRef, RecipeRef,
-};
-
 // ── Version gating ────────────────────────────────────────────────────────────
 
 pub use crate::version::{MinecraftVersion, VersionProfile};
+
+/// Validated `namespace:path` locations shared by typed resource IDs.
+pub use crate::ResourceLocation;
 
 // ── Entity queries and execution-scoped contexts ──────────────────────────────
 
@@ -94,7 +90,7 @@ pub use crate::entity::{
     ThresholdDirection, ZombieKind,
 };
 
-// ── Function refs (IntoFunctionRef trait) ──────────────────────────────────────
+// ── Function refs (IntoFunctionRef trait) ─────────────────────────────────────
 
 pub use crate::function::IntoFunctionRef;
 
@@ -198,12 +194,12 @@ pub use sand_components::{RawComponent, RawJson, RawSnbt};
 
 pub use sand_components::{
     AdvancementId, BiomeId, BlockId, ConfiguredCarverId, ConfiguredFeatureId, DamageTypeId,
-    DensityFunctionId, DimensionId, DimensionTypeId, EffectId, EnchantmentEffectComponentId,
-    EnchantmentId, EntityTypeId, FunctionId, ItemId, LootTableId, NoiseId, PotionContents,
-    PotionId, PotionRegistryId, PredicateId, ProcessorListId, RandomSequenceId, RecipeId,
-    SoundEventId, StatusEffectId, StatusEffectInstance, StructureId, StructureSetId,
-    StructureTemplate, StructureTemplateId, StructureTypeId, SuspiciousStewEffect, TagId,
-    TemplatePoolId, TradeSetId, VillagerTradeId,
+    DensityFunctionId, DialogId, DimensionId, DimensionTypeId, EffectId,
+    EnchantmentEffectComponentId, EnchantmentId, EntityTypeId, FunctionId, ItemId, LootTableId,
+    NoiseId, PotionContents, PotionId, PotionRegistryId, PredicateId, ProcessorListId,
+    RandomSequenceId, RecipeId, SoundEventId, StatusEffectId, StatusEffectInstance, StructureId,
+    StructureSetId, StructureTemplate, StructureTemplateId, StructureTypeId, SuspiciousStewEffect,
+    TagId, TemplatePoolId, TradeSetId, VillagerTradeId,
 };
 
 // ── Text / chat ───────────────────────────────────────────────────────────────

@@ -177,7 +177,7 @@ let archetype = archetype
     )
     .on(
         EntityTransition::flag_enabled(ZombieState::sick),
-        EntityAction::Run(FunctionRef::new("rpg:sickness_started").unwrap()),
+        EntityAction::Run("rpg:sickness_started".parse::<FunctionId>().unwrap()),
     );
 ```
 
@@ -198,7 +198,7 @@ let archetype = archetype
     .migration(Migration::new(
         1,
         2,
-        FunctionRef::new("rpg:migrate_v1_v2").unwrap(),
+        "rpg:migrate_v1_v2".parse::<FunctionId>().unwrap(),
     ));
 ```
 

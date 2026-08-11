@@ -350,7 +350,7 @@ impl Condition {
     /// Condition on a named predicate resource.
     ///
     /// ```rust,ignore
-    /// let predicate = PredicateRef::new("my_pack:can_cast")?;
+    /// let predicate = PredicateId::custom("my_pack:can_cast".parse()?);
     /// let c = Condition::predicate(predicate);
     /// ```
     #[sand_macros::api(
@@ -365,9 +365,9 @@ impl Condition {
         avoid_when = ["Building the predicate JSON resource itself", "Mutable scoreboard or storage state is the actual condition"],
         params(predicate = "The typed namespaced reference to the predicate resource to evaluate."),
         returns = "A runtime condition referencing the named predicate.",
-        example = "Condition::predicate(PredicateRef::new(\"demo:can_cast\")?)"
+        example = "Condition::predicate(PredicateId::custom(\"demo:can_cast\".parse()?))"
     )]
-    pub fn predicate(predicate: crate::resource_ref::PredicateRef) -> Self {
+    pub fn predicate(predicate: crate::resource_ref::PredicateId) -> Self {
         Self::predicate_raw(predicate.to_string())
     }
 
@@ -969,9 +969,9 @@ mod tests {
 
     #[test]
     fn predicate_clause() {
-        let c = Condition::predicate(
-            crate::resource_ref::PredicateRef::new("my_pack:can_cast").unwrap(),
-        );
+        let c = Condition::predicate(crate::resource_ref::PredicateId::custom(
+            "my_pack:can_cast".parse().unwrap(),
+        ));
         let clauses = c.render_clauses(false);
         assert_eq!(clauses, vec!["if predicate my_pack:can_cast"]);
     }

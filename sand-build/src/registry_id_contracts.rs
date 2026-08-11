@@ -97,20 +97,27 @@ mod tests {
     fn predicate_registry_id_emits_four_meaningful_contracts() {
         let provider = repository_provider();
         assert_eq!(provider.provider, "generated_registry_id_contracts");
-        assert_eq!(provider.entries.len(), 4);
-        assert_eq!(
-            provider.entries[0].contract.canonical_module,
-            "sand::predicate"
-        );
+        assert_eq!(provider.entries.len(), 26);
+        let predicate = provider
+            .entries
+            .iter()
+            .filter(|entry| {
+                entry
+                    .contract
+                    .canonical_path
+                    .starts_with("sand::predicate::PredicateId")
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(predicate.len(), 4);
+        assert_eq!(predicate[0].contract.canonical_module, "sand::predicate");
         assert!(
-            provider.entries[1..]
+            predicate[1..]
                 .iter()
-                .all(|entry| { entry.contract.canonical_module == "sand::predicate::PredicateId" })
+                .all(|entry| entry.contract.canonical_module == "sand::predicate::PredicateId")
         );
         provider.validate().unwrap();
 
-        let paths = provider
-            .entries
+        let paths = predicate
             .iter()
             .map(|entry| entry.contract.canonical_path.as_str())
             .collect::<Vec<_>>();
@@ -123,7 +130,7 @@ mod tests {
                 "sand::predicate::PredicateId::minecraft",
             ]
         );
-        for entry in &provider.entries {
+        for entry in &predicate {
             assert!(
                 entry.contract.summary.contains("predicate resource")
                     && entry.contract.minecraft.contains("predicate")
@@ -134,11 +141,14 @@ mod tests {
             );
         }
         assert_eq!(
-            provider.entries[0].contract.aliases,
-            ["sand::component::PredicateId", "sand::prelude::PredicateId"]
+            predicate[0].contract.aliases,
+            [
+                "sand::component::PredicateId",
+                "sand::prelude::PredicateId",
+                "sand::resource_ref::PredicateId"
+            ]
         );
-        let minecraft = provider
-            .entries
+        let minecraft = predicate
             .iter()
             .find(|entry| entry.member_name.as_deref() == Some("minecraft"))
             .unwrap();
@@ -150,12 +160,64 @@ mod tests {
                 .contains("path : impl AsRef < str >")
         );
         assert_eq!(minecraft.contract.parameters[0].name, "path");
-        let custom = provider
-            .entries
+        let custom = predicate
             .iter()
             .find(|entry| entry.member_name.as_deref() == Some("custom"))
             .unwrap();
         assert_eq!(custom.contract.parameters[0].name, "rl");
+    }
+
+    #[test]
+    fn resource_reference_ids_emit_complete_dialog_capability_contracts() {
+        let provider = repository_provider();
+        let resource_entries = provider
+            .entries
+            .iter()
+            .filter(|entry| {
+                entry
+                    .contract
+                    .canonical_path
+                    .starts_with("sand::resource_ref::")
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(resource_entries.len(), 22);
+        let dialog_local = resource_entries
+            .iter()
+            .find(|entry| entry.contract.canonical_path == "sand::resource_ref::DialogId::local")
+            .unwrap();
+        assert_eq!(dialog_local.contract.parameters[0].name, "path");
+        assert_eq!(
+            dialog_local.contract.availability,
+            ["Minecraft Java 1.21.6+", "Minecraft Java 26.x"]
+        );
+        assert!(
+            dialog_local
+                .contract
+                .minecraft
+                .contains("namespace sentinel")
+        );
+        let dialog_try_local = resource_entries
+            .iter()
+            .find(|entry| {
+                entry.contract.canonical_path == "sand::resource_ref::DialogId::try_local"
+            })
+            .unwrap();
+        assert!(
+            dialog_try_local
+                .contract
+                .returns
+                .as_deref()
+                .unwrap()
+                .contains("error")
+        );
+        assert!(resource_entries.iter().all(|entry| {
+            !entry.contract.summary.trim().is_empty()
+                && !entry.contract.context.trim().is_empty()
+                && !entry.contract.minecraft.trim().is_empty()
+                && !entry.contract.use_when.is_empty()
+                && !entry.contract.avoid_when.is_empty()
+                && !entry.contract.example.trim().is_empty()
+        }));
     }
 
     #[test]

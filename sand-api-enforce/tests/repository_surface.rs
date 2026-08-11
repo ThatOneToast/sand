@@ -15,21 +15,21 @@ fn checked_repository_surface_baseline_is_complete_and_partitioned() {
         "configuration=all-supported-features,current-target"
     );
     assert_eq!(lines[2], "minecraft_version=26.2");
-    assert_eq!(lines[3], "total=11629");
+    assert_eq!(lines[3], "total=11521");
 
     let kinds = prefixed_counts(&lines, "kind ");
-    assert_eq!(kinds.values().sum::<usize>(), 11_629);
-    assert_eq!(kinds["field"], 991);
-    assert_eq!(kinds["variant"], 5_888);
-    assert_eq!(kinds["enum"], 168);
+    assert_eq!(kinds.values().sum::<usize>(), 11_521);
+    assert_eq!(kinds["field"], 938);
+    assert_eq!(kinds["variant"], 5_867);
+    assert_eq!(kinds["enum"], 165);
     assert_eq!(kinds["trait"], 35);
     assert_eq!(kinds["trait_method"], 53);
     assert_eq!(kinds["attribute_macro"], 8);
     assert_eq!(kinds["derive_macro"], 3);
 
     let origins = prefixed_counts(&lines, "origin ");
-    assert_eq!(origins.values().sum::<usize>(), 11_629);
-    assert_eq!(origins["source"], 5_251);
+    assert_eq!(origins.values().sum::<usize>(), 11_521);
+    assert_eq!(origins["source"], 5_143);
     assert_eq!(origins["generator:generated_commands"], 1_255);
     assert_eq!(origins["generator:generated_registries"], 4_867);
     assert_eq!(origins["generator:generated_registry_ids"], 136);
@@ -46,11 +46,11 @@ fn checked_repository_surface_baseline_is_complete_and_partitioned() {
         .iter()
         .map(|line| numeric_field(line, "items="))
         .sum::<usize>();
-    assert_eq!(scoped_items, 11_629);
+    assert_eq!(scoped_items, 11_521);
     assert_eq!(
         lines.last().copied(),
         Some(
-            "totals pending_scopes=31 pending_items=6495 enforced_items=5134 pending_scope_ceiling=31 pending_item_ceiling=6495"
+            "totals pending_scopes=30 pending_items=6385 enforced_items=5136 pending_scope_ceiling=30 pending_item_ceiling=6385"
         )
     );
 }
@@ -64,9 +64,9 @@ fn checked_repository_profiles_bind_exact_versioned_baselines() {
     assert_eq!(profiles.profiles.len(), 3);
 
     let expected = [
-        ("placeholder-codegen", 5_507, 0, 0),
-        ("1.21.4", 10_719, 924, 4_288),
-        ("26.2", 11_629, 1_255, 4_867),
+        ("placeholder-codegen", 5_399, 0, 0),
+        ("1.21.4", 10_611, 924, 4_288),
+        ("26.2", 11_521, 1_255, 4_867),
     ];
     for (version, total, commands, registries) in expected {
         let profile = profiles
@@ -78,7 +78,7 @@ fn checked_repository_profiles_bind_exact_versioned_baselines() {
         let enforced_registries = registries;
         assert_eq!(
             profile.pending_item_ceiling,
-            total - 267 - enforced_registries
+            total - 269 - enforced_registries
         );
         let baseline = std::fs::read_to_string(sand.join(&profile.baseline)).unwrap();
         let lines = baseline.lines().collect::<Vec<_>>();
@@ -86,7 +86,7 @@ fn checked_repository_profiles_bind_exact_versioned_baselines() {
         assert_eq!(lines[3], format!("total={total}"));
         let origins = prefixed_counts(&lines, "origin ");
         assert_eq!(origins.values().sum::<usize>(), total);
-        assert_eq!(origins["source"], 5_251);
+        assert_eq!(origins["source"], 5_143);
         assert_eq!(
             origins
                 .get("generator:generated_commands")
@@ -103,7 +103,7 @@ fn checked_repository_profiles_bind_exact_versioned_baselines() {
         );
         assert_eq!(
             numeric_field(lines.last().unwrap(), "pending_items="),
-            total - 267 - enforced_registries
+            total - 269 - enforced_registries
         );
     }
 }

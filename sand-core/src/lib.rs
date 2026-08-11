@@ -50,8 +50,7 @@
 //! # API tiers
 //!
 //! - [`prelude`] is the default user-facing import for datapack authors.
-//! - [`advanced`] contains supported lower-level export hooks and raw escape
-//!   hatches for custom integrations.
+//! - [`advanced`] contains the supported version-aware custom export hook.
 //! - `#[doc(hidden)]` items are for macro expansion and internal wiring, not
 //!   a stable authoring surface.
 

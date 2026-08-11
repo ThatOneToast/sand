@@ -4,8 +4,7 @@
 //! unsupported conversions fail the whole export with an actionable
 //! diagnostic instead of emitting weakened JSON.
 
-use sand_core::advanced::ComponentFactory;
-use sand_core::prelude::*;
+use sand_core::{ComponentFactory, prelude::*};
 
 fn filtered_placed_block() -> Advancement {
     Advancement::new(
@@ -43,29 +42,24 @@ inventory::submit! {
     ComponentFactory { make: || Box::new(multi_criteria_advancement()) }
 }
 
-fn find_record<'a>(
-    records: &'a [sand_core::ComponentRecord],
-    path: &str,
-) -> &'a sand_core::ComponentRecord {
+fn find_record<'a>(records: &'a [serde_json::Value], path: &str) -> &'a serde_json::Value {
     records
         .iter()
-        .find(|r| r.dir == "advancement" && r.path == path)
+        .find(|record| record["dir"] == "advancement" && record["path"] == path)
         .unwrap_or_else(|| panic!("no advancement record for path {path}"))
 }
 
 #[test]
 fn modern_profile_export_renders_location_check_and_match_tool() {
-    let resolved = sand_core::advanced::resolve_export_caps("26.2").unwrap();
-    let records = sand_core::try_export_components_for_version(
-        "advancement_export_test",
-        &resolved.caps,
-        &resolved.version,
-        resolved.is_fallback,
+    let records: Vec<serde_json::Value> = serde_json::from_str(
+        &sand_core::advanced::try_export_components_json("advancement_export_test", "26.2")
+            .expect("modern-profile export must succeed"),
     )
-    .expect("modern-profile export must succeed");
+    .unwrap();
 
     let record = find_record(&records, "filtered_placed_block");
-    let json: serde_json::Value = serde_json::from_str(&record.content).unwrap();
+    let json: serde_json::Value =
+        serde_json::from_str(record["content"].as_str().unwrap()).unwrap();
     let location = &json["criteria"]["event"]["conditions"]["location"];
     assert!(location.is_array(), "expected conditions.location array");
     let conditions: Vec<&str> = location
@@ -87,15 +81,9 @@ fn legacy_profile_export_fails_with_actionable_diagnostic_instead_of_weakened_js
     // weakened `item` condition.
     let profile = VersionProfile::resolve(&MinecraftVersion::parse("1.19.0").unwrap()).unwrap();
     assert!(!profile.supports(VersionFeature::ItemComponents));
-    let resolved = sand_core::advanced::resolve_export_caps("1.19.0").unwrap();
-
-    let error = sand_core::try_export_components_for_version(
-        "advancement_export_test",
-        &resolved.caps,
-        &resolved.version,
-        resolved.is_fallback,
-    )
-    .expect_err("legacy-profile export with an item filter must fail");
+    let error =
+        sand_core::advanced::try_export_components_json("advancement_export_test", "1.19.0")
+            .expect_err("legacy-profile export with an item filter must fail");
 
     let message = error.to_string();
     assert!(message.contains("minecraft:placed_block"));
@@ -104,22 +92,19 @@ fn legacy_profile_export_fails_with_actionable_diagnostic_instead_of_weakened_js
 
 #[test]
 fn multi_criterion_advancement_export_derives_requirements() {
-    let resolved = sand_core::advanced::resolve_export_caps("26.2").unwrap();
-
     // This profile also exercises `filtered_placed_block`, which would fail
     // export on a legacy profile — use the modern profile so both
     // process-global components (this test binary registers both via
     // `#[component]`) export successfully together.
-    let records = sand_core::try_export_components_for_version(
-        "advancement_export_test",
-        &resolved.caps,
-        &resolved.version,
-        resolved.is_fallback,
+    let records: Vec<serde_json::Value> = serde_json::from_str(
+        &sand_core::advanced::try_export_components_json("advancement_export_test", "26.2")
+            .expect("modern-profile export must succeed"),
     )
-    .expect("modern-profile export must succeed");
+    .unwrap();
 
     let record = find_record(&records, "multi_criteria");
-    let json: serde_json::Value = serde_json::from_str(&record.content).unwrap();
+    let json: serde_json::Value =
+        serde_json::from_str(record["content"].as_str().unwrap()).unwrap();
     let mut requirements: Vec<Vec<String>> =
         serde_json::from_value(json["requirements"].clone()).unwrap();
     for group in &mut requirements {

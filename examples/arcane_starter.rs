@@ -142,19 +142,7 @@ pub fn interop_example() {
 /// Invoked by the generated `sand_export` binary.
 #[doc(hidden)]
 pub fn __sand_export(namespace: &str, mc_version: &str) {
-    let resolved = match sand_core::advanced::resolve_export_caps(mc_version) {
-        Ok(resolved) => resolved,
-        Err(e) => {
-            eprintln!("sand export failed: {e}");
-            std::process::exit(1);
-        }
-    };
-    match sand_core::try_export_components_json_for_version(
-        namespace,
-        &resolved.caps,
-        &resolved.version,
-        resolved.is_fallback,
-    ) {
+    match sand_core::advanced::try_export_components_json(namespace, mc_version) {
         Ok(json) => println!("{json}"),
         Err(e) => {
             eprintln!("sand export failed: {e}");

@@ -72,19 +72,16 @@ it needs to *feel* like something happened, package a `Vfx` sequence
 (chapter 13) rather than inlining particle/sound commands at every call
 site.
 
-## The escape hatch: `sand::advanced`
+## Custom export integration: `sand::advanced`
 
-Every builder this book covered has a typed, validated surface. Real packs
-occasionally need to emit something Sand doesn't yet model as a typed
-builder — raw JSON for a component Sand hasn't wrapped yet, or a
-hand-written command string. `sand::advanced` (the same module
-`__sand_export` uses for the export entry point, chapter 17) documents
-these deliberate, supported low-level hooks. Reach for `cmd::raw(...)`
-(already used once in this book, in `trail:claim_striders`'s `give`
-command) for one-off raw command strings, and consult `sand::advanced`'s
-own documentation before reaching further — it exists precisely so escape
-hatches are a documented, intentional choice rather than an undocumented
-workaround.
+Every builder this book covered has a typed, validated surface. Most packs
+should use `sand build` and never call `sand::advanced`. The module exists
+only for a custom build integration that must collect Sand's registered
+components as version-validated JSON; chapter 17 shows the generated
+`__sand_export` hook that calls it. Reach for `cmd::raw(...)` (already used
+once in this book, in `trail:claim_striders`'s `give` command) for a
+deliberate one-off raw command string. Raw JSON/SNBT values keep their
+canonical prelude paths rather than becoming an implicit compiler API.
 
 ## Where to go next
 

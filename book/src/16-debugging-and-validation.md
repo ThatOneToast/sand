@@ -57,20 +57,20 @@ breaking the item/predicate link.
 
 ## Version-aware validation at export time
 
-`__sand_export` (chapter 17) resolves the target Minecraft version before
-rendering anything:
+`__sand_export` (chapter 17) passes the target Minecraft version to the
+fallible export hook before rendering anything:
 
 ```rust,ignore
-let resolved = match sand::advanced::resolve_export_caps(mc_version) {
-    Ok(resolved) => resolved,
+match sand::advanced::try_export_components_json(namespace, mc_version) {
+    Ok(json) => println!("{json}"),
     Err(e) => {
         eprintln!("sand export failed: {e}");
         std::process::exit(1);
     }
-};
+}
 ```
 
-The advanced `resolve_export_caps` hook looks up the capability profile for the pinned
+The advanced export hook looks up the capability profile for the pinned
 `mc_version` (`26.2` for Trailforge) and gates every component's rendering
 against what that version actually supports — a component using a feature
 that doesn't exist on the target version fails export with a clear error

@@ -20,6 +20,7 @@ back.
 
 See [`sand::version`](https://docs.rs/sand) (`MinecraftVersion`,
 `VersionProfile`, and `VersionFeature`) for the typed API. Custom export hooks
-use `sand::advanced::resolve_export_caps`, and
+use `sand::advanced::try_export_components_json`, which resolves capabilities
+internally, and
 [Vanilla Limitations](vanilla-limitations.md) for what no version of Sand can
 work around.

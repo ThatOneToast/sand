@@ -1,4 +1,4 @@
-use sand_core::advanced::ComponentFactory;
+use sand_core::ComponentFactory;
 use sand_core::prelude::*;
 
 fn ridges_noise() -> Noise {

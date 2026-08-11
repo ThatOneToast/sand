@@ -1,4 +1,4 @@
-use sand_core::component::{try_export_components_json, try_export_components_json_for_version};
+use sand_core::component::try_export_components_json;
 use sand_core::prelude::*;
 use sand_macros::function;
 
@@ -45,15 +45,9 @@ fn registered_function_macro_exports_typed_placeholders_and_call() {
 
 #[test]
 fn registered_function_macro_is_rejected_before_minecraft_1_20_2() {
-    let resolved = sand_core::advanced::resolve_export_caps("1.20.1").unwrap();
-    let error = try_export_components_json_for_version(
-        "macro_test",
-        &resolved.caps,
-        &resolved.version,
-        resolved.is_fallback,
-    )
-    .expect_err("function macro lines require Minecraft 1.20.2+")
-    .to_string();
+    let error = sand_core::advanced::try_export_components_json("macro_test", "1.20.1")
+        .expect_err("function macro lines require Minecraft 1.20.2+")
+        .to_string();
     assert!(error.contains("macro_test:greet"), "{error}");
     assert!(error.contains("SAND-COMMAND-VERSION"), "{error}");
     assert!(error.contains("Minecraft 1.20.2+"), "{error}");

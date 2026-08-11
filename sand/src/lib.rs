@@ -34,7 +34,7 @@
 //! - Topic modules ([`mod@event`], [`mod@item`], [`state`], [`command`],
 //!   [`mod@component`], [`entity`], [`data`], [`text`], [`version`], [`vfx`]) —
 //!   the full supported surface for less common needs.
-//! - [`advanced`] — supported low-level export hooks and raw escape hatches
+//! - [`advanced`] — supported custom, version-aware export integration
 //!   for framework integrations.
 //! - `__private` is macro/compiler wiring only and carries no compatibility
 //!   promise; nothing in it is part of the authoring API.
@@ -470,14 +470,10 @@ pub mod vanilla {
     pub use sand_core::generated::{Block, EntityType, Item, SoundEvent};
 }
 
-/// Supported low-level hooks for framework integrators: export entry points
-/// (e.g. `try_export_components_json_for_version`, used by the generated
-/// `__sand_export` binary hook — see `examples/book_project`'s
-/// `__sand_export` function) and raw escape hatches for emitting JSON/SNBT
-/// Sand doesn't yet model with a typed builder. Ordinary datapack authors
-/// should not need this module; it exists for `sand-cli`/`sand-build` and
-/// for advanced integrations that need to drive the export pipeline
-/// themselves.
+/// Supported low-level hook for framework integrators that need to drive the
+/// version-aware component exporter themselves. Ordinary datapack authors
+/// should use `sand build`; compiler wiring and raw escape-hatch types retain
+/// their canonical topic-module paths rather than being duplicated here.
 pub use sand_core::advanced;
 
 /// Resource-pack authoring (HUD bars/elements, textures), re-exporting the

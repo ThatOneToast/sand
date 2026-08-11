@@ -21,7 +21,7 @@ registrations you want collected. If you add new components in a separate
 module, `pub use my_module::*;` it from `lib.rs` (as the scaffold template
 comment says) so its registrations link in too.
 
-`try_export_components_json_for_version` (from `sand::advanced` — the
+`try_export_components_json` (from `sand::advanced` — the
 supported low-level export surface, chapter 2) does the real work: it walks
 every registered component, validates it against the resolved version
 profile (chapter 16), and renders the full datapack JSON tree, printed to

@@ -63,3 +63,11 @@ pub mod vfx {
         UncontractedMode,
     }
 }
+
+pub mod advanced {
+    pub fn try_export_components_json(_namespace: &str, _mc_version: &str) -> String {
+        String::new()
+    }
+
+    pub fn uncontracted_hook() {}
+}

@@ -24,7 +24,8 @@ fn ordinary_cargo_check_rejects_new_members_in_enforced_source_scopes() {
             && stderr.contains("sand::resource_ref::DialogId::uncontracted_local")
             && stderr.contains("sand::version::VersionProfile::uncontracted_capability")
             && stderr.contains("sand::vfx::Vfx::uncontracted_step")
-            && stderr.contains("sand::vfx::Visibility::UncontractedMode"),
+            && stderr.contains("sand::vfx::Visibility::UncontractedMode")
+            && stderr.contains("sand::advanced::uncontracted_hook"),
         "unexpected cargo diagnostic:\n{stderr}"
     );
 }

@@ -274,12 +274,12 @@ fn generated_lib_rs_has_required_sand_exports() {
         "src/lib.rs must define __sand_export"
     );
     assert!(
-        content.contains("sand::advanced::try_export_components_json_for_version"),
-        "src/lib.rs must call try_export_components_json_for_version"
+        content.contains("sand::advanced::try_export_components_json(namespace, mc_version)"),
+        "src/lib.rs must call the version-aware advanced export hook"
     );
     assert!(
-        content.contains("resolve_export_caps"),
-        "src/lib.rs must resolve the transported export version"
+        !content.contains("resolve_export_caps"),
+        "src/lib.rs must not expose export capability plumbing"
     );
     assert!(
         content.contains("use sand::prelude::*"),

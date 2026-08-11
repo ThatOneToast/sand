@@ -577,16 +577,7 @@ pub fn audit_dialog() -> Dialog {
 }
 
 pub fn export(namespace: &str, version: &str) {
-    let resolved = sand_core::advanced::resolve_export_caps(version).unwrap_or_else(|error| {
-        eprintln!("audit export failed: {error}");
-        std::process::exit(1);
-    });
-    let json = sand_core::try_export_components_json_for_version(
-        namespace,
-        &resolved.caps,
-        &resolved.version,
-        resolved.is_fallback,
-    )
+    let json = sand_core::advanced::try_export_components_json(namespace, version)
     .unwrap_or_else(|error| {
         eprintln!("audit export failed: {error}");
         std::process::exit(1);

@@ -341,7 +341,7 @@ pub(crate) fn attacker_observation_setup(
         return Err(ObservationError::UnsupportedVersion {
             role,
             evidence: CorrelationEvidence::ATTACKER_RELATION,
-            target_version: profile.resolved_name.clone(),
+            target_version: profile.resolved_name().to_owned(),
         });
     }
 

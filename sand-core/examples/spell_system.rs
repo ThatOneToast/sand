@@ -90,7 +90,7 @@ fn heal_commands() -> Vec<String> {
 // ── Welcome dialog (version-gated) ────────────────────────────────────────────
 
 fn maybe_welcome_dialog(profile: &VersionProfile) -> Option<Dialog> {
-    if !profile.supports_dialogs() {
+    if !profile.supports(VersionFeature::Dialogs) {
         return None;
     }
 

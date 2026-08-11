@@ -1,0 +1,5 @@
+error: API contract documents nonexistent variant field `Unknown::recovery` on `VersionFailure`
+  --> tests/cases/fail_api_unknown_variant_field.rs:13:9
+   |
+13 |         Unknown(requested = "The unverified release.", recovery = "A nonexistent recovery field.")
+   |         ^^^^^^^

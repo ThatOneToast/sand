@@ -19,6 +19,7 @@ actionable error for a malformed version string rather than silently falling
 back.
 
 See [`sand::version`](https://docs.rs/sand) (`MinecraftVersion`,
-`VersionProfile`) for the typed API, and
+`VersionProfile`, and `VersionFeature`) for the typed API. Custom export hooks
+use `sand::advanced::resolve_export_caps`, and
 [Vanilla Limitations](vanilla-limitations.md) for what no version of Sand can
 work around.

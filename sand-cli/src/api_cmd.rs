@@ -840,4 +840,45 @@ mod tests {
             23
         );
     }
+
+    #[test]
+    fn installed_version_scope_uses_typed_capabilities_and_prelude_aliases() {
+        let catalog = generated_catalog();
+        let feature = show(catalog, "sand::prelude::VersionFeature::Dialogs").unwrap();
+        assert!(feature.contains("sand::version::VersionFeature::Dialogs"));
+        assert!(feature.contains("Data-driven Minecraft dialogs"));
+
+        let supports = show(catalog, "sand::prelude::VersionProfile::supports").unwrap();
+        assert!(supports.contains("sand::version::VersionProfile::supports"));
+        assert!(supports.contains("typed Minecraft capability"));
+
+        let search_results = search(catalog, "conservative future release fallback").unwrap();
+        assert!(search_results.contains("sand::version::VersionProfile::is_fallback"));
+
+        let grouped = module(catalog, "sand::version").unwrap();
+        assert!(grouped.contains("sand::version::VersionFeature"));
+        assert!(grouped.contains("sand::version::VersionFeature (14 APIs)"));
+        assert!(grouped.contains("sand::version::VersionProfile"));
+    }
+
+    #[test]
+    fn installed_version_catalog_matches_the_enforced_identity_count() {
+        let entries = generated_catalog()
+            .entries
+            .iter()
+            .filter(|entry| {
+                entry.canonical_path == "sand::version"
+                    || entry.canonical_path.starts_with("sand::version::")
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(entries.len(), 43);
+        assert_eq!(
+            entries
+                .iter()
+                .map(|entry| entry.canonical_path.as_str())
+                .collect::<BTreeSet<_>>()
+                .len(),
+            43
+        );
+    }
 }

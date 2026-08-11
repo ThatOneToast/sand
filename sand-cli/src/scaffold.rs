@@ -351,6 +351,8 @@ mod tests {
         assert!(!lib_rs.contains("#[component]"));
         assert!(!lib_rs.contains("AdvancementTrigger::Tick"));
         assert!(lib_rs.contains("__sand_export"));
+        assert!(lib_rs.contains("sand::advanced::resolve_export_caps"));
+        assert!(!lib_rs.contains("sand::version::resolve_export_caps"));
         // Attribute-first: scaffold uses typed commands, not raw mcfunction!
         assert!(lib_rs.contains("use sand::prelude::*"));
         assert!(lib_rs.contains("cmd::tellraw("));

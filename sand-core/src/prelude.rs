@@ -64,7 +64,7 @@ pub use crate::systems::player_data::{
 
 // ── Version gating ────────────────────────────────────────────────────────────
 
-pub use crate::version::{MinecraftVersion, VersionProfile};
+pub use crate::version::{MinecraftVersion, VersionFeature, VersionProfile};
 
 /// Validated `namespace:path` locations shared by typed resource IDs.
 pub use crate::ResourceLocation;

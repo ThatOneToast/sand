@@ -326,7 +326,7 @@ pub fn audit_on_special_kill(event: SpecialKillEvent) {
 /// `examples/book_project`'s `__sand_export` exactly.
 #[doc(hidden)]
 pub fn __sand_export(namespace: &str, mc_version: &str) {
-    let resolved = match sand::version::resolve_export_caps(mc_version) {
+    let resolved = match sand::advanced::resolve_export_caps(mc_version) {
         Ok(resolved) => resolved,
         Err(e) => {
             eprintln!("sand export failed: {e}");

@@ -1,0 +1,5 @@
+error: missing API contract documentation for variant field `Unknown::hint`
+  --> tests/cases/fail_api_missing_variant_field.rs:15:34
+   |
+15 |     Unknown { requested: String, hint: String },
+   |                                  ^^^^^^^^^^^^

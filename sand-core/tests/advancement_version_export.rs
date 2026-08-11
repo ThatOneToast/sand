@@ -55,12 +55,12 @@ fn find_record<'a>(
 
 #[test]
 fn modern_profile_export_renders_location_check_and_match_tool() {
-    let profile = VersionProfile::resolve(&MinecraftVersion::parse("26.2").unwrap()).unwrap();
+    let resolved = sand_core::advanced::resolve_export_caps("26.2").unwrap();
     let records = sand_core::try_export_components_for_version(
         "advancement_export_test",
-        &profile.caps(),
-        &profile.resolved_name,
-        profile.is_fallback,
+        &resolved.caps,
+        &resolved.version,
+        resolved.is_fallback,
     )
     .expect("modern-profile export must succeed");
 
@@ -86,13 +86,14 @@ fn legacy_profile_export_fails_with_actionable_diagnostic_instead_of_weakened_js
     // export must fail loudly rather than silently emit an incorrect or
     // weakened `item` condition.
     let profile = VersionProfile::resolve(&MinecraftVersion::parse("1.19.0").unwrap()).unwrap();
-    assert!(!profile.supports_item_components);
+    assert!(!profile.supports(VersionFeature::ItemComponents));
+    let resolved = sand_core::advanced::resolve_export_caps("1.19.0").unwrap();
 
     let error = sand_core::try_export_components_for_version(
         "advancement_export_test",
-        &profile.caps(),
-        &profile.resolved_name,
-        profile.is_fallback,
+        &resolved.caps,
+        &resolved.version,
+        resolved.is_fallback,
     )
     .expect_err("legacy-profile export with an item filter must fail");
 
@@ -103,7 +104,7 @@ fn legacy_profile_export_fails_with_actionable_diagnostic_instead_of_weakened_js
 
 #[test]
 fn multi_criterion_advancement_export_derives_requirements() {
-    let profile = VersionProfile::resolve(&MinecraftVersion::parse("26.2").unwrap()).unwrap();
+    let resolved = sand_core::advanced::resolve_export_caps("26.2").unwrap();
 
     // This profile also exercises `filtered_placed_block`, which would fail
     // export on a legacy profile — use the modern profile so both
@@ -111,9 +112,9 @@ fn multi_criterion_advancement_export_derives_requirements() {
     // `#[component]`) export successfully together.
     let records = sand_core::try_export_components_for_version(
         "advancement_export_test",
-        &profile.caps(),
-        &profile.resolved_name,
-        profile.is_fallback,
+        &resolved.caps,
+        &resolved.version,
+        resolved.is_fallback,
     )
     .expect("modern-profile export must succeed");
 

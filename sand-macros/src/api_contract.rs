@@ -366,12 +366,70 @@ fn member_registrations(
                     availability,
                     registry,
                 ));
+                for (index, field) in variant.fields.iter().enumerate() {
+                    if doc_hidden(&field.attrs) {
+                        continue;
+                    }
+                    let field_name = field
+                        .ident
+                        .as_ref()
+                        .map_or_else(|| index.to_string(), ToString::to_string);
+                    let description = variant_field_description(
+                        args.variant_fields.as_deref(),
+                        ident,
+                        &field_name,
+                    )?;
+                    let signature = if let Some(field_ident) = &field.ident {
+                        let ty = &field.ty;
+                        quote!(pub #field_ident: #ty)
+                    } else {
+                        let ty = &field.ty;
+                        quote!(pub #ty)
+                    };
+                    registrations.push(member_registration_text(
+                        info,
+                        &field_name,
+                        "Field",
+                        signature,
+                        description,
+                        &member_text_path(args, info.ident, ident, &field_name),
+                        parent_path,
+                        parent_aliases,
+                        context,
+                        minecraft,
+                        use_when,
+                        avoid_when,
+                        example,
+                        availability,
+                        registry,
+                    ));
+                }
             }
         }
         _ => {}
     }
 
     Ok(quote!(#(#registrations)*))
+}
+
+fn variant_field_description<'a>(
+    descriptions: Option<&'a [sand_api_contract::syntax::VariantFieldDescription]>,
+    variant: &syn::Ident,
+    field: &str,
+) -> syn::Result<&'a LitStr> {
+    descriptions
+        .unwrap_or_default()
+        .iter()
+        .find(|description| description.variant == *variant && description.name == field)
+        .map(|description| &description.text)
+        .ok_or_else(|| {
+            syn::Error::new_spanned(
+                variant,
+                format!(
+                    "missing API contract documentation for variant field `{variant}::{field}`"
+                ),
+            )
+        })
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -392,13 +450,49 @@ fn member_registration(
     availability: &[LitStr],
     registry: &syn::Path,
 ) -> TokenStream {
-    let member_name = ident.to_string();
+    member_registration_text(
+        info,
+        &ident.to_string(),
+        kind,
+        signature,
+        summary,
+        member_path,
+        parent_path,
+        parent_aliases,
+        context,
+        minecraft,
+        use_when,
+        avoid_when,
+        example,
+        availability,
+        registry,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn member_registration_text(
+    info: &TargetInfo<'_>,
+    member_name: &str,
+    kind: &str,
+    signature: TokenStream,
+    summary: &LitStr,
+    member_path: &TokenStream,
+    parent_path: &TokenStream,
+    parent_aliases: &[LitStr],
+    context: &LitStr,
+    minecraft: &LitStr,
+    use_when: &[LitStr],
+    avoid_when: &[LitStr],
+    example: &LitStr,
+    availability: &[LitStr],
+    registry: &syn::Path,
+) -> TokenStream {
     let identity = format!("{}::{member_name}", info.ident);
     let registration = syn::Ident::new(
         &format!("__SAND_API_CONTRACT_{:016X}", fnv1a(identity.as_bytes())),
-        ident.span(),
+        info.ident.span(),
     );
-    let kind = syn::Ident::new(kind, ident.span());
+    let kind = syn::Ident::new(kind, info.ident.span());
     let aliases = parent_aliases
         .iter()
         .map(|alias| LitStr::new(&format!("{}::{member_name}", alias.value()), alias.span()));
@@ -438,6 +532,32 @@ fn member_path(args: &ContractArgs, parent: &syn::Ident, member: &syn::Ident) ->
             ::std::stringify!(#parent),
             "::",
             ::std::stringify!(#member)
+        ))
+    }
+}
+
+fn member_text_path(
+    args: &ContractArgs,
+    parent: &syn::Ident,
+    variant: &syn::Ident,
+    field: &str,
+) -> TokenStream {
+    if let Some(path) = &args.path {
+        let value = LitStr::new(
+            &format!("{}::{variant}::{field}", path.value()),
+            variant.span(),
+        );
+        quote!(#value)
+    } else {
+        let field = LitStr::new(field, variant.span());
+        quote!(::std::concat!(
+            ::std::module_path!(),
+            "::",
+            ::std::stringify!(#parent),
+            "::",
+            ::std::stringify!(#variant),
+            "::",
+            #field
         ))
     }
 }
@@ -492,9 +612,65 @@ fn add_member_rustdoc(target: &mut Target, args: &ContractArgs) {
                         .attrs
                         .push(member_contract_doc(args, &item.ident, ident));
                 }
+                for (index, field) in variant.fields.iter_mut().enumerate() {
+                    let field_name = field
+                        .ident
+                        .as_ref()
+                        .map_or_else(|| index.to_string(), ToString::to_string);
+                    if let Some(description) = args
+                        .variant_fields
+                        .as_deref()
+                        .unwrap_or_default()
+                        .iter()
+                        .find(|description| {
+                            description.variant == *ident && description.name == field_name
+                        })
+                    {
+                        let text = &description.text;
+                        field.attrs.push(syn::parse_quote!(#[doc = #text]));
+                        field.attrs.push(syn::parse_quote!(#[doc = ""]));
+                        field.attrs.push(member_variant_field_contract_doc(
+                            args,
+                            &item.ident,
+                            ident,
+                            &field_name,
+                        ));
+                    }
+                }
             }
         }
         _ => {}
+    }
+}
+
+fn member_variant_field_contract_doc(
+    args: &ContractArgs,
+    parent: &syn::Ident,
+    variant: &syn::Ident,
+    field: &str,
+) -> syn::Attribute {
+    if let Some(path) = &args.path {
+        let line = LitStr::new(
+            &format!(
+                "API Contract: `sand api show {}::{variant}::{field}`",
+                path.value()
+            ),
+            variant.span(),
+        );
+        syn::parse_quote!(#[doc = #line])
+    } else {
+        let field = LitStr::new(field, variant.span());
+        syn::parse_quote!(#[doc = concat!(
+            "API Contract: `sand api show ",
+            module_path!(),
+            "::",
+            stringify!(#parent),
+            "::",
+            stringify!(#variant),
+            "::",
+            #field,
+            "`"
+        )])
     }
 }
 

@@ -82,7 +82,7 @@ sand_core::inventory::submit! {
 }
 
 fn export_at(version: &str) -> Result<String, String> {
-    let resolved = sand_core::version::resolve_export_caps(version).expect("known profile");
+    let resolved = sand_core::advanced::resolve_export_caps(version).expect("known profile");
     sand_core::try_export_components_json_for_version(
         "regtest_scopepack",
         &resolved.caps,

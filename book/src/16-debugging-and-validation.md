@@ -61,7 +61,7 @@ breaking the item/predicate link.
 rendering anything:
 
 ```rust,ignore
-let resolved = match sand::version::resolve_export_caps(mc_version) {
+let resolved = match sand::advanced::resolve_export_caps(mc_version) {
     Ok(resolved) => resolved,
     Err(e) => {
         eprintln!("sand export failed: {e}");
@@ -70,7 +70,7 @@ let resolved = match sand::version::resolve_export_caps(mc_version) {
 };
 ```
 
-`resolve_export_caps` looks up the capability profile for the pinned
+The advanced `resolve_export_caps` hook looks up the capability profile for the pinned
 `mc_version` (`26.2` for Trailforge) and gates every component's rendering
 against what that version actually supports — a component using a feature
 that doesn't exist on the target version fails export with a clear error

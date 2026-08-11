@@ -13,7 +13,7 @@ pub fn pack_format_for(mc_version: &str) -> u32 {
     MinecraftVersion::parse(mc_version)
         .ok()
         .and_then(|v| VersionProfile::resolve(&v).ok())
-        .map(|p| p.data_pack_format)
+        .map(|p| p.data_pack_format())
         .unwrap_or(107)
 }
 

@@ -45,7 +45,7 @@ fn registered_function_macro_exports_typed_placeholders_and_call() {
 
 #[test]
 fn registered_function_macro_is_rejected_before_minecraft_1_20_2() {
-    let resolved = sand_core::version::resolve_export_caps("1.20.1").unwrap();
+    let resolved = sand_core::advanced::resolve_export_caps("1.20.1").unwrap();
     let error = try_export_components_json_for_version(
         "macro_test",
         &resolved.caps,

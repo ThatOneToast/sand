@@ -414,7 +414,7 @@ pub fn on_sprint_while_exhausted(_event: SprintingWhileExhaustedEvent) {
 // ANCHOR: export_hook
 #[doc(hidden)]
 pub fn __sand_export(namespace: &str, mc_version: &str) {
-    let resolved = match sand::version::resolve_export_caps(mc_version) {
+    let resolved = match sand::advanced::resolve_export_caps(mc_version) {
         Ok(resolved) => resolved,
         Err(e) => {
             eprintln!("sand export failed: {e}");

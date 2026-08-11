@@ -406,14 +406,16 @@ fn validate_entries(entries: &[ApiEntry]) -> Result<(), CatalogError> {
 }
 
 fn valid_path(path: &str) -> bool {
-    let mut segments = path.split("::");
-    matches!(segments.next(), Some("sand"))
-        && segments.clone().next().is_some()
-        && segments.all(|segment| {
+    let segments = path.split("::").collect::<Vec<_>>();
+    matches!(segments.first(), Some(&"sand"))
+        && segments.len() > 1
+        && segments.iter().enumerate().all(|(position, segment)| {
             !segment.is_empty()
-                && segment.chars().enumerate().all(|(index, ch)| {
-                    ch == '_' || ch.is_ascii_alphanumeric() && (index > 0 || !ch.is_ascii_digit())
-                })
+                && (position + 1 == segments.len() && segment.chars().all(|ch| ch.is_ascii_digit())
+                    || segment.chars().enumerate().all(|(index, ch)| {
+                        ch == '_'
+                            || ch.is_ascii_alphanumeric() && (index > 0 || !ch.is_ascii_digit())
+                    }))
         })
 }
 

@@ -39,3 +39,13 @@ pub mod resource_ref {
         }
     }
 }
+
+pub mod version {
+    pub struct VersionProfile;
+
+    impl VersionProfile {
+        pub fn uncontracted_capability(&self) -> bool {
+            false
+        }
+    }
+}

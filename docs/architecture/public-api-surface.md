@@ -82,12 +82,12 @@ The verified profiles are:
 
 | Minecraft version | Static identities | Commands | Registries | Baseline |
 | --- | ---: | ---: | ---: | --- |
-| 1.21.4 (compatibility) | 10,730 | 924 | 4,288 | `api-surface-baseline-1.21.4.txt` |
-| 26.2 (latest/default) | 11,640 | 1,255 | 4,867 | `api-surface-baseline.txt` |
+| 1.21.4 (compatibility) | 10,722 | 924 | 4,288 | `api-surface-baseline-1.21.4.txt` |
+| 26.2 (latest/default) | 11,632 | 1,255 | 4,867 | `api-surface-baseline.txt` |
 
 The handwritten source contribution is 5,262 identities in both profiles.
 An explicit `SAND_ALLOW_PLACEHOLDER_CODEGEN=1` fallback uses a third,
-source-only `placeholder-codegen` profile with 5,518 identities (5,262 source
+source-only `placeholder-codegen` profile with 5,510 identities (5,254 source
 identities plus 276 checked-in generator identities). The fallback writer
 atomically replaces generated Rust and both provider catalogs; the catalogs
 are machine-marked empty placeholders and must agree. The facade keeps the
@@ -219,10 +219,10 @@ corresponding provider audit. The foundation proves this mechanism with the
 real `SandStorage` derive, but does not claim every downstream generator has
 been migrated.
 
-After the resource-reference tranche, the exact 26.2 profile records 11,640
-static identities: 180 enforced predicate, branch, condition, and resource-ID
-identities and 11,460 identities across 34 pending scopes. The 1.21.4 and
-explicit placeholder profiles enforce the same 180 source/generated identities
+After the version tranche, the exact 26.2 profile records 11,632
+static identities: 222 enforced predicate, branch, condition, resource-ID, and
+version identities and 11,410 identities across 33 pending scopes. The 1.21.4 and
+explicit placeholder profiles enforce the same 222 source/generated identities
 against their independently generated totals.
 
 Every reachable identity must map to exactly one scope. Enforced scopes reject

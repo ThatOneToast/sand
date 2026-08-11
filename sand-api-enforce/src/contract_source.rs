@@ -308,6 +308,18 @@ fn inspect_items(
                     definition: member_source_definition(item, &name, source),
                 });
             }
+            for member in args.variant_fields.into_iter().flatten() {
+                let name = format!("{}::{}", member.variant, member.name);
+                declarations.push(ContractDeclaration {
+                    canonical_path: format!("{parent_path}::{name}"),
+                    aliases: parent_aliases
+                        .iter()
+                        .map(|alias| format!("{alias}::{name}"))
+                        .collect(),
+                    source: source.to_owned(),
+                    definition: member_source_definition(item, &name, source),
+                });
+            }
         }
         match item {
             Item::Mod(module) => {
@@ -433,11 +445,28 @@ fn member_source_definition(item: &Item, name: &str, source: &Path) -> Option<So
         Item::Union(value) => value.fields.named.iter().find_map(|field| {
             (field.ident.as_ref().is_some_and(|ident| ident == name)).then(|| field.span().start())
         }),
-        Item::Enum(value) => value
-            .variants
-            .iter()
-            .find(|variant| variant.ident == name)
-            .map(|variant| variant.span().start()),
+        Item::Enum(value) => {
+            let (variant_name, field_name) = name.split_once("::").unwrap_or((name, ""));
+            let variant = value
+                .variants
+                .iter()
+                .find(|variant| variant.ident == variant_name)?;
+            if field_name.is_empty() {
+                Some(variant.span().start())
+            } else {
+                variant
+                    .fields
+                    .iter()
+                    .enumerate()
+                    .find_map(|(index, field)| {
+                        let name = field
+                            .ident
+                            .as_ref()
+                            .map_or_else(|| index.to_string(), ToString::to_string);
+                        (name == field_name).then(|| field.span().start())
+                    })
+            }
+        }
         _ => None,
     }?;
     Some(source_definition(source, location))

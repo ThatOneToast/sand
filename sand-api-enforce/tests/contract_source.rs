@@ -200,14 +200,18 @@ fn repository_contract_sources_are_the_actual_authored_declarations() {
         workspace.join("sand-components/src/predicates.rs"),
         workspace.join("sand-core/src/condition.rs"),
         workspace.join("sand-core/src/execute_when.rs"),
+        workspace.join("sand-core/src/version.rs"),
     ])
     .unwrap();
-    assert_eq!(declarations.len(), 161);
+    assert_eq!(declarations.len(), 204);
     assert_eq!(
         declarations.first().unwrap().canonical_path,
         "sand::condition"
     );
-    assert_eq!(declarations.last().unwrap().canonical_path, "sand::vanilla");
+    assert_eq!(
+        declarations.last().unwrap().canonical_path,
+        "sand::version::VersionProfile::supports"
+    );
     let predicate_new = declarations
         .iter()
         .find(|declaration| declaration.canonical_path == "sand::predicate::Predicate::new")

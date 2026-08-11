@@ -51,6 +51,18 @@ pub struct Description {
     pub text: LitStr,
 }
 
+/// One explicitly described field carried by an enum variant.
+///
+/// Tuple fields use their zero-based position as a string (for example,
+/// `ParseError = ["..."]` documents `ParseError::0`). Named fields use the
+/// field identifier (`UnknownVersion(requested = "...", hint = "...")`).
+#[derive(Clone)]
+pub struct VariantFieldDescription {
+    pub variant: syn::Ident,
+    pub name: String,
+    pub text: LitStr,
+}
+
 /// Parsed `#[api(...)]` arguments, retaining spans for precise diagnostics.
 #[derive(Default)]
 pub struct ContractArgs {
@@ -76,6 +88,7 @@ pub struct ContractArgs {
     pub availability: Option<Vec<LitStr>>,
     pub variants: Option<Vec<Description>>,
     pub fields: Option<Vec<Description>>,
+    pub variant_fields: Option<Vec<VariantFieldDescription>>,
 }
 
 /// The declaration shape whose contract is being validated.
@@ -137,11 +150,87 @@ pub fn parse_contract_args(tokens: TokenStream) -> syn::Result<ContractArgs> {
             "params" => parse_descriptions(&mut args.params, &meta, "params", "parameter"),
             "variants" => parse_descriptions(&mut args.variants, &meta, "variants", "variant"),
             "fields" => parse_descriptions(&mut args.fields, &meta, "fields", "field"),
+            "variant_fields" => parse_variant_fields(&mut args.variant_fields, &meta),
             _ => Err(meta.error(format!("unknown API contract field `{key}`"))),
         }
     });
     parser.parse2(tokens)?;
     Ok(args)
+}
+
+fn parse_variant_fields(
+    slot: &mut Option<Vec<VariantFieldDescription>>,
+    meta: &syn::meta::ParseNestedMeta<'_>,
+) -> syn::Result<()> {
+    if slot.is_some() {
+        return Err(meta.error("duplicate API contract field `variant_fields`"));
+    }
+    let mut descriptions = Vec::new();
+    let mut names = BTreeSet::new();
+    meta.parse_nested_meta(|variant| {
+        let variant_name = variant
+            .path
+            .get_ident()
+            .cloned()
+            .ok_or_else(|| variant.error("variant-field owners must be identifiers"))?;
+        if variant.input.peek(syn::Token![=]) {
+            let values = variant.value()?.parse::<ExprArray>()?;
+            for (index, value) in values.elems.into_iter().enumerate() {
+                let syn::Expr::Lit(syn::ExprLit {
+                    lit: syn::Lit::Str(text),
+                    ..
+                }) = value
+                else {
+                    return Err(syn::Error::new_spanned(value, "expected a string literal"));
+                };
+                if text.value().trim().is_empty() {
+                    return Err(syn::Error::new_spanned(
+                        text,
+                        "variant field description cannot be empty",
+                    ));
+                }
+                let name = index.to_string();
+                if !names.insert(format!("{variant_name}::{name}")) {
+                    return Err(variant.error(format!(
+                        "duplicate variant field documentation for `{variant_name}::{name}`"
+                    )));
+                }
+                descriptions.push(VariantFieldDescription {
+                    variant: variant_name.clone(),
+                    name,
+                    text,
+                });
+            }
+            return Ok(());
+        }
+        variant.parse_nested_meta(|field| {
+            let name = field
+                .path
+                .get_ident()
+                .map(ToString::to_string)
+                .ok_or_else(|| field.error("named variant fields must be identifiers"))?;
+            let text: LitStr = field.value()?.parse()?;
+            if text.value().trim().is_empty() {
+                return Err(syn::Error::new_spanned(
+                    text,
+                    "variant field description cannot be empty",
+                ));
+            }
+            if !names.insert(format!("{variant_name}::{name}")) {
+                return Err(field.error(format!(
+                    "duplicate variant field documentation for `{variant_name}::{name}`"
+                )));
+            }
+            descriptions.push(VariantFieldDescription {
+                variant: variant_name.clone(),
+                name,
+                text,
+            });
+            Ok(())
+        })
+    })?;
+    *slot = Some(descriptions);
+    Ok(())
 }
 
 fn parse_array_field(
@@ -332,6 +421,15 @@ fn reject_variant_docs(args: &ContractArgs, ident: &syn::Ident) -> syn::Result<(
             "variant descriptions are only valid on enums",
         ));
     }
+    if let Some(fields) = &args.variant_fields {
+        return Err(syn::Error::new_spanned(
+            fields.first().map_or_else(
+                || ident.to_token_stream(),
+                |field| field.variant.to_token_stream(),
+            ),
+            "variant-field descriptions are only valid on enums",
+        ));
+    }
     Ok(())
 }
 
@@ -441,7 +539,52 @@ fn validate_enum_variants(args: &ContractArgs, item: &ItemEnum) -> syn::Result<(
         args.variants.as_deref().unwrap_or_default(),
         &actual,
         &item.ident,
-    )
+    )?;
+    let mut actual_fields = BTreeMap::new();
+    for variant in &item.variants {
+        if doc_hidden(&variant.attrs) {
+            continue;
+        }
+        for (index, field) in variant.fields.iter().enumerate() {
+            if doc_hidden(&field.attrs) {
+                continue;
+            }
+            let name = field
+                .ident
+                .as_ref()
+                .map_or_else(|| index.to_string(), ToString::to_string);
+            actual_fields.insert(
+                format!("{}::{name}", variant.ident),
+                (variant.ident.clone(), name, field),
+            );
+        }
+    }
+    let documented = args.variant_fields.as_deref().unwrap_or_default();
+    let mut docs = BTreeMap::new();
+    for doc in documented {
+        let key = format!("{}::{}", doc.variant, doc.name);
+        docs.insert(key, doc);
+    }
+    for (name, (_, _, field)) in &actual_fields {
+        if !docs.contains_key(name) {
+            return Err(syn::Error::new_spanned(
+                field,
+                format!("missing API contract documentation for variant field `{name}`"),
+            ));
+        }
+    }
+    for (name, doc) in docs {
+        if !actual_fields.contains_key(&name) {
+            return Err(syn::Error::new_spanned(
+                &doc.variant,
+                format!(
+                    "API contract documents nonexistent variant field `{name}` on `{}`",
+                    item.ident
+                ),
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn validate_members(

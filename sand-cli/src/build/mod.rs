@@ -53,7 +53,7 @@ pub fn run(release: bool, resourcepack: bool) -> Result<()> {
                 .unwrap()
             });
             let meta = p.datapack_metadata();
-            (meta.pack_format, meta.is_fallback)
+            (meta.pack_format(), meta.is_fallback())
         } else {
             (pack_format_for(&mc_version), false)
         }

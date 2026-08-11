@@ -3,9 +3,9 @@
 //! Dialogs are a Minecraft 1.21.6+ / 26.x feature for displaying data-driven
 //! UI panels to players. They live at `data/<namespace>/dialog/<path>.json`.
 //!
-//! Always gate dialog usage with `VersionProfile::supports_dialogs()`:
+//! Always gate dialog usage with `VersionProfile::supports(VersionFeature::Dialogs)`:
 //! ```rust,ignore
-//! if profile.supports_dialogs() {
+//! if profile.supports(VersionFeature::Dialogs) {
 //!     let d = Dialog::notice_local("welcome")
 //!         .title(Text::new("Welcome!").gold())
 //!         .body(DialogBody::text(Text::new("Choose what to do next.")))
@@ -726,7 +726,7 @@ impl DialogKind {
 /// A typed dialog datapack component builder.
 ///
 /// Dialogs live at `data/<namespace>/dialog/<path>.json` and require
-/// Minecraft 1.21.6+ / 26.x. Always check `VersionProfile::supports_dialogs()`
+/// Minecraft 1.21.6+ / 26.x. Always check `VersionProfile::supports(VersionFeature::Dialogs)`
 /// before generating dialog output.
 ///
 /// # Example

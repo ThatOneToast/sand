@@ -41,7 +41,7 @@
 //! - **Text** — `Text`, `TextComponent`, `ChatColor`, click/hover events.
 //! - **Resource refs** — `ResourceLocation` and typed refs (`FunctionId`,
 //!   `DialogId`, `AdvancementId`, `LootTableId`, `PredicateId`).
-//! - **Version** — `MinecraftVersion`, `VersionProfile`.
+//! - **Version** — `MinecraftVersion`, `VersionProfile`, and typed `VersionFeature` gates.
 //! - **Vanilla** — the [`crate::vanilla`] module path (not its individual
 //!   variants) is brought into scope, so `vanilla::Item::Diamond` /
 //!   `vanilla::Block::WhiteWool` / `vanilla::EntityType::Marker` work

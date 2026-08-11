@@ -334,14 +334,24 @@ pub mod resource_ref {
     };
 }
 
-/// The Minecraft version model: `MinecraftVersion`, `VersionProfile`, and the
-/// capability-gating machinery that determines which command/component
-/// syntax a given target version supports. Most authors only interact with
-/// this indirectly (via `sand.toml`'s `mc_version` and the generated
-/// `sand_export` binary); reach for it directly when writing version-aware
-/// logic, e.g. checking `resolve_export_caps` output in a custom export hook
-/// (see `__sand_export` in `examples/book_project`).
-pub use sand_core::version;
+/// Typed Minecraft-version parsing, resolved pack formats, and capability
+/// checks. Most datapacks select a target through `sand.toml`; use this module
+/// when a reusable authoring system must make an explicit version-aware choice.
+#[api(
+    path = "sand::version",
+    module = "sand",
+    summary = "Models Minecraft target versions and their verified capabilities.",
+    context = "A resolved profile keeps pack formats and feature gates consistent instead of scattering release-number comparisons through author code.",
+    minecraft = "Selects the pack metadata and data-driven features valid for the target Minecraft Java Edition release.",
+    use_when = ["Checking whether authored content needs a Minecraft capability", "Inspecting the pack formats selected for a target release"],
+    avoid_when = ["Driving Sand's generated export wiring directly", "Passing an unvalidated version string between APIs"],
+    example = "let version = sand::version::MinecraftVersion::parse(\"1.21.4\")?;"
+)]
+pub mod version {
+    pub use sand_core::version::{
+        LATEST_KNOWN, MinecraftVersion, PackMetadata, VersionError, VersionFeature, VersionProfile,
+    };
+}
 
 /// Particle/sound VFX sequencing: `Vfx`, `VfxParticle`, `VfxSound`, and the
 /// `VfxStep` trait used to build a reusable, composable effect

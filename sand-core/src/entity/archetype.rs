@@ -3168,13 +3168,13 @@ fn require_macros(
     profile: &crate::version::VersionProfile,
     resource: &str,
 ) -> Result<(), EntityDiagnostic> {
-    if profile.supports_function_macros {
+    if profile.supports(crate::version::VersionFeature::FunctionMacros) {
         Ok(())
     } else {
         Err(EntityDiagnostic::UnsupportedFunctionMacro {
             archetype: definition.id.to_string(),
             resource: format!("{}:{resource}", definition.id.namespace()),
-            profile: profile.resolved_name.clone(),
+            profile: profile.resolved_name().to_owned(),
         })
     }
 }

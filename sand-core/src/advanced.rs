@@ -19,3 +19,32 @@ pub use crate::function::{
     drain_dyn_fns, register_dyn_fn, register_dyn_fn_dedup,
 };
 pub use sand_components::{RawCommand, RawComponent, RawJson, RawSnbt};
+
+/// Export-time capability information resolved from a project `mc_version`.
+///
+/// This is an advanced integration value. Ordinary datapack code should use
+/// [`crate::version::VersionProfile`] and [`crate::version::VersionFeature`]
+/// instead of driving the export capability bridge itself.
+#[derive(Debug, Clone)]
+pub struct ResolvedExportCaps {
+    /// The verified target version or conservative fallback label.
+    pub version: String,
+    /// Whether Sand could not find an exact profile for the requested version.
+    pub is_fallback: bool,
+    /// The cycle-safe component capability set consumed by export hooks.
+    pub caps: VersionCaps,
+}
+
+/// Resolve a raw `sand.toml` `mc_version` for a custom export hook.
+///
+/// This accepts the configuration boundary's raw string deliberately. It
+/// rejects malformed values and returns conservative disabled capabilities for
+/// syntactically valid but unverified releases.
+pub fn resolve_export_caps(mc_version: &str) -> crate::error::Result<ResolvedExportCaps> {
+    let resolved = crate::version::resolve_export_caps(mc_version)?;
+    Ok(ResolvedExportCaps {
+        version: resolved.version,
+        is_fallback: resolved.is_fallback,
+        caps: resolved.caps,
+    })
+}

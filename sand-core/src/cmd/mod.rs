@@ -132,9 +132,7 @@ pub use sand_commands::{
 pub use cooldown::Cooldown;
 // Storage and StorageKind are datapack concepts defined only in sand-core.
 // All other NBT/scoreboard types come from sand-commands above.
-pub use crate::vfx::{
-    IntoParticleStep, IntoSoundStep, IntoVfxSelector, Vfx, VfxParticle, VfxSound, VfxStep,
-};
+pub use crate::vfx::{Vfx, VfxParticle, VfxParticleVisibility, VfxSound, VfxStep};
 pub use data::{Storage, StorageKind};
 pub use effect::{EffectGive, effect_clear, effect_clear_effect, effect_give, effect_give_raw};
 pub use fn_macros::{

@@ -41,6 +41,31 @@ pub enum VersionFailure {
     Unknown { requested: String, hint: String },
 }
 
+// Both tuple variants deliberately have a `0` field. This proves their
+// generated contract-registration symbols include the variant identity rather
+// than colliding on a bare tuple-field index.
+#[api(
+    path = "sand::testing::TuplePair",
+    summary = "Carries one of two typed fixture payloads.",
+    context = "The fixture verifies that distinct tuple-variant fields retain distinct API identities.",
+    minecraft = "The payloads model two independently meaningful Minecraft fixture states.",
+    use_when = ["Testing enum payload contract identities"],
+    avoid_when = ["Representing a production resource"],
+    example = "TuplePair::First(1)",
+    variants(
+        First = "Carries the first fixture payload.",
+        Second = "Carries the second fixture payload."
+    ),
+    variant_fields(
+        First = ["The first fixture payload value."],
+        Second = ["The second fixture payload value."]
+    )
+)]
+pub enum TuplePair {
+    First(u8),
+    Second(u8),
+}
+
 #[api(
     path = "sand::testing::ResourceInfo",
     summary = "Carries the stable identity and enabled state of a resource.",

@@ -1,13 +1,13 @@
 schema_version=1
 configuration=all-supported-features,current-target
 minecraft_version=1.21.4
-total=10722
+total=10719
 kind associated_const=21
 kind associated_type=2
 kind attribute_macro=8
 kind constant=17
 kind derive_macro=3
-kind enum=167
+kind enum=168
 kind field=991
 kind function=437
 kind function_like_macro=4
@@ -16,16 +16,16 @@ kind method=2723
 kind module=80
 kind static=1
 kind struct=851
-kind trait=38
-kind trait_method=56
+kind trait=35
+kind trait_method=53
 kind type_alias=13
-kind variant=5307
+kind variant=5309
 origin generator:generated_commands=924
 origin generator:generated_effect_registry_enums=95
 origin generator:generated_event_markers=25
 origin generator:generated_registries=4288
 origin generator:generated_registry_ids=136
-origin source=5254
+origin source=5251
 advanced-source module=sand::advanced state=pending tier=advanced provider=source precedence=100 recursive=true active=true items=125 contracted=0 aliases=- features=-
 command-source module=sand::command state=pending tier=ordinary provider=source precedence=50 recursive=true active=true items=815 contracted=0 aliases=sand::cmd,sand::prelude features=-
 component-source module=sand::component state=pending tier=ordinary provider=source precedence=50 recursive=true active=true items=1097 contracted=0 aliases=sand::prelude features=-
@@ -65,5 +65,5 @@ systems-source module=sand::systems state=pending tier=ordinary provider=source 
 text-source module=sand::text state=pending tier=ordinary provider=source precedence=100 recursive=true active=true items=95 contracted=1 aliases=sand::prelude features=-
 vanilla-source module=sand::vanilla state=pending tier=ordinary provider=source precedence=50 recursive=true active=true items=0 contracted=0 aliases=sand::prelude features=-
 version-source module=sand::version state=enforced tier=ordinary provider=source precedence=50 recursive=true active=true items=42 contracted=42 aliases=sand::prelude features=-
-vfx-source module=sand::vfx state=pending tier=ordinary provider=source precedence=100 recursive=true active=true items=48 contracted=0 aliases=- features=-
-totals pending_scopes=32 pending_items=6212 enforced_items=4510 pending_scope_ceiling=32 pending_item_ceiling=6212
+vfx-source module=sand::vfx state=enforced tier=ordinary provider=source precedence=100 recursive=true active=true items=45 contracted=45 aliases=- features=-
+totals pending_scopes=31 pending_items=6164 enforced_items=4555 pending_scope_ceiling=31 pending_item_ceiling=6164

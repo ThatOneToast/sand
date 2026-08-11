@@ -60,3 +60,19 @@ register! {
     returns: None,
     example: "use sand::prelude::*;"
 }
+
+register! {
+    path: "sand::vfx",
+    aliases: [],
+    module: "sand",
+    kind: Module,
+    signature: "pub mod vfx",
+    summary: "Builds reusable particle, sound, and explicit raw-command effects.",
+    context: "VFX keeps a small sequence of presentation commands reusable across functions instead of repeating command strings at every call site.",
+    minecraft: "Renders particle and playsound commands, optionally wrapped at a selector or position.",
+    use_when: ["Reusing a named presentation sequence", "Keeping particle and sound ordering deterministic"],
+    avoid_when: ["Modeling game rules, state changes, or a datapack resource"],
+    params: [],
+    returns: None,
+    example: "let effect = sand::vfx::Vfx::new(\"level_up\");"
+}

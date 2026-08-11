@@ -1,0 +1,10 @@
+[package]
+name = "generated-registry-uncontracted-fixture"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[build-dependencies]
+sand-build = { path = "../../.." }

@@ -99,7 +99,13 @@ method causes an ordinary `cargo check` to fail. The normal Sand build enforces
 the 119-item `predicate-source` scope, the four-item generated `PredicateId`
 partition, the 22-item `execute-when-source` scope, the 12-item opaque
 `condition-source` scope, the one-item `resource-ref-source` module, and the
-22-item generated resource-ID partition. Parametric `consumer_build` boundaries
+22-item generated resource-ID partition. It also enforces the selected
+Minecraft profile's complete vanilla-registry provider (4,867 identities for
+26.2 and 4,288 for 1.21.4). The generator emits each registry contract from the
+same versioned entry that emits its enum variant, and the facade build requires
+exact identity/kind parity with the generated Rust. A dedicated normal-build
+fixture proves that an unreported generated variant stops `cargo check`.
+Parametric `consumer_build` boundaries
 additionally require their named provider-audit connection.
 
 `#[api]` defaults to the facade's hidden registration transport. Definitions

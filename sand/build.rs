@@ -226,8 +226,18 @@ fn main() {
     ));
     reject_duplicate_contract_identities(&contracts);
 
+    // The vanilla-registry provider is structurally compared with the emitted
+    // Rust above even when a selected Minecraft profile contains no supported
+    // registries (the explicit placeholder profile). Connecting that audit
+    // prevents the empty profile from becoming a vacuous enforcement claim.
+    let connected_provider_audits = BTreeSet::from(["generated-vanilla-registries".to_owned()]);
     let report = manifest
-        .evaluate(&reachable, &contracts, &enabled_features)
+        .evaluate_with_provider_audits(
+            &reachable,
+            &contracts,
+            &enabled_features,
+            &connected_provider_audits,
+        )
         .unwrap_or_else(|errors| panic_errors("Sand API scope enforcement failed", &errors));
     if reachable.len() != manifest.static_surface_items {
         panic!(

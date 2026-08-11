@@ -89,6 +89,7 @@ fn enum_api_entries(
     minecraft_version: &str,
 ) -> Vec<GeneratedProviderEntry> {
     let enum_path = format!("sand::vanilla::{enum_name}");
+    let prelude_enum_path = format!("sand::prelude::vanilla::{enum_name}");
     let registry_label = registry_key
         .strip_prefix("minecraft:")
         .unwrap_or(registry_key);
@@ -109,7 +110,7 @@ fn enum_api_entries(
         member_name: None,
         contract: ApiEntry {
             canonical_path: enum_path.clone(),
-            aliases: Vec::new(),
+            aliases: vec![prelude_enum_path.clone()],
             canonical_module: "sand::vanilla".into(),
             kind: ApiKind::Enum,
             signature: format!("pub enum {enum_name}"),
@@ -140,7 +141,7 @@ fn enum_api_entries(
         member_name: Some("resource_location".into()),
         contract: ApiEntry {
             canonical_path: format!("{enum_path}::resource_location"),
-            aliases: Vec::new(),
+            aliases: vec![format!("{prelude_enum_path}::resource_location")],
             canonical_module: "sand::vanilla".into(),
             kind: ApiKind::Method,
             signature: "pub fn resource_location(&self) -> &'static str".into(),
@@ -169,7 +170,7 @@ fn enum_api_entries(
             member_name: Some(variant.clone()),
             contract: ApiEntry {
             canonical_path: format!("{enum_path}::{variant}"),
-            aliases: Vec::new(),
+            aliases: vec![format!("{prelude_enum_path}::{variant}")],
             canonical_module: "sand::vanilla".into(),
             kind: ApiKind::Variant,
             signature: variant.clone(),
@@ -316,6 +317,7 @@ mod tests {
         assert_eq!(provider.entries.len(), 4);
         assert!(provider.entries.iter().any(|entry| {
             entry.contract.canonical_path == "sand::vanilla::Item::Stone"
+                && entry.contract.aliases == ["sand::prelude::vanilla::Item::Stone"]
                 && entry.contract.minecraft.contains("`minecraft:stone`")
                 && entry.definition_identity == "sand_core::generated::Item::Stone"
         }));
@@ -327,6 +329,11 @@ mod tests {
             std::fs::read(out.join("registries.api.json")).unwrap(),
             std::fs::read(second_out.join("registries.api.json")).unwrap(),
             "provider metadata must be byte-for-byte deterministic"
+        );
+        assert_eq!(
+            std::fs::read(out.join("registries.rs")).unwrap(),
+            std::fs::read(second_out.join("registries.rs")).unwrap(),
+            "generated Rust must be byte-for-byte deterministic"
         );
     }
 }

@@ -307,9 +307,11 @@ impl ScopeManifest {
         self.evaluate_with_provider_audits(reachable, contracts, enabled_features, &BTreeSet::new())
     }
 
-    /// Evaluate the ratchet with consumer-build provider audits connected by
-    /// stable scope id. This separate capability prevents a zero-item
-    /// parametric scope from becoming vacuously enforced in the facade build.
+    /// Evaluate the ratchet with generator-provider audits connected by stable
+    /// scope id. This prevents a zero-item parametric scope, or an intentionally
+    /// empty generated version profile, from becoming vacuously enforced.
+    /// Callers must connect an id only after proving exact generated-source and
+    /// contract-provider parity during the same ordinary build.
     pub fn evaluate_with_provider_audits(
         &self,
         reachable: &[ReachableApi],

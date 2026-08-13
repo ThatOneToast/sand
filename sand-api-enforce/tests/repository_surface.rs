@@ -50,7 +50,7 @@ fn checked_repository_surface_baseline_is_complete_and_partitioned() {
     assert_eq!(
         lines.last().copied(),
         Some(
-            "totals pending_scopes=26 pending_items=4978 enforced_items=6543 pending_scope_ceiling=26 pending_item_ceiling=4978"
+            "totals pending_scopes=25 pending_items=4868 enforced_items=6653 pending_scope_ceiling=25 pending_item_ceiling=4868"
         )
     );
 }
@@ -78,7 +78,7 @@ fn checked_repository_profiles_bind_exact_versioned_baselines() {
         let enforced_registries = registries;
         assert_eq!(
             profile.pending_item_ceiling,
-            total - 421 - enforced_registries - commands
+            total - 531 - enforced_registries - commands
         );
         let baseline = std::fs::read_to_string(sand.join(&profile.baseline)).unwrap();
         let lines = baseline.lines().collect::<Vec<_>>();
@@ -103,7 +103,7 @@ fn checked_repository_profiles_bind_exact_versioned_baselines() {
         );
         assert_eq!(
             numeric_field(lines.last().unwrap(), "pending_items="),
-            total - 421 - enforced_registries - commands
+            total - 531 - enforced_registries - commands
         );
     }
 }

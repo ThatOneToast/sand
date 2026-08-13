@@ -477,7 +477,7 @@ fn validate_generated_contracts(
         .collect::<BTreeMap<_, _>>();
     contracts
         .into_iter()
-        .filter_map(|contract| {
+        .filter_map(|mut contract| {
             // A generated declaration shadowed by a handwritten item is Rust-
             // public inside the implementation module but is not reachable
             // through the facade glob, so it is outside the supported surface.
@@ -496,6 +496,16 @@ fn validate_generated_contracts(
                     );
                 }
             }
+            // Providers own semantic metadata, while the facade graph owns
+            // discovery paths. Preserve the provider's canonical spelling but
+            // derive every reachable alias here so a newly exported prelude or
+            // topic alias cannot silently fall out of strict enforcement.
+            contract.aliases = item
+                .paths
+                .iter()
+                .filter(|path| *path != &contract.canonical_path)
+                .cloned()
+                .collect();
             Some(contract)
         })
         .collect()

@@ -3,7 +3,7 @@
 use proc_macro2::TokenStream;
 use quote::{ToTokens, quote};
 use syn::parse::{Parse, ParseStream};
-use syn::{Attribute, FnArg, Item, LitStr, Pat, Token};
+use syn::{Attribute, Expr, FnArg, Item, Lit, LitStr, Meta, Pat, Token};
 
 use crate::{ApiEntry, ApiKind, ApiParameter};
 
@@ -16,7 +16,7 @@ pub struct RegistryApiDefinition {
     pub contract: ApiEntry,
 }
 
-/// The compiled Rust expansion and any opted-in API definitions.
+/// The compiled Rust expansion and its declaration-derived API definitions.
 pub struct RegistryIdExpansion {
     pub rust: TokenStream,
     pub definitions: Vec<RegistryApiDefinition>,
@@ -94,11 +94,11 @@ pub fn expand(input: TokenStream) -> syn::Result<RegistryIdExpansion> {
     let invocation = syn::parse2::<Invocation>(input)?;
     let name = &invocation.name;
     let attributes = &invocation.attributes;
-    let contract = invocation.contract.map(parse_contract).transpose()?;
-    let local_constructor = contract
-        .as_ref()
-        .and_then(|contract| contract.local.as_ref())
-        .is_some();
+    let contract = match invocation.contract.map(parse_contract).transpose()? {
+        Some(contract) => contract,
+        None => semantic_default_contract(attributes, name)?,
+    };
+    let local_constructor = contract.local.is_some();
     if local_constructor && name != "DialogId" {
         return Err(syn::Error::new_spanned(
             name,
@@ -164,18 +164,95 @@ pub fn expand(input: TokenStream) -> syn::Result<RegistryIdExpansion> {
         }
     };
     let mut file = syn::parse2::<syn::File>(base)?;
-    let definitions = match contract {
-        Some(contract) => definitions(&file, &invocation.name, contract)?,
-        None => Vec::new(),
-    };
-    if definitions.is_empty() {
-        add_default_method_docs(&mut file, &invocation.name);
-    } else {
-        add_contract_docs(&mut file, &invocation.name, &definitions)?;
-    }
+    let definitions = definitions(&file, &invocation.name, contract)?;
+    add_contract_docs(&mut file, &invocation.name, &definitions)?;
     Ok(RegistryIdExpansion {
         rust: file.into_token_stream(),
         definitions,
+    })
+}
+
+/// Turn declaration documentation into a complete contract for the ordinary
+/// prelude-only registry-ID family. This intentionally rejects undocumented
+/// declarations: a generator may synthesize prose only when its input already
+/// states what the registry identifier represents.
+fn semantic_default_contract(attributes: &[Attribute], name: &syn::Ident) -> syn::Result<Contract> {
+    let documentation = attributes
+        .iter()
+        .filter_map(|attribute| match &attribute.meta {
+            Meta::NameValue(value)
+                if value.path.is_ident("doc")
+                    && matches!(&value.value, Expr::Lit(expression) if matches!(&expression.lit, Lit::Str(_))) =>
+            {
+                let Expr::Lit(expression) = &value.value else {
+                    unreachable!();
+                };
+                let Lit::Str(text) = &expression.lit else {
+                    unreachable!();
+                };
+                Some(text.value().trim().to_owned())
+            }
+            _ => None,
+        })
+        .filter(|line| !line.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ");
+    let first_sentence = documentation
+        .split_once('.')
+        .map(|(sentence, _)| sentence)
+        .unwrap_or(&documentation)
+        .trim();
+    if first_sentence.is_empty() {
+        return Err(syn::Error::new_spanned(
+            name,
+            format!(
+                "registry_id! `{name}` requires @contract(...) or declaration docs that explain its Minecraft registry semantics"
+            ),
+        ));
+    }
+    let subject = first_sentence
+        .strip_prefix("Typed ")
+        .unwrap_or(first_sentence)
+        .trim_end_matches('.')
+        .to_owned();
+    let availability = if documentation.contains("Introduced in Minecraft 26") {
+        Some(vec![LitStr::new("Minecraft Java 26.1+", name.span())])
+    } else if documentation.contains("Introduced in 1.21.5") {
+        Some(vec![LitStr::new("Minecraft Java 1.21.5+", name.span())])
+    } else {
+        None
+    };
+    Ok(Contract {
+        path: Some(LitStr::new(&format!("sand::prelude::{name}"), name.span())),
+        aliases: Some(Vec::new()),
+        subject: Some(LitStr::new(&subject, name.span())),
+        minecraft: Some(LitStr::new(
+            &format!(
+                "Validates and serializes the namespace:path identifier Minecraft uses for this {subject}."
+            ),
+            name.span(),
+        )),
+        use_when: Some(vec![
+            LitStr::new(
+                &format!("Passing a typed {subject} to a Sand API"),
+                name.span(),
+            ),
+            LitStr::new(
+                &format!("Representing a custom or modded {subject}"),
+                name.span(),
+            ),
+        ]),
+        avoid_when: Some(vec![
+            LitStr::new("Passing an unvalidated namespace:path string", name.span()),
+            LitStr::new(
+                "Using a more specific generated vanilla enum when one is available",
+                name.span(),
+            ),
+        ]),
+        example_namespace: Some(LitStr::new("demo", name.span())),
+        example_path: Some(LitStr::new("entry", name.span())),
+        availability,
+        local: None,
     })
 }
 
@@ -640,26 +717,6 @@ fn parameter_names(signature: &syn::Signature) -> syn::Result<Vec<String>> {
             }),
         })
         .collect()
-}
-
-fn add_default_method_docs(file: &mut syn::File, name: &syn::Ident) {
-    let Some(implementation) = inherent_impl_mut(file, name) else {
-        return;
-    };
-    for item in &mut implementation.items {
-        let syn::ImplItem::Fn(method) = item else {
-            continue;
-        };
-        let text = match method.sig.ident.to_string().as_str() {
-            "minecraft" => {
-                "Construct a `minecraft:<path>` ID. Returns an error if `path` is invalid."
-            }
-            "custom" => "Wrap any `ResourceLocation` as this registry ID.",
-            "as_resource_location" => "Access the inner `ResourceLocation`.",
-            _ => continue,
-        };
-        method.attrs.push(syn::parse_quote!(#[doc = #text]));
-    }
 }
 
 fn add_contract_docs(

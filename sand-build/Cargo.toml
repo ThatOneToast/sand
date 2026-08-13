@@ -25,6 +25,7 @@ sand-version = { path = "../sand-version" }
 sand-api-contract = { path = "../sand-api-contract", features = ["syntax"] }
 syn = { version = "2", features = ["full"] }
 proc-macro2 = "1"
+quote = "1"
 
 [features]
 integration-tests = []

@@ -50,7 +50,7 @@ generated-schedule-macro module=sand state=enforced tier=ordinary provider=gener
 generated-state-derive module=sand state=enforced tier=ordinary provider=generator:state_derive precedence=50 recursive=false active=true items=0 contracted=0 aliases=- features=-
 generated-storage-derive module=sand state=enforced tier=ordinary provider=generator:storage_derive precedence=50 recursive=false active=true items=0 contracted=0 aliases=- features=-
 generated-vanilla-registries module=sand::vanilla state=enforced tier=ordinary provider=generator:generated_registries precedence=50 recursive=true active=true items=0 contracted=0 aliases=sand::prelude features=-
-inventory-source module=sand::inventory state=pending tier=ordinary provider=source precedence=100 recursive=true active=true items=94 contracted=65 aliases=sand::item,sand::prelude features=-
+inventory-source module=sand::inventory state=pending tier=ordinary provider=source precedence=100 recursive=true active=true items=94 contracted=73 aliases=sand::item,sand::prelude features=-
 item-source module=sand::item state=enforced tier=ordinary provider=source precedence=50 recursive=true active=true items=38 contracted=38 aliases=sand::prelude features=-
 participant-source module=sand::participant state=pending tier=ordinary provider=source precedence=100 recursive=true active=true items=183 contracted=0 aliases=sand::prelude features=-
 predicate-source module=sand::predicate state=enforced tier=ordinary provider=source precedence=100 recursive=true active=true items=119 contracted=119 aliases=sand::component,sand::prelude features=-

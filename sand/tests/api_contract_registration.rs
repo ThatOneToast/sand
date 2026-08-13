@@ -42,9 +42,9 @@ fn generated_registrations_build_an_installed_catalog() {
 
     let coverage = sand::__private::api_contract::installed_coverage();
     assert_eq!(coverage.static_surface_items, 11_521);
-    assert_eq!(coverage.pending_item_ceiling, 5_003);
-    assert_eq!(coverage.pending_scope_ceiling, 27);
-    assert_eq!(coverage.pending_scopes.len(), 27);
+    assert_eq!(coverage.pending_item_ceiling, 4_978);
+    assert_eq!(coverage.pending_scope_ceiling, 26);
+    assert_eq!(coverage.pending_scopes.len(), 26);
     let catalog = ApiCatalog::installed_with_coverage(env!("CARGO_PKG_VERSION"), coverage).unwrap();
     let function = catalog.find("sand::prelude::contract_fixture").unwrap();
     assert_eq!(function.kind, ApiKind::Function);
@@ -80,6 +80,11 @@ fn generated_registrations_build_an_installed_catalog() {
         .expect("generated effect registry contracts are installed");
     assert_eq!(effect.kind, ApiKind::Variant);
     assert_eq!(effect.canonical_path, "sand::prelude::EffectId::Speed");
+
+    let event = catalog
+        .find("sand::events::PlayerEnteredSurvivalEvent")
+        .expect("generated event marker contracts are installed");
+    assert_eq!(event.kind, ApiKind::Struct);
 
     let condition = catalog
         .find("sand::prelude::Condition::entity")

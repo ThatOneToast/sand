@@ -2814,6 +2814,24 @@ macro_rules! gamemode_transition {
     ($mode:literal, $tracker:literal, $enter:ident, $exit:ident) => {
         #[doc = concat!("Fires once when a player switches into ", $mode, " mode.")]
         pub struct $enter;
+        ::sand_api_contract::inventory::submit! {
+            ::sand_api_contract::ApiRegistration {
+                canonical_path: concat!("sand::events::", stringify!($enter)),
+                aliases: &[],
+                canonical_module: "sand::events",
+                kind: ::sand_api_contract::ApiKind::Struct,
+                signature: concat!("pub struct ", stringify!($enter), ";"),
+                summary: concat!("Marks the transition into Minecraft's ", $mode, " game mode."),
+                context: "This generated zero-sized event marker lets an on_event handler react once per player transition without polling or maintaining its own prior-state tracker.",
+                minecraft: concat!("Tracks each player against @s[gamemode=", $mode, "] and dispatches when the condition becomes true."),
+                use_when: &["Handling the moment a player enters this game mode"],
+                avoid_when: &["Checking a player's current game mode continuously"],
+                parameters: &[],
+                returns: None,
+                example: concat!("use sand::events::", stringify!($enter), ";"),
+                availability: &[],
+            }
+        }
         impl SandEvent for $enter {
             fn dispatch() -> SandEventDispatch {
                 SandEventDispatch::Tracked(crate::TrackedTransition::new(
@@ -2830,6 +2848,24 @@ macro_rules! gamemode_transition {
         #[doc = concat!("Fires once when a player switches out of ", $mode, " mode.")]
         #[doc = concat!("Uses the same shared tracker as [`", stringify!($enter), "`].")]
         pub struct $exit;
+        ::sand_api_contract::inventory::submit! {
+            ::sand_api_contract::ApiRegistration {
+                canonical_path: concat!("sand::events::", stringify!($exit)),
+                aliases: &[],
+                canonical_module: "sand::events",
+                kind: ::sand_api_contract::ApiKind::Struct,
+                signature: concat!("pub struct ", stringify!($exit), ";"),
+                summary: concat!("Marks the transition out of Minecraft's ", $mode, " game mode."),
+                context: "This generated zero-sized event marker shares the enter marker's tracker so a handler runs once when a player leaves this mode.",
+                minecraft: concat!("Tracks each player against @s[gamemode=", $mode, "] and dispatches when the condition becomes false."),
+                use_when: &["Handling the moment a player leaves this game mode"],
+                avoid_when: &["Checking a player's current game mode continuously"],
+                parameters: &[],
+                returns: None,
+                example: concat!("use sand::events::", stringify!($exit), ";"),
+                availability: &[],
+            }
+        }
         impl SandEvent for $exit {
             fn dispatch() -> SandEventDispatch {
                 SandEventDispatch::Tracked(crate::TrackedTransition::new(
@@ -3029,6 +3065,24 @@ macro_rules! status_effect_marker {
         #[doc = ""]
         #[doc = concat!("Use with [`EffectStarted<", stringify!($ty), ">`] / [`EffectStopped<", stringify!($ty), ">`].")]
         pub struct $ty;
+        ::sand_api_contract::inventory::submit! {
+            ::sand_api_contract::ApiRegistration {
+                canonical_path: concat!("sand::events::", stringify!($ty)),
+                aliases: &[],
+                canonical_module: "sand::events",
+                kind: ::sand_api_contract::ApiKind::Struct,
+                signature: concat!("pub struct ", stringify!($ty), ";"),
+                summary: concat!("Marks Minecraft's `", $id, "` status effect for typed transition events."),
+                context: "This generated zero-sized marker selects one vanilla effect for EffectStarted and EffectStopped without requiring stringly typed effect names.",
+                minecraft: concat!("Uses a generated entity-properties predicate for ", $id, " and a shared transition tracker."),
+                use_when: &["Subscribing to this effect starting or stopping on a player"],
+                avoid_when: &["Applying, removing, or representing an arbitrary status effect"],
+                parameters: &[],
+                returns: None,
+                example: concat!("use sand::events::{EffectStarted, ", stringify!($ty), "};\n\nfn typed_event(_: EffectStarted<", stringify!($ty), ">) {}"),
+                availability: &[],
+            }
+        }
         impl StatusEffectMarker for $ty {
             const EFFECT_ID: &'static str = $id;
             const TRACKER_ID: &'static str = $tracker;

@@ -4,8 +4,8 @@
 # are discovered through the reachable re-export graph. Generator scopes are
 # supplied from the same declaration/schema that emits their Rust API.
 schema_version = 1
-enforced_scope_baseline = ["predicate-source", "generated-predicate-id-wrapper", "execute-when-source", "condition-source", "resource-ref-source", "generated-resource-id-wrappers", "version-source", "generated-vanilla-registries", "vfx-source", "advanced-source", "root-source", "generated-effect-registry-enums", "generated-commands"]
-pending_scope_ceiling = 27
+enforced_scope_baseline = ["predicate-source", "generated-predicate-id-wrapper", "execute-when-source", "condition-source", "resource-ref-source", "generated-resource-id-wrappers", "version-source", "generated-vanilla-registries", "vfx-source", "advanced-source", "root-source", "generated-effect-registry-enums", "generated-commands", "generated-event-markers"]
+pending_scope_ceiling = 26
 
 [[scope]]
 id = "root-source"
@@ -249,7 +249,7 @@ provider = "generator:generated_effect_registry_enums"
 [[scope]]
 id = "generated-event-markers"
 canonical_module = "sand"
-state = "pending"
+state = "enforced"
 tier = "ordinary"
 provider = "generator:generated_event_markers"
 

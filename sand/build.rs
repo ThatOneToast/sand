@@ -228,6 +228,10 @@ fn main() {
         &reachable,
         "generated_effect_registry_enums",
     ));
+    contracts.extend(generated_provider_contracts(
+        &reachable,
+        "generated_event_markers",
+    ));
     reject_duplicate_contract_identities(&contracts);
 
     // The vanilla-registry provider is structurally compared with the emitted

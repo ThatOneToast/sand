@@ -19,6 +19,7 @@
 //! held-item roles into the #230 participant-context model automatically.
 
 pub mod location;
+
 pub mod snapshot;
 
 pub use location::{

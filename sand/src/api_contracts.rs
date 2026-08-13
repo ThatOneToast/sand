@@ -158,6 +158,38 @@ register! {
 }
 
 register! {
+    path: "sand::item::location",
+    aliases: [],
+    module: "sand::item",
+    kind: Module,
+    signature: "pub mod location",
+    summary: "Provides validated live item and inventory addressing.",
+    context: "Location types describe where an item currently resides without confusing that mutable location with captured event-time data.",
+    minecraft: "Builds the entity and block inventory targets used by item, data, and execute-if-items commands.",
+    use_when: ["Constructing a live equipment, inventory, container, or item-entity location"],
+    avoid_when: ["Keeping event-time item evidence after a handler changes the source"],
+    params: [],
+    returns: None,
+    example: "let slot = sand::item::ItemLocation::PlayerMainHand;"
+}
+
+register! {
+    path: "sand::item::snapshot",
+    aliases: [],
+    module: "sand::item",
+    kind: Module,
+    signature: "pub mod snapshot",
+    summary: "Provides immutable, short-lived event-time item capture handles.",
+    context: "Snapshots preserve the source item before handler logic mutates inventory and communicate their capture reliability explicitly.",
+    minecraft: "Uses guarded data copies into deterministic command-storage paths during one synchronous event dispatch.",
+    use_when: ["A handler needs evidence of the item present at trigger time"],
+    avoid_when: ["Representing a live inventory slot or durable player inventory state"],
+    params: [],
+    returns: None,
+    example: "use sand::item::snapshot::ItemSnapshot;"
+}
+
+register! {
     path: "sand::state",
     aliases: [],
     module: "sand",

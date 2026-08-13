@@ -81,6 +81,7 @@ impl SnapshotReliability {
     /// into storage, never referenced live, so neither ever qualifies for
     /// [`ParticipantReliability::Exact`]. The distinction between them is
     /// not lost: see [`SnapshotReliability::item_evidence_qualifier`].
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::item::SnapshotReliability::as_participant_reliability", summary = "Maps item-capture evidence into the shared participant reliability vocabulary.", context = "Participant plans compare a common reliability type while this mapping preserves that snapshots are stored evidence rather than live entity observations.", minecraft = "Emits no command; it describes how generated observation evidence may be consumed.", use_when = ["Passing snapshot evidence into a participant-aware event API"], avoid_when = ["Discarding the finer exact-capture qualifier when it matters"], returns = "The corresponding shared participant reliability level.", example = "let reliability = SnapshotReliability::Exact.as_participant_reliability();")]
     pub fn as_participant_reliability(self) -> ParticipantReliability {
         match self {
             SnapshotReliability::Exact | SnapshotReliability::ExactPostTrigger => {
@@ -93,6 +94,7 @@ impl SnapshotReliability {
 
     /// The finer-grained item capture evidence behind an `ExactSnapshot`
     /// mapping, or `None` for levels that don't carry this distinction.
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::item::SnapshotReliability::item_evidence_qualifier", summary = "Returns the finer distinction behind exact snapshot evidence when one exists.", context = "Exact and exact-post-trigger snapshots share a participant reliability level but differ in whether vanilla could have changed the item before Sand gained control.", minecraft = "Emits no command.", use_when = ["Reporting whether an exact snapshot preceded known vanilla mutation windows"], avoid_when = ["Treating correlated or unavailable evidence as an exact capture"], returns = "A qualifier for exact evidence, or None for non-exact levels.", example = "let qualifier = SnapshotReliability::Exact.item_evidence_qualifier();")]
     pub fn item_evidence_qualifier(self) -> Option<ItemEvidenceQualifier> {
         match self {
             SnapshotReliability::Exact => {

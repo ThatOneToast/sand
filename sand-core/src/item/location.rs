@@ -213,12 +213,15 @@ pub enum EntityInventorySlot {
 }
 
 /// Validated main-inventory index (`0..=26`, excluding the hotbar).
+#[sand_macros::api(registry = sand_api_contract, path = "sand::inventory::MainInventoryIndex", aliases = ["sand::item::MainInventoryIndex", "sand::item::location::MainInventoryIndex", "sand::prelude::MainInventoryIndex"], summary = "Validates a non-hotbar player main-inventory offset.", context = "This type names the 27 slots after the hotbar, avoiding ambiguity with the combined InventoryIndex range.", minecraft = "Maps offsets 0 through 26 to player Inventory slots 9 through 35.", use_when = ["Selecting an entity main-inventory slot without the hotbar"], avoid_when = ["Selecting the combined 0 through 35 inventory range"], example = "let slot = MainInventoryIndex::new(0)?;")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct MainInventoryIndex(u8);
 
 impl MainInventoryIndex {
+    #[sand_macros::api(kind = "associated_const", registry = sand_api_contract, path = "sand::inventory::MainInventoryIndex::MAX", summary = "The highest valid main-inventory offset.", context = "The fixed 27-slot range excludes the nine hotbar positions.", minecraft = "Maps to player Inventory slot 35 after the hotbar offset.", use_when = ["Checking main-inventory bounds"], avoid_when = ["Checking full inventory indices"], example = "assert_eq!(MainInventoryIndex::MAX, 26);")]
     pub const MAX: u8 = 26;
 
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::MainInventoryIndex::new", summary = "Validates a main-inventory offset.", context = "The constructor retains the distinction between the 27-slot main inventory and the hotbar.", minecraft = "Accepts offsets 0 through 26, rendered after the nine-slot hotbar.", use_when = ["Constructing EntityInventory::main_inventory"], avoid_when = ["Addressing a hotbar or full inventory slot"], params(index = "The zero-based main-inventory offset."), returns = "The validated offset or a range error.", example = "let slot = MainInventoryIndex::new(12)?;")]
     pub fn new(index: u8) -> Result<Self, ItemLocationError> {
         if index > Self::MAX {
             return Err(ItemLocationError::IndexOutOfRange {
@@ -230,18 +233,22 @@ impl MainInventoryIndex {
         Ok(Self(index))
     }
 
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::MainInventoryIndex::get", summary = "Returns the validated main-inventory offset.", context = "It exposes the offset before Sand translates it to the underlying Inventory list slot.", minecraft = "Returns a value in 0 through 26.", use_when = ["Adapting a typed main-inventory offset"], avoid_when = ["Formatting raw NBT paths"], returns = "The zero-based main-inventory offset.", example = "assert_eq!(MainInventoryIndex::new(12)?.get(), 12);")]
     pub fn get(self) -> u8 {
         self.0
     }
 }
 
 /// Validated ender-chest index (`0..=26`).
+#[sand_macros::api(registry = sand_api_contract, path = "sand::inventory::EnderChestIndex", aliases = ["sand::item::EnderChestIndex", "sand::item::location::EnderChestIndex", "sand::prelude::EnderChestIndex"], summary = "Validates one of an entity's 27 ender-chest entries.", context = "Ender chests have NBT addressing but are deliberately not modeled as a vanilla /item command target.", minecraft = "Maps to the entity EnderItems list at an index from 0 through 26.", use_when = ["Reading or capturing an entity ender-chest item through NBT"], avoid_when = ["Replacing a live item with /item; vanilla has no ender-chest slot target"], example = "let slot = EnderChestIndex::new(0)?;")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct EnderChestIndex(u8);
 
 impl EnderChestIndex {
+    #[sand_macros::api(kind = "associated_const", registry = sand_api_contract, path = "sand::inventory::EnderChestIndex::MAX", summary = "The highest valid ender-chest index.", context = "It captures the fixed 27-entry ender chest layout.", minecraft = "Matches EnderItems index 26.", use_when = ["Checking ender-chest bounds"], avoid_when = ["Checking normal container bounds"], example = "assert_eq!(EnderChestIndex::MAX, 26);")]
     pub const MAX: u8 = 26;
 
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::EnderChestIndex::new", summary = "Validates an ender-chest index.", context = "The constructor prevents an invalid EnderItems NBT entry from reaching generated data commands.", minecraft = "Accepts entries 0 through 26 of an entity EnderItems list.", use_when = ["Constructing EntityInventory::ender_chest"], avoid_when = ["Addressing a block container or ordinary inventory"], params(index = "The zero-based ender-chest entry."), returns = "The validated index or a range error.", example = "let slot = EnderChestIndex::new(5)?;")]
     pub fn new(index: u8) -> Result<Self, ItemLocationError> {
         if index > Self::MAX {
             return Err(ItemLocationError::IndexOutOfRange {
@@ -253,6 +260,7 @@ impl EnderChestIndex {
         Ok(Self(index))
     }
 
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::EnderChestIndex::get", summary = "Returns the validated ender-chest entry.", context = "It exposes the bounded numeric position while retaining construction-time validation.", minecraft = "Returns an EnderItems index in 0 through 26.", use_when = ["Adapting a typed ender-chest location"], avoid_when = ["Treating it as a vanilla /item slot"], returns = "The zero-based ender-chest entry.", example = "assert_eq!(EnderChestIndex::new(5)?.get(), 5);")]
     pub fn get(self) -> u8 {
         self.0
     }

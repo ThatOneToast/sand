@@ -137,6 +137,19 @@ impl ContainerIndex {
 /// type. Never render `.nbt_source()`'s output into a hand-written command —
 /// use [`super::snapshot::ItemSnapshot::capture`], which composes it with
 /// `DataModify`/`Execute` typed builders.
+#[sand_macros::api(
+    registry = sand_api_contract,
+    path = "sand::inventory::ItemLocation",
+    aliases = ["sand::item::ItemLocation", "sand::item::location::ItemLocation", "sand::prelude::ItemLocation"],
+    summary = "Names a validated live Minecraft item location.",
+    context = "The enum separates mutable player, entity, block-container, and dropped-item locations from immutable ItemSnapshot evidence.",
+    minecraft = "Lowers locations to the verified entity or block NBT path and, where vanilla supports it, an /item or execute-if-items target.",
+    use_when = ["Reading, matching, replacing, or capturing a live item stack", "Making player versus external entity and block ownership explicit"],
+    avoid_when = ["Keeping event-time item evidence after the source can change", "Using an unchecked raw NBT slot path"],
+    variants(PlayerMainHand = "The executing player's selected hotbar stack.", PlayerOffHand = "The executing player's offhand stack.", PlayerEquipment = "One validated armor slot on the executing player.", PlayerHotbar = "One validated hotbar slot on the executing player.", PlayerInventory = "One validated general inventory slot on the executing player.", EntityEquipment = "A validated equipment slot on an explicitly selected living entity.", BlockContainer = "A validated slot in an explicitly positioned block container.", ItemEntity = "The item compound carried by an explicitly selected dropped-item entity.", EntityInventory = "A discoverable inventory slot on an explicitly selected entity.", EntityEnderChest = "An ender-chest entry with NBT access but no vanilla /item target."),
+    variant_fields(PlayerEquipment = ["The validated player armor equipment slot."], PlayerHotbar = ["The validated player hotbar index."], PlayerInventory = ["The validated player inventory index."], EntityEquipment(entity = "The explicit entity owning the equipment.", slot = "The validated equipment slot."), BlockContainer(position = "The block position owning the container.", slot = "The validated container slot."), ItemEntity = ["The explicit selector for the dropped-item entity."], EntityInventory(entity = "The explicit entity owning the inventory.", slot = "The typed discoverable inventory slot."), EntityEnderChest(entity = "The explicit entity owning the ender chest.", slot = "The validated ender-chest index.")),
+    example = "let location = ItemLocation::PlayerMainHand;"
+)]
 #[derive(Debug, Clone)]
 pub enum ItemLocation {
     /// The player's currently-selected hotbar item (`SelectedItem`).
@@ -258,10 +271,12 @@ pub struct BlockInventory {
 }
 
 impl ItemLocation {
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::ItemLocation::entity", summary = "Starts typed live-inventory addressing for one selected entity.", context = "The factory keeps the entity selector attached while the caller chooses an inventory or equipment slot.", minecraft = "Uses the selector as the target for generated item or NBT commands.", use_when = ["Addressing an explicitly selected entity inventory"], avoid_when = ["Addressing the executing player's standard slot; use a Player variant"], params(entity = "The entity selector owning the inventory."), returns = "An entity-inventory factory handle.", example = "let inventory = ItemLocation::entity(Selector::nearest_player());")]
     pub fn entity(entity: Selector) -> EntityInventory {
         EntityInventory { entity }
     }
 
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::ItemLocation::block", summary = "Starts typed live-inventory addressing for one block container.", context = "The factory binds a block position before the caller chooses a validated container slot.", minecraft = "Uses the position as the target for generated block item and data commands.", use_when = ["Addressing a chest or another supported block container"], avoid_when = ["Addressing an entity inventory"], params(position = "The container block position."), returns = "A block-inventory factory handle.", example = "let chest = ItemLocation::block(BlockPos::new(0, 64, 0));")]
     pub fn block(position: BlockPos) -> BlockInventory {
         BlockInventory { position }
     }
@@ -271,6 +286,7 @@ impl ItemLocation {
     /// [`EquipmentSlot::Feet`] only. `Mainhand`/`Offhand` are rejected (use
     /// [`ItemLocation::PlayerMainHand`]/[`ItemLocation::PlayerOffHand`]);
     /// `Body` is rejected (it does not apply to a player).
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::ItemLocation::player_equipment", summary = "Validates an armor location on the executing player.", context = "Main hand, offhand, and body are intentionally rejected so callers cannot generate ambiguous player equipment paths.", minecraft = "Maps head, chest, legs, or feet to the corresponding player Inventory entry.", use_when = ["Capturing or matching a player's armor slot"], avoid_when = ["Addressing a hand or non-player entity equipment"], params(slot = "The requested player armor equipment slot."), returns = "The validated player equipment location or a precise unsupported-location error.", example = "let helmet = ItemLocation::player_equipment(EquipmentSlot::Head)?;")]
     pub fn player_equipment(slot: EquipmentSlot) -> Result<Self, ItemLocationError> {
         match slot {
             EquipmentSlot::Head
@@ -296,6 +312,7 @@ impl ItemLocation {
     /// `HandItems` structure used here in a way this phase has not verified
     /// across the supported version range (see the module doc), so it is
     /// rejected rather than guessed.
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::ItemLocation::entity_equipment", summary = "Validates an equipment location on an explicitly selected entity.", context = "The constructor preserves entity ownership and rejects Body because Sand has not verified a stable backing NBT path for it.", minecraft = "Maps supported armor and hand slots to ArmorItems or HandItems on the selected entity.", use_when = ["Reading or matching equipment on a non-player entity"], avoid_when = ["Addressing the executing player's conventional armor slot"], params(entity = "The entity selector owning the equipment.", slot = "The requested equipment slot."), returns = "The validated entity-equipment location or an unsupported-location error.", example = "let weapon = ItemLocation::entity_equipment(Selector::nearest_entity(), EquipmentSlot::Mainhand)?;")]
     pub fn entity_equipment(
         entity: Selector,
         slot: EquipmentSlot,
@@ -330,10 +347,8 @@ impl ItemLocation {
     }
 
     /// Whether this location is scoped to the executing subject (`@s`)
-    /// rather than an explicit external [`Selector`]/[`BlockPos`]. Used to
-    /// diagnose "non-player source under player-only context" — a location
-    /// with `is_self_scoped() == false` names its own target explicitly and
-    /// is never implicitly bound to whatever `@s` happens to be.
+    /// rather than an explicit external [`Selector`]/[`BlockPos`]. A location
+    /// with `is_self_scoped() == false` names its own target explicitly.
     pub fn is_self_scoped(&self) -> bool {
         matches!(
             self,
@@ -346,6 +361,7 @@ impl ItemLocation {
     }
 
     /// Canonical typed NBT view of this live item location.
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::ItemLocation::nbt", summary = "Returns the typed NBT view of this live item stack.", context = "The view is for typed data operations; it avoids exposing a hand-written NBT source string at normal call sites.", minecraft = "Addresses the matching entity or block item compound.", use_when = ["Copying a live item compound with typed NBT builders"], avoid_when = ["Capturing event-time evidence; use ItemSnapshot::capture"], returns = "The untyped NBT reference for the live item compound.", example = "let item_nbt = ItemLocation::PlayerMainHand.nbt();")]
     pub fn nbt(&self) -> NbtRef<UntypedNbt> {
         let (target, path) = self
             .nbt_source()
@@ -354,6 +370,7 @@ impl ItemLocation {
     }
 
     /// Snapshot/copy the current stack compound into a typed NBT destination.
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::ItemLocation::copy_to", summary = "Builds a typed command copying this live item compound to NBT.", context = "Use it for deliberate data transfer while the source is still live; snapshots are safer for event-time evidence.", minecraft = "Renders a data modify set-from command from the location's item compound.", use_when = ["Copying a live item into a typed NBT destination"], avoid_when = ["Persisting an event observation after later commands can mutate the source"], params(destination = "The typed NBT destination."), returns = "The data command that performs the copy.", example = "let command = ItemLocation::PlayerMainHand.copy_to(&destination);")]
     pub fn copy_to<T>(&self, destination: &NbtRef<T>) -> DataCommand {
         destination.copy_from(&self.nbt())
     }
@@ -363,6 +380,7 @@ impl ItemLocation {
     /// Entity/player inventory mutation is deliberately rejected here because
     /// vanilla does not safely permit arbitrary player NBT writes. Use
     /// [`replace_from`](Self::replace_from) for live entity inventory copies.
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::ItemLocation::copy_from", summary = "Builds a typed NBT copy into a block-container item slot.", context = "Sand deliberately rejects entity and player inventory NBT writes because vanilla does not safely permit arbitrary live-inventory mutation through data commands.", minecraft = "Renders data modify only for a supported block container target.", use_when = ["Writing a complete item compound into a block container"], avoid_when = ["Mutating player or entity inventory; use replace_from for live stack copies"], params(source = "The typed NBT source item compound."), returns = "The data command or an unsupported-location error.", example = "let command = chest.slot(0)?.copy_from(&source)?;")]
     pub fn copy_from<T>(&self, source: &NbtRef<T>) -> Result<DataCommand, ItemLocationError> {
         match self {
             Self::BlockContainer { .. } => Ok(self.nbt().copy_from(source)),

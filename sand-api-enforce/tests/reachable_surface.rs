@@ -2677,7 +2677,7 @@ fn custom_item_provider_claims_the_exact_typed_reference_surface() {
         generated,
     )
     .unwrap()
-    .bind_api_producer("facade::shard_blade", "custom_item", "custom_item")
+    .bind_api_producer("facade::shard_blade", "custom_item", "item_macro")
     .unwrap();
     let reachable = graph.reachable_from("facade").unwrap();
     for identity in [

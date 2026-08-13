@@ -874,7 +874,7 @@ pub fn custom_item_provider(
         let type_identity = format!("{identity_module}::{}", surface.type_name);
         generated.push(GeneratedApi {
             identity: type_identity.clone(),
-            provider: "custom_item".into(),
+            provider: "item_macro".into(),
             producer: Some(GeneratedProducer {
                 owner: owner.clone(),
                 name: "custom_item".into(),

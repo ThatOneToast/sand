@@ -1,4 +1,4 @@
-//! An advancement-backed graph parent that also has a direct `#[event]`
+//! An advancement-backed graph parent that also has a direct `#[on_event]`
 //! handler is rejected (#240 Phase 6): combining a direct handler with graph
 //! composition on the same advancement-backed event is not yet supported —
 //! it would otherwise require either duplicating the advancement grant or
@@ -80,7 +80,7 @@ sand_core::inventory::submit! {
     }
 }
 
-// A direct #[event]-style handler on `AdvancementParent` itself, registered
+// A direct #[on_event]-style handler on `AdvancementParent` itself, registered
 // exactly as the macro would (see `EventDispatch::Custom` with
 // `make_chain: no_chain`, resolving to advancement-backed dispatch).
 fn advancement_parent_trigger() -> Option<AdvancementTrigger> {
@@ -127,7 +127,7 @@ fn advancement_parent_with_both_a_direct_handler_and_a_graph_child_is_rejected()
         "error must name the advancement-backed parent: {message}"
     );
     assert!(
-        message.contains("direct #[event] handler"),
+        message.contains("direct #[on_event] handler"),
         "error must explain the direct-handler conflict: {message}"
     );
 }

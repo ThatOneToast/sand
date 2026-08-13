@@ -42,7 +42,7 @@ fn adv_participants() -> sand_core::participant::EventParticipantPlan {
     <SomeAdvancementEvent as AdvancementEvent>::participants()
 }
 fn invalid_advancement_body() -> Vec<String> {
-    // Mirrors: `#[event] fn invalid_advancement(event: Event<SomeAdvancementEvent>) { event.killer(); }`
+    // Mirrors: `#[on_event] fn invalid_advancement(event: Event<SomeAdvancementEvent>) { event.killer(); }`
     let event = Event::<SomeAdvancementEvent>::context();
     let killer = event.killer();
     vec![format!("# unreachable: {}", killer.selector())]
@@ -107,7 +107,7 @@ fn sand_setup() -> sand_core::events::EventSetup {
     <SomeSandEvent as SandEvent>::setup()
 }
 fn invalid_sand_body() -> Vec<String> {
-    // Mirrors: `#[event] fn invalid_sand(event: SomeSandEvent) { event.killer(); }`
+    // Mirrors: `#[on_event] fn invalid_sand(event: SomeSandEvent) { event.killer(); }`
     let event = SomeSandEvent;
     let killer = event.killer();
     vec![format!("# unreachable: {}", killer.selector())]

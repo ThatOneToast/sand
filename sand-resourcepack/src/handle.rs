@@ -30,7 +30,7 @@
 /// |---|---|
 /// | You know the frame at compile time (e.g., always show frame 0 as a default) | [`show`] |
 /// | The frame changes at runtime based on a scoreboard value, in a per-player context | [`display_commands`] |
-/// | The frame changes at runtime, called from a `#[component(Tick)]` function | [`broadcast_commands`] |
+/// | The frame changes at runtime, called from a `#[datapack_component(Tick)]` function | [`broadcast_commands`] |
 ///
 /// # Positioning
 ///
@@ -61,14 +61,14 @@
 /// );
 /// // The macro generates: pub const HEALTH: BarHandle = ...;
 ///
-/// #[component(Load)]
+/// #[datapack_component(Load)]
 /// pub fn load() {
 ///     mcfunction! {
 ///         cmd::scoreboard_objectives_add("hp_frame", "dummy");
 ///     }
 /// }
 ///
-/// #[component(Tick)]
+/// #[datapack_component(Tick)]
 /// pub fn tick() {
 ///     mcfunction! {
 ///         // 1. Read health into hp_frame (Health × 0.95 maps 0–20 → 0–19).
@@ -226,7 +226,7 @@ impl BarHandle {
     /// Returns one `execute if score … run title …` command **per frame**.
     ///
     /// Use this when the MCFunction is **already running as a specific player**
-    /// (`@s` is defined). For a standard `#[component(Tick)]` function use
+    /// (`@s` is defined). For a standard `#[datapack_component(Tick)]` function use
     /// [`broadcast_commands`] instead — tick functions run without an entity
     /// context so `@s` is undefined there.
     ///
@@ -292,7 +292,7 @@ impl BarHandle {
     /// # Example
     ///
     /// ```rust,ignore
-    /// #[component(Tick)]
+    /// #[datapack_component(Tick)]
     /// pub fn tick() {
     ///     mcfunction! {
     ///         "execute as @a store result score @s hp_frame run data get entity @s Health 0.95";
@@ -373,7 +373,7 @@ impl BarHandle {
 /// );
 /// // The macro generates: pub const HOTBAR_BG: ElementHandle = ...;
 ///
-/// #[component(Tick)]
+/// #[datapack_component(Tick)]
 /// pub fn tick() {
 ///     HOTBAR_BG.show("@a", "my_pack");
 /// }

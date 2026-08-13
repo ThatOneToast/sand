@@ -6,15 +6,15 @@
 
 use sand_core::cmd;
 use sand_core::events::{EntityDamagePlayerEvent, PlayerDamageEntityEvent};
-use sand_macros::event;
+use sand_macros::on_event;
 
-#[event]
+#[on_event]
 pub fn on_hurt_by_entity(event: sand_core::event::Event<EntityDamagePlayerEvent>) {
     let attacker: sand_core::participant::EntityParticipant = event.attacker();
     cmd::raw(format!("# attacker = {}", attacker.selector()))
 }
 
-#[event]
+#[on_event]
 pub fn on_hurt_entity(event: sand_core::event::Event<PlayerDamageEntityEvent>) {
     let weapon: sand_core::item::ItemSnapshot = event.weapon();
     cmd::raw(format!("# weapon storage = {}", weapon.storage()))

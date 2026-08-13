@@ -1,9 +1,9 @@
 // Canonical recipe: advancement-backed event with a typed guard and a rewarded
 // #[function] that applies a status effect. Exercises the full
-// AdvancementEvent → Event<T> → #[event] pipeline.
+// AdvancementEvent → Event<T> → #[on_event] pipeline.
 use sand_core::event::trigger::ConsumeItemTrigger;
 use sand_core::prelude::*;
-use sand_macros::{event, function};
+use sand_macros::{on_event, function};
 
 static STRENGTH_STACKS: ScoreVar<i32> = ScoreVar::new("str_stacks");
 
@@ -32,7 +32,7 @@ pub fn apply_strength_buff() {
     cmd::tellraw(Selector::self_(), Text::new("Strength granted!").red());
 }
 
-#[event]
+#[on_event]
 pub fn on_ate_chorus_fruit(event: Event<AteChorusFruitEvent>) {
     STRENGTH_STACKS.add(event.player(), 1);
     cmd::call(apply_strength_buff);

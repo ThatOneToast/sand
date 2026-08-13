@@ -3,7 +3,7 @@
 //! the condition test and before any cleanup — the documented "capture
 //! before handler, before cleanup, before mutation" ordering contract
 //! (#229 Phase 7). This is a manual integration example (Phase 7 does not
-//! auto-wire capture into `#[event]`/the tick coordinator — see
+//! auto-wire capture into `#[on_event]`/the tick coordinator — see
 //! `docs/items.md`), proving the pattern a `SandEvent` author would use
 //! actually produces the documented order once exported.
 

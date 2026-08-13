@@ -8,12 +8,12 @@ use sand_core::{
     EnchantmentId, EnchantmentSelector, ItemId, LootCondition, LootEntry, LootFunction, LootPool,
     LootTable, LootTableId, LootTableType, NumberProvider, TagId,
 };
-use sand_macros::component;
+use sand_macros::datapack_component;
 
 // ── Simple entity drop ───────────────────────────────────────────────────────
 // Uses the convenience constructor for common entity loot patterns.
 
-#[component]
+#[datapack_component]
 pub fn zombie_drops() -> LootTable {
     LootTable::entity_drop(
         "my_pack:entities/zombie".parse().unwrap(),
@@ -27,7 +27,7 @@ pub fn zombie_drops() -> LootTable {
 // ── Chest loot ───────────────────────────────────────────────────────────────
 // Typed item entries, an item-tag entry, and a nested loot table reference.
 
-#[component]
+#[datapack_component]
 pub fn dungeon_chest() -> LootTable {
     LootTable::new("my_pack:chests/dungeon".parse().unwrap())
         .loot_type(LootTableType::Chest)
@@ -61,7 +61,7 @@ pub fn dungeon_chest() -> LootTable {
 // ── Full loot table with conditions and typed set_name text ─────────────────
 // Demonstrates manual construction with conditions and functions.
 
-#[component]
+#[datapack_component]
 pub fn boss_loot() -> LootTable {
     LootTable::new("my_pack:entities/boss".parse().unwrap())
         .loot_type(LootTableType::Entity)
@@ -116,7 +116,7 @@ pub fn boss_loot() -> LootTable {
 // ── Loot table with alternatives ─────────────────────────────────────────────
 // First matching entry wins — useful for tiered drops.
 
-#[component]
+#[datapack_component]
 pub fn tiered_drops() -> LootTable {
     LootTable::new("my_pack:gameplay/tiered".parse().unwrap()).pool(
         LootPool::new().rolls(1).entry(LootEntry::alternatives(vec![

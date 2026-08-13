@@ -1,5 +1,5 @@
 use sand_core::prelude::*;
-use sand_macros::{SandStorage, component, event, function};
+use sand_macros::{SandStorage, datapack_component, on_event, function};
 
 static MANA: ScoreVar<i32> = ScoreVar::new("mana");
 static DASH: Cooldown = Cooldown::new("dash", Ticks::seconds(2));
@@ -24,13 +24,13 @@ impl AdvancementEvent for AteApple {
     }
 }
 
-#[component(Load)]
+#[datapack_component(Load)]
 pub fn load() {
     MANA.define();
     DASH.define();
 }
 
-#[component]
+#[datapack_component]
 pub fn welcome_advancement() -> Advancement {
     Advancement::new("example:welcome".parse().unwrap())
         .criterion("tick", Criterion::new(AdvancementTrigger::Tick))
@@ -44,7 +44,7 @@ pub fn spend_mana() {
     cmd::raw("function other_pack:bridge");
 }
 
-#[event]
+#[on_event]
 pub fn on_ate_apple(event: Event<AteApple>) {
     MANA.add(event.player(), 1);
     cmd::call(spend_mana);

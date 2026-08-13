@@ -12,8 +12,8 @@
 //!
 //! | Scenario | Use |
 //! |---|---|
-//! | `#[event]` handler with typed trigger | [`AdvancementEvent`](crate::event::AdvancementEvent) trait |
-//! | Programmatic advancement in a `#[component]` fn | [`EventBuilder`] |
+//! | `#[on_event]` handler with typed trigger | [`AdvancementEvent`](crate::event::AdvancementEvent) trait |
+//! | Programmatic advancement in a `#[datapack_component]` fn | [`EventBuilder`] |
 //! | Bridging: pull trait impls into value form | [`AdvancementEvent::into_config()`](crate::event::AdvancementEvent::into_config) |
 //!
 //! # Example
@@ -22,7 +22,7 @@
 //! use sand_core::event::builder::{EventBuilder, EventConfig};
 //! use sand_core::{AdvancementTrigger, ItemId, ItemPredicate};
 //! use sand_core::event::{EventReset, EventVisibility};
-//! use sand_macros::component;
+//! use sand_macros::datapack_component;
 //!
 //! static MANA: ScoreVar<i32> = ScoreVar::new("mana");
 //!
@@ -36,7 +36,7 @@
 //!         .build()
 //! }
 //!
-//! #[component]
+//! #[datapack_component]
 //! fn eat_apple_advancement() -> sand_core::Advancement {
 //!     eat_apple_config().advancement("my_pack:eat_apple", "my_pack:on_eat_apple")
 //! }
@@ -140,7 +140,7 @@ impl EventConfig {
     /// `scoreboard objectives add …` commands for every state variable
     /// declared via [`EventBuilder::score`], [`EventBuilder::flag`], etc.
     ///
-    /// Call these in your `#[component(Load)]` function to ensure all
+    /// Call these in your `#[datapack_component(Load)]` function to ensure all
     /// objectives / storage paths exist before the event fires.
     pub fn state_defines(&self) -> &[String] {
         &self.state_defs

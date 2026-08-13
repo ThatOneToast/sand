@@ -1,6 +1,6 @@
 use sand_core::event::trigger::ConsumeItemTrigger;
 use sand_core::prelude::*;
-use sand_macros::{event, function};
+use sand_macros::{on_event, function};
 
 static MANA: ScoreVar<i32> = ScoreVar::new("mana");
 
@@ -25,7 +25,7 @@ pub fn golden_apple_reward() {
     cmd::say("reward");
 }
 
-#[event]
+#[on_event]
 pub fn on_ate_golden_apple(event: Event<AteGoldenAppleEvent>) {
     MANA.add(event.player(), 10);
     cmd::call(golden_apple_reward);

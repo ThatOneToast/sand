@@ -7,21 +7,21 @@
 
 use sand_core::cmd;
 use sand_core::event::vanilla::{PlayerStartsSneaking, PlayerStopsSneaking};
-use sand_macros::event;
+use sand_macros::on_event;
 
-#[event]
+#[on_event]
 pub fn on_start_sneaking(event: sand_core::event::Event<PlayerStartsSneaking>) {
     let _ = event;
     cmd::raw("tellraw @s {\"text\":\"Sneaking started\"}")
 }
 
-#[event]
+#[on_event]
 pub fn on_stop_sneaking(event: sand_core::event::Event<PlayerStopsSneaking>) {
     let _ = event;
     cmd::raw("tellraw @s {\"text\":\"Sneaking stopped\"}")
 }
 
-#[event]
+#[on_event]
 pub fn on_start_sneaking_audit(event: sand_core::event::Event<PlayerStartsSneaking>) {
     let _ = event;
     cmd::raw("say second start handler")

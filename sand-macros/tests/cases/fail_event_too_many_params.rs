@@ -1,6 +1,6 @@
 use sand_core::event::trigger::TickTrigger;
 use sand_core::prelude::*;
-use sand_macros::event;
+use sand_macros::on_event;
 
 pub struct TickEvent;
 
@@ -12,7 +12,7 @@ impl AdvancementEvent for TickEvent {
     }
 }
 
-#[event]
+#[on_event]
 pub fn bad(event: Event<TickEvent>, other: Event<TickEvent>) {
     let _ = (event, other);
 }

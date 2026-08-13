@@ -506,7 +506,7 @@ impl Predicate {
             location = "The typed namespaced identifier of the generated predicate.",
             root = "The root typed condition evaluated by the predicate."
         ),
-        returns = "A predicate component ready for registration with #[component].",
+        returns = "A predicate component ready for registration with #[datapack_component].",
         example = "Predicate::new(PredicateId::custom(\"demo:is_ready\".parse()?), PredicateRoot::random_chance(0.25))",
     )]
     pub fn new(location: PredicateId, root: PredicateRoot) -> Self {

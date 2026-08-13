@@ -1,6 +1,6 @@
 //! Event dependency graph for same-cycle chained `SandEvent` dispatch (#240).
 //!
-//! Builds a deterministic graph of `SandEvent` nodes from direct `#[event]`
+//! Builds a deterministic graph of `SandEvent` nodes from direct `#[on_event]`
 //! handler descriptors plus recursively discovered same-cycle and persistent
 //! dependencies. A parent referenced only by an occurrence child still gets a
 //! node because its detector/setup must be generated. Single-parent `after`
@@ -205,7 +205,7 @@ pub struct EventNode {
     pub type_name: &'static str,
     pub origin: NodeOrigin,
     pub setup: EventSetup,
-    /// Direct `#[event]` handler function paths, sorted.
+    /// Direct `#[on_event]` handler function paths, sorted.
     pub handlers: Vec<&'static str>,
 }
 
@@ -289,7 +289,7 @@ impl EventEdge {
 pub struct EventGraph {
     /// Nodes keyed by canonical type name — iterating this map is
     /// deterministic (alphabetical by canonical name) regardless of
-    /// `#[event]` registration/inventory order.
+    /// `#[on_event]` registration/inventory order.
     pub nodes: BTreeMap<String, EventNode>,
     /// Advancement-backed graph parents (#240 Phase 6), keyed by canonical
     /// type name. Disjoint from `nodes` — an advancement-backed parent is
@@ -631,7 +631,7 @@ pub struct GraphError(pub String);
 /// Discover (or reuse) the node for `type_id`/`type_name`, recursively
 /// resolving any chain parent, and record `handler_path` against it.
 ///
-/// Idempotent: calling this once per `#[event]` handler descriptor is safe —
+/// Idempotent: calling this once per `#[on_event]` handler descriptor is safe —
 /// handlers of the same concrete type share one node, and repeat calls for an
 /// already-resolved parent are cheap cache hits validated for consistency.
 pub fn discover_node(
@@ -696,7 +696,7 @@ fn discover(
             return Err(GraphError(format!(
                 "SandEvent `{type_name}` cannot participate in same-cycle chained dispatch: \
                  tracked-transition SandEvent parents are not yet supported by chained dispatch \
-                 (#49) — subscribe to it directly with `#[event]` instead"
+                 (#49) — subscribe to it directly with `#[on_event]` instead"
             )));
         }
         NormalizedEventDispatch::Tick(t) => NodeOrigin::Root(t),

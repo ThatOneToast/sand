@@ -3,7 +3,7 @@
 use sand_core::condition::Condition;
 use sand_core::events::{SandEvent, SandEventDispatch};
 use sand_core::prelude::*;
-use sand_macros::event;
+use sand_macros::on_event;
 use std::marker::PhantomData;
 
 struct Parent<const N: u8>(PhantomData<()>);
@@ -32,12 +32,12 @@ impl SandEvent for AllChild {
     }
 }
 
-#[event]
+#[on_event]
 fn on_any(_event: AnyChild) {
     cmd::say("any");
 }
 
-#[event]
+#[on_event]
 fn on_all(_event: AllChild) {
     cmd::say("all");
 }

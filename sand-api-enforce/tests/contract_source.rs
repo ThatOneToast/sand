@@ -305,10 +305,10 @@ fn repository_contract_sources_are_the_actual_authored_declarations() {
         workspace.join("sand-core/src/vfx.rs"),
     ])
     .unwrap();
-    assert_eq!(declarations.len(), 251);
+    assert_eq!(declarations.len(), 278);
     assert_eq!(
         declarations.first().unwrap().canonical_path,
-        "sand::advanced"
+        "sand::EntityStateEnum"
     );
     assert_eq!(
         declarations.last().unwrap().canonical_path,

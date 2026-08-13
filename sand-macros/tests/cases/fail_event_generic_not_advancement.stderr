@@ -24,8 +24,8 @@ help: the trait `AdvancementEvent` is not implemented for `NotAnAdvancementEvent
 error[E0277]: `NotAnAdvancementEvent` is used as `Event<NotAnAdvancementEvent>` but does not implement `AdvancementEvent`
  --> tests/cases/fail_event_generic_not_advancement.rs:6:1
   |
-6 | #[event]
-  | ^^^^^^^^ `Event<T>` requires `T: AdvancementEvent`
+6 | #[on_event]
+  | ^^^^^^^^^^^ `Event<T>` requires `T: AdvancementEvent`
   |
 help: the trait `AdvancementEvent` is not implemented for `NotAnAdvancementEvent`
  --> tests/cases/fail_event_generic_not_advancement.rs:4:1
@@ -43,7 +43,7 @@ help: the trait `AdvancementEvent` is not implemented for `NotAnAdvancementEvent
             BeeNestDestroyedEvent
             BrewPotionEvent
           and $N others
-  = note: this error originates in the attribute macro `event` (in Nightly builds, run with -Z macro-backtrace for more info)
+  = note: this error originates in the attribute macro `on_event` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 warning: unused import: `sand_core::prelude`
  --> tests/cases/fail_event_generic_not_advancement.rs:1:5

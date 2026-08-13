@@ -3,9 +3,9 @@
 use sand_components::{PigVariant, SpawnCondition};
 use sand_core::prelude::*;
 use sand_core::sand_components::worldgen::providers::{BlockState, BlockStateProvider};
-use sand_macros::component;
+use sand_macros::datapack_component;
 
-#[component]
+#[datapack_component]
 pub fn starter_dialog() -> Dialog {
     Dialog::notice_local("starter")
         .title(Text::new("Starter Kit").gold())
@@ -14,7 +14,7 @@ pub fn starter_dialog() -> Dialog {
         )))
 }
 
-#[component]
+#[datapack_component]
 pub fn starter_item() -> CustomItem {
     CustomItem::new("minecraft:stick")
         .id("example:dash_wand")
@@ -30,7 +30,7 @@ pub fn starter_item() -> CustomItem {
 }
 
 /// A complete vanilla-like custom dimension type with typed registry references.
-#[component]
+#[datapack_component]
 pub fn bright_overworld() -> DimensionType {
     DimensionType::overworld_like(
         ResourceLocation::new("example", "bright_overworld").expect("static ID is valid"),
@@ -41,7 +41,7 @@ pub fn bright_overworld() -> DimensionType {
 
 /// A minimal typed configured feature: a single simple-block feature that
 /// places one block state.
-#[component]
+#[datapack_component]
 pub fn ashen_shrub_feature() -> ConfiguredFeature {
     ConfiguredFeature::simple_block(
         ResourceLocation::new("example", "ashen_shrub").expect("static ID is valid"),
@@ -52,7 +52,7 @@ pub fn ashen_shrub_feature() -> ConfiguredFeature {
 }
 
 /// A placed feature referencing the typed configured feature above.
-#[component]
+#[datapack_component]
 pub fn ashen_shrub_placement() -> PlacedFeature {
     PlacedFeature::new(
         ResourceLocation::new("example", "ashen_shrub").expect("static ID is valid"),
@@ -61,7 +61,7 @@ pub fn ashen_shrub_placement() -> PlacedFeature {
     .placement_modifier(serde_json::json!({ "type": "minecraft:count", "count": 3 }))
 }
 
-#[component]
+#[datapack_component]
 pub fn quartz_trim_material() -> TrimMaterial {
     TrimMaterial::new(ResourceLocation::new("example", "quartz").unwrap())
         .asset_name(TrimAssetName::new("quartz").unwrap())
@@ -72,7 +72,7 @@ pub fn quartz_trim_material() -> TrimMaterial {
         ))
 }
 
-#[component]
+#[datapack_component]
 pub fn bolt_trim_pattern() -> TrimPattern {
     TrimPattern::new(ResourceLocation::new("example", "bolt").unwrap())
         .asset_id(ResourceLocation::new("example", "bolt").unwrap())
@@ -82,7 +82,7 @@ pub fn bolt_trim_pattern() -> TrimPattern {
 
 /// A typed 1.21+ enchantment: typed description, item-tag references, a
 /// typed active slot, and a typed `minecraft:knockback` value effect.
-#[component]
+#[datapack_component]
 pub fn swift_step_enchantment() -> Enchantment {
     Enchantment::new(ResourceLocation::new("example", "swift_step").unwrap())
         .description(TextComponent::translate("enchantment.example.swift_step"))
@@ -98,7 +98,7 @@ pub fn swift_step_enchantment() -> Enchantment {
         )
 }
 
-#[component]
+#[datapack_component]
 pub fn mob_enchantments() -> EnchantmentProvider {
     EnchantmentProvider::by_cost_with_difficulty(
         ResourceLocation::new("example", "mob_enchantments").unwrap(),
@@ -110,7 +110,7 @@ pub fn mob_enchantments() -> EnchantmentProvider {
 
 /// A custom biome-specific pig variant (Minecraft 1.21.5+), spawning only in
 /// snowy biomes with a higher priority than the vanilla default.
-#[component]
+#[datapack_component]
 pub fn frostback_pig() -> PigVariant {
     PigVariant::new(ResourceLocation::new("example", "frostback").unwrap())
         .asset_id("example:entity/pig/frostback")
@@ -121,7 +121,7 @@ pub fn frostback_pig() -> PigVariant {
 }
 
 /// A reusable named noise-parameter file for a custom terrain ridge.
-#[component]
+#[datapack_component]
 pub fn ridge_noise() -> Noise {
     Noise::new(
         ResourceLocation::new("example", "ridges").expect("static ID is valid"),
@@ -134,7 +134,7 @@ pub fn ridge_noise() -> Noise {
 /// showing how typed density functions connect to noise-parameter files and
 /// to `NoiseSettings::noise_router` (see the `worldgen::density_function`
 /// module docs for the full noise-router example).
-#[component]
+#[datapack_component]
 pub fn ridge_density() -> DensityFunction {
     DensityFunction::new(
         ResourceLocation::new("example", "ridge_density").expect("static ID is valid"),

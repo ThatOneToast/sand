@@ -102,7 +102,7 @@ not a runtime dependency.
 ### Framework
 
 - **Attribute-first packs** — export functions and lifecycle hooks with
-  `#[function]`, `#[component(Load)]`, and `#[component(Tick)]`.
+  `#[function]`, `#[datapack_component(Load)]`, and `#[datapack_component(Tick)]`.
 - **Typed commands and control flow** — selectors, text, execute chains,
   conditions, particles, sounds, scoreboards, NBT operations, and generated
   command builders.

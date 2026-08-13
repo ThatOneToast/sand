@@ -78,7 +78,7 @@ fn enraged_tick() {
         .build();
 }
 
-#[component(Load)]
+#[datapack_component(Load)]
 fn boss_flow() {
     PlayerDataSchema::new("boss")
         .score_field(&HEALTH_PERCENT)

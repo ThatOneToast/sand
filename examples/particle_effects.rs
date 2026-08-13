@@ -6,7 +6,7 @@
 
 use sand_core::cmd::{Execute, Particle, ParticleBuilder, ParticleSpread, Selector, TextComponent};
 use sand_core::mcfunction;
-use sand_macros::{component, function, run_fn};
+use sand_macros::{datapack_component, function, run_fn};
 
 // ── Sphere around a location ─────────────────────────────────────────────────
 // A glowing orb of end_rod particles surrounding the executing entity.
@@ -188,7 +188,7 @@ pub fn torus_gate() {
 //
 // Simplified version: re-spawn the whole ring every tick — fine for small rings.
 
-#[component(Tick)]
+#[datapack_component(Tick)]
 pub fn rotating_ring_tick() {
     mcfunction! {
         Execute::new()

@@ -261,12 +261,12 @@ mod into_function_ref_tests {
 }
 
 /// Maps an event-type's [`TypeId`](std::any::TypeId) to the handler function
-/// path registered by `#[event]`.
+/// path registered by `#[on_event]`.
 ///
 /// Used by [`crate::event::handle::EventHandle`] to derive advancement IDs for
 /// `revoke()` and `grant()` without requiring a string argument.
 ///
-/// Populated automatically by the `#[event]` macro for advancement-backed
+/// Populated automatically by the `#[on_event]` macro for advancement-backed
 /// events (`dispatch = "advancement"`).  Not emitted for tick-poll events.
 pub struct EventPathEntry {
     pub type_id: std::any::TypeId,
@@ -275,7 +275,7 @@ pub struct EventPathEntry {
 }
 inventory::collect!(EventPathEntry);
 
-/// Registry entry for a `#[component]`-annotated function.
+/// Registry entry for a `#[datapack_component]`-annotated function.
 ///
 /// The `make` fn pointer is a zero-argument function that constructs the
 /// component and boxes it as a trait object. Registered at link time via
@@ -288,8 +288,8 @@ inventory::collect!(ComponentFactory);
 
 /// Registers a function as an entry in a Minecraft function tag.
 ///
-/// Produced by `#[component(Tick)]`, `#[component(Load)]`, and
-/// `#[component(Tag = "ns:name")]`. During `sand build` all descriptors for
+/// Produced by `#[datapack_component(Tick)]`, `#[datapack_component(Load)]`, and
+/// `#[datapack_component(Tag = "ns:name")]`. During `sand build` all descriptors for
 /// the same `tag` are merged into a single tag JSON file:
 /// entries keep first registration/export order, and duplicate function refs
 /// are emitted only once.
@@ -345,7 +345,7 @@ pub enum EventDispatch {
         /// `make_participants()` — `Event<E>::entity`/`.item`/`.attacker`/…
         /// (`sand-core/src/event/mod.rs`) always resolve a declared
         /// participant against `std::any::type_name::<E>()`, since that is
-        /// the one label stable across every `#[event]` handler subscribed
+        /// the one label stable across every `#[on_event]` handler subscribed
         /// to the same concrete event type. Using a per-handler label here
         /// instead would generate setup commands under a tag/storage key the
         /// handler's own accessor call can never reconstruct — a real,
@@ -626,7 +626,7 @@ impl TrackedTransition {
     }
 }
 
-/// Descriptor for a function registered via `#[sand_macros::event]`.
+/// Descriptor for a function registered via `#[sand_macros::on_event]`.
 ///
 /// Collected via [`inventory::iter::<EventDescriptor>`] at export time.
 ///

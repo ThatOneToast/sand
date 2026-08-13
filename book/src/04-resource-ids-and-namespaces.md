@@ -17,7 +17,7 @@ description = "Trailforge — upgradeable equipment and traversal, built with Sa
 mc_version  = "26.2"
 ```
 
-Every `#[function]`, `#[component]`, and `#[item]` in `src/lib.rs` is
+Every `#[function]`, `#[datapack_component]`, and `#[custom_item]` in `src/lib.rs` is
 exported under this namespace unless you give it an explicit ID string, as
 `trail:grapple` does:
 

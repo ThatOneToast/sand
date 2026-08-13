@@ -61,7 +61,7 @@ pub struct Interactable {
 impl Interactable {
     /// Create a new `Interactable` builder.
     ///
-    /// `advancement_location` is the resource location registered via `#[component]`
+    /// `advancement_location` is the resource location registered via `#[datapack_component]`
     /// for the resulting advancement.
     pub fn new(advancement_location: ResourceLocation) -> Self {
         Self {

@@ -1,5 +1,5 @@
 use sand_core::prelude::*;
-use sand_macros::event;
+use sand_macros::on_event;
 
 pub struct AteEvent;
 
@@ -11,7 +11,7 @@ impl AdvancementEvent for AteEvent {
     }
 }
 
-#[event]
+#[on_event]
 pub fn bad(event: DamageEvent<AteEvent>) {
     event.reflect_damage().run();
 }

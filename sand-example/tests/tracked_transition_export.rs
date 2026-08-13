@@ -45,7 +45,7 @@ fn proof_events_share_one_lifecycle_managed_tracker_and_export_stably() {
     let records = records(&first);
 
     // The `sand-example` crate registers other tracked-transition events too
-    // (e.g. sprinting, gamemode) via `#[event]` handlers elsewhere in the
+    // (e.g. sprinting, gamemode) via `#[on_event]` handlers elsewhere in the
     // crate — this test only asserts on the sneaking-specific tracker, not
     // on the total count of trackers in the whole exported pack.
     let trackers: Vec<_> = records

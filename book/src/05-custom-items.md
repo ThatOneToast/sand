@@ -5,7 +5,7 @@ material, and the **Trail Striders**, upgraded boots granted once a player
 claims the upgrade. They demonstrate two different reasons to reach for
 `CustomItem`.
 
-## The Grapple Core: `#[item]` and its generated predicate
+## The Grapple Core: `#[custom_item]` and its generated predicate
 
 ```rust,ignore
 {{#include ../../examples/book_project/src/lib.rs:item_grapple_core}}
@@ -19,7 +19,7 @@ of 1 (it's a key item, not a stack of ten), and a `custom_data` marker
 predicates — can distinguish "a Grapple Core" from "a plain Heart of the
 Sea."
 
-The `#[item]` attribute macro does one more thing beyond registering the
+The `#[custom_item]` attribute macro does one more thing beyond registering the
 item for export: it generates a `GrappleCore` struct with an associated
 `PREDICATE` constant and a `BASE` constant, exercised directly in
 Trailforge's own test suite:
@@ -39,17 +39,17 @@ hand-writing the JSON predicate yourself — see chapter 9, where
 `ItemPredicate::id(...).custom_data_key("grapple_core")` using the exact
 same custom-data key.
 
-## Trail Striders: a plain function, not `#[item]`
+## Trail Striders: a plain function, not `#[custom_item]`
 
 ```rust,ignore
 {{#include ../../examples/book_project/src/lib.rs:item_trail_striders}}
 ```
 
 `trail_striders()` is a normal Rust function returning `CustomItem` — no
-`#[item]` attribute. Trailforge doesn't need a generated predicate for the
+`#[custom_item]` attribute. Trailforge doesn't need a generated predicate for the
 boots (nothing checks "is this player holding Trail Striders" via an
 inventory predicate elsewhere in the pack), so there's no reason to pay for
-one. `#[item]` is opt-in exactly where you need the predicate/struct
+one. `#[custom_item]` is opt-in exactly where you need the predicate/struct
 machinery it generates; a plain builder function is enough whenever an item
 is only ever *given*, never *matched against*.
 

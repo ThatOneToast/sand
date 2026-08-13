@@ -16,7 +16,8 @@ fn ordinary_cargo_check_rejects_new_members_in_enforced_source_scopes() {
     assert!(!output.status.success(), "fixture unexpectedly compiled");
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
-        stderr.contains("sand::predicate::Builder::uncontracted_field")
+        stderr.contains("sand::uncontracted_root_hook")
+            && stderr.contains("sand::predicate::Builder::uncontracted_field")
             && stderr.contains("sand::predicate::Builder::uncontracted_method")
             && stderr.contains("sand::predicate::Choice::UncontractedVariant")
             && stderr.contains("sand::execute_when::WhenBuilder::uncontracted_branch")

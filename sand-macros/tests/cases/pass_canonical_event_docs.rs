@@ -10,7 +10,7 @@ use sand_core::events::{
     SandEventDispatch,
 };
 use sand_core::prelude::*;
-use sand_macros::event;
+use sand_macros::on_event;
 use std::marker::PhantomData;
 
 pub struct AteGoldenApple;
@@ -25,19 +25,19 @@ impl AdvancementEvent for AteGoldenApple {
     }
 }
 
-#[event]
+#[on_event]
 pub fn on_ate(event: Event<AteGoldenApple>) {
     cmd::tellraw(event.player(), Text::new("Golden apple eaten").gold());
 }
 
 // Generated built-ins share Event<T> context without claiming that their
 // marker types implement AdvancementEvent.
-#[event]
+#[on_event]
 pub fn on_join(event: Event<OnJoinEvent>) {
     cmd::tellraw(event.player(), Text::new("Welcome"));
 }
 
-#[event]
+#[on_event]
 pub fn on_sneak_start(event: Event<PlayerStartSneakingEvent>) {
     cmd::tellraw(event.subject(), Text::new("Sneaking"));
 }
@@ -71,7 +71,7 @@ impl SandEvent for PlayerJumped {
     }
 }
 
-#[event]
+#[on_event]
 pub fn on_jump(_event: PlayerJumped) {
     cmd::say("Jumped");
 }
@@ -106,7 +106,7 @@ impl SandEvent for ElevatorGoingUp {
     }
 }
 
-#[event]
+#[on_event]
 pub fn on_elevator_up(_event: ElevatorGoingUp) {
     cmd::say("Going up");
 }
@@ -122,7 +122,7 @@ impl SandEvent for JumpedOnElevator {
     }
 }
 
-#[event]
+#[on_event]
 pub fn on_elevator_jump(_event: JumpedOnElevator) {
     cmd::say("Elevator jump");
 }
@@ -138,7 +138,7 @@ impl SandEvent for JumpedOrUsedElevator {
     }
 }
 
-#[event]
+#[on_event]
 pub fn on_jump_or_elevator(_event: JumpedOrUsedElevator) {
     cmd::say("Jumped or used elevator");
 }
@@ -153,7 +153,7 @@ impl SandEvent for JumpedAndUsedElevator {
     }
 }
 
-#[event]
+#[on_event]
 pub fn on_jump_and_elevator(_event: JumpedAndUsedElevator) {
     cmd::say("Jumped and used elevator");
 }

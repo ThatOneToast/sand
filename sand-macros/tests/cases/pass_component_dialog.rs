@@ -1,6 +1,6 @@
 use sand_core::DatapackComponent;
 use sand_core::prelude::*;
-use sand_macros::{component, function};
+use sand_macros::{datapack_component, function};
 
 #[function]
 pub fn start() {
@@ -12,7 +12,7 @@ pub fn open_welcome_menu() {
     cmd::show_dialog(Selector::self_(), DialogId::local("welcome"));
 }
 
-#[component]
+#[datapack_component]
 pub fn welcome_dialog() -> Dialog {
     Dialog::multi_action_local("welcome")
         .title(Text::new("Welcome").gold())

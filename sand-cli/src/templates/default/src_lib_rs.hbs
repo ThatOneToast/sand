@@ -29,7 +29,7 @@ pub fn hello_world() {
 /// Runs `hello_world` for a player on the first tick after each server
 /// start/reload, and for any new player who joins mid-session.
 ///
-/// `OnJoinEvent` is Sand's built-in join event — `#[event]` generates the
+/// `OnJoinEvent` is Sand's built-in join event — `#[on_event]` generates the
 /// scoreboard-backed detection and per-player dispatch automatically; no
 /// hand-written advancement or tick component is needed. Vanilla
 /// limitation: a mid-session disconnect/reconnect does not re-fire this
@@ -38,7 +38,7 @@ pub fn hello_world() {
 /// instead, use `Event<FirstJoinEvent>`. See `sand::events` for the
 /// full built-in event list (deaths, respawns, item use, block placement,
 /// and more).
-#[event]
+#[on_event]
 pub fn on_join(event: Event<OnJoinEvent>) {
     let _ = event;
     cmd::call(hello_world);

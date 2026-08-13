@@ -1,5 +1,5 @@
 use sand_core::prelude::*;
-use sand_macros::event;
+use sand_macros::on_event;
 
 pub struct HurtEvent;
 
@@ -16,7 +16,7 @@ impl AdvancementEvent for HurtEvent {
 
 impl DamageAdvancementEvent for HurtEvent {}
 
-#[event]
+#[on_event]
 pub fn on_hurt(event: DamageEvent<HurtEvent>) {
     event
         .reflect_damage()

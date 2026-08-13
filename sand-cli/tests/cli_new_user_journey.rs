@@ -297,18 +297,18 @@ fn generated_lib_rs_has_starter_function_and_event() {
         content.contains("#[function]"),
         "src/lib.rs must have at least one #[function]"
     );
-    // Join detection uses Sand's native OnJoinEvent (#[event]), not a
-    // hand-written advancement/tick #[component].
+    // Join detection uses Sand's native OnJoinEvent (#[on_event]), not a
+    // hand-written advancement/tick #[datapack_component].
     assert!(
-        content.contains("#[event]"),
-        "src/lib.rs must have at least one #[event]"
+        content.contains("#[on_event]"),
+        "src/lib.rs must have at least one #[on_event]"
     );
     assert!(
         content.contains("Event<OnJoinEvent>"),
         "starter join handler must use Sand's native OnJoinEvent"
     );
     assert!(
-        !content.contains("#[component]"),
+        !content.contains("#[datapack_component]"),
         "starter code should not hand-roll a join-detection advancement component"
     );
     assert!(
@@ -546,7 +546,7 @@ mod end_to_end {
         );
         assert_file_contains(&hello_fn, "tellraw");
 
-        // Join event output — `#[event] fn on_join(event: Event<OnJoinEvent>)`
+        // Join event output — `#[on_event] fn on_join(event: Event<OnJoinEvent>)`
         // compiles to a plain function plus Sand's generated JoinTick
         // scaffolding (no hand-written advancement JSON).
         let on_join_fn = data_ns.join("function/on_join.mcfunction");

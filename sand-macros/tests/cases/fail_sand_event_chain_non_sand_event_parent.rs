@@ -1,7 +1,7 @@
 // #240: SandEventDispatch::chain::<Parent>() requires `Parent: SandEvent`.
 use sand_core::events::{SandEvent, SandEventDispatch};
 use sand_core::prelude::*;
-use sand_macros::event;
+use sand_macros::on_event;
 
 pub struct NotASandEvent;
 
@@ -14,7 +14,7 @@ impl SandEvent for Child {
     }
 }
 
-#[event]
+#[on_event]
 pub fn on_child(event: Child) {
     cmd::say("unreachable");
 }

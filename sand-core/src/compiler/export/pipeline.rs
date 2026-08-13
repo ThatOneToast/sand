@@ -49,7 +49,7 @@ use std::sync::{Arc, Mutex};
 static PARTICIPANT_PANIC_HOOK_LOCK: Mutex<()> = Mutex::new(());
 
 /// Invoke `desc.make()` — the generated command-body factory for one
-/// `#[event]` handler — with a panic-catching boundary specifically for
+/// `#[on_event]` handler — with a panic-catching boundary specifically for
 /// [`crate::participant::diagnostic::MissingParticipantPanic`] (#280 item
 /// 2): an infallible participant accessor (`event.killer()`/`.weapon()`/…,
 /// or the bare-`SandEvent` equivalent via `SandEventParticipants`) that
@@ -60,7 +60,7 @@ static PARTICIPANT_PANIC_HOOK_LOCK: Mutex<()> = Mutex::new(());
 /// a raw, unhandled panic (and Rust's default backtrace-shaped output,
 /// which is not informative for a non-string payload) reach a `sand build`
 /// user. `desc.path` supplies the one piece of context the panic itself
-/// cannot know: which `#[event]` handler was executing.
+/// cannot know: which `#[on_event]` handler was executing.
 ///
 /// Any other panic (a genuine bug, unrelated to participants) is passed
 /// through to the previous hook for printing and then resumed unchanged via
@@ -118,7 +118,7 @@ pub(crate) fn try_export_components_impl(
     // this guard lives is registered into this scope only, and the whole
     // scope is dropped when the guard drops — on the happy path, on any of
     // the many `?` early returns below, and on unwind out of a user factory
-    // or `#[event]` handler body.
+    // or `#[on_event]` handler body.
     //
     // Entering before the dialog lock is deliberate: a nested/reentrant
     // export (an export triggered from inside a component factory) would
@@ -227,7 +227,7 @@ pub(crate) fn try_export_components_impl(
         crate::events::ChainEventDispatch,
         crate::events::EventSetup,
     )> = Vec::new();
-    // Canonical SandEvent type ids with at least one direct #[event] handler
+    // Canonical SandEvent type ids with at least one direct #[on_event] handler
     // resolving to advancement-backed dispatch — used to reject combining a
     // direct handler with graph composition on the same advancement-backed
     // event (#240 Phase 6; see the advancement-bridge collision check below).
@@ -303,7 +303,7 @@ pub(crate) fn try_export_components_impl(
                 // declared participant against `std::any::type_name::<E>()`
                 // (`sand-core/src/event/mod.rs`), since that is the one
                 // label stable regardless of which of possibly several
-                // `#[event]` handlers on the same event type is asking.
+                // `#[on_event]` handlers on the same event type is asking.
                 // Keying by `desc.path` here instead (as this arm did before
                 // #280 item 4) generated setup commands under a tag/storage
                 // key the handler's own accessor call could never
@@ -373,7 +373,7 @@ pub(crate) fn try_export_components_impl(
                 let advancement = sand_components::Advancement::new(
                     advancement_id
                         .parse()
-                        .expect("invalid advancement ID in #[event]"),
+                        .expect("invalid advancement ID in #[on_event]"),
                 )
                 .criterion("event", sand_components::Criterion::new(trigger))
                 .rewards(
@@ -652,7 +652,7 @@ pub(crate) fn try_export_components_impl(
                         let advancement = sand_components::Advancement::new(
                             advancement_id
                                 .parse()
-                                .expect("invalid advancement ID in custom #[event]"),
+                                .expect("invalid advancement ID in custom #[on_event]"),
                         )
                         .criterion("event", sand_components::Criterion::new(trigger))
                         .rewards(
@@ -1094,7 +1094,7 @@ pub(crate) fn try_export_components_impl(
 
     // ── Structured tick-lifecycle + same-cycle chained SandEvent graph ────────
     //
-    // Builds the event dependency graph (#240): direct `#[event]` handlers on
+    // Builds the event dependency graph (#240): direct `#[on_event]` handlers on
     // tick-lifecycle or chain-backed SandEvents, plus recursively-discovered
     // occurrence parents (a parent referenced only by a child still gets a
     // node — its detector/setup is generated even with no direct handler).
@@ -1155,7 +1155,7 @@ pub(crate) fn try_export_components_impl(
             }
         }
         // An advancement-backed graph parent may not also have a direct
-        // `#[event]` handler in this phase — see `component.rs`'s
+        // `#[on_event]` handler in this phase — see `component.rs`'s
         // advancement-lowering loop above, which generates that handler's
         // own advancement/entry/body independently of this graph and would
         // otherwise silently create two live advancement grants for one
@@ -1165,7 +1165,7 @@ pub(crate) fn try_export_components_impl(
         for bridge in advancement_bridges.values() {
             if advancement_handler_type_ids.contains(&bridge.type_id) {
                 return Err(tick_event_export_error(format!(
-                    "advancement-backed graph parent `{}` also has a direct #[event] handler: #240 Phase 6 does not yet support combining a direct handler with graph composition on the same advancement-backed event — split into two SandEvent types (one for the handler, one chained via `after` for the composition), or remove the direct handler",
+                    "advancement-backed graph parent `{}` also has a direct #[on_event] handler: #240 Phase 6 does not yet support combining a direct handler with graph composition on the same advancement-backed event — split into two SandEvent types (one for the handler, one chained via `after` for the composition), or remove the direct handler",
                     bridge.type_name
                 )));
             }
@@ -1905,7 +1905,7 @@ pub(crate) fn try_export_components_impl(
         // `EventGraph::advancement_bridges`) — its detection stays owned by
         // a synthesized advancement + entry function, generated here rather
         // than through the ordinary per-handler advancement lowering above.
-        // This phase requires zero direct `#[event]` handlers on the
+        // This phase requires zero direct `#[on_event]` handlers on the
         // bridged type (checked earlier via `advancement_handler_type_ids`),
         // so there is exactly one entry per bridged parent regardless of how
         // many children depend on it — multiple children append multiple

@@ -122,12 +122,12 @@
 //!     }
 //! }
 //!
-//! #[event]
+//! #[on_event]
 //! fn direct_kill(event: Event<PlayerKillEvent>) {
 //!     let killer = event.killer();
 //! }
 //!
-//! #[event]
+//! #[on_event]
 //! fn special_kill(event: SpecialKillEvent) {
 //!     let killer = event.killer();
 //!     let weapon = event.weapon();
@@ -142,7 +142,7 @@
 //! (`sand-core/tests/event_chain_advancement_bridge_nested_siblings.rs`
 //! additionally covers sibling and nested descendants of a bridge parent).
 //!
-//! A bridge parent may not currently also have a direct `#[event]` handler
+//! A bridge parent may not currently also have a direct `#[on_event]` handler
 //! of its own (#240 Phase 6) — split into two types (one for the direct
 //! handler, one chained via `after`/`chain` for the composition) if both
 //! are genuinely needed.

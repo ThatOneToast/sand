@@ -18,7 +18,7 @@ gameplay-design decision this book covers.
 `FirstJoin` and `OnDeath` are typed markers from `sand::event::vanilla` for
 occurrences vanilla Minecraft already signals natively (an advancement
 `minecraft:story/root`-style trigger for first join with no prior
-join-flag, and death). `#[event]` generates the scoreboard-backed detection
+join-flag, and death). `#[on_event]` generates the scoreboard-backed detection
 and dispatch wiring; the handler just receives an `Event<T>` (or, for
 built-ins with a stable player accessor, the marker type directly) with
 `.player()` giving you the affected entity's selector.
@@ -106,7 +106,7 @@ Low health is a typed threshold pair rather than a fixed event:
 use sand::prelude::*;
 use sand::events::PlayerLowHealthEvent;
 
-#[event]
+#[on_event]
 fn warn_low_health(event: Event<PlayerLowHealthEvent<6>>) {
     // Fires once when health drops to 3 hearts (6 half-hearts) or below.
     cmd::say("Low health!");
@@ -124,12 +124,12 @@ Status effects use a generic pair instead of one type per effect:
 use sand::prelude::*;
 use sand::events::{EffectStarted, EffectStopped, Speed};
 
-#[event]
+#[on_event]
 fn on_speed_start(event: Event<EffectStarted<Speed>>) {
     cmd::say("Speed boost active!");
 }
 
-#[event]
+#[on_event]
 fn on_speed_stop(event: Event<EffectStopped<Speed>>) {
     cmd::say("Speed boost ended.");
 }
@@ -162,14 +162,14 @@ labeled participant context:
 ```rust,ignore
 use sand::prelude::*;
 
-#[event]
+#[on_event]
 fn on_hurt(event: Event<EntityDamagePlayerEvent>) {
     if let ParticipantAvailability::Available(attacker) = event.attacker() {
         cmd::tellraw(attacker.selector().selector(), Text::new("tagged you!"));
     }
 }
 
-#[event]
+#[on_event]
 fn on_hit(event: Event<PlayerDamageEntityEvent>) {
     if let ParticipantAvailability::Available(weapon) = event.weapon() {
         // build commands against weapon's captured item data

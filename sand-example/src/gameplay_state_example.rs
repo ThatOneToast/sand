@@ -104,7 +104,7 @@ pub fn enraged_tick() {
         .build();
 }
 
-#[component(Load)]
+#[datapack_component(Load)]
 pub fn boss_load_and_flow() {
     // The flow owns the `boss_phase` objective lifecycle, so only the other
     // schema fields are defined here.

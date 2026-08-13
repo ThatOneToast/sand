@@ -3,7 +3,7 @@
 //! Register a flow from a normal exported component factory:
 //!
 //! ```rust,ignore
-//! #[component(Load)]
+//! #[datapack_component(Load)]
 //! fn register_boss_flow() {
 //!     StateFlow::players(&PHASE)
 //!         .transition(BossPhase::Fighting, BossPhase::Enraged)
@@ -190,7 +190,7 @@ impl<S: TypedGameState> StateFlow<S> {
     }
 
     /// Register this flow for the current export. Returns an empty command list
-    /// so it composes naturally inside `#[component(Load)]`.
+    /// so it composes naturally inside `#[datapack_component(Load)]`.
     pub fn register(self) -> Vec<String> {
         register_flow(self.erase());
         Vec::new()

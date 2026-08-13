@@ -1,6 +1,6 @@
-use sand_macros::component;
+use sand_macros::datapack_component;
 
-#[component(Tag = "INVALID")]
+#[datapack_component(Tag = "INVALID")]
 fn bad() {}
 
 fn main() {}

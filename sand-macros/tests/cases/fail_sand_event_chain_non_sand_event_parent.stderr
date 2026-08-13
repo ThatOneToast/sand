@@ -1,4 +1,4 @@
-error[E0277]: `NotASandEvent` is used as a bare `#[event]` handler parameter but does not implement `SandEvent`
+error[E0277]: `NotASandEvent` is used as a bare `#[on_event]` handler parameter but does not implement `SandEvent`
   --> tests/cases/fail_sand_event_chain_non_sand_event_parent.rs:13:36
    |
 13 |         SandEventDispatch::chain::<NotASandEvent>().into()

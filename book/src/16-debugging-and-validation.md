@@ -26,7 +26,7 @@ fn tick_regenerates_and_warns() {
 }
 ```
 
-Because every `#[component]`/`#[function]`-annotated function is an
+Because every `#[datapack_component]`/`#[function]`-annotated function is an
 ordinary Rust function that *returns* its generated commands, this works
 with nothing beyond `cargo test` — no server, no world, no network. This is
 the fastest feedback loop available: a broken condition, a wrong selector,
@@ -49,7 +49,7 @@ fn grapple_core_predicate_matches_custom_data() {
 }
 ```
 
-Any pack that generates `#[item]` predicates and then relies on them in
+Any pack that generates `#[custom_item]` predicates and then relies on them in
 `InventoryChangedTrigger`s or `execute if items` checks (as
 `ObtainedGrappleCoreEvent` does) should test the predicate's shape the same
 way — it's cheap insurance against a custom-data key typo silently

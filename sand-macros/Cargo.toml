@@ -1,6 +1,6 @@
 [package]
 name = "sand-macros"
-description = "Procedural macros for the Sand Minecraft datapack toolkit: #[function], #[component], and run_fn!"
+description = "Procedural macros for the Sand Minecraft datapack toolkit: #[function], #[datapack_component], and run_fn!"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

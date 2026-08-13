@@ -14,7 +14,7 @@ exist and be called from a binary at all: Rust's linker will discard object
 files it can't prove are reachable from `main`, and Sand's component
 registration relies on the `inventory` crate's link-time collection
 (`inventory::submit!`, run as a constructor before `main`) to gather every
-`#[component]`, `#[item]`, `#[function]`, and `#[event]` in the crate.
+`#[datapack_component]`, `#[custom_item]`, `#[function]`, and `#[on_event]` in the crate.
 Calling into the library from `sand_export`'s `main` — even just to invoke
 `__sand_export` — forces the linker to keep every object file whose
 registrations you want collected. If you add new components in a separate

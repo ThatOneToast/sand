@@ -33,7 +33,7 @@ files rather than one monolith.
 | Item snapshots | `item_snapshot_tick_capture_export.rs` |
 | Participant plans | `participant_plan_export.rs` |
 | Correlated attacker observation | `participant_attacker_observation_export.rs`, `participant_context_capability_audit.rs` |
-| Multiple handlers (one event, several `#[event]` fns) | `tick_lifecycle_export.rs` (setup dedup + sorted fan-out), `respawn_lifecycle_export.rs` (registration-order-independent fan-out) |
+| Multiple handlers (one event, several `#[on_event]` fns) | `tick_lifecycle_export.rs` (setup dedup + sorted fan-out), `respawn_lifecycle_export.rs` (registration-order-independent fan-out) |
 | Per-player ownership | `schedule_multiplayer_safety.rs` (generated schedule ownership, multiplayer-safe scoreboard mutations — commit 4746de5), `tick_lifecycle_export.rs` (per-player-per-tick dispatch guard) |
 | Deterministic generated coordinator ordering | `exporter_dyn_fn_determinism.rs` (thread-local dyn-fn registry, `LIM-EXP-006` fix), `event_chain_identity_collision.rs`, `respawn_lifecycle_export.rs`, `tick_lifecycle_export.rs` (key is a pure function of canonical type name) |
 | Branch bodies survive event export (`then_all`/`if_`/`unless`) | `event_branch_export.rs` (not on the original checklist, but adjacent coverage worth recording) |

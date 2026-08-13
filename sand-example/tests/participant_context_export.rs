@@ -2,7 +2,7 @@
 //! advancement-backed combat events (#230): proves the export pipeline
 //! splices `AdvancementEvent::participants()`'s commands around the
 //! generated body without any manual wiring in the handler's own
-//! `#[event]` function, for both the correlated-attacker backend
+//! `#[on_event]` function, for both the correlated-attacker backend
 //! (`EntityDamagePlayerEvent`) and the held-item snapshot backend
 //! (`PlayerDamageEntityEvent`).
 

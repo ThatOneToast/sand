@@ -22,7 +22,7 @@
 
 use sand_core::event::vanilla::{FirstJoin, OnDeath, OnJoin, OnRespawn};
 use sand_core::prelude::*;
-use sand_macros::{component, event, function};
+use sand_macros::{datapack_component, on_event, function};
 
 mod events;
 use crate::events::{AteGoldenAppleEvent, EnhancedCellsDamagedEvent, UsedDashWandEvent};
@@ -58,7 +58,7 @@ static UNLOCKED_SPELLS: StorageField<PlayerMagic, Vec<String>> =
 // -- Load ------------------------------------------------------------------
 
 /// Initialize scoreboards and storage on datapack load.
-#[component(Load)]
+#[datapack_component(Load)]
 pub fn load() {
     MANA.define();
     DASH.define();
@@ -85,7 +85,7 @@ pub fn load() {
 // -- Tick ------------------------------------------------------------------
 
 /// Per-tick logic: decrement cooldowns, show actionbar status.
-#[component(Tick)]
+#[datapack_component(Tick)]
 pub fn tick() {
     DASH.tick_all_players();
     FIREBALL.tick_all_players();
@@ -223,7 +223,7 @@ pub fn show_mana() {
 // -- Dialog (1.21.6+ / 26.x) ----------------------------------------------
 
 /// A welcome dialog presented to players.
-#[component]
+#[datapack_component]
 pub fn welcome_dialog() -> Dialog {
     Dialog::multi_action_local("welcome")
         .title(Text::new("Welcome to Arcane Pack").gold())
@@ -303,7 +303,7 @@ static GOLDEN_APPLE_HANDLE: EventHandle<events::AteGoldenAppleEvent> = EventHand
 // EventHandle, and typed trigger builders.
 
 /// Fires every time a player joins the world.
-#[event]
+#[on_event]
 pub fn on_join(event: OnJoin) {
     cmd::tellraw(
         event.player(),
@@ -314,7 +314,7 @@ pub fn on_join(event: OnJoin) {
 /// Fires once per player — initializes mana and shows a welcome title.
 ///
 /// FirstJoinEvent uses a tick advancement with no revoke.
-#[event]
+#[on_event]
 pub fn on_first_join(event: FirstJoin) {
     MANA.set(event.player(), 100);
     STORED_MANA.set(100);
@@ -332,7 +332,7 @@ pub fn on_first_join(event: FirstJoin) {
 
 /// Fires when a player dies — disables the golden apple handle,
 /// resets shield flag, and shows a death title.
-#[event]
+#[on_event]
 pub fn on_death(event: OnDeath) {
     GOLDEN_APPLE_HANDLE.disable("@s");
     SHIELD.disable(Selector::self_());
@@ -346,7 +346,7 @@ pub fn on_death(event: OnDeath) {
 
 /// Fires when a player respawns — re-enables the golden apple handle,
 /// restores 50 mana, and stops all cooldowns.
-#[event]
+#[on_event]
 pub fn on_respawn(event: OnRespawn) {
     GOLDEN_APPLE_HANDLE.enable("@s");
     MANA.set(Selector::self_(), 50);
@@ -360,7 +360,7 @@ pub fn on_respawn(event: OnRespawn) {
 
 /// Fired when a golden apple is consumed with mana below 100 (see guard).
 /// Uses a custom AdvancementEvent with guard() and function pointer call.
-#[event]
+#[on_event]
 pub fn on_ate_golden_apple(event: Event<AteGoldenAppleEvent>) {
     MANA.add(event.player(), 10);
     STORED_MANA.set(110);
@@ -377,7 +377,7 @@ pub fn golden_apple_reward() {
 /// Fired when a player uses a dash wand (stick with custom data) while
 /// eligible (mana >= 25, dash cooldown ready, shield inactive).
 /// Uses a custom AdvancementEvent with guard() and function pointer call.
-#[event]
+#[on_event]
 pub fn on_used_dash_wand(event: Event<UsedDashWandEvent>) {
     MANA.remove(event.player(), 25);
     DASH.start(event.player());
@@ -437,7 +437,7 @@ pub fn grant_enhanced_cells() {
 
 /// Reflect fixed damage to nearby non-player entities when an enhanced-cells
 /// player is damaged.
-#[event]
+#[on_event]
 pub fn on_damaged_damage_nearby(event: DamageEvent<EnhancedCellsDamagedEvent>) {
     event
         .reflect_damage()
@@ -452,7 +452,7 @@ pub fn on_damaged_damage_nearby(event: DamageEvent<EnhancedCellsDamagedEvent>) {
 // -- EventBuilder demo: villager trade event --------------------------------
 //
 // This event is defined entirely via EventBuilder — no AdvancementEvent impl
-// needed. The advancement is generated in a #[component] function, and the
+// needed. The advancement is generated in a #[datapack_component] function, and the
 // reward function is wired up with a matching #[function] path.
 //
 // State variables are declared on the builder so the load function can call
@@ -486,7 +486,7 @@ pub fn villager_trade_config() -> EventConfig {
 ///
 /// Demonstrates `EventConfig::advancement()` — the advancement ID and
 /// reward function path must match the `#[function]` below.
-#[component]
+#[datapack_component]
 pub fn villager_trade_advancement() -> sand_core::Advancement {
     villager_trade_config().advancement("arcane:villager_trade", "arcane:on_villager_trade")
 }
@@ -495,7 +495,7 @@ pub fn villager_trade_advancement() -> sand_core::Advancement {
 ///
 /// The `advancement revoke` and guard check are handled manually here
 /// using `EventConfig::reward_prologue()` — exactly as the export pipeline
-/// would emit them for a trait-based `#[event]` handler.
+/// would emit them for a trait-based `#[on_event]` handler.
 #[function("arcane:on_villager_trade")]
 pub fn on_villager_trade() {
     // Revoke the advancement so it re-arms on the next trade (AfterFire reset).

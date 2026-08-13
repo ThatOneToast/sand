@@ -8,11 +8,11 @@
 //!
 //! ## How it works
 //!
-//! 1. **`#[component(Load)]`** — `join_init` runs once when the datapack loads.
+//! 1. **`#[datapack_component(Load)]`** — `join_init` runs once when the datapack loads.
 //!    It creates the `join_count` scoreboard objective if it doesn't already
 //!    exist. Using `add` (not `set`) is idempotent — safe to call every reload.
 //!
-//! 2. **`#[component]` advancement** — `detect_join` fires every tick via
+//! 2. **`#[datapack_component]` advancement** — `detect_join` fires every tick via
 //!    `minecraft:tick`. Its reward runs `on_player_join`, then the function
 //!    *revokes* the advancement so it re-arms for next login.
 //!
@@ -34,7 +34,7 @@
 //! `/data modify storage` instead — see the commented example at the bottom.
 
 use sand_core::mcfunction;
-use sand_macros::{component, function};
+use sand_macros::{datapack_component, function};
 
 // ── 1. Initialise scoreboards on load ────────────────────────────────────────
 
@@ -43,7 +43,7 @@ use sand_macros::{component, function};
 /// Using `scoreboard objectives add` is safe to repeat — Minecraft silently
 /// ignores the command if the objective already exists, so reloading the
 /// datapack never resets player data.
-#[component(Load)]
+#[datapack_component(Load)]
 pub fn join_init() {
     mcfunction! {
         // "dummy" type = a plain integer counter, not tied to any game event.
@@ -61,7 +61,7 @@ pub fn join_init() {
 /// We use `AdvancementTrigger::Tick` because `minecraft:player_joined_world`
 /// was removed in 1.21.x. Revoking after the first trigger achieves the same
 /// per-session-join behaviour.
-#[component]
+#[datapack_component]
 pub fn detect_join() -> sand_core::Advancement {
     use sand_core::{Advancement, AdvancementRewards, AdvancementTrigger, Criterion};
     Advancement::new("hello_world:detect_join".parse().unwrap())

@@ -95,7 +95,7 @@ impl MissingParticipantPanic {
     /// Render the full `SAND-EVENT-PARTICIPANT` structured diagnostic body
     /// (everything after the `error[...]:` summary line) for `handler_path`
     /// — the one piece of context only the export pipeline's call site
-    /// knows (the panic itself has no notion of which `#[event]` handler
+    /// knows (the panic itself has no notion of which `#[on_event]` handler
     /// was executing when it fired).
     pub(crate) fn render(&self, handler_path: &str) -> String {
         let role_type = self.kind.role_type_name();

@@ -82,13 +82,13 @@ The verified profiles are:
 
 | Minecraft version | Static identities | Commands | Registries | Baseline |
 | --- | ---: | ---: | ---: | --- |
-| 1.21.4 (compatibility) | 10,722 | 924 | 4,288 | `api-surface-baseline-1.21.4.txt` |
-| 26.2 (latest/default) | 11,632 | 1,255 | 4,867 | `api-surface-baseline.txt` |
+| 1.21.4 (compatibility) | 10,611 | 924 | 4,288 | `api-surface-baseline-1.21.4.txt` |
+| 26.2 (latest/default) | 11,521 | 1,255 | 4,867 | `api-surface-baseline.txt` |
 
-The handwritten source contribution is 5,262 identities in both profiles.
+The handwritten source contribution is 5,143 identities in both profiles.
 An explicit `SAND_ALLOW_PLACEHOLDER_CODEGEN=1` fallback uses a third,
-source-only `placeholder-codegen` profile with 5,510 identities (5,254 source
-identities plus 276 checked-in generator identities). The fallback writer
+`placeholder-codegen` profile with 5,399 identities (5,143 source identities
+plus 256 checked-in generator identities). The fallback writer
 atomically replaces generated Rust and both provider catalogs; the catalogs
 are machine-marked empty placeholders and must agree. The facade keeps the
 contracted `sand::vanilla` module but cfg-disables its unavailable generated
@@ -107,19 +107,19 @@ The following detailed kind count describes the latest/default 26.2 surface:
 | Derive procedural macros | 3 |
 | Function-like procedural macros | 4 |
 | Declarative macros | 3 |
-| Structs | 970 |
-| Enums | 167 |
-| Traits | 38 |
+| Structs | 959 |
+| Enums | 165 |
+| Traits | 35 |
 | Type aliases | 13 |
 | Constants | 17 |
 | Statics | 1 |
-| Free functions | 556 |
-| Inherent methods | 2,816 |
-| Trait methods | 56 |
-| Associated constants | 21 |
+| Free functions | 548 |
+| Inherent methods | 2,805 |
+| Trait methods | 53 |
+| Associated constants | 20 |
 | Associated types | 2 |
-| Public fields | 991 |
-| Enum variants | 5,886 |
+| Public fields | 938 |
+| Enum variants | 5,867 |
 
 Generated static families account for 6,378 identities:
 
@@ -132,7 +132,7 @@ Generated static families account for 6,378 identities:
 - effect registry enums: 95 identities;
 - generated event marker types: 25 identities.
 
-The remaining 5,254 identities come from ordinary source declarations,
+The remaining 5,143 identities come from ordinary source declarations,
 including the 15 exported procedural macros. Input-dependent items emitted
 into downstream crates by attributes and derives are parametric families, so
 they do not have an honest finite installed count. Each such generator is a
@@ -167,6 +167,16 @@ contracts together. The 26.2 profile owns 4,867 identities and the 1.21.4
 profile owns 4,288. The explicit placeholder profile owns zero registry
 identities but must still connect and validate its empty provider/source parity;
 an empty catalog cannot silently claim a real Minecraft profile.
+
+The root-facade source scope owns 32 direct identities and is enforced. Its
+contracts cover the curated root modules, `ResourceLocation`, declarative
+macros, derives, and every supported procedural macro. The former
+`#[component]`, `#[event]`, and `#[item]` attributes were renamed to
+`#[datapack_component]`, `#[on_event]`, and `#[custom_item]`: each old name
+also named a topic module in Rust's separate macro namespace, which made a
+single collision-free CLI identity impossible. The renamed attributes are the
+only supported paths; `sand::component`, `sand::event`, and `sand::item`
+remain the canonical topic modules.
 
 ## Intentional migration scopes
 
@@ -227,11 +237,11 @@ corresponding provider audit. The foundation proves this mechanism with the
 real `SandStorage` derive, but does not claim every downstream generator has
 been migrated.
 
-After the version tranche, the exact 26.2 profile records 11,632
-static identities: 222 enforced predicate, branch, condition, resource-ID, and
-version identities and 11,410 identities across 33 pending scopes. The 1.21.4 and
-explicit placeholder profiles enforce the same 222 source/generated identities
-against their independently generated totals.
+After the root-facade tranche, the exact 26.2 profile records 11,521
+static identities: 5,168 enforced identities (301 source/generated identities
+plus 4,867 generated vanilla registry identities) and 6,353 identities across
+29 pending scopes. The 1.21.4 and explicit placeholder profiles enforce the
+same 301 source/generated identities against their independently generated totals.
 
 Every reachable identity must map to exactly one scope. Enforced scopes reject
 missing contracts during ordinary compilation. Pending scopes remain in the

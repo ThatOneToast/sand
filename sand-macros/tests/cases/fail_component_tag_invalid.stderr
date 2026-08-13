@@ -1,5 +1,5 @@
-error: invalid resource path in #[component(Tag = "...")]: path must only contain [a-z0-9_./-] in `INVALID`
- --> tests/cases/fail_component_tag_invalid.rs:3:19
+error: invalid resource path in #[datapack_component(Tag = "...")]: path must only contain [a-z0-9_./-] in `INVALID`
+ --> tests/cases/fail_component_tag_invalid.rs:3:28
   |
-3 | #[component(Tag = "INVALID")]
-  |                   ^^^^^^^^^
+3 | #[datapack_component(Tag = "INVALID")]
+  |                            ^^^^^^^^^

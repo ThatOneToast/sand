@@ -1,5 +1,5 @@
 //! Architecture guard for #273/#280 item 3: bare `SandEvent`-backed
-//! `#[event]` handlers get the same infallible `.entity`/`.attacker`/
+//! `#[on_event]` handlers get the same infallible `.entity`/`.attacker`/
 //! `.killer`/`.victim`/`.interacted_entity`/`.weapon` accessor sugar
 //! `Event<E: AdvancementEvent>` handlers have, reachable from
 //! `use sand::prelude::*;` alone — no separate
@@ -30,13 +30,13 @@ impl SandEvent for SpecialKillEvent {
     }
 }
 
-#[event]
+#[on_event]
 fn direct_kill(event: Event<PlayerKillEvent>) {
     let killer = event.killer();
     let _ = killer.selector();
 }
 
-#[event]
+#[on_event]
 fn special_kill(event: SpecialKillEvent) {
     // `.killer()`/`.weapon()` resolve here purely through `SandEventParticipants`,
     // brought into scope by the glob prelude import above — no explicit

@@ -13,7 +13,7 @@ static MANA: ScoreVar<i32> = ScoreVar::new("evt_test_mana");
 static CASTING: Flag = Flag::new("evt_test_casting");
 static BONUS: Flag = Flag::new("evt_test_bonus");
 
-/// Simulate what an `#[event]` body does when the export pipeline calls
+/// Simulate what an `#[on_event]` body does when the export pipeline calls
 /// `(desc.make)()` — after the early drain in the old code had already run.
 fn simulate_event_body_when() -> Vec<String> {
     let mut cmds = Vec::new();

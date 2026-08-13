@@ -93,7 +93,7 @@ pub(crate) enum ChildPostObservation {
 }
 
 /// Build (or reuse the sole handler as) `name`'s dispatch function: direct
-/// `#[event]` handler calls (sorted), then child edges (sorted by canonical
+/// `#[on_event]` handler calls (sorted), then child edges (sorted by canonical
 /// child name, recursing into each child's own dispatch function first so
 /// nested references always resolve), inheriting the current `@s`/position —
 /// never re-issuing `execute as @a`.

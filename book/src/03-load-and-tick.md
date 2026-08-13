@@ -11,7 +11,7 @@ set up and then continuously drive its stamina/grapple system.
 {{#include ../../examples/book_project/src/lib.rs:load}}
 ```
 
-`#[component(Load)]` registers this function to be called from the
+`#[datapack_component(Load)]` registers this function to be called from the
 datapack's `#minecraft:load` function tag. Its job is narrow on purpose:
 **define** every piece of persistent state Trailforge will read or write
 later (`STAMINA`, `GRAPPLE`, `HAS_STRIDERS`, `EXHAUSTED`, `REGEN`, and the
@@ -28,7 +28,7 @@ the datapack mid-session keeps their current stamina.
 {{#include ../../examples/book_project/src/lib.rs:tick}}
 ```
 
-`#[component(Tick)]` registers this function to the `#minecraft:tick`
+`#[datapack_component(Tick)]` registers this function to the `#minecraft:tick`
 function tag, so it runs once per tick for every online player context you
 target. Trailforge's tick body is a sequence of small, independently gated
 `TypedExecute::as_players().when(condition).run(...)` statements — each one

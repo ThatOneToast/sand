@@ -3,7 +3,7 @@
 // owned lifecycle setup (objectives + post-observation sync).
 use sand_core::events::{EventSetup, SandEvent, SandEventDispatch};
 use sand_core::prelude::*;
-use sand_macros::event;
+use sand_macros::on_event;
 
 static JUMPS: ScoreVar<i32> = ScoreVar::new("mtst_jumps");
 static SYNC_JUMPS: ScoreVar<i32> = ScoreVar::new("mtst_sync_jumps");
@@ -34,7 +34,7 @@ impl SandEvent for PlayerJumpEvent {
     }
 }
 
-#[event]
+#[on_event]
 pub fn on_player_jump(event: PlayerJumpEvent) {
     cmd::say("jumped!");
 }

@@ -36,7 +36,7 @@ scripts/check.sh
 
 ## Stability levels
 
-- **Stable**: `#[function]`, `#[component]`, typed state, typed conditions,
+- **Stable**: `#[function]`, `#[datapack_component]`, typed state, typed conditions,
   typed text, typed execute, generated command builders, scaffold
 - **Alpha**: Event system, dialog components, resource pack generation
 - **Experimental**: `mcfunction!` macro (advanced tooling), generated registries

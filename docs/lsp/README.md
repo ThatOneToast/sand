@@ -52,8 +52,8 @@ Nothing Sand-specific needs to be built to get *some* diagnostics — a plain
 Rust toolchain is enough:
 
 - **`cargo check -p <project>`** (or plain `cargo check` inside the project
-  directory) — compiles the crate, including all `#[function]`/`#[component]`/
-  `#[event]`/`#[item]` proc-macro expansions, and reports ordinary rustc
+  directory) — compiles the crate, including all `#[function]`/`#[datapack_component]`/
+  `#[on_event]`/`#[custom_item]` proc-macro expansions, and reports ordinary rustc
   diagnostics (type errors, unresolved names, and — importantly — proc-macro
   attribute-parsing errors emitted via `syn::Error::to_compile_error()`, see
   §4). This is the cheapest, fastest thing an editor integration could shell
@@ -130,7 +130,7 @@ X" — but neither carries any Rust source information. See §4.
 
 Two categories of error exist, with very different span stories:
 
-1. **Proc-macro attribute misuse** (e.g. malformed `#[event(...)]` attribute
+1. **Proc-macro attribute misuse** (e.g. malformed `#[on_event(...)]` attribute
    syntax, missing required arguments). `sand-macros` builds these with `syn`,
    which *does* carry real `proc_macro2::Span` positions (grep hits at, e.g.,
    `sand-macros/src/lib.rs:2542` capturing `lit.span()`), and reports them via
@@ -141,7 +141,7 @@ Two categories of error exist, with very different span stories:
    `cargo check`/rust-analyzer, no extra work needed.
 2. **Runtime export/validation errors** — everything in §3
    (`ComponentValidation`, `VersionGating`), plus any `panic!`/`.unwrap()`/
-   `.expect()` inside a `#[function]`/`#[component]`/`#[item]` body (e.g. a
+   `.expect()` inside a `#[function]`/`#[datapack_component]`/`#[custom_item]` body (e.g. a
    bad `ResourceLocation::new(...).unwrap()`). These are **only** discovered
    by *running* code — a `cargo test`, the `sand_export` binary, or a
    doctest — not by `cargo check` alone, since the invalid value is
@@ -161,10 +161,10 @@ you *which generated resource* (by its Minecraft `namespace:path`) and *which
 JSON field* failed, but nothing in the error, and nothing in the
 `ComponentFactory`/`inventory`-registration machinery that produced it,
 records which Rust function/file/line built that value. There is no reverse
-index from `ResourceLocation` back to a `(file, line)` of the `#[component]`/
-`#[item]` function that returned it. Building one would require either:
+index from `ResourceLocation` back to a `(file, line)` of the `#[datapack_component]`/
+`#[custom_item]` function that returned it. Building one would require either:
 
-- proc-macro-side: have `#[component]`/`#[item]`/`#[function]` capture
+- proc-macro-side: have `#[datapack_component]`/`#[custom_item]`/`#[function]` capture
   `Span::call_site()` (or the source-file/line/column accessors
   `proc_macro::Span` exposes on stable) at expansion time and thread it
   through the `inventory`-registered descriptor so the exporter can attach it
@@ -189,8 +189,8 @@ you write the offending code.
 
 A real-time editor diagnostic ("this dialog needs 1.21.6+, your `sand.toml`
 targets 1.21.4") would need version-capability validation to move *earlier*
-— realistically into proc-macro expansion itself, where `#[component]`/
-`#[event]` could read the target version (from `sand.toml`, or an
+— realistically into proc-macro expansion itself, where `#[datapack_component]`/
+`#[on_event]` could read the target version (from `sand.toml`, or an
 environment variable an LSP could set) and reject at `cargo check` time using
 the same `syn::Error` span mechanism described in §4. This is a real compiler
 change (moving `VersionCaps` gating from the runtime export pipeline into
@@ -243,7 +243,7 @@ editor-side change. Not started.
   errors (`ComponentValidation`, `VersionGating`, panics) — today they are
   formatted `Display` strings on stderr.
 - No mapping from a generated resource's `ResourceLocation` back to the Rust
-  `(file, line)` of the `#[component]`/`#[item]`/`#[function]` that produced
+  `(file, line)` of the `#[datapack_component]`/`#[custom_item]`/`#[function]` that produced
   it.
 - No early (macro-expansion-time) `VersionCaps` validation — version gating
   only happens at export/build time today.

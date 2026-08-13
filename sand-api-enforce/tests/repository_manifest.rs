@@ -14,8 +14,8 @@ fn repository_surface_manifest_records_the_audited_pending_baseline() {
     // version selection.
     assert_eq!(manifest.static_surface_items, 0);
     assert_eq!(manifest.pending_item_ceiling, 0);
-    assert_eq!(manifest.pending_scope_ceiling, 25);
-    assert_eq!(manifest.scopes.len(), 40);
+    assert_eq!(manifest.pending_scope_ceiling, 24);
+    assert_eq!(manifest.scopes.len(), 39);
     assert!(
         manifest
             .scopes

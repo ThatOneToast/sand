@@ -63,7 +63,6 @@ root-source module=sand state=enforced tier=ordinary provider=source precedence=
 state-source module=sand::state state=pending tier=ordinary provider=source precedence=50 recursive=true active=true items=250 contracted=0 aliases=sand::prelude features=-
 systems-source module=sand::systems state=pending tier=ordinary provider=source precedence=50 recursive=true active=true items=181 contracted=0 aliases=- features=-
 text-source module=sand::text state=pending tier=ordinary provider=source precedence=100 recursive=true active=true items=95 contracted=1 aliases=sand::prelude features=-
-vanilla-source module=sand::vanilla state=pending tier=ordinary provider=source precedence=50 recursive=true active=true items=0 contracted=0 aliases=sand::prelude features=-
 version-source module=sand::version state=enforced tier=ordinary provider=source precedence=50 recursive=true active=true items=42 contracted=42 aliases=sand::prelude features=-
 vfx-source module=sand::vfx state=enforced tier=ordinary provider=source precedence=100 recursive=true active=true items=45 contracted=45 aliases=- features=-
-totals pending_scopes=25 pending_items=4868 enforced_items=5743 pending_scope_ceiling=25 pending_item_ceiling=4868
+totals pending_scopes=24 pending_items=4868 enforced_items=5743 pending_scope_ceiling=24 pending_item_ceiling=4868

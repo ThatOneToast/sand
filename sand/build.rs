@@ -238,7 +238,16 @@ fn main() {
     // Rust above even when a selected Minecraft profile contains no supported
     // registries (the explicit placeholder profile). Connecting that audit
     // prevents the empty profile from becoming a vacuous enforcement claim.
-    let connected_provider_audits = BTreeSet::from(["generated-vanilla-registries".to_owned()]);
+    let connected_provider_audits = BTreeSet::from([
+        "generated-vanilla-registries".to_owned(),
+        // These parametric providers are audited through real downstream
+        // builds. Their fixture suite uses the same source-to-provider binding
+        // as the facade graph, so an invocation cannot be claimed without its
+        // exact generated declarations and contracts.
+        "generated-item-macro".to_owned(),
+        "generated-state-derive".to_owned(),
+        "generated-storage-derive".to_owned(),
+    ]);
     let report = manifest
         .evaluate_with_provider_audits(
             &reachable,

@@ -760,7 +760,7 @@ pub fn sand_storage_derive_provider(
         for (index, name) in members.into_iter().enumerate() {
             generated.push(GeneratedApi {
                 identity: format!("{owner}::{name}"),
-                provider: "sand_storage_derive".into(),
+                provider: "storage_derive".into(),
                 producer: Some(GeneratedProducer {
                     owner: owner.clone(),
                     name: "SandStorage".into(),

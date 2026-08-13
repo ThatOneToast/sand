@@ -17,6 +17,6 @@ id = "sand-storage-generated"
 canonical_module = "sand"
 state = "enforced"
 tier = "generated"
-provider = "generator:sand_storage_derive"
+provider = "generator:storage_derive"
 enforcement = "consumer_build"
 recursive = true

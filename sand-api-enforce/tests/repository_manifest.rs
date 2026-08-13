@@ -14,7 +14,7 @@ fn repository_surface_manifest_records_the_audited_pending_baseline() {
     // version selection.
     assert_eq!(manifest.static_surface_items, 0);
     assert_eq!(manifest.pending_item_ceiling, 0);
-    assert_eq!(manifest.pending_scope_ceiling, 24);
+    assert_eq!(manifest.pending_scope_ceiling, 21);
     assert_eq!(manifest.scopes.len(), 39);
     assert!(
         manifest
@@ -38,6 +38,9 @@ fn repository_surface_manifest_records_the_audited_pending_baseline() {
                 "generated-registry-id-wrappers",
                 "generated-effect-registry-enums",
                 "generated-event-markers",
+                "generated-item-macro",
+                "generated-state-derive",
+                "generated-storage-derive",
             ])
     );
     assert!(

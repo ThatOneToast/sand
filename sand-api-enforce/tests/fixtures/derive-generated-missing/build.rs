@@ -33,7 +33,7 @@ fn main() {
     .bind_api_producer(
         "sand::PlayerMagic",
         "SandStorage",
-        "sand_storage_derive",
+        "storage_derive",
     )
     .expect("connect SandStorage to its generated API provider");
     let reachable = graph.reachable_from("sand").expect("resolve fixture facade");

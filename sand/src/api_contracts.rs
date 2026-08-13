@@ -342,12 +342,12 @@ register! {
     signature: "#[custom_item(...)]",
     summary: "Derives a typed custom-item reference from a CustomItem factory function.",
     context: "The attribute inspects the declared custom-item definition and generates the stable helper type, matching predicate, and equipment checks used by author code.",
-    minecraft: "Registers the item component payload and emits item predicates or commands when the generated helpers are used.",
+    minecraft: "Does not register a payload by itself; it emits the typed reference, item predicate, and equipment-check helpers that later render item commands or predicates.",
     use_when: ["Giving a custom item a reusable typed Rust handle", "Generating equipment checks tied to one item definition"],
     avoid_when: ["Constructing a one-off CustomItem value without generated helpers"],
     params: [],
     returns: None,
-    example: "#[sand::custom_item]\nfn compass() -> sand::item::CustomItem { todo!() }"
+    example: "#[sand::custom_item]\nfn compass() -> sand::item::CustomItem { sand::item::CustomItem::new(\"minecraft:compass\").custom_data(\"demo_compass\") }"
 }
 
 register! {
@@ -357,13 +357,13 @@ register! {
     kind: Macro,
     signature: "#[armor_event(...)]",
     summary: "Registers an equip or unequip handler for a custom armor item.",
-    context: "The attribute generates the polling and transition bookkeeping needed to invoke a function exactly when the selected armor item changes on an entity.",
-    minecraft: "Emits generated tick logic that detects the configured equipment transition and runs the handler function.",
-    use_when: ["Reacting when an entity equips or removes a custom armor item"],
+    context: "The attribute generates player inventory polling and transition bookkeeping needed to invoke a no-argument handler exactly when the selected armor or offhand item changes.",
+    minecraft: "Emits a minecraft:tick function that checks @a players, records prior slot state, and invokes the handler on the requested transition.",
+    use_when: ["Reacting when a player equips or removes an armor or offhand item"],
     avoid_when: ["Handling a general inventory change or a non-armor item event"],
     params: [],
     returns: None,
-    example: "#[sand::armor_event]\nfn helmet_equipped() { sand::command::say(\"Protected\"); }"
+    example: "#[sand::armor_event(Equip, slot = Head, item = \"minecraft:diamond_helmet\")]\nfn helmet_equipped() { sand::command::say(\"Protected\"); }"
 }
 
 register! {
@@ -372,14 +372,14 @@ register! {
     module: "sand",
     kind: Macro,
     signature: "#[schedule(...)]",
-    summary: "Registers a function that Sand schedules for later Minecraft execution.",
-    context: "The attribute turns a command-producing function into a named scheduling target while retaining Sand's function registration and namespace handling.",
-    minecraft: "Emits a function target that Minecraft's schedule command can execute after the configured delay or replacement policy.",
+    summary: "Registers a per-player countdown-driven scheduled function.",
+    context: "The attribute creates a command-producing body plus generated start and stop entry points; Sand tracks each player's remaining ticks and phase with scoreboard state rather than wrapping Minecraft's /schedule command.",
+    minecraft: "Emits tick-driven scoreboard countdown logic and <name>_start / <name>_stop functions that control each player's lifecycle.",
     use_when: ["Defining recurring or delayed datapack command logic"],
     avoid_when: ["Running commands immediately in the current function body"],
     params: [],
     returns: None,
-    example: "#[sand::schedule]\nfn refresh() { sand::command::say(\"Refreshing\"); }"
+    example: "#[sand::schedule(ticks = 60, every = 5)]\nfn refresh() { sand::command::say(\"Refreshing\"); }"
 }
 
 register! {
@@ -411,7 +411,7 @@ register! {
     avoid_when: ["A single transient command-local value needs no schema"],
     params: [],
     returns: None,
-    example: "#[derive(sand::State)]\nstruct PlayerState { /* #[state(...)] fields */ }"
+    example: "use sand::prelude::*;\n\n#[derive(State)]\n#[state(namespace = \"demo\", scope = player)]\nstruct PlayerState {\n    #[state(default = 0)]\n    score: EntityScore<i32>,\n}"
 }
 
 register! {
@@ -443,7 +443,7 @@ register! {
     avoid_when: ["Reading an arbitrary dynamic NBT path"],
     params: [],
     returns: None,
-    example: "#[derive(sand::SandStorage)]\n#[sand(storage = \"demo:state\")]\nstruct State { score: i32 }"
+    example: "#[derive(sand::SandStorage)]\n#[sand(storage = \"demo:state\", root = \"player\")]\nstruct PlayerStorage { score: i32 }"
 }
 
 register! {

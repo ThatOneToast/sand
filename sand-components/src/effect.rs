@@ -64,8 +64,91 @@ macro_rules! vanilla_registry_enum {
         $(#[$meta])*
         #[derive(Debug, Clone, PartialEq, Eq, Hash)]
         pub enum $name {
-            $($variant,)+
+            $(
+                #[doc = concat!("The vanilla Minecraft `", $path, "` registry entry.")]
+                $variant,
+            )+
             Custom(ResourceLocation),
+        }
+
+        // This macro is the authoritative generator for these facade APIs.
+        // Keep the installed catalog beside the generated Rust declarations so
+        // a new enum variant cannot become public without contract metadata.
+        ::sand_api_contract::inventory::submit! {
+            ::sand_api_contract::ApiRegistration {
+                canonical_path: concat!("sand::prelude::", stringify!($name)),
+                aliases: &[],
+                canonical_module: "sand::prelude",
+                kind: ::sand_api_contract::ApiKind::Enum,
+                signature: concat!("pub enum ", stringify!($name)),
+                summary: "Names a typed vanilla Minecraft registry entry.",
+                context: "This generated enum keeps supported vanilla identifiers discoverable and typo-resistant while retaining an explicit Custom escape hatch for modded data.",
+                minecraft: "Serializes to the corresponding Minecraft namespace:path registry identifier.",
+                use_when: &["Selecting a known vanilla registry entry", "Passing a typed identifier to a Sand API"],
+                avoid_when: &["Representing an arbitrary unvalidated resource location"],
+                parameters: &[],
+                returns: None,
+                example: concat!("let id = sand::prelude::", stringify!($name), "::custom(\"example:entry\")?;"),
+                availability: &[],
+            }
+        }
+
+        $(
+            ::sand_api_contract::inventory::submit! {
+                ::sand_api_contract::ApiRegistration {
+                    canonical_path: concat!("sand::prelude::", stringify!($name), "::", stringify!($variant)),
+                    aliases: &[],
+                    canonical_module: "sand::prelude",
+                    kind: ::sand_api_contract::ApiKind::Variant,
+                    signature: concat!(stringify!($variant)),
+                    summary: concat!("Selects Minecraft's `", $path, "` registry entry."),
+                    context: "This typed variant is the canonical Sand spelling for one built-in Minecraft registry identifier.",
+                    minecraft: concat!("Serializes as minecraft:", $path, "."),
+                    use_when: &["Using this exact vanilla registry entry"],
+                    avoid_when: &["Selecting a different registry entry or a modded identifier"],
+                    parameters: &[],
+                    returns: None,
+                    example: concat!("let id = sand::prelude::", stringify!($name), "::", stringify!($variant), ";"),
+                    availability: &[],
+                }
+            }
+        )+
+
+        ::sand_api_contract::inventory::submit! {
+            ::sand_api_contract::ApiRegistration {
+                canonical_path: concat!("sand::prelude::", stringify!($name), "::Custom"),
+                aliases: &[],
+                canonical_module: "sand::prelude",
+                kind: ::sand_api_contract::ApiKind::Variant,
+                signature: "Custom(ResourceLocation)",
+                summary: "Carries a validated custom or modded registry identifier.",
+                context: "The Custom variant preserves the typed API when an identifier is not one of Sand's known vanilla entries.",
+                minecraft: "Serializes the contained namespace:path registry identifier unchanged.",
+                use_when: &["Addressing a modded or otherwise non-vanilla registry entry"],
+                avoid_when: &["A named vanilla variant is available"],
+                parameters: &[],
+                returns: None,
+                example: concat!("let id = sand::prelude::", stringify!($name), "::custom(\"example:entry\")?;"),
+                availability: &[],
+            }
+        }
+        ::sand_api_contract::inventory::submit! {
+            ::sand_api_contract::ApiRegistration {
+                canonical_path: concat!("sand::prelude::", stringify!($name), "::Custom::0"),
+                aliases: &[],
+                canonical_module: "sand::prelude",
+                kind: ::sand_api_contract::ApiKind::Field,
+                signature: "ResourceLocation",
+                summary: "Stores the validated custom registry location.",
+                context: "This tuple field is the exact resource location carried by the Custom variant.",
+                minecraft: "Uses the stored namespace:path identifier when Sand renders the registry reference.",
+                use_when: &["Inspecting a Custom variant's validated location"],
+                avoid_when: &["Constructing a built-in variant"],
+                parameters: &[],
+                returns: None,
+                example: concat!("let id = sand::prelude::", stringify!($name), "::custom(\"example:entry\")?;"),
+                availability: &[],
+            }
         }
 
         impl $name {
@@ -88,6 +171,79 @@ macro_rules! vanilla_registry_enum {
 
             pub fn as_str(&self) -> String {
                 self.as_resource_location().to_string()
+            }
+        }
+
+        ::sand_api_contract::inventory::submit! {
+            ::sand_api_contract::ApiRegistration {
+                canonical_path: concat!("sand::prelude::", stringify!($name), "::custom"),
+                aliases: &[],
+                canonical_module: "sand::prelude",
+                kind: ::sand_api_contract::ApiKind::Method,
+                signature: concat!("pub fn ", stringify!($name), "::custom(id: impl AsRef<str>) -> Result<", stringify!($name), ">"),
+                summary: "Validates and wraps a custom registry identifier.",
+                context: "This constructor keeps modded identifiers in the same typed family as known vanilla variants.",
+                minecraft: "Validates Minecraft namespace:path syntax before serializing it as a registry reference.",
+                use_when: &["Accepting a modded or data-driven registry ID"],
+                avoid_when: &["A named vanilla variant is available"],
+                parameters: &[::sand_api_contract::StaticApiParameter { name: "id", description: "The custom namespace:path registry identifier." }],
+                returns: Some("The typed custom registry identifier, or a validation error."),
+                example: concat!("let id = sand::prelude::", stringify!($name), "::custom(\"example:entry\")?;"),
+                availability: &[],
+            }
+        }
+        ::sand_api_contract::inventory::submit! {
+            ::sand_api_contract::ApiRegistration {
+                canonical_path: concat!("sand::prelude::", stringify!($name), "::from_resource_location"),
+                aliases: &[],
+                canonical_module: "sand::prelude",
+                kind: ::sand_api_contract::ApiKind::Method,
+                signature: concat!("pub fn ", stringify!($name), "::from_resource_location(location: ResourceLocation) -> ", stringify!($name)),
+                summary: "Wraps an already validated location as a custom registry identifier.",
+                context: "This avoids reparsing when an API already owns a ResourceLocation.",
+                minecraft: "Uses the supplied namespace:path location as the registry reference.",
+                use_when: &["Converting an existing ResourceLocation into this typed registry family"],
+                avoid_when: &["Parsing an unchecked string; use custom instead"],
+                parameters: &[::sand_api_contract::StaticApiParameter { name: "location", description: "The validated custom registry location." }],
+                returns: Some("The matching Custom enum variant."),
+                example: concat!("let id = sand::prelude::", stringify!($name), "::from_resource_location(sand::ResourceLocation::minecraft(\"entry\")?);"),
+                availability: &[],
+            }
+        }
+        ::sand_api_contract::inventory::submit! {
+            ::sand_api_contract::ApiRegistration {
+                canonical_path: concat!("sand::prelude::", stringify!($name), "::as_resource_location"),
+                aliases: &[],
+                canonical_module: "sand::prelude",
+                kind: ::sand_api_contract::ApiKind::Method,
+                signature: concat!("pub fn ", stringify!($name), "::as_resource_location(&self) -> ResourceLocation"),
+                summary: "Returns this entry's validated resource location.",
+                context: "This is the common typed identity representation used by Sand APIs that accept several registry kinds.",
+                minecraft: "Returns the namespace:path value rendered in Minecraft data and commands.",
+                use_when: &["Passing this registry entry to an API that accepts ResourceLocation"],
+                avoid_when: &["Only display text is needed; use as_str or Display"],
+                parameters: &[],
+                returns: Some("The corresponding validated resource location."),
+                example: concat!("let location = sand::prelude::", stringify!($name), "::custom(\"example:entry\")?.as_resource_location();"),
+                availability: &[],
+            }
+        }
+        ::sand_api_contract::inventory::submit! {
+            ::sand_api_contract::ApiRegistration {
+                canonical_path: concat!("sand::prelude::", stringify!($name), "::as_str"),
+                aliases: &[],
+                canonical_module: "sand::prelude",
+                kind: ::sand_api_contract::ApiKind::Method,
+                signature: concat!("pub fn ", stringify!($name), "::as_str(&self) -> String"),
+                summary: "Returns this entry as namespace:path text.",
+                context: "Use this at text boundaries after keeping the identifier typed through the rest of the API.",
+                minecraft: "Returns the exact registry identifier Minecraft reads.",
+                use_when: &["Writing the identifier into a text-only integration"],
+                avoid_when: &["Passing a typed registry ID to another Sand API"],
+                parameters: &[],
+                returns: Some("The namespace:path registry identifier text."),
+                example: concat!("let name = sand::prelude::", stringify!($name), "::custom(\"example:entry\")?.as_str();"),
+                availability: &[],
             }
         }
 

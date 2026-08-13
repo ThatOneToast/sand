@@ -1251,9 +1251,11 @@ fn repetition_emits_api_item(tokens: TokenStream) -> bool {
     let flattened = flatten(tokens);
     flattened.iter().any(|token| {
         matches!(token, TokenTree::Ident(ident) if matches!(ident.to_string().as_str(), "pub" | "fn" | "const" | "type" | "struct" | "enum" | "union" | "trait" | "static" | "mod" | "use"))
-    }) || flattened.windows(2).any(|window| {
+    }) || flattened.windows(2).enumerate().any(|(index, window)| {
         matches!(&window[0], TokenTree::Ident(_))
             && matches!(&window[1], TokenTree::Punct(punct) if punct.as_char() == '!')
+            && !is_api_contract_inventory_submit(&flattened, index)
+            && !inert_expression_macro(&flattened, index)
     })
 }
 
@@ -1278,13 +1280,46 @@ fn reject_item_position_macro_invocations(
         else {
             continue;
         };
-        if bang.as_char() == '!' && macro_path_starts_at_item_boundary(tokens, index) {
+        if bang.as_char() == '!'
+            && macro_path_starts_at_item_boundary(tokens, index)
+            && !is_api_contract_inventory_submit(tokens, index)
+        {
             return Err(unsupported(format!(
                 "generator invokes unmodeled `{name}!` macro at {position}; helper macros in item-producing positions are not auditable"
             )));
         }
     }
     Ok(())
+}
+
+/// `inventory::submit!` is the inert link-time registration mechanism used by
+/// generated API contracts. It cannot introduce a Rust-visible declaration;
+/// accepting only this fully-qualified spelling lets generators emit contract
+/// metadata beside a repeated public family without creating a macro escape
+/// hatch in the public-surface extractor.
+fn is_api_contract_inventory_submit(tokens: &[TokenTree], submit_index: usize) -> bool {
+    matches!(
+        tokens.get(submit_index.saturating_sub(6)..submit_index),
+        Some([
+            TokenTree::Ident(contract),
+            TokenTree::Punct(colon_one),
+            TokenTree::Punct(colon_two),
+            TokenTree::Ident(inventory),
+            TokenTree::Punct(colon_three),
+            TokenTree::Punct(colon_four),
+        ]) if contract == "sand_api_contract"
+            && inventory == "inventory"
+            && colon_one.as_char() == ':'
+            && colon_two.as_char() == ':'
+            && colon_three.as_char() == ':'
+            && colon_four.as_char() == ':'
+    ) && matches!(tokens.get(submit_index), Some(TokenTree::Ident(submit)) if submit == "submit")
+}
+
+/// Built-in literal macros are expressions only and cannot create an item in
+/// a generator transcriber. They are common in static contract registrations.
+fn inert_expression_macro(tokens: &[TokenTree], index: usize) -> bool {
+    matches!(tokens.get(index), Some(TokenTree::Ident(name)) if matches!(name.to_string().as_str(), "concat" | "stringify"))
 }
 
 fn macro_path_starts_at_item_boundary(tokens: &[TokenTree], name_index: usize) -> bool {

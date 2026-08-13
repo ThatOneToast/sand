@@ -2548,6 +2548,67 @@ fn trait_only_and_builtin_derives_do_not_require_providers() {
 }
 
 #[test]
+fn renamed_public_attributes_are_trusted_and_custom_item_remains_fail_closed() {
+    for source in [
+        "#[datapack_component] pub fn component() {} #[on_event] pub fn event() {}",
+        "#[sand::datapack_component] pub fn component() {} #[sand::on_event] pub fn event() {}",
+    ] {
+        let directory = tempfile::tempdir().unwrap();
+        let facade = directory.path().join("facade.rs");
+        fs::write(&facade, source).unwrap();
+        let graph = SurfaceGraph::load(
+            [SourceCrate {
+                name: "facade".into(),
+                root: facade,
+            }],
+            [],
+            [],
+        )
+        .unwrap();
+        assert!(graph.reachable_from("facade").is_ok(), "{source}");
+    }
+
+    for source in [
+        "#[custom_item] pub fn item() {}",
+        "#[sand::custom_item] pub fn item() {}",
+    ] {
+        let directory = tempfile::tempdir().unwrap();
+        let facade = directory.path().join("facade.rs");
+        fs::write(&facade, source).unwrap();
+        let graph = SurfaceGraph::load(
+            [SourceCrate {
+                name: "facade".into(),
+                root: facade,
+            }],
+            [],
+            [],
+        )
+        .unwrap();
+        assert!(matches!(
+            graph.reachable_from("facade"),
+            Err(ReachabilityError::UnboundApiProducer { producer, .. }) if producer == "custom_item"
+        ));
+    }
+
+    let directory = tempfile::tempdir().unwrap();
+    let facade = directory.path().join("facade.rs");
+    fs::write(&facade, "#[sand::item] pub fn obsolete_name() {}").unwrap();
+    let graph = SurfaceGraph::load(
+        [SourceCrate {
+            name: "facade".into(),
+            root: facade,
+        }],
+        [],
+        [],
+    )
+    .unwrap();
+    assert!(matches!(
+        graph.reachable_from("facade"),
+        Err(ReachabilityError::UnclassifiedApiMacro { name, .. }) if name == "item"
+    ));
+}
+
+#[test]
 fn producer_binding_is_per_declaration_and_cannot_exempt_a_new_derive() {
     let directory = tempfile::tempdir().unwrap();
     let facade = directory.path().join("facade.rs");

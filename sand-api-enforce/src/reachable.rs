@@ -3331,7 +3331,7 @@ fn valid_derive_helper(
 // not participate, nor do attributes which preserve the annotated item's
 // public shape.
 fn api_producing_sand_macro(name: &str) -> bool {
-    matches!(name, "SandStorage" | "State" | "item")
+    matches!(name, "SandStorage" | "State" | "custom_item")
 }
 
 fn expected_generated_identities(
@@ -3340,7 +3340,7 @@ fn expected_generated_identities(
     item: Option<&syn::Item>,
 ) -> Result<Option<BTreeSet<(String, ReachableKind)>>, ReachabilityError> {
     if producer != "SandStorage" {
-        // State and item emit sibling APIs whose names require their macro's
+        // State and custom_item emit sibling APIs whose names require their macro's
         // shared semantic parser. Until those providers expose exact claims,
         // the occurrence remains deliberately unbindable and fails closed.
         return Ok(None);
@@ -3436,8 +3436,8 @@ fn trusted_qualified_attribute(path: &syn::Path) -> bool {
             if matches!(
                 (crate_name.as_str(), name.as_str()),
                 ("diagnostic", "on_unimplemented")
-                    | ("sand", "api" | "armor_event" | "component" | "entity_archetype" | "event" | "function" | "item" | "schedule")
-                    | ("sand_macros", "api" | "armor_event" | "component" | "entity_archetype" | "event" | "function" | "item" | "schedule")
+                    | ("sand", "api" | "armor_event" | "datapack_component" | "entity_archetype" | "on_event" | "function" | "custom_item" | "schedule")
+                    | ("sand_macros", "api" | "armor_event" | "datapack_component" | "entity_archetype" | "on_event" | "function" | "custom_item" | "schedule")
             )
     )
 }
@@ -3447,11 +3447,11 @@ fn shape_preserving_sand_attribute(name: &str) -> bool {
         name,
         "api"
             | "armor_event"
-            | "component"
+            | "datapack_component"
             | "entity_archetype"
-            | "event"
+            | "on_event"
             | "function"
-            | "item"
+            | "custom_item"
             | "schedule"
     )
 }
@@ -3466,8 +3466,8 @@ fn trusted_macro_import(name: &str, path: &[String]) -> bool {
                     ("serde", "Serialize" | "Deserialize")
                         | ("thiserror", "Error")
                         | ("clap", "Args" | "Parser" | "Subcommand" | "ValueEnum")
-                        | ("sand", "EntityStateEnum" | "SandStorage" | "State" | "api" | "armor_event" | "component" | "entity_archetype" | "event" | "function" | "item" | "schedule")
-                        | ("sand_macros", "EntityStateEnum" | "SandStorage" | "State" | "api" | "armor_event" | "component" | "entity_archetype" | "event" | "function" | "item" | "schedule")
+                        | ("sand", "EntityStateEnum" | "SandStorage" | "State" | "api" | "armor_event" | "datapack_component" | "entity_archetype" | "on_event" | "function" | "custom_item" | "schedule")
+                        | ("sand_macros", "EntityStateEnum" | "SandStorage" | "State" | "api" | "armor_event" | "datapack_component" | "entity_archetype" | "on_event" | "function" | "custom_item" | "schedule")
                 )
     ) || matches!(
         path,

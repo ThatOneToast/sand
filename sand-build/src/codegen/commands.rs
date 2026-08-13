@@ -638,7 +638,10 @@ fn command_api_entries(
         member_name: None,
         contract: ApiEntry {
             canonical_path: struct_path.clone(),
-            aliases: vec![format!("sand::cmd::{}", ev.struct_name)],
+            aliases: vec![
+                format!("sand::cmd::{}", ev.struct_name),
+                format!("sand::prelude::cmd::{}", ev.struct_name),
+            ],
             canonical_module: "sand::command".into(),
             kind: ApiKind::Struct,
             signature: format!("pub struct {} {{ /* private fields */ }}", ev.struct_name),
@@ -661,7 +664,10 @@ fn command_api_entries(
         member_name: None,
         contract: ApiEntry {
             canonical_path: function_path,
-            aliases: vec![format!("sand::cmd::{}", ev.fn_name)],
+            aliases: vec![
+                format!("sand::cmd::{}", ev.fn_name),
+                format!("sand::prelude::cmd::{}", ev.fn_name),
+            ],
             canonical_module: "sand::command".into(),
             kind: ApiKind::Function,
             signature: format!(
@@ -692,7 +698,10 @@ fn command_api_entries(
             member_name: Some(arg.name.clone()),
             contract: ApiEntry {
             canonical_path: format!("{struct_path}::{}", arg.name),
-            aliases: vec![format!("sand::cmd::{}::{}", ev.struct_name, arg.name)],
+            aliases: vec![
+                format!("sand::cmd::{}::{}", ev.struct_name, arg.name),
+                format!("sand::prelude::cmd::{}::{}", ev.struct_name, arg.name),
+            ],
             canonical_module: "sand::command".into(),
             kind: ApiKind::Method,
             signature: format!(

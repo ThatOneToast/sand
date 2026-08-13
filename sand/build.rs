@@ -224,6 +224,10 @@ fn main() {
         &reachable,
         generated_contracts,
     ));
+    contracts.extend(generated_provider_contracts(
+        &reachable,
+        "generated_effect_registry_enums",
+    ));
     reject_duplicate_contract_identities(&contracts);
 
     // The vanilla-registry provider is structurally compared with the emitted
@@ -489,6 +493,48 @@ fn validate_generated_contracts(
                 }
             }
             Some(contract)
+        })
+        .collect()
+}
+
+/// A declaration-backed generator owns both the emitted public shape and its
+/// contract registrations. Resolve that provider's contracts through the
+/// facade graph here, so a new generated identity or re-export path fails the
+/// ordinary build rather than relying on a hand-maintained path list.
+fn generated_provider_contracts(
+    reachable: &[sand_api_enforce::ReachableApi],
+    provider: &str,
+) -> Vec<ContractIdentity> {
+    reachable
+        .iter()
+        .filter(|item| {
+            matches!(
+                &item.origin,
+                sand_api_enforce::ReachableOrigin::Generator(origin) if origin == provider
+            )
+        })
+        .map(|item| {
+            let canonical_candidates = item
+                .paths
+                .iter()
+                .filter(|path| path.starts_with("sand::"))
+                .collect::<Vec<_>>();
+            let [canonical_path] = canonical_candidates.as_slice() else {
+                panic!(
+                    "generated provider `{provider}` identity `{}` must expose exactly one sand::* canonical path; found {:?}",
+                    item.identity, item.paths
+                );
+            };
+            ContractIdentity {
+                identity: item.identity.clone(),
+                canonical_path: (*canonical_path).clone(),
+                aliases: item
+                    .paths
+                    .iter()
+                    .filter(|path| *path != *canonical_path)
+                    .cloned()
+                    .collect(),
+            }
         })
         .collect()
 }

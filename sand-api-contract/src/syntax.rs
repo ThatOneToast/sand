@@ -5,7 +5,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use proc_macro2::TokenStream;
 use quote::ToTokens;
 use syn::parse::Parser;
-use syn::{ExprArray, FnArg, ItemEnum, ItemStruct, LitStr, Pat, ReturnType, Signature};
+use syn::{
+    Expr, ExprArray, FnArg, ItemEnum, ItemFn, ItemStruct, LitStr, Pat, ReturnType, Signature,
+};
 
 pub mod registry_id;
 
@@ -42,6 +44,274 @@ pub fn sand_storage_generated_member_names(input: &syn::DeriveInput) -> syn::Res
                 .to_string()
         }))
         .collect())
+}
+
+/// Public declarations emitted by `#[derive(State)]`.
+///
+/// This intentionally models only the Rust API shape. The State derive remains
+/// responsible for validating its complete schema semantics; this shared view
+/// lets source reachability and downstream enforcement agree on every public
+/// declaration which a valid derive invocation adds.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct StateGeneratedSurface {
+    /// Sibling bound-view struct, for example `PlayerStateBound`.
+    pub bound_type: String,
+    /// Public fields of the bound-view struct.
+    pub bound_fields: Vec<String>,
+    /// Public inherent associated constants and the binding method.
+    pub associated: Vec<StateGeneratedAssociated>,
+}
+
+/// One public inherent declaration emitted by `#[derive(State)]`.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct StateGeneratedAssociated {
+    pub name: String,
+    pub kind: StateGeneratedAssociatedKind,
+}
+
+/// The Rust item kind for a generated State associated declaration.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum StateGeneratedAssociatedKind {
+    Const,
+    Method,
+}
+
+/// Derive the complete public Rust shape of a valid `State` invocation.
+pub fn state_generated_surface(input: &syn::DeriveInput) -> syn::Result<StateGeneratedSurface> {
+    let syn::Data::Struct(structure) = &input.data else {
+        return Err(syn::Error::new_spanned(
+            &input.ident,
+            "State can only be derived for a struct",
+        ));
+    };
+    let syn::Fields::Named(fields) = &structure.fields else {
+        return Err(syn::Error::new_spanned(
+            &input.ident,
+            "State requires a struct with named fields",
+        ));
+    };
+
+    let state_attributes = input
+        .attrs
+        .iter()
+        .filter(|attribute| attribute.path().is_ident("state"))
+        .collect::<Vec<_>>();
+    if state_attributes.len() != 1 {
+        return Err(syn::Error::new_spanned(
+            &input.ident,
+            "exactly one #[state(...)] schema attribute is required",
+        ));
+    }
+    let mut binding_method = None;
+    state_attributes[0].parse_nested_meta(|meta| {
+        if meta.path.is_ident("scope") {
+            let scope: syn::Ident = meta.value()?.parse()?;
+            binding_method = Some(match scope.to_string().as_str() {
+                "player" | "entity" | "living" => "on",
+                "global" => "global",
+                _ => {
+                    return Err(syn::Error::new_spanned(
+                        scope,
+                        "invalid state scope; expected player, entity, living, or global",
+                    ));
+                }
+            });
+        } else if meta.input.peek(syn::Token![=]) {
+            // The derive validates the complete schema attribute. This shape
+            // model only needs `scope`, but it must consume the remaining
+            // literal options so syn can continue to the next entry.
+            let _: Expr = meta.value()?.parse()?;
+        }
+        Ok(())
+    })?;
+    let binding_method = binding_method.ok_or_else(|| {
+        syn::Error::new_spanned(
+            state_attributes[0],
+            "state schema requires `scope = player|entity|living|global`",
+        )
+    })?;
+
+    let field_names = fields
+        .named
+        .iter()
+        .map(|field| {
+            field
+                .ident
+                .as_ref()
+                .expect("named fields have identifiers")
+                .to_string()
+        })
+        .collect::<Vec<_>>();
+    let associated = std::iter::once(StateGeneratedAssociated {
+        name: "FIELDS".to_owned(),
+        kind: StateGeneratedAssociatedKind::Const,
+    })
+    .chain(
+        field_names
+            .iter()
+            .cloned()
+            .map(|name| StateGeneratedAssociated {
+                name,
+                kind: StateGeneratedAssociatedKind::Const,
+            }),
+    )
+    .chain(std::iter::once(StateGeneratedAssociated {
+        name: binding_method.to_owned(),
+        kind: StateGeneratedAssociatedKind::Method,
+    }))
+    .collect();
+    Ok(StateGeneratedSurface {
+        bound_type: format!("{}Bound", input.ident),
+        bound_fields: field_names,
+        associated,
+    })
+}
+
+/// Public declarations emitted by `#[custom_item]`.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CustomItemGeneratedSurface {
+    /// Sibling typed item reference struct.
+    pub type_name: String,
+    /// Public inherent constants in declaration order.
+    pub constants: Vec<String>,
+    /// Public inherent helper methods in declaration order.
+    pub methods: Vec<String>,
+}
+
+/// Derive the complete public Rust shape of a valid `custom_item` invocation.
+///
+/// The macro's item identity comes from its explicit `name` argument or its
+/// literal `custom_data` key. Keeping this parser deliberately literal is a
+/// safety property: a future macro extension that accepts a dynamic name must
+/// add an equally explicit provider model instead of silently escaping
+/// consumer-build enforcement.
+pub fn custom_item_generated_surface(function: &ItemFn) -> syn::Result<CustomItemGeneratedSurface> {
+    let attribute = function
+        .attrs
+        .iter()
+        .find(|attribute| {
+            attribute
+                .path()
+                .segments
+                .last()
+                .is_some_and(|segment| segment.ident == "custom_item")
+        })
+        .ok_or_else(|| syn::Error::new_spanned(function, "missing #[custom_item] attribute"))?;
+    let mut explicit_name = None;
+    let mut data_constants = Vec::new();
+    if !matches!(attribute.meta, syn::Meta::Path(_)) {
+        attribute.parse_nested_meta(|meta| {
+            if meta.path.is_ident("name") {
+                explicit_name = Some(meta.value()?.parse::<LitStr>()?.value());
+            } else if meta.path.is_ident("data") {
+                let value = meta.value()?;
+                let content;
+                syn::bracketed!(content in value);
+                while !content.is_empty() {
+                    let name: syn::Ident = content.parse()?;
+                    content.parse::<syn::Token![:]>()?;
+                    content.parse::<syn::Type>()?;
+                    content.parse::<syn::Token![=]>()?;
+                    content.parse::<Expr>()?;
+                    data_constants.push(name.to_string());
+                    if content.peek(syn::Token![,]) {
+                        content.parse::<syn::Token![,]>()?;
+                    }
+                }
+            } else {
+                return Err(meta.error("unknown #[custom_item] option"));
+            }
+            Ok(())
+        })?;
+    }
+
+    let mut custom_data = None;
+    for statement in &function.block.stmts {
+        custom_item_data_in_statement(statement, &mut custom_data);
+    }
+    let type_name = explicit_name
+        .or_else(|| custom_data.as_deref().map(custom_item_pascal_case))
+        .ok_or_else(|| {
+            syn::Error::new_spanned(
+                &function.sig,
+                "#[custom_item] needs name = \"TypeName\" or a literal .custom_data(\"key\") call",
+            )
+        })?;
+    let mut constants = vec!["BASE".to_owned(), "PREDICATE".to_owned()];
+    if custom_data.is_some() {
+        constants.extend(["CUSTOM_DATA_KEY".to_owned(), "CUSTOM_DATA_SNBT".to_owned()]);
+    }
+    constants.extend(data_constants);
+    Ok(CustomItemGeneratedSurface {
+        type_name,
+        constants,
+        methods: vec![
+            "if_wearing".to_owned(),
+            "unless_wearing".to_owned(),
+            "item".to_owned(),
+        ],
+    })
+}
+
+fn custom_item_pascal_case(value: &str) -> String {
+    value
+        .split(['_', '-'])
+        .filter(|segment| !segment.is_empty())
+        .map(|segment| {
+            let mut characters = segment.chars();
+            characters.next().map_or_else(String::new, |first| {
+                first.to_uppercase().collect::<String>() + characters.as_str()
+            })
+        })
+        .collect()
+}
+
+fn custom_item_data_in_statement(statement: &syn::Stmt, custom_data: &mut Option<String>) {
+    match statement {
+        syn::Stmt::Expr(expression, _) => custom_item_data_in_expression(expression, custom_data),
+        syn::Stmt::Local(local) => {
+            if let Some(initializer) = &local.init {
+                custom_item_data_in_expression(&initializer.expr, custom_data);
+            }
+        }
+        syn::Stmt::Item(_) | syn::Stmt::Macro(_) => {}
+    }
+}
+
+fn custom_item_data_in_expression(expression: &Expr, custom_data: &mut Option<String>) {
+    match expression {
+        Expr::MethodCall(call) => {
+            if call.method == "custom_data"
+                && let Some(Expr::Lit(syn::ExprLit {
+                    lit: syn::Lit::Str(value),
+                    ..
+                })) = call.args.first()
+            {
+                *custom_data = Some(value.value());
+            }
+            custom_item_data_in_expression(&call.receiver, custom_data);
+            for argument in &call.args {
+                custom_item_data_in_expression(argument, custom_data);
+            }
+        }
+        Expr::Call(call) => {
+            custom_item_data_in_expression(&call.func, custom_data);
+            for argument in &call.args {
+                custom_item_data_in_expression(argument, custom_data);
+            }
+        }
+        Expr::Block(block) => {
+            for statement in &block.block.stmts {
+                custom_item_data_in_statement(statement, custom_data);
+            }
+        }
+        Expr::Return(returned) => {
+            if let Some(expression) = &returned.expr {
+                custom_item_data_in_expression(expression, custom_data);
+            }
+        }
+        _ => {}
+    }
 }
 
 /// One explicitly described function parameter or nested API member.

@@ -2609,6 +2609,94 @@ fn renamed_public_attributes_are_trusted_and_custom_item_remains_fail_closed() {
 }
 
 #[test]
+fn state_derive_provider_claims_the_exact_bound_view_and_inherent_surface() {
+    let directory = tempfile::tempdir().unwrap();
+    let facade = directory.path().join("facade.rs");
+    fs::write(
+        &facade,
+        r#"
+            use sand::State;
+            #[derive(State)]
+            #[state(namespace = "fixture", scope = player)]
+            pub struct PlayerState {
+                mana: EntityScore<i32>,
+                ready: EntityFlag,
+            }
+        "#,
+    )
+    .unwrap();
+    let generated = sand_api_enforce::state_derive_provider(&facade, "facade").unwrap();
+    let graph = SurfaceGraph::load(
+        [SourceCrate {
+            name: "facade".into(),
+            root: facade,
+        }],
+        [],
+        generated,
+    )
+    .unwrap()
+    .bind_api_producer("facade::PlayerState", "State", "state_derive")
+    .unwrap();
+    let reachable = graph.reachable_from("facade").unwrap();
+    for identity in [
+        "facade::PlayerStateBound",
+        "facade::PlayerStateBound::mana",
+        "facade::PlayerState::FIELDS",
+        "facade::PlayerState::mana",
+        "facade::PlayerState::on",
+    ] {
+        assert!(
+            reachable.iter().any(|api| api.identity == identity),
+            "missing {identity}"
+        );
+    }
+}
+
+#[test]
+fn custom_item_provider_claims_the_exact_typed_reference_surface() {
+    let directory = tempfile::tempdir().unwrap();
+    let facade = directory.path().join("facade.rs");
+    fs::write(
+        &facade,
+        r#"
+            #[sand::custom_item(name = "ShardBlade", data = [DAMAGE: i32 = 7])]
+            pub fn shard_blade() -> CustomItem {
+                CustomItem::new("minecraft:diamond_sword")
+                    .custom_data("shard_blade")
+            }
+        "#,
+    )
+    .unwrap();
+    let generated = sand_api_enforce::custom_item_provider(&facade, "facade").unwrap();
+    let graph = SurfaceGraph::load(
+        [SourceCrate {
+            name: "facade".into(),
+            root: facade,
+        }],
+        [],
+        generated,
+    )
+    .unwrap()
+    .bind_api_producer("facade::shard_blade", "custom_item", "custom_item")
+    .unwrap();
+    let reachable = graph.reachable_from("facade").unwrap();
+    for identity in [
+        "facade::ShardBlade",
+        "facade::ShardBlade::BASE",
+        "facade::ShardBlade::CUSTOM_DATA_KEY",
+        "facade::ShardBlade::DAMAGE",
+        "facade::ShardBlade::if_wearing",
+        "facade::ShardBlade::unless_wearing",
+        "facade::ShardBlade::item",
+    ] {
+        assert!(
+            reachable.iter().any(|api| api.identity == identity),
+            "missing {identity}"
+        );
+    }
+}
+
+#[test]
 fn producer_binding_is_per_declaration_and_cannot_exempt_a_new_derive() {
     let directory = tempfile::tempdir().unwrap();
     let facade = directory.path().join("facade.rs");

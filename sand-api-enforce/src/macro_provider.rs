@@ -782,6 +782,157 @@ pub fn sand_storage_derive_provider(
     Ok(generated)
 }
 
+/// Describe the public bound-view type and inherent APIs emitted by a real
+/// `State` derive. The surface model is shared with reachability so a new
+/// State field or a scope change cannot be accepted by a consumer build until
+/// its exact generated declarations are contracted.
+pub fn state_derive_provider(
+    path: &Path,
+    identity_module: &str,
+) -> Result<Vec<GeneratedApi>, MacroProviderError> {
+    let source = fs::read_to_string(path)
+        .map_err(|error| MacroProviderError::Io(format!("{}: {error}", path.display())))?;
+    let file = syn::parse_file(&source)
+        .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
+    let mut generated = Vec::new();
+    for item in &file.items {
+        let syn::Item::Struct(structure) = item else {
+            continue;
+        };
+        if !derives_named(&structure.attrs, "State") || !is_public(&structure.vis) {
+            continue;
+        }
+        let derive_input = syn::parse2::<syn::DeriveInput>(structure.to_token_stream())
+            .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
+        let surface = sand_api_contract::syntax::state_generated_surface(&derive_input)
+            .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
+        let owner = format!("{identity_module}::{}", structure.ident);
+        generated.push(GeneratedApi {
+            identity: format!("{identity_module}::{}", surface.bound_type),
+            provider: "state_derive".into(),
+            producer: Some(GeneratedProducer {
+                owner: owner.clone(),
+                name: "State".into(),
+            }),
+            kind: ReachableKind::Struct,
+            members: surface
+                .bound_fields
+                .into_iter()
+                .map(|name| (name, ReachableKind::Field))
+                .collect(),
+            excluded: false,
+        });
+        generated.extend(surface.associated.into_iter().map(|member| GeneratedApi {
+            identity: format!("{owner}::{}", member.name),
+            provider: "state_derive".into(),
+            producer: Some(GeneratedProducer {
+                owner: owner.clone(),
+                name: "State".into(),
+            }),
+            kind: match member.kind {
+                sand_api_contract::syntax::StateGeneratedAssociatedKind::Const => {
+                    ReachableKind::AssociatedConst
+                }
+                sand_api_contract::syntax::StateGeneratedAssociatedKind::Method => {
+                    ReachableKind::Method
+                }
+            },
+            members: Vec::new(),
+            excluded: false,
+        }));
+    }
+    if generated.is_empty() {
+        return Err(MacroProviderError::MissingGeneratedTypes);
+    }
+    generated.sort_by(|left, right| left.identity.cmp(&right.identity));
+    Ok(generated)
+}
+
+/// Describe the sibling typed item reference and helpers emitted by one real
+/// `#[custom_item]` invocation. Literal name extraction lives in the shared
+/// syntax model, so consumer enforcement fails closed if the macro gains a
+/// new naming form that has not received a provider implementation.
+pub fn custom_item_provider(
+    path: &Path,
+    identity_module: &str,
+) -> Result<Vec<GeneratedApi>, MacroProviderError> {
+    let source = fs::read_to_string(path)
+        .map_err(|error| MacroProviderError::Io(format!("{}: {error}", path.display())))?;
+    let file = syn::parse_file(&source)
+        .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
+    let mut generated = Vec::new();
+    for item in &file.items {
+        let syn::Item::Fn(function) = item else {
+            continue;
+        };
+        if !has_attribute_named(&function.attrs, "custom_item") || !is_public(&function.vis) {
+            continue;
+        }
+        let surface = sand_api_contract::syntax::custom_item_generated_surface(function)
+            .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
+        let owner = format!("{identity_module}::{}", function.sig.ident);
+        let type_identity = format!("{identity_module}::{}", surface.type_name);
+        generated.push(GeneratedApi {
+            identity: type_identity.clone(),
+            provider: "custom_item".into(),
+            producer: Some(GeneratedProducer {
+                owner: owner.clone(),
+                name: "custom_item".into(),
+            }),
+            kind: ReachableKind::Struct,
+            members: surface
+                .constants
+                .into_iter()
+                .map(|name| (name, ReachableKind::AssociatedConst))
+                .chain(
+                    surface
+                        .methods
+                        .into_iter()
+                        .map(|name| (name, ReachableKind::Method)),
+                )
+                .collect(),
+            excluded: false,
+        });
+    }
+    if generated.is_empty() {
+        return Err(MacroProviderError::MissingGeneratedTypes);
+    }
+    generated.sort_by(|left, right| left.identity.cmp(&right.identity));
+    Ok(generated)
+}
+
+fn derives_named(attributes: &[syn::Attribute], name: &str) -> bool {
+    attributes.iter().any(|attribute| {
+        attribute.path().is_ident("derive")
+            && attribute
+                .parse_args_with(
+                    syn::punctuated::Punctuated::<syn::Path, syn::Token![,]>::parse_terminated,
+                )
+                .is_ok_and(|derives| {
+                    derives.iter().any(|derive| {
+                        derive
+                            .segments
+                            .last()
+                            .is_some_and(|segment| segment.ident == name)
+                    })
+                })
+    })
+}
+
+fn has_attribute_named(attributes: &[syn::Attribute], name: &str) -> bool {
+    attributes.iter().any(|attribute| {
+        attribute
+            .path()
+            .segments
+            .last()
+            .is_some_and(|segment| segment.ident == name)
+    })
+}
+
+fn is_public(visibility: &syn::Visibility) -> bool {
+    matches!(visibility, syn::Visibility::Public(_))
+}
+
 fn named_generator(file: &syn::File, macro_name: &str) -> Result<TokenStream, MacroProviderError> {
     file.items
         .iter()

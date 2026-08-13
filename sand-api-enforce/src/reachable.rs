@@ -3314,7 +3314,13 @@ fn valid_derive_helper(
                 )
         }
         "value" => has("ValueEnum") && matches!(target, AttributeTarget::Variant),
-        "state" => has("State") && matches!(target, AttributeTarget::Field),
+        "state" => {
+            has("State")
+                && matches!(
+                    target,
+                    AttributeTarget::Declaration | AttributeTarget::Field
+                )
+        }
         "sand" => {
             has("SandStorage")
                 && matches!(
@@ -3339,46 +3345,102 @@ fn expected_generated_identities(
     owner: &str,
     item: Option<&syn::Item>,
 ) -> Result<Option<BTreeSet<(String, ReachableKind)>>, ReachabilityError> {
-    if producer != "SandStorage" {
-        // State and custom_item emit sibling APIs whose names require their macro's
-        // shared semantic parser. Until those providers expose exact claims,
-        // the occurrence remains deliberately unbindable and fails closed.
-        return Ok(None);
-    }
     let Some(item) = item else {
         // A macro_rules! definition is a template, not a concrete derive
         // occurrence. Consumer-side expansion providers must bind actual
         // invocation owners instead of fabricating one here.
         return Ok(None);
     };
-    let input = syn::parse2::<syn::DeriveInput>(item.to_token_stream()).map_err(|error| {
-        ReachabilityError::Parse(format!(
-            "cannot model SandStorage output for `{owner}`: {error}"
-        ))
-    })?;
-    let names = sand_api_contract::syntax::sand_storage_generated_member_names(&input).map_err(
-        |error| {
-            ReachabilityError::Parse(format!(
-                "cannot model SandStorage output for `{owner}`: {error}"
+    match producer {
+        "SandStorage" => {
+            let input =
+                syn::parse2::<syn::DeriveInput>(item.to_token_stream()).map_err(|error| {
+                    ReachabilityError::Parse(format!(
+                        "cannot model SandStorage output for `{owner}`: {error}"
+                    ))
+                })?;
+            let names = sand_api_contract::syntax::sand_storage_generated_member_names(&input)
+                .map_err(|error| {
+                    ReachabilityError::Parse(format!(
+                        "cannot model SandStorage output for `{owner}`: {error}"
+                    ))
+                })?;
+            Ok(Some(
+                names
+                    .into_iter()
+                    .enumerate()
+                    .map(|(index, name)| {
+                        (
+                            format!("{owner}::{name}"),
+                            if index == 0 {
+                                ReachableKind::AssociatedConst
+                            } else {
+                                ReachableKind::Method
+                            },
+                        )
+                    })
+                    .collect(),
             ))
-        },
-    )?;
-    Ok(Some(
-        names
-            .into_iter()
-            .enumerate()
-            .map(|(index, name)| {
+        }
+        "State" => {
+            let input =
+                syn::parse2::<syn::DeriveInput>(item.to_token_stream()).map_err(|error| {
+                    ReachabilityError::Parse(format!(
+                        "cannot model State output for `{owner}`: {error}"
+                    ))
+                })?;
+            let surface =
+                sand_api_contract::syntax::state_generated_surface(&input).map_err(|error| {
+                    ReachabilityError::Parse(format!(
+                        "cannot model State output for `{owner}`: {error}"
+                    ))
+                })?;
+            let module = owner.rsplit_once("::").map_or("", |(module, _)| module);
+            let mut expected = BTreeSet::from([(
+                format!("{module}::{}", surface.bound_type),
+                ReachableKind::Struct,
+            )]);
+            expected.extend(surface.associated.into_iter().map(|member| {
                 (
-                    format!("{owner}::{name}"),
-                    if index == 0 {
-                        ReachableKind::AssociatedConst
-                    } else {
-                        ReachableKind::Method
+                    format!("{owner}::{}", member.name),
+                    match member.kind {
+                        sand_api_contract::syntax::StateGeneratedAssociatedKind::Const => {
+                            ReachableKind::AssociatedConst
+                        }
+                        sand_api_contract::syntax::StateGeneratedAssociatedKind::Method => {
+                            ReachableKind::Method
+                        }
                     },
                 )
-            })
-            .collect(),
-    ))
+            }));
+            Ok(Some(expected))
+        }
+        "custom_item" => {
+            let function = match item {
+                syn::Item::Fn(function) => function,
+                _ => {
+                    return Err(ReachabilityError::Parse(format!(
+                        "cannot model custom_item output for `{owner}`: expected a function"
+                    )));
+                }
+            };
+            let Ok(surface) = sand_api_contract::syntax::custom_item_generated_surface(function)
+            else {
+                // Invalid custom-item input will be rejected by macro expansion.
+                // Until it has a literal generated type name, it deliberately
+                // remains unbindable rather than letting a partial provider
+                // claim unrelated output.
+                return Ok(None);
+            };
+            let module = owner.rsplit_once("::").map_or("", |(module, _)| module);
+            let type_identity = format!("{module}::{}", surface.type_name);
+            Ok(Some(BTreeSet::from([(
+                type_identity,
+                ReachableKind::Struct,
+            )])))
+        }
+        _ => Ok(None),
+    }
 }
 
 // These derives are known to implement traits only. Adding a derive here is a

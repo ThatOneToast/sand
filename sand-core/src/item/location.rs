@@ -42,12 +42,15 @@ type LocationKind = &'static str;
 
 /// A validated player inventory slot index (`0..=35`, matching vanilla's
 /// `Inventory` list: `0..=8` hotbar, `9..=35` main inventory).
+#[sand_macros::api(registry = sand_api_contract, path = "sand::inventory::InventoryIndex", aliases = ["sand::item::InventoryIndex", "sand::item::location::InventoryIndex", "sand::prelude::InventoryIndex"], summary = "Validates a slot in a player's complete 36-slot inventory.", context = "This distinct type prevents a general player-inventory index from being confused with a hotbar-only or block-container index.", minecraft = "Maps to the Inventory[{Slot:N}] entity NBT entry used by vanilla inventory commands.", use_when = ["Addressing any numbered player inventory slot from 0 through 35"], avoid_when = ["Addressing only the hotbar or a block container"], example = "let slot = InventoryIndex::new(9)?;")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct InventoryIndex(u8);
 
 impl InventoryIndex {
+    #[sand_macros::api(kind = "associated_const", registry = sand_api_contract, path = "sand::inventory::InventoryIndex::MAX", summary = "The highest valid player inventory index.", context = "It exposes the vanilla 36-slot range without repeating a magic number.", minecraft = "Matches the final Inventory list slot, index 35.", use_when = ["Validating generated UI or iteration bounds"], avoid_when = ["Representing a hotbar-only bound"], example = "assert_eq!(InventoryIndex::MAX, 35);")]
     pub const MAX: u8 = 35;
 
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::InventoryIndex::new", summary = "Validates a player inventory index.", context = "The constructor keeps out-of-range slot numbers from reaching generated item or NBT commands.", minecraft = "Accepts vanilla Inventory slots 0 through 35.", use_when = ["Converting a dynamic slot number into a typed location component"], avoid_when = ["A HotbarIndex or ContainerIndex states the intended range more clearly"], params(index = "The zero-based player inventory slot."), returns = "The validated inventory index or a range error.", example = "let slot = InventoryIndex::new(9)?;")]
     pub fn new(index: u8) -> Result<Self, ItemLocationError> {
         if index > Self::MAX {
             return Err(ItemLocationError::IndexOutOfRange {
@@ -59,6 +62,7 @@ impl InventoryIndex {
         Ok(Self(index))
     }
 
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::InventoryIndex::get", summary = "Returns the validated zero-based inventory slot.", context = "Use this only at APIs that explicitly require the vanilla numeric representation.", minecraft = "Returns the value rendered as an Inventory slot number.", use_when = ["Interoperating with a typed API that takes a raw validated index"], avoid_when = ["Reconstructing inventory command syntax by hand"], returns = "The slot number in 0 through 35.", example = "assert_eq!(InventoryIndex::new(9)?.get(), 9);")]
     pub fn get(self) -> u8 {
         self.0
     }
@@ -69,12 +73,15 @@ impl InventoryIndex {
 /// resolve to the same `Inventory[{Slot:N}]` addressing — slot `0..=8`
 /// *is* the hotbar in vanilla's `Inventory` list, there is no separate
 /// hotbar-only NBT structure.
+#[sand_macros::api(registry = sand_api_contract, path = "sand::inventory::HotbarIndex", aliases = ["sand::item::HotbarIndex", "sand::item::location::HotbarIndex", "sand::prelude::HotbarIndex"], summary = "Validates one of the nine player hotbar slots.", context = "A dedicated hotbar type documents that a location must be currently quick-accessible rather than any inventory slot.", minecraft = "Maps to Inventory slots 0 through 8, Minecraft's hotbar range.", use_when = ["Addressing a selected quick-access inventory position"], avoid_when = ["Addressing the full main inventory"], example = "let slot = HotbarIndex::new(0)?;")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct HotbarIndex(u8);
 
 impl HotbarIndex {
+    #[sand_macros::api(kind = "associated_const", registry = sand_api_contract, path = "sand::inventory::HotbarIndex::MAX", summary = "The highest valid hotbar index.", context = "It records the fixed nine-slot quick-access range.", minecraft = "Matches hotbar slot 8.", use_when = ["Checking a hotbar index bound"], avoid_when = ["Checking all inventory slots"], example = "assert_eq!(HotbarIndex::MAX, 8);")]
     pub const MAX: u8 = 8;
 
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::HotbarIndex::new", summary = "Validates a hotbar slot index.", context = "It prevents a main-inventory or container index from being silently accepted as a quick-access slot.", minecraft = "Accepts vanilla hotbar slots 0 through 8.", use_when = ["Constructing a PlayerHotbar location"], avoid_when = ["Addressing a non-hotbar inventory slot"], params(index = "The zero-based hotbar slot."), returns = "The validated hotbar index or a range error.", example = "let slot = HotbarIndex::new(4)?;")]
     pub fn new(index: u8) -> Result<Self, ItemLocationError> {
         if index > Self::MAX {
             return Err(ItemLocationError::IndexOutOfRange {
@@ -86,6 +93,7 @@ impl HotbarIndex {
         Ok(Self(index))
     }
 
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::HotbarIndex::get", summary = "Returns the validated hotbar slot number.", context = "This provides the numeric value while retaining validation at construction.", minecraft = "Returns the Inventory-list index for the hotbar slot.", use_when = ["Passing a validated hotbar index to a typed adapter"], avoid_when = ["Formatting raw item command syntax"], returns = "The slot number in 0 through 8.", example = "assert_eq!(HotbarIndex::new(4)?.get(), 4);")]
     pub fn get(self) -> u8 {
         self.0
     }
@@ -95,12 +103,15 @@ impl HotbarIndex {
 /// vanilla single-block container — a double chest — and
 /// [`sand_commands::ItemSlot::Container`]'s existing validated bound, reused
 /// here for consistency rather than picking an independent limit).
+#[sand_macros::api(registry = sand_api_contract, path = "sand::inventory::ContainerIndex", aliases = ["sand::item::ContainerIndex", "sand::item::location::ContainerIndex", "sand::prelude::ContainerIndex"], summary = "Validates a slot in a vanilla block container.", context = "Block containers use a separate range from player inventory, so the type makes container addressing explicit.", minecraft = "Maps to an Items list entry for a container block entity, bounded by a double chest's 54 slots.", use_when = ["Addressing a chest or another supported block container slot"], avoid_when = ["Addressing a player inventory position"], example = "let slot = ContainerIndex::new(0)?;")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ContainerIndex(u8);
 
 impl ContainerIndex {
+    #[sand_macros::api(kind = "associated_const", registry = sand_api_contract, path = "sand::inventory::ContainerIndex::MAX", summary = "The largest supported block-container slot index.", context = "Sand uses the widest ordinary vanilla single-container bound to reject impossible locations early.", minecraft = "Matches index 53 of a 54-slot double chest.", use_when = ["Checking a container slot bound"], avoid_when = ["Assuming every container has this many slots"], example = "assert_eq!(ContainerIndex::MAX, 53);")]
     pub const MAX: u8 = 53;
 
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::ContainerIndex::new", summary = "Validates a block-container slot index.", context = "The constructor prevents impossible container locations from reaching generated data or item commands.", minecraft = "Accepts the zero-based range 0 through 53 used by Sand's supported container model.", use_when = ["Constructing a BlockContainer location"], avoid_when = ["Addressing a player inventory slot"], params(index = "The zero-based block-container slot."), returns = "The validated container index or a range error.", example = "let slot = ContainerIndex::new(27)?;")]
     pub fn new(index: u8) -> Result<Self, ItemLocationError> {
         if index > Self::MAX {
             return Err(ItemLocationError::IndexOutOfRange {
@@ -112,6 +123,7 @@ impl ContainerIndex {
         Ok(Self(index))
     }
 
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::ContainerIndex::get", summary = "Returns the validated container slot number.", context = "This exposes the numeric form only after range validation.", minecraft = "Returns the index rendered inside a block entity's Items list path.", use_when = ["Passing the index to a typed container adapter"], avoid_when = ["Writing a raw block-entity NBT path"], returns = "The slot number in 0 through 53.", example = "assert_eq!(ContainerIndex::new(27)?.get(), 27);")]
     pub fn get(self) -> u8 {
         self.0
     }

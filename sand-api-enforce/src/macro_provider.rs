@@ -7,7 +7,7 @@ use std::path::Path;
 
 use proc_macro2::{TokenStream, TokenTree};
 use quote::ToTokens;
-use syn::parse::{Parse, ParseStream};
+use syn::parse::{Parse, ParseStream, Parser};
 
 use crate::{GeneratedApi, GeneratedProducer, ReachableKind};
 
@@ -58,6 +58,101 @@ pub fn shape_preserving_consumer_provider(
             macro_name.to_owned(),
         ))
     }
+}
+
+/// Describe the public HUD handle constants emitted by feature-gated
+/// `hud_bar!` and `hud_element!` calls. `texture!` intentionally produces no
+/// Rust-visible API: it only registers a pack asset. Parsing the same literal
+/// `name` input the macros use for their uppercased handle keeps consumer
+/// enforcement exact without pretending raw texture registrations are APIs.
+pub fn resourcepack_macro_provider(
+    path: &Path,
+    identity_module: &str,
+) -> Result<Vec<GeneratedApi>, MacroProviderError> {
+    let source = fs::read_to_string(path)
+        .map_err(|error| MacroProviderError::Io(format!("{}: {error}", path.display())))?;
+    let file = syn::parse_file(&source)
+        .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
+    let mut saw_resourcepack_macro = false;
+    let mut generated = Vec::new();
+    for item in file.items {
+        let syn::Item::Macro(item) = item else {
+            continue;
+        };
+        let Some(name) = item
+            .mac
+            .path
+            .segments
+            .last()
+            .map(|segment| segment.ident.to_string())
+        else {
+            continue;
+        };
+        match name.as_str() {
+            "hud_bar" | "hud_element" => {
+                saw_resourcepack_macro = true;
+                let handle = resourcepack_handle_name(item.mac.tokens, path)?;
+                generated.push(GeneratedApi {
+                    identity: format!("{identity_module}::{handle}"),
+                    provider: "resourcepack_macros".into(),
+                    producer: None,
+                    kind: ReachableKind::Constant,
+                    members: Vec::new(),
+                    excluded: false,
+                });
+            }
+            "texture" => saw_resourcepack_macro = true,
+            _ => {}
+        }
+    }
+    if !saw_resourcepack_macro {
+        return Err(MacroProviderError::MissingConsumerInvocation(
+            "resourcepack macro".into(),
+        ));
+    }
+    generated.sort_by(|left, right| left.identity.cmp(&right.identity));
+    generated.dedup_by(|left, right| left.identity == right.identity);
+    Ok(generated)
+}
+
+fn resourcepack_handle_name(
+    tokens: TokenStream,
+    path: &Path,
+) -> Result<String, MacroProviderError> {
+    let fields = syn::punctuated::Punctuated::<syn::ExprAssign, syn::Token![,]>::parse_terminated
+        .parse2(tokens)
+        .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
+    let name = fields
+        .iter()
+        .find_map(|field| match field.left.as_ref() {
+            syn::Expr::Path(path) if path.path.is_ident("name") => match field.right.as_ref() {
+                syn::Expr::Lit(syn::ExprLit {
+                    lit: syn::Lit::Str(value),
+                    ..
+                }) => Some(value.value()),
+                _ => None,
+            },
+            _ => None,
+        })
+        .ok_or_else(|| {
+            MacroProviderError::Parse(format!(
+                "{}: resourcepack HUD macro needs a literal name = \"...\"",
+                path.display()
+            ))
+        })?;
+    let handle = name.to_uppercase().replace(['-', ' '], "_");
+    if handle.is_empty()
+        || !handle.chars().enumerate().all(|(index, character)| {
+            character == '_'
+                || character.is_ascii_alphanumeric() && (index > 0 || !character.is_ascii_digit())
+        })
+    {
+        return Err(MacroProviderError::Parse(format!(
+            "{}: resourcepack HUD name `{name}` does not produce a valid public Rust handle",
+            path.display()
+        )));
+    }
+    Ok(handle)
 }
 
 /// Prove that a local `macro_rules!` transcriber cannot add an API identity.

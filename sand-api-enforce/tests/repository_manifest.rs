@@ -14,7 +14,7 @@ fn repository_surface_manifest_records_the_audited_pending_baseline() {
     // version selection.
     assert_eq!(manifest.static_surface_items, 0);
     assert_eq!(manifest.pending_item_ceiling, 0);
-    assert_eq!(manifest.pending_scope_ceiling, 15);
+    assert_eq!(manifest.pending_scope_ceiling, 14);
     assert_eq!(manifest.scopes.len(), 39);
     assert!(
         manifest
@@ -46,6 +46,7 @@ fn repository_surface_manifest_records_the_audited_pending_baseline() {
                 "generated-schedule-macro",
                 "generated-state-derive",
                 "generated-storage-derive",
+                "generated-resourcepack-macros",
                 "generated-entity-state-enum-derive",
             ])
     );

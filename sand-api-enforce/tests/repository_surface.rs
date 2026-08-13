@@ -50,7 +50,7 @@ fn checked_repository_surface_baseline_is_complete_and_partitioned() {
     assert_eq!(
         lines.last().copied(),
         Some(
-            "totals pending_scopes=15 pending_items=4868 enforced_items=6653 pending_scope_ceiling=15 pending_item_ceiling=4868"
+            "totals pending_scopes=14 pending_items=4868 enforced_items=6653 pending_scope_ceiling=14 pending_item_ceiling=4868"
         )
     );
 }

@@ -1,0 +1,15 @@
+schema_version = 1
+static_surface_items = 2
+enforced_scope_baseline = ["resourcepack-generated"]
+pending_scope_ceiling = 0
+pending_item_ceiling = 0
+
+[[scope]]
+id = "resourcepack-generated"
+canonical_module = "sand"
+state = "enforced"
+tier = "generated"
+provider = "generator:resourcepack_macros"
+enforcement = "consumer_build"
+recursive = false
+features = ["resourcepack"]

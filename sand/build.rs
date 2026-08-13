@@ -253,6 +253,7 @@ fn main() {
         "generated-armor-event-macro".to_owned(),
         "generated-schedule-macro".to_owned(),
         "generated-entity-state-enum-derive".to_owned(),
+        "generated-resourcepack-macros".to_owned(),
     ]);
     let report = manifest
         .evaluate_with_provider_audits(

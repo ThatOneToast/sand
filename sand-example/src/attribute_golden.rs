@@ -1,14 +1,14 @@
 //! Golden coverage for attribute-first datapack authoring.
 
 use sand_core::prelude::*;
-use sand_macros::{component, function};
+use sand_macros::{datapack_component, function};
 
 static GOLDEN_MANA: ScoreVar<i32> = ScoreVar::new("golden_mana");
 static GOLDEN_CASTING: Flag = Flag::new("golden_casting");
 static GOLDEN_DASH: Cooldown = Cooldown::new("golden_dash", Ticks::seconds(3));
 static GOLDEN_SETTINGS: StorageVar<i32> = StorageVar::new("golden:settings", "players.self.mana");
 
-#[component(Load)]
+#[datapack_component(Load)]
 pub fn golden_load() {
     GOLDEN_MANA.define();
     GOLDEN_CASTING.define();
@@ -16,7 +16,7 @@ pub fn golden_load() {
     GOLDEN_SETTINGS.set_int(100);
 }
 
-#[component(Tick)]
+#[datapack_component(Tick)]
 pub fn golden_tick() {
     GOLDEN_DASH.tick_all_players();
     TypedExecute::as_players()

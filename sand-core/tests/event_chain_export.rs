@@ -2,7 +2,7 @@
 //! proves through the *real* export pipeline that
 //!
 //! - a parent's detector/setup is emitted exactly once, whether or not it has
-//!   a direct `#[event]` handler of its own;
+//!   a direct `#[on_event]` handler of its own;
 //! - a parent referenced only by chain children (no direct handler) still
 //!   gets its detector and setup generated;
 //! - a child's condition is evaluated inline inside the parent's dispatch

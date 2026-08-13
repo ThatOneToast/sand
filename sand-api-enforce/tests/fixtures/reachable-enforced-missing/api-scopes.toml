@@ -1,8 +1,16 @@
 schema_version = 1
-static_surface_items = 24
-enforced_scope_baseline = ["predicate-source", "execute-when-source", "condition-source", "resource-ref-source", "version-source", "vfx-source", "advanced-source"]
+static_surface_items = 25
+enforced_scope_baseline = ["predicate-source", "execute-when-source", "condition-source", "resource-ref-source", "version-source", "vfx-source", "advanced-source", "root-source"]
 pending_scope_ceiling = 0
 pending_item_ceiling = 0
+
+[[scope]]
+id = "root-source"
+canonical_module = "sand"
+state = "enforced"
+tier = "author"
+provider = "source"
+recursive = false
 
 [[scope]]
 id = "predicate-source"

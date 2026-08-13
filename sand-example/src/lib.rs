@@ -22,7 +22,7 @@ pub mod state_ergonomics;
 pub mod tracked_sneaking_example;
 
 use sand_core::mcfunction;
-use sand_macros::{component, function, run_fn};
+use sand_macros::{datapack_component, function, run_fn};
 
 #[cfg(test)]
 pub(crate) mod test_support {
@@ -95,7 +95,7 @@ pub fn execute_anonymous_example() {
 // ── Components ───────────────────────────────────────────────────────────────
 
 /// Fires `hello_world:hello_world` once per player on their first tick alive.
-#[component]
+#[datapack_component]
 pub fn player_join_advancement() -> sand_core::Advancement {
     use sand_core::{Advancement, AdvancementRewards, AdvancementTrigger, Criterion};
     Advancement::new("hello_world:player_join".parse().unwrap())
@@ -421,7 +421,7 @@ mod tests {
         let count = sand_core::inventory::iter::<ComponentFactory>().count();
         assert!(
             count >= 1,
-            "expected at least 1 #[component] registration, got {count}"
+            "expected at least 1 #[datapack_component] registration, got {count}"
         );
     }
 

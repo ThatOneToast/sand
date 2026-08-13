@@ -1,7 +1,7 @@
-use sand_macros::component;
+use sand_macros::datapack_component;
 use sand_core::mcfunction;
 
-#[component(Tag = "my_lib:on_death")]
+#[datapack_component(Tag = "my_lib:on_death")]
 fn handle_death() {
     mcfunction! {
         "say death handler";

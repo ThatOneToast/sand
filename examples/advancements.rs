@@ -8,12 +8,12 @@ use sand_core::{
     AdvancementRewards, AdvancementTrigger, Criterion, ItemId, RawJson,
 };
 use sand_core::prelude::Text;
-use sand_macros::component;
+use sand_macros::datapack_component;
 
 // ── Basic advancement with a tick trigger ────────────────────────────────────
 // Fires every tick — commonly used with revocation for one-shot detection.
 
-#[component]
+#[datapack_component]
 pub fn first_join() -> Advancement {
     Advancement::new("my_pack:first_join".parse().unwrap())
         .criterion("joined", Criterion::new(AdvancementTrigger::Tick))
@@ -25,7 +25,7 @@ pub fn first_join() -> Advancement {
 // ── Advancement with display ─────────────────────────────────────────────────
 // Shows a toast notification and appears in the advancement screen.
 
-#[component]
+#[datapack_component]
 pub fn get_diamonds() -> Advancement {
     Advancement::new("my_pack:get_diamonds".parse().unwrap())
         .display(
@@ -49,7 +49,7 @@ pub fn get_diamonds() -> Advancement {
 // ── Challenge advancement ────────────────────────────────────────────────────
 // Uses the Challenge frame for difficult achievements.
 
-#[component]
+#[datapack_component]
 pub fn dragon_slayer() -> Advancement {
     Advancement::new("my_pack:dragon_slayer".parse().unwrap())
         .parent("my_pack:get_diamonds".parse().unwrap())
@@ -85,7 +85,7 @@ pub fn dragon_slayer() -> Advancement {
 // ── Advancement with multiple criteria ───────────────────────────────────────
 // Requires all criteria to be met (or specify custom requirement groups).
 
-#[component]
+#[datapack_component]
 pub fn master_miner() -> Advancement {
     Advancement::new("my_pack:master_miner".parse().unwrap())
         .display(

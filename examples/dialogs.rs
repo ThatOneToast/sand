@@ -1,9 +1,9 @@
 //! Typed dialogs.
 
 use sand_core::prelude::*;
-use sand_macros::component;
+use sand_macros::datapack_component;
 
-#[component]
+#[datapack_component]
 pub fn welcome_dialog() -> Dialog {
     Dialog::notice_local("welcome")
         .title(Text::new("Welcome").gold())

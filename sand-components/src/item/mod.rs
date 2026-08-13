@@ -1541,7 +1541,7 @@ impl CustomItem {
     /// Build an advancement that fires when the player right-clicks with this item.
     ///
     /// The advancement uses the `UsingItem` trigger and calls `reward_fn` as its reward.
-    /// Register the result with `#[component]`.
+    /// Register the result with `#[datapack_component]`.
     pub fn on_use_advancement(
         &self,
         location: ResourceLocation,

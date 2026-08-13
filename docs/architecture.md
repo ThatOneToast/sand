@@ -68,7 +68,7 @@ guarantee) the reward function's execution order relative to the tick
 coordinator's own tick-tagged pass, so anything requiring the coordinator to
 observe this parent's occurrence alongside another parent's mark in one
 deterministic pass is rejected with a diagnostic rather than silently
-approximated. The bridged parent type must have zero direct `#[event]`
+approximated. The bridged parent type must have zero direct `#[on_event]`
 handlers — combining one with graph composition on the same type is rejected,
 since it would otherwise require either duplicating the live advancement
 grant or splicing into the separate, pre-existing per-handler advancement
@@ -120,7 +120,7 @@ contract:
 - **Lifecycle.** `ExportRegistryGuard::enter()` pushes a fresh layer;
   `Drop` pops it. `try_export_components_impl` takes the guard as its first
   act, so every one of its `?` early returns, and any unwind out of a user
-  factory or `#[event]` handler, discards the layer. Cleanup is never a call
+  factory or `#[on_event]` handler, discards the layer. Cleanup is never a call
   at the end of the happy path.
 - **Isolation.** Layers are thread-local and the guard is `!Send`, so
   concurrent exports on different threads cannot observe each other. An

@@ -1,6 +1,6 @@
 use sand_core::event::trigger::UsingItemTrigger;
 use sand_core::prelude::*;
-use sand_macros::event;
+use sand_macros::on_event;
 
 static MANA: ScoreVar<i32> = ScoreVar::new("mana");
 static DASH: Cooldown = Cooldown::new("dash", Ticks::seconds(3));
@@ -25,7 +25,7 @@ impl AdvancementEvent for UsedDashWandEvent {
     }
 }
 
-#[event]
+#[on_event]
 pub fn on_used_dash_wand(event: Event<UsedDashWandEvent>) {
     MANA.remove(event.player(), 25);
     DASH.start(event.player());

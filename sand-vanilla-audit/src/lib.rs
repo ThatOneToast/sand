@@ -4,7 +4,7 @@ use sand_core::event::vanilla::{OnDeath, OnRespawn, PlayerStartsSneaking, Player
 use sand_core::events::{EventSetup, PlayerSneakEvent, SandEvent, SandEventDispatch, TickWindow};
 use sand_core::prelude::*;
 use sand_core::{FloatRange, IntRange, NumberProvider};
-use sand_macros::{State, component, event, function};
+use sand_macros::{State, datapack_component, on_event, function};
 
 fn item_id(path: &str) -> ItemId {
     ItemId::minecraft(path).unwrap()
@@ -97,19 +97,19 @@ pub fn semantic_item_used_reward() {
 }
 
 /// Real-server evidence for the generated death observation boundary.
-#[event]
+#[on_event]
 pub fn semantic_death_lifecycle(_event: OnDeath) {
     cmd::raw(r#"tellraw @s {"text":"__SAND_SEMANTIC_DEATH__"}"#)
 }
 
 /// First subscriber proving every handler receives the same respawn lifecycle.
-#[event]
+#[on_event]
 pub fn semantic_respawn_lifecycle_a(_event: OnRespawn) {
     cmd::raw(r#"tellraw @s {"text":"__SAND_SEMANTIC_RESPAWN_A__"}"#)
 }
 
 /// Second subscriber proving fan-out completes before lifecycle reset.
-#[event]
+#[on_event]
 pub fn semantic_respawn_lifecycle_b(_event: OnRespawn) {
     cmd::raw(r#"tellraw @s {"text":"__SAND_SEMANTIC_RESPAWN_B__"}"#)
 }
@@ -157,7 +157,7 @@ impl SandEvent for SemanticOccurrenceWhileSneaking {
     }
 }
 
-#[event]
+#[on_event]
 pub fn semantic_occurrence_while_sneaking(_event: SemanticOccurrenceWhileSneaking) {
     cmd::raw(r#"tellraw @s {"text":"__SAND_SEMANTIC_WHILE_SNEAKING__"}"#)
 }
@@ -234,12 +234,12 @@ impl SandEvent for SemanticAfterAll {
     }
 }
 
-#[event]
+#[on_event]
 pub fn semantic_after_any(_event: SemanticAfterAny) {
     cmd::raw(r#"tellraw @s {"text":"__SAND_SEMANTIC_AFTER_ANY__"}"#)
 }
 
-#[event]
+#[on_event]
 pub fn semantic_after_all(_event: SemanticAfterAll) {
     cmd::raw(r#"tellraw @s {"text":"__SAND_SEMANTIC_AFTER_ALL__"}"#)
 }
@@ -258,13 +258,13 @@ impl SandEvent for SemanticWithin {
     }
 }
 
-#[event]
+#[on_event]
 pub fn semantic_within(_event: SemanticWithin) {
     cmd::raw(r#"tellraw @s {"text":"__SAND_SEMANTIC_WITHIN__"}"#)
 }
 
 /// Phase 6 (#240) advancement-backed graph parent: a provider-only
-/// `SandEvent` (no direct `#[event]` handler of its own) whose dispatch is
+/// `SandEvent` (no direct `#[on_event]` handler of its own) whose dispatch is
 /// advancement-backed. Sand synthesizes its advancement/entry function
 /// purely to bridge `SemanticAdvancementBridgeChild` below — see
 /// `EventGraph::advancement_bridges`. Reuses the same marked
@@ -294,7 +294,7 @@ impl SandEvent for SemanticAdvancementBridgeChild {
     }
 }
 
-#[event]
+#[on_event]
 pub fn semantic_advancement_bridge_child(_event: SemanticAdvancementBridgeChild) {
     cmd::raw(r#"tellraw @s {"text":"__SAND_SEMANTIC_ADVANCEMENT_BRIDGE__"}"#)
 }
@@ -325,19 +325,19 @@ pub fn semantic_multi_fire_ba() {
     cmd::raw("scoreboard players add @s sand_mp_a 1")
 }
 
-#[event]
+#[on_event]
 pub fn starts_sneaking(event: sand_core::event::Event<PlayerStartsSneaking>) {
     let _ = event;
     cmd::raw("say audit started sneaking")
 }
 
-#[event]
+#[on_event]
 pub fn stops_sneaking(event: sand_core::event::Event<PlayerStopsSneaking>) {
     let _ = event;
     cmd::raw("say audit stopped sneaking")
 }
 
-#[component]
+#[datapack_component]
 pub fn audit_advancement() -> Advancement {
     Advancement::new("sand_audit:first_tick".parse().unwrap())
         .criterion("tick", Criterion::new(AdvancementTrigger::Tick))
@@ -356,7 +356,7 @@ pub fn audit_advancement() -> Advancement {
 /// the criterion fires only for matching placements in gameplay (that
 /// requires a real client-driven positive/negative test; see
 /// `docs/vanilla-reload-validation.md`).
-#[component]
+#[datapack_component]
 pub fn audit_placed_block_filtered() -> Advancement {
     Advancement::new("sand_audit:placed_block_filtered".parse().unwrap())
         .criterion(
@@ -374,7 +374,7 @@ pub fn audit_placed_block_filtered() -> Advancement {
 }
 
 /// Same coverage as [`audit_placed_block_filtered`] for `item_used_on_block`.
-#[component]
+#[datapack_component]
 pub fn audit_item_used_on_block_filtered() -> Advancement {
     Advancement::new("sand_audit:item_used_on_block_filtered".parse().unwrap())
         .criterion(
@@ -391,7 +391,7 @@ pub fn audit_item_used_on_block_filtered() -> Advancement {
 
 /// Client-driven semantic fixture. The reward revokes this advancement so a
 /// second matching placement proves reset/re-fire behavior in the same run.
-#[component]
+#[datapack_component]
 pub fn semantic_placed_block() -> Advancement {
     Advancement::new("sand_audit:semantic_placed_block".parse().unwrap())
         .criterion(
@@ -410,7 +410,7 @@ pub fn semantic_placed_block() -> Advancement {
 }
 
 /// Client-driven item-use fixture with the same revoke/re-fire contract.
-#[component]
+#[datapack_component]
 pub fn semantic_item_used_on_block() -> Advancement {
     Advancement::new("sand_audit:semantic_item_used_on_block".parse().unwrap())
         .criterion(
@@ -435,7 +435,7 @@ pub fn semantic_item_used_on_block() -> Advancement {
 /// direct location, nested damage-source entity, and non-placement item
 /// predicate consumers. Semantic matching remains a separate client-driven
 /// evidence tier.
-#[component]
+#[datapack_component]
 pub fn audit_profiled_trigger_matrix() -> Advancement {
     Advancement::new("sand_audit:profiled_trigger_matrix".parse().unwrap())
         .criterion(
@@ -536,7 +536,7 @@ pub fn audit_profiled_trigger_matrix() -> Advancement {
         )
 }
 
-#[component]
+#[datapack_component]
 pub fn audit_recipe() -> ShapedRecipe {
     ShapedRecipe::new("sand_audit:diamond".parse().unwrap())
         .pattern(["D"])
@@ -544,7 +544,7 @@ pub fn audit_recipe() -> ShapedRecipe {
         .result(RecipeResult::new("minecraft:diamond", 1))
 }
 
-#[component]
+#[datapack_component]
 pub fn audit_predicate() -> Predicate {
     Predicate::new(
         "sand_audit:chance".parse().unwrap(),
@@ -552,7 +552,7 @@ pub fn audit_predicate() -> Predicate {
     )
 }
 
-#[component]
+#[datapack_component]
 pub fn audit_loot_table() -> LootTable {
     LootTable::chest_loot(
         "sand_audit:chest".parse().unwrap(),
@@ -560,7 +560,7 @@ pub fn audit_loot_table() -> LootTable {
     )
 }
 
-#[component]
+#[datapack_component]
 pub fn audit_item_modifier() -> ItemModifier {
     ItemModifier::new("sand_audit:set_count".parse().unwrap()).function(LootFunction::SetCount {
         count: NumberProvider::Constant(1.0),
@@ -569,7 +569,7 @@ pub fn audit_item_modifier() -> ItemModifier {
 }
 
 #[cfg(sand_audit_dialogs)]
-#[component]
+#[datapack_component]
 pub fn audit_dialog() -> Dialog {
     Dialog::notice_local("status")
         .title("Sand audit")

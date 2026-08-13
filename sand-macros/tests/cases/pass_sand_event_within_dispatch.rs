@@ -2,7 +2,7 @@
 
 use sand_core::events::{PlayerSneakEvent, SandEvent, SandEventDispatch, TickWindow};
 use sand_core::prelude::*;
-use sand_macros::event;
+use sand_macros::on_event;
 
 struct CurrentEvent;
 impl SandEvent for CurrentEvent {
@@ -52,17 +52,17 @@ impl SandEvent for BoundedAfterAnyChild {
     }
 }
 
-#[event]
+#[on_event]
 fn on_bounded(_event: BoundedChild) {
     cmd::say("bounded");
 }
 
-#[event]
+#[on_event]
 fn on_bounded_with_while(_event: BoundedWithWhileChild) {
     cmd::say("bounded_with_while");
 }
 
-#[event]
+#[on_event]
 fn on_bounded_after_any(_event: BoundedAfterAnyChild) {
     cmd::say("bounded_after_any");
 }

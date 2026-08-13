@@ -1,7 +1,7 @@
 # Built-in event matrix
 
 Every built-in event Sand ships (`sand::events::*`), usable as `Event<E>` in an
-`#[event]` handler. This list is kept in sync with
+`#[on_event]` handler. This list is kept in sync with
 `sand_core::events::BUILTIN_EVENT_NAMES` by a compile-time test
 (`sand-example/src/lib.rs`) — every name here must appear on this page.
 

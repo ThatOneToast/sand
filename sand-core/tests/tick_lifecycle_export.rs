@@ -6,7 +6,7 @@
 //! - a single typed condition renders one detection line;
 //! - an OR/multi-plan condition renders one detection line per plan, guarded
 //!   so at most one dispatch happens per player per tick;
-//! - multiple `#[event]` handlers on the same `SandEvent` type share one
+//! - multiple `#[on_event]` handlers on the same `SandEvent` type share one
 //!   generated detector/dispatch function instead of duplicating detection
 //!   (setup dedup, keyed by `event_type_id` for in-process grouping);
 //! - the generated detector/setup resource key is a deterministic function of

@@ -9,7 +9,7 @@
 use sand_core::AdvancementTrigger;
 use sand_core::prelude::*;
 use sand_core::systems::damage::DamageTracker;
-use sand_macros::{SandStorage, component, event};
+use sand_macros::{SandStorage, datapack_component, on_event};
 
 // ── Player state schema ───────────────────────────────────────────────────────
 
@@ -53,7 +53,7 @@ impl DamageAdvancementEvent for EnhancedCellsDamagedEvent {}
 // ── Load / Tick components ────────────────────────────────────────────────────
 
 /// Initialize damage tracking and cooldown objectives on load.
-#[component(Load)]
+#[datapack_component(Load)]
 pub fn ec_load() {
     // Damage tracker defines 5 objectives
     DamageTracker::define();
@@ -66,7 +66,7 @@ pub fn ec_load() {
 }
 
 /// Tick all damage tracking and cooldowns every game tick.
-#[component(Tick)]
+#[datapack_component(Tick)]
 pub fn ec_tick() {
     // Must run before any damage-dependent event logic
     DamageTracker::tick_players();
@@ -81,10 +81,10 @@ pub fn ec_tick() {
 /// When a player with Enhanced Cells is damaged and the AOE cooldown is ready,
 /// reflect damage to nearby enemies.
 ///
-/// This exercises `then_all` inside an `#[event]` body — the branch function
+/// This exercises `then_all` inside an `#[on_event]` body — the branch function
 /// must be exported even though event bodies run after the early drain in the
 /// old (buggy) pipeline.
-#[event]
+#[on_event]
 pub fn ec_on_damaged(event: DamageEvent<EnhancedCellsDamagedEvent>) {
     // when(...).then_all(...) registers a branch function.
     // With the Part 1 fix, this branch is exported correctly.
@@ -110,7 +110,7 @@ pub fn ec_on_damaged(event: DamageEvent<EnhancedCellsDamagedEvent>) {
 // ── Event: Regen on low health ────────────────────────────────────────────────
 
 /// Grant regeneration when the player has taken significant damage recently.
-#[event]
+#[on_event]
 pub fn ec_on_damaged_regen(event: DamageEvent<EnhancedCellsDamagedEvent>) {
     let _ = event;
     // unless(...).then_all(...) also registers a branch

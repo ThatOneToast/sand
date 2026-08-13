@@ -39,7 +39,7 @@ fn enraged_tick() {
     Actionbar::show(Selector::self_(), Text::new("ENRAGED").dark_red());
 }
 
-#[component(Load)]
+#[datapack_component(Load)]
 fn boss_flow() {
     StateFlow::players(&PHASE)
         .named("boss")

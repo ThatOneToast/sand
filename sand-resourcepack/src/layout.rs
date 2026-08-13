@@ -51,7 +51,7 @@
 //! const CANVAS_WIDTH: i32 = 1000;
 //! const MY_LAYOUT: HudLayout = /* constructed elsewhere, typically const/lazy */;
 //!
-//! #[component(Load)]
+//! #[datapack_component(Load)]
 //! pub fn load() {
 //!     mcfunction! {
 //!         // Pre-compute static element JSON once at load time
@@ -59,7 +59,7 @@
 //!     }
 //! }
 //!
-//! #[component(Tick)]
+//! #[datapack_component(Tick)]
 //! pub fn tick() {
 //!     mcfunction! {
 //!         // Execute per-player so each player's write is isolated
@@ -119,7 +119,7 @@ impl LayoutEntry {
 ///
 /// | Method | When to use |
 /// |---|---|
-/// | [`broadcast`] | `#[component(Tick)]` — iterates over all players |
+/// | [`broadcast`] | `#[datapack_component(Tick)]` — iterates over all players |
 /// | [`show_elements`] | Show only static elements (no bar state needed) |
 ///
 /// [`broadcast`]: HudLayout::broadcast
@@ -365,7 +365,7 @@ impl HudLayout {
     /// # Example
     ///
     /// ```rust,ignore
-    /// #[component(Tick)]
+    /// #[datapack_component(Tick)]
     /// pub fn tick() {
     ///     mcfunction! {
     ///         // ... scoreboard math for hp_frame and mp_frame ...
@@ -460,7 +460,7 @@ impl HudLayout {
     /// # Example
     ///
     /// ```rust,ignore
-    /// #[component(Load)]
+    /// #[datapack_component(Load)]
     /// pub fn load() {
     ///     mcfunction! {
     ///         // ... other load commands ...
@@ -508,7 +508,7 @@ impl HudLayout {
     /// `execute as @a run function …` call):
     ///
     /// ```rust,ignore
-    /// #[component(Tick)]
+    /// #[datapack_component(Tick)]
     /// pub fn tick() {
     ///     mcfunction! {
     ///         execute as @a run run_fn!({

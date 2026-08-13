@@ -1,13 +1,13 @@
 //! Typed state and nested conditions.
 
 use sand_core::prelude::*;
-use sand_macros::{component, function};
+use sand_macros::{datapack_component, function};
 
 static MANA: ScoreVar<i32> = ScoreVar::new("mana");
 static CASTING: Flag = Flag::new("casting");
 static DASH: Cooldown = Cooldown::new("dash", Ticks::seconds(3));
 
-#[component(Load)]
+#[datapack_component(Load)]
 pub fn load_state() {
     MANA.define();
     CASTING.define();
@@ -16,7 +16,7 @@ pub fn load_state() {
     CASTING.disable(Selector::all_players());
 }
 
-#[component(Tick)]
+#[datapack_component(Tick)]
 pub fn tick_state() {
     DASH.tick_all_players();
 }

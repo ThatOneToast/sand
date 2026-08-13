@@ -11,7 +11,7 @@
 //!
 //! # Three distinct author intents
 //!
-//! 1. **Define a reusable trade blueprint** — a standalone `#[component] fn
+//! 1. **Define a reusable trade blueprint** — a standalone `#[datapack_component] fn
 //!    ... -> VillagerTrade`. Exported once, referenced by ID wherever needed.
 //! 2. **Create or replace a complete trade set** — [`TradeSet::new`] for a
 //!    fresh custom set, or [`TradeSet::replace_target`] to explicitly
@@ -160,7 +160,7 @@ impl TradeItem {
 
 /// A single `data/<namespace>/villager_trade/<id>.json` blueprint.
 ///
-/// Used both as a standalone `#[component]` (a reusable trade referenced by
+/// Used both as a standalone `#[datapack_component]` (a reusable trade referenced by
 /// multiple [`TradeSet`]s) and as the value built inside
 /// [`TradeSet::entry`]/[`VillagerTradePoolPatch::append`] closures, where
 /// Sand overwrites the resource location with the deterministic generated
@@ -573,7 +573,7 @@ impl TradeSet {
     /// own resource location, without re-exporting it as a nested resource.
     ///
     /// The referenced trade should also be exported on its own (typically as
-    /// a standalone `#[component] fn ... -> VillagerTrade`) — pass the
+    /// a standalone `#[datapack_component] fn ... -> VillagerTrade`) — pass the
     /// value returned by calling that function directly, e.g.
     /// `.include(enchanted_pickaxe_trade())`.
     pub fn include(mut self, trade: VillagerTrade) -> Self {
@@ -936,7 +936,7 @@ impl VillagerTradePool {
 /// detect this as a collision, unlike a generated trade colliding with an
 /// explicit standalone component). Compose multiple `.append(...)`/`.include(...)`
 /// calls on a single patch instead. Cross-patch tag merging (mirroring how
-/// `#[component(Tag = "...")]` function tags already merge) is left as a
+/// `#[datapack_component(Tag = "...")]` function tags already merge) is left as a
 /// follow-up.
 #[derive(Debug, Clone)]
 pub struct VillagerTradePoolPatch {

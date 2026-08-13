@@ -5,7 +5,7 @@ use sand_core::events::{
     PersistentEventCondition, PersistentSandEvent, SandEvent, SandEventDispatch,
 };
 use sand_core::prelude::*;
-use sand_macros::event;
+use sand_macros::on_event;
 use std::marker::PhantomData;
 
 struct Parent;
@@ -40,7 +40,7 @@ impl SandEvent for Child {
     }
 }
 
-#[event]
+#[on_event]
 fn on_child(_event: Child) {
     cmd::say("persistent composition");
 }

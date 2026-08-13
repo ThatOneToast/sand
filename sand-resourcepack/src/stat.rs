@@ -71,7 +71,7 @@ enum StatSource {
 /// hud_bar!(name = "health", texture = create!(...), steps = 20, height = 14, ascent = 14);
 /// hud_bar!(name = "mana",   texture = create!(...), steps = 20, height = 14, ascent = 0);
 ///
-/// #[component(Load)]
+/// #[datapack_component(Load)]
 /// pub fn load() -> Vec<String> {
 ///     mcfunction! {
 ///         BarStat::health(HEALTH).setup();
@@ -79,7 +79,7 @@ enum StatSource {
 ///     }
 /// }
 ///
-/// #[component(Tick)]
+/// #[datapack_component(Tick)]
 /// pub fn tick() -> Vec<String> {
 ///     let health = BarStat::health(HEALTH);
 ///     let mana   = BarStat::score(MANA, "player_mana", 100);
@@ -151,7 +151,7 @@ impl BarStat {
 
     /// Return the commands that create all required scoreboard objectives.
     ///
-    /// Call this from your `#[component(Load)]` function.
+    /// Call this from your `#[datapack_component(Load)]` function.
     pub fn setup(&self) -> Vec<String> {
         let mut cmds = Vec::new();
         let frame = &self.frame_obj;
@@ -173,7 +173,7 @@ impl BarStat {
     /// Return the commands that read the stat, scale it, and clamp the frame
     /// objective to `0..=steps-1`.
     ///
-    /// Call this from your `#[component(Tick)]` function **before** emitting
+    /// Call this from your `#[datapack_component(Tick)]` function **before** emitting
     /// [`HudLayout`](crate::HudLayout) commands.
     ///
     /// `executor` is typically `"@a"`.

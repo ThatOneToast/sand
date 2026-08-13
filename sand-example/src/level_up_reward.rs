@@ -6,8 +6,8 @@
 //! - [`PlayerLevelsUp`] event — fires each time a player gains an XP level
 //! - [`ScoreVar<i32>`][ScoreVar] — accumulates a "soul" reward currency
 //! - [`Cooldown`] — collapses rapid multi-level bursts into one reward pulse
-//! - `#[component(Load)]` — registers scoreboards once on datapack load
-//! - `#[component(Tick)]` — drives cooldown decay every game tick
+//! - `#[datapack_component(Load)]` — registers scoreboards once on datapack load
+//! - `#[datapack_component(Tick)]` — drives cooldown decay every game tick
 //!
 //! ## System wiring
 //!
@@ -28,7 +28,7 @@
 
 use sand_core::event::vanilla::PlayerLevelsUp;
 use sand_core::prelude::*;
-use sand_macros::{component, event, function};
+use sand_macros::{datapack_component, function, on_event};
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
@@ -45,7 +45,7 @@ static REWARD_CD: Cooldown = Cooldown::new("lvl_reward_cd", Ticks::new(2));
 ///
 /// `scoreboard objectives add` is idempotent — Minecraft ignores it when the
 /// objective already exists, so reloading the datapack never resets player data.
-#[component(Load)]
+#[datapack_component(Load)]
 pub fn lvl_load() {
     SOULS.define();
     REWARD_CD.define();
@@ -54,7 +54,7 @@ pub fn lvl_load() {
 // ── Tick ──────────────────────────────────────────────────────────────────────
 
 /// Decrements the burst-collapse cooldown every game tick for all online players.
-#[component(Tick)]
+#[datapack_component(Tick)]
 pub fn lvl_tick() {
     REWARD_CD.tick_all_players();
 }
@@ -73,7 +73,7 @@ fn ensure_reward_cooldown_score(selector: &str) -> String {
 /// Guards on `REWARD_CD` so that back-to-back level gains within 2 ticks produce
 /// exactly one soul reward. The cooldown is started inside `lvl_grant_reward`
 /// so the first tick in a burst still fires the reward.
-#[event]
+#[on_event]
 pub fn on_level_up(event: Event<PlayerLevelsUp>) {
     let _ = event;
     // In an event handler the executing entity is always @s — the player whose

@@ -7,12 +7,12 @@ use sand_core::{
     CookingRecipe, CookingType, Ingredient, ItemId, RecipeResult, ShapedRecipe, ShapelessRecipe,
     SmithingTransformRecipe, SmithingTrimRecipe, StonecuttingRecipe, TagId, generated::Item,
 };
-use sand_macros::component;
+use sand_macros::datapack_component;
 
 // ── Shaped crafting recipe ───────────────────────────────────────────────────
 // A 3x3 grid recipe — the pattern defines the shape.
 
-#[component]
+#[datapack_component]
 pub fn diamond_hammer() -> ShapedRecipe {
     ShapedRecipe::new("my_pack:diamond_hammer".parse().unwrap())
         .pattern(vec!["DDD", " S ", " S "])
@@ -26,7 +26,7 @@ pub fn diamond_hammer() -> ShapedRecipe {
 // ── Shapeless crafting recipe ────────────────────────────────────────────────
 // Order doesn't matter — just requires the right ingredients anywhere in the grid.
 
-#[component]
+#[datapack_component]
 pub fn packed_mud() -> ShapelessRecipe {
     ShapelessRecipe::new("my_pack:packed_mud".parse().unwrap())
         .ingredient(Ingredient::item("minecraft:mud"))
@@ -37,7 +37,7 @@ pub fn packed_mud() -> ShapelessRecipe {
 // ── Smelting recipe ──────────────────────────────────────────────────────────
 // Works in a furnace. Other cooking types: Blasting, Smoking, CampfireCooking.
 
-#[component]
+#[datapack_component]
 pub fn smelt_custom_ore() -> CookingRecipe {
     CookingRecipe::new(
         "my_pack:smelt_raw_iron".parse().unwrap(),
@@ -52,7 +52,7 @@ pub fn smelt_custom_ore() -> CookingRecipe {
 
 // ── Blast furnace recipe ─────────────────────────────────────────────────────
 
-#[component]
+#[datapack_component]
 pub fn blast_custom_ore() -> CookingRecipe {
     CookingRecipe::new(
         "my_pack:blast_raw_iron".parse().unwrap(),
@@ -66,7 +66,7 @@ pub fn blast_custom_ore() -> CookingRecipe {
 
 // ── Stonecutting recipe ──────────────────────────────────────────────────────
 
-#[component]
+#[datapack_component]
 pub fn cut_stone_bricks() -> StonecuttingRecipe {
     StonecuttingRecipe::new("my_pack:cut_stone_bricks".parse().unwrap())
         .ingredient(Ingredient::item("minecraft:stone"))
@@ -77,7 +77,7 @@ pub fn cut_stone_bricks() -> StonecuttingRecipe {
 // ── Smithing transform recipe ────────────────────────────────────────────────
 // Used at a smithing table to transform items (e.g. diamond -> netherite).
 
-#[component]
+#[datapack_component]
 pub fn custom_upgrade() -> SmithingTransformRecipe {
     SmithingTransformRecipe::new("my_pack:custom_upgrade".parse().unwrap())
         .template(Ingredient::item("minecraft:netherite_upgrade_smithing_template"))
@@ -89,7 +89,7 @@ pub fn custom_upgrade() -> SmithingTransformRecipe {
 // ── Smithing trim recipe ─────────────────────────────────────────────────────
 // Applies decorative trims to armor.
 
-#[component]
+#[datapack_component]
 pub fn custom_trim() -> SmithingTrimRecipe {
     SmithingTrimRecipe::new("my_pack:custom_trim".parse().unwrap())
         .template(Ingredient::item_id(
@@ -106,7 +106,7 @@ pub fn custom_trim() -> SmithingTrimRecipe {
 // ── Recipe with tag ingredients ──────────────────────────────────────────────
 // Tags match any item in the tag group (e.g. any type of planks).
 
-#[component]
+#[datapack_component]
 pub fn any_planks_to_sticks() -> ShapedRecipe {
     ShapedRecipe::new("my_pack:planks_to_sticks".parse().unwrap())
         .pattern(vec!["P", "P"])

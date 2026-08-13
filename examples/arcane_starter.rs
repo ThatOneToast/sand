@@ -27,7 +27,7 @@
 //! ```
 
 use sand_core::prelude::*;
-use sand_macros::{component, function};
+use sand_macros::{datapack_component, function};
 
 // -- State ------------------------------------------------------------------
 
@@ -43,7 +43,7 @@ static PLAYER_DATA: StorageVar<i32> = StorageVar::new("arcane:data", "player.set
 // -- Load ------------------------------------------------------------------
 
 /// Initialize scoreboards and storage on datapack load.
-#[component(Load)]
+#[datapack_component(Load)]
 pub fn load() {
     MANA.define();
     DASH.define();
@@ -57,7 +57,7 @@ pub fn load() {
 // -- Tick ------------------------------------------------------------------
 
 /// Per-tick logic: decrement cooldowns, show actionbar status.
-#[component(Tick)]
+#[datapack_component(Tick)]
 pub fn tick() {
     DASH.tick_all_players();
 
@@ -110,7 +110,7 @@ pub fn show_mana() {
 // -- Dialog (1.21.6+ / 26.x) ----------------------------------------------
 
 /// A welcome dialog presented to players.
-#[component]
+#[datapack_component]
 pub fn welcome_dialog() -> Dialog {
     Dialog::notice_local("welcome")
         .title(Text::new("Welcome to Arcane Starter").gold())

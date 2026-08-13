@@ -57,11 +57,11 @@ predicate-source module=sand::predicate state=enforced tier=ordinary provider=so
 prelude-unassigned-source module=sand::prelude state=pending tier=ordinary provider=source precedence=0 recursive=true active=true items=407 contracted=0 aliases=- features=-
 resource-ref-source module=sand::resource_ref state=enforced tier=ordinary provider=source precedence=200 recursive=true active=true items=1 contracted=1 aliases=- features=-
 resourcepack-source module=sand::resourcepack state=pending tier=ordinary provider=source precedence=50 recursive=true active=true items=151 contracted=0 aliases=- features=resourcepack
-root-source module=sand state=pending tier=ordinary provider=source precedence=100 recursive=false active=true items=32 contracted=5 aliases=sand::prelude features=-
+root-source module=sand state=enforced tier=ordinary provider=source precedence=100 recursive=false active=true items=32 contracted=32 aliases=sand::prelude features=-
 state-source module=sand::state state=pending tier=ordinary provider=source precedence=50 recursive=true active=true items=250 contracted=0 aliases=sand::prelude features=-
 systems-source module=sand::systems state=pending tier=ordinary provider=source precedence=50 recursive=true active=true items=181 contracted=0 aliases=- features=-
 text-source module=sand::text state=pending tier=ordinary provider=source precedence=100 recursive=true active=true items=95 contracted=1 aliases=sand::prelude features=-
 vanilla-source module=sand::vanilla state=pending tier=ordinary provider=source precedence=50 recursive=true active=true items=0 contracted=0 aliases=sand::prelude features=-
 version-source module=sand::version state=enforced tier=ordinary provider=source precedence=50 recursive=true active=true items=42 contracted=42 aliases=sand::prelude features=-
 vfx-source module=sand::vfx state=enforced tier=ordinary provider=source precedence=100 recursive=true active=true items=45 contracted=45 aliases=- features=-
-totals pending_scopes=30 pending_items=5130 enforced_items=269 pending_scope_ceiling=30 pending_item_ceiling=5130
+totals pending_scopes=29 pending_items=5098 enforced_items=301 pending_scope_ceiling=29 pending_item_ceiling=5098

@@ -95,7 +95,7 @@ fn multi_criterion_advancement_export_derives_requirements() {
     // This profile also exercises `filtered_placed_block`, which would fail
     // export on a legacy profile — use the modern profile so both
     // process-global components (this test binary registers both via
-    // `#[component]`) export successfully together.
+    // `#[datapack_component]`) export successfully together.
     let records: Vec<serde_json::Value> = serde_json::from_str(
         &sand_core::advanced::try_export_components_json("advancement_export_test", "26.2")
             .expect("modern-profile export must succeed"),

@@ -106,7 +106,7 @@ fn bump_sequence() -> Vec<String> {
 
 // ── Load-adjacent placeholder ────────────────────────────────────────────────
 
-#[component]
+#[datapack_component]
 fn root_advancement() -> Advancement {
     // Keeps `sand build`'s output non-empty even before any handler fires.
     Advancement::new("paudit:root".parse().unwrap())
@@ -139,7 +139,7 @@ pub fn init() {
 /// `EntityDamagePlayerEvent` — correlated attacker. Two independent
 /// handlers, both reading `.attacker()`, to validate that a same-occurrence
 /// attacker binding is observable from more than one handler.
-#[event]
+#[on_event]
 pub fn audit_on_hurt_by_entity_a(event: Event<EntityDamagePlayerEvent>) {
     ATT1.add(Selector::self_(), 1);
     bump_sequence();
@@ -151,7 +151,7 @@ pub fn audit_on_hurt_by_entity_a(event: Event<EntityDamagePlayerEvent>) {
     );
 }
 
-#[event]
+#[on_event]
 pub fn audit_on_hurt_by_entity_b(event: Event<EntityDamagePlayerEvent>) {
     ATT2.add(Selector::self_(), 1);
     let attacker = event.attacker();
@@ -161,7 +161,7 @@ pub fn audit_on_hurt_by_entity_b(event: Event<EntityDamagePlayerEvent>) {
 }
 
 /// `PlayerKillEvent` — correlated killer.
-#[event]
+#[on_event]
 pub fn audit_on_killed(event: Event<PlayerKillEvent>) {
     KILL.add(Selector::self_(), 1);
     bump_sequence();
@@ -171,7 +171,7 @@ pub fn audit_on_killed(event: Event<PlayerKillEvent>) {
 }
 
 /// `PlayerDamageEntityEvent` — weapon (mainhand) snapshot.
-#[event]
+#[on_event]
 pub fn audit_on_hurt_entity(event: Event<PlayerDamageEntityEvent>) {
     WPN.add(Selector::self_(), 1);
     bump_sequence();
@@ -185,7 +185,7 @@ pub fn audit_on_hurt_entity(event: Event<PlayerDamageEntityEvent>) {
 }
 
 /// `EntityKillEvent` — weapon (mainhand) snapshot on a killing blow.
-#[event]
+#[on_event]
 pub fn audit_on_killed_entity(event: Event<EntityKillEvent>) {
     KWPN.add(Selector::self_(), 1);
     bump_sequence();
@@ -250,7 +250,7 @@ impl SandEvent for ComposedAttackerSibling {
     }
 }
 
-#[event]
+#[on_event]
 pub fn audit_on_composed_parent(event: ComposedAttackerParent) {
     COMPOSE_TRIGGER.set(Selector::self_(), 0);
     let attacker = event.attacker();
@@ -259,7 +259,7 @@ pub fn audit_on_composed_parent(event: ComposedAttackerParent) {
     );
 }
 
-#[event]
+#[on_event]
 pub fn audit_on_composed_child(event: ComposedAttackerChild) {
     let attacker = event.attacker();
     attacker.execute_at(
@@ -267,7 +267,7 @@ pub fn audit_on_composed_child(event: ComposedAttackerChild) {
     );
 }
 
-#[event]
+#[on_event]
 pub fn audit_on_composed_sibling(event: ComposedAttackerSibling) {
     let attacker = event.attacker();
     attacker.execute_at(
@@ -287,7 +287,7 @@ pub fn audit_on_composed_sibling(event: ComposedAttackerSibling) {
 // (the killer is only reachable via correlated observation, never an exact
 // hand snapshot), so the weapon here is *this event's own* mainhand
 // capture, composed alongside the inherited entity in one plan. `PlayerKillEvent`
-// itself has no direct `#[event]` handler here — #240 Phase 6 still
+// itself has no direct `#[on_event]` handler here — #240 Phase 6 still
 // requires a bridged advancement-backed parent's sole dependents to be
 // same-cycle chain children, not a mix of a direct handler and graph
 // composition.
@@ -305,7 +305,7 @@ impl SandEvent for SpecialKillEvent {
     }
 }
 
-#[event]
+#[on_event]
 pub fn audit_on_special_kill(event: SpecialKillEvent) {
     let killer = event.killer();
     killer.execute_at(

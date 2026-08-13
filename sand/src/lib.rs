@@ -41,8 +41,8 @@
 //!
 //! # Execution-context expectations
 //!
-//! Attribute macros like `#[function]`, `#[component]`, `#[event]`, and
-//! `#[item]` register their targets with Sand's `inventory`-based collector at
+//! Attribute macros like `#[function]`, `#[datapack_component]`, `#[on_event]`, and
+//! `#[custom_item]` register their targets with Sand's `inventory`-based collector at
 //! program load, and the bodies they wrap are only meaningful when compiled
 //! and exported through `sand build` (or `sand_export`, the binary that
 //! `sand build` generates for your project). Calling a `#[function]`-tagged
@@ -58,7 +58,7 @@ mod api_contracts;
 
 // ── Procedural macros ─────────────────────────────────────────────────────────
 
-/// `#[function]`, `#[component]`, `#[event]`, `#[item]`, `#[armor_event]`,
+/// `#[function]`, `#[datapack_component]`, `#[on_event]`, `#[custom_item]`, `#[armor_event]`,
 /// `#[schedule]`, and `run_fn!` — the attribute and function-like macros that
 /// turn ordinary Rust functions into datapack functions, lifecycle hooks
 /// (`Load`/`Tick`/`Tag`), typed event handlers, custom items with generated
@@ -66,10 +66,11 @@ mod api_contracts;
 /// Re-exported here so authors never depend on the `sand-macros` proc-macro
 /// crate directly — `use sand::prelude::*` (or these paths) is the only
 /// import needed. See each macro's own docs for attribute syntax and
-/// generated code; `#[function]`/`#[component]`/`#[event]` bodies are only
+/// generated code; `#[function]`/`#[datapack_component]`/`#[on_event]` bodies are only
 /// meaningful when compiled through `sand build`.
 pub use sand_macros::{
-    armor_event, component, entity_archetype, event, function, item, run_fn, schedule,
+    armor_event, custom_item, datapack_component, entity_archetype, function, on_event, run_fn,
+    schedule,
 };
 
 /// Derives scoped state schemas and stable finite-enum encodings.
@@ -133,12 +134,12 @@ pub use sand_core::cmd;
 /// builders (`InventoryChangedTrigger`, `RecipeUnlockedTrigger`, …) used to
 /// describe when an event fires. Use this module when defining your own
 /// advancement-backed event type or reading its handler context
-/// (`event.player()`); ordinary `#[event]` handlers for built-in vanilla
+/// (`event.player()`); ordinary `#[on_event]` handlers for built-in vanilla
 /// events usually only need the handler parameter type, exported from here
 /// (e.g. `sand::event::vanilla::OnDeath`) as shown in the crate-level example.
 pub use sand_core::event;
 
-/// The event graph/dispatch surface backing `#[event]` and tick-driven custom
+/// The event graph/dispatch surface backing `#[on_event]` and tick-driven custom
 /// events: `SandEvent`, `SandEventDispatch` (tick/chain/after-any/after-all
 /// dispatch composition), and vanilla event marker types
 /// (`PlayerSprintEvent`, etc.) usable as dispatch parents. Use this module
@@ -147,9 +148,9 @@ pub use sand_core::event;
 /// tick-poll condition from scratch.
 pub use sand_core::events;
 
-/// Custom items: `CustomItem` (the builder passed to `#[item]`), item stack
+/// Custom items: `CustomItem` (the builder passed to `#[custom_item]`), item stack
 /// component types, item matchers/predicates, and item location helpers.
-/// Use this when building or matching custom items outside a `#[item]`
+/// Use this when building or matching custom items outside a `#[custom_item]`
 /// function body — for example, constructing an `ItemPredicate` to gate an
 /// event or `execute if items` check.
 pub use sand_core::item;
@@ -241,6 +242,16 @@ pub use sand_core::state;
 ///         .health(HealthBinding::new(Mob::max_health))
 /// }
 /// ```
+#[api(
+    path = "sand::entity",
+    module = "sand",
+    summary = "Models typed entity state, queries, archetypes, and execution contexts.",
+    context = "The entity module centralizes author-facing models for persistent entity data and the temporary selector-bound context in which generated commands run.",
+    minecraft = "Generates selector-driven commands, scoreboard and NBT state operations, and optional entity-archetype lifecycle functions.",
+    use_when = ["Querying or mutating Minecraft entities through typed APIs", "Declaring entity-specific state or an archetype"],
+    avoid_when = ["Addressing a one-off command token already covered by the command module", "Representing a durable entity identity outside an execution context"],
+    example = "let players = sand::entity::EntityQueries::players();"
+)]
 pub mod entity {
     pub use sand_core::entity::*;
 }
@@ -262,7 +273,7 @@ pub mod entity {
 /// ```rust,ignore
 /// use sand::prelude::*;
 ///
-/// #[event]
+/// #[on_event]
 /// fn on_hit(event: Event<EntityDamagePlayerEvent>) {
 ///     let attacker = event.attacker();
 ///     // build commands against attacker.selector()
@@ -273,7 +284,7 @@ pub use sand_core::participant;
 /// Datapack component builders: advancements, recipes (shaped/shapeless/
 /// smithing/stonecutting), loot tables, predicates, item modifiers, tags,
 /// dialogs, and enchantments. Functions returning one of these types and
-/// annotated `#[component]` (e.g. `examples/book_project`'s
+/// annotated `#[datapack_component]` (e.g. `examples/book_project`'s
 /// `trailhead_dialog()`, which returns `Dialog`) are exported as generated
 /// JSON resources. Most individual builder types (`Advancement`,
 /// `LootTable`, `Dialog`, …) are already re-exported from the [`prelude`].
@@ -457,6 +468,7 @@ pub mod data {
 /// ```
 #[api(
     path = "sand::vanilla",
+    aliases = ["sand::prelude::vanilla"],
     module = "sand",
     summary = "Exposes generated typed identifiers from Minecraft's registries.",
     context = "Registry enums make vanilla identifiers discoverable and typo-resistant while converting into Sand's canonical identifier wrappers.",

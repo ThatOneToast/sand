@@ -19,12 +19,12 @@ use std::sync::OnceLock;
 ///
 /// static GOLDEN_APPLE: EventHandle<AteGoldenAppleEvent> = EventHandle::new();
 ///
-/// #[component(Load)]
+/// #[datapack_component(Load)]
 /// pub fn load() {
 ///     GOLDEN_APPLE.define();
 /// }
 ///
-/// #[event]
+/// #[on_event]
 /// pub fn on_death(_: OnDeath) {
 ///     GOLDEN_APPLE.disable("@s");
 /// }
@@ -63,7 +63,7 @@ impl<E> EventHandle<E> {
 
     /// `scoreboard objectives add <obj> dummy` — register the objective.
     ///
-    /// Call this in your `#[component(Load)]` function.
+    /// Call this in your `#[datapack_component(Load)]` function.
     pub fn define(&self) -> String {
         format!("scoreboard objectives add {} dummy", self.objective_name())
     }
@@ -105,7 +105,7 @@ impl<E> EventHandle<E> {
     ///
     /// Emits `advancement revoke <selector> only <ns>:<path>`.  The advancement
     /// resource location is resolved from the [`EventPathEntry`](crate::function::EventPathEntry) registry
-    /// populated by the `#[event]` macro; the namespace sentinel is replaced at
+    /// populated by the `#[on_event]` macro; the namespace sentinel is replaced at
     /// export time by [`crate::component::export_components_json`].
     ///
     /// Requires `E: 'static` for the `TypeId` lookup.

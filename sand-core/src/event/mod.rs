@@ -6,7 +6,7 @@
 //! | Type | Purpose |
 //! |---|---|
 //! | [`AdvancementEvent`] | Trait for events backed by an advancement trigger |
-//! | [`Event`] | Zero-cost handler context passed to `#[event]` handlers |
+//! | [`Event`] | Zero-cost handler context passed to `#[on_event]` handlers |
 //! | [`EventId`] | Controls how the advancement ID is determined |
 //! | [`EventReset`] | Controls re-arming after firing |
 //! | [`EventVisibility`] | Controls toast/chat visibility |
@@ -170,7 +170,7 @@ pub enum EventVisibility {
 ///
 /// Implement this on your event type to define how it fires, how its
 /// advancement ID is derived, whether it re-arms, and any typed guard
-/// condition. Handle the event with `#[event] fn handler(event: Event<T>)`.
+/// condition. Handle the event with `#[on_event] fn handler(event: Event<T>)`.
 /// Sand never constructs `T`: fields declared on the definition type are not
 /// runtime event data and are not exposed by `Event<T>`.
 ///
@@ -242,7 +242,7 @@ pub trait AdvancementEvent {
     ///
     /// Override to list every [`ScoreVar`], [`Flag`], [`Cooldown`], or [`Timer`]
     /// the event's handler reads or writes.  The export pipeline — and your
-    /// `#[component(Load)]` function — can call `Event::<Self>::state_init()` to
+    /// `#[datapack_component(Load)]` function — can call `Event::<Self>::state_init()` to
     /// collect these commands without knowing the concrete types.
     ///
     /// [`ScoreVar`]: crate::state::ScoreVar
@@ -303,7 +303,7 @@ pub trait DamageAdvancementEvent: AdvancementEvent {}
 /// gives you `event.player()` directly:
 ///
 /// ```rust,ignore
-/// #[event]
+/// #[on_event]
 /// pub fn on_kill(event: Event<EntityKillEvent>) {
 ///     cmd::tellraw(event.player(), Text::new("Killed!"));
 /// }
@@ -311,7 +311,7 @@ pub trait DamageAdvancementEvent: AdvancementEvent {}
 ///
 /// `EventPlayer` is implemented on all built-in event marker types so that
 /// legacy bare-parameter handlers compiled before the `Event<T>` model are
-/// still accepted by the `#[event]` macro. Prefer `Event<T>` for new code.
+/// still accepted by the `#[on_event]` macro. Prefer `Event<T>` for new code.
 pub trait EventPlayer {
     /// Returns `Selector::self_()` — the player who triggered the event.
     fn player(&self) -> crate::cmd::Selector {
@@ -321,19 +321,19 @@ pub trait EventPlayer {
 
 // ── Event<E> — handler context ───────────────────────────────────────────────
 
-/// Zero-cost runtime context for `#[event]`-annotated advancement handlers.
+/// Zero-cost runtime context for `#[on_event]`-annotated advancement handlers.
 ///
-/// Inside an `#[event]` handler, the generated code creates an `Event<E>`
+/// Inside an `#[on_event]` handler, the generated code creates an `Event<E>`
 /// value that gives you access to context methods like [`Event::player`]. It is
 /// shared by advancement-backed and generated tracked events. You never
-/// construct `Event<E>` manually — the `#[event]` macro generates it.
+/// construct `Event<E>` manually — the `#[on_event]` macro generates it.
 /// The context contains no instance of `E`; ordinary fields on the marker type
 /// are not captured Minecraft values. Event-time data must come from context
 /// handles explicitly provided by Sand or from typed state queried in the
 /// handler.
 ///
 /// ```rust,ignore
-/// use sand_macros::event;
+/// use sand_macros::on_event;
 /// use sand_core::prelude::*;
 ///
 /// pub struct AteGoldenApple;
@@ -341,7 +341,7 @@ pub trait EventPlayer {
 ///
 /// static MANA: ScoreVar<i32> = ScoreVar::new("mana");
 ///
-/// #[event]
+/// #[on_event]
 /// pub fn ate_golden_apple(event: Event<AteGoldenApple>) {
 ///     MANA.add(event.player(), 25);
 /// }
@@ -353,7 +353,7 @@ pub struct Event<E> {
 impl<E> Event<E> {
     /// Construct the handler context value.
     ///
-    /// Called by `#[event]`-generated code. Not normally called directly.
+    /// Called by `#[on_event]`-generated code. Not normally called directly.
     pub fn context() -> Self {
         Self {
             _marker: PhantomData,
@@ -378,11 +378,11 @@ impl<E: AdvancementEvent> Event<E> {
     /// `scoreboard objectives add …` commands for every state variable this
     /// event declared via [`AdvancementEvent::state_defines`].
     ///
-    /// Call this in your `#[component(Load)]` function so all objectives exist
+    /// Call this in your `#[datapack_component(Load)]` function so all objectives exist
     /// before the event fires:
     ///
     /// ```rust,ignore
-    /// #[component(Load)]
+    /// #[datapack_component(Load)]
     /// fn load() {
     ///     for cmd in Event::<DrinkManaEvent>::state_init() {
     ///         cmd::raw(cmd);
@@ -413,7 +413,7 @@ impl<E: AdvancementEvent> Event<E> {
     /// for the exact reconstruction and panic contract.
     ///
     /// ```rust,ignore
-    /// #[event]
+    /// #[on_event]
     /// fn on_hit(event: Event<EntityDamagePlayerEvent>) {
     ///     let attacker = event.entity(EntityParticipantRole::Attacker);
     ///     // build commands against attacker.selector()
@@ -487,7 +487,7 @@ impl<E: DamageAdvancementEvent> Event<E> {
     }
 }
 
-/// Damage-specific event handler context for `#[event]` functions.
+/// Damage-specific event handler context for `#[on_event]` functions.
 ///
 /// Use `DamageEvent<T>` when `T: DamageAdvancementEvent`. It exposes the
 /// triggering player as a statically single player/entity target and provides
@@ -499,7 +499,7 @@ pub struct DamageEvent<E: DamageAdvancementEvent> {
 impl<E: DamageAdvancementEvent> DamageEvent<E> {
     /// Construct the handler context value.
     ///
-    /// Called by `#[event]`-generated code. Not normally called directly.
+    /// Called by `#[on_event]`-generated code. Not normally called directly.
     pub fn context() -> Self {
         Self {
             _marker: PhantomData,
@@ -532,7 +532,7 @@ impl<E: DamageAdvancementEvent> Default for DamageEvent<E> {
 
 /// Internal advancement component builder for `AdvancementEvent`-backed events.
 ///
-/// Users should not construct this directly. The `#[event]` macro and the
+/// Users should not construct this directly. The `#[on_event]` macro and the
 /// export pipeline use this to build the final `Advancement` JSON.
 ///
 /// # Migration note

@@ -1,5 +1,5 @@
 use sand_core::prelude::*;
-use sand_macros::{component, function};
+use sand_macros::{datapack_component, function};
 
 static MANA: ScoreVar<i32> = ScoreVar::new("mana");
 static DASH: Cooldown = Cooldown::new("dash", Ticks::seconds(3));
@@ -9,7 +9,7 @@ fn helper_commands() -> Vec<String> {
     vec![cmd::say("helper command").to_string()]
 }
 
-#[component(Load)]
+#[datapack_component(Load)]
 pub fn load() {
     MANA.define();
     DASH.define();
@@ -17,7 +17,7 @@ pub fn load() {
     helper_commands();
 }
 
-#[component(Tick)]
+#[datapack_component(Tick)]
 pub fn tick() {
     DASH.tick(Selector::all_players());
     TypedExecute::as_players()

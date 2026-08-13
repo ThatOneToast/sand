@@ -1,7 +1,7 @@
 use sand_core::DatapackComponent;
-use sand_macros::component;
+use sand_macros::datapack_component;
 
-#[component]
+#[datapack_component]
 pub fn my_advancement() -> sand_core::Advancement {
     use sand_core::{Advancement, AdvancementTrigger, Criterion};
     Advancement::new("test:my_adv".parse().unwrap())

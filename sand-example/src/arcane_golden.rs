@@ -1,20 +1,20 @@
 //! Golden tests for the arcane_starter dogfood datapack.
 
 use sand_core::prelude::*;
-use sand_macros::{component, function};
+use sand_macros::{datapack_component, function};
 
 static ARCANE_MANA: ScoreVar<i32> = ScoreVar::new("arcane_mana");
 static ARCANE_DASH: Cooldown = Cooldown::new("arcane_dash", Ticks::seconds(3));
 static ARCANE_DATA: StorageVar<i32> = StorageVar::new("arcane:dogfood", "player.settings");
 
-#[component(Load)]
+#[datapack_component(Load)]
 pub fn arcane_load() {
     ARCANE_MANA.define();
     ARCANE_DASH.define();
     ARCANE_DATA.set_int(100);
 }
 
-#[component(Tick)]
+#[datapack_component(Tick)]
 pub fn arcane_tick() {
     ARCANE_DASH.tick_all_players();
     TypedExecute::as_players()

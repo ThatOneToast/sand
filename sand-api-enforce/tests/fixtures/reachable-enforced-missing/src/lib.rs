@@ -1,3 +1,5 @@
+pub fn uncontracted_root_hook() {}
+
 pub mod predicate {
     pub struct Builder {
         pub uncontracted_field: bool,

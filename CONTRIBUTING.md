@@ -47,7 +47,7 @@ Staged goals:
 
 ## Authoring guidance
 
-- Teach `#[function]`, `#[component(Load)]`, and `#[component(Tick)]` first.
+- Teach `#[function]`, `#[datapack_component(Load)]`, and `#[datapack_component(Tick)]` first.
 - Use `sand_core::prelude::*` in beginner examples.
 - Keep raw commands behind `cmd::raw(...)`.
 - Use `mcfunction!` only for advanced command grouping, migration, or interop.

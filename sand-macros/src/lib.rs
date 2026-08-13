@@ -9,15 +9,15 @@
 //!
 //! - **`#[function]`** — turns a Rust function into a `.mcfunction` file,
 //!   automatically registered via `inventory` at link time.
-//! - **`#[component]`** — registers a datapack component (advancement, recipe,
+//! - **`#[datapack_component]`** — registers a datapack component (advancement, recipe,
 //!   loot table, etc.) or hooks a function into `Tick`/`Load`/custom tags.
-//! - **`#[event]`** — wires a handler function to either a stateless
+//! - **`#[on_event]`** — wires a handler function to either a stateless
 //!   `AdvancementEvent` (`Event<T>` handler context) or an advanced custom
-//!   `SandEvent` (concrete marker parameter). See [`event`] for the canonical
+//!   `SandEvent` (concrete marker parameter). See [`on_event`] for the canonical
 //!   split.
 //! - **`#[schedule]`** — defines a function that runs for N ticks (with an
 //!   optional interval), triggered at runtime via generated `_start`/`_stop` functions.
-//! - **`#[item]`** — reads a `CustomItem`-returning function and generates a typed
+//! - **`#[custom_item]`** — reads a `CustomItem`-returning function and generates a typed
 //!   struct with `BASE`, `PREDICATE`, `CUSTOM_DATA_KEY` constants and an `item()` method.
 //! - **`run_fn!`** — defines an inline function and returns the
 //!   `cmd::function(...)` call to invoke it.
@@ -26,19 +26,19 @@
 //!
 //! ```rust,ignore
 //! use sand_core::prelude::*;
-//! use sand_macros::{component, function, run_fn};
+//! use sand_macros::{datapack_component, function, run_fn};
 //!
 //! #[function]
 //! pub fn greet() {
 //!     cmd::tellraw(Selector::all_players(), Text::new("Hello from Sand").gold());
 //! }
 //!
-//! #[component(Tick)]
+//! #[datapack_component(Tick)]
 //! pub fn tick() {
 //!     cmd::say("Tick from Sand");
 //! }
 //!
-//! #[component(Load)]
+//! #[datapack_component(Load)]
 //! pub fn on_load() {
 //!     cmd::say("Sand datapack loaded");
 //! }
@@ -164,7 +164,7 @@ fn expand_entity_archetype(function: ItemFn) -> syn::Result<proc_macro2::TokenSt
 
 // ── Body transformation ───────────────────────────────────────────────────────
 
-/// Convert a `#[function]` / `#[component(Tick|Load|Tag)]` block into the
+/// Convert a `#[function]` / `#[datapack_component(Tick|Load|Tag)]` block into the
 /// `Vec<String>` construction the build pipeline expects.
 ///
 /// All expressions — with or without a trailing `;` — and macro invocations are
@@ -195,7 +195,7 @@ fn command_body_expr(expr: &syn::Expr) -> syn::Result<proc_macro2::TokenStream> 
             ..
         }) => Err(syn::Error::new_spanned(
             expr,
-            "raw string commands are not accepted directly inside #[function] or #[component(Tick|Load)]. Use a typed command such as cmd::say(\"hello\"), or use cmd::raw(\"say hello\") for an explicit escape hatch.",
+            "raw string commands are not accepted directly inside #[function] or #[datapack_component(Tick|Load)]. Use a typed command such as cmd::say(\"hello\"), or use cmd::raw(\"say hello\") for an explicit escape hatch.",
         )),
         syn::Expr::Lit(_) => Err(syn::Error::new_spanned(
             expr,
@@ -494,49 +494,49 @@ fn expand_function(
     })
 }
 
-// ── #[component] ─────────────────────────────────────────────────────────────
+// ── #[datapack_component] ─────────────────────────────────────────────────────────────
 
 /// Registers a free-standing function as a datapack component.
 ///
-/// ## Plain `#[component]`
+/// ## Plain `#[datapack_component]`
 ///
 /// The function must take no parameters and return a type that implements
 /// `sand_core::DatapackComponent`. It is automatically collected via
 /// `inventory` — no manual wiring needed.
 ///
 /// ```rust,ignore
-/// #[component]
+/// #[datapack_component]
 /// fn player_join() -> sand_core::Advancement {
 ///     Advancement::new("my_pack:player_join".parse().unwrap())
 ///         .criterion("tick", Criterion::new(AdvancementTrigger::Tick))
 /// }
 /// ```
 ///
-/// ## `#[component(Tick)]` / `#[component(Load)]`
+/// ## `#[datapack_component(Tick)]` / `#[datapack_component(Load)]`
 ///
 /// The function body becomes an `.mcfunction` file **and** the function is
 /// added to `data/minecraft/tags/functions/tick.json` (or `load.json`),
 /// making it run every tick / once on load automatically.
 ///
 /// ```rust,ignore
-/// #[component(Tick)]
+/// #[datapack_component(Tick)]
 /// pub fn my_tick() {
 ///     TIMER.tick(Selector::all_players());
 /// }
 ///
-/// #[component(Load)]
+/// #[datapack_component(Load)]
 /// pub fn on_load() {
 ///     TIMER.define();
 /// }
 /// ```
 ///
-/// ## `#[component(Tag = "ns:name")]`
+/// ## `#[datapack_component(Tag = "ns:name")]`
 ///
 /// Like `Tick`/`Load` but targets any function tag you choose — useful for
 /// hooking into other datapacks' APIs or creating your own tags.
 ///
 /// ```rust,ignore
-/// #[component(Tag = "my_lib:on_player_death")]
+/// #[datapack_component(Tag = "my_lib:on_player_death")]
 /// pub fn handle_death() {
 ///     cmd::say("player died");
 /// }
@@ -546,7 +546,7 @@ fn expand_function(
 /// `path`-only). Namespace must match `[a-z0-9_.-]+`, path must match
 /// `[a-z0-9_./-]+`.
 #[proc_macro_attribute]
-pub fn component(attr: TokenStream, item: TokenStream) -> TokenStream {
+pub fn datapack_component(attr: TokenStream, item: TokenStream) -> TokenStream {
     let func = parse_macro_input!(item as ItemFn);
     match parse_component_flag(attr).and_then(|flag| expand_component(func, flag)) {
         Ok(tokens) => tokens.into(),
@@ -557,13 +557,13 @@ pub fn component(attr: TokenStream, item: TokenStream) -> TokenStream {
 // ── Component flag parsing ────────────────────────────────────────────────────
 
 enum ComponentFlag {
-    /// Plain `#[component]` — returns a DatapackComponent.
+    /// Plain `#[datapack_component]` — returns a DatapackComponent.
     None,
-    /// `#[component(Tick)]` — registers in `minecraft:tick`.
+    /// `#[datapack_component(Tick)]` — registers in `minecraft:tick`.
     Tick,
-    /// `#[component(Load)]` — registers in `minecraft:load`.
+    /// `#[datapack_component(Load)]` — registers in `minecraft:load`.
     Load,
-    /// `#[component(Tag = "ns:name")]` — registers in a custom function tag.
+    /// `#[datapack_component(Tag = "ns:name")]` — registers in a custom function tag.
     Tag(String),
 }
 
@@ -603,7 +603,7 @@ fn parse_component_flag(attr: TokenStream) -> syn::Result<ComponentFlag> {
                     ..
                 }) = &nv.value
                 {
-                    validate_macro_resource_path(s, "#[component(Tag = \"...\")]")?;
+                    validate_macro_resource_path(s, "#[datapack_component(Tag = \"...\")]")?;
                     Ok(ComponentFlag::Tag(s.value()))
                 } else {
                     Err(syn::Error::new_spanned(
@@ -638,7 +638,7 @@ fn expand_component(func: ItemFn, flag: ComponentFlag) -> syn::Result<proc_macro
     }) {
         return Err(syn::Error::new_spanned(
             recv,
-            "#[component] cannot be applied to methods — use a free-standing `fn`",
+            "#[datapack_component] cannot be applied to methods — use a free-standing `fn`",
         ));
     }
 
@@ -646,7 +646,7 @@ fn expand_component(func: ItemFn, flag: ComponentFlag) -> syn::Result<proc_macro
     if !func.sig.inputs.is_empty() {
         return Err(syn::Error::new_spanned(
             &func.sig.inputs,
-            "#[component] functions must take no parameters",
+            "#[datapack_component] functions must take no parameters",
         ));
     }
 
@@ -658,7 +658,7 @@ fn expand_component(func: ItemFn, flag: ComponentFlag) -> syn::Result<proc_macro
     }
 }
 
-/// Plain `#[component]` — returns a `DatapackComponent`.
+/// Plain `#[datapack_component]` — returns a `DatapackComponent`.
 fn expand_component_plain(func: ItemFn) -> syn::Result<proc_macro2::TokenStream> {
     let fn_name = &func.sig.ident;
     let vis = &func.vis;
@@ -687,7 +687,7 @@ fn expand_component_plain(func: ItemFn) -> syn::Result<proc_macro2::TokenStream>
     })
 }
 
-/// `#[component(Tick)]` / `#[component(Load)]` / `#[component(Tag = "...")]` —
+/// `#[datapack_component(Tick)]` / `#[datapack_component(Load)]` / `#[datapack_component(Tag = "...")]` —
 /// registers the function body as an `.mcfunction` file AND adds it to `tag`.
 fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::TokenStream> {
     let fn_name = &func.sig.ident;
@@ -731,7 +731,7 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
     })
 }
 
-// ── #[event] ─────────────────────────────────────────────────────────────────
+// ── #[on_event] ─────────────────────────────────────────────────────────────────
 
 /// Turns a function into a Sand event handler.
 ///
@@ -750,7 +750,7 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
 ///
 /// ```rust,ignore
 /// use sand_core::prelude::*;
-/// use sand_macros::event;
+/// use sand_macros::on_event;
 ///
 /// pub struct AteGoldenApple;
 ///
@@ -763,7 +763,7 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
 ///     }
 /// }
 ///
-/// #[event]
+/// #[on_event]
 /// pub fn on_ate(event: Event<AteGoldenApple>) {
 ///     cmd::tellraw(event.player(), Text::new("Golden apple eaten"));
 /// }
@@ -778,7 +778,7 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
 /// ```rust,ignore
 /// use sand_core::events::{EventSetup, SandEvent, SandEventDispatch};
 /// use sand_core::prelude::*;
-/// use sand_macros::event;
+/// use sand_macros::on_event;
 ///
 /// static JUMPS: ScoreVar<i32> = ScoreVar::new("jumps");
 /// static PREVIOUS_JUMPS: ScoreVar<i32> = ScoreVar::new("previous_jumps");
@@ -808,7 +808,7 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
 ///     }
 /// }
 ///
-/// #[event]
+/// #[on_event]
 /// pub fn on_jump(_event: PlayerJumped) {
 ///     cmd::say("Jumped!");
 /// }
@@ -824,13 +824,13 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
 /// contexts remain planned; they are not accepted by this macro today.
 ///
 /// Generic `SandEvent` definitions are supported and each concrete
-/// monomorphization has distinct dispatch identity. A `#[event]` handler must
+/// monomorphization has distinct dispatch identity. A `#[on_event]` handler must
 /// still name a constructible concrete marker parameter; use a unit adapter
 /// type when the generic definition itself stores `PhantomData`.
 ///
 /// # Attributes
 ///
-/// `#[event]` takes exactly one handler parameter. Flat attributes such as
+/// `#[on_event]` takes exactly one handler parameter. Flat attributes such as
 /// `id = "namespace:path"`, `slot = Head`, `item = "minecraft:stick"`,
 /// and `custom_data = "{key:1b}"` are supported where the selected event
 /// family uses them. `dispatch = "advancement"` is retained only as a
@@ -840,7 +840,7 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
 /// Reset behavior belongs to `AdvancementEvent::reset()` (or the compatibility
 /// `SandEvent::revoke()` hook), not to an event attribute.
 #[proc_macro_attribute]
-pub fn event(attr: TokenStream, item: TokenStream) -> TokenStream {
+pub fn on_event(attr: TokenStream, item: TokenStream) -> TokenStream {
     let func = parse_macro_input!(item as ItemFn);
     match expand_event(attr, func) {
         Ok(tokens) => tokens.into(),
@@ -850,7 +850,7 @@ pub fn event(attr: TokenStream, item: TokenStream) -> TokenStream {
 
 // ── New event attribute ───────────────────────────────────────────────────────
 
-/// Flat key=value attributes for the new-style `#[event]` macro.
+/// Flat key=value attributes for the new-style `#[on_event]` macro.
 struct FlatEventAttr {
     /// `slot = Head | Chest | Legs | Feet | Offhand | Mainhand`
     slot: Option<syn::Ident>,
@@ -895,7 +895,7 @@ impl syn::parse::Parse for FlatEventAttr {
                     return Err(syn::Error::new_spanned(
                         &key,
                         format!(
-                            "unknown #[event] filter `{other}`; \
+                            "unknown #[on_event] filter `{other}`; \
                              allowed: slot, item, custom_data, id, dispatch"
                         ),
                     ));
@@ -972,7 +972,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
     }) {
         return Err(syn::Error::new_spanned(
             recv,
-            "#[event] cannot be applied to methods — use a free-standing `fn`",
+            "#[on_event] cannot be applied to methods — use a free-standing `fn`",
         ));
     }
 
@@ -980,7 +980,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
     if func.sig.inputs.len() != 1 {
         return Err(syn::Error::new_spanned(
             &func.sig.inputs,
-            "#[event] functions must take exactly one parameter: the event type \
+            "#[on_event] functions must take exactly one parameter: the event type \
              (e.g. `event: OnJoinEvent`)",
         ));
     }
@@ -1013,21 +1013,21 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
         let syn::PathArguments::AngleBracketed(args) = &segment.arguments else {
             return Err(syn::Error::new_spanned(
                 ty,
-                "#[event] generic handlers must specify the event type, e.g. `Event<MyEvent>` or `DamageEvent<MyDamageEvent>`",
+                "#[on_event] generic handlers must specify the event type, e.g. `Event<MyEvent>` or `DamageEvent<MyDamageEvent>`",
             ));
         };
 
         if args.args.len() != 1 {
             return Err(syn::Error::new_spanned(
                 args,
-                "#[event] generic handlers must use exactly one generic argument, e.g. `Event<MyEvent>`",
+                "#[on_event] generic handlers must use exactly one generic argument, e.g. `Event<MyEvent>`",
             ));
         }
 
         let Some(syn::GenericArgument::Type(event_ty)) = args.args.first() else {
             return Err(syn::Error::new_spanned(
                 args,
-                "#[event] generic handlers must use a type argument, e.g. `Event<MyEvent>`",
+                "#[on_event] generic handlers must use a type argument, e.g. `Event<MyEvent>`",
             ));
         };
 
@@ -1086,12 +1086,12 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                 other => {
                     return Err(syn::Error::new_spanned(
                         other,
-                        "#[event] parameter type must be a path (e.g. `OnJoinEvent`)",
+                        "#[on_event] parameter type must be a path (e.g. `OnJoinEvent`)",
                     ));
                 }
             },
             syn::FnArg::Receiver(r) => {
-                return Err(syn::Error::new_spanned(r, "#[event] cannot be a method"));
+                return Err(syn::Error::new_spanned(r, "#[on_event] cannot be a method"));
             }
         }
     };
@@ -3131,7 +3131,7 @@ fn expand_schedule(func: ItemFn, attr: ScheduleAttr) -> syn::Result<proc_macro2:
     })
 }
 
-// ── #[item] ───────────────────────────────────────────────────────────────────
+// ── #[custom_item] ───────────────────────────────────────────────────────────────────
 
 /// Generate a typed item struct from a `CustomItem`-producing function.
 ///
@@ -3140,14 +3140,14 @@ fn expand_schedule(func: ItemFn, attr: ScheduleAttr) -> syn::Result<proc_macro2:
 /// `BASE`, `PREDICATE`, and an `item()` method that calls the original function.
 ///
 /// The struct name is derived automatically from the `custom_data` key
-/// (converted to PascalCase). Override it with `#[item(name = "MyName")]`.
+/// (converted to PascalCase). Override it with `#[custom_item(name = "MyName")]`.
 /// If there is no `custom_data` call, `name` is required.
 ///
 /// # Examples
 ///
 /// ```rust,ignore
 /// // Struct name "ManaBoots" derived from custom_data key "mana_boots"
-/// #[item]
+/// #[custom_item]
 /// pub fn mana_boots() -> CustomItem {
 ///     CustomItem::new("minecraft:leather_boots")
 ///         .custom_data("mana_boots")
@@ -3155,7 +3155,7 @@ fn expand_schedule(func: ItemFn, attr: ScheduleAttr) -> syn::Result<proc_macro2:
 /// }
 ///
 /// // No custom_data — must provide name
-/// #[item(name = "ShardBlade")]
+/// #[custom_item(name = "ShardBlade")]
 /// pub fn shard_blade() -> CustomItem {
 ///     CustomItem::new("minecraft:diamond_sword")
 ///         .display_name("Shard Blade")
@@ -3183,7 +3183,7 @@ fn expand_schedule(func: ItemFn, attr: ScheduleAttr) -> syn::Result<proc_macro2:
 ///     .run_fn("ns:on_mana_boots_tick");
 /// ```
 #[proc_macro_attribute]
-pub fn item(attr: TokenStream, input: TokenStream) -> TokenStream {
+pub fn custom_item(attr: TokenStream, input: TokenStream) -> TokenStream {
     let func = parse_macro_input!(input as ItemFn);
     match expand_item(attr, func) {
         Ok(ts) => ts.into(),
@@ -3277,7 +3277,7 @@ struct ItemDataConst {
     value: syn::Expr,
 }
 
-/// Parse the attr tokens for `#[item(...)]`.
+/// Parse the attr tokens for `#[custom_item(...)]`.
 /// Accepts: `name = "..."` and/or `data = [IDENT: Type = expr, ...]`
 struct ItemAttr {
     name: Option<String>,
@@ -3322,7 +3322,7 @@ impl syn::parse::Parse for ItemAttr {
                     return Err(syn::Error::new_spanned(
                         &key,
                         format!(
-                            "unknown #[item] parameter `{other}`; \
+                            "unknown #[custom_item] parameter `{other}`; \
                              expected `name = \"...\"` or \
                              `data = [CONST: Type = value, ...]`"
                         ),
@@ -3360,7 +3360,7 @@ fn expand_item(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Toke
     let base = base.ok_or_else(|| {
         syn::Error::new_spanned(
             &func.sig,
-            "#[item] could not find `CustomItem::new(\"minecraft:...\")` in the function body. \
+            "#[custom_item] could not find `CustomItem::new(\"minecraft:...\")` in the function body. \
              Make sure the base item ID is a string literal passed directly to `CustomItem::new`.",
         )
     })?;
@@ -3373,9 +3373,9 @@ fn expand_item(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Toke
     } else {
         return Err(syn::Error::new_spanned(
             &func.sig,
-            "#[item] could not find a `.custom_data(\"key\")` call to derive the struct name. \
+            "#[custom_item] could not find a `.custom_data(\"key\")` call to derive the struct name. \
              Either add `.custom_data(\"your_key\")` to uniquely identify this item, or \
-             specify an explicit name with `#[item(name = \"YourName\")]`.",
+             specify an explicit name with `#[custom_item(name = \"YourName\")]`.",
         ));
     };
 
@@ -3418,7 +3418,7 @@ fn expand_item(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Toke
         #(#fn_attrs)*
         #func
 
-        /// Auto-generated item reference type produced by `#[item]`.
+        /// Auto-generated item reference type produced by `#[custom_item]`.
         ///
         /// Use [`PREDICATE`](Self::PREDICATE) with
         /// [`Execute::if_items_entity`] to detect this item in any slot, and

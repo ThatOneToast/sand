@@ -5,7 +5,7 @@
 //! - Detecting player joins using an advancement with `minecraft:tick` trigger
 //! - Sending personalized welcome messages with JSON text components
 //! - Tracking per-player data with scoreboards (persistent across sessions)
-//! - Using `#[component(Load)]`, `#[component]`, and `#[function]` together
+//! - Using `#[datapack_component(Load)]`, `#[datapack_component]`, and `#[function]` together
 //!
 //! ## How it works
 //!
@@ -21,7 +21,7 @@
 //! No external storage needed for simple integer counters.
 
 use sand_core::prelude::*;
-use sand_macros::{component, function};
+use sand_macros::{datapack_component, function};
 
 static JOIN_COUNT: ScoreVar<i32> = ScoreVar::new("join_count");
 
@@ -29,7 +29,7 @@ static JOIN_COUNT: ScoreVar<i32> = ScoreVar::new("join_count");
 
 /// Creates the `join_count` scoreboard objective.
 /// `scoreboard objectives add` is idempotent — safe to call every reload.
-#[component(Load)]
+#[datapack_component(Load)]
 pub fn on_load() {
     JOIN_COUNT.define();
 }
@@ -38,7 +38,7 @@ pub fn on_load() {
 
 /// Advancement that fires every tick. The reward runs `on_player_join`,
 /// which revokes this advancement to re-arm it for next login.
-#[component]
+#[datapack_component]
 pub fn detect_join() -> sand_core::Advancement {
     use sand_core::{Advancement, AdvancementRewards, AdvancementTrigger, Criterion};
     Advancement::new("my_pack:detect_join".parse().unwrap())

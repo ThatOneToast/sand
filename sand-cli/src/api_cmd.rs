@@ -674,6 +674,24 @@ mod tests {
     }
 
     #[test]
+    fn installed_root_scope_distinguishes_topic_modules_from_attribute_macros() {
+        let catalog = generated_catalog();
+
+        let component_module = show(catalog, "sand::component").unwrap();
+        assert!(component_module.contains("Builds datapack JSON components"));
+
+        let component_attribute = show(catalog, "sand::prelude::datapack_component").unwrap();
+        assert!(component_attribute.contains("sand::datapack_component"));
+        assert!(component_attribute.contains("#[datapack_component(...)]"));
+
+        let location = show(catalog, "sand::prelude::ResourceLocation").unwrap();
+        assert!(location.contains("sand::ResourceLocation"));
+
+        let macros = search(catalog, "typed event handler").unwrap();
+        assert!(macros.contains("sand::on_event"));
+    }
+
+    #[test]
     fn installed_predicate_scope_exposes_source_and_generated_contracts() {
         let catalog = generated_catalog();
         let constructor = show(catalog, "sand::prelude::Predicate::new").unwrap();

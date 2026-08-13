@@ -33,7 +33,7 @@
 //!   (already the earliest hook in the tick-dispatch pipeline — see
 //!   `sand-core/src/component.rs`'s documented `pre_observation → condition
 //!   test → handler → post_observation` contract).
-//! - **Advancement-backed events** (direct `#[event]` handler, not a Phase 6
+//! - **Advancement-backed events** (direct `#[on_event]` handler, not a Phase 6
 //!   graph-parent bridge): emit as the first command(s) of your own handler
 //!   body. The generated entry always runs `advancement revoke` before
 //!   calling your handler body, but revoke never touches item NBT, so this

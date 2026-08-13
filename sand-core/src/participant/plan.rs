@@ -27,7 +27,7 @@
 //! `sand-core/src/event/mod.rs`'s `AdvancementEvent::participants` doc. The
 //! `SandEvent::participants()`/`with_participants` path above remains for
 //! tick-dispatch events, where `setup()` is still the author-defined
-//! integration point (`#[event]`/the tick coordinator do not inspect
+//! integration point (`#[on_event]`/the tick coordinator do not inspect
 //! `participants()` automatically for this dispatch kind). Either way,
 //! `participants()` is a genuine, additive default trait method — existing
 //! implementations are unaffected, since the default returns
@@ -797,7 +797,7 @@ impl EventParticipantPlan {
     /// (`sand-core/src/compiler/export/pipeline.rs`'s
     /// `invoke_event_handler_body`) catches it and converts it into a
     /// structured `SAND-EVENT-PARTICIPANT` diagnostic naming the handler
-    /// (this method has no notion of which `#[event]` handler is calling
+    /// (this method has no notion of which `#[on_event]` handler is calling
     /// it, only the boundary does), never letting it reach a user as a raw,
     /// unhandled panic.
     pub(crate) fn require_entity(

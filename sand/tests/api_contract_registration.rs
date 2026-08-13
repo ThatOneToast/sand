@@ -42,9 +42,9 @@ fn generated_registrations_build_an_installed_catalog() {
 
     let coverage = sand::__private::api_contract::installed_coverage();
     assert_eq!(coverage.static_surface_items, 11_521);
-    assert_eq!(coverage.pending_item_ceiling, 6_385);
-    assert_eq!(coverage.pending_scope_ceiling, 30);
-    assert_eq!(coverage.pending_scopes.len(), 30);
+    assert_eq!(coverage.pending_item_ceiling, 6_353);
+    assert_eq!(coverage.pending_scope_ceiling, 29);
+    assert_eq!(coverage.pending_scopes.len(), 29);
     let catalog = ApiCatalog::installed_with_coverage(env!("CARGO_PKG_VERSION"), coverage).unwrap();
     let function = catalog.find("sand::prelude::contract_fixture").unwrap();
     assert_eq!(function.kind, ApiKind::Function);
@@ -82,6 +82,29 @@ fn generated_registrations_build_an_installed_catalog() {
         condition.canonical_path,
         "sand::condition::Condition::entity"
     );
+
+    let command = catalog
+        .find("sand::cmd")
+        .expect("canonical command module resolves through its short alias");
+    assert_eq!(command.canonical_path, "sand::command");
+    assert_eq!(command.kind, ApiKind::Module);
+
+    let component_module = catalog
+        .find("sand::component")
+        .expect("component builders retain their canonical topic module");
+    assert_eq!(component_module.kind, ApiKind::Module);
+
+    let component_attribute = catalog
+        .find("sand::datapack_component")
+        .expect("renamed component attribute has a collision-free canonical path");
+    assert_eq!(component_attribute.kind, ApiKind::Macro);
+    assert!(catalog.find("sand::prelude::datapack_component").is_some());
+
+    let location = catalog
+        .find("sand::prelude::ResourceLocation")
+        .expect("root resource-location contract is available through the prelude alias");
+    assert_eq!(location.canonical_path, "sand::ResourceLocation");
+    assert_eq!(location.kind, ApiKind::Struct);
     assert_eq!(condition.kind, ApiKind::Method);
     assert_eq!(condition.parameters[0].name, "selector");
 

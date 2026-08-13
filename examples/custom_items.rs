@@ -9,12 +9,12 @@ use sand_core::{
     EquipmentSlotGroup, EquippableProperties, FoodProperties, ItemRarity, SoundEventId,
     ToolProperties, ToolRule,
 };
-use sand_macros::component;
+use sand_macros::datapack_component;
 
 // ── Custom food item ─────────────────────────────────────────────────────────
 // Defines a food item with nutrition, saturation, and custom eating animation.
 
-#[component]
+#[datapack_component]
 pub fn magic_apple() -> CustomItem {
     CustomItem::new("my_pack:magic_apple".parse().unwrap(), "minecraft:apple")
         .custom_name(r#"{"text":"Magic Apple","color":"light_purple","italic":false}"#)
@@ -33,7 +33,7 @@ pub fn magic_apple() -> CustomItem {
 // ── Custom tool ──────────────────────────────────────────────────────────────
 // A pickaxe with custom mining rules and durability.
 
-#[component]
+#[datapack_component]
 pub fn auto_smelting_pick() -> CustomItem {
     CustomItem::new(
         "my_pack:auto_smelting_pick".parse().unwrap(),
@@ -65,7 +65,7 @@ pub fn auto_smelting_pick() -> CustomItem {
 // ── Custom armor piece ───────────────────────────────────────────────────────
 // Equipment with custom armor value, color, and attributes.
 
-#[component]
+#[datapack_component]
 pub fn royal_chestplate() -> CustomItem {
     CustomItem::new(
         "my_pack:royal_chestplate".parse().unwrap(),
@@ -101,7 +101,7 @@ pub fn royal_chestplate() -> CustomItem {
 // ── Unbreakable utility item ─────────────────────────────────────────────────
 // A non-stackable utility item with cooldown.
 
-#[component]
+#[datapack_component]
 pub fn teleport_wand() -> CustomItem {
     CustomItem::new(
         "my_pack:teleport_wand".parse().unwrap(),
@@ -120,7 +120,7 @@ pub fn teleport_wand() -> CustomItem {
 // ── Item with stored enchantments ────────────────────────────────────────────
 // An enchanted book with specific enchantments.
 
-#[component]
+#[datapack_component]
 pub fn super_book() -> CustomItem {
     CustomItem::new(
         "my_pack:super_book".parse().unwrap(),

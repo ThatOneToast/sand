@@ -7,7 +7,7 @@
 //! ```rust,ignore
 //! use sand_core::prelude::*;
 //! use sand_core::event::trigger::ConsumeItemTrigger;
-//! use sand_macros::event;
+//! use sand_macros::on_event;
 //!
 //! pub struct AteGoldenAppleEvent;
 //!
@@ -18,7 +18,7 @@
 //!     }
 //! }
 //!
-//! #[event]
+//! #[on_event]
 //! pub fn on_ate_golden_apple(event: Event<AteGoldenAppleEvent>) {
 //!     cmd::say("Golden apple eaten");
 //! }
@@ -39,18 +39,18 @@
 //!
 //! # Usage
 //!
-//! Use the `#[event]` attribute macro from `sand_macros` on a free-standing
+//! Use the `#[on_event]` attribute macro from `sand_macros` on a free-standing
 //! function. The primary handler parameter is `Event<T>` where `T` implements
 //! [`AdvancementEvent`](crate::event::AdvancementEvent):
 //!
 //! ```rust,ignore
-//! use sand_macros::event;
+//! use sand_macros::on_event;
 //! use sand_core::prelude::*;
 //! use sand_core::events::{OnJoinEvent, OnDeathEvent, ArmorEquipEvent};
 //!
 //! static TOTAL_DEATHS: ScoreVar<i32> = ScoreVar::new("total_deaths");
 //!
-//! #[event]
+//! #[on_event]
 //! pub fn on_join(event: Event<OnJoinEvent>) {
 //!     cmd::tellraw(
 //!         Selector::self_(),
@@ -58,13 +58,13 @@
 //!     );
 //! }
 //!
-//! #[event]
+//! #[on_event]
 //! pub fn on_death(event: Event<OnDeathEvent>) {
 //!     TOTAL_DEATHS.add(event.player(), 1);
 //! }
 //!
 //! // Slot filter required; item is optional
-//! #[event(slot = Head, item = "minecraft:diamond_helmet")]
+//! #[on_event(slot = Head, item = "minecraft:diamond_helmet")]
 //! pub fn equipped_diamond_helmet(event: Event<ArmorEquipEvent>) {
 //!     cmd::say("Diamond helmet on!");
 //! }
@@ -79,7 +79,7 @@
 //! ```rust,ignore
 //! use sand_core::event::trigger::ConsumeItemTrigger;
 //! use sand_core::prelude::*;
-//! use sand_macros::event;
+//! use sand_macros::on_event;
 //!
 //! pub struct AteGoldenAppleEvent;
 //!
@@ -90,7 +90,7 @@
 //!     }
 //! }
 //!
-//! #[event]
+//! #[on_event]
 //! pub fn on_ate_golden_apple(event: Event<AteGoldenAppleEvent>) {
 //!     cmd::say("Golden apple eaten");
 //! }
@@ -110,7 +110,7 @@
 //! ```rust,ignore
 //! use sand_core::events::{EventSetup, SandEvent, SandEventDispatch};
 //! use sand_core::prelude::*;
-//! use sand_macros::event;
+//! use sand_macros::on_event;
 //!
 //! static JUMPS: ScoreVar<i32> = ScoreVar::new("jumps");
 //! static SYNC_JUMPS: ScoreVar<i32> = ScoreVar::new("sync_jumps");
@@ -142,7 +142,7 @@
 //!     }
 //! }
 //!
-//! #[event]
+//! #[on_event]
 //! pub fn on_jump(_event: PlayerJumpEvent) {
 //!     cmd::say("Jumped!");
 //! }
@@ -674,7 +674,7 @@ impl<
 /// commands to run before each observation, and commands to run after a
 /// successful observation (e.g. synchronizing a delta-tracking score).
 ///
-/// Returned by [`SandEvent::setup`]. When multiple `#[event]` handlers
+/// Returned by [`SandEvent::setup`]. When multiple `#[on_event]` handlers
 /// subscribe to the same event type, Sand deduplicates the setup so
 /// objectives and detector/synchronization functions are emitted once.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -918,7 +918,7 @@ impl From<TickEventDispatch> for SandEventDispatch {
 /// The parent is identified by function-pointer factories rather than a
 /// constructed value so the parent marker type never needs to be
 /// instantiated and generic parent/child families keep distinct identities.
-/// See the `#[event]` macro, which supplies these factories automatically
+/// See the `#[on_event]` macro, which supplies these factories automatically
 /// from a `SandEvent::dispatch() -> SandEventDispatch::chain::<Parent>()`
 /// call — you should not need to construct this struct's function pointers
 /// by hand.
@@ -1235,7 +1235,7 @@ impl SandEventDispatch {
     /// Declares that this event evaluates only from `Parent`'s successful
     /// dispatch cycle, inheriting its execution subject and position, rather
     /// than independently re-detecting `Parent`'s condition. `Parent` need
-    /// not have any direct `#[event]` handler of its own — only a `SandEvent`
+    /// not have any direct `#[on_event]` handler of its own — only a `SandEvent`
     /// impl.
     ///
     /// ```rust,ignore
@@ -1294,7 +1294,7 @@ impl SandEventDispatch {
 
 /// Implement this trait on your own type to define a custom Sand event.
 ///
-/// Your concrete type is the single parameter of a custom `#[event]` handler.
+/// Your concrete type is the single parameter of a custom `#[on_event]` handler.
 /// Sand inspects [`dispatch`](Self::dispatch) at build time to emit the
 /// appropriate datapack files. This differs from an advancement-backed
 /// [`Event<T>`](crate::event::Event) context: a bare `SandEvent` marker is
@@ -1306,7 +1306,7 @@ impl SandEventDispatch {
 /// ```rust,ignore
 /// use sand_core::events::{SandEvent, SandEventDispatch};
 /// use sand_core::prelude::*;
-/// use sand_macros::event;
+/// use sand_macros::on_event;
 ///
 /// /// Fires while the player has the `ready` tag.
 /// pub struct PlayerReady;
@@ -1320,13 +1320,13 @@ impl SandEventDispatch {
 ///     }
 /// }
 ///
-/// #[event]
+/// #[on_event]
 /// pub fn on_ready(_event: PlayerReady) {
 ///     cmd::say("Ready!");
 /// }
 /// ```
 #[diagnostic::on_unimplemented(
-    message = "`{Self}` is used as a bare `#[event]` handler parameter but does not implement `SandEvent`",
+    message = "`{Self}` is used as a bare `#[on_event]` handler parameter but does not implement `SandEvent`",
     label = "bare marker parameters require `T: SandEvent`",
     note = "AdvancementEvent-backed events are stateless triggers handled through `Event<T>` \
             (see sand_core::event::AdvancementEvent); SandEvent-backed events define custom \
@@ -1350,7 +1350,7 @@ pub trait SandEvent {
     /// [`EventSetup`] for the ordering guarantee (detection always runs
     /// before `post_observation`).
     ///
-    /// When several `#[event]` handlers subscribe to the same event type,
+    /// When several `#[on_event]` handlers subscribe to the same event type,
     /// Sand deduplicates setup by the event's in-process type identity so
     /// objectives and detector functions are only emitted once.
     fn setup() -> EventSetup {
@@ -1369,7 +1369,7 @@ pub trait SandEvent {
     /// pre/post-observation boundary [`EventSetup::with_participants`]
     /// documents; you do not need to call `with_participants` yourself
     /// unless you are hand-assembling an `EventSetup` outside the normal
-    /// `#[event]` path. See `sand-core/src/participant/plan.rs`'s module doc
+    /// `#[on_event]` path. See `sand-core/src/participant/plan.rs`'s module doc
     /// for the exact lifecycle ordering per backend.
     fn participants() -> crate::participant::EventParticipantPlan {
         crate::participant::EventParticipantPlan::none()
@@ -1390,7 +1390,7 @@ pub trait SandEvent {
     }
 }
 
-/// Infallible participant accessors for bare `SandEvent`-backed `#[event]`
+/// Infallible participant accessors for bare `SandEvent`-backed `#[on_event]`
 /// handlers (`fn handler(event: MarkerType)`), mirroring
 /// [`crate::event::Event`]'s `AdvancementEvent`-backed accessor sugar
 /// without a second overlapping blanket `impl<E: SandEvent> Event<E>` (#273)
@@ -1405,7 +1405,7 @@ pub trait SandEvent {
 /// implementation needed:
 ///
 /// ```rust,ignore
-/// #[event]
+/// #[on_event]
 /// fn special_kill(event: SpecialKillEvent) {
 ///     let killer = event.killer();
 ///     let weapon = event.weapon();
@@ -1488,7 +1488,7 @@ impl<T: SandEvent + Sized + 'static> SandEventParticipants for T {}
 /// # Example
 ///
 /// ```rust,ignore
-/// #[event]
+/// #[on_event]
 /// pub fn on_join(event: Event<OnJoinEvent>) {
 ///     cmd::tellraw(
 ///         Selector::self_(),
@@ -1509,7 +1509,7 @@ pub struct OnJoinEvent;
 /// # Example
 ///
 /// ```rust,ignore
-/// #[event]
+/// #[on_event]
 /// pub fn first_join(event: Event<FirstJoinEvent>) {
 ///     cmd::tellraw(
 ///         Selector::self_(),
@@ -1532,7 +1532,7 @@ pub struct FirstJoinEvent;
 /// ```rust,ignore
 /// static TOTAL_DEATHS: ScoreVar<i32> = ScoreVar::new("total_deaths");
 ///
-/// #[event]
+/// #[on_event]
 /// pub fn on_death(event: Event<OnDeathEvent>) {
 ///     TOTAL_DEATHS.add(event.player(), 1);
 /// }
@@ -1564,7 +1564,7 @@ pub struct OnDeathEvent;
 /// # Example
 ///
 /// ```rust,ignore
-/// #[event]
+/// #[on_event]
 /// pub fn on_respawn(event: Event<OnRespawnEvent>) {
 ///     cmd::tellraw(
 ///         Selector::self_(),
@@ -1594,13 +1594,13 @@ pub struct OnRespawnEvent;
 /// static MANA_REGEN: Flag = Flag::new("mana_regen");
 ///
 /// // Any item equipped in the feet slot
-/// #[event(slot = Feet)]
+/// #[on_event(slot = Feet)]
 /// pub fn any_boots_equipped(event: Event<ArmorEquipEvent>) {
 ///     cmd::say("Boots equipped!");
 /// }
 ///
 /// // Specific item with custom NBT
-/// #[event(slot = Feet, item = "minecraft:leather_boots", custom_data = "{mana_boots:1b}")]
+/// #[on_event(slot = Feet, item = "minecraft:leather_boots", custom_data = "{mana_boots:1b}")]
 /// pub fn mana_boots_equipped(event: Event<ArmorEquipEvent>) {
 ///     MANA_REGEN.enable(event.player());
 /// }
@@ -1616,7 +1616,7 @@ pub struct ArmorEquipEvent;
 /// ```rust,ignore
 /// static MANA_REGEN: Flag = Flag::new("mana_regen");
 ///
-/// #[event(slot = Feet, item = "minecraft:leather_boots", custom_data = "{mana_boots:1b}")]
+/// #[on_event(slot = Feet, item = "minecraft:leather_boots", custom_data = "{mana_boots:1b}")]
 /// pub fn mana_boots_removed(event: Event<ArmorUnequipEvent>) {
 ///     MANA_REGEN.disable(event.player());
 /// }
@@ -1641,12 +1641,12 @@ pub struct ArmorUnequipEvent;
 /// ```rust,ignore
 /// static BLOCKING: Flag = Flag::new("blocking");
 ///
-/// #[event(item = "minecraft:diamond_sword")]
+/// #[on_event(item = "minecraft:diamond_sword")]
 /// pub fn holding_diamond_sword(event: Event<HoldingItemEvent>) {
 ///     cmd::particle(Particle::Crit, event.player());
 /// }
 ///
-/// #[event(item = "minecraft:shield", slot = Offhand)]
+/// #[on_event(item = "minecraft:shield", slot = Offhand)]
 /// pub fn holding_shield_offhand(event: Event<HoldingItemEvent>) {
 ///     BLOCKING.enable(event.player());
 /// }
@@ -1669,7 +1669,7 @@ pub struct HoldingItemEvent;
 /// # Example
 ///
 /// ```rust,ignore
-/// #[event(slot = Head, item = "minecraft:diamond_helmet")]
+/// #[on_event(slot = Head, item = "minecraft:diamond_helmet")]
 /// pub fn wearing_diamond_helmet(event: Event<CurrentlyWearingEvent>) {
 ///     cmd::particle(Particle::Enchant, event.player());
 /// }
@@ -1681,7 +1681,7 @@ pub struct CurrentlyWearingEvent;
 // ════════════════════════════════════════════════════════════════════════════
 //
 // All events below implement [`SandEvent`] and can be used directly with
-// `#[event]`. Most map 1:1 to a Minecraft advancement trigger so they fire
+// `#[on_event]`. Most map 1:1 to a Minecraft advancement trigger so they fire
 // once per trigger occurrence and revoke themselves (unless noted).
 // For filter-level customisation (e.g. specific item/entity), implement your
 // own type with [`SandEvent`] using the same trigger and supply conditions.
@@ -1698,7 +1698,7 @@ pub struct CurrentlyWearingEvent;
 /// ```rust,ignore
 /// static TOTAL_KILLS: ScoreVar<i32> = ScoreVar::new("total_kills");
 ///
-/// #[event]
+/// #[on_event]
 /// pub fn on_kill(event: Event<EntityKillEvent>) {
 ///     TOTAL_KILLS.add(event.player(), 1);
 /// }
@@ -1722,7 +1722,7 @@ impl SandEvent for EntityKillEvent {
 ///
 /// # Example
 /// ```rust,ignore
-/// #[event]
+/// #[on_event]
 /// pub fn on_killed(event: Event<PlayerKillEvent>) {
 ///     cmd::tellraw(
 ///         event.player(),
@@ -1803,7 +1803,7 @@ impl SandEvent for ChanneledLightningEvent {
 ///
 /// # Example
 /// ```rust,ignore
-/// #[event]
+/// #[on_event]
 /// pub fn on_eat(event: Event<ItemConsumeEvent>) {
 ///     cmd::say("Yum!");
 /// }
@@ -1956,7 +1956,7 @@ impl SandEvent for RecipeUnlockEvent {
 /// ```rust,ignore
 /// static BLOCKS_PLACED: ScoreVar<i32> = ScoreVar::new("blocks_placed");
 ///
-/// #[event]
+/// #[on_event]
 /// pub fn on_place(event: Event<BlockPlaceEvent>) {
 ///     BLOCKS_PLACED.add(event.player(), 1);
 /// }
@@ -2023,7 +2023,7 @@ impl SandEvent for BeeNestDestroyedEvent {
 ///
 /// # Example
 /// ```rust,ignore
-/// #[event]
+/// #[on_event]
 /// pub fn on_change_dim(event: Event<ChangeDimensionEvent>) {
 ///     cmd::say("Dimension change!");
 /// }
@@ -2055,7 +2055,7 @@ impl SandEvent for PlayerSleepEvent {
 ///
 /// # Example
 /// ```rust,ignore
-/// #[event]
+/// #[on_event]
 /// pub fn on_fall(event: Event<FallFromHeightEvent>) {
 ///     cmd::playsound(
 ///         ResourceLocation::new("minecraft", "entity.player.hurt").unwrap(),
@@ -2097,11 +2097,11 @@ impl SandEvent for FallFromHeightEvent {
 /// use sand_core::event::vanilla::PlayerLevelsUp;
 /// use sand_core::events::PlayerLevelUpEvent;
 /// use sand_core::prelude::*;
-/// use sand_macros::event;
+/// use sand_macros::on_event;
 ///
 /// static MANA: ScoreVar<i32> = ScoreVar::new("mana");
 ///
-/// #[event]
+/// #[on_event]
 /// pub fn on_level_up(event: Event<PlayerLevelUpEvent>) {
 ///     MANA.add(event.player(), 10);
 /// }
@@ -2128,7 +2128,7 @@ impl PlayerLevelUpEvent {
     /// # Example
     ///
     /// ```rust,ignore
-    /// #[event]
+    /// #[on_event]
     /// pub fn on_level_up(event: Event<PlayerLevelUpEvent>) {
     ///     let lvl = PlayerLevelUpEvent::current_level("@s");
     /// }
@@ -2487,9 +2487,9 @@ pub const PLAYER_SNEAKING_TRACKED_SOURCE: crate::TrackedSource =
 /// ```rust,ignore
 /// use sand_core::events::PlayerSneakEvent;
 /// use sand_core::prelude::*;
-/// use sand_macros::event;
+/// use sand_macros::on_event;
 ///
-/// #[event]
+/// #[on_event]
 /// pub fn while_sneaking(event: PlayerSneakEvent) {
 ///     cmd::particle(Particle::Smoke, event.player());
 /// }
@@ -2955,9 +2955,9 @@ impl SandEvent for PlayerHealthGainedEvent {
 /// ```rust,ignore
 /// use sand_core::events::PlayerLowHealthEvent;
 /// use sand_core::prelude::*;
-/// use sand_macros::event;
+/// use sand_macros::on_event;
 ///
-/// #[event]
+/// #[on_event]
 /// pub fn low_health_warning(event: Event<PlayerLowHealthEvent<6>>) {
 ///     cmd::say("Low health!");
 /// }
@@ -3004,7 +3004,7 @@ impl<const HALF_HEARTS: i32> SandEvent for PlayerRecoveredHealthEvent<HALF_HEART
 // by a per-effect Sand-owned `minecraft:entity_properties` predicate
 // (`{"effects": {"<id>": {}}}`) — the same detection family already used for
 // `flags.*` state (sneaking/sprinting/on-fire), just keyed on active effects
-// instead of entity flags. Only effects with a registered `#[event]`
+// instead of entity flags. Only effects with a registered `#[on_event]`
 // handler generate a predicate + tracker; the other markers cost nothing.
 
 /// Implemented by zero-sized status-effect marker types (e.g. [`Speed`]) so
@@ -3147,9 +3147,9 @@ status_effect_marker!(
 /// ```rust,ignore
 /// use sand_core::events::{EffectStarted, Speed};
 /// use sand_core::prelude::*;
-/// use sand_macros::event;
+/// use sand_macros::on_event;
 ///
-/// #[event]
+/// #[on_event]
 /// pub fn on_speed_start(event: Event<EffectStarted<Speed>>) {
 ///     cmd::say("Speed boost!");
 /// }

@@ -11,13 +11,13 @@ use sand_core::{
     DimensionId, EntityPredicate, EntityPredicateTarget, EntityTypeId, IntRange, LocationPredicate,
     Predicate, PredicateId, PredicateRoot, RawJson, WeatherPredicate,
 };
-use sand_macros::component;
+use sand_macros::datapack_component;
 
 // ── Entity predicate reused by `execute if predicate` ────────────────────────
 // Matches a baby zombie — see chapter 8 (commands-and-execution) for how to
 // gate a command on `execute if predicate my_pack:is_baby_zombie run ...`.
 
-#[component]
+#[datapack_component]
 pub fn is_baby_zombie() -> Predicate {
     Predicate::new(
         "my_pack:is_baby_zombie".parse().unwrap(),
@@ -33,7 +33,7 @@ pub fn is_baby_zombie() -> Predicate {
 // Composed with `any_of`: matches if the player is in the nether, it's
 // currently thundering, or it's nighttime.
 
-#[component]
+#[datapack_component]
 pub fn dangerous_moment() -> Predicate {
     Predicate::any_of(
         "my_pack:dangerous_moment".parse().unwrap(),
@@ -50,7 +50,7 @@ pub fn dangerous_moment() -> Predicate {
 // ── Reference to another predicate file ───────────────────────────────────────
 // `minecraft:reference` points at another standalone predicate by ID.
 
-#[component]
+#[datapack_component]
 pub fn references_dangerous_moment() -> Predicate {
     Predicate::new(
         "my_pack:gated_by_danger".parse().unwrap(),
@@ -64,7 +64,7 @@ pub fn references_dangerous_moment() -> Predicate {
 // Use `PredicateRoot::raw` for condition types Sand does not yet model —
 // e.g. a modded condition type, or a vanilla shape added after this release.
 
-#[component]
+#[datapack_component]
 pub fn modded_condition() -> Predicate {
     Predicate::new(
         "my_pack:modded_condition".parse().unwrap(),

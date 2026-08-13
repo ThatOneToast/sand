@@ -14,13 +14,13 @@ fn facade_hello() {
     );
 }
 
-#[component]
+#[datapack_component]
 fn facade_advancement() -> Advancement {
     Advancement::new("facade_ns:facade_root".parse().unwrap())
         .criterion("tick", Criterion::new(AdvancementTrigger::Tick))
 }
 
-#[event]
+#[on_event]
 fn facade_join(event: Event<sand::events::OnJoinEvent>) {
     let _ = event;
     cmd::call(facade_hello);
@@ -32,7 +32,7 @@ fn facade_join(event: Event<sand::events::OnJoinEvent>) {
 // `sand::participant` module for typed handles/plan declaration. Accessors
 // return the typed participant directly, not a `ParticipantAvailability`
 // wrapper (#273).
-#[event]
+#[on_event]
 fn facade_on_hurt(event: Event<sand::event::vanilla::EntityDamagesPlayer>) {
     let attacker: sand::participant::EntityParticipant = event.attacker();
     cmd::raw(format!(
@@ -41,7 +41,7 @@ fn facade_on_hurt(event: Event<sand::event::vanilla::EntityDamagesPlayer>) {
     ));
 }
 
-#[event]
+#[on_event]
 fn facade_on_hurt_entity(event: Event<sand::event::vanilla::PlayerDamagesEntity>) {
     let weapon: sand::item::ItemSnapshot = event.weapon();
     cmd::raw(format!(

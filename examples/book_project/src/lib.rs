@@ -53,7 +53,7 @@ static GRAPPLE_RANGE: StorageVar<i32> = StorageVar::new("trail:data", "config.gr
 
 // ANCHOR: load
 /// Runs once on `/reload` and world load: define objectives, seed storage.
-#[component(Load)]
+#[datapack_component(Load)]
 pub fn load() {
     STAMINA.define();
     GRAPPLE.define();
@@ -71,7 +71,7 @@ pub fn load() {
 
 // ANCHOR: tick
 /// Runs every tick: advance timers, regenerate stamina, drive the actionbar.
-#[component(Tick)]
+#[datapack_component(Tick)]
 pub fn tick() {
     GRAPPLE.tick_all_players();
     REGEN.tick_all_players();
@@ -120,9 +120,9 @@ pub fn tick() {
 // ── Items ─────────────────────────────────────────────────────────────────────
 
 // ANCHOR: item_grapple_core
-/// The craftable upgrade material. `#[item]` generates a `GrappleCore` struct
+/// The craftable upgrade material. `#[custom_item]` generates a `GrappleCore` struct
 /// with a `PREDICATE` for `execute if items` checks.
-#[item]
+#[custom_item]
 pub fn grapple_core() -> CustomItem {
     CustomItem::new("minecraft:heart_of_the_sea")
         .custom_data("grapple_core")
@@ -163,7 +163,7 @@ pub fn trail_striders() -> CustomItem {
 
 // ANCHOR: recipe
 /// Shaped recipe for the Grapple Core: string frame around an ender pearl.
-#[component]
+#[datapack_component]
 pub fn grapple_core_recipe() -> ShapedRecipe {
     ShapedRecipe::new("trail:grapple_core".parse().unwrap())
         .pattern(["SSS", "SES", "SSS"])
@@ -283,7 +283,7 @@ fn grapple_vfx() -> Vfx {
 
 // ANCHOR: dialog
 /// The trailhead menu: one button per pack action.
-#[component]
+#[datapack_component]
 pub fn trailhead_dialog() -> Dialog {
     Dialog::multi_action_local("trailhead")
         .title(Text::new("Trailforge").gold())
@@ -351,7 +351,7 @@ impl SandEvent for SprintingWhileExhaustedEvent {
 
 // ANCHOR: event_on_first_join
 /// First-ever join: seed stamina and greet the player.
-#[event]
+#[on_event]
 pub fn on_first_join(event: FirstJoin) {
     STAMINA.set(event.player(), 100);
     Title::of(event.player())
@@ -363,7 +363,7 @@ pub fn on_first_join(event: FirstJoin) {
 
 // ANCHOR: event_on_death
 /// Death resets the traversal state so respawned players start steady.
-#[event]
+#[on_event]
 pub fn on_death(event: OnDeath) {
     EXHAUSTED.disable(Selector::self_());
     GRAPPLE.stop(Selector::self_());
@@ -373,7 +373,7 @@ pub fn on_death(event: OnDeath) {
 
 // ANCHOR: event_on_obtained_grapple_core
 /// A Grapple Core arrives: point the player at the upgrade.
-#[event]
+#[on_event]
 pub fn on_obtained_grapple_core(event: Event<ObtainedGrappleCoreEvent>) {
     cmd::tellraw(
         event.player(),
@@ -385,7 +385,7 @@ pub fn on_obtained_grapple_core(event: Event<ObtainedGrappleCoreEvent>) {
 
 // ANCHOR: event_on_stamina_exhausted
 /// Stamina hit zero: mark the player exhausted.
-#[event]
+#[on_event]
 pub fn on_stamina_exhausted(_event: StaminaExhaustedEvent) {
     EXHAUSTED.enable("@s");
     cmd::tellraw(
@@ -397,7 +397,7 @@ pub fn on_stamina_exhausted(_event: StaminaExhaustedEvent) {
 
 // ANCHOR: event_on_sprint_while_exhausted
 /// Sprinting while exhausted is punished with brief slowness.
-#[event]
+#[on_event]
 pub fn on_sprint_while_exhausted(_event: SprintingWhileExhaustedEvent) {
     cmd::effect_give(Selector::self_(), EffectId::Slowness)
         .duration(Ticks::seconds(2))

@@ -32,17 +32,17 @@ advancement/function combo rather than expecting the recipe itself to carry
 full item component data — see
 [Vanilla Limitations](reference/vanilla-limitations.md).
 
-## `#[component]` vs `#[item]` vs `#[function]`
+## `#[datapack_component]` vs `#[custom_item]` vs `#[function]`
 
-Notice `grapple_core_recipe` uses the bare `#[component]` attribute, the
+Notice `grapple_core_recipe` uses the bare `#[datapack_component]` attribute, the
 same one `load` and `tick` use with an explicit `(Load)`/`(Tick)` kind.
-`#[component]` is Sand's general "export this as a datapack component"
+`#[datapack_component]` is Sand's general "export this as a datapack component"
 macro; recipes, advancements, loot tables, and predicates all register this
 way, distinguished by their return type (`ShapedRecipe` here) rather than by
-a different macro. Items use the more specific `#[item]` (chapter 5, when
+a different macro. Items use the more specific `#[custom_item]` (chapter 5, when
 you need the generated predicate) or no macro at all (a plain builder
 function called where needed, like `trail_striders`). Functions use
 `#[function]`. Keeping these three macros distinct — rather than one
 do-everything macro — is what lets each one specialize its generated code:
-`#[item]` generates a predicate struct; `#[function]` registers a callable
+`#[custom_item]` generates a predicate struct; `#[function]` registers a callable
 `ResourceLocation` target usable from `cmd::call` and `cmd::function`.

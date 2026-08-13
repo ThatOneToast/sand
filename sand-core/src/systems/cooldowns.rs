@@ -2,7 +2,7 @@
 //!
 //! Register cooldowns here so the export pipeline can generate a single
 //! tick-tag entry that decrements all of them, rather than requiring each
-//! `#[component(Tick)]` function to manually list them.
+//! `#[datapack_component(Tick)]` function to manually list them.
 //!
 //! # Usage
 //!

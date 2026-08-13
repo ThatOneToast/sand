@@ -61,7 +61,7 @@ Every chapter's Rust snippet in this book starts the same way:
 
 `sand::prelude::*` is the default authoring import — it covers the common
 vocabulary of ordinary datapack development: the attribute macros
-(`#[component]`, `#[event]`, `#[function]`, `#[item]`, …), typed commands
+(`#[datapack_component]`, `#[on_event]`, `#[function]`, `#[custom_item]`, …), typed commands
 and selectors, conditions, state (scores, flags, timers, cooldowns,
 storage), entities, the event context types, components, dialogs, and text.
 

@@ -6,7 +6,7 @@ standalone crates; scaffold a project and paste the relevant code into
 
 ## Typed Beginner Path
 
-- `basic_typed.rs` — typed function, load, and tick basics with `ScoreVar`, `#[component(Load)]`, `#[component(Tick)]`.
+- `basic_typed.rs` — typed function, load, and tick basics with `ScoreVar`, `#[datapack_component(Load)]`, `#[datapack_component(Tick)]`.
 - `state_and_conditions.rs` — scoreboard state, flags, cooldowns, and nested `all!`/`any!` conditions.
 - `gameplay_state.rs` — boss encounter using enum-backed `StateFlow` hooks with a typed bossbar, title/actionbar, particle geometry, sound, and status effect. See the [player state and storage chapter](../book/src/07-state-and-storage.md) and [validated command-media chapter](../book/src/19-validated-command-media.md).
 - `dialogs.rs` — typed dialog component with a typed function command action.

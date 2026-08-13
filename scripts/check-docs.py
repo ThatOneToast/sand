@@ -32,15 +32,15 @@ EVENT_RUSTDOC_FILES = (
 MARKDOWN_LINK = re.compile(r"(?<!!)\[[^\]]+\]\(([^)]+)\)")
 REFERENCE_LINK = re.compile(r"^\s*\[[^\]]+\]:\s+(\S+)", re.MULTILINE)
 LEGACY_POSITIONAL_EVENT = re.compile(
-    r"#\s*\[\s*event\s*\(\s*"
+    r"#\s*\[\s*on_event\s*\(\s*"
     r"(?![A-Za-z_][A-Za-z0-9_]*\s*=)"
     r"[A-Za-z_][A-Za-z0-9_:]*(?:\s*\{|\s*[,\)])"
 )
 EVENT_REVOKE_ATTRIBUTE = re.compile(
-    r"#\s*\[\s*event\s*\([^\]]*\brevoke\s*=", re.DOTALL
+    r"#\s*\[\s*on_event\s*\([^\]]*\brevoke\s*=", re.DOTALL
 )
 ZERO_PARAMETER_EVENT_HANDLER = re.compile(
-    r"#\s*\[\s*event(?:\s*\([^\]]*\))?\s*\]\s*"
+    r"#\s*\[\s*on_event(?:\s*\([^\]]*\))?\s*\]\s*"
     r"(?:#\s*\[[^\]]+\]\s*)*"
     r"(?:pub(?:\s*\([^)]*\))?\s+)?"
     r"(?:(?:async|const|unsafe)\s+|extern(?:\s+\"[^\"]*\")?\s+)*"
@@ -84,7 +84,7 @@ def check_stale_event_syntax(path: Path, text: str) -> list[str]:
     normalized = normalize_event_docs(path, text)
     failures: list[str] = []
     checks = (
-        (LEGACY_POSITIONAL_EVENT, "legacy positional #[event(...)] syntax"),
+        (LEGACY_POSITIONAL_EVENT, "legacy positional #[on_event(...)] syntax"),
         (EVENT_REVOKE_ATTRIBUTE, "removed revoke attribute syntax"),
         (ZERO_PARAMETER_EVENT_HANDLER, "zero-parameter event handler"),
     )
@@ -101,18 +101,18 @@ def check_stale_event_syntax(path: Path, text: str) -> list[str]:
 def check_event_guard_regressions() -> list[str]:
     """Keep the guard's accepted/rejected boundary executable in CI."""
     stale_cases = (
-        "#[event(Join)]\nfn joined(event: Event<Join>) {}",
-        "#[event(events::Join)]\nfn joined(event: Event<Join>) {}",
-        "#[event(join)]\nfn joined(event: Event<Join>) {}",
-        "#[event(Death, revoke = true)]\nfn died(event: Event<Death>) {}",
-        "#[event(Custom { trigger = \"minecraft:tick\" })]\nfn custom(event: Event<C>) {}",
-        "#[event]\nfn missing_context() {}",
-        "#[event]\n#[allow(dead_code)]\nasync fn missing_context() {}",
+        "#[on_event(Join)]\nfn joined(event: Event<Join>) {}",
+        "#[on_event(events::Join)]\nfn joined(event: Event<Join>) {}",
+        "#[on_event(join)]\nfn joined(event: Event<Join>) {}",
+        "#[on_event(Death, revoke = true)]\nfn died(event: Event<Death>) {}",
+        "#[on_event(Custom { trigger = \"minecraft:tick\" })]\nfn custom(event: Event<C>) {}",
+        "#[on_event]\nfn missing_context() {}",
+        "#[on_event]\n#[allow(dead_code)]\nasync fn missing_context() {}",
     )
     valid_cases = (
-        "#[event]\nfn used(event: Event<Used>) {}",
-        "#[event(slot = Head, item = \"minecraft:helmet\")]\nfn equipped(event: ArmorEquipEvent) {}",
-        "#[event(id = \"pack:path\")]\nfn explicit(event: Event<Used>) {}",
+        "#[on_event]\nfn used(event: Event<Used>) {}",
+        "#[on_event(slot = Head, item = \"minecraft:helmet\")]\nfn equipped(event: ArmorEquipEvent) {}",
+        "#[on_event(id = \"pack:path\")]\nfn explicit(event: Event<Used>) {}",
     )
     failures: list[str] = []
     synthetic = ROOT / "docs/_event-guard-check.md"

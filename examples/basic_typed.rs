@@ -1,17 +1,17 @@
 //! Basic typed Sand functions.
 
 use sand_core::prelude::*;
-use sand_macros::{component, function};
+use sand_macros::{datapack_component, function};
 
 static TICK_COUNT: ScoreVar<i32> = ScoreVar::new("tick_count");
 
-#[component(Load)]
+#[datapack_component(Load)]
 pub fn load() {
     TICK_COUNT.define();
     cmd::tellraw(Selector::all_players(), Text::new("Datapack loaded").green());
 }
 
-#[component(Tick)]
+#[datapack_component(Tick)]
 pub fn tick() {
     TICK_COUNT.add(Selector::all_players(), 1);
 }

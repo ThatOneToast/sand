@@ -2,7 +2,7 @@
 //! Phase 6): supported forms (provider-only, shared by multiple children,
 //! combined with `while_`/`when`/`unless`) and explicitly rejected forms
 //! (`after_any`/`after_all`, combined with a second occurrence clause,
-//! combined with `.within(...)`, combined with a direct `#[event]` handler).
+//! combined with `.within(...)`, combined with a direct `#[on_event]` handler).
 
 use sand_commands::Selector;
 use sand_core::condition::Condition;

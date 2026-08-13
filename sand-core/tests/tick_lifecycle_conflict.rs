@@ -1,4 +1,4 @@
-//! Integration coverage: two `#[event]`-style handlers that claim to
+//! Integration coverage: two `#[on_event]`-style handlers that claim to
 //! subscribe to the same concrete `SandEvent` type must not silently group
 //! together when their `dispatch()`/`setup()` results actually differ.
 //!

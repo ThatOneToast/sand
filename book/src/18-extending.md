@@ -58,12 +58,12 @@ introduced:
    configuration/structured data).
 2. **Define it in `load`**, idempotently (chapter 3).
 3. **Wire the behavior** as a `#[function]` (imperative, callable), a
-   `#[component(Tick)]` guard (continuous, re-evaluated every tick), or a
-   `#[event]` handler (reactive, fires once per occurrence) — chapters 8,
+   `#[datapack_component(Tick)]` guard (continuous, re-evaluated every tick), or a
+   `#[on_event]` handler (reactive, fires once per occurrence) — chapters 8,
    3, and 9 respectively cover when each is the right choice.
 
 If the new feature needs a custom item, decide whether it needs a
-generated predicate (`#[item]`, chapter 5) or is only ever granted, never
+generated predicate (`#[custom_item]`, chapter 5) or is only ever granted, never
 matched against (a plain builder function). If it needs to be craftable,
 add a `ShapedRecipe` (chapter 6) referencing the item by its base ID. If it
 needs passive, always-on-while-equipped behavior, reach for an

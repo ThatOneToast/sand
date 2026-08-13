@@ -8,7 +8,7 @@ use sand_core::events::{
     EventSetup, SameCycleEventRequirement, SandEvent, SandEventDispatch,
 };
 use sand_core::prelude::*;
-use sand_macros::event;
+use sand_macros::on_event;
 use std::marker::PhantomData;
 
 static JUMPS: ScoreVar<i32> = ScoreVar::new("cdt_jumps");
@@ -50,12 +50,12 @@ impl SandEvent for JumpedOnElevator {
     }
 }
 
-#[event]
+#[on_event]
 pub fn on_player_jump(event: PlayerJumpEvent) {
     cmd::say("jumped!");
 }
 
-#[event]
+#[on_event]
 pub fn on_jumped_on_elevator(event: JumpedOnElevator) {
     cmd::say("jumped on elevator!");
 }
@@ -103,12 +103,12 @@ impl SandEvent for ElevatorGoingDown {
     }
 }
 
-#[event]
+#[on_event]
 pub fn on_elevator_up(event: ElevatorGoingUp) {
     cmd::say("going up");
 }
 
-#[event]
+#[on_event]
 pub fn on_elevator_down(event: ElevatorGoingDown) {
     cmd::say("going down");
 }

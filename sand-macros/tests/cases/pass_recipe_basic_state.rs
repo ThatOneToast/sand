@@ -1,13 +1,13 @@
 // Canonical recipe: ScoreVar + Cooldown + Flag wired through
-// #[component(Load)], #[component(Tick)], and #[function].
+// #[datapack_component(Load)], #[datapack_component(Tick)], and #[function].
 use sand_core::prelude::*;
-use sand_macros::{component, function};
+use sand_macros::{datapack_component, function};
 
 static MANA: ScoreVar<i32> = ScoreVar::new("mana");
 static CAST_CD: Cooldown = Cooldown::new("cast_cd", Ticks::seconds(3));
 static SILENCED: Flag = Flag::new("silenced");
 
-#[component(Load)]
+#[datapack_component(Load)]
 pub fn load() {
     MANA.define();
     CAST_CD.define();
@@ -16,7 +16,7 @@ pub fn load() {
     SILENCED.disable(Selector::all_players());
 }
 
-#[component(Tick)]
+#[datapack_component(Tick)]
 pub fn tick() {
     CAST_CD.tick(Selector::all_players());
 }

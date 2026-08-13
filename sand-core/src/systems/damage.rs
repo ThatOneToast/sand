@@ -31,12 +31,12 @@
 //! # Setup
 //!
 //! ```rust,ignore
-//! #[component(Load)]
+//! #[datapack_component(Load)]
 //! fn load() {
 //!     DamageTracker::define();
 //! }
 //!
-//! #[component(Tick)]
+//! #[datapack_component(Tick)]
 //! fn tick() {
 //!     DamageTracker::tick_players();
 //! }
@@ -181,7 +181,7 @@ pub struct DamageTracker;
 impl DamageTracker {
     /// Define all five required scoreboard objectives.
     ///
-    /// Call once in a `#[component(Load)]` function.
+    /// Call once in a `#[datapack_component(Load)]` function.
     pub fn define() -> Vec<String> {
         vec![
             format!(

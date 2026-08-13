@@ -27,11 +27,11 @@
 //! # Usage
 //!
 //! This crate is used alongside [`sand_macros`](https://docs.rs/sand-macros)
-//! for the `#[function]` and `#[component]` proc macros:
+//! for the `#[function]` and `#[datapack_component]` proc macros:
 //!
 //! ```rust,ignore
 //! use sand_core::prelude::*;
-//! use sand_macros::{component, function};
+//! use sand_macros::{datapack_component, function};
 //!
 //! #[function]
 //! pub fn greet() {
@@ -41,7 +41,7 @@
 //!     );
 //! }
 //!
-//! #[component(Load)]
+//! #[datapack_component(Load)]
 //! pub fn on_load() {
 //!     cmd::say("Datapack loaded");
 //! }

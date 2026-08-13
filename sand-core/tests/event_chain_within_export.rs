@@ -376,7 +376,7 @@ fn provider_only_bounded_parent_is_subscribed() {
             })
             .count(),
         1,
-        "ProviderOnlyPrior has no direct #[event] handler but must still get a detector because a `.within` reads its occurrence"
+        "ProviderOnlyPrior has no direct #[on_event] handler but must still get a detector because a `.within` reads its occurrence"
     );
     let objective = format!("scoreboard objectives add se_{provider_key}_wa dummy");
     assert!(

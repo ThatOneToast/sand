@@ -1,9 +1,9 @@
 use sand_core::prelude::*;
-use sand_macros::{component, function};
+use sand_macros::{datapack_component, function};
 
 static MANA: ScoreVar<i32> = ScoreVar::new("mana");
 
-#[component(Load)]
+#[datapack_component(Load)]
 pub fn load() {
     MANA.define();
 }

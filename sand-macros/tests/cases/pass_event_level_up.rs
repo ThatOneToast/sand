@@ -1,16 +1,16 @@
 use sand_core::event::vanilla::PlayerLevelsUp;
 use sand_core::events::PlayerLevelUpEvent;
 use sand_core::prelude::*;
-use sand_macros::event;
+use sand_macros::on_event;
 
 static MANA: ScoreVar<i32> = ScoreVar::new("mana");
 
-#[event]
+#[on_event]
 pub fn on_level_up(event: Event<PlayerLevelUpEvent>) {
     MANA.add(event.player(), 10);
 }
 
-#[event]
+#[on_event]
 pub fn on_levels_up_alias(event: Event<PlayerLevelsUp>) {
     MANA.add(event.player(), 5);
 }

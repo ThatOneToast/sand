@@ -247,6 +247,12 @@ fn main() {
         "generated-item-macro".to_owned(),
         "generated-state-derive".to_owned(),
         "generated-storage-derive".to_owned(),
+        "generated-function-macro".to_owned(),
+        "generated-component-macro".to_owned(),
+        "generated-event-macro".to_owned(),
+        "generated-armor-event-macro".to_owned(),
+        "generated-schedule-macro".to_owned(),
+        "generated-entity-state-enum-derive".to_owned(),
     ]);
     let report = manifest
         .evaluate_with_provider_audits(

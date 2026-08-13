@@ -22,6 +22,42 @@ pub enum MacroProviderError {
     MissingGeneratedVariants,
     MissingGeneratedEvents,
     UnsupportedGeneratedShape(String),
+    MissingConsumerInvocation(String),
+}
+
+/// Audit a real downstream use of a Sand macro whose expansion deliberately
+/// preserves the annotated public declaration's shape.
+///
+/// `function`, `datapack_component`, `on_event`, `armor_event`, and
+/// `schedule` only add private descriptor factories and inventory wiring; the
+/// author's function remains the sole supported Rust identity. Likewise,
+/// `EntityStateEnum` adds a trait implementation only. This audit refuses an
+/// empty fixture, preventing a consumer-build scope from being promoted merely
+/// because it happens to have no finite checked-in declarations.
+pub fn shape_preserving_consumer_provider(
+    path: &Path,
+    macro_name: &str,
+) -> Result<(), MacroProviderError> {
+    let source = fs::read_to_string(path)
+        .map_err(|error| MacroProviderError::Io(format!("{}: {error}", path.display())))?;
+    let file = syn::parse_file(&source)
+        .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
+    let found = file.items.iter().any(|item| match item {
+        syn::Item::Fn(function) => {
+            is_public(&function.vis) && has_attribute_named(&function.attrs, macro_name)
+        }
+        syn::Item::Enum(enumeration) if macro_name == "EntityStateEnum" => {
+            is_public(&enumeration.vis) && derives_named(&enumeration.attrs, macro_name)
+        }
+        _ => false,
+    });
+    if found {
+        Ok(())
+    } else {
+        Err(MacroProviderError::MissingConsumerInvocation(
+            macro_name.to_owned(),
+        ))
+    }
 }
 
 /// Prove that a local `macro_rules!` transcriber cannot add an API identity.
@@ -208,6 +244,9 @@ impl fmt::Display for MacroProviderError {
             Self::MissingGeneratedEvents => formatter.write_str(
                 "gamemode_transition! and status_effect_marker! have no generated event types",
             ),
+            Self::MissingConsumerInvocation(name) => {
+                write!(formatter, "consumer fixture does not exercise #[{name}]")
+            }
             Self::UnsupportedGeneratedShape(message) => formatter.write_str(message),
         }
     }

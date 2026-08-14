@@ -616,6 +616,7 @@ impl ApiScope {
             within(path, &self.canonical_module)
         } else {
             direct_child(path, &self.canonical_module)
+                || self.canonical_module == "sand" && direct_root_item_member(path)
         }
     }
 }
@@ -721,6 +722,22 @@ fn direct_child(path: &str, scope: &str) -> bool {
     path.strip_prefix(scope)
         .and_then(|rest| rest.strip_prefix("::"))
         .is_some_and(|rest| !rest.is_empty() && !rest.contains("::"))
+}
+
+// The root facade is intentionally non-recursive so module-owned APIs remain
+// in their topic scopes. Associated items of a type exported directly at the
+// root still belong to that root type, however. Rust type names are uppercase,
+// which cleanly distinguishes `sand::RootType::member` from
+// `sand::module::item` without maintaining an item exemption list.
+fn direct_root_item_member(path: &str) -> bool {
+    let Some(rest) = path.strip_prefix("sand::") else {
+        return false;
+    };
+    let mut segments = rest.split("::");
+    let Some(root_item) = segments.next() else {
+        return false;
+    };
+    root_item.chars().next().is_some_and(char::is_uppercase) && segments.next().is_some()
 }
 
 fn overlaps(left: &str, right: &str) -> bool {

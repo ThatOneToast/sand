@@ -330,8 +330,23 @@ pub mod participant {
 /// annotated `#[datapack_component]` (e.g. `examples/book_project`'s
 /// `trailhead_dialog()`, which returns `Dialog`) are exported as generated
 /// JSON resources. Most individual builder types (`Advancement`,
-/// `LootTable`, `Dialog`, …) are already re-exported from the [`prelude`].
-pub use sand_core::components as component;
+/// `LootTable`, `Dialog`, …) are also re-exported from the [`prelude`].
+pub mod component {
+    pub use sand_components::dialog::{
+        Dialog, DialogAction, DialogBody, DialogButton, DialogKind, DialogTag,
+    };
+    pub use sand_components::{
+        BannerPattern, CarverFloatRange, CarvingStep, CaveCarverConfig, ChatDecoration,
+        ChatDecorationParameter, ChatStyle, ChatType, ConfiguredCarver, ConfiguredFeature,
+        CustomData, DensityFunction, DensityFunctionBinaryOp, DensityFunctionExpr,
+        DensityFunctionUnaryOp, Dimension, DimensionType, EnchantmentEntry, IntoItemStack,
+        ItemComponent, ItemStackComponents, MonsterSpawnLightLevel, Noise, OreConfig, OreTarget,
+        PlacedFeature, PotionContents, RawComponent, RawJson, RawSnbt, RuleTest,
+        StatusEffectInstance, StructureTemplate, SuspiciousStewEffect, TagEntry, TagRegistry,
+        TypedTag,
+    };
+    pub use sand_core::components::*;
+}
 
 /// Typed conditions used by `execute`, event guards, and grouped branches.
 /// [`condition::Condition`] is an opaque expression tree: construct it through

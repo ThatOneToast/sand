@@ -405,9 +405,9 @@ impl From<PotionRegistryId> for PotionId {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StatusEffectInstance {
     pub effect: EffectId,
-    pub duration: Option<Ticks>,
-    pub amplifier: u8,
-    pub ambient: bool,
+    pub(crate) duration: Option<Ticks>,
+    pub(crate) amplifier: u8,
+    pub(crate) ambient: bool,
     pub show_particles: bool,
     pub show_icon: bool,
 }
@@ -507,9 +507,9 @@ impl Serialize for StatusEffectInstance {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 pub struct PotionContents {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub potion: Option<PotionId>,
+    pub(crate) potion: Option<PotionId>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub custom_color: Option<u32>,
+    pub(crate) custom_color: Option<u32>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub custom_effects: Vec<StatusEffectInstance>,
 }

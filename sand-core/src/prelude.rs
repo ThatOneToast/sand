@@ -57,7 +57,7 @@ pub use crate::systems::damage::{DamageThreshold, DamageTracker, recently_damage
 #[cfg(feature = "systems-player-data")]
 pub use crate::systems::player_data::{
     CooldownField, CooldownFieldRef, FlagField, GameStateField, GlobalStorageField,
-    PlayerDataSchema, PlayerSchema, ScoreField, TimerField, TimerFieldRef,
+    PlayerDataSchema, ScoreField, TimerField, TimerFieldRef,
 };
 
 // ── Version gating ────────────────────────────────────────────────────────────
@@ -159,8 +159,8 @@ pub use sand_components::{ChatDecoration, ChatDecorationParameter, ChatStyle, Ch
 
 pub use sand_components::{
     Advancement, AdvancementDisplay, AdvancementFrame, AdvancementIcon, AdvancementRewards,
-    AdvancementTrigger, AttributeId, AttributeModifier, AttributeOperation, AttributeType,
-    BannerPattern, BiomeSelector, BlockPredicate, CarverFloatRange, CarvingStep, CaveCarverConfig,
+    AdvancementTrigger, AttributeModifier, AttributeOperation, AttributeType, BannerPattern,
+    BiomeSelector, BlockPredicate, CarverFloatRange, CarvingStep, CaveCarverConfig,
     ConfiguredCarver, ConfiguredFeature, ConsumableAnimation, ConsumableProperties, Criterion,
     CustomData, CustomItem, DamagePredicate, DamageSourcePredicate, DensityFunction,
     DensityFunctionBinaryOp, DensityFunctionExpr, DensityFunctionUnaryOp, Dimension, DimensionType,
@@ -174,7 +174,7 @@ pub use sand_components::{
     LootEntry, LootFunction, LootPool, LootTable, LootTableType, MobCategory,
     MonsterSpawnLightLevel, Noise, OreConfig, OreTarget, PlacedFeature, PoolElement, PoolEntry,
     Predicate, PredicateRoot, Processor, ProcessorList, ProcessorRule, ProcessorsRef, Projection,
-    Rarity, RecipeResult, RuleTest, ShapedRecipe, ShapelessRecipe, SmithingTransformRecipe,
+    RecipeResult, RuleTest, ShapedRecipe, ShapelessRecipe, SmithingTransformRecipe,
     SmithingTrimRecipe, SpawnBoundingBox, SpawnEntry, SpawnOverride, SpreadType,
     StonecuttingRecipe, Structure, StructureEntry, StructurePlacement, StructureSet, Tag, TagEntry,
     TagRegistry, TemplatePool, TerrainAdaptation, ToolProperties, ToolRule, TradeItem, TradeSet,

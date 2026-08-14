@@ -14,8 +14,8 @@ fn repository_surface_manifest_records_the_audited_pending_baseline() {
     // version selection.
     assert_eq!(manifest.static_surface_items, 0);
     assert_eq!(manifest.pending_item_ceiling, 0);
-    assert_eq!(manifest.pending_scope_ceiling, 1);
-    assert_eq!(manifest.scopes.len(), 39);
+    assert_eq!(manifest.pending_scope_ceiling, 0);
+    assert_eq!(manifest.scopes.len(), 38);
     assert!(
         manifest
             .scopes
@@ -73,7 +73,7 @@ fn repository_surface_manifest_records_the_audited_pending_baseline() {
         manifest
             .scopes
             .iter()
-            .any(|scope| scope.id == "prelude-unassigned-source")
+            .all(|scope| scope.state == ScopeState::Enforced)
     );
 
     let profiles = SurfaceProfileManifest::from_path(
@@ -97,17 +97,17 @@ fn repository_surface_manifest_records_the_audited_pending_baseline() {
         [
             (
                 "placeholder-codegen",
-                4_816,
-                408,
+                4_808,
+                0,
                 "api-surface-baseline-placeholder.txt".to_owned(),
             ),
             (
                 "1.21.4",
-                10_006,
-                408,
+                9_998,
+                0,
                 "api-surface-baseline-1.21.4.txt".to_owned(),
             ),
-            ("26.2", 10_916, 408, "api-surface-baseline.txt".to_owned(),),
+            ("26.2", 10_908, 0, "api-surface-baseline.txt".to_owned(),),
         ]
     );
 }

@@ -40,7 +40,6 @@
 
 pub mod archetype;
 pub mod context;
-pub mod coverage;
 pub mod curve;
 pub mod diagnostic;
 pub mod kind;
@@ -56,11 +55,6 @@ pub use archetype::{
     SpecialEntityPolicy, ThresholdDirection,
 };
 pub use context::{EntityContext, EntityScope, PlayerContext, ScopedEntityRef};
-pub use coverage::{
-    ENTITY_RUNTIME_COVERAGE, EntityCapabilityCoverage, EntityCapabilityStatus, EntityCoverageOwner,
-    EntityPlayerSafety, EntityProfileSupport, EntityPropertyFamily, EntityRuntimeOperation,
-    entity_runtime_capability, entity_runtime_coverage, entity_runtime_family,
-};
 pub use curve::{
     CurveEvaluationError, CurveInputs, DEFAULT_FIXED_POINT_SCALE, DependencyGraph, DirtyPlan,
     FixedPoint, FixedValue, LoweredCurve, LoweredCurveOperation, LoweringStrategy, OverflowPolicy,

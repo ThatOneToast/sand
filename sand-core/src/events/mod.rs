@@ -3431,6 +3431,24 @@ mod tests {
         assert!(!super::BUILTIN_EVENT_NAMES.is_empty());
     }
 
+    #[test]
+    fn all_builtin_events_are_covered_in_the_reference_matrix() {
+        let matrix_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../book/src/reference/event-trigger-matrix.md");
+        let matrix = std::fs::read_to_string(&matrix_path)
+            .unwrap_or_else(|err| panic!("failed to read {}: {err}", matrix_path.display()));
+        let missing = super::BUILTIN_EVENT_NAMES
+            .iter()
+            .copied()
+            .filter(|name| !matrix.contains(name))
+            .collect::<Vec<_>>();
+        assert!(
+            missing.is_empty(),
+            "built-in events missing from {}: {missing:?}",
+            matrix_path.display()
+        );
+    }
+
     // ── TickEventDispatch / EventSetup lifecycle ──────────────────────────────
 
     #[test]

@@ -545,14 +545,12 @@ mod tests {
         for generated_symbol in [
             "pub struct Say",
             "pub fn say(",
-            "pub struct Tellraw",
-            "pub fn tellraw(",
-            "pub struct Give",
-            "pub fn give(",
-            "pub struct Function",
-            "pub fn function(",
             "pub struct Damage",
             "pub fn damage(",
+            "pub struct Summon",
+            "pub fn summon(",
+            "pub struct Teleport",
+            "pub fn teleport(",
         ] {
             assert!(
                 GENERATED_COMMANDS.contains(generated_symbol),
@@ -576,7 +574,7 @@ mod tests {
             })
             .count();
         assert_eq!(command_entries.len(), command_rust_items);
-        assert_eq!(command_entries.len(), 1_255);
+        assert_eq!(command_entries.len(), 1_233);
 
         assert_eq!(registry_entries.len(), 4_867);
         assert!(registry_entries.iter().any(|entry| {

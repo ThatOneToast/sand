@@ -51,7 +51,8 @@ fn shared_registry_ids_and_compatibility_enums_share_the_public_api() {
         .effect(StatusEffectInstance::new(
             StatusEffectId::minecraft("speed").unwrap(),
         ));
-    assert_eq!(contents.potion.unwrap().to_string(), "minecraft:swiftness");
+    let rendered = serde_json::to_value(&contents).unwrap();
+    assert_eq!(rendered["potion"], "minecraft:swiftness");
     assert_eq!(
         contents.custom_effects[0].effect.to_string(),
         "minecraft:speed"

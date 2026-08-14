@@ -4,8 +4,8 @@
 # are discovered through the reachable re-export graph. Generator scopes are
 # supplied from the same declaration/schema that emits their Rust API.
 schema_version = 1
-enforced_scope_baseline = ["predicate-source", "generated-predicate-id-wrapper", "execute-when-source", "condition-source", "resource-ref-source", "generated-resource-id-wrappers", "version-source", "generated-vanilla-registries", "vfx-source", "advanced-source", "root-source", "generated-effect-registry-enums", "generated-commands", "generated-event-markers", "generated-registry-id-wrappers", "generated-item-macro", "generated-state-derive", "generated-storage-derive", "generated-function-macro", "generated-component-macro", "generated-event-macro", "generated-armor-event-macro", "generated-schedule-macro", "generated-entity-state-enum-derive", "generated-resourcepack-macros", "item-source", "inventory-source", "event-source", "events-source", "entity-source"]
-pending_scope_ceiling = 9
+enforced_scope_baseline = ["predicate-source", "generated-predicate-id-wrapper", "execute-when-source", "condition-source", "resource-ref-source", "generated-resource-id-wrappers", "version-source", "generated-vanilla-registries", "vfx-source", "advanced-source", "root-source", "generated-effect-registry-enums", "generated-commands", "generated-event-markers", "generated-registry-id-wrappers", "generated-item-macro", "generated-state-derive", "generated-storage-derive", "generated-function-macro", "generated-component-macro", "generated-event-macro", "generated-armor-event-macro", "generated-schedule-macro", "generated-entity-state-enum-derive", "generated-resourcepack-macros", "item-source", "inventory-source", "event-source", "events-source", "entity-source", "state-source"]
+pending_scope_ceiling = 8
 
 [[scope]]
 id = "root-source"
@@ -88,7 +88,7 @@ aliases = ["sand::component", "sand::prelude"]
 [[scope]]
 id = "state-source"
 canonical_module = "sand::state"
-state = "pending"
+state = "enforced"
 tier = "ordinary"
 provider = "source"
 aliases = ["sand::prelude"]

@@ -592,6 +592,12 @@ pub mod __private {
         include_str!(concat!(env!("OUT_DIR"), "/registries.api.json")),
         include_str!(concat!(env!("OUT_DIR"), "/registry_ids.api.json")),
     ];
+
+    /// Proc-macro bridge for the built-in sneaking transition source.
+    #[doc(hidden)]
+    pub const fn player_sneaking_tracked_source() -> crate::TrackedSource {
+        crate::events::PLAYER_SNEAKING_TRACKED_SOURCE
+    }
 }
 
 impl From<generated::Item> for sand_components::registry::ItemId {

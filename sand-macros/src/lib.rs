@@ -1214,7 +1214,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                     dispatch: ::sand::__private::EventDispatch::Tracked(
                         ::sand::__private::TrackedTransition::new(
                             "player_sneaking",
-                            ::sand::__private::events::PLAYER_SNEAKING_TRACKED_SOURCE,
+                            ::sand::__private::player_sneaking_tracked_source(),
                             ::sand::__private::TransitionKind::BecameTrue,
                         )
                     ),
@@ -1233,7 +1233,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                     dispatch: ::sand::__private::EventDispatch::Tracked(
                         ::sand::__private::TrackedTransition::new(
                             "player_sneaking",
-                            ::sand::__private::events::PLAYER_SNEAKING_TRACKED_SOURCE,
+                            ::sand::__private::player_sneaking_tracked_source(),
                             ::sand::__private::TransitionKind::BecameFalse,
                         )
                     ),

@@ -200,8 +200,16 @@ pub mod predicate {
 
 /// State implementation primitives and typed storage/NBT schemas. Ordinary
 /// authoring uses [`State`] with `#[state(...)]`; this module remains available
-/// for advanced helpers over low-level score and storage representations.
-pub use sand_core::state;
+/// for deliberate helpers over typed score and storage representations.
+pub mod state {
+    pub use sand_core::state::{
+        BlockNbt, Cooldown, DataCommand, EntityNbt, Flag, FlagRef, FlowTransitionBuilder,
+        GameState, GameStateRef, IntoStateCommands, Nbt, NbtLocation, NbtPath, NbtRef, NbtTarget,
+        ScoreConst, ScoreConstants, ScoreExpr, ScoreOperand, ScoreOperation, ScoreRef, ScoreVar,
+        SnbtCompound, SnbtValue, StateFlow, StateTransitionBuilder, StorageField, StorageLocation,
+        StorageSchema, StorageVar, Ticks, Timer, TypedGameState, UntypedNbt,
+    };
+}
 
 /// Typed entity-bound state, archetypes, curves, native properties, and
 /// execution-scoped entity contexts.
@@ -528,6 +536,11 @@ pub mod __private {
         pub use sand_core::__private::GENERATED_API_PROVIDER_CATALOGS;
         include!(concat!(env!("OUT_DIR"), "/api_coverage.rs"));
     }
+    pub mod entity {
+        pub use sand_core::entity::archetype::{ArchetypeDefinition, EntityArchetypeDescriptor};
+        pub use sand_core::entity::*;
+    }
+    pub use sand_core::__private::player_sneaking_tracked_source;
     pub use sand_core::entity::*;
     pub use sand_core::*;
     pub use sand_core::{cmd, condition, event, events, state};

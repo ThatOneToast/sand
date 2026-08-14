@@ -139,7 +139,7 @@ fn main() {
                 };
                 assert_eq!((parent.event_type_id)(), std::any::TypeId::of::<PlayerJumpEvent>());
                 assert_eq!((parent.event_type_name)(), std::any::type_name::<PlayerJumpEvent>());
-                assert_eq!(chain.when.len(), 1);
+                assert!(chain.combined_condition().is_some());
                 found_jumped_on_elevator = true;
             } else if descriptor.path == "on_elevator_up" {
                 up_id = Some(event_type_id());

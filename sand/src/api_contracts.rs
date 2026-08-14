@@ -162,6 +162,34 @@ macro_rules! register_state_api {
     };
 }
 
+// Participant contracts describe the lifecycle guarantees authors can rely
+// on. Capture storage, generated cleanup functions, and exporter transport
+// validation are deliberately outside this public semantic layer.
+macro_rules! register_participant_api {
+    (
+        path: $path:literal,
+        aliases: [$($alias:literal),* $(,)?],
+        kind: $kind:ident,
+        summary: $summary:literal
+    ) => {
+        register! {
+            path: $path,
+            aliases: [$($alias),*],
+            module: "sand::participant",
+            kind: $kind,
+            signature: "author-facing typed event participant API",
+            summary: $summary,
+            context: "Participants are available only when the event plan declares a real observation or a valid same-cycle inheritance path; the exporter rejects unsupported transport.",
+            minecraft: "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
+            use_when: ["Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan"],
+            avoid_when: ["Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime"],
+            params: [],
+            returns: None,
+            example: "use sand::participant::*;"
+        }
+    };
+}
+
 register! {
     path: "sand::prelude",
     aliases: [],
@@ -1830,3 +1858,151 @@ register_state_api! { path: "sand::state::TypedGameState", aliases: ["sand::prel
 register_state_api! { path: "sand::state::TypedGameState::from_score", aliases: ["sand::prelude::TypedGameState::from_score"], kind: TraitMethod, summary: "Defines how a typed state supplies from score." }
 register_state_api! { path: "sand::state::TypedGameState::to_score", aliases: ["sand::prelude::TypedGameState::to_score"], kind: TraitMethod, summary: "Defines how a typed state supplies to score." }
 // END STATE API CONTRACTS
+register_participant_api! { path: "sand::participant", aliases: [], kind: Module, summary: "Provides typed event participant roles, observation plans, references, and snapshots." }
+register_participant_api! { path: "sand::participant::BoundedItemSnapshot", aliases: ["sand::prelude::BoundedItemSnapshot"], kind: Struct, summary: "Represents bounded item snapshot in Sand event participant transport." }
+register_participant_api! { path: "sand::participant::BoundedItemSnapshot::components_path", aliases: ["sand::prelude::BoundedItemSnapshot::components_path"], kind: Method, summary: "Provides components path for typed event participant handling." }
+register_participant_api! { path: "sand::participant::BoundedItemSnapshot::count_path", aliases: ["sand::prelude::BoundedItemSnapshot::count_path"], kind: Method, summary: "Provides count path for typed event participant handling." }
+register_participant_api! { path: "sand::participant::BoundedItemSnapshot::id_path", aliases: ["sand::prelude::BoundedItemSnapshot::id_path"], kind: Method, summary: "Provides id path for typed event participant handling." }
+register_participant_api! { path: "sand::participant::BoundedItemSnapshot::is_absent", aliases: ["sand::prelude::BoundedItemSnapshot::is_absent"], kind: Method, summary: "Builds or evaluates the is absent participant state." }
+register_participant_api! { path: "sand::participant::BoundedItemSnapshot::is_present", aliases: ["sand::prelude::BoundedItemSnapshot::is_present"], kind: Method, summary: "Builds or evaluates the is present participant state." }
+register_participant_api! { path: "sand::participant::BoundedItemSnapshot::item_path", aliases: ["sand::prelude::BoundedItemSnapshot::item_path"], kind: Method, summary: "Provides item path for typed event participant handling." }
+register_participant_api! { path: "sand::participant::BoundedItemSnapshot::reliability", aliases: ["sand::prelude::BoundedItemSnapshot::reliability"], kind: Method, summary: "Provides reliability for typed event participant handling." }
+register_participant_api! { path: "sand::participant::BoundedItemSnapshot::reset_commands", aliases: ["sand::prelude::BoundedItemSnapshot::reset_commands"], kind: Method, summary: "Returns the commands that clear this captured participant state after its lifecycle ends." }
+register_participant_api! { path: "sand::participant::BoundedItemSnapshot::source_kind", aliases: ["sand::prelude::BoundedItemSnapshot::source_kind"], kind: Method, summary: "Provides source kind for typed event participant handling." }
+register_participant_api! { path: "sand::participant::CorrelatedEntityObservation", aliases: [], kind: Struct, summary: "Represents correlated entity observation in Sand event participant transport." }
+register_participant_api! { path: "sand::participant::CorrelatedEntityObservation::cleanup_commands", aliases: [], kind: Method, summary: "Returns the commands that clear this captured participant state after its lifecycle ends." }
+register_participant_api! { path: "sand::participant::CorrelatedEntityObservation::evidence", aliases: [], kind: Method, summary: "Provides evidence for typed event participant handling." }
+register_participant_api! { path: "sand::participant::CorrelatedEntityObservation::is_absent", aliases: [], kind: Method, summary: "Builds or evaluates the is absent participant state." }
+register_participant_api! { path: "sand::participant::CorrelatedEntityObservation::is_present", aliases: [], kind: Method, summary: "Builds or evaluates the is present participant state." }
+register_participant_api! { path: "sand::participant::CorrelatedEntityObservation::participant", aliases: [], kind: Method, summary: "Provides participant for typed event participant handling." }
+register_participant_api! { path: "sand::participant::CorrelatedEntityObservation::role", aliases: [], kind: Method, summary: "Provides role for typed event participant handling." }
+register_participant_api! { path: "sand::participant::CorrelationEvidence", aliases: [], kind: Struct, summary: "Represents correlation evidence in Sand event participant transport." }
+register_participant_api! { path: "sand::participant::CorrelationEvidence::ATTACKER_RELATION", aliases: [], kind: Variant, summary: "Selects the attacker relation participant semantic." }
+register_participant_api! { path: "sand::participant::CorrelationEvidence::min_version", aliases: [], kind: Field, summary: "Carries the min version value for this participant result." }
+register_participant_api! { path: "sand::participant::CorrelationEvidence::source", aliases: [], kind: Field, summary: "Carries the source value for this participant result." }
+register_participant_api! { path: "sand::participant::CorrelationSource", aliases: [], kind: Enum, summary: "Classifies correlation source for typed event participant handling." }
+register_participant_api! { path: "sand::participant::CorrelationSource::AttackerRelation", aliases: [], kind: Variant, summary: "Selects the attacker relation participant semantic." }
+register_participant_api! { path: "sand::participant::DuplicateParticipantRole", aliases: [], kind: Enum, summary: "Classifies duplicate participant role for typed event participant handling." }
+register_participant_api! { path: "sand::participant::DuplicateParticipantRole::Entity", aliases: [], kind: Variant, summary: "Selects the entity participant semantic." }
+register_participant_api! { path: "sand::participant::DuplicateParticipantRole::Entity::0", aliases: [], kind: Field, summary: "Carries the 0 value for this participant result." }
+register_participant_api! { path: "sand::participant::DuplicateParticipantRole::Item", aliases: [], kind: Variant, summary: "Selects the item participant semantic." }
+register_participant_api! { path: "sand::participant::DuplicateParticipantRole::Item::0", aliases: [], kind: Field, summary: "Carries the 0 value for this participant result." }
+register_participant_api! { path: "sand::participant::EntityParticipant", aliases: [], kind: Struct, summary: "Represents entity participant in Sand event participant transport." }
+register_participant_api! { path: "sand::participant::EntityParticipant::correlated", aliases: [], kind: Method, summary: "Provides correlated for typed event participant handling." }
+register_participant_api! { path: "sand::participant::EntityParticipant::execute_at", aliases: [], kind: Method, summary: "Runs a command at the correlated participant entity." }
+register_participant_api! { path: "sand::participant::EntityParticipant::inferred", aliases: [], kind: Method, summary: "Provides inferred for typed event participant handling." }
+register_participant_api! { path: "sand::participant::EntityParticipant::lifetime", aliases: [], kind: Method, summary: "Provides lifetime for typed event participant handling." }
+register_participant_api! { path: "sand::participant::EntityParticipant::reliability", aliases: [], kind: Method, summary: "Provides reliability for typed event participant handling." }
+register_participant_api! { path: "sand::participant::EntityParticipant::require", aliases: [], kind: Method, summary: "Checks that the participant evidence meets the requested reliability." }
+register_participant_api! { path: "sand::participant::EntityParticipant::require_exact", aliases: [], kind: Method, summary: "Rejects participant evidence that is not exact for this handler operation." }
+register_participant_api! { path: "sand::participant::EntityParticipant::role", aliases: [], kind: Method, summary: "Provides role for typed event participant handling." }
+register_participant_api! { path: "sand::participant::EntityParticipant::selector", aliases: [], kind: Method, summary: "Provides selector for typed event participant handling." }
+register_participant_api! { path: "sand::participant::EntityParticipant::subject", aliases: [], kind: Method, summary: "Provides subject for typed event participant handling." }
+register_participant_api! { path: "sand::participant::EntityParticipantRole", aliases: ["sand::prelude::EntityParticipantRole"], kind: Enum, summary: "Classifies entity participant role for typed event participant handling." }
+register_participant_api! { path: "sand::participant::EntityParticipantRole::Actor", aliases: ["sand::prelude::EntityParticipantRole::Actor"], kind: Variant, summary: "Selects the actor participant semantic." }
+register_participant_api! { path: "sand::participant::EntityParticipantRole::Attacker", aliases: ["sand::prelude::EntityParticipantRole::Attacker"], kind: Variant, summary: "Selects the attacker participant semantic." }
+register_participant_api! { path: "sand::participant::EntityParticipantRole::DirectAttacker", aliases: ["sand::prelude::EntityParticipantRole::DirectAttacker"], kind: Variant, summary: "Selects the direct attacker participant semantic." }
+register_participant_api! { path: "sand::participant::EntityParticipantRole::InteractedEntity", aliases: ["sand::prelude::EntityParticipantRole::InteractedEntity"], kind: Variant, summary: "Selects the interacted entity participant semantic." }
+register_participant_api! { path: "sand::participant::EntityParticipantRole::Killer", aliases: ["sand::prelude::EntityParticipantRole::Killer"], kind: Variant, summary: "Selects the killer participant semantic." }
+register_participant_api! { path: "sand::participant::EntityParticipantRole::Projectile", aliases: ["sand::prelude::EntityParticipantRole::Projectile"], kind: Variant, summary: "Selects the projectile participant semantic." }
+register_participant_api! { path: "sand::participant::EntityParticipantRole::ProjectileOwner", aliases: ["sand::prelude::EntityParticipantRole::ProjectileOwner"], kind: Variant, summary: "Selects the projectile owner participant semantic." }
+register_participant_api! { path: "sand::participant::EntityParticipantRole::Subject", aliases: ["sand::prelude::EntityParticipantRole::Subject"], kind: Variant, summary: "Selects the subject participant semantic." }
+register_participant_api! { path: "sand::participant::EntityParticipantRole::Target", aliases: ["sand::prelude::EntityParticipantRole::Target"], kind: Variant, summary: "Selects the target participant semantic." }
+register_participant_api! { path: "sand::participant::EntityParticipantRole::Victim", aliases: ["sand::prelude::EntityParticipantRole::Victim"], kind: Variant, summary: "Selects the victim participant semantic." }
+register_participant_api! { path: "sand::participant::EventParticipantPlan", aliases: ["sand::prelude::EventParticipantPlan"], kind: Struct, summary: "Represents event participant plan in Sand event participant transport." }
+register_participant_api! { path: "sand::participant::EventParticipantPlan::inherit_entity", aliases: ["sand::prelude::EventParticipantPlan::inherit_entity"], kind: Method, summary: "Borrows entity from the named parent during the supported event lifecycle." }
+register_participant_api! { path: "sand::participant::EventParticipantPlan::inherit_item", aliases: ["sand::prelude::EventParticipantPlan::inherit_item"], kind: Method, summary: "Borrows item from the named parent during the supported event lifecycle." }
+register_participant_api! { path: "sand::participant::EventParticipantPlan::inherit_item_within", aliases: ["sand::prelude::EventParticipantPlan::inherit_item_within"], kind: Method, summary: "Borrows item within from the named parent during the supported event lifecycle." }
+register_participant_api! { path: "sand::participant::EventParticipantPlan::is_empty", aliases: ["sand::prelude::EventParticipantPlan::is_empty"], kind: Method, summary: "Builds or evaluates the is empty participant state." }
+register_participant_api! { path: "sand::participant::EventParticipantPlan::new", aliases: ["sand::prelude::EventParticipantPlan::new"], kind: Method, summary: "Provides new for typed event participant handling." }
+register_participant_api! { path: "sand::participant::EventParticipantPlan::none", aliases: ["sand::prelude::EventParticipantPlan::none"], kind: Method, summary: "Provides none for typed event participant handling." }
+register_participant_api! { path: "sand::participant::EventParticipantPlan::observe_correlated_attacker", aliases: ["sand::prelude::EventParticipantPlan::observe_correlated_attacker"], kind: Method, summary: "Declares correlated attacker capture for the event participant plan." }
+register_participant_api! { path: "sand::participant::EventParticipantPlan::observe_correlated_killer", aliases: ["sand::prelude::EventParticipantPlan::observe_correlated_killer"], kind: Method, summary: "Declares correlated killer capture for the event participant plan." }
+register_participant_api! { path: "sand::participant::EventParticipantPlan::observe_held_item", aliases: ["sand::prelude::EventParticipantPlan::observe_held_item"], kind: Method, summary: "Declares held item capture for the event participant plan." }
+register_participant_api! { path: "sand::participant::EventParticipantPlan::observe_weapon", aliases: ["sand::prelude::EventParticipantPlan::observe_weapon"], kind: Method, summary: "Declares weapon capture for the event participant plan." }
+register_participant_api! { path: "sand::participant::EventParticipantPlan::validate", aliases: ["sand::prelude::EventParticipantPlan::validate"], kind: Method, summary: "Provides validate for typed event participant handling." }
+register_participant_api! { path: "sand::participant::EventParticipantPlanError", aliases: [], kind: Enum, summary: "Classifies event participant plan error for typed event participant handling." }
+register_participant_api! { path: "sand::participant::EventParticipantPlanError::DuplicateRole", aliases: [], kind: Variant, summary: "Selects the duplicate role participant semantic." }
+register_participant_api! { path: "sand::participant::EventParticipantPlanError::DuplicateRole::0", aliases: [], kind: Field, summary: "Carries the 0 value for this participant result." }
+register_participant_api! { path: "sand::participant::EventParticipantPlanError::Observation", aliases: [], kind: Variant, summary: "Selects the observation participant semantic." }
+register_participant_api! { path: "sand::participant::EventParticipantPlanError::Observation::0", aliases: [], kind: Field, summary: "Carries the 0 value for this participant result." }
+register_participant_api! { path: "sand::participant::EventParticipantPlanError::Snapshot", aliases: [], kind: Variant, summary: "Selects the snapshot participant semantic." }
+register_participant_api! { path: "sand::participant::EventParticipantPlanError::Snapshot::0", aliases: [], kind: Field, summary: "Carries the 0 value for this participant result." }
+register_participant_api! { path: "sand::participant::ItemEvidenceQualifier", aliases: [], kind: Enum, summary: "Classifies item evidence qualifier for typed event participant handling." }
+register_participant_api! { path: "sand::participant::ItemEvidenceQualifier::CapturedAtFirstSandControl", aliases: [], kind: Variant, summary: "Selects the captured at first sand control participant semantic." }
+register_participant_api! { path: "sand::participant::ItemEvidenceQualifier::CapturedBeforeVanillaMutation", aliases: [], kind: Variant, summary: "Selects the captured before vanilla mutation participant semantic." }
+register_participant_api! { path: "sand::participant::ItemParticipantRole", aliases: ["sand::item::ItemRole", "sand::item::snapshot::ItemRole", "sand::prelude::ItemParticipantRole"], kind: Enum, summary: "Classifies item participant role for typed event participant handling." }
+register_participant_api! { path: "sand::participant::ItemParticipantRole::Ammunition", aliases: ["sand::item::ItemRole::Ammunition", "sand::item::snapshot::ItemRole::Ammunition", "sand::prelude::ItemParticipantRole::Ammunition"], kind: Variant, summary: "Selects the ammunition participant semantic." }
+register_participant_api! { path: "sand::participant::ItemParticipantRole::DroppedItem", aliases: ["sand::item::ItemRole::DroppedItem", "sand::item::snapshot::ItemRole::DroppedItem", "sand::prelude::ItemParticipantRole::DroppedItem"], kind: Variant, summary: "Selects the dropped item participant semantic." }
+register_participant_api! { path: "sand::participant::ItemParticipantRole::EquippedItem", aliases: ["sand::item::ItemRole::EquippedItem", "sand::item::snapshot::ItemRole::EquippedItem", "sand::prelude::ItemParticipantRole::EquippedItem"], kind: Variant, summary: "Selects the equipped item participant semantic." }
+register_participant_api! { path: "sand::participant::ItemParticipantRole::ProjectileItem", aliases: ["sand::item::ItemRole::ProjectileItem", "sand::item::snapshot::ItemRole::ProjectileItem", "sand::prelude::ItemParticipantRole::ProjectileItem"], kind: Variant, summary: "Selects the projectile item participant semantic." }
+register_participant_api! { path: "sand::participant::ItemParticipantRole::Tool", aliases: ["sand::item::ItemRole::Tool", "sand::item::snapshot::ItemRole::Tool", "sand::prelude::ItemParticipantRole::Tool"], kind: Variant, summary: "Selects the tool participant semantic." }
+register_participant_api! { path: "sand::participant::ItemParticipantRole::UsedItem", aliases: ["sand::item::ItemRole::UsedItem", "sand::item::snapshot::ItemRole::UsedItem", "sand::prelude::ItemParticipantRole::UsedItem"], kind: Variant, summary: "Selects the used item participant semantic." }
+register_participant_api! { path: "sand::participant::ItemParticipantRole::Weapon", aliases: ["sand::item::ItemRole::Weapon", "sand::item::snapshot::ItemRole::Weapon", "sand::prelude::ItemParticipantRole::Weapon"], kind: Variant, summary: "Selects the weapon participant semantic." }
+register_participant_api! { path: "sand::participant::LocationParticipantRole", aliases: [], kind: Enum, summary: "Classifies location participant role for typed event participant handling." }
+register_participant_api! { path: "sand::participant::LocationParticipantRole::EventBlock", aliases: [], kind: Variant, summary: "Selects the event block participant semantic." }
+register_participant_api! { path: "sand::participant::ObservationError", aliases: [], kind: Enum, summary: "Classifies observation error for typed event participant handling." }
+register_participant_api! { path: "sand::participant::ObservationError::UnsupportedVersion", aliases: [], kind: Variant, summary: "Selects the unsupported version participant semantic." }
+register_participant_api! { path: "sand::participant::ObservationError::UnsupportedVersion::evidence", aliases: [], kind: Field, summary: "Carries the evidence value for this participant result." }
+register_participant_api! { path: "sand::participant::ObservationError::UnsupportedVersion::role", aliases: [], kind: Field, summary: "Carries the role value for this participant result." }
+register_participant_api! { path: "sand::participant::ObservationError::UnsupportedVersion::target_version", aliases: [], kind: Field, summary: "Carries the target version value for this participant result." }
+register_participant_api! { path: "sand::participant::ObservationSchema", aliases: [], kind: Struct, summary: "Represents observation schema in Sand event participant transport." }
+register_participant_api! { path: "sand::participant::ObservationSchema::new", aliases: [], kind: Method, summary: "Provides new for typed event participant handling." }
+register_participant_api! { path: "sand::participant::ObservationSchema::storage", aliases: [], kind: Method, summary: "Provides storage for typed event participant handling." }
+register_participant_api! { path: "sand::participant::ParticipantAvailability", aliases: ["sand::prelude::ParticipantAvailability"], kind: Enum, summary: "Classifies participant availability for typed event participant handling." }
+register_participant_api! { path: "sand::participant::ParticipantAvailability::Available", aliases: ["sand::prelude::ParticipantAvailability::Available"], kind: Variant, summary: "Selects the available participant semantic." }
+register_participant_api! { path: "sand::participant::ParticipantAvailability::Available::0", aliases: ["sand::prelude::ParticipantAvailability::Available::0"], kind: Field, summary: "Carries the 0 value for this participant result." }
+register_participant_api! { path: "sand::participant::ParticipantAvailability::Unavailable", aliases: ["sand::prelude::ParticipantAvailability::Unavailable"], kind: Variant, summary: "Selects the unavailable participant semantic." }
+register_participant_api! { path: "sand::participant::ParticipantAvailability::Unavailable::0", aliases: ["sand::prelude::ParticipantAvailability::Unavailable::0"], kind: Field, summary: "Carries the 0 value for this participant result." }
+register_participant_api! { path: "sand::participant::ParticipantAvailability::available", aliases: ["sand::prelude::ParticipantAvailability::available"], kind: Method, summary: "Provides available for typed event participant handling." }
+register_participant_api! { path: "sand::participant::ParticipantAvailability::is_available", aliases: ["sand::prelude::ParticipantAvailability::is_available"], kind: Method, summary: "Builds or evaluates the is available participant state." }
+register_participant_api! { path: "sand::participant::ParticipantAvailability::map", aliases: ["sand::prelude::ParticipantAvailability::map"], kind: Method, summary: "Provides map for typed event participant handling." }
+register_participant_api! { path: "sand::participant::ParticipantAvailability::reason", aliases: ["sand::prelude::ParticipantAvailability::reason"], kind: Method, summary: "Provides reason for typed event participant handling." }
+register_participant_api! { path: "sand::participant::ParticipantBuilder", aliases: ["sand::prelude::ParticipantBuilder"], kind: Struct, summary: "Represents participant builder in Sand event participant transport." }
+register_participant_api! { path: "sand::participant::ParticipantBuilder::build", aliases: ["sand::prelude::ParticipantBuilder::build"], kind: Method, summary: "Provides build for typed event participant handling." }
+register_participant_api! { path: "sand::participant::ParticipantBuilder::inherit_entity", aliases: ["sand::prelude::ParticipantBuilder::inherit_entity"], kind: Method, summary: "Borrows entity from the named parent during the supported event lifecycle." }
+register_participant_api! { path: "sand::participant::ParticipantBuilder::inherit_item", aliases: ["sand::prelude::ParticipantBuilder::inherit_item"], kind: Method, summary: "Borrows item from the named parent during the supported event lifecycle." }
+register_participant_api! { path: "sand::participant::ParticipantBuilder::new", aliases: ["sand::prelude::ParticipantBuilder::new"], kind: Method, summary: "Provides new for typed event participant handling." }
+register_participant_api! { path: "sand::participant::ParticipantBuilder::observe_entity", aliases: ["sand::prelude::ParticipantBuilder::observe_entity"], kind: Method, summary: "Declares entity capture for the event participant plan." }
+register_participant_api! { path: "sand::participant::ParticipantBuilder::observe_item", aliases: ["sand::prelude::ParticipantBuilder::observe_item"], kind: Method, summary: "Declares item capture for the event participant plan." }
+register_participant_api! { path: "sand::participant::ParticipantHand", aliases: ["sand::prelude::ParticipantHand"], kind: Enum, summary: "Classifies participant hand for typed event participant handling." }
+register_participant_api! { path: "sand::participant::ParticipantHand::MainHand", aliases: ["sand::prelude::ParticipantHand::MainHand"], kind: Variant, summary: "Selects the main hand participant semantic." }
+register_participant_api! { path: "sand::participant::ParticipantHand::OffHand", aliases: ["sand::prelude::ParticipantHand::OffHand"], kind: Variant, summary: "Selects the off hand participant semantic." }
+register_participant_api! { path: "sand::participant::ParticipantLifetime", aliases: [], kind: Enum, summary: "Classifies participant lifetime for typed event participant handling." }
+register_participant_api! { path: "sand::participant::ParticipantLifetime::BoundedWindow", aliases: [], kind: Variant, summary: "Selects the bounded window participant semantic." }
+register_participant_api! { path: "sand::participant::ParticipantLifetime::EventCycle", aliases: [], kind: Variant, summary: "Selects the event cycle participant semantic." }
+register_participant_api! { path: "sand::participant::ParticipantLifetime::Invocation", aliases: [], kind: Variant, summary: "Selects the invocation participant semantic." }
+register_participant_api! { path: "sand::participant::ParticipantLifetime::SynchronousDescendants", aliases: [], kind: Variant, summary: "Selects the synchronous descendants participant semantic." }
+register_participant_api! { path: "sand::participant::ParticipantLifetime::covers", aliases: [], kind: Method, summary: "Provides covers for typed event participant handling." }
+register_participant_api! { path: "sand::participant::ParticipantReliability", aliases: ["sand::prelude::ParticipantReliability"], kind: Enum, summary: "Classifies participant reliability for typed event participant handling." }
+register_participant_api! { path: "sand::participant::ParticipantReliability::Correlated", aliases: ["sand::prelude::ParticipantReliability::Correlated"], kind: Variant, summary: "Selects the correlated participant semantic." }
+register_participant_api! { path: "sand::participant::ParticipantReliability::Exact", aliases: ["sand::prelude::ParticipantReliability::Exact"], kind: Variant, summary: "Selects the exact participant semantic." }
+register_participant_api! { path: "sand::participant::ParticipantReliability::ExactSnapshot", aliases: ["sand::prelude::ParticipantReliability::ExactSnapshot"], kind: Variant, summary: "Selects the exact snapshot participant semantic." }
+register_participant_api! { path: "sand::participant::ParticipantReliability::Inferred", aliases: ["sand::prelude::ParticipantReliability::Inferred"], kind: Variant, summary: "Selects the inferred participant semantic." }
+register_participant_api! { path: "sand::participant::ParticipantReliability::Unavailable", aliases: ["sand::prelude::ParticipantReliability::Unavailable"], kind: Variant, summary: "Selects the unavailable participant semantic." }
+register_participant_api! { path: "sand::participant::ParticipantReliability::meets", aliases: ["sand::prelude::ParticipantReliability::meets"], kind: Method, summary: "Provides meets for typed event participant handling." }
+register_participant_api! { path: "sand::participant::ParticipantReliabilityError", aliases: [], kind: Struct, summary: "Represents participant reliability error in Sand event participant transport." }
+register_participant_api! { path: "sand::participant::ParticipantReliabilityError::requested", aliases: [], kind: Field, summary: "Carries the requested value for this participant result." }
+register_participant_api! { path: "sand::participant::ParticipantReliabilityError::role", aliases: [], kind: Field, summary: "Carries the role value for this participant result." }
+register_participant_api! { path: "sand::participant::ParticipantReliabilityError::supplied", aliases: [], kind: Field, summary: "Carries the supplied value for this participant result." }
+register_participant_api! { path: "sand::participant::ParticipantUnavailableReason", aliases: ["sand::prelude::ParticipantUnavailableReason"], kind: Enum, summary: "Classifies participant unavailable reason for typed event participant handling." }
+register_participant_api! { path: "sand::participant::ParticipantUnavailableReason::AmbiguousCandidates", aliases: ["sand::prelude::ParticipantUnavailableReason::AmbiguousCandidates"], kind: Variant, summary: "Selects the ambiguous candidates participant semantic." }
+register_participant_api! { path: "sand::participant::ParticipantUnavailableReason::CorrelationExpired", aliases: ["sand::prelude::ParticipantUnavailableReason::CorrelationExpired"], kind: Variant, summary: "Selects the correlation expired participant semantic." }
+register_participant_api! { path: "sand::participant::ParticipantUnavailableReason::ItemSourceAlreadyMutated", aliases: ["sand::prelude::ParticipantUnavailableReason::ItemSourceAlreadyMutated"], kind: Variant, summary: "Selects the item source already mutated participant semantic." }
+register_participant_api! { path: "sand::participant::ParticipantUnavailableReason::LifetimeExpired", aliases: ["sand::prelude::ParticipantUnavailableReason::LifetimeExpired"], kind: Variant, summary: "Selects the lifetime expired participant semantic." }
+register_participant_api! { path: "sand::participant::ParticipantUnavailableReason::NoMatchingObservation", aliases: ["sand::prelude::ParticipantUnavailableReason::NoMatchingObservation"], kind: Variant, summary: "Selects the no matching observation participant semantic." }
+register_participant_api! { path: "sand::participant::ParticipantUnavailableReason::NotApplicable", aliases: ["sand::prelude::ParticipantUnavailableReason::NotApplicable"], kind: Variant, summary: "Selects the not applicable participant semantic." }
+register_participant_api! { path: "sand::participant::ParticipantUnavailableReason::NotSuppliedByTrigger", aliases: ["sand::prelude::ParticipantUnavailableReason::NotSuppliedByTrigger"], kind: Variant, summary: "Selects the not supplied by trigger participant semantic." }
+register_participant_api! { path: "sand::participant::ParticipantUnavailableReason::UnsupportedBackend", aliases: ["sand::prelude::ParticipantUnavailableReason::UnsupportedBackend"], kind: Variant, summary: "Selects the unsupported backend participant semantic." }
+register_participant_api! { path: "sand::participant::ParticipantUnavailableReason::UnsupportedVersion", aliases: ["sand::prelude::ParticipantUnavailableReason::UnsupportedVersion"], kind: Variant, summary: "Selects the unsupported version participant semantic." }
+register_participant_api! { path: "sand::participant::ParticipantUnavailableReason::description", aliases: ["sand::prelude::ParticipantUnavailableReason::description"], kind: Method, summary: "Provides description for typed event participant handling." }
+register_participant_api! { path: "sand::participant::PlayerParticipant", aliases: [], kind: Struct, summary: "Represents player participant in Sand event participant transport." }
+register_participant_api! { path: "sand::participant::PlayerParticipant::lifetime", aliases: [], kind: Method, summary: "Provides lifetime for typed event participant handling." }
+register_participant_api! { path: "sand::participant::PlayerParticipant::reliability", aliases: [], kind: Method, summary: "Provides reliability for typed event participant handling." }
+register_participant_api! { path: "sand::participant::PlayerParticipant::require", aliases: [], kind: Method, summary: "Checks that the participant evidence meets the requested reliability." }
+register_participant_api! { path: "sand::participant::PlayerParticipant::require_exact", aliases: [], kind: Method, summary: "Rejects participant evidence that is not exact for this handler operation." }
+register_participant_api! { path: "sand::participant::PlayerParticipant::role", aliases: [], kind: Method, summary: "Provides role for typed event participant handling." }
+register_participant_api! { path: "sand::participant::PlayerParticipant::selector", aliases: [], kind: Method, summary: "Provides selector for typed event participant handling." }
+register_participant_api! { path: "sand::participant::PlayerParticipant::subject", aliases: [], kind: Method, summary: "Provides subject for typed event participant handling." }
+register_participant_api! { path: "sand::participant::observe_correlated_attacker", aliases: [], kind: Function, summary: "Captures the triggering attacker through Minecraft correlation for typed handler access." }
+// END PARTICIPANT API CONTRACTS

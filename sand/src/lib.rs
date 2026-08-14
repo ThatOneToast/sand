@@ -306,7 +306,23 @@ pub mod entity {
 ///     // build commands against attacker.selector()
 /// }
 /// ```
-pub use sand_core::participant;
+/// Typed event participants and the observation plans that make them
+/// available to handlers.
+///
+/// Compiler capture records and transport bookkeeping remain behind Sand's
+/// implementation boundary; this module exposes only the semantic roles,
+/// lifetimes, references, snapshots, and plans used by datapack authors.
+pub mod participant {
+    pub use sand_core::participant::{
+        BoundedItemSnapshot, CorrelatedEntityObservation, CorrelationEvidence, CorrelationSource,
+        DuplicateParticipantRole, EntityParticipant, EntityParticipantRole, EventParticipantPlan,
+        EventParticipantPlanError, ItemEvidenceQualifier, ItemParticipantRole,
+        LocationParticipantRole, ObservationError, ObservationSchema, ParticipantAvailability,
+        ParticipantBuilder, ParticipantHand, ParticipantLifetime, ParticipantReliability,
+        ParticipantReliabilityError, ParticipantUnavailableReason, PlayerParticipant,
+        observe_correlated_attacker,
+    };
+}
 
 /// Datapack component builders: advancements, recipes (shaped/shapeless/
 /// smithing/stonecutting), loot tables, predicates, item modifiers, tags,

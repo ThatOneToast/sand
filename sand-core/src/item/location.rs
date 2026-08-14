@@ -268,12 +268,14 @@ impl EnderChestIndex {
 
 /// Factory handle for entity inventory locations. The produced
 /// [`ItemLocation`] remains the sole live-location representation.
+#[sand_macros::api(registry = sand_api_contract, path = "sand::inventory::EntityInventory", aliases = ["sand::item::EntityInventory", "sand::item::location::EntityInventory", "sand::prelude::EntityInventory"], summary = "Builds typed live inventory locations for one explicitly selected entity.", context = "The factory retains the entity selector while each method chooses a semantically named hand, armor, inventory, or ender-chest location.", minecraft = "Produces entity-targeted item or NBT locations; ender-chest locations remain NBT-only because vanilla has no matching /item slot.", use_when = ["Addressing inventory owned by an explicit entity selector"], avoid_when = ["Addressing the executing player's implicit slots"], example = "let hand = ItemLocation::entity(Selector::nearest_player()).mainhand();")]
 #[derive(Debug, Clone)]
 pub struct EntityInventory {
     entity: Selector,
 }
 
 /// Factory handle for block inventory locations.
+#[sand_macros::api(registry = sand_api_contract, path = "sand::inventory::BlockInventory", aliases = ["sand::item::BlockInventory", "sand::item::location::BlockInventory", "sand::prelude::BlockInventory"], summary = "Builds typed live locations for a positioned block container.", context = "The factory keeps block ownership explicit until a validated container slot is selected.", minecraft = "Produces the block target and Items-list slot used by vanilla item and data commands.", use_when = ["Addressing a chest or another supported block container"], avoid_when = ["Addressing entity inventory"], example = "let slot = ItemLocation::block(BlockPos::new(0, 64, 0)).slot(0)?;")]
 #[derive(Debug, Clone)]
 pub struct BlockInventory {
     position: BlockPos,
@@ -340,6 +342,7 @@ impl ItemLocation {
     /// Never includes a selector, position, or index (those vary at
     /// runtime/per-call; the kind alone must be deterministic across equal
     /// variants).
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::ItemLocation::kind", summary = "Returns the stable category label for a live item location.", context = "The label is deterministic across equivalent location variants and is intended for diagnostics and generated resource keys, never as a raw NBT path.", minecraft = "Emits no command.", use_when = ["Reporting the category of a validated location"], avoid_when = ["Identifying a particular entity, position, or slot number"], returns = "A stable location-kind label.", example = "let kind = ItemLocation::PlayerMainHand.kind();")]
     pub fn kind(&self) -> LocationKind {
         match self {
             Self::PlayerMainHand => "player_main_hand",
@@ -358,6 +361,7 @@ impl ItemLocation {
     /// Whether this location is scoped to the executing subject (`@s`)
     /// rather than an explicit external [`Selector`]/[`BlockPos`]. A location
     /// with `is_self_scoped() == false` names its own target explicitly.
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::ItemLocation::is_self_scoped", summary = "Reports whether a location is implicitly bound to the executing subject.", context = "Player variants target @s, while entity and block variants carry explicit ownership and therefore cannot inherit an arbitrary execution subject.", minecraft = "Emits no command; it describes how later commands select their target.", use_when = ["Checking whether location behavior depends on the current execute context"], avoid_when = ["Determining whether an item is present"], returns = "True for implicit-player locations.", example = "assert!(ItemLocation::PlayerMainHand.is_self_scoped());")]
     pub fn is_self_scoped(&self) -> bool {
         matches!(
             self,
@@ -401,12 +405,14 @@ impl ItemLocation {
     }
 
     /// Typed `execute if data` existence check for the stack compound.
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::ItemLocation::exists", summary = "Builds a runtime condition that this live item location exists.", context = "Use a condition when the source may be empty or absent at Minecraft execution time.", minecraft = "Lowers to an execute-if-data check for the resolved item compound.", use_when = ["Guarding commands that require a live item stack"], avoid_when = ["Checking the presence flag of an ItemSnapshot"], returns = "A condition over the live location.", example = "let present = ItemLocation::PlayerMainHand.exists();")]
     pub fn exists(&self) -> Condition {
         let reference = self.nbt();
         Condition::data_exists(&reference)
     }
 
     /// True when the live slot contains no item.
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::ItemLocation::is_empty", summary = "Builds a runtime condition that this live slot has no matching item.", context = "The method delegates to the typed item-target model and can fail for NBT-only locations such as ender-chest entries.", minecraft = "Lowers to the negation of an execute-if-items wildcard match.", use_when = ["Branching when a live /item-addressable slot is empty"], avoid_when = ["Checking an NBT-only ender-chest entry"], returns = "An empty-slot condition or an unsupported-location error.", example = "let empty = ItemLocation::PlayerOffHand.is_empty()?;")]
     pub fn is_empty(&self) -> Result<Condition, ItemLocationError> {
         Ok(!self.matches("*")?)
     }
@@ -415,6 +421,7 @@ impl ItemLocation {
     ///
     /// `item` is the vanilla item-stack predicate argument (an item ID,
     /// tag/wildcard, or component-bearing predicate syntax).
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::ItemLocation::matches", summary = "Builds a typed runtime condition matching a live item slot against a Minecraft item predicate.", context = "This is the explicit bridge to vanilla item predicate syntax; prefer generated custom-item predicates when one exists.", minecraft = "Lowers to execute if items for an entity or block target.", use_when = ["Gating commands on a live stack's id, tag, or component predicate"], avoid_when = ["Matching an NBT-only ender-chest entry or a captured snapshot"], params(item = "The vanilla item predicate syntax to test."), returns = "A match condition or an unsupported-location error.", example = "let compass = ItemLocation::PlayerMainHand.matches(\"minecraft:compass\")?;")]
     pub fn matches(&self, item: impl Into<String>) -> Result<Condition, ItemLocationError> {
         let item = item.into();
         match self.item_target_slot()? {
@@ -428,6 +435,7 @@ impl ItemLocation {
     }
 
     /// Copy a live stack using vanilla `/item replace ... from ...`.
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::ItemLocation::replace_from", summary = "Builds a vanilla /item replace command between two typed live locations.", context = "Both endpoints must be /item-addressable; NBT-only locations fail instead of rendering an invalid command.", minecraft = "Renders item replace ... from ... using each location's validated target and slot.", use_when = ["Copying a live stack between player, entity, or block-container slots"], avoid_when = ["Copying arbitrary NBT or an ender-chest entry"], params(source = "The live source location."), returns = "The rendered item-replace command or an unsupported-location error.", example = "let command = ItemLocation::PlayerOffHand.replace_from(&ItemLocation::PlayerMainHand)?;")]
     pub fn replace_from(&self, source: &ItemLocation) -> Result<String, ItemLocationError> {
         let destination = self.item_target_slot()?;
         let source = source.item_target_slot()?;
@@ -496,6 +504,7 @@ impl ItemLocation {
     /// [`ItemLocation::entity_equipment`] — this method's `Result` exists so
     /// future variants can add fallible resolution without a breaking
     /// signature change).
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::ItemLocation::nbt_source", summary = "Resolves a live location to its typed data-command target and NBT path.", context = "This low-level form is available for integrations, but normal author code should prefer nbt, copy, match, replace, or snapshot helpers.", minecraft = "Returns the entity or block data target and the exact item-compound path Sand has verified for the location.", use_when = ["Adapting a location to a typed data-command integration"], avoid_when = ["Hand-writing raw command strings for ordinary inventory work"], returns = "The data target and NBT source path, or an unsupported-location error.", example = "let (target, path) = ItemLocation::PlayerMainHand.nbt_source()?;")]
     pub fn nbt_source(&self) -> Result<(DataTarget, String), ItemLocationError> {
         Ok(match self {
             Self::PlayerMainHand => (
@@ -551,38 +560,47 @@ impl EntityInventory {
         }
     }
 
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::EntityInventory::selected_item", summary = "Selects the entity's currently selected item location.", context = "This is useful for entity types where SelectedItem is the intended authored source rather than a hand-slot assumption.", minecraft = "Addresses the entity SelectedItem NBT field and main-hand item target.", use_when = ["Reading or capturing an explicitly selected entity's selected item"], avoid_when = ["Addressing the executing player's implicit main hand"], returns = "The selected-item live location.", example = "let item = inventory.selected_item();")]
     pub fn selected_item(&self) -> ItemLocation {
         self.location(EntityInventorySlot::SelectedItem)
     }
 
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::EntityInventory::mainhand", summary = "Selects the explicit entity's main-hand location.", context = "The returned location keeps the entity selector attached for later matching, capture, or replacement.", minecraft = "Resolves to the entity main-hand item slot and matching NBT path.", use_when = ["Working with another entity's held main-hand item"], avoid_when = ["Addressing @s; use ItemLocation::PlayerMainHand"], returns = "The entity main-hand live location.", example = "let hand = inventory.mainhand();")]
     pub fn mainhand(&self) -> ItemLocation {
         self.location(EntityInventorySlot::MainHand)
     }
 
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::EntityInventory::offhand", summary = "Selects the explicit entity's offhand location.", context = "The returned location preserves external entity ownership.", minecraft = "Resolves to the entity offhand item slot and matching NBT path.", use_when = ["Working with another entity's offhand item"], avoid_when = ["Addressing @s; use ItemLocation::PlayerOffHand"], returns = "The entity offhand live location.", example = "let hand = inventory.offhand();")]
     pub fn offhand(&self) -> ItemLocation {
         self.location(EntityInventorySlot::OffHand)
     }
 
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::EntityInventory::helmet", summary = "Selects the explicit entity's head equipment location.", context = "It is a named alternative to manually choosing an equipment slot.", minecraft = "Resolves to the head armor item slot and ArmorItems path.", use_when = ["Reading, matching, or replacing a selected entity's helmet"], avoid_when = ["Addressing the executing player's head slot"], returns = "The entity head-equipment location.", example = "let helmet = inventory.helmet();")]
     pub fn helmet(&self) -> ItemLocation {
         self.location(EntityInventorySlot::Head)
     }
 
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::EntityInventory::chestplate", summary = "Selects the explicit entity's chest equipment location.", context = "It keeps armor intent readable without exposing a raw NBT list index.", minecraft = "Resolves to the chest armor item slot and ArmorItems path.", use_when = ["Working with selected entity chest equipment"], avoid_when = ["Addressing an implicit player slot"], returns = "The entity chest-equipment location.", example = "let chest = inventory.chestplate();")]
     pub fn chestplate(&self) -> ItemLocation {
         self.location(EntityInventorySlot::Chest)
     }
 
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::EntityInventory::leggings", summary = "Selects the explicit entity's leg equipment location.", context = "It names the semantic armor position rather than an ArmorItems list offset.", minecraft = "Resolves to the legs armor item slot and ArmorItems path.", use_when = ["Working with selected entity leg equipment"], avoid_when = ["Addressing an implicit player slot"], returns = "The entity legs-equipment location.", example = "let legs = inventory.leggings();")]
     pub fn leggings(&self) -> ItemLocation {
         self.location(EntityInventorySlot::Legs)
     }
 
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::EntityInventory::boots", summary = "Selects the explicit entity's feet equipment location.", context = "It names the semantic armor position rather than an ArmorItems list offset.", minecraft = "Resolves to the feet armor item slot and ArmorItems path.", use_when = ["Working with selected entity foot equipment"], avoid_when = ["Addressing an implicit player slot"], returns = "The entity feet-equipment location.", example = "let boots = inventory.boots();")]
     pub fn boots(&self) -> ItemLocation {
         self.location(EntityInventorySlot::Feet)
     }
 
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::EntityInventory::hotbar", summary = "Selects a validated hotbar location on the explicit entity.", context = "The factory validates the nine-slot hotbar domain before constructing a live location.", minecraft = "Resolves to the entity inventory hotbar slot used by item and NBT commands.", use_when = ["Addressing an explicit entity's quick-access slot"], avoid_when = ["Addressing a main-inventory offset"], params(index = "The zero-based hotbar slot."), returns = "The live location or a range error.", example = "let slot = inventory.hotbar(0)?;")]
     pub fn hotbar(&self, index: u8) -> Result<ItemLocation, ItemLocationError> {
         Ok(self.location(EntityInventorySlot::Hotbar(HotbarIndex::new(index)?)))
     }
 
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::EntityInventory::main_inventory", summary = "Selects a validated non-hotbar inventory location on the explicit entity.", context = "This makes the 27-slot main inventory distinct from the combined InventoryIndex domain.", minecraft = "Maps the offset to entity Inventory slots 9 through 35.", use_when = ["Addressing an entity's main inventory without the hotbar"], avoid_when = ["Addressing a hotbar position or an ender chest"], params(index = "The zero-based main-inventory offset."), returns = "The live location or a range error.", example = "let slot = inventory.main_inventory(0)?;")]
     pub fn main_inventory(&self, index: u8) -> Result<ItemLocation, ItemLocationError> {
         Ok(
             self.location(EntityInventorySlot::MainInventory(MainInventoryIndex::new(
@@ -591,10 +609,12 @@ impl EntityInventory {
         )
     }
 
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::EntityInventory::slot", summary = "Selects a validated full inventory location on the explicit entity.", context = "The method accepts the combined player-inventory range, including hotbar positions, when that broader model is intentional.", minecraft = "Maps to the selected entity Inventory list slot from 0 through 35.", use_when = ["Addressing an entity inventory slot without separating hotbar and main inventory"], avoid_when = ["A narrower hotbar or main_inventory method communicates intent"], params(index = "The zero-based inventory slot."), returns = "The live location or a range error.", example = "let slot = inventory.slot(9)?;")]
     pub fn slot(&self, index: u8) -> Result<ItemLocation, ItemLocationError> {
         Ok(self.location(EntityInventorySlot::Inventory(InventoryIndex::new(index)?)))
     }
 
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::EntityInventory::ender_chest", summary = "Selects a validated NBT-addressed ender-chest entry on the explicit entity.", context = "Ender chest entries can be read or captured through NBT but deliberately cannot be used as vanilla /item targets.", minecraft = "Maps to EnderItems at the requested index on the selected entity.", use_when = ["Reading or capturing an entity's ender-chest contents"], avoid_when = ["Replacing a live stack with /item"], params(index = "The zero-based ender-chest entry."), returns = "The NBT-only live location or a range error.", example = "let entry = inventory.ender_chest(0)?;")]
     pub fn ender_chest(&self, index: u8) -> Result<ItemLocation, ItemLocationError> {
         Ok(ItemLocation::EntityEnderChest {
             entity: self.entity.clone(),
@@ -604,6 +624,7 @@ impl EntityInventory {
 }
 
 impl BlockInventory {
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::inventory::BlockInventory::slot", summary = "Selects a validated slot in the positioned block container.", context = "The factory retains the block position while this method validates the container index.", minecraft = "Maps to the block entity Items list and vanilla container item slot.", use_when = ["Reading, matching, copying, or replacing an item in a block container"], avoid_when = ["Addressing entity inventory or an arbitrary block NBT path"], params(index = "The zero-based container slot."), returns = "The live block-container location or a range error.", example = "let slot = chest.slot(0)?;")]
     pub fn slot(&self, index: u8) -> Result<ItemLocation, ItemLocationError> {
         Ok(ItemLocation::BlockContainer {
             position: self.position.clone(),

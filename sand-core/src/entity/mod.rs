@@ -49,14 +49,14 @@ pub mod relation;
 pub mod state;
 
 pub use archetype::{
-    Adoption, AdoptionSource, ArchetypeDefinition, ArchetypeProperty, DerivedScoreEncoding,
-    EntityAction, EntityArchetype, EntityArchetypeDescriptor, EntityDerivation, EntityTransition,
-    EntityTransitionField, Migration, ReconcilePolicy, SpecialEntityPolicy, ThresholdDirection,
+    Adoption, AdoptionSource, DerivedScoreEncoding, EntityAction, EntityArchetype,
+    EntityDerivation, EntityTransition, EntityTransitionField, Migration, ReconcilePolicy,
+    SpecialEntityPolicy, ThresholdDirection,
 };
 pub use context::{EntityContext, EntityScope, PlayerContext, ScopedEntityRef};
 pub use curve::{
-    CurveEvaluationError, CurveInputs, DEFAULT_FIXED_POINT_SCALE, DependencyGraph, DirtyPlan,
-    FixedPoint, FixedValue, OverflowPolicy, RoundingPolicy, StatCurve,
+    CurveEvaluationError, CurveInputs, DEFAULT_FIXED_POINT_SCALE, FixedPoint, FixedValue,
+    OverflowPolicy, RoundingPolicy, StatCurve,
 };
 pub use diagnostic::EntityDiagnostic;
 pub use kind::{
@@ -67,10 +67,9 @@ pub use property::{
     AttributeBinding, AttributeModifierBinding, CurrentHealthSync, EffectBinding, EntityEventId,
     EntityNbtBinding, EntityNbtProperty, EntityNbtType, EntityNbtValue, EntityTag, EntityTeam,
     EntityText, EntityTextSegment, EquipmentBinding, HealthBinding, HealthResizePolicy,
-    NameBinding, NativeAttributeKey, NativeEffectKey, NativeEquipmentKey, NativePropertyKey,
-    NumericPropertySource, OwnershipPolicy, PropertyNameError, RawEntityProperty,
+    NameBinding, NumericPropertySource, OwnershipPolicy, PropertyNameError, RawEntityProperty,
     RawEntityStateField, RawPropertyAccess, RawStateBackend, RefreshPolicy, TagBinding,
-    TeamBinding, validate_native_ownership,
+    TeamBinding,
 };
 pub use query::{
     EntityQueries, EntityQuery, PlayerQueries, PlayerQuery, SingleEntityQuery, SinglePlayerQuery,

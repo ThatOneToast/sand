@@ -471,7 +471,7 @@ impl AttributeModifierBinding {
 
     /// Stable ownership key.
     #[must_use]
-    pub fn property_key(&self) -> NativePropertyKey {
+    pub(crate) fn property_key(&self) -> NativePropertyKey {
         NativePropertyKey::AttributeModifier {
             attribute: NativeAttributeKey::new(self.attribute.clone()),
             id: self.id.to_string(),
@@ -536,7 +536,7 @@ impl AttributeBinding {
 
     /// Stable key used for ownership-conflict detection.
     #[must_use]
-    pub fn property_key(&self) -> NativePropertyKey {
+    pub(crate) fn property_key(&self) -> NativePropertyKey {
         NativePropertyKey::Attribute(NativeAttributeKey::new(self.attribute.clone()))
     }
 
@@ -625,7 +625,7 @@ impl EffectBinding {
 
     /// Stable ownership key.
     #[must_use]
-    pub fn property_key(&self) -> NativePropertyKey {
+    pub(crate) fn property_key(&self) -> NativePropertyKey {
         NativePropertyKey::Effect(NativeEffectKey::new(self.effect.clone()))
     }
 
@@ -696,7 +696,7 @@ impl EquipmentBinding {
 
     /// Stable ownership key.
     #[must_use]
-    pub fn property_key(&self) -> NativePropertyKey {
+    pub(crate) fn property_key(&self) -> NativePropertyKey {
         NativePropertyKey::Equipment(NativeEquipmentKey::new(self.slot))
     }
 
@@ -1029,7 +1029,7 @@ impl TagBinding {
 
     /// Stable conflict key.
     #[must_use]
-    pub fn property_key(&self) -> NativePropertyKey {
+    pub(crate) fn property_key(&self) -> NativePropertyKey {
         NativePropertyKey::Tag(self.tag.clone())
     }
 
@@ -1095,7 +1095,7 @@ impl TeamBinding {
 
     /// Team membership has a single conflict domain per entity.
     #[must_use]
-    pub const fn property_key(&self) -> NativePropertyKey {
+    pub(crate) const fn property_key(&self) -> NativePropertyKey {
         NativePropertyKey::Team
     }
 
@@ -1322,7 +1322,7 @@ impl EntityNbtBinding {
 
     /// Stable conflict key.
     #[must_use]
-    pub const fn property_key(&self) -> NativePropertyKey {
+    pub(crate) const fn property_key(&self) -> NativePropertyKey {
         NativePropertyKey::Nbt(self.property)
     }
 
@@ -1504,7 +1504,7 @@ fn validate_nbt_path(value: &str) -> Result<(), PropertyNameError> {
 
 /// Stable key used to detect conflicting native-property ownership.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct NativeAttributeKey(String);
+pub(crate) struct NativeAttributeKey(String);
 
 impl NativeAttributeKey {
     /// Construct a conflict key from Sand's typed attribute model.
@@ -1522,7 +1522,7 @@ impl NativeAttributeKey {
 
 /// Stable effect ownership key constructed from a registry identifier.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct NativeEffectKey(String);
+pub(crate) struct NativeEffectKey(String);
 
 impl NativeEffectKey {
     /// Construct a conflict key from a validated status-effect ID.
@@ -1540,7 +1540,7 @@ impl NativeEffectKey {
 
 /// Stable equipment ownership key constructed from a typed slot.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct NativeEquipmentKey(String);
+pub(crate) struct NativeEquipmentKey(String);
 
 impl NativeEquipmentKey {
     /// Construct a conflict key from a typed equipment slot.
@@ -1559,7 +1559,7 @@ impl NativeEquipmentKey {
 /// Stable key used to detect conflicting native-property ownership.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[non_exhaustive]
-pub enum NativePropertyKey {
+pub(crate) enum NativePropertyKey {
     /// Native current/max-health group.
     Health,
     /// Attribute base/modifier group by registry ID.
@@ -1584,8 +1584,6 @@ pub enum NativePropertyKey {
     Team,
     /// Stable typed NBT path.
     Nbt(EntityNbtProperty),
-    /// Explicit raw NBT path.
-    Raw(String),
 }
 
 impl fmt::Display for NativePropertyKey {
@@ -1602,13 +1600,12 @@ impl fmt::Display for NativePropertyKey {
             Self::Tag(tag) => write!(formatter, "tag:{}", tag.as_str()),
             Self::Team => formatter.write_str("team"),
             Self::Nbt(property) => write!(formatter, "nbt:{}", property.path()),
-            Self::Raw(path) => write!(formatter, "raw:{path}"),
         }
     }
 }
 
 /// Validate unique write ownership and return a contextual diagnostic.
-pub fn validate_native_ownership<'a>(
+pub(crate) fn validate_native_ownership<'a>(
     archetype: impl fmt::Display,
     declarations: impl IntoIterator<Item = (&'a NativePropertyKey, OwnershipPolicy, &'a str)>,
 ) -> Result<(), EntityDiagnostic> {

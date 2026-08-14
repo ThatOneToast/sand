@@ -253,7 +253,26 @@ pub use sand_core::state;
     example = "let players = sand::entity::EntityQueries::players();"
 )]
 pub mod entity {
-    pub use sand_core::entity::*;
+    pub use sand_core::entity::{
+        Adoption, AdoptionSource, AnyEntity, AttributeBinding, AttributeModifierBinding,
+        CurrentHealthSync, CurveEvaluationError, CurveInputs, DEFAULT_FIXED_POINT_SCALE,
+        DerivedScoreEncoding, EffectBinding, EntityAction, EntityArchetype, EntityContext,
+        EntityCooldown, EntityCooldownAccessor, EntityDerivation, EntityDiagnostic, EntityEnum,
+        EntityEnumAccessor, EntityEnumValue, EntityEventId, EntityFlag, EntityFlagAccessor,
+        EntityKind, EntityNbtBinding, EntityNbtProperty, EntityNbtType, EntityNbtValue,
+        EntityQueries, EntityQuery, EntityScope, EntityScore, EntityScoreAccessor, EntityState,
+        EntityStateField, EntityTag, EntityTeam, EntityText, EntityTextSegment, EntityTimer,
+        EntityTimerAccessor, EntityTransition, EntityTransitionField, EnumEncoding,
+        EquipmentBinding, FixedPoint, FixedValue, HealthBinding, HealthResizePolicy,
+        KnownEntityKind, LivingEntityKind, MarkerKind, Migration, MutableLivingEntityKind,
+        NameBinding, NumericPropertySource, OverflowPolicy, OwnershipPolicy, PlayerContext,
+        PlayerKind, PlayerQueries, PlayerQuery, PropertyNameError, RawEntityProperty,
+        RawEntityStateField, RawPropertyAccess, RawStateBackend, ReconcilePolicy, RefreshPolicy,
+        Relation, RelationQuery, RoundingPolicy, SafeEntityDataWriteKind, ScopedEntityRef,
+        SingleEntityQuery, SinglePlayerQuery, SpecialEntityPolicy, StatCurve, StateFieldDescriptor,
+        StateFieldKind, StatePredicate, StateSchema, TagBinding, TeamBinding, ThresholdDirection,
+        ZombieKind,
+    };
 }
 
 /// Typed participant context (#230): reliability, availability, roles,

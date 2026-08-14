@@ -1,4 +1,4 @@
-//! Deterministic derived-stat curves and dirty dependency planning.
+//! Deterministic derived-stat curves.
 //!
 //! Curves in this module are a pure intermediate representation. They neither
 //! inspect Minecraft nor emit commands. An archetype compiler can validate and
@@ -10,11 +10,6 @@
 //! configured [`RoundingPolicy`], and every conversion and arithmetic operation
 //! applies the configured [`OverflowPolicy`]. This makes results independent of
 //! the host platform and avoids floating-point work in generated functions.
-//!
-//! [`DependencyGraph`] complements the curve IR. Edges point from a state
-//! source to an output that consumes it. A [`DirtyPlan`] first identifies all
-//! transitively dirty outputs, then lists each output once in deterministic
-//! topological recomputation order.
 //!
 //! # Level-derived health
 //!
@@ -1553,21 +1548,21 @@ impl CurveLoweringBuilder<'_> {
 /// registry is used. All traversal uses sorted collections, so independent
 /// exports and Rust tests produce the same order.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct DependencyGraph {
+pub(crate) struct DependencyGraph {
     edges: BTreeMap<String, BTreeSet<String>>,
 }
 
 impl DependencyGraph {
     /// Creates an empty graph.
     #[must_use]
-    pub const fn new() -> Self {
+    pub(crate) const fn new() -> Self {
         Self {
             edges: BTreeMap::new(),
         }
     }
 
     /// Registers a source or output even when it has no edges.
-    pub fn add_node(&mut self, node: impl Into<String>) {
+    pub(crate) fn add_node(&mut self, node: impl Into<String>) {
         self.edges.entry(node.into()).or_default();
     }
 
@@ -1575,49 +1570,25 @@ impl DependencyGraph {
     ///
     /// Duplicate edges are ignored, which deduplicates shared observations
     /// before refresh scheduling.
-    pub fn add_dependency(&mut self, source: impl Into<String>, dependent: impl Into<String>) {
+    pub(crate) fn add_dependency(
+        &mut self,
+        source: impl Into<String>,
+        dependent: impl Into<String>,
+    ) {
         let source = source.into();
         let dependent = dependent.into();
         self.edges.entry(dependent.clone()).or_default();
         self.edges.entry(source).or_default().insert(dependent);
     }
 
-    /// Returns every registered node in lexical order.
-    pub fn nodes(&self) -> impl Iterator<Item = &str> {
-        self.edges.keys().map(String::as_str)
-    }
-
-    /// Returns direct dependents in lexical order.
-    pub fn direct_dependents(&self, source: &str) -> impl Iterator<Item = &str> {
-        self.edges
-            .get(source)
-            .into_iter()
-            .flat_map(|values| values.iter().map(String::as_str))
-    }
-
-    /// Returns all transitive dependents, excluding `source`.
-    #[must_use]
-    pub fn transitive_dependents(&self, source: &str) -> BTreeSet<String> {
-        let mut found = BTreeSet::new();
-        let mut pending = vec![source.to_string()];
-        while let Some(node) = pending.pop() {
-            if let Some(dependents) = self.edges.get(&node) {
-                for dependent in dependents.iter().rev() {
-                    if found.insert(dependent.clone()) {
-                        pending.push(dependent.clone());
-                    }
-                }
-            }
-        }
-        found.remove(source);
-        found
-    }
-
     /// Computes a stable source-before-dependent order.
     ///
     /// Cycles return [`EntityDiagnostic::DerivationCycle`] with a deterministic
     /// closed path suitable for an export diagnostic.
-    pub fn topological_order(&self, archetype: &str) -> Result<Vec<String>, EntityDiagnostic> {
+    pub(crate) fn topological_order(
+        &self,
+        archetype: &str,
+    ) -> Result<Vec<String>, EntityDiagnostic> {
         if let Some(cycle) = self.find_cycle() {
             return Err(EntityDiagnostic::DerivationCycle {
                 archetype: archetype.into(),
@@ -1651,34 +1622,6 @@ impl DependencyGraph {
             }
         }
         Ok(order)
-    }
-
-    /// Builds a two-phase dirty/recompute plan for changed sources.
-    ///
-    /// Sources can overlap and share dependents; each dirty output appears
-    /// exactly once. The recomputation order contains only dirty outputs.
-    pub fn dirty_plan(
-        &self,
-        changed_sources: impl IntoIterator<Item = impl AsRef<str>>,
-        archetype: &str,
-    ) -> Result<DirtyPlan, EntityDiagnostic> {
-        let mut sources = BTreeSet::new();
-        let mut dirty = BTreeSet::new();
-        for source in changed_sources {
-            let source = source.as_ref().to_string();
-            dirty.extend(self.transitive_dependents(&source));
-            sources.insert(source);
-        }
-        let recompute = self
-            .topological_order(archetype)?
-            .into_iter()
-            .filter(|node| dirty.contains(node))
-            .collect();
-        Ok(DirtyPlan {
-            changed_sources: sources,
-            dirty_outputs: dirty,
-            recompute,
-        })
     }
 
     fn find_cycle(&self) -> Option<Vec<String>> {
@@ -1732,34 +1675,6 @@ impl DependencyGraph {
             }
         }
         None
-    }
-}
-
-/// Two-phase result of propagating one or more changed state sources.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DirtyPlan {
-    changed_sources: BTreeSet<String>,
-    dirty_outputs: BTreeSet<String>,
-    recompute: Vec<String>,
-}
-
-impl DirtyPlan {
-    /// Changed source names in lexical order.
-    #[must_use]
-    pub fn changed_sources(&self) -> &BTreeSet<String> {
-        &self.changed_sources
-    }
-
-    /// Outputs whose generated dirty bits should be set.
-    #[must_use]
-    pub fn dirty_outputs(&self) -> &BTreeSet<String> {
-        &self.dirty_outputs
-    }
-
-    /// Dirty outputs in source-before-dependent recomputation order.
-    #[must_use]
-    pub fn recompute_order(&self) -> &[String] {
-        &self.recompute
     }
 }
 
@@ -2247,7 +2162,7 @@ mod tests {
     }
 
     #[test]
-    fn graph_order_transitive_dependencies_and_dedup_are_stable() {
+    fn graph_order_is_stable_and_deduplicated() {
         let mut graph = DependencyGraph::new();
         graph.add_dependency("level", "health");
         graph.add_dependency("level", "damage");
@@ -2256,20 +2171,9 @@ mod tests {
         graph.add_dependency("level", "health");
 
         assert_eq!(
-            graph.transitive_dependents("level"),
-            BTreeSet::from([
-                "damage".to_string(),
-                "health".to_string(),
-                "name".to_string()
-            ])
-        );
-        assert_eq!(
             graph.topological_order("rpg:mob").unwrap(),
             ["level", "health", "name", "rarity", "damage"]
         );
-        let plan = graph.dirty_plan(["level", "rarity"], "rpg:mob").unwrap();
-        assert_eq!(plan.dirty_outputs().len(), 3);
-        assert_eq!(plan.recompute_order(), ["health", "name", "damage"]);
     }
 
     #[test]

@@ -151,7 +151,9 @@ fn expand_entity_archetype(function: ItemFn) -> syn::Result<proc_macro2::TokenSt
             ::sand::__private::entity::ArchetypeDefinition,
             ::sand::__private::entity::EntityDiagnostic,
         > {
-            ::std::result::Result::Ok(#name().definition())
+            ::std::result::Result::Ok(
+                ::sand::__private::entity::archetype::registered_definition(&#name())
+            )
         }
 
         ::sand::__private::inventory::submit!(

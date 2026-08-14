@@ -417,7 +417,7 @@ where
     /// Erase Rust marker types for inventory-based exporter registration.
     #[doc(hidden)]
     #[must_use]
-    pub fn definition(&self) -> ArchetypeDefinition {
+    pub(crate) fn definition(&self) -> ArchetypeDefinition {
         ArchetypeDefinition {
             id: self.id.clone(),
             version: self.version,
@@ -436,6 +436,19 @@ where
             properties: self.properties.clone(),
         }
     }
+}
+
+/// Erases an archetype's marker types for proc-macro registration.
+///
+/// This is public only so generated code can cross the crate boundary through
+/// `sand::__private`; it is not part of the author-facing entity API.
+#[doc(hidden)]
+pub fn registered_definition<K, S>(archetype: &EntityArchetype<K, S>) -> ArchetypeDefinition
+where
+    K: KnownEntityKind,
+    S: EntityState,
+{
+    archetype.definition()
 }
 
 impl<K, S> EntityArchetype<K, S>

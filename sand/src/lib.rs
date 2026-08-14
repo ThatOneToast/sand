@@ -413,14 +413,46 @@ pub mod version {
 /// `.play_at(selector)`.
 pub use sand_core::vfx;
 
-/// Optional, feature-gated gameplay systems (`systems-damage`,
-/// `systems-cooldowns`, `systems-lifecycle`, `systems-player-data`,
-/// `systems-movement`, `systems-inventory`, `systems-entities`) providing
-/// higher-level building blocks — e.g. `DamageTracker`/`DamageThreshold`
-/// behind `systems-damage` — on top of the core state/event primitives.
-/// Each submodule only compiles when its Cargo feature is enabled; forward
-/// the relevant `sand/systems-*` feature from your project's `Cargo.toml`.
-pub use sand_core::systems;
+/// Optional higher-level gameplay systems built from Sand's typed state,
+/// event, entity, and inventory primitives.
+///
+/// Export registries, lifecycle bookkeeping, and generated tick-command
+/// drains stay internal; each feature exposes only the semantic builder or
+/// registration API a datapack author uses.
+pub mod systems {
+    #[cfg(feature = "systems-damage")]
+    pub mod damage {
+        pub use sand_core::systems::damage::{DamageThreshold, DamageTracker, recently_damaged};
+    }
+
+    #[cfg(feature = "systems-cooldowns")]
+    pub mod cooldowns {
+        pub use sand_core::systems::cooldowns::register_cooldown;
+    }
+
+    #[cfg(feature = "systems-player-data")]
+    pub mod player_data {
+        pub use sand_core::systems::player_data::{
+            CooldownField, CooldownFieldRef, FlagField, GameStateField, GlobalStorageField,
+            PlayerDataSchema, ScoreField, TimerField, TimerFieldRef,
+        };
+    }
+
+    #[cfg(feature = "systems-movement")]
+    pub mod movement {
+        pub use sand_core::systems::movement::{Launch, PushAway, Slow, SpeedBoost};
+    }
+
+    #[cfg(feature = "systems-inventory")]
+    pub mod inventory {
+        pub use sand_core::systems::inventory::{ClearBuilder, HasItemCheck, InventorySystem};
+    }
+
+    #[cfg(feature = "systems-entities")]
+    pub mod entities {
+        pub use sand_core::systems::entities::{InteractSize, Interactable};
+    }
+}
 
 /// A validated `namespace:path` resource identifier, used throughout Sand
 /// anywhere a datapack resource (function, advancement, item, tag, …) is

@@ -240,6 +240,31 @@ macro_rules! register_data_api {
     };
 }
 
+macro_rules! register_systems_api {
+    (
+        path: $path:literal,
+        aliases: [$($alias:literal),* $(,)?],
+        kind: $kind:ident,
+        summary: $summary:literal
+    ) => {
+        register! {
+            path: $path,
+            aliases: [$($alias),*],
+            module: "sand::systems",
+            kind: $kind,
+            signature: "feature-gated author-facing gameplay system API",
+            summary: $summary,
+            context: "This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+            minecraft: "The configured system emits validated scoreboard, execute, item, effect, or entity commands according to the selected feature and target version.",
+            use_when: ["Opting into this higher-level gameplay behavior instead of assembling its commands manually"],
+            avoid_when: ["Inspecting compiler registries or generated lifecycle bookkeeping"],
+            params: [],
+            returns: None,
+            example: "use sand::systems;"
+        }
+    };
+}
+
 register! {
     path: "sand::prelude",
     aliases: [],
@@ -2337,3 +2362,162 @@ register_data_api! { path: "sand::data::StorageVar::set_value", aliases: ["sand:
 register_data_api! { path: "sand::data::StorageVar::storage", aliases: ["sand::prelude::StorageVar::storage", "sand::state::StorageVar::storage"], kind: Method, summary: "Builds or resolves storage in the typed NBT and command-storage model." }
 register_data_api! { path: "sand::data::UntypedNbt", aliases: ["sand::cmd::UntypedNbt", "sand::command::UntypedNbt", "sand::prelude::UntypedNbt", "sand::prelude::cmd::UntypedNbt", "sand::state::UntypedNbt"], kind: Struct, summary: "Represents untyped nbt in the typed NBT and command-storage model." }
 // END DATA API CONTRACTS
+register_systems_api! { path: "sand::systems::cooldowns", aliases: [], kind: Module, summary: "Provides the feature-gated cooldowns gameplay system." }
+register_systems_api! { path: "sand::systems::cooldowns::register_cooldown", aliases: [], kind: Function, summary: "Registers a typed cooldown for automatic per-tick decrementing." }
+register_systems_api! { path: "sand::systems::damage", aliases: [], kind: Module, summary: "Provides the feature-gated damage gameplay system." }
+register_systems_api! { path: "sand::systems::damage::DamageThreshold", aliases: ["sand::prelude::DamageThreshold"], kind: Enum, summary: "Defines typed damage threshold values for damage tracking." }
+register_systems_api! { path: "sand::systems::damage::DamageThreshold::Hearts", aliases: ["sand::prelude::DamageThreshold::Hearts"], kind: Variant, summary: "Selects the hearts damage threshold representation." }
+register_systems_api! { path: "sand::systems::damage::DamageThreshold::Hearts::0", aliases: ["sand::prelude::DamageThreshold::Hearts::0"], kind: Field, summary: "Configures the 0 value used by this gameplay system." }
+register_systems_api! { path: "sand::systems::damage::DamageThreshold::RawStat", aliases: ["sand::prelude::DamageThreshold::RawStat"], kind: Variant, summary: "Selects the raw stat damage threshold representation." }
+register_systems_api! { path: "sand::systems::damage::DamageThreshold::RawStat::0", aliases: ["sand::prelude::DamageThreshold::RawStat::0"], kind: Field, summary: "Configures the 0 value used by this gameplay system." }
+register_systems_api! { path: "sand::systems::damage::DamageThreshold::hearts", aliases: ["sand::prelude::DamageThreshold::hearts"], kind: Method, summary: "Configures or performs hearts for the damage gameplay system." }
+register_systems_api! { path: "sand::systems::damage::DamageThreshold::raw_stat", aliases: ["sand::prelude::DamageThreshold::raw_stat"], kind: Method, summary: "Configures or performs raw stat for the damage gameplay system." }
+register_systems_api! { path: "sand::systems::damage::DamageThreshold::to_raw_stat", aliases: ["sand::prelude::DamageThreshold::to_raw_stat"], kind: Method, summary: "Configures or performs to raw stat for the damage gameplay system." }
+register_systems_api! { path: "sand::systems::damage::DamageThreshold::try_hearts", aliases: ["sand::prelude::DamageThreshold::try_hearts"], kind: Method, summary: "Configures or performs try hearts for the damage gameplay system." }
+register_systems_api! { path: "sand::systems::damage::DamageThreshold::try_raw_stat", aliases: ["sand::prelude::DamageThreshold::try_raw_stat"], kind: Method, summary: "Configures or performs try raw stat for the damage gameplay system." }
+register_systems_api! { path: "sand::systems::damage::DamageTracker", aliases: ["sand::prelude::DamageTracker"], kind: Struct, summary: "Configures damage tracker in the damage gameplay system." }
+register_systems_api! { path: "sand::systems::damage::DamageTracker::clear_recent_damage", aliases: ["sand::prelude::DamageTracker::clear_recent_damage"], kind: Method, summary: "Configures or performs clear recent damage for the damage gameplay system." }
+register_systems_api! { path: "sand::systems::damage::DamageTracker::current_damage_at_least", aliases: ["sand::prelude::DamageTracker::current_damage_at_least"], kind: Method, summary: "Configures or performs current damage at least for the damage gameplay system." }
+register_systems_api! { path: "sand::systems::damage::DamageTracker::current_damage_raw", aliases: ["sand::prelude::DamageTracker::current_damage_raw"], kind: Method, summary: "Configures or performs current damage raw for the damage gameplay system." }
+register_systems_api! { path: "sand::systems::damage::DamageTracker::damaged_this_tick", aliases: ["sand::prelude::DamageTracker::damaged_this_tick"], kind: Method, summary: "Builds the typed condition for damaged this tick." }
+register_systems_api! { path: "sand::systems::damage::DamageTracker::define", aliases: ["sand::prelude::DamageTracker::define"], kind: Method, summary: "Configures or performs define for the damage gameplay system." }
+register_systems_api! { path: "sand::systems::damage::DamageTracker::hurt_within", aliases: ["sand::prelude::DamageTracker::hurt_within"], kind: Method, summary: "Builds the typed condition for hurt within." }
+register_systems_api! { path: "sand::systems::damage::DamageTracker::last_damage_at_least", aliases: ["sand::prelude::DamageTracker::last_damage_at_least"], kind: Method, summary: "Configures or performs last damage at least for the damage gameplay system." }
+register_systems_api! { path: "sand::systems::damage::DamageTracker::last_damage_raw", aliases: ["sand::prelude::DamageTracker::last_damage_raw"], kind: Method, summary: "Configures or performs last damage raw for the damage gameplay system." }
+register_systems_api! { path: "sand::systems::damage::DamageTracker::not_damaged_this_tick", aliases: ["sand::prelude::DamageTracker::not_damaged_this_tick"], kind: Method, summary: "Builds the typed condition for not damaged this tick." }
+register_systems_api! { path: "sand::systems::damage::DamageTracker::not_hurt_for", aliases: ["sand::prelude::DamageTracker::not_hurt_for"], kind: Method, summary: "Builds the typed condition for not hurt for." }
+register_systems_api! { path: "sand::systems::damage::DamageTracker::tick", aliases: ["sand::prelude::DamageTracker::tick"], kind: Method, summary: "Configures or performs tick for the damage gameplay system." }
+register_systems_api! { path: "sand::systems::damage::DamageTracker::tick_players", aliases: ["sand::prelude::DamageTracker::tick_players"], kind: Method, summary: "Configures or performs tick players for the damage gameplay system." }
+register_systems_api! { path: "sand::systems::damage::DamageTracker::tick_raw", aliases: ["sand::prelude::DamageTracker::tick_raw"], kind: Method, summary: "Configures or performs tick raw for the damage gameplay system." }
+register_systems_api! { path: "sand::systems::damage::DamageTracker::ticks_since_hurt", aliases: ["sand::prelude::DamageTracker::ticks_since_hurt"], kind: Method, summary: "Builds the typed condition for ticks since hurt." }
+register_systems_api! { path: "sand::systems::damage::DamageTracker::was_hurt", aliases: ["sand::prelude::DamageTracker::was_hurt"], kind: Method, summary: "Builds the typed condition for was hurt." }
+register_systems_api! { path: "sand::systems::damage::recently_damaged", aliases: ["sand::prelude::recently_damaged"], kind: Function, summary: "Builds the condition that detects a recently damaged entity." }
+register_systems_api! { path: "sand::systems::entities", aliases: [], kind: Module, summary: "Provides the feature-gated entities gameplay system." }
+register_systems_api! { path: "sand::systems::entities::InteractSize", aliases: [], kind: Struct, summary: "Configures interact size in the entities gameplay system." }
+register_systems_api! { path: "sand::systems::entities::InteractSize::height", aliases: [], kind: Field, summary: "Configures the height value used by this gameplay system." }
+register_systems_api! { path: "sand::systems::entities::InteractSize::width", aliases: [], kind: Field, summary: "Configures the width value used by this gameplay system." }
+register_systems_api! { path: "sand::systems::entities::Interactable", aliases: [], kind: Struct, summary: "Configures interactable in the entities gameplay system." }
+register_systems_api! { path: "sand::systems::entities::Interactable::advancement", aliases: [], kind: Method, summary: "Configures or performs advancement for the entities gameplay system." }
+register_systems_api! { path: "sand::systems::entities::Interactable::advancement_with", aliases: [], kind: Method, summary: "Configures or performs advancement with for the entities gameplay system." }
+register_systems_api! { path: "sand::systems::entities::Interactable::new", aliases: [], kind: Method, summary: "Configures or performs new for the entities gameplay system." }
+register_systems_api! { path: "sand::systems::entities::Interactable::response", aliases: [], kind: Method, summary: "Configures or performs response for the entities gameplay system." }
+register_systems_api! { path: "sand::systems::entities::Interactable::size", aliases: [], kind: Method, summary: "Configures or performs size for the entities gameplay system." }
+register_systems_api! { path: "sand::systems::entities::Interactable::summon_at", aliases: [], kind: Method, summary: "Builds commands that summon the configured interaction entity for at." }
+register_systems_api! { path: "sand::systems::entities::Interactable::summon_here", aliases: [], kind: Method, summary: "Builds commands that summon the configured interaction entity for here." }
+register_systems_api! { path: "sand::systems::entities::Interactable::tag", aliases: [], kind: Method, summary: "Configures or performs tag for the entities gameplay system." }
+register_systems_api! { path: "sand::systems::inventory", aliases: [], kind: Module, summary: "Provides the feature-gated inventory gameplay system." }
+register_systems_api! { path: "sand::systems::inventory::ClearBuilder", aliases: [], kind: Struct, summary: "Configures clear builder in the inventory gameplay system." }
+register_systems_api! { path: "sand::systems::inventory::ClearBuilder::amount", aliases: [], kind: Method, summary: "Configures or performs amount for the inventory gameplay system." }
+register_systems_api! { path: "sand::systems::inventory::HasItemCheck", aliases: [], kind: Struct, summary: "Configures has item check in the inventory gameplay system." }
+register_systems_api! { path: "sand::systems::inventory::HasItemCheck::in_any_slot", aliases: [], kind: Method, summary: "Builds the typed condition for in any slot." }
+register_systems_api! { path: "sand::systems::inventory::HasItemCheck::in_any_weapon", aliases: [], kind: Method, summary: "Builds the typed condition for in any weapon." }
+register_systems_api! { path: "sand::systems::inventory::HasItemCheck::in_armor", aliases: [], kind: Method, summary: "Builds the typed condition for in armor." }
+register_systems_api! { path: "sand::systems::inventory::HasItemCheck::in_hotbar", aliases: [], kind: Method, summary: "Builds the typed condition for in hotbar." }
+register_systems_api! { path: "sand::systems::inventory::HasItemCheck::in_inventory", aliases: [], kind: Method, summary: "Builds the typed condition for in inventory." }
+register_systems_api! { path: "sand::systems::inventory::HasItemCheck::in_mainhand", aliases: [], kind: Method, summary: "Builds the typed condition for in mainhand." }
+register_systems_api! { path: "sand::systems::inventory::HasItemCheck::in_offhand", aliases: [], kind: Method, summary: "Builds the typed condition for in offhand." }
+register_systems_api! { path: "sand::systems::inventory::HasItemCheck::in_slot", aliases: [], kind: Method, summary: "Builds the typed condition for in slot." }
+register_systems_api! { path: "sand::systems::inventory::HasItemCheck::not_anywhere", aliases: [], kind: Method, summary: "Builds the typed condition for not anywhere." }
+register_systems_api! { path: "sand::systems::inventory::HasItemCheck::not_in_slot", aliases: [], kind: Method, summary: "Builds the typed condition for not in slot." }
+register_systems_api! { path: "sand::systems::inventory::InventorySystem", aliases: [], kind: Struct, summary: "Configures inventory system in the inventory gameplay system." }
+register_systems_api! { path: "sand::systems::inventory::InventorySystem::clear_item", aliases: [], kind: Method, summary: "Configures or performs clear item for the inventory gameplay system." }
+register_systems_api! { path: "sand::systems::inventory::InventorySystem::clear_slot", aliases: [], kind: Method, summary: "Configures or performs clear slot for the inventory gameplay system." }
+register_systems_api! { path: "sand::systems::inventory::InventorySystem::for_entity", aliases: [], kind: Method, summary: "Configures or performs for entity for the inventory gameplay system." }
+register_systems_api! { path: "sand::systems::inventory::InventorySystem::give", aliases: [], kind: Method, summary: "Configures or performs give for the inventory gameplay system." }
+register_systems_api! { path: "sand::systems::inventory::InventorySystem::has", aliases: [], kind: Method, summary: "Configures or performs has for the inventory gameplay system." }
+register_systems_api! { path: "sand::systems::inventory::InventorySystem::has_in", aliases: [], kind: Method, summary: "Configures or performs has in for the inventory gameplay system." }
+register_systems_api! { path: "sand::systems::inventory::InventorySystem::replace", aliases: [], kind: Method, summary: "Configures or performs replace for the inventory gameplay system." }
+register_systems_api! { path: "sand::systems::inventory::InventorySystem::replace_count", aliases: [], kind: Method, summary: "Configures or performs replace count for the inventory gameplay system." }
+register_systems_api! { path: "sand::systems::movement", aliases: [], kind: Module, summary: "Provides the feature-gated movement gameplay system." }
+register_systems_api! { path: "sand::systems::movement::Launch", aliases: [], kind: Struct, summary: "Configures launch in the movement gameplay system." }
+register_systems_api! { path: "sand::systems::movement::Launch::amount", aliases: [], kind: Method, summary: "Configures or performs amount for the movement gameplay system." }
+register_systems_api! { path: "sand::systems::movement::Launch::build", aliases: [], kind: Method, summary: "Builds the Minecraft commands for this configured gameplay effect." }
+register_systems_api! { path: "sand::systems::movement::Launch::new", aliases: [], kind: Method, summary: "Configures or performs new for the movement gameplay system." }
+register_systems_api! { path: "sand::systems::movement::Launch::targets", aliases: [], kind: Method, summary: "Configures or performs targets for the movement gameplay system." }
+register_systems_api! { path: "sand::systems::movement::Launch::with_targets", aliases: [], kind: Method, summary: "Configures or performs with targets for the movement gameplay system." }
+register_systems_api! { path: "sand::systems::movement::PushAway", aliases: [], kind: Struct, summary: "Configures push away in the movement gameplay system." }
+register_systems_api! { path: "sand::systems::movement::PushAway::build", aliases: [], kind: Method, summary: "Builds the Minecraft commands for this configured gameplay effect." }
+register_systems_api! { path: "sand::systems::movement::PushAway::lift", aliases: [], kind: Method, summary: "Configures or performs lift for the movement gameplay system." }
+register_systems_api! { path: "sand::systems::movement::PushAway::new", aliases: [], kind: Method, summary: "Configures or performs new for the movement gameplay system." }
+register_systems_api! { path: "sand::systems::movement::PushAway::source", aliases: [], kind: Method, summary: "Configures or performs source for the movement gameplay system." }
+register_systems_api! { path: "sand::systems::movement::PushAway::strength", aliases: [], kind: Method, summary: "Configures or performs strength for the movement gameplay system." }
+register_systems_api! { path: "sand::systems::movement::PushAway::targets", aliases: [], kind: Method, summary: "Configures or performs targets for the movement gameplay system." }
+register_systems_api! { path: "sand::systems::movement::Slow", aliases: [], kind: Struct, summary: "Configures slow in the movement gameplay system." }
+register_systems_api! { path: "sand::systems::movement::Slow::amount", aliases: [], kind: Method, summary: "Configures or performs amount for the movement gameplay system." }
+register_systems_api! { path: "sand::systems::movement::Slow::amplifier", aliases: [], kind: Method, summary: "Configures or performs amplifier for the movement gameplay system." }
+register_systems_api! { path: "sand::systems::movement::Slow::build", aliases: [], kind: Method, summary: "Builds the Minecraft commands for this configured gameplay effect." }
+register_systems_api! { path: "sand::systems::movement::Slow::duration", aliases: [], kind: Method, summary: "Configures or performs duration for the movement gameplay system." }
+register_systems_api! { path: "sand::systems::movement::Slow::new", aliases: [], kind: Method, summary: "Configures or performs new for the movement gameplay system." }
+register_systems_api! { path: "sand::systems::movement::Slow::target", aliases: [], kind: Method, summary: "Configures or performs target for the movement gameplay system." }
+register_systems_api! { path: "sand::systems::movement::Slow::targets", aliases: [], kind: Method, summary: "Configures or performs targets for the movement gameplay system." }
+register_systems_api! { path: "sand::systems::movement::Slow::with_target", aliases: [], kind: Method, summary: "Configures or performs with target for the movement gameplay system." }
+register_systems_api! { path: "sand::systems::movement::SpeedBoost", aliases: [], kind: Struct, summary: "Configures speed boost in the movement gameplay system." }
+register_systems_api! { path: "sand::systems::movement::SpeedBoost::amount", aliases: [], kind: Method, summary: "Configures or performs amount for the movement gameplay system." }
+register_systems_api! { path: "sand::systems::movement::SpeedBoost::amplifier", aliases: [], kind: Method, summary: "Configures or performs amplifier for the movement gameplay system." }
+register_systems_api! { path: "sand::systems::movement::SpeedBoost::build", aliases: [], kind: Method, summary: "Builds the Minecraft commands for this configured gameplay effect." }
+register_systems_api! { path: "sand::systems::movement::SpeedBoost::duration", aliases: [], kind: Method, summary: "Configures or performs duration for the movement gameplay system." }
+register_systems_api! { path: "sand::systems::movement::SpeedBoost::new", aliases: [], kind: Method, summary: "Configures or performs new for the movement gameplay system." }
+register_systems_api! { path: "sand::systems::movement::SpeedBoost::target", aliases: [], kind: Method, summary: "Configures or performs target for the movement gameplay system." }
+register_systems_api! { path: "sand::systems::movement::SpeedBoost::target_many", aliases: [], kind: Method, summary: "Configures or performs target many for the movement gameplay system." }
+register_systems_api! { path: "sand::systems::movement::SpeedBoost::with_target", aliases: [], kind: Method, summary: "Configures or performs with target for the movement gameplay system." }
+register_systems_api! { path: "sand::systems::player_data", aliases: [], kind: Module, summary: "Provides the feature-gated player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::CooldownField", aliases: ["sand::prelude::CooldownField"], kind: Struct, summary: "Configures cooldown field in the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::CooldownField::new", aliases: ["sand::prelude::CooldownField::new"], kind: Method, summary: "Configures or performs new for the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::CooldownField::of", aliases: ["sand::prelude::CooldownField::of"], kind: Method, summary: "Configures or performs of for the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::CooldownField::value", aliases: ["sand::prelude::CooldownField::value"], kind: Method, summary: "Configures or performs value for the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::CooldownFieldRef", aliases: ["sand::prelude::CooldownFieldRef"], kind: Struct, summary: "Configures cooldown field ref in the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::CooldownFieldRef::active", aliases: ["sand::prelude::CooldownFieldRef::active"], kind: Method, summary: "Builds the typed condition for active." }
+register_systems_api! { path: "sand::systems::player_data::CooldownFieldRef::ready", aliases: ["sand::prelude::CooldownFieldRef::ready"], kind: Method, summary: "Builds the typed condition for ready." }
+register_systems_api! { path: "sand::systems::player_data::CooldownFieldRef::start", aliases: ["sand::prelude::CooldownFieldRef::start"], kind: Method, summary: "Configures or performs start for the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::CooldownFieldRef::stop", aliases: ["sand::prelude::CooldownFieldRef::stop"], kind: Method, summary: "Configures or performs stop for the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::FlagField", aliases: ["sand::prelude::FlagField"], kind: Struct, summary: "Configures flag field in the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::FlagField::default", aliases: ["sand::prelude::FlagField::default"], kind: Method, summary: "Configures or performs default for the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::FlagField::default_value", aliases: ["sand::prelude::FlagField::default_value"], kind: Method, summary: "Configures or performs default value for the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::FlagField::new", aliases: ["sand::prelude::FlagField::new"], kind: Method, summary: "Configures or performs new for the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::FlagField::of", aliases: ["sand::prelude::FlagField::of"], kind: Method, summary: "Configures or performs of for the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::FlagField::value", aliases: ["sand::prelude::FlagField::value"], kind: Method, summary: "Configures or performs value for the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::GameStateField", aliases: ["sand::prelude::GameStateField"], kind: Struct, summary: "Configures game state field in the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::GameStateField::new", aliases: ["sand::prelude::GameStateField::new"], kind: Method, summary: "Configures or performs new for the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::GameStateField::of", aliases: ["sand::prelude::GameStateField::of"], kind: Method, summary: "Configures or performs of for the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::GameStateField::value", aliases: ["sand::prelude::GameStateField::value"], kind: Method, summary: "Configures or performs value for the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::GameStateField::with_default_score", aliases: ["sand::prelude::GameStateField::with_default_score"], kind: Method, summary: "Configures or performs with default score for the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::GlobalStorageField", aliases: ["sand::prelude::GlobalStorageField"], kind: Struct, summary: "Configures global storage field in the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::GlobalStorageField::nbt", aliases: ["sand::prelude::GlobalStorageField::nbt"], kind: Method, summary: "Configures or performs nbt for the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::GlobalStorageField::new", aliases: ["sand::prelude::GlobalStorageField::new"], kind: Method, summary: "Configures or performs new for the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::GlobalStorageField::value", aliases: ["sand::prelude::GlobalStorageField::value"], kind: Method, summary: "Configures or performs value for the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::PlayerDataSchema", aliases: ["sand::prelude::PlayerDataSchema"], kind: Struct, summary: "Configures player data schema in the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::PlayerDataSchema::cooldown", aliases: ["sand::prelude::PlayerDataSchema::cooldown", "sand::prelude::PlayerSchema::cooldown"], kind: Method, summary: "Configures or performs cooldown for the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::PlayerDataSchema::cooldown_field", aliases: ["sand::prelude::PlayerDataSchema::cooldown_field", "sand::prelude::PlayerSchema::cooldown_field"], kind: Method, summary: "Configures or performs cooldown field for the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::PlayerDataSchema::define_all", aliases: ["sand::prelude::PlayerDataSchema::define_all", "sand::prelude::PlayerSchema::define_all"], kind: Method, summary: "Configures or performs define all for the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::PlayerDataSchema::flag", aliases: ["sand::prelude::PlayerDataSchema::flag", "sand::prelude::PlayerSchema::flag"], kind: Method, summary: "Configures or performs flag for the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::PlayerDataSchema::flag_field", aliases: ["sand::prelude::PlayerDataSchema::flag_field", "sand::prelude::PlayerSchema::flag_field"], kind: Method, summary: "Configures or performs flag field for the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::PlayerDataSchema::game_state", aliases: ["sand::prelude::PlayerDataSchema::game_state", "sand::prelude::PlayerSchema::game_state"], kind: Method, summary: "Configures or performs game state for the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::PlayerDataSchema::global_storage_field", aliases: ["sand::prelude::PlayerDataSchema::global_storage_field", "sand::prelude::PlayerSchema::global_storage_field"], kind: Method, summary: "Configures or performs global storage field for the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::PlayerDataSchema::has_storage", aliases: ["sand::prelude::PlayerDataSchema::has_storage", "sand::prelude::PlayerSchema::has_storage"], kind: Method, summary: "Configures or performs has storage for the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::PlayerDataSchema::init_player", aliases: ["sand::prelude::PlayerDataSchema::init_player", "sand::prelude::PlayerSchema::init_player"], kind: Method, summary: "Configures or performs init player for the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::PlayerDataSchema::name", aliases: ["sand::prelude::PlayerDataSchema::name", "sand::prelude::PlayerSchema::name"], kind: Method, summary: "Configures or performs name for the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::PlayerDataSchema::new", aliases: ["sand::prelude::PlayerDataSchema::new", "sand::prelude::PlayerSchema::new"], kind: Method, summary: "Configures or performs new for the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::PlayerDataSchema::score", aliases: ["sand::prelude::PlayerDataSchema::score", "sand::prelude::PlayerSchema::score"], kind: Method, summary: "Configures or performs score for the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::PlayerDataSchema::score_field", aliases: ["sand::prelude::PlayerDataSchema::score_field", "sand::prelude::PlayerSchema::score_field"], kind: Method, summary: "Configures or performs score field for the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::PlayerDataSchema::scoreboard_field_count", aliases: ["sand::prelude::PlayerDataSchema::scoreboard_field_count", "sand::prelude::PlayerSchema::scoreboard_field_count"], kind: Method, summary: "Configures or performs scoreboard field count for the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::PlayerDataSchema::storage", aliases: ["sand::prelude::PlayerDataSchema::storage", "sand::prelude::PlayerSchema::storage"], kind: Method, summary: "Configures or performs storage for the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::PlayerDataSchema::storage_locations", aliases: ["sand::prelude::PlayerDataSchema::storage_locations", "sand::prelude::PlayerSchema::storage_locations"], kind: Method, summary: "Configures or performs storage locations for the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::PlayerDataSchema::timer", aliases: ["sand::prelude::PlayerDataSchema::timer", "sand::prelude::PlayerSchema::timer"], kind: Method, summary: "Configures or performs timer for the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::PlayerDataSchema::timer_field", aliases: ["sand::prelude::PlayerDataSchema::timer_field", "sand::prelude::PlayerSchema::timer_field"], kind: Method, summary: "Configures or performs timer field for the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::PlayerDataSchema::try_init_player", aliases: ["sand::prelude::PlayerDataSchema::try_init_player", "sand::prelude::PlayerSchema::try_init_player"], kind: Method, summary: "Configures or performs try init player for the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::ScoreField", aliases: ["sand::prelude::ScoreField"], kind: Struct, summary: "Configures score field in the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::ScoreField::default", aliases: ["sand::prelude::ScoreField::default"], kind: Method, summary: "Configures or performs default for the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::ScoreField::default_value", aliases: ["sand::prelude::ScoreField::default_value"], kind: Method, summary: "Configures or performs default value for the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::ScoreField::new", aliases: ["sand::prelude::ScoreField::new"], kind: Method, summary: "Configures or performs new for the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::ScoreField::of", aliases: ["sand::prelude::ScoreField::of"], kind: Method, summary: "Configures or performs of for the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::ScoreField::value", aliases: ["sand::prelude::ScoreField::value"], kind: Method, summary: "Configures or performs value for the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::TimerField", aliases: ["sand::prelude::TimerField"], kind: Struct, summary: "Configures timer field in the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::TimerField::new", aliases: ["sand::prelude::TimerField::new"], kind: Method, summary: "Configures or performs new for the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::TimerField::of", aliases: ["sand::prelude::TimerField::of"], kind: Method, summary: "Configures or performs of for the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::TimerField::value", aliases: ["sand::prelude::TimerField::value"], kind: Method, summary: "Configures or performs value for the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::TimerFieldRef", aliases: ["sand::prelude::TimerFieldRef"], kind: Struct, summary: "Configures timer field ref in the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::TimerFieldRef::active", aliases: ["sand::prelude::TimerFieldRef::active"], kind: Method, summary: "Builds the typed condition for active." }
+register_systems_api! { path: "sand::systems::player_data::TimerFieldRef::expired", aliases: ["sand::prelude::TimerFieldRef::expired"], kind: Method, summary: "Builds the typed condition for expired." }
+register_systems_api! { path: "sand::systems::player_data::TimerFieldRef::reset", aliases: ["sand::prelude::TimerFieldRef::reset"], kind: Method, summary: "Configures or performs reset for the player data gameplay system." }
+register_systems_api! { path: "sand::systems::player_data::TimerFieldRef::start", aliases: ["sand::prelude::TimerFieldRef::start"], kind: Method, summary: "Configures or performs start for the player data gameplay system." }
+// END SYSTEMS API CONTRACTS

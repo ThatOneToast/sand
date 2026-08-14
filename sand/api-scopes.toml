@@ -4,8 +4,8 @@
 # are discovered through the reachable re-export graph. Generator scopes are
 # supplied from the same declaration/schema that emits their Rust API.
 schema_version = 1
-enforced_scope_baseline = ["predicate-source", "generated-predicate-id-wrapper", "execute-when-source", "condition-source", "resource-ref-source", "generated-resource-id-wrappers", "version-source", "generated-vanilla-registries", "vfx-source", "advanced-source", "root-source", "generated-effect-registry-enums", "generated-commands", "generated-event-markers", "generated-registry-id-wrappers", "generated-item-macro", "generated-state-derive", "generated-storage-derive", "generated-function-macro", "generated-component-macro", "generated-event-macro", "generated-armor-event-macro", "generated-schedule-macro", "generated-entity-state-enum-derive", "generated-resourcepack-macros", "item-source", "inventory-source", "event-source", "events-source", "entity-source", "state-source", "participant-source", "text-source", "data-source"]
-pending_scope_ceiling = 5
+enforced_scope_baseline = ["predicate-source", "generated-predicate-id-wrapper", "execute-when-source", "condition-source", "resource-ref-source", "generated-resource-id-wrappers", "version-source", "generated-vanilla-registries", "vfx-source", "advanced-source", "root-source", "generated-effect-registry-enums", "generated-commands", "generated-event-markers", "generated-registry-id-wrappers", "generated-item-macro", "generated-state-derive", "generated-storage-derive", "generated-function-macro", "generated-component-macro", "generated-event-macro", "generated-armor-event-macro", "generated-schedule-macro", "generated-entity-state-enum-derive", "generated-resourcepack-macros", "item-source", "inventory-source", "event-source", "events-source", "entity-source", "state-source", "participant-source", "text-source", "data-source", "systems-source"]
+pending_scope_ceiling = 4
 
 [[scope]]
 id = "root-source"
@@ -161,7 +161,7 @@ precedence = 100
 [[scope]]
 id = "systems-source"
 canonical_module = "sand::systems"
-state = "pending"
+state = "enforced"
 tier = "ordinary"
 provider = "source"
 

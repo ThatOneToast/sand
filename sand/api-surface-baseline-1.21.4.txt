@@ -32,7 +32,7 @@ component-source module=sand::component state=pending tier=ordinary provider=sou
 condition-source module=sand::condition state=enforced tier=ordinary provider=source precedence=50 recursive=true active=true items=12 contracted=12 aliases=sand::prelude features=-
 data-source module=sand::data state=pending tier=ordinary provider=source precedence=100 recursive=true active=true items=186 contracted=1 aliases=sand::prelude features=-
 entity-source module=sand::entity state=pending tier=ordinary provider=source precedence=50 recursive=true active=true items=913 contracted=0 aliases=sand::prelude features=-
-event-source module=sand::event state=pending tier=ordinary provider=source precedence=50 recursive=true active=true items=115 contracted=16 aliases=sand::prelude features=-
+event-source module=sand::event state=pending tier=ordinary provider=source precedence=50 recursive=true active=true items=115 contracted=27 aliases=sand::prelude features=-
 events-source module=sand::events state=pending tier=ordinary provider=source precedence=100 recursive=true active=true items=216 contracted=72 aliases=sand::prelude features=-
 execute-when-source module=sand::execute_when state=enforced tier=ordinary provider=source precedence=50 recursive=true active=true items=22 contracted=22 aliases=sand::prelude features=-
 generated-armor-event-macro module=sand state=enforced tier=ordinary provider=generator:armor_event_macro precedence=50 recursive=false active=true items=0 contracted=0 aliases=- features=-

@@ -102,8 +102,8 @@ pub use crate::event::trigger::{
     UsingItemTrigger,
 };
 pub use crate::event::{
-    AdvancementEvent, DamageAdvancementEvent, DamageEvent, Event, EventBuilder, EventConfig,
-    EventId, EventPlayer, EventReset, EventVisibility, IntoEventAdvancement,
+    AdvancementEvent, DamageAdvancementEvent, DamageEvent, Event, EventId, EventReset,
+    EventVisibility,
 };
 
 // ── Custom SandEvent authoring (#273) ──────────────────────────────────────────

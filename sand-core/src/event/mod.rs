@@ -10,14 +10,10 @@
 //! | [`EventId`] | Controls how the advancement ID is determined |
 //! | [`EventReset`] | Controls re-arming after firing |
 //! | [`EventVisibility`] | Controls toast/chat visibility |
-//! | [`IntoEventAdvancement`] | Extension: builds the full advancement from an event |
 
-pub mod builder;
 pub mod handle;
 pub mod trigger;
 pub mod vanilla;
-
-pub use builder::{EventBuilder, EventConfig};
 
 use crate::AdvancementTrigger;
 use std::marker::PhantomData;
@@ -31,9 +27,8 @@ use std::marker::PhantomData;
 /// construction), while raw `&str`/`String` values are parsed and validated
 /// here, panicking with an actionable diagnostic on malformed input.
 ///
-/// This keeps existing string call sites (`EventBuilder::id("my_pack:foo")`,
-/// `EventConfig::advancement("my_pack:foo", ...)`) source-compatible while
-/// making [`ResourceLocation`](crate::ResourceLocation) the preferred, pre-validated normal path — see #196.
+/// This makes [`ResourceLocation`](crate::ResourceLocation) the preferred,
+/// pre-validated path for explicit event identities.
 /// Invalid explicit event IDs are rejected here, at the API boundary, rather
 /// than silently passed through to `resolve()`/export.
 pub trait IntoEventId {
@@ -271,21 +266,6 @@ pub trait AdvancementEvent {
     fn participants() -> crate::participant::EventParticipantPlan {
         crate::participant::EventParticipantPlan::none()
     }
-
-    /// Build a value-based [`EventConfig`] from this trait impl.
-    ///
-    /// This bridges the trait-based and builder-based APIs: you can obtain an
-    /// `EventConfig` from any `AdvancementEvent` impl without knowing whether
-    /// it was defined via a struct+impl or via [`EventBuilder`].
-    fn into_config() -> crate::event::builder::EventConfig {
-        crate::event::builder::EventBuilder::new()
-            .trigger(Self::trigger().into())
-            .reset(Self::reset())
-            .visibility(Self::visibility())
-            .build()
-        // Note: guard and state_defines are not forwarded here because Condition
-        // is not Clone. Override into_config() on your event if you need them.
-    }
 }
 
 /// Capability marker for advancement events that represent player damage.
@@ -295,29 +275,6 @@ pub trait AdvancementEvent {
 /// Use [`DamageAmount::Fixed`](sand_commands::DamageAmount::Fixed) today, or
 /// add a real tracking system before using same-as-event damage.
 pub trait DamageAdvancementEvent: AdvancementEvent {}
-
-/// Legacy compatibility trait — provides `player()` for bare event-type handler
-/// parameters (e.g. `event: OnJoinEvent`).
-///
-/// The primary event model is `Event<T>` where `T: AdvancementEvent`, which
-/// gives you `event.player()` directly:
-///
-/// ```rust,ignore
-/// #[on_event]
-/// pub fn on_kill(event: Event<EntityKillEvent>) {
-///     cmd::tellraw(event.player(), Text::new("Killed!"));
-/// }
-/// ```
-///
-/// `EventPlayer` is implemented on all built-in event marker types so that
-/// legacy bare-parameter handlers compiled before the `Event<T>` model are
-/// still accepted by the `#[on_event]` macro. Prefer `Event<T>` for new code.
-pub trait EventPlayer {
-    /// Returns `Selector::self_()` — the player who triggered the event.
-    fn player(&self) -> crate::cmd::Selector {
-        crate::cmd::Selector::self_()
-    }
-}
 
 // ── Event<E> — handler context ───────────────────────────────────────────────
 
@@ -391,13 +348,6 @@ impl<E: AdvancementEvent> Event<E> {
     /// ```
     pub fn state_init() -> Vec<String> {
         E::state_defines()
-    }
-
-    /// Build a value-based [`EventConfig`] from this event's trait impl.
-    ///
-    /// Convenience wrapper over [`AdvancementEvent::into_config`].
-    pub fn config() -> crate::event::builder::EventConfig {
-        E::into_config()
     }
 
     /// Access a declared entity participant by role (#230, infallible per
@@ -528,73 +478,6 @@ impl<E: DamageAdvancementEvent> Default for DamageEvent<E> {
     }
 }
 
-// ── EventAdvancement<E> — internal advancement builder ───────────────────────
-
-/// Internal advancement component builder for `AdvancementEvent`-backed events.
-///
-/// Users should not construct this directly. The `#[on_event]` macro and the
-/// export pipeline use this to build the final `Advancement` JSON.
-///
-/// # Migration note
-///
-/// Code that previously called `Event::<E>::new("ns:path", "ns:handler")` should
-/// be updated to use this type instead. The old `Event<E>` builder API is gone
-/// — `Event<E>` is now the zero-cost handler context.
-pub struct EventAdvancement<E: AdvancementEvent> {
-    /// The advancement resource location.
-    pub advancement_id: String,
-    /// The handler function reference for `rewards.function`.
-    pub handler_function: String,
-    _marker: PhantomData<E>,
-}
-
-impl<E: AdvancementEvent> EventAdvancement<E> {
-    /// Create a new typed event advancement with the given IDs.
-    ///
-    /// - `advancement_id` — full `namespace:path` for the generated advancement
-    /// - `handler_function` — full `namespace:path` for the mcfunction to run
-    pub fn new(advancement_id: impl Into<String>, handler_function: impl Into<String>) -> Self {
-        Self {
-            advancement_id: advancement_id.into(),
-            handler_function: handler_function.into(),
-            _marker: PhantomData,
-        }
-    }
-
-    /// Build the [`Advancement`](crate::Advancement) component.
-    pub fn into_advancement(self) -> crate::Advancement {
-        let trigger = E::trigger().into();
-        let rl: crate::ResourceLocation = self
-            .advancement_id
-            .parse()
-            .expect("invalid advancement resource location in EventAdvancement::new");
-
-        crate::Advancement::new(rl)
-            .criterion("event", crate::Criterion::new(trigger))
-            .rewards(
-                crate::AdvancementRewards::new().function(
-                    self.handler_function
-                        .parse()
-                        .expect("handler function must be a valid resource location"),
-                ),
-            )
-    }
-}
-
-/// Converts a typed [`EventAdvancement`] into a [`sand_components::Advancement`] component.
-///
-/// Kept for backward compatibility with code that used the old `Event<E>` builder.
-pub trait IntoEventAdvancement<E: AdvancementEvent> {
-    /// Build the advancement component from this event.
-    fn into_advancement(self) -> crate::Advancement;
-}
-
-impl<E: AdvancementEvent> IntoEventAdvancement<E> for EventAdvancement<E> {
-    fn into_advancement(self) -> crate::Advancement {
-        self.into_advancement()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -621,14 +504,6 @@ mod tests {
         let event = Event::<TestTickEvent>::default();
         let sel = event.subject();
         assert_eq!(sel.to_string(), "@s");
-    }
-
-    #[test]
-    fn event_advancement_builds() {
-        let ea =
-            EventAdvancement::<TestTickEvent>::new("test_pack:test_event", "test_pack:on_test");
-        let adv = ea.into_advancement();
-        assert_eq!(adv.resource_location().to_string(), "test_pack:test_event");
     }
 
     #[test]

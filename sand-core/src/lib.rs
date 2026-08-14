@@ -112,22 +112,10 @@ pub use component::{
     IntoDatapack,
 };
 pub use error::{Result, SandError};
-pub use event::handle::{EventHandle, RawEventHandle};
+pub use event::handle::EventHandle;
 pub use event::{
-    AdvancementEvent,
-    DamageAdvancementEvent,
-    DamageEvent,
-    Event,
-    // Kept for backward compat; prefer Event<E> as handler context
-    EventAdvancement,
-    EventBuilder,
-    EventConfig,
-    EventId,
-    EventPlayer,
-    EventReset,
-    EventVisibility,
-    IntoEventAdvancement,
-    IntoEventId,
+    AdvancementEvent, DamageAdvancementEvent, DamageEvent, Event, EventId, EventReset,
+    EventVisibility, IntoEventId,
 };
 pub use events::{
     // Equipment events

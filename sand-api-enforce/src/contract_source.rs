@@ -351,7 +351,10 @@ fn inspect_items(
                     inspect_attributes(attrs, source, member.span().start(), declarations, true)?;
                 }
             }
-            Item::Macro(item) if item.mac.path.is_ident("register") => {
+            Item::Macro(item)
+                if item.mac.path.is_ident("register")
+                    || item.mac.path.is_ident("register_event_marker") =>
+            {
                 let parsed =
                     syn::parse2::<RegisterArgs>(item.mac.tokens.clone()).map_err(|error| {
                         ContractSourceError::Parse(format!("{}: {error}", source.display()))

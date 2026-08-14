@@ -2339,7 +2339,6 @@ macro_rules! adv_event {
                 dispatch.into_trigger().unwrap()
             }
         }
-        impl crate::event::EventPlayer for $ty {}
     };
     // Same as above, plus a declared participant plan (#230) — the export
     // pipeline applies it automatically to this event's generated body; see
@@ -2355,7 +2354,6 @@ macro_rules! adv_event {
                 $plan
             }
         }
-        impl crate::event::EventPlayer for $ty {}
     };
 }
 
@@ -2440,7 +2438,6 @@ impl crate::event::AdvancementEvent for PlayerLevelUpEvent {
         crate::AdvancementTrigger::Tick
     }
 }
-impl crate::event::EventPlayer for PlayerLevelUpEvent {}
 adv_event!(EffectsChangedEvent);
 adv_event!(StartRidingEvent);
 adv_event!(UseEnderEyeEvent);
@@ -3242,55 +3239,6 @@ impl<E: StatusEffectMarker> SandEvent for EffectStopped<E> {
         ))
     }
 }
-
-// ════════════════════════════════════════════════════════════════════════════
-// ── EventPlayer impls for all event types ──────────────────────────────────
-// ════════════════════════════════════════════════════════════════════════════
-// (Advancement-backed types are covered by the adv_event! macro above.)
-
-macro_rules! player_event {
-    ($ty:ty) => {
-        impl crate::event::EventPlayer for $ty {}
-    };
-}
-
-player_event!(OnJoinEvent);
-player_event!(FirstJoinEvent);
-player_event!(OnDeathEvent);
-player_event!(OnRespawnEvent);
-player_event!(ArmorEquipEvent);
-player_event!(ArmorUnequipEvent);
-player_event!(HoldingItemEvent);
-player_event!(CurrentlyWearingEvent);
-player_event!(PlayerStartSneakingEvent);
-player_event!(PlayerStopSneakingEvent);
-player_event!(PlayerSneakEvent);
-player_event!(PlayerSprintEvent);
-player_event!(PlayerStartSprintingEvent);
-player_event!(PlayerStopSprintingEvent);
-player_event!(PlayerSwimmingEvent);
-player_event!(PlayerStartSwimmingEvent);
-player_event!(PlayerStopSwimmingEvent);
-player_event!(PlayerFlyingEvent);
-player_event!(PlayerStartFlyingEvent);
-player_event!(PlayerStopFlyingEvent);
-player_event!(PlayerOnFireEvent);
-player_event!(PlayerCaughtFireEvent);
-player_event!(PlayerExtinguishedEvent);
-player_event!(PlayerInCreativeEvent);
-player_event!(PlayerInAdventureEvent);
-player_event!(PlayerInSpectatorEvent);
-player_event!(PlayerEnteredSurvivalEvent);
-player_event!(PlayerExitedSurvivalEvent);
-player_event!(PlayerEnteredCreativeEvent);
-player_event!(PlayerExitedCreativeEvent);
-player_event!(PlayerEnteredAdventureEvent);
-player_event!(PlayerExitedAdventureEvent);
-player_event!(PlayerEnteredSpectatorEvent);
-player_event!(PlayerExitedSpectatorEvent);
-player_event!(PlayerHealthChangedEvent);
-player_event!(PlayerHealthLostEvent);
-player_event!(PlayerHealthGainedEvent);
 
 // ── Doc-coverage registry ────────────────────────────────────────────────────
 //

@@ -24,7 +24,7 @@ origin generator:generated_event_markers=25
 origin generator:generated_registry_ids=136
 origin source=4632
 advanced-source module=sand::advanced state=enforced tier=advanced provider=source precedence=100 recursive=true active=true items=2 contracted=2 aliases=- features=-
-command-source module=sand::command state=pending tier=ordinary provider=source precedence=50 recursive=true active=true items=819 contracted=0 aliases=sand::cmd,sand::prelude features=-
+command-source module=sand::command state=enforced tier=ordinary provider=source precedence=50 recursive=true active=true items=819 contracted=819 aliases=sand::cmd,sand::prelude features=-
 component-source module=sand::component state=pending tier=ordinary provider=source precedence=50 recursive=true active=true items=1097 contracted=0 aliases=sand::prelude features=-
 condition-source module=sand::condition state=enforced tier=ordinary provider=source precedence=50 recursive=true active=true items=12 contracted=12 aliases=sand::prelude features=-
 data-source module=sand::data state=enforced tier=ordinary provider=source precedence=100 recursive=true active=true items=186 contracted=186 aliases=sand::prelude features=-
@@ -62,4 +62,4 @@ systems-source module=sand::systems state=enforced tier=ordinary provider=source
 text-source module=sand::text state=enforced tier=ordinary provider=source precedence=100 recursive=true active=true items=95 contracted=95 aliases=sand::prelude features=-
 version-source module=sand::version state=enforced tier=ordinary provider=source precedence=50 recursive=true active=true items=42 contracted=42 aliases=sand::prelude features=-
 vfx-source module=sand::vfx state=enforced tier=ordinary provider=source precedence=100 recursive=true active=true items=45 contracted=45 aliases=- features=-
-totals pending_scopes=4 pending_items=2475 enforced_items=2413 pending_scope_ceiling=4 pending_item_ceiling=2475
+totals pending_scopes=3 pending_items=1656 enforced_items=3232 pending_scope_ceiling=3 pending_item_ceiling=1656

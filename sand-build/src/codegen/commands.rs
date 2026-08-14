@@ -11,6 +11,24 @@ use crate::error::Result;
 /// Top-level commands to skip entirely (they use redirects or are aliases).
 const SKIP_COMMANDS: &[&str] = &["effect", "execute", "tell", "tm", "tp", "w", "xp"];
 
+/// Generated variants shadowed by Sand's intentional handwritten command API.
+///
+/// These variants are omitted instead of being emitted under a second Rust
+/// identity at the same `sand::command` path. The handwritten versions carry
+/// stronger domain types, validation, or richer builders than the raw command
+/// tree can describe. Other variants in the same vanilla command family remain
+/// generated normally.
+const HANDWRITTEN_VARIANTS: &[&str] = &[
+    "fill",
+    "function",
+    "give",
+    "particle",
+    "return_cmd",
+    "return_fail",
+    "tellraw",
+    "title_times",
+];
+
 /// Maximum tree depth to prevent runaway generation.
 const MAX_DEPTH: usize = 6;
 
@@ -772,7 +790,10 @@ pub fn generate(reports_dir: &Path, out_dir: &Path, minecraft_version: &str) -> 
     }
 
     // Assign unique Rust identifiers without mutating vanilla command paths.
-    let emitted = assign_rust_names(all_variants);
+    let emitted = assign_rust_names(all_variants)
+        .into_iter()
+        .filter(|variant| !HANDWRITTEN_VARIANTS.contains(&variant.fn_name.as_str()))
+        .collect::<Vec<_>>();
 
     // Generate code.
     let mut code = String::new();

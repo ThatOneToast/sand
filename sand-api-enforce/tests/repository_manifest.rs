@@ -14,7 +14,7 @@ fn repository_surface_manifest_records_the_audited_pending_baseline() {
     // version selection.
     assert_eq!(manifest.static_surface_items, 0);
     assert_eq!(manifest.pending_item_ceiling, 0);
-    assert_eq!(manifest.pending_scope_ceiling, 2);
+    assert_eq!(manifest.pending_scope_ceiling, 1);
     assert_eq!(manifest.scopes.len(), 39);
     assert!(
         manifest
@@ -44,6 +44,7 @@ fn repository_surface_manifest_records_the_audited_pending_baseline() {
                 "text-source",
                 "data-source",
                 "advanced-source",
+                "resourcepack-source",
                 "generated-commands",
                 "generated-vanilla-registries",
                 "generated-resource-id-wrappers",
@@ -96,17 +97,17 @@ fn repository_surface_manifest_records_the_audited_pending_baseline() {
         [
             (
                 "placeholder-codegen",
-                4_836,
-                559,
+                4_816,
+                408,
                 "api-surface-baseline-placeholder.txt".to_owned(),
             ),
             (
                 "1.21.4",
-                10_026,
-                559,
+                10_006,
+                408,
                 "api-surface-baseline-1.21.4.txt".to_owned(),
             ),
-            ("26.2", 10_936, 559, "api-surface-baseline.txt".to_owned(),),
+            ("26.2", 10_916, 408, "api-surface-baseline.txt".to_owned(),),
         ]
     );
 }

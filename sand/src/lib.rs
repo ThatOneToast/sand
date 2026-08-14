@@ -569,7 +569,15 @@ pub use sand_core::advanced;
 /// [`hud_element!`](crate::hud_element), and [`texture!`](crate::texture)
 /// macros, also feature-gated.
 #[cfg(feature = "resourcepack")]
-pub use sand_resourcepack as resourcepack;
+pub mod resourcepack {
+    pub use sand_resourcepack::{
+        AssetContent, AssetOutput, BarHandle, BarStat, BitmapFont, BitmapProvider, Color,
+        ElementHandle, FontProvider, GenHudBar, GenHudElement, HudBar, HudElement, HudLayout,
+        RawTexture, ResourcePackComponent, ResourcePackDescriptor, ResourcePackRecord, advance_x,
+        bar_char, bar_text_json, element_char, element_text_json, export_resourcepack_json,
+        resource_pack_format_for,
+    };
+}
 
 // ── Macro/compiler wiring. Not public API. ────────────────────────────────────
 

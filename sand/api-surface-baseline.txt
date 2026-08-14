@@ -1,7 +1,7 @@
 schema_version=1
 configuration=all-supported-features,current-target
 minecraft_version=26.2
-total=10936
+total=10916
 kind associated_const=16
 kind associated_type=2
 kind attribute_macro=8
@@ -9,11 +9,11 @@ kind constant=2
 kind derive_macro=3
 kind enum=149
 kind field=717
-kind function=525
+kind function=521
 kind function_like_macro=4
 kind macro=3
 kind method=2703
-kind module=49
+kind module=33
 kind struct=919
 kind trait=33
 kind trait_method=50
@@ -24,7 +24,7 @@ origin generator:generated_effect_registry_enums=95
 origin generator:generated_event_markers=25
 origin generator:generated_registries=4867
 origin generator:generated_registry_ids=136
-origin source=4580
+origin source=4560
 advanced-source module=sand::advanced state=enforced tier=advanced provider=source precedence=100 recursive=true active=true items=2 contracted=2 aliases=- features=-
 command-source module=sand::command state=enforced tier=ordinary provider=source precedence=50 recursive=true active=true items=819 contracted=819 aliases=sand::cmd,sand::prelude features=-
 component-source module=sand::component state=enforced tier=ordinary provider=source precedence=50 recursive=true active=true items=1045 contracted=1045 aliases=sand::prelude features=-
@@ -57,11 +57,11 @@ participant-source module=sand::participant state=enforced tier=ordinary provide
 predicate-source module=sand::predicate state=enforced tier=ordinary provider=source precedence=100 recursive=true active=true items=119 contracted=119 aliases=sand::component,sand::prelude features=-
 prelude-unassigned-source module=sand::prelude state=pending tier=ordinary provider=source precedence=0 recursive=true active=true items=408 contracted=0 aliases=- features=-
 resource-ref-source module=sand::resource_ref state=enforced tier=ordinary provider=source precedence=200 recursive=true active=true items=1 contracted=1 aliases=- features=-
-resourcepack-source module=sand::resourcepack state=pending tier=ordinary provider=source precedence=50 recursive=true active=true items=151 contracted=0 aliases=- features=resourcepack
+resourcepack-source module=sand::resourcepack state=enforced tier=ordinary provider=source precedence=50 recursive=true active=true items=131 contracted=131 aliases=- features=resourcepack
 root-source module=sand state=enforced tier=ordinary provider=source precedence=100 recursive=false active=true items=32 contracted=32 aliases=sand::prelude features=-
 state-source module=sand::state state=enforced tier=ordinary provider=source precedence=50 recursive=true active=true items=230 contracted=230 aliases=sand::prelude features=-
 systems-source module=sand::systems state=enforced tier=ordinary provider=source precedence=50 recursive=true active=true items=158 contracted=158 aliases=- features=-
 text-source module=sand::text state=enforced tier=ordinary provider=source precedence=100 recursive=true active=true items=95 contracted=95 aliases=sand::prelude features=-
 version-source module=sand::version state=enforced tier=ordinary provider=source precedence=50 recursive=true active=true items=42 contracted=42 aliases=sand::prelude features=-
 vfx-source module=sand::vfx state=enforced tier=ordinary provider=source precedence=100 recursive=true active=true items=45 contracted=45 aliases=- features=-
-totals pending_scopes=2 pending_items=559 enforced_items=10377 pending_scope_ceiling=2 pending_item_ceiling=559
+totals pending_scopes=1 pending_items=408 enforced_items=10508 pending_scope_ceiling=1 pending_item_ceiling=408

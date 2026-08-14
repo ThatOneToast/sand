@@ -315,6 +315,32 @@ macro_rules! register_component_api {
     };
 }
 
+macro_rules! register_resourcepack_api {
+    (
+        path: $path:literal,
+        aliases: [$($alias:literal),* $(,)?],
+        kind: $kind:ident,
+        summary: $summary:literal
+    ) => {
+        register! {
+            path: $path,
+            aliases: [$($alias),*],
+            module: "sand::resourcepack",
+            kind: $kind,
+            signature: "feature-gated resource-pack authoring API",
+            summary: $summary,
+            context: "This API defines client-side HUD, font, texture, or resource-pack output while keeping asset registration and exporter inventory wiring private.",
+            minecraft: "The resourcepack exporter writes version-appropriate assets, bitmap-font providers, and pack metadata for the selected Minecraft profile.",
+            use_when: ["Building HUD bars, HUD elements, textures, or resource-pack output alongside a Sand datapack"],
+            avoid_when: ["The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand"],
+            params: [],
+            returns: None,
+            example: "use sand::resourcepack::*;",
+            availability: ["Cargo feature: resourcepack"]
+        }
+    };
+}
+
 register! {
     path: "sand::prelude",
     aliases: [],
@@ -4437,3 +4463,135 @@ register_component_api! { path: "sand::component::McFunction::command", aliases:
 register_component_api! { path: "sand::component::McFunction::commands", aliases: [], kind: Method, summary: "Configures commands on this typed datapack component definition." }
 register_component_api! { path: "sand::component::McFunction::new", aliases: [], kind: Method, summary: "Creates this typed datapack component definition." }
 // END COMPONENT API CONTRACTS
+register_resourcepack_api! { path: "sand::resourcepack::AssetContent", aliases: [], kind: Enum, summary: "Selects among supported asset content resource-pack forms." }
+register_resourcepack_api! { path: "sand::resourcepack::AssetContent::Bytes", aliases: [], kind: Variant, summary: "Selects the bytes resource-pack representation." }
+register_resourcepack_api! { path: "sand::resourcepack::AssetContent::Bytes::0", aliases: [], kind: Field, summary: "Carries the 0 value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::AssetContent::CopyFrom", aliases: [], kind: Variant, summary: "Selects the copy from resource-pack representation." }
+register_resourcepack_api! { path: "sand::resourcepack::AssetContent::CopyFrom::0", aliases: [], kind: Field, summary: "Carries the 0 value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::AssetContent::Json", aliases: [], kind: Variant, summary: "Selects the json resource-pack representation." }
+register_resourcepack_api! { path: "sand::resourcepack::AssetContent::Json::0", aliases: [], kind: Field, summary: "Carries the 0 value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::AssetOutput", aliases: [], kind: Struct, summary: "Defines the typed asset output resource-pack value." }
+register_resourcepack_api! { path: "sand::resourcepack::AssetOutput::content", aliases: [], kind: Field, summary: "Carries the content value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::AssetOutput::path", aliases: [], kind: Field, summary: "Carries the path value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::ResourcePackComponent", aliases: [], kind: Trait, summary: "Defines how resource pack component values emit resource-pack assets." }
+register_resourcepack_api! { path: "sand::resourcepack::ResourcePackComponent::assets", aliases: [], kind: TraitMethod, summary: "Produces assets through the resource-pack component contract." }
+register_resourcepack_api! { path: "sand::resourcepack::ResourcePackRecord", aliases: [], kind: Struct, summary: "Defines the typed resource pack record resource-pack value." }
+register_resourcepack_api! { path: "sand::resourcepack::ResourcePackRecord::content", aliases: [], kind: Field, summary: "Carries the content value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::ResourcePackRecord::content_type", aliases: [], kind: Field, summary: "Carries the content type value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::ResourcePackRecord::path", aliases: [], kind: Field, summary: "Carries the path value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::BitmapFont", aliases: [], kind: Struct, summary: "Defines the typed bitmap font resource-pack value." }
+register_resourcepack_api! { path: "sand::resourcepack::BitmapFont::font_name", aliases: [], kind: Field, summary: "Carries the font name value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::BitmapFont::provider", aliases: [], kind: Field, summary: "Carries the provider value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::BitmapFont::texture_dest", aliases: [], kind: Field, summary: "Carries the texture dest value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::BitmapFont::texture_src", aliases: [], kind: Field, summary: "Carries the texture src value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::BitmapProvider", aliases: [], kind: Struct, summary: "Defines the typed bitmap provider resource-pack value." }
+register_resourcepack_api! { path: "sand::resourcepack::BitmapProvider::ascent", aliases: [], kind: Field, summary: "Carries the ascent value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::BitmapProvider::chars", aliases: [], kind: Field, summary: "Carries the chars value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::BitmapProvider::file", aliases: [], kind: Field, summary: "Carries the file value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::BitmapProvider::height", aliases: [], kind: Field, summary: "Carries the height value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::BitmapProvider::to_json", aliases: [], kind: Method, summary: "Configures to json for this typed resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::FontProvider", aliases: [], kind: Enum, summary: "Selects among supported font provider resource-pack forms." }
+register_resourcepack_api! { path: "sand::resourcepack::FontProvider::Bitmap", aliases: [], kind: Variant, summary: "Selects the bitmap resource-pack representation." }
+register_resourcepack_api! { path: "sand::resourcepack::FontProvider::Bitmap::0", aliases: [], kind: Field, summary: "Carries the 0 value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::FontProvider::to_json", aliases: [], kind: Method, summary: "Configures to json for this typed resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::GenHudBar", aliases: [], kind: Struct, summary: "Defines the typed gen hud bar resource-pack value." }
+register_resourcepack_api! { path: "sand::resourcepack::GenHudBar::ascent", aliases: [], kind: Field, summary: "Carries the ascent value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::GenHudBar::empty", aliases: [], kind: Field, summary: "Carries the empty value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::GenHudBar::fill", aliases: [], kind: Field, summary: "Carries the fill value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::GenHudBar::font", aliases: [], kind: Field, summary: "Carries the font value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::GenHudBar::frame_width", aliases: [], kind: Field, summary: "Carries the frame width value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::GenHudBar::height", aliases: [], kind: Field, summary: "Carries the height value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::GenHudBar::name", aliases: [], kind: Field, summary: "Carries the name value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::GenHudBar::steps", aliases: [], kind: Field, summary: "Carries the steps value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::GenHudBar::texture_dest", aliases: [], kind: Field, summary: "Carries the texture dest value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::GenHudBar::unicode_start", aliases: [], kind: Field, summary: "Carries the unicode start value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::GenHudElement", aliases: [], kind: Struct, summary: "Defines the typed gen hud element resource-pack value." }
+register_resourcepack_api! { path: "sand::resourcepack::GenHudElement::ascent", aliases: [], kind: Field, summary: "Carries the ascent value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::GenHudElement::color", aliases: [], kind: Field, summary: "Carries the color value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::GenHudElement::font", aliases: [], kind: Field, summary: "Carries the font value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::GenHudElement::height", aliases: [], kind: Field, summary: "Carries the height value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::GenHudElement::name", aliases: [], kind: Field, summary: "Carries the name value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::GenHudElement::texture_dest", aliases: [], kind: Field, summary: "Carries the texture dest value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::GenHudElement::unicode", aliases: [], kind: Field, summary: "Carries the unicode value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::GenHudElement::width", aliases: [], kind: Field, summary: "Carries the width value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::HudBar", aliases: [], kind: Struct, summary: "Defines the typed hud bar resource-pack value." }
+register_resourcepack_api! { path: "sand::resourcepack::HudBar::ascent", aliases: [], kind: Field, summary: "Carries the ascent value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::HudBar::font", aliases: [], kind: Field, summary: "Carries the font value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::HudBar::height", aliases: [], kind: Field, summary: "Carries the height value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::HudBar::name", aliases: [], kind: Field, summary: "Carries the name value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::HudBar::steps", aliases: [], kind: Field, summary: "Carries the steps value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::HudBar::texture_dest", aliases: [], kind: Field, summary: "Carries the texture dest value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::HudBar::texture_src", aliases: [], kind: Field, summary: "Carries the texture src value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::HudBar::unicode_start", aliases: [], kind: Field, summary: "Carries the unicode start value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::HudElement", aliases: [], kind: Struct, summary: "Defines the typed hud element resource-pack value." }
+register_resourcepack_api! { path: "sand::resourcepack::HudElement::ascent", aliases: [], kind: Field, summary: "Carries the ascent value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::HudElement::font", aliases: [], kind: Field, summary: "Carries the font value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::HudElement::height", aliases: [], kind: Field, summary: "Carries the height value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::HudElement::name", aliases: [], kind: Field, summary: "Carries the name value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::HudElement::texture_dest", aliases: [], kind: Field, summary: "Carries the texture dest value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::HudElement::texture_src", aliases: [], kind: Field, summary: "Carries the texture src value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::HudElement::unicode", aliases: [], kind: Field, summary: "Carries the unicode value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::RawTexture", aliases: [], kind: Struct, summary: "Defines the typed raw texture resource-pack value." }
+register_resourcepack_api! { path: "sand::resourcepack::RawTexture::asset_namespace", aliases: [], kind: Field, summary: "Carries the asset namespace value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::RawTexture::dest_path", aliases: [], kind: Field, summary: "Carries the dest path value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::RawTexture::name", aliases: [], kind: Field, summary: "Carries the name value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::RawTexture::src_path", aliases: [], kind: Field, summary: "Carries the src path value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::ResourcePackDescriptor", aliases: [], kind: Struct, summary: "Defines the typed resource pack descriptor resource-pack value." }
+register_resourcepack_api! { path: "sand::resourcepack::ResourcePackDescriptor::make", aliases: [], kind: Field, summary: "Carries the make value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::ResourcePackDescriptor::name", aliases: [], kind: Field, summary: "Carries the name value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::export_resourcepack_json", aliases: [], kind: Function, summary: "Builds or resolves export resourcepack json for generated Minecraft resource-pack assets." }
+register_resourcepack_api! { path: "sand::resourcepack::BarHandle", aliases: [], kind: Struct, summary: "Defines the typed bar handle resource-pack value." }
+register_resourcepack_api! { path: "sand::resourcepack::BarHandle::broadcast_commands", aliases: [], kind: Method, summary: "Configures broadcast commands for this typed resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::BarHandle::broadcast_commands_at", aliases: [], kind: Method, summary: "Configures broadcast commands at for this typed resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::BarHandle::broadcast_commands_at_canvas", aliases: [], kind: Method, summary: "Configures broadcast commands at canvas for this typed resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::BarHandle::char", aliases: [], kind: Method, summary: "Configures char for this typed resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::BarHandle::display_commands", aliases: [], kind: Method, summary: "Configures display commands for this typed resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::BarHandle::display_commands_at", aliases: [], kind: Method, summary: "Configures display commands at for this typed resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::BarHandle::display_commands_at_canvas", aliases: [], kind: Method, summary: "Configures display commands at canvas for this typed resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::BarHandle::font", aliases: [], kind: Field, summary: "Carries the font value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::BarHandle::frame_width", aliases: [], kind: Field, summary: "Carries the frame width value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::BarHandle::name", aliases: [], kind: Field, summary: "Carries the name value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::BarHandle::show", aliases: [], kind: Method, summary: "Configures show for this typed resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::BarHandle::show_at", aliases: [], kind: Method, summary: "Configures show at for this typed resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::BarHandle::show_at_canvas", aliases: [], kind: Method, summary: "Configures show at canvas for this typed resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::BarHandle::steps", aliases: [], kind: Field, summary: "Carries the steps value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::BarHandle::text_json", aliases: [], kind: Method, summary: "Configures text json for this typed resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::ElementHandle", aliases: [], kind: Struct, summary: "Defines the typed element handle resource-pack value." }
+register_resourcepack_api! { path: "sand::resourcepack::ElementHandle::char", aliases: [], kind: Method, summary: "Configures char for this typed resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::ElementHandle::char_width", aliases: [], kind: Field, summary: "Carries the char width value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::ElementHandle::font", aliases: [], kind: Field, summary: "Carries the font value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::ElementHandle::name", aliases: [], kind: Field, summary: "Carries the name value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::ElementHandle::show", aliases: [], kind: Method, summary: "Configures show for this typed resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::ElementHandle::show_at", aliases: [], kind: Method, summary: "Configures show at for this typed resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::ElementHandle::show_at_canvas", aliases: [], kind: Method, summary: "Configures show at canvas for this typed resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::ElementHandle::text_json", aliases: [], kind: Method, summary: "Configures text json for this typed resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::HudLayout", aliases: [], kind: Struct, summary: "Defines the typed hud layout resource-pack value." }
+register_resourcepack_api! { path: "sand::resourcepack::HudLayout::bar", aliases: [], kind: Method, summary: "Configures bar for this typed resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::HudLayout::broadcast", aliases: [], kind: Method, summary: "Configures broadcast for this typed resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::HudLayout::broadcast_via_storage", aliases: [], kind: Method, summary: "Configures broadcast via storage for this typed resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::HudLayout::element", aliases: [], kind: Method, summary: "Configures element for this typed resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::HudLayout::new", aliases: [], kind: Method, summary: "Creates this typed resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::HudLayout::setup_storage", aliases: [], kind: Method, summary: "Configures setup storage for this typed resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::HudLayout::show_elements", aliases: [], kind: Method, summary: "Configures show elements for this typed resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::HudLayout::tracked_bar", aliases: [], kind: Method, summary: "Configures tracked bar for this typed resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::resource_pack_format_for", aliases: [], kind: Function, summary: "Builds or resolves resource pack format for for generated Minecraft resource-pack assets." }
+register_resourcepack_api! { path: "sand::resourcepack::Color", aliases: [], kind: Struct, summary: "Defines the typed color resource-pack value." }
+register_resourcepack_api! { path: "sand::resourcepack::Color::a", aliases: [], kind: Field, summary: "Carries the a value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::Color::b", aliases: [], kind: Field, summary: "Carries the b value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::Color::from_u32", aliases: [], kind: Method, summary: "Configures from u32 for this typed resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::Color::g", aliases: [], kind: Field, summary: "Carries the g value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::Color::r", aliases: [], kind: Field, summary: "Carries the r value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::Color::rgba", aliases: [], kind: Method, summary: "Configures rgba for this typed resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::BarStat", aliases: [], kind: Struct, summary: "Defines the typed bar stat resource-pack value." }
+register_resourcepack_api! { path: "sand::resourcepack::BarStat::frame_obj", aliases: [], kind: Field, summary: "Carries the frame obj value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::BarStat::handle", aliases: [], kind: Field, summary: "Carries the handle value for this resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::BarStat::health", aliases: [], kind: Method, summary: "Configures health for this typed resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::BarStat::score", aliases: [], kind: Method, summary: "Configures score for this typed resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::BarStat::setup", aliases: [], kind: Method, summary: "Configures setup for this typed resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::BarStat::update", aliases: [], kind: Method, summary: "Configures update for this typed resource-pack definition." }
+register_resourcepack_api! { path: "sand::resourcepack::advance_x", aliases: [], kind: Function, summary: "Builds or resolves advance x for generated Minecraft resource-pack assets." }
+register_resourcepack_api! { path: "sand::resourcepack::bar_char", aliases: [], kind: Function, summary: "Builds or resolves bar char for generated Minecraft resource-pack assets." }
+register_resourcepack_api! { path: "sand::resourcepack::bar_text_json", aliases: [], kind: Function, summary: "Builds or resolves bar text json for generated Minecraft resource-pack assets." }
+register_resourcepack_api! { path: "sand::resourcepack::element_char", aliases: [], kind: Function, summary: "Builds or resolves element char for generated Minecraft resource-pack assets." }
+register_resourcepack_api! { path: "sand::resourcepack::element_text_json", aliases: [], kind: Function, summary: "Builds or resolves element text json for generated Minecraft resource-pack assets." }
+// END RESOURCEPACK API CONTRACTS

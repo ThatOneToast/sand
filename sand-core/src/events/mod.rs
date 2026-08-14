@@ -170,7 +170,11 @@
 //! IR as [`SandEventDispatch::tick()`] (see [`SandEventDispatch::normalize`]).
 
 /// Event dependency graph construction for same-cycle chained dispatch (#240).
-pub mod graph;
+///
+/// The graph is exporter wiring. Authors compose public `SandEventDispatch`
+/// builders instead of depending on graph nodes or edge records directly.
+#[allow(dead_code)]
+pub(crate) mod graph;
 
 // ── Custom event API ──────────────────────────────────────────────────────────
 

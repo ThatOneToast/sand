@@ -1,31 +1,31 @@
 schema_version=1
 configuration=all-supported-features,current-target
 minecraft_version=1.21.4
-total=10611
+total=10535
 kind associated_const=20
 kind associated_type=2
 kind attribute_macro=8
 kind constant=17
 kind derive_macro=3
-kind enum=165
-kind field=938
-kind function=429
+kind enum=163
+kind field=892
+kind function=428
 kind function_like_macro=4
 kind macro=3
-kind method=2712
-kind module=80
+kind method=2700
+kind module=79
 kind static=1
-kind struct=840
+kind struct=831
 kind trait=35
 kind trait_method=53
 kind type_alias=13
-kind variant=5288
+kind variant=5283
 origin generator:generated_commands=924
 origin generator:generated_effect_registry_enums=95
 origin generator:generated_event_markers=25
 origin generator:generated_registries=4288
 origin generator:generated_registry_ids=136
-origin source=5143
+origin source=5067
 advanced-source module=sand::advanced state=enforced tier=advanced provider=source precedence=100 recursive=true active=true items=2 contracted=2 aliases=- features=-
 command-source module=sand::command state=pending tier=ordinary provider=source precedence=50 recursive=true active=true items=819 contracted=0 aliases=sand::cmd,sand::prelude features=-
 component-source module=sand::component state=pending tier=ordinary provider=source precedence=50 recursive=true active=true items=1097 contracted=0 aliases=sand::prelude features=-
@@ -33,7 +33,7 @@ condition-source module=sand::condition state=enforced tier=ordinary provider=so
 data-source module=sand::data state=pending tier=ordinary provider=source precedence=100 recursive=true active=true items=186 contracted=1 aliases=sand::prelude features=-
 entity-source module=sand::entity state=pending tier=ordinary provider=source precedence=50 recursive=true active=true items=913 contracted=0 aliases=sand::prelude features=-
 event-source module=sand::event state=pending tier=ordinary provider=source precedence=50 recursive=true active=true items=162 contracted=0 aliases=sand::prelude features=-
-events-source module=sand::events state=pending tier=ordinary provider=source precedence=100 recursive=true active=true items=292 contracted=0 aliases=sand::prelude features=-
+events-source module=sand::events state=pending tier=ordinary provider=source precedence=100 recursive=true active=true items=216 contracted=0 aliases=sand::prelude features=-
 execute-when-source module=sand::execute_when state=enforced tier=ordinary provider=source precedence=50 recursive=true active=true items=22 contracted=22 aliases=sand::prelude features=-
 generated-armor-event-macro module=sand state=enforced tier=ordinary provider=generator:armor_event_macro precedence=50 recursive=false active=true items=0 contracted=0 aliases=- features=-
 generated-commands module=sand::command state=enforced tier=ordinary provider=generator:generated_commands precedence=50 recursive=true active=true items=924 contracted=924 aliases=sand::cmd,sand::prelude features=-
@@ -65,4 +65,4 @@ systems-source module=sand::systems state=pending tier=ordinary provider=source 
 text-source module=sand::text state=pending tier=ordinary provider=source precedence=100 recursive=true active=true items=95 contracted=1 aliases=sand::prelude features=-
 version-source module=sand::version state=enforced tier=ordinary provider=source precedence=50 recursive=true active=true items=42 contracted=42 aliases=sand::prelude features=-
 vfx-source module=sand::vfx state=enforced tier=ordinary provider=source precedence=100 recursive=true active=true items=45 contracted=45 aliases=- features=-
-totals pending_scopes=12 pending_items=4736 enforced_items=5875 pending_scope_ceiling=12 pending_item_ceiling=4736
+totals pending_scopes=12 pending_items=4660 enforced_items=5875 pending_scope_ceiling=12 pending_item_ceiling=4660

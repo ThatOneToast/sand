@@ -155,7 +155,6 @@ pub use events::{
     ItemPickedUpEvent,
     LightningStrikeEvent,
     LootContainerOpenEvent,
-    NormalizedEventDispatch,
     OnDeathEvent,
     // Session events
     OnJoinEvent,

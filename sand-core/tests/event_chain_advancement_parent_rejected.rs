@@ -54,8 +54,8 @@ fn child_chain() -> Option<ChainEventDispatch> {
         })],
         persistent: vec![],
         bounded: vec![],
-        when: vec![],
-        unless: vec![],
+        conditions: vec![],
+        excluded_conditions: vec![],
     })
 }
 fn child_type_id() -> TypeId {

@@ -10,18 +10,18 @@ schema_version = 1
 # select this ratchet.
 [[profile]]
 minecraft_version = "placeholder-codegen"
-static_surface_items = 5276
-pending_item_ceiling = 4613
+static_surface_items = 5248
+pending_item_ceiling = 4282
 baseline = "api-surface-baseline-placeholder.txt"
 
 [[profile]]
 minecraft_version = "1.21.4"
-static_surface_items = 10488
-pending_item_ceiling = 4613
+static_surface_items = 10460
+pending_item_ceiling = 4282
 baseline = "api-surface-baseline-1.21.4.txt"
 
 [[profile]]
 minecraft_version = "26.2"
-static_surface_items = 11398
-pending_item_ceiling = 4613
+static_surface_items = 11370
+pending_item_ceiling = 4282
 baseline = "api-surface-baseline.txt"

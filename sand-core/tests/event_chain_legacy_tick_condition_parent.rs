@@ -135,10 +135,10 @@ fn legacy_child_chain() -> Option<ChainEventDispatch> {
         ),
         persistent: vec![],
         bounded: vec![],
-        when: vec![sand_core::condition::Condition::raw(
+        conditions: vec![sand_core::condition::Condition::raw(
             "score @s legchild matches 1",
         )],
-        unless: vec![],
+        excluded_conditions: vec![],
     })
 }
 fn legacy_child_type_id() -> TypeId {
@@ -203,8 +203,8 @@ fn legacy_orphan_child_chain() -> Option<ChainEventDispatch> {
         ),
         persistent: vec![],
         bounded: vec![],
-        when: vec![],
-        unless: vec![],
+        conditions: vec![],
+        excluded_conditions: vec![],
     })
 }
 fn legacy_orphan_child_type_id() -> TypeId {

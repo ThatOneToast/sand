@@ -480,7 +480,6 @@ impl<E: DamageAdvancementEvent> Default for DamageEvent<E> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::DatapackComponent;
 
     struct TestTickEvent;
 
@@ -550,13 +549,11 @@ mod tests {
     #[test]
     fn event_reset_defaults_to_revoke() {
         assert!(EventReset::AfterFire.should_revoke());
-        assert!(EventReset::Auto.should_revoke(), "backward-compat alias");
     }
 
     #[test]
     fn event_reset_once_does_not_revoke() {
         assert!(!EventReset::OncePerPlayer.should_revoke());
-        assert!(!EventReset::Once.should_revoke(), "backward-compat alias");
         assert!(!EventReset::Manual.should_revoke());
     }
 }

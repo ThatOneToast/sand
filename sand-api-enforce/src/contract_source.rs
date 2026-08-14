@@ -353,7 +353,8 @@ fn inspect_items(
             }
             Item::Macro(item)
                 if item.mac.path.is_ident("register")
-                    || item.mac.path.is_ident("register_event_marker") =>
+                    || item.mac.path.is_ident("register_event_marker")
+                    || item.mac.path.is_ident("register_event_api") =>
             {
                 let parsed =
                     syn::parse2::<RegisterArgs>(item.mac.tokens.clone()).map_err(|error| {

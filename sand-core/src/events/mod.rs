@@ -740,8 +740,9 @@ impl EventSetup {
 /// condition expands into more than one OR-alternative execute plan" can
 /// never be conflated into a single `None` — every caller must handle both
 /// cases explicitly.
+#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum TickExecutionPlans {
+pub(crate) enum TickExecutionPlans {
     /// No `when`/`unless` conditions were declared. The event dispatches
     /// unconditionally every tick — no `if`/`unless` clauses at all, e.g.
     /// `execute as @a at @s run function ...`.
@@ -781,15 +782,16 @@ impl TickExecutionIrPlans {
     }
 }
 
+#[allow(dead_code)]
 impl TickExecutionPlans {
     /// `true` if this is [`Unconditional`](Self::Unconditional).
-    pub fn is_unconditional(&self) -> bool {
+    pub(crate) fn is_unconditional(&self) -> bool {
         matches!(self, Self::Unconditional)
     }
 
     /// The OR-alternative plans, or an empty slice for
     /// [`Unconditional`](Self::Unconditional).
-    pub fn plans(&self) -> &[Vec<String>] {
+    pub(crate) fn plans(&self) -> &[Vec<String>] {
         match self {
             Self::Unconditional => &[],
             Self::Plans(p) => p,
@@ -825,11 +827,11 @@ impl TickExecutionPlans {
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct TickEventDispatch {
     /// The execution scope handlers are dispatched under.
-    pub scope: TickScope,
+    pub(crate) scope: TickScope,
     /// Positive conditions — all must hold (ANDed).
-    pub when: Vec<crate::condition::Condition>,
+    pub(crate) when: Vec<crate::condition::Condition>,
     /// Negative conditions — none may hold (ANDed as `unless`).
-    pub unless: Vec<crate::condition::Condition>,
+    pub(crate) unless: Vec<crate::condition::Condition>,
 }
 
 impl TickEventDispatch {
@@ -894,7 +896,8 @@ impl TickEventDispatch {
     /// one OR-alternative execute plan." Callers must handle both
     /// [`TickExecutionPlans::Unconditional`] and every entry of
     /// [`TickExecutionPlans::Plans`] explicitly.
-    pub fn execution_plans(&self) -> TickExecutionPlans {
+    #[allow(dead_code)]
+    pub(crate) fn execution_plans(&self) -> TickExecutionPlans {
         self.execution_ir_plans().render_compat()
     }
 
@@ -954,9 +957,9 @@ pub struct ChainEventDispatch {
     pub bounded: Vec<BoundedEventDependency>,
     /// Positive conditions — all must hold (ANDed) for this child to fire
     /// once its occurrence requirements are satisfied.
-    pub when: Vec<crate::condition::Condition>,
+    pub conditions: Vec<crate::condition::Condition>,
     /// Negative conditions — none may hold.
-    pub unless: Vec<crate::condition::Condition>,
+    pub excluded_conditions: Vec<crate::condition::Condition>,
 }
 
 impl ChainEventDispatch {
@@ -1079,7 +1082,7 @@ impl ChainEventDispatch {
     ///
     /// Multiple calls are ANDed together.
     pub fn when(mut self, condition: impl Into<crate::condition::Condition>) -> Self {
-        self.when.push(condition.into());
+        self.conditions.push(condition.into());
         self
     }
 
@@ -1093,7 +1096,7 @@ impl ChainEventDispatch {
     /// Multiple calls are ANDed together (i.e. every `unless` condition must
     /// fail to hold).
     pub fn unless(mut self, condition: impl Into<crate::condition::Condition>) -> Self {
-        self.unless.push(condition.into());
+        self.excluded_conditions.push(condition.into());
         self
     }
 
@@ -1101,15 +1104,15 @@ impl ChainEventDispatch {
     /// or `None` if no conditions were declared (the child fires
     /// unconditionally whenever its parent fires).
     pub fn combined_condition(&self) -> Option<crate::condition::Condition> {
-        if self.when.is_empty() && self.unless.is_empty() {
+        if self.conditions.is_empty() && self.excluded_conditions.is_empty() {
             return None;
         }
-        let mut combined = if self.when.is_empty() {
+        let mut combined = if self.conditions.is_empty() {
             crate::condition::Condition::all([])
         } else {
-            crate::condition::Condition::all(self.when.clone())
+            crate::condition::Condition::all(self.conditions.clone())
         };
-        for u in &self.unless {
+        for u in &self.excluded_conditions {
             combined = combined.and_not(u.clone());
         }
         Some(combined)
@@ -1117,10 +1120,12 @@ impl ChainEventDispatch {
 
     /// Expand this child's conditions into explicit [`TickExecutionPlans`],
     /// same shape as [`TickEventDispatch::execution_plans`].
-    pub fn execution_plans(&self) -> TickExecutionPlans {
+    #[allow(dead_code)]
+    pub(crate) fn execution_plans(&self) -> TickExecutionPlans {
         self.execution_ir_plans().render_compat()
     }
 
+    #[allow(dead_code)]
     pub(crate) fn execution_ir_plans(&self) -> TickExecutionIrPlans {
         match self.combined_condition() {
             None => TickExecutionIrPlans::Unconditional,
@@ -1204,8 +1209,8 @@ pub enum SandEventDispatch {
 /// and `TickCondition` compatibility constructors — lowers into one of these
 /// shapes, so the exporter has a single normalized IR to consume rather
 /// than juggling multiple representations.
-#[allow(clippy::large_enum_variant)]
-pub enum NormalizedEventDispatch {
+#[allow(clippy::large_enum_variant, dead_code)]
+pub(crate) enum NormalizedEventDispatch {
     /// Advancement-backed dispatch.
     Advancement(crate::AdvancementTrigger),
     /// Tick-poll dispatch, always in the structured [`TickEventDispatch`] shape.
@@ -1261,8 +1266,8 @@ impl SandEventDispatch {
             occurrence: Vec::new(),
             persistent: Vec::new(),
             bounded: Vec::new(),
-            when: Vec::new(),
-            unless: Vec::new(),
+            conditions: Vec::new(),
+            excluded_conditions: Vec::new(),
         }
     }
 
@@ -1283,7 +1288,7 @@ impl SandEventDispatch {
     ///   [`Condition::raw`](crate::condition::Condition::raw) `when` clause.
     /// - `Tick(t)` → `Tick(t)` unchanged.
     /// - `Chain(c)` → `Chain(c)` unchanged.
-    pub fn normalize(self) -> NormalizedEventDispatch {
+    pub(crate) fn normalize(self) -> NormalizedEventDispatch {
         match self {
             SandEventDispatch::AdvancementTrigger(t) => NormalizedEventDispatch::Advancement(t),
             SandEventDispatch::TickCondition(s) => NormalizedEventDispatch::Tick(
@@ -2474,7 +2479,7 @@ pub struct PlayerStopSneakingEvent;
 /// Shared current-state source used by both sneaking transitions and
 /// persistent composition. Kept public only for proc-macro expansion.
 #[doc(hidden)]
-pub const PLAYER_SNEAKING_TRACKED_SOURCE: crate::TrackedSource =
+pub(crate) const PLAYER_SNEAKING_TRACKED_SOURCE: crate::TrackedSource =
     crate::TrackedSource::BooleanCondition {
         description: "vanilla entity predicate flags.is_sneaking",
         condition: "predicate __sand_local:__sand/player_sneaking",
@@ -2523,7 +2528,7 @@ impl PersistentSandEvent for PlayerSneakEvent {
 /// Shared current-state source for sprinting transitions and persistent
 /// composition. Kept public only for proc-macro expansion.
 #[doc(hidden)]
-pub const PLAYER_SPRINTING_TRACKED_SOURCE: crate::TrackedSource =
+pub(crate) const PLAYER_SPRINTING_TRACKED_SOURCE: crate::TrackedSource =
     crate::TrackedSource::BooleanCondition {
         description: "vanilla entity predicate flags.is_sprinting",
         condition: "predicate __sand_local:__sand/player_sprinting",
@@ -2579,7 +2584,7 @@ impl SandEvent for PlayerStopSprintingEvent {
 /// Shared current-state source for swimming transitions and persistent
 /// composition. Kept public only for proc-macro expansion.
 #[doc(hidden)]
-pub const PLAYER_SWIMMING_TRACKED_SOURCE: crate::TrackedSource =
+pub(crate) const PLAYER_SWIMMING_TRACKED_SOURCE: crate::TrackedSource =
     crate::TrackedSource::BooleanCondition {
         description: "vanilla entity predicate flags.is_swimming",
         condition: "predicate __sand_local:__sand/player_swimming",
@@ -2634,7 +2639,7 @@ impl SandEvent for PlayerStopSwimmingEvent {
 /// Shared current-state source for flying transitions and persistent
 /// composition. Kept public only for proc-macro expansion.
 #[doc(hidden)]
-pub const PLAYER_FLYING_TRACKED_SOURCE: crate::TrackedSource =
+pub(crate) const PLAYER_FLYING_TRACKED_SOURCE: crate::TrackedSource =
     crate::TrackedSource::BooleanCondition {
         description: "vanilla entity NBT abilities.flying",
         condition: "entity @s[nbt={abilities:{flying:1b}}]",
@@ -2690,7 +2695,7 @@ impl SandEvent for PlayerStopFlyingEvent {
 /// Shared current-state source for on-fire transitions and persistent
 /// composition. Kept public only for proc-macro expansion.
 #[doc(hidden)]
-pub const PLAYER_ON_FIRE_TRACKED_SOURCE: crate::TrackedSource =
+pub(crate) const PLAYER_ON_FIRE_TRACKED_SOURCE: crate::TrackedSource =
     crate::TrackedSource::BooleanCondition {
         description: "vanilla entity predicate flags.is_on_fire",
         condition: "predicate __sand_local:__sand/player_on_fire",
@@ -2921,7 +2926,7 @@ gamemode_transition!(
 /// Shared current-state source for health-change transitions. Kept public
 /// only for proc-macro expansion.
 #[doc(hidden)]
-pub const PLAYER_HEALTH_TRACKED_SOURCE: crate::TrackedSource = crate::TrackedSource::Score {
+pub(crate) const PLAYER_HEALTH_TRACKED_SOURCE: crate::TrackedSource = crate::TrackedSource::Score {
     description: "vanilla health scoreboard criterion (integer, excludes absorption)",
     objective: "sand_health",
     criterion: "health",
@@ -3249,7 +3254,8 @@ impl<E: StatusEffectMarker> SandEvent for EffectStopped<E> {
 //
 // `SandEvent` and `SandEventDispatch` are excluded: they are traits/enums,
 // not callable event types.
-pub const BUILTIN_EVENT_NAMES: &[&str] = &[
+#[allow(dead_code)]
+pub(crate) const BUILTIN_EVENT_NAMES: &[&str] = &[
     // Session
     "OnJoinEvent",
     "FirstJoinEvent",

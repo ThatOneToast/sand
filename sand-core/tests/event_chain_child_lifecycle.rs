@@ -151,8 +151,8 @@ fn single_plan_child_chain() -> Option<ChainEventDispatch> {
         ),
         persistent: vec![],
         bounded: vec![],
-        when: vec![Condition::raw("score @s sync < @s current")],
-        unless: vec![],
+        conditions: vec![Condition::raw("score @s sync < @s current")],
+        excluded_conditions: vec![],
     })
 }
 fn single_plan_child_type_id() -> TypeId {
@@ -207,8 +207,8 @@ fn unconditional_lifecycle_child_chain() -> Option<ChainEventDispatch> {
         ),
         persistent: vec![],
         bounded: vec![],
-        when: vec![],
-        unless: vec![],
+        conditions: vec![],
+        excluded_conditions: vec![],
     })
 }
 fn unconditional_lifecycle_child_type_id() -> TypeId {
@@ -263,10 +263,10 @@ fn multi_plan_lifecycle_child_chain() -> Option<ChainEventDispatch> {
         ),
         persistent: vec![],
         bounded: vec![],
-        when: vec![
+        conditions: vec![
             Condition::raw("score @s mp_a matches 1").or(Condition::raw("score @s mp_b matches 1")),
         ],
-        unless: vec![],
+        excluded_conditions: vec![],
     })
 }
 fn multi_plan_lifecycle_child_type_id() -> TypeId {
@@ -321,8 +321,8 @@ fn unsatisfiable_lifecycle_child_chain() -> Option<ChainEventDispatch> {
         ),
         persistent: vec![],
         bounded: vec![],
-        when: vec![Condition::any([])],
-        unless: vec![],
+        conditions: vec![Condition::any([])],
+        excluded_conditions: vec![],
     })
 }
 fn unsatisfiable_lifecycle_child_type_id() -> TypeId {
@@ -422,8 +422,8 @@ fn nested_b_chain() -> Option<ChainEventDispatch> {
         ),
         persistent: vec![],
         bounded: vec![],
-        when: vec![Condition::raw("score @s b_cond matches 1")],
-        unless: vec![],
+        conditions: vec![Condition::raw("score @s b_cond matches 1")],
+        excluded_conditions: vec![],
     })
 }
 fn nested_b_type_id() -> TypeId {
@@ -475,8 +475,8 @@ fn nested_c_chain() -> Option<ChainEventDispatch> {
         ),
         persistent: vec![],
         bounded: vec![],
-        when: vec![Condition::raw("score @s c_cond matches 1")],
-        unless: vec![],
+        conditions: vec![Condition::raw("score @s c_cond matches 1")],
+        excluded_conditions: vec![],
     })
 }
 fn nested_c_type_id() -> TypeId {

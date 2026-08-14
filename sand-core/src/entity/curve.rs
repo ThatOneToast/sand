@@ -318,7 +318,7 @@ pub enum CurveEvaluationError {
 /// already been generated.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
-pub enum LoweringStrategy {
+pub(crate) enum LoweringStrategy {
     /// Direct scoreboard constants and arithmetic.
     ScoreboardArithmetic,
     /// A balanced decision tree for ranges or discrete mappings.
@@ -338,7 +338,7 @@ pub enum LoweringStrategy {
 /// instead of baking host arithmetic into command strings.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
-pub enum LoweredCurveOperation {
+pub(crate) enum LoweredCurveOperation {
     /// Set an objective to an already-scaled fixed-point constant.
     SetConstant {
         /// Destination score objective.
@@ -491,7 +491,7 @@ pub enum LoweredCurveOperation {
 /// ordered operations execute as the entity bound to `@s`; no global scratch
 /// score holder or storage compound is shared between entities.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct LoweredCurve {
+pub(crate) struct LoweredCurve {
     target_objective: String,
     scratch_objectives: Vec<String>,
     operations: Vec<LoweredCurveOperation>,
@@ -501,26 +501,20 @@ pub struct LoweredCurve {
 impl LoweredCurve {
     /// Existing objective that receives the final fixed-point result.
     #[must_use]
-    pub fn target_objective(&self) -> &str {
+    pub(crate) fn target_objective(&self) -> &str {
         &self.target_objective
     }
 
     /// Generated dummy objectives required at load, in lexical order.
     #[must_use]
-    pub fn scratch_objectives(&self) -> &[String] {
+    pub(crate) fn scratch_objectives(&self) -> &[String] {
         &self.scratch_objectives
     }
 
     /// Ordered entity-scoped operations.
     #[must_use]
-    pub fn operations(&self) -> &[LoweredCurveOperation] {
+    pub(crate) fn operations(&self) -> &[LoweredCurveOperation] {
         &self.operations
-    }
-
-    /// Most capable backend family needed by this plan.
-    #[must_use]
-    pub const fn strategy(&self) -> LoweringStrategy {
-        self.strategy
     }
 }
 
@@ -861,7 +855,7 @@ impl StatCurve {
 
     /// Returns the most capable lowering backend required by this curve.
     #[must_use]
-    pub fn lowering_strategy(&self) -> LoweringStrategy {
+    pub(crate) fn lowering_strategy(&self) -> LoweringStrategy {
         self.strategy_inner()
     }
 
@@ -875,7 +869,7 @@ impl StatCurve {
     ///
     /// The returned plan is execution-scoped to the entity at `@s`. It does
     /// not allocate global score holders or persistent selector references.
-    pub fn lower_scoreboard(
+    pub(crate) fn lower_scoreboard(
         &self,
         target_objective: &str,
         scratch_prefix: &str,
@@ -2207,7 +2201,7 @@ mod tests {
             .lower_scoreboard("rpg_health", "rpg:mob.health", fixed())
             .unwrap();
         assert_eq!(first, second);
-        assert_eq!(first.strategy(), LoweringStrategy::ScoreboardArithmetic);
+        assert_eq!(first.strategy, LoweringStrategy::ScoreboardArithmetic);
         assert!(
             first
                 .scratch_objectives()
@@ -2245,7 +2239,7 @@ mod tests {
         let table = StatCurve::lookup_raw("rpg_level", [(1, 2.0), (100, 40.0)], 1.0)
             .lower_scoreboard("rpg_loot", "rpg:mob.loot", fixed())
             .unwrap();
-        assert_eq!(table.strategy(), LoweringStrategy::StorageLookupTable);
+        assert_eq!(table.strategy, LoweringStrategy::StorageLookupTable);
         assert!(table.operations().iter().any(|operation| matches!(
             operation,
             LoweredCurveOperation::LookupTable { entries, .. } if entries.len() == 2

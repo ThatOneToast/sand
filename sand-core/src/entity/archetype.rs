@@ -202,7 +202,7 @@ impl Migration {
 
 /// Cost and generated-resource summary for one archetype.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct EntityRuntimeReport {
+pub(crate) struct EntityRuntimeReport {
     /// Archetype identifier.
     pub archetype: String,
     /// Generated objectives, sorted.
@@ -412,14 +412,6 @@ where
             "execute summon {entity_type} run {}",
             self.attach()
         )]
-    }
-
-    /// Compile this definition directly for tests, diagnostics, or custom exporters.
-    pub fn compile(
-        &self,
-        profile: &crate::version::VersionProfile,
-    ) -> Result<EntityRuntimeReport, EntityDiagnostic> {
-        Ok(compile_definition(&self.definition(), profile)?.report)
     }
 
     /// Erase Rust marker types for inventory-based exporter registration.

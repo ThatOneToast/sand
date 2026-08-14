@@ -78,14 +78,13 @@ pub use crate::entity::{
     EntityNbtValue, EntityQueries, EntityQuery, EntityScope, EntityScore, EntityState,
     EntityStateField, EntityTag, EntityTeam, EntityText, EntityTextSegment, EntityTimer,
     EntityTransition, EnumEncoding, EquipmentBinding, FixedPoint, FixedValue, HealthBinding,
-    HealthResizePolicy, KnownEntityKind, LivingEntityKind, LoweredCurve, LoweredCurveOperation,
-    LoweringStrategy, MarkerKind, Migration, MutableLivingEntityKind, NameBinding,
-    NumericPropertySource, OverflowPolicy, OwnershipPolicy, PlayerContext, PlayerKind,
-    PlayerQueries, PlayerQuery, RawEntityProperty, RawEntityStateField, ReconcilePolicy,
-    RefreshPolicy, Relation, RelationQuery, RoundingPolicy, SafeEntityDataWriteKind,
-    ScopedEntityRef, SingleEntityQuery, SinglePlayerQuery, SpecialEntityPolicy, StatCurve,
-    StateFieldDescriptor, StateFieldKind, StatePredicate, StateSchema, TagBinding, TeamBinding,
-    ThresholdDirection, ZombieKind,
+    HealthResizePolicy, KnownEntityKind, LivingEntityKind, MarkerKind, Migration,
+    MutableLivingEntityKind, NameBinding, NumericPropertySource, OverflowPolicy, OwnershipPolicy,
+    PlayerContext, PlayerKind, PlayerQueries, PlayerQuery, RawEntityProperty, RawEntityStateField,
+    ReconcilePolicy, RefreshPolicy, Relation, RelationQuery, RoundingPolicy,
+    SafeEntityDataWriteKind, ScopedEntityRef, SingleEntityQuery, SinglePlayerQuery,
+    SpecialEntityPolicy, StatCurve, StateFieldDescriptor, StateFieldKind, StatePredicate,
+    StateSchema, TagBinding, TeamBinding, ThresholdDirection, ZombieKind,
 };
 
 // ── Function refs (IntoFunctionRef trait) ─────────────────────────────────────

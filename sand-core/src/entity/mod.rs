@@ -50,15 +50,13 @@ pub mod state;
 
 pub use archetype::{
     Adoption, AdoptionSource, ArchetypeDefinition, ArchetypeProperty, DerivedScoreEncoding,
-    EntityAction, EntityArchetype, EntityArchetypeDescriptor, EntityDerivation,
-    EntityRuntimeReport, EntityTransition, EntityTransitionField, Migration, ReconcilePolicy,
-    SpecialEntityPolicy, ThresholdDirection,
+    EntityAction, EntityArchetype, EntityArchetypeDescriptor, EntityDerivation, EntityTransition,
+    EntityTransitionField, Migration, ReconcilePolicy, SpecialEntityPolicy, ThresholdDirection,
 };
 pub use context::{EntityContext, EntityScope, PlayerContext, ScopedEntityRef};
 pub use curve::{
     CurveEvaluationError, CurveInputs, DEFAULT_FIXED_POINT_SCALE, DependencyGraph, DirtyPlan,
-    FixedPoint, FixedValue, LoweredCurve, LoweredCurveOperation, LoweringStrategy, OverflowPolicy,
-    RoundingPolicy, StatCurve,
+    FixedPoint, FixedValue, OverflowPolicy, RoundingPolicy, StatCurve,
 };
 pub use diagnostic::EntityDiagnostic;
 pub use kind::{

@@ -30,7 +30,7 @@ command-source module=sand::command state=pending tier=ordinary provider=source 
 component-source module=sand::component state=pending tier=ordinary provider=source precedence=50 recursive=true active=true items=1097 contracted=0 aliases=sand::prelude features=-
 condition-source module=sand::condition state=enforced tier=ordinary provider=source precedence=50 recursive=true active=true items=12 contracted=12 aliases=sand::prelude features=-
 data-source module=sand::data state=pending tier=ordinary provider=source precedence=100 recursive=true active=true items=186 contracted=1 aliases=sand::prelude features=-
-entity-source module=sand::entity state=pending tier=ordinary provider=source precedence=50 recursive=true active=true items=631 contracted=0 aliases=sand::prelude features=-
+entity-source module=sand::entity state=enforced tier=ordinary provider=source precedence=50 recursive=true active=true items=631 contracted=631 aliases=sand::prelude features=-
 event-source module=sand::event state=enforced tier=ordinary provider=source precedence=50 recursive=true active=true items=115 contracted=115 aliases=sand::prelude features=-
 events-source module=sand::events state=enforced tier=ordinary provider=source precedence=100 recursive=true active=true items=188 contracted=188 aliases=sand::prelude features=-
 execute-when-source module=sand::execute_when state=enforced tier=ordinary provider=source precedence=50 recursive=true active=true items=22 contracted=22 aliases=sand::prelude features=-
@@ -64,4 +64,4 @@ systems-source module=sand::systems state=pending tier=ordinary provider=source 
 text-source module=sand::text state=pending tier=ordinary provider=source precedence=100 recursive=true active=true items=95 contracted=1 aliases=sand::prelude features=-
 version-source module=sand::version state=enforced tier=ordinary provider=source precedence=50 recursive=true active=true items=42 contracted=42 aliases=sand::prelude features=-
 vfx-source module=sand::vfx state=enforced tier=ordinary provider=source precedence=100 recursive=true active=true items=45 contracted=45 aliases=- features=-
-totals pending_scopes=10 pending_items=3975 enforced_items=6178 pending_scope_ceiling=10 pending_item_ceiling=3975
+totals pending_scopes=9 pending_items=3344 enforced_items=6809 pending_scope_ceiling=9 pending_item_ceiling=3344

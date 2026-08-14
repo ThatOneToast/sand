@@ -50,7 +50,7 @@ fn checked_repository_surface_baseline_is_complete_and_partitioned() {
     assert_eq!(
         lines.last().copied(),
         Some(
-            "totals pending_scopes=10 pending_items=3975 enforced_items=7088 pending_scope_ceiling=10 pending_item_ceiling=3975"
+            "totals pending_scopes=9 pending_items=3344 enforced_items=7719 pending_scope_ceiling=9 pending_item_ceiling=3344"
         )
     );
 }
@@ -64,9 +64,9 @@ fn checked_repository_profiles_bind_exact_versioned_baselines() {
     assert_eq!(profiles.profiles.len(), 3);
 
     let expected = [
-        ("placeholder-codegen", 4_941, 0, 0, 3_975),
-        ("1.21.4", 10_153, 924, 4_288, 3_975),
-        ("26.2", 11_063, 1_255, 4_867, 3_975),
+        ("placeholder-codegen", 4_941, 0, 0, 3_344),
+        ("1.21.4", 10_153, 924, 4_288, 3_344),
+        ("26.2", 11_063, 1_255, 4_867, 3_344),
     ];
     for (version, total, commands, registries, pending) in expected {
         let profile = profiles

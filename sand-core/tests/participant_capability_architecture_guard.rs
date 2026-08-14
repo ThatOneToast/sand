@@ -11,25 +11,7 @@
 //! `sand-core/src/compiler/export/participant_transport.rs`'s export-time
 //! validation — see `sand-core/tests/event_chain_participant_inheritance*.rs`
 //! and `sand-core/tests/event_chain_participant_inheritance_diag_*.rs` for
-//! that real behavior's coverage, and
-//! `sand-core/tests/participant_context_capability_audit.rs`/
-//! `participant_plan_export.rs` for the still-live subject-capability model
-//! this file does not duplicate.
-
-use sand_core::participant::{EventContextCapabilities, SubjectCapability, SubjectScope};
-
-/// `EventContextCapabilities` is exhaustively constructed with only a
-/// `subject` field. If a future change re-adds `entities`/`items`/
-/// `locations` fields (the shape the removed participant-capability
-/// bookkeeping needed), this literal stops compiling — a visible, deliberate
-/// diff here, not a silent reintroduction.
-#[test]
-fn event_context_capabilities_is_subject_only() {
-    let caps = EventContextCapabilities {
-        subject: SubjectCapability::NONE,
-    };
-    assert_eq!(caps.subject.scope, SubjectScope::NonPlayerUnsupported);
-}
+//! that real behavior's coverage. No advisory capability layer is retained.
 
 /// Defining occurrences of the removed symbols (not prose mentions — the
 /// module docs legitimately reference these names in the historical

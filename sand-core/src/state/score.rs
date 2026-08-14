@@ -260,7 +260,7 @@ pub fn drain_internal_score_setup() -> Vec<String> {
 }
 
 /// Sand's compiler-managed temporary objective used by score expressions.
-pub const SCORE_EXPRESSION_TEMP_OBJECTIVE: &str = "__sand_tmp";
+pub(crate) const SCORE_EXPRESSION_TEMP_OBJECTIVE: &str = "__sand_tmp";
 
 // ── ScoreVar ──────────────────────────────────────────────────────────────────
 

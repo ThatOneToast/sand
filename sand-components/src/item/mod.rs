@@ -563,7 +563,7 @@ pub struct FoodProperties {
     /// Saturation restored (usually 0.0-2.0).
     pub saturation: f32,
     /// Whether the food can be eaten even with full hunger.
-    pub can_always_eat: bool,
+    can_always_eat: bool,
 }
 
 impl FoodProperties {
@@ -652,11 +652,11 @@ pub struct ConsumableProperties {
     /// Time in seconds to consume the item.
     pub consume_seconds: f32,
     /// Animation to play during consumption.
-    pub animation: ConsumableAnimation,
+    animation: ConsumableAnimation,
     /// Whether particles appear when consuming.
-    pub has_consume_particles: bool,
+    has_consume_particles: bool,
     /// Optional custom sound to play.
-    pub sound: Option<SoundEventId>,
+    sound: Option<SoundEventId>,
 }
 
 impl ConsumableProperties {
@@ -765,17 +765,17 @@ pub struct EquippableProperties {
     /// The equipment slot this item occupies.
     pub slot: EquipmentSlot,
     /// Whether dispensers can automatically equip this item.
-    pub dispensable: bool,
+    dispensable: bool,
     /// Whether players can swap this item with existing equipment.
-    pub swappable: bool,
+    swappable: bool,
     /// Whether the item takes damage when the wearer is hurt.
-    pub damage_on_hurt: bool,
+    damage_on_hurt: bool,
     /// Optional sound to play when equipping.
-    pub equip_sound: Option<SoundEventId>,
+    equip_sound: Option<SoundEventId>,
     /// Optional custom model for the equipped item.
-    pub model: Option<EquipmentModelId>,
+    model: Option<EquipmentModelId>,
     /// Optional entity tag restricting who can wear this.
-    pub allowed_entities: Option<String>,
+    allowed_entities: Option<String>,
 }
 
 impl EquippableProperties {
@@ -879,9 +879,9 @@ pub struct ToolRule {
     /// Block or block tag to match (e.g. `"#minecraft:pickaxe_mineable"`).
     pub blocks: String,
     /// Optional mining speed multiplier for this rule.
-    pub speed: Option<f32>,
+    speed: Option<f32>,
     /// Optional flag for whether the tool drops blocks correctly.
-    pub correct_for_drops: Option<bool>,
+    correct_for_drops: Option<bool>,
 }
 
 impl ToolRule {
@@ -947,9 +947,9 @@ pub struct ToolProperties {
     /// Rules for specific block types or tags.
     pub rules: Vec<ToolRule>,
     /// Default mining speed for blocks not matching any rule.
-    pub default_mining_speed: f32,
+    default_mining_speed: f32,
     /// Durability damage taken per broken block.
-    pub damage_per_block: i32,
+    damage_per_block: i32,
 }
 
 impl ToolProperties {

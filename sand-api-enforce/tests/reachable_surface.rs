@@ -1369,7 +1369,7 @@ fn relative_imported_and_qualified_aliases_cannot_hide_inherent_members() {
     let errors = audit_reachable_surface(&api, &contracts).unwrap_err();
     assert!(errors.iter().any(|error| matches!(
         error,
-        ReachabilityError::MissingContract { identity, paths }
+        ReachabilityError::MissingContract { identity, paths, .. }
             if identity == "core_lib::model::Thing::new"
                 && paths.contains(&"facade::QualifiedAlias::new".into())
     )));

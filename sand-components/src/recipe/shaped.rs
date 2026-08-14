@@ -14,12 +14,12 @@ use sand_version::ComponentFeature;
 /// Represents a shaped crafting recipe where items must be placed in specific grid positions.
 pub struct ShapedRecipe {
     pub location: ResourceLocation,
-    pub category: Option<String>,
-    pub group: Option<String>,
-    pub pattern: Vec<String>,
-    pub key: HashMap<char, Ingredient>,
-    pub result: RecipeResult,
-    pub show_notification: bool,
+    category: Option<String>,
+    group: Option<String>,
+    pattern: Vec<String>,
+    key: HashMap<char, Ingredient>,
+    result: RecipeResult,
+    show_notification: bool,
 }
 
 impl ShapedRecipe {

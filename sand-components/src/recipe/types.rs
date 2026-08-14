@@ -51,8 +51,8 @@ impl IntoRecipeItemId for &ResourceLocation {
 /// Represents a recipe ingredient that can be specified by item ID or item tag.
 #[derive(Debug)]
 pub struct Ingredient {
-    pub item: Option<String>,
-    pub tag: Option<String>,
+    item: Option<String>,
+    tag: Option<String>,
     alternatives: Vec<Ingredient>,
 }
 

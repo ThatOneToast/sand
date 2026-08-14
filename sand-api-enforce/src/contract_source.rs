@@ -361,7 +361,8 @@ fn inspect_items(
                     || item.mac.path.is_ident("register_text_api")
                     || item.mac.path.is_ident("register_data_api")
                     || item.mac.path.is_ident("register_systems_api")
-                    || item.mac.path.is_ident("register_command_api") =>
+                    || item.mac.path.is_ident("register_command_api")
+                    || item.mac.path.is_ident("register_component_api") =>
             {
                 let parsed =
                     syn::parse2::<RegisterArgs>(item.mac.tokens.clone()).map_err(|error| {

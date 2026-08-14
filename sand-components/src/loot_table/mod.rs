@@ -986,8 +986,8 @@ impl Serialize for LootEntry {
 /// Pools define the number of rolls, entries to choose from, conditions to apply, and functions
 /// to execute on selected items in a Minecraft loot table.
 pub struct LootPool {
-    pub rolls: NumberProvider,
-    pub bonus_rolls: Option<NumberProvider>,
+    rolls: NumberProvider,
+    bonus_rolls: Option<NumberProvider>,
     pub entries: Vec<LootEntry>,
     pub conditions: Vec<LootCondition>,
     pub functions: Vec<LootFunction>,
@@ -1068,8 +1068,8 @@ impl Serialize for LootPool {
 /// (blocks, entities, chests, etc.). It consists of pools, global functions, and global conditions.
 pub struct LootTable {
     pub location: ResourceLocation,
-    pub loot_type: Option<LootTableType>,
-    pub random_sequence: Option<String>,
+    loot_type: Option<LootTableType>,
+    random_sequence: Option<String>,
     pub pools: Vec<LootPool>,
     pub functions: Vec<LootFunction>,
     pub conditions: Vec<LootCondition>,

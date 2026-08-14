@@ -14,11 +14,11 @@ use sand_version::ComponentFeature;
 /// Represents a smithing table recipe that transforms items using a template, base, and addition.
 pub struct SmithingTransformRecipe {
     pub location: ResourceLocation,
-    pub group: Option<String>,
-    pub template: Ingredient,
-    pub base: Ingredient,
-    pub addition: Ingredient,
-    pub result: RecipeResult,
+    group: Option<String>,
+    template: Ingredient,
+    base: Ingredient,
+    addition: Ingredient,
+    result: RecipeResult,
 }
 
 impl SmithingTransformRecipe {
@@ -120,10 +120,10 @@ impl DatapackComponent for SmithingTransformRecipe {
 /// Represents a smithing table recipe that applies decorative trim to armor.
 pub struct SmithingTrimRecipe {
     pub location: ResourceLocation,
-    pub group: Option<String>,
-    pub template: Ingredient,
-    pub base: Ingredient,
-    pub addition: Ingredient,
+    group: Option<String>,
+    template: Ingredient,
+    base: Ingredient,
+    addition: Ingredient,
 }
 
 impl SmithingTrimRecipe {

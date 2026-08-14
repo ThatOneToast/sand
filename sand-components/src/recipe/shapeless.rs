@@ -12,10 +12,10 @@ use sand_version::ComponentFeature;
 /// Represents a shapeless crafting recipe where ingredient order and position don't matter.
 pub struct ShapelessRecipe {
     pub location: ResourceLocation,
-    pub category: Option<String>,
-    pub group: Option<String>,
+    category: Option<String>,
+    group: Option<String>,
     pub ingredients: Vec<Ingredient>,
-    pub result: RecipeResult,
+    result: RecipeResult,
 }
 
 impl ShapelessRecipe {

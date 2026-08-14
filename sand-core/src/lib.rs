@@ -499,7 +499,7 @@ macro_rules! mcfunction {
     ($($cmd:expr);* $(;)?) => {{
         let mut _commands: Vec<String> = Vec::new();
         $(
-            _commands.extend($crate::components::mc_function::IntoCommands::into_commands($cmd));
+            _commands.extend($crate::IntoCommands::into_commands($cmd));
         )*
         _commands
     }};

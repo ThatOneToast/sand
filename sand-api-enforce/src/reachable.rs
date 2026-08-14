@@ -365,6 +365,7 @@ pub enum ReachabilityError {
     },
     MissingContract {
         identity: String,
+        kind: ReachableKind,
         paths: Vec<String>,
     },
     ContractNotReachable(String),
@@ -538,9 +539,13 @@ impl fmt::Display for ReachabilityError {
                 "{}:{line}: reachable API source `{owner}` uses unclassified custom {form} `{name}`; classify it as an API producer, shape-preserving inert macro, or trait-only derive",
                 source.display()
             ),
-            Self::MissingContract { identity, paths } => write!(
+            Self::MissingContract {
+                identity,
+                kind,
+                paths,
+            } => write!(
                 formatter,
-                "reachable API `{identity}` ({}) is missing a contract",
+                "reachable API `{identity}` ({kind:?}; {}) is missing a contract",
                 paths.join(", ")
             ),
             Self::ContractNotReachable(identity) => {
@@ -1999,6 +2004,7 @@ pub fn audit_reachable_surface(
         let Some(contract) = by_identity.get(item.identity.as_str()) else {
             errors.push(ReachabilityError::MissingContract {
                 identity: item.identity.clone(),
+                kind: item.kind,
                 paths: item.paths.iter().cloned().collect(),
             });
             continue;

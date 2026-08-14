@@ -72,6 +72,7 @@ impl IntoEventId for String {
 }
 
 /// Controls how the advancement's resource-location ID is determined.
+#[sand_macros::api(registry = sand_api_contract, path = "sand::event::EventId", aliases = ["sand::prelude::EventId"], summary = "Chooses the resource location used for a custom advancement-backed event.", context = "An explicit ID gives a handler a stable Minecraft resource name; Auto keeps the name aligned with the generated handler path.", minecraft = "Becomes the advancement JSON resource location and the target used by generated revoke commands.", use_when = ["Overriding an event's generated advancement ID", "Validating a resource location before export"], avoid_when = ["Naming an ordinary function or component"], variants(Auto = "Derives the ID from the generated event handler path.", Explicit = "Uses the supplied validated Minecraft resource location."), variant_fields(Explicit = ["The validated namespace:path identifier."]), example = "let id = EventId::try_explicit(\"demo:events/join\")?;")]
 #[derive(Clone, Debug)]
 pub enum EventId {
     /// Auto-generate from the event handler function path.
@@ -89,6 +90,7 @@ impl EventId {
     /// only failing later at export/`resolve()` time. Prefer passing an
     /// already-validated `ResourceLocation` when one is available. Use
     /// [`try_explicit`](Self::try_explicit) if you need a non-panicking path.
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::event::EventId::explicit", summary = "Builds an explicit event ID, validating raw resource-location text.", context = "This is the convenient constructor when an event must retain a chosen Minecraft advancement name.", minecraft = "The resulting namespace:path becomes the generated advancement resource ID.", use_when = ["A static event needs a deliberate advancement identifier"], avoid_when = ["The generated handler path is already the intended ID"], params(id = "A validated resource location or raw namespace:path text."), returns = "An explicit event ID, or panics for malformed raw text.", example = "let id = EventId::explicit(\"demo:events/join\");")]
     pub fn explicit(id: impl IntoEventId) -> Self {
         Self::Explicit(id.into_event_resource_location())
     }
@@ -97,6 +99,7 @@ impl EventId {
     ///
     /// Returns `Err` instead of panicking when `id` is not a valid
     /// `namespace:path` resource location.
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::event::EventId::try_explicit", summary = "Fallibly validates a requested event resource location.", context = "Use this at a configuration boundary that must return an error rather than panic on external text.", minecraft = "Rejects names that Minecraft cannot use as a namespace:path advancement ID.", use_when = ["Parsing configurable event IDs"], avoid_when = ["Using a compile-time known valid resource location"], params(id = "Text expected to contain a namespace:path resource location."), returns = "An explicit event ID or Sand's resource-location validation error.", example = "let id = EventId::try_explicit(\"demo:events/join\")?;")]
     pub fn try_explicit(id: impl AsRef<str>) -> Result<Self, sand_components::SandError> {
         id.as_ref()
             .parse::<crate::ResourceLocation>()
@@ -104,6 +107,7 @@ impl EventId {
     }
 
     /// Resolve to a full `namespace:path` string.
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::event::EventId::resolve", summary = "Resolves an automatic or explicit ID to namespace:path text.", context = "Export wiring uses this to make the automatic path explicit before generating advancement resources.", minecraft = "Returns the exact resource location written into generated advancement and command references.", use_when = ["Implementing a custom event export adapter"], avoid_when = ["Ordinary #[on_event] authoring, where Sand resolves the ID"], params(namespace = "Namespace used only when this ID is Auto.", path = "Generated path used only when this ID is Auto."), returns = "The resolved namespace:path identifier.", example = "assert_eq!(EventId::Auto.resolve(\"demo\", \"events/join\"), \"demo:events/join\");")]
     pub fn resolve(&self, namespace: &str, path: &str) -> String {
         match self {
             EventId::Auto => format!("{namespace}:{path}"),
@@ -114,6 +118,7 @@ impl EventId {
 
 /// Controls whether the event re-arms itself after firing.
 /// Controls when a fired advancement-backed event re-arms itself.
+#[sand_macros::api(registry = sand_api_contract, path = "sand::event::EventReset", aliases = ["sand::prelude::EventReset"], summary = "Controls whether an advancement-backed event re-arms after it dispatches.", context = "The reset policy prevents repeating triggers from becoming permanently granted while allowing genuine per-player milestones.", minecraft = "AfterFire emits an advancement revoke for the triggering player; the other choices leave grant state intact.", use_when = ["Defining an AdvancementEvent with a non-default lifecycle"], avoid_when = ["Controlling a tick-polled SandEvent, which has no advancement grant to revoke"], variants(AfterFire = "Revokes immediately so a later matching action can fire again.", OncePerPlayer = "Leaves the advancement granted permanently after its first dispatch.", Manual = "Leaves lifecycle management to explicit advancement commands."), example = "fn reset() -> EventReset { EventReset::OncePerPlayer }")]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum EventReset {
     /// Revoke the advancement immediately after firing so it can trigger again
@@ -127,27 +132,21 @@ pub enum EventReset {
     /// advancement manually (e.g. via `EventHandle::revoke()`), typically as
     /// part of a session lifecycle or a cool-down system.
     Manual,
-
-    // ── Backward-compatible aliases ──────────────────────────────────────────
-    /// Alias for [`AfterFire`](EventReset::AfterFire).
-    Auto,
-    /// Alias for [`AfterFire`](EventReset::AfterFire).
-    Revoke,
-    /// Alias for [`OncePerPlayer`](EventReset::OncePerPlayer).
-    Once,
 }
 
 impl EventReset {
     /// Whether the export pipeline should prepend an `advancement revoke` line.
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::event::EventReset::should_revoke", summary = "Reports whether this policy emits an immediate re-arm revoke.", context = "This is export-facing lifecycle inspection; most event authors choose a variant and let Sand apply it.", minecraft = "True means the generated reward path revokes the triggering player's advancement after dispatch.", use_when = ["Writing a custom export adapter"], avoid_when = ["Deciding normal event behavior; select the policy variant directly"], returns = "Whether the advancement should be revoked after firing.", example = "assert!(EventReset::AfterFire.should_revoke());")]
     pub fn should_revoke(&self) -> bool {
         match self {
-            EventReset::AfterFire | EventReset::Auto | EventReset::Revoke => true,
-            EventReset::OncePerPlayer | EventReset::Once | EventReset::Manual => false,
+            EventReset::AfterFire => true,
+            EventReset::OncePerPlayer | EventReset::Manual => false,
         }
     }
 }
 
 /// Controls the advancement toast and chat message visibility.
+#[sand_macros::api(registry = sand_api_contract, path = "sand::event::EventVisibility", aliases = ["sand::prelude::EventVisibility"], summary = "Describes the intended player-facing announcement level for an advancement-backed event.", context = "Event definitions retain this policy so the event model can express whether an occurrence should surface an advancement-style announcement.", minecraft = "Maps to the advancement display visibility chosen by Sand's event export path.", use_when = ["Defining a custom AdvancementEvent's display policy"], avoid_when = ["Sending a bespoke message from the handler; use a command or text component"], variants(Hidden = "Suppresses advancement toast and chat output.", Toast = "Requests an advancement toast without chat.", Chat = "Requests both advancement toast and chat announcement."), example = "fn visibility() -> EventVisibility { EventVisibility::Hidden }")]
 #[derive(Clone, Debug)]
 pub enum EventVisibility {
     /// No toast, no chat message — fully silent.

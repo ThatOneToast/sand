@@ -15,12 +15,12 @@ fn checked_repository_surface_baseline_is_complete_and_partitioned() {
         "configuration=all-supported-features,current-target"
     );
     assert_eq!(lines[2], "minecraft_version=26.2");
-    assert_eq!(lines[3], "total=11401");
+    assert_eq!(lines[3], "total=11398");
 
     let kinds = prefixed_counts(&lines, "kind ");
-    assert_eq!(kinds.values().sum::<usize>(), 11_401);
+    assert_eq!(kinds.values().sum::<usize>(), 11_398);
     assert_eq!(kinds["field"], 885);
-    assert_eq!(kinds["variant"], 5_862);
+    assert_eq!(kinds["variant"], 5_859);
     assert_eq!(kinds["enum"], 163);
     assert_eq!(kinds["trait"], 33);
     assert_eq!(kinds["trait_method"], 50);
@@ -28,8 +28,8 @@ fn checked_repository_surface_baseline_is_complete_and_partitioned() {
     assert_eq!(kinds["derive_macro"], 3);
 
     let origins = prefixed_counts(&lines, "origin ");
-    assert_eq!(origins.values().sum::<usize>(), 11_401);
-    assert_eq!(origins["source"], 5_023);
+    assert_eq!(origins.values().sum::<usize>(), 11_398);
+    assert_eq!(origins["source"], 5_020);
     assert_eq!(origins["generator:generated_commands"], 1_255);
     assert_eq!(origins["generator:generated_registries"], 4_867);
     assert_eq!(origins["generator:generated_registry_ids"], 136);
@@ -46,11 +46,11 @@ fn checked_repository_surface_baseline_is_complete_and_partitioned() {
         .iter()
         .map(|line| numeric_field(line, "items="))
         .sum::<usize>();
-    assert_eq!(scoped_items, 11_401);
+    assert_eq!(scoped_items, 11_398);
     assert_eq!(
         lines.last().copied(),
         Some(
-            "totals pending_scopes=12 pending_items=4616 enforced_items=6785 pending_scope_ceiling=12 pending_item_ceiling=4616"
+            "totals pending_scopes=12 pending_items=4613 enforced_items=6785 pending_scope_ceiling=12 pending_item_ceiling=4613"
         )
     );
 }
@@ -64,9 +64,9 @@ fn checked_repository_profiles_bind_exact_versioned_baselines() {
     assert_eq!(profiles.profiles.len(), 3);
 
     let expected = [
-        ("placeholder-codegen", 5_279, 0, 0),
-        ("1.21.4", 10_491, 924, 4_288),
-        ("26.2", 11_401, 1_255, 4_867),
+        ("placeholder-codegen", 5_276, 0, 0),
+        ("1.21.4", 10_488, 924, 4_288),
+        ("26.2", 11_398, 1_255, 4_867),
     ];
     for (version, total, commands, registries) in expected {
         let profile = profiles
@@ -86,7 +86,7 @@ fn checked_repository_profiles_bind_exact_versioned_baselines() {
         assert_eq!(lines[3], format!("total={total}"));
         let origins = prefixed_counts(&lines, "origin ");
         assert_eq!(origins.values().sum::<usize>(), total);
-        assert_eq!(origins["source"], 5_023);
+        assert_eq!(origins["source"], 5_020);
         assert_eq!(
             origins
                 .get("generator:generated_commands")

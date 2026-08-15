@@ -4,6 +4,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use proc_macro2::TokenStream;
 use quote::ToTokens;
+use syn::ext::IdentExt;
 use syn::parse::Parser;
 use syn::{
     Expr, ExprArray, FnArg, ItemEnum, ItemFn, ItemStruct, LitStr, Pat, ReturnType, Signature,
@@ -41,6 +42,7 @@ pub fn sand_storage_generated_member_names(input: &syn::DeriveInput) -> syn::Res
                 .ident
                 .as_ref()
                 .expect("named fields have identifiers")
+                .unraw()
                 .to_string()
         }))
         .collect())
@@ -139,6 +141,7 @@ pub fn state_generated_surface(input: &syn::DeriveInput) -> syn::Result<StateGen
                 .ident
                 .as_ref()
                 .expect("named fields have identifiers")
+                .unraw()
                 .to_string()
         })
         .collect::<Vec<_>>();

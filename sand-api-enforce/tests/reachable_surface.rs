@@ -2653,6 +2653,34 @@ fn state_derive_provider_claims_the_exact_bound_view_and_inherent_surface() {
 }
 
 #[test]
+fn state_derive_provider_normalizes_raw_field_identifiers() {
+    let directory = tempfile::tempdir().unwrap();
+    let facade = directory.path().join("facade.rs");
+    fs::write(
+        &facade,
+        r#"
+            #[derive(State)]
+            #[state(namespace = "fixture", scope = player)]
+            pub struct PlayerState { r#type: EntityScore<i32> }
+        "#,
+    )
+    .unwrap();
+    let generated = sand_api_enforce::state_derive_provider(&facade, "facade").unwrap();
+    assert!(
+        generated
+            .iter()
+            .any(|api| api.identity == "facade::PlayerState::type")
+    );
+    assert!(generated.iter().any(|api| {
+        api.identity == "facade::PlayerStateBound"
+            && api.members.iter().any(|(name, _)| name == "type")
+    }));
+    assert!(!generated.iter().any(|api| {
+        api.identity.contains("r#type") || api.members.iter().any(|(name, _)| name == "r#type")
+    }));
+}
+
+#[test]
 fn custom_item_provider_claims_the_exact_typed_reference_surface() {
     let directory = tempfile::tempdir().unwrap();
     let facade = directory.path().join("facade.rs");
@@ -2694,6 +2722,47 @@ fn custom_item_provider_claims_the_exact_typed_reference_surface() {
             "missing {identity}"
         );
     }
+}
+
+#[test]
+fn consumer_macro_providers_traverse_inline_modules() {
+    let directory = tempfile::tempdir().unwrap();
+    let custom_item = directory.path().join("custom_item.rs");
+    fs::write(
+        &custom_item,
+        r#"
+            pub mod nested {
+                #[sand::custom_item(name = "ShardBlade")]
+                pub fn shard_blade() -> CustomItem { todo!() }
+            }
+        "#,
+    )
+    .unwrap();
+    let generated = sand_api_enforce::custom_item_provider(&custom_item, "facade").unwrap();
+    assert_eq!(generated[0].identity, "facade::nested::ShardBlade");
+    assert_eq!(
+        generated[0].producer.as_ref().unwrap().owner,
+        "facade::nested::shard_blade"
+    );
+
+    let resourcepack = directory.path().join("resourcepack.rs");
+    fs::write(
+        &resourcepack,
+        r#"
+            pub mod nested {
+                hud_bar!(
+                    name = "health",
+                    texture = "health.png",
+                    steps = 10,
+                    height = 8,
+                    ascent = 8,
+                );
+            }
+        "#,
+    )
+    .unwrap();
+    let generated = sand_api_enforce::resourcepack_macro_provider(&resourcepack, "facade").unwrap();
+    assert_eq!(generated[0].identity, "facade::nested::HEALTH");
 }
 
 #[test]

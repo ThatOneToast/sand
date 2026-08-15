@@ -7,6 +7,7 @@ use std::path::Path;
 
 use proc_macro2::{TokenStream, TokenTree};
 use quote::ToTokens;
+use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream, Parser};
 
 use crate::{GeneratedApi, GeneratedProducer, ReachableKind};
@@ -73,9 +74,35 @@ pub fn resourcepack_macro_provider(
         .map_err(|error| MacroProviderError::Io(format!("{}: {error}", path.display())))?;
     let file = syn::parse_file(&source)
         .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
-    let mut saw_resourcepack_macro = false;
     let mut generated = Vec::new();
-    for item in file.items {
+    let saw_resourcepack_macro =
+        collect_resourcepack_macros(&file.items, identity_module, path, &mut generated)?;
+    if !saw_resourcepack_macro {
+        return Err(MacroProviderError::MissingConsumerInvocation(
+            "resourcepack macro".into(),
+        ));
+    }
+    generated.sort_by(|left, right| left.identity.cmp(&right.identity));
+    generated.dedup_by(|left, right| left.identity == right.identity);
+    Ok(generated)
+}
+
+fn collect_resourcepack_macros(
+    items: &[syn::Item],
+    identity_module: &str,
+    path: &Path,
+    generated: &mut Vec<GeneratedApi>,
+) -> Result<bool, MacroProviderError> {
+    let mut saw_resourcepack_macro = false;
+    for item in items {
+        if let syn::Item::Mod(module) = item
+            && let Some((_, items)) = &module.content
+        {
+            let nested_module = format!("{identity_module}::{}", module.ident.unraw());
+            saw_resourcepack_macro |=
+                collect_resourcepack_macros(items, &nested_module, path, generated)?;
+            continue;
+        }
         let syn::Item::Macro(item) = item else {
             continue;
         };
@@ -91,7 +118,7 @@ pub fn resourcepack_macro_provider(
         match name.as_str() {
             "hud_bar" | "hud_element" => {
                 saw_resourcepack_macro = true;
-                let handle = resourcepack_handle_name(item.mac.tokens, path)?;
+                let handle = resourcepack_handle_name(item.mac.tokens.clone(), path)?;
                 generated.push(GeneratedApi {
                     identity: format!("{identity_module}::{handle}"),
                     provider: "resourcepack_macros".into(),
@@ -105,14 +132,7 @@ pub fn resourcepack_macro_provider(
             _ => {}
         }
     }
-    if !saw_resourcepack_macro {
-        return Err(MacroProviderError::MissingConsumerInvocation(
-            "resourcepack macro".into(),
-        ));
-    }
-    generated.sort_by(|left, right| left.identity.cmp(&right.identity));
-    generated.dedup_by(|left, right| left.identity == right.identity);
-    Ok(generated)
+    Ok(saw_resourcepack_macro)
 }
 
 fn resourcepack_handle_name(
@@ -995,7 +1015,28 @@ pub fn custom_item_provider(
     let file = syn::parse_file(&source)
         .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
     let mut generated = Vec::new();
-    for item in &file.items {
+    collect_custom_items(&file.items, identity_module, path, &mut generated)?;
+    if generated.is_empty() {
+        return Err(MacroProviderError::MissingGeneratedTypes);
+    }
+    generated.sort_by(|left, right| left.identity.cmp(&right.identity));
+    Ok(generated)
+}
+
+fn collect_custom_items(
+    items: &[syn::Item],
+    identity_module: &str,
+    path: &Path,
+    generated: &mut Vec<GeneratedApi>,
+) -> Result<(), MacroProviderError> {
+    for item in items {
+        if let syn::Item::Mod(module) = item
+            && let Some((_, items)) = &module.content
+        {
+            let nested_module = format!("{identity_module}::{}", module.ident.unraw());
+            collect_custom_items(items, &nested_module, path, generated)?;
+            continue;
+        }
         let syn::Item::Fn(function) = item else {
             continue;
         };
@@ -1004,7 +1045,7 @@ pub fn custom_item_provider(
         }
         let surface = sand_api_contract::syntax::custom_item_generated_surface(function)
             .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
-        let owner = format!("{identity_module}::{}", function.sig.ident);
+        let owner = format!("{identity_module}::{}", function.sig.ident.unraw());
         let type_identity = format!("{identity_module}::{}", surface.type_name);
         generated.push(GeneratedApi {
             identity: type_identity.clone(),
@@ -1028,11 +1069,7 @@ pub fn custom_item_provider(
             excluded: false,
         });
     }
-    if generated.is_empty() {
-        return Err(MacroProviderError::MissingGeneratedTypes);
-    }
-    generated.sort_by(|left, right| left.identity.cmp(&right.identity));
-    Ok(generated)
+    Ok(())
 }
 
 fn derives_named(attributes: &[syn::Attribute], name: &str) -> bool {

@@ -2468,6 +2468,18 @@ register_systems_api! { path: "sand::systems::damage::DamageTracker::tick_raw", 
 register_systems_api! { path: "sand::systems::damage::DamageTracker::ticks_since_hurt", aliases: ["sand::prelude::DamageTracker::ticks_since_hurt"], kind: Method, summary: "Builds the typed condition for ticks since hurt." }
 register_systems_api! { path: "sand::systems::damage::DamageTracker::was_hurt", aliases: ["sand::prelude::DamageTracker::was_hurt"], kind: Method, summary: "Builds the typed condition for was hurt." }
 register_systems_api! { path: "sand::systems::damage::recently_damaged", aliases: ["sand::prelude::recently_damaged"], kind: Function, summary: "Builds the condition that detects a recently damaged entity." }
+register_systems_api! { path: "sand::systems::lifecycle", aliases: [], kind: Module, summary: "Provides feature-gated first-join and respawn command helpers." }
+register_systems_api! { path: "sand::systems::lifecycle::FirstJoinCommands", aliases: [], kind: Struct, summary: "Builds scoreboard commands that distinguish a player's first join from later reconnects." }
+register_systems_api! { path: "sand::systems::lifecycle::FirstJoinCommands::new", aliases: [], kind: Method, summary: "Creates a first-join command helper backed by the selected flag objective." }
+register_systems_api! { path: "sand::systems::lifecycle::FirstJoinCommands::define", aliases: [], kind: Method, summary: "Emits the command that defines the first-join flag objective." }
+register_systems_api! { path: "sand::systems::lifecycle::FirstJoinCommands::guard_not_first", aliases: [], kind: Method, summary: "Emits a return guard that stops a handler after the player's first recorded join." }
+register_systems_api! { path: "sand::systems::lifecycle::FirstJoinCommands::mark_joined", aliases: [], kind: Method, summary: "Emits the command that records the executing player's first join." }
+register_systems_api! { path: "sand::systems::lifecycle::RespawnCommands", aliases: [], kind: Struct, summary: "Builds scoreboard commands that coordinate death and respawn handlers without double dispatch." }
+register_systems_api! { path: "sand::systems::lifecycle::RespawnCommands::new", aliases: [], kind: Method, summary: "Creates a respawn command helper backed by the selected death flag objective." }
+register_systems_api! { path: "sand::systems::lifecycle::RespawnCommands::define", aliases: [], kind: Method, summary: "Emits the command that defines the death flag objective." }
+register_systems_api! { path: "sand::systems::lifecycle::RespawnCommands::mark_dead", aliases: [], kind: Method, summary: "Emits the death-handler command that marks the executing player as dead." }
+register_systems_api! { path: "sand::systems::lifecycle::RespawnCommands::clear_dead", aliases: [], kind: Method, summary: "Emits the respawn-handler command that clears the executing player's death flag." }
+register_systems_api! { path: "sand::systems::lifecycle::RespawnCommands::guard_not_dead", aliases: [], kind: Method, summary: "Emits a return guard that stops a respawn handler unless death was previously recorded." }
 register_systems_api! { path: "sand::systems::entities", aliases: [], kind: Module, summary: "Provides the feature-gated entities gameplay system." }
 register_systems_api! { path: "sand::systems::entities::InteractSize", aliases: [], kind: Struct, summary: "Configures interact size in the entities gameplay system." }
 register_systems_api! { path: "sand::systems::entities::InteractSize::height", aliases: [], kind: Field, summary: "Configures the height value used by this gameplay system." }

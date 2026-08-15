@@ -445,6 +445,11 @@ pub mod systems {
         pub use sand_core::systems::cooldowns::register_cooldown;
     }
 
+    #[cfg(feature = "systems-lifecycle")]
+    pub mod lifecycle {
+        pub use sand_core::systems::lifecycle::{FirstJoinCommands, RespawnCommands};
+    }
+
     #[cfg(feature = "systems-player-data")]
     pub mod player_data {
         pub use sand_core::systems::player_data::{

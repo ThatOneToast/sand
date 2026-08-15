@@ -140,6 +140,8 @@ fn documented_convenience_contract(
         .into());
     }
     let name = method.sig.ident.to_string();
+    let visibility = &method.vis;
+    let signature = &method.sig;
     Ok(ApiEntry {
         canonical_path: format!("{}::{name}", parent.canonical_path),
         aliases: parent
@@ -149,7 +151,7 @@ fn documented_convenience_contract(
             .collect(),
         canonical_module: parent.canonical_path.clone(),
         kind: ApiKind::Method,
-        signature: quote::quote!(pub #method).to_string(),
+        signature: quote::quote!(#visibility #signature).to_string(),
         summary,
         context: format!(
             "This documented convenience constructor specializes {} without requiring callers to repeat a conventional vanilla resource path.",
@@ -288,6 +290,22 @@ mod tests {
             .find(|entry| entry.member_name.as_deref() == Some("custom"))
             .unwrap();
         assert_eq!(custom.contract.parameters[0].name, "rl");
+    }
+
+    #[test]
+    fn handwritten_convenience_methods_publish_declaration_signatures_only() {
+        let provider = repository_provider();
+        for entry in provider
+            .entries
+            .iter()
+            .filter(|entry| entry.definition_kind == ApiKind::Method)
+        {
+            let signature = &entry.contract.signature;
+            assert!(
+                !signature.contains('{') && !signature.contains("pub pub"),
+                "method metadata contains an implementation instead of a declaration: {signature}"
+            );
+        }
     }
 
     #[test]

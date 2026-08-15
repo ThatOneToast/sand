@@ -340,7 +340,7 @@ fn provider_item_enabled(
         .map_err(|error| MacroProviderError::Parse(error.to_string()))
 }
 
-fn provider_effective_attributes(
+pub(crate) fn provider_effective_attributes(
     attrs: &[syn::Attribute],
     cfg: &CfgSet,
     source_file: &Path,
@@ -383,7 +383,7 @@ fn provider_derives_named(
         .any(|attribute| derives_named(std::slice::from_ref(attribute), name)))
 }
 
-fn provider_derive_input(
+pub(crate) fn provider_derive_input(
     structure: &syn::ItemStruct,
     cfg: &CfgSet,
     source_file: &Path,

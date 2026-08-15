@@ -3288,6 +3288,27 @@ fn consumer_macro_providers_use_the_surface_cfg_set() {
     );
     assert!(!storage.iter().any(|api| api.identity.contains("Inactive")));
     assert!(!storage.iter().any(|api| api.identity.ends_with("::hidden")));
+    let generated = state
+        .iter()
+        .chain(storage.iter())
+        .chain(items.iter())
+        .cloned()
+        .collect::<Vec<_>>();
+    SurfaceGraph::load_with_cfg(
+        [SourceCrate {
+            name: "facade".into(),
+            root: facade.clone(),
+        }],
+        cfg.clone(),
+        generated,
+    )
+    .unwrap()
+    .bind_api_producer("facade::ActiveState", "State", "state_derive")
+    .unwrap()
+    .bind_api_producer("facade::ActiveStorage", "SandStorage", "storage_derive")
+    .unwrap()
+    .bind_api_producer("facade::active_item", "custom_item", "item_macro")
+    .unwrap();
     let resourcepack =
         sand_api_enforce::resourcepack_macro_provider(&facade, "facade", &cfg).unwrap();
     assert_eq!(resourcepack[0].identity, "facade::ACTIVE");

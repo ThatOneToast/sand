@@ -17,7 +17,8 @@ use syn::spanned::Spanned;
 
 use crate::macro_provider::{
     audit_inert_macro_transcriber, audit_inventory_collection_invocation,
-    audit_resourcepack_texture_invocation, audit_thread_local_invocation,
+    audit_resourcepack_texture_invocation, audit_thread_local_invocation, provider_derive_input,
+    provider_effective_attributes,
 };
 
 /// Explicit cfg environment used while parsing the selected Cargo target.
@@ -3223,7 +3224,9 @@ fn api_producers_from_attrs_with_context(
                     });
                 } else if api_producing_sand_macro(&name) {
                     producers.push(ApiProducerUse {
-                        expected_generated: expected_generated_identities(&name, owner, item)?,
+                        expected_generated: expected_generated_identities(
+                            &name, owner, item, cfg, source,
+                        )?,
                         name,
                         source: source.to_owned(),
                         line: attr.line,
@@ -3293,7 +3296,9 @@ fn api_producers_from_attrs_with_context(
                 });
             } else if api_producing_sand_macro(&name) {
                 producers.push(ApiProducerUse {
-                    expected_generated: expected_generated_identities(&name, owner, item)?,
+                    expected_generated: expected_generated_identities(
+                        &name, owner, item, cfg, source,
+                    )?,
                     name,
                     source: source.to_owned(),
                     line: attr.line,
@@ -3404,6 +3409,8 @@ fn expected_generated_identities(
     producer: &str,
     owner: &str,
     item: Option<&syn::Item>,
+    cfg: &CfgSet,
+    source: &Path,
 ) -> Result<Option<BTreeSet<(String, ReachableKind)>>, ReachabilityError> {
     let Some(item) = item else {
         // A macro_rules! definition is a template, not a concrete derive
@@ -3413,12 +3420,19 @@ fn expected_generated_identities(
     };
     match producer {
         "SandStorage" => {
-            let input =
-                syn::parse2::<syn::DeriveInput>(item.to_token_stream()).map_err(|error| {
-                    ReachabilityError::Parse(format!(
-                        "cannot model SandStorage output for `{owner}`: {error}"
-                    ))
-                })?;
+            let input = match item {
+                syn::Item::Struct(structure) => provider_derive_input(structure, cfg, source),
+                _ => {
+                    return Err(ReachabilityError::Parse(format!(
+                        "cannot model SandStorage output for `{owner}`: expected a struct"
+                    )));
+                }
+            }
+            .map_err(|error| {
+                ReachabilityError::Parse(format!(
+                    "cannot model SandStorage output for `{owner}`: {error}"
+                ))
+            })?;
             let names = sand_api_contract::syntax::sand_storage_generated_member_names(&input)
                 .map_err(|error| {
                     ReachabilityError::Parse(format!(
@@ -3443,12 +3457,19 @@ fn expected_generated_identities(
             ))
         }
         "State" => {
-            let input =
-                syn::parse2::<syn::DeriveInput>(item.to_token_stream()).map_err(|error| {
-                    ReachabilityError::Parse(format!(
-                        "cannot model State output for `{owner}`: {error}"
-                    ))
-                })?;
+            let input = match item {
+                syn::Item::Struct(structure) => provider_derive_input(structure, cfg, source),
+                _ => {
+                    return Err(ReachabilityError::Parse(format!(
+                        "cannot model State output for `{owner}`: expected a struct"
+                    )));
+                }
+            }
+            .map_err(|error| {
+                ReachabilityError::Parse(format!(
+                    "cannot model State output for `{owner}`: {error}"
+                ))
+            })?;
             let surface =
                 sand_api_contract::syntax::state_generated_surface(&input).map_err(|error| {
                     ReachabilityError::Parse(format!(
@@ -3476,15 +3497,17 @@ fn expected_generated_identities(
             Ok(Some(expected))
         }
         "custom_item" => {
-            let function = match item {
-                syn::Item::Fn(function) => function,
+            let mut function = match item {
+                syn::Item::Fn(function) => function.clone(),
                 _ => {
                     return Err(ReachabilityError::Parse(format!(
                         "cannot model custom_item output for `{owner}`: expected a function"
                     )));
                 }
             };
-            let Ok(surface) = sand_api_contract::syntax::custom_item_generated_surface(function)
+            function.attrs = provider_effective_attributes(&function.attrs, cfg, source)
+                .map_err(|error| ReachabilityError::Parse(error.to_string()))?;
+            let Ok(surface) = sand_api_contract::syntax::custom_item_generated_surface(&function)
             else {
                 // Invalid custom-item input will be rejected by macro expansion.
                 // Until it has a literal generated type name, it deliberately

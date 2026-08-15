@@ -6,13 +6,69 @@ use sand_api_enforce::{
 };
 
 fn api(identity: &str, paths: &[&str]) -> ReachableApi {
+    api_kind(identity, ReachableKind::Function, paths)
+}
+
+fn api_kind(identity: &str, kind: ReachableKind, paths: &[&str]) -> ReachableApi {
     ReachableApi {
         identity: identity.into(),
-        kind: ReachableKind::Function,
+        kind,
         origin: ReachableOrigin::Source,
         paths: paths.iter().map(|path| (*path).to_owned()).collect(),
         definition: None,
     }
+}
+
+#[test]
+fn nonrecursive_root_scope_uses_discovered_types_for_lowercase_members() {
+    let source = r#"
+        schema_version = 1
+        static_surface_items = 3
+        enforced_scope_baseline = []
+        pending_scope_ceiling = 2
+        pending_item_ceiling = 3
+
+        [[scope]]
+        id = "root"
+        canonical_module = "sand"
+        state = "pending"
+        tier = "author"
+        provider = "source"
+        recursive = false
+
+        [[scope]]
+        id = "topic"
+        canonical_module = "sand::topic"
+        state = "pending"
+        tier = "author"
+        provider = "source"
+    "#;
+    let reachable = [
+        api_kind("fixture::widget", ReachableKind::Struct, &["sand::widget"]),
+        api_kind(
+            "fixture::widget::BASE",
+            ReachableKind::AssociatedConst,
+            &["sand::widget::BASE"],
+        ),
+        api("fixture::topic::item", &["sand::topic::item"]),
+    ];
+
+    let report = ScopeManifest::from_toml(source)
+        .unwrap()
+        .evaluate(&reachable, &[], &BTreeSet::new())
+        .unwrap();
+    let root = report
+        .entries
+        .iter()
+        .find(|entry| entry.id == "root")
+        .unwrap();
+    let topic = report
+        .entries
+        .iter()
+        .find(|entry| entry.id == "topic")
+        .unwrap();
+    assert_eq!(root.reachable_items, 2);
+    assert_eq!(topic.reachable_items, 1);
 }
 
 fn generated_api(identity: &str, provider: &str, paths: &[&str]) -> ReachableApi {

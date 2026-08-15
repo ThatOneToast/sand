@@ -4030,7 +4030,14 @@ pub(crate) fn module_path(
             }
         })
     {
-        return Ok(directory.join(relative));
+        // An explicit path is relative to the directory containing the file
+        // with the `mod` declaration. That differs from Rust's default
+        // submodule search directory for a non-`mod.rs` file (`outer.rs`
+        // searches `outer/` only when no `#[path]` is present).
+        return Ok(source
+            .parent()
+            .unwrap_or_else(|| Path::new("."))
+            .join(relative));
     }
     let sibling = directory.join(format!("{name}.rs"));
     let nested = directory.join(name).join("mod.rs");

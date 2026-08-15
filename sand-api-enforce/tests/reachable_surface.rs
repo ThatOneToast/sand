@@ -3006,6 +3006,97 @@ fn consumer_macro_providers_traverse_out_of_line_and_path_modules() {
 }
 
 #[test]
+fn nested_path_modules_resolve_from_the_containing_file_directory() {
+    let directory = tempfile::tempdir().unwrap();
+    let facade = directory.path().join("lib.rs");
+    fs::write(&facade, "pub mod outer;").unwrap();
+    fs::write(
+        directory.path().join("outer.rs"),
+        r#"#[path = "schema.rs"] pub mod schema;"#,
+    )
+    .unwrap();
+    fs::write(
+        directory.path().join("schema.rs"),
+        r#"
+            pub struct Widget;
+
+            #[derive(State)]
+            #[state(namespace = "fixture", scope = player)]
+            pub struct PlayerState { mana: EntityScore<i32> }
+
+            #[derive(SandStorage)]
+            pub struct PlayerStorage { value: i32 }
+
+            #[sand::custom_item(name = "TypedItem")]
+            pub fn typed_item() -> CustomItem { todo!() }
+
+            #[sand::function]
+            pub fn tick() {}
+
+            hud_element!(
+                name = "status",
+                texture = "status.png",
+                height = 8,
+                ascent = 8,
+            );
+        "#,
+    )
+    .unwrap();
+
+    let surface_directory = directory.path().join("surface");
+    fs::create_dir(&surface_directory).unwrap();
+    let surface = surface_directory.join("lib.rs");
+    fs::write(&surface, "pub mod outer;").unwrap();
+    fs::write(
+        surface_directory.join("outer.rs"),
+        r#"#[path = "schema.rs"] pub mod schema;"#,
+    )
+    .unwrap();
+    fs::write(surface_directory.join("schema.rs"), "pub struct Widget;").unwrap();
+    let reachable = SurfaceGraph::load(
+        [SourceCrate {
+            name: "facade".into(),
+            root: surface,
+        }],
+        [],
+        [],
+    )
+    .unwrap()
+    .reachable_from("facade")
+    .unwrap();
+    assert!(
+        reachable
+            .iter()
+            .any(|api| api.identity == "facade::outer::schema::Widget")
+    );
+
+    let state =
+        sand_api_enforce::state_derive_provider(&facade, "facade", &CfgSet::default()).unwrap();
+    assert!(
+        state
+            .iter()
+            .any(|api| api.identity == "facade::outer::schema::PlayerStateBound")
+    );
+    let storage =
+        sand_api_enforce::sand_storage_derive_provider(&facade, "facade", &CfgSet::default())
+            .unwrap();
+    assert!(
+        storage
+            .iter()
+            .any(|api| api.identity == "facade::outer::schema::PlayerStorage::value")
+    );
+    let items =
+        sand_api_enforce::custom_item_provider(&facade, "facade", &CfgSet::default()).unwrap();
+    assert_eq!(items[0].identity, "facade::outer::schema::TypedItem");
+    sand_api_enforce::shape_preserving_consumer_provider(&facade, "function", &CfgSet::default())
+        .unwrap();
+    let resourcepack =
+        sand_api_enforce::resourcepack_macro_provider(&facade, "facade", &CfgSet::default())
+            .unwrap();
+    assert_eq!(resourcepack[0].identity, "facade::outer::schema::STATUS");
+}
+
+#[test]
 fn consumer_macro_providers_use_the_surface_cfg_set() {
     let directory = tempfile::tempdir().unwrap();
     let facade = directory.path().join("lib.rs");

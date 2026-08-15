@@ -2213,15 +2213,28 @@ fn parse_module_file(
         .map_err(|error| ReachabilityError::Io(format!("{}: {error}", file.display())))?;
     let parsed = syn::parse_file(&source)
         .map_err(|error| ReachabilityError::Parse(format!("{}: {error}", file.display())))?;
+    let default_directory = module_search_directory(file);
+    let path_directory = file.parent().unwrap_or_else(|| Path::new("."));
     parse_items(
         crate_name,
-        file,
+        ModuleFileContext {
+            source_file: file,
+            default_directory: &default_directory,
+            path_directory,
+        },
         module_id,
         &parsed.items,
         excluded_parent,
         cfg,
         index,
     )
+}
+
+#[derive(Clone, Copy)]
+struct ModuleFileContext<'a> {
+    source_file: &'a Path,
+    default_directory: &'a Path,
+    path_directory: &'a Path,
 }
 
 fn resolve_pending_impls(crate_name: &str, index: &mut CrateIndex) -> Vec<(String, PendingImpl)> {
@@ -2435,13 +2448,16 @@ fn resolve_index_use_target(
 
 fn parse_items(
     crate_name: &str,
-    source_file: &Path,
+    context: ModuleFileContext<'_>,
     module_id: &str,
     items: &[syn::Item],
     excluded_parent: bool,
     cfg: &CfgSet,
     index: &mut CrateIndex,
 ) -> Result<(), ReachabilityError> {
+    let source_file = context.source_file;
+    let default_directory = context.default_directory;
+    let path_directory = context.path_directory;
     index
         .modules
         .entry(module_id.to_owned())
@@ -2626,9 +2642,14 @@ fn parse_items(
                         .insert(name.clone(), child_id.clone());
                 }
                 if let Some((_, nested)) = &value.content {
+                    let child_directory = default_directory.join(&name);
                     parse_items(
                         crate_name,
-                        source_file,
+                        ModuleFileContext {
+                            source_file,
+                            default_directory: &child_directory,
+                            path_directory: &child_directory,
+                        },
                         &child_id,
                         nested,
                         excluded,
@@ -2636,8 +2657,14 @@ fn parse_items(
                         index,
                     )?;
                 } else {
-                    let directory = module_search_directory(source_file);
-                    let path = module_path(&value.attrs, &directory, &name, cfg, source_file)?;
+                    let path = module_path(
+                        &value.attrs,
+                        default_directory,
+                        path_directory,
+                        &name,
+                        cfg,
+                        source_file,
+                    )?;
                     parse_module_file(crate_name, &path, &child_id, excluded, cfg, index)?;
                 }
             }
@@ -4008,6 +4035,7 @@ fn standard_library_alias_target(segments: &[String]) -> bool {
 pub(crate) fn module_path(
     attrs: &[syn::Attribute],
     directory: &Path,
+    path_directory: &Path,
     name: &str,
     cfg: &CfgSet,
     source: &Path,
@@ -4030,14 +4058,7 @@ pub(crate) fn module_path(
             }
         })
     {
-        // An explicit path is relative to the directory containing the file
-        // with the `mod` declaration. That differs from Rust's default
-        // submodule search directory for a non-`mod.rs` file (`outer.rs`
-        // searches `outer/` only when no `#[path]` is present).
-        return Ok(source
-            .parent()
-            .unwrap_or_else(|| Path::new("."))
-            .join(relative));
+        return Ok(path_directory.join(relative));
     }
     let sibling = directory.join(format!("{name}.rs"));
     let nested = directory.join(name).join("mod.rs");

@@ -2912,6 +2912,21 @@ fn resourcepack_provider_accepts_unicode_rust_handle_identifiers() {
 }
 
 #[test]
+fn resourcepack_provider_uses_the_last_duplicate_name_like_the_macro() {
+    let directory = tempfile::tempdir().unwrap();
+    let resourcepack = directory.path().join("resourcepack.rs");
+    fs::write(
+        &resourcepack,
+        r#"hud_element!(name = "old", name = "current", texture = "status.png", height = 8, ascent = 8);"#,
+    )
+    .unwrap();
+    let generated =
+        sand_api_enforce::resourcepack_macro_provider(&resourcepack, "facade", &CfgSet::default())
+            .unwrap();
+    assert_eq!(generated[0].identity, "facade::CURRENT");
+}
+
+#[test]
 fn custom_item_provider_normalizes_raw_data_constant_identifiers() {
     let directory = tempfile::tempdir().unwrap();
     let facade = directory.path().join("facade.rs");
@@ -3094,6 +3109,108 @@ fn nested_path_modules_resolve_from_the_containing_file_directory() {
         sand_api_enforce::resourcepack_macro_provider(&facade, "facade", &CfgSet::default())
             .unwrap();
     assert_eq!(resourcepack[0].identity, "facade::outer::schema::STATUS");
+}
+
+#[test]
+fn inline_modules_preserve_their_child_file_search_directory() {
+    let directory = tempfile::tempdir().unwrap();
+    let facade = directory.path().join("lib.rs");
+    fs::write(
+        &facade,
+        r#"pub mod outer { pub mod schema; #[path = "alternate.rs"] pub mod alternate; }"#,
+    )
+    .unwrap();
+    fs::create_dir(directory.path().join("outer")).unwrap();
+    fs::write(
+        directory.path().join("outer/schema.rs"),
+        r#"
+            #[derive(State)]
+            #[state(namespace = "fixture", scope = player)]
+            pub struct PlayerState { mana: EntityScore<i32> }
+
+            #[derive(SandStorage)]
+            pub struct PlayerStorage { value: i32 }
+
+            #[sand::custom_item(name = "TypedItem")]
+            pub fn typed_item() -> CustomItem { todo!() }
+
+            #[sand::function]
+            pub fn tick() {}
+
+            hud_element!(name = "status", texture = "status.png", height = 8, ascent = 8);
+        "#,
+    )
+    .unwrap();
+    fs::write(
+        directory.path().join("outer/alternate.rs"),
+        "pub struct Alternate;",
+    )
+    .unwrap();
+
+    let state =
+        sand_api_enforce::state_derive_provider(&facade, "facade", &CfgSet::default()).unwrap();
+    assert!(
+        state
+            .iter()
+            .any(|api| api.identity == "facade::outer::schema::PlayerStateBound")
+    );
+    let storage =
+        sand_api_enforce::sand_storage_derive_provider(&facade, "facade", &CfgSet::default())
+            .unwrap();
+    assert!(
+        storage
+            .iter()
+            .any(|api| api.identity == "facade::outer::schema::PlayerStorage::value")
+    );
+    let items =
+        sand_api_enforce::custom_item_provider(&facade, "facade", &CfgSet::default()).unwrap();
+    assert_eq!(items[0].identity, "facade::outer::schema::TypedItem");
+    sand_api_enforce::shape_preserving_consumer_provider(&facade, "function", &CfgSet::default())
+        .unwrap();
+    let resourcepack =
+        sand_api_enforce::resourcepack_macro_provider(&facade, "facade", &CfgSet::default())
+            .unwrap();
+    assert_eq!(resourcepack[0].identity, "facade::outer::schema::STATUS");
+
+    let surface_directory = directory.path().join("surface");
+    fs::create_dir(&surface_directory).unwrap();
+    fs::write(
+        surface_directory.join("lib.rs"),
+        r#"pub mod outer { pub mod schema; #[path = "alternate.rs"] pub mod alternate; }"#,
+    )
+    .unwrap();
+    fs::create_dir(surface_directory.join("outer")).unwrap();
+    fs::write(
+        surface_directory.join("outer/schema.rs"),
+        "pub struct Widget;",
+    )
+    .unwrap();
+    fs::write(
+        surface_directory.join("outer/alternate.rs"),
+        "pub struct Alternate;",
+    )
+    .unwrap();
+    let reachable = SurfaceGraph::load(
+        [SourceCrate {
+            name: "facade".into(),
+            root: surface_directory.join("lib.rs"),
+        }],
+        [],
+        [],
+    )
+    .unwrap()
+    .reachable_from("facade")
+    .unwrap();
+    assert!(
+        reachable
+            .iter()
+            .any(|api| api.identity == "facade::outer::schema::Widget")
+    );
+    assert!(
+        reachable
+            .iter()
+            .any(|api| api.identity == "facade::outer::alternate::Alternate")
+    );
 }
 
 #[test]

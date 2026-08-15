@@ -3214,6 +3214,72 @@ fn inline_modules_preserve_their_child_file_search_directory() {
 }
 
 #[test]
+fn consumer_macro_providers_follow_literal_includes() {
+    let directory = tempfile::tempdir().unwrap();
+    let facade = directory.path().join("lib.rs");
+    fs::write(&facade, r#"include!("schemas.rs");"#).unwrap();
+    fs::write(
+        directory.path().join("schemas.rs"),
+        r#"
+            #[derive(State)]
+            #[state(namespace = "fixture", scope = player)]
+            pub struct PlayerState { mana: EntityScore<i32> }
+
+            #[derive(SandStorage)]
+            pub struct PlayerStorage { value: i32 }
+
+            #[sand::custom_item(name = "TypedItem")]
+            pub fn typed_item() -> CustomItem { todo!() }
+
+            #[sand::function]
+            pub fn tick() {}
+
+            hud_element!(name = "status", texture = "status.png", height = 8, ascent = 8);
+        "#,
+    )
+    .unwrap();
+    let cfg = CfgSet::default();
+    let state = sand_api_enforce::state_derive_provider(&facade, "facade", &cfg).unwrap();
+    let storage = sand_api_enforce::sand_storage_derive_provider(&facade, "facade", &cfg).unwrap();
+    let items = sand_api_enforce::custom_item_provider(&facade, "facade", &cfg).unwrap();
+    let resourcepack =
+        sand_api_enforce::resourcepack_macro_provider(&facade, "facade", &cfg).unwrap();
+    sand_api_enforce::shape_preserving_consumer_provider(&facade, "function", &cfg).unwrap();
+    assert!(
+        state
+            .iter()
+            .any(|api| api.identity == "facade::PlayerStateBound")
+    );
+    assert!(
+        storage
+            .iter()
+            .any(|api| api.identity == "facade::PlayerStorage::value")
+    );
+    assert_eq!(items[0].identity, "facade::TypedItem");
+    assert_eq!(resourcepack[0].identity, "facade::STATUS");
+
+    SurfaceGraph::load(
+        [SourceCrate {
+            name: "facade".into(),
+            root: facade,
+        }],
+        [],
+        state
+            .into_iter()
+            .chain(storage)
+            .chain(items)
+            .chain(resourcepack),
+    )
+    .unwrap()
+    .bind_api_producer("facade::PlayerState", "State", "state_derive")
+    .unwrap()
+    .bind_api_producer("facade::PlayerStorage", "SandStorage", "storage_derive")
+    .unwrap()
+    .bind_api_producer("facade::typed_item", "custom_item", "item_macro")
+    .unwrap();
+}
+
+#[test]
 fn consumer_macro_providers_use_the_surface_cfg_set() {
     let directory = tempfile::tempdir().unwrap();
     let facade = directory.path().join("lib.rs");

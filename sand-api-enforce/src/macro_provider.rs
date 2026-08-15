@@ -76,6 +76,19 @@ fn contains_shape_preserving_invocation(
         if !provider_item_enabled(item, cfg, source_file)? {
             continue;
         }
+        if let Some((path, file)) = parse_provider_include(item, source_file)? {
+            if contains_shape_preserving_invocation(
+                &file.items,
+                macro_name,
+                &path,
+                &module_search_directory(&path),
+                path.parent().unwrap_or_else(|| Path::new(".")),
+                cfg,
+            )? {
+                return Ok(true);
+            }
+            continue;
+        }
         let found = match item {
             syn::Item::Fn(function) => {
                 is_public(&function.vis)
@@ -170,6 +183,18 @@ fn collect_resourcepack_macros(
     let mut saw_resourcepack_macro = false;
     for item in items {
         if !provider_item_enabled(item, cfg, path)? {
+            continue;
+        }
+        if let Some((included_path, file)) = parse_provider_include(item, path)? {
+            saw_resourcepack_macro |= collect_resourcepack_macros(
+                &file.items,
+                identity_module,
+                &included_path,
+                &module_search_directory(&included_path),
+                included_path.parent().unwrap_or_else(|| Path::new(".")),
+                cfg,
+                generated,
+            )?;
             continue;
         }
         if let syn::Item::Mod(module) = item {
@@ -329,6 +354,33 @@ fn parse_provider_module(
     let file = syn::parse_file(&source)
         .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
     Ok((path, file))
+}
+
+fn parse_provider_include(
+    item: &syn::Item,
+    source_file: &Path,
+) -> Result<Option<(std::path::PathBuf, syn::File)>, MacroProviderError> {
+    let syn::Item::Macro(item) = item else {
+        return Ok(None);
+    };
+    if !item.mac.path.is_ident("include") {
+        return Ok(None);
+    }
+    let relative = syn::parse2::<syn::LitStr>(item.mac.tokens.clone()).map_err(|error| {
+        MacroProviderError::Parse(format!(
+            "{}: consumer API providers require a literal include path: {error}",
+            source_file.display()
+        ))
+    })?;
+    let path = source_file
+        .parent()
+        .unwrap_or_else(|| Path::new("."))
+        .join(relative.value());
+    let source = fs::read_to_string(&path)
+        .map_err(|error| MacroProviderError::Io(format!("{}: {error}", path.display())))?;
+    let file = syn::parse_file(&source)
+        .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
+    Ok(Some((path, file)))
 }
 
 fn provider_item_enabled(
@@ -1150,6 +1202,18 @@ fn collect_sand_storage_derives(
         if !provider_item_enabled(item, cfg, path)? {
             continue;
         }
+        if let Some((included_path, file)) = parse_provider_include(item, path)? {
+            collect_sand_storage_derives(
+                &file.items,
+                identity_module,
+                &included_path,
+                &module_search_directory(&included_path),
+                included_path.parent().unwrap_or_else(|| Path::new(".")),
+                cfg,
+                generated,
+            )?;
+            continue;
+        }
         if let syn::Item::Mod(module) = item {
             let nested_module = format!("{identity_module}::{}", module.ident.unraw());
             if let Some((_, items)) = &module.content {
@@ -1250,6 +1314,18 @@ fn collect_state_derives(
 ) -> Result<(), MacroProviderError> {
     for item in items {
         if !provider_item_enabled(item, cfg, path)? {
+            continue;
+        }
+        if let Some((included_path, file)) = parse_provider_include(item, path)? {
+            collect_state_derives(
+                &file.items,
+                identity_module,
+                &included_path,
+                &module_search_directory(&included_path),
+                included_path.parent().unwrap_or_else(|| Path::new(".")),
+                cfg,
+                generated,
+            )?;
             continue;
         }
         if let syn::Item::Mod(module) = item {
@@ -1370,6 +1446,18 @@ fn collect_custom_items(
 ) -> Result<(), MacroProviderError> {
     for item in items {
         if !provider_item_enabled(item, cfg, path)? {
+            continue;
+        }
+        if let Some((included_path, file)) = parse_provider_include(item, path)? {
+            collect_custom_items(
+                &file.items,
+                identity_module,
+                &included_path,
+                &module_search_directory(&included_path),
+                included_path.parent().unwrap_or_else(|| Path::new(".")),
+                cfg,
+                generated,
+            )?;
             continue;
         }
         if let syn::Item::Mod(module) = item {

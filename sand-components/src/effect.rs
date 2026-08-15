@@ -180,7 +180,7 @@ macro_rules! vanilla_registry_enum {
                 aliases: &[],
                 canonical_module: "sand::prelude",
                 kind: ::sand_api_contract::ApiKind::Method,
-                signature: concat!("pub fn ", stringify!($name), "::custom(id: impl AsRef<str>) -> Result<", stringify!($name), ">"),
+                signature: concat!("pub fn custom(id: impl AsRef<str>) -> Result<", stringify!($name), ">"),
                 summary: "Validates and wraps a custom registry identifier.",
                 context: "This constructor keeps modded identifiers in the same typed family as known vanilla variants.",
                 minecraft: "Validates Minecraft namespace:path syntax before serializing it as a registry reference.",
@@ -198,7 +198,7 @@ macro_rules! vanilla_registry_enum {
                 aliases: &[],
                 canonical_module: "sand::prelude",
                 kind: ::sand_api_contract::ApiKind::Method,
-                signature: concat!("pub fn ", stringify!($name), "::from_resource_location(location: ResourceLocation) -> ", stringify!($name)),
+                signature: concat!("pub fn from_resource_location(location: ResourceLocation) -> ", stringify!($name)),
                 summary: "Wraps an already validated location as a custom registry identifier.",
                 context: "This avoids reparsing when an API already owns a ResourceLocation.",
                 minecraft: "Uses the supplied namespace:path location as the registry reference.",
@@ -216,7 +216,7 @@ macro_rules! vanilla_registry_enum {
                 aliases: &[],
                 canonical_module: "sand::prelude",
                 kind: ::sand_api_contract::ApiKind::Method,
-                signature: concat!("pub fn ", stringify!($name), "::as_resource_location(&self) -> ResourceLocation"),
+                signature: "pub fn as_resource_location(&self) -> ResourceLocation",
                 summary: "Returns this entry's validated resource location.",
                 context: "This is the common typed identity representation used by Sand APIs that accept several registry kinds.",
                 minecraft: "Returns the namespace:path value rendered in Minecraft data and commands.",
@@ -234,7 +234,7 @@ macro_rules! vanilla_registry_enum {
                 aliases: &[],
                 canonical_module: "sand::prelude",
                 kind: ::sand_api_contract::ApiKind::Method,
-                signature: concat!("pub fn ", stringify!($name), "::as_str(&self) -> String"),
+                signature: "pub fn as_str(&self) -> String",
                 summary: "Returns this entry as namespace:path text.",
                 context: "Use this at text boundaries after keeping the identifier typed through the rest of the API.",
                 minecraft: "Returns the exact registry identifier Minecraft reads.",
@@ -617,6 +617,31 @@ mod tests {
             serde_json::to_value(id).unwrap(),
             json!("mymod:arcane_burn")
         );
+    }
+
+    #[test]
+    fn generated_registry_method_catalog_signatures_are_declarations() {
+        let catalog = sand_api_contract::ApiCatalog::installed("test").unwrap();
+        for (path, signature) in [
+            (
+                "sand::prelude::EffectId::custom",
+                "pub fn custom(id: impl AsRef<str>) -> Result<EffectId>",
+            ),
+            (
+                "sand::prelude::EffectId::from_resource_location",
+                "pub fn from_resource_location(location: ResourceLocation) -> EffectId",
+            ),
+            (
+                "sand::prelude::EffectId::as_resource_location",
+                "pub fn as_resource_location(&self) -> ResourceLocation",
+            ),
+            (
+                "sand::prelude::EffectId::as_str",
+                "pub fn as_str(&self) -> String",
+            ),
+        ] {
+            assert_eq!(catalog.find(path).unwrap().signature, signature);
+        }
     }
 
     #[test]

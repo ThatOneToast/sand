@@ -207,18 +207,53 @@ fn resourcepack_handle_name(
             ))
         })?;
     let handle = name.to_uppercase().replace(['-', ' '], "_");
-    if handle.is_empty()
-        || !handle.chars().enumerate().all(|(index, character)| {
-            character == '_'
-                || character.is_ascii_alphanumeric() && (index > 0 || !character.is_ascii_digit())
-        })
-    {
+    if syn::parse_str::<syn::Ident>(&handle).is_err() {
         return Err(MacroProviderError::Parse(format!(
             "{}: resourcepack HUD name `{name}` does not produce a valid public Rust handle",
             path.display()
         )));
     }
     Ok(handle)
+}
+
+/// Verify that a `texture!` invocation has the exact semantic inputs needed
+/// by the macro while acknowledging that it emits no supported Rust item.
+pub(crate) fn audit_resourcepack_texture_invocation(
+    tokens: &TokenStream,
+) -> Result<(), MacroProviderError> {
+    let fields = syn::punctuated::Punctuated::<syn::ExprAssign, syn::Token![,]>::parse_terminated
+        .parse2(tokens.clone())
+        .map_err(|error| MacroProviderError::Parse(error.to_string()))?;
+    let literal = |key: &str| {
+        fields
+            .iter()
+            .rev()
+            .find_map(|field| match field.left.as_ref() {
+                syn::Expr::Path(path) if path.path.is_ident(key) => match field.right.as_ref() {
+                    syn::Expr::Lit(syn::ExprLit {
+                        lit: syn::Lit::Str(value),
+                        ..
+                    }) => Some(Ok(value.value())),
+                    _ => Some(Err(MacroProviderError::Parse(format!(
+                        "`{key}` must be a string literal in texture!"
+                    )))),
+                },
+                _ => None,
+            })
+            .unwrap_or_else(|| {
+                Err(MacroProviderError::Parse(format!(
+                    "`{key}` is required in texture!"
+                )))
+            })
+    };
+    let id = literal("id")?;
+    let _path = literal("path")?;
+    if id.split_once(':').is_none() {
+        return Err(MacroProviderError::Parse(format!(
+            "`id` must be a resource location `namespace:path`, got `{id}`"
+        )));
+    }
+    Ok(())
 }
 
 fn parse_provider_module(

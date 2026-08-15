@@ -17,7 +17,7 @@ use syn::spanned::Spanned;
 
 use crate::macro_provider::{
     audit_inert_macro_transcriber, audit_inventory_collection_invocation,
-    audit_thread_local_invocation,
+    audit_resourcepack_texture_invocation, audit_thread_local_invocation,
 };
 
 /// Explicit cfg environment used while parsing the selected Cargo target.
@@ -648,6 +648,9 @@ pub enum InertItemMacroClassification {
     /// `thread_local!` declares internal storage. This classification is only
     /// valid for the exact `thread_local` or `std::thread_local` macro path.
     ThreadLocalStorageWiring,
+    /// `texture!` registers a raw resource-pack asset and emits only private
+    /// factory/linker wiring, never a facade-visible Rust declaration.
+    ResourcepackTextureRegistration,
 }
 
 impl InertItemMacroClassification {
@@ -661,6 +664,9 @@ impl InertItemMacroClassification {
             }
             Self::ThreadLocalStorageWiring => {
                 "internal thread-local compiler wiring with no facade identity"
+            }
+            Self::ResourcepackTextureRegistration => {
+                "resource-pack texture registration with no facade identity"
             }
         }
     }
@@ -1031,8 +1037,9 @@ impl SurfaceGraph {
     /// Unlike [`Self::bind_item_macro_provider`], this creates no generated
     /// declarations. Local macro families are accepted only after their
     /// transcribers pass the structural trait-impl/private-item audit.
-    /// External classifications are restricted to two documented compiler
-    /// wiring macros and cannot be applied to an arbitrary spelling.
+    /// External classifications are restricted to documented compiler or
+    /// resource registration macros and cannot be applied to an arbitrary
+    /// spelling.
     pub fn bind_inert_item_macro(
         mut self,
         module: impl Into<String>,
@@ -1124,6 +1131,26 @@ impl SurfaceGraph {
                     .filter(|site| site.macro_path == macro_path)
                 {
                     audit_thread_local_invocation(&site.tokens)
+                        .map_err(|error| invalid(error.to_string()))?;
+                }
+            }
+            InertItemMacroClassification::ResourcepackTextureRegistration => {
+                if !matches!(
+                    macro_path.as_str(),
+                    "texture" | "sand::texture" | "sand_macros::texture"
+                ) {
+                    return Err(invalid(
+                        "resource-pack texture registration is valid only for `texture!`, `sand::texture!`, or `sand_macros::texture!`"
+                            .into(),
+                    ));
+                }
+                for site in self
+                    .module(&module)
+                    .into_iter()
+                    .flat_map(|parsed| &parsed.item_macros)
+                    .filter(|site| site.macro_path == macro_path)
+                {
+                    audit_resourcepack_texture_invocation(&site.tokens)
                         .map_err(|error| invalid(error.to_string()))?;
                 }
             }

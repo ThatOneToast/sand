@@ -552,6 +552,41 @@ fn external_inert_bindings_structurally_audit_every_invocation_payload() {
 }
 
 #[test]
+fn texture_only_resourcepack_bindings_are_audited_without_generated_api() {
+    let (_directory, graph) = item_macro_graph(
+        r#"texture!(id = "fixture:item/icon", path = "assets/icon.png");"#,
+        [],
+    );
+    let reachable = graph
+        .bind_inert_item_macro(
+            "facade",
+            "texture",
+            InertItemMacroClassification::ResourcepackTextureRegistration,
+        )
+        .unwrap()
+        .reachable_from("facade")
+        .unwrap();
+    assert!(reachable.is_empty());
+
+    for source in [
+        r#"texture!(id = "missing-namespace", path = "assets/icon.png");"#,
+        r#"texture!(id = "fixture:item/icon");"#,
+    ] {
+        let (_directory, graph) = item_macro_graph(source, []);
+        let error = graph
+            .bind_inert_item_macro(
+                "facade",
+                "texture",
+                InertItemMacroClassification::ResourcepackTextureRegistration,
+            )
+            .err()
+            .unwrap()
+            .to_string();
+        assert!(error.contains("texture!"), "{error}");
+    }
+}
+
+#[test]
 fn associated_item_macros_fail_closed_and_require_exact_owner_output() {
     for source in [
         "pub struct Subject; impl Subject { generated_members!(); }",
@@ -2851,6 +2886,29 @@ fn consumer_macro_providers_traverse_inline_modules() {
         &CfgSet::default(),
     )
     .unwrap();
+}
+
+#[test]
+fn resourcepack_provider_accepts_unicode_rust_handle_identifiers() {
+    let directory = tempfile::tempdir().unwrap();
+    let resourcepack = directory.path().join("resourcepack.rs");
+    fs::write(
+        &resourcepack,
+        r#"
+            hud_bar!(
+                name = "énergie",
+                texture = "energy.png",
+                steps = 10,
+                height = 8,
+                ascent = 8,
+            );
+        "#,
+    )
+    .unwrap();
+    let generated =
+        sand_api_enforce::resourcepack_macro_provider(&resourcepack, "facade", &CfgSet::default())
+            .unwrap();
+    assert_eq!(generated[0].identity, "facade::ÉNERGIE");
 }
 
 #[test]

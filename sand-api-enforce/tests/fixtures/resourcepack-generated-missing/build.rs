@@ -4,7 +4,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use sand_api_enforce::{
-    CfgSet, ContractIdentity, ScopeManifest, SourceCrate, SurfaceGraph,
+    CfgSet, ContractIdentity, InertItemMacroClassification, ScopeManifest, SourceCrate,
+    SurfaceGraph,
     resourcepack_macro_provider,
 };
 
@@ -38,8 +39,12 @@ fn main() {
     .expect("bind hud_bar provider")
     .bind_item_macro_provider("sand", "hud_element", "resourcepack_macros")
     .expect("bind hud_element provider")
-    .bind_item_macro_provider("sand", "texture", "resourcepack_macros")
-    .expect("bind texture provider");
+    .bind_inert_item_macro(
+        "sand",
+        "texture",
+        InertItemMacroClassification::ResourcepackTextureRegistration,
+    )
+    .expect("audit texture registration");
     let reachable = graph.reachable_from("sand").expect("resolve fixture facade");
     let mut contracts = vec![contract("sand::HEALTH")];
     if env::var_os("CARGO_FEATURE_COMPLETE_PROVIDER").is_some() {

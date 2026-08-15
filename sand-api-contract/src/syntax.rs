@@ -164,7 +164,7 @@ pub fn state_generated_surface(input: &syn::DeriveInput) -> syn::Result<StateGen
     }))
     .collect();
     Ok(StateGeneratedSurface {
-        bound_type: format!("{}Bound", input.ident),
+        bound_type: format!("{}Bound", input.ident.unraw()),
         bound_fields: field_names,
         associated,
     })

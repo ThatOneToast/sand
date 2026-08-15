@@ -3978,7 +3978,7 @@ fn standard_library_alias_target(segments: &[String]) -> bool {
     )
 }
 
-fn module_path(
+pub(crate) fn module_path(
     attrs: &[syn::Attribute],
     directory: &Path,
     name: &str,
@@ -4010,7 +4010,7 @@ fn module_path(
     Ok(if sibling.exists() { sibling } else { nested })
 }
 
-fn module_search_directory(source_file: &Path) -> PathBuf {
+pub(crate) fn module_search_directory(source_file: &Path) -> PathBuf {
     let parent = source_file.parent().unwrap_or_else(|| Path::new("."));
     match source_file.file_name().and_then(|name| name.to_str()) {
         Some("lib.rs" | "main.rs" | "mod.rs") => parent.to_path_buf(),
@@ -4020,7 +4020,7 @@ fn module_search_directory(source_file: &Path) -> PathBuf {
     }
 }
 
-fn cfg_enabled(
+pub(crate) fn cfg_enabled(
     attrs: &[syn::Attribute],
     cfg: &CfgSet,
     source: &Path,

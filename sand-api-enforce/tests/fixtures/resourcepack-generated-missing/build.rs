@@ -4,7 +4,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use sand_api_enforce::{
-    ContractIdentity, ScopeManifest, SourceCrate, SurfaceGraph, resourcepack_macro_provider,
+    CfgSet, ContractIdentity, ScopeManifest, SourceCrate, SurfaceGraph,
+    resourcepack_macro_provider,
 };
 
 fn contract(identity: &str) -> ContractIdentity {
@@ -18,14 +19,18 @@ fn contract(identity: &str) -> ContractIdentity {
 fn main() {
     println!("cargo:rerun-if-changed=src/lib.rs");
     println!("cargo:rerun-if-changed=api-scopes.toml");
-    let generated = resourcepack_macro_provider(Path::new("src/lib.rs"), "sand")
+    let cfg = CfgSet {
+        features: ["resourcepack".to_owned()].into_iter().collect(),
+        ..CfgSet::default()
+    };
+    let generated = resourcepack_macro_provider(Path::new("src/lib.rs"), "sand", &cfg)
         .expect("resourcepack macros must provide generated HUD handle metadata");
-    let graph = SurfaceGraph::load(
+    let graph = SurfaceGraph::load_with_cfg(
         [SourceCrate {
             name: "sand".into(),
             root: PathBuf::from("src/lib.rs"),
         }],
-        ["resourcepack".into()],
+        cfg,
         generated,
     )
     .expect("extract resourcepack fixture surface")

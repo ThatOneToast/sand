@@ -4,7 +4,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use sand_api_enforce::{
-    ContractIdentity, ScopeManifest, SourceCrate, SurfaceGraph, shape_preserving_consumer_provider,
+    CfgSet, ContractIdentity, ScopeManifest, SourceCrate, SurfaceGraph,
+    shape_preserving_consumer_provider,
 };
 
 fn contract(identity: &str) -> ContractIdentity {
@@ -26,7 +27,7 @@ fn main() {
         "schedule",
         "EntityStateEnum",
     ] {
-        shape_preserving_consumer_provider(Path::new("src/lib.rs"), macro_name)
+        shape_preserving_consumer_provider(Path::new("src/lib.rs"), macro_name, &CfgSet::default())
             .unwrap_or_else(|error| panic!("invalid {macro_name} consumer provider: {error}"));
     }
     let graph = SurfaceGraph::load(

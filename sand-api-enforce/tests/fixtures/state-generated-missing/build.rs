@@ -4,7 +4,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use sand_api_enforce::{
-    ContractIdentity, ScopeManifest, SourceCrate, SurfaceGraph, state_derive_provider,
+    CfgSet, ContractIdentity, ScopeManifest, SourceCrate, SurfaceGraph, state_derive_provider,
 };
 
 fn contract(identity: &str) -> ContractIdentity {
@@ -18,7 +18,7 @@ fn contract(identity: &str) -> ContractIdentity {
 fn main() {
     println!("cargo:rerun-if-changed=src/lib.rs");
     println!("cargo:rerun-if-changed=api-scopes.toml");
-    let generated = state_derive_provider(Path::new("src/lib.rs"), "sand")
+    let generated = state_derive_provider(Path::new("src/lib.rs"), "sand", &CfgSet::default())
         .expect("State declaration must provide generated API metadata");
     let graph = SurfaceGraph::load(
         [SourceCrate {

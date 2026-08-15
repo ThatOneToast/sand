@@ -2625,7 +2625,8 @@ fn state_derive_provider_claims_the_exact_bound_view_and_inherent_surface() {
         "#,
     )
     .unwrap();
-    let generated = sand_api_enforce::state_derive_provider(&facade, "facade").unwrap();
+    let generated =
+        sand_api_enforce::state_derive_provider(&facade, "facade", &CfgSet::default()).unwrap();
     let graph = SurfaceGraph::load(
         [SourceCrate {
             name: "facade".into(),
@@ -2665,7 +2666,8 @@ fn state_derive_provider_normalizes_raw_field_identifiers() {
         "#,
     )
     .unwrap();
-    let generated = sand_api_enforce::state_derive_provider(&facade, "facade").unwrap();
+    let generated =
+        sand_api_enforce::state_derive_provider(&facade, "facade", &CfgSet::default()).unwrap();
     assert!(
         generated
             .iter()
@@ -2678,6 +2680,34 @@ fn state_derive_provider_normalizes_raw_field_identifiers() {
     assert!(!generated.iter().any(|api| {
         api.identity.contains("r#type") || api.members.iter().any(|(name, _)| name == "r#type")
     }));
+}
+
+#[test]
+fn state_derive_provider_normalizes_raw_owner_identifiers() {
+    let directory = tempfile::tempdir().unwrap();
+    let facade = directory.path().join("facade.rs");
+    fs::write(
+        &facade,
+        r#"
+            #[derive(State)]
+            #[state(namespace = "fixture", scope = player)]
+            pub struct r#type { mana: EntityScore<i32> }
+        "#,
+    )
+    .unwrap();
+    let generated =
+        sand_api_enforce::state_derive_provider(&facade, "facade", &CfgSet::default()).unwrap();
+    assert!(
+        generated
+            .iter()
+            .any(|api| api.identity == "facade::typeBound")
+    );
+    assert!(generated.iter().any(|api| {
+        api.producer
+            .as_ref()
+            .is_some_and(|producer| producer.owner == "facade::type")
+    }));
+    assert!(!generated.iter().any(|api| api.identity.contains("r#")));
 }
 
 #[test]
@@ -2695,7 +2725,8 @@ fn custom_item_provider_claims_the_exact_typed_reference_surface() {
         "#,
     )
     .unwrap();
-    let generated = sand_api_enforce::custom_item_provider(&facade, "facade").unwrap();
+    let generated =
+        sand_api_enforce::custom_item_provider(&facade, "facade", &CfgSet::default()).unwrap();
     let graph = SurfaceGraph::load(
         [SourceCrate {
             name: "facade".into(),
@@ -2738,7 +2769,8 @@ fn consumer_macro_providers_traverse_inline_modules() {
         "#,
     )
     .unwrap();
-    let generated = sand_api_enforce::custom_item_provider(&custom_item, "facade").unwrap();
+    let generated =
+        sand_api_enforce::custom_item_provider(&custom_item, "facade", &CfgSet::default()).unwrap();
     assert_eq!(generated[0].identity, "facade::nested::ShardBlade");
     assert_eq!(
         generated[0].producer.as_ref().unwrap().owner,
@@ -2761,7 +2793,9 @@ fn consumer_macro_providers_traverse_inline_modules() {
         "#,
     )
     .unwrap();
-    let generated = sand_api_enforce::resourcepack_macro_provider(&resourcepack, "facade").unwrap();
+    let generated =
+        sand_api_enforce::resourcepack_macro_provider(&resourcepack, "facade", &CfgSet::default())
+            .unwrap();
     assert_eq!(generated[0].identity, "facade::nested::HEALTH");
 
     let derives = directory.path().join("derives.rs");
@@ -2779,7 +2813,8 @@ fn consumer_macro_providers_traverse_inline_modules() {
         "#,
     )
     .unwrap();
-    let state = sand_api_enforce::state_derive_provider(&derives, "facade").unwrap();
+    let state =
+        sand_api_enforce::state_derive_provider(&derives, "facade", &CfgSet::default()).unwrap();
     assert!(
         state
             .iter()
@@ -2790,7 +2825,9 @@ fn consumer_macro_providers_traverse_inline_modules() {
             producer.owner == "facade::nested::PlayerState" && producer.name == "State"
         })
     }));
-    let storage = sand_api_enforce::sand_storage_derive_provider(&derives, "facade").unwrap();
+    let storage =
+        sand_api_enforce::sand_storage_derive_provider(&derives, "facade", &CfgSet::default())
+            .unwrap();
     assert!(
         storage
             .iter()
@@ -2808,7 +2845,12 @@ fn consumer_macro_providers_traverse_inline_modules() {
         "#,
     )
     .unwrap();
-    sand_api_enforce::shape_preserving_consumer_provider(&shape_preserving, "function").unwrap();
+    sand_api_enforce::shape_preserving_consumer_provider(
+        &shape_preserving,
+        "function",
+        &CfgSet::default(),
+    )
+    .unwrap();
 }
 
 #[test]
@@ -2823,7 +2865,8 @@ fn custom_item_provider_normalizes_raw_data_constant_identifiers() {
         "#,
     )
     .unwrap();
-    let generated = sand_api_enforce::custom_item_provider(&facade, "facade").unwrap();
+    let generated =
+        sand_api_enforce::custom_item_provider(&facade, "facade", &CfgSet::default()).unwrap();
     assert!(generated[0].members.iter().any(|(name, _)| name == "type"));
     assert!(
         !generated[0]
@@ -2878,23 +2921,114 @@ fn consumer_macro_providers_traverse_out_of_line_and_path_modules() {
     )
     .unwrap();
 
-    let state = sand_api_enforce::state_derive_provider(&facade, "facade").unwrap();
+    let state =
+        sand_api_enforce::state_derive_provider(&facade, "facade", &CfgSet::default()).unwrap();
     assert!(
         state
             .iter()
             .any(|api| api.identity == "facade::schemas::PlayerStateBound")
     );
-    sand_api_enforce::shape_preserving_consumer_provider(&facade, "function").unwrap();
-    let resourcepack = sand_api_enforce::resourcepack_macro_provider(&facade, "facade").unwrap();
+    sand_api_enforce::shape_preserving_consumer_provider(&facade, "function", &CfgSet::default())
+        .unwrap();
+    let resourcepack =
+        sand_api_enforce::resourcepack_macro_provider(&facade, "facade", &CfgSet::default())
+            .unwrap();
     assert_eq!(resourcepack[0].identity, "facade::schemas::STATUS");
-    let items = sand_api_enforce::custom_item_provider(&facade, "facade").unwrap();
+    let items =
+        sand_api_enforce::custom_item_provider(&facade, "facade", &CfgSet::default()).unwrap();
     assert_eq!(items[0].identity, "facade::items::TypedItem");
-    let storage = sand_api_enforce::sand_storage_derive_provider(&facade, "facade").unwrap();
+    let storage =
+        sand_api_enforce::sand_storage_derive_provider(&facade, "facade", &CfgSet::default())
+            .unwrap();
     assert!(
         storage
             .iter()
             .any(|api| api.identity == "facade::items::PlayerStorage::value")
     );
+}
+
+#[test]
+fn consumer_macro_providers_use_the_surface_cfg_set() {
+    let directory = tempfile::tempdir().unwrap();
+    let facade = directory.path().join("lib.rs");
+    fs::write(
+        &facade,
+        r#"
+            #[cfg(feature = "active")]
+            #[derive(State)]
+            #[state(namespace = "fixture", scope = player)]
+            pub struct ActiveState { value: EntityScore<i32> }
+
+            #[cfg(feature = "inactive")]
+            #[derive(State)]
+            #[state(namespace = "fixture", scope = player)]
+            pub struct InactiveState { value: EntityScore<i32> }
+
+            #[cfg(feature = "active")]
+            #[derive(SandStorage)]
+            pub struct ActiveStorage { value: i32 }
+
+            #[cfg(feature = "inactive")]
+            #[derive(SandStorage)]
+            pub struct InactiveStorage { value: i32 }
+
+            #[cfg(feature = "active")]
+            #[sand::custom_item(name = "ActiveItem")]
+            pub fn active_item() -> CustomItem { todo!() }
+
+            #[cfg(feature = "inactive")]
+            #[sand::custom_item(name = "InactiveItem")]
+            pub fn inactive_item() -> CustomItem { todo!() }
+
+            #[cfg(feature = "active")]
+            hud_bar!(name = "active", texture = "active.png", steps = 1, height = 1, ascent = 1);
+            #[cfg(feature = "inactive")]
+            hud_bar!(name = "inactive", texture = "inactive.png", steps = 1, height = 1, ascent = 1);
+
+            #[cfg(feature = "disabled")]
+            pub mod absent;
+        "#,
+    )
+    .unwrap();
+    let cfg = CfgSet {
+        features: ["active".to_owned()].into_iter().collect(),
+        ..CfgSet::default()
+    };
+    let state = sand_api_enforce::state_derive_provider(&facade, "facade", &cfg).unwrap();
+    assert!(
+        state
+            .iter()
+            .any(|api| api.identity == "facade::ActiveStateBound")
+    );
+    assert!(!state.iter().any(|api| api.identity.contains("Inactive")));
+    let items = sand_api_enforce::custom_item_provider(&facade, "facade", &cfg).unwrap();
+    assert_eq!(items[0].identity, "facade::ActiveItem");
+    let storage = sand_api_enforce::sand_storage_derive_provider(&facade, "facade", &cfg).unwrap();
+    assert!(
+        storage
+            .iter()
+            .any(|api| api.identity == "facade::ActiveStorage::value")
+    );
+    assert!(!storage.iter().any(|api| api.identity.contains("Inactive")));
+    let resourcepack =
+        sand_api_enforce::resourcepack_macro_provider(&facade, "facade", &cfg).unwrap();
+    assert_eq!(resourcepack[0].identity, "facade::ACTIVE");
+
+    let shape = directory.path().join("shape.rs");
+    fs::write(
+        &shape,
+        r#"
+            #[cfg(feature = "inactive")]
+            #[sand::function]
+            pub fn inactive() {}
+        "#,
+    )
+    .unwrap();
+    assert!(matches!(
+        sand_api_enforce::shape_preserving_consumer_provider(&shape, "function", &cfg),
+        Err(sand_api_enforce::MacroProviderError::MissingConsumerInvocation(name))
+            if name == "function"
+    ));
 }
 
 #[test]

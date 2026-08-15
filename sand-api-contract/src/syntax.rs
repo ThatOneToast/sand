@@ -216,7 +216,7 @@ pub fn custom_item_generated_surface(function: &ItemFn) -> syn::Result<CustomIte
                     content.parse::<syn::Type>()?;
                     content.parse::<syn::Token![=]>()?;
                     content.parse::<Expr>()?;
-                    data_constants.push(name.to_string());
+                    data_constants.push(name.unraw().to_string());
                     if content.peek(syn::Token![,]) {
                         content.parse::<syn::Token![,]>()?;
                     }

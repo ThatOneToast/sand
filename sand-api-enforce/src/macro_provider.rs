@@ -43,15 +43,7 @@ pub fn shape_preserving_consumer_provider(
         .map_err(|error| MacroProviderError::Io(format!("{}: {error}", path.display())))?;
     let file = syn::parse_file(&source)
         .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
-    let found = file.items.iter().any(|item| match item {
-        syn::Item::Fn(function) => {
-            is_public(&function.vis) && has_attribute_named(&function.attrs, macro_name)
-        }
-        syn::Item::Enum(enumeration) if macro_name == "EntityStateEnum" => {
-            is_public(&enumeration.vis) && derives_named(&enumeration.attrs, macro_name)
-        }
-        _ => false,
-    });
+    let found = contains_shape_preserving_invocation(&file.items, macro_name);
     if found {
         Ok(())
     } else {
@@ -59,6 +51,22 @@ pub fn shape_preserving_consumer_provider(
             macro_name.to_owned(),
         ))
     }
+}
+
+fn contains_shape_preserving_invocation(items: &[syn::Item], macro_name: &str) -> bool {
+    items.iter().any(|item| match item {
+        syn::Item::Fn(function) => {
+            is_public(&function.vis) && has_attribute_named(&function.attrs, macro_name)
+        }
+        syn::Item::Enum(enumeration) if macro_name == "EntityStateEnum" => {
+            is_public(&enumeration.vis) && derives_named(&enumeration.attrs, macro_name)
+        }
+        syn::Item::Mod(module) => module
+            .content
+            .as_ref()
+            .is_some_and(|(_, items)| contains_shape_preserving_invocation(items, macro_name)),
+        _ => false,
+    })
 }
 
 /// Describe the public HUD handle constants emitted by feature-gated
@@ -882,7 +890,28 @@ pub fn sand_storage_derive_provider(
     let file = syn::parse_file(&source)
         .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
     let mut generated = Vec::new();
-    for item in &file.items {
+    collect_sand_storage_derives(&file.items, identity_module, path, &mut generated)?;
+    if generated.is_empty() {
+        return Err(MacroProviderError::MissingGeneratedTypes);
+    }
+    generated.sort_by(|left, right| left.identity.cmp(&right.identity));
+    Ok(generated)
+}
+
+fn collect_sand_storage_derives(
+    items: &[syn::Item],
+    identity_module: &str,
+    path: &Path,
+    generated: &mut Vec<GeneratedApi>,
+) -> Result<(), MacroProviderError> {
+    for item in items {
+        if let syn::Item::Mod(module) = item
+            && let Some((_, items)) = &module.content
+        {
+            let nested_module = format!("{identity_module}::{}", module.ident.unraw());
+            collect_sand_storage_derives(items, &nested_module, path, generated)?;
+            continue;
+        }
         let syn::Item::Struct(structure) = item else {
             continue;
         };
@@ -910,7 +939,7 @@ pub fn sand_storage_derive_provider(
             .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
         let members = sand_api_contract::syntax::sand_storage_generated_member_names(&derive_input)
             .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
-        let owner = format!("{identity_module}::{}", structure.ident);
+        let owner = format!("{identity_module}::{}", structure.ident.unraw());
         for (index, name) in members.into_iter().enumerate() {
             generated.push(GeneratedApi {
                 identity: format!("{owner}::{name}"),
@@ -929,11 +958,7 @@ pub fn sand_storage_derive_provider(
             });
         }
     }
-    if generated.is_empty() {
-        return Err(MacroProviderError::MissingGeneratedTypes);
-    }
-    generated.sort_by(|left, right| left.identity.cmp(&right.identity));
-    Ok(generated)
+    Ok(())
 }
 
 /// Describe the public bound-view type and inherent APIs emitted by a real
@@ -949,7 +974,28 @@ pub fn state_derive_provider(
     let file = syn::parse_file(&source)
         .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
     let mut generated = Vec::new();
-    for item in &file.items {
+    collect_state_derives(&file.items, identity_module, path, &mut generated)?;
+    if generated.is_empty() {
+        return Err(MacroProviderError::MissingGeneratedTypes);
+    }
+    generated.sort_by(|left, right| left.identity.cmp(&right.identity));
+    Ok(generated)
+}
+
+fn collect_state_derives(
+    items: &[syn::Item],
+    identity_module: &str,
+    path: &Path,
+    generated: &mut Vec<GeneratedApi>,
+) -> Result<(), MacroProviderError> {
+    for item in items {
+        if let syn::Item::Mod(module) = item
+            && let Some((_, items)) = &module.content
+        {
+            let nested_module = format!("{identity_module}::{}", module.ident.unraw());
+            collect_state_derives(items, &nested_module, path, generated)?;
+            continue;
+        }
         let syn::Item::Struct(structure) = item else {
             continue;
         };
@@ -960,7 +1006,7 @@ pub fn state_derive_provider(
             .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
         let surface = sand_api_contract::syntax::state_generated_surface(&derive_input)
             .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
-        let owner = format!("{identity_module}::{}", structure.ident);
+        let owner = format!("{identity_module}::{}", structure.ident.unraw());
         generated.push(GeneratedApi {
             identity: format!("{identity_module}::{}", surface.bound_type),
             provider: "state_derive".into(),
@@ -995,11 +1041,7 @@ pub fn state_derive_provider(
             excluded: false,
         }));
     }
-    if generated.is_empty() {
-        return Err(MacroProviderError::MissingGeneratedTypes);
-    }
-    generated.sort_by(|left, right| left.identity.cmp(&right.identity));
-    Ok(generated)
+    Ok(())
 }
 
 /// Describe the sibling typed item reference and helpers emitted by one real

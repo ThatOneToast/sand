@@ -2763,6 +2763,74 @@ fn consumer_macro_providers_traverse_inline_modules() {
     .unwrap();
     let generated = sand_api_enforce::resourcepack_macro_provider(&resourcepack, "facade").unwrap();
     assert_eq!(generated[0].identity, "facade::nested::HEALTH");
+
+    let derives = directory.path().join("derives.rs");
+    fs::write(
+        &derives,
+        r#"
+            pub mod nested {
+                #[derive(State)]
+                #[state(namespace = "fixture", scope = player)]
+                pub struct PlayerState { mana: EntityScore<i32> }
+
+                #[derive(SandStorage)]
+                pub struct PlayerStorage { value: i32 }
+            }
+        "#,
+    )
+    .unwrap();
+    let state = sand_api_enforce::state_derive_provider(&derives, "facade").unwrap();
+    assert!(
+        state
+            .iter()
+            .any(|api| api.identity == "facade::nested::PlayerStateBound")
+    );
+    assert!(state.iter().any(|api| {
+        api.producer.as_ref().is_some_and(|producer| {
+            producer.owner == "facade::nested::PlayerState" && producer.name == "State"
+        })
+    }));
+    let storage = sand_api_enforce::sand_storage_derive_provider(&derives, "facade").unwrap();
+    assert!(
+        storage
+            .iter()
+            .any(|api| api.identity == "facade::nested::PlayerStorage::value")
+    );
+
+    let shape_preserving = directory.path().join("shape_preserving.rs");
+    fs::write(
+        &shape_preserving,
+        r#"
+            pub mod nested {
+                #[sand::function]
+                pub fn tick() {}
+            }
+        "#,
+    )
+    .unwrap();
+    sand_api_enforce::shape_preserving_consumer_provider(&shape_preserving, "function").unwrap();
+}
+
+#[test]
+fn custom_item_provider_normalizes_raw_data_constant_identifiers() {
+    let directory = tempfile::tempdir().unwrap();
+    let facade = directory.path().join("facade.rs");
+    fs::write(
+        &facade,
+        r#"
+            #[sand::custom_item(name = "TypedItem", data = [r#type: i32 = 1])]
+            pub fn typed_item() -> CustomItem { todo!() }
+        "#,
+    )
+    .unwrap();
+    let generated = sand_api_enforce::custom_item_provider(&facade, "facade").unwrap();
+    assert!(generated[0].members.iter().any(|(name, _)| name == "type"));
+    assert!(
+        !generated[0]
+            .members
+            .iter()
+            .any(|(name, _)| name == "r#type")
+    );
 }
 
 #[test]

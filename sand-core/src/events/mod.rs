@@ -166,8 +166,8 @@
 //!
 //! Simple advancement-backed or single-fragment tick-poll `SandEvent` impls
 //! remain supported via [`SandEventDispatch::AdvancementTrigger`] and
-//! [`SandEventDispatch::TickCondition`] — both lower into the same normalized
-//! IR as [`SandEventDispatch::tick()`] (see [`SandEventDispatch::normalize`]).
+//! [`SandEventDispatch::TickCondition`] — both lower into the same internal
+//! representation as [`SandEventDispatch::tick()`].
 
 /// Event dependency graph construction for same-cycle chained dispatch (#240).
 ///
@@ -406,8 +406,7 @@ pub struct SameCycleEventDependency {
     /// `sand-core/src/compiler/export/pipeline.rs`'s bridge loop).
     #[doc(hidden)]
     pub event_raw_setup: fn() -> EventSetup,
-    /// `E::participants()` called directly — the raw plan factory
-    /// [`AdvancementBridge`](crate::events::graph::AdvancementBridge) carries
+    /// `E::participants()` called directly — the raw plan factory carried
     /// forward so the export pipeline can apply a bridge parent's own plan
     /// (#269).
     #[doc(hidden)]

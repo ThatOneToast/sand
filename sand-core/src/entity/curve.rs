@@ -535,8 +535,8 @@ impl fmt::Debug for CustomCurve {
 /// Pure typed IR for a derived numeric or discrete entity property.
 ///
 /// Constructors intentionally accept typed curves and fixed-point constants,
-/// rather than command strings. Call [`Self::validate`] before export and
-/// [`Self::lowering_strategy`] to choose a compact backend.
+/// rather than command strings. Call [`Self::validate`] before export; Sand
+/// chooses the compact Minecraft backend internally.
 #[derive(Clone, Debug)]
 pub struct StatCurve {
     kind: CurveKind,
@@ -787,10 +787,10 @@ impl StatCurve {
 
     /// Creates a typed custom evaluator with a stable registration identifier.
     ///
-    /// Custom callbacks run while compiling/testing the definition. An
-    /// exporter must register a matching generated function and reports
-    /// [`LoweringStrategy::CustomCallback`]. The identifier, not a function
-    /// pointer address, supplies deterministic identity.
+    /// Custom callbacks run while compiling/testing the definition. Sand
+    /// registers a matching generated function during lowering. The
+    /// identifier, not a function pointer address, supplies deterministic
+    /// identity.
     #[must_use]
     pub fn custom(
         function: crate::resource_ref::FunctionId,

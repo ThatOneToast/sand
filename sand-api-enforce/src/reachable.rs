@@ -4078,6 +4078,17 @@ fn effective_attributes(
     Ok(output)
 }
 
+pub(crate) fn effective_attribute_metas(
+    attrs: &[syn::Attribute],
+    cfg: &CfgSet,
+    source: &Path,
+) -> Result<Vec<syn::Meta>, ReachabilityError> {
+    Ok(effective_attributes(attrs, cfg, source)?
+        .into_iter()
+        .map(|attribute| attribute.meta)
+        .collect())
+}
+
 fn expand_attribute_meta(
     meta: syn::Meta,
     line: usize,

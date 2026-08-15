@@ -2955,9 +2955,13 @@ fn consumer_macro_providers_use_the_surface_cfg_set() {
         &facade,
         r#"
             #[cfg(feature = "active")]
-            #[derive(State)]
-            #[state(namespace = "fixture", scope = player)]
-            pub struct ActiveState { value: EntityScore<i32> }
+            #[cfg_attr(feature = "active", derive(State))]
+            #[cfg_attr(feature = "active", state(namespace = "fixture", scope = player))]
+            pub struct ActiveState {
+                value: EntityScore<i32>,
+                #[cfg(feature = "inactive")]
+                hidden: EntityScore<i32>,
+            }
 
             #[cfg(feature = "inactive")]
             #[derive(State)]
@@ -2965,15 +2969,19 @@ fn consumer_macro_providers_use_the_surface_cfg_set() {
             pub struct InactiveState { value: EntityScore<i32> }
 
             #[cfg(feature = "active")]
-            #[derive(SandStorage)]
-            pub struct ActiveStorage { value: i32 }
+            #[cfg_attr(feature = "active", derive(SandStorage))]
+            pub struct ActiveStorage {
+                value: i32,
+                #[cfg(feature = "inactive")]
+                hidden: i32,
+            }
 
             #[cfg(feature = "inactive")]
             #[derive(SandStorage)]
             pub struct InactiveStorage { value: i32 }
 
             #[cfg(feature = "active")]
-            #[sand::custom_item(name = "ActiveItem")]
+            #[cfg_attr(feature = "active", sand::custom_item(name = "ActiveItem"))]
             pub fn active_item() -> CustomItem { todo!() }
 
             #[cfg(feature = "inactive")]
@@ -3001,6 +3009,9 @@ fn consumer_macro_providers_use_the_surface_cfg_set() {
             .any(|api| api.identity == "facade::ActiveStateBound")
     );
     assert!(!state.iter().any(|api| api.identity.contains("Inactive")));
+    assert!(!state.iter().any(|api| {
+        api.identity.ends_with("::hidden") || api.members.iter().any(|(name, _)| name == "hidden")
+    }));
     let items = sand_api_enforce::custom_item_provider(&facade, "facade", &cfg).unwrap();
     assert_eq!(items[0].identity, "facade::ActiveItem");
     let storage = sand_api_enforce::sand_storage_derive_provider(&facade, "facade", &cfg).unwrap();
@@ -3010,6 +3021,7 @@ fn consumer_macro_providers_use_the_surface_cfg_set() {
             .any(|api| api.identity == "facade::ActiveStorage::value")
     );
     assert!(!storage.iter().any(|api| api.identity.contains("Inactive")));
+    assert!(!storage.iter().any(|api| api.identity.ends_with("::hidden")));
     let resourcepack =
         sand_api_enforce::resourcepack_macro_provider(&facade, "facade", &cfg).unwrap();
     assert_eq!(resourcepack[0].identity, "facade::ACTIVE");
@@ -3021,14 +3033,13 @@ fn consumer_macro_providers_use_the_surface_cfg_set() {
             #[cfg(feature = "inactive")]
             #[sand::function]
             pub fn inactive() {}
+
+            #[cfg_attr(feature = "active", sand::function)]
+            pub fn active() {}
         "#,
     )
     .unwrap();
-    assert!(matches!(
-        sand_api_enforce::shape_preserving_consumer_provider(&shape, "function", &cfg),
-        Err(sand_api_enforce::MacroProviderError::MissingConsumerInvocation(name))
-            if name == "function"
-    ));
+    sand_api_enforce::shape_preserving_consumer_provider(&shape, "function", &cfg).unwrap();
 }
 
 #[test]

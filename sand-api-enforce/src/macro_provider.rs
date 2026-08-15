@@ -10,7 +10,9 @@ use quote::ToTokens;
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream, Parser};
 
-use crate::reachable::{CfgSet, cfg_enabled, module_path, module_search_directory};
+use crate::reachable::{
+    CfgSet, cfg_enabled, effective_attribute_metas, module_path, module_search_directory,
+};
 use crate::{GeneratedApi, GeneratedProducer, ReachableKind};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -67,10 +69,12 @@ fn contains_shape_preserving_invocation(
         }
         let found = match item {
             syn::Item::Fn(function) => {
-                is_public(&function.vis) && has_attribute_named(&function.attrs, macro_name)
+                is_public(&function.vis)
+                    && provider_has_attribute_named(&function.attrs, macro_name, cfg, source_file)?
             }
             syn::Item::Enum(enumeration) if macro_name == "EntityStateEnum" => {
-                is_public(&enumeration.vis) && derives_named(&enumeration.attrs, macro_name)
+                is_public(&enumeration.vis)
+                    && provider_derives_named(&enumeration.attrs, macro_name, cfg, source_file)?
             }
             syn::Item::Mod(module) => {
                 if let Some((_, items)) = &module.content {
@@ -245,6 +249,79 @@ fn provider_item_enabled(
 ) -> Result<bool, MacroProviderError> {
     cfg_enabled(crate::item_attrs(item), cfg, source_file)
         .map_err(|error| MacroProviderError::Parse(error.to_string()))
+}
+
+fn provider_effective_attributes(
+    attrs: &[syn::Attribute],
+    cfg: &CfgSet,
+    source_file: &Path,
+) -> Result<Vec<syn::Attribute>, MacroProviderError> {
+    effective_attribute_metas(attrs, cfg, source_file)
+        .map_err(|error| MacroProviderError::Parse(error.to_string()))
+        .map(|metas| {
+            metas
+                .into_iter()
+                .map(|meta| syn::parse_quote!(#[#meta]))
+                .collect()
+        })
+}
+
+fn provider_has_attribute_named(
+    attrs: &[syn::Attribute],
+    name: &str,
+    cfg: &CfgSet,
+    source_file: &Path,
+) -> Result<bool, MacroProviderError> {
+    Ok(provider_effective_attributes(attrs, cfg, source_file)?
+        .iter()
+        .any(|attribute| {
+            attribute
+                .path()
+                .segments
+                .last()
+                .is_some_and(|segment| segment.ident == name)
+        }))
+}
+
+fn provider_derives_named(
+    attrs: &[syn::Attribute],
+    name: &str,
+    cfg: &CfgSet,
+    source_file: &Path,
+) -> Result<bool, MacroProviderError> {
+    Ok(provider_effective_attributes(attrs, cfg, source_file)?
+        .iter()
+        .any(|attribute| derives_named(std::slice::from_ref(attribute), name)))
+}
+
+fn provider_derive_input(
+    structure: &syn::ItemStruct,
+    cfg: &CfgSet,
+    source_file: &Path,
+) -> Result<syn::DeriveInput, MacroProviderError> {
+    let mut input =
+        syn::parse2::<syn::DeriveInput>(structure.to_token_stream()).map_err(|error| {
+            MacroProviderError::Parse(format!("{}: {error}", source_file.display()))
+        })?;
+    input.attrs = provider_effective_attributes(&input.attrs, cfg, source_file)?;
+    if let syn::Data::Struct(data) = &mut input.data {
+        let fields = match &mut data.fields {
+            syn::Fields::Named(fields) => &mut fields.named,
+            syn::Fields::Unnamed(fields) => &mut fields.unnamed,
+            syn::Fields::Unit => return Ok(input),
+        };
+        let mut enabled = syn::punctuated::Punctuated::new();
+        for mut field in std::mem::take(fields) {
+            if cfg_enabled(&field.attrs, cfg, source_file)
+                .map_err(|error| MacroProviderError::Parse(error.to_string()))?
+            {
+                field.attrs = provider_effective_attributes(&field.attrs, cfg, source_file)?;
+                enabled.push(field);
+            }
+        }
+        *fields = enabled;
+    }
+    Ok(input)
 }
 
 /// Prove that a local `macro_rules!` transcriber cannot add an API identity.
@@ -993,28 +1070,10 @@ fn collect_sand_storage_derives(
         let syn::Item::Struct(structure) = item else {
             continue;
         };
-        let derives_sand_storage = structure.attrs.iter().any(|attribute| {
-            if !attribute.path().is_ident("derive") {
-                return false;
-            }
-            attribute
-                .parse_args_with(
-                    syn::punctuated::Punctuated::<syn::Path, syn::Token![,]>::parse_terminated,
-                )
-                .is_ok_and(|derives| {
-                    derives.iter().any(|derive| {
-                        derive
-                            .segments
-                            .last()
-                            .is_some_and(|segment| segment.ident == "SandStorage")
-                    })
-                })
-        });
-        if !derives_sand_storage {
+        if !provider_derives_named(&structure.attrs, "SandStorage", cfg, path)? {
             continue;
         }
-        let derive_input = syn::parse2::<syn::DeriveInput>(structure.to_token_stream())
-            .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
+        let derive_input = provider_derive_input(structure, cfg, path)?;
         let members = sand_api_contract::syntax::sand_storage_generated_member_names(&derive_input)
             .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
         let owner = format!("{identity_module}::{}", structure.ident.unraw());
@@ -1085,11 +1144,12 @@ fn collect_state_derives(
         let syn::Item::Struct(structure) = item else {
             continue;
         };
-        if !derives_named(&structure.attrs, "State") || !is_public(&structure.vis) {
+        if !provider_derives_named(&structure.attrs, "State", cfg, path)?
+            || !is_public(&structure.vis)
+        {
             continue;
         }
-        let derive_input = syn::parse2::<syn::DeriveInput>(structure.to_token_stream())
-            .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
+        let derive_input = provider_derive_input(structure, cfg, path)?;
         let surface = sand_api_contract::syntax::state_generated_surface(&derive_input)
             .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
         let owner = format!("{identity_module}::{}", structure.ident.unraw());
@@ -1176,10 +1236,14 @@ fn collect_custom_items(
         let syn::Item::Fn(function) = item else {
             continue;
         };
-        if !has_attribute_named(&function.attrs, "custom_item") || !is_public(&function.vis) {
+        if !provider_has_attribute_named(&function.attrs, "custom_item", cfg, path)?
+            || !is_public(&function.vis)
+        {
             continue;
         }
-        let surface = sand_api_contract::syntax::custom_item_generated_surface(function)
+        let mut function = function.clone();
+        function.attrs = provider_effective_attributes(&function.attrs, cfg, path)?;
+        let surface = sand_api_contract::syntax::custom_item_generated_surface(&function)
             .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
         let owner = format!("{identity_module}::{}", function.sig.ident.unraw());
         let type_identity = format!("{identity_module}::{}", surface.type_name);
@@ -1223,16 +1287,6 @@ fn derives_named(attributes: &[syn::Attribute], name: &str) -> bool {
                             .is_some_and(|segment| segment.ident == name)
                     })
                 })
-    })
-}
-
-fn has_attribute_named(attributes: &[syn::Attribute], name: &str) -> bool {
-    attributes.iter().any(|attribute| {
-        attribute
-            .path()
-            .segments
-            .last()
-            .is_some_and(|segment| segment.ident == name)
     })
 }
 

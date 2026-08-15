@@ -366,12 +366,14 @@ fn parse_provider_include(
     if !item.mac.path.is_ident("include") {
         return Ok(None);
     }
-    let relative = syn::parse2::<syn::LitStr>(item.mac.tokens.clone()).map_err(|error| {
-        MacroProviderError::Parse(format!(
-            "{}: consumer API providers require a literal include path: {error}",
-            source_file.display()
-        ))
-    })?;
+    // Follow checked-in source includes, but leave generated includes to the
+    // surface graph's named-provider enforcement. Consumer fixtures commonly
+    // include their generated enforcement shim with `concat!(env!(...))` in a
+    // hidden module; that file is not provider source and is unavailable until
+    // the fixture build script runs.
+    let Ok(relative) = syn::parse2::<syn::LitStr>(item.mac.tokens.clone()) else {
+        return Ok(None);
+    };
     let path = source_file
         .parent()
         .unwrap_or_else(|| Path::new("."))

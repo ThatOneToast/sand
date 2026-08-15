@@ -43,7 +43,7 @@ pub fn shape_preserving_consumer_provider(
         .map_err(|error| MacroProviderError::Io(format!("{}: {error}", path.display())))?;
     let file = syn::parse_file(&source)
         .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
-    let found = contains_shape_preserving_invocation(&file.items, macro_name);
+    let found = contains_shape_preserving_invocation(&file.items, macro_name, path)?;
     if found {
         Ok(())
     } else {
@@ -53,20 +53,34 @@ pub fn shape_preserving_consumer_provider(
     }
 }
 
-fn contains_shape_preserving_invocation(items: &[syn::Item], macro_name: &str) -> bool {
-    items.iter().any(|item| match item {
-        syn::Item::Fn(function) => {
-            is_public(&function.vis) && has_attribute_named(&function.attrs, macro_name)
+fn contains_shape_preserving_invocation(
+    items: &[syn::Item],
+    macro_name: &str,
+    source_file: &Path,
+) -> Result<bool, MacroProviderError> {
+    for item in items {
+        let found = match item {
+            syn::Item::Fn(function) => {
+                is_public(&function.vis) && has_attribute_named(&function.attrs, macro_name)
+            }
+            syn::Item::Enum(enumeration) if macro_name == "EntityStateEnum" => {
+                is_public(&enumeration.vis) && derives_named(&enumeration.attrs, macro_name)
+            }
+            syn::Item::Mod(module) => {
+                if let Some((_, items)) = &module.content {
+                    contains_shape_preserving_invocation(items, macro_name, source_file)?
+                } else {
+                    let (path, file) = parse_provider_module(module, source_file)?;
+                    contains_shape_preserving_invocation(&file.items, macro_name, &path)?
+                }
+            }
+            _ => false,
+        };
+        if found {
+            return Ok(true);
         }
-        syn::Item::Enum(enumeration) if macro_name == "EntityStateEnum" => {
-            is_public(&enumeration.vis) && derives_named(&enumeration.attrs, macro_name)
-        }
-        syn::Item::Mod(module) => module
-            .content
-            .as_ref()
-            .is_some_and(|(_, items)| contains_shape_preserving_invocation(items, macro_name)),
-        _ => false,
-    })
+    }
+    Ok(false)
 }
 
 /// Describe the public HUD handle constants emitted by feature-gated
@@ -103,12 +117,20 @@ fn collect_resourcepack_macros(
 ) -> Result<bool, MacroProviderError> {
     let mut saw_resourcepack_macro = false;
     for item in items {
-        if let syn::Item::Mod(module) = item
-            && let Some((_, items)) = &module.content
-        {
+        if let syn::Item::Mod(module) = item {
             let nested_module = format!("{identity_module}::{}", module.ident.unraw());
-            saw_resourcepack_macro |=
-                collect_resourcepack_macros(items, &nested_module, path, generated)?;
+            if let Some((_, items)) = &module.content {
+                saw_resourcepack_macro |=
+                    collect_resourcepack_macros(items, &nested_module, path, generated)?;
+            } else {
+                let (nested_path, file) = parse_provider_module(module, path)?;
+                saw_resourcepack_macro |= collect_resourcepack_macros(
+                    &file.items,
+                    &nested_module,
+                    &nested_path,
+                    generated,
+                )?;
+            }
             continue;
         }
         let syn::Item::Macro(item) = item else {
@@ -181,6 +203,56 @@ fn resourcepack_handle_name(
         )));
     }
     Ok(handle)
+}
+
+fn parse_provider_module(
+    module: &syn::ItemMod,
+    source_file: &Path,
+) -> Result<(std::path::PathBuf, syn::File), MacroProviderError> {
+    let directory = provider_module_search_directory(source_file);
+    let explicit = module.attrs.iter().find_map(|attribute| {
+        if !attribute.path().is_ident("path") {
+            return None;
+        }
+        Some(match &attribute.meta {
+            syn::Meta::NameValue(value) => match &value.value {
+                syn::Expr::Lit(value) => match &value.lit {
+                    syn::Lit::Str(path) => Ok(path.value()),
+                    _ => Err("#[path] must be a string literal"),
+                },
+                _ => Err("#[path] must be a string literal"),
+            },
+            _ => Err("#[path] must use #[path = \"...\"] syntax"),
+        })
+    });
+    let path = if let Some(explicit) = explicit {
+        directory.join(explicit.map_err(|message| {
+            MacroProviderError::Parse(format!("{}: {message}", source_file.display()))
+        })?)
+    } else {
+        let name = module.ident.unraw().to_string();
+        let sibling = directory.join(format!("{name}.rs"));
+        if sibling.exists() {
+            sibling
+        } else {
+            directory.join(name).join("mod.rs")
+        }
+    };
+    let source = fs::read_to_string(&path)
+        .map_err(|error| MacroProviderError::Io(format!("{}: {error}", path.display())))?;
+    let file = syn::parse_file(&source)
+        .map_err(|error| MacroProviderError::Parse(format!("{}: {error}", path.display())))?;
+    Ok((path, file))
+}
+
+fn provider_module_search_directory(source_file: &Path) -> std::path::PathBuf {
+    let parent = source_file.parent().unwrap_or_else(|| Path::new("."));
+    match source_file.file_name().and_then(|name| name.to_str()) {
+        Some("lib.rs" | "main.rs" | "mod.rs") => parent.to_path_buf(),
+        _ => source_file
+            .file_stem()
+            .map_or_else(|| parent.to_path_buf(), |stem| parent.join(stem)),
+    }
 }
 
 /// Prove that a local `macro_rules!` transcriber cannot add an API identity.
@@ -905,11 +977,14 @@ fn collect_sand_storage_derives(
     generated: &mut Vec<GeneratedApi>,
 ) -> Result<(), MacroProviderError> {
     for item in items {
-        if let syn::Item::Mod(module) = item
-            && let Some((_, items)) = &module.content
-        {
+        if let syn::Item::Mod(module) = item {
             let nested_module = format!("{identity_module}::{}", module.ident.unraw());
-            collect_sand_storage_derives(items, &nested_module, path, generated)?;
+            if let Some((_, items)) = &module.content {
+                collect_sand_storage_derives(items, &nested_module, path, generated)?;
+            } else {
+                let (nested_path, file) = parse_provider_module(module, path)?;
+                collect_sand_storage_derives(&file.items, &nested_module, &nested_path, generated)?;
+            }
             continue;
         }
         let syn::Item::Struct(structure) = item else {
@@ -989,11 +1064,14 @@ fn collect_state_derives(
     generated: &mut Vec<GeneratedApi>,
 ) -> Result<(), MacroProviderError> {
     for item in items {
-        if let syn::Item::Mod(module) = item
-            && let Some((_, items)) = &module.content
-        {
+        if let syn::Item::Mod(module) = item {
             let nested_module = format!("{identity_module}::{}", module.ident.unraw());
-            collect_state_derives(items, &nested_module, path, generated)?;
+            if let Some((_, items)) = &module.content {
+                collect_state_derives(items, &nested_module, path, generated)?;
+            } else {
+                let (nested_path, file) = parse_provider_module(module, path)?;
+                collect_state_derives(&file.items, &nested_module, &nested_path, generated)?;
+            }
             continue;
         }
         let syn::Item::Struct(structure) = item else {
@@ -1072,11 +1150,14 @@ fn collect_custom_items(
     generated: &mut Vec<GeneratedApi>,
 ) -> Result<(), MacroProviderError> {
     for item in items {
-        if let syn::Item::Mod(module) = item
-            && let Some((_, items)) = &module.content
-        {
+        if let syn::Item::Mod(module) = item {
             let nested_module = format!("{identity_module}::{}", module.ident.unraw());
-            collect_custom_items(items, &nested_module, path, generated)?;
+            if let Some((_, items)) = &module.content {
+                collect_custom_items(items, &nested_module, path, generated)?;
+            } else {
+                let (nested_path, file) = parse_provider_module(module, path)?;
+                collect_custom_items(&file.items, &nested_module, &nested_path, generated)?;
+            }
             continue;
         }
         let syn::Item::Fn(function) = item else {

@@ -2834,6 +2834,70 @@ fn custom_item_provider_normalizes_raw_data_constant_identifiers() {
 }
 
 #[test]
+fn consumer_macro_providers_traverse_out_of_line_and_path_modules() {
+    let directory = tempfile::tempdir().unwrap();
+    let facade = directory.path().join("lib.rs");
+    fs::write(
+        &facade,
+        r#"
+            pub mod schemas;
+            #[path = "generated/items.rs"]
+            pub mod items;
+        "#,
+    )
+    .unwrap();
+    fs::write(
+        directory.path().join("schemas.rs"),
+        r#"
+            #[derive(State)]
+            #[state(namespace = "fixture", scope = player)]
+            pub struct PlayerState { mana: EntityScore<i32> }
+
+            #[sand::function]
+            pub fn tick() {}
+
+            hud_element!(
+                name = "status",
+                texture = "status.png",
+                height = 8,
+                ascent = 8,
+            );
+        "#,
+    )
+    .unwrap();
+    fs::create_dir(directory.path().join("generated")).unwrap();
+    fs::write(
+        directory.path().join("generated/items.rs"),
+        r#"
+            #[sand::custom_item(name = "TypedItem")]
+            pub fn typed_item() -> CustomItem { todo!() }
+
+            #[derive(SandStorage)]
+            pub struct PlayerStorage { value: i32 }
+        "#,
+    )
+    .unwrap();
+
+    let state = sand_api_enforce::state_derive_provider(&facade, "facade").unwrap();
+    assert!(
+        state
+            .iter()
+            .any(|api| api.identity == "facade::schemas::PlayerStateBound")
+    );
+    sand_api_enforce::shape_preserving_consumer_provider(&facade, "function").unwrap();
+    let resourcepack = sand_api_enforce::resourcepack_macro_provider(&facade, "facade").unwrap();
+    assert_eq!(resourcepack[0].identity, "facade::schemas::STATUS");
+    let items = sand_api_enforce::custom_item_provider(&facade, "facade").unwrap();
+    assert_eq!(items[0].identity, "facade::items::TypedItem");
+    let storage = sand_api_enforce::sand_storage_derive_provider(&facade, "facade").unwrap();
+    assert!(
+        storage
+            .iter()
+            .any(|api| api.identity == "facade::items::PlayerStorage::value")
+    );
+}
+
+#[test]
 fn producer_binding_is_per_declaration_and_cannot_exempt_a_new_derive() {
     let directory = tempfile::tempdir().unwrap();
     let facade = directory.path().join("facade.rs");

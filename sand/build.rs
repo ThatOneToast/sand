@@ -56,6 +56,7 @@ fn main() {
         .select(&providers.versions)
         .unwrap_or_else(|error| panic!("cannot select Sand API surface profile: {error}"));
     let placeholder_codegen = providers.placeholder;
+    let minecraft_version = providers.minecraft_version.clone();
     manifest.static_surface_items = profile.static_surface_items;
     manifest.pending_item_ceiling = profile.pending_item_ceiling;
     let mut generated = providers.apis;
@@ -83,130 +84,141 @@ fn main() {
     for source_crate in &source_crates {
         println!("cargo:rerun-if-changed={}", source_crate.root.display());
     }
-    let graph = SurfaceGraph::load_with_cfg(
-        source_crates.clone(),
-        cargo_cfg(enabled_features.clone(), placeholder_codegen),
-        generated,
-    )
-    .and_then(|graph| {
-        graph.bind_item_macro_provider(
-            "sand_components::registry",
-            "registry_id",
-            "generated_registry_ids",
+    let generated_for_installed = generated.clone();
+    let build_graph = |features: BTreeSet<String>, generated: Vec<GeneratedApi>| {
+        SurfaceGraph::load_with_cfg(
+            source_crates.clone(),
+            cargo_cfg(features, placeholder_codegen),
+            generated,
         )
-    })
-    .and_then(|graph| {
-        graph.bind_item_macro_provider(
-            "sand_components::effect",
-            "vanilla_registry_enum",
-            "generated_effect_registry_enums",
-        )
-    })
-    .and_then(|graph| {
-        graph.bind_item_macro_provider(
-            "sand_core::events",
-            "gamemode_transition",
-            "generated_event_markers",
-        )
-    })
-    .and_then(|graph| {
-        graph.bind_item_macro_provider(
-            "sand_core::events",
-            "status_effect_marker",
-            "generated_event_markers",
-        )
-    })
-    .and_then(|graph| {
-        graph.bind_inert_item_macro(
-            "sand_commands::nbt",
-            "nbt_from",
-            InertItemMacroClassification::LocalTraitImplOnly,
-        )
-    })
-    .and_then(|graph| {
-        graph.bind_inert_item_macro(
-            "sand_components::tag",
-            "tag_registry",
-            InertItemMacroClassification::LocalTraitImplOnly,
-        )
-    })
-    .and_then(|graph| {
-        graph.bind_inert_item_macro(
-            "sand_core::events",
-            "adv_event",
-            InertItemMacroClassification::LocalTraitImplOnly,
-        )
-    })
-    .and_then(|graph| {
-        graph.bind_inert_item_macro(
-            "sand_commands::export_registry",
-            "thread_local",
-            InertItemMacroClassification::ThreadLocalStorageWiring,
-        )
-    })
-    .and_then(|graph| {
-        graph.bind_inert_item_macro(
-            "sand_core::function",
-            "thread_local",
-            InertItemMacroClassification::ThreadLocalStorageWiring,
-        )
-    })
-    .and_then(|graph| {
-        graph.bind_inert_item_macro(
-            "sand_core::function",
-            "inventory::collect",
-            InertItemMacroClassification::InventoryCollectionWiring,
-        )
-    })
-    .and_then(|graph| {
-        graph.bind_inert_item_macro(
-            "sand_core::state::registry",
-            "inventory::collect",
-            InertItemMacroClassification::InventoryCollectionWiring,
-        )
-    })
-    .and_then(|graph| {
-        graph.bind_inert_item_macro(
-            "sand_core::entity::archetype",
-            "inventory::collect",
-            InertItemMacroClassification::InventoryCollectionWiring,
-        )
-    })
-    .and_then(|graph| {
-        graph.bind_inert_item_macro(
-            "sand_components::dialog",
-            "inventory::collect",
-            InertItemMacroClassification::InventoryCollectionWiring,
-        )
-    })
-    .and_then(|graph| {
-        graph.bind_inert_item_macro(
-            "sand_resourcepack::descriptor",
-            "inventory::collect",
-            InertItemMacroClassification::InventoryCollectionWiring,
-        )
-    })
-    .and_then(|graph| {
-        if placeholder_codegen {
-            graph.bind_placeholder_generated_include("sand_core::generated", "generated_registries")
-        } else {
-            graph.bind_generated_include("sand_core::generated", "generated_registries")
-        }
-    })
-    .and_then(|graph| {
-        if placeholder_codegen {
-            graph.bind_placeholder_generated_include(
-                "sand_core::cmd::_generated",
-                "generated_commands",
+        .and_then(|graph| {
+            graph.bind_item_macro_provider(
+                "sand_components::registry",
+                "registry_id",
+                "generated_registry_ids",
             )
-        } else {
-            graph.bind_generated_include("sand_core::cmd::_generated", "generated_commands")
-        }
-    })
-    .unwrap_or_else(|error| panic!("failed to construct Sand public facade graph: {error}"));
+        })
+        .and_then(|graph| {
+            graph.bind_item_macro_provider(
+                "sand_components::effect",
+                "vanilla_registry_enum",
+                "generated_effect_registry_enums",
+            )
+        })
+        .and_then(|graph| {
+            graph.bind_item_macro_provider(
+                "sand_core::events",
+                "gamemode_transition",
+                "generated_event_markers",
+            )
+        })
+        .and_then(|graph| {
+            graph.bind_item_macro_provider(
+                "sand_core::events",
+                "status_effect_marker",
+                "generated_event_markers",
+            )
+        })
+        .and_then(|graph| {
+            graph.bind_inert_item_macro(
+                "sand_commands::nbt",
+                "nbt_from",
+                InertItemMacroClassification::LocalTraitImplOnly,
+            )
+        })
+        .and_then(|graph| {
+            graph.bind_inert_item_macro(
+                "sand_components::tag",
+                "tag_registry",
+                InertItemMacroClassification::LocalTraitImplOnly,
+            )
+        })
+        .and_then(|graph| {
+            graph.bind_inert_item_macro(
+                "sand_core::events",
+                "adv_event",
+                InertItemMacroClassification::LocalTraitImplOnly,
+            )
+        })
+        .and_then(|graph| {
+            graph.bind_inert_item_macro(
+                "sand_commands::export_registry",
+                "thread_local",
+                InertItemMacroClassification::ThreadLocalStorageWiring,
+            )
+        })
+        .and_then(|graph| {
+            graph.bind_inert_item_macro(
+                "sand_core::function",
+                "thread_local",
+                InertItemMacroClassification::ThreadLocalStorageWiring,
+            )
+        })
+        .and_then(|graph| {
+            graph.bind_inert_item_macro(
+                "sand_core::function",
+                "inventory::collect",
+                InertItemMacroClassification::InventoryCollectionWiring,
+            )
+        })
+        .and_then(|graph| {
+            graph.bind_inert_item_macro(
+                "sand_core::state::registry",
+                "inventory::collect",
+                InertItemMacroClassification::InventoryCollectionWiring,
+            )
+        })
+        .and_then(|graph| {
+            graph.bind_inert_item_macro(
+                "sand_core::entity::archetype",
+                "inventory::collect",
+                InertItemMacroClassification::InventoryCollectionWiring,
+            )
+        })
+        .and_then(|graph| {
+            graph.bind_inert_item_macro(
+                "sand_components::dialog",
+                "inventory::collect",
+                InertItemMacroClassification::InventoryCollectionWiring,
+            )
+        })
+        .and_then(|graph| {
+            graph.bind_inert_item_macro(
+                "sand_resourcepack::descriptor",
+                "inventory::collect",
+                InertItemMacroClassification::InventoryCollectionWiring,
+            )
+        })
+        .and_then(|graph| {
+            if placeholder_codegen {
+                graph.bind_placeholder_generated_include(
+                    "sand_core::generated",
+                    "generated_registries",
+                )
+            } else {
+                graph.bind_generated_include("sand_core::generated", "generated_registries")
+            }
+        })
+        .and_then(|graph| {
+            if placeholder_codegen {
+                graph.bind_placeholder_generated_include(
+                    "sand_core::cmd::_generated",
+                    "generated_commands",
+                )
+            } else {
+                graph.bind_generated_include("sand_core::cmd::_generated", "generated_commands")
+            }
+        })
+        .unwrap_or_else(|error| panic!("failed to construct Sand public facade graph: {error}"))
+    };
+    let graph = build_graph(enabled_features.clone(), generated);
     let reachable = graph
         .reachable_from("sand")
         .unwrap_or_else(|error| panic!("failed to extract Sand public facade: {error}"));
+    let installed_features = enabled_cargo_features(&enabled_features);
+    let installed_reachable = build_graph(installed_features.clone(), generated_for_installed)
+        .reachable_from("sand")
+        .unwrap_or_else(|error| panic!("failed to extract installed Sand public facade: {error}"));
 
     let source_declarations =
         contract_declarations_from_files(contract_source_files(&source_crates))
@@ -264,7 +276,33 @@ fn main() {
         );
     }
 
-    write_coverage(&manifest, &report, &reachable, profile);
+    write_coverage(
+        &manifest,
+        &report,
+        &reachable,
+        &installed_reachable,
+        InstalledConfiguration {
+            features: &installed_features,
+            profile,
+            placeholder_codegen,
+            minecraft_version: &minecraft_version,
+        },
+    );
+}
+
+fn enabled_cargo_features(supported: &BTreeSet<String>) -> BTreeSet<String> {
+    supported
+        .iter()
+        .filter(|feature| feature.as_str() != "default")
+        .filter(|feature| {
+            let variable = format!(
+                "CARGO_FEATURE_{}",
+                feature.replace('-', "_").to_ascii_uppercase()
+            );
+            env::var_os(variable).is_some()
+        })
+        .cloned()
+        .collect()
 }
 
 fn contract_source_files(source_crates: &[sand_api_enforce::SourceCrate]) -> Vec<PathBuf> {
@@ -330,6 +368,7 @@ struct GeneratedProviders {
     contracts: Vec<ContractIdentity>,
     versions: BTreeMap<String, String>,
     placeholder: bool,
+    minecraft_version: String,
 }
 
 fn generated_providers(directory: &Path) -> Result<GeneratedProviders, String> {
@@ -337,6 +376,7 @@ fn generated_providers(directory: &Path) -> Result<GeneratedProviders, String> {
     let mut contracts = Vec::new();
     let mut provider_versions = BTreeMap::new();
     let mut placeholder_modes = BTreeSet::new();
+    let mut minecraft_versions = BTreeSet::new();
     for (filename, rust_filename, root_identity, expected_provider) in [
         (
             "commands.api.json",
@@ -362,6 +402,7 @@ fn generated_providers(directory: &Path) -> Result<GeneratedProviders, String> {
             ));
         }
         placeholder_modes.insert(catalog.placeholder);
+        minecraft_versions.insert(catalog.minecraft_version.clone());
         let surface_profile = if catalog.placeholder {
             PLACEHOLDER_SURFACE_PROFILE.to_owned()
         } else {
@@ -438,6 +479,7 @@ fn generated_providers(directory: &Path) -> Result<GeneratedProviders, String> {
             registry_id_path.display()
         ));
     }
+    minecraft_versions.insert(registry_id_catalog.minecraft_version.clone());
     if placeholder_modes == BTreeSet::from([false])
         && provider_versions
             .values()
@@ -465,6 +507,11 @@ fn generated_providers(directory: &Path) -> Result<GeneratedProviders, String> {
             "generated API providers mix placeholder and real codegen artifacts".to_owned(),
         );
     }
+    if minecraft_versions.len() != 1 {
+        return Err(format!(
+            "generated API providers disagree on Minecraft version: {minecraft_versions:?}"
+        ));
+    }
     Ok(GeneratedProviders {
         apis: generated,
         contracts,
@@ -473,6 +520,10 @@ fn generated_providers(directory: &Path) -> Result<GeneratedProviders, String> {
             .into_iter()
             .next()
             .expect("two provider files were read"),
+        minecraft_version: minecraft_versions
+            .into_iter()
+            .next()
+            .expect("three provider files were read"),
     })
 }
 
@@ -540,7 +591,7 @@ fn generated_provider_contracts(
             let canonical_candidates = item
                 .paths
                 .iter()
-                .filter(|path| path.starts_with("sand::"))
+                .filter(|path| path.starts_with("sand::") && !path.starts_with("sand::prelude::"))
                 .collect::<Vec<_>>();
             let [canonical_path] = canonical_candidates.as_slice() else {
                 panic!(
@@ -606,11 +657,19 @@ fn panic_errors<T: ToString>(heading: &str, errors: &[T]) -> ! {
     )
 }
 
+struct InstalledConfiguration<'a> {
+    features: &'a BTreeSet<String>,
+    profile: &'a sand_api_enforce::SurfaceProfile,
+    placeholder_codegen: bool,
+    minecraft_version: &'a str,
+}
+
 fn write_coverage(
     manifest: &ScopeManifest,
     report: &sand_api_enforce::ScopeReport,
     reachable: &[sand_api_enforce::ReachableApi],
-    profile: &sand_api_enforce::SurfaceProfile,
+    installed_reachable: &[sand_api_enforce::ReachableApi],
+    installed: InstalledConfiguration<'_>,
 ) {
     let mut pending = report
         .entries
@@ -649,6 +708,85 @@ fn write_coverage(
         writeln!(generated, "String::from({id:?}),").unwrap();
     }
     generated.push_str("] } }\n");
+    generated
+        .push_str("pub fn installed_configuration() -> ApiConfiguration { ApiConfiguration {\n");
+    writeln!(
+        generated,
+        "surface_profile: String::from({:?}),",
+        installed.profile.minecraft_version
+    )
+    .unwrap();
+    writeln!(
+        generated,
+        "minecraft_version: String::from({:?}),",
+        installed.minecraft_version
+    )
+    .unwrap();
+    generated.push_str("cargo_features: vec![\n");
+    for feature in installed.features {
+        writeln!(generated, "String::from({feature:?}),").unwrap();
+    }
+    generated.push_str("],\n");
+    writeln!(
+        generated,
+        "placeholder_codegen: {},",
+        installed.placeholder_codegen
+    )
+    .unwrap();
+    writeln!(
+        generated,
+        "compiled_surface_items: {},",
+        installed_reachable.len()
+    )
+    .unwrap();
+    generated.push_str("} }\n");
+    let installed_paths = installed_reachable
+        .iter()
+        .flat_map(|item| item.paths.iter())
+        .filter(|path| path.starts_with("sand::"))
+        .collect::<BTreeSet<_>>();
+    generated.push_str("pub static INSTALLED_API_PATHS: &[&str] = &[\n");
+    for path in installed_paths {
+        writeln!(generated, "{path:?},").unwrap();
+    }
+    generated.push_str("];\n");
+    generated.push_str(
+        "pub type InstalledApiShape = (&'static [&'static str], &'static str, &'static [(&'static str, &'static str)], Option<&'static str>, &'static str, bool);\n",
+    );
+    generated.push_str("pub static INSTALLED_API_SHAPES: &[InstalledApiShape] = &[\n");
+    let definition_shapes = sand_api_enforce::definition_shapes(installed_reachable)
+        .unwrap_or_else(|error| panic!("failed to derive structural API metadata: {error}"));
+    for item in installed_reachable {
+        let Some(shape) = definition_shapes.get(&item.identity) else {
+            continue;
+        };
+        generated.push_str("(&[");
+        for path in item.paths.iter().filter(|path| path.starts_with("sand::")) {
+            write!(generated, "{path:?},").unwrap();
+        }
+        write!(generated, "], {:?}, &[", shape.signature).unwrap();
+        for (name, ty) in &shape.parameters {
+            write!(generated, "({name:?},{ty:?}),").unwrap();
+        }
+        writeln!(
+            generated,
+            "], {:?}, {:?}, {}),",
+            shape.return_type.as_deref(),
+            shape.documentation,
+            shape.has_receiver
+        )
+        .unwrap();
+    }
+    generated.push_str("];\n");
+    generated.push_str("pub static INSTALLED_API_IDENTITIES: &[&[&str]] = &[\n");
+    for item in installed_reachable {
+        generated.push_str("&[");
+        for path in item.paths.iter().filter(|path| path.starts_with("sand::")) {
+            write!(generated, "{path:?},").unwrap();
+        }
+        generated.push_str("],\n");
+    }
+    generated.push_str("];\n");
     generated.push_str(
         "pub fn installed_surface_report() -> &'static str { include_str!(concat!(env!(\"OUT_DIR\"), \"/api_surface_report.txt\")) }\n",
     );
@@ -672,7 +810,7 @@ fn write_coverage(
     }
     let mut surface = format!(
         "schema_version=1\nconfiguration=all-supported-features,current-target\nminecraft_version={}\ntotal={}\n",
-        profile.minecraft_version,
+        installed.profile.minecraft_version,
         reachable.len(),
     );
     for (kind, count) in kinds {
@@ -685,10 +823,10 @@ fn write_coverage(
     let report_path = output_dir.join("api_surface_report.txt");
     fs::write(&report_path, &surface)
         .unwrap_or_else(|error| panic!("failed to write {}: {error}", report_path.display()));
-    let baseline = fs::read_to_string(&profile.baseline).unwrap_or_else(|error| {
+    let baseline = fs::read_to_string(&installed.profile.baseline).unwrap_or_else(|error| {
         panic!(
             "failed to read selected API surface baseline {}: {error}",
-            profile.baseline.display()
+            installed.profile.baseline.display()
         )
     });
     if baseline != surface {
@@ -708,7 +846,7 @@ fn write_coverage(
             );
         panic!(
             "Sand API aggregate surface differs from selected profile baseline {}; classify the scope-level change and update that deterministic baseline ({difference})",
-            profile.baseline.display()
+            installed.profile.baseline.display()
         );
     }
 }

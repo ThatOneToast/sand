@@ -11,7 +11,11 @@ use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use sand_api_contract::syntax::parse_contract_args;
+use quote::ToTokens;
+use sand_api_contract::ApiKind;
+use sand_api_contract::syntax::{
+    ContractSemantics, parse_contract_args, validate_contract_semantics,
+};
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
@@ -28,6 +32,418 @@ pub struct ContractDeclaration {
     /// Source item carrying `#[api]`. Facade-owned `register!` providers have
     /// no attached definition and are resolved by their explicit path.
     pub definition: Option<SourceDefinition>,
+    pub facade: Option<FacadeContract>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FacadeContract {
+    pub kind: ApiKind,
+    pub signature: Option<String>,
+    pub parameters: Option<BTreeSet<String>>,
+    pub returns: Option<bool>,
+}
+
+/// Structural facts read from the independently discovered source
+/// declaration. Catalog assembly uses these instead of facade-authored shape
+/// strings, so signatures cannot drift from the Rust API.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DefinitionShape {
+    pub signature: String,
+    pub parameters: Vec<(String, String)>,
+    pub return_type: Option<String>,
+    pub documentation: String,
+    pub has_receiver: bool,
+}
+
+pub fn definition_shape(item: &ReachableApi) -> Result<Option<DefinitionShape>, String> {
+    let Some(definition) = &item.definition else {
+        return Ok(None);
+    };
+    if let Some(callable) = callable_shape(definition)? {
+        let parameters = callable
+            .signature
+            .inputs
+            .iter()
+            .filter_map(|argument| match argument {
+                syn::FnArg::Receiver(_) => None,
+                syn::FnArg::Typed(argument) => {
+                    let name = match argument.pat.as_ref() {
+                        syn::Pat::Ident(ident) => ident.ident.to_string(),
+                        pattern => pattern.to_token_stream().to_string(),
+                    };
+                    Some((name, argument.ty.to_token_stream().to_string()))
+                }
+            })
+            .collect();
+        let return_type = match &callable.signature.output {
+            syn::ReturnType::Default => None,
+            syn::ReturnType::Type(_, ty) => Some(ty.to_token_stream().to_string()),
+        };
+        return Ok(Some(DefinitionShape {
+            signature: callable.signature.to_token_stream().to_string(),
+            parameters,
+            return_type,
+            documentation: String::new(),
+            has_receiver: callable
+                .signature
+                .inputs
+                .iter()
+                .any(|input| matches!(input, syn::FnArg::Receiver(_))),
+        }));
+    }
+    let source = fs::read_to_string(&definition.source)
+        .map_err(|error| format!("failed to read reachable definition: {error}"))?;
+    let file = syn::parse_file(&source)
+        .map_err(|error| format!("failed to parse reachable definition: {error}"))?;
+    Ok(
+        find_declaration_signature(&file.items, definition).map(|signature| DefinitionShape {
+            signature,
+            parameters: Vec::new(),
+            return_type: None,
+            documentation: String::new(),
+            has_receiver: false,
+        }),
+    )
+}
+
+/// Derive structural metadata for a complete reachable surface with each
+/// source file parsed exactly once.
+pub fn definition_shapes(
+    items: &[ReachableApi],
+) -> Result<BTreeMap<String, DefinitionShape>, String> {
+    let mut by_source = BTreeMap::<PathBuf, Vec<&ReachableApi>>::new();
+    for item in items {
+        if let Some(definition) = &item.definition {
+            by_source
+                .entry(definition.source.clone())
+                .or_default()
+                .push(item);
+        }
+    }
+    let mut result = BTreeMap::new();
+    for (source_path, source_items) in by_source {
+        let source = fs::read_to_string(&source_path)
+            .map_err(|error| format!("failed to read reachable definition: {error}"))?;
+        let file = syn::parse_file(&source)
+            .map_err(|error| format!("failed to parse reachable definition: {error}"))?;
+        let mut locations = BTreeMap::new();
+        collect_definition_shapes(&file.items, &mut locations);
+        for item in source_items {
+            let definition = item.definition.as_ref().expect("grouped by definition");
+            if let Some(shape) = locations.get(&(definition.line, definition.column)) {
+                result.insert(item.identity.clone(), shape.clone());
+            }
+        }
+    }
+    Ok(result)
+}
+
+fn collect_definition_shapes(
+    items: &[Item],
+    shapes: &mut BTreeMap<(usize, usize), DefinitionShape>,
+) {
+    for item in items {
+        let location = item.span().start();
+        if let Some(signature) = item_definition_signature(item) {
+            shapes.insert(
+                (location.line, location.column),
+                DefinitionShape {
+                    signature,
+                    parameters: Vec::new(),
+                    return_type: None,
+                    documentation: rustdoc(crate::item_attrs(item)),
+                    has_receiver: false,
+                },
+            );
+        }
+        match item {
+            Item::Fn(function) => {
+                shapes.insert(
+                    (location.line, location.column),
+                    definition_shape_from_signature(&function.sig, &function.attrs),
+                );
+            }
+            Item::Mod(module) => {
+                if let Some((_, nested)) = &module.content {
+                    collect_definition_shapes(nested, shapes);
+                }
+            }
+            Item::Impl(block) => {
+                for member in &block.items {
+                    let location = member.span().start();
+                    let shape = match member {
+                        syn::ImplItem::Fn(function) => {
+                            definition_shape_from_signature(&function.sig, &function.attrs)
+                        }
+                        _ => DefinitionShape {
+                            signature: member.to_token_stream().to_string(),
+                            parameters: Vec::new(),
+                            return_type: None,
+                            documentation: String::new(),
+                            has_receiver: false,
+                        },
+                    };
+                    shapes.insert((location.line, location.column), shape);
+                }
+            }
+            Item::Trait(block) => {
+                for member in &block.items {
+                    let location = member.span().start();
+                    let shape = match member {
+                        syn::TraitItem::Fn(function) => {
+                            definition_shape_from_signature(&function.sig, &function.attrs)
+                        }
+                        _ => DefinitionShape {
+                            signature: member.to_token_stream().to_string(),
+                            parameters: Vec::new(),
+                            return_type: None,
+                            documentation: String::new(),
+                            has_receiver: false,
+                        },
+                    };
+                    shapes.insert((location.line, location.column), shape);
+                }
+            }
+            Item::Struct(value) => {
+                for (index, field) in value.fields.iter().enumerate() {
+                    let location = field.span().start();
+                    let name = field
+                        .ident
+                        .as_ref()
+                        .map_or_else(|| index.to_string(), ToString::to_string);
+                    shapes.insert(
+                        (location.line, location.column),
+                        DefinitionShape {
+                            signature: format!("{name}: {}", field.ty.to_token_stream()),
+                            parameters: Vec::new(),
+                            return_type: None,
+                            documentation: rustdoc(&field.attrs),
+                            has_receiver: false,
+                        },
+                    );
+                }
+            }
+            Item::Enum(value) => {
+                for variant in &value.variants {
+                    let location = variant.span().start();
+                    shapes.insert(
+                        (location.line, location.column),
+                        DefinitionShape {
+                            signature: variant.to_token_stream().to_string(),
+                            parameters: Vec::new(),
+                            return_type: None,
+                            documentation: rustdoc(&variant.attrs),
+                            has_receiver: false,
+                        },
+                    );
+                    for (index, field) in variant.fields.iter().enumerate() {
+                        let location = field.span().start();
+                        let name = field
+                            .ident
+                            .as_ref()
+                            .map_or_else(|| index.to_string(), ToString::to_string);
+                        shapes.insert(
+                            (location.line, location.column),
+                            DefinitionShape {
+                                signature: format!("{name}: {}", field.ty.to_token_stream()),
+                                parameters: Vec::new(),
+                                return_type: None,
+                                documentation: rustdoc(&field.attrs),
+                                has_receiver: false,
+                            },
+                        );
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+fn definition_shape_from_signature(
+    signature: &syn::Signature,
+    attrs: &[Attribute],
+) -> DefinitionShape {
+    let parameters = signature
+        .inputs
+        .iter()
+        .filter_map(|argument| match argument {
+            syn::FnArg::Receiver(_) => None,
+            syn::FnArg::Typed(argument) => {
+                let name = match argument.pat.as_ref() {
+                    syn::Pat::Ident(ident) => ident.ident.to_string(),
+                    pattern => pattern.to_token_stream().to_string(),
+                };
+                Some((name, argument.ty.to_token_stream().to_string()))
+            }
+        })
+        .collect();
+    let return_type = match &signature.output {
+        syn::ReturnType::Default => None,
+        syn::ReturnType::Type(_, ty) => Some(ty.to_token_stream().to_string()),
+    };
+    DefinitionShape {
+        signature: signature.to_token_stream().to_string(),
+        parameters,
+        return_type,
+        documentation: rustdoc(attrs),
+        has_receiver: signature
+            .inputs
+            .iter()
+            .any(|input| matches!(input, syn::FnArg::Receiver(_))),
+    }
+}
+
+fn rustdoc(attrs: &[Attribute]) -> String {
+    attrs
+        .iter()
+        .filter_map(|attribute| match &attribute.meta {
+            syn::Meta::NameValue(value) if value.path.is_ident("doc") => match &value.value {
+                syn::Expr::Lit(syn::ExprLit {
+                    lit: syn::Lit::Str(text),
+                    ..
+                }) => Some(text.value().trim().to_owned()),
+                _ => None,
+            },
+            _ => None,
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn item_definition_signature(item: &Item) -> Option<String> {
+    let signature = match item {
+        Item::Mod(value) => format!("{} mod {}", value.vis.to_token_stream(), value.ident),
+        Item::Struct(value) => format!(
+            "{} struct {} {}",
+            value.vis.to_token_stream(),
+            value.ident,
+            value.generics.to_token_stream()
+        ),
+        Item::Enum(value) => format!(
+            "{} enum {} {}",
+            value.vis.to_token_stream(),
+            value.ident,
+            value.generics.to_token_stream()
+        ),
+        Item::Trait(value) => format!(
+            "{} trait {} {}",
+            value.vis.to_token_stream(),
+            value.ident,
+            value.generics.to_token_stream()
+        ),
+        Item::Type(value) => format!(
+            "{} type {} {} = {}",
+            value.vis.to_token_stream(),
+            value.ident,
+            value.generics.to_token_stream(),
+            value.ty.to_token_stream()
+        ),
+        Item::Const(value) => format!(
+            "{} const {} : {}",
+            value.vis.to_token_stream(),
+            value.ident,
+            value.ty.to_token_stream()
+        ),
+        Item::Fn(_) => return None,
+        _ => item.to_token_stream().to_string(),
+    };
+    Some(signature.split_whitespace().collect::<Vec<_>>().join(" "))
+}
+
+fn find_declaration_signature(items: &[Item], definition: &SourceDefinition) -> Option<String> {
+    for item in items {
+        if same_location(item.span().start(), definition) {
+            let signature = match item {
+                Item::Mod(value) => format!("{}mod {}", value.vis.to_token_stream(), value.ident),
+                Item::Struct(value) => format!(
+                    "{} struct {} {}",
+                    value.vis.to_token_stream(),
+                    value.ident,
+                    value.generics.to_token_stream()
+                ),
+                Item::Enum(value) => format!(
+                    "{} enum {} {}",
+                    value.vis.to_token_stream(),
+                    value.ident,
+                    value.generics.to_token_stream()
+                ),
+                Item::Trait(value) => format!(
+                    "{} trait {} {}",
+                    value.vis.to_token_stream(),
+                    value.ident,
+                    value.generics.to_token_stream()
+                ),
+                Item::Type(value) => format!(
+                    "{} type {} {} = {}",
+                    value.vis.to_token_stream(),
+                    value.ident,
+                    value.generics.to_token_stream(),
+                    value.ty.to_token_stream()
+                ),
+                Item::Const(value) => format!(
+                    "{} const {} : {}",
+                    value.vis.to_token_stream(),
+                    value.ident,
+                    value.ty.to_token_stream()
+                ),
+                _ => item.to_token_stream().to_string(),
+            };
+            return Some(signature.split_whitespace().collect::<Vec<_>>().join(" "));
+        }
+        match item {
+            Item::Mod(module) => {
+                if let Some((_, nested)) = &module.content
+                    && let Some(signature) = find_declaration_signature(nested, definition)
+                {
+                    return Some(signature);
+                }
+            }
+            Item::Struct(value) => {
+                for (index, field) in value.fields.iter().enumerate() {
+                    if same_location(field.span().start(), definition) {
+                        let name = field
+                            .ident
+                            .as_ref()
+                            .map_or_else(|| index.to_string(), ToString::to_string);
+                        return Some(format!("{name}: {}", field.ty.to_token_stream()));
+                    }
+                }
+            }
+            Item::Enum(value) => {
+                for variant in &value.variants {
+                    if same_location(variant.span().start(), definition) {
+                        return Some(variant.to_token_stream().to_string());
+                    }
+                    for (index, field) in variant.fields.iter().enumerate() {
+                        if same_location(field.span().start(), definition) {
+                            let name = field
+                                .ident
+                                .as_ref()
+                                .map_or_else(|| index.to_string(), ToString::to_string);
+                            return Some(format!("{name}: {}", field.ty.to_token_stream()));
+                        }
+                    }
+                }
+            }
+            Item::Impl(block) => {
+                for member in &block.items {
+                    if same_location(member.span().start(), definition) {
+                        return Some(member.to_token_stream().to_string());
+                    }
+                }
+            }
+            Item::Trait(block) => {
+                for member in &block.items {
+                    if same_location(member.span().start(), definition) {
+                        return Some(member.to_token_stream().to_string());
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    None
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -57,6 +473,10 @@ pub enum ContractSourceError {
         canonical_path: String,
         annotated: SourceDefinition,
         reachable: Option<SourceDefinition>,
+    },
+    InvalidFacadeContract {
+        path: String,
+        message: String,
     },
 }
 
@@ -120,6 +540,9 @@ impl fmt::Display for ContractSourceError {
                     ),
                 )
             ),
+            Self::InvalidFacadeContract { path, message } => {
+                write!(formatter, "invalid facade API contract `{path}`: {message}")
+            }
         }
     }
 }
@@ -203,6 +626,81 @@ pub fn resolve_contract_identities(
             });
             continue;
         };
+        if let Some(facade) = &declaration.facade
+            && api_kind(item.kind) != Some(facade.kind)
+        {
+            errors.push(ContractSourceError::InvalidFacadeContract {
+                path: declaration.canonical_path.clone(),
+                message: format!(
+                    "declares kind {:?}, but the reachable definition is {:?}",
+                    facade.kind, item.kind
+                ),
+            });
+            continue;
+        }
+        if let (Some(facade), Some(definition)) = (&declaration.facade, &item.definition)
+            && facade.signature.is_some()
+            && facade.kind != ApiKind::Macro
+        {
+            match callable_shape(definition) {
+                Ok(Some(shape)) => {
+                    if facade.parameters.as_ref() != Some(&shape.parameters) {
+                        errors.push(ContractSourceError::InvalidFacadeContract {
+                            path: declaration.canonical_path.clone(),
+                            message: format!(
+                                "parameter metadata {:?} does not match reachable parameters {:?}",
+                                facade.parameters, shape.parameters
+                            ),
+                        });
+                        continue;
+                    }
+                    if facade.returns != Some(shape.returns) {
+                        errors.push(ContractSourceError::InvalidFacadeContract {
+                            path: declaration.canonical_path.clone(),
+                            message: format!(
+                                "return metadata {:?} does not match reachable return shape {}",
+                                facade.returns, shape.returns
+                            ),
+                        });
+                        continue;
+                    }
+                    let authored = parse_authored_signature(
+                        facade.signature.as_deref().expect("checked above"),
+                    );
+                    match authored {
+                        Ok(signature)
+                            if normalize_signature(&signature)
+                                == normalize_signature(&shape.signature) => {}
+                        Ok(signature) => {
+                            errors.push(ContractSourceError::InvalidFacadeContract {
+                                path: declaration.canonical_path.clone(),
+                                message: format!(
+                                    "stale signature `{}`; reachable definition is `{}`",
+                                    signature.to_token_stream(),
+                                    shape.signature.to_token_stream()
+                                ),
+                            });
+                            continue;
+                        }
+                        Err(message) => {
+                            errors.push(ContractSourceError::InvalidFacadeContract {
+                                path: declaration.canonical_path.clone(),
+                                message,
+                            });
+                            continue;
+                        }
+                    }
+                }
+                Ok(None) => {}
+                Err(message) => {
+                    errors.push(ContractSourceError::InvalidFacadeContract {
+                        path: declaration.canonical_path.clone(),
+                        message,
+                    });
+                    continue;
+                }
+            }
+        }
         if let Some(annotated) = &declaration.definition
             && item.definition.as_ref() != Some(annotated)
         {
@@ -272,6 +770,125 @@ pub fn resolve_contract_identities(
     }
 }
 
+struct CallableShape {
+    signature: syn::Signature,
+    parameters: BTreeSet<String>,
+    returns: bool,
+}
+
+fn callable_shape(definition: &SourceDefinition) -> Result<Option<CallableShape>, String> {
+    let source = fs::read_to_string(&definition.source)
+        .map_err(|error| format!("failed to read reachable definition: {error}"))?;
+    let file = syn::parse_file(&source)
+        .map_err(|error| format!("failed to parse reachable definition: {error}"))?;
+    Ok(find_callable(&file.items, definition).map(shape_from_signature))
+}
+
+fn find_callable(items: &[Item], definition: &SourceDefinition) -> Option<syn::Signature> {
+    for item in items {
+        if let Item::Fn(function) = item
+            && same_location(function.span().start(), definition)
+        {
+            return Some(function.sig.clone());
+        }
+        match item {
+            Item::Mod(module) => {
+                if let Some((_, nested)) = &module.content
+                    && let Some(signature) = find_callable(nested, definition)
+                {
+                    return Some(signature);
+                }
+            }
+            Item::Impl(block) => {
+                for member in &block.items {
+                    if let syn::ImplItem::Fn(function) = member
+                        && same_location(function.span().start(), definition)
+                    {
+                        return Some(function.sig.clone());
+                    }
+                }
+            }
+            Item::Trait(block) => {
+                for member in &block.items {
+                    if let syn::TraitItem::Fn(function) = member
+                        && same_location(function.span().start(), definition)
+                    {
+                        return Some(function.sig.clone());
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+fn same_location(location: proc_macro2::LineColumn, definition: &SourceDefinition) -> bool {
+    location.line == definition.line && location.column == definition.column
+}
+
+fn shape_from_signature(signature: syn::Signature) -> CallableShape {
+    let parameters = signature
+        .inputs
+        .iter()
+        .filter_map(|argument| match argument {
+            syn::FnArg::Receiver(_) => None,
+            syn::FnArg::Typed(argument) => match argument.pat.as_ref() {
+                syn::Pat::Ident(ident) => Some(ident.ident.to_string()),
+                _ => Some(argument.pat.to_token_stream().to_string()),
+            },
+        })
+        .collect();
+    let returns = !matches!(signature.output, syn::ReturnType::Default);
+    CallableShape {
+        signature,
+        parameters,
+        returns,
+    }
+}
+
+fn parse_authored_signature(signature: &str) -> Result<syn::Signature, String> {
+    syn::parse_str::<syn::TraitItemFn>(&format!("{signature};"))
+        .map(|function| function.sig)
+        .or_else(|_| {
+            syn::parse_str::<syn::ItemFn>(&format!("{signature} {{ unreachable!() }}"))
+                .map(|function| function.sig)
+        })
+        .map_err(|error| format!("invalid authored signature: {error}"))
+}
+
+fn normalize_signature(signature: &syn::Signature) -> String {
+    signature
+        .to_token_stream()
+        .to_string()
+        .chars()
+        .filter(|character| !character.is_whitespace())
+        .collect()
+}
+
+fn api_kind(kind: crate::ReachableKind) -> Option<ApiKind> {
+    Some(match kind {
+        crate::ReachableKind::Module => ApiKind::Module,
+        crate::ReachableKind::Struct => ApiKind::Struct,
+        crate::ReachableKind::Enum => ApiKind::Enum,
+        crate::ReachableKind::Variant => ApiKind::Variant,
+        crate::ReachableKind::Field => ApiKind::Field,
+        crate::ReachableKind::Trait => ApiKind::Trait,
+        crate::ReachableKind::Function => ApiKind::Function,
+        crate::ReachableKind::Method => ApiKind::Method,
+        crate::ReachableKind::TraitMethod => ApiKind::TraitMethod,
+        crate::ReachableKind::AssociatedConst => ApiKind::AssociatedConst,
+        crate::ReachableKind::AssociatedType => ApiKind::AssociatedType,
+        crate::ReachableKind::TypeAlias => ApiKind::TypeAlias,
+        crate::ReachableKind::Constant => ApiKind::Constant,
+        crate::ReachableKind::Macro
+        | crate::ReachableKind::FunctionLikeMacro
+        | crate::ReachableKind::AttributeMacro
+        | crate::ReachableKind::DeriveMacro => ApiKind::Macro,
+        crate::ReachableKind::Union | crate::ReachableKind::Static => return None,
+    })
+}
+
 fn inspect_items(
     items: &[Item],
     source: &Path,
@@ -306,6 +923,7 @@ fn inspect_items(
                         .collect(),
                     source: source.to_owned(),
                     definition: member_source_definition(item, &name, source),
+                    facade: None,
                 });
             }
             for member in args.variant_fields.into_iter().flatten() {
@@ -318,6 +936,7 @@ fn inspect_items(
                         .collect(),
                     source: source.to_owned(),
                     definition: member_source_definition(item, &name, source),
+                    facade: None,
                 });
             }
         }
@@ -365,10 +984,23 @@ fn inspect_items(
                     || item.mac.path.is_ident("register_component_api")
                     || item.mac.path.is_ident("register_resourcepack_api") =>
             {
-                let parsed =
+                let macro_name = item
+                    .mac
+                    .path
+                    .segments
+                    .last()
+                    .expect("macro path")
+                    .ident
+                    .to_string();
+                let mut parsed =
                     syn::parse2::<RegisterArgs>(item.mac.tokens.clone()).map_err(|error| {
                         ContractSourceError::Parse(format!("{}: {error}", source.display()))
                     })?;
+                parsed.complete_family_semantics(&macro_name);
+                parsed.validate(&macro_name).map_err(|message| {
+                    ContractSourceError::Parse(format!("{}: {message}", source.display()))
+                })?;
+                let facade = parsed.facade_contract()?;
                 let path = parsed.path.ok_or_else(|| {
                     ContractSourceError::Parse(format!(
                         "{}: facade register! contract is missing `path`",
@@ -380,6 +1012,7 @@ fn inspect_items(
                     aliases: parsed.aliases,
                     source: source.to_owned(),
                     definition: None,
+                    facade: Some(facade),
                 });
             }
             _ => {}
@@ -457,6 +1090,7 @@ fn declaration_from_args(
             .collect(),
         source: source.to_owned(),
         definition,
+        facade: None,
     })
 }
 
@@ -525,6 +1159,86 @@ fn api_args(
 struct RegisterArgs {
     path: Option<String>,
     aliases: BTreeSet<String>,
+    kind: Option<ApiKind>,
+    signature: Option<String>,
+    summary: Option<String>,
+    context: Option<String>,
+    minecraft: Option<String>,
+    use_when: Option<Vec<String>>,
+    avoid_when: Option<Vec<String>>,
+    parameters: Option<BTreeSet<String>>,
+    returns: Option<bool>,
+    example: Option<String>,
+}
+
+impl RegisterArgs {
+    fn complete_family_semantics(&mut self, macro_name: &str) {
+        if macro_name == "register" {
+            return;
+        }
+        // Family registrations author semantics only. Structural facts are
+        // always resolved from the reachable definition, never inherited
+        // from a family template string.
+        self.signature = None;
+        self.parameters = None;
+        self.returns = None;
+        if macro_name == "register_event_marker" {
+            self.kind.get_or_insert(ApiKind::Struct);
+        }
+        self.context
+            .get_or_insert_with(|| format!("Shared semantic context for {macro_name}."));
+        self.minecraft
+            .get_or_insert_with(|| format!("Minecraft behavior supplied by {macro_name}."));
+        self.use_when
+            .get_or_insert_with(|| vec![format!("Using this {macro_name} API")]);
+        self.avoid_when.get_or_insert_with(|| {
+            vec![format!("Using implementation details behind {macro_name}")]
+        });
+        self.example.get_or_insert_with(|| {
+            format!("sand api show {}", self.path.as_deref().unwrap_or("sand"))
+        });
+    }
+
+    fn validate(&self, macro_name: &str) -> Result<(), String> {
+        validate_contract_semantics(&ContractSemantics {
+            summary: self.summary.as_deref(),
+            context: self.context.as_deref(),
+            minecraft: self.minecraft.as_deref(),
+            use_when: self.use_when.as_deref(),
+            avoid_when: self.avoid_when.as_deref(),
+            example: self.example.as_deref(),
+        })?;
+        if self.kind.is_none() {
+            return Err(format!("{macro_name}! contract is missing `kind`"));
+        }
+        if macro_name == "register" {
+            if self
+                .signature
+                .as_deref()
+                .is_none_or(|value| value.trim().is_empty())
+            {
+                return Err("register! contract field `signature` cannot be empty".into());
+            }
+            if self.parameters.is_none() {
+                return Err("register! contract is missing `params`".into());
+            }
+            if self.returns.is_none() {
+                return Err("register! contract is missing `returns`".into());
+            }
+        }
+        Ok(())
+    }
+
+    fn facade_contract(&self) -> Result<FacadeContract, ContractSourceError> {
+        Ok(FacadeContract {
+            kind: self
+                .kind
+                .ok_or_else(|| ContractSourceError::Parse("missing kind".into()))?,
+            signature: self.signature.clone(),
+            parameters: self.parameters.clone(),
+            returns: self.returns,
+        })
+    }
 }
 
 impl Parse for RegisterArgs {
@@ -547,10 +1261,61 @@ impl Parse for RegisterArgs {
                         result.aliases.insert(value.value());
                     }
                 }
-                _ => {
-                    while !input.is_empty() && !input.peek(Token![,]) {
-                        input.parse::<proc_macro2::TokenTree>()?;
+                "kind" => {
+                    let value: syn::Ident = input.parse()?;
+                    result.kind = Some(parse_api_kind(&value)?);
+                }
+                "signature" => result.signature = Some(input.parse::<LitStr>()?.value()),
+                "summary" => result.summary = Some(input.parse::<LitStr>()?.value()),
+                "context" => result.context = Some(input.parse::<LitStr>()?.value()),
+                "minecraft" => result.minecraft = Some(input.parse::<LitStr>()?.value()),
+                "example" => result.example = Some(input.parse::<LitStr>()?.value()),
+                "module" => {
+                    let _: LitStr = input.parse()?;
+                }
+                "use_when" => result.use_when = Some(parse_register_strings(input)?),
+                "avoid_when" => result.avoid_when = Some(parse_register_strings(input)?),
+                "availability" => {
+                    let _ = parse_register_strings(input)?;
+                }
+                "params" => {
+                    let content;
+                    syn::bracketed!(content in input);
+                    let mut names = BTreeSet::new();
+                    while !content.is_empty() {
+                        let name = content.parse::<LitStr>()?.value();
+                        content.parse::<Token![=>]>()?;
+                        let description = content.parse::<LitStr>()?;
+                        if description.value().trim().is_empty() {
+                            return Err(syn::Error::new_spanned(
+                                description,
+                                "parameter description cannot be empty",
+                            ));
+                        }
+                        if !names.insert(name.clone()) {
+                            return Err(syn::Error::new_spanned(
+                                key.clone(),
+                                format!("duplicate parameter `{name}`"),
+                            ));
+                        }
+                        if content.peek(Token![,]) {
+                            content.parse::<Token![,]>()?;
+                        }
                     }
+                    result.parameters = Some(names);
+                }
+                "returns" => {
+                    let expression: syn::Expr = input.parse()?;
+                    result.returns = Some(!matches!(
+                        &expression,
+                        syn::Expr::Path(path) if path.path.is_ident("None")
+                    ));
+                }
+                other => {
+                    return Err(syn::Error::new_spanned(
+                        key,
+                        format!("unknown facade contract field `{other}`"),
+                    ));
                 }
             }
             if input.peek(Token![,]) {
@@ -559,4 +1324,36 @@ impl Parse for RegisterArgs {
         }
         Ok(result)
     }
+}
+
+fn parse_register_strings(input: ParseStream<'_>) -> syn::Result<Vec<String>> {
+    let content;
+    syn::bracketed!(content in input);
+    Punctuated::<LitStr, Token![,]>::parse_terminated(&content)
+        .map(|values| values.into_iter().map(|value| value.value()).collect())
+}
+
+fn parse_api_kind(value: &syn::Ident) -> syn::Result<ApiKind> {
+    Ok(match value.to_string().as_str() {
+        "Module" => ApiKind::Module,
+        "Struct" => ApiKind::Struct,
+        "Enum" => ApiKind::Enum,
+        "Variant" => ApiKind::Variant,
+        "Trait" => ApiKind::Trait,
+        "Function" => ApiKind::Function,
+        "Method" => ApiKind::Method,
+        "TraitMethod" => ApiKind::TraitMethod,
+        "TypeAlias" => ApiKind::TypeAlias,
+        "Constant" => ApiKind::Constant,
+        "AssociatedConst" => ApiKind::AssociatedConst,
+        "AssociatedType" => ApiKind::AssociatedType,
+        "Field" => ApiKind::Field,
+        "Macro" => ApiKind::Macro,
+        _ => {
+            return Err(syn::Error::new_spanned(
+                value,
+                "unknown facade contract kind",
+            ));
+        }
+    })
 }

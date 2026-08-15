@@ -4,9 +4,7 @@
 // identity — same property #239 established for `tick()`, now proven for
 // `chain()`).
 use sand_core::condition::Condition;
-use sand_core::events::{
-    EventSetup, SameCycleEventRequirement, SandEvent, SandEventDispatch,
-};
+use sand_core::events::{EventSetup, SandEvent, SandEventDispatch};
 use sand_core::prelude::*;
 use sand_macros::on_event;
 use std::marker::PhantomData;
@@ -133,12 +131,6 @@ fn main() {
         {
             if descriptor.path == "on_jumped_on_elevator" {
                 let chain = make_chain().expect("chain dispatch should be registered");
-                let [SameCycleEventRequirement::After(parent)] = chain.occurrence.as_slice()
-                else {
-                    panic!("chain::<Parent>() should register one After clause");
-                };
-                assert_eq!((parent.event_type_id)(), std::any::TypeId::of::<PlayerJumpEvent>());
-                assert_eq!((parent.event_type_name)(), std::any::type_name::<PlayerJumpEvent>());
                 assert!(chain.combined_condition().is_some());
                 found_jumped_on_elevator = true;
             } else if descriptor.path == "on_elevator_up" {

@@ -126,12 +126,7 @@ fn documented_convenience_contract(
         .filter(|line| !line.is_empty())
         .collect::<Vec<_>>()
         .join(" ");
-    let summary = documentation
-        .split_once('.')
-        .map(|(sentence, _)| sentence)
-        .unwrap_or(&documentation)
-        .trim()
-        .to_owned();
+    let summary = sand_api_contract::syntax::first_prose_sentence(&documentation).to_owned();
     if summary.is_empty() {
         return Err(std::io::Error::other(format!(
             "{type_name}::{} needs Rustdoc because it is a public generated-wrapper convenience API",
@@ -166,6 +161,7 @@ fn documented_convenience_contract(
         )],
         parameters: Vec::new(),
         returns: Some(format!("The conventional typed {type_name} identifier.")),
+        return_type: Some("Self".into()),
         example: format!("let id = {}::{name}();", parent.canonical_path),
         availability: parent.availability.clone(),
     })

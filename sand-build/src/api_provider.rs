@@ -452,6 +452,7 @@ mod tests {
                 avoid_when: vec!["Using custom content".into()],
                 parameters: Vec::new(),
                 returns: None,
+                return_type: None,
                 example: "let value = Example;".into(),
                 availability: vec!["minecraft = test".into()],
             },

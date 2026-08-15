@@ -407,6 +407,10 @@ fn emit_variant(code: &mut String, ev: &EmittedVariant) {
 
     writeln!(code, "// /{usage}").unwrap();
     writeln!(code, "/// `{usage}`").unwrap();
+    writeln!(code, "///").unwrap();
+    writeln!(code, "/// # API Contract").unwrap();
+    writeln!(code, "///").unwrap();
+    writeln!(code, "/// `sand api show sand::command::{sname}`").unwrap();
 
     if !has_required {
         writeln!(code, "#[derive(Debug, Clone, Default)]").unwrap();
@@ -456,6 +460,13 @@ fn emit_variant(code: &mut String, ev: &EmittedVariant) {
 
     for arg in &variant.optional_args {
         let (param_ty, _stored_ty, needs_into) = map_arg_parser(&literals, arg);
+        writeln!(code, "    /// # API Contract").unwrap();
+        writeln!(
+            code,
+            "    /// `sand api show sand::command::{sname}::{}`",
+            arg.name
+        )
+        .unwrap();
         writeln!(
             code,
             "    pub fn {name}(mut self, {name}: {param_ty}) -> Self {{",
@@ -530,6 +541,10 @@ fn emit_variant(code: &mut String, ev: &EmittedVariant) {
     writeln!(code).unwrap();
 
     writeln!(code, "/// Build a `{cmd_str}` command.").unwrap();
+    writeln!(code, "///").unwrap();
+    writeln!(code, "/// # API Contract").unwrap();
+    writeln!(code, "///").unwrap();
+    writeln!(code, "/// `sand api show sand::command::{fname}`").unwrap();
 
     if has_required {
         let mut params = Vec::new();
@@ -616,9 +631,13 @@ fn command_api_entries(
     let required = variant.required_args();
     let parameters = required
         .iter()
-        .map(|arg| ApiParameter {
-            name: arg.name.clone(),
-            description: argument_description(arg, &usage),
+        .map(|arg| {
+            let (param_type, _, _) = map_arg_parser(&literals, arg);
+            ApiParameter {
+                name: arg.name.clone(),
+                rust_type: Some(param_type.to_owned()),
+                description: argument_description(arg, &usage),
+            }
         })
         .collect::<Vec<_>>();
     let params_signature = required
@@ -670,6 +689,7 @@ fn command_api_entries(
             avoid_when: avoid_when.clone(),
             parameters: Vec::new(),
             returns: None,
+            return_type: None,
             example: format!("let command = sand::command::{}({call_args});", ev.fn_name),
             availability: availability.clone(),
         },
@@ -702,6 +722,7 @@ fn command_api_entries(
                 "A `{}` builder that renders `/{usage}`.",
                 ev.struct_name
             )),
+            return_type: Some(ev.struct_name.clone()),
             example: format!("let command = sand::command::{}({call_args});", ev.fn_name),
             availability: availability.clone(),
         },
@@ -742,9 +763,11 @@ fn command_api_entries(
             )],
             parameters: vec![ApiParameter {
                 name: arg.name.clone(),
+                rust_type: Some(param_type.to_owned()),
                 description: argument_description(arg, &usage),
             }],
             returns: Some("The command builder with the optional argument set.".into()),
+            return_type: Some("Self".into()),
             example: format!(
                 "let command = sand::command::{}({call_args}).{}({});",
                 ev.fn_name, arg.name, arg.name

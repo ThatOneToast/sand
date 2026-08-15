@@ -10,6 +10,33 @@ use syn::{
     Expr, ExprArray, FnArg, ItemEnum, ItemFn, ItemStruct, LitStr, Pat, ReturnType, Signature,
 };
 
+/// Return the first complete prose sentence without treating punctuation in
+/// common abbreviations, versions, or resource filenames as a boundary.
+///
+/// Contract generators use this only to preserve author-written Rustdoc; it
+/// never invents semantic prose from an identifier.
+pub fn first_prose_sentence(documentation: &str) -> &str {
+    let bytes = documentation.as_bytes();
+    for (index, byte) in bytes.iter().enumerate() {
+        if *byte != b'.' {
+            continue;
+        }
+        let next = bytes.get(index + 1).copied();
+        if next.is_some_and(|next| !next.is_ascii_whitespace()) {
+            continue;
+        }
+        let prefix = documentation[..=index].trim_end().to_ascii_lowercase();
+        if ["e.g.", "i.e.", "etc.", "vs.", "mr.", "mrs.", "dr."]
+            .iter()
+            .any(|abbreviation| prefix.ends_with(abbreviation))
+        {
+            continue;
+        }
+        return documentation[..index].trim();
+    }
+    documentation.trim().trim_end_matches('.').trim()
+}
+
 pub mod registry_id;
 
 /// Public associated names emitted by `#[derive(SandStorage)]`.
@@ -377,6 +404,46 @@ pub enum ContractTarget<'a> {
     },
 }
 
+/// Span-free semantic projection used by every contract producer, including
+/// facade registrations that are resolved at build time rather than expanded
+/// as an attribute on the defining item.
+pub struct ContractSemantics<'a> {
+    pub summary: Option<&'a str>,
+    pub context: Option<&'a str>,
+    pub minecraft: Option<&'a str>,
+    pub use_when: Option<&'a [String]>,
+    pub avoid_when: Option<&'a [String]>,
+    pub example: Option<&'a str>,
+}
+
+/// Validate the required semantic schema independently of its Rust syntax.
+pub fn validate_contract_semantics(semantics: &ContractSemantics<'_>) -> Result<(), String> {
+    for (name, value) in [
+        ("summary", semantics.summary),
+        ("context", semantics.context),
+        ("minecraft", semantics.minecraft),
+        ("example", semantics.example),
+    ] {
+        let value = value.ok_or_else(|| format!("missing required API contract field `{name}`"))?;
+        if value.trim().is_empty() {
+            return Err(format!("API contract field `{name}` cannot be empty"));
+        }
+    }
+    for (name, values) in [
+        ("use_when", semantics.use_when),
+        ("avoid_when", semantics.avoid_when),
+    ] {
+        let values =
+            values.ok_or_else(|| format!("missing required API contract field `{name}`"))?;
+        if values.is_empty() || values.iter().any(|value| value.trim().is_empty()) {
+            return Err(format!(
+                "API contract field `{name}` must contain non-empty strings"
+            ));
+        }
+    }
+    Ok(())
+}
+
 impl ContractTarget<'_> {
     pub fn ident(&self) -> &syn::Ident {
         match self {
@@ -582,6 +649,23 @@ fn parse_string_array(meta: &syn::meta::ParseNestedMeta<'_>) -> syn::Result<Vec<
 /// Validate required prose, paths, parameters, returns, and nested members.
 pub fn validate_contract(args: &ContractArgs, target: &ContractTarget<'_>) -> syn::Result<()> {
     let ident = target.ident();
+    let use_when = args
+        .use_when
+        .as_ref()
+        .map(|values| values.iter().map(LitStr::value).collect::<Vec<_>>());
+    let avoid_when = args
+        .avoid_when
+        .as_ref()
+        .map(|values| values.iter().map(LitStr::value).collect::<Vec<_>>());
+    validate_contract_semantics(&ContractSemantics {
+        summary: args.summary.as_ref().map(LitStr::value).as_deref(),
+        context: args.context.as_ref().map(LitStr::value).as_deref(),
+        minecraft: args.minecraft.as_ref().map(LitStr::value).as_deref(),
+        use_when: use_when.as_deref(),
+        avoid_when: avoid_when.as_deref(),
+        example: args.example.as_ref().map(LitStr::value).as_deref(),
+    })
+    .map_err(|message| syn::Error::new(ident.span(), message))?;
     for (name, value) in [
         ("summary", args.summary.as_ref()),
         ("context", args.context.as_ref()),
@@ -948,5 +1032,33 @@ mod tests {
             sand_storage_generated_member_names(&input).unwrap(),
             ["SCHEMA", "mana", "school"]
         );
+    }
+
+    #[test]
+    fn prose_sentence_preserves_abbreviations_versions_paths_and_parentheses() {
+        for (documentation, expected) in [
+            (
+                "Typed identifier, e.g. `minecraft:stone`. More.",
+                "Typed identifier, e.g. `minecraft:stone`",
+            ),
+            (
+                "Use a typed value, i.e. not raw text. More.",
+                "Use a typed value, i.e. not raw text",
+            ),
+            (
+                "Available in Minecraft 1.21.5. More.",
+                "Available in Minecraft 1.21.5",
+            ),
+            (
+                "Writes data/demo/example.json. More.",
+                "Writes data/demo/example.json",
+            ),
+            (
+                "Selects a value (e.g. stone or dirt). More.",
+                "Selects a value (e.g. stone or dirt)",
+            ),
+        ] {
+            assert_eq!(first_prose_sentence(documentation), expected);
+        }
     }
 }

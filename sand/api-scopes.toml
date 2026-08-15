@@ -217,7 +217,7 @@ precedence = 200
 
 [[scope]]
 id = "generated-registry-id-wrappers"
-canonical_module = "sand::prelude"
+canonical_module = "sand::registry"
 state = "enforced"
 tier = "ordinary"
 provider = "generator:generated_registry_ids"

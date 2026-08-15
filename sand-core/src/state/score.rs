@@ -279,6 +279,10 @@ pub(crate) const SCORE_EXPRESSION_TEMP_OBJECTIVE: &str = "__sand_tmp";
 ///     MANA.add("@s", 5),
 /// ];
 /// ```
+///
+/// # API Contract
+///
+/// `sand api show sand::state::ScoreVar`
 pub struct ScoreVar<T = i32> {
     name: &'static str,
     _marker: PhantomData<T>,
@@ -289,6 +293,10 @@ impl<T> ScoreVar<T> {
     ///
     /// Names longer than 16 characters are automatically hashed to a stable
     /// 16-character objective name (see [`ScoreVar::objective_name`]).
+    ///
+    /// # API Contract
+    ///
+    /// `sand api show sand::state::ScoreVar::new`
     pub const fn new(name: &'static str) -> Self {
         Self {
             name,

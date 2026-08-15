@@ -356,44 +356,44 @@ impl std::error::Error for TickWindowError {}
 
 /// One typed bounded cross-tick correlation dependency attached to a chained
 /// event. See [`ChainEventDispatch::within`].
-pub struct BoundedEventDependency {
+pub(crate) struct BoundedEventDependency {
     #[doc(hidden)]
-    pub event_type_id: fn() -> std::any::TypeId,
+    pub(crate) event_type_id: fn() -> std::any::TypeId,
     #[doc(hidden)]
-    pub event_type_name: fn() -> &'static str,
+    pub(crate) event_type_name: fn() -> &'static str,
     #[doc(hidden)]
-    pub event_dispatch: fn() -> SandEventDispatch,
+    pub(crate) event_dispatch: fn() -> SandEventDispatch,
     #[doc(hidden)]
-    pub event_setup: fn() -> EventSetup,
+    pub(crate) event_setup: fn() -> EventSetup,
     #[doc(hidden)]
-    pub window: TickWindow,
+    pub(crate) window: TickWindow,
 }
 
 /// One typed persistent-state dependency attached to a chained event.
-pub struct PersistentEventDependency {
+pub(crate) struct PersistentEventDependency {
     #[doc(hidden)]
-    pub event_type_id: fn() -> std::any::TypeId,
+    pub(crate) event_type_id: fn() -> std::any::TypeId,
     #[doc(hidden)]
-    pub event_type_name: fn() -> &'static str,
+    pub(crate) event_type_name: fn() -> &'static str,
     #[doc(hidden)]
-    pub event_dispatch: fn() -> SandEventDispatch,
+    pub(crate) event_dispatch: fn() -> SandEventDispatch,
     #[doc(hidden)]
-    pub event_setup: fn() -> EventSetup,
+    pub(crate) event_setup: fn() -> EventSetup,
     #[doc(hidden)]
-    pub make_condition: fn() -> PersistentEventCondition,
+    pub(crate) make_condition: fn() -> PersistentEventCondition,
 }
 
 /// One typed same-cycle event occurrence dependency.
 #[derive(Clone, Copy)]
-pub struct SameCycleEventDependency {
+pub(crate) struct SameCycleEventDependency {
     #[doc(hidden)]
-    pub event_type_id: fn() -> std::any::TypeId,
+    pub(crate) event_type_id: fn() -> std::any::TypeId,
     #[doc(hidden)]
-    pub event_type_name: fn() -> &'static str,
+    pub(crate) event_type_name: fn() -> &'static str,
     #[doc(hidden)]
-    pub event_dispatch: fn() -> SandEventDispatch,
+    pub(crate) event_dispatch: fn() -> SandEventDispatch,
     #[doc(hidden)]
-    pub event_setup: fn() -> EventSetup,
+    pub(crate) event_setup: fn() -> EventSetup,
     /// `E::setup()` called directly, with no participant-plan merge — unlike
     /// `event_setup` (which is `dependency_setup`, crate-private, the
     /// participants-merged view a same-cycle child's own recursively-discovered `EventSetup`
@@ -405,18 +405,18 @@ pub struct SameCycleEventDependency {
     /// `sand-core/src/events/graph.rs`'s bridge-eligibility check and
     /// `sand-core/src/compiler/export/pipeline.rs`'s bridge loop).
     #[doc(hidden)]
-    pub event_raw_setup: fn() -> EventSetup,
+    pub(crate) event_raw_setup: fn() -> EventSetup,
     /// `E::participants()` called directly — the raw plan factory carried
     /// forward so the export pipeline can apply a bridge parent's own plan
     /// (#269).
     #[doc(hidden)]
-    pub event_participants: fn() -> crate::participant::EventParticipantPlan,
+    pub(crate) event_participants: fn() -> crate::participant::EventParticipantPlan,
     /// Whether this parent's advancement is revoked after firing —
     /// [`SandEvent::revoke`]. Only meaningful when the parent resolves to
     /// advancement-backed dispatch (#240 Phase 6); ignored for tick-backed
     /// parents, which have no advancement to revoke.
     #[doc(hidden)]
-    pub event_revoke: fn() -> bool,
+    pub(crate) event_revoke: fn() -> bool,
 }
 
 /// `E::setup()` with `E::participants()` merged in exactly the same way the
@@ -466,7 +466,7 @@ impl SameCycleEventDependency {
 }
 
 /// One explicit same-cycle occurrence clause in a composed event definition.
-pub enum SameCycleEventRequirement {
+pub(crate) enum SameCycleEventRequirement {
     /// One concrete parent must have fired.
     After(SameCycleEventDependency),
     /// At least one parent in the group must have fired.
@@ -476,7 +476,11 @@ pub enum SameCycleEventRequirement {
 }
 
 mod event_group_private {
-    pub trait Sealed {}
+    use super::ChainEventDispatch;
+
+    pub trait Sealed {
+        fn apply(dispatch: ChainEventDispatch, all: bool) -> ChainEventDispatch;
+    }
 }
 
 /// A typed tuple of two through eight concrete [`SandEvent`] parent types.
@@ -488,55 +492,77 @@ mod event_group_private {
     label = "expected a tuple of 2 through 8 concrete `SandEvent` types",
     note = "use `after::<E>()` for one parent, or `after_any::<(A, B)>()` / `after_all::<(A, B)>()` for 2 through 8 parents"
 )]
-pub trait SameCycleEventGroup: event_group_private::Sealed {
-    #[doc(hidden)]
-    fn dependencies() -> Vec<SameCycleEventDependency>;
+pub trait SameCycleEventGroup: event_group_private::Sealed {}
+
+fn apply_event_group(
+    mut dispatch: ChainEventDispatch,
+    all: bool,
+    dependencies: Vec<SameCycleEventDependency>,
+) -> ChainEventDispatch {
+    dispatch.occurrence.push(if all {
+        SameCycleEventRequirement::AfterAll(dependencies)
+    } else {
+        SameCycleEventRequirement::AfterAny(dependencies)
+    });
+    dispatch
 }
 
-impl<A: SandEvent + 'static, B: SandEvent + 'static> event_group_private::Sealed for (A, B) {}
-
-impl<A: SandEvent + 'static, B: SandEvent + 'static> SameCycleEventGroup for (A, B) {
-    fn dependencies() -> Vec<SameCycleEventDependency> {
-        vec![
-            SameCycleEventDependency::of::<A>(),
-            SameCycleEventDependency::of::<B>(),
-        ]
+impl<A: SandEvent + 'static, B: SandEvent + 'static> event_group_private::Sealed for (A, B) {
+    fn apply(dispatch: ChainEventDispatch, all: bool) -> ChainEventDispatch {
+        apply_event_group(
+            dispatch,
+            all,
+            vec![
+                SameCycleEventDependency::of::<A>(),
+                SameCycleEventDependency::of::<B>(),
+            ],
+        )
     }
 }
+
+impl<A: SandEvent + 'static, B: SandEvent + 'static> SameCycleEventGroup for (A, B) {}
 
 impl<A: SandEvent + 'static, B: SandEvent + 'static, C: SandEvent + 'static>
     event_group_private::Sealed for (A, B, C)
 {
+    fn apply(dispatch: ChainEventDispatch, all: bool) -> ChainEventDispatch {
+        apply_event_group(
+            dispatch,
+            all,
+            vec![
+                SameCycleEventDependency::of::<A>(),
+                SameCycleEventDependency::of::<B>(),
+                SameCycleEventDependency::of::<C>(),
+            ],
+        )
+    }
 }
 
 impl<A: SandEvent + 'static, B: SandEvent + 'static, C: SandEvent + 'static> SameCycleEventGroup
     for (A, B, C)
 {
-    fn dependencies() -> Vec<SameCycleEventDependency> {
-        vec![
-            SameCycleEventDependency::of::<A>(),
-            SameCycleEventDependency::of::<B>(),
-            SameCycleEventDependency::of::<C>(),
-        ]
-    }
 }
 
 impl<A: SandEvent + 'static, B: SandEvent + 'static, C: SandEvent + 'static, D: SandEvent + 'static>
     event_group_private::Sealed for (A, B, C, D)
 {
+    fn apply(dispatch: ChainEventDispatch, all: bool) -> ChainEventDispatch {
+        apply_event_group(
+            dispatch,
+            all,
+            vec![
+                SameCycleEventDependency::of::<A>(),
+                SameCycleEventDependency::of::<B>(),
+                SameCycleEventDependency::of::<C>(),
+                SameCycleEventDependency::of::<D>(),
+            ],
+        )
+    }
 }
 
 impl<A: SandEvent + 'static, B: SandEvent + 'static, C: SandEvent + 'static, D: SandEvent + 'static>
     SameCycleEventGroup for (A, B, C, D)
 {
-    fn dependencies() -> Vec<SameCycleEventDependency> {
-        vec![
-            SameCycleEventDependency::of::<A>(),
-            SameCycleEventDependency::of::<B>(),
-            SameCycleEventDependency::of::<C>(),
-            SameCycleEventDependency::of::<D>(),
-        ]
-    }
 }
 
 impl<
@@ -547,6 +573,19 @@ impl<
     E: SandEvent + 'static,
 > event_group_private::Sealed for (A, B, C, D, E)
 {
+    fn apply(dispatch: ChainEventDispatch, all: bool) -> ChainEventDispatch {
+        apply_event_group(
+            dispatch,
+            all,
+            vec![
+                SameCycleEventDependency::of::<A>(),
+                SameCycleEventDependency::of::<B>(),
+                SameCycleEventDependency::of::<C>(),
+                SameCycleEventDependency::of::<D>(),
+                SameCycleEventDependency::of::<E>(),
+            ],
+        )
+    }
 }
 
 impl<
@@ -557,15 +596,6 @@ impl<
     E: SandEvent + 'static,
 > SameCycleEventGroup for (A, B, C, D, E)
 {
-    fn dependencies() -> Vec<SameCycleEventDependency> {
-        vec![
-            SameCycleEventDependency::of::<A>(),
-            SameCycleEventDependency::of::<B>(),
-            SameCycleEventDependency::of::<C>(),
-            SameCycleEventDependency::of::<D>(),
-            SameCycleEventDependency::of::<E>(),
-        ]
-    }
 }
 
 impl<
@@ -577,6 +607,20 @@ impl<
     F: SandEvent + 'static,
 > event_group_private::Sealed for (A, B, C, D, E, F)
 {
+    fn apply(dispatch: ChainEventDispatch, all: bool) -> ChainEventDispatch {
+        apply_event_group(
+            dispatch,
+            all,
+            vec![
+                SameCycleEventDependency::of::<A>(),
+                SameCycleEventDependency::of::<B>(),
+                SameCycleEventDependency::of::<C>(),
+                SameCycleEventDependency::of::<D>(),
+                SameCycleEventDependency::of::<E>(),
+                SameCycleEventDependency::of::<F>(),
+            ],
+        )
+    }
 }
 
 impl<
@@ -588,16 +632,6 @@ impl<
     F: SandEvent + 'static,
 > SameCycleEventGroup for (A, B, C, D, E, F)
 {
-    fn dependencies() -> Vec<SameCycleEventDependency> {
-        vec![
-            SameCycleEventDependency::of::<A>(),
-            SameCycleEventDependency::of::<B>(),
-            SameCycleEventDependency::of::<C>(),
-            SameCycleEventDependency::of::<D>(),
-            SameCycleEventDependency::of::<E>(),
-            SameCycleEventDependency::of::<F>(),
-        ]
-    }
 }
 
 impl<
@@ -610,6 +644,21 @@ impl<
     G: SandEvent + 'static,
 > event_group_private::Sealed for (A, B, C, D, E, F, G)
 {
+    fn apply(dispatch: ChainEventDispatch, all: bool) -> ChainEventDispatch {
+        apply_event_group(
+            dispatch,
+            all,
+            vec![
+                SameCycleEventDependency::of::<A>(),
+                SameCycleEventDependency::of::<B>(),
+                SameCycleEventDependency::of::<C>(),
+                SameCycleEventDependency::of::<D>(),
+                SameCycleEventDependency::of::<E>(),
+                SameCycleEventDependency::of::<F>(),
+                SameCycleEventDependency::of::<G>(),
+            ],
+        )
+    }
 }
 
 impl<
@@ -622,17 +671,6 @@ impl<
     G: SandEvent + 'static,
 > SameCycleEventGroup for (A, B, C, D, E, F, G)
 {
-    fn dependencies() -> Vec<SameCycleEventDependency> {
-        vec![
-            SameCycleEventDependency::of::<A>(),
-            SameCycleEventDependency::of::<B>(),
-            SameCycleEventDependency::of::<C>(),
-            SameCycleEventDependency::of::<D>(),
-            SameCycleEventDependency::of::<E>(),
-            SameCycleEventDependency::of::<F>(),
-            SameCycleEventDependency::of::<G>(),
-        ]
-    }
 }
 
 impl<
@@ -646,6 +684,22 @@ impl<
     H: SandEvent + 'static,
 > event_group_private::Sealed for (A, B, C, D, E, F, G, H)
 {
+    fn apply(dispatch: ChainEventDispatch, all: bool) -> ChainEventDispatch {
+        apply_event_group(
+            dispatch,
+            all,
+            vec![
+                SameCycleEventDependency::of::<A>(),
+                SameCycleEventDependency::of::<B>(),
+                SameCycleEventDependency::of::<C>(),
+                SameCycleEventDependency::of::<D>(),
+                SameCycleEventDependency::of::<E>(),
+                SameCycleEventDependency::of::<F>(),
+                SameCycleEventDependency::of::<G>(),
+                SameCycleEventDependency::of::<H>(),
+            ],
+        )
+    }
 }
 
 impl<
@@ -659,18 +713,6 @@ impl<
     H: SandEvent + 'static,
 > SameCycleEventGroup for (A, B, C, D, E, F, G, H)
 {
-    fn dependencies() -> Vec<SameCycleEventDependency> {
-        vec![
-            SameCycleEventDependency::of::<A>(),
-            SameCycleEventDependency::of::<B>(),
-            SameCycleEventDependency::of::<C>(),
-            SameCycleEventDependency::of::<D>(),
-            SameCycleEventDependency::of::<E>(),
-            SameCycleEventDependency::of::<F>(),
-            SameCycleEventDependency::of::<G>(),
-            SameCycleEventDependency::of::<H>(),
-        ]
-    }
 }
 
 /// Lifecycle resources a [`SandEvent`] owns: objectives to create at load time,
@@ -946,19 +988,19 @@ impl From<TickEventDispatch> for SandEventDispatch {
 pub struct ChainEventDispatch {
     /// Explicit same-cycle occurrence clauses. Clauses are conjunctive;
     /// `AfterAny` is disjunctive only within its own parent group.
-    pub occurrence: Vec<SameCycleEventRequirement>,
+    pub(crate) occurrence: Vec<SameCycleEventRequirement>,
     /// Persistent current-state requirements, kept distinct from the
     /// same-cycle occurrence parent and from ordinary anonymous conditions.
-    pub persistent: Vec<PersistentEventDependency>,
+    pub(crate) persistent: Vec<PersistentEventDependency>,
     /// Bounded cross-tick correlation requirements. Distinct from `occurrence`
     /// (same-cycle only) and `persistent` (current state, no occurrence). See
     /// [`ChainEventDispatch::within`].
-    pub bounded: Vec<BoundedEventDependency>,
+    pub(crate) bounded: Vec<BoundedEventDependency>,
     /// Positive conditions — all must hold (ANDed) for this child to fire
     /// once its occurrence requirements are satisfied.
-    pub conditions: Vec<crate::condition::Condition>,
+    pub(crate) conditions: Vec<crate::condition::Condition>,
     /// Negative conditions — none may hold.
-    pub excluded_conditions: Vec<crate::condition::Condition>,
+    pub(crate) excluded_conditions: Vec<crate::condition::Condition>,
 }
 
 impl ChainEventDispatch {
@@ -977,10 +1019,8 @@ impl ChainEventDispatch {
     /// `G` is a tuple of two through eight concrete [`SandEvent`] types.
     /// Multiple `after_any` groups in one definition are rejected at export
     /// because their coalescing boundary would otherwise be ambiguous.
-    pub fn after_any<G: SameCycleEventGroup>(mut self) -> Self {
-        self.occurrence
-            .push(SameCycleEventRequirement::AfterAny(G::dependencies()));
-        self
+    pub fn after_any<G: SameCycleEventGroup>(self) -> Self {
+        <G as event_group_private::Sealed>::apply(self, false)
     }
 
     /// Require every event in `G` to have fired for the same subject during
@@ -988,10 +1028,8 @@ impl ChainEventDispatch {
     ///
     /// `G` is a tuple of two through eight concrete [`SandEvent`] types.
     /// Multiple `after_all` groups in one definition are rejected at export.
-    pub fn after_all<G: SameCycleEventGroup>(mut self) -> Self {
-        self.occurrence
-            .push(SameCycleEventRequirement::AfterAll(G::dependencies()));
-        self
+    pub fn after_all<G: SameCycleEventGroup>(self) -> Self {
+        <G as event_group_private::Sealed>::apply(self, true)
     }
 
     /// Require `E`'s persistent state to be true when this child is considered.

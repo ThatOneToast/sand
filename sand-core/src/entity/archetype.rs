@@ -227,6 +227,10 @@ pub(crate) struct CompiledArchetype {
 }
 
 /// Reusable lifecycle definition for entity kind `K` and state schema `S`.
+///
+/// # API Contract
+///
+/// `sand api show sand::entity::EntityArchetype`
 #[derive(Debug, Clone)]
 pub struct EntityArchetype<K, S> {
     id: ResourceLocation,
@@ -253,6 +257,10 @@ where
     /// The identifier namespaces every generated objective, marker, storage
     /// path, and helper function. The default version is the state schema
     /// version and reconciliation is version-driven.
+    ///
+    /// # API Contract
+    ///
+    /// `sand api show sand::entity::EntityArchetype::new`
     #[must_use]
     pub fn new(id: ResourceLocation) -> Self {
         let version = S::schema().version;

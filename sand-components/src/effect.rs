@@ -76,9 +76,9 @@ macro_rules! vanilla_registry_enum {
         // a new enum variant cannot become public without contract metadata.
         ::sand_api_contract::inventory::submit! {
             ::sand_api_contract::ApiRegistration {
-                canonical_path: concat!("sand::prelude::", stringify!($name)),
-                aliases: &[],
-                canonical_module: "sand::prelude",
+                canonical_path: concat!("sand::registry::", stringify!($name)),
+                aliases: &[concat!("sand::prelude::", stringify!($name))],
+                canonical_module: "sand::registry",
                 kind: ::sand_api_contract::ApiKind::Enum,
                 signature: concat!("pub enum ", stringify!($name)),
                 summary: "Names a typed vanilla Minecraft registry entry.",
@@ -88,7 +88,7 @@ macro_rules! vanilla_registry_enum {
                 avoid_when: &["Representing an arbitrary unvalidated resource location"],
                 parameters: &[],
                 returns: None,
-                example: concat!("let id = sand::prelude::", stringify!($name), "::custom(\"example:entry\")?;"),
+                example: concat!("let id = sand::registry::", stringify!($name), "::custom(\"example:entry\")?;"),
                 availability: &[],
             }
         }
@@ -96,9 +96,9 @@ macro_rules! vanilla_registry_enum {
         $(
             ::sand_api_contract::inventory::submit! {
                 ::sand_api_contract::ApiRegistration {
-                    canonical_path: concat!("sand::prelude::", stringify!($name), "::", stringify!($variant)),
-                    aliases: &[],
-                    canonical_module: "sand::prelude",
+                    canonical_path: concat!("sand::registry::", stringify!($name), "::", stringify!($variant)),
+                    aliases: &[concat!("sand::prelude::", stringify!($name), "::", stringify!($variant))],
+                    canonical_module: "sand::registry",
                     kind: ::sand_api_contract::ApiKind::Variant,
                     signature: concat!(stringify!($variant)),
                     summary: concat!("Selects Minecraft's `", $path, "` registry entry."),
@@ -108,7 +108,7 @@ macro_rules! vanilla_registry_enum {
                     avoid_when: &["Selecting a different registry entry or a modded identifier"],
                     parameters: &[],
                     returns: None,
-                    example: concat!("let id = sand::prelude::", stringify!($name), "::", stringify!($variant), ";"),
+                    example: concat!("let id = sand::registry::", stringify!($name), "::", stringify!($variant), ";"),
                     availability: &[],
                 }
             }
@@ -116,9 +116,9 @@ macro_rules! vanilla_registry_enum {
 
         ::sand_api_contract::inventory::submit! {
             ::sand_api_contract::ApiRegistration {
-                canonical_path: concat!("sand::prelude::", stringify!($name), "::Custom"),
-                aliases: &[],
-                canonical_module: "sand::prelude",
+                canonical_path: concat!("sand::registry::", stringify!($name), "::Custom"),
+                aliases: &[concat!("sand::prelude::", stringify!($name), "::Custom")],
+                canonical_module: "sand::registry",
                 kind: ::sand_api_contract::ApiKind::Variant,
                 signature: "Custom(ResourceLocation)",
                 summary: "Carries a validated custom or modded registry identifier.",
@@ -128,15 +128,15 @@ macro_rules! vanilla_registry_enum {
                 avoid_when: &["A named vanilla variant is available"],
                 parameters: &[],
                 returns: None,
-                example: concat!("let id = sand::prelude::", stringify!($name), "::custom(\"example:entry\")?;"),
+                example: concat!("let id = sand::registry::", stringify!($name), "::custom(\"example:entry\")?;"),
                 availability: &[],
             }
         }
         ::sand_api_contract::inventory::submit! {
             ::sand_api_contract::ApiRegistration {
-                canonical_path: concat!("sand::prelude::", stringify!($name), "::Custom::0"),
-                aliases: &[],
-                canonical_module: "sand::prelude",
+                canonical_path: concat!("sand::registry::", stringify!($name), "::Custom::0"),
+                aliases: &[concat!("sand::prelude::", stringify!($name), "::Custom::0")],
+                canonical_module: "sand::registry",
                 kind: ::sand_api_contract::ApiKind::Field,
                 signature: "ResourceLocation",
                 summary: "Stores the validated custom registry location.",
@@ -146,7 +146,7 @@ macro_rules! vanilla_registry_enum {
                 avoid_when: &["Constructing a built-in variant"],
                 parameters: &[],
                 returns: None,
-                example: concat!("let id = sand::prelude::", stringify!($name), "::custom(\"example:entry\")?;"),
+                example: concat!("let id = sand::registry::", stringify!($name), "::custom(\"example:entry\")?;"),
                 availability: &[],
             }
         }
@@ -176,9 +176,9 @@ macro_rules! vanilla_registry_enum {
 
         ::sand_api_contract::inventory::submit! {
             ::sand_api_contract::ApiRegistration {
-                canonical_path: concat!("sand::prelude::", stringify!($name), "::custom"),
-                aliases: &[],
-                canonical_module: "sand::prelude",
+                canonical_path: concat!("sand::registry::", stringify!($name), "::custom"),
+                aliases: &[concat!("sand::prelude::", stringify!($name), "::custom")],
+                canonical_module: concat!("sand::registry::", stringify!($name)),
                 kind: ::sand_api_contract::ApiKind::Method,
                 signature: concat!("pub fn custom(id: impl AsRef<str>) -> Result<", stringify!($name), ">"),
                 summary: "Validates and wraps a custom registry identifier.",
@@ -188,15 +188,15 @@ macro_rules! vanilla_registry_enum {
                 avoid_when: &["A named vanilla variant is available"],
                 parameters: &[::sand_api_contract::StaticApiParameter { name: "id", description: "The custom namespace:path registry identifier." }],
                 returns: Some("The typed custom registry identifier, or a validation error."),
-                example: concat!("let id = sand::prelude::", stringify!($name), "::custom(\"example:entry\")?;"),
+                example: concat!("let id = sand::registry::", stringify!($name), "::custom(\"example:entry\")?;"),
                 availability: &[],
             }
         }
         ::sand_api_contract::inventory::submit! {
             ::sand_api_contract::ApiRegistration {
-                canonical_path: concat!("sand::prelude::", stringify!($name), "::from_resource_location"),
-                aliases: &[],
-                canonical_module: "sand::prelude",
+                canonical_path: concat!("sand::registry::", stringify!($name), "::from_resource_location"),
+                aliases: &[concat!("sand::prelude::", stringify!($name), "::from_resource_location")],
+                canonical_module: concat!("sand::registry::", stringify!($name)),
                 kind: ::sand_api_contract::ApiKind::Method,
                 signature: concat!("pub fn from_resource_location(location: ResourceLocation) -> ", stringify!($name)),
                 summary: "Wraps an already validated location as a custom registry identifier.",
@@ -206,15 +206,15 @@ macro_rules! vanilla_registry_enum {
                 avoid_when: &["Parsing an unchecked string; use custom instead"],
                 parameters: &[::sand_api_contract::StaticApiParameter { name: "location", description: "The validated custom registry location." }],
                 returns: Some("The matching Custom enum variant."),
-                example: concat!("let id = sand::prelude::", stringify!($name), "::from_resource_location(sand::ResourceLocation::minecraft(\"entry\")?);"),
+                example: concat!("let id = sand::registry::", stringify!($name), "::from_resource_location(sand::ResourceLocation::minecraft(\"entry\")?);"),
                 availability: &[],
             }
         }
         ::sand_api_contract::inventory::submit! {
             ::sand_api_contract::ApiRegistration {
-                canonical_path: concat!("sand::prelude::", stringify!($name), "::as_resource_location"),
-                aliases: &[],
-                canonical_module: "sand::prelude",
+                canonical_path: concat!("sand::registry::", stringify!($name), "::as_resource_location"),
+                aliases: &[concat!("sand::prelude::", stringify!($name), "::as_resource_location")],
+                canonical_module: concat!("sand::registry::", stringify!($name)),
                 kind: ::sand_api_contract::ApiKind::Method,
                 signature: "pub fn as_resource_location(&self) -> ResourceLocation",
                 summary: "Returns this entry's validated resource location.",
@@ -224,15 +224,15 @@ macro_rules! vanilla_registry_enum {
                 avoid_when: &["Only display text is needed; use as_str or Display"],
                 parameters: &[],
                 returns: Some("The corresponding validated resource location."),
-                example: concat!("let location = sand::prelude::", stringify!($name), "::custom(\"example:entry\")?.as_resource_location();"),
+                example: concat!("let location = sand::registry::", stringify!($name), "::custom(\"example:entry\")?.as_resource_location();"),
                 availability: &[],
             }
         }
         ::sand_api_contract::inventory::submit! {
             ::sand_api_contract::ApiRegistration {
-                canonical_path: concat!("sand::prelude::", stringify!($name), "::as_str"),
-                aliases: &[],
-                canonical_module: "sand::prelude",
+                canonical_path: concat!("sand::registry::", stringify!($name), "::as_str"),
+                aliases: &[concat!("sand::prelude::", stringify!($name), "::as_str")],
+                canonical_module: concat!("sand::registry::", stringify!($name)),
                 kind: ::sand_api_contract::ApiKind::Method,
                 signature: "pub fn as_str(&self) -> String",
                 summary: "Returns this entry as namespace:path text.",
@@ -242,7 +242,7 @@ macro_rules! vanilla_registry_enum {
                 avoid_when: &["Passing a typed registry ID to another Sand API"],
                 parameters: &[],
                 returns: Some("The namespace:path registry identifier text."),
-                example: concat!("let name = sand::prelude::", stringify!($name), "::custom(\"example:entry\")?.as_str();"),
+                example: concat!("let name = sand::registry::", stringify!($name), "::custom(\"example:entry\")?.as_str();"),
                 availability: &[],
             }
         }
@@ -621,22 +621,36 @@ mod tests {
 
     #[test]
     fn generated_registry_method_catalog_signatures_are_declarations() {
-        let catalog = sand_api_contract::ApiCatalog::installed("test").unwrap();
+        let compiled_surface_items =
+            sand_api_contract::inventory::iter::<sand_api_contract::ApiRegistration>
+                .into_iter()
+                .count();
+        let catalog = sand_api_contract::ApiCatalog::installed(
+            "test",
+            sand_api_contract::ApiConfiguration {
+                surface_profile: "test".into(),
+                minecraft_version: "test".into(),
+                cargo_features: Vec::new(),
+                placeholder_codegen: false,
+                compiled_surface_items,
+            },
+        )
+        .unwrap();
         for (path, signature) in [
             (
-                "sand::prelude::EffectId::custom",
+                "sand::registry::EffectId::custom",
                 "pub fn custom(id: impl AsRef<str>) -> Result<EffectId>",
             ),
             (
-                "sand::prelude::EffectId::from_resource_location",
+                "sand::registry::EffectId::from_resource_location",
                 "pub fn from_resource_location(location: ResourceLocation) -> EffectId",
             ),
             (
-                "sand::prelude::EffectId::as_resource_location",
+                "sand::registry::EffectId::as_resource_location",
                 "pub fn as_resource_location(&self) -> ResourceLocation",
             ),
             (
-                "sand::prelude::EffectId::as_str",
+                "sand::registry::EffectId::as_str",
                 "pub fn as_str(&self) -> String",
             ),
         ] {

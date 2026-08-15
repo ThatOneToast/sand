@@ -403,6 +403,33 @@ pub mod resource_ref {
     };
 }
 
+/// Typed identifiers for Minecraft registries, including custom/modded IDs
+/// and generated vanilla status-effect and potion enums.
+///
+/// This is the canonical owner for registry-wide identifiers. The prelude
+/// reexports the same types for convenience, but prelude curation does not
+/// define their stable API identity.
+#[api(
+    path = "sand::registry",
+    module = "sand",
+    summary = "Groups typed identifiers for Minecraft registry entries.",
+    context = "Registry-specific wrappers prevent identifiers for different Minecraft registries from being mixed while retaining custom namespace:path support.",
+    minecraft = "Each wrapper serializes as the validated resource location used by its corresponding Minecraft registry.",
+    use_when = ["Passing a custom or modded registry entry to a typed Sand API", "Naming a registry entry that has no generated vanilla enum variant"],
+    avoid_when = ["A resource-file identity belongs in sand::resource_ref", "Passing an unchecked namespace:path string"],
+    example = "let item = sand::registry::ItemId::minecraft(\"diamond\")?;"
+)]
+pub mod registry {
+    pub use sand_core::{
+        BiomeId, BlockId, ChickenVariantId, ConfiguredCarverId, ConfiguredFeatureId, CowVariantId,
+        DamageTypeId, DensityFunctionId, DimensionId, DimensionTypeId, EffectId,
+        EnchantmentEffectComponentId, EnchantmentId, EntityTypeId, EquipmentModelId, ItemId,
+        NoiseId, PigVariantId, PotionId, PotionRegistryId, ProcessorListId, RandomSequenceId,
+        SoundEventId, StatusEffectId, StructureId, StructureSetId, StructureTemplateId,
+        StructureTypeId, TemplatePoolId, TradeSetId, VillagerTradeId,
+    };
+}
+
 /// Typed Minecraft-version parsing, resolved pack formats, and capability
 /// checks. Most datapacks select a target through `sand.toml`; use this module
 /// when a reusable authoring system must make an explicit version-aware choice.

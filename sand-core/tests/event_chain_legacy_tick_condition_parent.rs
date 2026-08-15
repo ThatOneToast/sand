@@ -11,29 +11,9 @@
 //! node/detector, shared by its direct handlers and its chain children, and
 //! that ordinary legacy tick events with no children remain unaffected.
 
-use sand_core::events::{
-    ChainEventDispatch, EventSetup, SameCycleEventDependency, SameCycleEventRequirement,
-    SandEventDispatch,
-};
+use sand_core::events::{ChainEventDispatch, EventSetup, SandEvent, SandEventDispatch};
 use sand_core::{EventDescriptor, EventDispatch};
 use std::any::TypeId;
-
-fn after(
-    event_type_id: fn() -> TypeId,
-    event_type_name: fn() -> &'static str,
-    event_dispatch: fn() -> SandEventDispatch,
-    event_setup: fn() -> EventSetup,
-) -> Vec<SameCycleEventRequirement> {
-    vec![SameCycleEventRequirement::After(SameCycleEventDependency {
-        event_type_id,
-        event_type_name,
-        event_dispatch,
-        event_setup,
-        event_raw_setup: event_setup,
-        event_participants: || sand_core::participant::EventParticipantPlan::none(),
-        event_revoke: || true,
-    })]
-}
 
 fn no_trigger() -> Option<sand_core::AdvancementTrigger> {
     None
@@ -55,6 +35,16 @@ fn empty_setup() -> EventSetup {
 //    one chain child ───────────────────────────────────────────────────────
 
 struct LegacyParent;
+
+impl SandEvent for LegacyParent {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        SandEventDispatch::TickCondition(legacy_parent_condition().unwrap())
+    }
+
+    fn setup() -> EventSetup {
+        legacy_parent_setup()
+    }
+}
 
 fn legacy_parent_condition() -> Option<String> {
     Some("score @s legacy matches 1".to_string())
@@ -122,24 +112,11 @@ sand_core::inventory::submit! {
 struct LegacyChild;
 
 fn legacy_child_chain() -> Option<ChainEventDispatch> {
-    Some(ChainEventDispatch {
-        occurrence: after(
-            legacy_parent_type_id,
-            legacy_parent_type_name,
-            || {
-                sand_core::events::SandEventDispatch::TickCondition(
-                    legacy_parent_condition().unwrap(),
-                )
-            },
-            legacy_parent_setup,
-        ),
-        persistent: vec![],
-        bounded: vec![],
-        conditions: vec![sand_core::condition::Condition::raw(
+    Some(
+        SandEventDispatch::chain::<LegacyParent>().when(sand_core::condition::Condition::raw(
             "score @s legchild matches 1",
-        )],
-        excluded_conditions: vec![],
-    })
+        )),
+    )
 }
 fn legacy_child_type_id() -> TypeId {
     TypeId::of::<LegacyChild>()
@@ -179,13 +156,16 @@ fn no_condition_none() -> Option<String> {
 
 struct LegacyOrphanParent;
 
+impl SandEvent for LegacyOrphanParent {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        legacy_orphan_parent_dispatch()
+    }
+}
+
 fn legacy_orphan_parent_dispatch() -> sand_core::events::SandEventDispatch {
     sand_core::events::SandEventDispatch::TickCondition(
         "score @s legacy_orphan matches 1".to_string(),
     )
-}
-fn legacy_orphan_parent_type_id() -> TypeId {
-    TypeId::of::<LegacyOrphanParent>()
 }
 fn legacy_orphan_parent_type_name() -> &'static str {
     std::any::type_name::<LegacyOrphanParent>()
@@ -194,18 +174,7 @@ fn legacy_orphan_parent_type_name() -> &'static str {
 struct LegacyOrphanChild;
 
 fn legacy_orphan_child_chain() -> Option<ChainEventDispatch> {
-    Some(ChainEventDispatch {
-        occurrence: after(
-            legacy_orphan_parent_type_id,
-            legacy_orphan_parent_type_name,
-            legacy_orphan_parent_dispatch,
-            EventSetup::none,
-        ),
-        persistent: vec![],
-        bounded: vec![],
-        conditions: vec![],
-        excluded_conditions: vec![],
-    })
+    Some(SandEventDispatch::chain::<LegacyOrphanParent>())
 }
 fn legacy_orphan_child_type_id() -> TypeId {
     TypeId::of::<LegacyOrphanChild>()

@@ -101,11 +101,11 @@ fn reads_attribute_members_and_facade_provider_contracts() {
         )]
         pub enum Mode { All }
 
-        register! {
+        register_component_api! {
             path: "sand::predicate::check",
             aliases: ["sand::prelude::check"],
-            params: ["value" => "The value to check."],
-            returns: Some("A condition."),
+            kind: Function,
+            summary: "Checks a predicate value."
         }
         "#,
     )
@@ -236,9 +236,11 @@ fn resolves_paths_to_one_underlying_identity_and_rejects_bogus_aliases() {
     std::fs::write(
         &source,
         r#"
-        register! {
+        register_component_api! {
             path: "sand::predicate::Predicate",
             aliases: ["sand::prelude::Predicate"],
+            kind: Struct,
+            summary: "Builds a predicate."
         }
         "#,
     )
@@ -275,8 +277,8 @@ fn duplicate_contracts_for_aliases_of_one_item_fail() {
     std::fs::write(
         &source,
         r#"
-        register! { path: "sand::predicate::Predicate", aliases: [] }
-        register! { path: "sand::prelude::Predicate", aliases: [] }
+        register_component_api! { path: "sand::predicate::Predicate", aliases: [], kind: Struct, summary: "Builds a predicate." }
+        register_component_api! { path: "sand::prelude::Predicate", aliases: [], kind: Struct, summary: "Builds the same predicate." }
         "#,
     )
     .unwrap();
@@ -286,6 +288,129 @@ fn duplicate_contracts_for_aliases_of_one_item_fail() {
         failures.as_slice(),
         [ContractSourceError::DuplicateIdentity { .. }]
     ));
+}
+
+#[test]
+fn facade_contracts_use_the_shared_semantic_validator() {
+    let temp = tempdir().unwrap();
+    let source = temp.path().join("contracts.rs");
+    std::fs::write(
+        &source,
+        r#"register_entity_api! {
+            path: "sand::entity::EntityArchetype::new",
+            aliases: [],
+            kind: Method,
+            summary: ""
+        }"#,
+    )
+    .unwrap();
+    let error = contract_declarations_from_files([source]).unwrap_err();
+    assert!(error.to_string().contains("summary") && error.to_string().contains("cannot be empty"));
+}
+
+#[test]
+fn facade_contract_kind_must_match_the_reachable_definition() {
+    let reachable = vec![api("lower::Thing", &["sand::topic::Thing"])];
+    let temp = tempdir().unwrap();
+    let source = temp.path().join("contracts.rs");
+    std::fs::write(
+        &source,
+        r#"register_component_api! {
+            path: "sand::topic::Thing",
+            aliases: [],
+            kind: Enum,
+            summary: "Names a typed thing."
+        }"#,
+    )
+    .unwrap();
+    let declarations = contract_declarations_from_files([source]).unwrap();
+    let error = resolve_contract_identities(&reachable, &declarations).unwrap_err();
+    assert!(matches!(
+        error.as_slice(),
+        [ContractSourceError::InvalidFacadeContract { .. }]
+    ));
+}
+
+#[test]
+fn facade_callable_shape_is_validated_against_the_reachable_definition() {
+    let temp = tempdir().unwrap();
+    let facade = temp.path().join("sand.rs");
+    let implementation = temp.path().join("lower.rs");
+    std::fs::write(&facade, "pub use lower::build;\n").unwrap();
+    std::fs::write(
+        &implementation,
+        "pub fn build(value: u32) -> String { value.to_string() }\n",
+    )
+    .unwrap();
+    let graph = SurfaceGraph::load(
+        [
+            SourceCrate {
+                name: "sand".into(),
+                root: facade,
+            },
+            SourceCrate {
+                name: "lower".into(),
+                root: implementation,
+            },
+        ],
+        [],
+        [],
+    )
+    .unwrap();
+    let reachable = graph.reachable_from("sand").unwrap();
+
+    for (signature, params, returns, expected) in [
+        (
+            "fn build(value: u64) -> String",
+            r#"["value" => "Input."]"#,
+            "Some(\"Text.\")",
+            "stale signature",
+        ),
+        (
+            "fn build(value: u32) -> String",
+            "[]",
+            "Some(\"Text.\")",
+            "parameter metadata",
+        ),
+        (
+            "fn build(value: u32) -> String",
+            r#"["value" => "Input.", "extra" => "Missing."]"#,
+            "Some(\"Text.\")",
+            "parameter metadata",
+        ),
+        (
+            "fn build(value: u32) -> String",
+            r#"["value" => "Input."]"#,
+            "None",
+            "return metadata",
+        ),
+    ] {
+        let contracts = temp.path().join("contracts.rs");
+        std::fs::write(
+            &contracts,
+            format!(
+                r#"register! {{
+                path: "sand::build",
+                aliases: [],
+                module: "sand",
+                kind: Function,
+                signature: "{signature}",
+                summary: "Builds text from a value.",
+                context: "This fixture validates facade structure.",
+                minecraft: "It emits no Minecraft data.",
+                use_when: ["Testing facade validation"],
+                avoid_when: ["Authoring a datapack"],
+                params: {params},
+                returns: {returns},
+                example: "let text = build(1);"
+            }}"#
+            ),
+        )
+        .unwrap();
+        let declarations = contract_declarations_from_files([contracts]).unwrap();
+        let errors = resolve_contract_identities(&reachable, &declarations).unwrap_err();
+        assert!(errors[0].to_string().contains(expected), "{errors:?}");
+    }
 }
 
 #[test]
@@ -305,7 +430,7 @@ fn repository_contract_sources_are_the_actual_authored_declarations() {
         workspace.join("sand-core/src/vfx.rs"),
     ])
     .unwrap();
-    assert_eq!(declarations.len(), 4_419);
+    assert_eq!(declarations.len(), 4_387);
     assert_eq!(
         declarations.first().unwrap().canonical_path,
         "sand::EntityStateEnum"

@@ -22,8 +22,9 @@ mod reachable;
 mod scope;
 
 pub use contract_source::{
-    ContractDeclaration, ContractSourceError, contract_declarations_from_files,
-    resolve_contract_identities, validate_contract_lookup_namespace,
+    ContractDeclaration, ContractSourceError, DefinitionShape, contract_declarations_from_files,
+    definition_shape, definition_shapes, resolve_contract_identities,
+    validate_contract_lookup_namespace,
 };
 pub use features::discover_facade_feature_union;
 pub use macro_provider::{

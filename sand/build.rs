@@ -281,6 +281,7 @@ fn main() {
         &report,
         &reachable,
         &installed_reachable,
+        &source_declarations,
         InstalledConfiguration {
             features: &installed_features,
             profile,
@@ -669,6 +670,7 @@ fn write_coverage(
     report: &sand_api_enforce::ScopeReport,
     reachable: &[sand_api_enforce::ReachableApi],
     installed_reachable: &[sand_api_enforce::ReachableApi],
+    source_declarations: &[sand_api_enforce::ContractDeclaration],
     installed: InstalledConfiguration<'_>,
 ) {
     let mut pending = report
@@ -750,6 +752,136 @@ fn write_coverage(
         writeln!(generated, "{path:?},").unwrap();
     }
     generated.push_str("];\n");
+    generated.push_str("pub static INSTALLED_FACADE_CONTRACTS: &[ApiRegistration] = &[\n");
+    let mut installed_facades = source_declarations
+        .iter()
+        .filter_map(|declaration| {
+            declaration
+                .facade
+                .as_ref()
+                .map(|facade| (declaration, facade))
+        })
+        .collect::<Vec<_>>();
+    installed_facades.sort_by_key(|(declaration, _)| declaration.canonical_path.as_str());
+    let mut facade_registrations = String::new();
+    for (declaration, facade) in &installed_facades {
+        facade_registrations.push_str(
+            "sand_api_contract::inventory::submit! { sand_api_contract::ApiRegistration {\n",
+        );
+        writeln!(
+            facade_registrations,
+            "canonical_path: {:?},",
+            declaration.canonical_path
+        )
+        .unwrap();
+        facade_registrations.push_str("aliases: &[");
+        for alias in &declaration.aliases {
+            write!(facade_registrations, "{alias:?},").unwrap();
+        }
+        writeln!(
+            facade_registrations,
+            "], canonical_module: {:?},",
+            facade.canonical_module
+        )
+        .unwrap();
+        writeln!(
+            facade_registrations,
+            "kind: sand_api_contract::ApiKind::{:?},",
+            facade.kind
+        )
+        .unwrap();
+        writeln!(
+            facade_registrations,
+            "signature: {:?},",
+            facade.runtime_signature
+        )
+        .unwrap();
+        writeln!(facade_registrations, "summary: {:?},", facade.summary).unwrap();
+        writeln!(facade_registrations, "context: {:?},", facade.context).unwrap();
+        writeln!(facade_registrations, "minecraft: {:?},", facade.minecraft).unwrap();
+        facade_registrations.push_str("use_when: &[");
+        for value in &facade.use_when {
+            write!(facade_registrations, "{value:?},").unwrap();
+        }
+        facade_registrations.push_str("], avoid_when: &[");
+        for value in &facade.avoid_when {
+            write!(facade_registrations, "{value:?},").unwrap();
+        }
+        facade_registrations.push_str("], parameters: &[");
+        for (name, description) in &facade.parameter_docs {
+            write!(facade_registrations, "sand_api_contract::StaticApiParameter {{ name: {name:?}, description: {description:?} }},").unwrap();
+        }
+        facade_registrations.push_str("], returns: ");
+        match &facade.return_doc {
+            Some(value) => write!(facade_registrations, "Some({value:?})").unwrap(),
+            None => facade_registrations.push_str("None"),
+        }
+        writeln!(facade_registrations, ", example: {:?},", facade.example).unwrap();
+        facade_registrations.push_str("availability: &[");
+        for value in &facade.availability {
+            write!(facade_registrations, "{value:?},").unwrap();
+        }
+        facade_registrations.push_str("], } }\n");
+
+        generated.push_str("ApiRegistration {\n");
+        writeln!(
+            generated,
+            "canonical_path: {:?},",
+            declaration.canonical_path
+        )
+        .unwrap();
+        generated.push_str("aliases: &[");
+        for alias in &declaration.aliases {
+            write!(generated, "{alias:?},").unwrap();
+        }
+        generated.push_str("],\n");
+        writeln!(
+            generated,
+            "canonical_module: {:?},",
+            facade.canonical_module
+        )
+        .unwrap();
+        writeln!(generated, "kind: ApiKind::{:?},", facade.kind).unwrap();
+        writeln!(generated, "signature: {:?},", facade.runtime_signature).unwrap();
+        writeln!(generated, "summary: {:?},", facade.summary).unwrap();
+        writeln!(generated, "context: {:?},", facade.context).unwrap();
+        writeln!(generated, "minecraft: {:?},", facade.minecraft).unwrap();
+        generated.push_str("use_when: &[");
+        for value in &facade.use_when {
+            write!(generated, "{value:?},").unwrap();
+        }
+        generated.push_str("],\navoid_when: &[");
+        for value in &facade.avoid_when {
+            write!(generated, "{value:?},").unwrap();
+        }
+        generated.push_str("],\nparameters: &[");
+        for (name, description) in &facade.parameter_docs {
+            write!(
+                generated,
+                "StaticApiParameter {{ name: {name:?}, description: {description:?} }},"
+            )
+            .unwrap();
+        }
+        generated.push_str("],\n");
+        match &facade.return_doc {
+            Some(value) => writeln!(generated, "returns: Some({value:?}),").unwrap(),
+            None => generated.push_str("returns: None,\n"),
+        }
+        writeln!(generated, "example: {:?},", facade.example).unwrap();
+        generated.push_str("availability: &[");
+        for value in &facade.availability {
+            write!(generated, "{value:?},").unwrap();
+        }
+        generated.push_str("],\n},\n");
+    }
+    generated.push_str("];\n");
+    generated.push_str("pub static INSTALLED_FAMILY_API_PATHS: &[&str] = &[\n");
+    for (declaration, facade) in installed_facades {
+        if facade.family {
+            writeln!(generated, "{:?},", declaration.canonical_path).unwrap();
+        }
+    }
+    generated.push_str("];\n");
     generated.push_str(
         "pub type InstalledApiShape = (&'static [&'static str], &'static str, &'static [(&'static str, &'static str)], Option<&'static str>, &'static str, bool);\n",
     );
@@ -792,6 +924,9 @@ fn write_coverage(
     );
 
     let output_dir = PathBuf::from(env::var_os("OUT_DIR").expect("Cargo provides OUT_DIR"));
+    let facade_output = output_dir.join("api_facade_registrations.rs");
+    fs::write(&facade_output, facade_registrations)
+        .unwrap_or_else(|error| panic!("failed to write {}: {error}", facade_output.display()));
     let output = output_dir.join("api_coverage.rs");
     fs::write(&output, generated)
         .unwrap_or_else(|error| panic!("failed to write {}: {error}", output.display()));

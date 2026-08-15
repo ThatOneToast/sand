@@ -1,6 +1,9 @@
+use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
+
+use sand_api_contract::ApiKind;
 
 #[test]
 fn rendered_rustdoc_links_every_contract_production_mechanism() {
@@ -59,5 +62,108 @@ fn rendered_rustdoc_links_every_contract_production_mechanism() {
         );
     }
 
+    for relative in [
+        "resourcepack/struct.Color.html",
+        "component/struct.Advancement.html",
+    ] {
+        let page = target.join("doc/sand").join(relative);
+        let html = fs::read_to_string(&page)
+            .unwrap_or_else(|error| panic!("failed to read {}: {error}", page.display()));
+        assert!(
+            html.contains("API Contract") && html.contains("sand api show"),
+            "{} has no direct contract discovery guidance",
+            page.display()
+        );
+    }
+
+    let family_paths = sand::__private::api_contract::INSTALLED_FAMILY_API_PATHS
+        .iter()
+        .copied()
+        .collect::<BTreeSet<_>>();
+    let registrations = sand::__private::api_contract::INSTALLED_FACADE_CONTRACTS;
+    let mut family_pages = BTreeSet::new();
+    for registration in registrations
+        .iter()
+        .filter(|registration| family_paths.contains(registration.canonical_path))
+        .filter(|registration| {
+            [
+                "sand::component::",
+                "sand::condition::",
+                "sand::data::",
+                "sand::entity::",
+                "sand::execute_when::",
+                "sand::inventory::",
+                "sand::participant::",
+                "sand::predicate::",
+                "sand::registry::",
+                "sand::resource_ref::",
+                "sand::resourcepack::",
+                "sand::state::",
+                "sand::systems::",
+                "sand::text::",
+                "sand::version::",
+            ]
+            .iter()
+            .any(|prefix| registration.canonical_path.starts_with(prefix))
+        })
+    {
+        let owner = registrations
+            .iter()
+            .filter(|candidate| {
+                page_prefix(candidate.kind).is_some()
+                    && (candidate.canonical_path == registration.canonical_path
+                        || registration
+                            .canonical_path
+                            .strip_prefix(candidate.canonical_path)
+                            .is_some_and(|suffix| suffix.starts_with("::")))
+            })
+            .max_by_key(|candidate| candidate.canonical_path.len())
+            .unwrap_or_else(|| panic!("no Rustdoc owner for {}", registration.canonical_path));
+        family_pages.insert((rustdoc_page(owner), owner.canonical_path));
+    }
+    for (relative, owner) in family_pages {
+        let page = target.join("doc/sand").join(&relative);
+        let html = fs::read_to_string(&page).unwrap_or_else(|error| {
+            panic!("failed to read {} for {owner}: {error}", page.display())
+        });
+        assert!(
+            html.contains("API Contract") && html.contains("sand api show"),
+            "{} ({owner}) has no direct contract discovery guidance",
+            page.display()
+        );
+    }
+
     fs::remove_dir_all(&target).expect("remove isolated rustdoc target");
+}
+
+fn page_prefix(kind: ApiKind) -> Option<&'static str> {
+    Some(match kind {
+        ApiKind::Module => "module",
+        ApiKind::Struct => "struct",
+        ApiKind::Enum => "enum",
+        ApiKind::Trait => "trait",
+        ApiKind::TypeAlias => "type",
+        ApiKind::Function => "fn",
+        ApiKind::Constant => "constant",
+        ApiKind::Macro => "macro",
+        _ => return None,
+    })
+}
+
+fn rustdoc_page(registration: &sand_api_contract::ApiRegistration) -> String {
+    let mut segments = registration
+        .canonical_path
+        .split("::")
+        .skip(1)
+        .collect::<Vec<_>>();
+    if registration.kind == ApiKind::Module {
+        return format!("{}/index.html", segments.join("/"));
+    }
+    let name = segments.pop().expect("non-module API has a name");
+    let filename = format!("{}.{}.html", page_prefix(registration.kind).unwrap(), name);
+    if segments.is_empty() {
+        filename
+    } else {
+        format!("{}/{filename}", segments.join("/"))
+    }
 }

@@ -321,6 +321,7 @@ impl ApiCatalog {
         let words = query
             .split_whitespace()
             .map(normalize_search_word)
+            .filter(|word| !word.is_empty())
             .collect::<Vec<_>>();
         if words.is_empty() {
             return Vec::new();
@@ -579,13 +580,29 @@ fn validate_resolved_quality(entries: &[ApiEntry]) -> Result<(), CatalogError> {
         if matches!(
             entry.kind,
             ApiKind::Function | ApiKind::Method | ApiKind::TraitMethod
-        ) && entry.example.trim().starts_with("use sand::")
-            && entry.example.trim().lines().count() == 1
-        {
-            return Err(CatalogError::InvalidEntry {
-                path: entry.canonical_path.clone(),
-                message: "nontrivial callable requires a behavioral example".into(),
-            });
+        ) {
+            if entry.example.trim().starts_with("use sand::")
+                && entry.example.trim().lines().count() == 1
+            {
+                return Err(CatalogError::InvalidEntry {
+                    path: entry.canonical_path.clone(),
+                    message: "nontrivial callable requires a behavioral example".into(),
+                });
+            }
+            if [
+                "This declaration belongs to Sand's typed entity model.",
+                "This declaration provides the typed scoreboard or lifecycle primitives",
+                "This opt-in system composes Sand's typed primitives",
+                "This semantic component model describes a datapack resource",
+            ]
+            .iter()
+            .any(|template| entry.context.starts_with(template))
+            {
+                return Err(CatalogError::InvalidEntry {
+                    path: entry.canonical_path.clone(),
+                    message: "callable context is unresolved family-level prose".into(),
+                });
+            }
         }
     }
     Ok(())
@@ -831,6 +848,11 @@ mod tests {
         );
         assert_eq!(
             catalog.search("equipment missing")[0].canonical_path,
+            REGISTRATION.canonical_path
+        );
+        assert!(catalog.search("!!!").is_empty());
+        assert_eq!(
+            catalog.search("!!! equipment ???")[0].canonical_path,
             REGISTRATION.canonical_path
         );
     }

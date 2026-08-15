@@ -68,6 +68,7 @@ mod api_contracts;
 /// import needed. See each macro's own docs for attribute syntax and
 /// generated code; `#[function]`/`#[datapack_component]`/`#[on_event]` bodies are only
 /// meaningful when compiled through `sand build`.
+#[doc = include_str!("api_contract_rustdoc.md")]
 pub use sand_macros::{
     armor_event, custom_item, datapack_component, entity_archetype, function, on_event, run_fn,
     schedule,
@@ -78,9 +79,11 @@ pub use sand_macros::{
 /// `State` validates schema metadata, generates concrete bound views, and
 /// registers scope-aware lifecycle metadata; `EntityStateEnum` maps fieldless
 /// enum variants to scoreboard integers.
+#[doc = include_str!("api_contract_rustdoc.md")]
 pub use sand_macros::{EntityStateEnum, State};
 
 /// Defines the authoritative contract for a supported Sand public API item.
+#[doc = include_str!("api_contract_rustdoc.md")]
 pub use sand_macros::api;
 
 /// `#[derive(SandStorage)]` — generates a typed [`data::StorageSchema`] and
@@ -89,6 +92,7 @@ pub use sand_macros::api;
 /// The typed way to declare a datapack's NBT storage shape without hand-
 /// writing storage IDs or NBT paths at each call site. See the macro's own
 /// docs for the generated API and `#[sand(path = "...")]` field overrides.
+#[doc = include_str!("api_contract_rustdoc.md")]
 pub use sand_macros::SandStorage;
 
 /// `hud_bar!`, `hud_element!`, and `texture!` — declarative resource-pack
@@ -97,6 +101,7 @@ pub use sand_macros::SandStorage;
 /// [`resourcepack`] (the `sand-resourcepack` crate), which provides the types
 /// these macros construct.
 #[cfg(feature = "resourcepack")]
+#[doc = include_str!("api_contract_rustdoc.md")]
 pub use sand_macros::{hud_bar, hud_element, texture};
 
 // ── Declarative macros (defined in the implementation crate) ─────────────────
@@ -105,6 +110,7 @@ pub use sand_macros::{hud_bar, hud_element, texture};
 /// `mcfunction!` builds a `Vec<String>` of commands from semicolon-separated
 /// expressions. These expression macros are defined in the implementation
 /// crate and re-exported here so `sand::` is the only path authors need.
+#[doc = include_str!("api_contract_rustdoc.md")]
 pub use sand_core::{all, any, mcfunction};
 
 // ── Prelude ───────────────────────────────────────────────────────────────────
@@ -121,12 +127,14 @@ pub mod prelude;
 /// generic code taking `impl Fn() -> Vec<String>`). Every command builder
 /// implements `Display`, so `.to_string()` (or letting `mcfunction!`/
 /// `#[function]` collect it) produces the literal Minecraft command text.
+#[doc = include_str!("api_contract_rustdoc.md")]
 pub use sand_core::cmd as command;
 
 /// Same module as [`command`]; kept under its conventional short name because
 /// generated code and examples call helpers as `cmd::say(...)`. Both paths
 /// point at the identical module — use whichever reads better at the call
 /// site.
+#[doc = include_str!("api_contract_rustdoc.md")]
 pub use sand_core::cmd;
 
 /// The typed event model: [`event::Event`], `AdvancementEvent` (custom
@@ -137,6 +145,7 @@ pub use sand_core::cmd;
 /// (`event.player()`); ordinary `#[on_event]` handlers for built-in vanilla
 /// events usually only need the handler parameter type, exported from here
 /// (e.g. `sand::event::vanilla::OnDeath`) as shown in the crate-level example.
+#[doc = include_str!("api_contract_rustdoc.md")]
 pub use sand_core::event;
 
 /// The event graph/dispatch surface backing `#[on_event]` and tick-driven custom
@@ -146,6 +155,7 @@ pub use sand_core::event;
 /// when composing a custom event out of another event's detection logic
 /// (`SandEventDispatch::chain::<Parent>()`) instead of writing a fresh
 /// tick-poll condition from scratch.
+#[doc = include_str!("api_contract_rustdoc.md")]
 pub use sand_core::events;
 
 /// Custom items: `CustomItem` (the builder passed to `#[custom_item]`), item stack
@@ -153,6 +163,7 @@ pub use sand_core::events;
 /// Use this when building or matching custom items outside a `#[custom_item]`
 /// function body — for example, constructing an `ItemPredicate` to gate an
 /// event or `execute if items` check.
+#[doc = include_str!("api_contract_rustdoc.md")]
 pub use sand_core::item;
 
 /// Typed live inventory locations. [`inventory::ItemLocation`] is the canonical model;
@@ -169,7 +180,9 @@ pub use sand_core::item;
     avoid_when = ["Reading an offline snapshot or arbitrary NBT path"],
     example = "let slot = sand::inventory::EntityInventory::hotbar(0)?;"
 )]
+#[doc = include_str!("api_contract_rustdoc.md")]
 pub mod inventory {
+    #[doc = include_str!("api_contract_rustdoc.md")]
     pub use sand_core::item::{
         BlockInventory, ContainerIndex, EnderChestIndex, EntityInventory, EntityInventorySlot,
         HotbarIndex, InventoryIndex, ItemLocation, ItemLocationError, MainInventoryIndex,
@@ -190,7 +203,9 @@ pub mod inventory {
     avoid_when = ["Tracking mutable runtime state", "Performing scoreboard arithmetic"],
     example = "use sand::predicate::{Predicate, PredicateRoot};"
 )]
+#[doc = include_str!("api_contract_rustdoc.md")]
 pub mod predicate {
+    #[doc = include_str!("api_contract_rustdoc.md")]
     pub use sand_components::{
         BlockPredicate, DamagePredicate, DamageSourcePredicate, DistancePredicate, EffectPredicate,
         EntityEquipment, EntityFlags, EntityPredicate, EntityPredicateTarget, FloatRange, IntRange,
@@ -201,7 +216,9 @@ pub mod predicate {
 /// State implementation primitives and typed storage/NBT schemas. Ordinary
 /// authoring uses [`State`] with `#[state(...)]`; this module remains available
 /// for deliberate helpers over typed score and storage representations.
+#[doc = include_str!("api_contract_rustdoc.md")]
 pub mod state {
+    #[doc = include_str!("api_contract_rustdoc.md")]
     pub use sand_core::state::{
         BlockNbt, Cooldown, DataCommand, EntityNbt, Flag, FlagRef, FlowTransitionBuilder,
         GameState, GameStateRef, IntoStateCommands, Nbt, NbtLocation, NbtPath, NbtRef, NbtTarget,
@@ -260,7 +277,9 @@ pub mod state {
     avoid_when = ["Addressing a one-off command token already covered by the command module", "Representing a durable entity identity outside an execution context"],
     example = "let players = sand::entity::EntityQueries::players();"
 )]
+#[doc = include_str!("api_contract_rustdoc.md")]
 pub mod entity {
+    #[doc = include_str!("api_contract_rustdoc.md")]
     pub use sand_core::entity::{
         Adoption, AdoptionSource, AnyEntity, AttributeBinding, AttributeModifierBinding,
         CurrentHealthSync, CurveEvaluationError, CurveInputs, DEFAULT_FIXED_POINT_SCALE,
@@ -312,7 +331,9 @@ pub mod entity {
 /// Compiler capture records and transport bookkeeping remain behind Sand's
 /// implementation boundary; this module exposes only the semantic roles,
 /// lifetimes, references, snapshots, and plans used by datapack authors.
+#[doc = include_str!("api_contract_rustdoc.md")]
 pub mod participant {
+    #[doc = include_str!("api_contract_rustdoc.md")]
     pub use sand_core::participant::{
         BoundedItemSnapshot, CorrelatedEntityObservation, CorrelationEvidence, CorrelationSource,
         DuplicateParticipantRole, EntityParticipant, EntityParticipantRole, EventParticipantPlan,
@@ -331,10 +352,13 @@ pub mod participant {
 /// `trailhead_dialog()`, which returns `Dialog`) are exported as generated
 /// JSON resources. Most individual builder types (`Advancement`,
 /// `LootTable`, `Dialog`, …) are also re-exported from the [`prelude`].
+#[doc = include_str!("api_contract_rustdoc.md")]
 pub mod component {
+    #[doc = include_str!("api_contract_rustdoc.md")]
     pub use sand_components::dialog::{
         Dialog, DialogAction, DialogBody, DialogButton, DialogKind, DialogTag,
     };
+    #[doc = include_str!("api_contract_rustdoc.md")]
     pub use sand_components::{
         BannerPattern, CarverFloatRange, CarvingStep, CaveCarverConfig, ChatDecoration,
         ChatDecorationParameter, ChatStyle, ChatType, ConfiguredCarver, ConfiguredFeature,
@@ -345,6 +369,7 @@ pub mod component {
         StatusEffectInstance, StructureTemplate, SuspiciousStewEffect, TagEntry, TagRegistry,
         TypedTag,
     };
+    #[doc = include_str!("api_contract_rustdoc.md")]
     pub use sand_core::components::*;
 }
 
@@ -363,7 +388,9 @@ pub mod component {
     avoid_when = ["Choosing Rust generation-time control flow", "Hand-writing execute syntax that an existing typed condition represents"],
     example = "let ready = Condition::entity(Selector::self_().tag(\"ready\"));"
 )]
+#[doc = include_str!("api_contract_rustdoc.md")]
 pub mod condition {
+    #[doc = include_str!("api_contract_rustdoc.md")]
     pub use sand_core::condition::*;
 }
 
@@ -382,7 +409,9 @@ pub mod condition {
     avoid_when = ["A typed command builder already exposes the required conditional form", "Rust control flow is being used only to decide what code to generate"],
     example = "when(READY.of(\"@s\").is_true()).then_one(\"say ready\");"
 )]
+#[doc = include_str!("api_contract_rustdoc.md")]
 pub mod execute_when {
+    #[doc = include_str!("api_contract_rustdoc.md")]
     pub use sand_core::execute_when::*;
 }
 
@@ -397,7 +426,9 @@ pub mod execute_when {
     avoid_when = ["Building the JSON payload of the resource itself", "Passing an unchecked namespace:path string to a typed API"],
     example = "let dialog = resource_ref::DialogId::local(\"welcome\");"
 )]
+#[doc = include_str!("api_contract_rustdoc.md")]
 pub mod resource_ref {
+    #[doc = include_str!("api_contract_rustdoc.md")]
     pub use sand_core::resource_ref::{
         AdvancementId, DialogId, FunctionId, LootTableId, PredicateId, RecipeId,
     };
@@ -419,7 +450,9 @@ pub mod resource_ref {
     avoid_when = ["A resource-file identity belongs in sand::resource_ref", "Passing an unchecked namespace:path string"],
     example = "let item = sand::registry::ItemId::minecraft(\"diamond\")?;"
 )]
+#[doc = include_str!("api_contract_rustdoc.md")]
 pub mod registry {
+    #[doc = include_str!("api_contract_rustdoc.md")]
     pub use sand_core::{
         BiomeId, BlockId, ChickenVariantId, ConfiguredCarverId, ConfiguredFeatureId, CowVariantId,
         DamageTypeId, DensityFunctionId, DimensionId, DimensionTypeId, EffectId,
@@ -443,7 +476,9 @@ pub mod registry {
     avoid_when = ["Driving Sand's generated export wiring directly", "Passing an unvalidated version string between APIs"],
     example = "let version = sand::version::MinecraftVersion::parse(\"1.21.4\")?;"
 )]
+#[doc = include_str!("api_contract_rustdoc.md")]
 pub mod version {
+    #[doc = include_str!("api_contract_rustdoc.md")]
     pub use sand_core::version::{
         LATEST_KNOWN, MinecraftVersion, PackMetadata, VersionError, VersionFeature, VersionProfile,
     };
@@ -453,6 +488,7 @@ pub mod version {
 /// `VfxStep` enum used to build a reusable, composable effect
 /// (`Vfx::new(name).particle(...).sound(...)`) that emits its commands with
 /// `.play_at(selector)`.
+#[doc = include_str!("api_contract_rustdoc.md")]
 pub use sand_core::vfx;
 
 /// Optional higher-level gameplay systems built from Sand's typed state,
@@ -461,24 +497,33 @@ pub use sand_core::vfx;
 /// Export registries, lifecycle bookkeeping, and generated tick-command
 /// drains stay internal; each feature exposes only the semantic builder or
 /// registration API a datapack author uses.
+#[doc = include_str!("api_contract_rustdoc.md")]
 pub mod systems {
     #[cfg(feature = "systems-damage")]
+    #[doc = include_str!("api_contract_rustdoc.md")]
     pub mod damage {
+        #[doc = include_str!("api_contract_rustdoc.md")]
         pub use sand_core::systems::damage::{DamageThreshold, DamageTracker, recently_damaged};
     }
 
     #[cfg(feature = "systems-cooldowns")]
+    #[doc = include_str!("api_contract_rustdoc.md")]
     pub mod cooldowns {
+        #[doc = include_str!("api_contract_rustdoc.md")]
         pub use sand_core::systems::cooldowns::register_cooldown;
     }
 
     #[cfg(feature = "systems-lifecycle")]
+    #[doc = include_str!("api_contract_rustdoc.md")]
     pub mod lifecycle {
+        #[doc = include_str!("api_contract_rustdoc.md")]
         pub use sand_core::systems::lifecycle::{FirstJoinCommands, RespawnCommands};
     }
 
     #[cfg(feature = "systems-player-data")]
+    #[doc = include_str!("api_contract_rustdoc.md")]
     pub mod player_data {
+        #[doc = include_str!("api_contract_rustdoc.md")]
         pub use sand_core::systems::player_data::{
             CooldownField, CooldownFieldRef, FlagField, GameStateField, GlobalStorageField,
             PlayerDataSchema, ScoreField, TimerField, TimerFieldRef,
@@ -486,17 +531,23 @@ pub mod systems {
     }
 
     #[cfg(feature = "systems-movement")]
+    #[doc = include_str!("api_contract_rustdoc.md")]
     pub mod movement {
+        #[doc = include_str!("api_contract_rustdoc.md")]
         pub use sand_core::systems::movement::{Launch, PushAway, Slow, SpeedBoost};
     }
 
     #[cfg(feature = "systems-inventory")]
+    #[doc = include_str!("api_contract_rustdoc.md")]
     pub mod inventory {
+        #[doc = include_str!("api_contract_rustdoc.md")]
         pub use sand_core::systems::inventory::{ClearBuilder, HasItemCheck, InventorySystem};
     }
 
     #[cfg(feature = "systems-entities")]
+    #[doc = include_str!("api_contract_rustdoc.md")]
     pub mod entities {
+        #[doc = include_str!("api_contract_rustdoc.md")]
         pub use sand_core::systems::entities::{InteractSize, Interactable};
     }
 }
@@ -505,6 +556,7 @@ pub mod systems {
 /// anywhere a datapack resource (function, advancement, item, tag, …) is
 /// referenced by name. Construction is fallible and validates both segments
 /// at call time: `ResourceLocation::new("trail", "grapple/execute").unwrap()`.
+#[doc = include_str!("api_contract_rustdoc.md")]
 pub use sand_core::ResourceLocation;
 
 /// Text components, chat colors, and click/hover events for `tellraw`,
@@ -522,7 +574,9 @@ pub use sand_core::ResourceLocation;
     avoid_when = ["Emitting a plain command token that is not a text component"],
     example = "let message = sand::text::Text::new(\"Ready\").gold();"
 )]
+#[doc = include_str!("api_contract_rustdoc.md")]
 pub mod text {
+    #[doc = include_str!("api_contract_rustdoc.md")]
     pub use sand_core::prelude::{
         ChatColor, ClickEvent, EntityHoverId, HoverEvent, IntoTextEntityType, Text, TextComponent,
     };
@@ -544,8 +598,11 @@ pub mod text {
     avoid_when = ["A scoreboard-backed integer or flag is the simpler state model"],
     example = "use sand::data::{NbtPath, StorageLocation};"
 )]
+#[doc = include_str!("api_contract_rustdoc.md")]
 pub mod data {
+    #[doc = include_str!("api_contract_rustdoc.md")]
     pub use sand_core::cmd::{DataModifyOperation, DataSource, DataTarget, NbtCompound, NbtValue};
+    #[doc = include_str!("api_contract_rustdoc.md")]
     pub use sand_core::state::{
         BlockNbt, DataCommand, EntityNbt, Nbt, NbtLocation, NbtPath, NbtRef, NbtTarget,
         SnbtCompound, SnbtValue, StorageField, StorageLocation, StorageSchema, StorageVar,
@@ -599,8 +656,10 @@ pub mod data {
     avoid_when = ["Referencing custom or modded content that needs a typed custom identifier"],
     example = "let item: sand::prelude::ItemId = sand::vanilla::Item::Diamond.into();"
 )]
+#[doc = include_str!("api_contract_rustdoc.md")]
 pub mod vanilla {
     #[cfg(not(sand_placeholder_codegen))]
+    #[doc = include_str!("api_contract_rustdoc.md")]
     pub use sand_core::generated::{Block, EntityType, Item, SoundEvent};
 }
 
@@ -608,6 +667,7 @@ pub mod vanilla {
 /// version-aware component exporter themselves. Ordinary datapack authors
 /// should use `sand build`; compiler wiring and raw escape-hatch types retain
 /// their canonical topic-module paths rather than being duplicated here.
+#[doc = include_str!("api_contract_rustdoc.md")]
 pub use sand_core::advanced;
 
 /// Resource-pack authoring (HUD bars/elements, textures), re-exporting the
@@ -616,7 +676,9 @@ pub use sand_core::advanced;
 /// [`hud_element!`](crate::hud_element), and [`texture!`](crate::texture)
 /// macros, also feature-gated.
 #[cfg(feature = "resourcepack")]
+#[doc = include_str!("api_contract_rustdoc.md")]
 pub mod resourcepack {
+    #[doc = include_str!("api_contract_rustdoc.md")]
     pub use sand_resourcepack::{
         AssetContent, AssetOutput, BarHandle, BarStat, BitmapFont, BitmapProvider, Color,
         ElementHandle, FontProvider, GenHudBar, GenHudElement, HudBar, HudElement, HudLayout,

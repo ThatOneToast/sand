@@ -118,6 +118,26 @@ fn installed_catalog() -> Result<ApiCatalog> {
         .into_iter()
         .map(ApiEntry::from)
         .collect::<Vec<_>>();
+    for expected in sand::__private::api_contract::INSTALLED_FACADE_CONTRACTS {
+        let expected = ApiEntry::from(expected);
+        let actual = entries
+            .iter()
+            .filter(|entry| entry.canonical_path == expected.canonical_path)
+            .collect::<Vec<_>>();
+        let [actual] = actual.as_slice() else {
+            bail!(
+                "linked facade contract `{}` has {} runtime registrations; expected exactly one registration matching the build-validated source declaration",
+                expected.canonical_path,
+                actual.len()
+            );
+        };
+        if **actual != expected {
+            bail!(
+                "linked facade contract `{}` differs from the build-validated source declaration",
+                expected.canonical_path
+            );
+        }
+    }
 
     for provider_json in sand::__private::api_contract::GENERATED_API_PROVIDER_CATALOGS {
         let provider: sand_build::ApiProviderCatalog = serde_json::from_str(provider_json)
@@ -159,6 +179,8 @@ fn installed_catalog() -> Result<ApiCatalog> {
                 .any(|alias| installed_paths.contains(alias.as_str()))
     });
     for entry in &mut entries {
+        let family_contract = sand::__private::api_contract::INSTALLED_FAMILY_API_PATHS
+            .contains(&entry.canonical_path.as_str());
         if let Some(paths) = sand::__private::api_contract::INSTALLED_API_IDENTITIES
             .iter()
             .find(|paths| paths.contains(&entry.canonical_path.as_str()))
@@ -203,7 +225,29 @@ fn installed_catalog() -> Result<ApiCatalog> {
                     .unwrap_or_else(|| format!("A value with Rust type `{ty}`."))
             });
             entry.return_type = return_type.map(|ty| (*ty).to_owned());
-            if let Some(summary) = rustdoc_summary(documentation) {
+            let source_summary = rustdoc_summary(documentation);
+            if family_contract {
+                let summary = source_summary
+                    .clone()
+                    .unwrap_or_else(|| entry.summary.clone());
+                let prose = if documentation.trim().is_empty() {
+                    format!(
+                        "{summary} The exact source-derived Rust declaration is `{}`.",
+                        entry.signature
+                    )
+                } else {
+                    rustdoc_prose(documentation)
+                };
+                entry.summary = summary.clone();
+                entry.context = prose.clone();
+                entry.minecraft = format!(
+                    "Minecraft and generated-output behavior follows the defining item's documented semantics: {prose}"
+                );
+                entry.use_when = vec![format!(
+                    "When the defining item's documented behavior is required: {summary}"
+                )];
+                entry.avoid_when = vec![rustdoc_avoidance(&prose)];
+            } else if let Some(summary) = source_summary {
                 if is_family_template_summary(&entry.summary) {
                     entry.summary = summary.clone();
                 }
@@ -235,6 +279,70 @@ fn installed_catalog() -> Result<ApiCatalog> {
         .validate_quality()
         .context("installed Sand API catalog failed resolved quality validation")?;
     Ok(catalog)
+}
+
+fn rustdoc_prose(documentation: &str) -> String {
+    let mut in_code = false;
+    let mut paragraphs = Vec::new();
+    let mut current = Vec::new();
+    for line in documentation.lines() {
+        let line = line.trim();
+        if line.starts_with("```") {
+            in_code = !in_code;
+            continue;
+        }
+        if in_code || line.starts_with('#') {
+            continue;
+        }
+        if line.is_empty() {
+            if !current.is_empty() {
+                paragraphs.push(current.join(" "));
+                current.clear();
+            }
+            continue;
+        }
+        current.push(line.replace("**", ""));
+    }
+    if !current.is_empty() {
+        paragraphs.push(current.join(" "));
+    }
+    let prose = paragraphs.into_iter().take(4).collect::<Vec<_>>().join(" ");
+    if prose.chars().count() <= 1_200 {
+        prose
+    } else {
+        let end = prose
+            .char_indices()
+            .nth(1_197)
+            .map_or(prose.len(), |(index, _)| index);
+        format!("{}...", prose[..end].trim_end())
+    }
+}
+
+fn rustdoc_avoidance(prose: &str) -> String {
+    prose
+        .split(". ")
+        .find(|sentence| {
+            let sentence = sentence.replace("**", "").to_ascii_lowercase();
+            [
+                " do not ",
+                " does not ",
+                " not ",
+                " only ",
+                " instead",
+                " rejected",
+            ]
+            .iter()
+            .any(|needle| sentence.contains(needle))
+        })
+        .map(|sentence| {
+            format!(
+                "When this documented limitation applies: {}.",
+                sentence.trim_end_matches('.')
+            )
+        })
+        .unwrap_or_else(|| {
+            "When the defining item's documented preconditions or scope do not apply.".to_owned()
+        })
 }
 
 fn is_family_template_summary(summary: &str) -> bool {
@@ -1424,5 +1532,28 @@ mod tests {
         .unwrap();
         assert!(events.contains("sand::event::AdvancementEvent"));
         assert!(!events.contains("sand::vanilla::"));
+    }
+
+    #[test]
+    fn exploratory_search_rejects_punctuation_only_queries() {
+        let catalog = generated_catalog();
+        assert_eq!(
+            search_with_options(catalog, "!!!", Some(3), None, None).unwrap(),
+            "No APIs matched `!!!`.\n"
+        );
+    }
+
+    #[cfg(any(feature = "systems-player-data", feature = "systems-all"))]
+    #[test]
+    fn family_contracts_use_item_specific_source_documentation() {
+        let contract = show(
+            generated_catalog(),
+            "sand::systems::player_data::PlayerDataSchema::define_all",
+        )
+        .unwrap();
+        assert!(contract.contains("scoreboard objectives add"));
+        assert!(contract.contains("Storage schemas do not generate commands"));
+        assert!(contract.contains("idempotent"));
+        assert!(!contract.contains("typed systems API"));
     }
 }

@@ -71,47 +71,60 @@ mod typed_execute;
 // ── Re-exports from sand-commands ─────────────────────────────────────────────
 
 /// Command construction and the shared profile-aware validation boundary.
+#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use sand_commands::{
     Build, CommandProfile, EffectCommand, EffectDuration, RawCommand, RenderCommand, Validate,
 };
 
 /// Trait for types resolving to a `function <id>` command.
+#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use crate::function::IntoFunctionRef;
 
 // Block placement
+#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use sand_commands::{
     BlockState, CloneBlocks, CloneMaskMode, CloneMode, Fill, FillMode, SetBlock, SetBlockMode,
 };
 // Coordinate types
+#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use sand_commands::{BlockPos, Coord, Rotation, Vec2, Vec3};
 // Player display commands
+#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use sand_commands::{
     Actionbar, Bossbar, BossbarColor, BossbarCommand, BossbarId, BossbarStyle, IntoBossbarId,
     Title, TitleTimes,
 };
 // Execute builder
+#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use sand_commands::Execute;
 // Execute argument types
+#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use sand_commands::{Anchor, ItemSlot, NbtStoreKind, Swizzle};
 // Inventory manipulation
+#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use sand_commands::Inventory;
 // Particle effects
+#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use sand_commands::{
     IntoParticleId, Particle, ParticleBuilder, ParticleCommand, ParticleEffect, ParticleSpread,
 };
 // Entity/player targeting
+#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use sand_commands::{
     Damage as DamageBuilder, DamageAmount, DamageKind, EntityTarget, EntityTargets, GameMode, Many,
     One, PlayerTarget, PlayerTargets, Selector, SingleEntity, SinglePlayer, SortOrder, TargetBase,
 };
 // Sound
+#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use sand_commands::{IntoSoundEvent, Sound, SoundSource, StopSoundCommand};
 // Text components
+#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use sand_commands::{
     ChatColor, ClickEvent, EntityHoverId, HoverEvent, IntoTextEntityType, Text, TextCommand,
     TextComponent,
 };
 // NBT types — owned by sand-commands
+#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use sand_commands::{
     DataCommand, DataModify, DataModifyOperation, DataSource, DataTarget, Nbt, NbtCompound,
     NbtPath, NbtRef, NbtTarget, NbtValue, UntypedNbt, data_modify,
@@ -119,6 +132,7 @@ pub use sand_commands::{
 // Scoreboard types — owned by sand-commands
 // Note: &Storage satisfies Objective::load_from's `impl Into<String>` parameter
 // via the `From<&Storage> for String` impl in mod data.
+#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use sand_commands::{
     DisplaySlot, Objective, ObjectiveName, ScoreCmp, ScoreHolder, ScoreOp,
     ScoreboardPlayersOperation, scoreboard_players_operation,
@@ -129,16 +143,22 @@ pub use sand_commands::{
 
 // ── Re-exports from internal modules ─────────────────────────────────────────
 
+#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use cooldown::Cooldown;
 // Storage and StorageKind are datapack concepts defined only in sand-core.
 // All other NBT/scoreboard types come from sand-commands above.
+#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use crate::vfx::{Vfx, VfxParticle, VfxParticleVisibility, VfxSound, VfxStep};
+#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use data::{Storage, StorageKind};
+#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use effect::{EffectGive, effect_clear, effect_clear_effect, effect_give, effect_give_raw};
+#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use fn_macros::{
     FunctionMacroArg, FunctionMacroArgs, call_with, function_with, macro_line, macro_var,
     try_call_with, try_function_with, try_macro_var,
 };
+#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use typed_execute::{ConditionedExecute, ExecuteExt, TypedExecute};
 
 /// Call a function by resolved reference.

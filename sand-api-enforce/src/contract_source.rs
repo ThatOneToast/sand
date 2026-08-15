@@ -41,6 +41,18 @@ pub struct FacadeContract {
     pub signature: Option<String>,
     pub parameters: Option<BTreeSet<String>>,
     pub returns: Option<bool>,
+    pub runtime_signature: String,
+    pub summary: String,
+    pub context: String,
+    pub minecraft: String,
+    pub use_when: Vec<String>,
+    pub avoid_when: Vec<String>,
+    pub parameter_docs: Vec<(String, String)>,
+    pub return_doc: Option<String>,
+    pub example: String,
+    pub availability: Vec<String>,
+    pub canonical_module: String,
+    pub family: bool,
 }
 
 /// Structural facts read from the independently discovered source
@@ -641,6 +653,7 @@ pub fn resolve_contract_identities(
         if let (Some(facade), Some(definition)) = (&declaration.facade, &item.definition)
             && facade.signature.is_some()
             && facade.kind != ApiKind::Macro
+            && !facade.family
         {
             match callable_shape(definition) {
                 Ok(Some(shape)) => {
@@ -1169,6 +1182,11 @@ struct RegisterArgs {
     parameters: Option<BTreeSet<String>>,
     returns: Option<bool>,
     example: Option<String>,
+    availability: Option<Vec<String>>,
+    canonical_module: Option<String>,
+    parameter_docs: Option<Vec<(String, String)>>,
+    return_doc: Option<Option<String>>,
+    family: bool,
 }
 
 impl RegisterArgs {
@@ -1176,27 +1194,143 @@ impl RegisterArgs {
         if macro_name == "register" {
             return;
         }
-        // Family registrations author semantics only. Structural facts are
-        // always resolved from the reachable definition, never inherited
-        // from a family template string.
-        self.signature = None;
-        self.parameters = None;
-        self.returns = None;
-        if macro_name == "register_event_marker" {
-            self.kind.get_or_insert(ApiKind::Struct);
-        }
-        self.context
-            .get_or_insert_with(|| format!("Shared semantic context for {macro_name}."));
-        self.minecraft
-            .get_or_insert_with(|| format!("Minecraft behavior supplied by {macro_name}."));
-        self.use_when
-            .get_or_insert_with(|| vec![format!("Using this {macro_name} API")]);
-        self.avoid_when.get_or_insert_with(|| {
-            vec![format!("Using implementation details behind {macro_name}")]
-        });
-        self.example.get_or_insert_with(|| {
-            format!("sand api show {}", self.path.as_deref().unwrap_or("sand"))
-        });
+        self.family = true;
+        let (module, signature, context, minecraft, use_when, avoid_when, example, availability) =
+            match macro_name {
+                "register_event_marker" => {
+                    self.kind.get_or_insert(ApiKind::Struct);
+                    (
+                        "sand::events",
+                        "pub struct event marker",
+                        "This stateless marker selects one built-in Sand event for a typed #[on_event] handler. Use Event<T> for advancement-backed markers and the marker itself for SandEvent-backed dispatches.",
+                        self.minecraft.as_deref().unwrap_or_default(),
+                        "Registering a handler for this specific Minecraft or Sand runtime occurrence",
+                        "Representing mutable event data; read typed handler context or declared participants instead",
+                        self.example.as_deref().unwrap_or_default(),
+                        Vec::new(),
+                    )
+                }
+                "register_event_api" => (
+                    self.canonical_module.as_deref().unwrap_or("sand::events"),
+                    self.signature.as_deref().unwrap_or_default(),
+                    "This typed event API is part of Sand's author-facing event model; exporter records and generated function wiring remain private.",
+                    self.minecraft.as_deref().unwrap_or_default(),
+                    "Defining, composing, or handling a typed Sand event",
+                    "Inspecting generated advancement or event-graph implementation state",
+                    "use sand::prelude::*;",
+                    Vec::new(),
+                ),
+                "register_entity_api" => (
+                    "sand::entity",
+                    "author-facing entity API",
+                    "This declaration belongs to Sand's typed entity model. Semantic definitions are public; selector rendering, validation bookkeeping, and compiler lowering remain internal.",
+                    "Sand validates this definition and lowers it to entity-scoped selectors, scoreboards, NBT operations, and generated lifecycle functions as required.",
+                    "Defining or using typed entity behavior in a Sand datapack",
+                    "Inspecting generated objectives, functions, or compiler lowering plans",
+                    "use sand::entity::*;",
+                    Vec::new(),
+                ),
+                "register_state_api" => (
+                    "sand::state",
+                    "author-facing typed state API",
+                    "This declaration provides the typed scoreboard or lifecycle primitives used directly and by #[derive(State)]; generated schema registration remains private.",
+                    "Operations render validated scoreboard commands or conditions against the selected score holder, with lifecycle setup emitted at load when required.",
+                    "Working with typed gameplay state or composing state transitions",
+                    "Manually reproducing metadata generated by #[derive(State)]",
+                    "use sand::state::*;",
+                    Vec::new(),
+                ),
+                "register_participant_api" => (
+                    "sand::participant",
+                    "author-facing typed event participant API",
+                    "Participants are available only when the event plan declares a real observation or a valid same-cycle inheritance path; the exporter rejects unsupported transport.",
+                    "Entity relationships use the matching execute relation, while item snapshots are copied into Sand-owned command storage and cleaned up at the end of their declared lifetime.",
+                    "Declaring or reading a typed participant whose lifecycle is guaranteed by the event plan",
+                    "Assuming an entity or item remains live beyond its declared invocation, event-cycle, or bounded correlation lifetime",
+                    "use sand::participant::*;",
+                    Vec::new(),
+                ),
+                "register_text_api" => (
+                    "sand::text",
+                    "typed Minecraft text component API",
+                    "Sand text values preserve Minecraft's structured JSON component model, including styling and validated click or hover interactions.",
+                    "The component serializes to the JSON text format consumed by tellraw, titles, books, dialogs, and other vanilla text fields.",
+                    "Building player-visible text with typed styling or interactions",
+                    "Passing an unvalidated JSON string when a typed text component can express the same value",
+                    "let text = sand::text::Text::new(\"Ready\").gold();",
+                    Vec::new(),
+                ),
+                "register_data_api" => (
+                    "sand::data",
+                    "typed Minecraft NBT and command-storage API",
+                    "This API models a typed NBT value, path, target, or data command. Raw SNBT entry points are explicit escape hatches rather than the normal representation.",
+                    "Operations render vanilla data commands against entity, block, or namespaced command-storage targets and validate writable target cardinality.",
+                    "Reading or mutating structured Minecraft NBT through typed paths and values",
+                    "A scoreboard-backed state field is simpler, or the input is untrusted raw SNBT",
+                    "use sand::data::{NbtPath, StorageLocation};",
+                    Vec::new(),
+                ),
+                "register_systems_api" => (
+                    "sand::systems",
+                    "feature-gated author-facing gameplay system API",
+                    "This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
+                    "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+                    "Opting into the documented higher-level gameplay behavior instead of assembling its commands manually",
+                    "Using the API outside its documented system scope or feature configuration",
+                    "use sand::systems;",
+                    Vec::new(),
+                ),
+                "register_command_api" => (
+                    "sand::command",
+                    "handwritten typed Minecraft command API",
+                    "This handwritten command API complements the generated command catalog with typed selectors, coordinates, execute chains, score holders, NBT, text, and validated command builders.",
+                    "Builders validate domain values and render one or more command lines for the active Minecraft profile; methods explicitly named raw are deliberate advanced escape hatches.",
+                    "Constructing Minecraft commands through Sand's typed command model",
+                    "Passing unvalidated command fragments when a typed builder or validated try_* entry point exists",
+                    "use sand::command as cmd;",
+                    Vec::new(),
+                ),
+                "register_component_api" => (
+                    "sand::component",
+                    "typed datapack component definition API",
+                    "This semantic component model describes a datapack resource or gameplay value; JSON serialization and exporter bookkeeping remain implementation details.",
+                    "The value serializes to the matching version-aware Minecraft datapack JSON schema when the project is exported.",
+                    "Defining a typed advancement, recipe, loot table, worldgen resource, item property, or related datapack component",
+                    "Injecting unchecked JSON when the typed schema can represent the resource",
+                    "use sand::component::*;",
+                    Vec::new(),
+                ),
+                "register_resourcepack_api" => (
+                    "sand::resourcepack",
+                    "feature-gated resource-pack authoring API",
+                    "This API defines client-side HUD, font, texture, or resource-pack output while keeping asset registration and exporter inventory wiring private.",
+                    "The resourcepack exporter writes version-appropriate assets, bitmap-font providers, and pack metadata for the selected Minecraft profile.",
+                    "Building HUD bars, HUD elements, textures, or resource-pack output alongside a Sand datapack",
+                    "The project is datapack-only or needs unrelated resource-pack functionality not modeled by Sand",
+                    "use sand::resourcepack::*;",
+                    vec!["Cargo feature: resourcepack".to_owned()],
+                ),
+                _ => return,
+            };
+        let module = module.to_owned();
+        let signature = signature.to_owned();
+        let context = context.to_owned();
+        let minecraft = minecraft.to_owned();
+        let use_when = use_when.to_owned();
+        let avoid_when = avoid_when.to_owned();
+        let example = example.to_owned();
+        self.canonical_module.get_or_insert(module);
+        self.signature.get_or_insert(signature);
+        self.context.get_or_insert(context);
+        self.minecraft.get_or_insert(minecraft);
+        self.use_when.get_or_insert_with(|| vec![use_when]);
+        self.avoid_when.get_or_insert_with(|| vec![avoid_when]);
+        self.example.get_or_insert(example);
+        self.availability.get_or_insert(availability);
+        self.parameters.get_or_insert_with(BTreeSet::new);
+        self.parameter_docs.get_or_insert_with(Vec::new);
+        self.returns.get_or_insert(false);
+        self.return_doc.get_or_insert(None);
     }
 
     fn validate(&self, macro_name: &str) -> Result<(), String> {
@@ -1237,6 +1371,48 @@ impl RegisterArgs {
             signature: self.signature.clone(),
             parameters: self.parameters.clone(),
             returns: self.returns,
+            runtime_signature: self
+                .signature
+                .clone()
+                .ok_or_else(|| ContractSourceError::Parse("missing runtime signature".into()))?,
+            summary: self
+                .summary
+                .clone()
+                .ok_or_else(|| ContractSourceError::Parse("missing summary".into()))?,
+            context: self
+                .context
+                .clone()
+                .ok_or_else(|| ContractSourceError::Parse("missing context".into()))?,
+            minecraft: self
+                .minecraft
+                .clone()
+                .ok_or_else(|| ContractSourceError::Parse("missing minecraft".into()))?,
+            use_when: self
+                .use_when
+                .clone()
+                .ok_or_else(|| ContractSourceError::Parse("missing use_when".into()))?,
+            avoid_when: self
+                .avoid_when
+                .clone()
+                .ok_or_else(|| ContractSourceError::Parse("missing avoid_when".into()))?,
+            parameter_docs: self
+                .parameter_docs
+                .clone()
+                .ok_or_else(|| ContractSourceError::Parse("missing parameter docs".into()))?,
+            return_doc: self
+                .return_doc
+                .clone()
+                .ok_or_else(|| ContractSourceError::Parse("missing return metadata".into()))?,
+            example: self
+                .example
+                .clone()
+                .ok_or_else(|| ContractSourceError::Parse("missing example".into()))?,
+            availability: self.availability.clone().unwrap_or_default(),
+            canonical_module: self
+                .canonical_module
+                .clone()
+                .ok_or_else(|| ContractSourceError::Parse("missing canonical module".into()))?,
+            family: self.family,
         })
     }
 }
@@ -1271,17 +1447,18 @@ impl Parse for RegisterArgs {
                 "minecraft" => result.minecraft = Some(input.parse::<LitStr>()?.value()),
                 "example" => result.example = Some(input.parse::<LitStr>()?.value()),
                 "module" => {
-                    let _: LitStr = input.parse()?;
+                    result.canonical_module = Some(input.parse::<LitStr>()?.value());
                 }
                 "use_when" => result.use_when = Some(parse_register_strings(input)?),
                 "avoid_when" => result.avoid_when = Some(parse_register_strings(input)?),
                 "availability" => {
-                    let _ = parse_register_strings(input)?;
+                    result.availability = Some(parse_register_strings(input)?);
                 }
                 "params" => {
                     let content;
                     syn::bracketed!(content in input);
                     let mut names = BTreeSet::new();
+                    let mut docs = Vec::new();
                     while !content.is_empty() {
                         let name = content.parse::<LitStr>()?.value();
                         content.parse::<Token![=>]>()?;
@@ -1298,18 +1475,19 @@ impl Parse for RegisterArgs {
                                 format!("duplicate parameter `{name}`"),
                             ));
                         }
+                        docs.push((name, description.value()));
                         if content.peek(Token![,]) {
                             content.parse::<Token![,]>()?;
                         }
                     }
                     result.parameters = Some(names);
+                    result.parameter_docs = Some(docs);
                 }
                 "returns" => {
                     let expression: syn::Expr = input.parse()?;
-                    result.returns = Some(!matches!(
-                        &expression,
-                        syn::Expr::Path(path) if path.path.is_ident("None")
-                    ));
+                    let return_doc = parse_return_doc(&expression)?;
+                    result.returns = Some(return_doc.is_some());
+                    result.return_doc = Some(return_doc);
                 }
                 other => {
                     return Err(syn::Error::new_spanned(
@@ -1324,6 +1502,40 @@ impl Parse for RegisterArgs {
         }
         Ok(result)
     }
+}
+
+fn parse_return_doc(expression: &syn::Expr) -> syn::Result<Option<String>> {
+    if matches!(expression, syn::Expr::Path(path) if path.path.is_ident("None")) {
+        return Ok(None);
+    }
+    let syn::Expr::Call(call) = expression else {
+        return Err(syn::Error::new_spanned(
+            expression,
+            "returns must be None or Some(\"description\")",
+        ));
+    };
+    let syn::Expr::Path(function) = call.func.as_ref() else {
+        return Err(syn::Error::new_spanned(expression, "returns must use Some"));
+    };
+    if !function.path.is_ident("Some") || call.args.len() != 1 {
+        return Err(syn::Error::new_spanned(
+            expression,
+            "returns must be None or Some(\"description\")",
+        ));
+    }
+    let syn::Expr::Lit(value) = &call.args[0] else {
+        return Err(syn::Error::new_spanned(
+            &call.args[0],
+            "return description must be a string literal",
+        ));
+    };
+    let syn::Lit::Str(value) = &value.lit else {
+        return Err(syn::Error::new_spanned(
+            &value.lit,
+            "return description must be a string literal",
+        ));
+    };
+    Ok(Some(value.value()))
 }
 
 fn parse_register_strings(input: ParseStream<'_>) -> syn::Result<Vec<String>> {

@@ -3,46 +3,13 @@
 //!
 //! Stable procedural macros cannot attach an attribute to a `pub use`, so the
 //! facade owns these canonical identities and aliases in one auditable table.
-//! Signatures are written once here and checked by focused facade tests.
+//! The build script parses and validates this table against the independently
+//! reachable surface, then emits the only runtime inventory registrations.
 
-use sand_api_contract::{ApiKind, ApiRegistration, StaticApiParameter};
+include!(concat!(env!("OUT_DIR"), "/api_facade_registrations.rs"));
 
 macro_rules! register {
-    (
-        path: $path:literal,
-        aliases: [$($alias:literal),* $(,)?],
-        module: $module:literal,
-        kind: $kind:ident,
-        signature: $signature:literal,
-        summary: $summary:literal,
-        context: $context:literal,
-        minecraft: $minecraft:literal,
-        use_when: [$($use_when:literal),+ $(,)?],
-        avoid_when: [$($avoid_when:literal),+ $(,)?],
-        params: [$($param:literal => $param_doc:literal),* $(,)?],
-        returns: $returns:expr,
-        example: $example:literal $(,
-        availability: [$($availability:literal),* $(,)?])?
-    ) => {
-        sand_api_contract::inventory::submit! {
-            ApiRegistration {
-                canonical_path: $path,
-                aliases: &[$($alias),*],
-                canonical_module: $module,
-                kind: ApiKind::$kind,
-                signature: $signature,
-                summary: $summary,
-                context: $context,
-                minecraft: $minecraft,
-                use_when: &[$($use_when),+],
-                avoid_when: &[$($avoid_when),+],
-                parameters: &[$(StaticApiParameter { name: $param, description: $param_doc }),*],
-                returns: $returns,
-                example: $example,
-                availability: &[$($($availability),*)?],
-            }
-        }
-    };
+    ($($contract:tt)*) => {};
 }
 
 // Built-in event markers are a semantic family: each one is a stateless type
@@ -255,9 +222,9 @@ macro_rules! register_systems_api {
             signature: "feature-gated author-facing gameplay system API",
             summary: $summary,
             context: "This opt-in system composes Sand's typed primitives into a higher-level gameplay behavior; exporter registries and generated tick bookkeeping are private.",
-            minecraft: "The configured system emits validated scoreboard, execute, item, effect, or entity commands according to the selected feature and target version.",
-            use_when: ["Opting into this higher-level gameplay behavior instead of assembling its commands manually"],
-            avoid_when: ["Inspecting compiler registries or generated lifecycle bookkeeping"],
+            minecraft: "The exact commands, resources, and lifecycle behavior are described by the defining item's source documentation for the selected feature and Minecraft profile.",
+            use_when: ["Opting into the documented higher-level gameplay behavior instead of assembling its commands manually"],
+            avoid_when: ["Using the API outside its documented system scope or feature configuration"],
             params: [],
             returns: None,
             example: "use sand::systems;"

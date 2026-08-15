@@ -7,9 +7,11 @@
 //! contracts; the structural projection proves it describes every emitted
 //! public declaration and no nonexistent one.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
+use std::fmt::Write as _;
 use std::path::Path;
 
+use quote::ToTokens;
 use sand_api_contract::{ApiEntry, ApiKind};
 use serde::{Deserialize, Serialize};
 
@@ -257,28 +259,59 @@ pub fn validate_api_provider_source(
     let expected = catalog
         .entries
         .iter()
-        .map(|entry| (entry.definition_identity.clone(), entry.definition_kind))
-        .collect::<BTreeSet<_>>();
+        .map(|entry| {
+            (
+                (entry.definition_identity.clone(), entry.definition_kind),
+                normalize_public_shape(entry.definition_kind, &entry.contract.signature),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
     if actual == expected {
         return Ok(());
     }
 
-    let missing = expected.difference(&actual).cloned().collect::<Vec<_>>();
-    let unreported = actual.difference(&expected).cloned().collect::<Vec<_>>();
+    let missing = expected
+        .keys()
+        .filter(|identity| !actual.contains_key(*identity))
+        .cloned()
+        .collect::<Vec<_>>();
+    let unreported = actual
+        .keys()
+        .filter(|identity| !expected.contains_key(*identity))
+        .cloned()
+        .collect::<Vec<_>>();
+    let stale = expected
+        .iter()
+        .filter_map(|(identity, expected_shape)| {
+            actual.get(identity).and_then(|actual_shape| {
+                (actual_shape != expected_shape).then(|| {
+                    format!(
+                        "{} ({:?}): metadata `{expected_shape}`, Rust `{actual_shape}`",
+                        identity.0, identity.1
+                    )
+                })
+            })
+        })
+        .collect::<Vec<_>>();
     Err(format!(
-        "provider `{}` does not exactly match generated Rust {} beneath `{root_identity}`; missing from Rust: {}; public but unreported: {}",
+        "provider `{}` does not exactly match generated Rust {} beneath `{root_identity}`; missing from Rust: {}; public but unreported: {}; stale public shapes: {}",
         catalog.provider,
         rust_path.display(),
         format_declarations(&missing),
         format_declarations(&unreported),
+        if stale.is_empty() {
+            "none".into()
+        } else {
+            stale.join(", ")
+        },
     ))
 }
 
 fn public_source_declarations(
     syntax: &syn::File,
     root: &str,
-) -> std::result::Result<BTreeSet<(String, ApiKind)>, String> {
-    let mut declarations = BTreeSet::new();
+) -> std::result::Result<BTreeMap<(String, ApiKind), String>, String> {
+    let mut declarations = BTreeMap::new();
     collect_public_source_declarations(&syntax.items, root, &mut declarations)?;
     Ok(declarations)
 }
@@ -286,13 +319,16 @@ fn public_source_declarations(
 fn collect_public_source_declarations(
     items: &[syn::Item],
     root: &str,
-    declarations: &mut BTreeSet<(String, ApiKind)>,
+    declarations: &mut BTreeMap<(String, ApiKind), String>,
 ) -> std::result::Result<(), String> {
     for item in items {
         match item {
             syn::Item::Mod(item) if public(&item.vis) => {
                 let identity = format!("{root}::{}", item.ident);
-                declarations.insert((identity.clone(), ApiKind::Module));
+                declarations.insert(
+                    (identity.clone(), ApiKind::Module),
+                    normalize_public_shape(ApiKind::Module, &format!("pub mod {}", item.ident)),
+                );
                 let Some((_, items)) = &item.content else {
                     return Err(format!(
                         "generated public module `{identity}` is out-of-line and cannot be structurally verified"
@@ -302,35 +338,87 @@ fn collect_public_source_declarations(
             }
             syn::Item::Struct(item) if public(&item.vis) => {
                 let owner = format!("{root}::{}", item.ident);
-                declarations.insert((owner.clone(), ApiKind::Struct));
+                declarations.insert(
+                    (owner.clone(), ApiKind::Struct),
+                    normalize_public_shape(
+                        ApiKind::Struct,
+                        &format!(
+                            "{} struct {} {}",
+                            item.vis.to_token_stream(),
+                            item.ident,
+                            item.generics.to_token_stream()
+                        ),
+                    ),
+                );
                 for (index, field) in item.fields.iter().enumerate() {
                     if public(&field.vis) {
                         let name = field
                             .ident
                             .as_ref()
                             .map_or_else(|| index.to_string(), ToString::to_string);
-                        declarations.insert((format!("{owner}::{name}"), ApiKind::Field));
+                        declarations.insert(
+                            (format!("{owner}::{name}"), ApiKind::Field),
+                            normalize_public_shape(
+                                ApiKind::Field,
+                                &format!(
+                                    "{} {name}: {}",
+                                    field.vis.to_token_stream(),
+                                    field.ty.to_token_stream()
+                                ),
+                            ),
+                        );
                     }
                 }
             }
             syn::Item::Enum(item) if public(&item.vis) => {
                 let owner = format!("{root}::{}", item.ident);
-                declarations.insert((owner.clone(), ApiKind::Enum));
+                declarations.insert(
+                    (owner.clone(), ApiKind::Enum),
+                    normalize_public_shape(
+                        ApiKind::Enum,
+                        &format!(
+                            "{} enum {} {}",
+                            item.vis.to_token_stream(),
+                            item.ident,
+                            item.generics.to_token_stream()
+                        ),
+                    ),
+                );
                 for variant in &item.variants {
                     let variant_owner = format!("{owner}::{}", variant.ident);
-                    declarations.insert((variant_owner.clone(), ApiKind::Variant));
+                    declarations.insert(
+                        (variant_owner.clone(), ApiKind::Variant),
+                        normalize_public_shape(ApiKind::Variant, &variant_shape(variant)),
+                    );
                     for (index, field) in variant.fields.iter().enumerate() {
                         let name = field
                             .ident
                             .as_ref()
                             .map_or_else(|| index.to_string(), ToString::to_string);
-                        declarations.insert((format!("{variant_owner}::{name}"), ApiKind::Field));
+                        declarations.insert(
+                            (format!("{variant_owner}::{name}"), ApiKind::Field),
+                            normalize_public_shape(
+                                ApiKind::Field,
+                                &field.ty.to_token_stream().to_string(),
+                            ),
+                        );
                     }
                 }
             }
             syn::Item::Trait(item) if public(&item.vis) => {
                 let owner = format!("{root}::{}", item.ident);
-                declarations.insert((owner.clone(), ApiKind::Trait));
+                declarations.insert(
+                    (owner.clone(), ApiKind::Trait),
+                    normalize_public_shape(
+                        ApiKind::Trait,
+                        &format!(
+                            "{} trait {} {}",
+                            item.vis.to_token_stream(),
+                            item.ident,
+                            item.generics.to_token_stream()
+                        ),
+                    ),
+                );
                 for member in &item.items {
                     let (name, kind) = match member {
                         syn::TraitItem::Fn(item) => (&item.sig.ident, ApiKind::TraitMethod),
@@ -338,20 +426,77 @@ fn collect_public_source_declarations(
                         syn::TraitItem::Type(item) => (&item.ident, ApiKind::AssociatedType),
                         _ => continue,
                     };
-                    declarations.insert((format!("{owner}::{name}"), kind));
+                    let shape = match member {
+                        syn::TraitItem::Fn(item) => item.sig.to_token_stream().to_string(),
+                        syn::TraitItem::Const(item) => {
+                            format!("const {}: {}", item.ident, item.ty.to_token_stream())
+                        }
+                        syn::TraitItem::Type(item) => {
+                            format!("type {} {}", item.ident, item.generics.to_token_stream())
+                        }
+                        _ => unreachable!(),
+                    };
+                    declarations.insert(
+                        (format!("{owner}::{name}"), kind),
+                        normalize_public_shape(kind, &shape),
+                    );
                 }
             }
             syn::Item::Fn(item) if public(&item.vis) => {
-                declarations.insert((format!("{root}::{}", item.sig.ident), ApiKind::Function));
+                declarations.insert(
+                    (format!("{root}::{}", item.sig.ident), ApiKind::Function),
+                    normalize_public_shape(
+                        ApiKind::Function,
+                        &format!(
+                            "{} {}",
+                            item.vis.to_token_stream(),
+                            item.sig.to_token_stream()
+                        ),
+                    ),
+                );
             }
             syn::Item::Type(item) if public(&item.vis) => {
-                declarations.insert((format!("{root}::{}", item.ident), ApiKind::TypeAlias));
+                declarations.insert(
+                    (format!("{root}::{}", item.ident), ApiKind::TypeAlias),
+                    normalize_public_shape(
+                        ApiKind::TypeAlias,
+                        &format!(
+                            "{} type {} {} = {}",
+                            item.vis.to_token_stream(),
+                            item.ident,
+                            item.generics.to_token_stream(),
+                            item.ty.to_token_stream()
+                        ),
+                    ),
+                );
             }
             syn::Item::Const(item) if public(&item.vis) => {
-                declarations.insert((format!("{root}::{}", item.ident), ApiKind::Constant));
+                declarations.insert(
+                    (format!("{root}::{}", item.ident), ApiKind::Constant),
+                    normalize_public_shape(
+                        ApiKind::Constant,
+                        &format!(
+                            "{} const {}: {}",
+                            item.vis.to_token_stream(),
+                            item.ident,
+                            item.ty.to_token_stream()
+                        ),
+                    ),
+                );
             }
             syn::Item::Static(item) if public(&item.vis) => {
-                declarations.insert((format!("{root}::{}", item.ident), ApiKind::Constant));
+                declarations.insert(
+                    (format!("{root}::{}", item.ident), ApiKind::Constant),
+                    normalize_public_shape(
+                        ApiKind::Constant,
+                        &format!(
+                            "{} static {}: {}",
+                            item.vis.to_token_stream(),
+                            item.ident,
+                            item.ty.to_token_stream()
+                        ),
+                    ),
+                );
             }
             syn::Item::Impl(item) if item.trait_.is_none() => {
                 let syn::Type::Path(owner) = item.self_ty.as_ref() else {
@@ -373,7 +518,30 @@ fn collect_public_source_declarations(
                         _ => continue,
                     };
                     if public(visibility) {
-                        declarations.insert((format!("{owner}::{name}"), kind));
+                        let shape = match member {
+                            syn::ImplItem::Fn(item) => format!(
+                                "{} {}",
+                                item.vis.to_token_stream(),
+                                item.sig.to_token_stream()
+                            ),
+                            syn::ImplItem::Const(item) => format!(
+                                "{} const {}: {}",
+                                item.vis.to_token_stream(),
+                                item.ident,
+                                item.ty.to_token_stream()
+                            ),
+                            syn::ImplItem::Type(item) => format!(
+                                "{} type {} = {}",
+                                item.vis.to_token_stream(),
+                                item.ident,
+                                item.ty.to_token_stream()
+                            ),
+                            _ => unreachable!(),
+                        };
+                        declarations.insert(
+                            (format!("{owner}::{name}"), kind),
+                            normalize_public_shape(kind, &shape),
+                        );
                     }
                 }
             }
@@ -392,7 +560,10 @@ fn collect_public_source_declarations(
                 let Some(name) = &item.ident else {
                     return Err("generated #[macro_export] declaration has no name".into());
                 };
-                declarations.insert((format!("{root}::{name}"), ApiKind::Macro));
+                declarations.insert(
+                    (format!("{root}::{name}"), ApiKind::Macro),
+                    normalize_public_shape(ApiKind::Macro, &format!("macro_rules! {name}")),
+                );
             }
             syn::Item::Use(item) if public(&item.vis) => {
                 return Err(format!(
@@ -409,6 +580,61 @@ fn collect_public_source_declarations(
         }
     }
     Ok(())
+}
+
+fn normalize_public_shape(kind: ApiKind, signature: &str) -> String {
+    let signature = match kind {
+        ApiKind::Struct | ApiKind::Enum | ApiKind::Trait => signature
+            .split_once('{')
+            .map_or(signature, |(head, _)| head),
+        _ => signature,
+    };
+    signature
+        .chars()
+        .filter(|character| !character.is_whitespace())
+        .collect::<String>()
+        .replace("mutself", "self")
+}
+
+fn variant_shape(variant: &syn::Variant) -> String {
+    let mut shape = variant.ident.to_string();
+    match &variant.fields {
+        syn::Fields::Unit => {}
+        syn::Fields::Unnamed(fields) => {
+            shape.push('(');
+            shape.push_str(
+                &fields
+                    .unnamed
+                    .iter()
+                    .map(|field| field.ty.to_token_stream().to_string())
+                    .collect::<Vec<_>>()
+                    .join(","),
+            );
+            shape.push(')');
+        }
+        syn::Fields::Named(fields) => {
+            shape.push('{');
+            shape.push_str(
+                &fields
+                    .named
+                    .iter()
+                    .map(|field| {
+                        format!(
+                            "{}:{}",
+                            field.ident.as_ref().expect("named field"),
+                            field.ty.to_token_stream()
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join(","),
+            );
+            shape.push('}');
+        }
+    }
+    if let Some((_, expression)) = &variant.discriminant {
+        write!(shape, "={}", expression.to_token_stream()).unwrap();
+    }
+    shape
 }
 
 fn public(visibility: &syn::Visibility) -> bool {
@@ -434,6 +660,7 @@ mod tests {
     use super::*;
 
     fn entry(identity: &str, path: &str) -> GeneratedProviderEntry {
+        let name = identity.rsplit("::").next().unwrap();
         GeneratedProviderEntry {
             definition_identity: identity.into(),
             definition_kind: ApiKind::Struct,
@@ -444,7 +671,7 @@ mod tests {
                 aliases: Vec::new(),
                 canonical_module: "sand::generated".into(),
                 kind: ApiKind::Struct,
-                signature: "pub struct Example".into(),
+                signature: format!("pub struct {name}"),
                 summary: "Represents an exact generated Minecraft declaration.".into(),
                 context: "Generated from the selected Minecraft data report.".into(),
                 minecraft: "Maps to the corresponding Minecraft declaration.".into(),
@@ -568,6 +795,12 @@ mod tests {
             )],
         );
         validate_api_provider_source(&catalog, &rust, "core::generated").unwrap();
+
+        let mut stale = catalog.clone();
+        stale.entries[0].contract.signature = "pub struct Stale".into();
+        let error = validate_api_provider_source(&stale, &rust, "core::generated")
+            .expect_err("a stale provider signature must fail closed");
+        assert!(error.contains("stale public shapes"), "{error}");
 
         // This simulates an opaque generator (or a post-generation mutation)
         // emitting an extra reachable item without changing its provider.

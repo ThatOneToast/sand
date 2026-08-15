@@ -35,4 +35,12 @@ systems-player-data = ["sand-core/systems-player-data"]
 systems-movement = ["sand-core/systems-movement"]
 systems-inventory = ["sand-core/systems-inventory"]
 systems-entities = ["sand-core/systems-entities"]
-systems-all = ["sand-core/systems-all"]
+systems-all = [
+    "systems-damage",
+    "systems-cooldowns",
+    "systems-lifecycle",
+    "systems-player-data",
+    "systems-movement",
+    "systems-inventory",
+    "systems-entities",
+]

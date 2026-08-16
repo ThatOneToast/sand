@@ -259,13 +259,28 @@ fn installed_catalog() -> Result<ApiCatalog> {
             if is_import_only_example(&entry.example) {
                 entry.example = rustdoc_example(documentation).unwrap_or_else(|| {
                     structural_example(
+                        entry.kind,
                         &entry.canonical_path,
                         parameters,
-                        return_type.is_some(),
+                        *return_type,
                         *has_receiver,
                     )
                 });
             }
+        }
+    }
+
+    // Provider catalogs created before source-shape resolution may carry a
+    // name-derived `Type()` example. A type declaration is not a function;
+    // retain an exact, compilable import reference instead of fabricating a
+    // constructor that may be private or may not exist.
+    for entry in &mut entries {
+        if !matches!(
+            entry.kind,
+            ApiKind::Function | ApiKind::Method | ApiKind::TraitMethod
+        ) && entry.example.trim_end().ends_with("();")
+        {
+            entry.example = structural_example(entry.kind, &entry.canonical_path, &[], None, false);
         }
     }
 
@@ -411,13 +426,7 @@ fn semantic_fallback_summary(entry: &ApiEntry) -> String {
 
 fn semantic_return_description(rust_type: &str, summary: &str, module: &str) -> String {
     let compact = rust_type.replace(' ', "");
-    if compact == "Self" || compact.ends_with("<Self>") {
-        return "The updated typed builder, ready for further chained configuration.".to_owned();
-    }
-    if module.starts_with("sand::command") && compact == "String" {
-        return "The rendered Minecraft command text.".to_owned();
-    }
-    if compact.contains("CommandResult") || compact.starts_with("Result<") {
+    if compact.contains("Result<") {
         return "The validated result, or a diagnostic describing why the input cannot be represented safely.".to_owned();
     }
     if compact == "bool" {
@@ -425,6 +434,12 @@ fn semantic_return_description(rust_type: &str, summary: &str, module: &str) -> 
     }
     if compact.starts_with("Option<") {
         return "The documented value when it is present; otherwise `None`.".to_owned();
+    }
+    if compact == "Self" {
+        return "The updated typed builder, ready for further chained configuration.".to_owned();
+    }
+    if module.starts_with("sand::command") && compact == "String" {
+        return "The rendered Minecraft command text.".to_owned();
     }
     if compact.starts_with('&') && compact.contains("str") {
         return "A borrowed textual representation of the documented value, without allocation."
@@ -502,15 +517,33 @@ fn rustdoc_summary(documentation: &str) -> Option<String> {
 }
 
 fn rustdoc_example(documentation: &str) -> Option<String> {
-    let (_, after_fence) = documentation.split_once("```rust")?;
-    let (code, _) = after_fence.split_once("```")?;
-    let code = code
-        .lines()
-        .map(str::trim)
-        .filter(|line| !line.is_empty() && !line.starts_with('#'))
-        .collect::<Vec<_>>()
-        .join("\n");
-    (!code.is_empty()).then_some(code)
+    let mut code = Vec::new();
+    let mut in_rust_fence = false;
+    for line in documentation.lines() {
+        let trimmed = line.trim();
+        if !in_rust_fence {
+            let Some(info) = trimmed.strip_prefix("```") else {
+                continue;
+            };
+            let language = info.split(',').next().unwrap_or_default().trim();
+            in_rust_fence = language.is_empty()
+                || matches!(language, "rust" | "ignore" | "no_run" | "compile_fail");
+            continue;
+        }
+        if trimmed.starts_with("```") {
+            break;
+        }
+        if !trimmed.is_empty() && !trimmed.starts_with('#') {
+            code.push(trimmed);
+        }
+    }
+    (!code.is_empty()).then(|| {
+        code.join("\n")
+            .replace("sand_core::", "sand::")
+            .replace("sand_commands::", "sand::command::")
+            .replace("sand_components::", "sand::component::")
+            .replace("sand_resourcepack::", "sand::resourcepack::")
+    })
 }
 
 fn is_import_only_example(example: &str) -> bool {
@@ -519,30 +552,55 @@ fn is_import_only_example(example: &str) -> bool {
 }
 
 fn structural_example(
+    kind: ApiKind,
     canonical_path: &str,
     parameters: &[(&str, &str)],
-    returns_value: bool,
+    return_type: Option<&str>,
     has_receiver: bool,
 ) -> String {
+    if !matches!(
+        kind,
+        ApiKind::Function | ApiKind::Method | ApiKind::TraitMethod
+    ) {
+        let import_path = match kind {
+            ApiKind::Variant
+            | ApiKind::Field
+            | ApiKind::AssociatedConst
+            | ApiKind::AssociatedType => canonical_path
+                .rsplit_once("::")
+                .map_or(canonical_path, |(owner, _)| owner),
+            _ => canonical_path,
+        };
+        return format!("use {import_path};");
+    }
+
     let arguments = parameters
         .iter()
-        .map(|(name, _)| *name)
+        .map(|(name, ty)| format!("`{name}: {ty}`"))
         .collect::<Vec<_>>()
         .join(", ");
-    let (owner, member) = canonical_path
-        .rsplit_once("::")
-        .unwrap_or((canonical_path, canonical_path));
-    let owner = owner.rsplit("::").next().unwrap_or(owner);
-    let call = if has_receiver {
-        format!("value.{member}({arguments})")
+    let receiver = if has_receiver {
+        " on an existing receiver"
     } else {
-        format!("{owner}::{member}({arguments})")
+        ""
     };
-    if returns_value {
-        format!("let result = {call};")
+    let arguments = if arguments.is_empty() {
+        "no explicit arguments".to_owned()
     } else {
-        format!("{call};")
-    }
+        arguments
+    };
+    return_type.map_or_else(
+        || {
+            format!(
+                "// Call `{canonical_path}`{receiver} using {arguments} to perform the documented operation."
+            )
+        },
+        |ty| {
+            format!(
+                "// Call `{canonical_path}`{receiver} using {arguments}; it returns `{ty}`."
+            )
+        },
+    )
 }
 
 fn export(catalog: &ApiCatalog, output: Option<&std::path::Path>) -> Result<Option<String>> {
@@ -1204,6 +1262,40 @@ mod tests {
                 .as_deref()
                 .is_some_and(|returns| returns.contains("borrowed textual representation"))
         );
+
+        for entry in &catalog.entries {
+            let return_type = entry.return_type.as_deref().unwrap_or_default();
+            if return_type.contains("Result") || return_type.contains("Option") {
+                assert_ne!(
+                    entry.returns.as_deref(),
+                    Some("The updated typed builder, ready for further chained configuration."),
+                    "fallible/optional return documented as an infallible builder: {}",
+                    entry.canonical_path
+                );
+            }
+            if !matches!(
+                entry.kind,
+                ApiKind::Function | ApiKind::Method | ApiKind::TraitMethod
+            ) {
+                assert!(
+                    !entry.example.trim_end().ends_with("();"),
+                    "non-callable is presented as a constructor: {}",
+                    entry.canonical_path
+                );
+            }
+        }
+
+        let participant_example = &catalog
+            .find("sand::participant::PlayerParticipant")
+            .unwrap()
+            .example;
+        assert!(participant_example.contains("PlayerParticipant::subject()"));
+        assert!(participant_example.contains("use sand::participant::"));
+        assert!(!participant_example.contains("sand_core::"));
+        assert_eq!(
+            catalog.find("sand::command::Actionbar").unwrap().example,
+            "use sand::command::Actionbar;"
+        );
     }
 
     #[test]
@@ -1219,6 +1311,15 @@ mod tests {
             .expect("EntityArchetype::new is installed");
         assert!(!archetype.context.contains("sand api show"));
         assert!(!archetype.minecraft.contains("sand api show"));
+
+        assert_eq!(
+            rustdoc_example("Example:\n\n```\nlet value = 42;\n```"),
+            Some("let value = 42;".to_owned())
+        );
+        assert_eq!(
+            rustdoc_example("Example:\n\n```rust,ignore\n# let hidden = 1;\nlet shown = 2;\n```"),
+            Some("let shown = 2;".to_owned())
+        );
     }
 
     #[test]

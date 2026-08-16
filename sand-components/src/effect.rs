@@ -525,7 +525,7 @@ pub struct PotionContents {
 }
 
 impl PotionContents {
-    /// Creates this typed datapack component definition.
+    /// Starts empty potion contents with no base potion, custom color, name, or custom effects.
     pub fn new() -> Self {
         Self::default()
     }
@@ -589,7 +589,7 @@ pub struct SuspiciousStewEffect {
 }
 
 impl SuspiciousStewEffect {
-    /// Creates this typed datapack component definition.
+    /// Creates one suspicious-stew status effect with its exact Minecraft tick duration.
     pub fn new(effect: impl Into<EffectId>, duration: Ticks) -> Self {
         Self {
             effect: effect.into(),

@@ -615,6 +615,7 @@ fn validate_resolved_quality(entries: &[ApiEntry]) -> Result<(), CatalogError> {
             || entry
                 .summary
                 .contains("on this typed datapack component definition")
+            || !has_specific_semantics(&entry.summary)
         {
             return Err(CatalogError::InvalidEntry {
                 path: entry.canonical_path.clone(),
@@ -692,6 +693,46 @@ fn validate_resolved_quality(entries: &[ApiEntry]) -> Result<(), CatalogError> {
         }
     }
     Ok(())
+}
+
+/// Returns whether prose carries at least one API-specific concept rather
+/// than consisting entirely of contract boilerplate.
+pub fn has_specific_semantics(summary: &str) -> bool {
+    const GENERIC: &[&str] = &[
+        "a",
+        "an",
+        "and",
+        "api",
+        "author",
+        "builder",
+        "component",
+        "configures",
+        "constructs",
+        "creates",
+        "datapack",
+        "definition",
+        "minecraft",
+        "new",
+        "of",
+        "operation",
+        "or",
+        "performs",
+        "provides",
+        "public",
+        "represents",
+        "resolves",
+        "returns",
+        "the",
+        "this",
+        "typed",
+        "use",
+        "value",
+    ];
+    summary
+        .split(|character: char| !character.is_alphanumeric() && character != '_')
+        .filter(|word| !word.is_empty())
+        .map(|word| word.to_ascii_lowercase())
+        .any(|word| !GENERIC.contains(&word.as_str()))
 }
 
 fn valid_path(path: &str) -> bool {
@@ -961,6 +1002,12 @@ mod tests {
                 "Rust parameter with type `EquipmentSlot`.",
                 "A predicate builder.",
                 "only repeats its Rust type",
+            ),
+            (
+                "Creates this typed datapack component definition.",
+                "The selected equipment slot.",
+                "A predicate builder.",
+                "generic family filler",
             ),
             (
                 "Selects an equipment slot.",

@@ -57,7 +57,7 @@ use crate::validation;
 pub struct TrimAssetName(String);
 
 impl TrimAssetName {
-    /// Creates this typed datapack component definition.
+    /// Validates an un-namespaced trim texture path such as `quartz` or `redstone_darker`.
     pub fn new(name: impl AsRef<str>) -> SandResult<Self> {
         let name = name.as_ref();
         if name.contains(':') {
@@ -136,7 +136,7 @@ pub struct TrimMaterial {
 }
 
 impl TrimMaterial {
-    /// Creates this typed datapack component definition.
+    /// Starts a trim-material definition at `location`; required material fields are added with the builder methods.
     pub fn new(location: ResourceLocation) -> Self {
         Self {
             location,
@@ -312,7 +312,7 @@ pub struct TrimPattern {
 }
 
 impl TrimPattern {
-    /// Creates this typed datapack component definition.
+    /// Starts a trim-pattern definition at `location`; required pattern fields are added with the builder methods.
     pub fn new(location: ResourceLocation) -> Self {
         Self {
             location,

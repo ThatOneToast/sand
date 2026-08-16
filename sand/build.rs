@@ -909,7 +909,7 @@ fn write_coverage(
                 .iter()
                 .find(|path| documented_family_paths.contains(path.as_str()))?;
             let shape = definition_shapes.get(&item.identity)?;
-            if !shape.documentation.trim().is_empty() {
+            if source_documentation_is_substantive(&shape.documentation) {
                 return None;
             }
             let definition = item.definition.as_ref()?;
@@ -926,7 +926,7 @@ fn write_coverage(
         fs::write(&report, missing_family_docs.join("\n"))
             .unwrap_or_else(|error| panic!("failed to write {}: {error}", report.display()));
         panic!(
-            "{} supported family callables or placeholder-backed members lack source Rustdoc; every forwarded member must carry semantic documentation at its defining item (details: {})",
+            "{} supported family callables or placeholder-backed members lack substantive source Rustdoc; every forwarded member must carry API-specific semantic documentation at its defining item (details: {})",
             missing_family_docs.len(),
             report.display()
         );
@@ -1027,6 +1027,15 @@ fn write_coverage(
             installed.profile.baseline.display()
         );
     }
+}
+
+fn source_documentation_is_substantive(documentation: &str) -> bool {
+    let first_paragraph = documentation
+        .split("\n\n")
+        .map(str::trim)
+        .find(|paragraph| !paragraph.is_empty() && !paragraph.starts_with('#'))
+        .unwrap_or_default();
+    sand_api_contract::has_specific_semantics(first_paragraph)
 }
 
 fn kind_name(kind: ReachableKind) -> &'static str {

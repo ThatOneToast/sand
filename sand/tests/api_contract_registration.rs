@@ -50,9 +50,10 @@ fn generated_registrations_build_an_installed_catalog() {
         sand_api_contract::inventory::iter::<sand_api_contract::ApiRegistration>
             .into_iter()
             .count();
-    let catalog = ApiCatalog::installed_with_coverage(
+    let catalog = ApiCatalog::from_registrations_with_coverage(
         env!("CARGO_PKG_VERSION"),
         configuration.clone(),
+        sand_api_contract::inventory::iter::<sand_api_contract::ApiRegistration>,
         coverage,
     )
     .unwrap();
@@ -130,9 +131,10 @@ fn generated_registrations_build_an_installed_catalog() {
     assert_eq!(condition.parameters[0].name, "selector");
 
     let json_once = catalog.to_json_pretty().unwrap();
-    let json_twice = ApiCatalog::installed_with_coverage(
+    let json_twice = ApiCatalog::from_registrations_with_coverage(
         env!("CARGO_PKG_VERSION"),
         configuration,
+        sand_api_contract::inventory::iter::<sand_api_contract::ApiRegistration>,
         sand::__private::api_contract::installed_coverage(),
     )
     .unwrap()

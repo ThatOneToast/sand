@@ -82,13 +82,13 @@ The verified profiles are:
 
 | Minecraft version | Static identities | Commands | Registries | Baseline |
 | --- | ---: | ---: | ---: | --- |
-| 1.21.4 (compatibility) | 10,611 | 924 | 4,288 | `api-surface-baseline-1.21.4.txt` |
-| 26.2 (latest/default) | 11,521 | 1,255 | 4,867 | `api-surface-baseline.txt` |
+| 1.21.4 (compatibility) | 9,990 | 902 | 4,288 | `api-surface-baseline-1.21.4.txt` |
+| 26.2 (latest/default) | 10,900 | 1,233 | 4,867 | `api-surface-baseline.txt` |
 
-The handwritten source contribution is 5,143 identities in both profiles.
+The handwritten source contribution is 4,532 identities in both profiles.
 An explicit `SAND_ALLOW_PLACEHOLDER_CODEGEN=1` fallback uses a third,
-`placeholder-codegen` profile with 5,399 identities (5,143 source identities
-plus 256 checked-in generator identities). The fallback writer
+`placeholder-codegen` profile with 4,800 identities (4,532 source identities
+plus 268 checked-in generator identities). The fallback writer
 atomically replaces generated Rust and both provider catalogs; the catalogs
 are machine-marked empty placeholders and must agree. The facade keeps the
 contracted `sand::vanilla` module but cfg-disables its unavailable generated
@@ -102,37 +102,35 @@ The following detailed kind count describes the latest/default 26.2 surface:
 
 | Kind | Count |
 | --- | ---: |
-| Modules | 80 |
+| Modules | 35 |
 | Attribute procedural macros | 8 |
 | Derive procedural macros | 3 |
 | Function-like procedural macros | 4 |
 | Declarative macros | 3 |
-| Structs | 959 |
-| Enums | 165 |
-| Traits | 35 |
-| Type aliases | 13 |
-| Constants | 17 |
-| Statics | 1 |
-| Free functions | 548 |
-| Inherent methods | 2,805 |
-| Trait methods | 53 |
-| Associated constants | 20 |
+| Structs | 920 |
+| Enums | 148 |
+| Traits | 33 |
+| Type aliases | 11 |
+| Constants | 2 |
+| Free functions | 521 |
+| Inherent methods | 2,721 |
+| Trait methods | 49 |
+| Associated constants | 16 |
 | Associated types | 2 |
-| Public fields | 938 |
-| Enum variants | 5,867 |
+| Public fields | 687 |
+| Enum variants | 5,737 |
 
-Generated static families account for 6,378 identities:
+Generated static families account for 6,368 identities:
 
 - vanilla registries: 4 enums, 4 inherent methods, and 4,859 variants
   (4,867 total); and
-- generated command builders: 486 structs and 769 functions/methods
-  (1,255 total);
-- typed registry-ID wrappers: 136 identities (including the contracted
+- generated command builders: 1,233 identities;
+- typed registry-ID wrappers: 148 identities (including the contracted
   resource-reference IDs);
 - effect registry enums: 95 identities;
 - generated event marker types: 25 identities.
 
-The remaining 5,143 identities come from ordinary source declarations,
+The remaining 4,532 identities come from ordinary source declarations,
 including the 15 exported procedural macros. Input-dependent items emitted
 into downstream crates by attributes and derives are parametric families, so
 they do not have an honest finite installed count. Each such generator is a
@@ -157,8 +155,8 @@ The migrated `sand::condition` scope owns 12 supported identities: an opaque
 `Condition` plus 11 typed constructors and combinators. Its audit removed 75
 accidental identities by hiding variants, payload fields, lowering plans,
 range/comparison internals, and obsolete string-rendering compatibility APIs.
-`ScoreOperand` moved to the pending state scope where the public score API that
-uses it is actually owned.
+`ScoreOperand` is owned and enforced by the state scope where the public score
+API that uses it lives.
 
 The generated `sand::vanilla` scope is enforced as one versioned family rather
 than 4,859 handwritten variant contracts. Its registry schema emits the enum,
@@ -168,7 +166,7 @@ profile owns 4,288. The explicit placeholder profile owns zero registry
 identities but must still connect and validate its empty provider/source parity;
 an empty catalog cannot silently claim a real Minecraft profile.
 
-The root-facade source scope owns 32 direct identities and is enforced. Its
+The root-facade source scope owns 37 direct identities and is enforced. Its
 contracts cover the curated root modules, `ResourceLocation`, declarative
 macros, derives, and every supported procedural macro. The former
 `#[component]`, `#[event]`, and `#[item]` attributes were renamed to
@@ -231,36 +229,23 @@ shadowed above its defining module. Custom helper attributes are accepted only
 on the declaration forms and under the derive that defines them.
 
 The static providers are connected to the facade build. Input-dependent
-attribute/derive scopes are marked `consumer_build`; they remain pending and
-cannot be changed to enforced until a consuming-crate build connects the
-corresponding provider audit. The foundation proves this mechanism with the
-real `SandStorage` derive, but does not claim every downstream generator has
-been migrated.
+attribute/derive scopes use `consumer_build` enforcement: isolated downstream
+fixtures compile real macro expansions and reject missing generated contracts.
+All such scopes are enforced rather than counted as vacuous zero-item static
+families.
 
-After the root-facade tranche, the exact 26.2 profile records 11,521
-static identities: 5,168 enforced identities (301 source/generated identities
-plus 4,867 generated vanilla registry identities) and 6,353 identities across
-29 pending scopes. The 1.21.4 and explicit placeholder profiles enforce the
-same 301 source/generated identities against their independently generated totals.
+The exact 26.2 profile records 10,900 enforced static identities across 38
+scopes, with zero pending scopes and zero pending items. The 1.21.4 and explicit
+placeholder profiles enforce the same source and checked-in-generator boundary
+against their independently generated totals. Every reachable identity maps to
+exactly one scope; an uncontracted addition, ownership collision, provider
+drift, or enforced-to-pending regression stops an ordinary build.
 
-Every reachable identity must map to exactly one scope. Enforced scopes reject
-missing contracts during ordinary compilation. Pending scopes remain in the
-deterministic coverage report, and the pending baseline may only decrease.
-Issue #327 completes only at zero pending source and generator scopes.
+## Canonical ownership after migration
 
-## Known canonical defects to resolve during migration
-
-The current facade contains 396 source identities owned by the temporary
-`prelude-unassigned-source` scope,
-including component families that lack the promised canonical topic path.
-Migration must add a canonical topic re-export or deliberately remove each
-such promise; it must not make the prelude canonical by accident.
-
-The remaining 126 registry-ID wrapper identities are likewise assigned to a
-low-precedence pending prelude projection until their canonical topic modules
-are established. `PredicateId` is no longer in that provisional partition.
-
-Broad whole-module exports also expose graph, compiler, registry, and lowering
-types that ordinary authors do not use. Each scope audit should narrow those
-exports or move deliberate integration hooks to `advanced` before attaching a
-compatibility contract.
+No semantic API is canonically owned by a prelude descendant. Registry-ID
+wrappers live under `sand::registry`, topic-specific wrappers retain their
+stronger domain owners, and `sand::prelude` contains aliases only. Compiler
+graphs, exporter plans, coverage bookkeeping, lowering records, and event
+transport structures were removed from the supported facade or made private;
+the retained public surface is the author-facing semantic layer.

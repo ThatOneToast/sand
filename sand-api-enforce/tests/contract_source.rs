@@ -309,6 +309,29 @@ fn facade_contracts_use_the_shared_semantic_validator() {
 }
 
 #[test]
+fn systems_family_requires_a_known_feature_mapping() {
+    let temp = tempdir().unwrap();
+    let source = temp.path().join("contracts.rs");
+    std::fs::write(
+        &source,
+        r#"register_systems_api! {
+            path: "sand::systems::future_system::Tracker",
+            aliases: [],
+            kind: Struct,
+            summary: "Tracks a future gameplay system."
+        }"#,
+    )
+    .unwrap();
+    let error = contract_declarations_from_files([source]).unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("does not map to a known Cargo feature"),
+        "{error}"
+    );
+}
+
+#[test]
 fn facade_contract_kind_must_match_the_reachable_definition() {
     let reachable = vec![api("lower::Thing", &["sand::topic::Thing"])];
     let temp = tempdir().unwrap();

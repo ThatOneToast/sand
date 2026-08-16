@@ -108,6 +108,12 @@ impl ApiProviderCatalog {
         let mut identities = BTreeSet::new();
         let mut previous_path: Option<&str> = None;
         for entry in &self.entries {
+            entry.contract.validate().map_err(|error| {
+                format!(
+                    "provider `{}` declaration `{}` has an invalid contract: {error}",
+                    self.provider, entry.definition_identity
+                )
+            })?;
             if previous_path
                 .is_some_and(|previous| previous > entry.contract.canonical_path.as_str())
             {
@@ -137,6 +143,12 @@ impl ApiProviderCatalog {
                     self.provider, entry.definition_identity
                 ));
             }
+            validate_callable_metadata(entry).map_err(|error| {
+                format!(
+                    "provider `{}` declaration `{}` has stale structural metadata: {error}",
+                    self.provider, entry.definition_identity
+                )
+            })?;
             if !entry.contract.canonical_path.starts_with("sand::")
                 || entry.contract.summary.trim().is_empty()
                 || entry.contract.context.trim().is_empty()
@@ -198,6 +210,127 @@ impl ApiProviderCatalog {
         std::fs::write(path, bytes)?;
         Ok(())
     }
+}
+
+fn validate_callable_metadata(entry: &GeneratedProviderEntry) -> std::result::Result<(), String> {
+    if !matches!(
+        entry.definition_kind,
+        ApiKind::Function | ApiKind::Method | ApiKind::TraitMethod
+    ) {
+        if !entry.contract.parameters.is_empty()
+            || entry.contract.returns.is_some()
+            || entry.contract.return_type.is_some()
+        {
+            return Err(
+                "non-callable declaration contains callable parameter/return metadata".into(),
+            );
+        }
+        return Ok(());
+    }
+
+    let function = entry
+        .contract
+        .signature
+        .find("fn ")
+        .map(|start| &entry.contract.signature[start..])
+        .ok_or_else(|| {
+            format!(
+                "callable signature `{}` has no `fn`",
+                entry.contract.signature
+            )
+        })?;
+    let signature = syn::parse_str::<syn::Signature>(function)
+        .map_err(|error| format!("cannot parse callable signature `{function}`: {error}"))?;
+    let expected_parameters = signature
+        .inputs
+        .iter()
+        .filter_map(|argument| match argument {
+            syn::FnArg::Receiver(_) => None,
+            syn::FnArg::Typed(argument) => Some((
+                argument.pat.to_token_stream().to_string(),
+                normalize_rust_type(&argument.ty),
+            )),
+        })
+        .collect::<Vec<_>>();
+    if entry.contract.parameters.len() != expected_parameters.len() {
+        return Err(format!(
+            "signature declares {} non-receiver parameters but contract documents {}",
+            expected_parameters.len(),
+            entry.contract.parameters.len()
+        ));
+    }
+    for (parameter, (expected_name, expected_type)) in
+        entry.contract.parameters.iter().zip(expected_parameters)
+    {
+        if parameter.name != expected_name {
+            return Err(format!(
+                "signature parameter `{expected_name}` is documented as `{}`",
+                parameter.name
+            ));
+        }
+        let actual_type = parameter
+            .rust_type
+            .as_deref()
+            .ok_or_else(|| format!("parameter `{expected_name}` is missing rust_type"))?;
+        let actual_type = syn::parse_str::<syn::Type>(actual_type)
+            .map(|ty| normalize_rust_type(&ty))
+            .map_err(|error| {
+                format!(
+                    "parameter `{expected_name}` has invalid rust_type `{actual_type}`: {error}"
+                )
+            })?;
+        if actual_type != expected_type {
+            return Err(format!(
+                "parameter `{expected_name}` has rust_type `{actual_type}`, signature requires `{expected_type}`"
+            ));
+        }
+    }
+
+    let expected_return = match &signature.output {
+        syn::ReturnType::Default => None,
+        syn::ReturnType::Type(_, ty) => Some(normalize_rust_type(ty)),
+    };
+    let actual_return = entry
+        .contract
+        .return_type
+        .as_deref()
+        .map(|value| {
+            syn::parse_str::<syn::Type>(value)
+                .map(|ty| normalize_rust_type(&ty))
+                .map_err(|error| format!("invalid return_type `{value}`: {error}"))
+        })
+        .transpose()?;
+    if actual_return != expected_return {
+        return Err(format!(
+            "return_type is `{}`, signature requires `{}`",
+            actual_return.as_deref().unwrap_or("none"),
+            expected_return.as_deref().unwrap_or("none")
+        ));
+    }
+    if entry.contract.returns.is_some() != expected_return.is_some() {
+        return Err(format!(
+            "semantic returns documentation is {}, but the signature return type is {}",
+            if entry.contract.returns.is_some() {
+                "present"
+            } else {
+                "absent"
+            },
+            if expected_return.is_some() {
+                "present"
+            } else {
+                "absent"
+            }
+        ));
+    }
+    Ok(())
+}
+
+fn normalize_rust_type(ty: &syn::Type) -> String {
+    ty.to_token_stream()
+        .to_string()
+        .chars()
+        .filter(|character| !character.is_whitespace())
+        .collect()
 }
 
 /// Write the complete empty code-generation fallback, including authoritative
@@ -586,14 +719,33 @@ fn normalize_public_shape(kind: ApiKind, signature: &str) -> String {
     let signature = match kind {
         ApiKind::Struct | ApiKind::Enum | ApiKind::Trait => signature
             .split_once('{')
-            .map_or(signature, |(head, _)| head),
-        _ => signature,
+            .map_or_else(|| signature.to_owned(), |(head, _)| head.to_owned()),
+        ApiKind::Function | ApiKind::Method | ApiKind::TraitMethod => signature
+            .find("fn ")
+            .and_then(|start| {
+                let mut parsed = syn::parse_str::<syn::Signature>(&signature[start..]).ok()?;
+                for argument in &mut parsed.inputs {
+                    if let syn::FnArg::Receiver(receiver) = argument
+                        && receiver.reference.is_none()
+                    {
+                        // Binding mutability on a by-value receiver is not part
+                        // of the public call signature. Reference mutability is.
+                        receiver.mutability = None;
+                    }
+                }
+                Some(format!(
+                    "{}{}",
+                    &signature[..start],
+                    parsed.to_token_stream()
+                ))
+            })
+            .unwrap_or_else(|| signature.to_owned()),
+        _ => signature.to_owned(),
     };
     signature
         .chars()
         .filter(|character| !character.is_whitespace())
-        .collect::<String>()
-        .replace("mutself", "self")
+        .collect()
 }
 
 fn variant_shape(variant: &syn::Variant) -> String {
@@ -840,5 +992,96 @@ mod tests {
             error.contains("core::generated::hidden_bypass::Extra (Struct)"),
             "{error}"
         );
+
+        std::fs::write(
+            &rust,
+            "pub struct Generated;\nimpl Generated { pub fn change(&mut self) {} }\n",
+        )
+        .unwrap();
+        let mut method = entry(
+            "core::generated::Generated::change",
+            "sand::generated::Generated::change",
+        );
+        method.definition_kind = ApiKind::Method;
+        method.contract.kind = ApiKind::Method;
+        method.parent_identity = Some("core::generated::Generated".into());
+        method.member_name = Some("change".into());
+        method.contract.signature = "pub fn change(&self)".into();
+        let mut receiver_catalog = catalog;
+        receiver_catalog.entries.push(method);
+        receiver_catalog.entries.sort_by(|left, right| {
+            left.contract
+                .canonical_path
+                .cmp(&right.contract.canonical_path)
+        });
+        let error = validate_api_provider_source(&receiver_catalog, &rust, "core::generated")
+            .expect_err("shared and mutable receivers must not compare equal");
+        assert!(error.contains("stale public shapes"), "{error}");
+    }
+
+    #[test]
+    fn provider_rejects_parameter_and_return_metadata_drift() {
+        let mut method = entry(
+            "core::generated::Generated::convert",
+            "sand::generated::Generated::convert",
+        );
+        method.definition_kind = ApiKind::Method;
+        method.contract.kind = ApiKind::Method;
+        method.parent_identity = Some("core::generated::Generated".into());
+        method.member_name = Some("convert".into());
+        method.contract.signature = "pub fn convert(&self, value: u32) -> String".into();
+        method.contract.parameters = vec![sand_api_contract::ApiParameter {
+            name: "value".into(),
+            rust_type: Some("u32".into()),
+            description: "The value to convert.".into(),
+        }];
+        method.contract.returns = Some("The converted value.".into());
+        method.contract.return_type = Some("String".into());
+
+        let catalog = ApiProviderCatalog::new("fixture", "test", vec![method]);
+        catalog.validate().unwrap();
+
+        let mut stale_parameter = catalog.clone();
+        stale_parameter.entries[0].contract.parameters[0].rust_type = Some("u64".into());
+        let error = stale_parameter
+            .validate()
+            .expect_err("parameter type drift must fail closed");
+        assert!(error.contains("signature requires `u32`"), "{error}");
+
+        let mut stale_return = catalog;
+        stale_return.entries[0].contract.return_type = Some("&str".into());
+        let error = stale_return
+            .validate()
+            .expect_err("return type drift must fail closed");
+        assert!(error.contains("signature requires `String`"), "{error}");
+
+        let mut non_callable = ApiProviderCatalog::new(
+            "fixture",
+            "test",
+            vec![entry(
+                "core::generated::Generated",
+                "sand::generated::Generated",
+            )],
+        );
+        non_callable.entries[0].contract.returns = Some("A bogus value.".into());
+        non_callable.entries[0].contract.return_type = Some("Bogus".into());
+        let error = non_callable
+            .validate()
+            .expect_err("callable metadata on a type must fail closed");
+        assert!(error.contains("non-callable declaration"), "{error}");
+
+        let mut wrong_owner = ApiProviderCatalog::new(
+            "fixture",
+            "test",
+            vec![entry(
+                "core::generated::Generated",
+                "sand::generated::Generated",
+            )],
+        );
+        wrong_owner.entries[0].contract.canonical_module = "sand::wrong".into();
+        let error = wrong_owner
+            .validate()
+            .expect_err("canonical module ownership drift must fail closed");
+        assert!(error.contains("is not a valid owner"), "{error}");
     }
 }

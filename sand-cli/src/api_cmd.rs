@@ -1496,6 +1496,18 @@ mod tests {
                 expected,
                 "compiled surface mismatch for {feature}"
             );
+            for entry in catalog
+                .entries
+                .iter()
+                .filter(|entry| entry.canonical_path.starts_with(prefix))
+            {
+                assert_eq!(
+                    entry.availability,
+                    vec![format!("Cargo feature: {feature}")],
+                    "availability mismatch for {}",
+                    entry.canonical_path
+                );
+            }
         }
     }
 

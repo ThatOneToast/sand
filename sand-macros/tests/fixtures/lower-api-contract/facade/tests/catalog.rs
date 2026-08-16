@@ -8,7 +8,7 @@ fn lower_crate_registrations_are_installed_in_the_facade_binary() {
     >
     .into_iter()
     .count();
-    let catalog = ApiCatalog::installed(
+    let catalog = ApiCatalog::from_registrations(
         "fixture",
         sand_api_contract::ApiConfiguration {
             surface_profile: "test".into(),
@@ -17,6 +17,7 @@ fn lower_crate_registrations_are_installed_in_the_facade_binary() {
             placeholder_codegen: false,
             compiled_surface_items,
         },
+        sand_api_contract::inventory::iter::<sand_api_contract::ApiRegistration>,
     )
     .unwrap();
     let widget = catalog.find("sand::Widget").unwrap();

@@ -625,7 +625,7 @@ mod tests {
             sand_api_contract::inventory::iter::<sand_api_contract::ApiRegistration>
                 .into_iter()
                 .count();
-        let catalog = sand_api_contract::ApiCatalog::installed(
+        let catalog = sand_api_contract::ApiCatalog::from_registrations(
             "test",
             sand_api_contract::ApiConfiguration {
                 surface_profile: "test".into(),
@@ -634,6 +634,7 @@ mod tests {
                 placeholder_codegen: false,
                 compiled_surface_items,
             },
+            sand_api_contract::inventory::iter::<sand_api_contract::ApiRegistration>,
         )
         .unwrap();
         for (path, signature) in [

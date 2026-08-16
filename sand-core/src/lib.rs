@@ -598,6 +598,19 @@ pub mod __private {
     pub const fn player_sneaking_tracked_source() -> crate::TrackedSource {
         crate::events::PLAYER_SNEAKING_TRACKED_SOURCE
     }
+
+    /// Constructs compiler-owned version and dirty entity-score fields for
+    /// Sand's entity-state derive expansion.
+    pub const fn entity_score_new<T: 'static>(
+        namespace: &'static str,
+        schema: &'static str,
+        name: &'static str,
+        kind: crate::entity::StateFieldKind,
+        default: i32,
+        bounds: Option<(i32, i32)>,
+    ) -> crate::entity::EntityScore<T> {
+        crate::entity::EntityScore::__new(namespace, schema, name, kind, default, bounds)
+    }
 }
 
 impl From<generated::Item> for sand_components::registry::ItemId {

@@ -68,7 +68,6 @@ impl StateLifecycle {
     }
 
     /// Bind this lifecycle to singleton global state.
-    #[doc(hidden)]
     pub const fn global(mut self, holder: &'static str) -> Self {
         self.scope = StateScope::Global(holder);
         self

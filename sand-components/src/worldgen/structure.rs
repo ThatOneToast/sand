@@ -356,16 +356,19 @@ impl JigsawConfig {
         self
     }
 
+    /// Sets the Minecraft start height property on this typed jigsaw config definition and returns the updated builder.
     pub fn start_height(mut self, start_height: HeightProvider) -> Self {
         self.start_height = start_height;
         self
     }
 
+    /// Sets the Minecraft start jigsaw name property on this typed jigsaw config definition and returns the updated builder.
     pub fn start_jigsaw_name(mut self, name: impl Into<String>) -> Self {
         self.start_jigsaw_name = Some(name.into());
         self
     }
 
+    /// Sets the Minecraft project start to heightmap property on this typed jigsaw config definition and returns the updated builder.
     pub fn project_start_to_heightmap(mut self, heightmap: Heightmap) -> Self {
         self.project_start_to_heightmap = Some(heightmap);
         self
@@ -377,6 +380,7 @@ impl JigsawConfig {
         self
     }
 
+    /// Sets the Minecraft use expansion hack property on this typed jigsaw config definition and returns the updated builder.
     pub fn use_expansion_hack(mut self, value: bool) -> Self {
         self.use_expansion_hack = value;
         self
@@ -489,21 +493,25 @@ impl Structure {
             .jigsaw_config(JigsawConfig::new(start_pool))
     }
 
+    /// Sets the Minecraft structure type property on this typed structure definition and returns the updated builder.
     pub fn structure_type(mut self, structure_type: StructureTypeId) -> Self {
         self.structure_type = structure_type;
         self
     }
 
+    /// Sets the Minecraft biomes property on this typed structure definition and returns the updated builder.
     pub fn biomes(mut self, biomes: BiomeSelector) -> Self {
         self.biomes = biomes;
         self
     }
 
+    /// Sets the Minecraft step property on this typed structure definition and returns the updated builder.
     pub fn step(mut self, step: GenerationStep) -> Self {
         self.step = step;
         self
     }
 
+    /// Sets the Minecraft terrain adaptation property on this typed structure definition and returns the updated builder.
     pub fn terrain_adaptation(mut self, adaptation: TerrainAdaptation) -> Self {
         self.terrain_adaptation = Some(adaptation);
         self

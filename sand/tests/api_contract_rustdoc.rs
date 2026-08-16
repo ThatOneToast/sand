@@ -82,6 +82,7 @@ fn rendered_rustdoc_links_every_contract_production_mechanism() {
         .collect::<BTreeSet<_>>();
     let registrations = sand::__private::api_contract::INSTALLED_FACADE_CONTRACTS;
     let mut family_pages = BTreeSet::new();
+    let mut family_members = BTreeSet::new();
     for registration in registrations
         .iter()
         .filter(|registration| family_paths.contains(registration.canonical_path))
@@ -120,6 +121,17 @@ fn rendered_rustdoc_links_every_contract_production_mechanism() {
             .max_by_key(|candidate| candidate.canonical_path.len())
             .unwrap_or_else(|| panic!("no Rustdoc owner for {}", registration.canonical_path));
         family_pages.insert((rustdoc_page(owner), owner.canonical_path));
+        if matches!(registration.kind, ApiKind::Method | ApiKind::TraitMethod) {
+            family_members.insert((
+                rustdoc_page(owner),
+                registration
+                    .canonical_path
+                    .rsplit("::")
+                    .next()
+                    .expect("member path has a name"),
+                registration.canonical_path,
+            ));
+        }
     }
     for (relative, owner) in family_pages {
         let page = target.join("doc/sand").join(&relative);
@@ -132,6 +144,38 @@ fn rendered_rustdoc_links_every_contract_production_mechanism() {
             page.display()
         );
     }
+
+    for (relative, member, canonical) in family_members {
+        let page = target.join("doc/sand").join(&relative);
+        let html = fs::read_to_string(&page).unwrap_or_else(|error| {
+            panic!("failed to read {} for {canonical}: {error}", page.display())
+        });
+        let method_anchor = format!("id=\"method.{member}\"");
+        let trait_anchor = format!("id=\"tymethod.{member}\"");
+        let start = [html.find(&method_anchor), html.find(&trait_anchor)]
+            .into_iter()
+            .flatten()
+            .min()
+            .unwrap_or_else(|| panic!("{} has no anchor for {canonical}", page.display()));
+        let section = &html[start + 1..];
+        let end = [section.find("id=\"method."), section.find("id=\"tymethod.")]
+            .into_iter()
+            .flatten()
+            .min()
+            .unwrap_or(section.len());
+        assert!(
+            section[..end].contains("class=\"docblock\""),
+            "{} exposes {canonical} without member-specific Rustdoc",
+            page.display()
+        );
+    }
+
+    let nbt_path = fs::read_to_string(target.join("doc/sand/data/struct.NbtPath.html"))
+        .expect("read rendered NbtPath documentation");
+    assert!(
+        nbt_path.contains("Borrows the rendered NBT path text without allocating"),
+        "NbtPath::as_str must render its member-specific contract prose"
+    );
 
     fs::remove_dir_all(&target).expect("remove isolated rustdoc target");
 }

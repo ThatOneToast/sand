@@ -74,10 +74,12 @@ pub enum ParticipantAvailability<T> {
 }
 
 impl<T> ParticipantAvailability<T> {
+    /// Reports whether the event plan made this participant available to the handler.
     pub fn is_available(&self) -> bool {
         matches!(self, Self::Available(_))
     }
 
+    /// Returns why the participant is unavailable, or `None` when it is available.
     pub fn reason(&self) -> Option<ParticipantUnavailableReason> {
         match self {
             Self::Available(_) => None,
@@ -85,6 +87,7 @@ impl<T> ParticipantAvailability<T> {
         }
     }
 
+    /// Extracts the participant value when available.
     pub fn available(self) -> Option<T> {
         match self {
             Self::Available(value) => Some(value),
@@ -92,6 +95,7 @@ impl<T> ParticipantAvailability<T> {
         }
     }
 
+    /// Transforms an available participant while preserving its unavailable reason.
     pub fn map<U>(self, f: impl FnOnce(T) -> U) -> ParticipantAvailability<U> {
         match self {
             Self::Available(value) => ParticipantAvailability::Available(f(value)),

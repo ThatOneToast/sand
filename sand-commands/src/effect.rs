@@ -21,10 +21,12 @@ pub enum EffectDuration {
 }
 
 impl EffectDuration {
+    /// Creates an effect duration measured in whole seconds.
     pub const fn seconds(seconds: u32) -> Self {
         Self::Seconds(seconds)
     }
 
+    /// Creates an effect duration measured in game ticks.
     pub const fn ticks(ticks: u32) -> Self {
         Self::Ticks(ticks)
     }
@@ -50,6 +52,7 @@ pub struct EffectCommand {
 }
 
 impl EffectCommand {
+    /// Creates a typed effect command builder from the supplied command inputs.
     pub fn give(target: Selector, effect: impl Into<String>) -> Self {
         Self {
             target,
@@ -61,6 +64,7 @@ impl EffectCommand {
         }
     }
 
+    /// Uses the explicit raw give escape hatch on the effect command builder.
     pub fn give_raw(target: Selector, effect: impl Into<String>) -> Self {
         Self {
             raw_effect: true,
@@ -68,16 +72,19 @@ impl EffectCommand {
         }
     }
 
+    /// Sets the effect duration on this command builder.
     pub fn duration(mut self, duration: EffectDuration) -> Self {
         self.duration = Some(duration);
         self
     }
 
+    /// Sets the zero-based effect amplifier on this command builder.
     pub fn amplifier(mut self, amplifier: u8) -> Self {
         self.amplifier = Some(amplifier);
         self
     }
 
+    /// Controls whether applying the effect displays particles.
     pub fn particles(mut self, show_particles: bool) -> Self {
         self.show_particles = show_particles;
         self

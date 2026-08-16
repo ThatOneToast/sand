@@ -162,6 +162,7 @@ pub struct ObservationSchema {
 }
 
 impl ObservationSchema {
+    /// Creates the storage schema used to correlate participant observations for an event.
     pub fn new(storage: impl Into<String>, event_label: &str) -> Self {
         Self {
             storage: storage.into(),
@@ -169,6 +170,7 @@ impl ObservationSchema {
         }
     }
 
+    /// Returns the command-storage resource used for observation snapshots.
     pub fn storage(&self) -> &str {
         &self.storage
     }
@@ -263,10 +265,12 @@ impl CorrelatedEntityObservation {
         )
     }
 
+    /// Returns the correlation evidence that established this observation.
     pub fn evidence(&self) -> CorrelationEvidence {
         self.evidence
     }
 
+    /// Returns the semantic event role assigned to the observed entity.
     pub fn role(&self) -> EntityParticipantRole {
         self.role
     }

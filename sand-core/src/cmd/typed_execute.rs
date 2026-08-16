@@ -70,7 +70,10 @@ impl ConditionedExecute {
                 clauses
                     .into_iter()
                     .fold(self.prefix.clone(), |execute, clause| {
-                        execute.with_operation(clause.into_operation())
+                        sand_commands::__private::execute_with_operation(
+                            execute,
+                            clause.into_operation(),
+                        )
                     })
                     .run(&cmd_str)
             })

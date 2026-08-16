@@ -1711,16 +1711,22 @@ pub(crate) fn try_export_components_impl(
                                 .as_(sand_commands::Selector::all_players())
                                 .at(sand_commands::Selector::self_());
                             if let Some(guard) = &self_guard {
-                                execute = execute.with_operation(sand_commands::ExecuteOp::Unless(
-                                    sand_commands::ConditionIr::ScoreMatches {
-                                        holder: sand_commands::ScoreHolder::self_(),
-                                        objective: guard.clone(),
-                                        range: "1".to_string(),
-                                    },
-                                ));
+                                execute = sand_commands::__private::execute_with_operation(
+                                    execute,
+                                    sand_commands::ExecuteOp::Unless(
+                                        sand_commands::ConditionIr::ScoreMatches {
+                                            holder: sand_commands::ScoreHolder::self_(),
+                                            objective: guard.clone(),
+                                            range: "1".to_string(),
+                                        },
+                                    ),
+                                );
                             }
                             execute = plan.iter().cloned().fold(execute, |execute, clause| {
-                                execute.with_operation(clause.into_operation())
+                                sand_commands::__private::execute_with_operation(
+                                    execute,
+                                    clause.into_operation(),
+                                )
                             });
                             tick_cmds.push(execute.run_fn(&dispatch_ref));
                         }

@@ -82,12 +82,12 @@ The verified profiles are:
 
 | Minecraft version | Static identities | Commands | Registries | Baseline |
 | --- | ---: | ---: | ---: | --- |
-| 1.21.4 (compatibility) | 9,990 | 902 | 4,288 | `api-surface-baseline-1.21.4.txt` |
-| 26.2 (latest/default) | 10,900 | 1,233 | 4,867 | `api-surface-baseline.txt` |
+| 1.21.4 (compatibility) | 9,987 | 902 | 4,288 | `api-surface-baseline-1.21.4.txt` |
+| 26.2 (latest/default) | 10,897 | 1,233 | 4,867 | `api-surface-baseline.txt` |
 
-The handwritten source contribution is 4,532 identities in both profiles.
+The handwritten source contribution is 4,529 identities in both profiles.
 An explicit `SAND_ALLOW_PLACEHOLDER_CODEGEN=1` fallback uses a third,
-`placeholder-codegen` profile with 4,800 identities (4,532 source identities
+`placeholder-codegen` profile with 4,797 identities (4,529 source identities
 plus 268 checked-in generator identities). The fallback writer
 atomically replaces generated Rust and both provider catalogs; the catalogs
 are machine-marked empty placeholders and must agree. The facade keeps the
@@ -234,7 +234,7 @@ fixtures compile real macro expansions and reject missing generated contracts.
 All such scopes are enforced rather than counted as vacuous zero-item static
 families.
 
-The exact 26.2 profile records 10,900 enforced static identities across 38
+The exact 26.2 profile records 10,897 enforced static identities across 38
 scopes, with zero pending scopes and zero pending items. The 1.21.4 and explicit
 placeholder profiles enforce the same source and checked-in-generator boundary
 against their independently generated totals. Every reachable identity maps to

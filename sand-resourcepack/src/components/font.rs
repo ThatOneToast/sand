@@ -66,6 +66,7 @@ pub struct BitmapProvider {
 }
 
 impl BitmapProvider {
+    /// Configures to json for this typed resource-pack definition.
     pub fn to_json(&self) -> Value {
         json!({
             "type": "bitmap",

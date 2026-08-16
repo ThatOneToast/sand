@@ -610,6 +610,38 @@ fn validate_entry(entry: &ApiEntry) -> Result<(), CatalogError> {
 
 fn validate_resolved_quality(entries: &[ApiEntry]) -> Result<(), CatalogError> {
     for entry in entries {
+        if entry.summary.starts_with("Configures or performs ")
+            || entry.summary.starts_with("Builds or resolves ")
+            || entry
+                .summary
+                .contains("on this typed datapack component definition")
+        {
+            return Err(CatalogError::InvalidEntry {
+                path: entry.canonical_path.clone(),
+                message: "summary is generic family filler rather than API-specific semantics"
+                    .into(),
+            });
+        }
+        if entry.parameters.iter().any(|parameter| {
+            parameter
+                .description
+                .starts_with("Rust parameter with type `")
+        }) {
+            return Err(CatalogError::InvalidEntry {
+                path: entry.canonical_path.clone(),
+                message: "parameter documentation only repeats its Rust type".into(),
+            });
+        }
+        if entry
+            .returns
+            .as_deref()
+            .is_some_and(|returns| returns.starts_with("A value with Rust type `"))
+        {
+            return Err(CatalogError::InvalidEntry {
+                path: entry.canonical_path.clone(),
+                message: "return documentation only repeats its Rust type".into(),
+            });
+        }
         if [
             "author-facing entity API",
             "author-facing component API",
@@ -916,6 +948,46 @@ mod tests {
                 .to_string()
                 .contains("behavioral example")
         );
+
+        for (summary, parameter, returns, expected) in [
+            (
+                "Builds or resolves value.",
+                "The selected equipment slot.",
+                "A predicate builder.",
+                "generic family filler",
+            ),
+            (
+                "Selects an equipment slot.",
+                "Rust parameter with type `EquipmentSlot`.",
+                "A predicate builder.",
+                "only repeats its Rust type",
+            ),
+            (
+                "Selects an equipment slot.",
+                "The selected equipment slot.",
+                "A value with Rust type `Predicate`.",
+                "only repeats its Rust type",
+            ),
+        ] {
+            let mut filler = ApiEntry::from(&REGISTRATION);
+            filler.summary = summary.into();
+            filler.parameters[0].description = parameter.into();
+            filler.returns = Some(returns.into());
+            let catalog = ApiCatalog::from_entries_with_coverage(
+                "0.1.0",
+                configuration(1),
+                vec![filler],
+                ApiCoverage::unverified(),
+            )
+            .unwrap();
+            assert!(
+                catalog
+                    .validate_quality()
+                    .unwrap_err()
+                    .to_string()
+                    .contains(expected)
+            );
+        }
     }
 
     #[test]

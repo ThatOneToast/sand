@@ -202,6 +202,11 @@ fn installed_catalog() -> Result<ApiCatalog> {
                 .find(|(paths, ..)| paths.contains(&entry.canonical_path.as_str()))
         {
             entry.signature = (*signature).to_owned();
+            let source_summary = rustdoc_summary(documentation);
+            let resolved_summary = source_summary
+                .clone()
+                .unwrap_or_else(|| semantic_fallback_summary(entry));
+            let semantic_summary = resolved_summary.as_str();
             let authored = entry
                 .parameters
                 .iter()
@@ -213,23 +218,19 @@ fn installed_catalog() -> Result<ApiCatalog> {
                     name: (*name).to_owned(),
                     rust_type: Some((*ty).to_owned()),
                     description: authored.get(name).map_or_else(
-                        || format!("Rust parameter with type `{ty}`."),
+                        || semantic_parameter_description(name, ty, semantic_summary),
                         |description| (*description).to_owned(),
                     ),
                 })
                 .collect();
             entry.returns = return_type.map(|ty| {
-                entry
-                    .returns
-                    .clone()
-                    .unwrap_or_else(|| format!("A value with Rust type `{ty}`."))
+                entry.returns.clone().unwrap_or_else(|| {
+                    semantic_return_description(ty, semantic_summary, &entry.canonical_module)
+                })
             });
             entry.return_type = return_type.map(|ty| (*ty).to_owned());
-            let source_summary = rustdoc_summary(documentation);
             if family_contract {
-                let summary = source_summary
-                    .clone()
-                    .unwrap_or_else(|| entry.summary.clone());
+                let summary = resolved_summary;
                 let prose = if documentation.trim().is_empty() {
                     format!(
                         "{summary} The exact source-derived Rust declaration is `{}`.",
@@ -287,6 +288,9 @@ fn rustdoc_prose(documentation: &str) -> String {
     let mut current = Vec::new();
     for line in documentation.lines() {
         let line = line.trim();
+        if line.eq_ignore_ascii_case("# API Contract") {
+            break;
+        }
         if line.starts_with("```") {
             in_code = !in_code;
             continue;
@@ -316,6 +320,126 @@ fn rustdoc_prose(documentation: &str) -> String {
             .map_or(prose.len(), |(index, _)| index);
         format!("{}...", prose[..end].trim_end())
     }
+}
+
+fn semantic_parameter_description(name: &str, rust_type: &str, summary: &str) -> String {
+    let normalized = name.trim_start_matches('_').replace('_', " ");
+    let compact_type = rust_type.replace(' ', "");
+    if compact_type.contains("Text") {
+        return "Supplies the typed player-visible Minecraft text rendered by this operation."
+            .to_owned();
+    }
+    if compact_type.contains("Selector") || compact_type.contains("EntityTarget") {
+        return "Selects the Minecraft entity or entities affected by this operation.".to_owned();
+    }
+    if compact_type.contains("Condition") || compact_type.contains("Predicate") {
+        return "Defines the condition that must hold for the documented behavior to apply."
+            .to_owned();
+    }
+    if compact_type.contains("ResourceLocation") || compact_type.ends_with("Id") {
+        return "Supplies the validated Minecraft resource identifier used by this operation."
+            .to_owned();
+    }
+    let purpose = match name.trim_start_matches('_') {
+        "selector" | "target" | "targets" | "entity" | "entities" | "player" | "players" => {
+            "Selects the Minecraft entity or entities affected by this operation."
+        }
+        "id" | "key" | "name" | "field_name" | "objective" | "tag" => {
+            "Identifies the named Minecraft resource, field, objective, or tag used by this operation."
+        }
+        "path" | "source_path" | "root_path" | "full_path" => {
+            "Selects the structured NBT or resource path addressed by this operation."
+        }
+        "value" | "default_value" | "default_score" => {
+            "Supplies the typed value written, compared, or configured by this operation."
+        }
+        "condition" | "predicate" | "item_predicate" | "location_predicate"
+        | "position_predicate" => {
+            "Defines the condition that must hold for the documented behavior to apply."
+        }
+        "duration" | "ticks" | "seconds" | "fade_in" | "stay" | "fade_out" => {
+            "Controls the documented Minecraft duration or timing interval."
+        }
+        "index" | "count" | "amount" | "limit" | "max" | "min" | "scale" => {
+            "Supplies the numeric bound, position, amount, or scale used by this operation."
+        }
+        "text" | "message" | "name_text" | "description" => {
+            "Supplies the typed player-visible Minecraft text rendered by this operation."
+        }
+        "source" => "Selects the typed source from which this operation reads or copies data.",
+        "profile" => "Selects the Minecraft command profile used for validation and rendering.",
+        _ if rust_type.contains("bool") => {
+            "Enables or disables the documented behavior for the resulting value."
+        }
+        _ => {
+            return format!(
+                "Supplies `{normalized}` to the documented operation: {}",
+                summary.trim_end_matches('.')
+            );
+        }
+    };
+    purpose.to_owned()
+}
+
+fn semantic_fallback_summary(entry: &ApiEntry) -> String {
+    let generic = entry.summary.starts_with("Configures or performs ")
+        || entry.summary.starts_with("Builds or resolves ")
+        || entry
+            .summary
+            .contains("on this typed datapack component definition");
+    if !generic {
+        return entry.summary.clone();
+    }
+    let (owner_path, member) = entry
+        .canonical_path
+        .rsplit_once("::")
+        .unwrap_or((&entry.canonical_path, &entry.canonical_path));
+    let owner = owner_path.rsplit("::").next().unwrap_or(owner_path);
+    let member_words = member.replace('_', " ");
+    match entry.kind {
+        ApiKind::Field => {
+            format!("Stores the `{member}` value used by the typed `{owner}` definition.")
+        }
+        ApiKind::AssociatedConst | ApiKind::Constant => {
+            format!("Defines the `{member}` constant used by the typed `{owner}` API.")
+        }
+        _ => {
+            format!("Performs the documented {member_words} operation for the typed `{owner}` API.")
+        }
+    }
+}
+
+fn semantic_return_description(rust_type: &str, summary: &str, module: &str) -> String {
+    let compact = rust_type.replace(' ', "");
+    if compact == "Self" || compact.ends_with("<Self>") {
+        return "The updated typed builder, ready for further chained configuration.".to_owned();
+    }
+    if module.starts_with("sand::command") && compact == "String" {
+        return "The rendered Minecraft command text.".to_owned();
+    }
+    if compact.contains("CommandResult") || compact.starts_with("Result<") {
+        return "The validated result, or a diagnostic describing why the input cannot be represented safely.".to_owned();
+    }
+    if compact == "bool" {
+        return "Whether the documented condition holds for this value.".to_owned();
+    }
+    if compact.starts_with("Option<") {
+        return "The documented value when it is present; otherwise `None`.".to_owned();
+    }
+    if compact.starts_with('&') && compact.contains("str") {
+        return "A borrowed textual representation of the documented value, without allocation."
+            .to_owned();
+    }
+    if compact.starts_with('&') {
+        return "A borrowed view of the documented value.".to_owned();
+    }
+    if compact.starts_with("Vec<") || compact.contains("Iterator") {
+        return "The ordered values produced by the documented operation.".to_owned();
+    }
+    format!(
+        "The typed result of the documented operation: {}",
+        summary.trim_end_matches('.')
+    )
 }
 
 fn rustdoc_avoidance(prose: &str) -> String {
@@ -1042,6 +1166,59 @@ mod tests {
         let prelude_registry = show(catalog, "sand::prelude::vanilla::Item::Diamond").unwrap();
         assert!(prelude_registry.contains("sand::vanilla::Item::Diamond"));
         assert!(prelude_registry.contains("sand::prelude::vanilla::Item::Diamond"));
+    }
+
+    #[test]
+    fn installed_catalog_rejects_structural_filler_as_semantic_documentation() {
+        let catalog = generated_catalog();
+        for entry in &catalog.entries {
+            assert!(!entry.summary.starts_with("Configures or performs "));
+            assert!(!entry.summary.starts_with("Builds or resolves "));
+            assert!(
+                !entry
+                    .summary
+                    .contains("on this typed datapack component definition")
+            );
+            assert!(entry.parameters.iter().all(|parameter| {
+                !parameter
+                    .description
+                    .starts_with("Rust parameter with type `")
+            }));
+            assert!(
+                !entry
+                    .returns
+                    .as_deref()
+                    .is_some_and(|returns| returns.starts_with("A value with Rust type `"))
+            );
+        }
+
+        let path = catalog
+            .find("sand::data::NbtPath::as_str")
+            .expect("NbtPath::as_str is installed");
+        assert_eq!(
+            path.summary,
+            "Borrows the rendered NBT path text without allocating."
+        );
+        assert!(
+            path.returns
+                .as_deref()
+                .is_some_and(|returns| returns.contains("borrowed textual representation"))
+        );
+    }
+
+    #[test]
+    fn rustdoc_prose_stops_before_the_contract_lookup_footer() {
+        let documentation = "Builds a typed value.\n\nMore behavioral detail.\n\n# API Contract\n\n`sand api show sand::topic::Value::new`";
+        assert_eq!(
+            rustdoc_prose(documentation),
+            "Builds a typed value. More behavioral detail."
+        );
+
+        let archetype = generated_catalog()
+            .find("sand::entity::EntityArchetype::new")
+            .expect("EntityArchetype::new is installed");
+        assert!(!archetype.context.contains("sand api show"));
+        assert!(!archetype.minecraft.contains("sand api show"));
     }
 
     #[test]

@@ -12,6 +12,7 @@ use crate::resource_location::ResourceLocation;
 pub struct Ticks(u32);
 
 impl Ticks {
+    /// Creates a typed tick duration from the supplied tick count.
     pub const fn new(ticks: u32) -> Self {
         Self(ticks)
     }
@@ -33,10 +34,12 @@ impl Ticks {
         Self(minutes.saturating_mul(1200))
     }
 
+    /// Returns the underlying tick count.
     pub const fn get(self) -> u32 {
         self.0
     }
 
+    /// Returns this typed tick duration converted to whole seconds.
     pub const fn as_seconds(self) -> u32 {
         self.0 / 20
     }
@@ -426,35 +429,42 @@ impl StatusEffectInstance {
         }
     }
 
+    /// Sets the Minecraft duration property on this typed status effect instance definition and returns the updated builder.
     pub fn duration(mut self, duration: Ticks) -> Self {
         self.duration = Some(duration);
         self
     }
 
+    /// Sets the Minecraft seconds property on this typed status effect instance definition and returns the updated builder.
     pub fn seconds(self, seconds: u32) -> Self {
         self.duration(Ticks::seconds(seconds))
     }
 
+    /// Sets the Minecraft amplifier property on this typed status effect instance definition and returns the updated builder.
     pub fn amplifier(mut self, amplifier: u8) -> Self {
         self.amplifier = amplifier;
         self
     }
 
+    /// Sets the Minecraft ambient property on this typed status effect instance definition and returns the updated builder.
     pub fn ambient(mut self, ambient: bool) -> Self {
         self.ambient = ambient;
         self
     }
 
+    /// Sets the Minecraft particles property on this typed status effect instance definition and returns the updated builder.
     pub fn particles(mut self, show_particles: bool) -> Self {
         self.show_particles = show_particles;
         self
     }
 
+    /// Sets the Minecraft icon property on this typed status effect instance definition and returns the updated builder.
     pub fn icon(mut self, show_icon: bool) -> Self {
         self.show_icon = show_icon;
         self
     }
 
+    /// Returns the canonical Minecraft representation of this component value.
     pub fn to_snbt(&self) -> String {
         let mut parts = vec![format!("id:\"{}\"", self.effect)];
         if let Some(duration) = self.duration {
@@ -515,6 +525,7 @@ pub struct PotionContents {
 }
 
 impl PotionContents {
+    /// Creates this typed datapack component definition.
     pub fn new() -> Self {
         Self::default()
     }
@@ -526,20 +537,24 @@ impl PotionContents {
         self
     }
 
+    /// Sets the Minecraft custom color property on this typed potion contents definition and returns the updated builder.
     pub fn custom_color(mut self, color: u32) -> Self {
         self.custom_color = Some(color);
         self
     }
 
+    /// Sets the Minecraft effect property on this typed potion contents definition and returns the updated builder.
     pub fn effect(mut self, effect: StatusEffectInstance) -> Self {
         self.custom_effects.push(effect);
         self
     }
 
+    /// Sets the Minecraft custom effect property on this typed potion contents definition and returns the updated builder.
     pub fn custom_effect(self, effect: StatusEffectInstance) -> Self {
         self.effect(effect)
     }
 
+    /// Returns the canonical Minecraft representation of this component value.
     pub fn to_snbt(&self) -> String {
         let mut parts = Vec::new();
         if let Some(ref potion) = self.potion {
@@ -574,6 +589,7 @@ pub struct SuspiciousStewEffect {
 }
 
 impl SuspiciousStewEffect {
+    /// Creates this typed datapack component definition.
     pub fn new(effect: impl Into<EffectId>, duration: Ticks) -> Self {
         Self {
             effect: effect.into(),
@@ -581,10 +597,12 @@ impl SuspiciousStewEffect {
         }
     }
 
+    /// Sets the Minecraft seconds property on this typed suspicious stew effect definition and returns the updated builder.
     pub fn seconds(effect: impl Into<EffectId>, seconds: u32) -> Self {
         Self::new(effect, Ticks::seconds(seconds))
     }
 
+    /// Returns the canonical Minecraft representation of this component value.
     pub fn to_snbt(&self) -> String {
         format!(
             "{{id:\"{}\",duration:{}}}",

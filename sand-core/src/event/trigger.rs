@@ -40,10 +40,12 @@ use sand_components::predicates::{DamagePredicate, EntityPredicate, IntRange, It
 pub struct TickTrigger;
 
 impl TickTrigger {
+    /// Starts an unconstrained tick trigger builder.
     pub fn new() -> Self {
         Self
     }
 
+    /// Converts this tick builder into an advancement criterion.
     pub fn build(self) -> AdvancementTrigger {
         AdvancementTrigger::Tick
     }
@@ -62,10 +64,12 @@ impl From<TickTrigger> for AdvancementTrigger {
 pub struct ImpossibleTrigger;
 
 impl ImpossibleTrigger {
+    /// Starts a never-matching trigger builder.
     pub fn new() -> Self {
         Self
     }
 
+    /// Converts this never-matching builder into an advancement criterion.
     pub fn build(self) -> AdvancementTrigger {
         AdvancementTrigger::Impossible
     }
@@ -86,6 +90,7 @@ pub struct ConsumeItemTrigger {
 }
 
 impl ConsumeItemTrigger {
+    /// Starts an unconstrained consume-item criterion.
     pub fn new() -> Self {
         Self { item: None }
     }
@@ -96,6 +101,7 @@ impl ConsumeItemTrigger {
         self
     }
 
+    /// Converts the consume-item builder into an advancement criterion.
     pub fn build(self) -> AdvancementTrigger {
         AdvancementTrigger::ConsumeItem { item: self.item }
     }
@@ -117,6 +123,7 @@ pub struct PlayerKilledEntityTrigger {
 }
 
 impl PlayerKilledEntityTrigger {
+    /// Starts an unconstrained player-killed-entity criterion.
     pub fn new() -> Self {
         Self {
             entity: None,
@@ -136,6 +143,7 @@ impl PlayerKilledEntityTrigger {
         self
     }
 
+    /// Converts the player-kill builder into an advancement criterion.
     pub fn build(self) -> AdvancementTrigger {
         AdvancementTrigger::PlayerKilledEntity {
             entity: self.entity,
@@ -160,6 +168,7 @@ pub struct EntityKilledPlayerTrigger {
 }
 
 impl EntityKilledPlayerTrigger {
+    /// Starts an unconstrained entity-killed-player criterion.
     pub fn new() -> Self {
         Self {
             entity: None,
@@ -179,6 +188,7 @@ impl EntityKilledPlayerTrigger {
         self
     }
 
+    /// Converts the entity-killed-player builder into an advancement criterion.
     pub fn build(self) -> AdvancementTrigger {
         AdvancementTrigger::EntityKilledPlayer {
             entity: self.entity,
@@ -219,6 +229,7 @@ impl RecipeUnlockedTrigger {
         }
     }
 
+    /// Converts the recipe-unlocked builder into an advancement criterion.
     pub fn build(self) -> AdvancementTrigger {
         // `from_id` validates at construction; `new` remains a raw compatibility
         // path and is protected by Advancement's fallible export validation.
@@ -244,6 +255,7 @@ pub struct InventoryChangedTrigger {
 }
 
 impl InventoryChangedTrigger {
+    /// Starts an unconstrained inventory-change criterion.
     pub fn new() -> Self {
         Self {
             slots: None,
@@ -263,6 +275,7 @@ impl InventoryChangedTrigger {
         self
     }
 
+    /// Converts the inventory-change builder into an advancement criterion.
     pub fn build(self) -> AdvancementTrigger {
         AdvancementTrigger::InventoryChanged {
             slots: self.slots,
@@ -289,6 +302,7 @@ pub struct ItemObtainedTrigger {
 }
 
 impl ItemObtainedTrigger {
+    /// Starts an unconstrained item-obtained criterion.
     pub fn new() -> Self {
         Self { item: None }
     }
@@ -299,6 +313,7 @@ impl ItemObtainedTrigger {
         self
     }
 
+    /// Converts the item-obtained builder into an advancement criterion.
     pub fn build(self) -> AdvancementTrigger {
         match self.item {
             None => AdvancementTrigger::CraftedItem { item: None },
@@ -323,6 +338,7 @@ pub struct ItemEnchantTrigger {
 }
 
 impl ItemEnchantTrigger {
+    /// Starts an unconstrained item-enchantment criterion.
     pub fn new() -> Self {
         Self {
             item: None,
@@ -342,6 +358,7 @@ impl ItemEnchantTrigger {
         self
     }
 
+    /// Converts the enchantment builder into an advancement criterion.
     pub fn build(self) -> AdvancementTrigger {
         AdvancementTrigger::EnchantedItem {
             item: self.item,
@@ -365,6 +382,7 @@ pub struct UsingItemTrigger {
 }
 
 impl UsingItemTrigger {
+    /// Starts an unconstrained using-item criterion.
     pub fn new() -> Self {
         Self { item: None }
     }
@@ -375,6 +393,7 @@ impl UsingItemTrigger {
         self
     }
 
+    /// Converts the using-item builder into an advancement criterion.
     pub fn build(self) -> AdvancementTrigger {
         AdvancementTrigger::UsingItem { item: self.item }
     }
@@ -396,6 +415,7 @@ pub struct MultiKillTrigger {
 }
 
 impl MultiKillTrigger {
+    /// Starts an unconstrained multi-kill criterion.
     pub fn new() -> Self {
         Self {
             unique_entity_types: None,
@@ -415,6 +435,7 @@ impl MultiKillTrigger {
         self
     }
 
+    /// Converts the multi-kill builder into an advancement criterion.
     pub fn build(self) -> AdvancementTrigger {
         AdvancementTrigger::KilledByArrow {
             unique_entity_types: self.unique_entity_types,
@@ -444,6 +465,7 @@ pub struct PlayerInteractedWithEntityTrigger {
 }
 
 impl PlayerInteractedWithEntityTrigger {
+    /// Starts an unconstrained player-interaction criterion.
     pub fn new() -> Self {
         Self::default()
     }
@@ -460,6 +482,7 @@ impl PlayerInteractedWithEntityTrigger {
         self
     }
 
+    /// Converts the interaction builder into an advancement criterion.
     pub fn build(self) -> AdvancementTrigger {
         AdvancementTrigger::PlayerInteractedWithEntity {
             item: self.item,
@@ -483,6 +506,7 @@ pub struct SummonedEntityTrigger {
 }
 
 impl SummonedEntityTrigger {
+    /// Starts an unconstrained summoned-entity criterion.
     pub fn new() -> Self {
         Self::default()
     }
@@ -493,6 +517,7 @@ impl SummonedEntityTrigger {
         self
     }
 
+    /// Converts the summoned-entity builder into an advancement criterion.
     pub fn build(self) -> AdvancementTrigger {
         AdvancementTrigger::SummonedEntity {
             entity: self.entity,

@@ -255,6 +255,7 @@ impl EventParticipantPlan {
         Self::default()
     }
 
+    /// Reports whether the plan declares no entity or item participants.
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty() && self.item_entries.is_empty()
     }

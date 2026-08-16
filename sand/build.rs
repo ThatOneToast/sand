@@ -763,6 +763,19 @@ fn write_coverage(
         })
         .collect::<Vec<_>>();
     installed_facades.sort_by_key(|(declaration, _)| declaration.canonical_path.as_str());
+    let documented_family_paths = installed_facades
+        .iter()
+        .filter(|(_, facade)| {
+            facade.family
+                && matches!(
+                    facade.kind,
+                    sand_api_contract::ApiKind::Function
+                        | sand_api_contract::ApiKind::Method
+                        | sand_api_contract::ApiKind::TraitMethod
+                )
+        })
+        .map(|(declaration, _)| declaration.canonical_path.as_str())
+        .collect::<BTreeSet<_>>();
     let mut facade_registrations = String::new();
     for (declaration, facade) in &installed_facades {
         facade_registrations.push_str(
@@ -888,6 +901,36 @@ fn write_coverage(
     generated.push_str("pub static INSTALLED_API_SHAPES: &[InstalledApiShape] = &[\n");
     let definition_shapes = sand_api_enforce::definition_shapes(installed_reachable)
         .unwrap_or_else(|error| panic!("failed to derive structural API metadata: {error}"));
+    let missing_family_docs = installed_reachable
+        .iter()
+        .filter_map(|item| {
+            let canonical_path = item
+                .paths
+                .iter()
+                .find(|path| documented_family_paths.contains(path.as_str()))?;
+            let shape = definition_shapes.get(&item.identity)?;
+            if !shape.documentation.trim().is_empty() {
+                return None;
+            }
+            let definition = item.definition.as_ref()?;
+            Some(format!(
+                "{canonical_path}\t{}\t{}",
+                definition.source.display(),
+                definition.line
+            ))
+        })
+        .collect::<Vec<_>>();
+    if !missing_family_docs.is_empty() {
+        let output_dir = PathBuf::from(env::var_os("OUT_DIR").expect("Cargo provides OUT_DIR"));
+        let report = output_dir.join("api_contract_doc_gaps.txt");
+        fs::write(&report, missing_family_docs.join("\n"))
+            .unwrap_or_else(|error| panic!("failed to write {}: {error}", report.display()));
+        panic!(
+            "{} supported family callables or placeholder-backed members lack source Rustdoc; every forwarded member must carry semantic documentation at its defining item (details: {})",
+            missing_family_docs.len(),
+            report.display()
+        );
+    }
     for item in installed_reachable {
         let Some(shape) = definition_shapes.get(&item.identity) else {
             continue;

@@ -57,6 +57,7 @@ use crate::validation;
 pub struct TrimAssetName(String);
 
 impl TrimAssetName {
+    /// Creates this typed datapack component definition.
     pub fn new(name: impl AsRef<str>) -> SandResult<Self> {
         let name = name.as_ref();
         if name.contains(':') {
@@ -66,6 +67,7 @@ impl TrimAssetName {
         Ok(Self(name.to_string()))
     }
 
+    /// Returns the canonical Minecraft representation of this component value.
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -134,6 +136,7 @@ pub struct TrimMaterial {
 }
 
 impl TrimMaterial {
+    /// Creates this typed datapack component definition.
     pub fn new(location: ResourceLocation) -> Self {
         Self {
             location,
@@ -145,21 +148,25 @@ impl TrimMaterial {
         }
     }
 
+    /// Sets the Minecraft asset name property on this typed trim material definition and returns the updated builder.
     pub fn asset_name(mut self, name: TrimAssetName) -> Self {
         self.asset_name = Some(name);
         self
     }
 
+    /// Sets the Minecraft ingredient property on this typed trim material definition and returns the updated builder.
     pub fn ingredient(mut self, item: ItemId) -> Self {
         self.ingredient = Some(item);
         self
     }
 
+    /// Sets the Minecraft item model index property on this typed trim material definition and returns the updated builder.
     pub fn item_model_index(mut self, index: f32) -> Self {
         self.item_model_index = index;
         self
     }
 
+    /// Sets the Minecraft description property on this typed trim material definition and returns the updated builder.
     pub fn description(mut self, desc: TextComponent) -> Self {
         self.description = Some(TrimDescription::Typed(Box::new(desc)));
         self
@@ -305,6 +312,7 @@ pub struct TrimPattern {
 }
 
 impl TrimPattern {
+    /// Creates this typed datapack component definition.
     pub fn new(location: ResourceLocation) -> Self {
         Self {
             location,
@@ -315,16 +323,19 @@ impl TrimPattern {
         }
     }
 
+    /// Sets the Minecraft asset id property on this typed trim pattern definition and returns the updated builder.
     pub fn asset_id(mut self, id: ResourceLocation) -> Self {
         self.asset_id = Some(id);
         self
     }
 
+    /// Sets the Minecraft template item property on this typed trim pattern definition and returns the updated builder.
     pub fn template_item(mut self, item: ItemId) -> Self {
         self.template_item = Some(item);
         self
     }
 
+    /// Sets the Minecraft description property on this typed trim pattern definition and returns the updated builder.
     pub fn description(mut self, desc: TextComponent) -> Self {
         self.description = Some(TrimDescription::Typed(Box::new(desc)));
         self
@@ -336,6 +347,7 @@ impl TrimPattern {
         self
     }
 
+    /// Sets the Minecraft decal property on this typed trim pattern definition and returns the updated builder.
     pub fn decal(mut self, v: bool) -> Self {
         self.decal = v;
         self

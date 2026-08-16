@@ -170,96 +170,115 @@ impl DimensionType {
         Self::new(location)
     }
 
+    /// Sets the Minecraft fixed time property on this typed dimension type definition and returns the updated builder.
     pub fn fixed_time(mut self, time: i64) -> Self {
         self.fixed_time = Some(time);
         self
     }
 
+    /// Sets the Minecraft without fixed time property on this typed dimension type definition and returns the updated builder.
     pub fn without_fixed_time(mut self) -> Self {
         self.fixed_time = None;
         self
     }
 
+    /// Sets the Minecraft has skylight property on this typed dimension type definition and returns the updated builder.
     pub fn has_skylight(mut self, value: bool) -> Self {
         self.has_skylight = value;
         self
     }
 
+    /// Sets the Minecraft has ceiling property on this typed dimension type definition and returns the updated builder.
     pub fn has_ceiling(mut self, value: bool) -> Self {
         self.has_ceiling = value;
         self
     }
 
+    /// Sets the Minecraft ultrawarm property on this typed dimension type definition and returns the updated builder.
     pub fn ultrawarm(mut self, value: bool) -> Self {
         self.ultrawarm = value;
         self
     }
 
+    /// Sets the Minecraft natural property on this typed dimension type definition and returns the updated builder.
     pub fn natural(mut self, value: bool) -> Self {
         self.natural = value;
         self
     }
 
+    /// Sets the Minecraft coordinate scale property on this typed dimension type definition and returns the updated builder.
     pub fn coordinate_scale(mut self, value: f64) -> Self {
         self.coordinate_scale = value;
         self
     }
 
+    /// Sets the Minecraft bed works property on this typed dimension type definition and returns the updated builder.
     pub fn bed_works(mut self, value: bool) -> Self {
         self.bed_works = value;
         self
     }
 
+    /// Sets the Minecraft respawn anchor works property on this typed dimension type definition and returns the updated builder.
     pub fn respawn_anchor_works(mut self, value: bool) -> Self {
         self.respawn_anchor_works = value;
         self
     }
 
+    /// Sets the Minecraft min y property on this typed dimension type definition and returns the updated builder.
     pub fn min_y(mut self, value: i32) -> Self {
         self.min_y = value;
         self
     }
 
+    /// Sets the Minecraft height property on this typed dimension type definition and returns the updated builder.
     pub fn height(mut self, value: u32) -> Self {
         self.height = value;
         self
     }
 
+    /// Sets the Minecraft logical height property on this typed dimension type definition and returns the updated builder.
     pub fn logical_height(mut self, value: u32) -> Self {
         self.logical_height = value;
         self
     }
 
+    /// Sets the Minecraft infiniburn property on this typed dimension type definition and returns the updated builder.
     pub fn infiniburn(mut self, value: TagId<BlockId>) -> Self {
         self.infiniburn = value;
         self
     }
 
+    /// Sets the Minecraft effects property on this typed dimension type definition and returns the updated builder.
     pub fn effects(mut self, value: ResourceLocation) -> Self {
         self.effects = value;
         self
     }
 
+    /// Sets the Minecraft ambient light property on this typed dimension type definition and returns the updated builder.
     pub fn ambient_light(mut self, value: f32) -> Self {
         self.ambient_light = value;
         self
     }
 
+    /// Sets the Minecraft piglin safe property on this typed dimension type definition and returns the updated builder.
     pub fn piglin_safe(mut self, value: bool) -> Self {
         self.piglin_safe = value;
         self
     }
 
+    /// Sets the Minecraft has raids property on this typed dimension type definition and returns the updated builder.
     pub fn has_raids(mut self, value: bool) -> Self {
         self.has_raids = value;
         self
     }
 
+    /// Sets the Minecraft monster spawn light level property on this typed dimension type definition and returns the updated builder.
     pub fn monster_spawn_light_level(mut self, value: MonsterSpawnLightLevel) -> Self {
         self.monster_spawn_light_level = value;
         self
     }
 
+    /// Sets the Minecraft monster spawn block light limit property on this typed dimension type definition and returns the updated builder.
     pub fn monster_spawn_block_light_limit(mut self, value: u8) -> Self {
         self.monster_spawn_block_light_limit = value;
         self

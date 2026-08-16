@@ -1089,8 +1089,7 @@ impl Execute {
     }
 
     /// Append a typed operation. Intended for Sand's higher-level builders.
-    #[doc(hidden)]
-    pub fn with_operation(mut self, operation: ExecuteOp) -> Self {
+    pub(crate) fn with_operation(mut self, operation: ExecuteOp) -> Self {
         self.operations.push(operation);
         self
     }

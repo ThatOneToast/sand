@@ -529,6 +529,7 @@ pub enum DialogAction {
 }
 
 impl DialogAction {
+    /// Sets the Minecraft run command property on this typed dialog action definition and returns the updated builder.
     pub fn run_command(cmd: impl Into<String>) -> Self {
         Self::RunCommand(cmd.into())
     }
@@ -574,15 +575,19 @@ impl DialogAction {
         Self::Callback(id.into_dialog_function_path())
     }
 
+    /// Sets the Minecraft suggest command property on this typed dialog action definition and returns the updated builder.
     pub fn suggest_command(cmd: impl Into<String>) -> Self {
         Self::SuggestCommand(cmd.into())
     }
+    /// Sets the Minecraft open url property on this typed dialog action definition and returns the updated builder.
     pub fn open_url(url: impl Into<String>) -> Self {
         Self::OpenUrl(url.into())
     }
+    /// Sets the Minecraft open dialog property on this typed dialog action definition and returns the updated builder.
     pub fn open_dialog(dialog: impl IntoDialogRef) -> Self {
         Self::OpenDialog(dialog.into_dialog_ref())
     }
+    /// Sets the Minecraft close property on this typed dialog action definition and returns the updated builder.
     pub fn close() -> Self {
         Self::Close
     }

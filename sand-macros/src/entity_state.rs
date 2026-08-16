@@ -129,7 +129,7 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
                     quote! {
                         #[doc = concat!("Typed handle for the `", #field_name, "` State field.")]
                         pub const #ident: ::sand::__private::EntityScore<#ty> =
-                            ::sand::__private::EntityScore::__new(
+                            ::sand::__private::entity_score_new(
                                 #namespace, #schema_name, #field_name, #kind, #default, #bounds
                             );
                     },

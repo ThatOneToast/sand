@@ -858,6 +858,7 @@ pub enum DamageKind {
 }
 
 impl DamageKind {
+    /// Returns the exact Minecraft command token represented by this damage kind value.
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Generic => "minecraft:generic",

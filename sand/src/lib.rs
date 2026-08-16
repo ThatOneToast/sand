@@ -705,7 +705,7 @@ pub mod __private {
         pub use sand_core::entity::archetype::{ArchetypeDefinition, EntityArchetypeDescriptor};
         pub use sand_core::entity::*;
     }
-    pub use sand_core::__private::player_sneaking_tracked_source;
+    pub use sand_core::__private::{entity_score_new, player_sneaking_tracked_source};
     pub use sand_core::entity::*;
     pub use sand_core::*;
     pub use sand_core::{cmd, condition, event, events, state};

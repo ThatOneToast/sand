@@ -375,6 +375,10 @@ impl<T> ScoreVar<T> {
     /// [#146](https://github.com/ThatOneToast/sand/issues/146)). Prefer
     /// [`ScoreVar::try_clamp`], which rejects `min > max` before returning
     /// any command text.
+    ///
+    /// # API Contract
+    ///
+    /// `sand api show sand::state::ScoreVar::clamp`
     pub fn clamp(&self, selector: impl std::fmt::Display, min: i32, max: i32) -> Vec<String> {
         let selector = selector.to_string();
         let obj = self.objective_name();

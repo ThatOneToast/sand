@@ -168,6 +168,21 @@ fn rendered_rustdoc_links_every_contract_production_mechanism() {
             "{} exposes {canonical} without member-specific Rustdoc",
             page.display()
         );
+        if matches!(
+            canonical,
+            "sand::entity::EntityArchetype::new"
+                | "sand::state::ScoreVar::clamp"
+                | "sand::command::Vec3::new"
+                | "sand::component::Advancement::parent"
+                | "sand::resourcepack::Color::from_u32"
+        ) {
+            assert!(
+                section[..end].contains("API Contract")
+                    && section[..end].contains(&format!("sand api show {canonical}")),
+                "{} exposes {canonical} without its exact contract lookup",
+                page.display(),
+            );
+        }
     }
 
     let nbt_path = fs::read_to_string(target.join("doc/sand/data/struct.NbtPath.html"))

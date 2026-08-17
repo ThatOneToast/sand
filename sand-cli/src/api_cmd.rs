@@ -202,9 +202,11 @@ fn installed_catalog() -> Result<ApiCatalog> {
                 .find(|(paths, ..)| paths.contains(&entry.canonical_path.as_str()))
         {
             entry.signature = normalize_shape_paths(signature, &entry.canonical_module);
-            let source_summary = rustdoc_summary(documentation);
+            let source_summary = rustdoc_summary(documentation)
+                .map(|summary| normalize_shape_paths(&summary, &entry.canonical_module));
             let resolved_summary = source_summary
                 .clone()
+                .filter(|summary| !summary.starts_with("Carries the "))
                 .unwrap_or_else(|| semantic_fallback_summary(entry));
             let semantic_summary = resolved_summary.as_str();
             let authored = entry
@@ -214,18 +216,28 @@ fn installed_catalog() -> Result<ApiCatalog> {
                 .collect::<BTreeMap<_, _>>();
             entry.parameters = parameters
                 .iter()
-                .map(|(name, ty)| ApiParameter {
-                    name: (*name).to_owned(),
-                    rust_type: Some(normalize_shape_paths(ty, &entry.canonical_module)),
-                    description: authored.get(name).map_or_else(
-                        || semantic_parameter_description(name, ty, semantic_summary),
-                        |description| (*description).to_owned(),
-                    ),
+                .map(|(name, ty)| {
+                    let rust_type = normalize_shape_paths(ty, &entry.canonical_module);
+                    ApiParameter {
+                        name: (*name).to_owned(),
+                        rust_type: Some(rust_type.clone()),
+                        description: authored.get(name).map_or_else(
+                            || semantic_parameter_description(name, &rust_type, semantic_summary),
+                            |description| (*description).to_owned(),
+                        ),
+                    }
                 })
                 .collect();
             entry.returns = return_type.map(|ty| {
                 entry.returns.clone().unwrap_or_else(|| {
-                    semantic_return_description(ty, semantic_summary, &entry.canonical_module)
+                    let ty = normalize_shape_paths(ty, &entry.canonical_module);
+                    semantic_return_description(
+                        &ty,
+                        semantic_summary,
+                        &entry.canonical_module,
+                        &entry.canonical_path,
+                        *has_receiver,
+                    )
                 })
             });
             entry.return_type =
@@ -238,7 +250,7 @@ fn installed_catalog() -> Result<ApiCatalog> {
                         entry.signature
                     )
                 } else {
-                    rustdoc_prose(documentation)
+                    normalize_shape_paths(&rustdoc_prose(documentation), &entry.canonical_module)
                 };
                 entry.summary = summary.clone();
                 entry.context = family_context(entry, &prose);
@@ -254,14 +266,13 @@ fn installed_catalog() -> Result<ApiCatalog> {
                 }
             }
             if is_import_only_example(&entry.example)
-                || (family_contract
-                    && matches!(
-                        entry.kind,
-                        ApiKind::Function | ApiKind::Method | ApiKind::TraitMethod
-                    )
-                    && !example_exercises_member(&entry.example, &entry.canonical_path))
+                || (matches!(
+                    entry.kind,
+                    ApiKind::Function | ApiKind::Method | ApiKind::TraitMethod
+                ) && !example_exercises_member(&entry.example, &entry.canonical_path))
             {
                 entry.example = rustdoc_example(documentation)
+                    .map(|example| normalize_shape_paths(&example, &entry.canonical_module))
                     .filter(|example| example_exercises_member(example, &entry.canonical_path))
                     .unwrap_or_else(|| {
                         let call = structural_example(
@@ -283,6 +294,24 @@ fn installed_catalog() -> Result<ApiCatalog> {
     // constructor that may be private or may not exist.
     for entry in &mut entries {
         entry.signature = normalize_shape_paths(&entry.signature, &entry.canonical_module);
+        entry.summary = normalize_shape_paths(&entry.summary, &entry.canonical_module);
+        entry.context = normalize_shape_paths(&entry.context, &entry.canonical_module);
+        entry.minecraft = normalize_shape_paths(&entry.minecraft, &entry.canonical_module);
+        entry.use_when = entry
+            .use_when
+            .iter()
+            .map(|value| normalize_shape_paths(value, &entry.canonical_module))
+            .collect();
+        entry.avoid_when = entry
+            .avoid_when
+            .iter()
+            .map(|value| normalize_shape_paths(value, &entry.canonical_module))
+            .collect();
+        entry.returns = entry
+            .returns
+            .as_deref()
+            .map(|value| normalize_shape_paths(value, &entry.canonical_module));
+        entry.example = normalize_shape_paths(&entry.example, &entry.canonical_module);
         for parameter in &mut entry.parameters {
             if let Some(rust_type) = &mut parameter.rust_type {
                 *rust_type = normalize_shape_paths(rust_type, &entry.canonical_module);
@@ -339,160 +368,16 @@ fn rustdoc_prose_paragraphs(documentation: &str) -> Vec<String> {
 
 fn semantic_parameter_description(name: &str, rust_type: &str, summary: &str) -> String {
     let normalized = name.trim_start_matches('_').replace('_', " ");
-    let compact_type = rust_type.replace(' ', "");
-    if compact_type.contains("Text") {
-        return "Supplies the typed player-visible Minecraft text rendered by this operation."
-            .to_owned();
-    }
-    if compact_type.contains("Selector") || compact_type.contains("EntityTarget") {
-        return "Selects the Minecraft entity or entities affected by this operation.".to_owned();
-    }
-    if compact_type.contains("Condition") || compact_type.contains("Predicate") {
-        return "Defines the condition that must hold for the documented behavior to apply."
-            .to_owned();
-    }
-    if compact_type.contains("ResourceLocation") || compact_type.ends_with("Id") {
-        return "Supplies the validated Minecraft resource identifier used by this operation."
-            .to_owned();
-    }
-    let purpose = match name.trim_start_matches('_') {
-        "selector" | "target" | "targets" | "entity" | "entities" | "player" | "players" => {
-            "Selects the Minecraft entity or entities affected by this operation."
-        }
-        "id" | "key" | "name" | "field_name" | "objective" | "tag" => {
-            "Identifies the named Minecraft resource, field, objective, or tag used by this operation."
-        }
-        "path" | "source_path" | "root_path" | "full_path" => {
-            "Selects the structured NBT or resource path addressed by this operation."
-        }
-        "value" | "default_value" | "default_score" => {
-            "Supplies the typed value written, compared, or configured by this operation."
-        }
-        "condition" | "predicate" | "item_predicate" | "location_predicate"
-        | "position_predicate" => {
-            "Defines the condition that must hold for the documented behavior to apply."
-        }
-        "duration" | "ticks" | "seconds" | "fade_in" | "stay" | "fade_out" => {
-            "Controls the documented Minecraft duration or timing interval."
-        }
-        "index" | "count" | "amount" | "limit" | "max" | "min" | "scale" => {
-            "Supplies the numeric bound, position, amount, or scale used by this operation."
-        }
-        "text" | "message" | "name_text" | "description" => {
-            "Supplies the typed player-visible Minecraft text rendered by this operation."
-        }
-        "holder" | "lhs" | "rhs" => {
-            "Selects the scoreboard holder whose value participates in this operation."
-        }
-        "item" | "block" | "effect" | "particle" | "attribute" | "component" => {
-            "Supplies the typed Minecraft content value affected or emitted by this operation."
-        }
-        "slot" | "hand" => {
-            "Selects the Minecraft inventory or equipment slot addressed by this operation."
-        }
-        "namespace" => "Selects the validated namespace for the generated Minecraft resource.",
-        "radius" | "range" | "spread" | "height" | "width" | "size" | "x" | "y" | "z"
-        | "x_offset" | "y_offset" | "canvas_x" | "canvas_width" | "points" | "level"
-        | "amplifier" | "turns" | "weight" | "cost" => {
-            "Supplies the numeric bound, coordinate, magnitude, or weight used by this operation."
-        }
-        "pos" | "from" | "to" => "Selects the typed Minecraft position used by this operation.",
-        "field" | "schema" => {
-            "Selects the typed schema field whose stored value this operation accesses."
-        }
-        "role" | "binding" | "ownership" => {
-            "Selects the participant role or ownership binding used by this operation."
-        }
-        "archetype" => {
-            "Identifies the entity archetype whose declared behavior this operation uses."
-        }
-        "state" | "mode" | "policy" | "config" | "default" | "fallback" => {
-            "Supplies the typed configuration or state selected for this operation."
-        }
-        "body" | "function" | "executor" => {
-            "Supplies the callback or generated function body invoked by this operation."
-        }
-        "cmd" | "operation" | "op" => {
-            "Supplies the typed command or operation to validate, compose, or emit."
-        }
-        "entry" | "entries" => {
-            "Supplies the typed entry or entries added to the resulting definition."
-        }
-        "color" => "Supplies the typed color applied to the generated Minecraft output.",
-        "damage" => "Supplies the typed damage value applied by this operation.",
-        "event" => "Selects the typed Sand event whose lifecycle this operation composes.",
-        "fixed" | "modifier" => {
-            "Supplies the typed numeric transformation applied by this operation."
-        }
-        "nbt" => "Supplies the structured Minecraft NBT value consumed by this operation.",
-        "team" => "Selects the Minecraft team affected or tested by this operation.",
-        "frame" | "display" | "style" => {
-            "Selects the visual presentation applied to the generated Minecraft content."
-        }
-        "derivation" | "generator" => {
-            "Describes how Sand derives the generated value from its typed source."
-        }
-        "ty" | "kind" | "variant" | "cat" => {
-            "Selects the typed category or variant emitted by this operation."
-        }
-        "refresh" | "enabled" | "disabled" | "required" | "flag" => {
-            "Controls whether the documented optional behavior is enabled or required."
-        }
-        "src_path" | "dst_path" => {
-            "Selects the source or destination path used by this data operation."
-        }
-        "src_selector" | "dst_selector" | "other_selector" => {
-            "Selects the source or destination Minecraft entities used by this operation."
-        }
-        "scores" | "source_objective" => {
-            "Selects the scoreboard values read or written by this operation."
-        }
-        "items" | "blocks" | "effects" | "enchantments" | "commands" | "arguments" | "children"
-        | "rings" | "rows" | "slots" | "structures" | "spawns" | "modifiers" | "processors" => {
-            "Supplies the ordered typed values composed into the resulting definition."
-        }
-        "ingredient" | "recipe" | "tool" | "potion" | "trade" | "dialog" => {
-            "Supplies the typed Minecraft definition referenced or composed by this operation."
-        }
-        "json" | "snbt" | "raw" => {
-            "Supplies explicit raw Minecraft syntax through this documented escape hatch."
-        }
-        "dx" | "dy" | "dz" | "yaw" | "pitch" | "speed" | "amplitude" | "threshold" | "percent"
-        | "outer_radius" | "minor_radius" | "y_scale" | "slope" | "spacing" | "separation"
-        | "salt" | "base" | "units" | "order" => {
-            "Supplies the numeric coordinate, bound, scale, or ordering value used by this operation."
-        }
-        "location" | "storage" | "storage_id" | "dimension" | "url" => {
-            "Selects the validated Minecraft resource or external location addressed by this operation."
-        }
-        "criterion" | "trigger" | "property" => {
-            "Selects the typed condition or property that activates this behavior."
-        }
-        "title" | "desc" | "hex" => {
-            "Supplies the displayed or serialized textual value used by this definition."
-        }
-        "argument" | "argument1" | "argument2" | "input" | "result" | "other" | "rhs_obj"
-        | "lhs_obj" | "a_obj" | "b_obj" | "a" | "b" | "n" | "v" => {
-            "Supplies the typed operand described by this API's source documentation."
-        }
-        "source" => "Selects the typed source from which this operation reads or copies data.",
-        "profile" => "Selects the Minecraft command profile used for validation and rendering.",
-        _ if rust_type.contains("bool") => {
-            "Enables or disables the documented behavior for the resulting value."
-        }
-        _ => {
-            return format!(
-                "The `{normalized}` input controls this API-specific behavior: {}",
-                summary.trim_end_matches('.'),
-            );
-        }
-    };
-    purpose.to_owned()
+    format!(
+        "The source-derived `{normalized}` input (`{rust_type}`) used by the documented behavior: {}.",
+        summary.trim_end_matches('.')
+    )
 }
 
 fn semantic_fallback_summary(entry: &ApiEntry) -> String {
     let generic = entry.summary.starts_with("Configures or performs ")
         || entry.summary.starts_with("Builds or resolves ")
+        || entry.summary.starts_with("Carries the ")
         || entry
             .summary
             .contains("on this typed datapack component definition");
@@ -507,7 +392,15 @@ fn semantic_fallback_summary(entry: &ApiEntry) -> String {
     let member_words = member.replace('_', " ");
     match entry.kind {
         ApiKind::Field => {
-            format!("Stores the `{member}` value used by the typed `{owner}` definition.")
+            let rust_type = entry
+                .signature
+                .split_once(':')
+                .map_or("typed payload", |(_, ty)| ty.trim());
+            if member.chars().all(|character| character.is_ascii_digit()) {
+                format!("Stores the `{rust_type}` payload carried by `{owner}`.")
+            } else {
+                format!("Stores the `{rust_type}` `{member}` value carried by `{owner}`.")
+            }
         }
         ApiKind::AssociatedConst | ApiKind::Constant => {
             format!("Defines the `{member}` constant used by the typed `{owner}` API.")
@@ -518,8 +411,18 @@ fn semantic_fallback_summary(entry: &ApiEntry) -> String {
     }
 }
 
-fn semantic_return_description(rust_type: &str, summary: &str, module: &str) -> String {
+fn semantic_return_description(
+    rust_type: &str,
+    summary: &str,
+    module: &str,
+    canonical_path: &str,
+    has_receiver: bool,
+) -> String {
     let compact = rust_type.replace(' ', "");
+    let owner = canonical_path
+        .rsplit_once("::")
+        .and_then(|(owner, _)| owner.rsplit("::").next())
+        .unwrap_or("value");
     if let Some(arguments) = generic_arguments(&compact, "Result") {
         let success = arguments.first().map_or("value", String::as_str);
         let error = arguments.get(1).map(String::as_str);
@@ -528,7 +431,13 @@ fn semantic_return_description(rust_type: &str, summary: &str, module: &str) -> 
             |error| format!("the `{error}` error describing why the operation failed"),
         );
         if success == "Self" {
-            return "The updated typed builder on success, or a diagnostic describing why the input cannot be represented safely.".to_owned();
+            return if has_receiver {
+                "The updated typed builder on success, or a diagnostic describing why the input cannot be represented safely.".to_owned()
+            } else {
+                format!(
+                    "A validated `{owner}` value on success, or a diagnostic describing why the input cannot be represented safely."
+                )
+            };
         } else if let Some(optional) =
             generic_arguments(success, "Option").and_then(|args| args.into_iter().next())
         {
@@ -555,7 +464,11 @@ fn semantic_return_description(rust_type: &str, summary: &str, module: &str) -> 
         }
     }
     if compact == "Self" {
-        return "The updated typed builder, ready for further chained configuration.".to_owned();
+        return if has_receiver {
+            "The updated typed builder, ready for further chained configuration.".to_owned()
+        } else {
+            format!("A newly constructed `{owner}` value.")
+        };
     }
     if module.starts_with("sand::command") && compact == "String" {
         return "The rendered Minecraft command text.".to_owned();
@@ -644,28 +557,36 @@ fn family_use_guidance(entry: &ApiEntry, summary: &str) -> String {
     )
 }
 
-fn family_avoidance(entry: &ApiEntry, summary: &str) -> String {
-    let behavior = summary.trim_end_matches('.');
-    if entry.canonical_module.starts_with("sand::command") {
-        format!(
-            "Use another typed command when `{}` does not provide the required behavior — “{behavior}” — or use the explicit raw-command escape hatch when the syntax is outside its validated signature.",
-            entry.canonical_path
-        )
+fn family_avoidance(entry: &ApiEntry, _summary: &str) -> String {
+    let path = entry.canonical_path.to_ascii_lowercase();
+    let return_type = entry.return_type.as_deref().unwrap_or_default();
+    if path.contains("raw") || path.contains("unchecked") {
+        "Avoid this escape hatch when Sand's typed API models the required value or operation."
+            .to_owned()
+    } else if entry.canonical_module.starts_with("sand::command") {
+        "Avoid raw command text when this typed signature can validate and render the command."
+            .to_owned()
     } else if entry.canonical_module.starts_with("sand::component") {
-        format!(
-            "Use another typed component when `{}` does not provide the required behavior — “{behavior}” — or use the explicit raw component or JSON escape hatch when the target schema is not modeled.",
-            entry.canonical_path
-        )
+        "Avoid raw JSON or untyped component data when this typed definition models the target schema."
+            .to_owned()
     } else if entry.canonical_module.starts_with("sand::resourcepack") {
-        format!(
-            "Skip `{}` when the generated asset does not require its documented behavior: “{behavior}”.",
-            entry.canonical_path
-        )
+        "Avoid manual asset serialization when this typed resource-pack API represents the asset."
+            .to_owned()
+    } else if return_type.contains("Option") {
+        "Avoid this optional lookup when absence must be reported as an error rather than `None`."
+            .to_owned()
+    } else if return_type.contains("Result") {
+        "Avoid discarding the returned diagnostic; validation failure is part of this operation's contract."
+            .to_owned()
+    } else if return_type.trim_start().starts_with('&') {
+        "Avoid retaining the returned borrow beyond the lifetime of its source value.".to_owned()
+    } else if entry.kind == ApiKind::Variant {
+        "Use a different variant when representing a different documented case.".to_owned()
+    } else if entry.kind == ApiKind::Field {
+        "Do not treat this typed field as an unrelated serialization or runtime value.".to_owned()
     } else {
-        format!(
-            "Choose another API when `{}` does not provide the required documented behavior: “{behavior}”.",
-            entry.canonical_path,
-        )
+        "Avoid using this operation outside the lifecycle and ownership documented by its source API."
+            .to_owned()
     }
 }
 
@@ -1486,6 +1407,7 @@ mod tests {
             );
             assert!(!entry.summary.starts_with("Configures or performs "));
             assert!(!entry.summary.starts_with("Builds or resolves "));
+            assert!(!entry.summary.starts_with("Carries the "));
             assert!(
                 !entry
                     .summary
@@ -1496,6 +1418,12 @@ mod tests {
                     .description
                     .starts_with("Rust parameter with type `")
             }));
+            let serialized = serde_json::to_string(entry).unwrap();
+            assert!(
+                !serialized.contains("crate::") && !serialized.contains("crate ::"),
+                "contract prose leaks an implementation-relative path: {}",
+                entry.canonical_path
+            );
             assert!(
                 !entry
                     .returns
@@ -1564,7 +1492,12 @@ mod tests {
             trim_name
                 .returns
                 .as_deref()
-                .is_some_and(|returns| returns.contains("updated typed builder on success"))
+                .is_some_and(|returns| returns.contains("validated `TrimAssetName` value"))
+        );
+        let block_pos = catalog.find("sand::command::BlockPos::new").unwrap();
+        assert_eq!(
+            block_pos.returns.as_deref(),
+            Some("A newly constructed `BlockPos` value.")
         );
         let from_score = catalog
             .find("sand::state::TypedGameState::from_score")
@@ -1602,12 +1535,41 @@ mod tests {
                     entry
                         .avoid_when
                         .iter()
-                        .all(|guidance| guidance.contains(&format!("`{}`", entry.canonical_path))),
-                    "family avoidance is not identity-specific: {}",
+                        .all(|guidance| !guidance.contains("does not provide the required")),
+                    "family avoidance is tautological: {}",
                     entry.canonical_path
                 );
             }
         }
+
+        let raw_description = catalog
+            .find("sand::component::AdvancementDisplay::raw_description")
+            .unwrap();
+        assert!(raw_description.parameters[0].description.contains("raw"));
+        assert!(
+            !raw_description.parameters[0]
+                .description
+                .contains("player-visible Minecraft text")
+        );
+        let click_copy = catalog
+            .find("sand::text::TextComponent::click_copy")
+            .unwrap();
+        assert!(click_copy.parameters[0].description.contains("clipboard"));
+        let hover = catalog
+            .find("sand::text::TextComponent::hover_entity_with_id")
+            .unwrap();
+        assert!(
+            !hover.parameters[1]
+                .description
+                .contains("resource identifier")
+        );
+        let into_event = catalog
+            .find("sand::event::IntoEventId::into_event_resource_location")
+            .unwrap();
+        assert!(example_exercises_member(
+            &into_event.example,
+            &into_event.canonical_path
+        ));
 
         let participant_example = &catalog
             .find("sand::participant::PlayerParticipant")

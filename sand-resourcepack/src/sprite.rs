@@ -76,6 +76,10 @@ impl Color {
     /// let red = Color::from_u32(0xFF0000FF);
     /// assert_eq!((red.r, red.g, red.b, red.a), (255, 0, 0, 255));
     /// ```
+    ///
+    /// # API Contract
+    ///
+    /// `sand api show sand::resourcepack::Color::from_u32`
     pub const fn from_u32(packed: u32) -> Self {
         Color {
             r: ((packed >> 24) & 0xFF) as u8,

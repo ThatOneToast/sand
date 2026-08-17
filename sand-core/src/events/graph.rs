@@ -852,8 +852,8 @@ fn discover(
                 occurrence,
                 persistent: persistent_by_name.into_values().collect(),
                 bounded: bounded_by_name.into_values().collect(),
-                when: c.when,
-                unless: c.unless,
+                when: c.conditions,
+                unless: c.excluded_conditions,
             }
         }
     };
@@ -1213,8 +1213,8 @@ fn validate_consistent(
             occurrence == &occurrence_identity(&c.occurrence)
                 && persistent == &incoming
                 && bounded == &incoming_bounded
-                && when == &c.when
-                && unless == &c.unless
+                && when == &c.conditions
+                && unless == &c.excluded_conditions
         }
         _ => false,
     };

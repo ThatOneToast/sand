@@ -17,7 +17,8 @@ use syn::spanned::Spanned;
 
 use crate::macro_provider::{
     audit_inert_macro_transcriber, audit_inventory_collection_invocation,
-    audit_thread_local_invocation,
+    audit_resourcepack_texture_invocation, audit_thread_local_invocation, provider_derive_input,
+    provider_effective_attributes,
 };
 
 /// Explicit cfg environment used while parsing the selected Cargo target.
@@ -365,6 +366,7 @@ pub enum ReachabilityError {
     },
     MissingContract {
         identity: String,
+        kind: ReachableKind,
         paths: Vec<String>,
     },
     ContractNotReachable(String),
@@ -538,9 +540,13 @@ impl fmt::Display for ReachabilityError {
                 "{}:{line}: reachable API source `{owner}` uses unclassified custom {form} `{name}`; classify it as an API producer, shape-preserving inert macro, or trait-only derive",
                 source.display()
             ),
-            Self::MissingContract { identity, paths } => write!(
+            Self::MissingContract {
+                identity,
+                kind,
+                paths,
+            } => write!(
                 formatter,
-                "reachable API `{identity}` ({}) is missing a contract",
+                "reachable API `{identity}` ({kind:?}; {}) is missing a contract",
                 paths.join(", ")
             ),
             Self::ContractNotReachable(identity) => {
@@ -643,6 +649,9 @@ pub enum InertItemMacroClassification {
     /// `thread_local!` declares internal storage. This classification is only
     /// valid for the exact `thread_local` or `std::thread_local` macro path.
     ThreadLocalStorageWiring,
+    /// `texture!` registers a raw resource-pack asset and emits only private
+    /// factory/linker wiring, never a facade-visible Rust declaration.
+    ResourcepackTextureRegistration,
 }
 
 impl InertItemMacroClassification {
@@ -656,6 +665,9 @@ impl InertItemMacroClassification {
             }
             Self::ThreadLocalStorageWiring => {
                 "internal thread-local compiler wiring with no facade identity"
+            }
+            Self::ResourcepackTextureRegistration => {
+                "resource-pack texture registration with no facade identity"
             }
         }
     }
@@ -1026,8 +1038,9 @@ impl SurfaceGraph {
     /// Unlike [`Self::bind_item_macro_provider`], this creates no generated
     /// declarations. Local macro families are accepted only after their
     /// transcribers pass the structural trait-impl/private-item audit.
-    /// External classifications are restricted to two documented compiler
-    /// wiring macros and cannot be applied to an arbitrary spelling.
+    /// External classifications are restricted to documented compiler or
+    /// resource registration macros and cannot be applied to an arbitrary
+    /// spelling.
     pub fn bind_inert_item_macro(
         mut self,
         module: impl Into<String>,
@@ -1119,6 +1132,26 @@ impl SurfaceGraph {
                     .filter(|site| site.macro_path == macro_path)
                 {
                     audit_thread_local_invocation(&site.tokens)
+                        .map_err(|error| invalid(error.to_string()))?;
+                }
+            }
+            InertItemMacroClassification::ResourcepackTextureRegistration => {
+                if !matches!(
+                    macro_path.as_str(),
+                    "texture" | "sand::texture" | "sand_macros::texture"
+                ) {
+                    return Err(invalid(
+                        "resource-pack texture registration is valid only for `texture!`, `sand::texture!`, or `sand_macros::texture!`"
+                            .into(),
+                    ));
+                }
+                for site in self
+                    .module(&module)
+                    .into_iter()
+                    .flat_map(|parsed| &parsed.item_macros)
+                    .filter(|site| site.macro_path == macro_path)
+                {
+                    audit_resourcepack_texture_invocation(&site.tokens)
                         .map_err(|error| invalid(error.to_string()))?;
                 }
             }
@@ -1999,6 +2032,7 @@ pub fn audit_reachable_surface(
         let Some(contract) = by_identity.get(item.identity.as_str()) else {
             errors.push(ReachabilityError::MissingContract {
                 identity: item.identity.clone(),
+                kind: item.kind,
                 paths: item.paths.iter().cloned().collect(),
             });
             continue;
@@ -2180,15 +2214,28 @@ fn parse_module_file(
         .map_err(|error| ReachabilityError::Io(format!("{}: {error}", file.display())))?;
     let parsed = syn::parse_file(&source)
         .map_err(|error| ReachabilityError::Parse(format!("{}: {error}", file.display())))?;
+    let default_directory = module_search_directory(file);
+    let path_directory = file.parent().unwrap_or_else(|| Path::new("."));
     parse_items(
         crate_name,
-        file,
+        ModuleFileContext {
+            source_file: file,
+            default_directory: &default_directory,
+            path_directory,
+        },
         module_id,
         &parsed.items,
         excluded_parent,
         cfg,
         index,
     )
+}
+
+#[derive(Clone, Copy)]
+struct ModuleFileContext<'a> {
+    source_file: &'a Path,
+    default_directory: &'a Path,
+    path_directory: &'a Path,
 }
 
 fn resolve_pending_impls(crate_name: &str, index: &mut CrateIndex) -> Vec<(String, PendingImpl)> {
@@ -2402,13 +2449,16 @@ fn resolve_index_use_target(
 
 fn parse_items(
     crate_name: &str,
-    source_file: &Path,
+    context: ModuleFileContext<'_>,
     module_id: &str,
     items: &[syn::Item],
     excluded_parent: bool,
     cfg: &CfgSet,
     index: &mut CrateIndex,
 ) -> Result<(), ReachabilityError> {
+    let source_file = context.source_file;
+    let default_directory = context.default_directory;
+    let path_directory = context.path_directory;
     index
         .modules
         .entry(module_id.to_owned())
@@ -2593,9 +2643,14 @@ fn parse_items(
                         .insert(name.clone(), child_id.clone());
                 }
                 if let Some((_, nested)) = &value.content {
+                    let child_directory = default_directory.join(&name);
                     parse_items(
                         crate_name,
-                        source_file,
+                        ModuleFileContext {
+                            source_file,
+                            default_directory: &child_directory,
+                            path_directory: &child_directory,
+                        },
                         &child_id,
                         nested,
                         excluded,
@@ -2603,8 +2658,14 @@ fn parse_items(
                         index,
                     )?;
                 } else {
-                    let directory = module_search_directory(source_file);
-                    let path = module_path(&value.attrs, &directory, &name, cfg, source_file)?;
+                    let path = module_path(
+                        &value.attrs,
+                        default_directory,
+                        path_directory,
+                        &name,
+                        cfg,
+                        source_file,
+                    )?;
                     parse_module_file(crate_name, &path, &child_id, excluded, cfg, index)?;
                 }
             }
@@ -3163,7 +3224,9 @@ fn api_producers_from_attrs_with_context(
                     });
                 } else if api_producing_sand_macro(&name) {
                     producers.push(ApiProducerUse {
-                        expected_generated: expected_generated_identities(&name, owner, item)?,
+                        expected_generated: expected_generated_identities(
+                            &name, owner, item, cfg, source,
+                        )?,
                         name,
                         source: source.to_owned(),
                         line: attr.line,
@@ -3233,7 +3296,9 @@ fn api_producers_from_attrs_with_context(
                 });
             } else if api_producing_sand_macro(&name) {
                 producers.push(ApiProducerUse {
-                    expected_generated: expected_generated_identities(&name, owner, item)?,
+                    expected_generated: expected_generated_identities(
+                        &name, owner, item, cfg, source,
+                    )?,
                     name,
                     source: source.to_owned(),
                     line: attr.line,
@@ -3314,7 +3379,13 @@ fn valid_derive_helper(
                 )
         }
         "value" => has("ValueEnum") && matches!(target, AttributeTarget::Variant),
-        "state" => has("State") && matches!(target, AttributeTarget::Field),
+        "state" => {
+            has("State")
+                && matches!(
+                    target,
+                    AttributeTarget::Declaration | AttributeTarget::Field
+                )
+        }
         "sand" => {
             has("SandStorage")
                 && matches!(
@@ -3331,54 +3402,128 @@ fn valid_derive_helper(
 // not participate, nor do attributes which preserve the annotated item's
 // public shape.
 fn api_producing_sand_macro(name: &str) -> bool {
-    matches!(name, "SandStorage" | "State" | "item")
+    matches!(name, "SandStorage" | "State" | "custom_item")
 }
 
 fn expected_generated_identities(
     producer: &str,
     owner: &str,
     item: Option<&syn::Item>,
+    cfg: &CfgSet,
+    source: &Path,
 ) -> Result<Option<BTreeSet<(String, ReachableKind)>>, ReachabilityError> {
-    if producer != "SandStorage" {
-        // State and item emit sibling APIs whose names require their macro's
-        // shared semantic parser. Until those providers expose exact claims,
-        // the occurrence remains deliberately unbindable and fails closed.
-        return Ok(None);
-    }
     let Some(item) = item else {
         // A macro_rules! definition is a template, not a concrete derive
         // occurrence. Consumer-side expansion providers must bind actual
         // invocation owners instead of fabricating one here.
         return Ok(None);
     };
-    let input = syn::parse2::<syn::DeriveInput>(item.to_token_stream()).map_err(|error| {
-        ReachabilityError::Parse(format!(
-            "cannot model SandStorage output for `{owner}`: {error}"
-        ))
-    })?;
-    let names = sand_api_contract::syntax::sand_storage_generated_member_names(&input).map_err(
-        |error| {
-            ReachabilityError::Parse(format!(
-                "cannot model SandStorage output for `{owner}`: {error}"
+    match producer {
+        "SandStorage" => {
+            let input = match item {
+                syn::Item::Struct(structure) => provider_derive_input(structure, cfg, source),
+                _ => {
+                    return Err(ReachabilityError::Parse(format!(
+                        "cannot model SandStorage output for `{owner}`: expected a struct"
+                    )));
+                }
+            }
+            .map_err(|error| {
+                ReachabilityError::Parse(format!(
+                    "cannot model SandStorage output for `{owner}`: {error}"
+                ))
+            })?;
+            let names = sand_api_contract::syntax::sand_storage_generated_member_names(&input)
+                .map_err(|error| {
+                    ReachabilityError::Parse(format!(
+                        "cannot model SandStorage output for `{owner}`: {error}"
+                    ))
+                })?;
+            Ok(Some(
+                names
+                    .into_iter()
+                    .enumerate()
+                    .map(|(index, name)| {
+                        (
+                            format!("{owner}::{name}"),
+                            if index == 0 {
+                                ReachableKind::AssociatedConst
+                            } else {
+                                ReachableKind::Method
+                            },
+                        )
+                    })
+                    .collect(),
             ))
-        },
-    )?;
-    Ok(Some(
-        names
-            .into_iter()
-            .enumerate()
-            .map(|(index, name)| {
+        }
+        "State" => {
+            let input = match item {
+                syn::Item::Struct(structure) => provider_derive_input(structure, cfg, source),
+                _ => {
+                    return Err(ReachabilityError::Parse(format!(
+                        "cannot model State output for `{owner}`: expected a struct"
+                    )));
+                }
+            }
+            .map_err(|error| {
+                ReachabilityError::Parse(format!(
+                    "cannot model State output for `{owner}`: {error}"
+                ))
+            })?;
+            let surface =
+                sand_api_contract::syntax::state_generated_surface(&input).map_err(|error| {
+                    ReachabilityError::Parse(format!(
+                        "cannot model State output for `{owner}`: {error}"
+                    ))
+                })?;
+            let module = owner.rsplit_once("::").map_or("", |(module, _)| module);
+            let mut expected = BTreeSet::from([(
+                format!("{module}::{}", surface.bound_type),
+                ReachableKind::Struct,
+            )]);
+            expected.extend(surface.associated.into_iter().map(|member| {
                 (
-                    format!("{owner}::{name}"),
-                    if index == 0 {
-                        ReachableKind::AssociatedConst
-                    } else {
-                        ReachableKind::Method
+                    format!("{owner}::{}", member.name),
+                    match member.kind {
+                        sand_api_contract::syntax::StateGeneratedAssociatedKind::Const => {
+                            ReachableKind::AssociatedConst
+                        }
+                        sand_api_contract::syntax::StateGeneratedAssociatedKind::Method => {
+                            ReachableKind::Method
+                        }
                     },
                 )
-            })
-            .collect(),
-    ))
+            }));
+            Ok(Some(expected))
+        }
+        "custom_item" => {
+            let mut function = match item {
+                syn::Item::Fn(function) => function.clone(),
+                _ => {
+                    return Err(ReachabilityError::Parse(format!(
+                        "cannot model custom_item output for `{owner}`: expected a function"
+                    )));
+                }
+            };
+            function.attrs = provider_effective_attributes(&function.attrs, cfg, source)
+                .map_err(|error| ReachabilityError::Parse(error.to_string()))?;
+            let Ok(surface) = sand_api_contract::syntax::custom_item_generated_surface(&function)
+            else {
+                // Invalid custom-item input will be rejected by macro expansion.
+                // Until it has a literal generated type name, it deliberately
+                // remains unbindable rather than letting a partial provider
+                // claim unrelated output.
+                return Ok(None);
+            };
+            let module = owner.rsplit_once("::").map_or("", |(module, _)| module);
+            let type_identity = format!("{module}::{}", surface.type_name);
+            Ok(Some(BTreeSet::from([(
+                type_identity,
+                ReachableKind::Struct,
+            )])))
+        }
+        _ => Ok(None),
+    }
 }
 
 // These derives are known to implement traits only. Adding a derive here is a
@@ -3436,8 +3581,8 @@ fn trusted_qualified_attribute(path: &syn::Path) -> bool {
             if matches!(
                 (crate_name.as_str(), name.as_str()),
                 ("diagnostic", "on_unimplemented")
-                    | ("sand", "api" | "armor_event" | "component" | "entity_archetype" | "event" | "function" | "item" | "schedule")
-                    | ("sand_macros", "api" | "armor_event" | "component" | "entity_archetype" | "event" | "function" | "item" | "schedule")
+                    | ("sand", "api" | "armor_event" | "datapack_component" | "entity_archetype" | "on_event" | "function" | "custom_item" | "schedule")
+                    | ("sand_macros", "api" | "armor_event" | "datapack_component" | "entity_archetype" | "on_event" | "function" | "custom_item" | "schedule")
             )
     )
 }
@@ -3447,11 +3592,11 @@ fn shape_preserving_sand_attribute(name: &str) -> bool {
         name,
         "api"
             | "armor_event"
-            | "component"
+            | "datapack_component"
             | "entity_archetype"
-            | "event"
+            | "on_event"
             | "function"
-            | "item"
+            | "custom_item"
             | "schedule"
     )
 }
@@ -3466,8 +3611,8 @@ fn trusted_macro_import(name: &str, path: &[String]) -> bool {
                     ("serde", "Serialize" | "Deserialize")
                         | ("thiserror", "Error")
                         | ("clap", "Args" | "Parser" | "Subcommand" | "ValueEnum")
-                        | ("sand", "EntityStateEnum" | "SandStorage" | "State" | "api" | "armor_event" | "component" | "entity_archetype" | "event" | "function" | "item" | "schedule")
-                        | ("sand_macros", "EntityStateEnum" | "SandStorage" | "State" | "api" | "armor_event" | "component" | "entity_archetype" | "event" | "function" | "item" | "schedule")
+                        | ("sand", "EntityStateEnum" | "SandStorage" | "State" | "api" | "armor_event" | "datapack_component" | "entity_archetype" | "on_event" | "function" | "custom_item" | "schedule")
+                        | ("sand_macros", "EntityStateEnum" | "SandStorage" | "State" | "api" | "armor_event" | "datapack_component" | "entity_archetype" | "on_event" | "function" | "custom_item" | "schedule")
                 )
     ) || matches!(
         path,
@@ -3910,9 +4055,10 @@ fn standard_library_alias_target(segments: &[String]) -> bool {
     )
 }
 
-fn module_path(
+pub(crate) fn module_path(
     attrs: &[syn::Attribute],
     directory: &Path,
+    path_directory: &Path,
     name: &str,
     cfg: &CfgSet,
     source: &Path,
@@ -3935,14 +4081,14 @@ fn module_path(
             }
         })
     {
-        return Ok(directory.join(relative));
+        return Ok(path_directory.join(relative));
     }
     let sibling = directory.join(format!("{name}.rs"));
     let nested = directory.join(name).join("mod.rs");
     Ok(if sibling.exists() { sibling } else { nested })
 }
 
-fn module_search_directory(source_file: &Path) -> PathBuf {
+pub(crate) fn module_search_directory(source_file: &Path) -> PathBuf {
     let parent = source_file.parent().unwrap_or_else(|| Path::new("."));
     match source_file.file_name().and_then(|name| name.to_str()) {
         Some("lib.rs" | "main.rs" | "mod.rs") => parent.to_path_buf(),
@@ -3952,7 +4098,7 @@ fn module_search_directory(source_file: &Path) -> PathBuf {
     }
 }
 
-fn cfg_enabled(
+pub(crate) fn cfg_enabled(
     attrs: &[syn::Attribute],
     cfg: &CfgSet,
     source: &Path,
@@ -4008,6 +4154,17 @@ fn effective_attributes(
         )?;
     }
     Ok(output)
+}
+
+pub(crate) fn effective_attribute_metas(
+    attrs: &[syn::Attribute],
+    cfg: &CfgSet,
+    source: &Path,
+) -> Result<Vec<syn::Meta>, ReachabilityError> {
+    Ok(effective_attributes(attrs, cfg, source)?
+        .into_iter()
+        .map(|attribute| attribute.meta)
+        .collect())
 }
 
 fn expand_attribute_meta(

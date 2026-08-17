@@ -19,12 +19,15 @@
 //! held-item roles into the #230 participant-context model automatically.
 
 pub mod location;
+
 pub mod snapshot;
 
+#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use location::{
     BlockInventory, ContainerIndex, EnderChestIndex, EntityInventory, EntityInventorySlot,
     HotbarIndex, InventoryIndex, ItemLocation, ItemLocationError, MainInventoryIndex,
 };
+#[doc = include_str!("../api_contract_rustdoc.md")]
 pub use snapshot::{
     EventItem, ItemRole, ItemSnapshot, SnapshotAbsence, SnapshotError, SnapshotReliability,
     SnapshotSchema,

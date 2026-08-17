@@ -19,28 +19,10 @@
 
 use sand_core::condition::Condition;
 use sand_core::events::{
-    ChainEventDispatch, EventSetup, SameCycleEventDependency, SameCycleEventRequirement,
-    SandEventDispatch, TickEventDispatch,
+    ChainEventDispatch, EventSetup, SandEvent, SandEventDispatch, TickEventDispatch,
 };
 use sand_core::{EventDescriptor, EventDispatch};
 use std::any::TypeId;
-
-fn after(
-    event_type_id: fn() -> TypeId,
-    event_type_name: fn() -> &'static str,
-    event_dispatch: fn() -> SandEventDispatch,
-    event_setup: fn() -> EventSetup,
-) -> Vec<SameCycleEventRequirement> {
-    vec![SameCycleEventRequirement::After(SameCycleEventDependency {
-        event_type_id,
-        event_type_name,
-        event_dispatch,
-        event_setup,
-        event_raw_setup: event_setup,
-        event_participants: || sand_core::participant::EventParticipantPlan::none(),
-        event_revoke: || true,
-    })]
-}
 
 fn expected_key(canonical_type_name: &str) -> String {
     let mut h: u32 = 2_166_136_261;
@@ -74,6 +56,16 @@ fn empty_setup() -> EventSetup {
 //    handler, and multiple chain children ───────────────────────────────────
 
 struct ParentEvent;
+
+impl SandEvent for ParentEvent {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        SandEventDispatch::Tick(parent_dispatch().unwrap())
+    }
+
+    fn setup() -> EventSetup {
+        parent_setup()
+    }
+}
 
 fn parent_dispatch() -> Option<TickEventDispatch> {
     Some(
@@ -132,18 +124,10 @@ sand_core::inventory::submit! {
 struct SingleCondChild;
 
 fn single_cond_chain() -> Option<ChainEventDispatch> {
-    Some(ChainEventDispatch {
-        occurrence: after(
-            parent_type_id,
-            parent_type_name,
-            || SandEventDispatch::Tick(parent_dispatch().unwrap()),
-            parent_setup,
-        ),
-        persistent: vec![],
-        bounded: vec![],
-        when: vec![Condition::raw("block ~ ~-1 ~ minecraft:white_wool")],
-        unless: vec![],
-    })
+    Some(
+        SandEventDispatch::chain::<ParentEvent>()
+            .when(Condition::raw("block ~ ~-1 ~ minecraft:white_wool")),
+    )
 }
 
 fn single_cond_child_type_id() -> TypeId {
@@ -182,18 +166,7 @@ sand_core::inventory::submit! {
 struct UnconditionalChild;
 
 fn unconditional_chain() -> Option<ChainEventDispatch> {
-    Some(ChainEventDispatch {
-        occurrence: after(
-            parent_type_id,
-            parent_type_name,
-            || SandEventDispatch::Tick(parent_dispatch().unwrap()),
-            parent_setup,
-        ),
-        persistent: vec![],
-        bounded: vec![],
-        when: vec![],
-        unless: vec![],
-    })
+    Some(SandEventDispatch::chain::<ParentEvent>())
 }
 
 fn unconditional_child_type_id() -> TypeId {
@@ -232,20 +205,11 @@ sand_core::inventory::submit! {
 struct OrCondChild;
 
 fn or_cond_chain() -> Option<ChainEventDispatch> {
-    Some(ChainEventDispatch {
-        occurrence: after(
-            parent_type_id,
-            parent_type_name,
-            || SandEventDispatch::Tick(parent_dispatch().unwrap()),
-            parent_setup,
-        ),
-        persistent: vec![],
-        bounded: vec![],
-        when: vec![
+    Some(
+        SandEventDispatch::chain::<ParentEvent>().when(
             Condition::raw("score @s a matches 1").or(Condition::raw("score @s b matches 1")),
-        ],
-        unless: vec![],
-    })
+        ),
+    )
 }
 
 fn or_cond_child_type_id() -> TypeId {
@@ -286,32 +250,10 @@ struct DistinctChildA;
 struct DistinctChildB;
 
 fn distinct_a_chain() -> Option<ChainEventDispatch> {
-    Some(ChainEventDispatch {
-        occurrence: after(
-            parent_type_id,
-            parent_type_name,
-            || SandEventDispatch::Tick(parent_dispatch().unwrap()),
-            parent_setup,
-        ),
-        persistent: vec![],
-        bounded: vec![],
-        when: vec![Condition::raw("tag @s distinct_a")],
-        unless: vec![],
-    })
+    Some(SandEventDispatch::chain::<ParentEvent>().when(Condition::raw("tag @s distinct_a")))
 }
 fn distinct_b_chain() -> Option<ChainEventDispatch> {
-    Some(ChainEventDispatch {
-        occurrence: after(
-            parent_type_id,
-            parent_type_name,
-            || SandEventDispatch::Tick(parent_dispatch().unwrap()),
-            parent_setup,
-        ),
-        persistent: vec![],
-        bounded: vec![],
-        when: vec![Condition::raw("tag @s distinct_b")],
-        unless: vec![],
-    })
+    Some(SandEventDispatch::chain::<ParentEvent>().when(Condition::raw("tag @s distinct_b")))
 }
 
 fn distinct_a_type_id() -> TypeId {
@@ -377,6 +319,16 @@ sand_core::inventory::submit! {
 
 struct OrphanParent;
 
+impl SandEvent for OrphanParent {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        orphan_parent_dispatch()
+    }
+
+    fn setup() -> EventSetup {
+        orphan_parent_setup()
+    }
+}
+
 fn orphan_parent_dispatch() -> sand_core::events::SandEventDispatch {
     sand_core::events::SandEventDispatch::Tick(
         TickEventDispatch::default()
@@ -391,9 +343,6 @@ fn orphan_parent_setup() -> EventSetup {
         post_observation: vec![],
     }
 }
-fn orphan_parent_type_id() -> TypeId {
-    TypeId::of::<OrphanParent>()
-}
 fn orphan_parent_type_name() -> &'static str {
     std::any::type_name::<OrphanParent>()
 }
@@ -401,18 +350,7 @@ fn orphan_parent_type_name() -> &'static str {
 struct OrphanChild;
 
 fn orphan_child_chain() -> Option<ChainEventDispatch> {
-    Some(ChainEventDispatch {
-        occurrence: after(
-            orphan_parent_type_id,
-            orphan_parent_type_name,
-            orphan_parent_dispatch,
-            orphan_parent_setup,
-        ),
-        persistent: vec![],
-        bounded: vec![],
-        when: vec![],
-        unless: vec![],
-    })
+    Some(SandEventDispatch::chain::<OrphanParent>())
 }
 fn orphan_child_type_id() -> TypeId {
     TypeId::of::<OrphanChild>()

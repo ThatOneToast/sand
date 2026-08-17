@@ -14,7 +14,7 @@ use clap::{Args, Subcommand};
 // Force the author-facing facade into the final binary so its distributed
 // contract registrations are present in the installed catalog.
 use sand as _;
-use sand_api_contract::{ApiCatalog, ApiEntry, ApiKind, CoverageStatus};
+use sand_api_contract::{ApiCatalog, ApiEntry, ApiKind, ApiParameter, CoverageStatus};
 
 /// Inspect the supported public API bundled with this Sand installation.
 #[derive(Debug, Args)]
@@ -33,7 +33,20 @@ enum ApiCommand {
     /// Search API contracts using stable, local keyword matching
     Search {
         /// Words to find in paths, summaries, parameters, and behavior
-        query: String,
+        #[arg(required = true, num_args = 1..)]
+        query: Vec<String>,
+        /// Maximum results to print (defaults to 20)
+        #[arg(long, value_parser = parse_positive_usize, conflicts_with = "all")]
+        limit: Option<usize>,
+        /// Print every matching result
+        #[arg(long)]
+        all: bool,
+        /// Restrict results to one canonical module or its descendants
+        #[arg(long)]
+        module: Option<String>,
+        /// Restrict results to one API kind (for example method or struct)
+        #[arg(long)]
+        kind: Option<String>,
     },
     /// List the direct API contents and nested modules of a module
     Module {
@@ -48,6 +61,17 @@ enum ApiCommand {
     },
 }
 
+fn parse_positive_usize(value: &str) -> std::result::Result<usize, String> {
+    let parsed = value
+        .parse::<usize>()
+        .map_err(|_| "expected a positive integer".to_owned())?;
+    if parsed == 0 {
+        Err("expected a positive integer".to_owned())
+    } else {
+        Ok(parsed)
+    }
+}
+
 /// Run an `api` command against the contracts linked into the installed CLI.
 pub fn run(args: ApiArgs) -> Result<()> {
     let catalog = installed_catalog()?;
@@ -57,8 +81,20 @@ pub fn run(args: ApiArgs) -> Result<()> {
             let output = show(&catalog, &path)?;
             print!("{output}");
         }
-        ApiCommand::Search { query } => {
-            let output = search(&catalog, &query)?;
+        ApiCommand::Search {
+            query,
+            limit,
+            all,
+            module,
+            kind,
+        } => {
+            let output = search_with_options(
+                &catalog,
+                &query.join(" "),
+                if all { None } else { Some(limit.unwrap_or(20)) },
+                module.as_deref(),
+                kind.as_deref(),
+            )?;
             print!("{output}");
         }
         ApiCommand::Module { module_path } => {
@@ -77,9 +113,31 @@ pub fn run(args: ApiArgs) -> Result<()> {
 
 fn installed_catalog() -> Result<ApiCatalog> {
     let coverage = sand::__private::api_contract::installed_coverage();
-    let linked = ApiCatalog::installed_with_coverage(env!("CARGO_PKG_VERSION"), coverage.clone())
-        .context("failed to collect linked Sand API contracts")?;
-    let mut entries = linked.entries;
+    let configuration = sand::__private::api_contract::installed_configuration();
+    let mut entries = sand_api_contract::inventory::iter::<sand_api_contract::ApiRegistration>
+        .into_iter()
+        .map(ApiEntry::from)
+        .collect::<Vec<_>>();
+    for expected in sand::__private::api_contract::INSTALLED_FACADE_CONTRACTS {
+        let expected = ApiEntry::from(expected);
+        let actual = entries
+            .iter()
+            .filter(|entry| entry.canonical_path == expected.canonical_path)
+            .collect::<Vec<_>>();
+        let [actual] = actual.as_slice() else {
+            bail!(
+                "linked facade contract `{}` has {} runtime registrations; expected exactly one registration matching the build-validated source declaration",
+                expected.canonical_path,
+                actual.len()
+            );
+        };
+        if **actual != expected {
+            bail!(
+                "linked facade contract `{}` differs from the build-validated source declaration",
+                expected.canonical_path
+            );
+        }
+    }
 
     for provider_json in sand::__private::api_contract::GENERATED_API_PROVIDER_CATALOGS {
         let provider: sand_build::ApiProviderCatalog = serde_json::from_str(provider_json)
@@ -93,11 +151,600 @@ fn installed_catalog() -> Result<ApiCatalog> {
                     provider.provider
                 )
             })?;
+        if provider.minecraft_version != configuration.minecraft_version
+            || (provider.provider != "generated_registry_id_contracts"
+                && provider.placeholder != configuration.placeholder_codegen)
+        {
+            bail!(
+                "installed generated API provider `{}` targets Minecraft {} (placeholder={}), but the catalog configuration targets {} (placeholder={})",
+                provider.provider,
+                provider.minecraft_version,
+                provider.placeholder,
+                configuration.minecraft_version,
+                configuration.placeholder_codegen
+            );
+        }
         entries.extend(provider.entries.into_iter().map(|entry| entry.contract));
     }
 
-    ApiCatalog::from_entries_with_coverage(env!("CARGO_PKG_VERSION"), entries, coverage)
-        .context("failed to assemble the installed Sand API catalog")
+    let installed_paths = sand::__private::api_contract::INSTALLED_API_PATHS
+        .iter()
+        .copied()
+        .collect::<BTreeSet<_>>();
+    entries.retain(|entry| {
+        installed_paths.contains(entry.canonical_path.as_str())
+            || entry
+                .aliases
+                .iter()
+                .any(|alias| installed_paths.contains(alias.as_str()))
+    });
+    for entry in &mut entries {
+        let family_contract = sand::__private::api_contract::INSTALLED_FAMILY_API_PATHS
+            .contains(&entry.canonical_path.as_str());
+        if let Some(paths) = sand::__private::api_contract::INSTALLED_API_IDENTITIES
+            .iter()
+            .find(|paths| paths.contains(&entry.canonical_path.as_str()))
+        {
+            entry.aliases = paths
+                .iter()
+                .filter(|path| **path != entry.canonical_path)
+                .map(|path| (*path).to_owned())
+                .collect();
+        }
+        // A procedural macro's Rust implementation function is not its author-facing
+        // invocation syntax, so its explicit facade contract remains authoritative.
+        if entry.kind == ApiKind::Macro {
+            continue;
+        }
+        if let Some((_, signature, parameters, return_type, documentation, has_receiver)) =
+            sand::__private::api_contract::INSTALLED_API_SHAPES
+                .iter()
+                .find(|(paths, ..)| paths.contains(&entry.canonical_path.as_str()))
+        {
+            entry.signature = normalize_shape_paths(signature, &entry.canonical_module);
+            let source_summary = rustdoc_summary(documentation)
+                .map(|summary| normalize_shape_paths(&summary, &entry.canonical_module));
+            let resolved_summary = source_summary
+                .clone()
+                .filter(|summary| !summary.starts_with("Carries the "))
+                .unwrap_or_else(|| semantic_fallback_summary(entry));
+            let semantic_summary = resolved_summary.as_str();
+            let authored = entry
+                .parameters
+                .iter()
+                .map(|parameter| (parameter.name.as_str(), parameter.description.as_str()))
+                .collect::<BTreeMap<_, _>>();
+            entry.parameters = parameters
+                .iter()
+                .map(|(name, ty)| {
+                    let rust_type = normalize_shape_paths(ty, &entry.canonical_module);
+                    ApiParameter {
+                        name: (*name).to_owned(),
+                        rust_type: Some(rust_type.clone()),
+                        description: authored.get(name).map_or_else(
+                            || semantic_parameter_description(name, &rust_type, semantic_summary),
+                            |description| (*description).to_owned(),
+                        ),
+                    }
+                })
+                .collect();
+            entry.returns = return_type.map(|ty| {
+                entry.returns.clone().unwrap_or_else(|| {
+                    let ty = normalize_shape_paths(ty, &entry.canonical_module);
+                    semantic_return_description(
+                        &ty,
+                        semantic_summary,
+                        &entry.canonical_module,
+                        &entry.canonical_path,
+                        *has_receiver,
+                    )
+                })
+            });
+            entry.return_type =
+                return_type.map(|ty| normalize_shape_paths(ty, &entry.canonical_module));
+            if family_contract {
+                let summary = resolved_summary.clone();
+                let prose = if documentation.trim().is_empty() {
+                    format!(
+                        "{summary} The exact source-derived Rust declaration is `{}`.",
+                        entry.signature
+                    )
+                } else {
+                    normalize_shape_paths(&rustdoc_prose(documentation), &entry.canonical_module)
+                };
+                entry.summary = summary.clone();
+                entry.context = family_context(entry, &prose);
+                entry.minecraft = family_minecraft_behavior(entry, &summary);
+                entry.use_when = vec![family_use_guidance(entry, &summary)];
+                entry.avoid_when = vec![family_avoidance(entry, &summary)];
+            } else if let Some(summary) = source_summary {
+                if is_family_template_summary(&entry.summary) {
+                    entry.summary = summary.clone();
+                }
+                if !entry.context.contains(&summary) {
+                    entry.context = format!("{summary} {}", entry.context);
+                }
+            }
+            if is_import_only_example(&entry.example)
+                || (matches!(
+                    entry.kind,
+                    ApiKind::Function | ApiKind::Method | ApiKind::TraitMethod
+                ) && !example_exercises_member(&entry.example, &entry.canonical_path))
+            {
+                entry.example = rustdoc_example(documentation)
+                    .map(|example| normalize_shape_paths(&example, &entry.canonical_module))
+                    .filter(|example| example_exercises_member(example, &entry.canonical_path))
+                    .unwrap_or_else(|| {
+                        let call = structural_example(
+                            entry.kind,
+                            &entry.canonical_path,
+                            parameters,
+                            *return_type,
+                            *has_receiver,
+                        );
+                        format!("// {}\n{call}", resolved_summary.trim_end_matches('.'))
+                    });
+            }
+        }
+    }
+
+    // Provider catalogs created before source-shape resolution may carry a
+    // name-derived `Type()` example. A type declaration is not a function;
+    // retain an exact, compilable import reference instead of fabricating a
+    // constructor that may be private or may not exist.
+    for entry in &mut entries {
+        entry.signature = normalize_shape_paths(&entry.signature, &entry.canonical_module);
+        entry.summary = normalize_shape_paths(&entry.summary, &entry.canonical_module);
+        entry.context = normalize_shape_paths(&entry.context, &entry.canonical_module);
+        entry.minecraft = normalize_shape_paths(&entry.minecraft, &entry.canonical_module);
+        entry.use_when = entry
+            .use_when
+            .iter()
+            .map(|value| normalize_shape_paths(value, &entry.canonical_module))
+            .collect();
+        entry.avoid_when = entry
+            .avoid_when
+            .iter()
+            .map(|value| normalize_shape_paths(value, &entry.canonical_module))
+            .collect();
+        entry.returns = entry
+            .returns
+            .as_deref()
+            .map(|value| normalize_shape_paths(value, &entry.canonical_module));
+        entry.example = normalize_shape_paths(&entry.example, &entry.canonical_module);
+        for parameter in &mut entry.parameters {
+            if let Some(rust_type) = &mut parameter.rust_type {
+                *rust_type = normalize_shape_paths(rust_type, &entry.canonical_module);
+            }
+        }
+        if let Some(return_type) = &mut entry.return_type {
+            *return_type = normalize_shape_paths(return_type, &entry.canonical_module);
+        }
+        if !matches!(
+            entry.kind,
+            ApiKind::Function | ApiKind::Method | ApiKind::TraitMethod
+        ) && entry.example.trim_end().ends_with("();")
+        {
+            entry.example = structural_example(entry.kind, &entry.canonical_path, &[], None, false);
+        }
+    }
+
+    let catalog = ApiCatalog::from_entries_with_coverage(
+        env!("CARGO_PKG_VERSION"),
+        configuration,
+        entries,
+        coverage,
+    )
+    .context("failed to assemble the installed Sand API catalog")?;
+    catalog
+        .validate_quality()
+        .context("installed Sand API catalog failed resolved quality validation")?;
+    Ok(catalog)
+}
+
+fn rustdoc_prose(documentation: &str) -> String {
+    let prose = rustdoc_prose_paragraphs(documentation)
+        .into_iter()
+        .take(4)
+        .collect::<Vec<_>>()
+        .join(" ");
+    if prose.chars().count() <= 1_200 {
+        prose
+    } else {
+        let end = prose
+            .char_indices()
+            .nth(1_197)
+            .map_or(prose.len(), |(index, _)| index);
+        format!("{}...", prose[..end].trim_end())
+    }
+}
+
+fn rustdoc_prose_paragraphs(documentation: &str) -> Vec<String> {
+    sand_api_contract::rustdoc_prose_paragraphs(documentation)
+        .into_iter()
+        .map(|paragraph| normalize_facade_paths(&paragraph))
+        .collect()
+}
+
+fn semantic_parameter_description(name: &str, rust_type: &str, summary: &str) -> String {
+    let normalized = name.trim_start_matches('_').replace('_', " ");
+    format!(
+        "The source-derived `{normalized}` input (`{rust_type}`) used by the documented behavior: {}.",
+        summary.trim_end_matches('.')
+    )
+}
+
+fn semantic_fallback_summary(entry: &ApiEntry) -> String {
+    let generic = entry.summary.starts_with("Configures or performs ")
+        || entry.summary.starts_with("Builds or resolves ")
+        || entry.summary.starts_with("Carries the ")
+        || entry
+            .summary
+            .contains("on this typed datapack component definition");
+    if !generic {
+        return entry.summary.clone();
+    }
+    let (owner_path, member) = entry
+        .canonical_path
+        .rsplit_once("::")
+        .unwrap_or((&entry.canonical_path, &entry.canonical_path));
+    let owner = owner_path.rsplit("::").next().unwrap_or(owner_path);
+    let member_words = member.replace('_', " ");
+    match entry.kind {
+        ApiKind::Field => {
+            let rust_type = entry
+                .signature
+                .split_once(':')
+                .map_or("typed payload", |(_, ty)| ty.trim());
+            if member.chars().all(|character| character.is_ascii_digit()) {
+                format!("Stores the `{rust_type}` payload carried by `{owner}`.")
+            } else {
+                format!("Stores the `{rust_type}` `{member}` value carried by `{owner}`.")
+            }
+        }
+        ApiKind::AssociatedConst | ApiKind::Constant => {
+            format!("Defines the `{member}` constant used by the typed `{owner}` API.")
+        }
+        _ => {
+            format!("Performs the documented {member_words} operation for the typed `{owner}` API.")
+        }
+    }
+}
+
+fn semantic_return_description(
+    rust_type: &str,
+    summary: &str,
+    module: &str,
+    canonical_path: &str,
+    has_receiver: bool,
+) -> String {
+    let compact = rust_type.replace(' ', "");
+    let owner = canonical_path
+        .rsplit_once("::")
+        .and_then(|(owner, _)| owner.rsplit("::").next())
+        .unwrap_or("value");
+    if let Some(arguments) = generic_arguments(&compact, "Result") {
+        let success = arguments.first().map_or("value", String::as_str);
+        let error = arguments.get(1).map(String::as_str);
+        let failure = error.map_or_else(
+            || "a diagnostic describing why the operation failed".to_owned(),
+            |error| format!("the `{error}` error describing why the operation failed"),
+        );
+        if success == "Self" {
+            return if has_receiver {
+                "The updated typed builder on success, or a diagnostic describing why the input cannot be represented safely.".to_owned()
+            } else {
+                format!(
+                    "A validated `{owner}` value on success, or a diagnostic describing why the input cannot be represented safely."
+                )
+            };
+        } else if let Some(optional) =
+            generic_arguments(success, "Option").and_then(|args| args.into_iter().next())
+        {
+            return format!(
+                "On success, the optional `{optional}` produced by this operation, or `None` when no value is available; otherwise {failure}."
+            );
+        } else {
+            return format!(
+                "On success, the `{success}` produced by the documented operation; otherwise {failure}."
+            );
+        }
+    }
+    if compact == "bool" {
+        return "Whether the documented condition holds for this value.".to_owned();
+    }
+    if let Some(arguments) = generic_arguments(&compact, "Option") {
+        let inner = arguments.first().map_or("value", String::as_str);
+        if inner == "Self" {
+            return "The corresponding typed value when the documented conversion succeeds; otherwise `None`.".to_owned();
+        } else {
+            return format!(
+                "The optional `{inner}` produced by the documented operation, or `None` when no value is available."
+            );
+        }
+    }
+    if compact == "Self" {
+        return if has_receiver {
+            "The updated typed builder, ready for further chained configuration.".to_owned()
+        } else {
+            format!("A newly constructed `{owner}` value.")
+        };
+    }
+    if module.starts_with("sand::command") && compact == "String" {
+        return "The rendered Minecraft command text.".to_owned();
+    }
+    if compact.starts_with('&') && compact.contains("str") {
+        return "A borrowed textual representation of the documented value, without allocation."
+            .to_owned();
+    }
+    if compact.starts_with('&') {
+        return "A borrowed view of the documented value.".to_owned();
+    }
+    if compact.starts_with("Vec<") || compact.contains("Iterator") {
+        return "The ordered values produced by the documented operation.".to_owned();
+    }
+    format!(
+        "The typed result of the documented operation: {}",
+        summary.trim_end_matches('.')
+    )
+}
+
+fn generic_arguments(rust_type: &str, wrapper: &str) -> Option<Vec<String>> {
+    let opening = rust_type.find('<')?;
+    if !rust_type[..opening].ends_with(wrapper) {
+        return None;
+    }
+    let start = opening + 1;
+    let mut depth = 0_usize;
+    let mut argument_start = start;
+    let mut arguments = Vec::new();
+    for (offset, character) in rust_type[start..].char_indices() {
+        let index = start + offset;
+        match character {
+            '<' => depth += 1,
+            '>' if depth == 0 => {
+                arguments.push(rust_type[argument_start..index].to_owned());
+                return Some(arguments);
+            }
+            '>' => depth -= 1,
+            ',' if depth == 0 => {
+                arguments.push(rust_type[argument_start..index].to_owned());
+                argument_start = index + character.len_utf8();
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+fn family_context(entry: &ApiEntry, prose: &str) -> String {
+    format!(
+        "Within `{}`, `{}` has the source-derived declaration `{}`. {prose}",
+        entry.canonical_module, entry.canonical_path, entry.signature
+    )
+}
+
+fn family_minecraft_behavior(entry: &ApiEntry, summary: &str) -> String {
+    let domain = if entry.canonical_module.starts_with("sand::command") {
+        "Sand renders this typed command operation into Minecraft command syntax only when the command is emitted"
+    } else if entry.canonical_module.starts_with("sand::component") {
+        "Sand validates and serializes this typed datapack component into Minecraft data during export"
+    } else if entry.canonical_module.starts_with("sand::resourcepack") {
+        "Sand applies this operation while generating validated Minecraft resource-pack assets"
+    } else if entry.canonical_module.starts_with("sand::event")
+        || entry.canonical_module.starts_with("sand::events")
+        || entry.canonical_module.starts_with("sand::participant")
+    {
+        "Sand lowers this operation into generated Minecraft event dispatch and participant lifecycle wiring"
+    } else if entry.canonical_module.starts_with("sand::state")
+        || entry.canonical_module.starts_with("sand::systems")
+        || entry.canonical_module.starts_with("sand::entity")
+        || entry.canonical_module.starts_with("sand::data")
+    {
+        "Sand lowers this typed operation into validated Minecraft commands or data during export"
+    } else {
+        "Sand carries this typed operation into generated Minecraft output according to its source contract"
+    };
+    format!("{domain}: {}", summary.trim_end_matches('.'))
+}
+
+fn family_use_guidance(entry: &ApiEntry, summary: &str) -> String {
+    format!(
+        "Use `{}` when working in `{}` and the required behavior is: {}",
+        entry.canonical_path,
+        entry.canonical_module,
+        summary.trim_end_matches('.')
+    )
+}
+
+fn family_avoidance(entry: &ApiEntry, _summary: &str) -> String {
+    let path = entry.canonical_path.to_ascii_lowercase();
+    let return_type = entry.return_type.as_deref().unwrap_or_default();
+    if path.contains("raw") || path.contains("unchecked") {
+        "Avoid this escape hatch when Sand's typed API models the required value or operation."
+            .to_owned()
+    } else if entry.canonical_module.starts_with("sand::command") {
+        "Avoid raw command text when this typed signature can validate and render the command."
+            .to_owned()
+    } else if entry.canonical_module.starts_with("sand::component") {
+        "Avoid raw JSON or untyped component data when this typed definition models the target schema."
+            .to_owned()
+    } else if entry.canonical_module.starts_with("sand::resourcepack") {
+        "Avoid manual asset serialization when this typed resource-pack API represents the asset."
+            .to_owned()
+    } else if return_type.contains("Option") {
+        "Avoid this optional lookup when absence must be reported as an error rather than `None`."
+            .to_owned()
+    } else if return_type.contains("Result") {
+        "Avoid discarding the returned diagnostic; validation failure is part of this operation's contract."
+            .to_owned()
+    } else if return_type.trim_start().starts_with('&') {
+        "Avoid retaining the returned borrow beyond the lifetime of its source value.".to_owned()
+    } else if entry.kind == ApiKind::Variant {
+        "Use a different variant when representing a different documented case.".to_owned()
+    } else if entry.kind == ApiKind::Field {
+        "Do not treat this typed field as an unrelated serialization or runtime value.".to_owned()
+    } else {
+        "Avoid using this operation outside the lifecycle and ownership documented by its source API."
+            .to_owned()
+    }
+}
+
+fn is_family_template_summary(summary: &str) -> bool {
+    (summary.contains("typed ") && summary.ends_with(" API."))
+        || summary.starts_with("Provides ") && summary.contains(" author API")
+        || summary.starts_with("Exposes ") && summary.contains(" author API")
+}
+
+fn rustdoc_summary(documentation: &str) -> Option<String> {
+    let paragraphs = rustdoc_prose_paragraphs(documentation);
+    let first = paragraphs.first()?.trim().to_owned();
+    if first.len() >= 48 || paragraphs.len() == 1 {
+        return Some(first);
+    }
+    let second = &paragraphs[1];
+    Some(format!(
+        "{}. {}.",
+        first.trim_end_matches('.'),
+        second.trim_end_matches('.')
+    ))
+}
+
+fn rustdoc_example(documentation: &str) -> Option<String> {
+    let mut code = Vec::new();
+    let mut fence: Option<bool> = None;
+    for line in documentation.lines() {
+        let trimmed = line.trim();
+        if fence.is_none() {
+            let Some(info) = trimmed.strip_prefix("```") else {
+                continue;
+            };
+            let language = info.split(',').next().unwrap_or_default().trim();
+            fence = Some(
+                language.is_empty()
+                    || matches!(language, "rust" | "ignore" | "no_run" | "compile_fail"),
+            );
+            continue;
+        }
+        if trimmed.starts_with("```") {
+            if fence == Some(true) && !code.is_empty() {
+                break;
+            }
+            fence = None;
+            continue;
+        }
+        if fence == Some(true) && !trimmed.is_empty() && !trimmed.starts_with('#') {
+            code.push(trimmed);
+        }
+    }
+    (!code.is_empty()).then(|| normalize_facade_paths(&code.join("\n")))
+}
+
+fn normalize_facade_paths(value: &str) -> String {
+    value
+        .replace("sand_core::", "sand::")
+        .replace("sand_core ::", "sand ::")
+        .replace("sand_commands::", "sand::command::")
+        .replace("sand_commands ::", "sand :: command ::")
+        .replace("sand_components::", "sand::component::")
+        .replace("sand_components ::", "sand :: component ::")
+        .replace("sand_resourcepack::", "sand::resourcepack::")
+        .replace("sand_resourcepack ::", "sand :: resourcepack ::")
+        .replace("sand_version::", "sand::version::")
+        .replace("sand_version ::", "sand :: version ::")
+        .replace("sand_macros::", "sand::")
+        .replace("sand_macros ::", "sand ::")
+}
+
+fn normalize_shape_paths(value: &str, canonical_module: &str) -> String {
+    let value = normalize_facade_paths(value);
+    if canonical_module.starts_with("sand::command") {
+        value
+            .replace("crate::function::", "")
+            .replace("crate::selector::", "")
+            .replace("crate::", "")
+            .replace("crate :: function ::", "")
+            .replace("crate :: selector ::", "")
+            .replace("crate ::", "")
+    } else if canonical_module.starts_with("sand::component") {
+        value
+            .replace("crate::error::Result", "SandResult")
+            .replace("crate::registry::FunctionId", "sand::registry::FunctionId")
+            .replace("crate::recipe::", "")
+            .replace("crate::", "sand::component::")
+            .replace("crate :: error :: Result", "SandResult")
+            .replace(
+                "crate :: registry :: FunctionId",
+                "sand :: registry :: FunctionId",
+            )
+            .replace("crate :: recipe ::", "")
+            .replace("crate ::", "sand :: component ::")
+    } else if canonical_module.starts_with("sand::resourcepack") {
+        value
+            .replace("crate::", "sand::resourcepack::")
+            .replace("crate ::", "sand :: resourcepack ::")
+    } else {
+        value
+            .replace("crate::", "sand::")
+            .replace("crate ::", "sand ::")
+    }
+}
+
+fn is_import_only_example(example: &str) -> bool {
+    let trimmed = example.trim();
+    trimmed.starts_with("use sand::") && trimmed.lines().count() == 1
+}
+
+fn example_exercises_member(example: &str, canonical_path: &str) -> bool {
+    let member = canonical_path
+        .rsplit_once("::")
+        .map_or(canonical_path, |(_, member)| member);
+    example.contains(&format!(".{member}("))
+        || example.contains(&format!("::{member}("))
+        || example.contains(&format!("{canonical_path}("))
+}
+
+fn structural_example(
+    kind: ApiKind,
+    canonical_path: &str,
+    parameters: &[(&str, &str)],
+    return_type: Option<&str>,
+    has_receiver: bool,
+) -> String {
+    if !matches!(
+        kind,
+        ApiKind::Function | ApiKind::Method | ApiKind::TraitMethod
+    ) {
+        let import_path = match kind {
+            ApiKind::Variant
+            | ApiKind::Field
+            | ApiKind::AssociatedConst
+            | ApiKind::AssociatedType => canonical_path
+                .rsplit_once("::")
+                .map_or(canonical_path, |(owner, _)| owner),
+            _ => canonical_path,
+        };
+        return format!("use {import_path};");
+    }
+
+    let arguments = parameters
+        .iter()
+        .map(|(name, _)| *name)
+        .collect::<Vec<_>>()
+        .join(", ");
+    let member = canonical_path
+        .rsplit_once("::")
+        .map_or(canonical_path, |(_, member)| member);
+    let call = if has_receiver {
+        format!("value.{member}({arguments})")
+    } else {
+        format!("{canonical_path}({arguments})")
+    };
+    if return_type.is_some() {
+        format!("let result = {call};")
+    } else {
+        format!("{call};")
+    }
 }
 
 fn export(catalog: &ApiCatalog, output: Option<&std::path::Path>) -> Result<Option<String>> {
@@ -160,11 +807,24 @@ fn render_entry(entry: &ApiEntry) -> String {
     if !entry.parameters.is_empty() {
         writeln!(output, "\nParameters").unwrap();
         for parameter in &entry.parameters {
-            writeln!(output, "  {}: {}", parameter.name, parameter.description).unwrap();
+            if let Some(rust_type) = &parameter.rust_type {
+                writeln!(
+                    output,
+                    "  {} (`{}`): {}",
+                    parameter.name, rust_type, parameter.description
+                )
+                .unwrap();
+            } else {
+                writeln!(output, "  {}: {}", parameter.name, parameter.description).unwrap();
+            }
         }
     }
     if let Some(returns) = &entry.returns {
-        section(&mut output, "Returns", returns);
+        let rendered = entry
+            .return_type
+            .as_ref()
+            .map_or_else(|| returns.clone(), |ty| format!("`{ty}` — {returns}"));
+        section(&mut output, "Returns", &rendered);
     }
     list_section(&mut output, "Use when", &entry.use_when);
     list_section(&mut output, "Avoid when", &entry.avoid_when);
@@ -198,11 +858,35 @@ fn list_section(output: &mut String, heading: &str, values: &[String]) {
     }
 }
 
+#[cfg(test)]
 fn search(catalog: &ApiCatalog, query: &str) -> Result<String> {
+    search_with_options(catalog, query, Some(20), None, None)
+}
+
+fn search_with_options(
+    catalog: &ApiCatalog,
+    query: &str,
+    limit: Option<usize>,
+    module_filter: Option<&str>,
+    kind_filter: Option<&str>,
+) -> Result<String> {
     if query.trim().is_empty() {
         bail!("search query cannot be empty");
     }
-    let hits = catalog.search(query);
+    let requested_kind = kind_filter.map(parse_kind).transpose()?;
+    let hits = catalog
+        .search(query)
+        .into_iter()
+        .filter(|entry| {
+            module_filter.is_none_or(|module| {
+                entry.canonical_module == module
+                    || entry
+                        .canonical_module
+                        .strip_prefix(module)
+                        .is_some_and(|suffix| suffix.starts_with("::"))
+            }) && requested_kind.is_none_or(|kind| entry.kind == kind)
+        })
+        .collect::<Vec<_>>();
 
     let mut output = coverage_notice(catalog);
     if hits.is_empty() {
@@ -210,8 +894,15 @@ fn search(catalog: &ApiCatalog, query: &str) -> Result<String> {
         return Ok(output);
     }
 
-    writeln!(output, "API matches for `{}`:", query.trim()).unwrap();
-    for entry in hits {
+    let total = hits.len();
+    let shown = limit.map_or(total, |limit| total.min(limit));
+    writeln!(
+        output,
+        "API matches for `{}` (showing {shown} of {total}):",
+        query.trim()
+    )
+    .unwrap();
+    for entry in hits.into_iter().take(shown) {
         writeln!(
             output,
             "  {}  [{}]\n    {}",
@@ -222,6 +913,28 @@ fn search(catalog: &ApiCatalog, query: &str) -> Result<String> {
         .unwrap();
     }
     Ok(output)
+}
+
+fn parse_kind(value: &str) -> Result<ApiKind> {
+    let normalized = value.trim().to_ascii_lowercase().replace(['-', ' '], "_");
+    let kind = match normalized.as_str() {
+        "module" => ApiKind::Module,
+        "struct" => ApiKind::Struct,
+        "enum" => ApiKind::Enum,
+        "variant" => ApiKind::Variant,
+        "trait" => ApiKind::Trait,
+        "function" | "fn" => ApiKind::Function,
+        "method" => ApiKind::Method,
+        "trait_method" => ApiKind::TraitMethod,
+        "type_alias" => ApiKind::TypeAlias,
+        "constant" | "const" => ApiKind::Constant,
+        "associated_const" => ApiKind::AssociatedConst,
+        "associated_type" => ApiKind::AssociatedType,
+        "field" => ApiKind::Field,
+        "macro" => ApiKind::Macro,
+        _ => bail!("unknown API kind `{value}`"),
+    };
+    Ok(kind)
 }
 
 fn module(catalog: &ApiCatalog, requested_module: &str) -> Result<String> {
@@ -405,6 +1118,7 @@ mod tests {
             avoid_when: vec!["Mutable scoreboard arithmetic.".into()],
             parameters: Vec::new(),
             returns: Some("A typed builder.".into()),
+            return_type: Some("Predicate".into()),
             example: "Predicate::new(id, condition)".into(),
             availability: Vec::new(),
             canonical_module: module.into(),
@@ -413,9 +1127,17 @@ mod tests {
 
     fn catalog(mut entries: Vec<ApiEntry>) -> ApiCatalog {
         entries.sort_by(|a, b| a.canonical_path.cmp(&b.canonical_path));
+        let compiled_surface_items = entries.len();
         ApiCatalog {
-            schema_version: 1,
+            schema_version: sand_api_contract::SCHEMA_VERSION,
             sand_version: "0.1.0".into(),
+            configuration: sand_api_contract::ApiConfiguration {
+                surface_profile: "test".into(),
+                minecraft_version: "test".into(),
+                cargo_features: Vec::new(),
+                placeholder_codegen: false,
+                compiled_surface_items,
+            },
             coverage: sand_api_contract::ApiCoverage {
                 status: CoverageStatus::Complete,
                 static_surface_items: entries.len(),
@@ -438,6 +1160,7 @@ mod tests {
         predicate.aliases = vec!["sand::prelude::Predicate::new".into()];
         predicate.parameters = vec![ApiParameter {
             name: "id".into(),
+            rust_type: Some("ResourceLocation".into()),
             description: "The namespaced predicate identifier.".into(),
         }];
         predicate.availability = vec!["all configurations".into()];
@@ -445,7 +1168,9 @@ mod tests {
 
         let rendered = show(&catalog, "sand::prelude::Predicate::new").unwrap();
         assert!(rendered.contains("sand::predicate::Predicate::new"));
-        assert!(rendered.contains("Parameters\n  id: The namespaced predicate identifier."));
+        assert!(rendered.contains(
+            "Parameters\n  id (`ResourceLocation`): The namespaced predicate identifier."
+        ));
         assert!(rendered.contains("Minecraft behavior"));
         assert!(rendered.contains("sand api show sand::predicate::Predicate::new"));
     }
@@ -508,16 +1233,17 @@ mod tests {
     }
 
     #[test]
-    fn every_search_word_must_match() {
+    fn exploratory_search_matches_any_word_and_reports_partial_results() {
         let catalog = catalog(vec![entry(
             "sand::equipment::Equipment",
             ApiKind::Struct,
             "A typed loadout.",
             "sand::equipment",
         )]);
-        assert_eq!(
-            search(&catalog, "equipment missing").unwrap(),
-            "No APIs matched `equipment missing`.\n"
+        assert!(
+            search(&catalog, "equipment missing")
+                .unwrap()
+                .contains("sand::equipment::Equipment")
         );
     }
 
@@ -591,7 +1317,8 @@ mod tests {
         assert_eq!(first_bytes, second_bytes);
         assert_eq!(first_bytes, stdout.as_bytes());
         let json: serde_json::Value = serde_json::from_slice(&first_bytes).unwrap();
-        assert_eq!(json["schema_version"], 1);
+        assert_eq!(json["schema_version"], 2);
+        assert!(json["configuration"]["minecraft_version"].is_string());
         assert_eq!(json["sand_version"], "0.1.0");
         assert_eq!(json["coverage"]["status"], "complete");
         assert_eq!(
@@ -641,6 +1368,295 @@ mod tests {
         let prelude_registry = show(catalog, "sand::prelude::vanilla::Item::Diamond").unwrap();
         assert!(prelude_registry.contains("sand::vanilla::Item::Diamond"));
         assert!(prelude_registry.contains("sand::prelude::vanilla::Item::Diamond"));
+    }
+
+    #[test]
+    fn installed_catalog_rejects_structural_filler_as_semantic_documentation() {
+        let catalog = generated_catalog();
+        for entry in &catalog.entries {
+            let compact_signature = entry.signature.replace(' ', "");
+            assert!(
+                !entry.signature.contains("# [doc")
+                    && !entry.signature.contains("#[doc")
+                    && !entry.signature.contains("```")
+                    && !compact_signature.contains("sand_core::")
+                    && !compact_signature.contains("sand_commands::")
+                    && !compact_signature.contains("sand_components::")
+                    && !compact_signature.contains("sand_resourcepack::")
+                    && !compact_signature.contains("sand_version::")
+                    && !compact_signature.contains("crate::"),
+                "signature leaks attributes or implementation paths: {} => {}",
+                entry.canonical_path,
+                entry.signature
+            );
+            assert!(
+                !entry
+                    .returns
+                    .as_deref()
+                    .is_some_and(|returns| returns.contains("`a diagnostic`")),
+                "return prose quotes a fabricated error type: {}",
+                entry.canonical_path
+            );
+            assert!(
+                entry.avoid_when.iter().all(|guidance| {
+                    !guidance.contains("When this documented limitation applies")
+                        && !guidance.contains("when the goal is not to ")
+                }),
+                "avoidance uses inferred or ungrammatical filler: {}",
+                entry.canonical_path
+            );
+            assert!(!entry.summary.starts_with("Configures or performs "));
+            assert!(!entry.summary.starts_with("Builds or resolves "));
+            assert!(!entry.summary.starts_with("Carries the "));
+            assert!(
+                !entry
+                    .summary
+                    .contains("on this typed datapack component definition")
+            );
+            assert!(entry.parameters.iter().all(|parameter| {
+                !parameter
+                    .description
+                    .starts_with("Rust parameter with type `")
+            }));
+            let serialized = serde_json::to_string(entry).unwrap();
+            assert!(
+                !serialized.contains("crate::") && !serialized.contains("crate ::"),
+                "contract prose leaks an implementation-relative path: {}",
+                entry.canonical_path
+            );
+            assert!(
+                !entry
+                    .returns
+                    .as_deref()
+                    .is_some_and(|returns| returns.starts_with("A value with Rust type `"))
+            );
+        }
+
+        let path = catalog
+            .find("sand::data::NbtPath::as_str")
+            .expect("NbtPath::as_str is installed");
+        assert_eq!(
+            path.summary,
+            "Borrows the rendered NBT path text without allocating."
+        );
+        assert!(
+            path.returns
+                .as_deref()
+                .is_some_and(|returns| returns.contains("borrowed textual representation"))
+        );
+
+        for entry in &catalog.entries {
+            let return_type = entry.return_type.as_deref().unwrap_or_default();
+            if return_type.contains("Result") || return_type.contains("Option") {
+                assert_ne!(
+                    entry.returns.as_deref(),
+                    Some("The updated typed builder, ready for further chained configuration."),
+                    "fallible/optional return documented as an infallible builder: {}",
+                    entry.canonical_path
+                );
+            }
+            if !matches!(
+                entry.kind,
+                ApiKind::Function | ApiKind::Method | ApiKind::TraitMethod
+            ) {
+                assert!(
+                    !entry.example.trim_end().ends_with("();"),
+                    "non-callable is presented as a constructor: {}",
+                    entry.canonical_path
+                );
+            } else {
+                assert_ne!(
+                    entry.context, entry.summary,
+                    "callable context only repeats its summary: {}",
+                    entry.canonical_path
+                );
+                assert!(!entry.minecraft.starts_with(
+                    "Minecraft and generated-output behavior follows the defining item's documented semantics:"
+                ));
+                assert!(entry.use_when.iter().all(|guidance| {
+                    !guidance
+                        .starts_with("When the defining item's documented behavior is required:")
+                }));
+                assert!(entry.avoid_when.iter().all(|guidance| guidance
+                    != "When the defining item's documented preconditions or scope do not apply."));
+                assert!(
+                    !entry.example.trim_start().starts_with("// Call `"),
+                    "callable has only a comment synopsis instead of a usage expression: {}",
+                    entry.canonical_path
+                );
+            }
+        }
+
+        let trim_name = catalog.find("sand::component::TrimAssetName::new").unwrap();
+        assert!(
+            trim_name
+                .returns
+                .as_deref()
+                .is_some_and(|returns| returns.contains("validated `TrimAssetName` value"))
+        );
+        let block_pos = catalog.find("sand::command::BlockPos::new").unwrap();
+        assert_eq!(
+            block_pos.returns.as_deref(),
+            Some("A newly constructed `BlockPos` value.")
+        );
+        let from_score = catalog
+            .find("sand::state::TypedGameState::from_score")
+            .unwrap();
+        assert!(
+            from_score
+                .returns
+                .as_deref()
+                .is_some_and(|returns| returns.contains("typed value") && returns.contains("None"))
+        );
+        let insert_score = catalog
+            .find("sand::entity::CurveInputs::insert_score")
+            .unwrap();
+        assert!(insert_score.returns.as_deref().is_some_and(|returns| {
+            returns.contains("optional `FixedValue`")
+                && returns.contains("`None`")
+                && returns.contains("`EntityDiagnostic` error")
+        }));
+
+        for entry in &catalog.entries {
+            if sand::__private::api_contract::INSTALLED_FAMILY_API_PATHS
+                .contains(&entry.canonical_path.as_str())
+                && matches!(
+                    entry.kind,
+                    ApiKind::Function | ApiKind::Method | ApiKind::TraitMethod
+                )
+            {
+                assert!(
+                    example_exercises_member(&entry.example, &entry.canonical_path),
+                    "family callable example does not exercise its member: {} => {}",
+                    entry.canonical_path,
+                    entry.example
+                );
+                assert!(
+                    entry
+                        .avoid_when
+                        .iter()
+                        .all(|guidance| !guidance.contains("does not provide the required")),
+                    "family avoidance is tautological: {}",
+                    entry.canonical_path
+                );
+            }
+        }
+
+        let raw_description = catalog
+            .find("sand::component::AdvancementDisplay::raw_description")
+            .unwrap();
+        assert!(raw_description.parameters[0].description.contains("raw"));
+        assert!(
+            !raw_description.parameters[0]
+                .description
+                .contains("player-visible Minecraft text")
+        );
+        let click_copy = catalog
+            .find("sand::text::TextComponent::click_copy")
+            .unwrap();
+        assert!(click_copy.parameters[0].description.contains("clipboard"));
+        let hover = catalog
+            .find("sand::text::TextComponent::hover_entity_with_id")
+            .unwrap();
+        assert!(
+            !hover.parameters[1]
+                .description
+                .contains("resource identifier")
+        );
+        let into_event = catalog
+            .find("sand::event::IntoEventId::into_event_resource_location")
+            .unwrap();
+        assert!(example_exercises_member(
+            &into_event.example,
+            &into_event.canonical_path
+        ));
+
+        let participant_example = &catalog
+            .find("sand::participant::PlayerParticipant")
+            .unwrap()
+            .example;
+        assert!(participant_example.contains("typed player participant reference"));
+        assert!(participant_example.contains("use sand::participant::PlayerParticipant;"));
+        assert!(!participant_example.contains("sand_core::"));
+        let actionbar_example = &catalog.find("sand::command::Actionbar").unwrap().example;
+        assert!(actionbar_example.contains("Actionbar command helpers"));
+        assert!(actionbar_example.contains("use sand::command::Actionbar;"));
+    }
+
+    #[test]
+    fn rustdoc_prose_stops_before_the_contract_lookup_footer() {
+        let documentation = "Builds a typed value.\n\nMore behavioral detail.\n\n# API Contract\n\n`sand api show sand::topic::Value::new`";
+        assert_eq!(
+            rustdoc_prose(documentation),
+            "Builds a typed value. More behavioral detail."
+        );
+
+        let archetype = generated_catalog()
+            .find("sand::entity::EntityArchetype::new")
+            .expect("EntityArchetype::new is installed");
+        assert!(!archetype.context.contains("sand api show"));
+        assert!(!archetype.minecraft.contains("sand api show"));
+
+        assert_eq!(
+            rustdoc_example("Example:\n\n```\nlet value = 42;\n```"),
+            Some("let value = 42;".to_owned())
+        );
+        assert_eq!(
+            rustdoc_example("Example:\n\n```rust,ignore\n# let hidden = 1;\nlet shown = 2;\n```"),
+            Some("let shown = 2;".to_owned())
+        );
+        assert_eq!(
+            rustdoc_example("Shape:\n\n```text\nnot Rust\n```\nTrailing prose."),
+            None
+        );
+        assert_eq!(
+            rustdoc_example("Shape:\n\n```text\nnot Rust\n```\n\n```rust\nlet actual = 3;\n```"),
+            Some("let actual = 3;".to_owned())
+        );
+        assert_eq!(
+            rustdoc_summary(
+                "Short heading.\n\n```rust\nlet internal = sand_components::Thing;\n```\n\nExplains the author-facing behavior in enough detail."
+            ),
+            Some("Short heading. Explains the author-facing behavior in enough detail.".to_owned())
+        );
+        assert_eq!(
+            rustdoc_summary("Fake scoreboard holder.\n\nConvention: prefix with # (e.g. #global)."),
+            Some("Fake scoreboard holder. Convention: prefix with # (e.g. #global).".to_owned())
+        );
+
+        let catalog = generated_catalog();
+        assert!(
+            !catalog
+                .find("sand::state::ScoreVar::clamp")
+                .unwrap()
+                .example
+                .contains("Trailing prose")
+        );
+        for path in ["sand::event::Event", "sand::events::SandEvent"] {
+            let example = &catalog.find(path).unwrap().example;
+            assert!(!example.contains("sand_macros::"), "{path}: {example}");
+        }
+    }
+
+    #[test]
+    fn generic_wrapper_parser_preserves_nested_success_and_error_types() {
+        assert_eq!(
+            generic_arguments("Result<Option<FixedValue>,EntityDiagnostic>", "Result"),
+            Some(vec![
+                "Option<FixedValue>".to_owned(),
+                "EntityDiagnostic".to_owned()
+            ])
+        );
+        assert_eq!(
+            generic_arguments(
+                "SandResult<BTreeMap<String,Vec<Value>>,ExportError>",
+                "Result"
+            ),
+            Some(vec![
+                "BTreeMap<String,Vec<Value>>".to_owned(),
+                "ExportError".to_owned()
+            ])
+        );
     }
 
     #[test]
@@ -779,7 +1795,7 @@ mod tests {
         let catalog = generated_catalog();
         let entity = show(catalog, "sand::prelude::Condition::entity").unwrap();
         assert!(entity.contains("sand::condition::Condition::entity"));
-        assert!(entity.contains("selector : sand_commands :: Selector"));
+        assert!(entity.contains("selector : sand :: command :: Selector"));
         assert!(entity.contains("at least one entity"));
 
         let raw = show(catalog, "sand::condition::Condition::raw").unwrap();
@@ -967,5 +1983,204 @@ mod tests {
             })
             .collect::<Vec<_>>();
         assert_eq!(entries.len(), 2);
+    }
+
+    #[test]
+    #[cfg(not(any(
+        feature = "resourcepack",
+        feature = "systems-damage",
+        feature = "systems-cooldowns",
+        feature = "systems-lifecycle",
+        feature = "systems-player-data",
+        feature = "systems-movement",
+        feature = "systems-inventory",
+        feature = "systems-entities"
+    )))]
+    fn default_catalog_contains_only_the_compiled_feature_surface() {
+        let catalog = generated_catalog();
+        assert!(
+            catalog
+                .find("sand::systems::damage::DamageTracker")
+                .is_none()
+        );
+        assert!(
+            catalog
+                .entries
+                .iter()
+                .all(|entry| { !entry.canonical_path.starts_with("sand::resourcepack::") })
+        );
+        assert!(catalog.configuration.cargo_features.is_empty());
+        assert_eq!(
+            catalog.configuration.compiled_surface_items,
+            catalog.entries.len()
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "systems-damage")]
+    fn damage_feature_catalog_contains_damage_apis_and_declares_the_feature() {
+        let catalog = generated_catalog();
+        assert!(
+            catalog
+                .find("sand::systems::damage::DamageTracker")
+                .is_some()
+        );
+        assert!(
+            catalog
+                .configuration
+                .cargo_features
+                .contains(&"systems-damage".to_owned())
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "resourcepack")]
+    fn resourcepack_feature_catalog_contains_resourcepack_apis() {
+        let catalog = generated_catalog();
+        assert!(
+            catalog
+                .entries
+                .iter()
+                .any(|entry| entry.canonical_path.starts_with("sand::resourcepack::"))
+        );
+        assert!(
+            catalog
+                .configuration
+                .cargo_features
+                .contains(&"resourcepack".to_owned())
+        );
+    }
+
+    #[test]
+    fn installed_system_feature_matrix_matches_the_compiled_surface() {
+        let catalog = generated_catalog();
+        let systems_all = cfg!(feature = "systems-all");
+        let expectations = [
+            (
+                "systems-cooldowns",
+                "sand::systems::cooldowns::",
+                cfg!(feature = "systems-cooldowns") || systems_all,
+            ),
+            (
+                "systems-damage",
+                "sand::systems::damage::",
+                cfg!(feature = "systems-damage") || systems_all,
+            ),
+            (
+                "systems-entities",
+                "sand::systems::entities::",
+                cfg!(feature = "systems-entities") || systems_all,
+            ),
+            (
+                "systems-inventory",
+                "sand::systems::inventory::",
+                cfg!(feature = "systems-inventory") || systems_all,
+            ),
+            (
+                "systems-lifecycle",
+                "sand::systems::lifecycle::",
+                cfg!(feature = "systems-lifecycle") || systems_all,
+            ),
+            (
+                "systems-movement",
+                "sand::systems::movement::",
+                cfg!(feature = "systems-movement") || systems_all,
+            ),
+            (
+                "systems-player-data",
+                "sand::systems::player_data::",
+                cfg!(feature = "systems-player-data") || systems_all,
+            ),
+        ];
+
+        for (feature, prefix, expected) in expectations {
+            assert_eq!(
+                catalog
+                    .configuration
+                    .cargo_features
+                    .iter()
+                    .any(|item| item == feature),
+                expected,
+                "configuration mismatch for {feature}"
+            );
+            assert_eq!(
+                catalog
+                    .entries
+                    .iter()
+                    .any(|entry| entry.canonical_path.starts_with(prefix)),
+                expected,
+                "compiled surface mismatch for {feature}"
+            );
+            for entry in catalog
+                .entries
+                .iter()
+                .filter(|entry| entry.canonical_path.starts_with(prefix))
+            {
+                assert_eq!(
+                    entry.availability,
+                    vec![format!("Cargo feature: {feature}")],
+                    "availability mismatch for {}",
+                    entry.canonical_path
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn installed_catalog_has_canonical_registry_ownership_and_clean_prose() {
+        let catalog = generated_catalog();
+        let item = catalog.find("sand::prelude::ItemId").unwrap();
+        assert_eq!(item.canonical_path, "sand::registry::ItemId");
+        assert!(catalog.entries.iter().all(|entry| {
+            entry.canonical_path == "sand::prelude"
+                || !entry.canonical_path.starts_with("sand::prelude::")
+        }));
+        assert!(
+            catalog
+                .entries
+                .iter()
+                .all(|entry| !entry.summary.ends_with("(e"))
+        );
+    }
+
+    #[test]
+    fn exploratory_search_is_ranked_bounded_and_filterable() {
+        let catalog = generated_catalog();
+        let nearby = search_with_options(catalog, "nearby entities", Some(5), None, None).unwrap();
+        assert!(nearby.contains("showing 5 of"));
+        assert!(nearby.contains("sand::entity::EntityQuery::nearby"));
+        let events = search_with_options(
+            catalog,
+            "advancement event",
+            Some(3),
+            Some("sand::event"),
+            Some("trait"),
+        )
+        .unwrap();
+        assert!(events.contains("sand::event::AdvancementEvent"));
+        assert!(!events.contains("sand::vanilla::"));
+    }
+
+    #[test]
+    fn exploratory_search_rejects_punctuation_only_queries() {
+        let catalog = generated_catalog();
+        assert_eq!(
+            search_with_options(catalog, "!!!", Some(3), None, None).unwrap(),
+            "No APIs matched `!!!`.\n"
+        );
+    }
+
+    #[cfg(any(feature = "systems-player-data", feature = "systems-all"))]
+    #[test]
+    fn family_contracts_use_item_specific_source_documentation() {
+        let contract = show(
+            generated_catalog(),
+            "sand::systems::player_data::PlayerDataSchema::define_all",
+        )
+        .unwrap();
+        assert!(contract.contains("scoreboard objectives add"));
+        assert!(contract.contains("Storage schemas do not generate commands"));
+        assert!(contract.contains("idempotent"));
+        assert!(!contract.contains("typed systems API"));
     }
 }

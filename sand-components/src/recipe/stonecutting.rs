@@ -12,10 +12,10 @@ use sand_version::ComponentFeature;
 /// Represents a stonecutter recipe for cutting stone blocks into other shapes.
 pub struct StonecuttingRecipe {
     pub location: ResourceLocation,
-    pub group: Option<String>,
-    pub ingredient: Ingredient,
-    pub result: RecipeResult,
-    pub count: u32,
+    group: Option<String>,
+    ingredient: Ingredient,
+    result: RecipeResult,
+    count: u32,
 }
 
 impl StonecuttingRecipe {

@@ -142,6 +142,7 @@ fn item_stack_location() -> ResourceLocation {
 /// Implemented for `ItemStack` itself so APIs that accept `impl IntoItemStack`
 /// can also accept an already-built stack directly.
 pub trait IntoItemStack {
+    /// Converts the value through the into item stack component authoring contract.
     fn into_item_stack(self) -> ItemStack;
 }
 

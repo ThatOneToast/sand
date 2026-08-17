@@ -277,10 +277,10 @@ mechanism — `EventParticipantPlan::inherit_entity`/`inherit_item` — rather
 than by wiring the old capability-merge functions into codegen. An #274
 audit confirmed those helpers had gained no production call sites in the
 time since, so they were removed outright rather than left as dead public
-API; `sand-core/src/participant/capabilities.rs` now only describes an
-event's **subject** capability (`EventContextCapabilities::for_event` and
-its `propagate_*`/`merge_*` helpers), which is a genuinely separate,
-still-used concern from participant (entity/item) propagation.
+API. The remaining subject-capability bookkeeping was likewise advisory and
+had no runtime caller, so the public-surface audit removed it too. The
+exported participant plan and its transport validator are the only
+author-facing truth about which observations a handler can receive.
 `Event<E>::attacker()`/`.weapon()`/etc. resolve an inherited
 declaration exactly like a directly-declared one for `AdvancementEvent`
 handlers. As of #273/#280, plain `SandEvent` (tick/chain/tracked-dispatched)

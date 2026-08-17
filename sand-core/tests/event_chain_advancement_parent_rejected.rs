@@ -5,8 +5,7 @@
 //! own test binary since `inventory` registrations are process-global.
 
 use sand_core::events::{
-    ChainEventDispatch, EventSetup, SameCycleEventDependency, SameCycleEventRequirement,
-    TickEventDispatch,
+    ChainEventDispatch, EventSetup, SandEvent, SandEventDispatch, TickEventDispatch,
 };
 use sand_core::{AdvancementTrigger, EventDescriptor, EventDispatch};
 use std::any::TypeId;
@@ -32,8 +31,10 @@ struct AdvancementParent;
 fn advancement_parent_dispatch() -> sand_core::events::SandEventDispatch {
     sand_core::events::SandEventDispatch::AdvancementTrigger(AdvancementTrigger::Tick)
 }
-fn advancement_parent_type_id() -> TypeId {
-    TypeId::of::<AdvancementParent>()
+impl SandEvent for AdvancementParent {
+    fn dispatch() -> impl Into<SandEventDispatch> {
+        advancement_parent_dispatch()
+    }
 }
 fn advancement_parent_type_name() -> &'static str {
     std::any::type_name::<AdvancementParent>()
@@ -42,21 +43,7 @@ fn advancement_parent_type_name() -> &'static str {
 struct ChildOfAdvancementParent;
 
 fn child_chain() -> Option<ChainEventDispatch> {
-    Some(ChainEventDispatch {
-        occurrence: vec![SameCycleEventRequirement::After(SameCycleEventDependency {
-            event_type_id: advancement_parent_type_id,
-            event_type_name: advancement_parent_type_name,
-            event_dispatch: advancement_parent_dispatch,
-            event_setup: EventSetup::none,
-            event_raw_setup: EventSetup::none,
-            event_participants: || sand_core::participant::EventParticipantPlan::none(),
-            event_revoke: || true,
-        })],
-        persistent: vec![],
-        bounded: vec![],
-        when: vec![],
-        unless: vec![],
-    })
+    Some(SandEventDispatch::chain::<AdvancementParent>())
 }
 fn child_type_id() -> TypeId {
     TypeId::of::<ChildOfAdvancementParent>()

@@ -73,9 +73,6 @@ pub fn load() {
             .field("unlocked_spells", SnbtValue::from(Vec::<SnbtValue>::new())),
     );
 
-    // EventBuilder-declared state: merchant rank scoreboard.
-    MERCHANT_RANK.define();
-
     cmd::tellraw(
         Selector::all_players(),
         Text::new("[Arcane] Datapack loaded.").gold().bold(true),
@@ -447,71 +444,6 @@ pub fn on_damaged_damage_nearby(event: DamageEvent<EnhancedCellsDamagedEvent>) {
         .amount(DamageAmount::fixed(4.0))
         .damage_type(DamageKind::Generic)
         .run();
-}
-
-// -- EventBuilder demo: villager trade event --------------------------------
-//
-// This event is defined entirely via EventBuilder — no AdvancementEvent impl
-// needed. The advancement is generated in a #[datapack_component] function, and the
-// reward function is wired up with a matching #[function] path.
-//
-// State variables are declared on the builder so the load function can call
-// `villager_trade_config().state_defines()` to obtain the define commands
-// without duplicating the list.
-
-/// Merchant rank: how many trades the player has completed.
-static MERCHANT_RANK: ScoreVar<i32> = ScoreVar::new("merchant_rank");
-
-/// Returns the EventConfig for the villager trade event.
-///
-/// The config is a value, so it can be inspected in tests or extended by
-/// calling code without touching the advancement generation pipeline.
-pub fn villager_trade_config() -> EventConfig {
-    EventBuilder::new()
-        .trigger(sand_core::AdvancementTrigger::VillagerTrade {
-            item: Some(ItemPredicate::new()),
-            villager: None,
-        })
-        .reset(EventReset::AfterFire)
-        .visibility(EventVisibility::Hidden)
-        .guard(MERCHANT_RANK.of("@s").gte(0))
-        .score(&MERCHANT_RANK)
-        .score(&MANA)
-        .storage_field(STORED_MANA)
-        .storage_field(MAGIC_SCHOOL)
-        .build()
-}
-
-/// Generates the advancement component for the villager trade event.
-///
-/// Demonstrates `EventConfig::advancement()` — the advancement ID and
-/// reward function path must match the `#[function]` below.
-#[datapack_component]
-pub fn villager_trade_advancement() -> sand_core::Advancement {
-    villager_trade_config().advancement("arcane:villager_trade", "arcane:on_villager_trade")
-}
-
-/// Handler for the villager trade event.
-///
-/// The `advancement revoke` and guard check are handled manually here
-/// using `EventConfig::reward_prologue()` — exactly as the export pipeline
-/// would emit them for a trait-based `#[on_event]` handler.
-#[function("arcane:on_villager_trade")]
-pub fn on_villager_trade() {
-    // Revoke the advancement so it re-arms on the next trade (AfterFire reset).
-    cmd::raw("advancement revoke @s only arcane:villager_trade");
-    // Guard: skip if merchant_rank < 0 (sanity check).
-    cmd::raw(format!(
-        "execute unless score @s {} matches 0.. run return 0",
-        MERCHANT_RANK.objective_name()
-    ));
-    // Handler body:
-    MERCHANT_RANK.add(Selector::self_(), 1);
-    MANA.add(Selector::self_(), 5);
-    Actionbar::show(
-        Selector::self_(),
-        Text::new("+5 mana (villager trade)").aqua(),
-    );
 }
 
 // -- Export hook (required by sand build) ----------------------------------
@@ -975,67 +907,6 @@ mod tests {
         );
     }
 
-    // ── EventBuilder / EventConfig phase-6 tests ──────────────────────────────
-
-    #[test]
-    fn villager_trade_config_has_correct_trigger() {
-        use sand_core::DatapackComponent;
-        let config = villager_trade_config();
-        let adv = config.advancement("arcane:villager_trade", "arcane:on_villager_trade");
-        let json = adv.to_json();
-        assert_eq!(
-            json["criteria"]["event"]["trigger"].as_str().unwrap(),
-            "minecraft:villager_trade",
-        );
-        assert_eq!(
-            json["rewards"]["function"].as_str().unwrap(),
-            "arcane:on_villager_trade",
-        );
-    }
-
-    #[test]
-    fn villager_trade_reward_prologue_revokes_and_guards() {
-        let config = villager_trade_config();
-        let prologue = config.reward_prologue("arcane:villager_trade");
-
-        // First command must revoke (AfterFire reset).
-        assert_eq!(
-            prologue[0],
-            "advancement revoke @s only arcane:villager_trade"
-        );
-
-        // Second command must guard on merchant_rank.
-        assert!(
-            prologue[1].contains("unless"),
-            "must use unless: {}",
-            prologue[1]
-        );
-        assert!(
-            prologue[1].contains("return 0"),
-            "must return 0: {}",
-            prologue[1]
-        );
-        assert!(
-            prologue[1].contains("merchant_rank"),
-            "must reference merchant_rank: {}",
-            prologue[1]
-        );
-    }
-
-    #[test]
-    fn villager_trade_config_state_defines_merchant_rank_and_mana() {
-        let config = villager_trade_config();
-        let defs = config.state_defines();
-        assert!(
-            defs.iter().any(|d| d.contains("merchant_rank")),
-            "should define merchant_rank: {defs:?}"
-        );
-        assert!(
-            defs.iter().any(|d| d.contains("mana")),
-            "should define mana: {defs:?}"
-        );
-    }
-
     #[test]
     fn ate_golden_apple_state_defines_returns_mana() {
         use crate::events::AteGoldenAppleEvent;
@@ -1058,31 +929,4 @@ mod tests {
         assert!(defs.iter().any(|d| d.contains("mana")));
     }
 
-    #[test]
-    fn load_initializes_merchant_rank() {
-        let cmds = load();
-        assert!(
-            cmds.iter().any(|c| c.contains("merchant_rank")),
-            "load should define merchant_rank: {cmds:?}"
-        );
-    }
-
-    #[test]
-    fn on_villager_trade_prologue_and_body() {
-        let cmds = on_villager_trade();
-        // Prologue: revoke + guard.
-        assert_eq!(cmds[0], "advancement revoke @s only arcane:villager_trade");
-        assert!(
-            cmds[1].contains("unless") && cmds[1].contains("return 0"),
-            "{}",
-            cmds[1]
-        );
-        // Body: rank up, mana bonus, actionbar.
-        assert!(cmds.iter().any(|c| c.contains("scoreboard players add")
-            && c.contains("merchant_rank")
-            && c.contains("1")));
-        assert!(cmds.iter().any(|c| c.contains("scoreboard players add")
-            && c.contains("mana")
-            && c.contains("5")));
-    }
 }

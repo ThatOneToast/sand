@@ -299,16 +299,19 @@ impl TemplatePool {
         }
     }
 
+    /// Sets the Minecraft fallback property on this typed template pool definition and returns the updated builder.
     pub fn fallback(mut self, fallback: TemplatePoolId) -> Self {
         self.fallback = fallback;
         self
     }
 
+    /// Sets the Minecraft element property on this typed template pool definition and returns the updated builder.
     pub fn element(mut self, entry: PoolEntry) -> Self {
         self.elements.push(entry);
         self
     }
 
+    /// Sets the Minecraft elements property on this typed template pool definition and returns the updated builder.
     pub fn elements(mut self, elements: impl IntoIterator<Item = PoolEntry>) -> Self {
         self.elements = elements.into_iter().collect();
         self

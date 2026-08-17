@@ -72,6 +72,7 @@ pub enum ItemRarity {
 pub type Rarity = ItemRarity;
 
 impl ItemRarity {
+    /// Returns the canonical Minecraft representation of this component value.
     pub fn as_str(self) -> &'static str {
         match self {
             ItemRarity::Common => "common",
@@ -143,6 +144,7 @@ pub enum AttributeType {
 pub type AttributeId = AttributeType;
 
 impl AttributeType {
+    /// Returns the canonical Minecraft representation of this component value.
     pub fn as_str(&self) -> &str {
         match self {
             AttributeType::AttackDamage => "minecraft:attack_damage",
@@ -190,6 +192,7 @@ pub enum AttributeOperation {
 }
 
 impl AttributeOperation {
+    /// Returns the canonical Minecraft representation of this component value.
     pub fn as_str(self) -> &'static str {
         match self {
             AttributeOperation::AddValue => "add_value",
@@ -227,6 +230,7 @@ pub enum EquipmentSlotGroup {
 }
 
 impl EquipmentSlotGroup {
+    /// Returns the canonical Minecraft representation of this component value.
     pub fn as_str(self) -> &'static str {
         match self {
             EquipmentSlotGroup::Any => "any",
@@ -452,102 +456,127 @@ pub enum ItemComponent {
 }
 
 impl ItemComponent {
+    /// Sets the Minecraft custom name property on this typed item component definition and returns the updated builder.
     pub fn custom_name(name: TextComponent) -> Self {
         Self::CustomName(name)
     }
 
+    /// Sets the Minecraft item name property on this typed item component definition and returns the updated builder.
     pub fn item_name(name: TextComponent) -> Self {
         Self::ItemName(name)
     }
 
+    /// Sets the Minecraft lore property on this typed item component definition and returns the updated builder.
     pub fn lore(lines: Vec<TextComponent>) -> Self {
         Self::Lore(lines)
     }
 
+    /// Sets the Minecraft lore line property on this typed item component definition and returns the updated builder.
     pub fn lore_line(line: TextComponent) -> Self {
         Self::Lore(vec![line])
     }
 
+    /// Sets the Minecraft rarity property on this typed item component definition and returns the updated builder.
     pub fn rarity(rarity: ItemRarity) -> Self {
         Self::Rarity(rarity)
     }
 
+    /// Sets the Minecraft custom model data property on this typed item component definition and returns the updated builder.
     pub fn custom_model_data(value: i32) -> Self {
         Self::CustomModelData(value)
     }
 
+    /// Sets the Minecraft enchantment property on this typed item component definition and returns the updated builder.
     pub fn enchantment(id: EnchantmentId, level: u32) -> Self {
         Self::Enchantments(vec![EnchantmentEntry::new(id, level)])
     }
 
+    /// Sets the Minecraft enchantments property on this typed item component definition and returns the updated builder.
     pub fn enchantments(entries: Vec<EnchantmentEntry>) -> Self {
         Self::Enchantments(entries)
     }
 
+    /// Sets the Minecraft stored enchantment property on this typed item component definition and returns the updated builder.
     pub fn stored_enchantment(id: EnchantmentId, level: u32) -> Self {
         Self::StoredEnchantments(vec![EnchantmentEntry::new(id, level)])
     }
 
+    /// Sets the Minecraft attribute modifier property on this typed item component definition and returns the updated builder.
     pub fn attribute_modifier(modifier: AttributeModifier) -> Self {
         Self::AttributeModifiers(vec![modifier])
     }
 
+    /// Sets the Minecraft attribute modifiers property on this typed item component definition and returns the updated builder.
     pub fn attribute_modifiers(modifiers: Vec<AttributeModifier>) -> Self {
         Self::AttributeModifiers(modifiers)
     }
 
+    /// Sets the Minecraft food property on this typed item component definition and returns the updated builder.
     pub fn food(food: FoodProperties) -> Self {
         Self::Food(food)
     }
 
+    /// Sets the Minecraft consumable property on this typed item component definition and returns the updated builder.
     pub fn consumable(consumable: ConsumableProperties) -> Self {
         Self::Consumable(consumable)
     }
 
+    /// Sets the Minecraft equippable property on this typed item component definition and returns the updated builder.
     pub fn equippable(equippable: EquippableProperties) -> Self {
         Self::Equippable(equippable)
     }
 
+    /// Sets the Minecraft tool property on this typed item component definition and returns the updated builder.
     pub fn tool(tool: ToolProperties) -> Self {
         Self::Tool(tool)
     }
 
+    /// Sets the Minecraft potion contents property on this typed item component definition and returns the updated builder.
     pub fn potion_contents(contents: PotionContents) -> Self {
         Self::PotionContents(contents)
     }
 
+    /// Sets the Minecraft suspicious stew effect property on this typed item component definition and returns the updated builder.
     pub fn suspicious_stew_effect(effect: SuspiciousStewEffect) -> Self {
         Self::SuspiciousStewEffects(vec![effect])
     }
 
+    /// Sets the Minecraft suspicious stew effects property on this typed item component definition and returns the updated builder.
     pub fn suspicious_stew_effects(effects: Vec<SuspiciousStewEffect>) -> Self {
         Self::SuspiciousStewEffects(effects)
     }
 
+    /// Sets the Minecraft max stack size property on this typed item component definition and returns the updated builder.
     pub fn max_stack_size(size: u32) -> Self {
         Self::MaxStackSize(size)
     }
 
+    /// Sets the Minecraft max damage property on this typed item component definition and returns the updated builder.
     pub fn max_damage(damage: i32) -> Self {
         Self::MaxDamage(damage)
     }
 
+    /// Sets the Minecraft damage property on this typed item component definition and returns the updated builder.
     pub fn damage(damage: i32) -> Self {
         Self::Damage(damage)
     }
 
+    /// Sets the Minecraft unbreakable property on this typed item component definition and returns the updated builder.
     pub fn unbreakable(show_in_tooltip: bool) -> Self {
         Self::Unbreakable { show_in_tooltip }
     }
 
+    /// Sets the Minecraft custom data property on this typed item component definition and returns the updated builder.
     pub fn custom_data(data: CustomData) -> Self {
         Self::CustomData(data)
     }
 
+    /// Sets the Minecraft custom data marker property on this typed item component definition and returns the updated builder.
     pub fn custom_data_marker(key: impl Into<String>) -> Self {
         Self::CustomData(CustomData::marker(key))
     }
 
+    /// Provides the explicit raw component escape hatch for schema fields not yet modeled by Sand.
     pub fn raw_component(component: RawComponent) -> Self {
         Self::Raw(component)
     }
@@ -563,7 +592,7 @@ pub struct FoodProperties {
     /// Saturation restored (usually 0.0-2.0).
     pub saturation: f32,
     /// Whether the food can be eaten even with full hunger.
-    pub can_always_eat: bool,
+    can_always_eat: bool,
 }
 
 impl FoodProperties {
@@ -628,6 +657,7 @@ pub enum ConsumableAnimation {
 }
 
 impl ConsumableAnimation {
+    /// Returns the canonical Minecraft representation of this component value.
     pub fn as_str(self) -> &'static str {
         match self {
             ConsumableAnimation::None => "none",
@@ -652,11 +682,11 @@ pub struct ConsumableProperties {
     /// Time in seconds to consume the item.
     pub consume_seconds: f32,
     /// Animation to play during consumption.
-    pub animation: ConsumableAnimation,
+    animation: ConsumableAnimation,
     /// Whether particles appear when consuming.
-    pub has_consume_particles: bool,
+    has_consume_particles: bool,
     /// Optional custom sound to play.
-    pub sound: Option<SoundEventId>,
+    sound: Option<SoundEventId>,
 }
 
 impl ConsumableProperties {
@@ -744,6 +774,7 @@ pub enum EquipmentSlot {
 }
 
 impl EquipmentSlot {
+    /// Returns the canonical Minecraft representation of this component value.
     pub fn as_str(self) -> &'static str {
         match self {
             EquipmentSlot::Head => "head",
@@ -765,17 +796,17 @@ pub struct EquippableProperties {
     /// The equipment slot this item occupies.
     pub slot: EquipmentSlot,
     /// Whether dispensers can automatically equip this item.
-    pub dispensable: bool,
+    dispensable: bool,
     /// Whether players can swap this item with existing equipment.
-    pub swappable: bool,
+    swappable: bool,
     /// Whether the item takes damage when the wearer is hurt.
-    pub damage_on_hurt: bool,
+    damage_on_hurt: bool,
     /// Optional sound to play when equipping.
-    pub equip_sound: Option<SoundEventId>,
+    equip_sound: Option<SoundEventId>,
     /// Optional custom model for the equipped item.
-    pub model: Option<EquipmentModelId>,
+    model: Option<EquipmentModelId>,
     /// Optional entity tag restricting who can wear this.
-    pub allowed_entities: Option<String>,
+    allowed_entities: Option<String>,
 }
 
 impl EquippableProperties {
@@ -879,9 +910,9 @@ pub struct ToolRule {
     /// Block or block tag to match (e.g. `"#minecraft:pickaxe_mineable"`).
     pub blocks: String,
     /// Optional mining speed multiplier for this rule.
-    pub speed: Option<f32>,
+    speed: Option<f32>,
     /// Optional flag for whether the tool drops blocks correctly.
-    pub correct_for_drops: Option<bool>,
+    correct_for_drops: Option<bool>,
 }
 
 impl ToolRule {
@@ -947,9 +978,9 @@ pub struct ToolProperties {
     /// Rules for specific block types or tags.
     pub rules: Vec<ToolRule>,
     /// Default mining speed for blocks not matching any rule.
-    pub default_mining_speed: f32,
+    default_mining_speed: f32,
     /// Durability damage taken per broken block.
-    pub damage_per_block: i32,
+    damage_per_block: i32,
 }
 
 impl ToolProperties {
@@ -1524,6 +1555,7 @@ impl CustomItem {
         &self.base
     }
 
+    /// Sets the Minecraft item predicate property on this typed custom item definition and returns the updated builder.
     pub fn item_predicate(&self) -> TypedItemPredicate {
         let mut pred = TypedItemPredicate::id(
             self.base

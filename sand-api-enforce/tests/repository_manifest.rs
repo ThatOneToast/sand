@@ -14,8 +14,8 @@ fn repository_surface_manifest_records_the_audited_pending_baseline() {
     // version selection.
     assert_eq!(manifest.static_surface_items, 0);
     assert_eq!(manifest.pending_item_ceiling, 0);
-    assert_eq!(manifest.pending_scope_ceiling, 29);
-    assert_eq!(manifest.scopes.len(), 40);
+    assert_eq!(manifest.pending_scope_ceiling, 0);
+    assert_eq!(manifest.scopes.len(), 38);
     assert!(
         manifest
             .scopes
@@ -24,16 +24,43 @@ fn repository_surface_manifest_records_the_audited_pending_baseline() {
             .map(|scope| scope.id.as_str())
             .eq([
                 "root-source",
+                "command-source",
+                "event-source",
+                "events-source",
+                "item-source",
+                "inventory-source",
                 "predicate-source",
                 "generated-predicate-id-wrapper",
+                "state-source",
+                "entity-source",
+                "participant-source",
+                "component-source",
                 "condition-source",
                 "execute-when-source",
                 "resource-ref-source",
                 "version-source",
                 "vfx-source",
+                "systems-source",
+                "text-source",
+                "data-source",
                 "advanced-source",
+                "resourcepack-source",
+                "generated-commands",
                 "generated-vanilla-registries",
                 "generated-resource-id-wrappers",
+                "generated-registry-id-wrappers",
+                "generated-effect-registry-enums",
+                "generated-event-markers",
+                "generated-function-macro",
+                "generated-component-macro",
+                "generated-event-macro",
+                "generated-item-macro",
+                "generated-armor-event-macro",
+                "generated-schedule-macro",
+                "generated-state-derive",
+                "generated-storage-derive",
+                "generated-resourcepack-macros",
+                "generated-entity-state-enum-derive",
             ])
     );
     assert!(
@@ -46,7 +73,7 @@ fn repository_surface_manifest_records_the_audited_pending_baseline() {
         manifest
             .scopes
             .iter()
-            .any(|scope| scope.id == "prelude-unassigned-source")
+            .all(|scope| scope.state == ScopeState::Enforced)
     );
 
     let profiles = SurfaceProfileManifest::from_path(
@@ -70,17 +97,17 @@ fn repository_surface_manifest_records_the_audited_pending_baseline() {
         [
             (
                 "placeholder-codegen",
-                5_399,
-                5_098,
+                4_797,
+                0,
                 "api-surface-baseline-placeholder.txt".to_owned(),
             ),
             (
                 "1.21.4",
-                10_611,
-                6_022,
+                9_987,
+                0,
                 "api-surface-baseline-1.21.4.txt".to_owned(),
             ),
-            ("26.2", 11_521, 6_353, "api-surface-baseline.txt".to_owned(),),
+            ("26.2", 10_897, 0, "api-surface-baseline.txt".to_owned(),),
         ]
     );
 }

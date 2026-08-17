@@ -94,14 +94,17 @@ impl PlayerParticipant {
         }
     }
 
+    /// Returns the player's semantic role in the current event.
     pub fn role(&self) -> EntityParticipantRole {
         self.role
     }
 
+    /// Returns the evidence strength that established this player participant.
     pub fn reliability(&self) -> ParticipantReliability {
         self.reliability
     }
 
+    /// Returns how long the player reference remains valid.
     pub fn lifetime(&self) -> ParticipantLifetime {
         self.lifetime
     }
@@ -219,22 +222,27 @@ impl EntityParticipant {
         }
     }
 
+    /// Returns the entity's semantic role in the current event.
     pub fn role(&self) -> EntityParticipantRole {
         self.role
     }
 
+    /// Returns the evidence strength that established this entity participant.
     pub fn reliability(&self) -> ParticipantReliability {
         self.reliability
     }
 
+    /// Returns how long the entity reference remains valid.
     pub fn lifetime(&self) -> ParticipantLifetime {
         self.lifetime
     }
 
+    /// Returns the single-entity selector bound to this participant.
     pub fn selector(&self) -> &SingleEntity {
         &self.selector
     }
 
+    /// Checks that the participant evidence meets the requested reliability.
     pub fn require(
         &self,
         required: ParticipantReliability,
@@ -250,6 +258,7 @@ impl EntityParticipant {
         }
     }
 
+    /// Rejects participant evidence that is not exact for this handler operation.
     pub fn require_exact(&self) -> Result<&Self, ParticipantReliabilityError> {
         self.require(ParticipantReliability::Exact)
     }

@@ -1,4 +1,4 @@
-//! Deterministic derived-stat curves and dirty dependency planning.
+//! Deterministic derived-stat curves.
 //!
 //! Curves in this module are a pure intermediate representation. They neither
 //! inspect Minecraft nor emit commands. An archetype compiler can validate and
@@ -10,11 +10,6 @@
 //! configured [`RoundingPolicy`], and every conversion and arithmetic operation
 //! applies the configured [`OverflowPolicy`]. This makes results independent of
 //! the host platform and avoids floating-point work in generated functions.
-//!
-//! [`DependencyGraph`] complements the curve IR. Edges point from a state
-//! source to an output that consumes it. A [`DirtyPlan`] first identifies all
-//! transitively dirty outputs, then lists each output once in deterministic
-//! topological recomputation order.
 //!
 //! # Level-derived health
 //!
@@ -263,7 +258,7 @@ impl CurveInputs {
         Ok(self.insert(name, value))
     }
 
-    /// Returns a named value.
+    /// Returns the fixed curve input registered under `name`, when present.
     #[must_use]
     pub fn get(&self, name: &str) -> Option<FixedValue> {
         self.values.get(name).copied()
@@ -318,7 +313,7 @@ pub enum CurveEvaluationError {
 /// already been generated.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
-pub enum LoweringStrategy {
+pub(crate) enum LoweringStrategy {
     /// Direct scoreboard constants and arithmetic.
     ScoreboardArithmetic,
     /// A balanced decision tree for ranges or discrete mappings.
@@ -338,7 +333,7 @@ pub enum LoweringStrategy {
 /// instead of baking host arithmetic into command strings.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
-pub enum LoweredCurveOperation {
+pub(crate) enum LoweredCurveOperation {
     /// Set an objective to an already-scaled fixed-point constant.
     SetConstant {
         /// Destination score objective.
@@ -491,7 +486,7 @@ pub enum LoweredCurveOperation {
 /// ordered operations execute as the entity bound to `@s`; no global scratch
 /// score holder or storage compound is shared between entities.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct LoweredCurve {
+pub(crate) struct LoweredCurve {
     target_objective: String,
     scratch_objectives: Vec<String>,
     operations: Vec<LoweredCurveOperation>,
@@ -501,26 +496,20 @@ pub struct LoweredCurve {
 impl LoweredCurve {
     /// Existing objective that receives the final fixed-point result.
     #[must_use]
-    pub fn target_objective(&self) -> &str {
+    pub(crate) fn target_objective(&self) -> &str {
         &self.target_objective
     }
 
     /// Generated dummy objectives required at load, in lexical order.
     #[must_use]
-    pub fn scratch_objectives(&self) -> &[String] {
+    pub(crate) fn scratch_objectives(&self) -> &[String] {
         &self.scratch_objectives
     }
 
     /// Ordered entity-scoped operations.
     #[must_use]
-    pub fn operations(&self) -> &[LoweredCurveOperation] {
+    pub(crate) fn operations(&self) -> &[LoweredCurveOperation] {
         &self.operations
-    }
-
-    /// Most capable backend family needed by this plan.
-    #[must_use]
-    pub const fn strategy(&self) -> LoweringStrategy {
-        self.strategy
     }
 }
 
@@ -546,8 +535,8 @@ impl fmt::Debug for CustomCurve {
 /// Pure typed IR for a derived numeric or discrete entity property.
 ///
 /// Constructors intentionally accept typed curves and fixed-point constants,
-/// rather than command strings. Call [`Self::validate`] before export and
-/// [`Self::lowering_strategy`] to choose a compact backend.
+/// rather than command strings. Call [`Self::validate`] before export; Sand
+/// chooses the compact Minecraft backend internally.
 #[derive(Clone, Debug)]
 pub struct StatCurve {
     kind: CurveKind,
@@ -798,10 +787,10 @@ impl StatCurve {
 
     /// Creates a typed custom evaluator with a stable registration identifier.
     ///
-    /// Custom callbacks run while compiling/testing the definition. An
-    /// exporter must register a matching generated function and reports
-    /// [`LoweringStrategy::CustomCallback`]. The identifier, not a function
-    /// pointer address, supplies deterministic identity.
+    /// Custom callbacks run while compiling/testing the definition. Sand
+    /// registers a matching generated function during lowering. The
+    /// identifier, not a function pointer address, supplies deterministic
+    /// identity.
     #[must_use]
     pub fn custom(
         function: crate::resource_ref::FunctionId,
@@ -861,7 +850,7 @@ impl StatCurve {
 
     /// Returns the most capable lowering backend required by this curve.
     #[must_use]
-    pub fn lowering_strategy(&self) -> LoweringStrategy {
+    pub(crate) fn lowering_strategy(&self) -> LoweringStrategy {
         self.strategy_inner()
     }
 
@@ -875,7 +864,7 @@ impl StatCurve {
     ///
     /// The returned plan is execution-scoped to the entity at `@s`. It does
     /// not allocate global score holders or persistent selector references.
-    pub fn lower_scoreboard(
+    pub(crate) fn lower_scoreboard(
         &self,
         target_objective: &str,
         scratch_prefix: &str,
@@ -1559,21 +1548,21 @@ impl CurveLoweringBuilder<'_> {
 /// registry is used. All traversal uses sorted collections, so independent
 /// exports and Rust tests produce the same order.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct DependencyGraph {
+pub(crate) struct DependencyGraph {
     edges: BTreeMap<String, BTreeSet<String>>,
 }
 
 impl DependencyGraph {
     /// Creates an empty graph.
     #[must_use]
-    pub const fn new() -> Self {
+    pub(crate) const fn new() -> Self {
         Self {
             edges: BTreeMap::new(),
         }
     }
 
     /// Registers a source or output even when it has no edges.
-    pub fn add_node(&mut self, node: impl Into<String>) {
+    pub(crate) fn add_node(&mut self, node: impl Into<String>) {
         self.edges.entry(node.into()).or_default();
     }
 
@@ -1581,49 +1570,25 @@ impl DependencyGraph {
     ///
     /// Duplicate edges are ignored, which deduplicates shared observations
     /// before refresh scheduling.
-    pub fn add_dependency(&mut self, source: impl Into<String>, dependent: impl Into<String>) {
+    pub(crate) fn add_dependency(
+        &mut self,
+        source: impl Into<String>,
+        dependent: impl Into<String>,
+    ) {
         let source = source.into();
         let dependent = dependent.into();
         self.edges.entry(dependent.clone()).or_default();
         self.edges.entry(source).or_default().insert(dependent);
     }
 
-    /// Returns every registered node in lexical order.
-    pub fn nodes(&self) -> impl Iterator<Item = &str> {
-        self.edges.keys().map(String::as_str)
-    }
-
-    /// Returns direct dependents in lexical order.
-    pub fn direct_dependents(&self, source: &str) -> impl Iterator<Item = &str> {
-        self.edges
-            .get(source)
-            .into_iter()
-            .flat_map(|values| values.iter().map(String::as_str))
-    }
-
-    /// Returns all transitive dependents, excluding `source`.
-    #[must_use]
-    pub fn transitive_dependents(&self, source: &str) -> BTreeSet<String> {
-        let mut found = BTreeSet::new();
-        let mut pending = vec![source.to_string()];
-        while let Some(node) = pending.pop() {
-            if let Some(dependents) = self.edges.get(&node) {
-                for dependent in dependents.iter().rev() {
-                    if found.insert(dependent.clone()) {
-                        pending.push(dependent.clone());
-                    }
-                }
-            }
-        }
-        found.remove(source);
-        found
-    }
-
     /// Computes a stable source-before-dependent order.
     ///
     /// Cycles return [`EntityDiagnostic::DerivationCycle`] with a deterministic
     /// closed path suitable for an export diagnostic.
-    pub fn topological_order(&self, archetype: &str) -> Result<Vec<String>, EntityDiagnostic> {
+    pub(crate) fn topological_order(
+        &self,
+        archetype: &str,
+    ) -> Result<Vec<String>, EntityDiagnostic> {
         if let Some(cycle) = self.find_cycle() {
             return Err(EntityDiagnostic::DerivationCycle {
                 archetype: archetype.into(),
@@ -1657,34 +1622,6 @@ impl DependencyGraph {
             }
         }
         Ok(order)
-    }
-
-    /// Builds a two-phase dirty/recompute plan for changed sources.
-    ///
-    /// Sources can overlap and share dependents; each dirty output appears
-    /// exactly once. The recomputation order contains only dirty outputs.
-    pub fn dirty_plan(
-        &self,
-        changed_sources: impl IntoIterator<Item = impl AsRef<str>>,
-        archetype: &str,
-    ) -> Result<DirtyPlan, EntityDiagnostic> {
-        let mut sources = BTreeSet::new();
-        let mut dirty = BTreeSet::new();
-        for source in changed_sources {
-            let source = source.as_ref().to_string();
-            dirty.extend(self.transitive_dependents(&source));
-            sources.insert(source);
-        }
-        let recompute = self
-            .topological_order(archetype)?
-            .into_iter()
-            .filter(|node| dirty.contains(node))
-            .collect();
-        Ok(DirtyPlan {
-            changed_sources: sources,
-            dirty_outputs: dirty,
-            recompute,
-        })
     }
 
     fn find_cycle(&self) -> Option<Vec<String>> {
@@ -1738,34 +1675,6 @@ impl DependencyGraph {
             }
         }
         None
-    }
-}
-
-/// Two-phase result of propagating one or more changed state sources.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DirtyPlan {
-    changed_sources: BTreeSet<String>,
-    dirty_outputs: BTreeSet<String>,
-    recompute: Vec<String>,
-}
-
-impl DirtyPlan {
-    /// Changed source names in lexical order.
-    #[must_use]
-    pub fn changed_sources(&self) -> &BTreeSet<String> {
-        &self.changed_sources
-    }
-
-    /// Outputs whose generated dirty bits should be set.
-    #[must_use]
-    pub fn dirty_outputs(&self) -> &BTreeSet<String> {
-        &self.dirty_outputs
-    }
-
-    /// Dirty outputs in source-before-dependent recomputation order.
-    #[must_use]
-    pub fn recompute_order(&self) -> &[String] {
-        &self.recompute
     }
 }
 
@@ -2207,7 +2116,7 @@ mod tests {
             .lower_scoreboard("rpg_health", "rpg:mob.health", fixed())
             .unwrap();
         assert_eq!(first, second);
-        assert_eq!(first.strategy(), LoweringStrategy::ScoreboardArithmetic);
+        assert_eq!(first.strategy, LoweringStrategy::ScoreboardArithmetic);
         assert!(
             first
                 .scratch_objectives()
@@ -2245,7 +2154,7 @@ mod tests {
         let table = StatCurve::lookup_raw("rpg_level", [(1, 2.0), (100, 40.0)], 1.0)
             .lower_scoreboard("rpg_loot", "rpg:mob.loot", fixed())
             .unwrap();
-        assert_eq!(table.strategy(), LoweringStrategy::StorageLookupTable);
+        assert_eq!(table.strategy, LoweringStrategy::StorageLookupTable);
         assert!(table.operations().iter().any(|operation| matches!(
             operation,
             LoweredCurveOperation::LookupTable { entries, .. } if entries.len() == 2
@@ -2253,7 +2162,7 @@ mod tests {
     }
 
     #[test]
-    fn graph_order_transitive_dependencies_and_dedup_are_stable() {
+    fn graph_order_is_stable_and_deduplicated() {
         let mut graph = DependencyGraph::new();
         graph.add_dependency("level", "health");
         graph.add_dependency("level", "damage");
@@ -2262,20 +2171,9 @@ mod tests {
         graph.add_dependency("level", "health");
 
         assert_eq!(
-            graph.transitive_dependents("level"),
-            BTreeSet::from([
-                "damage".to_string(),
-                "health".to_string(),
-                "name".to_string()
-            ])
-        );
-        assert_eq!(
             graph.topological_order("rpg:mob").unwrap(),
             ["level", "health", "name", "rarity", "damage"]
         );
-        let plan = graph.dirty_plan(["level", "rarity"], "rpg:mob").unwrap();
-        assert_eq!(plan.dirty_outputs().len(), 3);
-        assert_eq!(plan.recompute_order(), ["health", "name", "damage"]);
     }
 
     #[test]

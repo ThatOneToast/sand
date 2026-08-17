@@ -552,6 +552,41 @@ fn external_inert_bindings_structurally_audit_every_invocation_payload() {
 }
 
 #[test]
+fn texture_only_resourcepack_bindings_are_audited_without_generated_api() {
+    let (_directory, graph) = item_macro_graph(
+        r#"texture!(id = "fixture:item/icon", path = "assets/icon.png");"#,
+        [],
+    );
+    let reachable = graph
+        .bind_inert_item_macro(
+            "facade",
+            "texture",
+            InertItemMacroClassification::ResourcepackTextureRegistration,
+        )
+        .unwrap()
+        .reachable_from("facade")
+        .unwrap();
+    assert!(reachable.is_empty());
+
+    for source in [
+        r#"texture!(id = "missing-namespace", path = "assets/icon.png");"#,
+        r#"texture!(id = "fixture:item/icon");"#,
+    ] {
+        let (_directory, graph) = item_macro_graph(source, []);
+        let error = graph
+            .bind_inert_item_macro(
+                "facade",
+                "texture",
+                InertItemMacroClassification::ResourcepackTextureRegistration,
+            )
+            .err()
+            .unwrap()
+            .to_string();
+        assert!(error.contains("texture!"), "{error}");
+    }
+}
+
+#[test]
 fn associated_item_macros_fail_closed_and_require_exact_owner_output() {
     for source in [
         "pub struct Subject; impl Subject { generated_members!(); }",
@@ -1369,7 +1404,7 @@ fn relative_imported_and_qualified_aliases_cannot_hide_inherent_members() {
     let errors = audit_reachable_surface(&api, &contracts).unwrap_err();
     assert!(errors.iter().any(|error| matches!(
         error,
-        ReachabilityError::MissingContract { identity, paths }
+        ReachabilityError::MissingContract { identity, paths, .. }
             if identity == "core_lib::model::Thing::new"
                 && paths.contains(&"facade::QualifiedAlias::new".into())
     )));
@@ -2545,6 +2580,819 @@ fn trait_only_and_builtin_derives_do_not_require_providers() {
     )
     .unwrap();
     assert!(graph.reachable_from("facade").is_ok());
+}
+
+#[test]
+fn renamed_public_attributes_are_trusted_and_custom_item_remains_fail_closed() {
+    for source in [
+        "#[datapack_component] pub fn component() {} #[on_event] pub fn event() {}",
+        "#[sand::datapack_component] pub fn component() {} #[sand::on_event] pub fn event() {}",
+    ] {
+        let directory = tempfile::tempdir().unwrap();
+        let facade = directory.path().join("facade.rs");
+        fs::write(&facade, source).unwrap();
+        let graph = SurfaceGraph::load(
+            [SourceCrate {
+                name: "facade".into(),
+                root: facade,
+            }],
+            [],
+            [],
+        )
+        .unwrap();
+        assert!(graph.reachable_from("facade").is_ok(), "{source}");
+    }
+
+    for source in [
+        "#[custom_item] pub fn item() {}",
+        "#[sand::custom_item] pub fn item() {}",
+    ] {
+        let directory = tempfile::tempdir().unwrap();
+        let facade = directory.path().join("facade.rs");
+        fs::write(&facade, source).unwrap();
+        let graph = SurfaceGraph::load(
+            [SourceCrate {
+                name: "facade".into(),
+                root: facade,
+            }],
+            [],
+            [],
+        )
+        .unwrap();
+        assert!(matches!(
+            graph.reachable_from("facade"),
+            Err(ReachabilityError::UnboundApiProducer { producer, .. }) if producer == "custom_item"
+        ));
+    }
+
+    let directory = tempfile::tempdir().unwrap();
+    let facade = directory.path().join("facade.rs");
+    fs::write(&facade, "#[sand::item] pub fn obsolete_name() {}").unwrap();
+    let graph = SurfaceGraph::load(
+        [SourceCrate {
+            name: "facade".into(),
+            root: facade,
+        }],
+        [],
+        [],
+    )
+    .unwrap();
+    assert!(matches!(
+        graph.reachable_from("facade"),
+        Err(ReachabilityError::UnclassifiedApiMacro { name, .. }) if name == "item"
+    ));
+}
+
+#[test]
+fn state_derive_provider_claims_the_exact_bound_view_and_inherent_surface() {
+    let directory = tempfile::tempdir().unwrap();
+    let facade = directory.path().join("facade.rs");
+    fs::write(
+        &facade,
+        r#"
+            use sand::State;
+            #[derive(State)]
+            #[state(namespace = "fixture", scope = player)]
+            pub struct PlayerState {
+                mana: EntityScore<i32>,
+                ready: EntityFlag,
+            }
+        "#,
+    )
+    .unwrap();
+    let generated =
+        sand_api_enforce::state_derive_provider(&facade, "facade", &CfgSet::default()).unwrap();
+    let graph = SurfaceGraph::load(
+        [SourceCrate {
+            name: "facade".into(),
+            root: facade,
+        }],
+        [],
+        generated,
+    )
+    .unwrap()
+    .bind_api_producer("facade::PlayerState", "State", "state_derive")
+    .unwrap();
+    let reachable = graph.reachable_from("facade").unwrap();
+    for identity in [
+        "facade::PlayerStateBound",
+        "facade::PlayerStateBound::mana",
+        "facade::PlayerState::FIELDS",
+        "facade::PlayerState::mana",
+        "facade::PlayerState::on",
+    ] {
+        assert!(
+            reachable.iter().any(|api| api.identity == identity),
+            "missing {identity}"
+        );
+    }
+}
+
+#[test]
+fn state_derive_provider_normalizes_raw_field_identifiers() {
+    let directory = tempfile::tempdir().unwrap();
+    let facade = directory.path().join("facade.rs");
+    fs::write(
+        &facade,
+        r#"
+            #[derive(State)]
+            #[state(namespace = "fixture", scope = player)]
+            pub struct PlayerState { r#type: EntityScore<i32> }
+        "#,
+    )
+    .unwrap();
+    let generated =
+        sand_api_enforce::state_derive_provider(&facade, "facade", &CfgSet::default()).unwrap();
+    assert!(
+        generated
+            .iter()
+            .any(|api| api.identity == "facade::PlayerState::type")
+    );
+    assert!(generated.iter().any(|api| {
+        api.identity == "facade::PlayerStateBound"
+            && api.members.iter().any(|(name, _)| name == "type")
+    }));
+    assert!(!generated.iter().any(|api| {
+        api.identity.contains("r#type") || api.members.iter().any(|(name, _)| name == "r#type")
+    }));
+}
+
+#[test]
+fn state_derive_provider_normalizes_raw_owner_identifiers() {
+    let directory = tempfile::tempdir().unwrap();
+    let facade = directory.path().join("facade.rs");
+    fs::write(
+        &facade,
+        r#"
+            #[derive(State)]
+            #[state(namespace = "fixture", scope = player)]
+            pub struct r#type { mana: EntityScore<i32> }
+        "#,
+    )
+    .unwrap();
+    let generated =
+        sand_api_enforce::state_derive_provider(&facade, "facade", &CfgSet::default()).unwrap();
+    assert!(
+        generated
+            .iter()
+            .any(|api| api.identity == "facade::typeBound")
+    );
+    assert!(generated.iter().any(|api| {
+        api.producer
+            .as_ref()
+            .is_some_and(|producer| producer.owner == "facade::type")
+    }));
+    assert!(!generated.iter().any(|api| api.identity.contains("r#")));
+}
+
+#[test]
+fn custom_item_provider_claims_the_exact_typed_reference_surface() {
+    let directory = tempfile::tempdir().unwrap();
+    let facade = directory.path().join("facade.rs");
+    fs::write(
+        &facade,
+        r#"
+            #[sand::custom_item(name = "ShardBlade", data = [DAMAGE: i32 = 7])]
+            pub fn shard_blade() -> CustomItem {
+                CustomItem::new("minecraft:diamond_sword")
+                    .custom_data("shard_blade")
+            }
+        "#,
+    )
+    .unwrap();
+    let generated =
+        sand_api_enforce::custom_item_provider(&facade, "facade", &CfgSet::default()).unwrap();
+    let graph = SurfaceGraph::load(
+        [SourceCrate {
+            name: "facade".into(),
+            root: facade,
+        }],
+        [],
+        generated,
+    )
+    .unwrap()
+    .bind_api_producer("facade::shard_blade", "custom_item", "item_macro")
+    .unwrap();
+    let reachable = graph.reachable_from("facade").unwrap();
+    for identity in [
+        "facade::ShardBlade",
+        "facade::ShardBlade::BASE",
+        "facade::ShardBlade::CUSTOM_DATA_KEY",
+        "facade::ShardBlade::DAMAGE",
+        "facade::ShardBlade::if_wearing",
+        "facade::ShardBlade::unless_wearing",
+        "facade::ShardBlade::item",
+    ] {
+        assert!(
+            reachable.iter().any(|api| api.identity == identity),
+            "missing {identity}"
+        );
+    }
+}
+
+#[test]
+fn consumer_macro_providers_traverse_inline_modules() {
+    let directory = tempfile::tempdir().unwrap();
+    let custom_item = directory.path().join("custom_item.rs");
+    fs::write(
+        &custom_item,
+        r#"
+            pub mod nested {
+                #[sand::custom_item(name = "ShardBlade")]
+                pub fn shard_blade() -> CustomItem { todo!() }
+            }
+        "#,
+    )
+    .unwrap();
+    let generated =
+        sand_api_enforce::custom_item_provider(&custom_item, "facade", &CfgSet::default()).unwrap();
+    assert_eq!(generated[0].identity, "facade::nested::ShardBlade");
+    assert_eq!(
+        generated[0].producer.as_ref().unwrap().owner,
+        "facade::nested::shard_blade"
+    );
+
+    let resourcepack = directory.path().join("resourcepack.rs");
+    fs::write(
+        &resourcepack,
+        r#"
+            pub mod nested {
+                hud_bar!(
+                    name = "health",
+                    texture = "health.png",
+                    steps = 10,
+                    height = 8,
+                    ascent = 8,
+                );
+            }
+        "#,
+    )
+    .unwrap();
+    let generated =
+        sand_api_enforce::resourcepack_macro_provider(&resourcepack, "facade", &CfgSet::default())
+            .unwrap();
+    assert_eq!(generated[0].identity, "facade::nested::HEALTH");
+
+    let derives = directory.path().join("derives.rs");
+    fs::write(
+        &derives,
+        r#"
+            pub mod nested {
+                #[derive(State)]
+                #[state(namespace = "fixture", scope = player)]
+                pub struct PlayerState { mana: EntityScore<i32> }
+
+                #[derive(SandStorage)]
+                pub struct PlayerStorage { value: i32 }
+            }
+        "#,
+    )
+    .unwrap();
+    let state =
+        sand_api_enforce::state_derive_provider(&derives, "facade", &CfgSet::default()).unwrap();
+    assert!(
+        state
+            .iter()
+            .any(|api| api.identity == "facade::nested::PlayerStateBound")
+    );
+    assert!(state.iter().any(|api| {
+        api.producer.as_ref().is_some_and(|producer| {
+            producer.owner == "facade::nested::PlayerState" && producer.name == "State"
+        })
+    }));
+    let storage =
+        sand_api_enforce::sand_storage_derive_provider(&derives, "facade", &CfgSet::default())
+            .unwrap();
+    assert!(
+        storage
+            .iter()
+            .any(|api| api.identity == "facade::nested::PlayerStorage::value")
+    );
+
+    let shape_preserving = directory.path().join("shape_preserving.rs");
+    fs::write(
+        &shape_preserving,
+        r#"
+            pub mod nested {
+                #[sand::function]
+                pub fn tick() {}
+            }
+        "#,
+    )
+    .unwrap();
+    sand_api_enforce::shape_preserving_consumer_provider(
+        &shape_preserving,
+        "function",
+        &CfgSet::default(),
+    )
+    .unwrap();
+}
+
+#[test]
+fn resourcepack_provider_accepts_unicode_rust_handle_identifiers() {
+    let directory = tempfile::tempdir().unwrap();
+    let resourcepack = directory.path().join("resourcepack.rs");
+    fs::write(
+        &resourcepack,
+        r#"
+            hud_bar!(
+                name = "énergie",
+                texture = "energy.png",
+                steps = 10,
+                height = 8,
+                ascent = 8,
+            );
+        "#,
+    )
+    .unwrap();
+    let generated =
+        sand_api_enforce::resourcepack_macro_provider(&resourcepack, "facade", &CfgSet::default())
+            .unwrap();
+    assert_eq!(generated[0].identity, "facade::ÉNERGIE");
+}
+
+#[test]
+fn resourcepack_provider_uses_the_last_duplicate_name_like_the_macro() {
+    let directory = tempfile::tempdir().unwrap();
+    let resourcepack = directory.path().join("resourcepack.rs");
+    fs::write(
+        &resourcepack,
+        r#"hud_element!(name = "old", name = "current", texture = "status.png", height = 8, ascent = 8);"#,
+    )
+    .unwrap();
+    let generated =
+        sand_api_enforce::resourcepack_macro_provider(&resourcepack, "facade", &CfgSet::default())
+            .unwrap();
+    assert_eq!(generated[0].identity, "facade::CURRENT");
+}
+
+#[test]
+fn custom_item_provider_normalizes_raw_data_constant_identifiers() {
+    let directory = tempfile::tempdir().unwrap();
+    let facade = directory.path().join("facade.rs");
+    fs::write(
+        &facade,
+        r#"
+            #[sand::custom_item(name = "TypedItem", data = [r#type: i32 = 1])]
+            pub fn typed_item() -> CustomItem { todo!() }
+        "#,
+    )
+    .unwrap();
+    let generated =
+        sand_api_enforce::custom_item_provider(&facade, "facade", &CfgSet::default()).unwrap();
+    assert!(generated[0].members.iter().any(|(name, _)| name == "type"));
+    assert!(
+        !generated[0]
+            .members
+            .iter()
+            .any(|(name, _)| name == "r#type")
+    );
+}
+
+#[test]
+fn consumer_macro_providers_traverse_out_of_line_and_path_modules() {
+    let directory = tempfile::tempdir().unwrap();
+    let facade = directory.path().join("lib.rs");
+    fs::write(
+        &facade,
+        r#"
+            pub mod schemas;
+            #[path = "generated/items.rs"]
+            pub mod items;
+        "#,
+    )
+    .unwrap();
+    fs::write(
+        directory.path().join("schemas.rs"),
+        r#"
+            #[derive(State)]
+            #[state(namespace = "fixture", scope = player)]
+            pub struct PlayerState { mana: EntityScore<i32> }
+
+            #[sand::function]
+            pub fn tick() {}
+
+            hud_element!(
+                name = "status",
+                texture = "status.png",
+                height = 8,
+                ascent = 8,
+            );
+        "#,
+    )
+    .unwrap();
+    fs::create_dir(directory.path().join("generated")).unwrap();
+    fs::write(
+        directory.path().join("generated/items.rs"),
+        r#"
+            #[sand::custom_item(name = "TypedItem")]
+            pub fn typed_item() -> CustomItem { todo!() }
+
+            #[derive(SandStorage)]
+            pub struct PlayerStorage { value: i32 }
+        "#,
+    )
+    .unwrap();
+
+    let state =
+        sand_api_enforce::state_derive_provider(&facade, "facade", &CfgSet::default()).unwrap();
+    assert!(
+        state
+            .iter()
+            .any(|api| api.identity == "facade::schemas::PlayerStateBound")
+    );
+    sand_api_enforce::shape_preserving_consumer_provider(&facade, "function", &CfgSet::default())
+        .unwrap();
+    let resourcepack =
+        sand_api_enforce::resourcepack_macro_provider(&facade, "facade", &CfgSet::default())
+            .unwrap();
+    assert_eq!(resourcepack[0].identity, "facade::schemas::STATUS");
+    let items =
+        sand_api_enforce::custom_item_provider(&facade, "facade", &CfgSet::default()).unwrap();
+    assert_eq!(items[0].identity, "facade::items::TypedItem");
+    let storage =
+        sand_api_enforce::sand_storage_derive_provider(&facade, "facade", &CfgSet::default())
+            .unwrap();
+    assert!(
+        storage
+            .iter()
+            .any(|api| api.identity == "facade::items::PlayerStorage::value")
+    );
+}
+
+#[test]
+fn nested_path_modules_resolve_from_the_containing_file_directory() {
+    let directory = tempfile::tempdir().unwrap();
+    let facade = directory.path().join("lib.rs");
+    fs::write(&facade, "pub mod outer;").unwrap();
+    fs::write(
+        directory.path().join("outer.rs"),
+        r#"#[path = "schema.rs"] pub mod schema;"#,
+    )
+    .unwrap();
+    fs::write(
+        directory.path().join("schema.rs"),
+        r#"
+            pub struct Widget;
+
+            #[derive(State)]
+            #[state(namespace = "fixture", scope = player)]
+            pub struct PlayerState { mana: EntityScore<i32> }
+
+            #[derive(SandStorage)]
+            pub struct PlayerStorage { value: i32 }
+
+            #[sand::custom_item(name = "TypedItem")]
+            pub fn typed_item() -> CustomItem { todo!() }
+
+            #[sand::function]
+            pub fn tick() {}
+
+            hud_element!(
+                name = "status",
+                texture = "status.png",
+                height = 8,
+                ascent = 8,
+            );
+        "#,
+    )
+    .unwrap();
+
+    let surface_directory = directory.path().join("surface");
+    fs::create_dir(&surface_directory).unwrap();
+    let surface = surface_directory.join("lib.rs");
+    fs::write(&surface, "pub mod outer;").unwrap();
+    fs::write(
+        surface_directory.join("outer.rs"),
+        r#"#[path = "schema.rs"] pub mod schema;"#,
+    )
+    .unwrap();
+    fs::write(surface_directory.join("schema.rs"), "pub struct Widget;").unwrap();
+    let reachable = SurfaceGraph::load(
+        [SourceCrate {
+            name: "facade".into(),
+            root: surface,
+        }],
+        [],
+        [],
+    )
+    .unwrap()
+    .reachable_from("facade")
+    .unwrap();
+    assert!(
+        reachable
+            .iter()
+            .any(|api| api.identity == "facade::outer::schema::Widget")
+    );
+
+    let state =
+        sand_api_enforce::state_derive_provider(&facade, "facade", &CfgSet::default()).unwrap();
+    assert!(
+        state
+            .iter()
+            .any(|api| api.identity == "facade::outer::schema::PlayerStateBound")
+    );
+    let storage =
+        sand_api_enforce::sand_storage_derive_provider(&facade, "facade", &CfgSet::default())
+            .unwrap();
+    assert!(
+        storage
+            .iter()
+            .any(|api| api.identity == "facade::outer::schema::PlayerStorage::value")
+    );
+    let items =
+        sand_api_enforce::custom_item_provider(&facade, "facade", &CfgSet::default()).unwrap();
+    assert_eq!(items[0].identity, "facade::outer::schema::TypedItem");
+    sand_api_enforce::shape_preserving_consumer_provider(&facade, "function", &CfgSet::default())
+        .unwrap();
+    let resourcepack =
+        sand_api_enforce::resourcepack_macro_provider(&facade, "facade", &CfgSet::default())
+            .unwrap();
+    assert_eq!(resourcepack[0].identity, "facade::outer::schema::STATUS");
+}
+
+#[test]
+fn inline_modules_preserve_their_child_file_search_directory() {
+    let directory = tempfile::tempdir().unwrap();
+    let facade = directory.path().join("lib.rs");
+    fs::write(
+        &facade,
+        r#"pub mod outer { pub mod schema; #[path = "alternate.rs"] pub mod alternate; }"#,
+    )
+    .unwrap();
+    fs::create_dir(directory.path().join("outer")).unwrap();
+    fs::write(
+        directory.path().join("outer/schema.rs"),
+        r#"
+            #[derive(State)]
+            #[state(namespace = "fixture", scope = player)]
+            pub struct PlayerState { mana: EntityScore<i32> }
+
+            #[derive(SandStorage)]
+            pub struct PlayerStorage { value: i32 }
+
+            #[sand::custom_item(name = "TypedItem")]
+            pub fn typed_item() -> CustomItem { todo!() }
+
+            #[sand::function]
+            pub fn tick() {}
+
+            hud_element!(name = "status", texture = "status.png", height = 8, ascent = 8);
+        "#,
+    )
+    .unwrap();
+    fs::write(
+        directory.path().join("outer/alternate.rs"),
+        "pub struct Alternate;",
+    )
+    .unwrap();
+
+    let state =
+        sand_api_enforce::state_derive_provider(&facade, "facade", &CfgSet::default()).unwrap();
+    assert!(
+        state
+            .iter()
+            .any(|api| api.identity == "facade::outer::schema::PlayerStateBound")
+    );
+    let storage =
+        sand_api_enforce::sand_storage_derive_provider(&facade, "facade", &CfgSet::default())
+            .unwrap();
+    assert!(
+        storage
+            .iter()
+            .any(|api| api.identity == "facade::outer::schema::PlayerStorage::value")
+    );
+    let items =
+        sand_api_enforce::custom_item_provider(&facade, "facade", &CfgSet::default()).unwrap();
+    assert_eq!(items[0].identity, "facade::outer::schema::TypedItem");
+    sand_api_enforce::shape_preserving_consumer_provider(&facade, "function", &CfgSet::default())
+        .unwrap();
+    let resourcepack =
+        sand_api_enforce::resourcepack_macro_provider(&facade, "facade", &CfgSet::default())
+            .unwrap();
+    assert_eq!(resourcepack[0].identity, "facade::outer::schema::STATUS");
+
+    let surface_directory = directory.path().join("surface");
+    fs::create_dir(&surface_directory).unwrap();
+    fs::write(
+        surface_directory.join("lib.rs"),
+        r#"pub mod outer { pub mod schema; #[path = "alternate.rs"] pub mod alternate; }"#,
+    )
+    .unwrap();
+    fs::create_dir(surface_directory.join("outer")).unwrap();
+    fs::write(
+        surface_directory.join("outer/schema.rs"),
+        "pub struct Widget;",
+    )
+    .unwrap();
+    fs::write(
+        surface_directory.join("outer/alternate.rs"),
+        "pub struct Alternate;",
+    )
+    .unwrap();
+    let reachable = SurfaceGraph::load(
+        [SourceCrate {
+            name: "facade".into(),
+            root: surface_directory.join("lib.rs"),
+        }],
+        [],
+        [],
+    )
+    .unwrap()
+    .reachable_from("facade")
+    .unwrap();
+    assert!(
+        reachable
+            .iter()
+            .any(|api| api.identity == "facade::outer::schema::Widget")
+    );
+    assert!(
+        reachable
+            .iter()
+            .any(|api| api.identity == "facade::outer::alternate::Alternate")
+    );
+}
+
+#[test]
+fn consumer_macro_providers_follow_literal_includes() {
+    let directory = tempfile::tempdir().unwrap();
+    let facade = directory.path().join("lib.rs");
+    fs::write(&facade, r#"include!("schemas.rs");"#).unwrap();
+    fs::write(
+        directory.path().join("schemas.rs"),
+        r#"
+            #[derive(State)]
+            #[state(namespace = "fixture", scope = player)]
+            pub struct PlayerState { mana: EntityScore<i32> }
+
+            #[derive(SandStorage)]
+            pub struct PlayerStorage { value: i32 }
+
+            #[sand::custom_item(name = "TypedItem")]
+            pub fn typed_item() -> CustomItem { todo!() }
+
+            #[sand::function]
+            pub fn tick() {}
+
+            hud_element!(name = "status", texture = "status.png", height = 8, ascent = 8);
+        "#,
+    )
+    .unwrap();
+    let cfg = CfgSet::default();
+    let state = sand_api_enforce::state_derive_provider(&facade, "facade", &cfg).unwrap();
+    let storage = sand_api_enforce::sand_storage_derive_provider(&facade, "facade", &cfg).unwrap();
+    let items = sand_api_enforce::custom_item_provider(&facade, "facade", &cfg).unwrap();
+    let resourcepack =
+        sand_api_enforce::resourcepack_macro_provider(&facade, "facade", &cfg).unwrap();
+    sand_api_enforce::shape_preserving_consumer_provider(&facade, "function", &cfg).unwrap();
+    assert!(
+        state
+            .iter()
+            .any(|api| api.identity == "facade::PlayerStateBound")
+    );
+    assert!(
+        storage
+            .iter()
+            .any(|api| api.identity == "facade::PlayerStorage::value")
+    );
+    assert_eq!(items[0].identity, "facade::TypedItem");
+    assert_eq!(resourcepack[0].identity, "facade::STATUS");
+
+    SurfaceGraph::load(
+        [SourceCrate {
+            name: "facade".into(),
+            root: facade,
+        }],
+        [],
+        state
+            .into_iter()
+            .chain(storage)
+            .chain(items)
+            .chain(resourcepack),
+    )
+    .unwrap()
+    .bind_api_producer("facade::PlayerState", "State", "state_derive")
+    .unwrap()
+    .bind_api_producer("facade::PlayerStorage", "SandStorage", "storage_derive")
+    .unwrap()
+    .bind_api_producer("facade::typed_item", "custom_item", "item_macro")
+    .unwrap();
+}
+
+#[test]
+fn consumer_macro_providers_use_the_surface_cfg_set() {
+    let directory = tempfile::tempdir().unwrap();
+    let facade = directory.path().join("lib.rs");
+    fs::write(
+        &facade,
+        r#"
+            #[cfg(feature = "active")]
+            #[cfg_attr(feature = "active", derive(State))]
+            #[cfg_attr(feature = "active", state(namespace = "fixture", scope = player))]
+            pub struct ActiveState {
+                value: EntityScore<i32>,
+                #[cfg(feature = "inactive")]
+                hidden: EntityScore<i32>,
+            }
+
+            #[cfg(feature = "inactive")]
+            #[derive(State)]
+            #[state(namespace = "fixture", scope = player)]
+            pub struct InactiveState { value: EntityScore<i32> }
+
+            #[cfg(feature = "active")]
+            #[cfg_attr(feature = "active", derive(SandStorage))]
+            pub struct ActiveStorage {
+                value: i32,
+                #[cfg(feature = "inactive")]
+                hidden: i32,
+            }
+
+            #[cfg(feature = "inactive")]
+            #[derive(SandStorage)]
+            pub struct InactiveStorage { value: i32 }
+
+            #[cfg(feature = "active")]
+            #[cfg_attr(feature = "active", sand::custom_item(name = "ActiveItem"))]
+            pub fn active_item() -> CustomItem { todo!() }
+
+            #[cfg(feature = "inactive")]
+            #[sand::custom_item(name = "InactiveItem")]
+            pub fn inactive_item() -> CustomItem { todo!() }
+
+            #[cfg(feature = "active")]
+            hud_bar!(name = "active", texture = "active.png", steps = 1, height = 1, ascent = 1);
+            #[cfg(feature = "inactive")]
+            hud_bar!(name = "inactive", texture = "inactive.png", steps = 1, height = 1, ascent = 1);
+
+            #[cfg(feature = "disabled")]
+            pub mod absent;
+        "#,
+    )
+    .unwrap();
+    let cfg = CfgSet {
+        features: ["active".to_owned()].into_iter().collect(),
+        ..CfgSet::default()
+    };
+    let state = sand_api_enforce::state_derive_provider(&facade, "facade", &cfg).unwrap();
+    assert!(
+        state
+            .iter()
+            .any(|api| api.identity == "facade::ActiveStateBound")
+    );
+    assert!(!state.iter().any(|api| api.identity.contains("Inactive")));
+    assert!(!state.iter().any(|api| {
+        api.identity.ends_with("::hidden") || api.members.iter().any(|(name, _)| name == "hidden")
+    }));
+    let items = sand_api_enforce::custom_item_provider(&facade, "facade", &cfg).unwrap();
+    assert_eq!(items[0].identity, "facade::ActiveItem");
+    let storage = sand_api_enforce::sand_storage_derive_provider(&facade, "facade", &cfg).unwrap();
+    assert!(
+        storage
+            .iter()
+            .any(|api| api.identity == "facade::ActiveStorage::value")
+    );
+    assert!(!storage.iter().any(|api| api.identity.contains("Inactive")));
+    assert!(!storage.iter().any(|api| api.identity.ends_with("::hidden")));
+    let generated = state
+        .iter()
+        .chain(storage.iter())
+        .chain(items.iter())
+        .cloned()
+        .collect::<Vec<_>>();
+    SurfaceGraph::load_with_cfg(
+        [SourceCrate {
+            name: "facade".into(),
+            root: facade.clone(),
+        }],
+        cfg.clone(),
+        generated,
+    )
+    .unwrap()
+    .bind_api_producer("facade::ActiveState", "State", "state_derive")
+    .unwrap()
+    .bind_api_producer("facade::ActiveStorage", "SandStorage", "storage_derive")
+    .unwrap()
+    .bind_api_producer("facade::active_item", "custom_item", "item_macro")
+    .unwrap();
+    let resourcepack =
+        sand_api_enforce::resourcepack_macro_provider(&facade, "facade", &cfg).unwrap();
+    assert_eq!(resourcepack[0].identity, "facade::ACTIVE");
+
+    let shape = directory.path().join("shape.rs");
+    fs::write(
+        &shape,
+        r#"
+            #[cfg(feature = "inactive")]
+            #[sand::function]
+            pub fn inactive() {}
+
+            #[cfg_attr(feature = "active", sand::function)]
+            pub fn active() {}
+        "#,
+    )
+    .unwrap();
+    sand_api_enforce::shape_preserving_consumer_provider(&shape, "function", &cfg).unwrap();
 }
 
 #[test]

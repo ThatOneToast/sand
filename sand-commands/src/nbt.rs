@@ -36,14 +36,17 @@ pub enum NbtValue {
 }
 
 impl NbtValue {
+    /// Creates an SNBT list from typed NBT values.
     pub fn list(values: impl IntoIterator<Item = impl Into<NbtValue>>) -> Self {
         Self::List(values.into_iter().map(Into::into).collect())
     }
 
+    /// Wraps a typed SNBT compound as an NBT value.
     pub fn compound(value: NbtCompound) -> Self {
         Self::Compound(value)
     }
 
+    /// Provides the explicit raw SNBT escape hatch after the caller accepts validation responsibility.
     pub fn raw(snbt: impl Into<String>) -> Self {
         Self::Raw(snbt.into())
     }
@@ -122,19 +125,23 @@ pub struct NbtCompound {
 }
 
 impl NbtCompound {
+    /// Creates an empty typed SNBT compound.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Adds or replaces a named value in this SNBT compound builder.
     pub fn field(mut self, key: impl Into<String>, value: impl Into<NbtValue>) -> Self {
         self.entries.push((key.into(), value.into()));
         self
     }
 
+    /// Builds the typed Minecraft data modification for insert.
     pub fn insert(&mut self, key: impl Into<String>, value: impl Into<NbtValue>) {
         self.entries.push((key.into(), value.into()));
     }
 
+    /// Reports whether this SNBT compound contains no fields.
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }
@@ -198,14 +205,17 @@ impl NbtPath {
         Self::new(path)
     }
 
+    /// Borrows the rendered NBT path text without allocating.
     pub fn as_str(&self) -> &str {
         &self.value
     }
 
+    /// Provides the explicit raw SNBT escape hatch after the caller accepts validation responsibility.
     pub fn is_raw(&self) -> bool {
         self.raw
     }
 
+    /// Extends this typed NBT reference with the supplied field selector.
     pub fn field(&self, key: impl AsRef<str>) -> Self {
         let key = key.as_ref();
         let value = if self.value.is_empty() {
@@ -219,10 +229,12 @@ impl NbtPath {
         }
     }
 
+    /// Extends this typed NBT reference with the supplied key selector.
     pub fn key(&self, key: impl AsRef<str>) -> Self {
         self.field(key)
     }
 
+    /// Extends this typed NBT reference with the supplied index selector.
     pub fn index(&self, index: i32) -> Self {
         Self {
             value: format!("{}[{index}]", self.value),
@@ -349,26 +361,32 @@ impl PartialEq for DataTarget {
 impl Eq for DataTarget {}
 
 impl DataTarget {
+    /// Creates an entity data-command target from a typed selector.
     pub fn entity(selector: Selector) -> Self {
         Self::Entity(selector)
     }
 
+    /// Creates a block data-command target from typed coordinates.
     pub fn block(position: BlockPos) -> Self {
         Self::Block(position)
     }
 
+    /// Creates a command-storage data target from a namespaced identifier.
     pub fn storage(id: impl Into<String>) -> Self {
         Self::Storage(id.into())
     }
 
+    /// Creates an untyped NBT reference at the supplied path under this target.
     pub fn path(&self, path: impl Into<NbtPath>) -> NbtRef {
         NbtRef::new(self.clone(), path.into())
     }
 
+    /// Creates a typed NBT reference at the supplied path under this target.
     pub fn typed_path<T>(&self, path: impl Into<NbtPath>) -> NbtRef<T> {
         NbtRef::new(self.clone(), path.into())
     }
 
+    /// Builds the typed Minecraft data modification for merge.
     pub fn merge(&self, value: NbtCompound) -> DataCommand {
         DataCommand::Merge {
             target: self.clone(),
@@ -440,14 +458,17 @@ fn selector_may_be_many(selector: &str) -> bool {
 pub struct Nbt;
 
 impl Nbt {
+    /// Starts an entity-backed NBT target from a typed selector.
     pub fn entity(selector: Selector) -> NbtTarget {
         NbtTarget::new(DataTarget::entity(selector))
     }
 
+    /// Starts a block-backed NBT target from typed coordinates.
     pub fn block(position: BlockPos) -> NbtTarget {
         NbtTarget::new(DataTarget::block(position))
     }
 
+    /// Starts a command-storage-backed NBT target from a namespaced identifier.
     pub fn storage(id: impl Into<String>) -> NbtTarget {
         NbtTarget::new(DataTarget::storage(id))
     }
@@ -460,22 +481,27 @@ pub struct NbtTarget {
 }
 
 impl NbtTarget {
+    /// Wraps a concrete data-command location as an NBT target.
     pub fn new(location: DataTarget) -> Self {
         Self { location }
     }
 
+    /// Returns the typed NBT location targeted by this reference.
     pub fn location(&self) -> &DataTarget {
         &self.location
     }
 
+    /// Extends this typed NBT reference with the supplied path selector.
     pub fn path(&self, path: impl Into<NbtPath>) -> NbtRef {
         NbtRef::new(self.location.clone(), path.into())
     }
 
+    /// Extends this typed NBT reference with the supplied typed path selector.
     pub fn typed_path<T>(&self, path: impl Into<NbtPath>) -> NbtRef<T> {
         NbtRef::new(self.location.clone(), path.into())
     }
 
+    /// Builds the typed Minecraft data modification for merge.
     pub fn merge(&self, value: NbtCompound) -> DataCommand {
         self.location.merge(value)
     }
@@ -495,6 +521,7 @@ pub struct NbtRef<T = UntypedNbt> {
 }
 
 impl<T> NbtRef<T> {
+    /// Creates a typed NBT reference from a target and structured path.
     pub fn new(location: DataTarget, path: NbtPath) -> Self {
         Self {
             location,
@@ -503,10 +530,12 @@ impl<T> NbtRef<T> {
         }
     }
 
+    /// Returns the typed NBT location targeted by this reference.
     pub fn location(&self) -> &DataTarget {
         &self.location
     }
 
+    /// Returns the typed NBT path carried by this reference.
     pub fn path_value(&self) -> &NbtPath {
         &self.path
     }
@@ -527,22 +556,27 @@ impl<T> NbtRef<T> {
         }
     }
 
+    /// Extends this typed NBT reference with the supplied field selector.
     pub fn field(&self, key: impl AsRef<str>) -> NbtRef<T> {
         NbtRef::new(self.location.clone(), self.path.field(key))
     }
 
+    /// Extends this typed NBT reference with the supplied typed field selector.
     pub fn typed_field<U>(&self, key: impl AsRef<str>) -> NbtRef<U> {
         NbtRef::new(self.location.clone(), self.path.field(key))
     }
 
+    /// Extends this typed NBT reference with the supplied key selector.
     pub fn key(&self, key: impl AsRef<str>) -> NbtRef<T> {
         self.field(key)
     }
 
+    /// Extends this typed NBT reference with the supplied index selector.
     pub fn index(&self, index: i32) -> NbtRef<T> {
         NbtRef::new(self.location.clone(), self.path.index(index))
     }
 
+    /// Builds the typed Minecraft data query for get.
     pub fn get(&self) -> DataCommand {
         DataCommand::Get {
             source: self.untyped(),
@@ -550,6 +584,7 @@ impl<T> NbtRef<T> {
         }
     }
 
+    /// Builds the typed Minecraft data query for get scaled.
     pub fn get_scaled(&self, scale: f64) -> DataCommand {
         DataCommand::Get {
             source: self.untyped(),
@@ -557,34 +592,42 @@ impl<T> NbtRef<T> {
         }
     }
 
+    /// Builds the typed Minecraft data modification for set.
     pub fn set(&self, value: impl Into<NbtValue>) -> DataCommand {
         self.modify(DataModifyOperation::Set, DataSource::Value(value.into()))
     }
 
+    /// Builds the typed Minecraft data modification for set value.
     pub fn set_value(&self, value: impl Into<NbtValue>) -> DataCommand {
         self.set(value)
     }
 
+    /// Builds the typed Minecraft data modification for set int.
     pub fn set_int(&self, value: i32) -> DataCommand {
         self.set(value)
     }
 
+    /// Builds the typed Minecraft data modification for set bool.
     pub fn set_bool(&self, value: bool) -> DataCommand {
         self.set(value)
     }
 
+    /// Builds the typed Minecraft data modification for set string.
     pub fn set_string(&self, value: impl Into<String>) -> DataCommand {
         self.set(NbtValue::String(value.into()))
     }
 
+    /// Provides the explicit raw SNBT escape hatch after the caller accepts validation responsibility.
     pub fn set_raw(&self, value: impl Into<String>) -> DataCommand {
         self.set(NbtValue::raw(value))
     }
 
+    /// Builds the typed Minecraft data modification for copy from.
     pub fn copy_from<U>(&self, source: &NbtRef<U>) -> DataCommand {
         self.modify(DataModifyOperation::Set, DataSource::From(source.untyped()))
     }
 
+    /// Builds the typed Minecraft data modification for set string from.
     pub fn set_string_from<U>(&self, source: &NbtRef<U>) -> DataCommand {
         self.modify(
             DataModifyOperation::Set,
@@ -592,10 +635,12 @@ impl<T> NbtRef<T> {
         )
     }
 
+    /// Builds the typed Minecraft data modification for append.
     pub fn append(&self, value: impl Into<NbtValue>) -> DataCommand {
         self.modify(DataModifyOperation::Append, DataSource::Value(value.into()))
     }
 
+    /// Builds the typed Minecraft data modification for append from.
     pub fn append_from<U>(&self, source: &NbtRef<U>) -> DataCommand {
         self.modify(
             DataModifyOperation::Append,
@@ -603,6 +648,7 @@ impl<T> NbtRef<T> {
         )
     }
 
+    /// Builds the typed Minecraft data modification for prepend.
     pub fn prepend(&self, value: impl Into<NbtValue>) -> DataCommand {
         self.modify(
             DataModifyOperation::Prepend,
@@ -610,6 +656,7 @@ impl<T> NbtRef<T> {
         )
     }
 
+    /// Builds the typed Minecraft data modification for prepend from.
     pub fn prepend_from<U>(&self, source: &NbtRef<U>) -> DataCommand {
         self.modify(
             DataModifyOperation::Prepend,
@@ -617,6 +664,7 @@ impl<T> NbtRef<T> {
         )
     }
 
+    /// Builds the typed Minecraft data modification for insert.
     pub fn insert(&self, index: i32, value: impl Into<NbtValue>) -> DataCommand {
         self.modify(
             DataModifyOperation::Insert(index),
@@ -624,6 +672,7 @@ impl<T> NbtRef<T> {
         )
     }
 
+    /// Builds the typed Minecraft data modification for insert from.
     pub fn insert_from<U>(&self, index: i32, source: &NbtRef<U>) -> DataCommand {
         self.modify(
             DataModifyOperation::Insert(index),
@@ -631,10 +680,12 @@ impl<T> NbtRef<T> {
         )
     }
 
+    /// Builds the typed Minecraft data modification for merge.
     pub fn merge(&self, value: impl Into<NbtValue>) -> DataCommand {
         self.modify(DataModifyOperation::Merge, DataSource::Value(value.into()))
     }
 
+    /// Builds the typed Minecraft data modification for merge from.
     pub fn merge_from<U>(&self, source: &NbtRef<U>) -> DataCommand {
         self.modify(
             DataModifyOperation::Merge,
@@ -642,6 +693,7 @@ impl<T> NbtRef<T> {
         )
     }
 
+    /// Builds the typed Minecraft data modification for remove.
     pub fn remove(&self) -> DataCommand {
         DataCommand::Remove {
             target: self.untyped(),
@@ -700,6 +752,7 @@ pub enum DataCommand {
 }
 
 impl DataCommand {
+    /// Validates and renders this typed Minecraft data command for the selected command profile.
     pub fn try_render(&self, profile: &CommandProfile) -> CommandResult<String> {
         self.validate(profile)?;
         let rendered = self.render_unchecked(profile);
@@ -935,40 +988,48 @@ pub struct DataModify {
 }
 
 impl DataModify {
+    /// Creates a typed data modify command builder from the supplied command inputs.
     pub fn new(target: DataTarget, path: impl Into<NbtPath>) -> Self {
         Self {
             reference: NbtRef::new(target, path.into()),
         }
     }
 
+    /// Renders the Minecraft set command for the selected data modify.
     pub fn set(self, value: impl Into<NbtValue>) -> String {
         self.reference.set(value).to_string()
     }
 
+    /// Renders the Minecraft command that sets from for the selected data modify.
     pub fn set_from(self, source: DataTarget, source_path: impl Into<NbtPath>) -> String {
         self.reference
             .copy_from(&NbtRef::<UntypedNbt>::new(source, source_path.into()))
             .to_string()
     }
 
+    /// Renders the Minecraft append command for the selected data modify.
     pub fn append(self, value: impl Into<NbtValue>) -> String {
         self.reference.append(value).to_string()
     }
 
+    /// Renders the Minecraft append from command for the selected data modify.
     pub fn append_from(self, source: DataTarget, source_path: impl Into<NbtPath>) -> String {
         self.reference
             .append_from(&NbtRef::<UntypedNbt>::new(source, source_path.into()))
             .to_string()
     }
 
+    /// Renders the Minecraft prepend command for the selected data modify.
     pub fn prepend(self, value: impl Into<NbtValue>) -> String {
         self.reference.prepend(value).to_string()
     }
 
+    /// Renders the Minecraft insert command for the selected data modify.
     pub fn insert(self, index: i32, value: impl Into<NbtValue>) -> String {
         self.reference.insert(index, value).to_string()
     }
 
+    /// Renders the Minecraft merge command for the selected data modify.
     pub fn merge(self, value: impl Into<NbtValue>) -> String {
         self.reference.merge(value).to_string()
     }
@@ -996,6 +1057,7 @@ impl From<DataModify> for String {
     }
 }
 
+/// Starts a typed Minecraft data-modification builder for the target and NBT path.
 pub fn data_modify(target: DataTarget, path: impl Into<NbtPath>) -> DataModify {
     DataModify::new(target, path)
 }

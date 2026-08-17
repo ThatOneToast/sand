@@ -2777,6 +2777,10 @@ impl Advancement {
     /// let advancement = Advancement::new(ResourceLocation::new("demo", "child").unwrap())
     ///     .parent("demo:root".parse::<AdvancementId>().unwrap());
     /// ```
+    ///
+    /// # API Contract
+    ///
+    /// `sand api show sand::component::Advancement::parent`
     pub fn parent(mut self, parent: AdvancementId) -> Self {
         self.parent = Some(parent.to_string());
         self

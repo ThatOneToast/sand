@@ -1,0 +1,67 @@
+schema_version = 1
+static_surface_items = 7
+enforced_scope_baseline = ["fixture-source", "function-generated", "component-generated", "event-generated", "armor-event-generated", "schedule-generated", "entity-state-enum-generated"]
+pending_scope_ceiling = 0
+pending_item_ceiling = 0
+
+[[scope]]
+id = "fixture-source"
+canonical_module = "sand"
+state = "enforced"
+tier = "author"
+provider = "source"
+recursive = true
+
+[[scope]]
+id = "function-generated"
+canonical_module = "sand"
+state = "enforced"
+tier = "generated"
+provider = "generator:function_macro"
+enforcement = "consumer_build"
+recursive = false
+
+[[scope]]
+id = "component-generated"
+canonical_module = "sand"
+state = "enforced"
+tier = "generated"
+provider = "generator:component_macro"
+enforcement = "consumer_build"
+recursive = false
+
+[[scope]]
+id = "event-generated"
+canonical_module = "sand"
+state = "enforced"
+tier = "generated"
+provider = "generator:event_macro"
+enforcement = "consumer_build"
+recursive = false
+
+[[scope]]
+id = "armor-event-generated"
+canonical_module = "sand"
+state = "enforced"
+tier = "generated"
+provider = "generator:armor_event_macro"
+enforcement = "consumer_build"
+recursive = false
+
+[[scope]]
+id = "schedule-generated"
+canonical_module = "sand"
+state = "enforced"
+tier = "generated"
+provider = "generator:schedule_macro"
+enforcement = "consumer_build"
+recursive = false
+
+[[scope]]
+id = "entity-state-enum-generated"
+canonical_module = "sand"
+state = "enforced"
+tier = "generated"
+provider = "generator:entity_state_enum_derive"
+enforcement = "consumer_build"
+recursive = false

@@ -34,21 +34,25 @@ impl Title {
         }
     }
 
+    /// Sets the title text emitted by this title-command builder.
     pub fn title(mut self, text: TextComponent) -> Self {
         self.title = Some(text);
         self
     }
 
+    /// Sets the subtitle text emitted by this title-command builder.
     pub fn subtitle(mut self, text: TextComponent) -> Self {
         self.subtitle = Some(text);
         self
     }
 
+    /// Sets the actionbar text emitted by this title-command builder.
     pub fn actionbar(mut self, text: TextComponent) -> Self {
         self.actionbar = Some(text);
         self
     }
 
+    /// Sets the fade-in, display, and fade-out timings for this title sequence.
     pub fn times(mut self, fade_in: u32, stay: u32, fade_out: u32) -> Self {
         self.fade_in = fade_in;
         self.stay = stay;
@@ -91,10 +95,12 @@ impl Title {
         lines
     }
 
+    /// Renders the Minecraft clear command for the selected title.
     pub fn clear(selector: Selector) -> String {
         TitleCommand::Clear(selector).build_registered()
     }
 
+    /// Renders the Minecraft reset command for the selected title.
     pub fn reset(selector: Selector) -> String {
         TitleCommand::Reset(selector).build_registered()
     }
@@ -135,6 +141,7 @@ pub struct TitleTimes {
 }
 
 impl TitleTimes {
+    /// Creates a typed title times command builder from the supplied command inputs.
     pub fn new(selector: Selector, fade_in: u32, stay: u32, fade_out: u32) -> Self {
         Self {
             selector,
@@ -144,6 +151,7 @@ impl TitleTimes {
         }
     }
 
+    /// Renders the configured title times as validated Minecraft command text.
     pub fn build(self) -> String {
         TitleCommand::Times(self).build_registered()
     }
@@ -214,6 +222,7 @@ impl RenderCommand for TitleCommand {
 pub struct Actionbar;
 
 impl Actionbar {
+    /// Renders the Minecraft show command for the selected actionbar.
     pub fn show(selector: Selector, text: TextComponent) -> String {
         TitleCommand::Actionbar {
             selector,
@@ -286,6 +295,7 @@ pub struct BossbarId {
 }
 
 impl BossbarId {
+    /// Parses and validates a typed bossbar id identifier.
     pub fn parse(value: impl Into<String>) -> CommandResult<Self> {
         let value = value.into();
         crate::validate::resource_location_shape(&value, "BossbarId", "id")
@@ -293,6 +303,7 @@ impl BossbarId {
         Ok(Self { value, raw: false })
     }
 
+    /// Creates an unchecked bossbar identifier for advanced command interop.
     pub fn raw(value: impl Into<String>) -> Self {
         Self {
             value: value.into(),
@@ -328,6 +339,7 @@ impl From<String> for BossbarId {
 
 /// Conversion into a bossbar resource-location token.
 pub trait IntoBossbarId {
+    /// Converts a value into the validated bossbar identifier accepted by command builders.
     fn into_bossbar_id(self) -> BossbarId;
 }
 
@@ -438,6 +450,7 @@ impl RenderCommand for BossbarCommand {
 pub struct Bossbar;
 
 impl Bossbar {
+    /// Renders the Minecraft add command for the selected bossbar.
     pub fn add(id: impl IntoBossbarId, name: TextComponent) -> String {
         BossbarCommand::Add {
             id: id.into_bossbar_id(),
@@ -445,15 +458,18 @@ impl Bossbar {
         }
         .build_registered()
     }
+    /// Renders the Minecraft remove command for the selected bossbar.
     pub fn remove(id: impl IntoBossbarId) -> String {
         BossbarCommand::Remove {
             id: id.into_bossbar_id(),
         }
         .build_registered()
     }
+    /// Renders the Minecraft list command for the selected bossbar.
     pub fn list() -> String {
         BossbarCommand::List.build_registered()
     }
+    /// Renders the Minecraft command that sets value for the selected bossbar.
     pub fn set_value(id: impl IntoBossbarId, value: u32) -> String {
         BossbarCommand::SetValue {
             id: id.into_bossbar_id(),
@@ -461,6 +477,7 @@ impl Bossbar {
         }
         .build_registered()
     }
+    /// Renders the Minecraft command that sets max for the selected bossbar.
     pub fn set_max(id: impl IntoBossbarId, max: u32) -> String {
         BossbarCommand::SetMax {
             id: id.into_bossbar_id(),
@@ -468,6 +485,7 @@ impl Bossbar {
         }
         .build_registered()
     }
+    /// Renders the Minecraft command that sets players for the selected bossbar.
     pub fn set_players(id: impl IntoBossbarId, players: Selector) -> String {
         BossbarCommand::SetPlayers {
             id: id.into_bossbar_id(),
@@ -475,6 +493,7 @@ impl Bossbar {
         }
         .build_registered()
     }
+    /// Renders the Minecraft command that sets color for the selected bossbar.
     pub fn set_color(id: impl IntoBossbarId, color: BossbarColor) -> String {
         BossbarCommand::SetColor {
             id: id.into_bossbar_id(),
@@ -482,6 +501,7 @@ impl Bossbar {
         }
         .build_registered()
     }
+    /// Renders the Minecraft command that sets style for the selected bossbar.
     pub fn set_style(id: impl IntoBossbarId, style: BossbarStyle) -> String {
         BossbarCommand::SetStyle {
             id: id.into_bossbar_id(),
@@ -489,6 +509,7 @@ impl Bossbar {
         }
         .build_registered()
     }
+    /// Renders the Minecraft command that sets name for the selected bossbar.
     pub fn set_name(id: impl IntoBossbarId, name: TextComponent) -> String {
         BossbarCommand::SetName {
             id: id.into_bossbar_id(),
@@ -496,6 +517,7 @@ impl Bossbar {
         }
         .build_registered()
     }
+    /// Renders the Minecraft command that sets visible for the selected bossbar.
     pub fn set_visible(id: impl IntoBossbarId, visible: bool) -> String {
         BossbarCommand::SetVisible {
             id: id.into_bossbar_id(),
@@ -503,6 +525,7 @@ impl Bossbar {
         }
         .build_registered()
     }
+    /// Renders the Minecraft command that queries value for the selected bossbar.
     pub fn get_value(id: impl IntoBossbarId) -> String {
         BossbarCommand::Get {
             id: id.into_bossbar_id(),
@@ -510,6 +533,7 @@ impl Bossbar {
         }
         .build_registered()
     }
+    /// Renders the Minecraft command that queries max for the selected bossbar.
     pub fn get_max(id: impl IntoBossbarId) -> String {
         BossbarCommand::Get {
             id: id.into_bossbar_id(),
@@ -517,6 +541,7 @@ impl Bossbar {
         }
         .build_registered()
     }
+    /// Renders the Minecraft command that queries players for the selected bossbar.
     pub fn get_players(id: impl IntoBossbarId) -> String {
         BossbarCommand::Get {
             id: id.into_bossbar_id(),

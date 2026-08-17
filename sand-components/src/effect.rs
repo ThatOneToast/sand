@@ -12,6 +12,7 @@ use crate::resource_location::ResourceLocation;
 pub struct Ticks(u32);
 
 impl Ticks {
+    /// Creates a typed tick duration from the supplied tick count.
     pub const fn new(ticks: u32) -> Self {
         Self(ticks)
     }
@@ -33,10 +34,12 @@ impl Ticks {
         Self(minutes.saturating_mul(1200))
     }
 
+    /// Returns the underlying tick count.
     pub const fn get(self) -> u32 {
         self.0
     }
 
+    /// Returns this typed tick duration converted to whole seconds.
     pub const fn as_seconds(self) -> u32 {
         self.0 / 20
     }
@@ -64,8 +67,91 @@ macro_rules! vanilla_registry_enum {
         $(#[$meta])*
         #[derive(Debug, Clone, PartialEq, Eq, Hash)]
         pub enum $name {
-            $($variant,)+
+            $(
+                #[doc = concat!("The vanilla Minecraft `", $path, "` registry entry.")]
+                $variant,
+            )+
             Custom(ResourceLocation),
+        }
+
+        // This macro is the authoritative generator for these facade APIs.
+        // Keep the installed catalog beside the generated Rust declarations so
+        // a new enum variant cannot become public without contract metadata.
+        ::sand_api_contract::inventory::submit! {
+            ::sand_api_contract::ApiRegistration {
+                canonical_path: concat!("sand::registry::", stringify!($name)),
+                aliases: &[concat!("sand::prelude::", stringify!($name))],
+                canonical_module: "sand::registry",
+                kind: ::sand_api_contract::ApiKind::Enum,
+                signature: concat!("pub enum ", stringify!($name)),
+                summary: "Names a typed vanilla Minecraft registry entry.",
+                context: "This generated enum keeps supported vanilla identifiers discoverable and typo-resistant while retaining an explicit Custom escape hatch for modded data.",
+                minecraft: "Serializes to the corresponding Minecraft namespace:path registry identifier.",
+                use_when: &["Selecting a known vanilla registry entry", "Passing a typed identifier to a Sand API"],
+                avoid_when: &["Representing an arbitrary unvalidated resource location"],
+                parameters: &[],
+                returns: None,
+                example: concat!("let id = sand::registry::", stringify!($name), "::custom(\"example:entry\")?;"),
+                availability: &[],
+            }
+        }
+
+        $(
+            ::sand_api_contract::inventory::submit! {
+                ::sand_api_contract::ApiRegistration {
+                    canonical_path: concat!("sand::registry::", stringify!($name), "::", stringify!($variant)),
+                    aliases: &[concat!("sand::prelude::", stringify!($name), "::", stringify!($variant))],
+                    canonical_module: "sand::registry",
+                    kind: ::sand_api_contract::ApiKind::Variant,
+                    signature: concat!(stringify!($variant)),
+                    summary: concat!("Selects Minecraft's `", $path, "` registry entry."),
+                    context: "This typed variant is the canonical Sand spelling for one built-in Minecraft registry identifier.",
+                    minecraft: concat!("Serializes as minecraft:", $path, "."),
+                    use_when: &["Using this exact vanilla registry entry"],
+                    avoid_when: &["Selecting a different registry entry or a modded identifier"],
+                    parameters: &[],
+                    returns: None,
+                    example: concat!("let id = sand::registry::", stringify!($name), "::", stringify!($variant), ";"),
+                    availability: &[],
+                }
+            }
+        )+
+
+        ::sand_api_contract::inventory::submit! {
+            ::sand_api_contract::ApiRegistration {
+                canonical_path: concat!("sand::registry::", stringify!($name), "::Custom"),
+                aliases: &[concat!("sand::prelude::", stringify!($name), "::Custom")],
+                canonical_module: "sand::registry",
+                kind: ::sand_api_contract::ApiKind::Variant,
+                signature: "Custom(ResourceLocation)",
+                summary: "Carries a validated custom or modded registry identifier.",
+                context: "The Custom variant preserves the typed API when an identifier is not one of Sand's known vanilla entries.",
+                minecraft: "Serializes the contained namespace:path registry identifier unchanged.",
+                use_when: &["Addressing a modded or otherwise non-vanilla registry entry"],
+                avoid_when: &["A named vanilla variant is available"],
+                parameters: &[],
+                returns: None,
+                example: concat!("let id = sand::registry::", stringify!($name), "::custom(\"example:entry\")?;"),
+                availability: &[],
+            }
+        }
+        ::sand_api_contract::inventory::submit! {
+            ::sand_api_contract::ApiRegistration {
+                canonical_path: concat!("sand::registry::", stringify!($name), "::Custom::0"),
+                aliases: &[concat!("sand::prelude::", stringify!($name), "::Custom::0")],
+                canonical_module: "sand::registry",
+                kind: ::sand_api_contract::ApiKind::Field,
+                signature: "ResourceLocation",
+                summary: "Stores the validated custom registry location.",
+                context: "This tuple field is the exact resource location carried by the Custom variant.",
+                minecraft: "Uses the stored namespace:path identifier when Sand renders the registry reference.",
+                use_when: &["Inspecting a Custom variant's validated location"],
+                avoid_when: &["Constructing a built-in variant"],
+                parameters: &[],
+                returns: None,
+                example: concat!("let id = sand::registry::", stringify!($name), "::custom(\"example:entry\")?;"),
+                availability: &[],
+            }
         }
 
         impl $name {
@@ -88,6 +174,79 @@ macro_rules! vanilla_registry_enum {
 
             pub fn as_str(&self) -> String {
                 self.as_resource_location().to_string()
+            }
+        }
+
+        ::sand_api_contract::inventory::submit! {
+            ::sand_api_contract::ApiRegistration {
+                canonical_path: concat!("sand::registry::", stringify!($name), "::custom"),
+                aliases: &[concat!("sand::prelude::", stringify!($name), "::custom")],
+                canonical_module: concat!("sand::registry::", stringify!($name)),
+                kind: ::sand_api_contract::ApiKind::Method,
+                signature: concat!("pub fn custom(id: impl AsRef<str>) -> Result<", stringify!($name), ">"),
+                summary: "Validates and wraps a custom registry identifier.",
+                context: "This constructor keeps modded identifiers in the same typed family as known vanilla variants.",
+                minecraft: "Validates Minecraft namespace:path syntax before serializing it as a registry reference.",
+                use_when: &["Accepting a modded or data-driven registry ID"],
+                avoid_when: &["A named vanilla variant is available"],
+                parameters: &[::sand_api_contract::StaticApiParameter { name: "id", description: "The custom namespace:path registry identifier." }],
+                returns: Some("The typed custom registry identifier, or a validation error."),
+                example: concat!("let id = sand::registry::", stringify!($name), "::custom(\"example:entry\")?;"),
+                availability: &[],
+            }
+        }
+        ::sand_api_contract::inventory::submit! {
+            ::sand_api_contract::ApiRegistration {
+                canonical_path: concat!("sand::registry::", stringify!($name), "::from_resource_location"),
+                aliases: &[concat!("sand::prelude::", stringify!($name), "::from_resource_location")],
+                canonical_module: concat!("sand::registry::", stringify!($name)),
+                kind: ::sand_api_contract::ApiKind::Method,
+                signature: concat!("pub fn from_resource_location(location: ResourceLocation) -> ", stringify!($name)),
+                summary: "Wraps an already validated location as a custom registry identifier.",
+                context: "This avoids reparsing when an API already owns a ResourceLocation.",
+                minecraft: "Uses the supplied namespace:path location as the registry reference.",
+                use_when: &["Converting an existing ResourceLocation into this typed registry family"],
+                avoid_when: &["Parsing an unchecked string; use custom instead"],
+                parameters: &[::sand_api_contract::StaticApiParameter { name: "location", description: "The validated custom registry location." }],
+                returns: Some("The matching Custom enum variant."),
+                example: concat!("let id = sand::registry::", stringify!($name), "::from_resource_location(sand::ResourceLocation::minecraft(\"entry\")?);"),
+                availability: &[],
+            }
+        }
+        ::sand_api_contract::inventory::submit! {
+            ::sand_api_contract::ApiRegistration {
+                canonical_path: concat!("sand::registry::", stringify!($name), "::as_resource_location"),
+                aliases: &[concat!("sand::prelude::", stringify!($name), "::as_resource_location")],
+                canonical_module: concat!("sand::registry::", stringify!($name)),
+                kind: ::sand_api_contract::ApiKind::Method,
+                signature: "pub fn as_resource_location(&self) -> ResourceLocation",
+                summary: "Returns this entry's validated resource location.",
+                context: "This is the common typed identity representation used by Sand APIs that accept several registry kinds.",
+                minecraft: "Returns the namespace:path value rendered in Minecraft data and commands.",
+                use_when: &["Passing this registry entry to an API that accepts ResourceLocation"],
+                avoid_when: &["Only display text is needed; use as_str or Display"],
+                parameters: &[],
+                returns: Some("The corresponding validated resource location."),
+                example: concat!("let location = sand::registry::", stringify!($name), "::custom(\"example:entry\")?.as_resource_location();"),
+                availability: &[],
+            }
+        }
+        ::sand_api_contract::inventory::submit! {
+            ::sand_api_contract::ApiRegistration {
+                canonical_path: concat!("sand::registry::", stringify!($name), "::as_str"),
+                aliases: &[concat!("sand::prelude::", stringify!($name), "::as_str")],
+                canonical_module: concat!("sand::registry::", stringify!($name)),
+                kind: ::sand_api_contract::ApiKind::Method,
+                signature: "pub fn as_str(&self) -> String",
+                summary: "Returns this entry as namespace:path text.",
+                context: "Use this at text boundaries after keeping the identifier typed through the rest of the API.",
+                minecraft: "Returns the exact registry identifier Minecraft reads.",
+                use_when: &["Writing the identifier into a text-only integration"],
+                avoid_when: &["Passing a typed registry ID to another Sand API"],
+                parameters: &[],
+                returns: Some("The namespace:path registry identifier text."),
+                example: concat!("let name = sand::registry::", stringify!($name), "::custom(\"example:entry\")?.as_str();"),
+                availability: &[],
             }
         }
 
@@ -249,9 +408,9 @@ impl From<PotionRegistryId> for PotionId {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StatusEffectInstance {
     pub effect: EffectId,
-    pub duration: Option<Ticks>,
-    pub amplifier: u8,
-    pub ambient: bool,
+    pub(crate) duration: Option<Ticks>,
+    pub(crate) amplifier: u8,
+    pub(crate) ambient: bool,
     pub show_particles: bool,
     pub show_icon: bool,
 }
@@ -270,35 +429,42 @@ impl StatusEffectInstance {
         }
     }
 
+    /// Sets the Minecraft duration property on this typed status effect instance definition and returns the updated builder.
     pub fn duration(mut self, duration: Ticks) -> Self {
         self.duration = Some(duration);
         self
     }
 
+    /// Sets the Minecraft seconds property on this typed status effect instance definition and returns the updated builder.
     pub fn seconds(self, seconds: u32) -> Self {
         self.duration(Ticks::seconds(seconds))
     }
 
+    /// Sets the Minecraft amplifier property on this typed status effect instance definition and returns the updated builder.
     pub fn amplifier(mut self, amplifier: u8) -> Self {
         self.amplifier = amplifier;
         self
     }
 
+    /// Sets the Minecraft ambient property on this typed status effect instance definition and returns the updated builder.
     pub fn ambient(mut self, ambient: bool) -> Self {
         self.ambient = ambient;
         self
     }
 
+    /// Sets the Minecraft particles property on this typed status effect instance definition and returns the updated builder.
     pub fn particles(mut self, show_particles: bool) -> Self {
         self.show_particles = show_particles;
         self
     }
 
+    /// Sets the Minecraft icon property on this typed status effect instance definition and returns the updated builder.
     pub fn icon(mut self, show_icon: bool) -> Self {
         self.show_icon = show_icon;
         self
     }
 
+    /// Returns the canonical Minecraft representation of this component value.
     pub fn to_snbt(&self) -> String {
         let mut parts = vec![format!("id:\"{}\"", self.effect)];
         if let Some(duration) = self.duration {
@@ -351,14 +517,15 @@ impl Serialize for StatusEffectInstance {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 pub struct PotionContents {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub potion: Option<PotionId>,
+    pub(crate) potion: Option<PotionId>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub custom_color: Option<u32>,
+    pub(crate) custom_color: Option<u32>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub custom_effects: Vec<StatusEffectInstance>,
 }
 
 impl PotionContents {
+    /// Starts empty potion contents with no base potion, custom color, name, or custom effects.
     pub fn new() -> Self {
         Self::default()
     }
@@ -370,20 +537,24 @@ impl PotionContents {
         self
     }
 
+    /// Sets the Minecraft custom color property on this typed potion contents definition and returns the updated builder.
     pub fn custom_color(mut self, color: u32) -> Self {
         self.custom_color = Some(color);
         self
     }
 
+    /// Sets the Minecraft effect property on this typed potion contents definition and returns the updated builder.
     pub fn effect(mut self, effect: StatusEffectInstance) -> Self {
         self.custom_effects.push(effect);
         self
     }
 
+    /// Sets the Minecraft custom effect property on this typed potion contents definition and returns the updated builder.
     pub fn custom_effect(self, effect: StatusEffectInstance) -> Self {
         self.effect(effect)
     }
 
+    /// Returns the canonical Minecraft representation of this component value.
     pub fn to_snbt(&self) -> String {
         let mut parts = Vec::new();
         if let Some(ref potion) = self.potion {
@@ -418,6 +589,7 @@ pub struct SuspiciousStewEffect {
 }
 
 impl SuspiciousStewEffect {
+    /// Creates one suspicious-stew status effect with its exact Minecraft tick duration.
     pub fn new(effect: impl Into<EffectId>, duration: Ticks) -> Self {
         Self {
             effect: effect.into(),
@@ -425,10 +597,12 @@ impl SuspiciousStewEffect {
         }
     }
 
+    /// Sets the Minecraft seconds property on this typed suspicious stew effect definition and returns the updated builder.
     pub fn seconds(effect: impl Into<EffectId>, seconds: u32) -> Self {
         Self::new(effect, Ticks::seconds(seconds))
     }
 
+    /// Returns the canonical Minecraft representation of this component value.
     pub fn to_snbt(&self) -> String {
         format!(
             "{{id:\"{}\",duration:{}}}",
@@ -461,6 +635,46 @@ mod tests {
             serde_json::to_value(id).unwrap(),
             json!("mymod:arcane_burn")
         );
+    }
+
+    #[test]
+    fn generated_registry_method_catalog_signatures_are_declarations() {
+        let compiled_surface_items =
+            sand_api_contract::inventory::iter::<sand_api_contract::ApiRegistration>
+                .into_iter()
+                .count();
+        let catalog = sand_api_contract::ApiCatalog::from_registrations(
+            "test",
+            sand_api_contract::ApiConfiguration {
+                surface_profile: "test".into(),
+                minecraft_version: "test".into(),
+                cargo_features: Vec::new(),
+                placeholder_codegen: false,
+                compiled_surface_items,
+            },
+            sand_api_contract::inventory::iter::<sand_api_contract::ApiRegistration>,
+        )
+        .unwrap();
+        for (path, signature) in [
+            (
+                "sand::registry::EffectId::custom",
+                "pub fn custom(id: impl AsRef<str>) -> Result<EffectId>",
+            ),
+            (
+                "sand::registry::EffectId::from_resource_location",
+                "pub fn from_resource_location(location: ResourceLocation) -> EffectId",
+            ),
+            (
+                "sand::registry::EffectId::as_resource_location",
+                "pub fn as_resource_location(&self) -> ResourceLocation",
+            ),
+            (
+                "sand::registry::EffectId::as_str",
+                "pub fn as_str(&self) -> String",
+            ),
+        ] {
+            assert_eq!(catalog.find(path).unwrap().signature, signature);
+        }
     }
 
     #[test]

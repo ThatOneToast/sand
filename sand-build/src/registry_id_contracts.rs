@@ -4,10 +4,12 @@
 //! inside the same invocation that emits its Rust type. The shared generator
 //! derives provider shapes from that emitted AST rather than restating them.
 
+use std::collections::BTreeMap;
 use std::path::Path;
 
 use crate::api_provider::{ApiProviderCatalog, GeneratedProviderEntry};
 use crate::error::Result;
+use sand_api_contract::{ApiEntry, ApiKind};
 
 /// Build installed contract metadata from the same expansion that emits each
 /// registry wrapper's Rust type and inherent methods.
@@ -19,14 +21,14 @@ pub fn registry_id_contract_provider(
     let file = syn::parse_file(&text).map_err(std::io::Error::other)?;
     let mut entries = Vec::new();
 
-    for item in file.items {
+    for item in &file.items {
         let syn::Item::Macro(item) = item else {
             continue;
         };
         if !item.mac.path.is_ident("registry_id") {
             continue;
         }
-        let expansion = sand_api_contract::syntax::registry_id::expand(item.mac.tokens)
+        let expansion = sand_api_contract::syntax::registry_id::expand(item.mac.tokens.clone())
             .map_err(std::io::Error::other)?;
         entries.extend(expansion.definitions.into_iter().map(|definition| {
             GeneratedProviderEntry {
@@ -39,11 +41,130 @@ pub fn registry_id_contract_provider(
         }));
     }
 
+    // A handful of registry families expose semantic convenience constructors
+    // beside their `registry_id!` invocation (for example `jigsaw()` and
+    // `empty()`). They are still associated API of the generated wrapper, so
+    // derive their provider entries from the declaration docs instead of
+    // leaving a second, handwritten metadata list behind.
+    let parents = entries
+        .iter()
+        .filter(|entry| entry.parent_identity.is_none())
+        .map(|entry| (entry.definition_identity.clone(), entry.contract.clone()))
+        .collect::<BTreeMap<_, _>>();
+    for item in &file.items {
+        let syn::Item::Impl(implementation) = item else {
+            continue;
+        };
+        if implementation.trait_.is_some() {
+            continue;
+        }
+        let Some(type_name) = impl_type_name(&implementation.self_ty) else {
+            continue;
+        };
+        let identity = format!("sand_components::registry::{type_name}");
+        let Some(parent) = parents.get(&identity) else {
+            continue;
+        };
+        for method in &implementation.items {
+            let syn::ImplItem::Fn(method) = method else {
+                continue;
+            };
+            if !matches!(method.vis, syn::Visibility::Public(_)) {
+                continue;
+            }
+            let name = method.sig.ident.to_string();
+            entries.push(GeneratedProviderEntry {
+                definition_identity: format!("{identity}::{name}"),
+                definition_kind: ApiKind::Method,
+                parent_identity: Some(identity.clone()),
+                member_name: Some(name.clone()),
+                contract: documented_convenience_contract(parent, method, &type_name)?,
+            });
+        }
+    }
+
     Ok(ApiProviderCatalog::new(
         "generated_registry_id_contracts",
         minecraft_version,
         entries,
     ))
+}
+
+fn impl_type_name(ty: &syn::Type) -> Option<String> {
+    let syn::Type::Path(path) = ty else {
+        return None;
+    };
+    path.path
+        .segments
+        .last()
+        .map(|segment| segment.ident.to_string())
+}
+
+fn documented_convenience_contract(
+    parent: &ApiEntry,
+    method: &syn::ImplItemFn,
+    type_name: &str,
+) -> Result<ApiEntry> {
+    let documentation = method
+        .attrs
+        .iter()
+        .filter_map(|attribute| match &attribute.meta {
+            syn::Meta::NameValue(value)
+                if value.path.is_ident("doc")
+                    && matches!(&value.value, syn::Expr::Lit(expression) if matches!(&expression.lit, syn::Lit::Str(_))) =>
+            {
+                let syn::Expr::Lit(expression) = &value.value else {
+                    unreachable!();
+                };
+                let syn::Lit::Str(text) = &expression.lit else {
+                    unreachable!();
+                };
+                Some(text.value().trim().to_owned())
+            }
+            _ => None,
+        })
+        .filter(|line| !line.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ");
+    let summary = sand_api_contract::syntax::first_prose_sentence(&documentation).to_owned();
+    if summary.is_empty() {
+        return Err(std::io::Error::other(format!(
+            "{type_name}::{} needs Rustdoc because it is a public generated-wrapper convenience API",
+            method.sig.ident
+        ))
+        .into());
+    }
+    let name = method.sig.ident.to_string();
+    let visibility = &method.vis;
+    let signature = &method.sig;
+    Ok(ApiEntry {
+        canonical_path: format!("{}::{name}", parent.canonical_path),
+        aliases: parent
+            .aliases
+            .iter()
+            .map(|alias| format!("{alias}::{name}"))
+            .collect(),
+        canonical_module: parent.canonical_path.clone(),
+        kind: ApiKind::Method,
+        signature: quote::quote!(#visibility #signature).to_string(),
+        summary,
+        context: format!(
+            "This documented convenience constructor specializes {} without requiring callers to repeat a conventional vanilla resource path.",
+            parent.canonical_path
+        ),
+        minecraft: parent.minecraft.clone(),
+        use_when: vec![format!(
+            "Using the documented conventional {type_name} identifier"
+        )],
+        avoid_when: vec![format!(
+            "Selecting a different or custom {type_name} identifier; use minecraft or custom"
+        )],
+        parameters: Vec::new(),
+        returns: Some(format!("The conventional typed {type_name} identifier.")),
+        return_type: Some("Self".into()),
+        example: format!("let id = {}::{name}();", parent.canonical_path),
+        availability: parent.availability.clone(),
+    })
 }
 
 /// Validate and install the provider artifact published by the packaged
@@ -97,7 +218,7 @@ mod tests {
     fn predicate_registry_id_emits_four_meaningful_contracts() {
         let provider = repository_provider();
         assert_eq!(provider.provider, "generated_registry_id_contracts");
-        assert_eq!(provider.entries.len(), 26);
+        assert_eq!(provider.entries.len(), 148);
         let predicate = provider
             .entries
             .iter()
@@ -165,6 +286,22 @@ mod tests {
             .find(|entry| entry.member_name.as_deref() == Some("custom"))
             .unwrap();
         assert_eq!(custom.contract.parameters[0].name, "rl");
+    }
+
+    #[test]
+    fn handwritten_convenience_methods_publish_declaration_signatures_only() {
+        let provider = repository_provider();
+        for entry in provider
+            .entries
+            .iter()
+            .filter(|entry| entry.definition_kind == ApiKind::Method)
+        {
+            let signature = &entry.contract.signature;
+            assert!(
+                !signature.contains('{') && !signature.contains("pub pub"),
+                "method metadata contains an implementation instead of a declaration: {signature}"
+            );
+        }
     }
 
     #[test]

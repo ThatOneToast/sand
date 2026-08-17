@@ -217,6 +217,10 @@ impl RenderCommand for BlockPos {
 // ── Vec3 ──────────────────────────────────────────────────────────────────────
 
 /// Floating-point position used in commands like `tp`, `summon`, `particle`.
+///
+/// # API Contract
+///
+/// `sand api show sand::command::Vec3`
 #[derive(Debug, Clone)]
 #[must_use = "positions do nothing until passed to a command"]
 pub struct Vec3 {
@@ -227,6 +231,10 @@ pub struct Vec3 {
 
 impl Vec3 {
     /// Create a 3D position from three coordinates.
+    ///
+    /// # API Contract
+    ///
+    /// `sand api show sand::command::Vec3::new`
     pub fn new(x: impl Into<Coord>, y: impl Into<Coord>, z: impl Into<Coord>) -> Self {
         Self {
             x: x.into(),

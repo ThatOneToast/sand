@@ -46,16 +46,19 @@ impl ProcessorRule {
         }
     }
 
+    /// Sets the Minecraft location predicate property on this typed processor rule definition and returns the updated builder.
     pub fn location_predicate(mut self, predicate: RawJson) -> Self {
         self.location_predicate = Some(predicate);
         self
     }
 
+    /// Sets the Minecraft position predicate property on this typed processor rule definition and returns the updated builder.
     pub fn position_predicate(mut self, predicate: RawJson) -> Self {
         self.position_predicate = Some(predicate);
         self
     }
 
+    /// Sets the Minecraft output nbt property on this typed processor rule definition and returns the updated builder.
     pub fn output_nbt(mut self, nbt: impl Into<String>) -> Self {
         self.output_nbt = Some(nbt.into());
         self
@@ -264,11 +267,13 @@ impl ProcessorList {
         Self::new(location, Vec::new())
     }
 
+    /// Sets the Minecraft processor property on this typed processor list definition and returns the updated builder.
     pub fn processor(mut self, processor: Processor) -> Self {
         self.processors.push(processor);
         self
     }
 
+    /// Sets the Minecraft processors property on this typed processor list definition and returns the updated builder.
     pub fn processors(mut self, processors: impl IntoIterator<Item = Processor>) -> Self {
         self.processors = processors.into_iter().collect();
         self

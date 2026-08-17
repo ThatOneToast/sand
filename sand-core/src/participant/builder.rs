@@ -186,7 +186,7 @@
 //!   if you need that today.
 //! - A tracked-transition [`SandEvent`](crate::events::SandEvent) cannot be a same-cycle chain/compose
 //!   parent (it can still own and apply its own direct participant plan,
-//!   #270) — see [`crate::events::graph`]'s `discover()` diagnostic.
+//!   #270); export reports this unsupported graph shape.
 //!
 //! # Failure behavior
 //!

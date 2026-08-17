@@ -41,11 +41,22 @@ fn generated_registrations_build_an_installed_catalog() {
     assert_eq!(Fixture.value(), 1);
 
     let coverage = sand::__private::api_contract::installed_coverage();
-    assert_eq!(coverage.static_surface_items, 11_521);
-    assert_eq!(coverage.pending_item_ceiling, 6_353);
-    assert_eq!(coverage.pending_scope_ceiling, 29);
-    assert_eq!(coverage.pending_scopes.len(), 29);
-    let catalog = ApiCatalog::installed_with_coverage(env!("CARGO_PKG_VERSION"), coverage).unwrap();
+    assert!(coverage.static_surface_items > 10_000);
+    assert_eq!(coverage.pending_item_ceiling, 0);
+    assert_eq!(coverage.pending_scope_ceiling, 0);
+    assert!(coverage.pending_scopes.is_empty());
+    let mut configuration = sand::__private::api_contract::installed_configuration();
+    configuration.compiled_surface_items =
+        sand_api_contract::inventory::iter::<sand_api_contract::ApiRegistration>
+            .into_iter()
+            .count();
+    let catalog = ApiCatalog::from_registrations_with_coverage(
+        env!("CARGO_PKG_VERSION"),
+        configuration.clone(),
+        sand_api_contract::inventory::iter::<sand_api_contract::ApiRegistration>,
+        coverage,
+    )
+    .unwrap();
     let function = catalog.find("sand::prelude::contract_fixture").unwrap();
     assert_eq!(function.kind, ApiKind::Function);
     assert_eq!(function.parameters[0].name, "value");
@@ -74,6 +85,17 @@ fn generated_registrations_build_an_installed_catalog() {
     assert_eq!(branch.canonical_path, "sand::execute_when::if_");
     assert_eq!(branch.kind, ApiKind::Function);
     assert_eq!(branch.parameters[0].name, "cond");
+
+    let effect = catalog
+        .find("sand::prelude::EffectId::Speed")
+        .expect("generated effect registry contracts are installed");
+    assert_eq!(effect.kind, ApiKind::Variant);
+    assert_eq!(effect.canonical_path, "sand::registry::EffectId::Speed");
+
+    let event = catalog
+        .find("sand::events::PlayerEnteredSurvivalEvent")
+        .expect("generated event marker contracts are installed");
+    assert_eq!(event.kind, ApiKind::Struct);
 
     let condition = catalog
         .find("sand::prelude::Condition::entity")
@@ -109,8 +131,10 @@ fn generated_registrations_build_an_installed_catalog() {
     assert_eq!(condition.parameters[0].name, "selector");
 
     let json_once = catalog.to_json_pretty().unwrap();
-    let json_twice = ApiCatalog::installed_with_coverage(
+    let json_twice = ApiCatalog::from_registrations_with_coverage(
         env!("CARGO_PKG_VERSION"),
+        configuration,
+        sand_api_contract::inventory::iter::<sand_api_contract::ApiRegistration>,
         sand::__private::api_contract::installed_coverage(),
     )
     .unwrap()

@@ -260,7 +260,7 @@ pub fn drain_internal_score_setup() -> Vec<String> {
 }
 
 /// Sand's compiler-managed temporary objective used by score expressions.
-pub const SCORE_EXPRESSION_TEMP_OBJECTIVE: &str = "__sand_tmp";
+pub(crate) const SCORE_EXPRESSION_TEMP_OBJECTIVE: &str = "__sand_tmp";
 
 // ── ScoreVar ──────────────────────────────────────────────────────────────────
 
@@ -279,6 +279,10 @@ pub const SCORE_EXPRESSION_TEMP_OBJECTIVE: &str = "__sand_tmp";
 ///     MANA.add("@s", 5),
 /// ];
 /// ```
+///
+/// # API Contract
+///
+/// `sand api show sand::state::ScoreVar`
 pub struct ScoreVar<T = i32> {
     name: &'static str,
     _marker: PhantomData<T>,
@@ -289,6 +293,10 @@ impl<T> ScoreVar<T> {
     ///
     /// Names longer than 16 characters are automatically hashed to a stable
     /// 16-character objective name (see [`ScoreVar::objective_name`]).
+    ///
+    /// # API Contract
+    ///
+    /// `sand api show sand::state::ScoreVar::new`
     pub const fn new(name: &'static str) -> Self {
         Self {
             name,
@@ -367,6 +375,10 @@ impl<T> ScoreVar<T> {
     /// [#146](https://github.com/ThatOneToast/sand/issues/146)). Prefer
     /// [`ScoreVar::try_clamp`], which rejects `min > max` before returning
     /// any command text.
+    ///
+    /// # API Contract
+    ///
+    /// `sand api show sand::state::ScoreVar::clamp`
     pub fn clamp(&self, selector: impl std::fmt::Display, min: i32, max: i32) -> Vec<String> {
         let selector = selector.to_string();
         let obj = self.objective_name();
@@ -1150,26 +1162,33 @@ impl<T> ScoreExpr<T> {
         self
     }
 
+    /// Adds another score operand to this expression.
     pub fn plus<O: Into<ScoreOperand>>(self, other: O) -> Self {
         self.operation(ScoreOperation::Add, other)
     }
+    /// Subtracts another score operand from this expression.
     pub fn minus<O: Into<ScoreOperand>>(self, other: O) -> Self {
         self.operation(ScoreOperation::Sub, other)
     }
+    /// Multiplies this expression by another score operand.
     #[allow(clippy::should_implement_trait)]
     pub fn mul<O: Into<ScoreOperand>>(self, other: O) -> Self {
         self.operation(ScoreOperation::Mul, other)
     }
+    /// Divides this expression by another score operand using scoreboard arithmetic.
     #[allow(clippy::should_implement_trait)]
     pub fn div<O: Into<ScoreOperand>>(self, other: O) -> Self {
         self.operation(ScoreOperation::Div, other)
     }
+    /// Applies scoreboard remainder arithmetic with another score operand.
     pub fn modulo<O: Into<ScoreOperand>>(self, other: O) -> Self {
         self.operation(ScoreOperation::Mod, other)
     }
+    /// Clamps this expression to the lesser of itself and another score operand.
     pub fn min<O: Into<ScoreOperand>>(self, other: O) -> Self {
         self.operation(ScoreOperation::Min, other)
     }
+    /// Clamps this expression to the greater of itself and another score operand.
     pub fn max<O: Into<ScoreOperand>>(self, other: O) -> Self {
         self.operation(ScoreOperation::Max, other)
     }
@@ -1204,6 +1223,7 @@ impl<T> ScoreExpr<T> {
         }
     }
 
+    /// Builds a condition requiring this expression to equal an integer.
     pub fn eq(self, n: i32) -> Conditional {
         let temp = self.temp();
         self.lowered(Condition::score(
@@ -1212,6 +1232,7 @@ impl<T> ScoreExpr<T> {
             ScoreRange::Eq(n),
         ))
     }
+    /// Builds a condition requiring this expression to exceed an integer.
     pub fn gt(self, n: i32) -> Conditional {
         let temp = self.temp();
         self.lowered(Condition::score(
@@ -1220,6 +1241,7 @@ impl<T> ScoreExpr<T> {
             ScoreRange::Gt(n),
         ))
     }
+    /// Builds a condition requiring this expression to be at least an integer.
     pub fn gte(self, n: i32) -> Conditional {
         let temp = self.temp();
         self.lowered(Condition::score(
@@ -1228,6 +1250,7 @@ impl<T> ScoreExpr<T> {
             ScoreRange::Gte(n),
         ))
     }
+    /// Builds a condition requiring this expression to be below an integer.
     pub fn lt(self, n: i32) -> Conditional {
         let temp = self.temp();
         self.lowered(Condition::score(
@@ -1236,6 +1259,7 @@ impl<T> ScoreExpr<T> {
             ScoreRange::Lt(n),
         ))
     }
+    /// Builds a condition requiring this expression to be at most an integer.
     pub fn lte(self, n: i32) -> Conditional {
         let temp = self.temp();
         self.lowered(Condition::score(
@@ -1244,6 +1268,7 @@ impl<T> ScoreExpr<T> {
             ScoreRange::Lte(n),
         ))
     }
+    /// Builds a condition requiring this expression to fall within a score range.
     pub fn matches(self, range: impl RangeBounds<i32>) -> Conditional {
         use std::ops::Bound;
         let lo = match range.start_bound() {
@@ -1263,6 +1288,7 @@ impl<T> ScoreExpr<T> {
             ScoreRange::Between(lo, hi),
         ))
     }
+    /// Builds a condition requiring this expression to equal another score operand.
     pub fn eq_score<O: Into<ScoreOperand>>(self, other: O) -> Conditional {
         let left = self.temp();
         self.lowered(Condition::score_compare(
@@ -1271,6 +1297,7 @@ impl<T> ScoreExpr<T> {
             other.into(),
         ))
     }
+    /// Builds a condition requiring this expression to exceed another score operand.
     pub fn gt_score<O: Into<ScoreOperand>>(self, other: O) -> Conditional {
         let left = self.temp();
         self.lowered(Condition::score_compare(
@@ -1279,6 +1306,7 @@ impl<T> ScoreExpr<T> {
             other.into(),
         ))
     }
+    /// Builds a condition requiring this expression to be at least another score operand.
     pub fn gte_score<O: Into<ScoreOperand>>(self, other: O) -> Conditional {
         let left = self.temp();
         self.lowered(Condition::score_compare(
@@ -1287,6 +1315,7 @@ impl<T> ScoreExpr<T> {
             other.into(),
         ))
     }
+    /// Builds a condition requiring this expression to be below another score operand.
     pub fn lt_score<O: Into<ScoreOperand>>(self, other: O) -> Conditional {
         let left = self.temp();
         self.lowered(Condition::score_compare(
@@ -1295,6 +1324,7 @@ impl<T> ScoreExpr<T> {
             other.into(),
         ))
     }
+    /// Builds a condition requiring this expression to be at most another score operand.
     pub fn lte_score<O: Into<ScoreOperand>>(self, other: O) -> Conditional {
         let left = self.temp();
         self.lowered(Condition::score_compare(

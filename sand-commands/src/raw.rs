@@ -28,9 +28,11 @@ use crate::render::{CommandProfile, RenderCommand, Validate};
 pub struct RawCommand(String);
 
 impl RawCommand {
+    /// Wraps an intentionally unchecked Minecraft command string.
     pub fn new(command: impl Into<String>) -> Self {
         Self(command.into())
     }
+    /// Returns the exact Minecraft command token represented by this raw command value.
     pub fn as_str(&self) -> &str {
         &self.0
     }

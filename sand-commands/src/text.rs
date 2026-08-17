@@ -877,6 +877,7 @@ pub struct TextCommand {
 }
 
 impl TextCommand {
+    /// Builds a typed `tellraw` command for the selected entities and text component.
     pub fn tellraw(target: Selector, text: TextComponent) -> Self {
         Self { target, text }
     }

@@ -10,14 +10,10 @@
 //! | [`EventId`] | Controls how the advancement ID is determined |
 //! | [`EventReset`] | Controls re-arming after firing |
 //! | [`EventVisibility`] | Controls toast/chat visibility |
-//! | [`IntoEventAdvancement`] | Extension: builds the full advancement from an event |
 
-pub mod builder;
 pub mod handle;
 pub mod trigger;
 pub mod vanilla;
-
-pub use builder::{EventBuilder, EventConfig};
 
 use crate::AdvancementTrigger;
 use std::marker::PhantomData;
@@ -31,9 +27,8 @@ use std::marker::PhantomData;
 /// construction), while raw `&str`/`String` values are parsed and validated
 /// here, panicking with an actionable diagnostic on malformed input.
 ///
-/// This keeps existing string call sites (`EventBuilder::id("my_pack:foo")`,
-/// `EventConfig::advancement("my_pack:foo", ...)`) source-compatible while
-/// making [`ResourceLocation`](crate::ResourceLocation) the preferred, pre-validated normal path — see #196.
+/// This makes [`ResourceLocation`](crate::ResourceLocation) the preferred,
+/// pre-validated path for explicit event identities.
 /// Invalid explicit event IDs are rejected here, at the API boundary, rather
 /// than silently passed through to `resolve()`/export.
 pub trait IntoEventId {
@@ -77,6 +72,7 @@ impl IntoEventId for String {
 }
 
 /// Controls how the advancement's resource-location ID is determined.
+#[sand_macros::api(registry = sand_api_contract, path = "sand::event::EventId", aliases = ["sand::prelude::EventId"], summary = "Chooses the resource location used for a custom advancement-backed event.", context = "An explicit ID gives a handler a stable Minecraft resource name; Auto keeps the name aligned with the generated handler path.", minecraft = "Becomes the advancement JSON resource location and the target used by generated revoke commands.", use_when = ["Overriding an event's generated advancement ID", "Validating a resource location before export"], avoid_when = ["Naming an ordinary function or component"], variants(Auto = "Derives the ID from the generated event handler path.", Explicit = "Uses the supplied validated Minecraft resource location."), variant_fields(Explicit = ["The validated namespace:path identifier."]), example = "let id = EventId::try_explicit(\"demo:events/join\")?;")]
 #[derive(Clone, Debug)]
 pub enum EventId {
     /// Auto-generate from the event handler function path.
@@ -94,6 +90,7 @@ impl EventId {
     /// only failing later at export/`resolve()` time. Prefer passing an
     /// already-validated `ResourceLocation` when one is available. Use
     /// [`try_explicit`](Self::try_explicit) if you need a non-panicking path.
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::event::EventId::explicit", summary = "Builds an explicit event ID, validating raw resource-location text.", context = "This is the convenient constructor when an event must retain a chosen Minecraft advancement name.", minecraft = "The resulting namespace:path becomes the generated advancement resource ID.", use_when = ["A static event needs a deliberate advancement identifier"], avoid_when = ["The generated handler path is already the intended ID"], params(id = "A validated resource location or raw namespace:path text."), returns = "An explicit event ID, or panics for malformed raw text.", example = "let id = EventId::explicit(\"demo:events/join\");")]
     pub fn explicit(id: impl IntoEventId) -> Self {
         Self::Explicit(id.into_event_resource_location())
     }
@@ -102,6 +99,7 @@ impl EventId {
     ///
     /// Returns `Err` instead of panicking when `id` is not a valid
     /// `namespace:path` resource location.
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::event::EventId::try_explicit", summary = "Fallibly validates a requested event resource location.", context = "Use this at a configuration boundary that must return an error rather than panic on external text.", minecraft = "Rejects names that Minecraft cannot use as a namespace:path advancement ID.", use_when = ["Parsing configurable event IDs"], avoid_when = ["Using a compile-time known valid resource location"], params(id = "Text expected to contain a namespace:path resource location."), returns = "An explicit event ID or Sand's resource-location validation error.", example = "let id = EventId::try_explicit(\"demo:events/join\")?;")]
     pub fn try_explicit(id: impl AsRef<str>) -> Result<Self, sand_components::SandError> {
         id.as_ref()
             .parse::<crate::ResourceLocation>()
@@ -109,6 +107,7 @@ impl EventId {
     }
 
     /// Resolve to a full `namespace:path` string.
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::event::EventId::resolve", summary = "Resolves an automatic or explicit ID to namespace:path text.", context = "Export wiring uses this to make the automatic path explicit before generating advancement resources.", minecraft = "Returns the exact resource location written into generated advancement and command references.", use_when = ["Implementing a custom event export adapter"], avoid_when = ["Ordinary #[on_event] authoring, where Sand resolves the ID"], params(namespace = "Namespace used only when this ID is Auto.", path = "Generated path used only when this ID is Auto."), returns = "The resolved namespace:path identifier.", example = "assert_eq!(EventId::Auto.resolve(\"demo\", \"events/join\"), \"demo:events/join\");")]
     pub fn resolve(&self, namespace: &str, path: &str) -> String {
         match self {
             EventId::Auto => format!("{namespace}:{path}"),
@@ -119,6 +118,7 @@ impl EventId {
 
 /// Controls whether the event re-arms itself after firing.
 /// Controls when a fired advancement-backed event re-arms itself.
+#[sand_macros::api(registry = sand_api_contract, path = "sand::event::EventReset", aliases = ["sand::prelude::EventReset"], summary = "Controls whether an advancement-backed event re-arms after it dispatches.", context = "The reset policy prevents repeating triggers from becoming permanently granted while allowing genuine per-player milestones.", minecraft = "AfterFire emits an advancement revoke for the triggering player; the other choices leave grant state intact.", use_when = ["Defining an AdvancementEvent with a non-default lifecycle"], avoid_when = ["Controlling a tick-polled SandEvent, which has no advancement grant to revoke"], variants(AfterFire = "Revokes immediately so a later matching action can fire again.", OncePerPlayer = "Leaves the advancement granted permanently after its first dispatch.", Manual = "Leaves lifecycle management to explicit advancement commands."), example = "fn reset() -> EventReset { EventReset::OncePerPlayer }")]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum EventReset {
     /// Revoke the advancement immediately after firing so it can trigger again
@@ -132,27 +132,21 @@ pub enum EventReset {
     /// advancement manually (e.g. via `EventHandle::revoke()`), typically as
     /// part of a session lifecycle or a cool-down system.
     Manual,
-
-    // ── Backward-compatible aliases ──────────────────────────────────────────
-    /// Alias for [`AfterFire`](EventReset::AfterFire).
-    Auto,
-    /// Alias for [`AfterFire`](EventReset::AfterFire).
-    Revoke,
-    /// Alias for [`OncePerPlayer`](EventReset::OncePerPlayer).
-    Once,
 }
 
 impl EventReset {
     /// Whether the export pipeline should prepend an `advancement revoke` line.
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::event::EventReset::should_revoke", summary = "Reports whether this policy emits an immediate re-arm revoke.", context = "This is export-facing lifecycle inspection; most event authors choose a variant and let Sand apply it.", minecraft = "True means the generated reward path revokes the triggering player's advancement after dispatch.", use_when = ["Writing a custom export adapter"], avoid_when = ["Deciding normal event behavior; select the policy variant directly"], returns = "Whether the advancement should be revoked after firing.", example = "assert!(EventReset::AfterFire.should_revoke());")]
     pub fn should_revoke(&self) -> bool {
         match self {
-            EventReset::AfterFire | EventReset::Auto | EventReset::Revoke => true,
-            EventReset::OncePerPlayer | EventReset::Once | EventReset::Manual => false,
+            EventReset::AfterFire => true,
+            EventReset::OncePerPlayer | EventReset::Manual => false,
         }
     }
 }
 
 /// Controls the advancement toast and chat message visibility.
+#[sand_macros::api(registry = sand_api_contract, path = "sand::event::EventVisibility", aliases = ["sand::prelude::EventVisibility"], summary = "Describes the intended player-facing announcement level for an advancement-backed event.", context = "Event definitions retain this policy so the event model can express whether an occurrence should surface an advancement-style announcement.", minecraft = "Maps to the advancement display visibility chosen by Sand's event export path.", use_when = ["Defining a custom AdvancementEvent's display policy"], avoid_when = ["Sending a bespoke message from the handler; use a command or text component"], variants(Hidden = "Suppresses advancement toast and chat output.", Toast = "Requests an advancement toast without chat.", Chat = "Requests both advancement toast and chat announcement."), example = "fn visibility() -> EventVisibility { EventVisibility::Hidden }")]
 #[derive(Clone, Debug)]
 pub enum EventVisibility {
     /// No toast, no chat message — fully silent.
@@ -271,21 +265,6 @@ pub trait AdvancementEvent {
     fn participants() -> crate::participant::EventParticipantPlan {
         crate::participant::EventParticipantPlan::none()
     }
-
-    /// Build a value-based [`EventConfig`] from this trait impl.
-    ///
-    /// This bridges the trait-based and builder-based APIs: you can obtain an
-    /// `EventConfig` from any `AdvancementEvent` impl without knowing whether
-    /// it was defined via a struct+impl or via [`EventBuilder`].
-    fn into_config() -> crate::event::builder::EventConfig {
-        crate::event::builder::EventBuilder::new()
-            .trigger(Self::trigger().into())
-            .reset(Self::reset())
-            .visibility(Self::visibility())
-            .build()
-        // Note: guard and state_defines are not forwarded here because Condition
-        // is not Clone. Override into_config() on your event if you need them.
-    }
 }
 
 /// Capability marker for advancement events that represent player damage.
@@ -295,29 +274,6 @@ pub trait AdvancementEvent {
 /// Use [`DamageAmount::Fixed`](sand_commands::DamageAmount::Fixed) today, or
 /// add a real tracking system before using same-as-event damage.
 pub trait DamageAdvancementEvent: AdvancementEvent {}
-
-/// Legacy compatibility trait — provides `player()` for bare event-type handler
-/// parameters (e.g. `event: OnJoinEvent`).
-///
-/// The primary event model is `Event<T>` where `T: AdvancementEvent`, which
-/// gives you `event.player()` directly:
-///
-/// ```rust,ignore
-/// #[on_event]
-/// pub fn on_kill(event: Event<EntityKillEvent>) {
-///     cmd::tellraw(event.player(), Text::new("Killed!"));
-/// }
-/// ```
-///
-/// `EventPlayer` is implemented on all built-in event marker types so that
-/// legacy bare-parameter handlers compiled before the `Event<T>` model are
-/// still accepted by the `#[on_event]` macro. Prefer `Event<T>` for new code.
-pub trait EventPlayer {
-    /// Returns `Selector::self_()` — the player who triggered the event.
-    fn player(&self) -> crate::cmd::Selector {
-        crate::cmd::Selector::self_()
-    }
-}
 
 // ── Event<E> — handler context ───────────────────────────────────────────────
 
@@ -391,13 +347,6 @@ impl<E: AdvancementEvent> Event<E> {
     /// ```
     pub fn state_init() -> Vec<String> {
         E::state_defines()
-    }
-
-    /// Build a value-based [`EventConfig`] from this event's trait impl.
-    ///
-    /// Convenience wrapper over [`AdvancementEvent::into_config`].
-    pub fn config() -> crate::event::builder::EventConfig {
-        E::into_config()
     }
 
     /// Access a declared entity participant by role (#230, infallible per
@@ -528,77 +477,9 @@ impl<E: DamageAdvancementEvent> Default for DamageEvent<E> {
     }
 }
 
-// ── EventAdvancement<E> — internal advancement builder ───────────────────────
-
-/// Internal advancement component builder for `AdvancementEvent`-backed events.
-///
-/// Users should not construct this directly. The `#[on_event]` macro and the
-/// export pipeline use this to build the final `Advancement` JSON.
-///
-/// # Migration note
-///
-/// Code that previously called `Event::<E>::new("ns:path", "ns:handler")` should
-/// be updated to use this type instead. The old `Event<E>` builder API is gone
-/// — `Event<E>` is now the zero-cost handler context.
-pub struct EventAdvancement<E: AdvancementEvent> {
-    /// The advancement resource location.
-    pub advancement_id: String,
-    /// The handler function reference for `rewards.function`.
-    pub handler_function: String,
-    _marker: PhantomData<E>,
-}
-
-impl<E: AdvancementEvent> EventAdvancement<E> {
-    /// Create a new typed event advancement with the given IDs.
-    ///
-    /// - `advancement_id` — full `namespace:path` for the generated advancement
-    /// - `handler_function` — full `namespace:path` for the mcfunction to run
-    pub fn new(advancement_id: impl Into<String>, handler_function: impl Into<String>) -> Self {
-        Self {
-            advancement_id: advancement_id.into(),
-            handler_function: handler_function.into(),
-            _marker: PhantomData,
-        }
-    }
-
-    /// Build the [`Advancement`](crate::Advancement) component.
-    pub fn into_advancement(self) -> crate::Advancement {
-        let trigger = E::trigger().into();
-        let rl: crate::ResourceLocation = self
-            .advancement_id
-            .parse()
-            .expect("invalid advancement resource location in EventAdvancement::new");
-
-        crate::Advancement::new(rl)
-            .criterion("event", crate::Criterion::new(trigger))
-            .rewards(
-                crate::AdvancementRewards::new().function(
-                    self.handler_function
-                        .parse()
-                        .expect("handler function must be a valid resource location"),
-                ),
-            )
-    }
-}
-
-/// Converts a typed [`EventAdvancement`] into a [`sand_components::Advancement`] component.
-///
-/// Kept for backward compatibility with code that used the old `Event<E>` builder.
-pub trait IntoEventAdvancement<E: AdvancementEvent> {
-    /// Build the advancement component from this event.
-    fn into_advancement(self) -> crate::Advancement;
-}
-
-impl<E: AdvancementEvent> IntoEventAdvancement<E> for EventAdvancement<E> {
-    fn into_advancement(self) -> crate::Advancement {
-        self.into_advancement()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::DatapackComponent;
 
     struct TestTickEvent;
 
@@ -621,14 +502,6 @@ mod tests {
         let event = Event::<TestTickEvent>::default();
         let sel = event.subject();
         assert_eq!(sel.to_string(), "@s");
-    }
-
-    #[test]
-    fn event_advancement_builds() {
-        let ea =
-            EventAdvancement::<TestTickEvent>::new("test_pack:test_event", "test_pack:on_test");
-        let adv = ea.into_advancement();
-        assert_eq!(adv.resource_location().to_string(), "test_pack:test_event");
     }
 
     #[test]
@@ -676,13 +549,11 @@ mod tests {
     #[test]
     fn event_reset_defaults_to_revoke() {
         assert!(EventReset::AfterFire.should_revoke());
-        assert!(EventReset::Auto.should_revoke(), "backward-compat alias");
     }
 
     #[test]
     fn event_reset_once_does_not_revoke() {
         assert!(!EventReset::OncePerPlayer.should_revoke());
-        assert!(!EventReset::Once.should_revoke(), "backward-compat alias");
         assert!(!EventReset::Manual.should_revoke());
     }
 }

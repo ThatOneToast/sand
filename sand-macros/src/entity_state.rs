@@ -129,7 +129,7 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
                     quote! {
                         #[doc = concat!("Typed handle for the `", #field_name, "` State field.")]
                         pub const #ident: ::sand::__private::EntityScore<#ty> =
-                            ::sand::__private::EntityScore::__new(
+                            ::sand::__private::entity_score_new(
                                 #namespace, #schema_name, #field_name, #kind, #default, #bounds
                             );
                     },
@@ -367,7 +367,7 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
             }
         }
     };
-    Ok(quote! {
+    let expanded = quote! {
         #[derive(Debug, Clone, Copy)]
         #visibility struct #bound_ident {
             #(#bound_fields),*
@@ -403,7 +403,87 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
         }
 
         #(#lifecycle_submissions)*
-    })
+    };
+    validate_state_expansion(&input, &expanded)?;
+    Ok(expanded)
+}
+
+fn validate_state_expansion(
+    input: &DeriveInput,
+    expanded: &proc_macro2::TokenStream,
+) -> syn::Result<()> {
+    let expected = sand_api_contract::syntax::state_generated_surface(input)?;
+    let file: syn::File = syn::parse2(expanded.clone())?;
+    let owner = input.ident.unraw();
+    let mut actual_bound_fields = BTreeSet::new();
+    let mut actual_associated = BTreeMap::new();
+    for item in file.items {
+        match item {
+            syn::Item::Struct(structure) if structure.ident.unraw() == expected.bound_type => {
+                for field in structure.fields {
+                    if matches!(field.vis, syn::Visibility::Public(_)) {
+                        let name = field
+                            .ident
+                            .as_ref()
+                            .expect("State bound views have named fields")
+                            .unraw()
+                            .to_string();
+                        actual_bound_fields.insert(name);
+                    }
+                }
+            }
+            syn::Item::Impl(block) => {
+                let syn::Type::Path(self_type) = block.self_ty.as_ref() else {
+                    continue;
+                };
+                if self_type
+                    .path
+                    .segments
+                    .last()
+                    .is_none_or(|segment| segment.ident.unraw() != owner)
+                {
+                    continue;
+                }
+                for member in block.items {
+                    match member {
+                        syn::ImplItem::Const(value)
+                            if matches!(value.vis, syn::Visibility::Public(_)) =>
+                        {
+                            actual_associated.insert(
+                                value.ident.unraw().to_string(),
+                                sand_api_contract::syntax::StateGeneratedAssociatedKind::Const,
+                            );
+                        }
+                        syn::ImplItem::Fn(value)
+                            if matches!(value.vis, syn::Visibility::Public(_)) =>
+                        {
+                            actual_associated.insert(
+                                value.sig.ident.unraw().to_string(),
+                                sand_api_contract::syntax::StateGeneratedAssociatedKind::Method,
+                            );
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    let expected_bound_fields = expected.bound_fields.into_iter().collect::<BTreeSet<_>>();
+    let expected_associated = expected
+        .associated
+        .into_iter()
+        .map(|member| (member.name, member.kind))
+        .collect::<BTreeMap<_, _>>();
+    if actual_bound_fields != expected_bound_fields || actual_associated != expected_associated {
+        return Err(syn::Error::new_spanned(
+            &input.ident,
+            format!(
+                "State generated public API drifted from the shared consumer-enforcement model: expected bound fields {expected_bound_fields:?} and associated items {expected_associated:?}, emitted bound fields {actual_bound_fields:?} and associated items {actual_associated:?}"
+            ),
+        ));
+    }
+    Ok(())
 }
 
 pub(crate) fn derive_enum(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
@@ -882,5 +962,29 @@ fn set_once<T>(slot: &mut Option<T>, value: T, path: &Path) -> syn::Result<()> {
         Err(syn::Error::new_spanned(path, "duplicate option"))
     } else {
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod generated_surface_tests {
+    use super::*;
+
+    #[test]
+    fn actual_state_expansion_rejects_an_unmodeled_public_method() {
+        let input: DeriveInput = syn::parse_quote! {
+            #[state(namespace = "demo", name = "stats", scope = player)]
+            pub struct Stats { health: EntityScore<i32> }
+        };
+        let expansion = quote! {
+            pub struct StatsBound { pub health: EntityScoreAccessor<i32> }
+            impl Stats {
+                pub const health: EntityScore<i32> = todo!();
+                pub const FIELDS: &'static [StateFieldDescriptor] = &[];
+                pub fn on(_target: EntityContext<PlayerKind>) -> StatsBound { todo!() }
+                pub fn unmodeled() {}
+            }
+        };
+        let error = validate_state_expansion(&input, &expansion).unwrap_err();
+        assert!(error.to_string().contains("unmodeled"));
     }
 }

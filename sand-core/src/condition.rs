@@ -634,7 +634,7 @@ impl Condition {
     /// The Cartesian product of `[[a], [b]]` and `[[c], [d]]` is
     /// `[[a, c], [a, d], [b, c], [b, d]]`.
     pub(crate) fn to_ir_plans(&self, negated: bool) -> Vec<ExecuteIrPlan> {
-        use sand_commands::{ConditionIr, ScoreCmp, ScoreHolder, Selector};
+        use sand_commands::{ConditionIr, ScoreCmp, Selector};
 
         let clause = |condition| vec![vec![ExecuteClause { negated, condition }]];
         match &self.kind {
@@ -643,7 +643,7 @@ impl Condition {
                 objective,
                 range,
             } => clause(ConditionIr::ScoreMatches {
-                holder: ScoreHolder::compat(selector.clone()),
+                holder: sand_commands::__private::score_holder_compat(selector.clone()),
                 objective: objective.clone(),
                 range: range.render(),
             }),
@@ -656,10 +656,10 @@ impl Condition {
                     ScoreCompareOp::Lte => ScoreCmp::Le,
                 };
                 clause(ConditionIr::ScoreCompare {
-                    left: ScoreHolder::compat(left.selector.clone()),
+                    left: sand_commands::__private::score_holder_compat(left.selector.clone()),
                     left_objective: left.objective.clone(),
                     op,
-                    right: ScoreHolder::compat(right.selector.clone()),
+                    right: sand_commands::__private::score_holder_compat(right.selector.clone()),
                     right_objective: right.objective.clone(),
                 })
             }
@@ -668,7 +668,7 @@ impl Condition {
                 objective,
                 value,
             } => clause(ConditionIr::ScoreMatches {
-                holder: ScoreHolder::compat(selector.clone()),
+                holder: sand_commands::__private::score_holder_compat(selector.clone()),
                 objective: objective.clone(),
                 range: if *value { "1" } else { "0" }.to_string(),
             }),
@@ -750,7 +750,10 @@ impl Condition {
                     clauses
                         .into_iter()
                         .fold(sand_commands::Execute::new(), |execute, clause| {
-                            execute.with_operation(clause.into_operation())
+                            sand_commands::__private::execute_with_operation(
+                                execute,
+                                clause.into_operation(),
+                            )
                         })
                         .run(run)
                 }

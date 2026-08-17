@@ -4,8 +4,38 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use proc_macro2::TokenStream;
 use quote::ToTokens;
+use syn::ext::IdentExt;
 use syn::parse::Parser;
-use syn::{ExprArray, FnArg, ItemEnum, ItemStruct, LitStr, Pat, ReturnType, Signature};
+use syn::{
+    Expr, ExprArray, FnArg, ItemEnum, ItemFn, ItemStruct, LitStr, Pat, ReturnType, Signature,
+};
+
+/// Return the first complete prose sentence without treating punctuation in
+/// common abbreviations, versions, or resource filenames as a boundary.
+///
+/// Contract generators use this only to preserve author-written Rustdoc; it
+/// never invents semantic prose from an identifier.
+pub fn first_prose_sentence(documentation: &str) -> &str {
+    let bytes = documentation.as_bytes();
+    for (index, byte) in bytes.iter().enumerate() {
+        if *byte != b'.' {
+            continue;
+        }
+        let next = bytes.get(index + 1).copied();
+        if next.is_some_and(|next| !next.is_ascii_whitespace()) {
+            continue;
+        }
+        let prefix = documentation[..=index].trim_end().to_ascii_lowercase();
+        if ["e.g.", "i.e.", "etc.", "vs.", "mr.", "mrs.", "dr."]
+            .iter()
+            .any(|abbreviation| prefix.ends_with(abbreviation))
+        {
+            continue;
+        }
+        return documentation[..index].trim();
+    }
+    documentation.trim().trim_end_matches('.').trim()
+}
 
 pub mod registry_id;
 
@@ -39,9 +69,279 @@ pub fn sand_storage_generated_member_names(input: &syn::DeriveInput) -> syn::Res
                 .ident
                 .as_ref()
                 .expect("named fields have identifiers")
+                .unraw()
                 .to_string()
         }))
         .collect())
+}
+
+/// Public declarations emitted by `#[derive(State)]`.
+///
+/// This intentionally models only the Rust API shape. The State derive remains
+/// responsible for validating its complete schema semantics; this shared view
+/// lets source reachability and downstream enforcement agree on every public
+/// declaration which a valid derive invocation adds.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct StateGeneratedSurface {
+    /// Sibling bound-view struct, for example `PlayerStateBound`.
+    pub bound_type: String,
+    /// Public fields of the bound-view struct.
+    pub bound_fields: Vec<String>,
+    /// Public inherent associated constants and the binding method.
+    pub associated: Vec<StateGeneratedAssociated>,
+}
+
+/// One public inherent declaration emitted by `#[derive(State)]`.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct StateGeneratedAssociated {
+    pub name: String,
+    pub kind: StateGeneratedAssociatedKind,
+}
+
+/// The Rust item kind for a generated State associated declaration.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum StateGeneratedAssociatedKind {
+    Const,
+    Method,
+}
+
+/// Derive the complete public Rust shape of a valid `State` invocation.
+pub fn state_generated_surface(input: &syn::DeriveInput) -> syn::Result<StateGeneratedSurface> {
+    let syn::Data::Struct(structure) = &input.data else {
+        return Err(syn::Error::new_spanned(
+            &input.ident,
+            "State can only be derived for a struct",
+        ));
+    };
+    let syn::Fields::Named(fields) = &structure.fields else {
+        return Err(syn::Error::new_spanned(
+            &input.ident,
+            "State requires a struct with named fields",
+        ));
+    };
+
+    let state_attributes = input
+        .attrs
+        .iter()
+        .filter(|attribute| attribute.path().is_ident("state"))
+        .collect::<Vec<_>>();
+    if state_attributes.len() != 1 {
+        return Err(syn::Error::new_spanned(
+            &input.ident,
+            "exactly one #[state(...)] schema attribute is required",
+        ));
+    }
+    let mut binding_method = None;
+    state_attributes[0].parse_nested_meta(|meta| {
+        if meta.path.is_ident("scope") {
+            let scope: syn::Ident = meta.value()?.parse()?;
+            binding_method = Some(match scope.to_string().as_str() {
+                "player" | "entity" | "living" => "on",
+                "global" => "global",
+                _ => {
+                    return Err(syn::Error::new_spanned(
+                        scope,
+                        "invalid state scope; expected player, entity, living, or global",
+                    ));
+                }
+            });
+        } else if meta.input.peek(syn::Token![=]) {
+            // The derive validates the complete schema attribute. This shape
+            // model only needs `scope`, but it must consume the remaining
+            // literal options so syn can continue to the next entry.
+            let _: Expr = meta.value()?.parse()?;
+        }
+        Ok(())
+    })?;
+    let binding_method = binding_method.ok_or_else(|| {
+        syn::Error::new_spanned(
+            state_attributes[0],
+            "state schema requires `scope = player|entity|living|global`",
+        )
+    })?;
+
+    let field_names = fields
+        .named
+        .iter()
+        .map(|field| {
+            field
+                .ident
+                .as_ref()
+                .expect("named fields have identifiers")
+                .unraw()
+                .to_string()
+        })
+        .collect::<Vec<_>>();
+    let associated = std::iter::once(StateGeneratedAssociated {
+        name: "FIELDS".to_owned(),
+        kind: StateGeneratedAssociatedKind::Const,
+    })
+    .chain(
+        field_names
+            .iter()
+            .cloned()
+            .map(|name| StateGeneratedAssociated {
+                name,
+                kind: StateGeneratedAssociatedKind::Const,
+            }),
+    )
+    .chain(std::iter::once(StateGeneratedAssociated {
+        name: binding_method.to_owned(),
+        kind: StateGeneratedAssociatedKind::Method,
+    }))
+    .collect();
+    Ok(StateGeneratedSurface {
+        bound_type: format!("{}Bound", input.ident.unraw()),
+        bound_fields: field_names,
+        associated,
+    })
+}
+
+/// Public declarations emitted by `#[custom_item]`.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CustomItemGeneratedSurface {
+    /// Sibling typed item reference struct.
+    pub type_name: String,
+    /// Public inherent constants in declaration order.
+    pub constants: Vec<String>,
+    /// Public inherent helper methods in declaration order.
+    pub methods: Vec<String>,
+}
+
+/// Derive the complete public Rust shape of a valid `custom_item` invocation.
+///
+/// The macro's item identity comes from its explicit `name` argument or its
+/// literal `custom_data` key. Keeping this parser deliberately literal is a
+/// safety property: a future macro extension that accepts a dynamic name must
+/// add an equally explicit provider model instead of silently escaping
+/// consumer-build enforcement.
+pub fn custom_item_generated_surface(function: &ItemFn) -> syn::Result<CustomItemGeneratedSurface> {
+    let attribute = function
+        .attrs
+        .iter()
+        .find(|attribute| {
+            attribute
+                .path()
+                .segments
+                .last()
+                .is_some_and(|segment| segment.ident == "custom_item")
+        })
+        .ok_or_else(|| syn::Error::new_spanned(function, "missing #[custom_item] attribute"))?;
+    let mut explicit_name = None;
+    let mut data_constants = Vec::new();
+    if !matches!(attribute.meta, syn::Meta::Path(_)) {
+        attribute.parse_nested_meta(|meta| {
+            if meta.path.is_ident("name") {
+                explicit_name = Some(meta.value()?.parse::<LitStr>()?.value());
+            } else if meta.path.is_ident("data") {
+                let value = meta.value()?;
+                let content;
+                syn::bracketed!(content in value);
+                while !content.is_empty() {
+                    let name: syn::Ident = content.parse()?;
+                    content.parse::<syn::Token![:]>()?;
+                    content.parse::<syn::Type>()?;
+                    content.parse::<syn::Token![=]>()?;
+                    content.parse::<Expr>()?;
+                    data_constants.push(name.unraw().to_string());
+                    if content.peek(syn::Token![,]) {
+                        content.parse::<syn::Token![,]>()?;
+                    }
+                }
+            } else {
+                return Err(meta.error("unknown #[custom_item] option"));
+            }
+            Ok(())
+        })?;
+    }
+
+    let mut custom_data = None;
+    for statement in &function.block.stmts {
+        custom_item_data_in_statement(statement, &mut custom_data);
+    }
+    let type_name = explicit_name
+        .or_else(|| custom_data.as_deref().map(custom_item_pascal_case))
+        .ok_or_else(|| {
+            syn::Error::new_spanned(
+                &function.sig,
+                "#[custom_item] needs name = \"TypeName\" or a literal .custom_data(\"key\") call",
+            )
+        })?;
+    let mut constants = vec!["BASE".to_owned(), "PREDICATE".to_owned()];
+    if custom_data.is_some() {
+        constants.extend(["CUSTOM_DATA_KEY".to_owned(), "CUSTOM_DATA_SNBT".to_owned()]);
+    }
+    constants.extend(data_constants);
+    Ok(CustomItemGeneratedSurface {
+        type_name,
+        constants,
+        methods: vec![
+            "if_wearing".to_owned(),
+            "unless_wearing".to_owned(),
+            "item".to_owned(),
+        ],
+    })
+}
+
+fn custom_item_pascal_case(value: &str) -> String {
+    value
+        .split(['_', '-'])
+        .filter(|segment| !segment.is_empty())
+        .map(|segment| {
+            let mut characters = segment.chars();
+            characters.next().map_or_else(String::new, |first| {
+                first.to_uppercase().collect::<String>() + characters.as_str()
+            })
+        })
+        .collect()
+}
+
+fn custom_item_data_in_statement(statement: &syn::Stmt, custom_data: &mut Option<String>) {
+    match statement {
+        syn::Stmt::Expr(expression, _) => custom_item_data_in_expression(expression, custom_data),
+        syn::Stmt::Local(local) => {
+            if let Some(initializer) = &local.init {
+                custom_item_data_in_expression(&initializer.expr, custom_data);
+            }
+        }
+        syn::Stmt::Item(_) | syn::Stmt::Macro(_) => {}
+    }
+}
+
+fn custom_item_data_in_expression(expression: &Expr, custom_data: &mut Option<String>) {
+    match expression {
+        Expr::MethodCall(call) => {
+            if call.method == "custom_data"
+                && let Some(Expr::Lit(syn::ExprLit {
+                    lit: syn::Lit::Str(value),
+                    ..
+                })) = call.args.first()
+            {
+                *custom_data = Some(value.value());
+            }
+            custom_item_data_in_expression(&call.receiver, custom_data);
+            for argument in &call.args {
+                custom_item_data_in_expression(argument, custom_data);
+            }
+        }
+        Expr::Call(call) => {
+            custom_item_data_in_expression(&call.func, custom_data);
+            for argument in &call.args {
+                custom_item_data_in_expression(argument, custom_data);
+            }
+        }
+        Expr::Block(block) => {
+            for statement in &block.block.stmts {
+                custom_item_data_in_statement(statement, custom_data);
+            }
+        }
+        Expr::Return(returned) => {
+            if let Some(expression) = &returned.expr {
+                custom_item_data_in_expression(expression, custom_data);
+            }
+        }
+        _ => {}
+    }
 }
 
 /// One explicitly described function parameter or nested API member.
@@ -102,6 +402,46 @@ pub enum ContractTarget<'a> {
     Plain {
         ident: &'a syn::Ident,
     },
+}
+
+/// Span-free semantic projection used by every contract producer, including
+/// facade registrations that are resolved at build time rather than expanded
+/// as an attribute on the defining item.
+pub struct ContractSemantics<'a> {
+    pub summary: Option<&'a str>,
+    pub context: Option<&'a str>,
+    pub minecraft: Option<&'a str>,
+    pub use_when: Option<&'a [String]>,
+    pub avoid_when: Option<&'a [String]>,
+    pub example: Option<&'a str>,
+}
+
+/// Validate the required semantic schema independently of its Rust syntax.
+pub fn validate_contract_semantics(semantics: &ContractSemantics<'_>) -> Result<(), String> {
+    for (name, value) in [
+        ("summary", semantics.summary),
+        ("context", semantics.context),
+        ("minecraft", semantics.minecraft),
+        ("example", semantics.example),
+    ] {
+        let value = value.ok_or_else(|| format!("missing required API contract field `{name}`"))?;
+        if value.trim().is_empty() {
+            return Err(format!("API contract field `{name}` cannot be empty"));
+        }
+    }
+    for (name, values) in [
+        ("use_when", semantics.use_when),
+        ("avoid_when", semantics.avoid_when),
+    ] {
+        let values =
+            values.ok_or_else(|| format!("missing required API contract field `{name}`"))?;
+        if values.is_empty() || values.iter().any(|value| value.trim().is_empty()) {
+            return Err(format!(
+                "API contract field `{name}` must contain non-empty strings"
+            ));
+        }
+    }
+    Ok(())
 }
 
 impl ContractTarget<'_> {
@@ -309,6 +649,23 @@ fn parse_string_array(meta: &syn::meta::ParseNestedMeta<'_>) -> syn::Result<Vec<
 /// Validate required prose, paths, parameters, returns, and nested members.
 pub fn validate_contract(args: &ContractArgs, target: &ContractTarget<'_>) -> syn::Result<()> {
     let ident = target.ident();
+    let use_when = args
+        .use_when
+        .as_ref()
+        .map(|values| values.iter().map(LitStr::value).collect::<Vec<_>>());
+    let avoid_when = args
+        .avoid_when
+        .as_ref()
+        .map(|values| values.iter().map(LitStr::value).collect::<Vec<_>>());
+    validate_contract_semantics(&ContractSemantics {
+        summary: args.summary.as_ref().map(LitStr::value).as_deref(),
+        context: args.context.as_ref().map(LitStr::value).as_deref(),
+        minecraft: args.minecraft.as_ref().map(LitStr::value).as_deref(),
+        use_when: use_when.as_deref(),
+        avoid_when: avoid_when.as_deref(),
+        example: args.example.as_ref().map(LitStr::value).as_deref(),
+    })
+    .map_err(|message| syn::Error::new(ident.span(), message))?;
     for (name, value) in [
         ("summary", args.summary.as_ref()),
         ("context", args.context.as_ref()),
@@ -675,5 +1032,33 @@ mod tests {
             sand_storage_generated_member_names(&input).unwrap(),
             ["SCHEMA", "mana", "school"]
         );
+    }
+
+    #[test]
+    fn prose_sentence_preserves_abbreviations_versions_paths_and_parentheses() {
+        for (documentation, expected) in [
+            (
+                "Typed identifier, e.g. `minecraft:stone`. More.",
+                "Typed identifier, e.g. `minecraft:stone`",
+            ),
+            (
+                "Use a typed value, i.e. not raw text. More.",
+                "Use a typed value, i.e. not raw text",
+            ),
+            (
+                "Available in Minecraft 1.21.5. More.",
+                "Available in Minecraft 1.21.5",
+            ),
+            (
+                "Writes data/demo/example.json. More.",
+                "Writes data/demo/example.json",
+            ),
+            (
+                "Selects a value (e.g. stone or dirt). More.",
+                "Selects a value (e.g. stone or dirt)",
+            ),
+        ] {
+            assert_eq!(first_prose_sentence(documentation), expected);
+        }
     }
 }

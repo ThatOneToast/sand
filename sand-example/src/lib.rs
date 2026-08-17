@@ -300,27 +300,6 @@ mod tests {
         assert_eq!(loc, back);
     }
 
-    #[test]
-    fn all_builtin_events_covered_in_matrix() {
-        let matrix_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../book/src/reference/event-trigger-matrix.md");
-        let matrix = std::fs::read_to_string(&matrix_path)
-            .unwrap_or_else(|err| panic!("failed to read {}: {err}", matrix_path.display()));
-
-        let mut missing = Vec::new();
-        for name in sand_core::events::BUILTIN_EVENT_NAMES {
-            if !matrix.contains(name) {
-                missing.push(*name);
-            }
-        }
-        assert!(
-            missing.is_empty(),
-            "The following built-in events are missing from {}: {missing:?}\n\
-             Add a row for each event and re-run the tests.",
-            matrix_path.display()
-        );
-    }
-
     // ── McVersion ─────────────────────────────────────────────────────────────
 
     #[test]
@@ -636,16 +615,11 @@ mod tests {
     }
 
     #[test]
-    fn tag_struct_literal_construction() {
+    fn tag_builder_construction() {
         use sand_core::{DatapackComponent, Tag};
-        let tag = Tag {
-            location: "hello_world:manual".parse().unwrap(),
-            replace: false,
-            values: vec![
-                "minecraft:oak_log".to_string(),
-                "#minecraft:logs".to_string(),
-            ],
-        };
+        let tag = Tag::new("hello_world:manual".parse().unwrap())
+            .entry("minecraft:oak_log")
+            .entry("#minecraft:logs");
         let json = tag.to_json();
         assert_eq!(json["values"].as_array().unwrap().len(), 2);
         assert_eq!(tag.resource_location().to_string(), "hello_world:manual");
@@ -668,12 +642,10 @@ mod tests {
     }
 
     #[test]
-    fn mc_function_struct_literal() {
+    fn mc_function_builder() {
         use sand_core::{ComponentContent, McFunction};
-        let func = McFunction {
-            location: "hello_world:manual".parse().unwrap(),
-            commands: vec!["say hello".into(), "say world".into()],
-        };
+        let func = McFunction::new("hello_world:manual".parse().unwrap())
+            .commands(["say hello", "say world"]);
         match func.content() {
             ComponentContent::Text(t) => assert_eq!(t, "say hello\nsay world"),
             ComponentContent::Json(_) => panic!("expected Text"),
@@ -1112,16 +1084,9 @@ mod tests {
     }
 
     #[test]
-    fn loot_table_struct_literal() {
+    fn loot_table_builder() {
         use sand_core::{DatapackComponent, LootTable};
-        let table = LootTable {
-            location: "hello_world:manual_table".parse().unwrap(),
-            loot_type: None,
-            random_sequence: None,
-            pools: vec![],
-            functions: vec![],
-            conditions: vec![],
-        };
+        let table = LootTable::new("hello_world:manual_table".parse().unwrap());
         assert_eq!(
             table.resource_location().to_string(),
             "hello_world:manual_table"

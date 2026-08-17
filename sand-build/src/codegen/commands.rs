@@ -11,6 +11,24 @@ use crate::error::Result;
 /// Top-level commands to skip entirely (they use redirects or are aliases).
 const SKIP_COMMANDS: &[&str] = &["effect", "execute", "tell", "tm", "tp", "w", "xp"];
 
+/// Generated variants shadowed by Sand's intentional handwritten command API.
+///
+/// These variants are omitted instead of being emitted under a second Rust
+/// identity at the same `sand::command` path. The handwritten versions carry
+/// stronger domain types, validation, or richer builders than the raw command
+/// tree can describe. Other variants in the same vanilla command family remain
+/// generated normally.
+const HANDWRITTEN_VARIANTS: &[&str] = &[
+    "fill",
+    "function",
+    "give",
+    "particle",
+    "return_cmd",
+    "return_fail",
+    "tellraw",
+    "title_times",
+];
+
 /// Maximum tree depth to prevent runaway generation.
 const MAX_DEPTH: usize = 6;
 
@@ -389,6 +407,10 @@ fn emit_variant(code: &mut String, ev: &EmittedVariant) {
 
     writeln!(code, "// /{usage}").unwrap();
     writeln!(code, "/// `{usage}`").unwrap();
+    writeln!(code, "///").unwrap();
+    writeln!(code, "/// # API Contract").unwrap();
+    writeln!(code, "///").unwrap();
+    writeln!(code, "/// `sand api show sand::command::{sname}`").unwrap();
 
     if !has_required {
         writeln!(code, "#[derive(Debug, Clone, Default)]").unwrap();
@@ -438,6 +460,13 @@ fn emit_variant(code: &mut String, ev: &EmittedVariant) {
 
     for arg in &variant.optional_args {
         let (param_ty, _stored_ty, needs_into) = map_arg_parser(&literals, arg);
+        writeln!(code, "    /// # API Contract").unwrap();
+        writeln!(
+            code,
+            "    /// `sand api show sand::command::{sname}::{}`",
+            arg.name
+        )
+        .unwrap();
         writeln!(
             code,
             "    pub fn {name}(mut self, {name}: {param_ty}) -> Self {{",
@@ -512,6 +541,10 @@ fn emit_variant(code: &mut String, ev: &EmittedVariant) {
     writeln!(code).unwrap();
 
     writeln!(code, "/// Build a `{cmd_str}` command.").unwrap();
+    writeln!(code, "///").unwrap();
+    writeln!(code, "/// # API Contract").unwrap();
+    writeln!(code, "///").unwrap();
+    writeln!(code, "/// `sand api show sand::command::{fname}`").unwrap();
 
     if has_required {
         let mut params = Vec::new();
@@ -598,9 +631,13 @@ fn command_api_entries(
     let required = variant.required_args();
     let parameters = required
         .iter()
-        .map(|arg| ApiParameter {
-            name: arg.name.clone(),
-            description: argument_description(arg, &usage),
+        .map(|arg| {
+            let (param_type, _, _) = map_arg_parser(&literals, arg);
+            ApiParameter {
+                name: arg.name.clone(),
+                rust_type: Some(param_type.to_owned()),
+                description: argument_description(arg, &usage),
+            }
         })
         .collect::<Vec<_>>();
     let params_signature = required
@@ -638,7 +675,10 @@ fn command_api_entries(
         member_name: None,
         contract: ApiEntry {
             canonical_path: struct_path.clone(),
-            aliases: vec![format!("sand::cmd::{}", ev.struct_name)],
+            aliases: vec![
+                format!("sand::cmd::{}", ev.struct_name),
+                format!("sand::prelude::cmd::{}", ev.struct_name),
+            ],
             canonical_module: "sand::command".into(),
             kind: ApiKind::Struct,
             signature: format!("pub struct {} {{ /* private fields */ }}", ev.struct_name),
@@ -649,6 +689,7 @@ fn command_api_entries(
             avoid_when: avoid_when.clone(),
             parameters: Vec::new(),
             returns: None,
+            return_type: None,
             example: format!("let command = sand::command::{}({call_args});", ev.fn_name),
             availability: availability.clone(),
         },
@@ -661,7 +702,10 @@ fn command_api_entries(
         member_name: None,
         contract: ApiEntry {
             canonical_path: function_path,
-            aliases: vec![format!("sand::cmd::{}", ev.fn_name)],
+            aliases: vec![
+                format!("sand::cmd::{}", ev.fn_name),
+                format!("sand::prelude::cmd::{}", ev.fn_name),
+            ],
             canonical_module: "sand::command".into(),
             kind: ApiKind::Function,
             signature: format!(
@@ -678,6 +722,7 @@ fn command_api_entries(
                 "A `{}` builder that renders `/{usage}`.",
                 ev.struct_name
             )),
+            return_type: Some(ev.struct_name.clone()),
             example: format!("let command = sand::command::{}({call_args});", ev.fn_name),
             availability: availability.clone(),
         },
@@ -692,7 +737,10 @@ fn command_api_entries(
             member_name: Some(arg.name.clone()),
             contract: ApiEntry {
             canonical_path: format!("{struct_path}::{}", arg.name),
-            aliases: vec![format!("sand::cmd::{}::{}", ev.struct_name, arg.name)],
+            aliases: vec![
+                format!("sand::cmd::{}::{}", ev.struct_name, arg.name),
+                format!("sand::prelude::cmd::{}::{}", ev.struct_name, arg.name),
+            ],
             canonical_module: "sand::command".into(),
             kind: ApiKind::Method,
             signature: format!(
@@ -715,9 +763,11 @@ fn command_api_entries(
             )],
             parameters: vec![ApiParameter {
                 name: arg.name.clone(),
+                rust_type: Some(param_type.to_owned()),
                 description: argument_description(arg, &usage),
             }],
             returns: Some("The command builder with the optional argument set.".into()),
+            return_type: Some("Self".into()),
             example: format!(
                 "let command = sand::command::{}({call_args}).{}({});",
                 ev.fn_name, arg.name, arg.name
@@ -763,7 +813,10 @@ pub fn generate(reports_dir: &Path, out_dir: &Path, minecraft_version: &str) -> 
     }
 
     // Assign unique Rust identifiers without mutating vanilla command paths.
-    let emitted = assign_rust_names(all_variants);
+    let emitted = assign_rust_names(all_variants)
+        .into_iter()
+        .filter(|variant| !HANDWRITTEN_VARIANTS.contains(&variant.fn_name.as_str()))
+        .collect::<Vec<_>>();
 
     // Generate code.
     let mut code = String::new();

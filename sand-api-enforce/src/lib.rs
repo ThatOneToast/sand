@@ -22,13 +22,16 @@ mod reachable;
 mod scope;
 
 pub use contract_source::{
-    ContractDeclaration, ContractSourceError, contract_declarations_from_files,
-    resolve_contract_identities, validate_contract_lookup_namespace,
+    ContractDeclaration, ContractSourceError, DefinitionShape, contract_declarations_from_files,
+    definition_shape, definition_shapes, resolve_contract_identities,
+    validate_contract_lookup_namespace,
 };
 pub use features::discover_facade_feature_union;
 pub use macro_provider::{
-    MacroProviderError, declarative_type_family_fixture_provider, event_generated_type_provider,
-    registry_id_provider, sand_storage_derive_provider, vanilla_registry_enum_provider,
+    MacroProviderError, custom_item_provider, declarative_type_family_fixture_provider,
+    event_generated_type_provider, registry_id_provider, resourcepack_macro_provider,
+    sand_storage_derive_provider, shape_preserving_consumer_provider, state_derive_provider,
+    vanilla_registry_enum_provider,
 };
 pub use profile::{SurfaceProfile, SurfaceProfileManifest};
 

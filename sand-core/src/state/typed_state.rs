@@ -175,6 +175,7 @@ pub struct GameStateRef<'a, S: TypedGameState> {
 }
 
 impl<'a, S: TypedGameState> GameStateRef<'a, S> {
+    /// Returns the entity selector whose scoreboard value stores this game state.
     pub fn selector(&self) -> &str {
         &self.selector
     }

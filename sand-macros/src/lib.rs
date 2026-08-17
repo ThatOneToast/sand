@@ -53,6 +53,10 @@ mod entity_state;
 
 /// Defines and registers the authoritative public contract for a supported
 /// Sand API item.
+///
+/// # API Contract
+///
+/// `sand api show sand::api`
 #[proc_macro_attribute]
 pub fn api(attr: TokenStream, item: TokenStream) -> TokenStream {
     api_contract::expand(attr.into(), item.into())
@@ -77,6 +81,10 @@ pub fn registry_id(input: TokenStream) -> TokenStream {
 /// Entity/living schemas retain dirty writes for archetype reconciliation and
 /// require archetype-provisioned objectives; owner-aware metadata and ticking
 /// remain later #298 work.
+///
+/// # API Contract
+///
+/// `sand api show sand::State`
 #[proc_macro_derive(State, attributes(state))]
 pub fn derive_state(input: TokenStream) -> TokenStream {
     entity_state::derive_state(parse_macro_input!(input as syn::DeriveInput))
@@ -151,7 +159,9 @@ fn expand_entity_archetype(function: ItemFn) -> syn::Result<proc_macro2::TokenSt
             ::sand::__private::entity::ArchetypeDefinition,
             ::sand::__private::entity::EntityDiagnostic,
         > {
-            ::std::result::Result::Ok(#name().definition())
+            ::std::result::Result::Ok(
+                ::sand::__private::entity::archetype::registered_definition(&#name())
+            )
         }
 
         ::sand::__private::inventory::submit!(
@@ -292,6 +302,10 @@ fn build_cmd_body(block: &syn::Block) -> syn::Result<proc_macro2::TokenStream> {
 /// rules: namespace `[a-z0-9_.-]+`, path `[a-z0-9_./-]+`. Empty strings,
 /// uppercase letters, whitespace, and multiple colons are rejected at compile
 /// time with a diagnostic pointing at the offending literal.
+///
+/// # API Contract
+///
+/// `sand api show sand::function`
 #[proc_macro_attribute]
 pub fn function(attr: TokenStream, item: TokenStream) -> TokenStream {
     let attr = parse_function_attr(attr);
@@ -1212,7 +1226,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                     dispatch: ::sand::__private::EventDispatch::Tracked(
                         ::sand::__private::TrackedTransition::new(
                             "player_sneaking",
-                            ::sand::__private::events::PLAYER_SNEAKING_TRACKED_SOURCE,
+                            ::sand::__private::player_sneaking_tracked_source(),
                             ::sand::__private::TransitionKind::BecameTrue,
                         )
                     ),
@@ -1231,7 +1245,7 @@ fn expand_event(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Tok
                     dispatch: ::sand::__private::EventDispatch::Tracked(
                         ::sand::__private::TrackedTransition::new(
                             "player_sneaking",
-                            ::sand::__private::events::PLAYER_SNEAKING_TRACKED_SOURCE,
+                            ::sand::__private::player_sneaking_tracked_source(),
                             ::sand::__private::TransitionKind::BecameFalse,
                         )
                     ),

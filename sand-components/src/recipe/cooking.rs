@@ -13,12 +13,12 @@ use sand_version::ComponentFeature;
 pub struct CookingRecipe {
     pub location: ResourceLocation,
     pub recipe_type: CookingType,
-    pub category: Option<String>,
-    pub group: Option<String>,
-    pub ingredient: Ingredient,
-    pub result: RecipeResult,
-    pub experience: f32,
-    pub cooking_time: u32,
+    category: Option<String>,
+    group: Option<String>,
+    ingredient: Ingredient,
+    result: RecipeResult,
+    experience: f32,
+    cooking_time: u32,
 }
 
 impl CookingRecipe {

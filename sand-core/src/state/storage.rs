@@ -22,14 +22,17 @@ pub struct StorageLocation {
 }
 
 impl StorageLocation {
+    /// Creates a command-storage location from a validated resource identifier.
     pub fn new(id: ResourceLocation) -> Self {
         Self { id }
     }
 
+    /// Parses and validates a namespaced command-storage identifier.
     pub fn parse(id: impl AsRef<str>) -> sand_components::Result<Self> {
         Ok(Self::new(id.as_ref().parse()?))
     }
 
+    /// Borrows the validated resource identifier for this storage location.
     pub fn as_resource_location(&self) -> &ResourceLocation {
         &self.id
     }
@@ -54,10 +57,12 @@ pub struct EntityNbt {
 }
 
 impl EntityNbt {
+    /// Creates an entity NBT root bound to the supplied selector.
     pub fn target(target: Selector) -> Self {
         Self { target }
     }
 
+    /// Extends this typed NBT reference with the supplied path selector.
     pub fn path<T>(&self, path: impl Into<NbtPath>) -> NbtRef<T> {
         NbtRef::new(DataTarget::entity(self.target.clone()), path.into())
     }
@@ -70,10 +75,12 @@ pub struct BlockNbt {
 }
 
 impl BlockNbt {
+    /// Creates a block NBT root bound to the supplied coordinates.
     pub fn pos(pos: BlockPos) -> Self {
         Self { pos }
     }
 
+    /// Extends this typed NBT reference with the supplied path selector.
     pub fn path<T>(&self, path: impl Into<NbtPath>) -> NbtRef<T> {
         NbtRef::new(DataTarget::block(self.pos.clone()), path.into())
     }
@@ -101,6 +108,7 @@ impl<T> Clone for StorageSchema<T> {
 impl<T> Copy for StorageSchema<T> {}
 
 impl<T> StorageSchema<T> {
+    /// Defines a typed schema at a command-storage resource and root NBT path.
     pub const fn new(storage: &'static str, root: &'static str) -> Self {
         Self {
             storage,
@@ -109,14 +117,17 @@ impl<T> StorageSchema<T> {
         }
     }
 
+    /// Returns the namespaced command-storage identifier used by this schema.
     pub const fn storage(&self) -> &'static str {
         self.storage
     }
 
+    /// Returns the schema's root NBT path.
     pub const fn root_path(&self) -> &'static str {
         self.root
     }
 
+    /// Extends this typed NBT reference with the supplied field selector.
     pub const fn field<U>(&self, field: &'static str) -> StorageField<T, U> {
         StorageField {
             storage: self.storage,
@@ -127,35 +138,43 @@ impl<T> StorageSchema<T> {
         }
     }
 
+    /// Extends this typed NBT reference with the supplied path selector.
     pub fn path(&self) -> NbtRef<T> {
         Nbt::storage(self.storage).typed_path(self.root)
     }
 
+    /// Returns the typed NBT location targeted by this reference.
     pub fn location(&self) -> StorageLocation {
         StorageLocation::parse(self.storage)
             .expect("StorageSchema::new requires a valid storage resource location")
     }
 
+    /// Builds the typed Minecraft data query for get.
     pub fn get(&self) -> String {
         self.path().get().to_string()
     }
 
+    /// Builds the typed Minecraft data modification for set.
     pub fn set(&self, value: impl Into<SnbtValue>) -> String {
         self.path().set(value).to_string()
     }
 
+    /// Provides the explicit raw SNBT escape hatch after the caller accepts validation responsibility.
     pub fn set_raw_snbt(&self, raw: RawSnbt) -> String {
         self.path().set_raw(raw.to_string()).to_string()
     }
 
+    /// Builds the typed Minecraft data modification for merge.
     pub fn merge(&self, value: impl Into<SnbtValue>) -> String {
         self.path().merge(value).to_string()
     }
 
+    /// Builds the typed Minecraft data modification for remove.
     pub fn remove(&self) -> String {
         self.path().remove().to_string()
     }
 
+    /// Builds the typed Minecraft data query for exists.
     pub fn exists(&self) -> Condition {
         Condition::nbt_exists(DataTarget::storage(self.storage), NbtPath::new(self.root))
     }
@@ -180,28 +199,34 @@ impl<Schema, T> Clone for StorageField<Schema, T> {
 impl<Schema, T> Copy for StorageField<Schema, T> {}
 
 impl<Schema, T> StorageField<Schema, T> {
+    /// Creates a typed field belonging to the supplied storage schema.
     pub const fn new(schema: &StorageSchema<Schema>, field: &'static str) -> Self {
         schema.field(field)
     }
 
+    /// Returns the namespaced command-storage identifier containing this field.
     pub const fn storage(&self) -> &'static str {
         self.storage
     }
 
+    /// Returns the containing schema's root NBT path.
     pub const fn root_path(&self) -> &'static str {
         self.root
     }
 
+    /// Returns this field's name relative to its schema root.
     pub const fn field_name(&self) -> &'static str {
         self.field
     }
 
+    /// Extends this typed NBT reference with the supplied path selector.
     pub fn path(&self) -> NbtRef<T> {
         Nbt::storage(self.storage)
             .typed_path::<T>(self.root)
             .field(self.field)
     }
 
+    /// Returns the complete rendered NBT path to this field.
     pub fn full_path(&self) -> String {
         self.path().path_value().as_str().to_string()
     }
@@ -221,35 +246,43 @@ impl<Schema, T> StorageField<Schema, T> {
         self.full_path()
     }
 
+    /// Returns the typed NBT location targeted by this reference.
     pub fn location(&self) -> StorageLocation {
         StorageLocation::parse(self.storage)
             .expect("StorageField requires a valid storage resource location")
     }
 
+    /// Builds the typed Minecraft data query for get.
     pub fn get(&self) -> String {
         self.path().get().to_string()
     }
 
+    /// Builds the typed Minecraft data query for get scaled.
     pub fn get_scaled(&self, scale: f64) -> String {
         self.path().get_scaled(scale).to_string()
     }
 
+    /// Builds the typed Minecraft data modification for set.
     pub fn set(&self, value: impl Into<SnbtValue>) -> String {
         self.set_value(value.into())
     }
 
+    /// Builds the typed Minecraft data modification for set value.
     pub fn set_value(&self, value: SnbtValue) -> String {
         self.path().set(value).to_string()
     }
 
+    /// Provides the explicit raw SNBT escape hatch after the caller accepts validation responsibility.
     pub fn set_raw_snbt(&self, raw: RawSnbt) -> String {
         self.path().set_raw(raw.to_string()).to_string()
     }
 
+    /// Builds the typed Minecraft data modification for remove.
     pub fn remove(&self) -> String {
         self.path().remove().to_string()
     }
 
+    /// Builds the typed Minecraft data query for exists.
     pub fn exists(&self) -> Condition {
         Condition::nbt_exists(
             DataTarget::storage(self.storage),
@@ -257,6 +290,7 @@ impl<Schema, T> StorageField<Schema, T> {
         )
     }
 
+    /// Builds the typed Minecraft data modification for copy from.
     pub fn copy_from<OtherSchema, U>(&self, source: StorageField<OtherSchema, U>) -> String {
         self.path().copy_from(&source.path()).to_string()
     }
@@ -273,15 +307,18 @@ impl<Schema, T> StorageField<Schema, T> {
         self.path().copy_from(&source).to_string()
     }
 
+    /// Builds the typed Minecraft data modification for copy from path.
     pub fn copy_from_path(&self, source_storage: StorageLocation, source_path: NbtPath) -> String {
         let source = Nbt::storage(source_storage.to_string()).path(source_path);
         self.path().copy_from(&source).to_string()
     }
 
+    /// Builds the typed Minecraft data modification for append.
     pub fn append(&self, value: impl Into<SnbtValue>) -> String {
         self.path().append(value).to_string()
     }
 
+    /// Builds the typed Minecraft data modification for merge.
     pub fn merge(&self, value: impl Into<SnbtValue>) -> String {
         self.path().merge(value).to_string()
     }

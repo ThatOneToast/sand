@@ -11,10 +11,8 @@ pub trait IntoCommands {
 
 /// A Minecraft function file (.mcfunction) that contains a list of commands to be executed.
 pub struct McFunction {
-    /// The resource location for this function.
-    pub location: ResourceLocation,
-    /// List of commands in this function.
-    pub commands: Vec<String>,
+    location: ResourceLocation,
+    commands: Vec<String>,
 }
 
 impl McFunction {

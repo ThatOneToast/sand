@@ -2,8 +2,8 @@
 //!
 //! Provides typed field handles plus a builder for defining per-player data
 //! schemas backed by existing scoreboard and state primitives.
-//! [`PlayerDataSchema`] is the user-facing name; [`PlayerSchema`] remains a
-//! compatible alias. Storage schemas from `#[derive(SandStorage)]` can also be
+//! [`PlayerDataSchema`] is the user-facing definition; [`PlayerSchema`] remains
+//! a compatible alias. Storage schemas from `#[derive(SandStorage)]` can also be
 //! attached for unified introspection and documentation.
 //!
 //! # Lifecycle scope
@@ -13,8 +13,8 @@
 //! automatically choose application lifecycle events.
 //!
 //! You must:
-//! - Call [`PlayerSchema::define_all`] from your load function to define scoreboard objectives.
-//! - Call [`PlayerSchema::init_player`] from a join or first-join handler to set player defaults.
+//! - Call [`PlayerDataSchema::define_all`] from your load function to define scoreboard objectives.
+//! - Call [`PlayerDataSchema::init_player`] from a join or first-join handler to set player defaults.
 //! - Wire timer/cooldown ticks and lifecycle manually using the underlying [`Timer`] and
 //!   [`Cooldown`] APIs (see their docs for tick management).
 //!
@@ -24,7 +24,7 @@
 //!
 //! # Naming and namespacing
 //!
-//! `PlayerSchema::new("magic")` accepts a **human label** for the schema.  It
+//! `PlayerDataSchema::new("magic")` accepts a **human label** for the schema.  It
 //! does **not** prefix scoreboard objective names: the objective name is
 //! determined entirely by the [`ScoreVar`], [`Flag`], or [`Cooldown`] you pass
 //! in.  This means two schemas *can* share an objective if they register the
@@ -36,8 +36,8 @@
 //! // These two schemas share the "mana" objective because they share the static:
 //! static MANA: ScoreVar<i32> = ScoreVar::new("mana");
 //!
-//! let magic   = PlayerSchema::new("magic").score(&MANA, 100);
-//! let stamina = PlayerSchema::new("stamina").score(&MANA, 50); // same objective
+//! let magic   = PlayerDataSchema::new("magic").score(&MANA, 100);
+//! let stamina = PlayerDataSchema::new("stamina").score(&MANA, 50); // same objective
 //!
 //! // To keep them separate, use distinct statics:
 //! static MAGIC_MANA:   ScoreVar<i32> = ScoreVar::new("magic_mana");
@@ -57,9 +57,9 @@
 //! - Complex compound structures
 //!
 //! ⚠️ **Important**: Minecraft `data storage` is **global**, not per-player.
-//! Attaching a storage schema to a `PlayerSchema` does **not** create a
+//! Attaching a storage schema to a `PlayerDataSchema` does **not** create a
 //! per-player storage slot.  Sand does not automatically key storage paths by
-//! player UUID.  See [`PlayerSchema::storage`] for details and workarounds.
+//! player UUID.  See [`PlayerDataSchema::storage`] for details and workarounds.
 //!
 //! # `define_all()` behavior
 //!
@@ -125,6 +125,7 @@ pub struct ScoreField<T = i32> {
 }
 
 impl<T> ScoreField<T> {
+    /// Defines an integer-backed player field stored in the named scoreboard objective.
     pub const fn new(objective: &'static str) -> Self {
         Self {
             value: ScoreVar::new(objective),
@@ -132,19 +133,23 @@ impl<T> ScoreField<T> {
         }
     }
 
+    /// Sets the score assigned when this player field is initialized.
     pub const fn default(mut self, value: i32) -> Self {
         self.default = value;
         self
     }
 
+    /// Binds this field to one player's selector.
     pub fn of<'a>(&'a self, selector: &str) -> ScoreRef<'a, T> {
         self.value.of(selector)
     }
 
+    /// Returns the typed scoreboard variable underlying this field.
     pub fn value(&self) -> &ScoreVar<T> {
         &self.value
     }
 
+    /// Returns the score assigned during player initialization.
     pub fn default_value(&self) -> i32 {
         self.default
     }
@@ -157,6 +162,7 @@ pub struct FlagField {
 }
 
 impl FlagField {
+    /// Defines a boolean player field stored in the named scoreboard objective.
     pub const fn new(objective: &'static str) -> Self {
         Self {
             value: Flag::new(objective),
@@ -164,19 +170,23 @@ impl FlagField {
         }
     }
 
+    /// Sets the boolean assigned when this player field is initialized.
     pub const fn default(mut self, value: bool) -> Self {
         self.default = value;
         self
     }
 
+    /// Binds this flag field to one player's selector.
     pub fn of<'a>(&'a self, selector: &str) -> FlagRef<'a> {
         self.value.of(selector)
     }
 
+    /// Returns the typed scoreboard flag underlying this field.
     pub fn value(&self) -> &Flag {
         &self.value
     }
 
+    /// Returns the flag assigned during player initialization.
     pub fn default_value(&self) -> bool {
         self.default
     }
@@ -188,12 +198,14 @@ pub struct TimerField {
 }
 
 impl TimerField {
+    /// Defines a player timer with its scoreboard objective and duration.
     pub const fn new(objective: &'static str, duration: Ticks) -> Self {
         Self {
             value: Timer::new(objective, duration),
         }
     }
 
+    /// Binds this timer field to one player's selector.
     pub fn of<'a>(&'a self, selector: impl Into<String>) -> TimerFieldRef<'a> {
         TimerFieldRef {
             field: self,
@@ -201,6 +213,7 @@ impl TimerField {
         }
     }
 
+    /// Returns the typed timer underlying this field.
     pub fn value(&self) -> &Timer {
         &self.value
     }
@@ -212,18 +225,22 @@ pub struct TimerFieldRef<'a> {
 }
 
 impl TimerFieldRef<'_> {
+    /// Renders the command that starts this player's timer.
     pub fn start(&self) -> String {
         self.field.value.start(&self.selector)
     }
 
+    /// Renders the command that resets this player's timer.
     pub fn reset(&self) -> String {
         self.field.value.reset(&self.selector)
     }
 
+    /// Builds the typed condition for active.
     pub fn active(&self) -> Condition {
         self.field.value.active(&self.selector)
     }
 
+    /// Builds the typed condition for expired.
     pub fn expired(&self) -> Condition {
         self.field.value.expired(&self.selector)
     }
@@ -235,12 +252,14 @@ pub struct CooldownField {
 }
 
 impl CooldownField {
+    /// Defines a player cooldown with its scoreboard objective and duration.
     pub const fn new(objective: &'static str, duration: Ticks) -> Self {
         Self {
             value: Cooldown::new(objective, duration),
         }
     }
 
+    /// Binds this cooldown field to one player's selector.
     pub fn of<'a>(&'a self, selector: impl Into<String>) -> CooldownFieldRef<'a> {
         CooldownFieldRef {
             field: self,
@@ -248,6 +267,7 @@ impl CooldownField {
         }
     }
 
+    /// Returns the typed cooldown underlying this field.
     pub fn value(&self) -> &Cooldown {
         &self.value
     }
@@ -259,18 +279,22 @@ pub struct CooldownFieldRef<'a> {
 }
 
 impl CooldownFieldRef<'_> {
+    /// Renders the command that starts this player's cooldown.
     pub fn start(&self) -> String {
         self.field.value.start(&self.selector)
     }
 
+    /// Renders the command that stops this player's cooldown.
     pub fn stop(&self) -> String {
         self.field.value.stop(&self.selector)
     }
 
+    /// Builds the typed condition for ready.
     pub fn ready(&self) -> Condition {
         self.field.value.ready(&self.selector)
     }
 
+    /// Builds the typed condition for active.
     pub fn active(&self) -> Condition {
         self.field.value.active(&self.selector)
     }
@@ -282,22 +306,26 @@ pub struct GameStateField<S: TypedGameState> {
 }
 
 impl<S: TypedGameState> GameStateField<S> {
+    /// Defines an enum-like player state stored in the named scoreboard objective.
     pub const fn new(objective: &'static str) -> Self {
         Self {
             value: GameState::new(objective),
         }
     }
 
+    /// Defines a player state with an explicit initial encoded score.
     pub const fn with_default_score(objective: &'static str, default: i32) -> Self {
         Self {
             value: GameState::with_default_score(objective, default),
         }
     }
 
+    /// Binds this game-state field to one player's selector.
     pub fn of<'a>(&'a self, selector: &str) -> GameStateRef<'a, S> {
         self.value.of(selector)
     }
 
+    /// Returns the typed game-state variable underlying this field.
     pub fn value(&self) -> &GameState<S> {
         &self.value
     }
@@ -310,6 +338,7 @@ pub struct GlobalStorageField<Schema, T> {
 }
 
 impl<Schema, T> GlobalStorageField<Schema, T> {
+    /// Defines a global typed field within the supplied command-storage schema.
     pub const fn new(schema: &StorageSchema<Schema>, field: &'static str) -> Self {
         Self {
             value: schema.field(field),
@@ -317,10 +346,12 @@ impl<Schema, T> GlobalStorageField<Schema, T> {
         }
     }
 
+    /// Returns the typed NBT reference for this global storage field.
     pub fn nbt(&self) -> NbtRef<T> {
         self.value.path()
     }
 
+    /// Returns the schema field underlying this global storage declaration.
     pub fn value(&self) -> &StorageField<Schema, T> {
         &self.value
     }
@@ -375,7 +406,7 @@ impl FieldInit {
 
 // ── StorageDescriptor ─────────────────────────────────────────────────────────
 
-/// A lightweight descriptor for a storage schema attached to a [`PlayerSchema`].
+/// A lightweight descriptor for a storage schema attached to a [`PlayerDataSchema`].
 ///
 /// Holds the raw storage ID and root path strings.  No commands are emitted
 /// for storage schemas — Minecraft storage paths need no explicit definition.
@@ -387,23 +418,23 @@ pub struct StorageDescriptor {
     pub root: &'static str,
 }
 
-// ── PlayerSchema ──────────────────────────────────────────────────────────────
+// ── PlayerDataSchema ──────────────────────────────────────────────────────────────
 
 /// A mixed per-player data bundle: scoreboard fields, flags, cooldowns,
 /// and attached storage schema references.
 ///
-/// Build with the chained builder methods.  Call [`define_all`](PlayerSchema::define_all)
-/// in your load function and [`init_player`](PlayerSchema::init_player) in join
+/// Build with the chained builder methods.  Call [`define_all`](PlayerDataSchema::define_all)
+/// in your load function and [`init_player`](PlayerDataSchema::init_player) in join
 /// handlers.  See the [module docs](self) for naming rules and per-player
 /// storage limitations.
-pub struct PlayerSchema {
+pub struct PlayerDataSchema {
     /// Human label for this schema.  Not used to prefix objective names.
     namespace: &'static str,
     fields: Vec<FieldInit>,
     storage_schemas: Vec<StorageDescriptor>,
 }
 
-impl PlayerSchema {
+impl PlayerDataSchema {
     /// Create an empty schema with the given human label.
     ///
     /// The label is for documentation/introspection only — it does **not**
@@ -437,6 +468,7 @@ impl PlayerSchema {
         self
     }
 
+    /// Registers an integer score field for initialization in this player-data schema.
     pub fn score_field<T>(self, field: &ScoreField<T>) -> Self {
         self.score(field.value(), field.default_value())
     }
@@ -450,6 +482,7 @@ impl PlayerSchema {
         self
     }
 
+    /// Registers a boolean flag field for initialization in this player-data schema.
     pub fn flag_field(self, field: &FlagField) -> Self {
         self.flag(field.value(), field.default_value())
     }
@@ -471,6 +504,7 @@ impl PlayerSchema {
         self
     }
 
+    /// Registers a timer field for lifecycle setup in this player-data schema.
     pub fn timer_field(self, field: &TimerField) -> Self {
         self.timer(field.value())
     }
@@ -492,10 +526,12 @@ impl PlayerSchema {
         self
     }
 
+    /// Registers a cooldown field for lifecycle setup in this player-data schema.
     pub fn cooldown_field(self, field: &CooldownField) -> Self {
         self.cooldown(field.value())
     }
 
+    /// Registers a typed game-state field for initialization in this player-data schema.
     pub fn game_state<S: TypedGameState>(mut self, field: &GameStateField<S>) -> Self {
         self.fields.push(FieldInit::StateObj {
             obj: field.value().objective_name(),
@@ -531,7 +567,7 @@ impl PlayerSchema {
     /// # Per-player storage limitation
     ///
     /// Minecraft `data storage` is a **global** namespace, not per-player.
-    /// Attaching a storage schema to `PlayerSchema` does not automatically
+    /// Attaching a storage schema to `PlayerDataSchema` does not automatically
     /// key storage by player UUID or name.
     ///
     /// If you need per-player compound data, the common approaches are:
@@ -552,7 +588,7 @@ impl PlayerSchema {
     /// #[sand(storage = "powers:global", root = "config")]
     /// pub struct PackConfig { pub max_mana: i32 }
     ///
-    /// let schema = PlayerSchema::new("magic")
+    /// let schema = PlayerDataSchema::new("magic")
     ///     .score(&MANA, 100)
     ///     .storage(PackConfig::SCHEMA); // global config, not per-player
     /// ```
@@ -602,7 +638,7 @@ impl PlayerSchema {
     ///
     /// Compatibility/raw path: `selector` is an unvalidated string,
     /// interpolated directly into generated commands. Prefer
-    /// [`PlayerSchema::try_init_player`] in normal code — see
+    /// [`PlayerDataSchema::try_init_player`] in normal code — see
     /// [#146](https://github.com/ThatOneToast/sand/issues/146).
     pub fn init_player(&self, selector: &str) -> Vec<String> {
         let mut seen = std::collections::BTreeSet::new();
@@ -624,17 +660,17 @@ impl PlayerSchema {
         commands
     }
 
-    /// Validated counterpart to [`PlayerSchema::init_player`] — takes a typed
+    /// Validated counterpart to [`PlayerDataSchema::init_player`] — takes a typed
     /// [`sand_commands::ScoreHolder`] and validates it before generating
     /// commands, instead of interpolating an unvalidated selector string.
     ///
     /// ```
-    /// use sand_core::systems::player_data::PlayerSchema;
+    /// use sand_core::systems::player_data::PlayerDataSchema;
     /// use sand_core::state::ScoreVar;
     /// use sand_commands::ScoreHolder;
     ///
     /// static MANA: ScoreVar<i32> = ScoreVar::new("mana");
-    /// let schema = PlayerSchema::new("player").score(&MANA, 100);
+    /// let schema = PlayerDataSchema::new("player").score(&MANA, 100);
     ///
     /// assert!(schema.try_init_player(ScoreHolder::self_()).is_ok());
     /// assert!(schema.try_init_player(ScoreHolder::fake("bad holder")).is_err());
@@ -677,12 +713,8 @@ impl PlayerSchema {
     }
 }
 
-/// User-facing alias for the typed player-scoped schema API.
-///
-/// `PlayerSchema` remains available for compatibility with earlier code and
-/// documentation, but new code can prefer `PlayerDataSchema` to better reflect
-/// that this groups per-player data fields under one schema.
-pub type PlayerDataSchema = PlayerSchema;
+/// Compatibility alias for the earlier, shorter player-schema name.
+pub type PlayerSchema = PlayerDataSchema;
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
@@ -723,8 +755,8 @@ mod tests {
     static CLASS_FIELD: GameStateField<Class> =
         GameStateField::with_default_score("arcane_class", 0);
 
-    fn schema() -> PlayerSchema {
-        PlayerSchema::new("test_pack")
+    fn schema() -> PlayerDataSchema {
+        PlayerDataSchema::new("test_pack")
             .score(&MANA, 100)
             .flag(&HAS_CELLS, false)
             .timer(&REGEN)
@@ -881,7 +913,7 @@ mod tests {
 
     #[test]
     fn name_accessor_returns_label() {
-        let s = PlayerSchema::new("my_pack");
+        let s = PlayerDataSchema::new("my_pack");
         assert_eq!(s.name(), "my_pack");
     }
 
@@ -892,8 +924,8 @@ mod tests {
         // Two schemas registering the same ScoreVar share the same objective.
         // The namespace is a label only.
         static MANA2: ScoreVar<i32> = ScoreVar::new("mana");
-        let schema_a = PlayerSchema::new("magic").score(&MANA2, 100);
-        let schema_b = PlayerSchema::new("stamina").score(&MANA2, 50);
+        let schema_a = PlayerDataSchema::new("magic").score(&MANA2, 100);
+        let schema_b = PlayerDataSchema::new("stamina").score(&MANA2, 50);
         let cmds_a = schema_a.define_all();
         let cmds_b = schema_b.define_all();
         assert_eq!(cmds_a[0], cmds_b[0], "same ScoreVar → same objective");
@@ -903,8 +935,8 @@ mod tests {
     fn distinct_statics_produce_distinct_objectives() {
         static MAGIC_MANA: ScoreVar<i32> = ScoreVar::new("magic_mana");
         static STAMINA_MANA: ScoreVar<i32> = ScoreVar::new("stamina_mana");
-        let schema_a = PlayerSchema::new("magic").score(&MAGIC_MANA, 100);
-        let schema_b = PlayerSchema::new("stamina").score(&STAMINA_MANA, 50);
+        let schema_a = PlayerDataSchema::new("magic").score(&MAGIC_MANA, 100);
+        let schema_b = PlayerDataSchema::new("stamina").score(&STAMINA_MANA, 50);
         let obj_a = &schema_a.define_all()[0];
         let obj_b = &schema_b.define_all()[0];
         assert_ne!(obj_a, obj_b);
@@ -972,7 +1004,7 @@ mod tests {
 
     #[test]
     fn schema_with_only_storage() {
-        let s = PlayerSchema::new("global").storage(TEST_SCHEMA);
+        let s = PlayerDataSchema::new("global").storage(TEST_SCHEMA);
         assert!(s.has_storage());
         assert_eq!(s.scoreboard_field_count(), 0);
         assert!(
@@ -991,8 +1023,8 @@ mod tests {
         // the statics must be different.
         static SCHEMA_A_MANA: ScoreVar<i32> = ScoreVar::new("magic_mana");
         static SCHEMA_B_MANA: ScoreVar<i32> = ScoreVar::new("stamina_mana");
-        let sa = PlayerSchema::new("magic").score(&SCHEMA_A_MANA, 0);
-        let sb = PlayerSchema::new("stamina").score(&SCHEMA_B_MANA, 0);
+        let sa = PlayerDataSchema::new("magic").score(&SCHEMA_A_MANA, 0);
+        let sb = PlayerDataSchema::new("stamina").score(&SCHEMA_B_MANA, 0);
         let da = sa.define_all()[0].clone();
         let db = sb.define_all()[0].clone();
         assert_ne!(da, db, "distinct statics → distinct objectives");

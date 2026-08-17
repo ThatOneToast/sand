@@ -23,6 +23,7 @@ use crate::render::{CommandProfile, RenderCommand, Validate};
 
 /// Conversion into a particle resource-location token.
 pub trait IntoParticleId {
+    /// Converts a typed or validated value into a Minecraft particle identifier.
     fn into_particle_id(self) -> String;
 }
 
@@ -427,6 +428,7 @@ impl ParticleBuilder {
         Ok(self.circle(radius, y_offset, points))
     }
 
+    /// Validates an arc geometry and returns its ordered particle commands.
     pub fn try_arc(
         &self,
         radius: f64,
@@ -447,6 +449,7 @@ impl ParticleBuilder {
         Ok(self.arc(radius, y_offset, start_deg, end_deg, points))
     }
 
+    /// Validates a regular polygon and returns its ordered particle commands.
     pub fn try_polygon(
         &self,
         sides: usize,
@@ -474,6 +477,7 @@ impl ParticleBuilder {
         Ok(self.polygon(sides, radius, y_offset, points_per_side))
     }
 
+    /// Validates a star geometry and returns its ordered particle commands.
     pub fn try_star(
         &self,
         arms: usize,
@@ -529,6 +533,7 @@ impl ParticleBuilder {
         Ok(self.helix(radius, height, turns, points))
     }
 
+    /// Validates a double helix and returns its ordered particle commands.
     pub fn try_double_helix(
         &self,
         radius: f64,
@@ -540,6 +545,7 @@ impl ParticleBuilder {
         Ok(self.double_helix(radius, height, turns, points))
     }
 
+    /// Validates a line segment and returns its ordered particle commands.
     pub fn try_line(
         &self,
         from: [f64; 3],
@@ -553,6 +559,7 @@ impl ParticleBuilder {
         Ok(self.line(from, to, points))
     }
 
+    /// Validates a filled disc and returns its ordered particle commands.
     pub fn try_disc(
         &self,
         radius: f64,
@@ -565,6 +572,7 @@ impl ParticleBuilder {
         Ok(self.disc(radius, y_offset, density))
     }
 
+    /// Validates a torus geometry and returns its ordered particle commands.
     pub fn try_torus(
         &self,
         major_radius: f64,
@@ -594,6 +602,7 @@ impl ParticleBuilder {
         ))
     }
 
+    /// Validates a cone geometry and returns its ordered particle commands.
     pub fn try_cone(
         &self,
         base_radius: f64,
@@ -608,6 +617,7 @@ impl ParticleBuilder {
         Ok(self.cone(base_radius, height, y_offset, rings))
     }
 
+    /// Validates a radial burst and returns its ordered particle commands.
     pub fn try_burst(
         &self,
         radius: f64,
@@ -620,6 +630,7 @@ impl ParticleBuilder {
         Ok(self.burst(radius, y_offset, points))
     }
 
+    /// Validates a wave geometry and returns its ordered particle commands.
     pub fn try_wave(
         &self,
         length: f64,
@@ -636,6 +647,7 @@ impl ParticleBuilder {
         Ok(self.wave(length, amplitude, cycles, y_offset, points))
     }
 
+    /// Validates a rectangular grid and returns its ordered particle commands.
     pub fn try_grid(
         &self,
         width: f64,

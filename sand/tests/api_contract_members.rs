@@ -83,7 +83,22 @@ fn parent_contracts_register_nested_members_with_derived_shapes() {
     assert_eq!(settings.id, 7);
     assert!(settings.enabled);
 
-    let catalog = ApiCatalog::installed(env!("CARGO_PKG_VERSION")).unwrap();
+    let compiled_surface_items =
+        sand_api_contract::inventory::iter::<sand_api_contract::ApiRegistration>
+            .into_iter()
+            .count();
+    let catalog = ApiCatalog::from_registrations(
+        env!("CARGO_PKG_VERSION"),
+        sand_api_contract::ApiConfiguration {
+            surface_profile: "test".into(),
+            minecraft_version: "test".into(),
+            cargo_features: Vec::new(),
+            placeholder_codegen: false,
+            compiled_surface_items,
+        },
+        sand_api_contract::inventory::iter::<sand_api_contract::ApiRegistration>,
+    )
+    .unwrap();
     let enabled = catalog.find("sand::prelude::Mode::Enabled").unwrap();
     assert_eq!(enabled.canonical_path, "sand::testing::Mode::Enabled");
     assert_eq!(enabled.canonical_module, "sand::testing::Mode");

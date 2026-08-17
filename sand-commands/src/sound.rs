@@ -27,6 +27,7 @@ use crate::selector::Selector;
 
 /// Conversion into a sound-event resource-location token.
 pub trait IntoSoundEvent {
+    /// Converts a typed or validated value into a Minecraft sound-event identifier.
     fn into_sound_event(self) -> String;
 }
 

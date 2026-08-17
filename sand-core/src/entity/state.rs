@@ -190,7 +190,6 @@ pub trait EntityStateField: Copy + 'static {
     /// `track_dirty` is enabled for entity/living state whose archetype
     /// reconciliation consumes the auxiliary objective. Player/global state
     /// passes `false` because its lifecycle owns only the primary objective.
-    #[doc(hidden)]
     fn bind_to(self, holder: &'static str, track_dirty: bool) -> Self::Accessor;
 }
 
@@ -266,7 +265,7 @@ impl<T: 'static> EntityScore<T> {
     /// Compiler-facing constructor for version and dirty score fields.
     #[doc(hidden)]
     #[must_use]
-    pub const fn __new(
+    pub(crate) const fn __new(
         namespace: &'static str,
         schema: &'static str,
         name: &'static str,

@@ -64,15 +64,12 @@
 //!   silent arbitrary pick when two parents could both plausibly supply a
 //!   role.
 //!
-//! This module is the *only*
-//! parallel capability-bookkeeping mechanism
-//! (`EventContextCapabilities::for_event_with_participants`,
-//! `capabilities::full`) computed a similar-looking "could honestly
-//! promise" value with zero export-pipeline call sites and was removed by
-//! #274; see `sand-core/src/participant/capabilities.rs`'s module doc and
-//! `docs/testing/participant-role-evidence.md` for that history. Do not
-//! reintroduce a second, Rust-level-only propagation mechanism here — this
-//! validator against the real [`EventGraph`] is the one source of truth.
+//! This module is the only participant-propagation authority. Earlier
+//! advisory capability bookkeeping computed a similar-looking "could
+//! honestly promise" value without any export-pipeline call sites, so it was
+//! removed rather than left as a second Rust-only model. Do not reintroduce
+//! one here: this validator against the real [`EventGraph`] is the source of
+//! truth.
 
 use std::collections::{BTreeMap, BTreeSet};
 

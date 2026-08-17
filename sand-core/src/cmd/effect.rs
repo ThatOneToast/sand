@@ -12,6 +12,7 @@ pub struct EffectGive {
 }
 
 impl EffectGive {
+    /// Creates a typed effect give command builder from the supplied command inputs.
     pub fn new(selector: Selector, effect: impl Into<EffectId>) -> Self {
         Self {
             command: EffectCommand::give(selector, effect.into().to_string()),
@@ -36,6 +37,7 @@ impl EffectGive {
         self
     }
 
+    /// Sets the zero-based amplifier on this typed effect command.
     pub fn amplifier(mut self, amplifier: u8) -> Self {
         self.command = self.command.amplifier(amplifier);
         self
@@ -47,6 +49,7 @@ impl EffectGive {
         self
     }
 
+    /// Renders the configured effect give as validated Minecraft command text.
     pub fn build(&self) -> String {
         self.command.build()
     }

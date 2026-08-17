@@ -1,0 +1,17 @@
+[package]
+name = "shape-preserving-consumer-fixture"
+version = "0.0.0"
+edition = "2024"
+publish = false
+build = "build.rs"
+
+[workspace]
+
+[features]
+complete-provider = []
+
+[dependencies]
+sand = { path = "../../../../sand" }
+
+[build-dependencies]
+sand-api-enforce = { path = "../../.." }

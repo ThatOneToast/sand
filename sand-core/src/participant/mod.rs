@@ -17,19 +17,12 @@
 //! - [`reference::PlayerParticipant`] / [`reference::EntityParticipant`] —
 //!   typed, command-building references carrying their own reliability and
 //!   lifetime, with `require_exact`/`require` gates.
-//! - [`capabilities::EventContextCapabilities`] — the deterministic,
-//!   `'static` descriptor of what an event type's *own* dispatch shape
-//!   promises about its **subject** participant, plus the propagation/merge
-//!   rules for `after`/`after_any`/`after_all`/`while`/`within`/advancement
-//!   bridges. This is subject-only: an earlier participant-specific
-//!   extension (`for_event_with_participants`, `capabilities::full`) was
-//!   removed by #274 after an audit found it had zero production call
-//!   sites — see [`capabilities`]'s module doc and
-//!   `docs/testing/participant-role-evidence.md` for why real participant
-//!   propagation is [`plan::EventParticipantPlan::inherit_entity`]/
-//!   `inherit_item` plus export-time
-//!   `sand-core/src/compiler/export/participant_transport.rs` validation
-//!   instead.
+//! - participant propagation is declared directly through
+//!   [`plan::EventParticipantPlan::inherit_entity`]/`inherit_item` and
+//!   validated at export time by
+//!   `sand-core/src/compiler/export/participant_transport.rs`. Sand does not
+//!   expose a second, advisory capability model: only observations that the
+//!   exported runtime can actually capture are part of the authoring API.
 //! - [`observation::observe_correlated_attacker`] — embeds a correlated
 //!   `Attacker`/`Killer`-role [`EntityParticipant`] into a generated
 //!   command sequence, backed by vanilla's `execute on attacker` relation.
@@ -59,7 +52,6 @@
 pub mod availability;
 pub mod bounded_item;
 pub mod builder;
-pub mod capabilities;
 pub(crate) mod diagnostic;
 pub mod lifetime;
 pub mod observation;
@@ -71,9 +63,6 @@ pub mod role;
 pub use availability::{ParticipantAvailability, ParticipantUnavailableReason};
 pub use bounded_item::BoundedItemSnapshot;
 pub use builder::ParticipantBuilder;
-pub use capabilities::{
-    ContextMergeError, EventContextCapabilities, SubjectCapability, SubjectScope,
-};
 pub use lifetime::ParticipantLifetime;
 pub use observation::{
     CorrelatedEntityObservation, CorrelationEvidence, CorrelationSource, ObservationError,

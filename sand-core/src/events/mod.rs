@@ -166,11 +166,15 @@
 //!
 //! Simple advancement-backed or single-fragment tick-poll `SandEvent` impls
 //! remain supported via [`SandEventDispatch::AdvancementTrigger`] and
-//! [`SandEventDispatch::TickCondition`] — both lower into the same normalized
-//! IR as [`SandEventDispatch::tick()`] (see [`SandEventDispatch::normalize`]).
+//! [`SandEventDispatch::TickCondition`] — both lower into the same internal
+//! representation as [`SandEventDispatch::tick()`].
 
 /// Event dependency graph construction for same-cycle chained dispatch (#240).
-pub mod graph;
+///
+/// The graph is exporter wiring. Authors compose public `SandEventDispatch`
+/// builders instead of depending on graph nodes or edge records directly.
+#[allow(dead_code)]
+pub(crate) mod graph;
 
 // ── Custom event API ──────────────────────────────────────────────────────────
 
@@ -352,44 +356,44 @@ impl std::error::Error for TickWindowError {}
 
 /// One typed bounded cross-tick correlation dependency attached to a chained
 /// event. See [`ChainEventDispatch::within`].
-pub struct BoundedEventDependency {
+pub(crate) struct BoundedEventDependency {
     #[doc(hidden)]
-    pub event_type_id: fn() -> std::any::TypeId,
+    pub(crate) event_type_id: fn() -> std::any::TypeId,
     #[doc(hidden)]
-    pub event_type_name: fn() -> &'static str,
+    pub(crate) event_type_name: fn() -> &'static str,
     #[doc(hidden)]
-    pub event_dispatch: fn() -> SandEventDispatch,
+    pub(crate) event_dispatch: fn() -> SandEventDispatch,
     #[doc(hidden)]
-    pub event_setup: fn() -> EventSetup,
+    pub(crate) event_setup: fn() -> EventSetup,
     #[doc(hidden)]
-    pub window: TickWindow,
+    pub(crate) window: TickWindow,
 }
 
 /// One typed persistent-state dependency attached to a chained event.
-pub struct PersistentEventDependency {
+pub(crate) struct PersistentEventDependency {
     #[doc(hidden)]
-    pub event_type_id: fn() -> std::any::TypeId,
+    pub(crate) event_type_id: fn() -> std::any::TypeId,
     #[doc(hidden)]
-    pub event_type_name: fn() -> &'static str,
+    pub(crate) event_type_name: fn() -> &'static str,
     #[doc(hidden)]
-    pub event_dispatch: fn() -> SandEventDispatch,
+    pub(crate) event_dispatch: fn() -> SandEventDispatch,
     #[doc(hidden)]
-    pub event_setup: fn() -> EventSetup,
+    pub(crate) event_setup: fn() -> EventSetup,
     #[doc(hidden)]
-    pub make_condition: fn() -> PersistentEventCondition,
+    pub(crate) make_condition: fn() -> PersistentEventCondition,
 }
 
 /// One typed same-cycle event occurrence dependency.
 #[derive(Clone, Copy)]
-pub struct SameCycleEventDependency {
+pub(crate) struct SameCycleEventDependency {
     #[doc(hidden)]
-    pub event_type_id: fn() -> std::any::TypeId,
+    pub(crate) event_type_id: fn() -> std::any::TypeId,
     #[doc(hidden)]
-    pub event_type_name: fn() -> &'static str,
+    pub(crate) event_type_name: fn() -> &'static str,
     #[doc(hidden)]
-    pub event_dispatch: fn() -> SandEventDispatch,
+    pub(crate) event_dispatch: fn() -> SandEventDispatch,
     #[doc(hidden)]
-    pub event_setup: fn() -> EventSetup,
+    pub(crate) event_setup: fn() -> EventSetup,
     /// `E::setup()` called directly, with no participant-plan merge — unlike
     /// `event_setup` (which is `dependency_setup`, crate-private, the
     /// participants-merged view a same-cycle child's own recursively-discovered `EventSetup`
@@ -401,19 +405,18 @@ pub struct SameCycleEventDependency {
     /// `sand-core/src/events/graph.rs`'s bridge-eligibility check and
     /// `sand-core/src/compiler/export/pipeline.rs`'s bridge loop).
     #[doc(hidden)]
-    pub event_raw_setup: fn() -> EventSetup,
-    /// `E::participants()` called directly — the raw plan factory
-    /// [`AdvancementBridge`](crate::events::graph::AdvancementBridge) carries
+    pub(crate) event_raw_setup: fn() -> EventSetup,
+    /// `E::participants()` called directly — the raw plan factory carried
     /// forward so the export pipeline can apply a bridge parent's own plan
     /// (#269).
     #[doc(hidden)]
-    pub event_participants: fn() -> crate::participant::EventParticipantPlan,
+    pub(crate) event_participants: fn() -> crate::participant::EventParticipantPlan,
     /// Whether this parent's advancement is revoked after firing —
     /// [`SandEvent::revoke`]. Only meaningful when the parent resolves to
     /// advancement-backed dispatch (#240 Phase 6); ignored for tick-backed
     /// parents, which have no advancement to revoke.
     #[doc(hidden)]
-    pub event_revoke: fn() -> bool,
+    pub(crate) event_revoke: fn() -> bool,
 }
 
 /// `E::setup()` with `E::participants()` merged in exactly the same way the
@@ -463,7 +466,7 @@ impl SameCycleEventDependency {
 }
 
 /// One explicit same-cycle occurrence clause in a composed event definition.
-pub enum SameCycleEventRequirement {
+pub(crate) enum SameCycleEventRequirement {
     /// One concrete parent must have fired.
     After(SameCycleEventDependency),
     /// At least one parent in the group must have fired.
@@ -473,7 +476,11 @@ pub enum SameCycleEventRequirement {
 }
 
 mod event_group_private {
-    pub trait Sealed {}
+    use super::ChainEventDispatch;
+
+    pub trait Sealed {
+        fn apply(dispatch: ChainEventDispatch, all: bool) -> ChainEventDispatch;
+    }
 }
 
 /// A typed tuple of two through eight concrete [`SandEvent`] parent types.
@@ -485,55 +492,77 @@ mod event_group_private {
     label = "expected a tuple of 2 through 8 concrete `SandEvent` types",
     note = "use `after::<E>()` for one parent, or `after_any::<(A, B)>()` / `after_all::<(A, B)>()` for 2 through 8 parents"
 )]
-pub trait SameCycleEventGroup: event_group_private::Sealed {
-    #[doc(hidden)]
-    fn dependencies() -> Vec<SameCycleEventDependency>;
+pub trait SameCycleEventGroup: event_group_private::Sealed {}
+
+fn apply_event_group(
+    mut dispatch: ChainEventDispatch,
+    all: bool,
+    dependencies: Vec<SameCycleEventDependency>,
+) -> ChainEventDispatch {
+    dispatch.occurrence.push(if all {
+        SameCycleEventRequirement::AfterAll(dependencies)
+    } else {
+        SameCycleEventRequirement::AfterAny(dependencies)
+    });
+    dispatch
 }
 
-impl<A: SandEvent + 'static, B: SandEvent + 'static> event_group_private::Sealed for (A, B) {}
-
-impl<A: SandEvent + 'static, B: SandEvent + 'static> SameCycleEventGroup for (A, B) {
-    fn dependencies() -> Vec<SameCycleEventDependency> {
-        vec![
-            SameCycleEventDependency::of::<A>(),
-            SameCycleEventDependency::of::<B>(),
-        ]
+impl<A: SandEvent + 'static, B: SandEvent + 'static> event_group_private::Sealed for (A, B) {
+    fn apply(dispatch: ChainEventDispatch, all: bool) -> ChainEventDispatch {
+        apply_event_group(
+            dispatch,
+            all,
+            vec![
+                SameCycleEventDependency::of::<A>(),
+                SameCycleEventDependency::of::<B>(),
+            ],
+        )
     }
 }
+
+impl<A: SandEvent + 'static, B: SandEvent + 'static> SameCycleEventGroup for (A, B) {}
 
 impl<A: SandEvent + 'static, B: SandEvent + 'static, C: SandEvent + 'static>
     event_group_private::Sealed for (A, B, C)
 {
+    fn apply(dispatch: ChainEventDispatch, all: bool) -> ChainEventDispatch {
+        apply_event_group(
+            dispatch,
+            all,
+            vec![
+                SameCycleEventDependency::of::<A>(),
+                SameCycleEventDependency::of::<B>(),
+                SameCycleEventDependency::of::<C>(),
+            ],
+        )
+    }
 }
 
 impl<A: SandEvent + 'static, B: SandEvent + 'static, C: SandEvent + 'static> SameCycleEventGroup
     for (A, B, C)
 {
-    fn dependencies() -> Vec<SameCycleEventDependency> {
-        vec![
-            SameCycleEventDependency::of::<A>(),
-            SameCycleEventDependency::of::<B>(),
-            SameCycleEventDependency::of::<C>(),
-        ]
-    }
 }
 
 impl<A: SandEvent + 'static, B: SandEvent + 'static, C: SandEvent + 'static, D: SandEvent + 'static>
     event_group_private::Sealed for (A, B, C, D)
 {
+    fn apply(dispatch: ChainEventDispatch, all: bool) -> ChainEventDispatch {
+        apply_event_group(
+            dispatch,
+            all,
+            vec![
+                SameCycleEventDependency::of::<A>(),
+                SameCycleEventDependency::of::<B>(),
+                SameCycleEventDependency::of::<C>(),
+                SameCycleEventDependency::of::<D>(),
+            ],
+        )
+    }
 }
 
 impl<A: SandEvent + 'static, B: SandEvent + 'static, C: SandEvent + 'static, D: SandEvent + 'static>
     SameCycleEventGroup for (A, B, C, D)
 {
-    fn dependencies() -> Vec<SameCycleEventDependency> {
-        vec![
-            SameCycleEventDependency::of::<A>(),
-            SameCycleEventDependency::of::<B>(),
-            SameCycleEventDependency::of::<C>(),
-            SameCycleEventDependency::of::<D>(),
-        ]
-    }
 }
 
 impl<
@@ -544,6 +573,19 @@ impl<
     E: SandEvent + 'static,
 > event_group_private::Sealed for (A, B, C, D, E)
 {
+    fn apply(dispatch: ChainEventDispatch, all: bool) -> ChainEventDispatch {
+        apply_event_group(
+            dispatch,
+            all,
+            vec![
+                SameCycleEventDependency::of::<A>(),
+                SameCycleEventDependency::of::<B>(),
+                SameCycleEventDependency::of::<C>(),
+                SameCycleEventDependency::of::<D>(),
+                SameCycleEventDependency::of::<E>(),
+            ],
+        )
+    }
 }
 
 impl<
@@ -554,15 +596,6 @@ impl<
     E: SandEvent + 'static,
 > SameCycleEventGroup for (A, B, C, D, E)
 {
-    fn dependencies() -> Vec<SameCycleEventDependency> {
-        vec![
-            SameCycleEventDependency::of::<A>(),
-            SameCycleEventDependency::of::<B>(),
-            SameCycleEventDependency::of::<C>(),
-            SameCycleEventDependency::of::<D>(),
-            SameCycleEventDependency::of::<E>(),
-        ]
-    }
 }
 
 impl<
@@ -574,6 +607,20 @@ impl<
     F: SandEvent + 'static,
 > event_group_private::Sealed for (A, B, C, D, E, F)
 {
+    fn apply(dispatch: ChainEventDispatch, all: bool) -> ChainEventDispatch {
+        apply_event_group(
+            dispatch,
+            all,
+            vec![
+                SameCycleEventDependency::of::<A>(),
+                SameCycleEventDependency::of::<B>(),
+                SameCycleEventDependency::of::<C>(),
+                SameCycleEventDependency::of::<D>(),
+                SameCycleEventDependency::of::<E>(),
+                SameCycleEventDependency::of::<F>(),
+            ],
+        )
+    }
 }
 
 impl<
@@ -585,16 +632,6 @@ impl<
     F: SandEvent + 'static,
 > SameCycleEventGroup for (A, B, C, D, E, F)
 {
-    fn dependencies() -> Vec<SameCycleEventDependency> {
-        vec![
-            SameCycleEventDependency::of::<A>(),
-            SameCycleEventDependency::of::<B>(),
-            SameCycleEventDependency::of::<C>(),
-            SameCycleEventDependency::of::<D>(),
-            SameCycleEventDependency::of::<E>(),
-            SameCycleEventDependency::of::<F>(),
-        ]
-    }
 }
 
 impl<
@@ -607,6 +644,21 @@ impl<
     G: SandEvent + 'static,
 > event_group_private::Sealed for (A, B, C, D, E, F, G)
 {
+    fn apply(dispatch: ChainEventDispatch, all: bool) -> ChainEventDispatch {
+        apply_event_group(
+            dispatch,
+            all,
+            vec![
+                SameCycleEventDependency::of::<A>(),
+                SameCycleEventDependency::of::<B>(),
+                SameCycleEventDependency::of::<C>(),
+                SameCycleEventDependency::of::<D>(),
+                SameCycleEventDependency::of::<E>(),
+                SameCycleEventDependency::of::<F>(),
+                SameCycleEventDependency::of::<G>(),
+            ],
+        )
+    }
 }
 
 impl<
@@ -619,17 +671,6 @@ impl<
     G: SandEvent + 'static,
 > SameCycleEventGroup for (A, B, C, D, E, F, G)
 {
-    fn dependencies() -> Vec<SameCycleEventDependency> {
-        vec![
-            SameCycleEventDependency::of::<A>(),
-            SameCycleEventDependency::of::<B>(),
-            SameCycleEventDependency::of::<C>(),
-            SameCycleEventDependency::of::<D>(),
-            SameCycleEventDependency::of::<E>(),
-            SameCycleEventDependency::of::<F>(),
-            SameCycleEventDependency::of::<G>(),
-        ]
-    }
 }
 
 impl<
@@ -643,6 +684,22 @@ impl<
     H: SandEvent + 'static,
 > event_group_private::Sealed for (A, B, C, D, E, F, G, H)
 {
+    fn apply(dispatch: ChainEventDispatch, all: bool) -> ChainEventDispatch {
+        apply_event_group(
+            dispatch,
+            all,
+            vec![
+                SameCycleEventDependency::of::<A>(),
+                SameCycleEventDependency::of::<B>(),
+                SameCycleEventDependency::of::<C>(),
+                SameCycleEventDependency::of::<D>(),
+                SameCycleEventDependency::of::<E>(),
+                SameCycleEventDependency::of::<F>(),
+                SameCycleEventDependency::of::<G>(),
+                SameCycleEventDependency::of::<H>(),
+            ],
+        )
+    }
 }
 
 impl<
@@ -656,18 +713,6 @@ impl<
     H: SandEvent + 'static,
 > SameCycleEventGroup for (A, B, C, D, E, F, G, H)
 {
-    fn dependencies() -> Vec<SameCycleEventDependency> {
-        vec![
-            SameCycleEventDependency::of::<A>(),
-            SameCycleEventDependency::of::<B>(),
-            SameCycleEventDependency::of::<C>(),
-            SameCycleEventDependency::of::<D>(),
-            SameCycleEventDependency::of::<E>(),
-            SameCycleEventDependency::of::<F>(),
-            SameCycleEventDependency::of::<G>(),
-            SameCycleEventDependency::of::<H>(),
-        ]
-    }
 }
 
 /// Lifecycle resources a [`SandEvent`] owns: objectives to create at load time,
@@ -736,8 +781,9 @@ impl EventSetup {
 /// condition expands into more than one OR-alternative execute plan" can
 /// never be conflated into a single `None` — every caller must handle both
 /// cases explicitly.
+#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum TickExecutionPlans {
+pub(crate) enum TickExecutionPlans {
     /// No `when`/`unless` conditions were declared. The event dispatches
     /// unconditionally every tick — no `if`/`unless` clauses at all, e.g.
     /// `execute as @a at @s run function ...`.
@@ -777,15 +823,16 @@ impl TickExecutionIrPlans {
     }
 }
 
+#[allow(dead_code)]
 impl TickExecutionPlans {
     /// `true` if this is [`Unconditional`](Self::Unconditional).
-    pub fn is_unconditional(&self) -> bool {
+    pub(crate) fn is_unconditional(&self) -> bool {
         matches!(self, Self::Unconditional)
     }
 
     /// The OR-alternative plans, or an empty slice for
     /// [`Unconditional`](Self::Unconditional).
-    pub fn plans(&self) -> &[Vec<String>] {
+    pub(crate) fn plans(&self) -> &[Vec<String>] {
         match self {
             Self::Unconditional => &[],
             Self::Plans(p) => p,
@@ -821,11 +868,11 @@ impl TickExecutionPlans {
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct TickEventDispatch {
     /// The execution scope handlers are dispatched under.
-    pub scope: TickScope,
+    pub(crate) scope: TickScope,
     /// Positive conditions — all must hold (ANDed).
-    pub when: Vec<crate::condition::Condition>,
+    pub(crate) when: Vec<crate::condition::Condition>,
     /// Negative conditions — none may hold (ANDed as `unless`).
-    pub unless: Vec<crate::condition::Condition>,
+    pub(crate) unless: Vec<crate::condition::Condition>,
 }
 
 impl TickEventDispatch {
@@ -890,7 +937,8 @@ impl TickEventDispatch {
     /// one OR-alternative execute plan." Callers must handle both
     /// [`TickExecutionPlans::Unconditional`] and every entry of
     /// [`TickExecutionPlans::Plans`] explicitly.
-    pub fn execution_plans(&self) -> TickExecutionPlans {
+    #[allow(dead_code)]
+    pub(crate) fn execution_plans(&self) -> TickExecutionPlans {
         self.execution_ir_plans().render_compat()
     }
 
@@ -940,19 +988,19 @@ impl From<TickEventDispatch> for SandEventDispatch {
 pub struct ChainEventDispatch {
     /// Explicit same-cycle occurrence clauses. Clauses are conjunctive;
     /// `AfterAny` is disjunctive only within its own parent group.
-    pub occurrence: Vec<SameCycleEventRequirement>,
+    pub(crate) occurrence: Vec<SameCycleEventRequirement>,
     /// Persistent current-state requirements, kept distinct from the
     /// same-cycle occurrence parent and from ordinary anonymous conditions.
-    pub persistent: Vec<PersistentEventDependency>,
+    pub(crate) persistent: Vec<PersistentEventDependency>,
     /// Bounded cross-tick correlation requirements. Distinct from `occurrence`
     /// (same-cycle only) and `persistent` (current state, no occurrence). See
     /// [`ChainEventDispatch::within`].
-    pub bounded: Vec<BoundedEventDependency>,
+    pub(crate) bounded: Vec<BoundedEventDependency>,
     /// Positive conditions — all must hold (ANDed) for this child to fire
     /// once its occurrence requirements are satisfied.
-    pub when: Vec<crate::condition::Condition>,
+    pub(crate) conditions: Vec<crate::condition::Condition>,
     /// Negative conditions — none may hold.
-    pub unless: Vec<crate::condition::Condition>,
+    pub(crate) excluded_conditions: Vec<crate::condition::Condition>,
 }
 
 impl ChainEventDispatch {
@@ -971,10 +1019,8 @@ impl ChainEventDispatch {
     /// `G` is a tuple of two through eight concrete [`SandEvent`] types.
     /// Multiple `after_any` groups in one definition are rejected at export
     /// because their coalescing boundary would otherwise be ambiguous.
-    pub fn after_any<G: SameCycleEventGroup>(mut self) -> Self {
-        self.occurrence
-            .push(SameCycleEventRequirement::AfterAny(G::dependencies()));
-        self
+    pub fn after_any<G: SameCycleEventGroup>(self) -> Self {
+        <G as event_group_private::Sealed>::apply(self, false)
     }
 
     /// Require every event in `G` to have fired for the same subject during
@@ -982,10 +1028,8 @@ impl ChainEventDispatch {
     ///
     /// `G` is a tuple of two through eight concrete [`SandEvent`] types.
     /// Multiple `after_all` groups in one definition are rejected at export.
-    pub fn after_all<G: SameCycleEventGroup>(mut self) -> Self {
-        self.occurrence
-            .push(SameCycleEventRequirement::AfterAll(G::dependencies()));
-        self
+    pub fn after_all<G: SameCycleEventGroup>(self) -> Self {
+        <G as event_group_private::Sealed>::apply(self, true)
     }
 
     /// Require `E`'s persistent state to be true when this child is considered.
@@ -1075,7 +1119,7 @@ impl ChainEventDispatch {
     ///
     /// Multiple calls are ANDed together.
     pub fn when(mut self, condition: impl Into<crate::condition::Condition>) -> Self {
-        self.when.push(condition.into());
+        self.conditions.push(condition.into());
         self
     }
 
@@ -1089,7 +1133,7 @@ impl ChainEventDispatch {
     /// Multiple calls are ANDed together (i.e. every `unless` condition must
     /// fail to hold).
     pub fn unless(mut self, condition: impl Into<crate::condition::Condition>) -> Self {
-        self.unless.push(condition.into());
+        self.excluded_conditions.push(condition.into());
         self
     }
 
@@ -1097,15 +1141,15 @@ impl ChainEventDispatch {
     /// or `None` if no conditions were declared (the child fires
     /// unconditionally whenever its parent fires).
     pub fn combined_condition(&self) -> Option<crate::condition::Condition> {
-        if self.when.is_empty() && self.unless.is_empty() {
+        if self.conditions.is_empty() && self.excluded_conditions.is_empty() {
             return None;
         }
-        let mut combined = if self.when.is_empty() {
+        let mut combined = if self.conditions.is_empty() {
             crate::condition::Condition::all([])
         } else {
-            crate::condition::Condition::all(self.when.clone())
+            crate::condition::Condition::all(self.conditions.clone())
         };
-        for u in &self.unless {
+        for u in &self.excluded_conditions {
             combined = combined.and_not(u.clone());
         }
         Some(combined)
@@ -1113,10 +1157,12 @@ impl ChainEventDispatch {
 
     /// Expand this child's conditions into explicit [`TickExecutionPlans`],
     /// same shape as [`TickEventDispatch::execution_plans`].
-    pub fn execution_plans(&self) -> TickExecutionPlans {
+    #[allow(dead_code)]
+    pub(crate) fn execution_plans(&self) -> TickExecutionPlans {
         self.execution_ir_plans().render_compat()
     }
 
+    #[allow(dead_code)]
     pub(crate) fn execution_ir_plans(&self) -> TickExecutionIrPlans {
         match self.combined_condition() {
             None => TickExecutionIrPlans::Unconditional,
@@ -1200,8 +1246,8 @@ pub enum SandEventDispatch {
 /// and `TickCondition` compatibility constructors — lowers into one of these
 /// shapes, so the exporter has a single normalized IR to consume rather
 /// than juggling multiple representations.
-#[allow(clippy::large_enum_variant)]
-pub enum NormalizedEventDispatch {
+#[allow(clippy::large_enum_variant, dead_code)]
+pub(crate) enum NormalizedEventDispatch {
     /// Advancement-backed dispatch.
     Advancement(crate::AdvancementTrigger),
     /// Tick-poll dispatch, always in the structured [`TickEventDispatch`] shape.
@@ -1257,8 +1303,8 @@ impl SandEventDispatch {
             occurrence: Vec::new(),
             persistent: Vec::new(),
             bounded: Vec::new(),
-            when: Vec::new(),
-            unless: Vec::new(),
+            conditions: Vec::new(),
+            excluded_conditions: Vec::new(),
         }
     }
 
@@ -1279,7 +1325,7 @@ impl SandEventDispatch {
     ///   [`Condition::raw`](crate::condition::Condition::raw) `when` clause.
     /// - `Tick(t)` → `Tick(t)` unchanged.
     /// - `Chain(c)` → `Chain(c)` unchanged.
-    pub fn normalize(self) -> NormalizedEventDispatch {
+    pub(crate) fn normalize(self) -> NormalizedEventDispatch {
         match self {
             SandEventDispatch::AdvancementTrigger(t) => NormalizedEventDispatch::Advancement(t),
             SandEventDispatch::TickCondition(s) => NormalizedEventDispatch::Tick(
@@ -2335,7 +2381,6 @@ macro_rules! adv_event {
                 dispatch.into_trigger().unwrap()
             }
         }
-        impl crate::event::EventPlayer for $ty {}
     };
     // Same as above, plus a declared participant plan (#230) — the export
     // pipeline applies it automatically to this event's generated body; see
@@ -2351,7 +2396,6 @@ macro_rules! adv_event {
                 $plan
             }
         }
-        impl crate::event::EventPlayer for $ty {}
     };
 }
 
@@ -2436,7 +2480,6 @@ impl crate::event::AdvancementEvent for PlayerLevelUpEvent {
         crate::AdvancementTrigger::Tick
     }
 }
-impl crate::event::EventPlayer for PlayerLevelUpEvent {}
 adv_event!(EffectsChangedEvent);
 adv_event!(StartRidingEvent);
 adv_event!(UseEnderEyeEvent);
@@ -2473,7 +2516,7 @@ pub struct PlayerStopSneakingEvent;
 /// Shared current-state source used by both sneaking transitions and
 /// persistent composition. Kept public only for proc-macro expansion.
 #[doc(hidden)]
-pub const PLAYER_SNEAKING_TRACKED_SOURCE: crate::TrackedSource =
+pub(crate) const PLAYER_SNEAKING_TRACKED_SOURCE: crate::TrackedSource =
     crate::TrackedSource::BooleanCondition {
         description: "vanilla entity predicate flags.is_sneaking",
         condition: "predicate __sand_local:__sand/player_sneaking",
@@ -2522,7 +2565,7 @@ impl PersistentSandEvent for PlayerSneakEvent {
 /// Shared current-state source for sprinting transitions and persistent
 /// composition. Kept public only for proc-macro expansion.
 #[doc(hidden)]
-pub const PLAYER_SPRINTING_TRACKED_SOURCE: crate::TrackedSource =
+pub(crate) const PLAYER_SPRINTING_TRACKED_SOURCE: crate::TrackedSource =
     crate::TrackedSource::BooleanCondition {
         description: "vanilla entity predicate flags.is_sprinting",
         condition: "predicate __sand_local:__sand/player_sprinting",
@@ -2578,7 +2621,7 @@ impl SandEvent for PlayerStopSprintingEvent {
 /// Shared current-state source for swimming transitions and persistent
 /// composition. Kept public only for proc-macro expansion.
 #[doc(hidden)]
-pub const PLAYER_SWIMMING_TRACKED_SOURCE: crate::TrackedSource =
+pub(crate) const PLAYER_SWIMMING_TRACKED_SOURCE: crate::TrackedSource =
     crate::TrackedSource::BooleanCondition {
         description: "vanilla entity predicate flags.is_swimming",
         condition: "predicate __sand_local:__sand/player_swimming",
@@ -2633,7 +2676,7 @@ impl SandEvent for PlayerStopSwimmingEvent {
 /// Shared current-state source for flying transitions and persistent
 /// composition. Kept public only for proc-macro expansion.
 #[doc(hidden)]
-pub const PLAYER_FLYING_TRACKED_SOURCE: crate::TrackedSource =
+pub(crate) const PLAYER_FLYING_TRACKED_SOURCE: crate::TrackedSource =
     crate::TrackedSource::BooleanCondition {
         description: "vanilla entity NBT abilities.flying",
         condition: "entity @s[nbt={abilities:{flying:1b}}]",
@@ -2689,7 +2732,7 @@ impl SandEvent for PlayerStopFlyingEvent {
 /// Shared current-state source for on-fire transitions and persistent
 /// composition. Kept public only for proc-macro expansion.
 #[doc(hidden)]
-pub const PLAYER_ON_FIRE_TRACKED_SOURCE: crate::TrackedSource =
+pub(crate) const PLAYER_ON_FIRE_TRACKED_SOURCE: crate::TrackedSource =
     crate::TrackedSource::BooleanCondition {
         description: "vanilla entity predicate flags.is_on_fire",
         condition: "predicate __sand_local:__sand/player_on_fire",
@@ -2814,6 +2857,24 @@ macro_rules! gamemode_transition {
     ($mode:literal, $tracker:literal, $enter:ident, $exit:ident) => {
         #[doc = concat!("Fires once when a player switches into ", $mode, " mode.")]
         pub struct $enter;
+        ::sand_api_contract::inventory::submit! {
+            ::sand_api_contract::ApiRegistration {
+                canonical_path: concat!("sand::events::", stringify!($enter)),
+                aliases: &[],
+                canonical_module: "sand::events",
+                kind: ::sand_api_contract::ApiKind::Struct,
+                signature: concat!("pub struct ", stringify!($enter), ";"),
+                summary: concat!("Marks the transition into Minecraft's ", $mode, " game mode."),
+                context: "This generated zero-sized event marker lets an on_event handler react once per player transition without polling or maintaining its own prior-state tracker.",
+                minecraft: concat!("Tracks each player against @s[gamemode=", $mode, "] and dispatches when the condition becomes true."),
+                use_when: &["Handling the moment a player enters this game mode"],
+                avoid_when: &["Checking a player's current game mode continuously"],
+                parameters: &[],
+                returns: None,
+                example: concat!("use sand::events::", stringify!($enter), ";"),
+                availability: &[],
+            }
+        }
         impl SandEvent for $enter {
             fn dispatch() -> SandEventDispatch {
                 SandEventDispatch::Tracked(crate::TrackedTransition::new(
@@ -2830,6 +2891,24 @@ macro_rules! gamemode_transition {
         #[doc = concat!("Fires once when a player switches out of ", $mode, " mode.")]
         #[doc = concat!("Uses the same shared tracker as [`", stringify!($enter), "`].")]
         pub struct $exit;
+        ::sand_api_contract::inventory::submit! {
+            ::sand_api_contract::ApiRegistration {
+                canonical_path: concat!("sand::events::", stringify!($exit)),
+                aliases: &[],
+                canonical_module: "sand::events",
+                kind: ::sand_api_contract::ApiKind::Struct,
+                signature: concat!("pub struct ", stringify!($exit), ";"),
+                summary: concat!("Marks the transition out of Minecraft's ", $mode, " game mode."),
+                context: "This generated zero-sized event marker shares the enter marker's tracker so a handler runs once when a player leaves this mode.",
+                minecraft: concat!("Tracks each player against @s[gamemode=", $mode, "] and dispatches when the condition becomes false."),
+                use_when: &["Handling the moment a player leaves this game mode"],
+                avoid_when: &["Checking a player's current game mode continuously"],
+                parameters: &[],
+                returns: None,
+                example: concat!("use sand::events::", stringify!($exit), ";"),
+                availability: &[],
+            }
+        }
         impl SandEvent for $exit {
             fn dispatch() -> SandEventDispatch {
                 SandEventDispatch::Tracked(crate::TrackedTransition::new(
@@ -2884,7 +2963,7 @@ gamemode_transition!(
 /// Shared current-state source for health-change transitions. Kept public
 /// only for proc-macro expansion.
 #[doc(hidden)]
-pub const PLAYER_HEALTH_TRACKED_SOURCE: crate::TrackedSource = crate::TrackedSource::Score {
+pub(crate) const PLAYER_HEALTH_TRACKED_SOURCE: crate::TrackedSource = crate::TrackedSource::Score {
     description: "vanilla health scoreboard criterion (integer, excludes absorption)",
     objective: "sand_health",
     criterion: "health",
@@ -3029,6 +3108,24 @@ macro_rules! status_effect_marker {
         #[doc = ""]
         #[doc = concat!("Use with [`EffectStarted<", stringify!($ty), ">`] / [`EffectStopped<", stringify!($ty), ">`].")]
         pub struct $ty;
+        ::sand_api_contract::inventory::submit! {
+            ::sand_api_contract::ApiRegistration {
+                canonical_path: concat!("sand::events::", stringify!($ty)),
+                aliases: &[],
+                canonical_module: "sand::events",
+                kind: ::sand_api_contract::ApiKind::Struct,
+                signature: concat!("pub struct ", stringify!($ty), ";"),
+                summary: concat!("Marks Minecraft's `", $id, "` status effect for typed transition events."),
+                context: "This generated zero-sized marker selects one vanilla effect for EffectStarted and EffectStopped without requiring stringly typed effect names.",
+                minecraft: concat!("Uses a generated entity-properties predicate for ", $id, " and a shared transition tracker."),
+                use_when: &["Subscribing to this effect starting or stopping on a player"],
+                avoid_when: &["Applying, removing, or representing an arbitrary status effect"],
+                parameters: &[],
+                returns: None,
+                example: concat!("use sand::events::{EffectStarted, ", stringify!($ty), "};\n\nfn typed_event(_: EffectStarted<", stringify!($ty), ">) {}"),
+                availability: &[],
+            }
+        }
         impl StatusEffectMarker for $ty {
             const EFFECT_ID: &'static str = $id;
             const TRACKER_ID: &'static str = $tracker;
@@ -3185,55 +3282,6 @@ impl<E: StatusEffectMarker> SandEvent for EffectStopped<E> {
     }
 }
 
-// ════════════════════════════════════════════════════════════════════════════
-// ── EventPlayer impls for all event types ──────────────────────────────────
-// ════════════════════════════════════════════════════════════════════════════
-// (Advancement-backed types are covered by the adv_event! macro above.)
-
-macro_rules! player_event {
-    ($ty:ty) => {
-        impl crate::event::EventPlayer for $ty {}
-    };
-}
-
-player_event!(OnJoinEvent);
-player_event!(FirstJoinEvent);
-player_event!(OnDeathEvent);
-player_event!(OnRespawnEvent);
-player_event!(ArmorEquipEvent);
-player_event!(ArmorUnequipEvent);
-player_event!(HoldingItemEvent);
-player_event!(CurrentlyWearingEvent);
-player_event!(PlayerStartSneakingEvent);
-player_event!(PlayerStopSneakingEvent);
-player_event!(PlayerSneakEvent);
-player_event!(PlayerSprintEvent);
-player_event!(PlayerStartSprintingEvent);
-player_event!(PlayerStopSprintingEvent);
-player_event!(PlayerSwimmingEvent);
-player_event!(PlayerStartSwimmingEvent);
-player_event!(PlayerStopSwimmingEvent);
-player_event!(PlayerFlyingEvent);
-player_event!(PlayerStartFlyingEvent);
-player_event!(PlayerStopFlyingEvent);
-player_event!(PlayerOnFireEvent);
-player_event!(PlayerCaughtFireEvent);
-player_event!(PlayerExtinguishedEvent);
-player_event!(PlayerInCreativeEvent);
-player_event!(PlayerInAdventureEvent);
-player_event!(PlayerInSpectatorEvent);
-player_event!(PlayerEnteredSurvivalEvent);
-player_event!(PlayerExitedSurvivalEvent);
-player_event!(PlayerEnteredCreativeEvent);
-player_event!(PlayerExitedCreativeEvent);
-player_event!(PlayerEnteredAdventureEvent);
-player_event!(PlayerExitedAdventureEvent);
-player_event!(PlayerEnteredSpectatorEvent);
-player_event!(PlayerExitedSpectatorEvent);
-player_event!(PlayerHealthChangedEvent);
-player_event!(PlayerHealthLostEvent);
-player_event!(PlayerHealthGainedEvent);
-
 // ── Doc-coverage registry ────────────────────────────────────────────────────
 //
 // Every public built-in event type exported from this module must appear in
@@ -3243,7 +3291,8 @@ player_event!(PlayerHealthGainedEvent);
 //
 // `SandEvent` and `SandEventDispatch` are excluded: they are traits/enums,
 // not callable event types.
-pub const BUILTIN_EVENT_NAMES: &[&str] = &[
+#[allow(dead_code)]
+pub(crate) const BUILTIN_EVENT_NAMES: &[&str] = &[
     // Session
     "OnJoinEvent",
     "FirstJoinEvent",
@@ -3417,6 +3466,24 @@ mod tests {
     #[test]
     fn builtin_event_names_is_non_empty() {
         assert!(!super::BUILTIN_EVENT_NAMES.is_empty());
+    }
+
+    #[test]
+    fn all_builtin_events_are_covered_in_the_reference_matrix() {
+        let matrix_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../book/src/reference/event-trigger-matrix.md");
+        let matrix = std::fs::read_to_string(&matrix_path)
+            .unwrap_or_else(|err| panic!("failed to read {}: {err}", matrix_path.display()));
+        let missing = super::BUILTIN_EVENT_NAMES
+            .iter()
+            .copied()
+            .filter(|name| !matrix.contains(name))
+            .collect::<Vec<_>>();
+        assert!(
+            missing.is_empty(),
+            "built-in events missing from {}: {missing:?}",
+            matrix_path.display()
+        );
     }
 
     // ── TickEventDispatch / EventSetup lifecycle ──────────────────────────────

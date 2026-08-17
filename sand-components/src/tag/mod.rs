@@ -12,7 +12,7 @@ pub struct Tag {
     /// The resource location for this tag.
     pub location: ResourceLocation,
     /// Whether this tag replaces existing tag definitions.
-    pub replace: bool,
+    replace: bool,
     /// List of tag entries (item/block/entity IDs or tag references).
     pub values: Vec<String>,
 }

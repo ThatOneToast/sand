@@ -398,21 +398,25 @@ impl StructureSet {
         )
     }
 
+    /// Sets the Minecraft structures property on this typed structure set definition and returns the updated builder.
     pub fn structures(mut self, structures: impl IntoIterator<Item = StructureEntry>) -> Self {
         self.structures = structures.into_iter().collect();
         self
     }
 
+    /// Sets the Minecraft add structure property on this typed structure set definition and returns the updated builder.
     pub fn add_structure(mut self, entry: StructureEntry) -> Self {
         self.structures.push(entry);
         self
     }
 
+    /// Sets the Minecraft placement property on this typed structure set definition and returns the updated builder.
     pub fn placement(mut self, placement: StructurePlacement) -> Self {
         self.placement = placement;
         self
     }
 
+    /// Sets the Minecraft exclusion zone property on this typed structure set definition and returns the updated builder.
     pub fn exclusion_zone(mut self, zone: ExclusionZone) -> Self {
         self.exclusion_zone = Some(zone);
         self

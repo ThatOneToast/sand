@@ -129,6 +129,7 @@ fn enum_api_entries(
             )],
             parameters: Vec::new(),
             returns: None,
+            return_type: None,
             example: enum_example,
             availability: availability.clone(),
         },
@@ -156,6 +157,7 @@ fn enum_api_entries(
             avoid_when: vec!["A Sand API already accepts the typed registry enum directly".into()],
             parameters: Vec::new(),
             returns: Some("The static namespaced identifier from Minecraft's registry.".into()),
+            return_type: Some("&'static str".into()),
             example: method_example,
             availability: availability.clone(),
         },
@@ -183,6 +185,7 @@ fn enum_api_entries(
             avoid_when: vec!["Referring to custom content outside the vanilla registry".into()],
             parameters: Vec::new(),
             returns: None,
+            return_type: None,
             example: format!("let value = sand::vanilla::{enum_name}::{variant};"),
                 availability: availability.clone(),
             },
@@ -193,11 +196,20 @@ fn enum_api_entries(
 
 fn write_enum(code: &mut String, enum_name: &str, doc: &str, entries: &[(&String, &EntryData)]) {
     writeln!(code, "/// {doc}").unwrap();
+    writeln!(code, "///").unwrap();
+    writeln!(code, "/// # API Contract").unwrap();
+    writeln!(code, "///").unwrap();
+    writeln!(code, "/// `sand api show sand::vanilla::{enum_name}`").unwrap();
     writeln!(code, "#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]").unwrap();
     writeln!(code, "pub enum {enum_name} {{").unwrap();
 
     for (key, _) in entries {
         let variant = resource_key_to_variant(key);
+        writeln!(
+            code,
+            "    /// `sand api show sand::vanilla::{enum_name}::{variant}`"
+        )
+        .unwrap();
         writeln!(code, "    {variant},").unwrap();
     }
 
@@ -206,6 +218,11 @@ fn write_enum(code: &mut String, enum_name: &str, doc: &str, entries: &[(&String
 
     // resource_location() impl
     writeln!(code, "impl {enum_name} {{").unwrap();
+    writeln!(
+        code,
+        "    /// # API Contract\n    /// `sand api show sand::vanilla::{enum_name}::resource_location`"
+    )
+    .unwrap();
     writeln!(
         code,
         "    pub fn resource_location(&self) -> &'static str {{"

@@ -36,8 +36,6 @@ use std::sync::OnceLock;
 /// the fully-qualified Rust type name of `E` (e.g.
 /// `arcane_pack::events::AteGoldenAppleEvent`).  This is stable within a
 /// compilation but may change if the type is moved to a different module.
-/// When migrating from [`RawEventHandle`], issue a one-time scoreboard rename
-/// in your load function.
 pub struct EventHandle<E> {
     /// Lazily-initialised scoreboard objective name.
     objective: OnceLock<String>,
@@ -178,71 +176,6 @@ impl<E> Default for EventHandle<E> {
 // inherently Sync.  The PhantomData<fn() -> E> is Sync regardless of E.
 unsafe impl<E> Sync for EventHandle<E> {}
 
-// ── Backward-compat: stringly-typed handle ────────────────────────────────────
-
-/// Stringly-typed event handle — prefer [`EventHandle<E>`] for new code.
-///
-/// Accepts an explicit string key used to derive the objective name.  Useful
-/// when the event type isn't in scope or when migrating existing packs.
-///
-/// ```rust,ignore
-/// static MY_HANDLE: RawEventHandle = RawEventHandle::new("my_pack:on_kill");
-/// ```
-pub struct RawEventHandle {
-    event_key: &'static str,
-    objective: OnceLock<String>,
-}
-
-impl RawEventHandle {
-    pub const fn new(event_key: &'static str) -> Self {
-        Self {
-            event_key,
-            objective: OnceLock::new(),
-        }
-    }
-
-    pub fn define(&self) -> String {
-        format!("scoreboard objectives add {} dummy", self.objective_name())
-    }
-
-    pub fn condition(&self) -> Condition {
-        Condition::score(
-            "@s".into(),
-            self.objective_name().to_string(),
-            ScoreRange::Eq(1),
-        )
-    }
-
-    pub fn enable(&self, selector: impl std::fmt::Display) -> String {
-        format!(
-            "scoreboard players set {selector} {} 1",
-            self.objective_name()
-        )
-    }
-
-    pub fn disable(&self, selector: impl std::fmt::Display) -> String {
-        format!(
-            "scoreboard players set {selector} {} 0",
-            self.objective_name()
-        )
-    }
-
-    pub fn reset(&self, advancement_id: &str, selector: impl std::fmt::Display) -> String {
-        format!("advancement revoke {selector} only {advancement_id}")
-    }
-
-    pub fn grant(&self, advancement_id: &str, selector: impl std::fmt::Display) -> String {
-        format!("advancement grant {selector} only {advancement_id}")
-    }
-
-    fn objective_name(&self) -> &str {
-        self.objective.get_or_init(|| {
-            let h = stable_hash(self.event_key);
-            format!("__ev_{h}")
-        })
-    }
-}
-
 // ── Shared helpers ────────────────────────────────────────────────────────────
 
 /// Stable FNV-1a 64-bit hash, first 8 hex chars.
@@ -291,16 +224,6 @@ mod tests {
         let cond = handle.condition();
         let cmd_str = format!("{cond:?}");
         assert!(cmd_str.contains("__ev_"), "{cmd_str}");
-    }
-
-    #[test]
-    fn raw_handle_backward_compat() {
-        let raw = RawEventHandle::new("arcane:on_ate_golden_apple");
-        let define = raw.define();
-        assert!(
-            define.starts_with("scoreboard objectives add __ev_"),
-            "{define}"
-        );
     }
 
     #[test]

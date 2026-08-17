@@ -35,6 +35,7 @@ use crate::state::{GameState, GameStateRef, Ticks, TypedGameState};
 
 /// Convert hook commands into one deterministic command list.
 pub trait IntoStateCommands {
+    /// Converts a hook body into the deterministic command sequence emitted for a state transition.
     fn into_state_commands(self) -> Vec<String>;
 }
 
@@ -126,6 +127,7 @@ impl<S: TypedGameState> StateFlow<S> {
         self
     }
 
+    /// Starts a transition from one typed state variant to another.
     pub fn transition(self, from: S, to: S) -> FlowTransitionBuilder<S> {
         FlowTransitionBuilder {
             flow: self,
@@ -136,11 +138,13 @@ impl<S: TypedGameState> StateFlow<S> {
         }
     }
 
+    /// Registers commands that run whenever the selected state is entered.
     pub fn on_enter(mut self, state: S, commands: impl IntoStateCommands) -> Self {
         self.push_hook(HookKind::Enter, state, 1, commands);
         self
     }
 
+    /// Registers commands that run whenever the selected state is exited.
     pub fn on_exit(mut self, state: S, commands: impl IntoStateCommands) -> Self {
         self.push_hook(HookKind::Exit, state, 1, commands);
         self
@@ -219,16 +223,19 @@ pub struct FlowTransitionBuilder<S: TypedGameState> {
 }
 
 impl<S: TypedGameState> FlowTransitionBuilder<S> {
+    /// Restricts this transition to invocations where the guard holds.
     pub fn when(mut self, guard: Condition) -> Self {
         self.guard = Some(guard);
         self
     }
 
+    /// Sets this transition's ordering priority relative to competing transitions.
     pub fn priority(mut self, priority: i32) -> Self {
         self.priority = priority;
         self
     }
 
+    /// Commits this transition and returns the completed state-flow definition.
     pub fn done(mut self) -> StateFlow<S> {
         let guard_plans = match self.guard {
             Some(guard) => guard
@@ -274,11 +281,13 @@ impl<'a, S: TypedGameState> StateTransitionBuilder<'a, S> {
         }
     }
 
+    /// Restricts the transition builder to a specific source state.
     pub fn from(mut self, state: S) -> Self {
         self.from = Some(state);
         self
     }
 
+    /// Restricts this state transition to invocations where the guard holds.
     pub fn when(mut self, guard: Condition) -> Self {
         self.guard = Some(guard);
         self

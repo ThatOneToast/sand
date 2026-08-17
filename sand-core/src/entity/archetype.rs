@@ -202,7 +202,7 @@ impl Migration {
 
 /// Cost and generated-resource summary for one archetype.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct EntityRuntimeReport {
+pub(crate) struct EntityRuntimeReport {
     /// Archetype identifier.
     pub archetype: String,
     /// Generated objectives, sorted.
@@ -227,6 +227,10 @@ pub(crate) struct CompiledArchetype {
 }
 
 /// Reusable lifecycle definition for entity kind `K` and state schema `S`.
+///
+/// # API Contract
+///
+/// `sand api show sand::entity::EntityArchetype`
 #[derive(Debug, Clone)]
 pub struct EntityArchetype<K, S> {
     id: ResourceLocation,
@@ -253,6 +257,10 @@ where
     /// The identifier namespaces every generated objective, marker, storage
     /// path, and helper function. The default version is the state schema
     /// version and reconciliation is version-driven.
+    ///
+    /// # API Contract
+    ///
+    /// `sand api show sand::entity::EntityArchetype::new`
     #[must_use]
     pub fn new(id: ResourceLocation) -> Self {
         let version = S::schema().version;
@@ -414,18 +422,10 @@ where
         )]
     }
 
-    /// Compile this definition directly for tests, diagnostics, or custom exporters.
-    pub fn compile(
-        &self,
-        profile: &crate::version::VersionProfile,
-    ) -> Result<EntityRuntimeReport, EntityDiagnostic> {
-        Ok(compile_definition(&self.definition(), profile)?.report)
-    }
-
     /// Erase Rust marker types for inventory-based exporter registration.
     #[doc(hidden)]
     #[must_use]
-    pub fn definition(&self) -> ArchetypeDefinition {
+    pub(crate) fn definition(&self) -> ArchetypeDefinition {
         ArchetypeDefinition {
             id: self.id.clone(),
             version: self.version,
@@ -444,6 +444,19 @@ where
             properties: self.properties.clone(),
         }
     }
+}
+
+/// Erases an archetype's marker types for proc-macro registration.
+///
+/// This is public only so generated code can cross the crate boundary through
+/// `sand::__private`; it is not part of the author-facing entity API.
+#[doc(hidden)]
+pub fn registered_definition<K, S>(archetype: &EntityArchetype<K, S>) -> ArchetypeDefinition
+where
+    K: KnownEntityKind,
+    S: EntityState,
+{
+    archetype.definition()
 }
 
 impl<K, S> EntityArchetype<K, S>

@@ -259,7 +259,10 @@ pub(crate) fn build_child_edge(
                     } else {
                         plan.into_iter()
                             .fold(sand_commands::Execute::new(), |execute, clause| {
-                                execute.with_operation(clause.into_operation())
+                                sand_commands::__private::execute_with_operation(
+                                    execute,
+                                    clause.into_operation(),
+                                )
                             })
                             .run_fn(dispatch_ref)
                     }
@@ -295,7 +298,8 @@ pub(crate) fn build_child_edge(
 
                 let mut lines = vec![format!("scoreboard players set @s {guard} 0")];
                 for plan in &plans {
-                    let execute = sand_commands::Execute::new().with_operation(
+                    let execute = sand_commands::__private::execute_with_operation(
+                        sand_commands::Execute::new(),
                         sand_commands::ExecuteOp::Unless(
                             sand_commands::ConditionIr::ScoreMatches {
                                 holder: sand_commands::ScoreHolder::self_(),
@@ -308,7 +312,10 @@ pub(crate) fn build_child_edge(
                         plan.iter()
                             .cloned()
                             .fold(execute, |execute, clause| {
-                                execute.with_operation(clause.into_operation())
+                                sand_commands::__private::execute_with_operation(
+                                    execute,
+                                    clause.into_operation(),
+                                )
                             })
                             .run_fn(&edge_ref),
                     );

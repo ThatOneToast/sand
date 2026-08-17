@@ -51,8 +51,8 @@ impl IntoRecipeItemId for &ResourceLocation {
 /// Represents a recipe ingredient that can be specified by item ID or item tag.
 #[derive(Debug)]
 pub struct Ingredient {
-    pub item: Option<String>,
-    pub tag: Option<String>,
+    item: Option<String>,
+    tag: Option<String>,
     alternatives: Vec<Ingredient>,
 }
 
@@ -92,14 +92,12 @@ impl Ingredient {
 
     /// Legacy unchecked compatibility constructor. Prefer [`Ingredient::item_id`]
     /// or make raw intent explicit with [`Ingredient::raw_item`].
-    #[doc(hidden)]
     pub fn item(id: impl Display) -> Self {
         Self::raw_item(id.to_string())
     }
 
     /// Legacy unchecked compatibility constructor. Prefer [`Ingredient::item_tag`]
     /// or make raw intent explicit with [`Ingredient::raw_tag`].
-    #[doc(hidden)]
     pub fn tag(id: impl Display) -> Self {
         Self::raw_tag(id.to_string())
     }
@@ -344,7 +342,6 @@ impl RecipeResult {
 
     /// Legacy unchecked compatibility constructor. Prefer [`RecipeResult::item`]
     /// or make raw intent explicit with [`RecipeResult::raw`].
-    #[doc(hidden)]
     pub fn new(id: impl Display, count: u32) -> Self {
         Self::raw(id.to_string(), count)
     }

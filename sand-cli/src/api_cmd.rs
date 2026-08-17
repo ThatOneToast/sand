@@ -243,7 +243,7 @@ fn installed_catalog() -> Result<ApiCatalog> {
                 entry.context = family_context(entry, &prose);
                 entry.minecraft = family_minecraft_behavior(entry, &summary);
                 entry.use_when = vec![family_use_guidance(entry, &summary)];
-                entry.avoid_when = vec![family_avoidance(entry, &prose)];
+                entry.avoid_when = vec![family_avoidance(entry, &prose, &summary)];
             } else if let Some(summary) = source_summary {
                 if is_family_template_summary(&entry.summary) {
                     entry.summary = summary.clone();
@@ -252,16 +252,25 @@ fn installed_catalog() -> Result<ApiCatalog> {
                     entry.context = format!("{summary} {}", entry.context);
                 }
             }
-            if is_import_only_example(&entry.example) {
-                entry.example = rustdoc_example(documentation).unwrap_or_else(|| {
-                    structural_example(
+            if is_import_only_example(&entry.example)
+                || (family_contract
+                    && matches!(
                         entry.kind,
-                        &entry.canonical_path,
-                        parameters,
-                        *return_type,
-                        *has_receiver,
+                        ApiKind::Function | ApiKind::Method | ApiKind::TraitMethod
                     )
-                });
+                    && !example_exercises_member(&entry.example, &entry.canonical_path))
+            {
+                entry.example = rustdoc_example(documentation)
+                    .filter(|example| example_exercises_member(example, &entry.canonical_path))
+                    .unwrap_or_else(|| {
+                        structural_example(
+                            entry.kind,
+                            &entry.canonical_path,
+                            parameters,
+                            *return_type,
+                            *has_receiver,
+                        )
+                    });
             }
         }
     }
@@ -294,6 +303,23 @@ fn installed_catalog() -> Result<ApiCatalog> {
 }
 
 fn rustdoc_prose(documentation: &str) -> String {
+    let prose = rustdoc_prose_paragraphs(documentation)
+        .into_iter()
+        .take(4)
+        .collect::<Vec<_>>()
+        .join(" ");
+    if prose.chars().count() <= 1_200 {
+        prose
+    } else {
+        let end = prose
+            .char_indices()
+            .nth(1_197)
+            .map_or(prose.len(), |(index, _)| index);
+        format!("{}...", prose[..end].trim_end())
+    }
+}
+
+fn rustdoc_prose_paragraphs(documentation: &str) -> Vec<String> {
     let mut in_code = false;
     let mut paragraphs = Vec::new();
     let mut current = Vec::new();
@@ -321,16 +347,10 @@ fn rustdoc_prose(documentation: &str) -> String {
     if !current.is_empty() {
         paragraphs.push(current.join(" "));
     }
-    let prose = paragraphs.into_iter().take(4).collect::<Vec<_>>().join(" ");
-    if prose.chars().count() <= 1_200 {
-        prose
-    } else {
-        let end = prose
-            .char_indices()
-            .nth(1_197)
-            .map_or(prose.len(), |(index, _)| index);
-        format!("{}...", prose[..end].trim_end())
-    }
+    paragraphs
+        .into_iter()
+        .map(|paragraph| normalize_facade_paths(&paragraph))
+        .collect()
 }
 
 fn semantic_parameter_description(name: &str, rust_type: &str, summary: &str) -> String {
@@ -422,16 +442,20 @@ fn semantic_fallback_summary(entry: &ApiEntry) -> String {
 
 fn semantic_return_description(rust_type: &str, summary: &str, module: &str) -> String {
     let compact = rust_type.replace(' ', "");
-    if compact.contains("Result<") {
-        let inner = compact
-            .split_once('<')
-            .and_then(|(_, rest)| rest.rsplit_once('>').map(|(inner, _)| inner))
-            .unwrap_or("value");
-        if inner == "Self" {
+    if let Some(arguments) = generic_arguments(&compact, "Result") {
+        let success = arguments.first().map_or("value", String::as_str);
+        let error = arguments.get(1).map_or("a diagnostic", String::as_str);
+        if success == "Self" {
             return "The updated typed builder on success, or a diagnostic describing why the input cannot be represented safely.".to_owned();
+        } else if let Some(optional) =
+            generic_arguments(success, "Option").and_then(|args| args.into_iter().next())
+        {
+            return format!(
+                "On success, the optional `{optional}` produced by this operation, or `None` when no value is available; otherwise the `{error}` error describing why the operation failed."
+            );
         } else {
             return format!(
-                "The `{inner}` produced when {} succeeds, or a diagnostic describing why the input cannot be represented safely.",
+                "The `{success}` produced when {} succeeds, or the `{error}` error describing why the operation failed.",
                 summary.trim_end_matches('.').to_ascii_lowercase()
             );
         }
@@ -439,11 +463,8 @@ fn semantic_return_description(rust_type: &str, summary: &str, module: &str) -> 
     if compact == "bool" {
         return "Whether the documented condition holds for this value.".to_owned();
     }
-    if compact.starts_with("Option<") {
-        let inner = compact
-            .strip_prefix("Option<")
-            .and_then(|rest| rest.strip_suffix('>'))
-            .unwrap_or("value");
+    if let Some(arguments) = generic_arguments(&compact, "Option") {
+        let inner = arguments.first().map_or("value", String::as_str);
         if inner == "Self" {
             return "The corresponding typed value when the documented conversion succeeds; otherwise `None`.".to_owned();
         } else {
@@ -473,6 +494,34 @@ fn semantic_return_description(rust_type: &str, summary: &str, module: &str) -> 
         "The typed result of the documented operation: {}",
         summary.trim_end_matches('.')
     )
+}
+
+fn generic_arguments(rust_type: &str, wrapper: &str) -> Option<Vec<String>> {
+    let opening = rust_type.find('<')?;
+    if !rust_type[..opening].ends_with(wrapper) {
+        return None;
+    }
+    let start = opening + 1;
+    let mut depth = 0_usize;
+    let mut argument_start = start;
+    let mut arguments = Vec::new();
+    for (offset, character) in rust_type[start..].char_indices() {
+        let index = start + offset;
+        match character {
+            '<' => depth += 1,
+            '>' if depth == 0 => {
+                arguments.push(rust_type[argument_start..index].to_owned());
+                return Some(arguments);
+            }
+            '>' => depth -= 1,
+            ',' if depth == 0 => {
+                arguments.push(rust_type[argument_start..index].to_owned());
+                argument_start = index + character.len_utf8();
+            }
+            _ => {}
+        }
+    }
+    None
 }
 
 fn documented_avoidance(prose: &str) -> Option<String> {
@@ -539,17 +588,26 @@ fn family_use_guidance(entry: &ApiEntry, summary: &str) -> String {
     )
 }
 
-fn family_avoidance(entry: &ApiEntry, prose: &str) -> String {
+fn family_avoidance(entry: &ApiEntry, prose: &str, summary: &str) -> String {
     if let Some(guidance) = documented_avoidance(prose) {
-        return guidance;
+        return format!("For `{}`: {guidance}", entry.canonical_path);
     }
+    let behavior = summary.trim_end_matches('.').to_ascii_lowercase();
     if entry.canonical_module.starts_with("sand::command") {
-        "Avoid this typed command API when the required syntax is outside its validated signature; use the explicit raw-command escape hatch instead.".to_owned()
+        format!(
+            "Avoid `{}` when the goal is not to {behavior}, or when the required syntax is outside its validated signature; use the explicit raw-command escape hatch instead.",
+            entry.canonical_path
+        )
     } else if entry.canonical_module.starts_with("sand::component") {
-        "Avoid this typed component API when the target schema is not modeled by its fields; use the explicit raw component or JSON escape hatch instead.".to_owned()
+        format!(
+            "Avoid `{}` when the goal is not to {behavior}, or when the target schema is not modeled by its fields; use the explicit raw component or JSON escape hatch instead.",
+            entry.canonical_path
+        )
     } else if entry.canonical_module.starts_with("sand::resourcepack") {
-        "Avoid this resource-pack API when no generated asset needs the documented operation."
-            .to_owned()
+        format!(
+            "Avoid `{}` when no generated asset needs to {behavior}.",
+            entry.canonical_path
+        )
     } else {
         format!(
             "Avoid `{}` when its documented source semantics do not match the authoring operation being modeled.",
@@ -565,17 +623,7 @@ fn is_family_template_summary(summary: &str) -> bool {
 }
 
 fn rustdoc_summary(documentation: &str) -> Option<String> {
-    let paragraphs = documentation
-        .split("\n\n")
-        .map(|paragraph| {
-            paragraph
-                .lines()
-                .map(str::trim)
-                .collect::<Vec<_>>()
-                .join(" ")
-        })
-        .filter(|paragraph| !paragraph.is_empty() && !paragraph.starts_with('#'))
-        .collect::<Vec<_>>();
+    let paragraphs = rustdoc_prose_paragraphs(documentation);
     let first = paragraphs.first()?.trim().to_owned();
     if first.len() >= 48 || paragraphs.len() == 1 {
         return Some(first);
@@ -617,19 +665,30 @@ fn rustdoc_example(documentation: &str) -> Option<String> {
             code.push(trimmed);
         }
     }
-    (!code.is_empty()).then(|| {
-        code.join("\n")
-            .replace("sand_core::", "sand::")
-            .replace("sand_commands::", "sand::command::")
-            .replace("sand_components::", "sand::component::")
-            .replace("sand_resourcepack::", "sand::resourcepack::")
-            .replace("sand_macros::", "sand::")
-    })
+    (!code.is_empty()).then(|| normalize_facade_paths(&code.join("\n")))
+}
+
+fn normalize_facade_paths(value: &str) -> String {
+    value
+        .replace("sand_core::", "sand::")
+        .replace("sand_commands::", "sand::command::")
+        .replace("sand_components::", "sand::component::")
+        .replace("sand_resourcepack::", "sand::resourcepack::")
+        .replace("sand_macros::", "sand::")
 }
 
 fn is_import_only_example(example: &str) -> bool {
     let trimmed = example.trim();
     trimmed.starts_with("use sand::") && trimmed.lines().count() == 1
+}
+
+fn example_exercises_member(example: &str, canonical_path: &str) -> bool {
+    let member = canonical_path
+        .rsplit_once("::")
+        .map_or(canonical_path, |(_, member)| member);
+    example.contains(&format!(".{member}("))
+        || example.contains(&format!("::{member}("))
+        || example.contains(&format!("{canonical_path}("))
 }
 
 fn structural_example(
@@ -1393,13 +1452,48 @@ mod tests {
                 .as_deref()
                 .is_some_and(|returns| returns.contains("typed value") && returns.contains("None"))
         );
+        let insert_score = catalog
+            .find("sand::entity::CurveInputs::insert_score")
+            .unwrap();
+        assert!(insert_score.returns.as_deref().is_some_and(|returns| {
+            returns.contains("optional `FixedValue`")
+                && returns.contains("`None`")
+                && returns.contains("`EntityDiagnostic` error")
+        }));
+
+        for entry in &catalog.entries {
+            if sand::__private::api_contract::INSTALLED_FAMILY_API_PATHS
+                .contains(&entry.canonical_path.as_str())
+                && matches!(
+                    entry.kind,
+                    ApiKind::Function | ApiKind::Method | ApiKind::TraitMethod
+                )
+            {
+                assert!(
+                    example_exercises_member(&entry.example, &entry.canonical_path),
+                    "family callable example does not exercise its member: {} => {}",
+                    entry.canonical_path,
+                    entry.example
+                );
+                assert!(
+                    entry
+                        .avoid_when
+                        .iter()
+                        .all(|guidance| guidance.contains(&format!("`{}`", entry.canonical_path))),
+                    "family avoidance is not identity-specific: {}",
+                    entry.canonical_path
+                );
+            }
+        }
 
         let participant_example = &catalog
             .find("sand::participant::PlayerParticipant")
             .unwrap()
             .example;
-        assert!(participant_example.contains("PlayerParticipant::subject()"));
-        assert!(participant_example.contains("use sand::participant::"));
+        assert_eq!(
+            participant_example,
+            "use sand::participant::PlayerParticipant;"
+        );
         assert!(!participant_example.contains("sand_core::"));
         assert_eq!(
             catalog.find("sand::command::Actionbar").unwrap().example,
@@ -1437,6 +1531,12 @@ mod tests {
             rustdoc_example("Shape:\n\n```text\nnot Rust\n```\n\n```rust\nlet actual = 3;\n```"),
             Some("let actual = 3;".to_owned())
         );
+        assert_eq!(
+            rustdoc_summary(
+                "Short heading.\n\n```rust\nlet internal = sand_components::Thing;\n```\n\nExplains the author-facing behavior in enough detail."
+            ),
+            Some("Short heading. Explains the author-facing behavior in enough detail.".to_owned())
+        );
 
         let catalog = generated_catalog();
         assert!(
@@ -1450,6 +1550,27 @@ mod tests {
             let example = &catalog.find(path).unwrap().example;
             assert!(!example.contains("sand_macros::"), "{path}: {example}");
         }
+    }
+
+    #[test]
+    fn generic_wrapper_parser_preserves_nested_success_and_error_types() {
+        assert_eq!(
+            generic_arguments("Result<Option<FixedValue>,EntityDiagnostic>", "Result"),
+            Some(vec![
+                "Option<FixedValue>".to_owned(),
+                "EntityDiagnostic".to_owned()
+            ])
+        );
+        assert_eq!(
+            generic_arguments(
+                "SandResult<BTreeMap<String,Vec<Value>>,ExportError>",
+                "Result"
+            ),
+            Some(vec![
+                "BTreeMap<String,Vec<Value>>".to_owned(),
+                "ExportError".to_owned()
+            ])
+        );
     }
 
     #[test]

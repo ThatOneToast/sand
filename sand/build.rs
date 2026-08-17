@@ -899,16 +899,16 @@ fn write_coverage(
         "pub type InstalledApiShape = (&'static [&'static str], &'static str, &'static [(&'static str, &'static str)], Option<&'static str>, &'static str, bool);\n",
     );
     generated.push_str("pub static INSTALLED_API_SHAPES: &[InstalledApiShape] = &[\n");
-    let definition_shapes = sand_api_enforce::definition_shapes(installed_reachable)
+    let all_definition_shapes = sand_api_enforce::definition_shapes(reachable)
         .unwrap_or_else(|error| panic!("failed to derive structural API metadata: {error}"));
-    let missing_family_docs = installed_reachable
+    let missing_family_docs = reachable
         .iter()
         .filter_map(|item| {
             let canonical_path = item
                 .paths
                 .iter()
                 .find(|path| documented_family_paths.contains(path.as_str()))?;
-            let shape = definition_shapes.get(&item.identity)?;
+            let shape = all_definition_shapes.get(&item.identity)?;
             if source_documentation_is_substantive(&shape.documentation) {
                 return None;
             }
@@ -931,6 +931,10 @@ fn write_coverage(
             report.display()
         );
     }
+    let definition_shapes = sand_api_enforce::definition_shapes(installed_reachable)
+        .unwrap_or_else(|error| {
+            panic!("failed to derive installed structural API metadata: {error}")
+        });
     for item in installed_reachable {
         let Some(shape) = definition_shapes.get(&item.identity) else {
             continue;

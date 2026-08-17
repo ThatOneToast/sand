@@ -258,7 +258,7 @@ impl CurveInputs {
         Ok(self.insert(name, value))
     }
 
-    /// Returns a named value.
+    /// Returns the fixed curve input registered under `name`, when present.
     #[must_use]
     pub fn get(&self, name: &str) -> Option<FixedValue> {
         self.values.get(name).copied()

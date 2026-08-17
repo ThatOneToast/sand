@@ -668,6 +668,25 @@ fn validate_resolved_quality(entries: &[ApiEntry]) -> Result<(), CatalogError> {
             entry.kind,
             ApiKind::Function | ApiKind::Method | ApiKind::TraitMethod
         ) {
+            if entry.context == entry.summary
+                || entry.minecraft.starts_with(
+                    "Minecraft and generated-output behavior follows the defining item's documented semantics:",
+                )
+                || entry.use_when.iter().any(|guidance| {
+                    guidance.starts_with(
+                        "When the defining item's documented behavior is required:",
+                    )
+                })
+                || entry.avoid_when.iter().any(|guidance| {
+                    guidance
+                        == "When the defining item's documented preconditions or scope do not apply."
+                })
+            {
+                return Err(CatalogError::InvalidEntry {
+                    path: entry.canonical_path.clone(),
+                    message: "callable guidance is unresolved family-level prose".into(),
+                });
+            }
             if entry.example.trim().starts_with("use sand::")
                 && entry.example.trim().lines().count() == 1
             {
@@ -720,19 +739,41 @@ pub fn has_specific_semantics(summary: &str) -> bool {
         "provides",
         "public",
         "represents",
+        "resource",
         "resolves",
         "returns",
+        "json",
+        "pack",
         "the",
         "this",
+        "to",
         "typed",
         "use",
         "value",
     ];
-    summary
+    let words = summary
         .split(|character: char| !character.is_alphanumeric() && character != '_')
         .filter(|word| !word.is_empty())
         .map(|word| word.to_ascii_lowercase())
-        .any(|word| !GENERIC.contains(&word.as_str()))
+        .collect::<Vec<_>>();
+    let specific = words
+        .iter()
+        .filter(|word| !GENERIC.contains(&word.as_str()))
+        .collect::<std::collections::BTreeSet<_>>();
+    let generic_action = words.first().is_some_and(|word| {
+        [
+            "configures",
+            "constructs",
+            "creates",
+            "performs",
+            "provides",
+            "represents",
+            "resolves",
+            "returns",
+        ]
+        .contains(&word.as_str())
+    });
+    !specific.is_empty() && (!generic_action || specific.len() >= 2)
 }
 
 fn valid_path(path: &str) -> bool {
@@ -1005,6 +1046,18 @@ mod tests {
             ),
             (
                 "Creates this typed datapack component definition.",
+                "The selected equipment slot.",
+                "A predicate builder.",
+                "generic family filler",
+            ),
+            (
+                "Creates widget.",
+                "The selected equipment slot.",
+                "A predicate builder.",
+                "generic family filler",
+            ),
+            (
+                "Configures to json for this typed resource-pack definition.",
                 "The selected equipment slot.",
                 "A predicate builder.",
                 "generic family filler",

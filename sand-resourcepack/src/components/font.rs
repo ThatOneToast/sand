@@ -66,7 +66,7 @@ pub struct BitmapProvider {
 }
 
 impl BitmapProvider {
-    /// Configures to json for this typed resource-pack definition.
+    /// Serializes this bitmap font provider to its Minecraft JSON object.
     pub fn to_json(&self) -> Value {
         json!({
             "type": "bitmap",

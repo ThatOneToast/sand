@@ -240,14 +240,10 @@ fn installed_catalog() -> Result<ApiCatalog> {
                     rustdoc_prose(documentation)
                 };
                 entry.summary = summary.clone();
-                entry.context = prose.clone();
-                entry.minecraft = format!(
-                    "Minecraft and generated-output behavior follows the defining item's documented semantics: {prose}"
-                );
-                entry.use_when = vec![format!(
-                    "When the defining item's documented behavior is required: {summary}"
-                )];
-                entry.avoid_when = vec![rustdoc_avoidance(&prose)];
+                entry.context = family_context(entry, &prose);
+                entry.minecraft = family_minecraft_behavior(entry, &summary);
+                entry.use_when = vec![family_use_guidance(entry, &summary)];
+                entry.avoid_when = vec![family_avoidance(entry, &prose)];
             } else if let Some(summary) = source_summary {
                 if is_family_template_summary(&entry.summary) {
                     entry.summary = summary.clone();
@@ -427,13 +423,35 @@ fn semantic_fallback_summary(entry: &ApiEntry) -> String {
 fn semantic_return_description(rust_type: &str, summary: &str, module: &str) -> String {
     let compact = rust_type.replace(' ', "");
     if compact.contains("Result<") {
-        return "The validated result, or a diagnostic describing why the input cannot be represented safely.".to_owned();
+        let inner = compact
+            .split_once('<')
+            .and_then(|(_, rest)| rest.rsplit_once('>').map(|(inner, _)| inner))
+            .unwrap_or("value");
+        if inner == "Self" {
+            return "The updated typed builder on success, or a diagnostic describing why the input cannot be represented safely.".to_owned();
+        } else {
+            return format!(
+                "The `{inner}` produced when {} succeeds, or a diagnostic describing why the input cannot be represented safely.",
+                summary.trim_end_matches('.').to_ascii_lowercase()
+            );
+        }
     }
     if compact == "bool" {
         return "Whether the documented condition holds for this value.".to_owned();
     }
     if compact.starts_with("Option<") {
-        return "The documented value when it is present; otherwise `None`.".to_owned();
+        let inner = compact
+            .strip_prefix("Option<")
+            .and_then(|rest| rest.strip_suffix('>'))
+            .unwrap_or("value");
+        if inner == "Self" {
+            return "The corresponding typed value when the documented conversion succeeds; otherwise `None`.".to_owned();
+        } else {
+            return format!(
+                "The `{inner}` produced when {} has a value; otherwise `None`.",
+                summary.trim_end_matches('.').to_ascii_lowercase()
+            );
+        }
     }
     if compact == "Self" {
         return "The updated typed builder, ready for further chained configuration.".to_owned();
@@ -457,7 +475,7 @@ fn semantic_return_description(rust_type: &str, summary: &str, module: &str) -> 
     )
 }
 
-fn rustdoc_avoidance(prose: &str) -> String {
+fn documented_avoidance(prose: &str) -> Option<String> {
     prose
         .split(". ")
         .find(|sentence| {
@@ -479,9 +497,65 @@ fn rustdoc_avoidance(prose: &str) -> String {
                 sentence.trim_end_matches('.')
             )
         })
-        .unwrap_or_else(|| {
-            "When the defining item's documented preconditions or scope do not apply.".to_owned()
-        })
+}
+
+fn family_context(entry: &ApiEntry, prose: &str) -> String {
+    format!(
+        "Within `{}`, `{}` has the source-derived declaration `{}`. {prose}",
+        entry.canonical_module, entry.canonical_path, entry.signature
+    )
+}
+
+fn family_minecraft_behavior(entry: &ApiEntry, summary: &str) -> String {
+    let domain = if entry.canonical_module.starts_with("sand::command") {
+        "Sand renders this typed command operation into Minecraft command syntax only when the command is emitted"
+    } else if entry.canonical_module.starts_with("sand::component") {
+        "Sand validates and serializes this typed datapack component into Minecraft data during export"
+    } else if entry.canonical_module.starts_with("sand::resourcepack") {
+        "Sand applies this operation while generating validated Minecraft resource-pack assets"
+    } else if entry.canonical_module.starts_with("sand::event")
+        || entry.canonical_module.starts_with("sand::events")
+        || entry.canonical_module.starts_with("sand::participant")
+    {
+        "Sand lowers this operation into generated Minecraft event dispatch and participant lifecycle wiring"
+    } else if entry.canonical_module.starts_with("sand::state")
+        || entry.canonical_module.starts_with("sand::systems")
+        || entry.canonical_module.starts_with("sand::entity")
+        || entry.canonical_module.starts_with("sand::data")
+    {
+        "Sand lowers this typed operation into validated Minecraft commands or data during export"
+    } else {
+        "Sand carries this typed operation into generated Minecraft output according to its source contract"
+    };
+    format!("{domain}: {}", summary.trim_end_matches('.'))
+}
+
+fn family_use_guidance(entry: &ApiEntry, summary: &str) -> String {
+    format!(
+        "Use `{}` when working in `{}` and the required behavior is: {}",
+        entry.canonical_path,
+        entry.canonical_module,
+        summary.trim_end_matches('.')
+    )
+}
+
+fn family_avoidance(entry: &ApiEntry, prose: &str) -> String {
+    if let Some(guidance) = documented_avoidance(prose) {
+        return guidance;
+    }
+    if entry.canonical_module.starts_with("sand::command") {
+        "Avoid this typed command API when the required syntax is outside its validated signature; use the explicit raw-command escape hatch instead.".to_owned()
+    } else if entry.canonical_module.starts_with("sand::component") {
+        "Avoid this typed component API when the target schema is not modeled by its fields; use the explicit raw component or JSON escape hatch instead.".to_owned()
+    } else if entry.canonical_module.starts_with("sand::resourcepack") {
+        "Avoid this resource-pack API when no generated asset needs the documented operation."
+            .to_owned()
+    } else {
+        format!(
+            "Avoid `{}` when its documented source semantics do not match the authoring operation being modeled.",
+            entry.canonical_path
+        )
+    }
 }
 
 fn is_family_template_summary(summary: &str) -> bool {
@@ -518,22 +592,28 @@ fn rustdoc_summary(documentation: &str) -> Option<String> {
 
 fn rustdoc_example(documentation: &str) -> Option<String> {
     let mut code = Vec::new();
-    let mut in_rust_fence = false;
+    let mut fence: Option<bool> = None;
     for line in documentation.lines() {
         let trimmed = line.trim();
-        if !in_rust_fence {
+        if fence.is_none() {
             let Some(info) = trimmed.strip_prefix("```") else {
                 continue;
             };
             let language = info.split(',').next().unwrap_or_default().trim();
-            in_rust_fence = language.is_empty()
-                || matches!(language, "rust" | "ignore" | "no_run" | "compile_fail");
+            fence = Some(
+                language.is_empty()
+                    || matches!(language, "rust" | "ignore" | "no_run" | "compile_fail"),
+            );
             continue;
         }
         if trimmed.starts_with("```") {
-            break;
+            if fence == Some(true) && !code.is_empty() {
+                break;
+            }
+            fence = None;
+            continue;
         }
-        if !trimmed.is_empty() && !trimmed.starts_with('#') {
+        if fence == Some(true) && !trimmed.is_empty() && !trimmed.starts_with('#') {
             code.push(trimmed);
         }
     }
@@ -543,6 +623,7 @@ fn rustdoc_example(documentation: &str) -> Option<String> {
             .replace("sand_commands::", "sand::command::")
             .replace("sand_components::", "sand::component::")
             .replace("sand_resourcepack::", "sand::resourcepack::")
+            .replace("sand_macros::", "sand::")
     })
 }
 
@@ -576,31 +657,22 @@ fn structural_example(
 
     let arguments = parameters
         .iter()
-        .map(|(name, ty)| format!("`{name}: {ty}`"))
+        .map(|(name, _)| *name)
         .collect::<Vec<_>>()
         .join(", ");
-    let receiver = if has_receiver {
-        " on an existing receiver"
+    let member = canonical_path
+        .rsplit_once("::")
+        .map_or(canonical_path, |(_, member)| member);
+    let call = if has_receiver {
+        format!("value.{member}({arguments})")
     } else {
-        ""
+        format!("{canonical_path}({arguments})")
     };
-    let arguments = if arguments.is_empty() {
-        "no explicit arguments".to_owned()
+    if return_type.is_some() {
+        format!("let result = {call};")
     } else {
-        arguments
-    };
-    return_type.map_or_else(
-        || {
-            format!(
-                "// Call `{canonical_path}`{receiver} using {arguments} to perform the documented operation."
-            )
-        },
-        |ty| {
-            format!(
-                "// Call `{canonical_path}`{receiver} using {arguments}; it returns `{ty}`."
-            )
-        },
-    )
+        format!("{call};")
+    }
 }
 
 fn export(catalog: &ApiCatalog, output: Option<&std::path::Path>) -> Result<Option<String>> {
@@ -1282,8 +1354,45 @@ mod tests {
                     "non-callable is presented as a constructor: {}",
                     entry.canonical_path
                 );
+            } else {
+                assert_ne!(
+                    entry.context, entry.summary,
+                    "callable context only repeats its summary: {}",
+                    entry.canonical_path
+                );
+                assert!(!entry.minecraft.starts_with(
+                    "Minecraft and generated-output behavior follows the defining item's documented semantics:"
+                ));
+                assert!(entry.use_when.iter().all(|guidance| {
+                    !guidance
+                        .starts_with("When the defining item's documented behavior is required:")
+                }));
+                assert!(entry.avoid_when.iter().all(|guidance| guidance
+                    != "When the defining item's documented preconditions or scope do not apply."));
+                assert!(
+                    !entry.example.trim_start().starts_with("// Call `"),
+                    "callable has only a comment synopsis instead of a usage expression: {}",
+                    entry.canonical_path
+                );
             }
         }
+
+        let trim_name = catalog.find("sand::component::TrimAssetName::new").unwrap();
+        assert!(
+            trim_name
+                .returns
+                .as_deref()
+                .is_some_and(|returns| returns.contains("updated typed builder on success"))
+        );
+        let from_score = catalog
+            .find("sand::state::TypedGameState::from_score")
+            .unwrap();
+        assert!(
+            from_score
+                .returns
+                .as_deref()
+                .is_some_and(|returns| returns.contains("typed value") && returns.contains("None"))
+        );
 
         let participant_example = &catalog
             .find("sand::participant::PlayerParticipant")
@@ -1320,6 +1429,27 @@ mod tests {
             rustdoc_example("Example:\n\n```rust,ignore\n# let hidden = 1;\nlet shown = 2;\n```"),
             Some("let shown = 2;".to_owned())
         );
+        assert_eq!(
+            rustdoc_example("Shape:\n\n```text\nnot Rust\n```\nTrailing prose."),
+            None
+        );
+        assert_eq!(
+            rustdoc_example("Shape:\n\n```text\nnot Rust\n```\n\n```rust\nlet actual = 3;\n```"),
+            Some("let actual = 3;".to_owned())
+        );
+
+        let catalog = generated_catalog();
+        assert!(
+            !catalog
+                .find("sand::state::ScoreVar::clamp")
+                .unwrap()
+                .example
+                .contains("Trailing prose")
+        );
+        for path in ["sand::event::Event", "sand::events::SandEvent"] {
+            let example = &catalog.find(path).unwrap().example;
+            assert!(!example.contains("sand_macros::"), "{path}: {example}");
+        }
     }
 
     #[test]

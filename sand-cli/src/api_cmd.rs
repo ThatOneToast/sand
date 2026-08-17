@@ -201,7 +201,7 @@ fn installed_catalog() -> Result<ApiCatalog> {
                 .iter()
                 .find(|(paths, ..)| paths.contains(&entry.canonical_path.as_str()))
         {
-            entry.signature = (*signature).to_owned();
+            entry.signature = normalize_shape_paths(signature, &entry.canonical_module);
             let source_summary = rustdoc_summary(documentation);
             let resolved_summary = source_summary
                 .clone()
@@ -216,7 +216,7 @@ fn installed_catalog() -> Result<ApiCatalog> {
                 .iter()
                 .map(|(name, ty)| ApiParameter {
                     name: (*name).to_owned(),
-                    rust_type: Some((*ty).to_owned()),
+                    rust_type: Some(normalize_shape_paths(ty, &entry.canonical_module)),
                     description: authored.get(name).map_or_else(
                         || semantic_parameter_description(name, ty, semantic_summary),
                         |description| (*description).to_owned(),
@@ -228,9 +228,10 @@ fn installed_catalog() -> Result<ApiCatalog> {
                     semantic_return_description(ty, semantic_summary, &entry.canonical_module)
                 })
             });
-            entry.return_type = return_type.map(|ty| (*ty).to_owned());
+            entry.return_type =
+                return_type.map(|ty| normalize_shape_paths(ty, &entry.canonical_module));
             if family_contract {
-                let summary = resolved_summary;
+                let summary = resolved_summary.clone();
                 let prose = if documentation.trim().is_empty() {
                     format!(
                         "{summary} The exact source-derived Rust declaration is `{}`.",
@@ -263,13 +264,14 @@ fn installed_catalog() -> Result<ApiCatalog> {
                 entry.example = rustdoc_example(documentation)
                     .filter(|example| example_exercises_member(example, &entry.canonical_path))
                     .unwrap_or_else(|| {
-                        structural_example(
+                        let call = structural_example(
                             entry.kind,
                             &entry.canonical_path,
                             parameters,
                             *return_type,
                             *has_receiver,
-                        )
+                        );
+                        format!("// {}\n{call}", resolved_summary.trim_end_matches('.'))
                     });
             }
         }
@@ -280,6 +282,15 @@ fn installed_catalog() -> Result<ApiCatalog> {
     // retain an exact, compilable import reference instead of fabricating a
     // constructor that may be private or may not exist.
     for entry in &mut entries {
+        entry.signature = normalize_shape_paths(&entry.signature, &entry.canonical_module);
+        for parameter in &mut entry.parameters {
+            if let Some(rust_type) = &mut parameter.rust_type {
+                *rust_type = normalize_shape_paths(rust_type, &entry.canonical_module);
+            }
+        }
+        if let Some(return_type) = &mut entry.return_type {
+            *return_type = normalize_shape_paths(return_type, &entry.canonical_module);
+        }
         if !matches!(
             entry.kind,
             ApiKind::Function | ApiKind::Method | ApiKind::TraitMethod
@@ -320,34 +331,7 @@ fn rustdoc_prose(documentation: &str) -> String {
 }
 
 fn rustdoc_prose_paragraphs(documentation: &str) -> Vec<String> {
-    let mut in_code = false;
-    let mut paragraphs = Vec::new();
-    let mut current = Vec::new();
-    for line in documentation.lines() {
-        let line = line.trim();
-        if line.eq_ignore_ascii_case("# API Contract") {
-            break;
-        }
-        if line.starts_with("```") {
-            in_code = !in_code;
-            continue;
-        }
-        if in_code || line.starts_with('#') {
-            continue;
-        }
-        if line.is_empty() {
-            if !current.is_empty() {
-                paragraphs.push(current.join(" "));
-                current.clear();
-            }
-            continue;
-        }
-        current.push(line.replace("**", ""));
-    }
-    if !current.is_empty() {
-        paragraphs.push(current.join(" "));
-    }
-    paragraphs
+    sand_api_contract::rustdoc_prose_paragraphs(documentation)
         .into_iter()
         .map(|paragraph| normalize_facade_paths(&paragraph))
         .collect()
@@ -397,6 +381,100 @@ fn semantic_parameter_description(name: &str, rust_type: &str, summary: &str) ->
         "text" | "message" | "name_text" | "description" => {
             "Supplies the typed player-visible Minecraft text rendered by this operation."
         }
+        "holder" | "lhs" | "rhs" => {
+            "Selects the scoreboard holder whose value participates in this operation."
+        }
+        "item" | "block" | "effect" | "particle" | "attribute" | "component" => {
+            "Supplies the typed Minecraft content value affected or emitted by this operation."
+        }
+        "slot" | "hand" => {
+            "Selects the Minecraft inventory or equipment slot addressed by this operation."
+        }
+        "namespace" => "Selects the validated namespace for the generated Minecraft resource.",
+        "radius" | "range" | "spread" | "height" | "width" | "size" | "x" | "y" | "z"
+        | "x_offset" | "y_offset" | "canvas_x" | "canvas_width" | "points" | "level"
+        | "amplifier" | "turns" | "weight" | "cost" => {
+            "Supplies the numeric bound, coordinate, magnitude, or weight used by this operation."
+        }
+        "pos" | "from" | "to" => "Selects the typed Minecraft position used by this operation.",
+        "field" | "schema" => {
+            "Selects the typed schema field whose stored value this operation accesses."
+        }
+        "role" | "binding" | "ownership" => {
+            "Selects the participant role or ownership binding used by this operation."
+        }
+        "archetype" => {
+            "Identifies the entity archetype whose declared behavior this operation uses."
+        }
+        "state" | "mode" | "policy" | "config" | "default" | "fallback" => {
+            "Supplies the typed configuration or state selected for this operation."
+        }
+        "body" | "function" | "executor" => {
+            "Supplies the callback or generated function body invoked by this operation."
+        }
+        "cmd" | "operation" | "op" => {
+            "Supplies the typed command or operation to validate, compose, or emit."
+        }
+        "entry" | "entries" => {
+            "Supplies the typed entry or entries added to the resulting definition."
+        }
+        "color" => "Supplies the typed color applied to the generated Minecraft output.",
+        "damage" => "Supplies the typed damage value applied by this operation.",
+        "event" => "Selects the typed Sand event whose lifecycle this operation composes.",
+        "fixed" | "modifier" => {
+            "Supplies the typed numeric transformation applied by this operation."
+        }
+        "nbt" => "Supplies the structured Minecraft NBT value consumed by this operation.",
+        "team" => "Selects the Minecraft team affected or tested by this operation.",
+        "frame" | "display" | "style" => {
+            "Selects the visual presentation applied to the generated Minecraft content."
+        }
+        "derivation" | "generator" => {
+            "Describes how Sand derives the generated value from its typed source."
+        }
+        "ty" | "kind" | "variant" | "cat" => {
+            "Selects the typed category or variant emitted by this operation."
+        }
+        "refresh" | "enabled" | "disabled" | "required" | "flag" => {
+            "Controls whether the documented optional behavior is enabled or required."
+        }
+        "src_path" | "dst_path" => {
+            "Selects the source or destination path used by this data operation."
+        }
+        "src_selector" | "dst_selector" | "other_selector" => {
+            "Selects the source or destination Minecraft entities used by this operation."
+        }
+        "scores" | "source_objective" => {
+            "Selects the scoreboard values read or written by this operation."
+        }
+        "items" | "blocks" | "effects" | "enchantments" | "commands" | "arguments" | "children"
+        | "rings" | "rows" | "slots" | "structures" | "spawns" | "modifiers" | "processors" => {
+            "Supplies the ordered typed values composed into the resulting definition."
+        }
+        "ingredient" | "recipe" | "tool" | "potion" | "trade" | "dialog" => {
+            "Supplies the typed Minecraft definition referenced or composed by this operation."
+        }
+        "json" | "snbt" | "raw" => {
+            "Supplies explicit raw Minecraft syntax through this documented escape hatch."
+        }
+        "dx" | "dy" | "dz" | "yaw" | "pitch" | "speed" | "amplitude" | "threshold" | "percent"
+        | "outer_radius" | "minor_radius" | "y_scale" | "slope" | "spacing" | "separation"
+        | "salt" | "base" | "units" | "order" => {
+            "Supplies the numeric coordinate, bound, scale, or ordering value used by this operation."
+        }
+        "location" | "storage" | "storage_id" | "dimension" | "url" => {
+            "Selects the validated Minecraft resource or external location addressed by this operation."
+        }
+        "criterion" | "trigger" | "property" => {
+            "Selects the typed condition or property that activates this behavior."
+        }
+        "title" | "desc" | "hex" => {
+            "Supplies the displayed or serialized textual value used by this definition."
+        }
+        "argument" | "argument1" | "argument2" | "input" | "result" | "other" | "rhs_obj"
+        | "lhs_obj" | "a_obj" | "b_obj" | "a" | "b" | "n" | "v" => {
+            "Supplies the typed operand described by this API's source documentation."
+        }
         "source" => "Selects the typed source from which this operation reads or copies data.",
         "profile" => "Selects the Minecraft command profile used for validation and rendering.",
         _ if rust_type.contains("bool") => {
@@ -404,8 +482,8 @@ fn semantic_parameter_description(name: &str, rust_type: &str, summary: &str) ->
         }
         _ => {
             return format!(
-                "Supplies `{normalized}` to the documented operation: {}",
-                summary.trim_end_matches('.')
+                "The `{normalized}` input controls this API-specific behavior: {}",
+                summary.trim_end_matches('.'),
             );
         }
     };
@@ -444,19 +522,22 @@ fn semantic_return_description(rust_type: &str, summary: &str, module: &str) -> 
     let compact = rust_type.replace(' ', "");
     if let Some(arguments) = generic_arguments(&compact, "Result") {
         let success = arguments.first().map_or("value", String::as_str);
-        let error = arguments.get(1).map_or("a diagnostic", String::as_str);
+        let error = arguments.get(1).map(String::as_str);
+        let failure = error.map_or_else(
+            || "a diagnostic describing why the operation failed".to_owned(),
+            |error| format!("the `{error}` error describing why the operation failed"),
+        );
         if success == "Self" {
             return "The updated typed builder on success, or a diagnostic describing why the input cannot be represented safely.".to_owned();
         } else if let Some(optional) =
             generic_arguments(success, "Option").and_then(|args| args.into_iter().next())
         {
             return format!(
-                "On success, the optional `{optional}` produced by this operation, or `None` when no value is available; otherwise the `{error}` error describing why the operation failed."
+                "On success, the optional `{optional}` produced by this operation, or `None` when no value is available; otherwise {failure}."
             );
         } else {
             return format!(
-                "The `{success}` produced when {} succeeds, or the `{error}` error describing why the operation failed.",
-                summary.trim_end_matches('.').to_ascii_lowercase()
+                "On success, the `{success}` produced by the documented operation; otherwise {failure}."
             );
         }
     }
@@ -469,8 +550,7 @@ fn semantic_return_description(rust_type: &str, summary: &str, module: &str) -> 
             return "The corresponding typed value when the documented conversion succeeds; otherwise `None`.".to_owned();
         } else {
             return format!(
-                "The `{inner}` produced when {} has a value; otherwise `None`.",
-                summary.trim_end_matches('.').to_ascii_lowercase()
+                "The optional `{inner}` produced by the documented operation, or `None` when no value is available."
             );
         }
     }
@@ -529,23 +609,20 @@ fn documented_avoidance(prose: &str) -> Option<String> {
         .split(". ")
         .find(|sentence| {
             let sentence = sentence.replace("**", "").to_ascii_lowercase();
-            [
-                " do not ",
-                " does not ",
-                " not ",
-                " only ",
-                " instead",
-                " rejected",
-            ]
-            .iter()
-            .any(|needle| sentence.contains(needle))
+            sentence.starts_with("avoid ")
+                || sentence.starts_with("do not ")
+                || sentence.starts_with("prefer ")
+                || [
+                    " not supported",
+                    " unsupported",
+                    " cannot ",
+                    " rejected",
+                    " instead",
+                ]
+                .iter()
+                .any(|needle| sentence.contains(needle))
         })
-        .map(|sentence| {
-            format!(
-                "When this documented limitation applies: {}.",
-                sentence.trim_end_matches('.')
-            )
-        })
+        .map(|sentence| format!("{}.", sentence.trim_end_matches('.')))
 }
 
 fn family_context(entry: &ApiEntry, prose: &str) -> String {
@@ -592,26 +669,26 @@ fn family_avoidance(entry: &ApiEntry, prose: &str, summary: &str) -> String {
     if let Some(guidance) = documented_avoidance(prose) {
         return format!("For `{}`: {guidance}", entry.canonical_path);
     }
-    let behavior = summary.trim_end_matches('.').to_ascii_lowercase();
+    let behavior = summary.trim_end_matches('.');
     if entry.canonical_module.starts_with("sand::command") {
         format!(
-            "Avoid `{}` when the goal is not to {behavior}, or when the required syntax is outside its validated signature; use the explicit raw-command escape hatch instead.",
+            "Use another typed command when `{}` does not provide the required behavior — “{behavior}” — or use the explicit raw-command escape hatch when the syntax is outside its validated signature.",
             entry.canonical_path
         )
     } else if entry.canonical_module.starts_with("sand::component") {
         format!(
-            "Avoid `{}` when the goal is not to {behavior}, or when the target schema is not modeled by its fields; use the explicit raw component or JSON escape hatch instead.",
+            "Use another typed component when `{}` does not provide the required behavior — “{behavior}” — or use the explicit raw component or JSON escape hatch when the target schema is not modeled.",
             entry.canonical_path
         )
     } else if entry.canonical_module.starts_with("sand::resourcepack") {
         format!(
-            "Avoid `{}` when no generated asset needs to {behavior}.",
+            "Skip `{}` when the generated asset does not require its documented behavior: “{behavior}”.",
             entry.canonical_path
         )
     } else {
         format!(
-            "Avoid `{}` when its documented source semantics do not match the authoring operation being modeled.",
-            entry.canonical_path
+            "Choose another API when `{}` does not provide the required documented behavior: “{behavior}”.",
+            entry.canonical_path,
         )
     }
 }
@@ -628,9 +705,7 @@ fn rustdoc_summary(documentation: &str) -> Option<String> {
     if first.len() >= 48 || paragraphs.len() == 1 {
         return Some(first);
     }
-    let second = paragraphs[1]
-        .split_once(". ")
-        .map_or(paragraphs[1].as_str(), |(sentence, _)| sentence);
+    let second = &paragraphs[1];
     Some(format!(
         "{}. {}.",
         first.trim_end_matches('.'),
@@ -671,10 +746,51 @@ fn rustdoc_example(documentation: &str) -> Option<String> {
 fn normalize_facade_paths(value: &str) -> String {
     value
         .replace("sand_core::", "sand::")
+        .replace("sand_core ::", "sand ::")
         .replace("sand_commands::", "sand::command::")
+        .replace("sand_commands ::", "sand :: command ::")
         .replace("sand_components::", "sand::component::")
+        .replace("sand_components ::", "sand :: component ::")
         .replace("sand_resourcepack::", "sand::resourcepack::")
+        .replace("sand_resourcepack ::", "sand :: resourcepack ::")
+        .replace("sand_version::", "sand::version::")
+        .replace("sand_version ::", "sand :: version ::")
         .replace("sand_macros::", "sand::")
+        .replace("sand_macros ::", "sand ::")
+}
+
+fn normalize_shape_paths(value: &str, canonical_module: &str) -> String {
+    let value = normalize_facade_paths(value);
+    if canonical_module.starts_with("sand::command") {
+        value
+            .replace("crate::function::", "")
+            .replace("crate::selector::", "")
+            .replace("crate::", "")
+            .replace("crate :: function ::", "")
+            .replace("crate :: selector ::", "")
+            .replace("crate ::", "")
+    } else if canonical_module.starts_with("sand::component") {
+        value
+            .replace("crate::error::Result", "SandResult")
+            .replace("crate::registry::FunctionId", "sand::registry::FunctionId")
+            .replace("crate::recipe::", "")
+            .replace("crate::", "sand::component::")
+            .replace("crate :: error :: Result", "SandResult")
+            .replace(
+                "crate :: registry :: FunctionId",
+                "sand :: registry :: FunctionId",
+            )
+            .replace("crate :: recipe ::", "")
+            .replace("crate ::", "sand :: component ::")
+    } else if canonical_module.starts_with("sand::resourcepack") {
+        value
+            .replace("crate::", "sand::resourcepack::")
+            .replace("crate ::", "sand :: resourcepack ::")
+    } else {
+        value
+            .replace("crate::", "sand::")
+            .replace("crate ::", "sand ::")
+    }
 }
 
 fn is_import_only_example(example: &str) -> bool {
@@ -1361,6 +1477,37 @@ mod tests {
     fn installed_catalog_rejects_structural_filler_as_semantic_documentation() {
         let catalog = generated_catalog();
         for entry in &catalog.entries {
+            let compact_signature = entry.signature.replace(' ', "");
+            assert!(
+                !entry.signature.contains("# [doc")
+                    && !entry.signature.contains("#[doc")
+                    && !entry.signature.contains("```")
+                    && !compact_signature.contains("sand_core::")
+                    && !compact_signature.contains("sand_commands::")
+                    && !compact_signature.contains("sand_components::")
+                    && !compact_signature.contains("sand_resourcepack::")
+                    && !compact_signature.contains("sand_version::")
+                    && !compact_signature.contains("crate::"),
+                "signature leaks attributes or implementation paths: {} => {}",
+                entry.canonical_path,
+                entry.signature
+            );
+            assert!(
+                !entry
+                    .returns
+                    .as_deref()
+                    .is_some_and(|returns| returns.contains("`a diagnostic`")),
+                "return prose quotes a fabricated error type: {}",
+                entry.canonical_path
+            );
+            assert!(
+                entry.avoid_when.iter().all(|guidance| {
+                    !guidance.contains("When this documented limitation applies")
+                        && !guidance.contains("when the goal is not to ")
+                }),
+                "avoidance uses inferred or ungrammatical filler: {}",
+                entry.canonical_path
+            );
             assert!(!entry.summary.starts_with("Configures or performs "));
             assert!(!entry.summary.starts_with("Builds or resolves "));
             assert!(
@@ -1490,15 +1637,12 @@ mod tests {
             .find("sand::participant::PlayerParticipant")
             .unwrap()
             .example;
-        assert_eq!(
-            participant_example,
-            "use sand::participant::PlayerParticipant;"
-        );
+        assert!(participant_example.contains("typed player participant reference"));
+        assert!(participant_example.contains("use sand::participant::PlayerParticipant;"));
         assert!(!participant_example.contains("sand_core::"));
-        assert_eq!(
-            catalog.find("sand::command::Actionbar").unwrap().example,
-            "use sand::command::Actionbar;"
-        );
+        let actionbar_example = &catalog.find("sand::command::Actionbar").unwrap().example;
+        assert!(actionbar_example.contains("Actionbar command helpers"));
+        assert!(actionbar_example.contains("use sand::command::Actionbar;"));
     }
 
     #[test]
@@ -1536,6 +1680,10 @@ mod tests {
                 "Short heading.\n\n```rust\nlet internal = sand_components::Thing;\n```\n\nExplains the author-facing behavior in enough detail."
             ),
             Some("Short heading. Explains the author-facing behavior in enough detail.".to_owned())
+        );
+        assert_eq!(
+            rustdoc_summary("Fake scoreboard holder.\n\nConvention: prefix with # (e.g. #global)."),
+            Some("Fake scoreboard holder. Convention: prefix with # (e.g. #global).".to_owned())
         );
 
         let catalog = generated_catalog();
@@ -1709,7 +1857,7 @@ mod tests {
         let catalog = generated_catalog();
         let entity = show(catalog, "sand::prelude::Condition::entity").unwrap();
         assert!(entity.contains("sand::condition::Condition::entity"));
-        assert!(entity.contains("selector : sand_commands :: Selector"));
+        assert!(entity.contains("selector : sand :: command :: Selector"));
         assert!(entity.contains("at least one entity"));
 
         let raw = show(catalog, "sand::condition::Condition::raw").unwrap();

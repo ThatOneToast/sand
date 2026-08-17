@@ -188,7 +188,7 @@ fn collect_definition_shapes(
                             definition_shape_from_signature(&function.sig, &function.attrs)
                         }
                         _ => DefinitionShape {
-                            signature: member.to_token_stream().to_string(),
+                            signature: impl_member_signature(member),
                             parameters: Vec::new(),
                             return_type: None,
                             documentation: String::new(),
@@ -206,7 +206,7 @@ fn collect_definition_shapes(
                             definition_shape_from_signature(&function.sig, &function.attrs)
                         }
                         _ => DefinitionShape {
-                            signature: member.to_token_stream().to_string(),
+                            signature: trait_member_signature(member),
                             parameters: Vec::new(),
                             return_type: None,
                             documentation: String::new(),
@@ -241,7 +241,7 @@ fn collect_definition_shapes(
                     shapes.insert(
                         (location.line, location.column),
                         DefinitionShape {
-                            signature: variant.to_token_stream().to_string(),
+                            signature: variant_signature(variant),
                             parameters: Vec::new(),
                             return_type: None,
                             documentation: rustdoc(&variant.attrs),
@@ -270,6 +270,39 @@ fn collect_definition_shapes(
             _ => {}
         }
     }
+}
+
+fn impl_member_signature(member: &syn::ImplItem) -> String {
+    let mut member = member.clone();
+    match &mut member {
+        syn::ImplItem::Const(value) => value.attrs.clear(),
+        syn::ImplItem::Fn(value) => value.attrs.clear(),
+        syn::ImplItem::Macro(value) => value.attrs.clear(),
+        syn::ImplItem::Type(value) => value.attrs.clear(),
+        _ => {}
+    }
+    member.to_token_stream().to_string()
+}
+
+fn trait_member_signature(member: &syn::TraitItem) -> String {
+    let mut member = member.clone();
+    match &mut member {
+        syn::TraitItem::Const(value) => value.attrs.clear(),
+        syn::TraitItem::Fn(value) => value.attrs.clear(),
+        syn::TraitItem::Macro(value) => value.attrs.clear(),
+        syn::TraitItem::Type(value) => value.attrs.clear(),
+        _ => {}
+    }
+    member.to_token_stream().to_string()
+}
+
+fn variant_signature(variant: &syn::Variant) -> String {
+    let mut variant = variant.clone();
+    variant.attrs.clear();
+    for field in &mut variant.fields {
+        field.attrs.clear();
+    }
+    variant.to_token_stream().to_string()
 }
 
 fn definition_shape_from_signature(

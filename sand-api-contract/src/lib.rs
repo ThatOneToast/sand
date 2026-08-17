@@ -610,6 +610,29 @@ fn validate_entry(entry: &ApiEntry) -> Result<(), CatalogError> {
 
 fn validate_resolved_quality(entries: &[ApiEntry]) -> Result<(), CatalogError> {
     for entry in entries {
+        let compact_signature = entry.signature.replace(char::is_whitespace, "");
+        if entry.signature.contains("#[doc")
+            || entry.signature.contains("# [doc")
+            || entry.signature.contains("```")
+            || [
+                "sand_core::",
+                "sand_commands::",
+                "sand_components::",
+                "sand_resourcepack::",
+                "sand_version::",
+                "crate::",
+            ]
+            .iter()
+            .any(|path| compact_signature.contains(path))
+        {
+            return Err(CatalogError::InvalidEntry {
+                path: entry.canonical_path.clone(),
+                message: format!(
+                    "signature contains Rustdoc attributes or implementation-only crate paths: {}",
+                    entry.signature
+                ),
+            });
+        }
         if entry.summary.starts_with("Configures or performs ")
             || entry.summary.starts_with("Builds or resolves ")
             || entry
@@ -774,6 +797,61 @@ pub fn has_specific_semantics(summary: &str) -> bool {
         .contains(&word.as_str())
     });
     !specific.is_empty() && (!generic_action || specific.len() >= 2)
+}
+
+/// Extracts ordinary Rustdoc prose paragraphs while excluding fenced code,
+/// headings, and the generated API-contract lookup footer.
+pub fn rustdoc_prose_paragraphs(documentation: &str) -> Vec<String> {
+    let mut in_code = false;
+    let mut paragraphs = Vec::new();
+    let mut current = Vec::new();
+    for line in documentation.lines() {
+        let line = line.trim();
+        if line.eq_ignore_ascii_case("# API Contract") {
+            break;
+        }
+        if line.starts_with("```") {
+            in_code = !in_code;
+            continue;
+        }
+        if in_code || markdown_heading(line) {
+            continue;
+        }
+        if line.is_empty() {
+            if !current.is_empty() {
+                paragraphs.push(current.join(" "));
+                current.clear();
+            }
+            continue;
+        }
+        current.push(line.replace("**", ""));
+    }
+    if !current.is_empty() {
+        paragraphs.push(current.join(" "));
+    }
+    paragraphs
+}
+
+/// Returns whether the first author-facing prose paragraph is substantive.
+/// Fenced examples and generated headings cannot satisfy this semantic gate.
+pub fn rustdoc_has_specific_semantics(documentation: &str) -> bool {
+    let first = rustdoc_prose_paragraphs(documentation)
+        .into_iter()
+        .next()
+        .unwrap_or_default();
+    !first.starts_with("use ") && has_specific_semantics(&first)
+}
+
+fn markdown_heading(line: &str) -> bool {
+    let hashes = line
+        .chars()
+        .take_while(|character| *character == '#')
+        .count();
+    (1..=6).contains(&hashes)
+        && line[hashes..]
+            .chars()
+            .next()
+            .is_none_or(char::is_whitespace)
 }
 
 fn valid_path(path: &str) -> bool {
@@ -1174,5 +1252,32 @@ mod tests {
         )
         .unwrap_err();
         assert!(matches!(error, CatalogError::InvalidCoverage(_)));
+    }
+
+    #[test]
+    fn rustdoc_prose_excludes_code_and_preserves_abbreviations_and_issue_references() {
+        let documentation = "Short summary.\n\n```rust\nuse sand_core::Hidden;\n```\n\nConvention: prefix with # (e.g. #fake).\n#273). This continues the issue reference.\n\n# API Contract\nignored";
+        assert_eq!(
+            rustdoc_prose_paragraphs(documentation),
+            [
+                "Short summary.",
+                "Convention: prefix with # (e.g. #fake). #273). This continues the issue reference."
+            ]
+        );
+        assert!(rustdoc_prose_paragraphs("```rust\nlet specialized_name = 1;\n```").is_empty());
+        assert!(!rustdoc_has_specific_semantics(
+            "```rust\nlet specialized_name = 1;\n```"
+        ));
+        assert!(!rustdoc_has_specific_semantics(
+            "use sand::feature::SpecializedType;"
+        ));
+        assert!(rustdoc_has_specific_semantics(
+            "Copies the entity snapshot into durable command storage."
+        ));
+        assert!(
+            rustdoc_prose_paragraphs("# Heading\n\nActual prose.")
+                .first()
+                .is_some_and(|paragraph| paragraph == "Actual prose.")
+        );
     }
 }

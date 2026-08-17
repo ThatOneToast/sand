@@ -1034,12 +1034,7 @@ fn write_coverage(
 }
 
 fn source_documentation_is_substantive(documentation: &str) -> bool {
-    let first_paragraph = documentation
-        .split("\n\n")
-        .map(str::trim)
-        .find(|paragraph| !paragraph.is_empty() && !paragraph.starts_with('#'))
-        .unwrap_or_default();
-    sand_api_contract::has_specific_semantics(first_paragraph)
+    sand_api_contract::rustdoc_has_specific_semantics(documentation)
 }
 
 fn kind_name(kind: ReachableKind) -> &'static str {

@@ -244,7 +244,7 @@ fn installed_catalog() -> Result<ApiCatalog> {
                 entry.context = family_context(entry, &prose);
                 entry.minecraft = family_minecraft_behavior(entry, &summary);
                 entry.use_when = vec![family_use_guidance(entry, &summary)];
-                entry.avoid_when = vec![family_avoidance(entry, &prose, &summary)];
+                entry.avoid_when = vec![family_avoidance(entry, &summary)];
             } else if let Some(summary) = source_summary {
                 if is_family_template_summary(&entry.summary) {
                     entry.summary = summary.clone();
@@ -604,27 +604,6 @@ fn generic_arguments(rust_type: &str, wrapper: &str) -> Option<Vec<String>> {
     None
 }
 
-fn documented_avoidance(prose: &str) -> Option<String> {
-    prose
-        .split(". ")
-        .find(|sentence| {
-            let sentence = sentence.replace("**", "").to_ascii_lowercase();
-            sentence.starts_with("avoid ")
-                || sentence.starts_with("do not ")
-                || sentence.starts_with("prefer ")
-                || [
-                    " not supported",
-                    " unsupported",
-                    " cannot ",
-                    " rejected",
-                    " instead",
-                ]
-                .iter()
-                .any(|needle| sentence.contains(needle))
-        })
-        .map(|sentence| format!("{}.", sentence.trim_end_matches('.')))
-}
-
 fn family_context(entry: &ApiEntry, prose: &str) -> String {
     format!(
         "Within `{}`, `{}` has the source-derived declaration `{}`. {prose}",
@@ -665,10 +644,7 @@ fn family_use_guidance(entry: &ApiEntry, summary: &str) -> String {
     )
 }
 
-fn family_avoidance(entry: &ApiEntry, prose: &str, summary: &str) -> String {
-    if let Some(guidance) = documented_avoidance(prose) {
-        return format!("For `{}`: {guidance}", entry.canonical_path);
-    }
+fn family_avoidance(entry: &ApiEntry, summary: &str) -> String {
     let behavior = summary.trim_end_matches('.');
     if entry.canonical_module.starts_with("sand::command") {
         format!(

@@ -254,9 +254,11 @@ fn installed_catalog() -> Result<ApiCatalog> {
                 let prose =
                     normalize_shape_paths(&rustdoc_prose(documentation), &entry.canonical_module);
                 entry.summary = summary.clone();
-                entry.context = (!prose.trim().is_empty() && prose.trim() != summary.trim())
-                    .then_some(prose)
-                    .unwrap_or_default();
+                entry.context = if !prose.trim().is_empty() && prose.trim() != summary.trim() {
+                    prose
+                } else {
+                    String::new()
+                };
                 entry.minecraft = source_minecraft_behavior(documentation)
                     .map(|value| normalize_shape_paths(&value, &entry.canonical_module))
                     .unwrap_or_default();

@@ -64,6 +64,8 @@ enum FeaturesValue {
 /// Vanilla currently only accepts `"none"` and `"frozen"`; use
 /// [`Biome::raw_temperature_modifier`] if a future Minecraft version adds
 /// more accepted values before Sand's typed enum is updated.
+///
+/// **API Contract:** Run `sand api show sand::component::TemperatureModifier` for the canonical contract.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TemperatureModifier {
     /// `"none"` — no modification (the default).
@@ -100,34 +102,37 @@ impl TemperatureModifierValue {
 // ── BiomeEffects ──────────────────────────────────────────────────────────────
 
 /// Visual and audio effects for a biome.
+///
+/// **API Contract:** Run `sand api show sand::component::BiomeEffects` for the canonical contract.
 #[derive(Clone)]
 pub struct BiomeEffects {
     /// Fog color (RGB integer, e.g. `0xC0D8FF`).
-    pub fog_color: u32,
+    fog_color: u32,
     /// Water color (RGB integer).
-    pub water_color: u32,
+    water_color: u32,
     /// Water fog color (RGB integer).
-    pub water_fog_color: u32,
+    water_fog_color: u32,
     /// Sky color (RGB integer).
-    pub sky_color: u32,
+    sky_color: u32,
     /// Optional grass color override (RGB integer).
-    pub grass_color: Option<u32>,
+    grass_color: Option<u32>,
     /// Optional foliage color override (RGB integer).
-    pub foliage_color: Option<u32>,
+    foliage_color: Option<u32>,
     /// Ambient particle effect (raw JSON, optional).
-    pub particle: Option<Value>,
+    particle: Option<Value>,
     /// Ambient sound event reference (optional).
     ambient_sound: Option<AmbientSoundReference>,
     /// Mood sound (raw JSON, optional).
-    pub mood_sound: Option<Value>,
+    mood_sound: Option<Value>,
     /// Additions sound (raw JSON, optional).
-    pub additions_sound: Option<Value>,
+    additions_sound: Option<Value>,
     /// Background music (raw JSON, optional).
-    pub music: Option<Value>,
+    music: Option<Value>,
 }
 
 impl BiomeEffects {
     /// Creates effects with the minimum required colors.
+    #[doc = "**API Contract:** Run `sand api show sand::component::BiomeEffects::new` for the canonical contract."]
     pub fn new(fog_color: u32, water_color: u32, water_fog_color: u32, sky_color: u32) -> Self {
         Self {
             fog_color,
@@ -145,24 +150,28 @@ impl BiomeEffects {
     }
 
     /// Overrides the grass color.
+    #[doc = "**API Contract:** Run `sand api show sand::component::BiomeEffects::grass_color` for the canonical contract."]
     pub fn grass_color(mut self, color: u32) -> Self {
         self.grass_color = Some(color);
         self
     }
 
     /// Overrides the foliage color.
+    #[doc = "**API Contract:** Run `sand api show sand::component::BiomeEffects::foliage_color` for the canonical contract."]
     pub fn foliage_color(mut self, color: u32) -> Self {
         self.foliage_color = Some(color);
         self
     }
 
     /// Sets the ambient particle effect as raw JSON.
+    #[doc = "**API Contract:** Run `sand api show sand::component::BiomeEffects::particle` for the canonical contract."]
     pub fn particle(mut self, particle: Value) -> Self {
         self.particle = Some(particle);
         self
     }
 
     /// Sets the ambient loop sound to a typed [`SoundEventId`].
+    #[doc = "**API Contract:** Run `sand api show sand::component::BiomeEffects::ambient_sound` for the canonical contract."]
     pub fn ambient_sound(mut self, sound: SoundEventId) -> Self {
         self.ambient_sound = Some(AmbientSoundReference::Typed(sound));
         self
@@ -173,24 +182,28 @@ impl BiomeEffects {
     ///
     /// Prefer [`BiomeEffects::ambient_sound`] with a [`SoundEventId`]. This
     /// escape hatch exists for modded or version-specific sound references.
+    #[doc = "**API Contract:** Run `sand api show sand::component::BiomeEffects::raw_ambient_sound` for the canonical contract."]
     pub fn raw_ambient_sound(mut self, sound: impl Into<String>) -> Self {
         self.ambient_sound = Some(AmbientSoundReference::Raw(sound.into()));
         self
     }
 
     /// Sets the mood sound as raw JSON.
+    #[doc = "**API Contract:** Run `sand api show sand::component::BiomeEffects::mood_sound` for the canonical contract."]
     pub fn mood_sound(mut self, sound: Value) -> Self {
         self.mood_sound = Some(sound);
         self
     }
 
     /// Sets the additions sound as raw JSON.
+    #[doc = "**API Contract:** Run `sand api show sand::component::BiomeEffects::additions_sound` for the canonical contract."]
     pub fn additions_sound(mut self, sound: Value) -> Self {
         self.additions_sound = Some(sound);
         self
     }
 
     /// Sets the background music as raw JSON.
+    #[doc = "**API Contract:** Run `sand api show sand::component::BiomeEffects::music` for the canonical contract."]
     pub fn music(mut self, music: Value) -> Self {
         self.music = Some(music);
         self
@@ -330,6 +343,8 @@ impl CarvingStep {
 // ── Biome ─────────────────────────────────────────────────────────────────────
 
 /// A biome definition (`data/<namespace>/worldgen/biome/<id>.json`).
+///
+/// **API Contract:** Run `sand api show sand::component::Biome` for the canonical contract.
 pub struct Biome {
     location: ResourceLocation,
     /// Whether it rains (false = snows if cold enough).
@@ -357,6 +372,7 @@ pub struct Biome {
 
 impl Biome {
     /// Creates a new biome with required base fields.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Biome::new` for the canonical contract."]
     pub fn new(location: ResourceLocation, effects: BiomeEffects) -> Self {
         Self {
             location,
@@ -374,18 +390,21 @@ impl Biome {
     }
 
     /// Sets whether the biome has precipitation (rain/snow).
+    #[doc = "**API Contract:** Run `sand api show sand::component::Biome::has_precipitation` for the canonical contract."]
     pub fn has_precipitation(mut self, v: bool) -> Self {
         self.has_precipitation = v;
         self
     }
 
     /// Sets the biome temperature.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Biome::temperature` for the canonical contract."]
     pub fn temperature(mut self, temp: f32) -> Self {
         self.temperature = temp;
         self
     }
 
     /// Sets the temperature modifier to a typed [`TemperatureModifier`].
+    #[doc = "**API Contract:** Run `sand api show sand::component::Biome::temperature_modifier` for the canonical contract."]
     pub fn temperature_modifier(mut self, modifier: TemperatureModifier) -> Self {
         self.temperature_modifier = TemperatureModifierValue::Typed(modifier);
         self
@@ -399,12 +418,14 @@ impl Biome {
     /// hatch is retained in case a future Minecraft version adds more
     /// accepted values before Sand's typed enum is updated, but export-time
     /// validation still rejects anything else today.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Biome::raw_temperature_modifier` for the canonical contract."]
     pub fn raw_temperature_modifier(mut self, modifier: impl Into<String>) -> Self {
         self.temperature_modifier = TemperatureModifierValue::Raw(modifier.into());
         self
     }
 
     /// Sets the downfall value (0.0–1.0).
+    #[doc = "**API Contract:** Run `sand api show sand::component::Biome::downfall` for the canonical contract."]
     pub fn downfall(mut self, downfall: f32) -> Self {
         self.downfall = downfall;
         self
@@ -418,6 +439,7 @@ impl Biome {
     /// This escape hatch exists for modded carver references or shapes
     /// outside the typed carving-step map. Mutually exclusive with
     /// [`Biome::carver_step`].
+    #[doc = "**API Contract:** Run `sand api show sand::component::Biome::raw_carvers` for the canonical contract."]
     pub fn raw_carvers(mut self, carvers: Value) -> Self {
         self.carvers = Some(carvers);
         self
@@ -431,6 +453,7 @@ impl Biome {
     /// [`ConfiguredCarver`](crate::worldgen::ConfiguredCarver) and pass
     /// [`ConfiguredCarver::id`](crate::worldgen::ConfiguredCarver::id) here.
     /// Mutually exclusive with [`Biome::raw_carvers`].
+    #[doc = "**API Contract:** Run `sand api show sand::component::Biome::carver_step` for the canonical contract."]
     pub fn carver_step(mut self, step: CarvingStep, carver: ConfiguredCarverId) -> Self {
         self.typed_carvers.entry(step).or_default().push(carver);
         self
@@ -442,6 +465,7 @@ impl Biome {
     /// Repeated calls append to the same step and accumulate across steps.
     /// If [`Biome::raw_features`] was used previously, this replaces it with
     /// a fresh typed feature map (typed and raw features are not merged).
+    #[doc = "**API Contract:** Run `sand api show sand::component::Biome::feature` for the canonical contract."]
     pub fn feature(mut self, step: GenerationStep, feature: ConfiguredFeatureId) -> Self {
         let mut steps = match self.features {
             Some(FeaturesValue::Typed(steps)) => steps,
@@ -458,18 +482,21 @@ impl Biome {
     /// Prefer [`Biome::feature`] with a [`GenerationStep`] and
     /// [`ConfiguredFeatureId`]. This escape hatch exists for modded or
     /// version-specific feature shapes.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Biome::raw_features` for the canonical contract."]
     pub fn raw_features(mut self, features: Value) -> Self {
         self.features = Some(FeaturesValue::Raw(features));
         self
     }
 
     /// Sets the spawners object as raw JSON.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Biome::spawners` for the canonical contract."]
     pub fn spawners(mut self, spawners: Value) -> Self {
         self.spawners = Some(spawners);
         self
     }
 
     /// Sets the spawn costs object as raw JSON.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Biome::spawn_costs` for the canonical contract."]
     pub fn spawn_costs(mut self, costs: Value) -> Self {
         self.spawn_costs = Some(costs);
         self

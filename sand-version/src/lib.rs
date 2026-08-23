@@ -136,6 +136,8 @@ impl CommandProfile {
 /// The variants mirror the `supports_*` fields of `sand_core::version::VersionProfile`.
 /// Keeping them in `sand-version` avoids a dependency cycle between
 /// `sand-components` and `sand-core`.
+///
+/// **API Contract:** Run `sand api show sand::version::ComponentFeature` for the canonical contract.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ComponentFeature {
     /// Data-driven dialogs (1.21.6+ / 26.x).
@@ -164,6 +166,7 @@ pub enum ComponentFeature {
 
 impl ComponentFeature {
     /// Human-readable feature name used in diagnostics.
+    #[doc = "**API Contract:** Run `sand api show sand::version::ComponentFeature::name` for the canonical contract."]
     pub fn name(self) -> &'static str {
         match self {
             Self::Dialogs => "dialogs",
@@ -179,6 +182,7 @@ impl ComponentFeature {
     }
 
     /// All feature variants, in a stable order.
+    #[doc = "**API Contract:** Run `sand api show sand::version::ComponentFeature::ALL` for the canonical contract."]
     pub const ALL: &'static [ComponentFeature] = &[
         Self::Dialogs,
         Self::JukeboxSongs,
@@ -202,6 +206,8 @@ impl ComponentFeature {
 /// For fallback/unknown profiles, all feature flags are `false`, matching the
 /// conservative policy: reject version-gated components unless the user
 /// explicitly targets a known exact profile.
+///
+/// **API Contract:** Run `sand api show sand::version::VersionCaps` for the canonical contract.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VersionCaps {
     requested_version: String,
@@ -222,6 +228,7 @@ impl VersionCaps {
     ///
     /// Used by the compatibility (unprofiled) export path so existing
     /// callers retain their prior behavior.
+    #[doc = "**API Contract:** Run `sand api show sand::version::VersionCaps::all_enabled` for the canonical contract."]
     pub fn all_enabled() -> Self {
         Self {
             requested_version: LATEST_KNOWN.to_string(),
@@ -239,6 +246,7 @@ impl VersionCaps {
     }
 
     /// Create a `VersionCaps` where all features are disabled (fallback policy).
+    #[doc = "**API Contract:** Run `sand api show sand::version::VersionCaps::all_disabled` for the canonical contract."]
     pub fn all_disabled() -> Self {
         Self {
             requested_version: "1.18".to_string(),
@@ -261,6 +269,7 @@ impl VersionCaps {
     /// A separate builder method (rather than a constructor parameter) keeps
     /// [`VersionCaps::from_flags`]/[`VersionCaps::from_profile_flags`] call
     /// sites stable as new narrowly-scoped features are added.
+    #[doc = "**API Contract:** Run `sand api show sand::version::VersionCaps::with_animal_variants` for the canonical contract."]
     pub fn with_animal_variants(mut self, value: bool) -> Self {
         self.supports_animal_variants = value;
         self
@@ -273,12 +282,14 @@ impl VersionCaps {
     /// [`VersionCaps::with_animal_variants`] for the same reason: it keeps
     /// [`VersionCaps::from_flags`]/[`VersionCaps::from_profile_flags`] call
     /// sites stable.
+    #[doc = "**API Contract:** Run `sand api show sand::version::VersionCaps::with_villager_trades` for the canonical contract."]
     pub fn with_villager_trades(mut self, value: bool) -> Self {
         self.supports_villager_trades = value;
         self
     }
 
     /// Check whether a specific feature is supported by this capability set.
+    #[doc = "**API Contract:** Run `sand api show sand::version::VersionCaps::supports` for the canonical contract."]
     pub fn supports(&self, feature: ComponentFeature) -> bool {
         match feature {
             ComponentFeature::Dialogs => self.supports_dialogs,
@@ -298,6 +309,7 @@ impl VersionCaps {
     /// This compatibility constructor retains the pre-profile API. Schema
     /// consumers treat it as the latest known target, matching unprofiled
     /// component export behavior.
+    #[doc = "**API Contract:** Run `sand api show sand::version::VersionCaps::from_flags` for the canonical contract."]
     #[allow(clippy::too_many_arguments)]
     pub fn from_flags(
         supports_dialogs: bool,
@@ -325,6 +337,7 @@ impl VersionCaps {
     ///
     /// Used by `sand-core::VersionProfile::caps()` so schema consumers can
     /// distinguish targets that share the same feature flags.
+    #[doc = "**API Contract:** Run `sand api show sand::version::VersionCaps::from_profile_flags` for the canonical contract."]
     #[allow(clippy::too_many_arguments)]
     pub fn from_profile_flags(
         requested_version: impl Into<String>,
@@ -356,11 +369,13 @@ impl VersionCaps {
     }
 
     /// Version requested by the project that produced these capabilities.
+    #[doc = "**API Contract:** Run `sand api show sand::version::VersionCaps::requested_version` for the canonical contract."]
     pub fn requested_version(&self) -> &str {
         &self.requested_version
     }
 
     /// Whether the version resolver used conservative fallback capabilities.
+    #[doc = "**API Contract:** Run `sand api show sand::version::VersionCaps::is_fallback` for the canonical contract."]
     pub fn is_fallback(&self) -> bool {
         self.is_fallback
     }
@@ -369,6 +384,7 @@ impl VersionCaps {
     ///
     /// `latest` resolves to [`LATEST_KNOWN`]. Unknown/fallback targets return
     /// `false`; callers must not infer schema support from a fallback profile.
+    #[doc = "**API Contract:** Run `sand api show sand::version::VersionCaps::is_at_least` for the canonical contract."]
     pub fn is_at_least(&self, major: u32, minor: u32, patch: u32) -> bool {
         if self.is_fallback {
             return false;

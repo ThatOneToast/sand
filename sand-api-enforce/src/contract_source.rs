@@ -1632,3 +1632,14 @@ fn parse_api_kind(value: &syn::Ident) -> syn::Result<ApiKind> {
         }
     })
 }
+                    || item.mac.path.is_ident("register_version_api")
+                "register_version_api" => (
+                    "sand::version",
+                    "typed Minecraft version capability API",
+                    "This version API lets reusable authoring and tooling make the same capability decisions as Sand's profile-aware component exporter.",
+                    "Capability checks describe the data-driven features accepted by the selected Minecraft Java Edition target before pack output is written.",
+                    "Adapting authored resources or integrations to an explicitly selected Minecraft target",
+                    "Ordinary datapack code can rely on the target selected in sand.toml",
+                    "let caps = sand::version::VersionCaps::all_enabled();",
+                    Vec::new(),
+                ),

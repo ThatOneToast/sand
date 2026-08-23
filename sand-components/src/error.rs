@@ -5,6 +5,8 @@ use sand_version::ComponentFeature;
 use crate::resource_location::ResourceLocation;
 
 /// Errors that can occur in sand-components.
+///
+/// **API Contract:** Run `sand api show sand::component::SandError` for the canonical contract.
 #[derive(Debug, Error)]
 pub enum SandError {
     /// Namespace failed validation (must match `[a-z0-9_.-]+` and be non-empty).
@@ -70,6 +72,8 @@ pub enum SandError {
 }
 
 /// Convenience type alias for `Result<T, SandError>`.
+///
+/// **API Contract:** Run `sand api show sand::component::Result` for the canonical contract.
 pub type Result<T> = std::result::Result<T, SandError>;
 
 /// Build a [`SandError::VersionGating`] error for a component that requires

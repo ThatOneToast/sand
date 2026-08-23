@@ -360,14 +360,14 @@ pub mod component {
     };
     #[doc = include_str!("api_contract_rustdoc.md")]
     pub use sand_components::{
-        BannerPattern, CarverFloatRange, CarvingStep, CaveCarverConfig, ChatDecoration,
-        ChatDecorationParameter, ChatStyle, ChatType, ConfiguredCarver, ConfiguredFeature,
-        CustomData, DensityFunction, DensityFunctionBinaryOp, DensityFunctionExpr,
-        DensityFunctionUnaryOp, Dimension, DimensionType, EnchantmentEntry, IntoItemStack,
-        ItemComponent, ItemStackComponents, MonsterSpawnLightLevel, Noise, OreConfig, OreTarget,
-        PlacedFeature, PotionContents, RawComponent, RawJson, RawSnbt, RuleTest,
-        StatusEffectInstance, StructureTemplate, SuspiciousStewEffect, TagEntry, TagRegistry,
-        TypedTag,
+        BannerPattern, Biome, BiomeEffects, CarverFloatRange, CarvingStep, CaveCarverConfig,
+        ChatDecoration, ChatDecorationParameter, ChatStyle, ChatType, ConfiguredCarver,
+        ConfiguredFeature, CustomData, DensityFunction, DensityFunctionBinaryOp,
+        DensityFunctionExpr, DensityFunctionUnaryOp, Dimension, DimensionType, EnchantmentEntry,
+        IntoItemStack, ItemComponent, ItemStackComponents, MonsterSpawnLightLevel, Noise,
+        OreConfig, OreTarget, PlacedFeature, PotionContents, RawComponent, RawJson, RawSnbt,
+        Result, RuleTest, SandError, StatusEffectInstance, StructureTemplate, SuspiciousStewEffect,
+        TagEntry, TagRegistry, TemperatureModifier, TypedTag,
     };
     #[doc = include_str!("api_contract_rustdoc.md")]
     pub use sand_core::components::*;
@@ -478,6 +478,8 @@ pub mod registry {
 )]
 #[doc = include_str!("api_contract_rustdoc.md")]
 pub mod version {
+    #[doc = include_str!("api_contract_rustdoc.md")]
+    pub use sand_core::component::{ComponentFeature, VersionCaps};
     #[doc = include_str!("api_contract_rustdoc.md")]
     pub use sand_core::version::{
         LATEST_KNOWN, MinecraftVersion, PackMetadata, VersionError, VersionFeature, VersionProfile,

@@ -1,6 +1,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use quote::quote;
+use sand_api_contract::syntax::{
+    GeneratedApiContract, GeneratedApiKind, validate_generated_expansion,
+};
 use syn::{
     Data, DeriveInput, Expr, ExprLit, ExprPath, Fields, GenericArgument, Lit, LitInt, LitStr, Path,
     PathArguments, Type, ext::IdentExt, parse_quote,
@@ -31,6 +34,8 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
             ));
         }
     };
+    let owner_ident = &input.ident;
+    let bound_ident = quote::format_ident!("{}Bound", owner_ident);
 
     let mut seen = BTreeSet::new();
     let mut constants = Vec::new();
@@ -38,6 +43,7 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
     let mut bound_fields = Vec::new();
     let mut bound_values = Vec::new();
     let mut lifecycle_submissions = Vec::new();
+    let mut generated_contracts = Vec::new();
     for field in fields {
         let ident = field.ident.as_ref().expect("named field");
         let field_name = ident.unraw().to_string();
@@ -105,6 +111,28 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
             }
         };
 
+        let (wrapper_name, wrapper_behavior) = match &wrapper {
+            Wrapper::Score(_) => (
+                "score",
+                "Reads and writes the schema field through its validated scoreboard objective.",
+            ),
+            Wrapper::Flag => (
+                "flag",
+                "Stores the schema field as a boolean scoreboard value with zero and one encodings.",
+            ),
+            Wrapper::Enum(_) => (
+                "enum",
+                "Stores the schema field as the stable scoreboard encoding derived for its Rust enum.",
+            ),
+            Wrapper::Timer => (
+                "timer",
+                "Stores the schema field as a non-negative scoreboard timer value.",
+            ),
+            Wrapper::Cooldown => (
+                "cooldown",
+                "Stores the schema field as a non-negative scoreboard cooldown whose zero value is ready.",
+            ),
+        };
         let (constant, descriptor, accessor, lifecycle_default) = match wrapper {
             Wrapper::Score(ty) => {
                 if attrs.kind.is_some() && !is_i32(&ty) {
@@ -128,6 +156,7 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
                 (
                     quote! {
                         #[doc = concat!("Typed handle for the `", #field_name, "` State field.")]
+                        #[doc = concat!("API Contract: generated typed score handle `", module_path!(), "::", stringify!(#owner_ident), "::", stringify!(#ident), "`.")]
                         pub const #ident: ::sand::__private::EntityScore<#ty> =
                             ::sand::__private::entity_score_new(
                                 #namespace, #schema_name, #field_name, #kind, #default, #bounds
@@ -148,6 +177,7 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
                 (
                     quote! {
                         #[doc = concat!("Typed handle for the `", #field_name, "` State field.")]
+                        #[doc = concat!("API Contract: generated typed flag handle `", module_path!(), "::", stringify!(#owner_ident), "::", stringify!(#ident), "`.")]
                         pub const #ident: ::sand::__private::EntityFlag =
                             ::sand::__private::EntityFlag::new(
                                 #namespace, #schema_name, #field_name, #default
@@ -171,6 +201,7 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
                 (
                     quote! {
                         #[doc = concat!("Typed handle for the `", #field_name, "` State field.")]
+                        #[doc = concat!("API Contract: generated typed enum handle `", module_path!(), "::", stringify!(#owner_ident), "::", stringify!(#ident), "`.")]
                         pub const #ident: ::sand::__private::EntityEnum<#ty> =
                             ::sand::__private::EntityEnum::new(
                                 #namespace, #schema_name, #field_name, #default
@@ -202,6 +233,7 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
                 (
                     quote! {
                         #[doc = concat!("Typed handle for the `", #field_name, "` State field.")]
+                        #[doc = concat!("API Contract: generated typed timer handle `", module_path!(), "::", stringify!(#owner_ident), "::", stringify!(#ident), "`.")]
                         pub const #ident: ::sand::__private::EntityTimer =
                             ::sand::__private::EntityTimer::new(
                                 #namespace, #schema_name, #field_name, #default
@@ -235,6 +267,7 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
                 (
                     quote! {
                         #[doc = concat!("Typed handle for the `", #field_name, "` State field.")]
+                        #[doc = concat!("API Contract: generated typed cooldown handle `", module_path!(), "::", stringify!(#owner_ident), "::", stringify!(#ident), "`.")]
                         pub const #ident: ::sand::__private::EntityCooldown =
                             ::sand::__private::EntityCooldown::new(
                                 #namespace, #schema_name, #field_name
@@ -253,10 +286,50 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
                 )
             }
         };
-        constants.push(constant);
+        let constant_contract = generated_contract(
+            format!("{}::{field_name}", owner_ident.unraw()),
+            GeneratedApiKind::AssociatedConst,
+            format!("Provides the typed {wrapper_name} handle for the `{field_name}` State field."),
+            "Use this definition-owned handle to compose state operations before binding them to a concrete entity or global holder.",
+            wrapper_behavior,
+            &[
+                "Referring to this State field in typed conditions, commands, or archetype configuration",
+            ],
+            &[
+                "Accessing a concrete entity value; bind the schema first and use the bound accessor",
+            ],
+            &[],
+            Some("The definition-owned typed field handle."),
+            format!("let field = {}::{field_name};", owner_ident.unraw()),
+        );
+        let constant_docs = generated_contract_docs(&constant_contract);
+        generated_contracts.push(constant_contract);
+        constants.push(quote!(#constant_docs #constant));
         descriptors.push(descriptor);
+        let bound_contract = generated_contract(
+            format!("{}Bound::{field_name}", owner_ident.unraw()),
+            GeneratedApiKind::Field,
+            format!(
+                "Provides the bound {wrapper_name} accessor for the `{field_name}` State field."
+            ),
+            "This accessor carries the concrete scoreboard holder selected by State::on or State::global, so reads and writes target the intended entity or global schema instance.",
+            wrapper_behavior,
+            &[
+                "Reading, updating, or testing this field for the schema instance that was just bound",
+            ],
+            &[
+                "Declaring schema metadata without a concrete holder; use the definition-owned field handle",
+            ],
+            &[],
+            Some("The holder-bound typed field accessor."),
+            format!("let value = bound.{field_name};"),
+        );
+        let bound_docs = generated_contract_docs(&bound_contract);
+        generated_contracts.push(bound_contract);
         bound_fields.push(quote! {
+            #bound_docs
             #[doc = concat!("Bound accessor for the `", #field_name, "` state field.")]
+            #[doc = concat!("API Contract: generated bound accessor `", module_path!(), "::", stringify!(#bound_ident), "::", stringify!(#ident), "`.")]
             pub #ident: #accessor
         });
         let track_dirty = matches!(config.scope, Scope::Entity | Scope::Living);
@@ -323,51 +396,186 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
         }
     }
 
-    let ident = &input.ident;
+    let ident = owner_ident;
     let visibility = &input.vis;
-    let bound_ident = quote::format_ident!("{}Bound", ident);
     let namespace = &config.namespace;
     let name = &config.name;
     let version = config.version;
-    let binding_method = match config.scope {
-        Scope::Player => quote! {
-            /// Bind this schema to the current execution-scoped player.
-            pub fn on(
-                _target: ::sand::__private::EntityContext<::sand::__private::PlayerKind>
-            ) -> #bound_ident {
-                Self::__sand_bind_to("@s")
-            }
-        },
-        Scope::Entity => quote! {
-            /// Bind this schema to the current execution-scoped entity.
-            pub fn on<K: ::sand::__private::EntityKind>(
-                _target: ::sand::__private::EntityContext<K>
-            ) -> #bound_ident {
-                Self::__sand_bind_to("@s")
-            }
-        },
-        Scope::Living => quote! {
-            /// Bind this schema to the current execution-scoped living entity.
-            pub fn on<K: ::sand::__private::LivingEntityKind>(
-                _target: ::sand::__private::EntityContext<K>
-            ) -> #bound_ident {
-                Self::__sand_bind_to("@s")
-            }
-        },
+    let (binding_contract, binding_method) = match config.scope {
+        Scope::Player => {
+            let contract = generated_contract(
+                format!("{}::on", ident.unraw()),
+                GeneratedApiKind::Method,
+                "Binds this schema to the current execution-scoped player.",
+                "The returned bound view makes every generated field accessor target the player represented by the supplied typed context.",
+                "Uses the current player selector as the scoreboard holder for all schema field operations.",
+                &[
+                    "Reading or mutating persistent player state inside player-scoped command generation",
+                ],
+                &[
+                    "Binding entity, living, or global state; derive the schema with the matching scope",
+                ],
+                &[(
+                    "_target",
+                    "The typed current-player context that proves player scope.",
+                )],
+                Some("The schema view bound to the current player."),
+                format!("let bound = {}::on(player);", ident.unraw()),
+            );
+            let docs = generated_contract_docs(&contract);
+            (
+                contract,
+                quote! {
+                    #docs
+                    /// Bind this schema to the current execution-scoped player.
+                    #[doc = concat!("API Contract: generated player binding `", module_path!(), "::", stringify!(#ident), "::on`.")]
+                    pub fn on(
+                        _target: ::sand::__private::EntityContext<::sand::__private::PlayerKind>
+                    ) -> #bound_ident {
+                        Self::__sand_bind_to("@s")
+                    }
+                },
+            )
+        }
+        Scope::Entity => {
+            let contract = generated_contract(
+                format!("{}::on", ident.unraw()),
+                GeneratedApiKind::Method,
+                "Binds this schema to the current execution-scoped entity.",
+                "The returned bound view carries the current entity holder while retaining the caller's typed EntityKind evidence.",
+                "Uses the current entity selector as the scoreboard holder and enables dirty tracking for archetype reconciliation.",
+                &["Reading or mutating state on the current typed entity"],
+                &["Binding player-only or global state; derive the schema with the matching scope"],
+                &[(
+                    "_target",
+                    "The typed entity context that proves the current execution target.",
+                )],
+                Some("The schema view bound to the current entity."),
+                format!("let bound = {}::on(entity);", ident.unraw()),
+            );
+            let docs = generated_contract_docs(&contract);
+            (
+                contract,
+                quote! {
+                    #docs
+                    /// Bind this schema to the current execution-scoped entity.
+                    #[doc = concat!("API Contract: generated entity binding `", module_path!(), "::", stringify!(#ident), "::on`.")]
+                    pub fn on<K: ::sand::__private::EntityKind>(
+                        _target: ::sand::__private::EntityContext<K>
+                    ) -> #bound_ident {
+                        Self::__sand_bind_to("@s")
+                    }
+                },
+            )
+        }
+        Scope::Living => {
+            let contract = generated_contract(
+                format!("{}::on", ident.unraw()),
+                GeneratedApiKind::Method,
+                "Binds this schema to the current execution-scoped living entity.",
+                "The returned bound view carries the current living-entity holder and preserves the LivingEntityKind capability required by this schema scope.",
+                "Uses the current living entity as the scoreboard holder and enables dirty tracking for archetype reconciliation.",
+                &["Reading or mutating state that requires a living entity context"],
+                &[
+                    "Binding non-living entity or global state; derive the schema with the matching scope",
+                ],
+                &[(
+                    "_target",
+                    "The typed living-entity context that proves the current target capability.",
+                )],
+                Some("The schema view bound to the current living entity."),
+                format!("let bound = {}::on(living);", ident.unraw()),
+            );
+            let docs = generated_contract_docs(&contract);
+            (
+                contract,
+                quote! {
+                    #docs
+                    /// Bind this schema to the current execution-scoped living entity.
+                    #[doc = concat!("API Contract: generated living-entity binding `", module_path!(), "::", stringify!(#ident), "::on`.")]
+                    pub fn on<K: ::sand::__private::LivingEntityKind>(
+                        _target: ::sand::__private::EntityContext<K>
+                    ) -> #bound_ident {
+                        Self::__sand_bind_to("@s")
+                    }
+                },
+            )
+        }
         Scope::Global => {
             let holder = LitStr::new(
                 &global_holder(&namespace.value(), &name.value()),
                 ident.span(),
             );
-            quote! {
-                /// Bind this schema to its deterministic global fake-player holder.
-                pub fn global() -> #bound_ident {
-                    Self::__sand_bind_to(#holder)
-                }
-            }
+            let contract = generated_contract(
+                format!("{}::global", ident.unraw()),
+                GeneratedApiKind::Method,
+                "Binds this schema to its deterministic global holder.",
+                "The returned bound view targets one schema-wide fake player, making the generated fields shared across every executing entity.",
+                "Uses Sand's deterministic fake-player holder for the schema's scoreboard-backed values.",
+                &["Reading or mutating datapack-wide persistent state"],
+                &[
+                    "Each player or entity requires an independent value; derive a scoped schema instead",
+                ],
+                &[],
+                Some("The schema view bound to its global fake-player holder."),
+                format!("let bound = {}::global();", ident.unraw()),
+            );
+            let docs = generated_contract_docs(&contract);
+            (
+                contract,
+                quote! {
+                    #docs
+                    /// Bind this schema to its deterministic global fake-player holder.
+                    #[doc = concat!("API Contract: generated global binding `", module_path!(), "::", stringify!(#ident), "::global`.")]
+                    pub fn global() -> #bound_ident {
+                        Self::__sand_bind_to(#holder)
+                    }
+                },
+            )
         }
     };
+    generated_contracts.push(binding_contract);
+    let bound_example = match config.scope {
+        Scope::Player => format!("let bound = {}::on(player);", ident.unraw()),
+        Scope::Entity => format!("let bound = {}::on(entity);", ident.unraw()),
+        Scope::Living => format!("let bound = {}::on(living);", ident.unraw()),
+        Scope::Global => format!("let bound = {}::global();", ident.unraw()),
+    };
+    let bound_type_contract = generated_contract(
+        bound_ident.unraw().to_string(),
+        GeneratedApiKind::Struct,
+        format!(
+            "Provides holder-bound accessors for the `{}` State schema.",
+            ident.unraw()
+        ),
+        "State binding methods construct this view so every field operation shares one concrete player, entity, or global scoreboard holder.",
+        "Each accessor lowers typed reads, writes, and conditions against the schema's generated scoreboard objectives.",
+        &["Using several fields from one State schema against the same bound holder"],
+        &["Declaring schema-level handles before a target has been selected"],
+        &[],
+        None,
+        bound_example,
+    );
+    let bound_type_docs = generated_contract_docs(&bound_type_contract);
+    generated_contracts.push(bound_type_contract);
+    let fields_contract = generated_contract(
+        format!("{}::FIELDS", ident.unraw()),
+        GeneratedApiKind::AssociatedConst,
+        "Lists this State schema's field descriptors in declaration order.",
+        "Sand uses these descriptors for schema registration, objective provisioning, defaults, bounds, and lifecycle behavior.",
+        "Each descriptor identifies the scoreboard representation and initialization policy for one generated field.",
+        &["Inspecting schema metadata for diagnostics or integration tooling"],
+        &["Reading or writing a concrete field value; use a typed generated handle instead"],
+        &[],
+        Some("The static ordered field-descriptor slice for this schema."),
+        format!("let fields = {}::FIELDS;", ident.unraw()),
+    );
+    let fields_docs = generated_contract_docs(&fields_contract);
+    generated_contracts.push(fields_contract);
     let expanded = quote! {
+        #bound_type_docs
+        #[doc = concat!("Typed bound view generated for `", module_path!(), "::", stringify!(#ident), "`.")]
+        #[doc = concat!("API Contract: generated State bound view `", module_path!(), "::", stringify!(#bound_ident), "`.")]
         #[derive(Debug, Clone, Copy)]
         #visibility struct #bound_ident {
             #(#bound_fields),*
@@ -377,7 +585,9 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
         impl #ident {
             #(#constants)*
 
+            #fields_docs
             /// Field metadata in declaration order.
+            #[doc = concat!("API Contract: generated schema metadata `", module_path!(), "::", stringify!(#ident), "::FIELDS`.")]
             pub const FIELDS: &'static [::sand::__private::StateFieldDescriptor] = &[
                 #(#descriptors),*
             ];
@@ -404,86 +614,107 @@ pub(crate) fn derive_state(input: DeriveInput) -> syn::Result<proc_macro2::Token
 
         #(#lifecycle_submissions)*
     };
-    validate_state_expansion(&input, &expanded)?;
+    if matches!(input.vis, syn::Visibility::Public(_)) {
+        validate_generated_expansion(
+            expanded.clone(),
+            [input.ident.unraw().to_string()],
+            &generated_contracts,
+        )?;
+    }
     Ok(expanded)
 }
 
-fn validate_state_expansion(
-    input: &DeriveInput,
-    expanded: &proc_macro2::TokenStream,
-) -> syn::Result<()> {
-    let expected = sand_api_contract::syntax::state_generated_surface(input)?;
-    let file: syn::File = syn::parse2(expanded.clone())?;
-    let owner = input.ident.unraw();
-    let mut actual_bound_fields = BTreeSet::new();
-    let mut actual_associated = BTreeMap::new();
-    for item in file.items {
-        match item {
-            syn::Item::Struct(structure) if structure.ident.unraw() == expected.bound_type => {
-                for field in structure.fields {
-                    if matches!(field.vis, syn::Visibility::Public(_)) {
-                        let name = field
-                            .ident
-                            .as_ref()
-                            .expect("State bound views have named fields")
-                            .unraw()
-                            .to_string();
-                        actual_bound_fields.insert(name);
-                    }
-                }
-            }
-            syn::Item::Impl(block) => {
-                let syn::Type::Path(self_type) = block.self_ty.as_ref() else {
-                    continue;
-                };
-                if self_type
-                    .path
-                    .segments
-                    .last()
-                    .is_none_or(|segment| segment.ident.unraw() != owner)
-                {
-                    continue;
-                }
-                for member in block.items {
-                    match member {
-                        syn::ImplItem::Const(value)
-                            if matches!(value.vis, syn::Visibility::Public(_)) =>
-                        {
-                            actual_associated.insert(
-                                value.ident.unraw().to_string(),
-                                sand_api_contract::syntax::StateGeneratedAssociatedKind::Const,
-                            );
-                        }
-                        syn::ImplItem::Fn(value)
-                            if matches!(value.vis, syn::Visibility::Public(_)) =>
-                        {
-                            actual_associated.insert(
-                                value.sig.ident.unraw().to_string(),
-                                sand_api_contract::syntax::StateGeneratedAssociatedKind::Method,
-                            );
-                        }
-                        _ => {}
-                    }
-                }
-            }
-            _ => {}
-        }
+#[allow(clippy::too_many_arguments)]
+fn generated_contract(
+    target: String,
+    kind: GeneratedApiKind,
+    summary: impl Into<String>,
+    context: impl Into<String>,
+    minecraft: impl Into<String>,
+    use_when: &[&str],
+    avoid_when: &[&str],
+    parameters: &[(&str, &str)],
+    returns: Option<&str>,
+    example: String,
+) -> GeneratedApiContract {
+    GeneratedApiContract {
+        target,
+        kind,
+        summary: summary.into(),
+        context: context.into(),
+        minecraft: minecraft.into(),
+        use_when: use_when.iter().map(|value| (*value).to_owned()).collect(),
+        avoid_when: avoid_when.iter().map(|value| (*value).to_owned()).collect(),
+        parameters: parameters
+            .iter()
+            .map(|(name, description)| ((*name).to_owned(), (*description).to_owned()))
+            .collect(),
+        returns: returns.map(ToOwned::to_owned),
+        example,
     }
-    let expected_bound_fields = expected.bound_fields.into_iter().collect::<BTreeSet<_>>();
-    let expected_associated = expected
-        .associated
-        .into_iter()
-        .map(|member| (member.name, member.kind))
-        .collect::<BTreeMap<_, _>>();
-    if actual_bound_fields != expected_bound_fields || actual_associated != expected_associated {
-        return Err(syn::Error::new_spanned(
-            &input.ident,
-            format!(
-                "State generated public API drifted from the shared consumer-enforcement model: expected bound fields {expected_bound_fields:?} and associated items {expected_associated:?}, emitted bound fields {actual_bound_fields:?} and associated items {actual_associated:?}"
+}
+
+fn generated_contract_docs(contract: &GeneratedApiContract) -> proc_macro2::TokenStream {
+    let summary = LitStr::new(&contract.summary, proc_macro2::Span::call_site());
+    let context = LitStr::new(
+        &format!("**Context:** {}", contract.context),
+        proc_macro2::Span::call_site(),
+    );
+    let minecraft = LitStr::new(
+        &format!("**Minecraft behavior:** {}", contract.minecraft),
+        proc_macro2::Span::call_site(),
+    );
+    let use_when = LitStr::new(
+        &format!("**Use when:** {}", contract.use_when.join("; ")),
+        proc_macro2::Span::call_site(),
+    );
+    let avoid_when = LitStr::new(
+        &format!("**Avoid when:** {}", contract.avoid_when.join("; ")),
+        proc_macro2::Span::call_site(),
+    );
+    let parameters = (!contract.parameters.is_empty()).then(|| {
+        LitStr::new(
+            &format!(
+                "**Parameters:** {}",
+                contract
+                    .parameters
+                    .iter()
+                    .map(|(name, description)| format!("`{name}` — {description}"))
+                    .collect::<Vec<_>>()
+                    .join("; ")
             ),
-        ));
+            proc_macro2::Span::call_site(),
+        )
+    });
+    let returns = contract.returns.as_ref().map(|value| {
+        LitStr::new(
+            &format!("**Returns:** {value}"),
+            proc_macro2::Span::call_site(),
+        )
+    });
+    let example = LitStr::new(
+        &format!("**Example:** `{}`", contract.example),
+        proc_macro2::Span::call_site(),
+    );
+    let parameter_doc = parameters
+        .map(|value| quote!(#[doc = #value]))
+        .unwrap_or_default();
+    let return_doc = returns
+        .map(|value| quote!(#[doc = #value]))
+        .unwrap_or_default();
+    quote! {
+        #[doc = #summary]
+        #[doc = ""]
+        #[doc = "# API Contract"]
+        #[doc = ""]
+        #[doc = #context]
+        #[doc = #minecraft]
+        #[doc = #use_when]
+        #[doc = #avoid_when]
+        #parameter_doc
+        #return_doc
+        #[doc = #example]
     }
-    Ok(())
 }
 
 pub(crate) fn derive_enum(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
@@ -969,22 +1200,247 @@ fn set_once<T>(slot: &mut Option<T>, value: T, path: &Path) -> syn::Result<()> {
 mod generated_surface_tests {
     use super::*;
 
-    #[test]
-    fn actual_state_expansion_rejects_an_unmodeled_public_method() {
-        let input: DeriveInput = syn::parse_quote! {
+    fn state_input() -> DeriveInput {
+        syn::parse_quote! {
             #[state(namespace = "demo", name = "stats", scope = player)]
             pub struct Stats { health: EntityScore<i32> }
-        };
+        }
+    }
+
+    fn fixture_contract(
+        target: &str,
+        kind: GeneratedApiKind,
+        parameters: &[(&str, &str)],
+        returns: Option<&str>,
+    ) -> GeneratedApiContract {
+        generated_contract(
+            target.to_owned(),
+            kind,
+            "Generated fixture summary.",
+            "Generated fixture context.",
+            "Generated fixture Minecraft behavior.",
+            &["Using the generated fixture API"],
+            &["The fixture API is not applicable"],
+            parameters,
+            returns,
+            "let value = fixture();".to_owned(),
+        )
+    }
+
+    #[test]
+    fn validator_extracts_exact_callable_signature_parameters_and_return() {
+        let contract = fixture_contract(
+            "Stats::on",
+            GeneratedApiKind::Method,
+            &[("_target", "The target context.")],
+            Some("The bound view."),
+        );
+        let docs = generated_contract_docs(&contract);
         let expansion = quote! {
-            pub struct StatsBound { pub health: EntityScoreAccessor<i32> }
             impl Stats {
-                pub const health: EntityScore<i32> = todo!();
-                pub const FIELDS: &'static [StateFieldDescriptor] = &[];
-                pub fn on(_target: EntityContext<PlayerKind>) -> StatsBound { todo!() }
-                pub fn unmodeled() {}
+                #docs
+                pub fn on<K: EntityKind>(_target: EntityContext<K>) -> StatsBound { todo!() }
             }
         };
-        let error = validate_state_expansion(&input, &expansion).unwrap_err();
-        assert!(error.to_string().contains("unmodeled"));
+        let shapes = validate_generated_expansion(expansion, ["Stats".to_owned()], &[contract])
+            .expect("exact generated contract");
+        let shape = &shapes[0];
+        assert_eq!(shape.target, "Stats::on");
+        assert!(shape.signature.contains("EntityContext < K >"));
+        assert_eq!(shape.parameters["_target"], "EntityContext < K >");
+        assert_eq!(shape.return_type.as_deref(), Some("StatsBound"));
+    }
+
+    #[test]
+    fn validator_extracts_bound_field_and_owner_const_types() {
+        let bound = fixture_contract("StatsBound", GeneratedApiKind::Struct, &[], None);
+        let field = fixture_contract(
+            "StatsBound::health",
+            GeneratedApiKind::Field,
+            &[],
+            Some("The bound accessor."),
+        );
+        let constant = fixture_contract(
+            "Stats::health",
+            GeneratedApiKind::AssociatedConst,
+            &[],
+            Some("The definition-owned handle."),
+        );
+        let bound_docs = generated_contract_docs(&bound);
+        let field_docs = generated_contract_docs(&field);
+        let constant_docs = generated_contract_docs(&constant);
+        let expansion = quote! {
+            #bound_docs
+            pub struct StatsBound {
+                #field_docs
+                pub health: EntityScoreAccessor<i32>
+            }
+            impl Stats {
+                #constant_docs
+                pub const health: EntityScore<i32> = todo!();
+            }
+        };
+        let shapes = validate_generated_expansion(
+            expansion,
+            ["Stats".to_owned()],
+            &[bound, field, constant],
+        )
+        .expect("field and const contracts");
+        let field = shapes
+            .iter()
+            .find(|shape| shape.target == "StatsBound::health")
+            .unwrap();
+        assert_eq!(
+            field.return_type.as_deref(),
+            Some("EntityScoreAccessor < i32 >")
+        );
+        let constant = shapes
+            .iter()
+            .find(|shape| shape.target == "Stats::health")
+            .unwrap();
+        assert_eq!(constant.return_type.as_deref(), Some("EntityScore < i32 >"));
+    }
+
+    #[test]
+    fn validator_rejects_uncontracted_siblings_and_bound_members() {
+        let bound = fixture_contract("StatsBound", GeneratedApiKind::Struct, &[], None);
+        let bound_docs = generated_contract_docs(&bound);
+        let expansion = quote! {
+            #bound_docs
+            pub struct StatsBound;
+            pub struct Escape;
+        };
+        assert!(
+            validate_generated_expansion(expansion, ["Stats".to_owned()], &[bound])
+                .unwrap_err()
+                .to_string()
+                .contains("Escape")
+        );
+
+        let bound = fixture_contract("StatsBound", GeneratedApiKind::Struct, &[], None);
+        let bound_docs = generated_contract_docs(&bound);
+        let expansion = quote! {
+            #bound_docs
+            pub struct StatsBound;
+            impl StatsBound { pub fn escape() {} }
+        };
+        assert!(
+            validate_generated_expansion(expansion, ["Stats".to_owned()], &[bound])
+                .unwrap_err()
+                .to_string()
+                .contains("StatsBound::escape")
+        );
+    }
+
+    #[test]
+    fn validator_rejects_parameter_return_kind_and_rustdoc_drift() {
+        let contract = fixture_contract(
+            "Stats::on",
+            GeneratedApiKind::Method,
+            &[("_target", "The target context.")],
+            Some("The bound view."),
+        );
+        let docs = generated_contract_docs(&contract);
+        let expansion = quote! {
+            impl Stats {
+                #docs
+                pub fn on(_target: EntityContext, extra: i32) -> StatsBound { todo!() }
+            }
+        };
+        assert!(
+            validate_generated_expansion(expansion, ["Stats".to_owned()], &[contract])
+                .unwrap_err()
+                .to_string()
+                .contains("parameter contract drift")
+        );
+
+        let contract = fixture_contract(
+            "Stats::on",
+            GeneratedApiKind::Method,
+            &[("_target", "The target context.")],
+            Some("The bound view."),
+        );
+        let docs = generated_contract_docs(&contract);
+        let expansion = quote! {
+            impl Stats {
+                #docs
+                pub fn on(_target: EntityContext) {}
+            }
+        };
+        assert!(
+            validate_generated_expansion(expansion, ["Stats".to_owned()], &[contract])
+                .unwrap_err()
+                .to_string()
+                .contains("return contract drift")
+        );
+
+        let wrong_kind = fixture_contract(
+            "Stats::on",
+            GeneratedApiKind::AssociatedConst,
+            &[("_target", "The target context.")],
+            Some("The bound view."),
+        );
+        let docs = generated_contract_docs(&wrong_kind);
+        let expansion = quote! {
+            impl Stats {
+                #docs
+                pub fn on(_target: EntityContext) -> StatsBound { todo!() }
+            }
+        };
+        assert!(
+            validate_generated_expansion(expansion, ["Stats".to_owned()], &[wrong_kind])
+                .unwrap_err()
+                .to_string()
+                .contains("declares AssociatedConst")
+        );
+
+        let contract = fixture_contract(
+            "Stats::on",
+            GeneratedApiKind::Method,
+            &[("_target", "The target context.")],
+            Some("The bound view."),
+        );
+        let expansion = quote! {
+            impl Stats {
+                pub fn on(_target: EntityContext) -> StatsBound { todo!() }
+            }
+        };
+        assert!(
+            validate_generated_expansion(expansion, ["Stats".to_owned()], &[contract])
+                .unwrap_err()
+                .to_string()
+                .contains("API Contract Rustdoc")
+        );
+
+        let mut contract = fixture_contract(
+            "Stats::on",
+            GeneratedApiKind::Method,
+            &[("_target", "The target context.")],
+            Some("The bound view."),
+        );
+        contract.summary.clear();
+        let expansion = quote! {
+            impl Stats {
+                pub fn on(_target: EntityContext) -> StatsBound { todo!() }
+            }
+        };
+        assert!(
+            validate_generated_expansion(expansion, ["Stats".to_owned()], &[contract])
+                .unwrap_err()
+                .to_string()
+                .contains("cannot be empty")
+        );
+    }
+
+    #[test]
+    fn real_state_expansion_contracts_every_generated_public_item() {
+        let expansion = derive_state(state_input()).unwrap().to_string();
+        assert!(
+            expansion.matches("# API Contract").count() >= 5,
+            "{expansion}"
+        );
+        assert!(expansion.contains("StatsBound"));
+        assert!(expansion.contains("FIELDS"));
+        assert!(expansion.contains("on"));
     }
 }

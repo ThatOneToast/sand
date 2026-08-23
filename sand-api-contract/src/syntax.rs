@@ -8,6 +8,7 @@ use syn::ext::IdentExt;
 use syn::parse::Parser;
 use syn::{
     Expr, ExprArray, FnArg, ItemEnum, ItemFn, ItemStruct, LitStr, Pat, ReturnType, Signature,
+    Visibility,
 };
 
 /// Return the first complete prose sentence without treating punctuation in
@@ -103,6 +104,445 @@ pub struct StateGeneratedAssociated {
 pub enum StateGeneratedAssociatedKind {
     Const,
     Method,
+}
+
+/// Kind of one author-visible declaration emitted by a procedural macro.
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub enum GeneratedApiKind {
+    Struct,
+    Enum,
+    Function,
+    Field,
+    Variant,
+    AssociatedConst,
+    AssociatedType,
+    Method,
+}
+
+/// Semantic contract supplied by a generator for one emitted declaration.
+///
+/// Structural facts deliberately do not live here. They are extracted from
+/// the emitted Rust by [`validate_generated_expansion`], preventing generator
+/// code and its contract metadata from maintaining duplicate signatures.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GeneratedApiContract {
+    pub target: String,
+    pub kind: GeneratedApiKind,
+    pub summary: String,
+    pub context: String,
+    pub minecraft: String,
+    pub use_when: Vec<String>,
+    pub avoid_when: Vec<String>,
+    pub parameters: BTreeMap<String, String>,
+    pub returns: Option<String>,
+    pub example: String,
+}
+
+/// Exact structural facts discovered from one emitted declaration.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GeneratedApiShape {
+    pub target: String,
+    pub kind: GeneratedApiKind,
+    pub signature: String,
+    pub parameters: BTreeMap<String, String>,
+    pub return_type: Option<String>,
+}
+
+/// Validate a generator's actual emitted public surface against its semantic
+/// contracts and return the source-derived structural metadata.
+///
+/// `external_owners` names pre-existing public types which the expansion may
+/// extend with inherent items. Public sibling types emitted by the expansion
+/// are discovered automatically. Every discovered declaration must have one
+/// contract, every contract must resolve, callable parameter and return
+/// semantics must match the emitted signature, and the defining item must
+/// contain the complete API Contract Rustdoc schema.
+pub fn validate_generated_expansion(
+    expansion: TokenStream,
+    external_owners: impl IntoIterator<Item = String>,
+    contracts: &[GeneratedApiContract],
+) -> syn::Result<Vec<GeneratedApiShape>> {
+    let file: syn::File = syn::parse2(expansion)?;
+    let mut public_owners = external_owners.into_iter().collect::<BTreeSet<_>>();
+    for item in &file.items {
+        match item {
+            syn::Item::Struct(item) if public_visibility(&item.vis) => {
+                public_owners.insert(item.ident.unraw().to_string());
+            }
+            syn::Item::Enum(item) if public_visibility(&item.vis) => {
+                public_owners.insert(item.ident.unraw().to_string());
+            }
+            _ => {}
+        }
+    }
+
+    let mut discovered = BTreeMap::<String, (GeneratedApiShape, Vec<syn::Attribute>)>::new();
+    for item in &file.items {
+        match item {
+            syn::Item::Struct(item) if public_visibility(&item.vis) => {
+                let owner = item.ident.unraw().to_string();
+                insert_generated_shape(
+                    &mut discovered,
+                    GeneratedApiShape {
+                        target: owner.clone(),
+                        kind: GeneratedApiKind::Struct,
+                        signature: format!(
+                            "{} struct {} {}",
+                            item.vis.to_token_stream(),
+                            item.ident,
+                            item.generics.to_token_stream()
+                        )
+                        .split_whitespace()
+                        .collect::<Vec<_>>()
+                        .join(" "),
+                        parameters: BTreeMap::new(),
+                        return_type: None,
+                    },
+                    item.attrs.clone(),
+                    item,
+                )?;
+                for field in &item.fields {
+                    if !public_visibility(&field.vis) {
+                        continue;
+                    }
+                    let Some(name) = &field.ident else {
+                        return Err(syn::Error::new_spanned(
+                            field,
+                            "generated public tuple fields are not supported by contract validation",
+                        ));
+                    };
+                    let target = format!("{owner}::{}", name.unraw());
+                    insert_generated_shape(
+                        &mut discovered,
+                        GeneratedApiShape {
+                            target,
+                            kind: GeneratedApiKind::Field,
+                            signature: field.to_token_stream().to_string(),
+                            parameters: BTreeMap::new(),
+                            return_type: Some(field.ty.to_token_stream().to_string()),
+                        },
+                        field.attrs.clone(),
+                        field,
+                    )?;
+                }
+            }
+            syn::Item::Enum(item) if public_visibility(&item.vis) => {
+                let owner = item.ident.unraw().to_string();
+                insert_generated_shape(
+                    &mut discovered,
+                    GeneratedApiShape {
+                        target: owner.clone(),
+                        kind: GeneratedApiKind::Enum,
+                        signature: format!("{} enum {}", item.vis.to_token_stream(), item.ident),
+                        parameters: BTreeMap::new(),
+                        return_type: None,
+                    },
+                    item.attrs.clone(),
+                    item,
+                )?;
+                for variant in &item.variants {
+                    insert_generated_shape(
+                        &mut discovered,
+                        GeneratedApiShape {
+                            target: format!("{owner}::{}", variant.ident.unraw()),
+                            kind: GeneratedApiKind::Variant,
+                            signature: variant.to_token_stream().to_string(),
+                            parameters: BTreeMap::new(),
+                            return_type: None,
+                        },
+                        variant.attrs.clone(),
+                        variant,
+                    )?;
+                }
+            }
+            syn::Item::Fn(item) if public_visibility(&item.vis) => {
+                let (parameters, return_type) = callable_shape(&item.sig)?;
+                insert_generated_shape(
+                    &mut discovered,
+                    GeneratedApiShape {
+                        target: item.sig.ident.unraw().to_string(),
+                        kind: GeneratedApiKind::Function,
+                        signature: item.sig.to_token_stream().to_string(),
+                        parameters,
+                        return_type,
+                    },
+                    item.attrs.clone(),
+                    item,
+                )?;
+            }
+            syn::Item::Impl(item) if item.trait_.is_none() => {
+                let syn::Type::Path(owner) = item.self_ty.as_ref() else {
+                    continue;
+                };
+                let Some(owner) = owner.path.segments.last() else {
+                    continue;
+                };
+                let owner = owner.ident.unraw().to_string();
+                if !public_owners.contains(&owner) {
+                    continue;
+                }
+                for member in &item.items {
+                    match member {
+                        syn::ImplItem::Const(member) if public_visibility(&member.vis) => {
+                            insert_generated_shape(
+                                &mut discovered,
+                                GeneratedApiShape {
+                                    target: format!("{owner}::{}", member.ident.unraw()),
+                                    kind: GeneratedApiKind::AssociatedConst,
+                                    signature: format!(
+                                        "{} const {} : {}",
+                                        member.vis.to_token_stream(),
+                                        member.ident,
+                                        member.ty.to_token_stream()
+                                    ),
+                                    parameters: BTreeMap::new(),
+                                    return_type: Some(member.ty.to_token_stream().to_string()),
+                                },
+                                member.attrs.clone(),
+                                member,
+                            )?;
+                        }
+                        syn::ImplItem::Type(member) if public_visibility(&member.vis) => {
+                            insert_generated_shape(
+                                &mut discovered,
+                                GeneratedApiShape {
+                                    target: format!("{owner}::{}", member.ident.unraw()),
+                                    kind: GeneratedApiKind::AssociatedType,
+                                    signature: member.to_token_stream().to_string(),
+                                    parameters: BTreeMap::new(),
+                                    return_type: Some(member.ty.to_token_stream().to_string()),
+                                },
+                                member.attrs.clone(),
+                                member,
+                            )?;
+                        }
+                        syn::ImplItem::Fn(member) if public_visibility(&member.vis) => {
+                            let (parameters, return_type) = callable_shape(&member.sig)?;
+                            insert_generated_shape(
+                                &mut discovered,
+                                GeneratedApiShape {
+                                    target: format!("{owner}::{}", member.sig.ident.unraw()),
+                                    kind: GeneratedApiKind::Method,
+                                    signature: member.sig.to_token_stream().to_string(),
+                                    parameters,
+                                    return_type,
+                                },
+                                member.attrs.clone(),
+                                member,
+                            )?;
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            item if public_item_visibility(item).is_some_and(public_visibility) => {
+                return Err(syn::Error::new_spanned(
+                    item,
+                    "generated expansion contains an unsupported public item kind",
+                ));
+            }
+            _ => {}
+        }
+    }
+
+    let mut declared = BTreeMap::new();
+    for contract in contracts {
+        validate_contract_semantics(&ContractSemantics {
+            summary: Some(&contract.summary),
+            context: Some(&contract.context),
+            minecraft: Some(&contract.minecraft),
+            use_when: Some(&contract.use_when),
+            avoid_when: Some(&contract.avoid_when),
+            example: Some(&contract.example),
+        })
+        .map_err(|message| syn::Error::new(proc_macro2::Span::call_site(), message))?;
+        if declared
+            .insert(contract.target.as_str(), contract)
+            .is_some()
+        {
+            return Err(syn::Error::new(
+                proc_macro2::Span::call_site(),
+                format!("duplicate generated API contract `{}`", contract.target),
+            ));
+        }
+    }
+
+    for (target, (shape, attrs)) in &discovered {
+        let Some(contract) = declared.remove(target.as_str()) else {
+            return Err(syn::Error::new(
+                proc_macro2::Span::call_site(),
+                format!("generated public API `{target}` has no semantic contract"),
+            ));
+        };
+        if contract.kind != shape.kind {
+            return Err(syn::Error::new(
+                proc_macro2::Span::call_site(),
+                format!(
+                    "generated API `{target}` has kind {:?}, but its contract declares {:?}",
+                    shape.kind, contract.kind
+                ),
+            ));
+        }
+        let parameter_names = shape.parameters.keys().cloned().collect::<BTreeSet<_>>();
+        let described_parameters = contract.parameters.keys().cloned().collect::<BTreeSet<_>>();
+        if parameter_names != described_parameters {
+            return Err(syn::Error::new(
+                proc_macro2::Span::call_site(),
+                format!(
+                    "generated API `{target}` parameter contract drift: emitted {parameter_names:?}, described {described_parameters:?}"
+                ),
+            ));
+        }
+        if shape.return_type.is_some() != contract.returns.is_some() {
+            return Err(syn::Error::new(
+                proc_macro2::Span::call_site(),
+                format!(
+                    "generated API `{target}` return contract drift: emitted {:?}, described {:?}",
+                    shape.return_type, contract.returns
+                ),
+            ));
+        }
+        validate_generated_rustdoc(target, attrs, contract)?;
+    }
+    if let Some(target) = declared.keys().next() {
+        return Err(syn::Error::new(
+            proc_macro2::Span::call_site(),
+            format!("generated API contract `{target}` does not resolve to emitted public Rust"),
+        ));
+    }
+    Ok(discovered.into_values().map(|(shape, _)| shape).collect())
+}
+
+fn public_visibility(visibility: &Visibility) -> bool {
+    matches!(visibility, Visibility::Public(_))
+}
+
+fn public_item_visibility(item: &syn::Item) -> Option<&Visibility> {
+    match item {
+        syn::Item::Const(item) => Some(&item.vis),
+        syn::Item::ExternCrate(item) => Some(&item.vis),
+        syn::Item::Mod(item) => Some(&item.vis),
+        syn::Item::Static(item) => Some(&item.vis),
+        syn::Item::Trait(item) => Some(&item.vis),
+        syn::Item::TraitAlias(item) => Some(&item.vis),
+        syn::Item::Type(item) => Some(&item.vis),
+        syn::Item::Union(item) => Some(&item.vis),
+        syn::Item::Use(item) => Some(&item.vis),
+        _ => None,
+    }
+}
+
+fn insert_generated_shape(
+    discovered: &mut BTreeMap<String, (GeneratedApiShape, Vec<syn::Attribute>)>,
+    shape: GeneratedApiShape,
+    attrs: Vec<syn::Attribute>,
+    source: &impl ToTokens,
+) -> syn::Result<()> {
+    if discovered
+        .insert(shape.target.clone(), (shape, attrs))
+        .is_some()
+    {
+        Err(syn::Error::new_spanned(
+            source,
+            "generated expansion emits a duplicate public API identity",
+        ))
+    } else {
+        Ok(())
+    }
+}
+
+fn callable_shape(
+    signature: &Signature,
+) -> syn::Result<(BTreeMap<String, String>, Option<String>)> {
+    let mut parameters = BTreeMap::new();
+    for input in &signature.inputs {
+        match input {
+            FnArg::Receiver(_) => {}
+            FnArg::Typed(argument) => {
+                let Pat::Ident(name) = argument.pat.as_ref() else {
+                    return Err(syn::Error::new_spanned(
+                        &argument.pat,
+                        "generated public callable parameters must use identifier patterns",
+                    ));
+                };
+                parameters.insert(
+                    name.ident.unraw().to_string(),
+                    argument.ty.to_token_stream().to_string(),
+                );
+            }
+        }
+    }
+    let return_type = match &signature.output {
+        ReturnType::Default => None,
+        ReturnType::Type(_, ty) if matches!(ty.as_ref(), syn::Type::Tuple(tuple) if tuple.elems.is_empty()) => {
+            None
+        }
+        ReturnType::Type(_, ty) => Some(ty.to_token_stream().to_string()),
+    };
+    Ok((parameters, return_type))
+}
+
+fn validate_generated_rustdoc(
+    target: &str,
+    attrs: &[syn::Attribute],
+    contract: &GeneratedApiContract,
+) -> syn::Result<()> {
+    let docs = attrs
+        .iter()
+        .filter_map(|attribute| {
+            let syn::Meta::NameValue(value) = &attribute.meta else {
+                return None;
+            };
+            if !value.path.is_ident("doc") {
+                return None;
+            }
+            let syn::Expr::Lit(syn::ExprLit {
+                lit: syn::Lit::Str(text),
+                ..
+            }) = &value.value
+            else {
+                return None;
+            };
+            Some(text.value())
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    for required in [
+        "# API Contract",
+        "**Context:**",
+        "**Minecraft behavior:**",
+        "**Use when:**",
+        "**Avoid when:**",
+        "**Example:**",
+        contract.summary.as_str(),
+        contract.context.as_str(),
+        contract.minecraft.as_str(),
+        contract.example.as_str(),
+    ] {
+        if !docs.contains(required) {
+            return Err(syn::Error::new(
+                proc_macro2::Span::call_site(),
+                format!(
+                    "generated public API `{target}` is missing API Contract Rustdoc material `{required}`"
+                ),
+            ));
+        }
+    }
+    for value in contract
+        .use_when
+        .iter()
+        .chain(&contract.avoid_when)
+        .chain(contract.parameters.values())
+        .chain(contract.returns.iter())
+    {
+        if !docs.contains(value) {
+            return Err(syn::Error::new(
+                proc_macro2::Span::call_site(),
+                format!("generated public API `{target}` Rustdoc omits contract text `{value}`"),
+            ));
+        }
+    }
+    Ok(())
 }
 
 /// Derive the complete public Rust shape of a valid `State` invocation.

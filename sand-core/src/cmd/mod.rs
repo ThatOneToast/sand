@@ -73,7 +73,8 @@ mod typed_execute;
 /// Command construction and the shared profile-aware validation boundary.
 #[doc = include_str!("../api_contract_rustdoc.md")]
 pub use sand_commands::{
-    Build, CommandProfile, EffectCommand, EffectDuration, RawCommand, RenderCommand, Validate,
+    Build, CommandError, CommandProfile, CommandResult, EffectCommand, EffectDuration,
+    IntoEntityType, RawCommand, RenderCommand, Validate,
 };
 
 /// Trait for types resolving to a `function <id>` command.

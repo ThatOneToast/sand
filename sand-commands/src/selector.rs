@@ -19,8 +19,11 @@ use crate::validate;
 /// `sand_components::registry::EntityTypeId` (validated custom/modded IDs).
 /// Prefer the typed identifiers in normal code; the string forms remain for
 /// compatibility and cases with no typed representation yet.
+///
+/// **API Contract:** Run `sand api show sand::command::IntoEntityType` for the canonical contract.
 pub trait IntoEntityType {
     /// Convert to the entity type's resource location, e.g. `"minecraft:marker"`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::IntoEntityType::into_entity_type` for the canonical contract."]
     fn into_entity_type(self) -> String;
 }
 

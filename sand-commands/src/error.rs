@@ -14,22 +14,31 @@
 use thiserror::Error;
 
 /// A validation failure in a `sand-commands` `try_*` command helper.
+///
+/// **API Contract:** Run `sand api show sand::command::CommandError` for the canonical contract.
 #[derive(Debug, Clone, PartialEq, Error)]
 #[error("error[{code}] {helper}: invalid `{field}` — {message}{context}")]
 pub struct CommandError {
     /// Stable diagnostic category suitable for tests and tooling.
+    #[doc = "**API Contract:** Run `sand api show sand::command::CommandError::code` for the canonical contract."]
     pub code: String,
     /// The helper function that rejected its input (e.g. `"tp"`, `"tag_add"`).
+    #[doc = "**API Contract:** Run `sand api show sand::command::CommandError::helper` for the canonical contract."]
     pub helper: &'static str,
     /// The parameter name that failed validation (e.g. `"x"`, `"tag"`).
+    #[doc = "**API Contract:** Run `sand api show sand::command::CommandError::field` for the canonical contract."]
     pub field: String,
     /// Human-readable explanation of the violated invariant.
+    #[doc = "**API Contract:** Run `sand api show sand::command::CommandError::message` for the canonical contract."]
     pub message: String,
     /// Optional owner context added by composed commands or export.
+    #[doc = "**API Contract:** Run `sand api show sand::command::CommandError::context` for the canonical contract."]
     pub context: String,
 }
 
 impl CommandError {
+    /// Constructs a validation error for one command helper input.
+    #[doc = "**API Contract:** Run `sand api show sand::command::CommandError::new` for the canonical contract."]
     pub fn new(helper: &'static str, field: impl Into<String>, message: impl Into<String>) -> Self {
         let field = field.into();
         Self {
@@ -46,12 +55,14 @@ impl CommandError {
     }
 
     /// Override the stable diagnostic category.
+    #[doc = "**API Contract:** Run `sand api show sand::command::CommandError::with_code` for the canonical contract."]
     pub fn with_code(mut self, code: impl Into<String>) -> Self {
         self.code = code.into();
         self
     }
 
     /// Add command/function context without discarding the original field error.
+    #[doc = "**API Contract:** Run `sand api show sand::command::CommandError::with_context` for the canonical contract."]
     pub fn with_context(mut self, context: impl AsRef<str>) -> Self {
         self.context.push_str(&format!(" [{}]", context.as_ref()));
         self
@@ -76,4 +87,6 @@ fn diagnostic_fragment(value: &str) -> String {
 }
 
 /// Convenience alias for `Result<T, CommandError>`.
+///
+/// **API Contract:** Run `sand api show sand::command::CommandResult` for the canonical contract.
 pub type CommandResult<T> = std::result::Result<T, CommandError>;

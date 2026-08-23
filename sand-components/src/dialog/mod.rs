@@ -253,7 +253,11 @@ where
 /// values remain explicit compatibility inputs; bare paths retain Sand's
 /// local-namespace convention and are validated when the owning [`Dialog`] is
 /// exported.
+///
+/// **API Contract:** Run `sand api show sand::component::IntoDialogRef` for the canonical contract.
 pub trait IntoDialogRef {
+    /// Resolves this typed or compatibility input to a dialog resource reference.
+    #[doc = "**API Contract:** Run `sand api show sand::component::IntoDialogRef::into_dialog_ref` for the canonical contract."]
     fn into_dialog_ref(self) -> String;
 }
 

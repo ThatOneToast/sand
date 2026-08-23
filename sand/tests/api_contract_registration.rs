@@ -39,6 +39,15 @@ impl Fixture {
 fn generated_registrations_build_an_installed_catalog() {
     assert_eq!(contract_fixture(7), 7);
     assert_eq!(Fixture.value(), 1);
+    let command_error = sand::command::CommandError::new("fixture", "value", "is invalid")
+        .with_code("fixture.invalid")
+        .with_context("registration test");
+    let command_result: sand::command::CommandResult<()> = Err(command_error);
+    assert!(command_result.is_err());
+    fn accepts_entity_type(_: impl sand::command::IntoEntityType) {}
+    accepts_entity_type("minecraft:marker");
+    fn accepts_dialog_ref(_: impl sand::component::IntoDialogRef) {}
+    accepts_dialog_ref("welcome");
 
     let coverage = sand::__private::api_contract::installed_coverage();
     assert!(coverage.static_surface_items > 10_000);
@@ -111,10 +120,39 @@ fn generated_registrations_build_an_installed_catalog() {
     assert_eq!(command.canonical_path, "sand::command");
     assert_eq!(command.kind, ApiKind::Module);
 
+    let command_error = catalog
+        .find("sand::cmd::CommandError")
+        .expect("command validation errors have a canonical facade path");
+    assert_eq!(command_error.canonical_path, "sand::command::CommandError");
+    assert_eq!(command_error.kind, ApiKind::Struct);
+    assert!(catalog.find("sand::command::CommandError::code").is_some());
+    let command_result = catalog
+        .find("sand::prelude::cmd::CommandResult")
+        .expect("fallible command signatures expose their result alias");
+    assert_eq!(
+        command_result.canonical_path,
+        "sand::command::CommandResult"
+    );
+    assert_eq!(command_result.kind, ApiKind::TypeAlias);
+    let entity_type = catalog
+        .find("sand::cmd::IntoEntityType")
+        .expect("entity-type conversion has a canonical command path");
+    assert_eq!(entity_type.canonical_path, "sand::command::IntoEntityType");
+    assert_eq!(entity_type.kind, ApiKind::Trait);
+
     let component_module = catalog
         .find("sand::component")
         .expect("component builders retain their canonical topic module");
     assert_eq!(component_module.kind, ApiKind::Module);
+    let dialog_ref = catalog
+        .find("sand::component::IntoDialogRef")
+        .expect("dialog-reference conversion is owned by the component facade");
+    assert_eq!(dialog_ref.kind, ApiKind::Trait);
+    assert!(
+        catalog
+            .find("sand::component::IntoDialogRef::into_dialog_ref")
+            .is_some()
+    );
 
     let component_attribute = catalog
         .find("sand::datapack_component")

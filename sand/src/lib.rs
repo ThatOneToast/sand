@@ -356,7 +356,7 @@ pub mod participant {
 pub mod component {
     #[doc = include_str!("api_contract_rustdoc.md")]
     pub use sand_components::dialog::{
-        Dialog, DialogAction, DialogBody, DialogButton, DialogKind, DialogTag,
+        Dialog, DialogAction, DialogBody, DialogButton, DialogKind, DialogTag, IntoDialogRef,
     };
     #[doc = include_str!("api_contract_rustdoc.md")]
     pub use sand_components::{

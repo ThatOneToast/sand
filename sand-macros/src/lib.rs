@@ -46,6 +46,9 @@
 
 use proc_macro::TokenStream;
 use quote::quote;
+use sand_api_contract::syntax::{
+    GeneratedApiContract, GeneratedApiKind, validate_generated_expansion,
+};
 use syn::{ItemFn, LitStr, parse_macro_input, token};
 
 mod api_contract;
@@ -2287,6 +2290,19 @@ fn expand_hud_bar(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
         &name_str.to_uppercase().replace(['-', ' '], "_"),
         proc_macro2::Span::call_site(),
     );
+    let handle_contract = generated_api_contract(
+        handle_ident.to_string(),
+        GeneratedApiKind::Constant,
+        format!("Controls the `{name_str}` generated HUD bar."),
+        "The generated handle selects frames from the registered bitmap-font bar and builds display commands.",
+        "At resource-pack export, Sand writes the bar texture and font provider; datapack commands render its assigned glyphs.",
+        &["Render or update this named HUD bar from author code."],
+        &["Do not guess the assigned Unicode glyphs or rebuild the font component manually."],
+        &[],
+        Some("A BarHandle configured from this hud_bar invocation."),
+        format!("{handle_ident}.show(\"@a\", 0, \"my_pack\");"),
+    );
+    let handle_docs = generated_api_contract_docs(&handle_contract);
 
     // Optional unicode_start override.
     let uni_start_ts = match opt_lit_char(&fields, "unicode_start") {
@@ -2343,7 +2359,7 @@ fn expand_hud_bar(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
         let frame_width_ts = proc_macro2::Literal::u32_suffixed(frame_width_num);
         let effective_fw_lit = proc_macro2::Literal::u32_suffixed(effective_fw);
 
-        Ok(quote! {
+        let expansion = quote! {
             #[doc(hidden)]
             #[allow(dead_code)]
             fn #factory_ident() -> ::std::boxed::Box<dyn ::sand::__private::rp::ResourcePackComponent> {
@@ -2361,6 +2377,7 @@ fn expand_hud_bar(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
                 })
             }
 
+            #handle_docs
             pub const #handle_ident: ::sand::__private::rp::BarHandle = ::sand::__private::rp::BarHandle {
                 name:        #name,
                 steps:       #steps,
@@ -2374,11 +2391,17 @@ fn expand_hud_bar(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
                     make: #factory_ident,
                 }
             );
-        })
+        };
+        validate_generated_expansion(
+            expansion.clone(),
+            std::iter::empty(),
+            std::slice::from_ref(&handle_contract),
+        )?;
+        Ok(expansion)
     } else {
         let texture = require_lit_str(&fields, "texture", "hud_bar")?;
 
-        Ok(quote! {
+        let expansion = quote! {
             #[doc(hidden)]
             #[allow(dead_code)]
             fn #factory_ident() -> ::std::boxed::Box<dyn ::sand::__private::rp::ResourcePackComponent> {
@@ -2394,6 +2417,7 @@ fn expand_hud_bar(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
                 })
             }
 
+            #handle_docs
             pub const #handle_ident: ::sand::__private::rp::BarHandle = ::sand::__private::rp::BarHandle {
                 name:        #name,
                 steps:       #steps,
@@ -2407,7 +2431,13 @@ fn expand_hud_bar(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
                     make: #factory_ident,
                 }
             );
-        })
+        };
+        validate_generated_expansion(
+            expansion.clone(),
+            std::iter::empty(),
+            std::slice::from_ref(&handle_contract),
+        )?;
+        Ok(expansion)
     }
 }
 
@@ -2444,6 +2474,19 @@ fn expand_hud_element(input: TokenStream) -> syn::Result<proc_macro2::TokenStrea
         &name_str.to_uppercase().replace(['-', ' '], "_"),
         proc_macro2::Span::call_site(),
     );
+    let handle_contract = generated_api_contract(
+        handle_ident.to_string(),
+        GeneratedApiKind::Constant,
+        format!("Controls the `{name_str}` generated HUD element."),
+        "The generated handle represents one bitmap-font glyph and builds commands that display it.",
+        "At resource-pack export, Sand writes the element texture and font provider; datapack commands render its assigned glyph.",
+        &["Render this named HUD element from author code."],
+        &["Do not guess the assigned Unicode glyph or rebuild the font component manually."],
+        &[],
+        Some("An ElementHandle configured from this hud_element invocation."),
+        format!("{handle_ident}.show(\"@a\", \"my_pack\");"),
+    );
+    let handle_docs = generated_api_contract_docs(&handle_contract);
 
     // Optional unicode override.
     let unicode_ts = match opt_lit_char(&fields, "unicode") {
@@ -2498,7 +2541,7 @@ fn expand_hud_element(input: TokenStream) -> syn::Result<proc_macro2::TokenStrea
         let width_ts = proc_macro2::Literal::u32_suffixed(width_num);
         let effective_cw_lit = proc_macro2::Literal::u32_suffixed(effective_cw);
 
-        Ok(quote! {
+        let expansion = quote! {
             #[doc(hidden)]
             #[allow(dead_code)]
             fn #factory_ident() -> ::std::boxed::Box<dyn ::sand::__private::rp::ResourcePackComponent> {
@@ -2514,6 +2557,7 @@ fn expand_hud_element(input: TokenStream) -> syn::Result<proc_macro2::TokenStrea
                 })
             }
 
+            #handle_docs
             pub const #handle_ident: ::sand::__private::rp::ElementHandle = ::sand::__private::rp::ElementHandle {
                 name:       #name,
                 font:       #font_ts,
@@ -2526,11 +2570,17 @@ fn expand_hud_element(input: TokenStream) -> syn::Result<proc_macro2::TokenStrea
                     make: #factory_ident,
                 }
             );
-        })
+        };
+        validate_generated_expansion(
+            expansion.clone(),
+            std::iter::empty(),
+            std::slice::from_ref(&handle_contract),
+        )?;
+        Ok(expansion)
     } else {
         let texture = require_lit_str(&fields, "texture", "hud_element")?;
 
-        Ok(quote! {
+        let expansion = quote! {
             #[doc(hidden)]
             #[allow(dead_code)]
             fn #factory_ident() -> ::std::boxed::Box<dyn ::sand::__private::rp::ResourcePackComponent> {
@@ -2545,6 +2595,7 @@ fn expand_hud_element(input: TokenStream) -> syn::Result<proc_macro2::TokenStrea
                 })
             }
 
+            #handle_docs
             pub const #handle_ident: ::sand::__private::rp::ElementHandle = ::sand::__private::rp::ElementHandle {
                 name:       #name,
                 font:       #font_ts,
@@ -2557,7 +2608,13 @@ fn expand_hud_element(input: TokenStream) -> syn::Result<proc_macro2::TokenStrea
                     make: #factory_ident,
                 }
             );
-        })
+        };
+        validate_generated_expansion(
+            expansion.clone(),
+            std::iter::empty(),
+            std::slice::from_ref(&handle_contract),
+        )?;
+        Ok(expansion)
     }
 }
 
@@ -3405,15 +3462,49 @@ fn expand_item(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Toke
         None => base.clone(),
     };
 
+    let custom_data_contracts = if custom_data.is_some() {
+        vec![
+            generated_api_contract(
+                format!("{struct_ident}::CUSTOM_DATA_KEY"),
+                GeneratedApiKind::AssociatedConst,
+                "Names the custom-data marker that uniquely identifies this item.",
+                "The generated item reference keeps its identity marker available for integrations that need the raw key.",
+                "This is the key stored with byte value `1b` in the item's `minecraft:custom_data` component.",
+                &[
+                    "Refer to the marker key when integrating with APIs that cannot consume the complete item predicate.",
+                ],
+                &[
+                    "Use PREDICATE for normal equipment tests instead of rebuilding the component predicate.",
+                ],
+                &[],
+                Some("The unqualified custom-data key."),
+                format!("let key = {struct_ident}::CUSTOM_DATA_KEY;"),
+            ),
+            generated_api_contract(
+                format!("{struct_ident}::CUSTOM_DATA_SNBT"),
+                GeneratedApiKind::AssociatedConst,
+                "Provides the custom-data marker in SNBT object form.",
+                "Armor-event filters accept this representation when selecting the generated custom item.",
+                "The SNBT object stores the generated marker key with byte value `1b`.",
+                &["Pass the marker to an API that explicitly requires custom-data SNBT."],
+                &["Do not use this fragment as a complete item predicate; use PREDICATE instead."],
+                &[],
+                Some("An SNBT compound fragment containing the marker."),
+                format!("let marker = {struct_ident}::CUSTOM_DATA_SNBT;"),
+            ),
+        ]
+    } else {
+        Vec::new()
+    };
     let custom_data_const = if let Some(ref key) = custom_data {
         let snbt = format!("{{{key}:1b}}");
+        let key_docs = generated_api_contract_docs(&custom_data_contracts[0]);
+        let snbt_docs = generated_api_contract_docs(&custom_data_contracts[1]);
         quote! {
-            /// The raw `custom_data` key (e.g. `"mana_boots"`).
+            #key_docs
             pub const CUSTOM_DATA_KEY: &'static str = #key;
 
-            /// SNBT form of the `custom_data` tag (e.g. `"{mana_boots:1b}"`).
-            ///
-            /// Use this with `#[armor_event(..., custom_data = MyItem::CUSTOM_DATA_SNBT)]`.
+            #snbt_docs
             pub const CUSTOM_DATA_SNBT: &'static str = #snbt;
         }
     } else {
@@ -3421,48 +3512,171 @@ fn expand_item(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Toke
     };
 
     // ── User-defined data consts ──────────────────────────────────────────────
-    let data_consts = item_attr.data.iter().map(|c| {
-        let const_name = &c.name;
-        let ty = &c.ty;
-        let val = &c.value;
-        quote! { pub const #const_name: #ty = #val; }
-    });
+    let data_contracts = item_attr
+        .data
+        .iter()
+        .map(|c| {
+            let const_name = &c.name;
+            generated_api_contract(
+                format!("{struct_ident}::{const_name}"),
+                GeneratedApiKind::AssociatedConst,
+                format!("Exposes the author-declared `{const_name}` metadata for this custom item."),
+                "This constant is declared in the custom_item attribute and names item-specific author metadata.",
+                "Sand does not interpret this value; it remains available to the datapack's Rust authoring code.",
+                &["Share item-specific immutable metadata with code that uses the generated item reference."],
+                &["Do not treat the value as Sand-validated Minecraft data unless its declared type provides that validation."],
+                &[],
+                Some("The value and type supplied in the custom_item data declaration."),
+                format!("let value = {struct_ident}::{const_name};"),
+            )
+        })
+        .collect::<Vec<_>>();
+    let data_consts = item_attr
+        .data
+        .iter()
+        .zip(&data_contracts)
+        .map(|(c, contract)| {
+            let const_name = &c.name;
+            let ty = &c.ty;
+            let val = &c.value;
+            let docs = generated_api_contract_docs(contract);
+            quote! { #docs pub const #const_name: #ty = #val; }
+        })
+        .collect::<Vec<_>>();
 
-    Ok(quote! {
-        #(#fn_attrs)*
-        #func
+    let mut contracts = vec![
+        generated_api_contract(
+            struct_ident.to_string(),
+            GeneratedApiKind::Struct,
+            format!("Identifies the `{struct_ident}` custom item in author code."),
+            "The generated zero-sized type groups the item's canonical predicate, construction helper, and item-specific metadata.",
+            format!(
+                "Its predicate selects the Minecraft base item `{base}` together with this definition's custom-data marker."
+            ),
+            &[
+                "Reference this custom item from equipment conditions, events, or code that needs its definition.",
+            ],
+            &[
+                "Do not construct raw predicates when the generated reference already represents the item.",
+            ],
+            &[],
+            None,
+            format!("let item = {struct_ident}::item();"),
+        ),
+        generated_api_contract(
+            format!("{struct_ident}::BASE"),
+            GeneratedApiKind::AssociatedConst,
+            "Names the vanilla item ID used as this custom item's base.",
+            "The custom item definition adds components and identity data to this base item.",
+            "The value is the Minecraft resource location supplied to CustomItem::new by the annotated factory.",
+            &["Inspect or reuse the base identifier without constructing the complete item."],
+            &[
+                "Use PREDICATE when testing for the custom item, because BASE alone does not distinguish it.",
+            ],
+            &[],
+            Some("The base item resource location as a string."),
+            format!("let base = {struct_ident}::BASE;"),
+        ),
+        generated_api_contract(
+            format!("{struct_ident}::PREDICATE"),
+            GeneratedApiKind::AssociatedConst,
+            "Provides the complete item-stack predicate for this custom item.",
+            "The predicate combines the base item with the generated identity marker when one is configured.",
+            "It is formatted for Minecraft `execute if items` and `execute unless items` matching.",
+            &["Test whether an entity or container slot contains this exact custom item."],
+            &["Do not use BASE alone when another item can share the same vanilla base."],
+            &[],
+            Some("A Minecraft item predicate string."),
+            format!("let predicate = {struct_ident}::PREDICATE;"),
+        ),
+        generated_api_contract(
+            format!("{struct_ident}::if_wearing"),
+            GeneratedApiKind::Method,
+            "Builds a command that runs only while the current entity wears this item.",
+            "This helper applies the generated item predicate to one equipment slot on `@s`.",
+            "It emits `execute if items entity @s <slot> <predicate> run <command>`.",
+            &[
+                "Condition one command on the current entity wearing this custom item in a known slot.",
+            ],
+            &[
+                "Use a selector-aware command builder when the tested entity is not the current executor.",
+            ],
+            &[
+                (
+                    "slot",
+                    "The equipment slot to inspect on the current entity.",
+                ),
+                ("cmd", "The command to run when the item predicate matches."),
+            ],
+            Some("The rendered Minecraft execute command."),
+            format!("let command = {struct_ident}::if_wearing(ItemSlot::Feet, \"say equipped\");"),
+        ),
+        generated_api_contract(
+            format!("{struct_ident}::unless_wearing"),
+            GeneratedApiKind::Method,
+            "Builds a command that runs only while the current entity does not wear this item.",
+            "This helper negates the generated item predicate for one equipment slot on `@s`.",
+            "It emits `execute unless items entity @s <slot> <predicate> run <command>`.",
+            &[
+                "Condition one command on the current entity not wearing this custom item in a known slot.",
+            ],
+            &["Use if_wearing when the command should run on a positive match."],
+            &[
+                (
+                    "slot",
+                    "The equipment slot to inspect on the current entity.",
+                ),
+                (
+                    "cmd",
+                    "The command to run when the item predicate does not match.",
+                ),
+            ],
+            Some("The rendered Minecraft execute command."),
+            format!(
+                "let command = {struct_ident}::unless_wearing(ItemSlot::Feet, \"say missing\");"
+            ),
+        ),
+        generated_api_contract(
+            format!("{struct_ident}::item"),
+            GeneratedApiKind::Method,
+            "Constructs this custom item's complete Sand definition.",
+            "The helper invokes the annotated factory that owns the item's components and identity data.",
+            "The returned definition serializes to the configured Minecraft item stack when used by Sand commands or components.",
+            &["Obtain the reusable typed definition of this custom item."],
+            &["Use PREDICATE instead when only an item-stack condition is needed."],
+            &[],
+            Some("The CustomItem value produced by the annotated factory."),
+            format!("let item = {struct_ident}::item();"),
+        ),
+    ];
+    contracts.extend(custom_data_contracts);
+    contracts.extend(data_contracts);
 
-        /// Auto-generated item reference type produced by `#[custom_item]`.
-        ///
-        /// Use [`PREDICATE`](Self::PREDICATE) with
-        /// [`Execute::if_items_entity`] to detect this item in any slot, and
-        /// [`item()`](Self::item) to obtain the [`CustomItem`] definition.
+    let struct_docs = generated_api_contract_docs(&contracts[0]);
+    let base_docs = generated_api_contract_docs(&contracts[1]);
+    let predicate_docs = generated_api_contract_docs(&contracts[2]);
+    let if_wearing_docs = generated_api_contract_docs(&contracts[3]);
+    let unless_wearing_docs = generated_api_contract_docs(&contracts[4]);
+    let item_docs = generated_api_contract_docs(&contracts[5]);
+
+    let generated = quote! {
+
+        #struct_docs
         #[derive(Debug, Clone, Copy, PartialEq, Eq)]
         #vis struct #struct_ident;
 
         impl #struct_ident {
-            /// The base Minecraft item ID (e.g. `"minecraft:leather_boots"`).
+            #base_docs
             pub const BASE: &'static str = #base;
 
-            /// Full item predicate for `execute if items`.
-            ///
-            /// Includes the `custom_data` component when set, making this
-            /// predicate uniquely identify this item.
+            #predicate_docs
             pub const PREDICATE: &'static str = #predicate_lit;
 
             #custom_data_const
 
             #(#data_consts)*
 
-            /// Returns an `execute if items entity @s <slot> <predicate> run <cmd>` command
-            /// that runs `cmd` only when `@s` has this item equipped in `slot`.
-            ///
-            /// # Example
-            /// ```rust,ignore
-            /// mcfunction! {
-            ///     ManaBoots::if_wearing(ItemSlot::Feet, run_fn! { … });
-            /// }
-            /// ```
+            #if_wearing_docs
             pub fn if_wearing(
                 slot: ::sand::__private::cmd::ItemSlot,
                 cmd: impl ::std::fmt::Display,
@@ -3473,8 +3687,7 @@ fn expand_item(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Toke
                 )
             }
 
-            /// Returns an `execute unless items entity @s <slot> <predicate> run <cmd>` command
-            /// that runs `cmd` only when `@s` does NOT have this item in `slot`.
+            #unless_wearing_docs
             pub fn unless_wearing(
                 slot: ::sand::__private::cmd::ItemSlot,
                 cmd: impl ::std::fmt::Display,
@@ -3485,11 +3698,21 @@ fn expand_item(attr: TokenStream, func: ItemFn) -> syn::Result<proc_macro2::Toke
                 )
             }
 
-            /// Construct the [`CustomItem`] definition for this item.
+            #item_docs
             pub fn item() -> ::sand::__private::CustomItem {
                 #fn_ident()
             }
         }
+    };
+
+    if matches!(vis, syn::Visibility::Public(_)) {
+        validate_generated_expansion(generated.clone(), std::iter::empty(), &contracts)?;
+    }
+
+    Ok(quote! {
+        #(#fn_attrs)*
+        #func
+        #generated
     })
 }
 
@@ -3634,6 +3857,7 @@ fn sand_storage_derive_impl(input: syn::DeriveInput) -> Result<TokenStream, syn:
 
     // ── Build field accessor methods ─────────────────────────────────────────
     let mut methods = Vec::new();
+    let mut contracts = Vec::new();
 
     for (field, generated_name) in fields.iter().zip(generated_member_names.iter().skip(1)) {
         let field_ident = syn::Ident::new(
@@ -3667,7 +3891,26 @@ fn sand_storage_derive_impl(input: syn::DeriveInput) -> Result<TokenStream, syn:
         let field_name_str = field_ident.to_string();
         let key_str: &str = path_override.as_deref().unwrap_or(field_name_str.as_str());
 
+        let contract = generated_api_contract(
+            format!("{struct_name}::{field_ident}"),
+            GeneratedApiKind::Method,
+            format!("Returns the typed storage field for `{key_str}`."),
+            "This accessor belongs to the derived storage schema and preserves the Rust field type while selecting its configured NBT path.",
+            format!(
+                "Commands built from this field address `{key_str}` below the schema root in Minecraft command storage."
+            ),
+            &["Read, write, or modify this schema field through Sand's typed storage API."],
+            &[
+                "Avoid raw data commands when the generated typed field expresses the same operation.",
+            ],
+            &[],
+            Some("A typed storage-field handle bound to this schema and field value type."),
+            format!("let field = {struct_name}::{field_ident}();"),
+        );
+        let docs = generated_api_contract_docs(&contract);
+        contracts.push(contract);
         methods.push(quote! {
+            #docs
             pub fn #field_ident() -> ::sand::__private::state::StorageField<#struct_name, #field_ty> {
                 Self::#schema_ident.field(#key_str)
             }
@@ -3677,8 +3920,26 @@ fn sand_storage_derive_impl(input: syn::DeriveInput) -> Result<TokenStream, syn:
     let storage_lit = storage.as_str();
     let root_lit = root.as_str();
 
+    let schema_contract = generated_api_contract(
+        format!("{struct_name}::{schema_ident}"),
+        GeneratedApiKind::AssociatedConst,
+        "Describes the Minecraft command-storage location owned by this schema.",
+        "The derived schema constant is the canonical root used by all generated field accessors.",
+        format!("It addresses storage `{storage_lit}` below NBT root `{root_lit}`."),
+        &[
+            "Pass the whole schema to APIs that operate on its root, or use a generated field accessor for one value.",
+        ],
+        &["Avoid duplicating the storage ID or root as raw strings in author code."],
+        &[],
+        Some("A typed storage-schema descriptor for the derived Rust type."),
+        format!("let schema = {struct_name}::{schema_ident};"),
+    );
+    let schema_docs = generated_api_contract_docs(&schema_contract);
+    contracts.insert(0, schema_contract);
+
     let expanded = quote! {
         impl #struct_name {
+            #schema_docs
             pub const #schema_ident: ::sand::__private::state::StorageSchema<#struct_name> =
                 ::sand::__private::state::StorageSchema::new(#storage_lit, #root_lit);
 
@@ -3686,5 +3947,100 @@ fn sand_storage_derive_impl(input: syn::DeriveInput) -> Result<TokenStream, syn:
         }
     };
 
+    validate_generated_expansion(expanded.clone(), [struct_name.to_string()], &contracts)?;
+
     Ok(expanded.into())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn generated_api_contract(
+    target: String,
+    kind: GeneratedApiKind,
+    summary: impl Into<String>,
+    context: impl Into<String>,
+    minecraft: impl Into<String>,
+    use_when: &[&str],
+    avoid_when: &[&str],
+    parameters: &[(&str, &str)],
+    returns: Option<&str>,
+    example: String,
+) -> GeneratedApiContract {
+    GeneratedApiContract {
+        target,
+        kind,
+        summary: summary.into(),
+        context: context.into(),
+        minecraft: minecraft.into(),
+        use_when: use_when.iter().map(|value| (*value).to_owned()).collect(),
+        avoid_when: avoid_when.iter().map(|value| (*value).to_owned()).collect(),
+        parameters: parameters
+            .iter()
+            .map(|(name, description)| ((*name).to_owned(), (*description).to_owned()))
+            .collect(),
+        returns: returns.map(ToOwned::to_owned),
+        example,
+    }
+}
+
+fn generated_api_contract_docs(contract: &GeneratedApiContract) -> proc_macro2::TokenStream {
+    let summary = LitStr::new(&contract.summary, proc_macro2::Span::call_site());
+    let context = LitStr::new(
+        &format!("**Context:** {}", contract.context),
+        proc_macro2::Span::call_site(),
+    );
+    let minecraft = LitStr::new(
+        &format!("**Minecraft behavior:** {}", contract.minecraft),
+        proc_macro2::Span::call_site(),
+    );
+    let use_when = LitStr::new(
+        &format!("**Use when:** {}", contract.use_when.join("; ")),
+        proc_macro2::Span::call_site(),
+    );
+    let avoid_when = LitStr::new(
+        &format!("**Avoid when:** {}", contract.avoid_when.join("; ")),
+        proc_macro2::Span::call_site(),
+    );
+    let parameters = (!contract.parameters.is_empty()).then(|| {
+        LitStr::new(
+            &format!(
+                "**Parameters:** {}",
+                contract
+                    .parameters
+                    .iter()
+                    .map(|(name, description)| format!("`{name}` — {description}"))
+                    .collect::<Vec<_>>()
+                    .join("; ")
+            ),
+            proc_macro2::Span::call_site(),
+        )
+    });
+    let returns = contract.returns.as_ref().map(|value| {
+        LitStr::new(
+            &format!("**Returns:** {value}"),
+            proc_macro2::Span::call_site(),
+        )
+    });
+    let example = LitStr::new(
+        &format!("**Example:** `{}`", contract.example),
+        proc_macro2::Span::call_site(),
+    );
+    let parameter_doc = parameters
+        .map(|value| quote!(#[doc = #value]))
+        .unwrap_or_default();
+    let return_doc = returns
+        .map(|value| quote!(#[doc = #value]))
+        .unwrap_or_default();
+    quote! {
+        #[doc = #summary]
+        #[doc = ""]
+        #[doc = "# API Contract"]
+        #[doc = ""]
+        #[doc = #context]
+        #[doc = #minecraft]
+        #[doc = #use_when]
+        #[doc = #avoid_when]
+        #parameter_doc
+        #return_doc
+        #[doc = #example]
+    }
 }

@@ -64,6 +64,29 @@ fn validate_preserved_public_surface(
     let file: syn::File = syn::parse2(expansion.clone())?;
     let mut actual = Vec::new();
     for item in &file.items {
+        if let syn::Item::Impl(item_impl) = item
+            && item_impl.trait_.is_none()
+        {
+            for impl_item in &item_impl.items {
+                let identity = match impl_item {
+                    syn::ImplItem::Const(item)
+                        if matches!(item.vis, syn::Visibility::Public(_)) =>
+                    {
+                        Some(format!("associated const {}", item.ident))
+                    }
+                    syn::ImplItem::Fn(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
+                        Some(format!("associated fn {}", item.sig.ident))
+                    }
+                    syn::ImplItem::Type(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
+                        Some(format!("associated type {}", item.ident))
+                    }
+                    _ => None,
+                };
+                if let Some(identity) = identity {
+                    actual.push(identity);
+                }
+            }
+        }
         let identity = match item {
             syn::Item::Const(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
                 Some(format!("const {}", item.ident))
@@ -2193,7 +2216,9 @@ pub fn hud_element(input: TokenStream) -> TokenStream {
 #[cfg(feature = "resourcepack")]
 #[proc_macro]
 pub fn texture(input: TokenStream) -> TokenStream {
-    match expand_texture(input) {
+    match expand_texture(input)
+        .and_then(|tokens| validate_preserved_public_surface(&tokens, None).map(|()| tokens))
+    {
         Ok(ts) => ts.into(),
         Err(e) => e.to_compile_error().into(),
     }
@@ -4168,6 +4193,40 @@ mod consumer_surface_policy_tests {
             None,
         )
         .unwrap();
+    }
+
+    #[test]
+    fn output_free_derive_rejects_public_inherent_members() {
+        for expansion in [
+            quote! {
+                impl Subject {
+                    pub const GENERATED: i32 = 1;
+                }
+            },
+            quote! {
+                impl Subject {
+                    pub fn generated() {}
+                }
+            },
+        ] {
+            let error = validate_preserved_public_surface(&expansion, None).unwrap_err();
+            let rendered = error.to_string();
+            assert!(rendered.contains("public-surface drift"), "{rendered}");
+            assert!(rendered.contains("associated"), "{rendered}");
+        }
+    }
+
+    #[test]
+    fn texture_style_output_rejects_a_public_item() {
+        let expansion = quote! {
+            fn __sand_rp_tex_demo_make() {}
+            inventory::submit! { Descriptor { make: __sand_rp_tex_demo_make } }
+            pub struct TextureHandle;
+        };
+        let error = validate_preserved_public_surface(&expansion, None).unwrap_err();
+        let rendered = error.to_string();
+        assert!(rendered.contains("public-surface drift"), "{rendered}");
+        assert!(rendered.contains("struct TextureHandle"), "{rendered}");
     }
 
     #[test]

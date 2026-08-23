@@ -1779,7 +1779,7 @@ impl SurfaceGraph {
         }
         if !target.nominal
             || standard_library_alias_target(&target.segments)
-                && !self.alias_root_is_lexically_bound(crate_name, &target.module_id, first)
+                && !self.alias_root_is_shadowed(crate_name, &target.module_id, first)
         {
             return Ok(rendered);
         }
@@ -1789,11 +1789,12 @@ impl SurfaceGraph {
         })
     }
 
-    fn alias_root_is_lexically_bound(&self, crate_name: &str, module_id: &str, root: &str) -> bool {
+    fn alias_root_is_shadowed(&self, crate_name: &str, module_id: &str, root: &str) -> bool {
         if self
             .crates
             .get(crate_name)
-            .is_some_and(|index| index.extern_aliases.contains_key(root))
+            .and_then(|index| index.extern_aliases.get(root))
+            .is_some_and(|target| target != root)
         {
             return true;
         }
@@ -1806,8 +1807,14 @@ impl SurfaceGraph {
                 && (module.modules.contains_key(root)
                     || module.declarations.contains_key(root)
                     || module.uses.iter().any(|record| {
-                        matches!(&record.leaf, UseLeaf::Glob)
-                            || matches!(&record.leaf, UseLeaf::Name { exported, .. } if exported == root)
+                        matches!(&record.leaf, UseLeaf::Name { exported, .. } if exported == root)
+                            || matches!(&record.leaf, UseLeaf::Glob)
+                                && self.glob_may_bind_root(
+                                    crate_name,
+                                    module_id,
+                                    &record.prefix,
+                                    root,
+                                )
                     }))
             {
                 return true;
@@ -1818,6 +1825,27 @@ impl SurfaceGraph {
                 .filter(|parent| parent.starts_with(crate_name));
         }
         false
+    }
+
+    fn glob_may_bind_root(
+        &self,
+        crate_name: &str,
+        module_id: &str,
+        prefix: &[String],
+        root: &str,
+    ) -> bool {
+        let target = self.resolve_use_target(crate_name, module_id, prefix);
+        let Some(module) = self.module(&target) else {
+            // An unaudited external glob can introduce any name, including a
+            // standard-library-looking one, so it remains fail-closed.
+            return true;
+        };
+        module.modules.contains_key(root)
+            || module.declarations.contains_key(root)
+            || module.uses.iter().any(|record| {
+                matches!(&record.leaf, UseLeaf::Name { exported, .. } if exported == root)
+                    || matches!(&record.leaf, UseLeaf::Glob)
+            })
     }
 
     fn resolve_alias_chain(

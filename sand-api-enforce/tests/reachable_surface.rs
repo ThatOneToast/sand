@@ -1436,6 +1436,18 @@ fn alias_to_unmodeled_external_type_fails_closed() {
 }
 
 #[test]
+fn public_alias_to_explicit_standard_library_type_keeps_its_own_identity() {
+    let (_directory, graph) = item_macro_graph(
+        "use std::fmt; pub type CommandResult<T> = std::result::Result<T, fmt::Error>;",
+        [],
+    );
+    let api = graph.reachable_from("facade").unwrap();
+    let alias = item(&api, "facade::CommandResult");
+    assert_eq!(alias.identity, "facade::CommandResult");
+    assert_eq!(alias.kind, ReachableKind::TypeAlias);
+}
+
+#[test]
 fn standard_library_names_shadowed_by_local_imports_keep_underlying_members() {
     for shadow in ["std", "core", "alloc"] {
         let source = format!(

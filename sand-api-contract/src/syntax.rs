@@ -112,6 +112,7 @@ pub enum GeneratedApiKind {
     Struct,
     Enum,
     Function,
+    Constant,
     Field,
     Variant,
     AssociatedConst,
@@ -265,6 +266,25 @@ pub fn validate_generated_expansion(
                         signature: item.sig.to_token_stream().to_string(),
                         parameters,
                         return_type,
+                    },
+                    item.attrs.clone(),
+                    item,
+                )?;
+            }
+            syn::Item::Const(item) if public_visibility(&item.vis) => {
+                insert_generated_shape(
+                    &mut discovered,
+                    GeneratedApiShape {
+                        target: item.ident.unraw().to_string(),
+                        kind: GeneratedApiKind::Constant,
+                        signature: format!(
+                            "{} const {} : {}",
+                            item.vis.to_token_stream(),
+                            item.ident,
+                            item.ty.to_token_stream()
+                        ),
+                        parameters: BTreeMap::new(),
+                        return_type: Some(item.ty.to_token_stream().to_string()),
                     },
                     item.attrs.clone(),
                     item,
@@ -1500,5 +1520,49 @@ mod tests {
         ] {
             assert_eq!(first_prose_sentence(documentation), expected);
         }
+    }
+
+    #[test]
+    fn generated_top_level_constants_are_extracted_and_require_constant_contracts() {
+        let contract = GeneratedApiContract {
+            target: "HEALTH_BAR".to_owned(),
+            kind: GeneratedApiKind::Constant,
+            summary: "Names the generated health HUD bar handle.".to_owned(),
+            context: "The handle connects author code to the HUD bar declared by the macro."
+                .to_owned(),
+            minecraft:
+                "The handle selects the generated font and display resources for this HUD bar."
+                    .to_owned(),
+            use_when: vec!["Updating or rendering this generated HUD bar".to_owned()],
+            avoid_when: vec!["Addressing a different generated HUD element".to_owned()],
+            parameters: BTreeMap::new(),
+            returns: Some("The typed handle for this generated HUD bar.".to_owned()),
+            example: "let bar = HEALTH_BAR;".to_owned(),
+        };
+        let expansion = quote! {
+            #[doc = "Names the generated health HUD bar handle."]
+            #[doc = "# API Contract"]
+            #[doc = "**Context:** The handle connects author code to the HUD bar declared by the macro."]
+            #[doc = "**Minecraft behavior:** The handle selects the generated font and display resources for this HUD bar."]
+            #[doc = "**Use when:** Updating or rendering this generated HUD bar"]
+            #[doc = "**Avoid when:** Addressing a different generated HUD element"]
+            #[doc = "**Returns:** The typed handle for this generated HUD bar."]
+            #[doc = "**Example:** `let bar = HEALTH_BAR;`"]
+            pub const HEALTH_BAR: BarHandle = BarHandle::new();
+        };
+        let shapes = validate_generated_expansion(expansion.clone(), [], &[contract.clone()])
+            .expect("top-level constant contract");
+        assert_eq!(shapes[0].kind, GeneratedApiKind::Constant);
+        assert_eq!(shapes[0].return_type.as_deref(), Some("BarHandle"));
+        assert!(shapes[0].signature.contains("pub const HEALTH_BAR"));
+
+        let mut wrong_kind = contract;
+        wrong_kind.kind = GeneratedApiKind::AssociatedConst;
+        assert!(
+            validate_generated_expansion(expansion, [], &[wrong_kind])
+                .unwrap_err()
+                .to_string()
+                .contains("declares AssociatedConst")
+        );
     }
 }

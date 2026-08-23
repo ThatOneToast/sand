@@ -1550,8 +1550,9 @@ mod tests {
             #[doc = "**Example:** `let bar = HEALTH_BAR;`"]
             pub const HEALTH_BAR: BarHandle = BarHandle::new();
         };
-        let shapes = validate_generated_expansion(expansion.clone(), [], &[contract.clone()])
-            .expect("top-level constant contract");
+        let shapes =
+            validate_generated_expansion(expansion.clone(), [], std::slice::from_ref(&contract))
+                .expect("top-level constant contract");
         assert_eq!(shapes[0].kind, GeneratedApiKind::Constant);
         assert_eq!(shapes[0].return_type.as_deref(), Some("BarHandle"));
         assert!(shapes[0].signature.contains("pub const HEALTH_BAR"));

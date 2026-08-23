@@ -133,8 +133,9 @@ Generated static families account for 6,368 identities:
 The remaining 4,529 identities come from ordinary source declarations,
 including the 15 exported procedural macros. Input-dependent items emitted
 into downstream crates by attributes and derives are parametric families, so
-they do not have an honest finite installed count. Each such generator is a
-separate provider scope.
+they do not have an honest finite installed count and are not represented as
+zero-item static scopes. API-producing proc macros validate their actual
+generated surface and contract Rustdoc while expanding in the consumer crate.
 
 The migrated `sand::predicate` source scope owns 119 identities, all enforced
 and contracted at their underlying definitions. Its four reachable
@@ -229,12 +230,12 @@ shadowed above its defining module. Custom helper attributes are accepted only
 on the declaration forms and under the derive that defines them.
 
 The static providers are connected to the facade build. Input-dependent
-attribute/derive scopes use `consumer_build` enforcement: isolated downstream
-fixtures compile real macro expansions and reject missing generated contracts.
-All such scopes are enforced rather than counted as vacuous zero-item static
-families.
+attribute and derive output remains outside the finite installed catalog;
+isolated downstream fixtures exercise the same expansion-time guards used by
+ordinary consumer builds. The static report therefore cannot be made complete
+by blessing a named zero-item consumer scope.
 
-The exact 26.2 profile records 10,897 enforced static identities across 38
+The exact 26.2 profile records 10,897 enforced static identities across 28
 scopes, with zero pending scopes and zero pending items. The 1.21.4 and explicit
 placeholder profiles enforce the same source and checked-in-generator boundary
 against their independently generated totals. Every reachable identity maps to

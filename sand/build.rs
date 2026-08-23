@@ -243,23 +243,11 @@ fn main() {
     // Rust above even when a selected Minecraft profile contains no supported
     // registries (the explicit placeholder profile). Connecting that audit
     // prevents the empty profile from becoming a vacuous enforcement claim.
-    let connected_provider_audits = BTreeSet::from([
-        "generated-vanilla-registries".to_owned(),
-        // These parametric providers are audited through real downstream
-        // builds. Their fixture suite uses the same source-to-provider binding
-        // as the facade graph, so an invocation cannot be claimed without its
-        // exact generated declarations and contracts.
-        "generated-item-macro".to_owned(),
-        "generated-state-derive".to_owned(),
-        "generated-storage-derive".to_owned(),
-        "generated-function-macro".to_owned(),
-        "generated-component-macro".to_owned(),
-        "generated-event-macro".to_owned(),
-        "generated-armor-event-macro".to_owned(),
-        "generated-schedule-macro".to_owned(),
-        "generated-entity-state-enum-derive".to_owned(),
-        "generated-resourcepack-macros".to_owned(),
-    ]);
+    // Only static providers proven against their emitted source in this build
+    // participate in the facade report. Parametric consumer expansions are
+    // self-audited by their proc macros and do not pretend to be finite items
+    // in Sand's installed static surface.
+    let connected_provider_audits = BTreeSet::from(["generated-vanilla-registries".to_owned()]);
     let report = manifest
         .evaluate_with_provider_audits(
             &reachable,

@@ -57,12 +57,13 @@ observe re-exports or arbitrary generated code. Sand therefore uses a hybrid:
 Static installed generators are connected now: command and vanilla-registry
 providers emit deterministic JSON beside their Rust, while checked-in
 declarative families derive their shape from the generator body and
-invocations. Input-dependent procedural macros and derives use
-`consumer_build` scopes. Those scopes cannot be marked enforced until their
-consumer-side provider audit is explicitly connected; zero-item enforcement
-is rejected rather than passing vacuously. The real `SandStorage` fixture
-shares its generated-member model between macro expansion and the build
-provider and proves a missing generated accessor fails ordinary `cargo check`.
+invocations. Input-dependent procedural macros and derives are not represented
+as vacuous zero-item static scopes: their output has no finite installed
+identity set. API-producing proc macros self-audit their real expansion during
+ordinary downstream compilation, while fixtures exercise those expansion
+guards. The `State` derive, for example, rejects extra public sibling items,
+bound-view members, missing per-item contract Rustdoc, and owner members that
+do not match its shared generated-surface model.
 Producer connections are declaration-specific and exact: the provider must
 claim the same owner and the complete `(identity, kind)` set derived from that
 source declaration. A partial, wrong-owner, or wrong-kind claim is rejected.
@@ -75,6 +76,18 @@ their enforced consumer-build fixtures.
 
 Rustdoc JSON is useful as an independent audit oracle, but it is not the build
 gate because its JSON format is not a stable Rust interface.
+
+Catalog schema 3 separates mandatory structural facts from proportional,
+source-authored detail. Parameter names/types and return types always come from
+the reachable Rust declaration. Context, Minecraft behavior, use/avoid
+guidance, parameter meaning, return explanation, and examples are serialized
+only when the defining Rustdoc or explicit generator input supplies them; the
+catalog never substitutes module-, identifier-, or type-derived prose or an
+invocation containing undefined variables. CLI rendering omits absent
+semantic sections while retaining the exact structural signature and the
+item's source-authored summary. Direct `#[api]` and explicit generator inputs
+remain strict; proportional omission applies only when resolving independently
+discovered family members from their defining source documentation.
 
 ## Migration ratchet
 
@@ -107,8 +120,8 @@ Minecraft profile's complete vanilla-registry provider (4,867 identities for
 same versioned entry that emits its enum variant, and the facade build requires
 exact identity/kind parity with the generated Rust. A dedicated normal-build
 fixture proves that an unreported generated variant stops `cargo check`.
-Parametric `consumer_build` boundaries
-additionally require their named provider-audit connection.
+Parametric consumer output is deliberately outside this static report and is
+validated by the producing macro at expansion time.
 
 `#[api]` defaults to the facade's hidden registration transport. Definitions
 in lower implementation crates use `registry = ::sand_api_contract`, which

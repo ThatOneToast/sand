@@ -539,6 +539,9 @@ impl TextComponent {
     }
 
     /// Copy text to the clipboard when clicked.
+    ///
+    /// `text` is the literal clipboard payload; it is not rendered as the
+    /// player-visible label of this component.
     #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::click_copy` for the canonical contract."]
     pub fn click_copy(mut self, text: impl Into<String>) -> Self {
         self.click_event = Some(ClickEvent::CopyToClipboard(text.into()));
@@ -620,6 +623,9 @@ impl TextComponent {
     }
 
     /// Show an entity tooltip with a validated UUID on hover.
+    ///
+    /// `id` is the entity UUID shown in the hover payload, not a namespaced
+    /// Minecraft resource identifier.
     ///
     /// Parse user-provided UUID text with [`EntityHoverId::parse`] first. The
     /// styled `name` is serialized as a complete text component.

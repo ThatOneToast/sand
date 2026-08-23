@@ -4,7 +4,7 @@
 # are discovered through the reachable re-export graph. Generator scopes are
 # supplied from the same declaration/schema that emits their Rust API.
 schema_version = 1
-enforced_scope_baseline = ["predicate-source", "generated-predicate-id-wrapper", "execute-when-source", "condition-source", "resource-ref-source", "generated-resource-id-wrappers", "version-source", "generated-vanilla-registries", "vfx-source", "advanced-source", "root-source", "generated-effect-registry-enums", "generated-commands", "generated-event-markers", "generated-registry-id-wrappers", "generated-item-macro", "generated-state-derive", "generated-storage-derive", "generated-function-macro", "generated-component-macro", "generated-event-macro", "generated-armor-event-macro", "generated-schedule-macro", "generated-entity-state-enum-derive", "generated-resourcepack-macros", "item-source", "inventory-source", "event-source", "events-source", "entity-source", "state-source", "participant-source", "text-source", "data-source", "systems-source", "command-source", "component-source", "resourcepack-source"]
+enforced_scope_baseline = ["predicate-source", "generated-predicate-id-wrapper", "execute-when-source", "condition-source", "resource-ref-source", "generated-resource-id-wrappers", "version-source", "generated-vanilla-registries", "vfx-source", "advanced-source", "root-source", "generated-effect-registry-enums", "generated-commands", "generated-event-markers", "generated-registry-id-wrappers", "item-source", "inventory-source", "event-source", "events-source", "entity-source", "state-source", "participant-source", "text-source", "data-source", "systems-source", "command-source", "component-source", "resourcepack-source"]
 pending_scope_ceiling = 0
 
 [[scope]]
@@ -236,97 +236,3 @@ canonical_module = "sand"
 state = "enforced"
 tier = "ordinary"
 provider = "generator:generated_event_markers"
-
-# Downstream macro expansions are parametric provider scopes. Their public
-# output is audited in the consuming crate; the installed static item ceiling
-# deliberately does not pretend these families have a finite item count.
-
-[[scope]]
-id = "generated-function-macro"
-canonical_module = "sand"
-state = "enforced"
-tier = "ordinary"
-provider = "generator:function_macro"
-enforcement = "consumer_build"
-recursive = false
-
-[[scope]]
-id = "generated-component-macro"
-canonical_module = "sand"
-state = "enforced"
-tier = "ordinary"
-provider = "generator:component_macro"
-enforcement = "consumer_build"
-recursive = false
-
-[[scope]]
-id = "generated-event-macro"
-canonical_module = "sand"
-state = "enforced"
-tier = "ordinary"
-provider = "generator:event_macro"
-enforcement = "consumer_build"
-recursive = false
-
-[[scope]]
-id = "generated-item-macro"
-canonical_module = "sand"
-state = "enforced"
-tier = "ordinary"
-provider = "generator:item_macro"
-enforcement = "consumer_build"
-recursive = false
-
-[[scope]]
-id = "generated-armor-event-macro"
-canonical_module = "sand"
-state = "enforced"
-tier = "ordinary"
-provider = "generator:armor_event_macro"
-enforcement = "consumer_build"
-recursive = false
-
-[[scope]]
-id = "generated-schedule-macro"
-canonical_module = "sand"
-state = "enforced"
-tier = "ordinary"
-provider = "generator:schedule_macro"
-enforcement = "consumer_build"
-recursive = false
-
-[[scope]]
-id = "generated-state-derive"
-canonical_module = "sand"
-state = "enforced"
-tier = "ordinary"
-provider = "generator:state_derive"
-enforcement = "consumer_build"
-recursive = false
-
-[[scope]]
-id = "generated-storage-derive"
-canonical_module = "sand"
-state = "enforced"
-tier = "ordinary"
-provider = "generator:storage_derive"
-enforcement = "consumer_build"
-recursive = false
-
-[[scope]]
-id = "generated-resourcepack-macros"
-canonical_module = "sand::resourcepack"
-state = "enforced"
-tier = "ordinary"
-provider = "generator:resourcepack_macros"
-enforcement = "consumer_build"
-features = ["resourcepack"]
-
-[[scope]]
-id = "generated-entity-state-enum-derive"
-canonical_module = "sand"
-state = "enforced"
-tier = "ordinary"
-provider = "generator:entity_state_enum_derive"
-enforcement = "consumer_build"
-recursive = false

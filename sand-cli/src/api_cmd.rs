@@ -196,7 +196,7 @@ fn installed_catalog() -> Result<ApiCatalog> {
         if entry.kind == ApiKind::Macro {
             continue;
         }
-        if let Some((_, signature, parameters, return_type, documentation, has_receiver)) =
+        if let Some((_, signature, parameters, return_type, documentation, _has_receiver)) =
             sand::__private::api_contract::INSTALLED_API_SHAPES
                 .iter()
                 .find(|(paths, ..)| paths.contains(&entry.canonical_path.as_str()))
@@ -204,11 +204,22 @@ fn installed_catalog() -> Result<ApiCatalog> {
             entry.signature = normalize_shape_paths(signature, &entry.canonical_module);
             let source_summary = rustdoc_summary(documentation)
                 .map(|summary| normalize_shape_paths(&summary, &entry.canonical_module));
+            if family_contract
+                && matches!(
+                    entry.kind,
+                    ApiKind::Function | ApiKind::Method | ApiKind::TraitMethod
+                )
+                && source_summary.is_none()
+            {
+                bail!(
+                    "supported family callable `{}` has no source-authored semantic summary",
+                    entry.canonical_path
+                );
+            }
             let resolved_summary = source_summary
                 .clone()
                 .filter(|summary| !summary.starts_with("Carries the "))
                 .unwrap_or_else(|| semantic_fallback_summary(entry));
-            let semantic_summary = resolved_summary.as_str();
             let authored = entry
                 .parameters
                 .iter()
@@ -222,41 +233,41 @@ fn installed_catalog() -> Result<ApiCatalog> {
                         name: (*name).to_owned(),
                         rust_type: Some(rust_type.clone()),
                         description: authored.get(name).map_or_else(
-                            || semantic_parameter_description(name, &rust_type, semantic_summary),
+                            || source_parameter_description(name, documentation),
                             |description| (*description).to_owned(),
                         ),
                     }
                 })
                 .collect();
-            entry.returns = return_type.map(|ty| {
-                entry.returns.clone().unwrap_or_else(|| {
-                    let ty = normalize_shape_paths(ty, &entry.canonical_module);
-                    semantic_return_description(
-                        &ty,
-                        semantic_summary,
-                        &entry.canonical_module,
-                        &entry.canonical_path,
-                        *has_receiver,
-                    )
-                })
-            });
+            entry.returns = if family_contract {
+                source_return_description(documentation)
+            } else {
+                entry
+                    .returns
+                    .clone()
+                    .or_else(|| source_return_description(documentation))
+            };
             entry.return_type =
                 return_type.map(|ty| normalize_shape_paths(ty, &entry.canonical_module));
             if family_contract {
                 let summary = resolved_summary.clone();
-                let prose = if documentation.trim().is_empty() {
-                    format!(
-                        "{summary} The exact source-derived Rust declaration is `{}`.",
-                        entry.signature
-                    )
-                } else {
-                    normalize_shape_paths(&rustdoc_prose(documentation), &entry.canonical_module)
-                };
+                let prose =
+                    normalize_shape_paths(&rustdoc_prose(documentation), &entry.canonical_module);
                 entry.summary = summary.clone();
-                entry.context = family_context(entry, &prose);
-                entry.minecraft = family_minecraft_behavior(entry, &summary);
-                entry.use_when = vec![family_use_guidance(entry, &summary)];
-                entry.avoid_when = vec![family_avoidance(entry, &summary)];
+                entry.context = (!prose.trim().is_empty() && prose.trim() != summary.trim())
+                    .then_some(prose)
+                    .unwrap_or_default();
+                entry.minecraft = source_minecraft_behavior(documentation)
+                    .map(|value| normalize_shape_paths(&value, &entry.canonical_module))
+                    .unwrap_or_default();
+                entry.use_when = source_guidance(documentation, GuidanceKind::Use)
+                    .into_iter()
+                    .map(|value| normalize_shape_paths(&value, &entry.canonical_module))
+                    .collect();
+                entry.avoid_when = source_guidance(documentation, GuidanceKind::Avoid)
+                    .into_iter()
+                    .map(|value| normalize_shape_paths(&value, &entry.canonical_module))
+                    .collect();
             } else if let Some(summary) = source_summary {
                 if is_family_template_summary(&entry.summary) {
                     entry.summary = summary.clone();
@@ -265,25 +276,16 @@ fn installed_catalog() -> Result<ApiCatalog> {
                     entry.context = format!("{summary} {}", entry.context);
                 }
             }
-            if is_import_only_example(&entry.example)
-                || (matches!(
-                    entry.kind,
-                    ApiKind::Function | ApiKind::Method | ApiKind::TraitMethod
-                ) && !example_exercises_member(&entry.example, &entry.canonical_path))
+            if matches!(
+                entry.kind,
+                ApiKind::Function | ApiKind::Method | ApiKind::TraitMethod
+            ) && (is_import_only_example(&entry.example)
+                || !example_exercises_member(&entry.example, &entry.canonical_path))
             {
                 entry.example = rustdoc_example(documentation)
                     .map(|example| normalize_shape_paths(&example, &entry.canonical_module))
                     .filter(|example| example_exercises_member(example, &entry.canonical_path))
-                    .unwrap_or_else(|| {
-                        let call = structural_example(
-                            entry.kind,
-                            &entry.canonical_path,
-                            parameters,
-                            *return_type,
-                            *has_receiver,
-                        );
-                        format!("// {}\n{call}", resolved_summary.trim_end_matches('.'))
-                    });
+                    .unwrap_or_default();
             }
         }
     }
@@ -313,6 +315,8 @@ fn installed_catalog() -> Result<ApiCatalog> {
             .map(|value| normalize_shape_paths(value, &entry.canonical_module));
         entry.example = normalize_shape_paths(&entry.example, &entry.canonical_module);
         for parameter in &mut entry.parameters {
+            parameter.description =
+                normalize_shape_paths(&parameter.description, &entry.canonical_module);
             if let Some(rust_type) = &mut parameter.rust_type {
                 *rust_type = normalize_shape_paths(rust_type, &entry.canonical_module);
             }
@@ -323,9 +327,10 @@ fn installed_catalog() -> Result<ApiCatalog> {
         if !matches!(
             entry.kind,
             ApiKind::Function | ApiKind::Method | ApiKind::TraitMethod
-        ) && entry.example.trim_end().ends_with("();")
+        ) && (entry.example.trim_end().ends_with("();")
+            || is_import_only_example(&entry.example))
         {
-            entry.example = structural_example(entry.kind, &entry.canonical_path, &[], None, false);
+            entry.example = declaration_reference_example(entry.kind, &entry.canonical_path);
         }
     }
 
@@ -366,12 +371,24 @@ fn rustdoc_prose_paragraphs(documentation: &str) -> Vec<String> {
         .collect()
 }
 
-fn semantic_parameter_description(name: &str, rust_type: &str, summary: &str) -> String {
-    let normalized = name.trim_start_matches('_').replace('_', " ");
-    format!(
-        "The source-derived `{normalized}` input (`{rust_type}`) used by the documented behavior: {}.",
-        summary.trim_end_matches('.')
-    )
+fn source_parameter_description(name: &str, documentation: &str) -> String {
+    let bare = name.trim_start_matches('_');
+    let backticked = format!("`{bare}`");
+    rustdoc_prose_paragraphs(documentation)
+        .into_iter()
+        .find(|paragraph| paragraph.contains(&backticked))
+        .unwrap_or_default()
+}
+
+fn source_return_description(documentation: &str) -> Option<String> {
+    rustdoc_prose_paragraphs(documentation)
+        .into_iter()
+        .find(|paragraph| {
+            let prose = paragraph.trim_start().to_ascii_lowercase();
+            prose.starts_with("return")
+                || prose.starts_with("on success")
+                || prose.contains(" returns ")
+        })
 }
 
 fn semantic_fallback_summary(entry: &ApiEntry) -> String {
@@ -411,183 +428,53 @@ fn semantic_fallback_summary(entry: &ApiEntry) -> String {
     }
 }
 
-fn semantic_return_description(
-    rust_type: &str,
-    summary: &str,
-    module: &str,
-    canonical_path: &str,
-    has_receiver: bool,
-) -> String {
-    let compact = rust_type.replace(' ', "");
-    let owner = canonical_path
-        .rsplit_once("::")
-        .and_then(|(owner, _)| owner.rsplit("::").next())
-        .unwrap_or("value");
-    if let Some(arguments) = generic_arguments(&compact, "Result") {
-        let success = arguments.first().map_or("value", String::as_str);
-        let error = arguments.get(1).map(String::as_str);
-        let failure = error.map_or_else(
-            || "a diagnostic describing why the operation failed".to_owned(),
-            |error| format!("the `{error}` error describing why the operation failed"),
-        );
-        if success == "Self" {
-            return if has_receiver {
-                "The updated typed builder on success, or a diagnostic describing why the input cannot be represented safely.".to_owned()
-            } else {
-                format!(
-                    "A validated `{owner}` value on success, or a diagnostic describing why the input cannot be represented safely."
-                )
-            };
-        } else if let Some(optional) =
-            generic_arguments(success, "Option").and_then(|args| args.into_iter().next())
-        {
-            return format!(
-                "On success, the optional `{optional}` produced by this operation, or `None` when no value is available; otherwise {failure}."
-            );
-        } else {
-            return format!(
-                "On success, the `{success}` produced by the documented operation; otherwise {failure}."
-            );
-        }
-    }
-    if compact == "bool" {
-        return "Whether the documented condition holds for this value.".to_owned();
-    }
-    if let Some(arguments) = generic_arguments(&compact, "Option") {
-        let inner = arguments.first().map_or("value", String::as_str);
-        if inner == "Self" {
-            return "The corresponding typed value when the documented conversion succeeds; otherwise `None`.".to_owned();
-        } else {
-            return format!(
-                "The optional `{inner}` produced by the documented operation, or `None` when no value is available."
-            );
-        }
-    }
-    if compact == "Self" {
-        return if has_receiver {
-            "The updated typed builder, ready for further chained configuration.".to_owned()
-        } else {
-            format!("A newly constructed `{owner}` value.")
-        };
-    }
-    if module.starts_with("sand::command") && compact == "String" {
-        return "The rendered Minecraft command text.".to_owned();
-    }
-    if compact.starts_with('&') && compact.contains("str") {
-        return "A borrowed textual representation of the documented value, without allocation."
-            .to_owned();
-    }
-    if compact.starts_with('&') {
-        return "A borrowed view of the documented value.".to_owned();
-    }
-    if compact.starts_with("Vec<") || compact.contains("Iterator") {
-        return "The ordered values produced by the documented operation.".to_owned();
-    }
-    format!(
-        "The typed result of the documented operation: {}",
-        summary.trim_end_matches('.')
-    )
+#[derive(Clone, Copy)]
+enum GuidanceKind {
+    Use,
+    Avoid,
 }
 
-fn generic_arguments(rust_type: &str, wrapper: &str) -> Option<Vec<String>> {
-    let opening = rust_type.find('<')?;
-    if !rust_type[..opening].ends_with(wrapper) {
-        return None;
-    }
-    let start = opening + 1;
-    let mut depth = 0_usize;
-    let mut argument_start = start;
-    let mut arguments = Vec::new();
-    for (offset, character) in rust_type[start..].char_indices() {
-        let index = start + offset;
-        match character {
-            '<' => depth += 1,
-            '>' if depth == 0 => {
-                arguments.push(rust_type[argument_start..index].to_owned());
-                return Some(arguments);
+fn source_guidance(documentation: &str, kind: GuidanceKind) -> Vec<String> {
+    rustdoc_prose_paragraphs(documentation)
+        .into_iter()
+        .filter(|paragraph| {
+            let lower = paragraph.trim_start().to_ascii_lowercase();
+            match kind {
+                GuidanceKind::Use => {
+                    lower.starts_with("use ")
+                        || lower.starts_with("call ")
+                        || lower.starts_with("choose ")
+                        || lower.starts_with("prefer ")
+                }
+                GuidanceKind::Avoid => {
+                    lower.starts_with("avoid ")
+                        || lower.starts_with("do not ")
+                        || lower.starts_with("don't ")
+                }
             }
-            '>' => depth -= 1,
-            ',' if depth == 0 => {
-                arguments.push(rust_type[argument_start..index].to_owned());
-                argument_start = index + character.len_utf8();
-            }
-            _ => {}
-        }
-    }
-    None
+        })
+        .collect()
 }
 
-fn family_context(entry: &ApiEntry, prose: &str) -> String {
-    format!(
-        "Within `{}`, `{}` has the source-derived declaration `{}`. {prose}",
-        entry.canonical_module, entry.canonical_path, entry.signature
-    )
-}
-
-fn family_minecraft_behavior(entry: &ApiEntry, summary: &str) -> String {
-    let domain = if entry.canonical_module.starts_with("sand::command") {
-        "Sand renders this typed command operation into Minecraft command syntax only when the command is emitted"
-    } else if entry.canonical_module.starts_with("sand::component") {
-        "Sand validates and serializes this typed datapack component into Minecraft data during export"
-    } else if entry.canonical_module.starts_with("sand::resourcepack") {
-        "Sand applies this operation while generating validated Minecraft resource-pack assets"
-    } else if entry.canonical_module.starts_with("sand::event")
-        || entry.canonical_module.starts_with("sand::events")
-        || entry.canonical_module.starts_with("sand::participant")
-    {
-        "Sand lowers this operation into generated Minecraft event dispatch and participant lifecycle wiring"
-    } else if entry.canonical_module.starts_with("sand::state")
-        || entry.canonical_module.starts_with("sand::systems")
-        || entry.canonical_module.starts_with("sand::entity")
-        || entry.canonical_module.starts_with("sand::data")
-    {
-        "Sand lowers this typed operation into validated Minecraft commands or data during export"
-    } else {
-        "Sand carries this typed operation into generated Minecraft output according to its source contract"
-    };
-    format!("{domain}: {}", summary.trim_end_matches('.'))
-}
-
-fn family_use_guidance(entry: &ApiEntry, summary: &str) -> String {
-    format!(
-        "Use `{}` when working in `{}` and the required behavior is: {}",
-        entry.canonical_path,
-        entry.canonical_module,
-        summary.trim_end_matches('.')
-    )
-}
-
-fn family_avoidance(entry: &ApiEntry, _summary: &str) -> String {
-    let path = entry.canonical_path.to_ascii_lowercase();
-    let return_type = entry.return_type.as_deref().unwrap_or_default();
-    if path.contains("raw") || path.contains("unchecked") {
-        "Avoid this escape hatch when Sand's typed API models the required value or operation."
-            .to_owned()
-    } else if entry.canonical_module.starts_with("sand::command") {
-        "Avoid raw command text when this typed signature can validate and render the command."
-            .to_owned()
-    } else if entry.canonical_module.starts_with("sand::component") {
-        "Avoid raw JSON or untyped component data when this typed definition models the target schema."
-            .to_owned()
-    } else if entry.canonical_module.starts_with("sand::resourcepack") {
-        "Avoid manual asset serialization when this typed resource-pack API represents the asset."
-            .to_owned()
-    } else if return_type.contains("Option") {
-        "Avoid this optional lookup when absence must be reported as an error rather than `None`."
-            .to_owned()
-    } else if return_type.contains("Result") {
-        "Avoid discarding the returned diagnostic; validation failure is part of this operation's contract."
-            .to_owned()
-    } else if return_type.trim_start().starts_with('&') {
-        "Avoid retaining the returned borrow beyond the lifetime of its source value.".to_owned()
-    } else if entry.kind == ApiKind::Variant {
-        "Use a different variant when representing a different documented case.".to_owned()
-    } else if entry.kind == ApiKind::Field {
-        "Do not treat this typed field as an unrelated serialization or runtime value.".to_owned()
-    } else {
-        "Avoid using this operation outside the lifecycle and ownership documented by its source API."
-            .to_owned()
-    }
+fn source_minecraft_behavior(documentation: &str) -> Option<String> {
+    rustdoc_prose_paragraphs(documentation)
+        .into_iter()
+        .skip(1)
+        .find(|paragraph| {
+            let lower = paragraph.to_ascii_lowercase();
+            [
+                "minecraft",
+                " command",
+                "scoreboard",
+                "nbt",
+                "datapack",
+                "resource pack",
+                "json",
+                "export",
+            ]
+            .iter()
+            .any(|token| lower.contains(token))
+        })
 }
 
 fn is_family_template_summary(summary: &str) -> bool {
@@ -646,6 +533,7 @@ fn normalize_facade_paths(value: &str) -> String {
         .replace("sand_core ::", "sand ::")
         .replace("sand_commands::", "sand::command::")
         .replace("sand_commands ::", "sand :: command ::")
+        .replace("[`sand_commands`]", "[`sand::command`]")
         .replace("sand_components::", "sand::component::")
         .replace("sand_components ::", "sand :: component ::")
         .replace("sand_resourcepack::", "sand::resourcepack::")
@@ -704,47 +592,16 @@ fn example_exercises_member(example: &str, canonical_path: &str) -> bool {
         || example.contains(&format!("{canonical_path}("))
 }
 
-fn structural_example(
-    kind: ApiKind,
-    canonical_path: &str,
-    parameters: &[(&str, &str)],
-    return_type: Option<&str>,
-    has_receiver: bool,
-) -> String {
-    if !matches!(
-        kind,
-        ApiKind::Function | ApiKind::Method | ApiKind::TraitMethod
-    ) {
-        let import_path = match kind {
-            ApiKind::Variant
-            | ApiKind::Field
-            | ApiKind::AssociatedConst
-            | ApiKind::AssociatedType => canonical_path
+fn declaration_reference_example(kind: ApiKind, canonical_path: &str) -> String {
+    let import_path = match kind {
+        ApiKind::Variant | ApiKind::Field | ApiKind::AssociatedConst | ApiKind::AssociatedType => {
+            canonical_path
                 .rsplit_once("::")
-                .map_or(canonical_path, |(owner, _)| owner),
-            _ => canonical_path,
-        };
-        return format!("use {import_path};");
-    }
-
-    let arguments = parameters
-        .iter()
-        .map(|(name, _)| *name)
-        .collect::<Vec<_>>()
-        .join(", ");
-    let member = canonical_path
-        .rsplit_once("::")
-        .map_or(canonical_path, |(_, member)| member);
-    let call = if has_receiver {
-        format!("value.{member}({arguments})")
-    } else {
-        format!("{canonical_path}({arguments})")
+                .map_or(canonical_path, |(owner, _)| owner)
+        }
+        _ => canonical_path,
     };
-    if return_type.is_some() {
-        format!("let result = {call};")
-    } else {
-        format!("{call};")
-    }
+    format!("use {import_path};")
 }
 
 fn export(catalog: &ApiCatalog, output: Option<&std::path::Path>) -> Result<Option<String>> {
@@ -801,19 +658,27 @@ fn render_entry(entry: &ApiEntry) -> String {
     writeln!(output, "{}", entry.signature).unwrap();
     writeln!(output).unwrap();
     writeln!(output, "{}", entry.summary).unwrap();
-    section(&mut output, "Context", &entry.context);
-    section(&mut output, "Minecraft behavior", &entry.minecraft);
+    if !entry.context.is_empty() {
+        section(&mut output, "Context", &entry.context);
+    }
+    if !entry.minecraft.is_empty() {
+        section(&mut output, "Minecraft behavior", &entry.minecraft);
+    }
 
     if !entry.parameters.is_empty() {
         writeln!(output, "\nParameters").unwrap();
         for parameter in &entry.parameters {
             if let Some(rust_type) = &parameter.rust_type {
-                writeln!(
-                    output,
-                    "  {} (`{}`): {}",
-                    parameter.name, rust_type, parameter.description
-                )
-                .unwrap();
+                if parameter.description.is_empty() {
+                    writeln!(output, "  {} (`{}`)", parameter.name, rust_type).unwrap();
+                } else {
+                    writeln!(
+                        output,
+                        "  {} (`{}`): {}",
+                        parameter.name, rust_type, parameter.description
+                    )
+                    .unwrap();
+                }
             } else {
                 writeln!(output, "  {}: {}", parameter.name, parameter.description).unwrap();
             }
@@ -828,7 +693,9 @@ fn render_entry(entry: &ApiEntry) -> String {
     }
     list_section(&mut output, "Use when", &entry.use_when);
     list_section(&mut output, "Avoid when", &entry.avoid_when);
-    section(&mut output, "Example", &entry.example);
+    if !entry.example.is_empty() {
+        section(&mut output, "Example", &entry.example);
+    }
 
     if !entry.availability.is_empty() {
         list_section(&mut output, "Availability", &entry.availability);
@@ -1317,7 +1184,7 @@ mod tests {
         assert_eq!(first_bytes, second_bytes);
         assert_eq!(first_bytes, stdout.as_bytes());
         let json: serde_json::Value = serde_json::from_slice(&first_bytes).unwrap();
-        assert_eq!(json["schema_version"], 2);
+        assert_eq!(json["schema_version"], 3);
         assert!(json["configuration"]["minecraft_version"].is_string());
         assert_eq!(json["sand_version"], "0.1.0");
         assert_eq!(json["coverage"]["status"], "complete");
@@ -1439,11 +1306,7 @@ mod tests {
             path.summary,
             "Borrows the rendered NBT path text without allocating."
         );
-        assert!(
-            path.returns
-                .as_deref()
-                .is_some_and(|returns| returns.contains("borrowed textual representation"))
-        );
+        assert_eq!(path.return_type.as_deref(), Some("& str"));
 
         for entry in &catalog.entries {
             let return_type = entry.return_type.as_deref().unwrap_or_default();
@@ -1488,34 +1351,25 @@ mod tests {
         }
 
         let trim_name = catalog.find("sand::component::TrimAssetName::new").unwrap();
-        assert!(
-            trim_name
-                .returns
-                .as_deref()
-                .is_some_and(|returns| returns.contains("validated `TrimAssetName` value"))
+        assert_eq!(
+            trim_name.return_type.as_deref(),
+            Some("SandResult < Self >")
         );
         let block_pos = catalog.find("sand::command::BlockPos::new").unwrap();
-        assert_eq!(
-            block_pos.returns.as_deref(),
-            Some("A newly constructed `BlockPos` value.")
-        );
+        assert_eq!(block_pos.return_type.as_deref(), Some("Self"));
         let from_score = catalog
             .find("sand::state::TypedGameState::from_score")
             .unwrap();
-        assert!(
-            from_score
-                .returns
-                .as_deref()
-                .is_some_and(|returns| returns.contains("typed value") && returns.contains("None"))
-        );
+        assert_eq!(from_score.return_type.as_deref(), Some("Option < Self >"));
         let insert_score = catalog
             .find("sand::entity::CurveInputs::insert_score")
             .unwrap();
-        assert!(insert_score.returns.as_deref().is_some_and(|returns| {
-            returns.contains("optional `FixedValue`")
-                && returns.contains("`None`")
-                && returns.contains("`EntityDiagnostic` error")
-        }));
+        assert!(
+            insert_score
+                .return_type
+                .as_deref()
+                .is_some_and(|returns| returns.contains("Result < Option < FixedValue >"))
+        );
 
         for entry in &catalog.entries {
             if sand::__private::api_contract::INSTALLED_FAMILY_API_PATHS
@@ -1525,12 +1379,14 @@ mod tests {
                     ApiKind::Function | ApiKind::Method | ApiKind::TraitMethod
                 )
             {
-                assert!(
-                    example_exercises_member(&entry.example, &entry.canonical_path),
-                    "family callable example does not exercise its member: {} => {}",
-                    entry.canonical_path,
-                    entry.example
-                );
+                if !entry.example.is_empty() {
+                    assert!(
+                        example_exercises_member(&entry.example, &entry.canonical_path),
+                        "family callable example does not exercise its member: {} => {}",
+                        entry.canonical_path,
+                        entry.example
+                    );
+                }
                 assert!(
                     entry
                         .avoid_when
@@ -1541,6 +1397,18 @@ mod tests {
                 );
             }
         }
+        assert!(catalog.entries.iter().all(|entry| {
+            entry
+                .parameters
+                .iter()
+                .all(|parameter| !parameter.description.starts_with("The source-derived `"))
+        }));
+        assert!(catalog.entries.iter().all(|entry| {
+            entry
+                .use_when
+                .iter()
+                .all(|guidance| !guidance.starts_with("Use `sand::"))
+        }));
 
         let raw_description = catalog
             .find("sand::component::AdvancementDisplay::raw_description")
@@ -1558,11 +1426,7 @@ mod tests {
         let hover = catalog
             .find("sand::text::TextComponent::hover_entity_with_id")
             .unwrap();
-        assert!(
-            !hover.parameters[1]
-                .description
-                .contains("resource identifier")
-        );
+        assert!(hover.parameters[1].description.contains("entity UUID"));
         let into_event = catalog
             .find("sand::event::IntoEventId::into_event_resource_location")
             .unwrap();
@@ -1575,12 +1439,13 @@ mod tests {
             .find("sand::participant::PlayerParticipant")
             .unwrap()
             .example;
-        assert!(participant_example.contains("typed player participant reference"));
-        assert!(participant_example.contains("use sand::participant::PlayerParticipant;"));
+        assert_eq!(
+            participant_example,
+            "use sand::participant::PlayerParticipant;"
+        );
         assert!(!participant_example.contains("sand_core::"));
         let actionbar_example = &catalog.find("sand::command::Actionbar").unwrap().example;
-        assert!(actionbar_example.contains("Actionbar command helpers"));
-        assert!(actionbar_example.contains("use sand::command::Actionbar;"));
+        assert_eq!(actionbar_example, "use sand::command::Actionbar;");
     }
 
     #[test]
@@ -1636,27 +1501,6 @@ mod tests {
             let example = &catalog.find(path).unwrap().example;
             assert!(!example.contains("sand_macros::"), "{path}: {example}");
         }
-    }
-
-    #[test]
-    fn generic_wrapper_parser_preserves_nested_success_and_error_types() {
-        assert_eq!(
-            generic_arguments("Result<Option<FixedValue>,EntityDiagnostic>", "Result"),
-            Some(vec![
-                "Option<FixedValue>".to_owned(),
-                "EntityDiagnostic".to_owned()
-            ])
-        );
-        assert_eq!(
-            generic_arguments(
-                "SandResult<BTreeMap<String,Vec<Value>>,ExportError>",
-                "Result"
-            ),
-            Some(vec![
-                "BTreeMap<String,Vec<Value>>".to_owned(),
-                "ExportError".to_owned()
-            ])
-        );
     }
 
     #[test]

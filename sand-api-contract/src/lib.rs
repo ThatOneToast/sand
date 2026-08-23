@@ -12,7 +12,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
 /// Current machine-readable catalog schema.
-pub const SCHEMA_VERSION: u32 = 2;
+pub const SCHEMA_VERSION: u32 = 3;
 
 /// The Rust-level shape of a supported API item.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
@@ -49,6 +49,10 @@ pub struct ApiParameter {
     pub name: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rust_type: Option<String>,
+    /// Source-authored behavioral meaning when the defining Rustdoc explains
+    /// this argument. An absent string is distinct from generated filler: the
+    /// structural name and Rust type remain authoritative.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     pub description: String,
 }
 
@@ -62,9 +66,17 @@ pub struct ApiEntry {
     pub kind: ApiKind,
     pub signature: String,
     pub summary: String,
+    /// Additional source-authored domain context when the defining Rustdoc
+    /// provides it. Omitted rather than synthesized from the module name.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     pub context: String,
+    /// Observable Minecraft behavior documented by the source or generator.
+    /// Pure Rust value APIs may legitimately omit this section.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     pub minecraft: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub use_when: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub avoid_when: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub parameters: Vec<ApiParameter>,
@@ -72,6 +84,10 @@ pub struct ApiEntry {
     pub returns: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub return_type: Option<String>,
+    /// Smallest source-authored behavioral example, when the defining item
+    /// provides one. The catalog omits this field rather than fabricating an
+    /// invocation with undefined placeholder variables.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     pub example: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub availability: Vec<String>,
@@ -511,9 +527,6 @@ fn validate_entry(entry: &ApiEntry) -> Result<(), CatalogError> {
     for (name, value) in [
         ("signature", entry.signature.as_str()),
         ("summary", entry.summary.as_str()),
-        ("context", entry.context.as_str()),
-        ("minecraft", entry.minecraft.as_str()),
-        ("example", entry.example.as_str()),
     ] {
         if value.trim().is_empty() {
             return Err(CatalogError::InvalidEntry {
@@ -522,17 +535,15 @@ fn validate_entry(entry: &ApiEntry) -> Result<(), CatalogError> {
             });
         }
     }
-    if entry.use_when.is_empty()
-        || entry.avoid_when.is_empty()
-        || entry
-            .use_when
-            .iter()
-            .chain(&entry.avoid_when)
-            .any(|value| value.trim().is_empty())
+    if entry
+        .use_when
+        .iter()
+        .chain(&entry.avoid_when)
+        .any(|value| value.trim().is_empty())
     {
         return Err(CatalogError::InvalidEntry {
             path: entry.canonical_path.clone(),
-            message: "use_when and avoid_when must contain nonempty guidance".into(),
+            message: "use_when and avoid_when cannot contain empty guidance".into(),
         });
     }
     if !valid_path(&entry.canonical_path) {
@@ -557,7 +568,6 @@ fn validate_entry(entry: &ApiEntry) -> Result<(), CatalogError> {
     let mut parameter_names = BTreeSet::new();
     for parameter in &entry.parameters {
         if parameter.name.trim().is_empty()
-            || parameter.description.trim().is_empty()
             || parameter
                 .rust_type
                 .as_ref()
@@ -565,7 +575,7 @@ fn validate_entry(entry: &ApiEntry) -> Result<(), CatalogError> {
         {
             return Err(CatalogError::InvalidEntry {
                 path: entry.canonical_path.clone(),
-                message: "parameters require nonempty names, descriptions, and Rust types".into(),
+                message: "parameters require nonempty names and Rust types".into(),
             });
         }
         if !parameter_names.insert(parameter.name.as_str()) {
@@ -710,7 +720,8 @@ fn validate_resolved_quality(entries: &[ApiEntry]) -> Result<(), CatalogError> {
                     message: "callable guidance is unresolved family-level prose".into(),
                 });
             }
-            if entry.example.trim().starts_with("use sand::")
+            if !entry.example.trim().is_empty()
+                && entry.example.trim().starts_with("use sand::")
                 && entry.example.trim().lines().count() == 1
             {
                 return Err(CatalogError::InvalidEntry {
@@ -809,6 +820,13 @@ pub fn rustdoc_prose_paragraphs(documentation: &str) -> Vec<String> {
         let line = line.trim();
         if line.eq_ignore_ascii_case("# API Contract") {
             break;
+        }
+        if line.contains("API Contract:") && line.contains("sand api show ") {
+            if !current.is_empty() {
+                paragraphs.push(current.join(" "));
+                current.clear();
+            }
+            continue;
         }
         if line.starts_with("```") {
             in_code = !in_code;
@@ -1054,6 +1072,12 @@ mod tests {
 
         let mut entry = ApiEntry::from(&REGISTRATION);
         entry.parameters[0].description.clear();
+        entry.context.clear();
+        entry.minecraft.clear();
+        entry.use_when.clear();
+        entry.avoid_when.clear();
+        entry.validate().unwrap();
+        entry.parameters[0].name.clear();
         assert!(
             entry
                 .validate()
@@ -1274,6 +1298,12 @@ mod tests {
         assert!(rustdoc_has_specific_semantics(
             "Copies the entity snapshot into durable command storage."
         ));
+        assert_eq!(
+            rustdoc_prose_paragraphs(
+                "**API Contract:** Run `sand api show sand::data::NbtPath::as_str` for the canonical contract.\nBorrows the rendered NBT path text without allocating."
+            ),
+            ["Borrows the rendered NBT path text without allocating."]
+        );
         assert!(
             rustdoc_prose_paragraphs("# Heading\n\nActual prose.")
                 .first()

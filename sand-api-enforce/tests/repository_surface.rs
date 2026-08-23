@@ -41,7 +41,7 @@ fn checked_repository_surface_baseline_is_complete_and_partitioned() {
         .iter()
         .filter(|line| line.contains(" module=sand") && line.contains(" items="))
         .collect::<Vec<_>>();
-    assert_eq!(scope_lines.len(), 38);
+    assert_eq!(scope_lines.len(), 28);
     let scoped_items = scope_lines
         .iter()
         .map(|line| numeric_field(line, "items="))

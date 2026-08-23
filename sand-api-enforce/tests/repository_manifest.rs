@@ -15,7 +15,7 @@ fn repository_surface_manifest_records_the_audited_pending_baseline() {
     assert_eq!(manifest.static_surface_items, 0);
     assert_eq!(manifest.pending_item_ceiling, 0);
     assert_eq!(manifest.pending_scope_ceiling, 0);
-    assert_eq!(manifest.scopes.len(), 38);
+    assert_eq!(manifest.scopes.len(), 28);
     assert!(
         manifest
             .scopes
@@ -51,16 +51,6 @@ fn repository_surface_manifest_records_the_audited_pending_baseline() {
                 "generated-registry-id-wrappers",
                 "generated-effect-registry-enums",
                 "generated-event-markers",
-                "generated-function-macro",
-                "generated-component-macro",
-                "generated-event-macro",
-                "generated-item-macro",
-                "generated-armor-event-macro",
-                "generated-schedule-macro",
-                "generated-state-derive",
-                "generated-storage-derive",
-                "generated-resourcepack-macros",
-                "generated-entity-state-enum-derive",
             ])
     );
     assert!(

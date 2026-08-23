@@ -212,6 +212,9 @@ impl AdvancementDisplay {
     }
 
     /// Replaces the description through the explicit raw text escape hatch.
+    ///
+    /// `description` is an unchecked raw JSON text payload, not a typed
+    /// player-visible [`TextComponent`].
     #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementDisplay::raw_description` for the canonical contract."]
     pub fn raw_description(mut self, description: RawJson) -> Self {
         self.description = AdvancementText::Raw(description);

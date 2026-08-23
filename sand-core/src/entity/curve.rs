@@ -837,6 +837,30 @@ impl StatCurve {
     }
 
     /// Evaluates the curve using deterministic integer fixed-point arithmetic.
+    ///
+    /// `inputs` supplies the named state values referenced by the curve, while
+    /// `fixed` selects the scale, rounding, and overflow policy. `archetype`
+    /// and `derivation` name the owning definition and derived stat in any
+    /// validation or evaluation diagnostic.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use sand_core::entity::{CurveInputs, FixedPoint, StatCurve};
+    ///
+    /// let fixed = FixedPoint::default();
+    /// let curve = StatCurve::linear(StatCurve::input_raw("level"), 2.0, 10.0);
+    /// let mut inputs = CurveInputs::new();
+    /// inputs.insert_score("level", 5, fixed, "rpg:mob", "health")?;
+    /// let value = curve.evaluate(&inputs, fixed, "rpg:mob", "health")?;
+    /// assert_eq!(value.as_f64(fixed), 20.0);
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    ///
+    /// # API Contract
+    ///
+    /// Inspect the complete contract with
+    /// `sand api show sand::entity::StatCurve::evaluate`.
     pub fn evaluate(
         &self,
         inputs: &CurveInputs,

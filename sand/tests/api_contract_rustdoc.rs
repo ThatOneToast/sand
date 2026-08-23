@@ -150,39 +150,66 @@ fn rendered_rustdoc_links_every_contract_production_mechanism() {
         let html = fs::read_to_string(&page).unwrap_or_else(|error| {
             panic!("failed to read {} for {canonical}: {error}", page.display())
         });
-        let method_anchor = format!("id=\"method.{member}\"");
-        let trait_anchor = format!("id=\"tymethod.{member}\"");
-        let start = [html.find(&method_anchor), html.find(&trait_anchor)]
-            .into_iter()
-            .flatten()
-            .min()
-            .unwrap_or_else(|| panic!("{} has no anchor for {canonical}", page.display()));
-        let section = &html[start + 1..];
-        let end = [section.find("id=\"method."), section.find("id=\"tymethod.")]
-            .into_iter()
-            .flatten()
-            .min()
-            .unwrap_or(section.len());
+        let section = rendered_member_section(&html, member, &page, canonical);
         assert!(
-            section[..end].contains("class=\"docblock\""),
+            section.contains("class=\"docblock\""),
             "{} exposes {canonical} without member-specific Rustdoc",
             page.display()
         );
-        if matches!(
-            canonical,
-            "sand::entity::EntityArchetype::new"
-                | "sand::state::ScoreVar::clamp"
-                | "sand::command::Vec3::new"
-                | "sand::component::Advancement::parent"
-                | "sand::resourcepack::Color::from_u32"
-        ) {
-            assert!(
-                section[..end].contains("API Contract")
-                    && section[..end].contains(&format!("sand api show {canonical}")),
-                "{} exposes {canonical} without its exact contract lookup",
-                page.display(),
-            );
-        }
+    }
+
+    for (relative, member, canonical) in [
+        (
+            "entity/struct.EntityArchetype.html",
+            "new",
+            "sand::entity::EntityArchetype::new",
+        ),
+        (
+            "state/struct.ScoreVar.html",
+            "clamp",
+            "sand::state::ScoreVar::clamp",
+        ),
+        (
+            "command/struct.Vec3.html",
+            "new",
+            "sand::command::Vec3::new",
+        ),
+        (
+            "component/struct.Advancement.html",
+            "parent",
+            "sand::component::Advancement::parent",
+        ),
+        (
+            "resourcepack/struct.Color.html",
+            "from_u32",
+            "sand::resourcepack::Color::from_u32",
+        ),
+        (
+            "command/struct.Actionbar.html",
+            "show",
+            "sand::command::Actionbar::show",
+        ),
+        (
+            "entity/struct.StatCurve.html",
+            "evaluate",
+            "sand::entity::StatCurve::evaluate",
+        ),
+        (
+            "component/struct.AdvancementDisplay.html",
+            "show_toast",
+            "sand::component::AdvancementDisplay::show_toast",
+        ),
+    ] {
+        let page = target.join("doc/sand").join(relative);
+        let html = fs::read_to_string(&page)
+            .unwrap_or_else(|error| panic!("failed to read {}: {error}", page.display()));
+        let section = rendered_member_section(&html, member, &page, canonical);
+        assert!(
+            section.contains("API Contract")
+                && section.contains(&format!("sand api show {canonical}")),
+            "{} exposes {canonical} without its exact contract lookup",
+            page.display(),
+        );
     }
 
     let nbt_path = fs::read_to_string(target.join("doc/sand/data/struct.NbtPath.html"))
@@ -193,6 +220,28 @@ fn rendered_rustdoc_links_every_contract_production_mechanism() {
     );
 
     fs::remove_dir_all(&target).expect("remove isolated rustdoc target");
+}
+
+fn rendered_member_section<'a>(
+    html: &'a str,
+    member: &str,
+    page: &Path,
+    canonical: &str,
+) -> &'a str {
+    let method_anchor = format!("id=\"method.{member}\"");
+    let trait_anchor = format!("id=\"tymethod.{member}\"");
+    let start = [html.find(&method_anchor), html.find(&trait_anchor)]
+        .into_iter()
+        .flatten()
+        .min()
+        .unwrap_or_else(|| panic!("{} has no anchor for {canonical}", page.display()));
+    let section = &html[start + 1..];
+    let end = [section.find("id=\"method."), section.find("id=\"tymethod.")]
+        .into_iter()
+        .flatten()
+        .min()
+        .unwrap_or(section.len());
+    &section[..end]
 }
 
 fn page_prefix(kind: ApiKind) -> Option<&'static str> {

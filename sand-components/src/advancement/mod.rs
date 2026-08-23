@@ -230,6 +230,31 @@ impl AdvancementDisplay {
     }
 
     /// Sets whether a toast notification is shown when this advancement is completed.
+    ///
+    /// `v` enables or suppresses only the top-right completion toast; chat
+    /// announcements and advancement-screen visibility remain independently
+    /// controlled by their own display settings.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use sand_commands::Text;
+    /// use sand_components::{AdvancementDisplay, AdvancementIcon, ItemId};
+    ///
+    /// let display = AdvancementDisplay::new(
+    ///     AdvancementIcon::new(ItemId::minecraft("diamond").unwrap()),
+    ///     Text::new("Hidden toast"),
+    ///     Text::new("This advancement does not pop up a toast"),
+    /// )
+    /// .show_toast(false);
+    /// let json = serde_json::to_value(display).unwrap();
+    /// assert_eq!(json["show_toast"], false);
+    /// ```
+    ///
+    /// # API Contract
+    ///
+    /// Inspect the complete contract with
+    /// `sand api show sand::component::AdvancementDisplay::show_toast`.
     pub fn show_toast(mut self, v: bool) -> Self {
         self.show_toast = v;
         self

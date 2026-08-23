@@ -223,6 +223,24 @@ pub struct Actionbar;
 
 impl Actionbar {
     /// Renders the Minecraft show command for the selected actionbar.
+    ///
+    /// `selector` identifies the players whose actionbar is updated. `text` is
+    /// the typed text component serialized into the command's JSON payload.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use sand_commands::{Actionbar, Selector, Text};
+    ///
+    /// let command = Actionbar::show(Selector::self_(), Text::new("Ready").green());
+    /// assert!(command.starts_with("title @s actionbar "));
+    /// assert!(command.contains("Ready"));
+    /// ```
+    ///
+    /// # API Contract
+    ///
+    /// Inspect the complete contract with
+    /// `sand api show sand::command::Actionbar::show`.
     pub fn show(selector: Selector, text: TextComponent) -> String {
         TitleCommand::Actionbar {
             selector,

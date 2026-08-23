@@ -80,7 +80,7 @@ kinds, origins, and scope-level counts, never item exemptions.
 
 The verified profiles are:
 
-| Minecraft version | Static identities | Commands | Registries | Baseline |
+| Minecraft version | Enforced identities | Commands | Registries | Baseline |
 | --- | ---: | ---: | ---: | --- |
 | 1.21.4 (compatibility) | 9,987 | 902 | 4,288 | `api-surface-baseline-1.21.4.txt` |
 | 26.2 (latest/default) | 10,897 | 1,233 | 4,867 | `api-surface-baseline.txt` |
@@ -107,13 +107,13 @@ The following detailed kind count describes the latest/default 26.2 surface:
 | Derive procedural macros | 3 |
 | Function-like procedural macros | 4 |
 | Declarative macros | 3 |
-| Structs | 920 |
+| Structs | 921 |
 | Enums | 148 |
 | Traits | 33 |
-| Type aliases | 11 |
+| Type aliases | 10 |
 | Constants | 2 |
 | Free functions | 521 |
-| Inherent methods | 2,721 |
+| Inherent methods | 2,718 |
 | Trait methods | 49 |
 | Associated constants | 16 |
 | Associated types | 2 |
@@ -130,7 +130,7 @@ Generated static families account for 6,368 identities:
 - effect registry enums: 95 identities;
 - generated event marker types: 25 identities.
 
-The remaining 4,532 identities come from ordinary source declarations,
+The remaining 4,529 identities come from ordinary source declarations,
 including the 15 exported procedural macros. Input-dependent items emitted
 into downstream crates by attributes and derives are parametric families, so
 they do not have an honest finite installed count. Each such generator is a

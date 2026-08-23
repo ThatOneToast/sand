@@ -21,6 +21,7 @@ pub struct ItemModifier {
 
 impl ItemModifier {
     /// Create a new item modifier with the given resource location.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ItemModifier::new` for the canonical contract."]
     pub fn new(location: ResourceLocation) -> Self {
         Self {
             location,
@@ -29,6 +30,7 @@ impl ItemModifier {
     }
 
     /// Add a loot function to this item modifier.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ItemModifier::function` for the canonical contract."]
     pub fn function(mut self, f: LootFunction) -> Self {
         self.functions.push(f);
         self

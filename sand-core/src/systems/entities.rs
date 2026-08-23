@@ -63,6 +63,7 @@ impl Interactable {
     ///
     /// `advancement_location` is the resource location registered via `#[datapack_component]`
     /// for the resulting advancement.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::entities::Interactable::new` for the canonical contract."]
     pub fn new(advancement_location: ResourceLocation) -> Self {
         Self {
             advancement_location,
@@ -74,12 +75,14 @@ impl Interactable {
     }
 
     /// Set the hitbox dimensions (default: 1×1 blocks).
+    #[doc = "**API Contract:** Run `sand api show sand::systems::entities::Interactable::size` for the canonical contract."]
     pub fn size(mut self, size: InteractSize) -> Self {
         self.size = size;
         self
     }
 
     /// Set a typed function ref to call when the player interacts.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::entities::Interactable::response` for the canonical contract."]
     pub fn response(mut self, handler: impl IntoFunctionRef) -> Self {
         self.response = Some(handler.into_function_id());
         self
@@ -89,6 +92,7 @@ impl Interactable {
     ///
     /// Use this when multiple interaction entities are in the world and you need
     /// a unique identifier (combine with the entity filter on the advancement).
+    #[doc = "**API Contract:** Run `sand api show sand::systems::entities::Interactable::tag` for the canonical contract."]
     pub fn tag(mut self, tag: impl Into<String>) -> Self {
         let t = tag.into();
         self.fixed_tag = Some(t.clone());
@@ -111,11 +115,13 @@ impl Interactable {
     }
 
     /// `summon minecraft:interaction <pos> {width:W,height:H,response:1b[,Tags:[...]]}`
+    #[doc = "**API Contract:** Run `sand api show sand::systems::entities::Interactable::summon_at` for the canonical contract."]
     pub fn summon_at(&self, pos: Vec3) -> String {
         format!("summon minecraft:interaction {} {}", pos, self.nbt())
     }
 
     /// `summon minecraft:interaction ~ ~ ~ {width:W,height:H,response:1b[,Tags:[...]]}`
+    #[doc = "**API Contract:** Run `sand api show sand::systems::entities::Interactable::summon_here` for the canonical contract."]
     pub fn summon_here(&self) -> String {
         self.summon_at(Vec3::here())
     }
@@ -123,6 +129,7 @@ impl Interactable {
     /// Build the advancement that fires when any player right-clicks this entity.
     ///
     /// Panics if no `response` function was set (no reward would be registered).
+    #[doc = "**API Contract:** Run `sand api show sand::systems::entities::Interactable::advancement` for the canonical contract."]
     pub fn advancement(&self) -> Advancement {
         let reward_fn = self.response.clone().expect(
             "Interactable::advancement() requires a response function — call .response(fn) first",
@@ -146,6 +153,7 @@ impl Interactable {
     }
 
     /// Build the advancement, providing the response function now (overrides any set earlier).
+    #[doc = "**API Contract:** Run `sand api show sand::systems::entities::Interactable::advancement_with` for the canonical contract."]
     pub fn advancement_with(self, handler: impl IntoFunctionRef) -> Advancement {
         self.response(handler).advancement()
     }

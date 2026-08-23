@@ -213,6 +213,7 @@ impl TickScope {
     /// reward-triggered). Used to validate that a child's inherited-player
     /// requirement is satisfiable by a candidate parent's scope, independent
     /// of *how* that parent is detected.
+    #[doc = "**API Contract:** Run `sand api show sand::events::TickScope::has_player_subject` for the canonical contract."]
     pub fn has_player_subject(self) -> bool {
         matches!(self, Self::Players | Self::AdvancementPlayer)
     }
@@ -237,6 +238,7 @@ impl PersistentEventCondition {
     /// A [`Condition::raw`](crate::condition::Condition::raw) value remains an
     /// explicit compatibility escape hatch whose target-version semantics are
     /// user-owned when Sand cannot validate the fragment.
+    #[doc = "**API Contract:** Run `sand api show sand::events::PersistentEventCondition::players` for the canonical contract."]
     pub fn players(condition: impl Into<crate::condition::Condition>) -> Self {
         Self {
             scope: TickScope::Players,
@@ -245,6 +247,7 @@ impl PersistentEventCondition {
     }
 
     /// The execution scope required by this condition.
+    #[doc = "**API Contract:** Run `sand api show sand::events::PersistentEventCondition::scope` for the canonical contract."]
     pub fn scope(&self) -> TickScope {
         self.scope
     }
@@ -269,6 +272,7 @@ impl PersistentEventCondition {
 )]
 pub trait PersistentSandEvent: SandEvent {
     /// Return the current-state condition for this event type.
+    #[doc = "**API Contract:** Run `sand api show sand::events::PersistentSandEvent::persistent_condition` for the canonical contract."]
     fn persistent_condition() -> PersistentEventCondition;
 }
 
@@ -309,6 +313,7 @@ impl TickWindow {
     ///
     /// Returns [`TickWindowError::Zero`] for `0` and
     /// [`TickWindowError::TooLarge`] above [`TickWindow::MAX_TICKS`].
+    #[doc = "**API Contract:** Run `sand api show sand::events::TickWindow::new` for the canonical contract."]
     pub fn new(ticks: u32) -> Result<Self, TickWindowError> {
         if ticks < Self::MIN_TICKS {
             return Err(TickWindowError::Zero);
@@ -323,6 +328,7 @@ impl TickWindow {
     }
 
     /// The validated window width, in ticks.
+    #[doc = "**API Contract:** Run `sand api show sand::events::TickWindow::ticks` for the canonical contract."]
     pub fn ticks(self) -> u32 {
         self.0
     }
@@ -741,6 +747,7 @@ pub struct EventSetup {
 
 impl EventSetup {
     /// An empty setup — no objectives or lifecycle commands.
+    #[doc = "**API Contract:** Run `sand api show sand::events::EventSetup::none` for the canonical contract."]
     pub fn none() -> Self {
         Self::default()
     }
@@ -751,6 +758,7 @@ impl EventSetup {
     /// than re-listing them, so a future field addition to `EventSetup`
     /// cannot silently bypass this check the way an independently
     /// maintained per-field comparison could.
+    #[doc = "**API Contract:** Run `sand api show sand::events::EventSetup::is_empty` for the canonical contract."]
     pub fn is_empty(&self) -> bool {
         self == &Self::none()
     }
@@ -761,6 +769,7 @@ impl EventSetup {
     /// Intended for diagnostics that need to name which category blocked an
     /// operation — not a substitute for [`is_empty`](Self::is_empty), which
     /// remains the authoritative full-coverage check.
+    #[doc = "**API Contract:** Run `sand api show sand::events::EventSetup::first_non_empty_category` for the canonical contract."]
     pub fn first_non_empty_category(&self) -> Option<&'static str> {
         if !self.objectives.is_empty() {
             Some("objectives")
@@ -878,6 +887,7 @@ pub struct TickEventDispatch {
 impl TickEventDispatch {
     /// Evaluate as each online player. Currently the only supported scope;
     /// present for API clarity and forward-compatibility with future scopes.
+    #[doc = "**API Contract:** Run `sand api show sand::events::TickEventDispatch::as_players` for the canonical contract."]
     pub fn as_players(mut self) -> Self {
         self.scope = TickScope::Players;
         self
@@ -886,12 +896,14 @@ impl TickEventDispatch {
     /// Add a positive condition — the event fires only while this holds.
     ///
     /// Multiple calls are ANDed together.
+    #[doc = "**API Contract:** Run `sand api show sand::events::TickEventDispatch::when` for the canonical contract."]
     pub fn when(mut self, condition: impl Into<crate::condition::Condition>) -> Self {
         self.when.push(condition.into());
         self
     }
 
     /// Ergonomic alias for [`when`](Self::when).
+    #[doc = "**API Contract:** Run `sand api show sand::events::TickEventDispatch::if_` for the canonical contract."]
     pub fn if_(self, condition: impl Into<crate::condition::Condition>) -> Self {
         self.when(condition)
     }
@@ -900,6 +912,7 @@ impl TickEventDispatch {
     ///
     /// Multiple calls are ANDed together (i.e. every `unless` condition must
     /// fail to hold).
+    #[doc = "**API Contract:** Run `sand api show sand::events::TickEventDispatch::unless` for the canonical contract."]
     pub fn unless(mut self, condition: impl Into<crate::condition::Condition>) -> Self {
         self.unless.push(condition.into());
         self
@@ -909,12 +922,14 @@ impl TickEventDispatch {
     ///
     /// Present so dispatch definitions can be explicit about cadence; there
     /// is currently no other supported cadence.
+    #[doc = "**API Contract:** Run `sand api show sand::events::TickEventDispatch::every_tick` for the canonical contract."]
     pub fn every_tick(self) -> Self {
         self
     }
 
     /// Combine `when`/`unless` into a single [`Condition`](crate::condition::Condition),
     /// or `None` if no conditions were declared (dispatch is unconditional).
+    #[doc = "**API Contract:** Run `sand api show sand::events::TickEventDispatch::combined_condition` for the canonical contract."]
     pub fn combined_condition(&self) -> Option<crate::condition::Condition> {
         if self.when.is_empty() && self.unless.is_empty() {
             return None;
@@ -1006,6 +1021,7 @@ pub struct ChainEventDispatch {
 impl ChainEventDispatch {
     /// Require one additional event to have fired for the same subject during
     /// the current event cycle.
+    #[doc = "**API Contract:** Run `sand api show sand::events::ChainEventDispatch::after` for the canonical contract."]
     pub fn after<E: SandEvent + 'static>(mut self) -> Self {
         self.occurrence.push(SameCycleEventRequirement::After(
             SameCycleEventDependency::of::<E>(),
@@ -1019,6 +1035,7 @@ impl ChainEventDispatch {
     /// `G` is a tuple of two through eight concrete [`SandEvent`] types.
     /// Multiple `after_any` groups in one definition are rejected at export
     /// because their coalescing boundary would otherwise be ambiguous.
+    #[doc = "**API Contract:** Run `sand api show sand::events::ChainEventDispatch::after_any` for the canonical contract."]
     pub fn after_any<G: SameCycleEventGroup>(self) -> Self {
         <G as event_group_private::Sealed>::apply(self, false)
     }
@@ -1028,6 +1045,7 @@ impl ChainEventDispatch {
     ///
     /// `G` is a tuple of two through eight concrete [`SandEvent`] types.
     /// Multiple `after_all` groups in one definition are rejected at export.
+    #[doc = "**API Contract:** Run `sand api show sand::events::ChainEventDispatch::after_all` for the canonical contract."]
     pub fn after_all<G: SameCycleEventGroup>(self) -> Self {
         <G as event_group_private::Sealed>::apply(self, true)
     }
@@ -1054,6 +1072,7 @@ impl ChainEventDispatch {
     ///     .while_::<PlayerSneakEvent>();
     /// # let _: SandEventDispatch = child.into();
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::events::ChainEventDispatch::while_` for the canonical contract."]
     pub fn while_<E: PersistentSandEvent + 'static>(mut self) -> Self {
         self.persistent.push(PersistentEventDependency {
             event_type_id: std::any::TypeId::of::<E>,
@@ -1103,6 +1122,7 @@ impl ChainEventDispatch {
     ///     .within::<PriorEvent>(TickWindow::new(20).expect("nonzero, in range"));
     /// # let _: SandEventDispatch = child.into();
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::events::ChainEventDispatch::within` for the canonical contract."]
     pub fn within<E: SandEvent + 'static>(mut self, window: TickWindow) -> Self {
         self.bounded.push(BoundedEventDependency {
             event_type_id: std::any::TypeId::of::<E>,
@@ -1118,12 +1138,14 @@ impl ChainEventDispatch {
     /// addition to the parent having fired this cycle.
     ///
     /// Multiple calls are ANDed together.
+    #[doc = "**API Contract:** Run `sand api show sand::events::ChainEventDispatch::when` for the canonical contract."]
     pub fn when(mut self, condition: impl Into<crate::condition::Condition>) -> Self {
         self.conditions.push(condition.into());
         self
     }
 
     /// Ergonomic alias for [`when`](Self::when).
+    #[doc = "**API Contract:** Run `sand api show sand::events::ChainEventDispatch::if_` for the canonical contract."]
     pub fn if_(self, condition: impl Into<crate::condition::Condition>) -> Self {
         self.when(condition)
     }
@@ -1132,6 +1154,7 @@ impl ChainEventDispatch {
     ///
     /// Multiple calls are ANDed together (i.e. every `unless` condition must
     /// fail to hold).
+    #[doc = "**API Contract:** Run `sand api show sand::events::ChainEventDispatch::unless` for the canonical contract."]
     pub fn unless(mut self, condition: impl Into<crate::condition::Condition>) -> Self {
         self.excluded_conditions.push(condition.into());
         self
@@ -1140,6 +1163,7 @@ impl ChainEventDispatch {
     /// Combine `when`/`unless` into a single [`Condition`](crate::condition::Condition),
     /// or `None` if no conditions were declared (the child fires
     /// unconditionally whenever its parent fires).
+    #[doc = "**API Contract:** Run `sand api show sand::events::ChainEventDispatch::combined_condition` for the canonical contract."]
     pub fn combined_condition(&self) -> Option<crate::condition::Condition> {
         if self.conditions.is_empty() && self.excluded_conditions.is_empty() {
             return None;
@@ -1272,6 +1296,7 @@ impl SandEventDispatch {
     ///     .as_players()
     ///     .when(SYNC_JUMPS.of("@s").lt_score(JUMPS.of("@s")))
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::events::SandEventDispatch::tick` for the canonical contract."]
     pub fn tick() -> TickEventDispatch {
         TickEventDispatch::default()
     }
@@ -1288,6 +1313,7 @@ impl SandEventDispatch {
     /// SandEventDispatch::chain::<PlayerJumpEvent>()
     ///     .when(Condition::raw("block ~ ~-1 ~ minecraft:white_wool"))
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::events::SandEventDispatch::chain` for the canonical contract."]
     pub fn chain<P: SandEvent + 'static>() -> ChainEventDispatch {
         Self::compose().after::<P>()
     }
@@ -1298,6 +1324,7 @@ impl SandEventDispatch {
     /// [`ChainEventDispatch::after_any`], or
     /// [`ChainEventDispatch::after_all`] clause before returning it from
     /// [`SandEvent::dispatch`]. Empty compositions are rejected at export.
+    #[doc = "**API Contract:** Run `sand api show sand::events::SandEventDispatch::compose` for the canonical contract."]
     pub fn compose() -> ChainEventDispatch {
         ChainEventDispatch {
             occurrence: Vec::new(),
@@ -1309,11 +1336,13 @@ impl SandEventDispatch {
     }
 
     /// Start a typed any-parent same-cycle composition.
+    #[doc = "**API Contract:** Run `sand api show sand::events::SandEventDispatch::after_any` for the canonical contract."]
     pub fn after_any<G: SameCycleEventGroup>() -> ChainEventDispatch {
         Self::compose().after_any::<G>()
     }
 
     /// Start a typed all-parent same-cycle composition.
+    #[doc = "**API Contract:** Run `sand api show sand::events::SandEventDispatch::after_all` for the canonical contract."]
     pub fn after_all<G: SameCycleEventGroup>() -> ChainEventDispatch {
         Self::compose().after_all::<G>()
     }
@@ -1386,6 +1415,7 @@ pub trait SandEvent {
     /// typed [`SandEventDispatch::tick()`] builder chain (which yields a bare
     /// [`TickEventDispatch`]) can be returned directly, without an explicit
     /// `.into()` at every call site.
+    #[doc = "**API Contract:** Run `sand api show sand::events::SandEvent::dispatch` for the canonical contract."]
     fn dispatch() -> impl Into<SandEventDispatch>;
 
     /// Lifecycle resources this event owns: objectives, pre-observation, and
@@ -1399,6 +1429,7 @@ pub trait SandEvent {
     /// When several `#[on_event]` handlers subscribe to the same event type,
     /// Sand deduplicates setup by the event's in-process type identity so
     /// objectives and detector functions are only emitted once.
+    #[doc = "**API Contract:** Run `sand api show sand::events::SandEvent::setup` for the canonical contract."]
     fn setup() -> EventSetup {
         EventSetup::none()
     }
@@ -1417,6 +1448,7 @@ pub trait SandEvent {
     /// unless you are hand-assembling an `EventSetup` outside the normal
     /// `#[on_event]` path. See `sand-core/src/participant/plan.rs`'s module doc
     /// for the exact lifecycle ordering per backend.
+    #[doc = "**API Contract:** Run `sand api show sand::events::SandEvent::participants` for the canonical contract."]
     fn participants() -> crate::participant::EventParticipantPlan {
         crate::participant::EventParticipantPlan::none()
     }
@@ -1431,6 +1463,7 @@ pub trait SandEvent {
     ///
     /// Only relevant when [`dispatch`](Self::dispatch) returns
     /// [`SandEventDispatch::AdvancementTrigger`].
+    #[doc = "**API Contract:** Run `sand api show sand::events::SandEvent::revoke` for the canonical contract."]
     fn revoke() -> bool {
         true
     }
@@ -1464,6 +1497,7 @@ pub trait SandEventParticipants: SandEvent + Sized + 'static {
     /// Access a declared entity participant by role. See
     /// [`crate::event::Event::entity`] for the identical infallible
     /// contract this mirrors.
+    #[doc = "**API Contract:** Run `sand api show sand::events::SandEventParticipants::entity` for the canonical contract."]
     fn entity(
         &self,
         role: crate::participant::EntityParticipantRole,
@@ -1472,31 +1506,37 @@ pub trait SandEventParticipants: SandEvent + Sized + 'static {
     }
 
     /// Access a declared item participant by role. See [`Self::entity`].
+    #[doc = "**API Contract:** Run `sand api show sand::events::SandEventParticipants::item` for the canonical contract."]
     fn item(&self, role: crate::participant::ItemParticipantRole) -> crate::item::ItemSnapshot {
         Self::participants().require_item(std::any::type_name::<Self>(), role)
     }
 
     /// The entity that caused this event, when declared.
+    #[doc = "**API Contract:** Run `sand api show sand::events::SandEventParticipants::attacker` for the canonical contract."]
     fn attacker(&self) -> crate::participant::EntityParticipant {
         self.entity(crate::participant::EntityParticipantRole::Attacker)
     }
 
     /// The entity that landed the killing blow, when declared.
+    #[doc = "**API Contract:** Run `sand api show sand::events::SandEventParticipants::killer` for the canonical contract."]
     fn killer(&self) -> crate::participant::EntityParticipant {
         self.entity(crate::participant::EntityParticipantRole::Killer)
     }
 
     /// The entity that received damage/an effect, when declared.
+    #[doc = "**API Contract:** Run `sand api show sand::events::SandEventParticipants::victim` for the canonical contract."]
     fn victim(&self) -> crate::participant::EntityParticipant {
         self.entity(crate::participant::EntityParticipantRole::Victim)
     }
 
     /// The entity this player directly interacted with, when declared.
+    #[doc = "**API Contract:** Run `sand api show sand::events::SandEventParticipants::interacted_entity` for the canonical contract."]
     fn interacted_entity(&self) -> crate::participant::EntityParticipant {
         self.entity(crate::participant::EntityParticipantRole::InteractedEntity)
     }
 
     /// The weapon item snapshot, when declared.
+    #[doc = "**API Contract:** Run `sand api show sand::events::SandEventParticipants::weapon` for the canonical contract."]
     fn weapon(&self) -> crate::item::ItemSnapshot {
         self.item(crate::participant::ItemParticipantRole::Weapon)
     }
@@ -1506,6 +1546,7 @@ pub trait SandEventParticipants: SandEvent + Sized + 'static {
     /// [`crate::participant::EventParticipantPlan::inherit_item_within`]
     /// instead of a same-cycle capture; see that method's doc for the full
     /// replacement/expiry/absence contract.
+    #[doc = "**API Contract:** Run `sand api show sand::events::SandEventParticipants::bounded_item` for the canonical contract."]
     fn bounded_item(
         &self,
         role: crate::participant::ItemParticipantRole,
@@ -2181,6 +2222,7 @@ impl PlayerLevelUpEvent {
     /// ```
     ///
     /// [`ScoreRef`]: crate::state::score::ScoreRef
+    #[doc = "**API Contract:** Run `sand api show sand::events::PlayerLevelUpEvent::current_level` for the canonical contract."]
     pub fn current_level(selector: &str) -> crate::state::score::ScoreRef<'static, i32> {
         SAND_XP_LVL.of(selector)
     }
@@ -2190,6 +2232,7 @@ impl PlayerLevelUpEvent {
     /// The objective `__sand_xp_prev` holds the level from the preceding tick.
     ///
     /// [`ScoreRef`]: crate::state::score::ScoreRef
+    #[doc = "**API Contract:** Run `sand api show sand::events::PlayerLevelUpEvent::previous_level` for the canonical contract."]
     pub fn previous_level(selector: &str) -> crate::state::score::ScoreRef<'static, i32> {
         SAND_XP_PREV.of(selector)
     }
@@ -2200,6 +2243,7 @@ impl PlayerLevelUpEvent {
     /// since the handler only runs when the delta is positive.
     ///
     /// [`ScoreRef`]: crate::state::score::ScoreRef
+    #[doc = "**API Contract:** Run `sand api show sand::events::PlayerLevelUpEvent::level_delta` for the canonical contract."]
     pub fn level_delta(selector: &str) -> crate::state::score::ScoreRef<'static, i32> {
         SAND_XP_DELTA.of(selector)
     }

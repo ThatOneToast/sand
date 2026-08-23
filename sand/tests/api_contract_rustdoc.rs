@@ -152,8 +152,10 @@ fn rendered_rustdoc_links_every_contract_production_mechanism() {
         });
         let section = rendered_member_section(&html, member, &page, canonical);
         assert!(
-            section.contains("class=\"docblock\""),
-            "{} exposes {canonical} without member-specific Rustdoc",
+            section.contains("class=\"docblock\"")
+                && section.contains("API Contract")
+                && section.contains(&format!("sand api show {canonical}")),
+            "{} exposes {canonical} without member-specific Rustdoc and its exact contract lookup",
             page.display()
         );
     }

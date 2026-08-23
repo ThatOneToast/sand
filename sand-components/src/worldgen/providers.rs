@@ -40,6 +40,7 @@ pub struct BlockState {
 
 impl BlockState {
     /// Create a block state with no property overrides.
+    #[doc = "**API Contract:** Run `sand api show sand::component::BlockState::new` for the canonical contract."]
     pub fn new(block: BlockId) -> Self {
         Self {
             block,
@@ -48,12 +49,14 @@ impl BlockState {
     }
 
     /// Set a block-state property (deterministically ordered on export).
+    #[doc = "**API Contract:** Run `sand api show sand::component::BlockState::property` for the canonical contract."]
     pub fn property(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
         self.properties.insert(key.into(), value.into());
         self
     }
 
     /// The block this state refers to.
+    #[doc = "**API Contract:** Run `sand api show sand::component::BlockState::block` for the canonical contract."]
     pub fn block(&self) -> &BlockId {
         &self.block
     }
@@ -106,6 +109,7 @@ pub struct WeightedBlockState {
 
 impl WeightedBlockState {
     /// Create a weighted block-state entry. `weight` must be at least 1.
+    #[doc = "**API Contract:** Run `sand api show sand::component::WeightedBlockState::new` for the canonical contract."]
     pub fn new(state: BlockState, weight: u32) -> Self {
         Self { state, weight }
     }
@@ -122,11 +126,13 @@ pub enum BlockStateProvider {
 
 impl BlockStateProvider {
     /// Convenience constructor for a `minecraft:simple_state_provider`.
+    #[doc = "**API Contract:** Run `sand api show sand::component::BlockStateProvider::simple` for the canonical contract."]
     pub fn simple(state: BlockState) -> Self {
         Self::Simple(state)
     }
 
     /// Convenience constructor for a `minecraft:weighted_state_provider`.
+    #[doc = "**API Contract:** Run `sand api show sand::component::BlockStateProvider::weighted` for the canonical contract."]
     pub fn weighted(entries: impl IntoIterator<Item = WeightedBlockState>) -> Self {
         Self::Weighted(entries.into_iter().collect())
     }
@@ -205,6 +211,7 @@ pub enum VerticalAnchor {
 
 impl VerticalAnchor {
     /// Serialize to the vanilla single-key anchor object.
+    #[doc = "**API Contract:** Run `sand api show sand::component::VerticalAnchor::to_json` for the canonical contract."]
     pub fn to_json(&self) -> Value {
         let (key, value) = match self {
             Self::Absolute(value) => ("absolute", *value),
@@ -268,11 +275,13 @@ pub enum HeightProvider {
 
 impl HeightProvider {
     /// A constant absolute-Y height provider.
+    #[doc = "**API Contract:** Run `sand api show sand::component::HeightProvider::absolute` for the canonical contract."]
     pub fn absolute(y: i32) -> Self {
         Self::Constant(VerticalAnchor::Absolute(y))
     }
 
     /// Serialize to the vanilla height provider JSON.
+    #[doc = "**API Contract:** Run `sand api show sand::component::HeightProvider::to_json` for the canonical contract."]
     pub fn to_json(&self) -> Value {
         match self {
             Self::Constant(anchor) => anchor.to_json(),
@@ -385,6 +394,7 @@ pub enum Heightmap {
 
 impl Heightmap {
     /// The vanilla uppercase enum name written into datapack JSON.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Heightmap::as_str` for the canonical contract."]
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::WorldSurfaceWg => "WORLD_SURFACE_WG",

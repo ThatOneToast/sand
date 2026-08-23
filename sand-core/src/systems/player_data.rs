@@ -126,6 +126,7 @@ pub struct ScoreField<T = i32> {
 
 impl<T> ScoreField<T> {
     /// Defines an integer-backed player field stored in the named scoreboard objective.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::ScoreField::new` for the canonical contract."]
     pub const fn new(objective: &'static str) -> Self {
         Self {
             value: ScoreVar::new(objective),
@@ -134,22 +135,26 @@ impl<T> ScoreField<T> {
     }
 
     /// Sets the score assigned when this player field is initialized.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::ScoreField::default` for the canonical contract."]
     pub const fn default(mut self, value: i32) -> Self {
         self.default = value;
         self
     }
 
     /// Binds this field to one player's selector.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::ScoreField::of` for the canonical contract."]
     pub fn of<'a>(&'a self, selector: &str) -> ScoreRef<'a, T> {
         self.value.of(selector)
     }
 
     /// Returns the typed scoreboard variable underlying this field.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::ScoreField::value` for the canonical contract."]
     pub fn value(&self) -> &ScoreVar<T> {
         &self.value
     }
 
     /// Returns the score assigned during player initialization.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::ScoreField::default_value` for the canonical contract."]
     pub fn default_value(&self) -> i32 {
         self.default
     }
@@ -163,6 +168,7 @@ pub struct FlagField {
 
 impl FlagField {
     /// Defines a boolean player field stored in the named scoreboard objective.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::FlagField::new` for the canonical contract."]
     pub const fn new(objective: &'static str) -> Self {
         Self {
             value: Flag::new(objective),
@@ -171,22 +177,26 @@ impl FlagField {
     }
 
     /// Sets the boolean assigned when this player field is initialized.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::FlagField::default` for the canonical contract."]
     pub const fn default(mut self, value: bool) -> Self {
         self.default = value;
         self
     }
 
     /// Binds this flag field to one player's selector.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::FlagField::of` for the canonical contract."]
     pub fn of<'a>(&'a self, selector: &str) -> FlagRef<'a> {
         self.value.of(selector)
     }
 
     /// Returns the typed scoreboard flag underlying this field.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::FlagField::value` for the canonical contract."]
     pub fn value(&self) -> &Flag {
         &self.value
     }
 
     /// Returns the flag assigned during player initialization.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::FlagField::default_value` for the canonical contract."]
     pub fn default_value(&self) -> bool {
         self.default
     }
@@ -199,6 +209,7 @@ pub struct TimerField {
 
 impl TimerField {
     /// Defines a player timer with its scoreboard objective and duration.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::TimerField::new` for the canonical contract."]
     pub const fn new(objective: &'static str, duration: Ticks) -> Self {
         Self {
             value: Timer::new(objective, duration),
@@ -206,6 +217,7 @@ impl TimerField {
     }
 
     /// Binds this timer field to one player's selector.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::TimerField::of` for the canonical contract."]
     pub fn of<'a>(&'a self, selector: impl Into<String>) -> TimerFieldRef<'a> {
         TimerFieldRef {
             field: self,
@@ -214,6 +226,7 @@ impl TimerField {
     }
 
     /// Returns the typed timer underlying this field.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::TimerField::value` for the canonical contract."]
     pub fn value(&self) -> &Timer {
         &self.value
     }
@@ -226,21 +239,25 @@ pub struct TimerFieldRef<'a> {
 
 impl TimerFieldRef<'_> {
     /// Renders the command that starts this player's timer.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::TimerFieldRef::start` for the canonical contract."]
     pub fn start(&self) -> String {
         self.field.value.start(&self.selector)
     }
 
     /// Renders the command that resets this player's timer.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::TimerFieldRef::reset` for the canonical contract."]
     pub fn reset(&self) -> String {
         self.field.value.reset(&self.selector)
     }
 
     /// Builds the typed condition for active.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::TimerFieldRef::active` for the canonical contract."]
     pub fn active(&self) -> Condition {
         self.field.value.active(&self.selector)
     }
 
     /// Builds the typed condition for expired.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::TimerFieldRef::expired` for the canonical contract."]
     pub fn expired(&self) -> Condition {
         self.field.value.expired(&self.selector)
     }
@@ -253,6 +270,7 @@ pub struct CooldownField {
 
 impl CooldownField {
     /// Defines a player cooldown with its scoreboard objective and duration.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::CooldownField::new` for the canonical contract."]
     pub const fn new(objective: &'static str, duration: Ticks) -> Self {
         Self {
             value: Cooldown::new(objective, duration),
@@ -260,6 +278,7 @@ impl CooldownField {
     }
 
     /// Binds this cooldown field to one player's selector.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::CooldownField::of` for the canonical contract."]
     pub fn of<'a>(&'a self, selector: impl Into<String>) -> CooldownFieldRef<'a> {
         CooldownFieldRef {
             field: self,
@@ -268,6 +287,7 @@ impl CooldownField {
     }
 
     /// Returns the typed cooldown underlying this field.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::CooldownField::value` for the canonical contract."]
     pub fn value(&self) -> &Cooldown {
         &self.value
     }
@@ -280,21 +300,25 @@ pub struct CooldownFieldRef<'a> {
 
 impl CooldownFieldRef<'_> {
     /// Renders the command that starts this player's cooldown.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::CooldownFieldRef::start` for the canonical contract."]
     pub fn start(&self) -> String {
         self.field.value.start(&self.selector)
     }
 
     /// Renders the command that stops this player's cooldown.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::CooldownFieldRef::stop` for the canonical contract."]
     pub fn stop(&self) -> String {
         self.field.value.stop(&self.selector)
     }
 
     /// Builds the typed condition for ready.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::CooldownFieldRef::ready` for the canonical contract."]
     pub fn ready(&self) -> Condition {
         self.field.value.ready(&self.selector)
     }
 
     /// Builds the typed condition for active.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::CooldownFieldRef::active` for the canonical contract."]
     pub fn active(&self) -> Condition {
         self.field.value.active(&self.selector)
     }
@@ -307,6 +331,7 @@ pub struct GameStateField<S: TypedGameState> {
 
 impl<S: TypedGameState> GameStateField<S> {
     /// Defines an enum-like player state stored in the named scoreboard objective.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::GameStateField::new` for the canonical contract."]
     pub const fn new(objective: &'static str) -> Self {
         Self {
             value: GameState::new(objective),
@@ -314,6 +339,7 @@ impl<S: TypedGameState> GameStateField<S> {
     }
 
     /// Defines a player state with an explicit initial encoded score.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::GameStateField::with_default_score` for the canonical contract."]
     pub const fn with_default_score(objective: &'static str, default: i32) -> Self {
         Self {
             value: GameState::with_default_score(objective, default),
@@ -321,11 +347,13 @@ impl<S: TypedGameState> GameStateField<S> {
     }
 
     /// Binds this game-state field to one player's selector.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::GameStateField::of` for the canonical contract."]
     pub fn of<'a>(&'a self, selector: &str) -> GameStateRef<'a, S> {
         self.value.of(selector)
     }
 
     /// Returns the typed game-state variable underlying this field.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::GameStateField::value` for the canonical contract."]
     pub fn value(&self) -> &GameState<S> {
         &self.value
     }
@@ -339,6 +367,7 @@ pub struct GlobalStorageField<Schema, T> {
 
 impl<Schema, T> GlobalStorageField<Schema, T> {
     /// Defines a global typed field within the supplied command-storage schema.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::GlobalStorageField::new` for the canonical contract."]
     pub const fn new(schema: &StorageSchema<Schema>, field: &'static str) -> Self {
         Self {
             value: schema.field(field),
@@ -347,11 +376,13 @@ impl<Schema, T> GlobalStorageField<Schema, T> {
     }
 
     /// Returns the typed NBT reference for this global storage field.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::GlobalStorageField::nbt` for the canonical contract."]
     pub fn nbt(&self) -> NbtRef<T> {
         self.value.path()
     }
 
     /// Returns the schema field underlying this global storage declaration.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::GlobalStorageField::value` for the canonical contract."]
     pub fn value(&self) -> &StorageField<Schema, T> {
         &self.value
     }
@@ -441,6 +472,7 @@ impl PlayerDataSchema {
     /// prefix scoreboard objectives.  Two schemas can share a label without
     /// conflict, and two schemas with the same-named `ScoreVar` will share
     /// an objective (which is often intentional).
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::PlayerDataSchema::new` for the canonical contract."]
     pub const fn new(namespace: &'static str) -> Self {
         Self {
             namespace,
@@ -450,6 +482,7 @@ impl PlayerDataSchema {
     }
 
     /// The human label passed to [`new`](Self::new).
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::PlayerDataSchema::name` for the canonical contract."]
     pub fn name(&self) -> &str {
         self.namespace
     }
@@ -460,6 +493,7 @@ impl PlayerDataSchema {
     ///
     /// The objective name comes from `var.objective_name()`, not from the
     /// schema namespace.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::PlayerDataSchema::score` for the canonical contract."]
     pub fn score<T>(mut self, var: &ScoreVar<T>, default: i32) -> Self {
         self.fields.push(FieldInit::Score {
             obj: var.objective_name(),
@@ -469,11 +503,13 @@ impl PlayerDataSchema {
     }
 
     /// Registers an integer score field for initialization in this player-data schema.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::PlayerDataSchema::score_field` for the canonical contract."]
     pub fn score_field<T>(self, field: &ScoreField<T>) -> Self {
         self.score(field.value(), field.default_value())
     }
 
     /// Register a `Flag` with a default boolean value for new players.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::PlayerDataSchema::flag` for the canonical contract."]
     pub fn flag(mut self, flag: &Flag, default: bool) -> Self {
         self.fields.push(FieldInit::Flag {
             obj: flag.objective_name(),
@@ -483,6 +519,7 @@ impl PlayerDataSchema {
     }
 
     /// Registers a boolean flag field for initialization in this player-data schema.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::PlayerDataSchema::flag_field` for the canonical contract."]
     pub fn flag_field(self, field: &FlagField) -> Self {
         self.flag(field.value(), field.default_value())
     }
@@ -497,6 +534,7 @@ impl PlayerDataSchema {
     /// - Manage timer lifecycle wiring (e.g., starting timers in events).
     ///
     /// See [`Timer`] for tick/lifecycle APIs.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::PlayerDataSchema::timer` for the canonical contract."]
     pub fn timer(mut self, timer: &Timer) -> Self {
         self.fields.push(FieldInit::TimerObj {
             obj: timer.objective_name(),
@@ -505,6 +543,7 @@ impl PlayerDataSchema {
     }
 
     /// Registers a timer field for lifecycle setup in this player-data schema.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::PlayerDataSchema::timer_field` for the canonical contract."]
     pub fn timer_field(self, field: &TimerField) -> Self {
         self.timer(field.value())
     }
@@ -519,6 +558,7 @@ impl PlayerDataSchema {
     /// - Manage cooldown lifecycle wiring (e.g., starting cooldowns on ability use).
     ///
     /// See [`Cooldown`] for tick/lifecycle APIs.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::PlayerDataSchema::cooldown` for the canonical contract."]
     pub fn cooldown(mut self, cd: &Cooldown) -> Self {
         self.fields.push(FieldInit::CooldownObj {
             obj: cd.objective_name(),
@@ -527,11 +567,13 @@ impl PlayerDataSchema {
     }
 
     /// Registers a cooldown field for lifecycle setup in this player-data schema.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::PlayerDataSchema::cooldown_field` for the canonical contract."]
     pub fn cooldown_field(self, field: &CooldownField) -> Self {
         self.cooldown(field.value())
     }
 
     /// Registers a typed game-state field for initialization in this player-data schema.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::PlayerDataSchema::game_state` for the canonical contract."]
     pub fn game_state<S: TypedGameState>(mut self, field: &GameStateField<S>) -> Self {
         self.fields.push(FieldInit::StateObj {
             obj: field.value().objective_name(),
@@ -541,6 +583,7 @@ impl PlayerDataSchema {
     }
 
     /// Attach one explicit global-storage handle for schema introspection.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::PlayerDataSchema::global_storage_field` for the canonical contract."]
     pub fn global_storage_field<Schema, T>(
         mut self,
         field: &GlobalStorageField<Schema, T>,
@@ -592,6 +635,7 @@ impl PlayerDataSchema {
     ///     .score(&MANA, 100)
     ///     .storage(PackConfig::SCHEMA); // global config, not per-player
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::PlayerDataSchema::storage` for the canonical contract."]
     pub fn storage<T>(mut self, schema: StorageSchema<T>) -> Self {
         self.storage_schemas.push(StorageDescriptor {
             storage: schema.storage(),
@@ -611,6 +655,7 @@ impl PlayerDataSchema {
     /// objective already exists, Minecraft prints a warning but does not abort.
     /// It is safe to call `define_all()` more than once or to run its output
     /// in every reload.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::PlayerDataSchema::define_all` for the canonical contract."]
     pub fn define_all(&self) -> Vec<String> {
         let mut seen = std::collections::BTreeSet::new();
         let mut commands = Vec::new();
@@ -640,6 +685,7 @@ impl PlayerDataSchema {
     /// interpolated directly into generated commands. Prefer
     /// [`PlayerDataSchema::try_init_player`] in normal code — see
     /// [#146](https://github.com/ThatOneToast/sand/issues/146).
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::PlayerDataSchema::init_player` for the canonical contract."]
     pub fn init_player(&self, selector: &str) -> Vec<String> {
         let mut seen = std::collections::BTreeSet::new();
         let mut commands = Vec::new();
@@ -675,6 +721,7 @@ impl PlayerDataSchema {
     /// assert!(schema.try_init_player(ScoreHolder::self_()).is_ok());
     /// assert!(schema.try_init_player(ScoreHolder::fake("bad holder")).is_err());
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::PlayerDataSchema::try_init_player` for the canonical contract."]
     pub fn try_init_player(
         &self,
         holder: impl Into<sand_commands::ScoreHolder>,
@@ -697,17 +744,20 @@ impl PlayerDataSchema {
     /// Each descriptor exposes the storage resource location string and the
     /// NBT root path.  Use this for debugging, code generation, or building
     /// documentation.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::PlayerDataSchema::storage_locations` for the canonical contract."]
     pub fn storage_locations(&self) -> &[StorageDescriptor] {
         &self.storage_schemas
     }
 
     /// `true` if at least one storage schema has been attached.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::PlayerDataSchema::has_storage` for the canonical contract."]
     pub fn has_storage(&self) -> bool {
         !self.storage_schemas.is_empty()
     }
 
     /// The number of registered scoreboard-style fields
     /// (score + flag + timer + cooldown).
+    #[doc = "**API Contract:** Run `sand api show sand::systems::player_data::PlayerDataSchema::scoreboard_field_count` for the canonical contract."]
     pub fn scoreboard_field_count(&self) -> usize {
         self.fields.len()
     }

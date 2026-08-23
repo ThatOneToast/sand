@@ -909,7 +909,9 @@ fn write_coverage(
                 .iter()
                 .find(|path| documented_family_paths.contains(path.as_str()))?;
             let shape = all_definition_shapes.get(&item.identity)?;
-            if source_documentation_is_substantive(&shape.documentation) {
+            if source_documentation_is_substantive(&shape.documentation)
+                && source_documentation_has_contract_lookup(&shape.documentation, canonical_path)
+            {
                 return None;
             }
             let definition = item.definition.as_ref()?;
@@ -926,7 +928,7 @@ fn write_coverage(
         fs::write(&report, missing_family_docs.join("\n"))
             .unwrap_or_else(|error| panic!("failed to write {}: {error}", report.display()));
         panic!(
-            "{} supported family callables or placeholder-backed members lack substantive source Rustdoc; every forwarded member must carry API-specific semantic documentation at its defining item (details: {})",
+            "{} supported family callables or placeholder-backed members lack substantive source Rustdoc with their exact `sand api show <canonical-path>` lookup; every forwarded member must carry API-specific semantic documentation and direct contract discovery at its defining item (details: {})",
             missing_family_docs.len(),
             report.display()
         );
@@ -1035,6 +1037,11 @@ fn write_coverage(
 
 fn source_documentation_is_substantive(documentation: &str) -> bool {
     sand_api_contract::rustdoc_has_specific_semantics(documentation)
+}
+
+fn source_documentation_has_contract_lookup(documentation: &str, canonical_path: &str) -> bool {
+    documentation.contains("API Contract")
+        && documentation.contains(&format!("sand api show {canonical_path}"))
 }
 
 fn kind_name(kind: ReachableKind) -> &'static str {

@@ -33,6 +33,7 @@ pub enum Relation {
 
 impl Relation {
     /// The `execute on <keyword>` relation keyword.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::Relation::keyword` for the canonical contract."]
     pub const fn keyword(self) -> &'static str {
         match self {
             Relation::Owner => "owner",
@@ -56,6 +57,7 @@ impl Relation {
     /// releases; the thresholds below should be re-verified against the
     /// vanilla changelog before relying on them for a profile close to the
     /// boundary.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::Relation::check_supported` for the canonical contract."]
     pub fn check_supported(self, profile: &VersionProfile) -> Result<()> {
         let min: Option<(u32, u32, u32)> = match self {
             Relation::Owner
@@ -126,6 +128,7 @@ impl<A> RelationQuery<A> {
     }
 
     /// The underlying relation.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::RelationQuery::relation` for the canonical contract."]
     pub fn relation(&self) -> Relation {
         self.relation
     }
@@ -159,6 +162,7 @@ impl RelationQuery<One> {
     /// [`AnyEntity`] context. No-op (empty command list) if the relation is
     /// absent at runtime — vanilla `execute on <relation>` fails silently
     /// when there is no such entity.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::RelationQuery::if_present` for the canonical contract."]
     pub fn if_present(
         &self,
         profile: &VersionProfile,
@@ -168,6 +172,7 @@ impl RelationQuery<One> {
     }
 
     /// Run `body` only if the relation resolves to a player.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::RelationQuery::if_player` for the canonical contract."]
     pub fn if_player(
         &self,
         profile: &VersionProfile,
@@ -179,6 +184,7 @@ impl RelationQuery<One> {
 
 impl RelationQuery<Many> {
     /// Run `body` once for each passenger, as a generic [`AnyEntity`] context.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::RelationQuery::each` for the canonical contract."]
     pub fn each(
         &self,
         profile: &VersionProfile,

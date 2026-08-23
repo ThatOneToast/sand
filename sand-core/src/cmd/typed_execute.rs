@@ -45,6 +45,7 @@ pub struct ConditionedExecute {
 
 impl ConditionedExecute {
     /// Add another AND condition (Cartesian-product expansion).
+    #[doc = "**API Contract:** Run `sand api show sand::command::ConditionedExecute::and_when` for the canonical contract."]
     pub fn and_when(self, cond: Condition) -> Self {
         let combined = Condition::all([self.cond, cond]);
         Self {
@@ -61,6 +62,7 @@ impl ConditionedExecute {
     ///
     /// Accepts any `Display` value — raw `&str`, owned `String`, or any
     /// command builder.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ConditionedExecute::run` for the canonical contract."]
     pub fn run(self, cmd: impl fmt::Display) -> Vec<String> {
         let cmd_str = cmd.to_string();
         self.cond
@@ -99,9 +101,11 @@ impl ConditionedExecute {
 pub trait ExecuteExt: Sized {
     /// Attach a typed condition — returns a [`ConditionedExecute`] whose
     /// [`run`](ConditionedExecute::run) produces `Vec<String>`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ExecuteExt::when` for the canonical contract."]
     fn when(self, cond: Condition) -> ConditionedExecute;
 
     /// Attach a negated typed condition.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ExecuteExt::unless` for the canonical contract."]
     fn unless(self, cond: Condition) -> ConditionedExecute;
 }
 
@@ -133,21 +137,25 @@ pub struct TypedExecute;
 
 impl TypedExecute {
     /// `execute as @a` — run as every player.
+    #[doc = "**API Contract:** Run `sand api show sand::command::TypedExecute::as_players` for the canonical contract."]
     pub fn as_players() -> Execute {
         Execute::new().as_(Selector::all_players())
     }
 
     /// `execute as @e` — run as every entity.
+    #[doc = "**API Contract:** Run `sand api show sand::command::TypedExecute::as_entities` for the canonical contract."]
     pub fn as_entities() -> Execute {
         Execute::new().as_(Selector::all_entities())
     }
 
     /// `execute as @s at @s` — run as self, at self's position.
+    #[doc = "**API Contract:** Run `sand api show sand::command::TypedExecute::as_self_at_self` for the canonical contract."]
     pub fn as_self_at_self() -> Execute {
         Execute::new().as_(Selector::self_()).at(Selector::self_())
     }
 
     /// `execute as @a at @s` — run as every player at their own position.
+    #[doc = "**API Contract:** Run `sand api show sand::command::TypedExecute::as_players_at_self` for the canonical contract."]
     pub fn as_players_at_self() -> Execute {
         Execute::new()
             .as_(Selector::all_players())

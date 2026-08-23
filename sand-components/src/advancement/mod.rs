@@ -71,6 +71,7 @@ pub struct AdvancementIcon {
 
 impl AdvancementIcon {
     /// Creates a new advancement icon through the typed item-ID path.
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementIcon::new` for the canonical contract."]
     pub fn new(id: ItemId) -> Self {
         Self {
             id: id.to_string(),
@@ -79,6 +80,7 @@ impl AdvancementIcon {
     }
 
     /// Creates an advancement icon through the explicit raw compatibility path.
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementIcon::raw` for the canonical contract."]
     pub fn raw(id: impl Into<String>) -> Self {
         Self {
             id: id.into(),
@@ -90,6 +92,7 @@ impl AdvancementIcon {
     ///
     /// Use this for icon component overrides (e.g. enchantments, custom model data)
     /// that are not yet modelled by the typed item component API.
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementIcon::components` for the canonical contract."]
     pub fn components(mut self, components: RawJson) -> Self {
         self.components = Some(components);
         self
@@ -172,6 +175,7 @@ impl AdvancementDisplay {
     ///     Text::new("Find a diamond"),
     /// );
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementDisplay::new` for the canonical contract."]
     pub fn new(icon: AdvancementIcon, title: TextComponent, description: TextComponent) -> Self {
         Self {
             icon,
@@ -186,6 +190,7 @@ impl AdvancementDisplay {
     }
 
     /// Creates a display with explicitly raw Minecraft text JSON.
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementDisplay::raw_text` for the canonical contract."]
     pub fn raw_text(icon: AdvancementIcon, title: RawJson, description: RawJson) -> Self {
         Self {
             icon,
@@ -200,30 +205,35 @@ impl AdvancementDisplay {
     }
 
     /// Replaces the title through the explicit raw text escape hatch.
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementDisplay::raw_title` for the canonical contract."]
     pub fn raw_title(mut self, title: RawJson) -> Self {
         self.title = AdvancementText::Raw(title);
         self
     }
 
     /// Replaces the description through the explicit raw text escape hatch.
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementDisplay::raw_description` for the canonical contract."]
     pub fn raw_description(mut self, description: RawJson) -> Self {
         self.description = AdvancementText::Raw(description);
         self
     }
 
     /// Sets the typed background texture for the advancement tab.
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementDisplay::background` for the canonical contract."]
     pub fn background(mut self, bg: ResourceLocation) -> Self {
         self.background = Some(bg.to_string());
         self
     }
 
     /// Sets the background through the explicit raw compatibility path.
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementDisplay::raw_background` for the canonical contract."]
     pub fn raw_background(mut self, bg: impl Into<String>) -> Self {
         self.background = Some(bg.into());
         self
     }
 
     /// Sets the frame style for this advancement display.
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementDisplay::frame` for the canonical contract."]
     pub fn frame(mut self, frame: AdvancementFrame) -> Self {
         self.frame = frame;
         self
@@ -261,12 +271,14 @@ impl AdvancementDisplay {
     }
 
     /// Sets whether this advancement completion is announced in chat.
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementDisplay::announce_to_chat` for the canonical contract."]
     pub fn announce_to_chat(mut self, v: bool) -> Self {
         self.announce_to_chat = v;
         self
     }
 
     /// Sets whether this advancement is hidden until completed.
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementDisplay::hidden` for the canonical contract."]
     pub fn hidden(mut self, v: bool) -> Self {
         self.hidden = v;
         self
@@ -636,6 +648,7 @@ impl InventorySlotsPredicate {
 
 impl AdvancementTrigger {
     /// Create a recipe-unlocked trigger from a validated recipe reference.
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::recipe_unlocked` for the canonical contract."]
     pub fn recipe_unlocked(recipe: ResourceLocation) -> Self {
         Self::RecipeUnlocked {
             recipe: recipe.to_string(),
@@ -643,6 +656,7 @@ impl AdvancementTrigger {
     }
 
     /// Create a brewed-potion trigger using the shared potion registry ID.
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::brewed_potion` for the canonical contract."]
     pub fn brewed_potion(potion: impl Into<PotionRegistryId>) -> Self {
         Self::BrewedPotion {
             potion: Some(potion.into().to_string()),
@@ -650,11 +664,13 @@ impl AdvancementTrigger {
     }
 
     /// Create an unfiltered brewed-potion trigger.
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::brewed_any_potion` for the canonical contract."]
     pub fn brewed_any_potion() -> Self {
         Self::BrewedPotion { potion: None }
     }
 
     /// Create a bee-nest-destroyed trigger with typed block identity.
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::bee_nest_destroyed` for the canonical contract."]
     pub fn bee_nest_destroyed(
         block: Option<BlockId>,
         item: Option<ItemPredicate>,
@@ -668,6 +684,7 @@ impl AdvancementTrigger {
     }
 
     /// Create a placed-block trigger with typed block identity.
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::placed_block` for the canonical contract."]
     pub fn placed_block(
         block: Option<BlockId>,
         item: Option<ItemPredicate>,
@@ -683,6 +700,7 @@ impl AdvancementTrigger {
     }
 
     /// Create an enter-block trigger with typed block identity.
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::enter_block` for the canonical contract."]
     pub fn enter_block(block: Option<BlockId>, state: Option<HashMap<String, String>>) -> Self {
         Self::EnterBlock {
             block: block.map(|id| id.to_string()),
@@ -691,6 +709,7 @@ impl AdvancementTrigger {
     }
 
     /// Create a dimension-change trigger with typed dimension identities.
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::changed_dimension` for the canonical contract."]
     pub fn changed_dimension(from: Option<DimensionId>, to: Option<DimensionId>) -> Self {
         Self::ChangedDimension {
             from: from.map(|id| id.to_string()),
@@ -699,6 +718,7 @@ impl AdvancementTrigger {
     }
 
     /// Create a slide-down-block trigger with typed block identity.
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::slide_down_block` for the canonical contract."]
     pub fn slide_down_block(block: Option<BlockId>) -> Self {
         Self::SlideDownBlock {
             block: block.map(|id| id.to_string()),
@@ -706,6 +726,7 @@ impl AdvancementTrigger {
     }
 
     /// Create a container-loot trigger from a validated loot-table reference.
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::player_generates_container_loot` for the canonical contract."]
     pub fn player_generates_container_loot(loot_table: Option<ResourceLocation>) -> Self {
         Self::PlayerGeneratesContainerLoot {
             loot_table: loot_table.map(|id| id.to_string()),
@@ -713,6 +734,7 @@ impl AdvancementTrigger {
     }
 
     /// Create an effects-changed trigger with typed status-effect map keys.
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::effects_changed` for the canonical contract."]
     pub fn effects_changed<I, E>(effects: I, source: Option<EntityPredicate>) -> Self
     where
         I: IntoIterator<Item = (E, EffectPredicate)>,
@@ -729,6 +751,7 @@ impl AdvancementTrigger {
     }
 
     /// Create an unfiltered effects-changed trigger.
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::effects_changed_any` for the canonical contract."]
     pub fn effects_changed_any(source: Option<EntityPredicate>) -> Self {
         Self::EffectsChanged {
             effects: None,
@@ -739,6 +762,7 @@ impl AdvancementTrigger {
     /// Create a custom/modded trigger with a validated trigger ID.
     ///
     /// The conditions remain an explicit opaque [`RawJson`] escape hatch.
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::custom_trigger` for the canonical contract."]
     pub fn custom_trigger(trigger: ResourceLocation, conditions: Option<RawJson>) -> Self {
         Self::Custom {
             trigger: trigger.to_string(),
@@ -1074,6 +1098,7 @@ impl AdvancementTrigger {
     }
 
     /// Return the vanilla trigger ID selected by this typed trigger.
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::trigger_id` for the canonical contract."]
     pub fn trigger_id(&self) -> &str {
         match self {
             AdvancementTrigger::Tick => "minecraft:tick",
@@ -1153,6 +1178,7 @@ impl AdvancementTrigger {
     ///
     /// This intentionally fails before an advancement JSON file is emitted for
     /// IDs known to be absent from the vanilla registry.
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::validate_for_target` for the canonical contract."]
     pub fn validate_for_target(&self) -> Result<(), String> {
         self.validate_for_caps(None)
     }
@@ -1160,6 +1186,7 @@ impl AdvancementTrigger {
     /// Validate this typed trigger's ID and version range for a resolved
     /// target. Raw [`AdvancementTrigger::Custom`] values bypass Sand-owned
     /// compatibility claims and remain user-owned.
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::validate_for_caps` for the canonical contract."]
     pub fn validate_for_caps(
         &self,
         caps: Option<&sand_version::VersionCaps>,
@@ -1235,6 +1262,7 @@ impl AdvancementTrigger {
     /// Build an `InventoryChanged` trigger matching any of the given item IDs.
     ///
     /// Items are generated registry values implementing `Display`.
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::inventory_changed` for the canonical contract."]
     pub fn inventory_changed(items: Vec<impl Into<ItemId>>) -> Self {
         AdvancementTrigger::InventoryChanged {
             slots: None,
@@ -1951,6 +1979,7 @@ impl AdvancementTrigger {
     /// fails with an actionable error instead of emitting an item-component-era
     /// JSON shape (`components`/`predicates`) that legacy profiles don't
     /// recognize — see [`AdvancementSchemaFamily::Legacy`]'s docs.
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::render_for` for the canonical contract."]
     pub fn render_for(
         &self,
         caps: Option<&sand_version::VersionCaps>,
@@ -2636,6 +2665,7 @@ pub struct Criterion {
 
 impl Criterion {
     /// Creates a new criterion with the specified trigger.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Criterion::new` for the canonical contract."]
     pub fn new(trigger: AdvancementTrigger) -> Self {
         Self { trigger }
     }
@@ -2659,6 +2689,7 @@ pub struct AdvancementRewards {
 
 impl AdvancementRewards {
     /// Creates a new advancement rewards container with no rewards set.
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementRewards::new` for the canonical contract."]
     pub fn new() -> Self {
         Self {
             recipes: Vec::new(),
@@ -2672,42 +2703,49 @@ impl AdvancementRewards {
     ///
     /// Custom pack IDs remain typed: parse them as [`RecipeId`] or construct
     /// them from a validated [`ResourceLocation`].
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementRewards::recipe` for the canonical contract."]
     pub fn recipe(mut self, recipe: RecipeId) -> Self {
         self.recipes.push(recipe.to_string());
         self
     }
 
     /// Adds a recipe reward through the explicit raw compatibility path.
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementRewards::raw_recipe` for the canonical contract."]
     pub fn raw_recipe(mut self, recipe: impl Into<String>) -> Self {
         self.recipes.push(recipe.into());
         self
     }
 
     /// Adds a loot table reward.
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementRewards::loot` for the canonical contract."]
     pub fn loot(mut self, loot: LootTableId) -> Self {
         self.loot.push(loot.to_string());
         self
     }
 
     /// Adds a loot-table reward through the explicit raw compatibility path.
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementRewards::raw_loot` for the canonical contract."]
     pub fn raw_loot(mut self, loot: impl Into<String>) -> Self {
         self.loot.push(loot.into());
         self
     }
 
     /// Sets the experience points awarded.
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementRewards::experience` for the canonical contract."]
     pub fn experience(mut self, xp: i32) -> Self {
         self.experience = xp;
         self
     }
 
     /// Sets a function to execute as a reward.
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementRewards::function` for the canonical contract."]
     pub fn function(mut self, func: FunctionId) -> Self {
         self.function = Some(func.to_string());
         self
     }
 
     /// Sets a reward function through the explicit raw compatibility path.
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementRewards::raw_function` for the canonical contract."]
     pub fn raw_function(mut self, func: impl Into<String>) -> Self {
         self.function = Some(func.into());
         self
@@ -2782,6 +2820,7 @@ pub struct Advancement {
 
 impl Advancement {
     /// Creates a new advancement with the specified resource location.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Advancement::new` for the canonical contract."]
     pub fn new(location: ResourceLocation) -> Self {
         Self {
             location,
@@ -2812,36 +2851,42 @@ impl Advancement {
     }
 
     /// Sets the parent through the explicit raw compatibility path.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Advancement::raw_parent` for the canonical contract."]
     pub fn raw_parent(mut self, parent: impl Into<String>) -> Self {
         self.parent = Some(parent.into());
         self
     }
 
     /// Sets the display information for this advancement.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Advancement::display` for the canonical contract."]
     pub fn display(mut self, display: AdvancementDisplay) -> Self {
         self.display = Some(display);
         self
     }
 
     /// Adds a criterion with the specified name.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Advancement::criterion` for the canonical contract."]
     pub fn criterion(mut self, name: impl Into<String>, criterion: Criterion) -> Self {
         self.criteria.insert(name.into(), criterion);
         self
     }
 
     /// Sets the requirements specifying how criteria must be completed.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Advancement::requirements` for the canonical contract."]
     pub fn requirements(mut self, requirements: Vec<Vec<String>>) -> Self {
         self.requirements = Some(requirements);
         self
     }
 
     /// Sets the rewards given when this advancement is completed.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Advancement::rewards` for the canonical contract."]
     pub fn rewards(mut self, rewards: AdvancementRewards) -> Self {
         self.rewards = Some(rewards);
         self
     }
 
     /// Sets whether telemetry data is sent for this advancement.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Advancement::sends_telemetry_data` for the canonical contract."]
     pub fn sends_telemetry_data(mut self, v: bool) -> Self {
         self.sends_telemetry_data = v;
         self

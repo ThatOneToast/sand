@@ -311,11 +311,13 @@ pub struct DialogTag {
 
 impl DialogTag {
     /// Tag dialogs shown in the pause screen additions menu.
+    #[doc = "**API Contract:** Run `sand api show sand::component::DialogTag::pause_screen_additions` for the canonical contract."]
     pub fn pause_screen_additions() -> Self {
         Self::well_known("pause_screen_additions")
     }
 
     /// Tag dialogs shown by the Quick Actions key.
+    #[doc = "**API Contract:** Run `sand api show sand::component::DialogTag::quick_actions` for the canonical contract."]
     pub fn quick_actions() -> Self {
         Self::well_known("quick_actions")
     }
@@ -330,12 +332,14 @@ impl DialogTag {
     }
 
     /// Add a dialog entry to this tag.
+    #[doc = "**API Contract:** Run `sand api show sand::component::DialogTag::dialog` for the canonical contract."]
     pub fn dialog(mut self, dialog: impl IntoDialogRef) -> Self {
         self.values.push(dialog.into_dialog_ref());
         self
     }
 
     /// Add multiple dialog entries to this tag.
+    #[doc = "**API Contract:** Run `sand api show sand::component::DialogTag::dialogs` for the canonical contract."]
     pub fn dialogs<I, D>(mut self, dialogs: I) -> Self
     where
         I: IntoIterator<Item = D>,
@@ -347,6 +351,7 @@ impl DialogTag {
     }
 
     /// Set whether this tag replaces lower-priority definitions.
+    #[doc = "**API Contract:** Run `sand api show sand::component::DialogTag::replace` for the canonical contract."]
     pub fn replace(mut self, replace: bool) -> Self {
         self.replace = replace;
         self
@@ -420,6 +425,7 @@ pub enum DialogBody {
 
 impl DialogBody {
     /// Plain text body.
+    #[doc = "**API Contract:** Run `sand api show sand::component::DialogBody::text` for the canonical contract."]
     pub fn text(content: impl Into<DialogText>) -> Self {
         Self::Text {
             text: Box::new(content.into()),
@@ -432,6 +438,7 @@ impl DialogBody {
     /// `width` must be non-zero — a `0` width is rejected by
     /// [`Dialog::validate`]. There is no vanilla-documented upper bound, so
     /// large values are accepted (raw escape-hatch semantics).
+    #[doc = "**API Contract:** Run `sand api show sand::component::DialogBody::text_with_width` for the canonical contract."]
     pub fn text_with_width(content: impl Into<DialogText>, width: u32) -> Self {
         Self::Text {
             text: Box::new(content.into()),
@@ -444,6 +451,7 @@ impl DialogBody {
     /// Accepts a raw item ID string, a [`ResourceLocation`], or a typed
     /// [`crate::registry::ItemId`]. The reference is validated (as a
     /// well-formed resource location) by [`Dialog::validate`].
+    #[doc = "**API Contract:** Run `sand api show sand::component::DialogBody::item` for the canonical contract."]
     pub fn item(item: impl Into<DialogItemRef>) -> Self {
         Self::Item {
             item: item.into().0,
@@ -457,6 +465,7 @@ impl DialogBody {
     /// `width`/`height` must be non-zero — a `0` dimension is rejected by
     /// [`Dialog::validate`]. There is no vanilla-documented upper bound, so
     /// large values are accepted (raw escape-hatch semantics).
+    #[doc = "**API Contract:** Run `sand api show sand::component::DialogBody::item_sized` for the canonical contract."]
     pub fn item_sized(item: impl Into<DialogItemRef>, width: u32, height: u32) -> Self {
         Self::Item {
             item: item.into().0,
@@ -530,6 +539,7 @@ pub enum DialogAction {
 
 impl DialogAction {
     /// Sets the Minecraft run command property on this typed dialog action definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::DialogAction::run_command` for the canonical contract."]
     pub fn run_command(cmd: impl Into<String>) -> Self {
         Self::RunCommand(cmd.into())
     }
@@ -548,6 +558,7 @@ impl DialogAction {
     ///     ResourceLocation::new("example", "start").unwrap()
     /// );
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::component::DialogAction::run_function` for the canonical contract."]
     pub fn run_function(id: impl IntoDialogFunctionRef) -> Self {
         Self::RunFunction(id.into_dialog_function_path())
     }
@@ -571,23 +582,28 @@ impl DialogAction {
     ///     .tooltip(Text::new("Gain an extra row of hearts"))
     ///     .action(DialogAction::callback(grant_enhanced_cells))
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::component::DialogAction::callback` for the canonical contract."]
     pub fn callback(id: impl IntoDialogFunctionRef) -> Self {
         Self::Callback(id.into_dialog_function_path())
     }
 
     /// Sets the Minecraft suggest command property on this typed dialog action definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::DialogAction::suggest_command` for the canonical contract."]
     pub fn suggest_command(cmd: impl Into<String>) -> Self {
         Self::SuggestCommand(cmd.into())
     }
     /// Sets the Minecraft open url property on this typed dialog action definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::DialogAction::open_url` for the canonical contract."]
     pub fn open_url(url: impl Into<String>) -> Self {
         Self::OpenUrl(url.into())
     }
     /// Sets the Minecraft open dialog property on this typed dialog action definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::DialogAction::open_dialog` for the canonical contract."]
     pub fn open_dialog(dialog: impl IntoDialogRef) -> Self {
         Self::OpenDialog(dialog.into_dialog_ref())
     }
     /// Sets the Minecraft close property on this typed dialog action definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::DialogAction::close` for the canonical contract."]
     pub fn close() -> Self {
         Self::Close
     }
@@ -654,6 +670,7 @@ pub struct DialogButton {
 
 impl DialogButton {
     /// Create a button with the given label text.
+    #[doc = "**API Contract:** Run `sand api show sand::component::DialogButton::new` for the canonical contract."]
     pub fn new(label: impl Into<DialogText>) -> Self {
         Self {
             label: label.into(),
@@ -664,18 +681,21 @@ impl DialogButton {
     }
 
     /// Attach an action to this button.
+    #[doc = "**API Contract:** Run `sand api show sand::component::DialogButton::action` for the canonical contract."]
     pub fn action(mut self, action: DialogAction) -> Self {
         self.action = Some(action);
         self
     }
 
     /// Attach a tooltip shown when hovering over the button.
+    #[doc = "**API Contract:** Run `sand api show sand::component::DialogButton::tooltip` for the canonical contract."]
     pub fn tooltip(mut self, tip: impl Into<DialogText>) -> Self {
         self.tooltip = Some(tip.into());
         self
     }
 
     /// Set the button width in pixels.
+    #[doc = "**API Contract:** Run `sand api show sand::component::DialogButton::width` for the canonical contract."]
     pub fn width(mut self, w: u32) -> Self {
         self.width = Some(w);
         self
@@ -765,31 +785,37 @@ pub struct Dialog {
 
 impl Dialog {
     /// Create a notice dialog — informational, dismissible.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Dialog::notice` for the canonical contract."]
     pub fn notice(id: DialogId) -> Self {
         Self::new_with_kind(id, DialogKind::Notice)
     }
 
     /// Create a local notice dialog whose namespace is resolved during export.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Dialog::notice_local` for the canonical contract."]
     pub fn notice_local(path: impl AsRef<str>) -> Self {
         Self::new_with_kind(DialogId::local(path), DialogKind::Notice)
     }
 
     /// Create a confirmation dialog — confirm / cancel.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Dialog::confirmation` for the canonical contract."]
     pub fn confirmation(id: DialogId) -> Self {
         Self::new_with_kind(id, DialogKind::Confirmation)
     }
 
     /// Create a local confirmation dialog whose namespace is resolved during export.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Dialog::confirmation_local` for the canonical contract."]
     pub fn confirmation_local(path: impl AsRef<str>) -> Self {
         Self::new_with_kind(DialogId::local(path), DialogKind::Confirmation)
     }
 
     /// Create a multi-action dialog — multiple custom buttons.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Dialog::multi_action` for the canonical contract."]
     pub fn multi_action(id: DialogId) -> Self {
         Self::new_with_kind(id, DialogKind::MultiAction)
     }
 
     /// Create a local multi-action dialog whose namespace is resolved during export.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Dialog::multi_action_local` for the canonical contract."]
     pub fn multi_action_local(path: impl AsRef<str>) -> Self {
         Self::new_with_kind(DialogId::local(path), DialogKind::MultiAction)
     }
@@ -808,36 +834,42 @@ impl Dialog {
     }
 
     /// Set the dialog title.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Dialog::title` for the canonical contract."]
     pub fn title(mut self, text: impl Into<DialogText>) -> Self {
         self.title = Some(text.into());
         self
     }
 
     /// Append a body element.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Dialog::body` for the canonical contract."]
     pub fn body(mut self, body: DialogBody) -> Self {
         self.body.push(body);
         self
     }
 
     /// Append a button.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Dialog::button` for the canonical contract."]
     pub fn button(mut self, btn: DialogButton) -> Self {
         self.buttons.push(btn);
         self
     }
 
     /// Whether this dialog pauses the game in single-player.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Dialog::pause` for the canonical contract."]
     pub fn pause(mut self, v: bool) -> Self {
         self.pause = v;
         self
     }
 
     /// Whether the title is rendered outside the dialog frame.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Dialog::external_title` for the canonical contract."]
     pub fn external_title(mut self, v: bool) -> Self {
         self.external_title = v;
         self
     }
 
     /// Serialize to the datapack JSON format.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Dialog::to_json` for the canonical contract."]
     pub fn to_json(&self) -> Value {
         let mut v = json!({"type": self.kind.type_str()});
         if let Some(t) = &self.title {
@@ -862,6 +894,7 @@ impl Dialog {
     /// The resource path for this dialog within the datapack.
     ///
     /// For `"example:welcome"` returns `"example/dialog/welcome.json"`.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Dialog::resource_path` for the canonical contract."]
     pub fn resource_path(&self) -> String {
         if self.id.namespace() == SAND_LOCAL_NS {
             format!("dialog/{}.json", self.id.path())

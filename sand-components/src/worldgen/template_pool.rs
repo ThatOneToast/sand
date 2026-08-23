@@ -27,6 +27,7 @@ pub enum Projection {
 
 impl Projection {
     /// The vanilla string written into datapack JSON.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Projection::as_str` for the canonical contract."]
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Rigid => "rigid",
@@ -106,6 +107,7 @@ pub enum PoolElement {
 
 impl PoolElement {
     /// A `minecraft:single_pool_element` with vanilla `minecraft:empty` processors and rigid projection.
+    #[doc = "**API Contract:** Run `sand api show sand::component::PoolElement::single` for the canonical contract."]
     pub fn single(location: StructureTemplateId) -> Self {
         Self::Single {
             location,
@@ -235,6 +237,7 @@ pub struct PoolEntry {
 
 impl PoolEntry {
     /// `weight` must be at least 1; checked on export.
+    #[doc = "**API Contract:** Run `sand api show sand::component::PoolEntry::new` for the canonical contract."]
     pub fn new(element: PoolElement, weight: u32) -> Self {
         Self { element, weight }
     }
@@ -287,6 +290,7 @@ pub struct TemplatePool {
 
 impl TemplatePool {
     /// Create a template pool with an explicit fallback and weighted elements.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TemplatePool::new` for the canonical contract."]
     pub fn new(
         location: ResourceLocation,
         fallback: TemplatePoolId,
@@ -300,18 +304,21 @@ impl TemplatePool {
     }
 
     /// Sets the Minecraft fallback property on this typed template pool definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TemplatePool::fallback` for the canonical contract."]
     pub fn fallback(mut self, fallback: TemplatePoolId) -> Self {
         self.fallback = fallback;
         self
     }
 
     /// Sets the Minecraft element property on this typed template pool definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TemplatePool::element` for the canonical contract."]
     pub fn element(mut self, entry: PoolEntry) -> Self {
         self.elements.push(entry);
         self
     }
 
     /// Sets the Minecraft elements property on this typed template pool definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TemplatePool::elements` for the canonical contract."]
     pub fn elements(mut self, elements: impl IntoIterator<Item = PoolEntry>) -> Self {
         self.elements = elements.into_iter().collect();
         self

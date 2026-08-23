@@ -113,6 +113,7 @@ pub struct BlockState {
 
 impl BlockState {
     /// Start building a block state string for the given block ID (e.g. `"minecraft:stone"`).
+    #[doc = "**API Contract:** Run `sand api show sand::command::BlockState::of` for the canonical contract."]
     pub fn of(block: impl Into<String>) -> Self {
         Self {
             block: block.into(),
@@ -121,12 +122,14 @@ impl BlockState {
     }
 
     /// Add a single block state property (e.g. `"facing"`, `"east"`).
+    #[doc = "**API Contract:** Run `sand api show sand::command::BlockState::prop` for the canonical contract."]
     pub fn prop(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
         self.props.insert(key.into(), value.into());
         self
     }
 
     /// Add multiple block state properties at once from an iterator of `(key, value)` pairs.
+    #[doc = "**API Contract:** Run `sand api show sand::command::BlockState::props` for the canonical contract."]
     pub fn props<K, V>(mut self, iter: impl IntoIterator<Item = (K, V)>) -> Self
     where
         K: Into<String>,
@@ -246,6 +249,7 @@ pub struct SetBlock {
 
 impl SetBlock {
     /// Create a new `setblock` command at the given position.
+    #[doc = "**API Contract:** Run `sand api show sand::command::SetBlock::new` for the canonical contract."]
     pub fn new(pos: BlockPos, block: impl Into<BlockState>) -> Self {
         Self {
             pos,
@@ -255,6 +259,7 @@ impl SetBlock {
     }
 
     /// Set the mode for this `setblock` command.
+    #[doc = "**API Contract:** Run `sand api show sand::command::SetBlock::mode` for the canonical contract."]
     pub fn mode(mut self, mode: SetBlockMode) -> Self {
         self.mode = mode;
         self
@@ -352,6 +357,7 @@ pub struct Fill {
 
 impl Fill {
     /// Create a new `fill` command for the region from `from` to `to`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Fill::new` for the canonical contract."]
     pub fn new(from: BlockPos, to: BlockPos, block: impl Into<BlockState>) -> Self {
         Self {
             from,
@@ -362,6 +368,7 @@ impl Fill {
     }
 
     /// Set the mode for this `fill` command.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Fill::mode` for the canonical contract."]
     pub fn mode(mut self, mode: FillMode) -> Self {
         self.mode = mode;
         self
@@ -484,6 +491,7 @@ pub struct CloneBlocks {
 
 impl CloneBlocks {
     /// Create a new `clone` command from region `from..to` to `dest`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::CloneBlocks::new` for the canonical contract."]
     pub fn new(from: BlockPos, to: BlockPos, dest: BlockPos) -> Self {
         Self {
             from,
@@ -496,12 +504,14 @@ impl CloneBlocks {
     }
 
     /// Only clone non-air blocks.
+    #[doc = "**API Contract:** Run `sand api show sand::command::CloneBlocks::masked` for the canonical contract."]
     pub fn masked(mut self) -> Self {
         self.mask_mode = CloneMaskMode::Masked;
         self
     }
 
     /// Only clone blocks matching the given filter.
+    #[doc = "**API Contract:** Run `sand api show sand::command::CloneBlocks::filtered` for the canonical contract."]
     pub fn filtered(mut self, block: impl Into<String>) -> Self {
         self.mask_mode = CloneMaskMode::Filtered;
         self.filter = Some(block.into());
@@ -509,6 +519,7 @@ impl CloneBlocks {
     }
 
     /// Set the clone mode (normal, force, or move).
+    #[doc = "**API Contract:** Run `sand api show sand::command::CloneBlocks::clone_mode` for the canonical contract."]
     pub fn clone_mode(mut self, mode: CloneMode) -> Self {
         self.clone_mode = mode;
         self

@@ -13,6 +13,7 @@ pub struct Ticks(u32);
 
 impl Ticks {
     /// Creates a typed tick duration from the supplied tick count.
+    #[doc = "**API Contract:** Run `sand api show sand::state::Ticks::new` for the canonical contract."]
     pub const fn new(ticks: u32) -> Self {
         Self(ticks)
     }
@@ -24,22 +25,26 @@ impl Ticks {
     /// large enough to saturate is already far beyond any meaningful game
     /// duration, so clamping is safe and avoids a build-profile-dependent
     /// footgun for a `const fn` used in `static` contexts.
+    #[doc = "**API Contract:** Run `sand api show sand::state::Ticks::seconds` for the canonical contract."]
     pub const fn seconds(seconds: u32) -> Self {
         Self(seconds.saturating_mul(20))
     }
 
     /// Convert minutes to ticks (`minutes * 1200`). See [`seconds`](Self::seconds)
     /// for the overflow-saturation policy.
+    #[doc = "**API Contract:** Run `sand api show sand::state::Ticks::minutes` for the canonical contract."]
     pub const fn minutes(minutes: u32) -> Self {
         Self(minutes.saturating_mul(1200))
     }
 
     /// Returns the underlying tick count.
+    #[doc = "**API Contract:** Run `sand api show sand::state::Ticks::get` for the canonical contract."]
     pub const fn get(self) -> u32 {
         self.0
     }
 
     /// Returns this typed tick duration converted to whole seconds.
+    #[doc = "**API Contract:** Run `sand api show sand::state::Ticks::as_seconds` for the canonical contract."]
     pub const fn as_seconds(self) -> u32 {
         self.0 / 20
     }
@@ -418,6 +423,7 @@ pub struct StatusEffectInstance {
 impl StatusEffectInstance {
     /// Create an effect instance from either the enum-style [`EffectId`] or
     /// shared resource-location-backed [`StatusEffectId`].
+    #[doc = "**API Contract:** Run `sand api show sand::component::StatusEffectInstance::new` for the canonical contract."]
     pub fn new(effect: impl Into<EffectId>) -> Self {
         Self {
             effect: effect.into(),
@@ -430,41 +436,48 @@ impl StatusEffectInstance {
     }
 
     /// Sets the Minecraft duration property on this typed status effect instance definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::StatusEffectInstance::duration` for the canonical contract."]
     pub fn duration(mut self, duration: Ticks) -> Self {
         self.duration = Some(duration);
         self
     }
 
     /// Sets the Minecraft seconds property on this typed status effect instance definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::StatusEffectInstance::seconds` for the canonical contract."]
     pub fn seconds(self, seconds: u32) -> Self {
         self.duration(Ticks::seconds(seconds))
     }
 
     /// Sets the Minecraft amplifier property on this typed status effect instance definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::StatusEffectInstance::amplifier` for the canonical contract."]
     pub fn amplifier(mut self, amplifier: u8) -> Self {
         self.amplifier = amplifier;
         self
     }
 
     /// Sets the Minecraft ambient property on this typed status effect instance definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::StatusEffectInstance::ambient` for the canonical contract."]
     pub fn ambient(mut self, ambient: bool) -> Self {
         self.ambient = ambient;
         self
     }
 
     /// Sets the Minecraft particles property on this typed status effect instance definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::StatusEffectInstance::particles` for the canonical contract."]
     pub fn particles(mut self, show_particles: bool) -> Self {
         self.show_particles = show_particles;
         self
     }
 
     /// Sets the Minecraft icon property on this typed status effect instance definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::StatusEffectInstance::icon` for the canonical contract."]
     pub fn icon(mut self, show_icon: bool) -> Self {
         self.show_icon = show_icon;
         self
     }
 
     /// Returns the canonical Minecraft representation of this component value.
+    #[doc = "**API Contract:** Run `sand api show sand::component::StatusEffectInstance::to_snbt` for the canonical contract."]
     pub fn to_snbt(&self) -> String {
         let mut parts = vec![format!("id:\"{}\"", self.effect)];
         if let Some(duration) = self.duration {
@@ -526,35 +539,41 @@ pub struct PotionContents {
 
 impl PotionContents {
     /// Starts empty potion contents with no base potion, custom color, name, or custom effects.
+    #[doc = "**API Contract:** Run `sand api show sand::component::PotionContents::new` for the canonical contract."]
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Set the base potion using either the enum-style [`PotionId`] or shared
     /// resource-location-backed [`PotionRegistryId`].
+    #[doc = "**API Contract:** Run `sand api show sand::component::PotionContents::potion` for the canonical contract."]
     pub fn potion(mut self, potion: impl Into<PotionId>) -> Self {
         self.potion = Some(potion.into());
         self
     }
 
     /// Sets the Minecraft custom color property on this typed potion contents definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::PotionContents::custom_color` for the canonical contract."]
     pub fn custom_color(mut self, color: u32) -> Self {
         self.custom_color = Some(color);
         self
     }
 
     /// Sets the Minecraft effect property on this typed potion contents definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::PotionContents::effect` for the canonical contract."]
     pub fn effect(mut self, effect: StatusEffectInstance) -> Self {
         self.custom_effects.push(effect);
         self
     }
 
     /// Sets the Minecraft custom effect property on this typed potion contents definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::PotionContents::custom_effect` for the canonical contract."]
     pub fn custom_effect(self, effect: StatusEffectInstance) -> Self {
         self.effect(effect)
     }
 
     /// Returns the canonical Minecraft representation of this component value.
+    #[doc = "**API Contract:** Run `sand api show sand::component::PotionContents::to_snbt` for the canonical contract."]
     pub fn to_snbt(&self) -> String {
         let mut parts = Vec::new();
         if let Some(ref potion) = self.potion {
@@ -590,6 +609,7 @@ pub struct SuspiciousStewEffect {
 
 impl SuspiciousStewEffect {
     /// Creates one suspicious-stew status effect with its exact Minecraft tick duration.
+    #[doc = "**API Contract:** Run `sand api show sand::component::SuspiciousStewEffect::new` for the canonical contract."]
     pub fn new(effect: impl Into<EffectId>, duration: Ticks) -> Self {
         Self {
             effect: effect.into(),
@@ -598,11 +618,13 @@ impl SuspiciousStewEffect {
     }
 
     /// Sets the Minecraft seconds property on this typed suspicious stew effect definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::SuspiciousStewEffect::seconds` for the canonical contract."]
     pub fn seconds(effect: impl Into<EffectId>, seconds: u32) -> Self {
         Self::new(effect, Ticks::seconds(seconds))
     }
 
     /// Returns the canonical Minecraft representation of this component value.
+    #[doc = "**API Contract:** Run `sand api show sand::component::SuspiciousStewEffect::to_snbt` for the canonical contract."]
     pub fn to_snbt(&self) -> String {
         format!(
             "{{id:\"{}\",duration:{}}}",

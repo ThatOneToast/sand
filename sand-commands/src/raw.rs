@@ -29,14 +29,17 @@ pub struct RawCommand(String);
 
 impl RawCommand {
     /// Wraps an intentionally unchecked Minecraft command string.
+    #[doc = "**API Contract:** Run `sand api show sand::command::RawCommand::new` for the canonical contract."]
     pub fn new(command: impl Into<String>) -> Self {
         Self(command.into())
     }
     /// Returns the exact Minecraft command token represented by this raw command value.
+    #[doc = "**API Contract:** Run `sand api show sand::command::RawCommand::as_str` for the canonical contract."]
     pub fn as_str(&self) -> &str {
         &self.0
     }
     /// Consume this wrapper and return the unchecked command text.
+    #[doc = "**API Contract:** Run `sand api show sand::command::RawCommand::into_inner` for the canonical contract."]
     pub fn into_inner(self) -> String {
         self.0
     }

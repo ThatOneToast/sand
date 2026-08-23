@@ -51,6 +51,7 @@ impl ParticipantLifetime {
     /// [`SynchronousDescendants`](Self::SynchronousDescendants) — it never
     /// promised to survive a descendant call. A reference captured at
     /// [`EventCycle`](Self::EventCycle) covers any narrower use.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantLifetime::covers` for the canonical contract."]
     pub fn covers(self, needed: ParticipantLifetime) -> bool {
         self >= needed
     }

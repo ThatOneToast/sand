@@ -9,6 +9,7 @@ use sand_core::version::{LATEST_KNOWN, MinecraftVersion, VersionProfile};
 /// their `sand.toml`.
 ///
 /// Reference: <https://minecraft.wiki/w/Pack_format>
+#[doc = "**API Contract:** Run `sand api show sand::resourcepack::resource_pack_format_for` for the canonical contract."]
 pub fn resource_pack_format_for(mc_version: &str) -> u32 {
     resolve_resource_pack_format(mc_version).0
 }

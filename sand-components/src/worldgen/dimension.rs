@@ -40,6 +40,7 @@ pub struct Dimension {
 
 impl Dimension {
     /// Creates a new dimension referencing the given type and generator JSON.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Dimension::new` for the canonical contract."]
     pub fn new(
         location: ResourceLocation,
         dimension_type: DimensionTypeId,
@@ -56,6 +57,7 @@ impl Dimension {
     ///
     /// Prefer [`Dimension::new`] with [`DimensionTypeId`]. This escape hatch
     /// exists for version-specific or otherwise unsupported reference syntax.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Dimension::new_raw_dimension_type` for the canonical contract."]
     pub fn new_raw_dimension_type(
         location: ResourceLocation,
         dimension_type: impl Into<String>,
@@ -74,6 +76,7 @@ impl Dimension {
     /// ```json
     /// { "type": "minecraft:fixed", "biome": "minecraft:plains" }
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::component::Dimension::noise_generator` for the canonical contract."]
     pub fn noise_generator(
         location: ResourceLocation,
         dimension_type: DimensionTypeId,
@@ -91,6 +94,7 @@ impl Dimension {
     /// Convenience: create with a flat (superflat) generator.
     ///
     /// `flat_settings` is the raw JSON settings for `minecraft:flat`.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Dimension::flat_generator` for the canonical contract."]
     pub fn flat_generator(
         location: ResourceLocation,
         dimension_type: DimensionTypeId,
@@ -104,18 +108,21 @@ impl Dimension {
     }
 
     /// Updates the dimension type.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Dimension::dimension_type` for the canonical contract."]
     pub fn dimension_type(mut self, dt: DimensionTypeId) -> Self {
         self.dimension_type = DimensionTypeReference::Typed(dt);
         self
     }
 
     /// Updates the dimension type through the explicit raw compatibility path.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Dimension::raw_dimension_type` for the canonical contract."]
     pub fn raw_dimension_type(mut self, dt: impl Into<String>) -> Self {
         self.dimension_type = DimensionTypeReference::Raw(dt.into());
         self
     }
 
     /// Replaces the generator with a raw JSON value.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Dimension::generator_raw` for the canonical contract."]
     pub fn generator_raw(mut self, generator: Value) -> Self {
         self.generator = generator;
         self

@@ -38,6 +38,13 @@ pub trait IntoEventId {
     ///
     /// Panics if a raw string value is not a valid `namespace:path` resource
     /// location. Use [`EventId::try_explicit`] for a fallible alternative.
+    ///
+    /// ```
+    /// use sand::event::IntoEventId;
+    ///
+    /// let location = "demo:events/join".into_event_resource_location();
+    /// assert_eq!(location.to_string(), "demo:events/join");
+    /// ```
     fn into_event_resource_location(self) -> crate::ResourceLocation;
 }
 
@@ -310,6 +317,7 @@ impl<E> Event<E> {
     /// Construct the handler context value.
     ///
     /// Called by `#[on_event]`-generated code. Not normally called directly.
+    #[doc = "**API Contract:** Run `sand api show sand::event::Event::context` for the canonical contract."]
     pub fn context() -> Self {
         Self {
             _marker: PhantomData,
@@ -320,11 +328,13 @@ impl<E> Event<E> {
     ///
     /// `@s` is the player selected by the advancement reward or generated
     /// per-player dispatcher.
+    #[doc = "**API Contract:** Run `sand api show sand::event::Event::player` for the canonical contract."]
     pub fn player(&self) -> crate::cmd::Selector {
         crate::cmd::Selector::self_()
     }
 
     /// Returns `Selector::self_()` — alias for [`player`](Event::player).
+    #[doc = "**API Contract:** Run `sand api show sand::event::Event::subject` for the canonical contract."]
     pub fn subject(&self) -> crate::cmd::Selector {
         crate::cmd::Selector::self_()
     }
@@ -345,6 +355,7 @@ impl<E: AdvancementEvent> Event<E> {
     ///     }
     /// }
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::event::Event::state_init` for the canonical contract."]
     pub fn state_init() -> Vec<String> {
         E::state_defines()
     }
@@ -368,6 +379,7 @@ impl<E: AdvancementEvent> Event<E> {
     ///     // build commands against attacker.selector()
     /// }
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::event::Event::entity` for the canonical contract."]
     pub fn entity(
         &self,
         role: crate::participant::EntityParticipantRole,
@@ -377,6 +389,7 @@ impl<E: AdvancementEvent> Event<E> {
 
     /// Access a declared item participant by role (#230, infallible per
     /// #273). See [`Self::entity`] for the contract this mirrors.
+    #[doc = "**API Contract:** Run `sand api show sand::event::Event::item` for the canonical contract."]
     pub fn item(&self, role: crate::participant::ItemParticipantRole) -> crate::item::ItemSnapshot {
         E::participants().require_item(std::any::type_name::<E>(), role)
     }
@@ -386,27 +399,32 @@ impl<E: AdvancementEvent> Event<E> {
     /// who shot it) is a distinct role vanilla's damage source also draws,
     /// but no credible backend exists for it today — see
     /// `docs/testing/participant-role-evidence.md`.
+    #[doc = "**API Contract:** Run `sand api show sand::event::Event::attacker` for the canonical contract."]
     pub fn attacker(&self) -> crate::participant::EntityParticipant {
         self.entity(crate::participant::EntityParticipantRole::Attacker)
     }
 
     /// The entity that landed the killing blow, when declared.
+    #[doc = "**API Contract:** Run `sand api show sand::event::Event::killer` for the canonical contract."]
     pub fn killer(&self) -> crate::participant::EntityParticipant {
         self.entity(crate::participant::EntityParticipantRole::Killer)
     }
 
     /// The entity that received damage/an effect, when declared.
+    #[doc = "**API Contract:** Run `sand api show sand::event::Event::victim` for the canonical contract."]
     pub fn victim(&self) -> crate::participant::EntityParticipant {
         self.entity(crate::participant::EntityParticipantRole::Victim)
     }
 
     /// The entity this player directly interacted with, when declared.
+    #[doc = "**API Contract:** Run `sand api show sand::event::Event::interacted_entity` for the canonical contract."]
     pub fn interacted_entity(&self) -> crate::participant::EntityParticipant {
         self.entity(crate::participant::EntityParticipantRole::InteractedEntity)
     }
 
     /// The weapon item snapshot, when declared — see
     /// [`crate::participant::EventParticipantPlan::observe_weapon`].
+    #[doc = "**API Contract:** Run `sand api show sand::event::Event::weapon` for the canonical contract."]
     pub fn weapon(&self) -> crate::item::ItemSnapshot {
         self.item(crate::participant::ItemParticipantRole::Weapon)
     }
@@ -415,6 +433,7 @@ impl<E: AdvancementEvent> Event<E> {
     /// per #273) — the `.within(...)`-crossing counterpart to [`Self::item`].
     /// See [`crate::participant::EventParticipantPlan::inherit_item_within`]
     /// for the full contract.
+    #[doc = "**API Contract:** Run `sand api show sand::event::Event::bounded_item` for the canonical contract."]
     pub fn bounded_item(
         &self,
         role: crate::participant::ItemParticipantRole,
@@ -431,6 +450,7 @@ impl<E> Default for Event<E> {
 
 impl<E: DamageAdvancementEvent> Event<E> {
     /// Start a reflected-damage command builder from this event's player.
+    #[doc = "**API Contract:** Run `sand api show sand::event::Event::damage` for the canonical contract."]
     pub fn damage(&self) -> sand_commands::Damage {
         sand_commands::Damage::reflect_from(crate::cmd::SingleEntity::self_())
     }
@@ -449,6 +469,7 @@ impl<E: DamageAdvancementEvent> DamageEvent<E> {
     /// Construct the handler context value.
     ///
     /// Called by `#[on_event]`-generated code. Not normally called directly.
+    #[doc = "**API Contract:** Run `sand api show sand::event::DamageEvent::context` for the canonical contract."]
     pub fn context() -> Self {
         Self {
             _marker: PhantomData,
@@ -456,16 +477,19 @@ impl<E: DamageAdvancementEvent> DamageEvent<E> {
     }
 
     /// Returns `@s` as a single player: the player who triggered the event.
+    #[doc = "**API Contract:** Run `sand api show sand::event::DamageEvent::player` for the canonical contract."]
     pub fn player(&self) -> crate::cmd::SinglePlayer {
         crate::cmd::SinglePlayer::self_()
     }
 
     /// Returns `@s` as a single entity: the damaged subject.
+    #[doc = "**API Contract:** Run `sand api show sand::event::DamageEvent::subject` for the canonical contract."]
     pub fn subject(&self) -> crate::cmd::SingleEntity {
         crate::cmd::SingleEntity::self_()
     }
 
     /// Start a reflected-damage builder centered on and sourced from the player.
+    #[doc = "**API Contract:** Run `sand api show sand::event::DamageEvent::reflect_damage` for the canonical contract."]
     pub fn reflect_damage(&self) -> sand_commands::Damage {
         sand_commands::Damage::reflect_from(self.subject())
     }

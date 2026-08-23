@@ -57,16 +57,19 @@ pub struct RawJson(Value);
 
 impl RawJson {
     /// Wrap an arbitrary JSON value as an explicit raw escape hatch.
+    #[doc = "**API Contract:** Run `sand api show sand::component::RawJson::new` for the canonical contract."]
     pub fn new(v: Value) -> Self {
         Self(v)
     }
 
     /// Access the inner `serde_json::Value`.
+    #[doc = "**API Contract:** Run `sand api show sand::component::RawJson::as_value` for the canonical contract."]
     pub fn as_value(&self) -> &Value {
         &self.0
     }
 
     /// Consume and return the inner `serde_json::Value`.
+    #[doc = "**API Contract:** Run `sand api show sand::component::RawJson::into_value` for the canonical contract."]
     pub fn into_value(self) -> Value {
         self.0
     }
@@ -115,11 +118,13 @@ pub struct RawSnbt(String);
 
 impl RawSnbt {
     /// Wrap a raw SNBT string as an explicit escape hatch.
+    #[doc = "**API Contract:** Run `sand api show sand::component::RawSnbt::new` for the canonical contract."]
     pub fn new(s: impl Into<String>) -> Self {
         Self(s.into())
     }
 
     /// Access the inner SNBT string.
+    #[doc = "**API Contract:** Run `sand api show sand::component::RawSnbt::as_str` for the canonical contract."]
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -184,6 +189,7 @@ pub struct RawComponent {
 
 impl RawComponent {
     /// Create a raw item component from a `key` and its SNBT `value`.
+    #[doc = "**API Contract:** Run `sand api show sand::component::RawComponent::new` for the canonical contract."]
     pub fn new(key: impl Into<String>, value: impl Into<String>) -> Self {
         Self {
             key: key.into(),
@@ -192,11 +198,13 @@ impl RawComponent {
     }
 
     /// The component key (e.g. `"bundle_contents"`).
+    #[doc = "**API Contract:** Run `sand api show sand::component::RawComponent::key` for the canonical contract."]
     pub fn key(&self) -> &str {
         &self.key
     }
 
     /// The raw SNBT value string (e.g. `"{items:[]}"`).
+    #[doc = "**API Contract:** Run `sand api show sand::component::RawComponent::value` for the canonical contract."]
     pub fn value(&self) -> &str {
         &self.value
     }

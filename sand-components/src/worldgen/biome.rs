@@ -318,6 +318,7 @@ pub enum CarvingStep {
 
 impl CarvingStep {
     /// The vanilla lowercase key written into biome JSON (`"air"`/`"liquid"`).
+    #[doc = "**API Contract:** Run `sand api show sand::component::CarvingStep::as_str` for the canonical contract."]
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Air => "air",

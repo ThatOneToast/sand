@@ -43,6 +43,7 @@ pub struct PlacedFeature {
 
 impl PlacedFeature {
     /// Creates a new placed feature referencing a typed configured feature.
+    #[doc = "**API Contract:** Run `sand api show sand::component::PlacedFeature::new` for the canonical contract."]
     pub fn new(location: ResourceLocation, feature: ConfiguredFeatureId) -> Self {
         Self {
             location,
@@ -56,6 +57,7 @@ impl PlacedFeature {
     ///
     /// Prefer [`PlacedFeature::new`] with a [`ConfiguredFeatureId`]. This
     /// escape hatch exists for modded or version-specific reference syntax.
+    #[doc = "**API Contract:** Run `sand api show sand::component::PlacedFeature::new_raw_feature` for the canonical contract."]
     pub fn new_raw_feature(location: ResourceLocation, feature: impl Into<String>) -> Self {
         Self {
             location,
@@ -65,6 +67,7 @@ impl PlacedFeature {
     }
 
     /// Updates the referenced configured feature.
+    #[doc = "**API Contract:** Run `sand api show sand::component::PlacedFeature::feature` for the canonical contract."]
     pub fn feature(mut self, feature: ConfiguredFeatureId) -> Self {
         self.feature = ConfiguredFeatureReference::Typed(feature);
         self
@@ -72,6 +75,7 @@ impl PlacedFeature {
 
     /// Updates the referenced configured feature through the explicit raw
     /// compatibility path.
+    #[doc = "**API Contract:** Run `sand api show sand::component::PlacedFeature::raw_feature` for the canonical contract."]
     pub fn raw_feature(mut self, feature: impl Into<String>) -> Self {
         self.feature = ConfiguredFeatureReference::Raw(feature.into());
         self
@@ -84,12 +88,14 @@ impl PlacedFeature {
     /// use serde_json::json;
     /// feature.placement_modifier(json!({ "type": "minecraft:count", "count": 5 }));
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::component::PlacedFeature::placement_modifier` for the canonical contract."]
     pub fn placement_modifier(mut self, modifier: Value) -> Self {
         self.placement.push(modifier);
         self
     }
 
     /// Sets all placement modifiers at once from an iterator of raw JSON values.
+    #[doc = "**API Contract:** Run `sand api show sand::component::PlacedFeature::placement` for the canonical contract."]
     pub fn placement(mut self, modifiers: impl IntoIterator<Item = Value>) -> Self {
         self.placement = modifiers.into_iter().collect();
         self

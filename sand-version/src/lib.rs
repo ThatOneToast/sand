@@ -74,6 +74,7 @@ pub struct CommandProfile {
 
 impl CommandProfile {
     /// Construct a command profile for a resolved Minecraft target.
+    #[doc = "**API Contract:** Run `sand api show sand::command::CommandProfile::new` for the canonical contract."]
     pub fn new(requested_version: impl Into<String>, is_fallback: bool) -> Self {
         Self {
             requested_version: requested_version.into(),
@@ -83,16 +84,19 @@ impl CommandProfile {
 
     /// Compatibility profile used by direct command rendering without project
     /// configuration. Exporters should pass the project's resolved profile.
+    #[doc = "**API Contract:** Run `sand api show sand::command::CommandProfile::unprofiled` for the canonical contract."]
     pub fn unprofiled() -> Self {
         Self::new(LATEST_KNOWN, false)
     }
 
     /// Version requested by the project.
+    #[doc = "**API Contract:** Run `sand api show sand::command::CommandProfile::requested_version` for the canonical contract."]
     pub fn requested_version(&self) -> &str {
         &self.requested_version
     }
 
     /// Whether resolution used Sand's conservative fallback profile.
+    #[doc = "**API Contract:** Run `sand api show sand::command::CommandProfile::is_fallback` for the canonical contract."]
     pub fn is_fallback(&self) -> bool {
         self.is_fallback
     }
@@ -100,6 +104,7 @@ impl CommandProfile {
     /// Whether this resolved command target is at least the given Java release.
     ///
     /// Unknown/fallback profiles are conservative and never claim support.
+    #[doc = "**API Contract:** Run `sand api show sand::command::CommandProfile::is_at_least` for the canonical contract."]
     pub fn is_at_least(&self, major: u32, minor: u32, patch: u32) -> bool {
         if self.is_fallback {
             return false;

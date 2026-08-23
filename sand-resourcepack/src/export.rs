@@ -23,6 +23,7 @@ use crate::descriptor::ResourcePackDescriptor;
 /// A warning is printed to `stderr` when duplicate unicode codepoints are
 /// detected across providers in the same font file — Minecraft silently uses
 /// the last definition, which is almost always a bug.
+#[doc = "**API Contract:** Run `sand api show sand::resourcepack::export_resourcepack_json` for the canonical contract."]
 pub fn export_resourcepack_json(namespace: &str) -> String {
     // Collect all AssetOutputs from every registered component.
     // Use a BTreeMap keyed by output path so merging is deterministic.

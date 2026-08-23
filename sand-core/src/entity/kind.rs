@@ -52,6 +52,7 @@ impl EntityKind for MarkerKind {
 /// summon command must have a concrete typed entity type.
 pub trait KnownEntityKind: EntityKind {
     /// Validated entity type used by summon/adoption lowering.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::KnownEntityKind::entity_type` for the canonical contract."]
     fn entity_type() -> sand_components::EntityTypeId;
 }
 

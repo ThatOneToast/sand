@@ -131,6 +131,7 @@ pub use text::{
 /// ```
 pub trait Build: Clone {
     /// Serialize this command to its Minecraft string representation.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Build::build` for the canonical contract."]
     fn build(&self) -> String;
 }
 

@@ -199,6 +199,7 @@ pub enum EntityDiagnostic {
 
 impl EntityDiagnostic {
     /// Stable machine-readable diagnostic code.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityDiagnostic::code` for the canonical contract."]
     #[must_use]
     pub const fn code(&self) -> &'static str {
         match self {

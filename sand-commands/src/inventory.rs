@@ -264,6 +264,7 @@ pub struct Inventory {
 
 impl Inventory {
     /// Create an inventory handle for the given entity selector.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Inventory::of` for the canonical contract."]
     pub fn of(selector: Selector) -> Self {
         Self { selector }
     }
@@ -274,6 +275,7 @@ impl Inventory {
     ///
     /// Never panics. The rendered line is re-validated at export time; use
     /// [`Inventory::try_give`] to fail fast instead.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Inventory::give` for the canonical contract."]
     pub fn give(&self, item: impl fmt::Display) -> String {
         let item = item.to_string();
         let line = format!("give {} {item}", self.selector);
@@ -282,6 +284,7 @@ impl Inventory {
     }
 
     /// Fallible [`Inventory::give`] — validates the item ID shape first.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Inventory::try_give` for the canonical contract."]
     pub fn try_give(&self, item: impl fmt::Display) -> CommandResult<String> {
         let item = item.to_string();
         validate_item_str(&item, "Inventory::try_give", "item")?;
@@ -292,6 +295,7 @@ impl Inventory {
     ///
     /// Never panics. The rendered line is re-validated at export time; use
     /// [`Inventory::try_give_count`] to fail fast instead.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Inventory::give_count` for the canonical contract."]
     pub fn give_count(&self, item: impl fmt::Display, count: u32) -> String {
         let item = item.to_string();
         let line = format!("give {} {item} {count}", self.selector);
@@ -302,6 +306,7 @@ impl Inventory {
     /// Fallible [`Inventory::give_count`] — validates the item ID shape and
     /// rejects a count of `0` (a zero-count `give` is a no-op Minecraft
     /// rejects rather than accepting).
+    #[doc = "**API Contract:** Run `sand api show sand::command::Inventory::try_give_count` for the canonical contract."]
     pub fn try_give_count(&self, item: impl fmt::Display, count: u32) -> CommandResult<String> {
         let item = item.to_string();
         validate_item_str(&item, "Inventory::try_give_count", "item")?;
@@ -314,6 +319,7 @@ impl Inventory {
     /// Accepts any type that converts to [`ItemSlot`]. Never panics on an
     /// out-of-range or wildcard slot — the rendered line is re-validated at
     /// export time; use [`Inventory::try_set`] to fail fast instead.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Inventory::set` for the canonical contract."]
     pub fn set(&self, slot: impl Into<ItemSlot>, item: impl fmt::Display) -> String {
         let slot = slot.into();
         let item = item.to_string();
@@ -324,6 +330,7 @@ impl Inventory {
 
     /// Fallible [`Inventory::set`] — rejects out-of-range/wildcard slots and
     /// malformed item IDs.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Inventory::try_set` for the canonical contract."]
     pub fn try_set(
         &self,
         slot: impl Into<ItemSlot>,
@@ -344,6 +351,7 @@ impl Inventory {
     /// `item replace entity <selector> <slot> with <item> <count>` — overwrite with a stack size.
     ///
     /// Never panics; use [`Inventory::try_set_count`] to fail fast instead.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Inventory::set_count` for the canonical contract."]
     pub fn set_count(
         &self,
         slot: impl Into<ItemSlot>,
@@ -362,6 +370,7 @@ impl Inventory {
 
     /// Fallible [`Inventory::set_count`] — rejects out-of-range/wildcard
     /// slots, malformed item IDs, and a count of `0`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Inventory::try_set_count` for the canonical contract."]
     pub fn try_set_count(
         &self,
         slot: impl Into<ItemSlot>,
@@ -386,6 +395,7 @@ impl Inventory {
     /// `item replace entity <selector> <slot> with air` — empty a specific slot.
     ///
     /// Never panics; use [`Inventory::try_clear_slot`] to fail fast instead.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Inventory::clear_slot` for the canonical contract."]
     pub fn clear_slot(&self, slot: impl Into<ItemSlot>) -> String {
         let slot = slot.into();
         let line = format!("item replace entity {} {slot} with air", self.selector);
@@ -394,6 +404,7 @@ impl Inventory {
     }
 
     /// Fallible [`Inventory::clear_slot`] — rejects out-of-range/wildcard slots.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Inventory::try_clear_slot` for the canonical contract."]
     pub fn try_clear_slot(&self, slot: impl Into<ItemSlot>) -> CommandResult<String> {
         let slot = slot.into();
         validate_write_slot(
@@ -408,6 +419,7 @@ impl Inventory {
     /// `clear <selector> <item>` — remove all stacks of a specific item.
     ///
     /// Never panics; use [`Inventory::try_clear_item`] to fail fast instead.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Inventory::clear_item` for the canonical contract."]
     pub fn clear_item(&self, item: impl Into<String>) -> String {
         let item = item.into();
         let line = format!("clear {} {}", self.selector, item);
@@ -416,6 +428,7 @@ impl Inventory {
     }
 
     /// Fallible [`Inventory::clear_item`] — validates the item ID shape.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Inventory::try_clear_item` for the canonical contract."]
     pub fn try_clear_item(&self, item: impl Into<String>) -> CommandResult<String> {
         let item = item.into();
         validate_item_str(&item, "Inventory::try_clear_item", "item")?;
@@ -427,6 +440,7 @@ impl Inventory {
     /// A count of `0` is meaningful vanilla syntax: it reports the matching
     /// count without removing anything, so it is not rejected.
     /// Never panics; use [`Inventory::try_clear_item_count`] to fail fast instead.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Inventory::clear_item_count` for the canonical contract."]
     pub fn clear_item_count(&self, item: impl Into<String>, count: u32) -> String {
         let item = item.into();
         let line = format!("clear {} {} {count}", self.selector, item);
@@ -435,6 +449,7 @@ impl Inventory {
     }
 
     /// Fallible [`Inventory::clear_item_count`] — validates the item ID shape.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Inventory::try_clear_item_count` for the canonical contract."]
     pub fn try_clear_item_count(
         &self,
         item: impl Into<String>,
@@ -446,6 +461,7 @@ impl Inventory {
     }
 
     /// `clear <selector>` — remove everything from the inventory.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Inventory::clear_all` for the canonical contract."]
     pub fn clear_all(&self) -> String {
         format!("clear {}", self.selector)
     }
@@ -455,6 +471,7 @@ impl Inventory {
     /// Copy the item in `source_slot` of another entity into `slot` of this entity.
     ///
     /// Never panics; use [`Inventory::try_copy_from`] to fail fast instead.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Inventory::copy_from` for the canonical contract."]
     pub fn copy_from(
         &self,
         slot: impl Into<ItemSlot>,
@@ -474,6 +491,7 @@ impl Inventory {
     /// Fallible [`Inventory::copy_from`] — validates both the destination
     /// and source slots (neither may be out-of-range or a wildcard: a
     /// single-item copy resolves to exactly one slot on each side).
+    #[doc = "**API Contract:** Run `sand api show sand::command::Inventory::try_copy_from` for the canonical contract."]
     pub fn try_copy_from(
         &self,
         slot: impl Into<ItemSlot>,
@@ -498,6 +516,7 @@ impl Inventory {
     /// `item modify entity <selector> <slot> <modifier>` — apply an item modifier.
     ///
     /// Never panics; use [`Inventory::try_modify`] to fail fast instead.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Inventory::modify` for the canonical contract."]
     pub fn modify(&self, slot: impl Into<ItemSlot>, modifier: impl Into<String>) -> String {
         let slot = slot.into();
         let modifier = modifier.into();
@@ -509,6 +528,7 @@ impl Inventory {
     /// Fallible [`Inventory::modify`] — rejects out-of-range/wildcard slots
     /// and modifier references that are not `namespace:path`-shaped (an
     /// optional leading `#` for item-modifier tags is accepted).
+    #[doc = "**API Contract:** Run `sand api show sand::command::Inventory::try_modify` for the canonical contract."]
     pub fn try_modify(
         &self,
         slot: impl Into<ItemSlot>,

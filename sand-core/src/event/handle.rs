@@ -51,6 +51,7 @@ impl<E> EventHandle<E> {
     ///
     /// The scoreboard objective name is derived from the Rust type name of `E`
     /// the first time any method on this handle is called — no string required.
+    #[doc = "**API Contract:** Run `sand api show sand::event::handle::EventHandle::new` for the canonical contract."]
     pub const fn new() -> Self {
         Self {
             objective: OnceLock::new(),
@@ -62,6 +63,7 @@ impl<E> EventHandle<E> {
     /// `scoreboard objectives add <obj> dummy` — register the objective.
     ///
     /// Call this in your `#[datapack_component(Load)]` function.
+    #[doc = "**API Contract:** Run `sand api show sand::event::handle::EventHandle::define` for the canonical contract."]
     pub fn define(&self) -> String {
         format!("scoreboard objectives add {} dummy", self.objective_name())
     }
@@ -75,6 +77,7 @@ impl<E> EventHandle<E> {
     ///     Some(GOLDEN_APPLE.condition().and(MANA.of("@s").lt(100)))
     /// }
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::event::handle::EventHandle::condition` for the canonical contract."]
     pub fn condition(&self) -> Condition {
         Condition::score(
             "@s".into(),
@@ -84,6 +87,7 @@ impl<E> EventHandle<E> {
     }
 
     /// Command to enable this event for the given selector.
+    #[doc = "**API Contract:** Run `sand api show sand::event::handle::EventHandle::enable` for the canonical contract."]
     pub fn enable(&self, selector: impl std::fmt::Display) -> String {
         format!(
             "scoreboard players set {selector} {} 1",
@@ -92,6 +96,7 @@ impl<E> EventHandle<E> {
     }
 
     /// Command to disable this event for the given selector.
+    #[doc = "**API Contract:** Run `sand api show sand::event::handle::EventHandle::disable` for the canonical contract."]
     pub fn disable(&self, selector: impl std::fmt::Display) -> String {
         format!(
             "scoreboard players set {selector} {} 0",
@@ -107,6 +112,7 @@ impl<E> EventHandle<E> {
     /// export time by [`crate::component::export_components_json`].
     ///
     /// Requires `E: 'static` for the `TypeId` lookup.
+    #[doc = "**API Contract:** Run `sand api show sand::event::handle::EventHandle::revoke` for the canonical contract."]
     pub fn revoke(&self, selector: impl std::fmt::Display) -> String
     where
         E: 'static,
@@ -118,6 +124,7 @@ impl<E> EventHandle<E> {
     }
 
     /// Alias for [`revoke`](EventHandle::revoke).
+    #[doc = "**API Contract:** Run `sand api show sand::event::handle::EventHandle::reset` for the canonical contract."]
     pub fn reset(&self, selector: impl std::fmt::Display) -> String
     where
         E: 'static,
@@ -128,6 +135,7 @@ impl<E> EventHandle<E> {
     /// Grant the advancement for this event (manually fire the trigger logic).
     ///
     /// Emits `advancement grant <selector> only <ns>:<path>`.
+    #[doc = "**API Contract:** Run `sand api show sand::event::handle::EventHandle::grant` for the canonical contract."]
     pub fn grant(&self, selector: impl std::fmt::Display) -> String
     where
         E: 'static,

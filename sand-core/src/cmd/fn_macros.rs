@@ -69,6 +69,7 @@ pub struct FunctionMacroArg(String);
 
 impl FunctionMacroArg {
     /// Parse a function-macro argument name.
+    #[doc = "**API Contract:** Run `sand api show sand::command::FunctionMacroArg::new` for the canonical contract."]
     pub fn new(name: impl Into<String>) -> CommandResult<Self> {
         let name = name.into();
         if name.is_empty() {
@@ -87,11 +88,13 @@ impl FunctionMacroArg {
     }
 
     /// The validated argument name without `$(` / `)`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::FunctionMacroArg::as_str` for the canonical contract."]
     pub fn as_str(&self) -> &str {
         &self.0
     }
 
     /// Render this declaration as a `$(name)` placeholder.
+    #[doc = "**API Contract:** Run `sand api show sand::command::FunctionMacroArg::placeholder` for the canonical contract."]
     pub fn placeholder(&self) -> String {
         format!("$({})", self.0)
     }
@@ -132,6 +135,7 @@ pub struct FunctionMacroArgs {
 
 impl FunctionMacroArgs {
     /// Build a validated declaration from argument names.
+    #[doc = "**API Contract:** Run `sand api show sand::command::FunctionMacroArgs::new` for the canonical contract."]
     pub fn new<I, S>(names: I) -> CommandResult<Self>
     where
         I: IntoIterator<Item = S>,
@@ -151,11 +155,13 @@ impl FunctionMacroArgs {
     }
 
     /// Return whether `name` is declared by this argument set.
+    #[doc = "**API Contract:** Run `sand api show sand::command::FunctionMacroArgs::contains` for the canonical contract."]
     pub fn contains(&self, name: &str) -> bool {
         self.names.contains(&FunctionMacroArg(name.to_string()))
     }
 
     /// Render a declared argument as `$(name)`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::FunctionMacroArgs::variable` for the canonical contract."]
     pub fn variable(&self, name: &str) -> CommandResult<String> {
         let argument = FunctionMacroArg::new(name)?;
         if !self.names.contains(&argument) {
@@ -168,6 +174,7 @@ impl FunctionMacroArgs {
     }
 
     /// Mark a command as a macro line after validating every `$(name)`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::FunctionMacroArgs::line` for the canonical contract."]
     pub fn line(&self, command: impl fmt::Display) -> CommandResult<String> {
         let command = command.to_string();
         validate_placeholders(&command, &self.names)?;
@@ -183,6 +190,7 @@ impl FunctionMacroArgs {
     ///
     /// The declaration is retained at the definition side for placeholder
     /// validation; Minecraft validates the runtime compound's actual keys.
+    #[doc = "**API Contract:** Run `sand api show sand::command::FunctionMacroArgs::call_with` for the canonical contract."]
     pub fn call_with<T>(
         &self,
         function: impl crate::function::IntoFunctionRef,
@@ -192,16 +200,19 @@ impl FunctionMacroArgs {
     }
 
     /// Iterate declared arguments in deterministic name order.
+    #[doc = "**API Contract:** Run `sand api show sand::command::FunctionMacroArgs::iter` for the canonical contract."]
     pub fn iter(&self) -> impl Iterator<Item = &FunctionMacroArg> {
         self.names.iter()
     }
 
     /// Whether no arguments are declared.
+    #[doc = "**API Contract:** Run `sand api show sand::command::FunctionMacroArgs::is_empty` for the canonical contract."]
     pub fn is_empty(&self) -> bool {
         self.names.is_empty()
     }
 
     /// Number of declared arguments.
+    #[doc = "**API Contract:** Run `sand api show sand::command::FunctionMacroArgs::len` for the canonical contract."]
     pub fn len(&self) -> usize {
         self.names.len()
     }
@@ -265,11 +276,13 @@ fn validate_placeholders(
 /// let path = format!("{p}.score");
 /// assert_eq!(path, "$(player).score");
 /// ```
+#[doc = "**API Contract:** Run `sand api show sand::command::macro_var` for the canonical contract."]
 pub fn macro_var(name: &str) -> String {
     format!("$({name})")
 }
 
 /// Validated counterpart to [`macro_var`].
+#[doc = "**API Contract:** Run `sand api show sand::command::try_macro_var` for the canonical contract."]
 pub fn try_macro_var(name: impl Into<String>) -> CommandResult<String> {
     Ok(FunctionMacroArg::new(name)?.placeholder())
 }
@@ -297,6 +310,7 @@ pub fn try_macro_var(name: impl Into<String>) -> CommandResult<String> {
 ///     "$say Hello, $(player)!"
 /// );
 /// ```
+#[doc = "**API Contract:** Run `sand api show sand::command::macro_line` for the canonical contract."]
 pub fn macro_line(cmd: impl std::fmt::Display) -> String {
     format!("${cmd}")
 }
@@ -327,6 +341,7 @@ pub fn macro_line(cmd: impl std::fmt::Display) -> String {
 /// function_with("my_pack:init_player", DataTarget::storage(TEMP.id()), "vars")
 /// // → "function my_pack:init_player with storage my_pack:temp vars"
 /// ```
+#[doc = "**API Contract:** Run `sand api show sand::command::function_with` for the canonical contract."]
 pub fn function_with(
     name: impl std::fmt::Display,
     source: DataTarget,
@@ -348,6 +363,7 @@ pub fn function_with(
 /// when `name` is a typed function reference; use this when `name` must stay
 /// a raw string (e.g. cross-datapack calls not modeled as a local
 /// `#[function]`).
+#[doc = "**API Contract:** Run `sand api show sand::command::try_function_with` for the canonical contract."]
 pub fn try_function_with(
     name: impl std::fmt::Display,
     source: DataTarget,
@@ -374,6 +390,7 @@ pub fn try_function_with(
 /// `#[function]` pointers through [`IntoFunctionRef`](crate::function::IntoFunctionRef)
 /// and validates the NBT location and path before rendering. Use
 /// [`function_with`] only when intentionally supplying unchecked strings.
+#[doc = "**API Contract:** Run `sand api show sand::command::try_call_with` for the canonical contract."]
 pub fn try_call_with<T>(
     function: impl crate::function::IntoFunctionRef,
     arguments: &NbtRef<T>,
@@ -404,6 +421,7 @@ pub fn try_call_with<T>(
 /// This is convenient when the function and NBT reference were already
 /// validated by construction. It panics with the validation diagnostic if a
 /// raw `IntoFunctionRef` or `NbtPath` escape hatch is malformed.
+#[doc = "**API Contract:** Run `sand api show sand::command::call_with` for the canonical contract."]
 pub fn call_with<T>(
     function: impl crate::function::IntoFunctionRef,
     arguments: &NbtRef<T>,

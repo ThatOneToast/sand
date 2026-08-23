@@ -97,6 +97,7 @@ pub struct TradeItem {
 
 impl TradeItem {
     /// Create a trade cost accepting one of `id`, with a default count of `1`.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TradeItem::new` for the canonical contract."]
     pub fn new(id: impl Into<ItemId>) -> Self {
         Self {
             id: id.into(),
@@ -106,6 +107,7 @@ impl TradeItem {
     }
 
     /// Set the accepted count (a constant or a dynamic number provider).
+    #[doc = "**API Contract:** Run `sand api show sand::component::TradeItem::count` for the canonical contract."]
     pub fn count(mut self, count: impl Into<NumberProvider>) -> Self {
         self.count = count.into();
         self
@@ -115,6 +117,7 @@ impl TradeItem {
     /// `wants`/`additional_wants` accept. Validated only as "must be a JSON
     /// object" — see [`crate::item`] for the shared typed item/component
     /// model once a fallible `ItemMatcher` → trade-cost conversion lands.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TradeItem::components_raw` for the canonical contract."]
     pub fn components_raw(mut self, components: Value) -> Self {
         self.components_raw = Some(components);
         self
@@ -181,6 +184,7 @@ pub struct VillagerTrade {
 
 impl VillagerTrade {
     /// Create a new trade blueprint at `location`.
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTrade::new` for the canonical contract."]
     pub fn new(location: ResourceLocation) -> Self {
         Self {
             location,
@@ -197,6 +201,7 @@ impl VillagerTrade {
     }
 
     /// Set the required first input cost (`wants`).
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTrade::wants` for the canonical contract."]
     pub fn wants(mut self, item: TradeItem) -> Self {
         self.wants = Some(item);
         self
@@ -205,6 +210,7 @@ impl VillagerTrade {
     /// Set the optional second input cost (`additional_wants`). Vanilla
     /// supports at most one additional cost — calling this again replaces
     /// the previous value rather than accumulating a list.
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTrade::and_wants` for the canonical contract."]
     pub fn and_wants(mut self, item: TradeItem) -> Self {
         self.additional_wants = Some(item);
         self
@@ -213,6 +219,7 @@ impl VillagerTrade {
     /// Set the resulting item stack (`gives`). Reuses the shared
     /// component-bearing [`ItemStack`] model, so custom data, names, lore,
     /// enchantments, and other result components survive.
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTrade::gives` for the canonical contract."]
     pub fn gives(mut self, stack: impl Into<ItemStack>) -> Self {
         self.gives = Some(stack.into());
         self
@@ -225,6 +232,7 @@ impl VillagerTrade {
     /// this field (no `ItemModifierRef`); this method does not validate that
     /// constraint beyond "must be a JSON object" pending the typed loot
     /// item-modifier reference work (#185).
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTrade::modify_given_item_raw` for the canonical contract."]
     pub fn modify_given_item_raw(mut self, modifier: Value) -> Self {
         self.given_item_modifiers.push(modifier);
         self
@@ -232,6 +240,7 @@ impl VillagerTrade {
 
     /// Set the maximum number of times this trade can be used
     /// (constant or dynamic number provider; default constant `4`).
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTrade::max_uses` for the canonical contract."]
     pub fn max_uses(mut self, max_uses: impl Into<NumberProvider>) -> Self {
         self.max_uses = max_uses.into();
         self
@@ -239,6 +248,7 @@ impl VillagerTrade {
 
     /// Set how much reputation/demand/discounts affect the first cost
     /// (constant or dynamic number provider; default constant `0.0`).
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTrade::reputation_discount` for the canonical contract."]
     pub fn reputation_discount(mut self, discount: impl Into<NumberProvider>) -> Self {
         self.reputation_discount = discount.into();
         self
@@ -246,6 +256,7 @@ impl VillagerTrade {
 
     /// Set the merchant XP awarded when this trade completes
     /// (constant or dynamic number provider; default constant `1`).
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTrade::merchant_xp` for the canonical contract."]
     pub fn merchant_xp(mut self, xp: impl Into<NumberProvider>) -> Self {
         self.merchant_xp = xp.into();
         self
@@ -258,6 +269,7 @@ impl VillagerTrade {
     /// the typed predicate model from [`crate::predicate`] once a
     /// predicate-context conversion lands (#204). Validated only as "must be
     /// a JSON object".
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTrade::offered_when_raw` for the canonical contract."]
     pub fn offered_when_raw(mut self, predicate: Value) -> Self {
         self.merchant_predicate_raw = Some(predicate);
         self
@@ -265,17 +277,20 @@ impl VillagerTrade {
 
     /// Set the enchantment selection that doubles the additional trade cost
     /// when present in the generated result's stored enchantments.
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTrade::double_trade_price_enchantments` for the canonical contract."]
     pub fn double_trade_price_enchantments(mut self, selection: EnchantmentSelection) -> Self {
         self.double_trade_price_enchantments = Some(selection);
         self
     }
 
     /// The resource location this trade is (or will be) exported at.
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTrade::location` for the canonical contract."]
     pub fn location(&self) -> &ResourceLocation {
         &self.location
     }
 
     /// The typed ID this trade is exported at.
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTrade::id` for the canonical contract."]
     pub fn id(&self) -> VillagerTradeId {
         VillagerTradeId::custom(self.location.clone())
     }
@@ -480,11 +495,13 @@ pub struct VillagerTradeRef(VillagerTradeId);
 
 impl VillagerTradeRef {
     /// Reference a trade in another pack by its full `namespace:path` ID.
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradeRef::external` for the canonical contract."]
     pub fn external(id: &str) -> SandResult<Self> {
         Ok(Self(id.parse()?))
     }
 
     /// The typed ID this reference points at.
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradeRef::id` for the canonical contract."]
     pub fn id(&self) -> &VillagerTradeId {
         &self.0
     }
@@ -528,6 +545,7 @@ impl TradeSet {
     /// profession/level or the Wandering Trader by itself — use
     /// [`TradeSet::replace_target`] to explicitly replace a known vanilla
     /// pool, or [`VillagerTradePoolPatch`] to additively extend one.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TradeSet::new` for the canonical contract."]
     pub fn new(location: ResourceLocation) -> Self {
         Self {
             location,
@@ -546,6 +564,7 @@ impl TradeSet {
     /// resource location — making replacement of vanilla content visible in
     /// the call site rather than an implicit side effect of any ordinary
     /// `TradeSet::new` namespace choice.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TradeSet::replace_target` for the canonical contract."]
     pub fn replace_target(pool: VillagerTradePool) -> Self {
         Self::new(pool.resource_location())
     }
@@ -554,6 +573,7 @@ impl TradeSet {
     /// `build`. Sand hoists this into a generated `villager_trade` resource
     /// at `<namespace>:<trade_set path>/<key>` — see the module docs for the
     /// full deterministic scheme.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TradeSet::entry` for the canonical contract."]
     pub fn entry(
         mut self,
         key: impl Into<String>,
@@ -576,6 +596,7 @@ impl TradeSet {
     /// a standalone `#[datapack_component] fn ... -> VillagerTrade`) — pass the
     /// value returned by calling that function directly, e.g.
     /// `.include(enchanted_pickaxe_trade())`.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TradeSet::include` for the canonical contract."]
     pub fn include(mut self, trade: VillagerTrade) -> Self {
         self.items.push(TradeSetItem::Reference(trade.id()));
         self
@@ -583,6 +604,7 @@ impl TradeSet {
 
     /// Reference a trade by typed ID (e.g. an external-pack reference via
     /// [`VillagerTradeRef::external`]).
+    #[doc = "**API Contract:** Run `sand api show sand::component::TradeSet::include_ref` for the canonical contract."]
     pub fn include_ref(mut self, reference: VillagerTradeRef) -> Self {
         self.items.push(TradeSetItem::Reference(reference.0));
         self
@@ -591,6 +613,7 @@ impl TradeSet {
     /// Select the trade source from a Villager Trade tag instead of inline
     /// entries/explicit references. Mutually exclusive with
     /// [`TradeSet::entry`]/[`TradeSet::include`]/[`TradeSet::include_ref`].
+    #[doc = "**API Contract:** Run `sand api show sand::component::TradeSet::source_tag` for the canonical contract."]
     pub fn source_tag(mut self, tag: TagId<VillagerTradeId>) -> Self {
         self.tag_source = Some(tag);
         self
@@ -598,6 +621,7 @@ impl TradeSet {
 
     /// Set how many offers are selected from the source (constant or
     /// dynamic number provider). Required by vanilla; validated as present.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TradeSet::amount` for the canonical contract."]
     pub fn amount(mut self, amount: impl Into<NumberProvider>) -> Self {
         self.amount = Some(amount.into());
         self
@@ -605,12 +629,14 @@ impl TradeSet {
 
     /// Allow the same trade blueprint to be selected more than once
     /// (default `false`).
+    #[doc = "**API Contract:** Run `sand api show sand::component::TradeSet::allow_duplicates` for the canonical contract."]
     pub fn allow_duplicates(mut self, allow: bool) -> Self {
         self.allow_duplicates = allow;
         self
     }
 
     /// Set the named random sequence controlling trade selection.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TradeSet::random_sequence` for the canonical contract."]
     pub fn random_sequence(mut self, sequence: RandomSequenceId) -> Self {
         self.random_sequence = Some(sequence);
         self
@@ -778,6 +804,7 @@ pub enum VillagerProfession {
 
 impl VillagerProfession {
     /// The vanilla path segment for this profession (e.g. `"armorer"`).
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerProfession::path` for the canonical contract."]
     pub fn path(self) -> &'static str {
         match self {
             Self::Armorer => "armorer",
@@ -809,6 +836,7 @@ pub enum VillagerLevel {
 
 impl VillagerLevel {
     /// The vanilla `1..=5` level number.
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerLevel::level_number` for the canonical contract."]
     pub fn level_number(self) -> u8 {
         match self {
             Self::Novice => 1,
@@ -820,6 +848,7 @@ impl VillagerLevel {
     }
 
     /// The vanilla path segment for this level (e.g. `"level_1"`).
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerLevel::path` for the canonical contract."]
     pub fn path(self) -> String {
         format!("level_{}", self.level_number())
     }
@@ -835,6 +864,7 @@ pub enum WanderingTraderPool {
 
 impl WanderingTraderPool {
     /// The vanilla path for this pool (e.g. `"wandering_trader/buying"`).
+    #[doc = "**API Contract:** Run `sand api show sand::component::WanderingTraderPool::path` for the canonical contract."]
     pub fn path(self) -> &'static str {
         match self {
             Self::Buying => "wandering_trader/buying",
@@ -864,21 +894,25 @@ pub enum VillagerTradePool {
 
 impl VillagerTradePool {
     /// A profession/level pool, e.g. `armorer/level_1`.
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradePool::profession` for the canonical contract."]
     pub fn profession(profession: VillagerProfession, level: VillagerLevel) -> Self {
         Self::Profession { profession, level }
     }
 
     /// The Common Smith pool shared by Armorer/Toolsmith/Weaponsmith at a level.
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradePool::common_smith` for the canonical contract."]
     pub fn common_smith(level: VillagerLevel) -> Self {
         Self::CommonSmith { level }
     }
 
     /// A Wandering Trader pool.
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradePool::wandering_trader` for the canonical contract."]
     pub fn wandering_trader(pool: WanderingTraderPool) -> Self {
         Self::WanderingTrader(pool)
     }
 
     /// A custom Villager Trade tag target.
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradePool::custom` for the canonical contract."]
     pub fn custom(tag: TagId<VillagerTradeId>) -> Self {
         Self::Custom(tag)
     }
@@ -896,6 +930,7 @@ impl VillagerTradePool {
 
     /// The Villager Trade tag ID for this pool (`data/minecraft/tags/villager_trade/...`
     /// for known targets; the tag's own namespace for [`VillagerTradePool::Custom`]).
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradePool::tag_id` for the canonical contract."]
     pub fn tag_id(&self) -> TagId<VillagerTradeId> {
         match self {
             Self::Custom(tag) => tag.clone(),
@@ -906,6 +941,7 @@ impl VillagerTradePool {
 
     /// The `trade_set` resource location a full replacement of this pool
     /// targets (`data/minecraft/trade_set/...` for known targets).
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradePool::resource_location` for the canonical contract."]
     pub fn resource_location(&self) -> ResourceLocation {
         match self {
             Self::Custom(tag) => tag.as_resource_location().clone(),
@@ -952,6 +988,7 @@ pub struct VillagerTradePoolPatch {
 
 impl VillagerTradePoolPatch {
     /// Target a profession/level pool.
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradePoolPatch::profession` for the canonical contract."]
     pub fn profession(
         namespace: PackNamespace,
         profession: VillagerProfession,
@@ -961,16 +998,19 @@ impl VillagerTradePoolPatch {
     }
 
     /// Target the Common Smith pool at a level.
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradePoolPatch::common_smith` for the canonical contract."]
     pub fn common_smith(namespace: PackNamespace, level: VillagerLevel) -> Self {
         Self::for_pool(namespace, VillagerTradePool::common_smith(level))
     }
 
     /// Target a Wandering Trader pool.
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradePoolPatch::wandering_trader` for the canonical contract."]
     pub fn wandering_trader(namespace: PackNamespace, pool: WanderingTraderPool) -> Self {
         Self::for_pool(namespace, VillagerTradePool::wandering_trader(pool))
     }
 
     /// Target a custom Villager Trade tag.
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradePoolPatch::custom` for the canonical contract."]
     pub fn custom(namespace: PackNamespace, tag: TagId<VillagerTradeId>) -> Self {
         Self::for_pool(namespace, VillagerTradePool::custom(tag))
     }
@@ -988,6 +1028,7 @@ impl VillagerTradePoolPatch {
     /// Append an inline trade entry under key `key`, hoisted into a generated
     /// `villager_trade` resource under this patch's namespace and target
     /// pool path.
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradePoolPatch::append` for the canonical contract."]
     pub fn append(
         mut self,
         key: impl Into<String>,
@@ -1006,6 +1047,7 @@ impl VillagerTradePoolPatch {
     /// Reference an already-built standalone [`VillagerTrade`] value,
     /// without re-exporting it — see [`TradeSet::include`] for the same
     /// pattern.
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradePoolPatch::include` for the canonical contract."]
     pub fn include(mut self, trade: VillagerTrade) -> Self {
         self.items.push(TradeSetItem::Reference(trade.id()));
         self

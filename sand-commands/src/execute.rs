@@ -105,6 +105,7 @@ enum ExecuteCheck {
 
 impl Execute {
     /// Create a new `Execute` builder with no sub-commands.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::new` for the canonical contract."]
     pub fn new() -> Self {
         Self {
             operations: vec![],
@@ -177,6 +178,7 @@ impl Execute {
     // ── Context sub-commands ──────────────────────────────────────────────────
 
     /// `as <selector>` — change the executing entity.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::as_` for the canonical contract."]
     pub fn as_(mut self, selector: Selector) -> Self {
         self.check_selector("as", &selector);
         self.operations.push(ExecuteOp::As(selector));
@@ -184,6 +186,7 @@ impl Execute {
     }
 
     /// `at <selector>` — change position and rotation to match the selected entity.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::at` for the canonical contract."]
     pub fn at(mut self, selector: Selector) -> Self {
         self.check_selector("at", &selector);
         self.operations.push(ExecuteOp::At(selector));
@@ -191,6 +194,7 @@ impl Execute {
     }
 
     /// `positioned <pos>` — change execution position to the given coordinates.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::positioned` for the canonical contract."]
     pub fn positioned(mut self, pos: Vec3) -> Self {
         self.check_vec3("positioned", &pos);
         self.operations.push(ExecuteOp::Positioned(pos));
@@ -198,6 +202,7 @@ impl Execute {
     }
 
     /// `positioned as <selector>` — change position to match the selected entity.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::positioned_as` for the canonical contract."]
     pub fn positioned_as(mut self, selector: Selector) -> Self {
         self.check_selector("positioned_as", &selector);
         self.operations.push(ExecuteOp::PositionedAs(selector));
@@ -205,6 +210,7 @@ impl Execute {
     }
 
     /// `rotated <rotation>` — change execution rotation.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::rotated` for the canonical contract."]
     pub fn rotated(mut self, rotation: Rotation) -> Self {
         self.checks.push(ExecuteCheck::Rotation {
             index: self.next_index(),
@@ -216,6 +222,7 @@ impl Execute {
     }
 
     /// `rotated as <selector>` — change rotation to match the selected entity.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::rotated_as` for the canonical contract."]
     pub fn rotated_as(mut self, selector: Selector) -> Self {
         self.check_selector("rotated_as", &selector);
         self.operations.push(ExecuteOp::RotatedAs(selector));
@@ -223,6 +230,7 @@ impl Execute {
     }
 
     /// `facing <pos>` — rotate execution to face a position in the world.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::facing` for the canonical contract."]
     pub fn facing(mut self, pos: Vec3) -> Self {
         self.check_vec3("facing", &pos);
         self.operations.push(ExecuteOp::Facing(pos));
@@ -230,6 +238,7 @@ impl Execute {
     }
 
     /// `facing entity <selector> <anchor>` — rotate execution to face an entity's anchor point.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::facing_entity` for the canonical contract."]
     pub fn facing_entity(mut self, selector: Selector, anchor: Anchor) -> Self {
         self.check_selector("facing_entity", &selector);
         self.operations.push(ExecuteOp::FacingEntity {
@@ -240,6 +249,7 @@ impl Execute {
     }
 
     /// `in <dimension>` — change dimension for subsequent commands.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::in_` for the canonical contract."]
     pub fn in_(mut self, dimension: impl Into<String>) -> Self {
         let dimension = dimension.into();
         self.check_resource("in", "dimension", &dimension, false);
@@ -248,12 +258,14 @@ impl Execute {
     }
 
     /// `align <axes>` — snap coordinates to the block grid along specified axes.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::align` for the canonical contract."]
     pub fn align(mut self, axes: Swizzle) -> Self {
         self.operations.push(ExecuteOp::Align(axes));
         self
     }
 
     /// `positioned over <heightmap>` — snap y-coordinate to the top of the given heightmap (1.19.4+).
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::positioned_over` for the canonical contract."]
     pub fn positioned_over(mut self, heightmap: impl Into<String>) -> Self {
         self.operations
             .push(ExecuteOp::PositionedOver(heightmap.into()));
@@ -261,18 +273,21 @@ impl Execute {
     }
 
     /// `anchored <anchor>` — change the anchor point for position calculations.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::anchored` for the canonical contract."]
     pub fn anchored(mut self, anchor: Anchor) -> Self {
         self.operations.push(ExecuteOp::Anchored(anchor));
         self
     }
 
     /// `on <relation>` — follow an entity relationship chain.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::on` for the canonical contract."]
     pub fn on(mut self, relation: impl Into<String>) -> Self {
         self.operations.push(ExecuteOp::On(relation.into()));
         self
     }
 
     /// `summon <entity_type>` — summon an entity and execute as it immediately.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::summon` for the canonical contract."]
     pub fn summon(mut self, entity_type: impl crate::selector::IntoEntityType) -> Self {
         let entity_type = entity_type.into_entity_type();
         self.check_resource("summon", "entity_type", &entity_type, false);
@@ -283,6 +298,7 @@ impl Execute {
     // ── Condition sub-commands ────────────────────────────────────────────────
 
     /// `if entity <selector>` — execute only if the selector matches at least one entity.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::if_entity` for the canonical contract."]
     pub fn if_entity(mut self, selector: Selector) -> Self {
         self.check_selector("if_entity", &selector);
         self.operations
@@ -291,6 +307,7 @@ impl Execute {
     }
 
     /// `unless entity <selector>` — execute only if the selector matches NO entities.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::unless_entity` for the canonical contract."]
     pub fn unless_entity(mut self, selector: Selector) -> Self {
         self.check_selector("unless_entity", &selector);
         self.operations
@@ -299,6 +316,7 @@ impl Execute {
     }
 
     /// `if entity @s[team=<team>]` — continue only if the current entity is on the given team.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::if_on_team` for the canonical contract."]
     pub fn if_on_team(mut self, team: impl Into<String>) -> Self {
         self.operations
             .push(ExecuteOp::If(ConditionIr::Team(team.into())));
@@ -306,6 +324,7 @@ impl Execute {
     }
 
     /// `unless entity @s[team=<team>]` — skip if the current entity is on the given team.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::unless_on_team` for the canonical contract."]
     pub fn unless_on_team(mut self, team: impl Into<String>) -> Self {
         self.operations
             .push(ExecuteOp::Unless(ConditionIr::Team(team.into())));
@@ -313,6 +332,7 @@ impl Execute {
     }
 
     /// `if score <a> <a_obj> = <b> <b_obj>` — continue only if the two scores are equal.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::if_score` for the canonical contract."]
     pub fn if_score(
         mut self,
         a: Selector,
@@ -348,6 +368,7 @@ impl Execute {
     }
 
     /// `unless score <a> <a_obj> = <b> <b_obj>` — skip if two scores are equal.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::unless_score` for the canonical contract."]
     pub fn unless_score(
         mut self,
         primary_selector: Selector,
@@ -383,6 +404,7 @@ impl Execute {
     }
 
     /// `if block <pos> <block>` — execute only if the block at `pos` matches.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::if_block` for the canonical contract."]
     pub fn if_block(mut self, pos: BlockPos, block: impl Into<String>) -> Self {
         self.check_block_pos("if_block", &pos);
         self.operations.push(ExecuteOp::If(ConditionIr::Block {
@@ -393,6 +415,7 @@ impl Execute {
     }
 
     /// `unless block <pos> <block>` — execute only if the block at `pos` does NOT match.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::unless_block` for the canonical contract."]
     pub fn unless_block(mut self, pos: BlockPos, block: impl Into<String>) -> Self {
         self.check_block_pos("unless_block", &pos);
         self.operations.push(ExecuteOp::Unless(ConditionIr::Block {
@@ -405,6 +428,7 @@ impl Execute {
     /// `if score <holder> <obj> matches <range>` — execute if a score falls within the range.
     ///
     /// Range can be `"5"` (exact), `"5.."` (5 or more), `"..5"` (5 or less), or `"1..10"`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::if_score_matches` for the canonical contract."]
     pub fn if_score_matches(
         mut self,
         holder: impl Into<String>,
@@ -430,6 +454,7 @@ impl Execute {
     }
 
     /// `unless score <holder> <obj> matches <range>` — execute if a score falls OUTSIDE the range.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::unless_score_matches` for the canonical contract."]
     pub fn unless_score_matches(
         mut self,
         holder: impl Into<String>,
@@ -455,6 +480,7 @@ impl Execute {
     }
 
     /// `if score <a> <a_obj> <cmp> <b> <b_obj>` — compare two scores.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::if_score_compare` for the canonical contract."]
     pub fn if_score_compare(
         mut self,
         a: impl Into<String>,
@@ -481,6 +507,7 @@ impl Execute {
     }
 
     /// `unless score <a> <a_obj> <cmp> <b> <b_obj>` — skip if the comparison is true.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::unless_score_compare` for the canonical contract."]
     pub fn unless_score_compare(
         mut self,
         a: impl Into<String>,
@@ -509,6 +536,7 @@ impl Execute {
     // ── Score comparison shorthands ───────────────────────────────────────────
 
     /// `if score <a> <a_obj> = <b> <b_obj>` — continue if scores are equal.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::if_score_eq` for the canonical contract."]
     pub fn if_score_eq(
         self,
         a: impl Into<String>,
@@ -520,6 +548,7 @@ impl Execute {
     }
 
     /// `unless score <a> <a_obj> = <b> <b_obj>` — skip if scores are equal.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::unless_score_eq` for the canonical contract."]
     pub fn unless_score_eq(
         self,
         a: impl Into<String>,
@@ -531,6 +560,7 @@ impl Execute {
     }
 
     /// `if score ... < ...` — continue if `a` is strictly less than `b`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::if_score_lt` for the canonical contract."]
     pub fn if_score_lt(
         self,
         a: impl Into<String>,
@@ -542,6 +572,7 @@ impl Execute {
     }
 
     /// `unless score ... < ...` — skip if `a` is strictly less than `b`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::unless_score_lt` for the canonical contract."]
     pub fn unless_score_lt(
         self,
         a: impl Into<String>,
@@ -553,6 +584,7 @@ impl Execute {
     }
 
     /// `if score ... <= ...` — continue if `a` is less than or equal to `b`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::if_score_lte` for the canonical contract."]
     pub fn if_score_lte(
         self,
         a: impl Into<String>,
@@ -564,6 +596,7 @@ impl Execute {
     }
 
     /// `unless score ... <= ...` — skip if `a` is less than or equal to `b`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::unless_score_lte` for the canonical contract."]
     pub fn unless_score_lte(
         self,
         a: impl Into<String>,
@@ -575,6 +608,7 @@ impl Execute {
     }
 
     /// `if score ... > ...` — continue if `a` is strictly greater than `b`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::if_score_gt` for the canonical contract."]
     pub fn if_score_gt(
         self,
         a: impl Into<String>,
@@ -586,6 +620,7 @@ impl Execute {
     }
 
     /// `unless score ... > ...` — skip if `a` is strictly greater than `b`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::unless_score_gt` for the canonical contract."]
     pub fn unless_score_gt(
         self,
         a: impl Into<String>,
@@ -597,6 +632,7 @@ impl Execute {
     }
 
     /// `if score ... >= ...` — continue if `a` is greater than or equal to `b`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::if_score_gte` for the canonical contract."]
     pub fn if_score_gte(
         self,
         a: impl Into<String>,
@@ -608,6 +644,7 @@ impl Execute {
     }
 
     /// `unless score ... >= ...` — skip if `a` is greater than or equal to `b`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::unless_score_gte` for the canonical contract."]
     pub fn unless_score_gte(
         self,
         a: impl Into<String>,
@@ -621,6 +658,7 @@ impl Execute {
     // ── Data / NBT conditions ─────────────────────────────────────────────────
 
     /// `if data entity <selector> <path>` — continue if entity NBT has a value at `path`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::if_data_entity` for the canonical contract."]
     pub fn if_data_entity(mut self, selector: Selector, path: impl Into<String>) -> Self {
         self.check_selector("if_data_entity", &selector);
         self.operations.push(ExecuteOp::If(ConditionIr::Data {
@@ -631,6 +669,7 @@ impl Execute {
     }
 
     /// `unless data entity <selector> <path>` — skip if entity NBT has a value at `path`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::unless_data_entity` for the canonical contract."]
     pub fn unless_data_entity(mut self, selector: Selector, path: impl Into<String>) -> Self {
         self.check_selector("unless_data_entity", &selector);
         self.operations.push(ExecuteOp::Unless(ConditionIr::Data {
@@ -641,6 +680,7 @@ impl Execute {
     }
 
     /// `if data block <pos> <path>` — continue if block NBT has a value at `path`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::if_data_block` for the canonical contract."]
     pub fn if_data_block(mut self, pos: BlockPos, path: impl Into<String>) -> Self {
         self.check_block_pos("if_data_block", &pos);
         self.operations.push(ExecuteOp::If(ConditionIr::Data {
@@ -651,6 +691,7 @@ impl Execute {
     }
 
     /// `unless data block <pos> <path>` — skip if block NBT has a value at `path`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::unless_data_block` for the canonical contract."]
     pub fn unless_data_block(mut self, pos: BlockPos, path: impl Into<String>) -> Self {
         self.check_block_pos("unless_data_block", &pos);
         self.operations.push(ExecuteOp::Unless(ConditionIr::Data {
@@ -661,6 +702,7 @@ impl Execute {
     }
 
     /// `if data storage <source> <path>` — continue if storage has a value at `path`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::if_data_storage` for the canonical contract."]
     pub fn if_data_storage(mut self, source: impl Into<String>, path: impl Into<String>) -> Self {
         let source = source.into();
         self.check_resource("if_data_storage", "storage", &source, false);
@@ -672,6 +714,7 @@ impl Execute {
     }
 
     /// `unless data storage <source> <path>` — skip if storage has a value at `path`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::unless_data_storage` for the canonical contract."]
     pub fn unless_data_storage(
         mut self,
         source: impl Into<String>,
@@ -689,6 +732,7 @@ impl Execute {
     // ── World conditions ──────────────────────────────────────────────────────
 
     /// `if biome <pos> <biome>` — continue if the biome at `pos` matches (1.19.4+).
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::if_biome` for the canonical contract."]
     pub fn if_biome(mut self, pos: BlockPos, biome: impl Into<String>) -> Self {
         let biome = biome.into();
         self.check_block_pos("if_biome", &pos);
@@ -701,6 +745,7 @@ impl Execute {
     }
 
     /// `unless biome <pos> <biome>` — skip if the biome at `pos` matches.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::unless_biome` for the canonical contract."]
     pub fn unless_biome(mut self, pos: BlockPos, biome: impl Into<String>) -> Self {
         let biome = biome.into();
         self.check_block_pos("unless_biome", &pos);
@@ -713,6 +758,7 @@ impl Execute {
     }
 
     /// `if dimension <dimension>` — continue if executing in the given dimension (1.21+).
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::if_dimension` for the canonical contract."]
     pub fn if_dimension(mut self, dimension: impl Into<String>) -> Self {
         let dimension = dimension.into();
         self.check_resource("if_dimension", "dimension", &dimension, false);
@@ -722,6 +768,7 @@ impl Execute {
     }
 
     /// `unless dimension <dimension>` — skip if executing in the given dimension (1.21+).
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::unless_dimension` for the canonical contract."]
     pub fn unless_dimension(mut self, dimension: impl Into<String>) -> Self {
         let dimension = dimension.into();
         self.check_resource("unless_dimension", "dimension", &dimension, false);
@@ -731,6 +778,7 @@ impl Execute {
     }
 
     /// `if loaded <pos>` — continue only if the chunk at `pos` is fully loaded.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::if_loaded` for the canonical contract."]
     pub fn if_loaded(mut self, pos: BlockPos) -> Self {
         self.check_block_pos("if_loaded", &pos);
         self.operations
@@ -739,6 +787,7 @@ impl Execute {
     }
 
     /// `unless loaded <pos>` — skip if the chunk at `pos` is NOT fully loaded.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::unless_loaded` for the canonical contract."]
     pub fn unless_loaded(mut self, pos: BlockPos) -> Self {
         self.check_block_pos("unless_loaded", &pos);
         self.operations
@@ -747,6 +796,7 @@ impl Execute {
     }
 
     /// `if items entity <selector> <slot> <item>` — execute if an entity has a matching item.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::if_items_entity` for the canonical contract."]
     pub fn if_items_entity(
         mut self,
         selector: Selector,
@@ -769,6 +819,7 @@ impl Execute {
     }
 
     /// `unless items entity <selector> <slot> <item>` — skip if the entity has the item.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::unless_items_entity` for the canonical contract."]
     pub fn unless_items_entity(
         mut self,
         selector: Selector,
@@ -791,6 +842,7 @@ impl Execute {
     }
 
     /// `if items block <pos> <slot> <item>` — execute if a block container has a matching item.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::if_items_block` for the canonical contract."]
     pub fn if_items_block(
         mut self,
         pos: BlockPos,
@@ -812,6 +864,7 @@ impl Execute {
     }
 
     /// `unless items block <pos> <slot> <item>` — skip if the block container has the item.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::unless_items_block` for the canonical contract."]
     pub fn unless_items_block(
         mut self,
         pos: BlockPos,
@@ -834,6 +887,7 @@ impl Execute {
     }
 
     /// `if predicate <predicate>` — execute if a loot table predicate evaluates to true.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::if_predicate` for the canonical contract."]
     pub fn if_predicate(mut self, predicate: impl Into<String>) -> Self {
         let predicate = predicate.into();
         self.check_resource("if_predicate", "predicate", &predicate, false);
@@ -847,6 +901,7 @@ impl Execute {
     /// This compatibility method creates [`ExecuteOp::Raw`]. Sand preserves
     /// the fragment verbatim and cannot structurally validate or version-check
     /// it. Prefer typed condition methods for new code.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::if_` for the canonical contract."]
     pub fn if_(mut self, condition: impl Into<String>) -> Self {
         self.operations.push(ExecuteOp::Raw(condition.into()));
         self
@@ -855,6 +910,7 @@ impl Execute {
     /// Append an explicitly opaque execute subcommand.
     ///
     /// Raw operations are not parsed, optimized, rewritten, or version-checked.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::raw_operation` for the canonical contract."]
     pub fn raw_operation(mut self, fragment: impl Into<String>) -> Self {
         self.operations.push(ExecuteOp::Raw(fragment.into()));
         self
@@ -866,6 +922,7 @@ impl Execute {
     ///
     /// Accepts any type that converts to [`ItemSlot`], including wildcard
     /// variants such as `ItemSlot::AnyHotbar`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::if_items` for the canonical contract."]
     pub fn if_items(
         mut self,
         selector: Selector,
@@ -889,6 +946,7 @@ impl Execute {
     }
 
     /// `unless items entity <selector> <slot> <item>` — execute if the slot does NOT match.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::unless_items` for the canonical contract."]
     pub fn unless_items(
         mut self,
         selector: Selector,
@@ -914,6 +972,7 @@ impl Execute {
     // ── Store sub-commands ────────────────────────────────────────────────────
 
     /// `store result score <holder> <objective>` — capture the `run` result into a score.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::store_result_score` for the canonical contract."]
     pub fn store_result_score(mut self, holder: ScoreHolder, objective: impl Into<String>) -> Self {
         let objective = objective.into();
         self.checks.push(ExecuteCheck::Holder {
@@ -935,6 +994,7 @@ impl Execute {
     }
 
     /// `store success score <holder> <objective>` — store 1 if `run` succeeds, 0 if it fails.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::store_success_score` for the canonical contract."]
     pub fn store_success_score(
         mut self,
         holder: ScoreHolder,
@@ -960,6 +1020,7 @@ impl Execute {
     }
 
     /// `store result nbt <target> <path> <type> <scale>` — write the `run` result into NBT.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::store_result_nbt` for the canonical contract."]
     pub fn store_result_nbt(
         mut self,
         target: DataTarget,
@@ -984,6 +1045,7 @@ impl Execute {
     }
 
     /// `store success nbt <target> <path> <type> <scale>` — write 1/0 (success/fail) into NBT.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::store_success_nbt` for the canonical contract."]
     pub fn store_success_nbt(
         mut self,
         target: DataTarget,
@@ -1008,6 +1070,7 @@ impl Execute {
     }
 
     /// `store result bossbar <id> value` — write the `run` result into a bossbar's current value.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::store_result_bossbar` for the canonical contract."]
     pub fn store_result_bossbar(
         mut self,
         id: impl Into<String>,
@@ -1022,6 +1085,7 @@ impl Execute {
     }
 
     /// `store success bossbar <id> <attribute>` — write success/failure into a bossbar attribute.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::store_success_bossbar` for the canonical contract."]
     pub fn store_success_bossbar(
         mut self,
         id: impl Into<String>,
@@ -1042,12 +1106,14 @@ impl Execute {
     /// This retains the historical infallible string API. Prefer [`try_run`](Self::try_run)
     /// for typed terminal commands; exported compatibility output is validated
     /// again with function context before files are accepted.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::run` for the canonical contract."]
     pub fn run(self, cmd: impl fmt::Display) -> String {
         self.finish(cmd)
     }
 
     /// Validate the whole execute chain and a typed terminal command before
     /// rendering. Errors identify the failing execute subcommand.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::try_run` for the canonical contract."]
     pub fn try_run(self, cmd: &impl RenderCommand) -> CommandResult<String> {
         let profile = CommandProfile::unprofiled();
         self.validate(&profile)?;
@@ -1060,6 +1126,7 @@ impl Execute {
     }
 
     /// Like [`run`](Execute::run) but more explicit about accepting raw strings.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::run_raw` for the canonical contract."]
     pub fn run_raw(self, cmd: impl fmt::Display) -> String {
         self.finish(cmd)
     }
@@ -1067,6 +1134,7 @@ impl Execute {
     /// Validate the typed execute chain, then append an explicitly raw terminal
     /// command. The raw text bypasses typed grammar modeling but must remain one
     /// `.mcfunction`-safe line without a leading slash.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::try_run_raw` for the canonical contract."]
     pub fn try_run_raw(self, cmd: RawCommand) -> CommandResult<String> {
         let profile = CommandProfile::unprofiled();
         self.validate(&profile)?;
@@ -1084,6 +1152,7 @@ impl Execute {
     }
 
     /// Run a named function: `execute ... run function <namespace:path>`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::run_fn` for the canonical contract."]
     pub fn run_fn(self, function: impl fmt::Display) -> String {
         self.finish(format!("function {function}"))
     }
@@ -1095,6 +1164,7 @@ impl Execute {
     }
 
     /// Borrow the ordered operation IR.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Execute::operations` for the canonical contract."]
     pub fn operations(&self) -> &[ExecuteOp] {
         &self.operations
     }

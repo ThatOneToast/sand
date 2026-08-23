@@ -245,23 +245,27 @@ impl EventParticipantPlan {
     /// An empty plan — the default every `SandEvent` gets unless it
     /// overrides [`crate::events::SandEvent::participants`]. See
     /// [`Self::none`] for the exact same value under an explicit name.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::EventParticipantPlan::new` for the canonical contract."]
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Equivalent to [`new`](Self::new) — an explicit name for the "no
     /// participants declared" plan, matching [`EventSetup::none`]'s naming.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::EventParticipantPlan::none` for the canonical contract."]
     pub fn none() -> Self {
         Self::default()
     }
 
     /// Reports whether the plan declares no entity or item participants.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::EventParticipantPlan::is_empty` for the canonical contract."]
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty() && self.item_entries.is_empty()
     }
 
     /// Declare a correlated attacker observation for
     /// [`EntityParticipantRole::Attacker`].
+    #[doc = "**API Contract:** Run `sand api show sand::participant::EventParticipantPlan::observe_correlated_attacker` for the canonical contract."]
     pub fn observe_correlated_attacker(self) -> Self {
         self.observe_correlated_attacker_as(EntityParticipantRole::Attacker)
     }
@@ -270,6 +274,7 @@ impl EventParticipantPlan {
     /// [`EntityParticipantRole::Killer`] instead — the identical mechanism,
     /// used for events whose semantics call the observed entity a killer
     /// rather than an attacker (e.g. a player-death event).
+    #[doc = "**API Contract:** Run `sand api show sand::participant::EventParticipantPlan::observe_correlated_killer` for the canonical contract."]
     pub fn observe_correlated_killer(self) -> Self {
         self.observe_correlated_attacker_as(EntityParticipantRole::Killer)
     }
@@ -326,6 +331,7 @@ impl EventParticipantPlan {
     ///     }
     /// }
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::participant::EventParticipantPlan::inherit_entity` for the canonical contract."]
     pub fn inherit_entity<Source: crate::events::SandEvent + 'static>(
         mut self,
         role: EntityParticipantRole,
@@ -343,6 +349,7 @@ impl EventParticipantPlan {
     /// [`ParticipantHand::MainHand`] — the conventional assumption for
     /// melee combat (whatever the attacker is holding at the moment of the
     /// hit). Shorthand for `observe_held_item(ItemParticipantRole::Weapon, ParticipantHand::MainHand)`.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::EventParticipantPlan::observe_weapon` for the canonical contract."]
     pub fn observe_weapon(self) -> Self {
         self.observe_held_item(ItemParticipantRole::Weapon, ParticipantHand::MainHand)
     }
@@ -356,6 +363,7 @@ impl EventParticipantPlan {
     /// is the caller's own event-semantic judgment — this plan does not
     /// infer intent from vanilla behavior, it only captures the exact item
     /// present in the named hand.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::EventParticipantPlan::observe_held_item` for the canonical contract."]
     pub fn observe_held_item(mut self, role: ItemParticipantRole, hand: ParticipantHand) -> Self {
         self.item_entries.push(ItemPlanEntry {
             role,
@@ -374,6 +382,7 @@ impl EventParticipantPlan {
     /// error — see the module doc's determinism note). Same export-time
     /// ancestor-chain and direct-capture validation as
     /// [`Self::inherit_entity`].
+    #[doc = "**API Contract:** Run `sand api show sand::participant::EventParticipantPlan::inherit_item` for the canonical contract."]
     pub fn inherit_item<Source: crate::events::SandEvent + 'static>(
         mut self,
         role: ItemParticipantRole,
@@ -450,6 +459,7 @@ impl EventParticipantPlan {
     ///     }
     /// }
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::participant::EventParticipantPlan::inherit_item_within` for the canonical contract."]
     pub fn inherit_item_within<Source: crate::events::SandEvent + 'static>(
         mut self,
         role: ItemParticipantRole,
@@ -469,6 +479,7 @@ impl EventParticipantPlan {
 
     /// Reject a plan that declares the same entity or item role more than
     /// once.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::EventParticipantPlan::validate` for the canonical contract."]
     pub fn validate(&self) -> Result<(), DuplicateParticipantRole> {
         let mut seen = BTreeSet::new();
         for entry in &self.entries {
@@ -919,6 +930,7 @@ impl EventSetup {
     /// applies the plan automatically; see [`crate::event::AdvancementEvent::participants`].
     ///
     /// A no-op (returns `self` unchanged, `Ok`) when `plan.is_empty()`.
+    #[doc = "**API Contract:** Run `sand api show sand::events::EventSetup::with_participants` for the canonical contract."]
     pub fn with_participants<E: SandEvent + 'static>(
         mut self,
         plan: EventParticipantPlan,

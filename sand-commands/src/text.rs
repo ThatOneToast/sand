@@ -125,6 +125,7 @@ pub enum HoverEvent {
 /// escape hatch is required.
 pub trait IntoTextEntityType {
     /// Convert the validated entity registry identifier to its resource location.
+    #[doc = "**API Contract:** Run `sand api show sand::text::IntoTextEntityType::into_text_entity_type` for the canonical contract."]
     fn into_text_entity_type(self) -> String;
 }
 
@@ -148,6 +149,7 @@ impl EntityHoverId {
     ///
     /// Returns a [`CommandError`] naming the `id` field when the input has the
     /// wrong length, hyphen placement, or contains non-hexadecimal digits.
+    #[doc = "**API Contract:** Run `sand api show sand::text::EntityHoverId::parse` for the canonical contract."]
     pub fn parse(value: impl Into<String>) -> CommandResult<Self> {
         let value = value.into();
         let valid = value.len() == 36
@@ -263,6 +265,7 @@ pub struct Text;
 
 impl Text {
     /// Create a plain-text component from `s`.
+    #[doc = "**API Contract:** Run `sand api show sand::text::Text::new` for the canonical contract."]
     #[allow(clippy::new_ret_no_self)]
     pub fn new(s: impl Into<String>) -> TextComponent {
         TextComponent::literal(s)
@@ -271,6 +274,7 @@ impl Text {
     /// Embed a pre-serialized JSON string directly (escape hatch).
     ///
     /// No formatting is applied — the string is returned as-is.
+    #[doc = "**API Contract:** Run `sand api show sand::text::Text::raw_json` for the canonical contract."]
     pub fn raw_json(json: impl Into<String>) -> String {
         json.into()
     }
@@ -280,11 +284,13 @@ impl TextComponent {
     // ── Constructors ──────────────────────────────────────────────────────────
 
     /// `{"text": "..."}` — render a plain string literal.
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::literal` for the canonical contract."]
     pub fn literal(text: impl Into<String>) -> Self {
         Self::new(TextContent::Literal(text.into()))
     }
 
     /// `{"score": {"name": "...", "objective": "..."}}` — render a scoreboard value inline.
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::score` for the canonical contract."]
     pub fn score(name: impl Into<String>, objective: impl Into<String>) -> Self {
         Self::new(TextContent::Score {
             name: name.into(),
@@ -293,6 +299,7 @@ impl TextComponent {
     }
 
     /// `{"selector": "..."}` — render the display name(s) of matched entities.
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::selector` for the canonical contract."]
     pub fn selector(selector: impl Into<String>) -> Self {
         Self::new(TextContent::Selector {
             value: selector.into(),
@@ -301,6 +308,7 @@ impl TextComponent {
     }
 
     /// Create selector text from Sand's canonical typed selector.
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::selector_typed` for the canonical contract."]
     pub fn selector_typed(selector: Selector) -> Self {
         Self::selector(selector.to_string())
     }
@@ -308,6 +316,7 @@ impl TextComponent {
     /// Create intentionally opaque selector text.
     ///
     /// The value is rendered unchanged and selector compatibility is user-owned.
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::selector_raw` for the canonical contract."]
     pub fn selector_raw(selector: impl Into<String>) -> Self {
         Self::new(TextContent::Selector {
             value: selector.into(),
@@ -316,6 +325,7 @@ impl TextComponent {
     }
 
     /// `{"translate": "..."}` — a localization key from Minecraft's language files.
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::translate` for the canonical contract."]
     pub fn translate(key: impl Into<String>) -> Self {
         Self::new(TextContent::Translate {
             key: key.into(),
@@ -324,6 +334,7 @@ impl TextComponent {
     }
 
     /// `{"translate": "...", "with": [...]}` — localization key with interpolation arguments.
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::translate_with` for the canonical contract."]
     pub fn translate_with(key: impl Into<String>, with: Vec<TextComponent>) -> Self {
         Self::new(TextContent::Translate {
             key: key.into(),
@@ -332,6 +343,7 @@ impl TextComponent {
     }
 
     /// `{"keybind": "..."}` — display the key currently bound to a Minecraft action.
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::keybind` for the canonical contract."]
     pub fn keybind(key: impl Into<String>) -> Self {
         Self::new(TextContent::Keybind(key.into()))
     }
@@ -356,18 +368,21 @@ impl TextComponent {
     // ── Formatting ────────────────────────────────────────────────────────────
 
     /// Apply a standard Minecraft named color.
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::color` for the canonical contract."]
     pub fn color(mut self, color: ChatColor) -> Self {
         self.color = Some(color.to_string());
         self
     }
 
     /// Apply an arbitrary hex color code (Minecraft 1.16+), e.g. `"#FF5733"`.
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::color_hex` for the canonical contract."]
     pub fn color_hex(mut self, hex: impl Into<String>) -> Self {
         self.color = Some(hex.into());
         self
     }
 
     /// Set the font resource location used to render this component.
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::font` for the canonical contract."]
     pub fn font(mut self, font: impl Into<String>) -> Self {
         self.font = Some(font.into());
         self
@@ -376,66 +391,82 @@ impl TextComponent {
     // ── Ergonomic color shortcuts ─────────────────────────────────────────────
 
     /// Apply `ChatColor::Black`.
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::black` for the canonical contract."]
     pub fn black(self) -> Self {
         self.color(ChatColor::Black)
     }
     /// Apply `ChatColor::DarkBlue`.
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::dark_blue` for the canonical contract."]
     pub fn dark_blue(self) -> Self {
         self.color(ChatColor::DarkBlue)
     }
     /// Apply `ChatColor::DarkGreen`.
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::dark_green` for the canonical contract."]
     pub fn dark_green(self) -> Self {
         self.color(ChatColor::DarkGreen)
     }
     /// Apply `ChatColor::DarkAqua`.
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::dark_aqua` for the canonical contract."]
     pub fn dark_aqua(self) -> Self {
         self.color(ChatColor::DarkAqua)
     }
     /// Apply `ChatColor::DarkRed`.
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::dark_red` for the canonical contract."]
     pub fn dark_red(self) -> Self {
         self.color(ChatColor::DarkRed)
     }
     /// Apply `ChatColor::DarkPurple`.
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::dark_purple` for the canonical contract."]
     pub fn dark_purple(self) -> Self {
         self.color(ChatColor::DarkPurple)
     }
     /// Apply `ChatColor::Gold`.
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::gold` for the canonical contract."]
     pub fn gold(self) -> Self {
         self.color(ChatColor::Gold)
     }
     /// Apply `ChatColor::Gray`.
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::gray` for the canonical contract."]
     pub fn gray(self) -> Self {
         self.color(ChatColor::Gray)
     }
     /// Apply `ChatColor::DarkGray`.
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::dark_gray` for the canonical contract."]
     pub fn dark_gray(self) -> Self {
         self.color(ChatColor::DarkGray)
     }
     /// Apply `ChatColor::Blue`.
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::blue` for the canonical contract."]
     pub fn blue(self) -> Self {
         self.color(ChatColor::Blue)
     }
     /// Apply `ChatColor::Green`.
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::green` for the canonical contract."]
     pub fn green(self) -> Self {
         self.color(ChatColor::Green)
     }
     /// Apply `ChatColor::Aqua`.
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::aqua` for the canonical contract."]
     pub fn aqua(self) -> Self {
         self.color(ChatColor::Aqua)
     }
     /// Apply `ChatColor::Red`.
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::red` for the canonical contract."]
     pub fn red(self) -> Self {
         self.color(ChatColor::Red)
     }
     /// Apply `ChatColor::LightPurple`.
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::light_purple` for the canonical contract."]
     pub fn light_purple(self) -> Self {
         self.color(ChatColor::LightPurple)
     }
     /// Apply `ChatColor::Yellow`.
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::yellow` for the canonical contract."]
     pub fn yellow(self) -> Self {
         self.color(ChatColor::Yellow)
     }
     /// Apply `ChatColor::White`.
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::white` for the canonical contract."]
     pub fn white(self) -> Self {
         self.color(ChatColor::White)
     }
@@ -443,36 +474,42 @@ impl TextComponent {
     // ── Text formatting ───────────────────────────────────────────────────────
 
     /// Set bold formatting.
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::bold` for the canonical contract."]
     pub fn bold(mut self, v: bool) -> Self {
         self.bold = Some(v);
         self
     }
 
     /// Set italic formatting.
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::italic` for the canonical contract."]
     pub fn italic(mut self, v: bool) -> Self {
         self.italic = Some(v);
         self
     }
 
     /// Set underline formatting.
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::underlined` for the canonical contract."]
     pub fn underlined(mut self, v: bool) -> Self {
         self.underlined = Some(v);
         self
     }
 
     /// Set strikethrough formatting.
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::strikethrough` for the canonical contract."]
     pub fn strikethrough(mut self, v: bool) -> Self {
         self.strikethrough = Some(v);
         self
     }
 
     /// Set obfuscated (scrambled) text.
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::obfuscated` for the canonical contract."]
     pub fn obfuscated(mut self, v: bool) -> Self {
         self.obfuscated = Some(v);
         self
     }
 
     /// Set the `insertion` string — shift-clicking inserts this into the chat bar.
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::insertion` for the canonical contract."]
     pub fn insertion(mut self, text: impl Into<String>) -> Self {
         self.insertion = Some(text.into());
         self
@@ -481,24 +518,28 @@ impl TextComponent {
     // ── Click events ──────────────────────────────────────────────────────────
 
     /// Run a command when this text is clicked.
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::click_run_command` for the canonical contract."]
     pub fn click_run_command(mut self, cmd: impl Into<String>) -> Self {
         self.click_event = Some(ClickEvent::RunCommand(cmd.into()));
         self
     }
 
     /// Fill the chat bar with a suggestion when clicked.
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::click_suggest_command` for the canonical contract."]
     pub fn click_suggest_command(mut self, cmd: impl Into<String>) -> Self {
         self.click_event = Some(ClickEvent::SuggestCommand(cmd.into()));
         self
     }
 
     /// Open a URL when clicked.
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::click_open_url` for the canonical contract."]
     pub fn click_open_url(mut self, url: impl Into<String>) -> Self {
         self.click_event = Some(ClickEvent::OpenUrl(url.into()));
         self
     }
 
     /// Copy text to the clipboard when clicked.
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::click_copy` for the canonical contract."]
     pub fn click_copy(mut self, text: impl Into<String>) -> Self {
         self.click_event = Some(ClickEvent::CopyToClipboard(text.into()));
         self
@@ -515,6 +556,7 @@ impl TextComponent {
     /// let text = Text::new("Next").click_change_page(2);
     /// assert!(text.to_string().contains(r#""action":"change_page""#));
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::click_change_page` for the canonical contract."]
     pub fn click_change_page(mut self, page: u32) -> Self {
         self.click_event = Some(ClickEvent::ChangePage(page));
         self
@@ -523,6 +565,7 @@ impl TextComponent {
     // ── Hover events ──────────────────────────────────────────────────────────
 
     /// Show another `TextComponent` as a tooltip on hover.
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::hover_text` for the canonical contract."]
     pub fn hover_text(mut self, text: TextComponent) -> Self {
         self.hover_event = Some(TextHoverEvent::Public(HoverEvent::ShowText(Box::new(text))));
         self
@@ -532,6 +575,7 @@ impl TextComponent {
     ///
     /// The resulting `show_item` JSON omits `count`. The item registry string is
     /// retained verbatim for compatibility and is not validated by this builder.
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::hover_item` for the canonical contract."]
     pub fn hover_item(mut self, item_id: impl Into<String>) -> Self {
         self.hover_event = Some(TextHoverEvent::Public(HoverEvent::ShowItem {
             id: item_id.into(),
@@ -546,6 +590,7 @@ impl TextComponent {
     /// stack-size validation belong to the broader text validation work tracked
     /// in #152; this builder exposes the count-bearing shape already modeled by
     /// [`HoverEvent::ShowItem`] without changing the count-free output.
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::hover_item_with_count` for the canonical contract."]
     pub fn hover_item_with_count(mut self, item_id: impl Into<String>, count: u32) -> Self {
         self.hover_event = Some(TextHoverEvent::Public(HoverEvent::ShowItem {
             id: item_id.into(),
@@ -559,6 +604,7 @@ impl TextComponent {
     /// The entity type must be one of Sand's typed registry identifiers. The
     /// displayed name remains a full text component, so styling and translation
     /// data are preserved.
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::hover_entity` for the canonical contract."]
     pub fn hover_entity(
         mut self,
         entity_type: impl IntoTextEntityType,
@@ -577,6 +623,7 @@ impl TextComponent {
     ///
     /// Parse user-provided UUID text with [`EntityHoverId::parse`] first. The
     /// styled `name` is serialized as a complete text component.
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::hover_entity_with_id` for the canonical contract."]
     pub fn hover_entity_with_id(
         mut self,
         entity_type: impl IntoTextEntityType,
@@ -598,6 +645,7 @@ impl TextComponent {
     /// an explicit compatibility escape hatch for legacy or version-specific
     /// values Sand cannot model. Neither raw string is validated; the styled
     /// `name` is still serialized as a complete text component.
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::hover_entity_raw` for the canonical contract."]
     pub fn hover_entity_raw(
         mut self,
         entity_type: impl Into<String>,
@@ -614,6 +662,7 @@ impl TextComponent {
     }
 
     /// Show an item tooltip with an intentionally opaque item token.
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::hover_item_raw` for the canonical contract."]
     pub fn hover_item_raw(mut self, item: impl Into<String>, count: Option<u32>) -> Self {
         self.hover_event = Some(TextHoverEvent::RawShowItem {
             id: item.into(),
@@ -623,6 +672,7 @@ impl TextComponent {
     }
 
     /// Append a sibling component in the `"extra"` array.
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::then` for the canonical contract."]
     pub fn then(mut self, next: TextComponent) -> Self {
         self.extra.push(next);
         self
@@ -744,12 +794,14 @@ impl TextComponent {
     }
 
     /// Validate this component recursively and return its deterministic JSON value.
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::try_to_json_value` for the canonical contract."]
     pub fn try_to_json_value(&self) -> CommandResult<serde_json::Value> {
         self.validate(&CommandProfile::unprofiled())?;
         Ok(self.to_json_value())
     }
 
     /// Validate recursively while retaining a consumer-provided field path.
+    #[doc = "**API Contract:** Run `sand api show sand::text::TextComponent::validate_at_path` for the canonical contract."]
     pub fn validate_at_path(
         &self,
         profile: &CommandProfile,
@@ -878,6 +930,7 @@ pub struct TextCommand {
 
 impl TextCommand {
     /// Builds a typed `tellraw` command for the selected entities and text component.
+    #[doc = "**API Contract:** Run `sand api show sand::command::TextCommand::tellraw` for the canonical contract."]
     pub fn tellraw(target: Selector, text: TextComponent) -> Self {
         Self { target, text }
     }

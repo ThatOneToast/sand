@@ -58,6 +58,7 @@ pub enum LootTableType {
 
 impl LootTableType {
     /// Get the Minecraft namespace string for this loot table type.
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootTableType::type_str` for the canonical contract."]
     pub fn type_str(&self) -> String {
         match self {
             LootTableType::Empty => "minecraft:empty".to_string(),
@@ -530,6 +531,7 @@ impl LootFunction {
     ///
     /// let function = LootFunction::set_name(Text::new("Legendary Sword").gold());
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::set_name` for the canonical contract."]
     pub fn set_name(name: impl Into<LootText>) -> Self {
         LootFunction::SetName {
             name: name.into(),
@@ -538,6 +540,7 @@ impl LootFunction {
     }
 
     /// Creates a `set_lore` function from typed or raw [`LootText`] lines.
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::set_lore` for the canonical contract."]
     pub fn set_lore(lore: impl IntoIterator<Item = impl Into<LootText>>) -> Self {
         LootFunction::SetLore {
             lore: lore.into_iter().map(Into::into).collect(),
@@ -721,6 +724,7 @@ impl LootEntry {
     ///
     /// let entry = LootEntry::item(ItemId::minecraft("diamond").unwrap());
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::item` for the canonical contract."]
     pub fn item(id: ItemId) -> Self {
         LootEntry::Item {
             name: id.to_string(),
@@ -735,6 +739,7 @@ impl LootEntry {
     ///
     /// Use this for modded/unsupported item IDs that cannot be expressed as
     /// [`ItemId`]. Malformed values are still caught by export validation.
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::item_raw` for the canonical contract."]
     pub fn item_raw(name: impl Display) -> Self {
         LootEntry::Item {
             name: name.to_string(),
@@ -756,6 +761,7 @@ impl LootEntry {
     /// let block_tag: TagId<BlockId> = TagId::minecraft("logs").unwrap();
     /// let _entry = LootEntry::tag(block_tag);
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::tag` for the canonical contract."]
     pub fn tag(tag: TagId<ItemId>) -> Self {
         LootEntry::Tag {
             name: tag.to_string(),
@@ -767,6 +773,7 @@ impl LootEntry {
     }
 
     /// Creates an item tag entry through the explicit raw compatibility path.
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::tag_raw` for the canonical contract."]
     pub fn tag_raw(name: impl Display) -> Self {
         LootEntry::Tag {
             name: name.to_string(),
@@ -779,6 +786,7 @@ impl LootEntry {
 
     /// Creates a nested loot table reference entry from a typed [`LootTableId`]
     /// (preferred path).
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::loot_table` for the canonical contract."]
     pub fn loot_table(id: LootTableId) -> Self {
         LootEntry::LootTable {
             value: id.to_string(),
@@ -790,6 +798,7 @@ impl LootEntry {
 
     /// Creates a nested loot table reference entry through the explicit raw
     /// compatibility path.
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::loot_table_raw` for the canonical contract."]
     pub fn loot_table_raw(value: impl Display) -> Self {
         LootEntry::LootTable {
             value: value.to_string(),
@@ -800,6 +809,7 @@ impl LootEntry {
     }
 
     /// Creates a group entry that processes all children in sequence.
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::group` for the canonical contract."]
     pub fn group(children: Vec<LootEntry>) -> Self {
         LootEntry::Group {
             children,
@@ -808,6 +818,7 @@ impl LootEntry {
     }
 
     /// Creates an alternatives entry that selects the first child whose conditions pass.
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::alternatives` for the canonical contract."]
     pub fn alternatives(children: Vec<LootEntry>) -> Self {
         LootEntry::Alternatives {
             children,
@@ -816,6 +827,7 @@ impl LootEntry {
     }
 
     /// Creates a sequence entry that processes children in order and stops at the first success.
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::sequence` for the canonical contract."]
     pub fn sequence(children: Vec<LootEntry>) -> Self {
         LootEntry::Sequence {
             children,
@@ -824,6 +836,7 @@ impl LootEntry {
     }
 
     /// Creates a dynamic entry that references a dynamic loot table.
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::dynamic` for the canonical contract."]
     pub fn dynamic(name: impl Display) -> Self {
         LootEntry::Dynamic {
             name: name.to_string(),
@@ -832,6 +845,7 @@ impl LootEntry {
     }
 
     /// Creates an empty entry that produces no items.
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::empty` for the canonical contract."]
     pub fn empty() -> Self {
         LootEntry::Empty {
             weight: None,
@@ -995,6 +1009,7 @@ pub struct LootPool {
 
 impl LootPool {
     /// Creates a new loot pool with default settings (1 roll, no bonus rolls).
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootPool::new` for the canonical contract."]
     pub fn new() -> Self {
         Self {
             rolls: NumberProvider::Constant(1.0),
@@ -1006,30 +1021,35 @@ impl LootPool {
     }
 
     /// Sets the number of times entries are selected from this pool.
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootPool::rolls` for the canonical contract."]
     pub fn rolls(mut self, n: impl Into<NumberProvider>) -> Self {
         self.rolls = n.into();
         self
     }
 
     /// Sets additional bonus rolls based on conditions like looting enchantment levels.
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootPool::bonus_rolls` for the canonical contract."]
     pub fn bonus_rolls(mut self, n: impl Into<NumberProvider>) -> Self {
         self.bonus_rolls = Some(n.into());
         self
     }
 
     /// Adds an entry to this pool's selection options.
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootPool::entry` for the canonical contract."]
     pub fn entry(mut self, entry: LootEntry) -> Self {
         self.entries.push(entry);
         self
     }
 
     /// Adds a condition that must be met for this pool to generate loot.
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootPool::condition` for the canonical contract."]
     pub fn condition(mut self, condition: LootCondition) -> Self {
         self.conditions.push(condition);
         self
     }
 
     /// Adds a function to process entries selected from this pool.
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootPool::function` for the canonical contract."]
     pub fn function(mut self, function: LootFunction) -> Self {
         self.functions.push(function);
         self
@@ -1077,6 +1097,7 @@ pub struct LootTable {
 
 impl LootTable {
     /// Creates a new loot table at the given resource location.
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootTable::new` for the canonical contract."]
     pub fn new(location: ResourceLocation) -> Self {
         Self {
             location,
@@ -1089,6 +1110,7 @@ impl LootTable {
     }
 
     /// Sets the type of this loot table (block, entity, chest, etc.).
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootTable::loot_type` for the canonical contract."]
     pub fn loot_type(mut self, loot_type: LootTableType) -> Self {
         self.loot_type = Some(loot_type);
         self
@@ -1096,30 +1118,35 @@ impl LootTable {
 
     /// Sets the random sequence seed for deterministic loot generation using a
     /// typed [`ResourceLocation`] (preferred path).
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootTable::random_sequence` for the canonical contract."]
     pub fn random_sequence(mut self, seq: ResourceLocation) -> Self {
         self.random_sequence = Some(seq.to_string());
         self
     }
 
     /// Sets the random sequence seed through the explicit raw compatibility path.
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootTable::random_sequence_raw` for the canonical contract."]
     pub fn random_sequence_raw(mut self, seq: impl Into<String>) -> Self {
         self.random_sequence = Some(seq.into());
         self
     }
 
     /// Adds a loot pool to this table.
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootTable::pool` for the canonical contract."]
     pub fn pool(mut self, pool: LootPool) -> Self {
         self.pools.push(pool);
         self
     }
 
     /// Adds a function to apply to all loot generated by this table.
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootTable::function` for the canonical contract."]
     pub fn function(mut self, function: LootFunction) -> Self {
         self.functions.push(function);
         self
     }
 
     /// Adds a condition that must be met for this table to generate loot.
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootTable::condition` for the canonical contract."]
     pub fn condition(mut self, condition: LootCondition) -> Self {
         self.conditions.push(condition);
         self
@@ -1135,6 +1162,7 @@ impl LootTable {
     /// ```rust,ignore
     /// LootTable::simple_block_drop(loc, "minecraft:oak_log", 1)
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootTable::simple_block_drop` for the canonical contract."]
     pub fn simple_block_drop(location: ResourceLocation, item: impl Display, count: i32) -> Self {
         let entry = LootEntry::item_raw(item.to_string());
         let entry = if let LootEntry::Item {
@@ -1178,6 +1206,7 @@ impl LootTable {
     /// // Probability of the entry passing at each Fortune level.
     /// LootTable::fortune_drop(loc, "minecraft:coal", "minecraft:fortune", &[0.25, 0.5, 0.75, 1.0])
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootTable::fortune_drop` for the canonical contract."]
     pub fn fortune_drop(
         location: ResourceLocation,
         item: impl Display,
@@ -1227,6 +1256,7 @@ impl LootTable {
     /// ```rust,ignore
     /// LootTable::entity_drop(loc, "minecraft:leather", 0..=2, Some(1))
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootTable::entity_drop` for the canonical contract."]
     pub fn entity_drop(
         location: ResourceLocation,
         item: impl Display,
@@ -1295,6 +1325,7 @@ impl LootTable {
     ///     ("minecraft:gold_ingot", 20, 2, 5),
     /// ])
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootTable::chest_loot` for the canonical contract."]
     pub fn chest_loot<S: Display>(
         location: ResourceLocation,
         items: impl IntoIterator<Item = (S, i32, i32, i32)>,

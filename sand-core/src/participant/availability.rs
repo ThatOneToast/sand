@@ -44,6 +44,7 @@ pub enum ParticipantUnavailableReason {
 impl ParticipantUnavailableReason {
     /// A short, stable, human-readable description suitable for
     /// diagnostics.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantUnavailableReason::description` for the canonical contract."]
     pub fn description(self) -> &'static str {
         match self {
             Self::NotSuppliedByTrigger => "not supplied by the triggering mechanism",
@@ -75,11 +76,13 @@ pub enum ParticipantAvailability<T> {
 
 impl<T> ParticipantAvailability<T> {
     /// Reports whether the event plan made this participant available to the handler.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantAvailability::is_available` for the canonical contract."]
     pub fn is_available(&self) -> bool {
         matches!(self, Self::Available(_))
     }
 
     /// Returns why the participant is unavailable, or `None` when it is available.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantAvailability::reason` for the canonical contract."]
     pub fn reason(&self) -> Option<ParticipantUnavailableReason> {
         match self {
             Self::Available(_) => None,
@@ -88,6 +91,7 @@ impl<T> ParticipantAvailability<T> {
     }
 
     /// Extracts the participant value when available.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantAvailability::available` for the canonical contract."]
     pub fn available(self) -> Option<T> {
         match self {
             Self::Available(value) => Some(value),
@@ -96,6 +100,7 @@ impl<T> ParticipantAvailability<T> {
     }
 
     /// Transforms an available participant while preserving its unavailable reason.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantAvailability::map` for the canonical contract."]
     pub fn map<U>(self, f: impl FnOnce(T) -> U) -> ParticipantAvailability<U> {
         match self {
             Self::Available(value) => ParticipantAvailability::Available(f(value)),

@@ -46,30 +46,37 @@ pub struct Swizzle(String);
 
 impl Swizzle {
     /// `x` — floor the X coordinate only.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Swizzle::x` for the canonical contract."]
     pub fn x() -> Self {
         Swizzle("x".into())
     }
     /// `y` — floor the Y coordinate only.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Swizzle::y` for the canonical contract."]
     pub fn y() -> Self {
         Swizzle("y".into())
     }
     /// `z` — floor the Z coordinate only.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Swizzle::z` for the canonical contract."]
     pub fn z() -> Self {
         Swizzle("z".into())
     }
     /// `xy` — floor both X and Y coordinates.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Swizzle::xy` for the canonical contract."]
     pub fn xy() -> Self {
         Swizzle("xy".into())
     }
     /// `xz` — floor both X and Z coordinates.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Swizzle::xz` for the canonical contract."]
     pub fn xz() -> Self {
         Swizzle("xz".into())
     }
     /// `yz` — floor both Y and Z coordinates.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Swizzle::yz` for the canonical contract."]
     pub fn yz() -> Self {
         Swizzle("yz".into())
     }
     /// `xyz` — floor all three coordinates.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Swizzle::xyz` for the canonical contract."]
     pub fn xyz() -> Self {
         Swizzle("xyz".into())
     }
@@ -210,6 +217,7 @@ impl fmt::Display for ItemSlot {
 
 impl ItemSlot {
     /// Explicit raw slot syntax for modded or future slot families.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::raw` for the canonical contract."]
     pub fn raw(value: impl Into<String>) -> Self {
         Self::Raw(value.into())
     }
@@ -222,6 +230,7 @@ impl ItemSlot {
     /// `execute if items`, but Minecraft's single-slot write grammar
     /// (`item replace`/`item modify`) requires exactly one resolved slot.
     /// See [`Inventory`](crate::inventory::Inventory)'s write-slot validation.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ItemSlot::is_wildcard` for the canonical contract."]
     pub fn is_wildcard(&self) -> bool {
         match self {
             Self::AnyArmor

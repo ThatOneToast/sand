@@ -61,6 +61,7 @@ impl Color {
     /// Create a color from individual RGBA components.
     ///
     /// All channels are `0–255`. Alpha `255` is fully opaque; `0` is transparent.
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::Color::rgba` for the canonical contract."]
     pub const fn rgba(r: u8, g: u8, b: u8, a: u8) -> Self {
         Color { r, g, b, a }
     }

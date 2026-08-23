@@ -24,6 +24,7 @@ pub struct ShapedRecipe {
 
 impl ShapedRecipe {
     /// Creates a new shaped recipe with the given resource location.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ShapedRecipe::new` for the canonical contract."]
     pub fn new(location: ResourceLocation) -> Self {
         Self {
             location,
@@ -37,36 +38,42 @@ impl ShapedRecipe {
     }
 
     /// Sets the crafting pattern rows (e.g., 3x3 grid layout).
+    #[doc = "**API Contract:** Run `sand api show sand::component::ShapedRecipe::pattern` for the canonical contract."]
     pub fn pattern(mut self, rows: impl IntoIterator<Item = impl Into<String>>) -> Self {
         self.pattern = rows.into_iter().map(|r| r.into()).collect();
         self
     }
 
     /// Maps a character to an ingredient in the recipe pattern.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ShapedRecipe::key` for the canonical contract."]
     pub fn key(mut self, ch: char, ingredient: Ingredient) -> Self {
         self.key.insert(ch, ingredient);
         self
     }
 
     /// Sets the result item and quantity produced by this recipe.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ShapedRecipe::result` for the canonical contract."]
     pub fn result(mut self, result: RecipeResult) -> Self {
         self.result = result;
         self
     }
 
     /// Sets the recipe category for organization.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ShapedRecipe::category` for the canonical contract."]
     pub fn category(mut self, cat: impl Into<String>) -> Self {
         self.category = Some(cat.into());
         self
     }
 
     /// Sets the recipe group for organization.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ShapedRecipe::group` for the canonical contract."]
     pub fn group(mut self, g: impl Into<String>) -> Self {
         self.group = Some(g.into());
         self
     }
 
     /// Sets whether a notification is shown when the recipe is unlocked.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ShapedRecipe::show_notification` for the canonical contract."]
     pub fn show_notification(mut self, v: bool) -> Self {
         self.show_notification = v;
         self

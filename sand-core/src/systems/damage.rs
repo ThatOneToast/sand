@@ -84,6 +84,7 @@ pub enum DamageThreshold {
 
 impl DamageThreshold {
     /// Threshold in hearts (1.0 = one heart, 0.5 = half a heart).
+    #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageThreshold::hearts` for the canonical contract."]
     pub fn hearts(h: f32) -> Self {
         Self::Hearts(h)
     }
@@ -93,11 +94,13 @@ impl DamageThreshold {
     /// Values must be finite, greater than `0.0`, and round to at least
     /// 1 raw Minecraft damage stat unit. One raw stat unit is 0.1 heart, so
     /// values below 0.05 heart are not meaningful for `*_at_least` queries.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageThreshold::try_hearts` for the canonical contract."]
     pub fn try_hearts(h: f32) -> Result<Self, String> {
         Self::validate_hearts(h).map(|_| Self::Hearts(h))
     }
 
     /// Raw scoreboard stat units — advanced use only.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageThreshold::raw_stat` for the canonical contract."]
     pub fn raw_stat(v: i32) -> Self {
         Self::RawStat(v)
     }
@@ -105,11 +108,13 @@ impl DamageThreshold {
     /// Fallible raw scoreboard stat threshold.
     ///
     /// Values must be greater than zero for `*_at_least` queries.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageThreshold::try_raw_stat` for the canonical contract."]
     pub fn try_raw_stat(v: i32) -> Result<Self, String> {
         Self::validate_raw_stat(v).map(|_| Self::RawStat(v))
     }
 
     /// Convert to the raw Minecraft scoreboard stat integer used internally.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageThreshold::to_raw_stat` for the canonical contract."]
     pub fn to_raw_stat(self) -> i32 {
         match self {
             Self::Hearts(h) => (h * 10.0).round() as i32,
@@ -182,6 +187,7 @@ impl DamageTracker {
     /// Define all five required scoreboard objectives.
     ///
     /// Call once in a `#[datapack_component(Load)]` function.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageTracker::define` for the canonical contract."]
     pub fn define() -> Vec<String> {
         vec![
             format!(
@@ -204,6 +210,7 @@ impl DamageTracker {
     /// 4. If `delta > 0`: `hurt_age = 0`
     /// 5. Unless `delta > 0`: `hurt_age += 1`
     /// 6. `prev = stat`
+    #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageTracker::tick` for the canonical contract."]
     pub fn tick(target: SingleEntity) -> Vec<String> {
         Self::tick_selector(target.to_string())
     }
@@ -212,6 +219,7 @@ impl DamageTracker {
     /// model. Passing a multi-entity selector produces invalid scoreboard
     /// operation sources; prefer [`tick`](Self::tick) or
     /// [`tick_players`](Self::tick_players).
+    #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageTracker::tick_raw` for the canonical contract."]
     pub fn tick_raw(selector: impl std::fmt::Display) -> Vec<String> {
         Self::tick_selector(selector.to_string())
     }
@@ -251,6 +259,7 @@ impl DamageTracker {
     ///
     /// Scoreboard operation sources must resolve to one holder, so this lowers
     /// through `execute as @a` and uses `@s` on both sides of each operation.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageTracker::tick_players` for the canonical contract."]
     pub fn tick_players() -> Vec<String> {
         Self::tick(SingleEntity::self_())
             .into_iter()
@@ -266,6 +275,7 @@ impl DamageTracker {
     // ── Conditions ────────────────────────────────────────────────────────────
 
     /// Condition: `selector` was damaged this tick (delta > 0).
+    #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageTracker::damaged_this_tick` for the canonical contract."]
     pub fn damaged_this_tick(selector: &str) -> Condition {
         Condition::score(
             selector.to_string(),
@@ -275,6 +285,7 @@ impl DamageTracker {
     }
 
     /// Condition: `selector` was NOT damaged this tick (delta == 0).
+    #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageTracker::not_damaged_this_tick` for the canonical contract."]
     pub fn not_damaged_this_tick(selector: &str) -> Condition {
         Condition::score(
             selector.to_string(),
@@ -284,6 +295,7 @@ impl DamageTracker {
     }
 
     /// Condition: `selector` took at least `threshold` damage this tick.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageTracker::current_damage_at_least` for the canonical contract."]
     pub fn current_damage_at_least(selector: &str, threshold: DamageThreshold) -> Condition {
         let min_raw = threshold.to_query_raw_stat("current_damage_at_least");
         Condition::score(
@@ -296,6 +308,7 @@ impl DamageTracker {
     /// Condition: the last recorded damage for `selector` was at least `threshold`.
     ///
     /// Uses `sd_dmg_last`, which persists between damage events.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageTracker::last_damage_at_least` for the canonical contract."]
     pub fn last_damage_at_least(selector: &str, threshold: DamageThreshold) -> Condition {
         let min_raw = threshold.to_query_raw_stat("last_damage_at_least");
         Condition::score(
@@ -306,6 +319,7 @@ impl DamageTracker {
     }
 
     /// Condition: `selector` was last hurt within `ticks` ticks ago.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageTracker::hurt_within` for the canonical contract."]
     pub fn hurt_within(selector: &str, ticks: Ticks) -> Condition {
         Condition::score(
             selector.to_string(),
@@ -317,6 +331,7 @@ impl DamageTracker {
     // ── Raw score accessors (advanced use) ────────────────────────────────────
 
     /// The raw current-tick delta objective name.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageTracker::current_damage_raw` for the canonical contract."]
     pub fn current_damage_raw(selector: &str) -> Condition {
         Condition::score(
             selector.to_string(),
@@ -326,6 +341,7 @@ impl DamageTracker {
     }
 
     /// The raw last-damage objective name.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageTracker::last_damage_raw` for the canonical contract."]
     pub fn last_damage_raw(selector: &str) -> Condition {
         Condition::score(
             selector.to_string(),
@@ -335,6 +351,7 @@ impl DamageTracker {
     }
 
     /// The ticks-since-hurt objective name (for use with ScoreVar).
+    #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageTracker::ticks_since_hurt` for the canonical contract."]
     pub fn ticks_since_hurt(selector: &str) -> Condition {
         Condition::score(
             selector.to_string(),
@@ -354,6 +371,7 @@ impl DamageTracker {
     ///
     /// Does **not** tell you the cause, attacker, damage type, or weapon.
     /// Use advancement predicate events for cause-specific logic.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageTracker::was_hurt` for the canonical contract."]
     pub fn was_hurt(selector: &str) -> Condition {
         Self::damaged_this_tick(selector)
     }
@@ -365,6 +383,7 @@ impl DamageTracker {
     /// - `not_hurt_for(n)` → age > n → safe for at least n ticks
     ///
     /// Useful for ability cooldown windows that reset on damage.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageTracker::not_hurt_for` for the canonical contract."]
     pub fn not_hurt_for(selector: &str, ticks: Ticks) -> Condition {
         Condition::score(
             selector.to_string(),
@@ -379,6 +398,7 @@ impl DamageTracker {
     /// condition checks on the next tick.
     ///
     /// Returns a single scoreboard `set ... 0` command.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageTracker::clear_recent_damage` for the canonical contract."]
     pub fn clear_recent_damage(selector: impl std::fmt::Display) -> String {
         format!("scoreboard players set {} {DAMAGE_LAST_OBJ} 0", selector)
     }
@@ -389,6 +409,7 @@ impl DamageTracker {
 /// Condition shorthand: player at `selector` took damage this tick.
 ///
 /// Requires `DamageTracker::tick()` to run every game tick.
+#[doc = "**API Contract:** Run `sand api show sand::systems::damage::recently_damaged` for the canonical contract."]
 pub fn recently_damaged(selector: &str) -> Condition {
     DamageTracker::damaged_this_tick(selector)
 }

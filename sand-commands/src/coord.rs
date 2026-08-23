@@ -27,22 +27,27 @@ pub enum Coord {
 
 impl Coord {
     /// Absolute coordinate.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Coord::abs` for the canonical contract."]
     pub fn abs(v: impl Into<f64>) -> Self {
         Coord::Absolute(v.into())
     }
     /// Relative coordinate at the executor's position (`~`).
+    #[doc = "**API Contract:** Run `sand api show sand::command::Coord::rel` for the canonical contract."]
     pub fn rel() -> Self {
         Coord::Relative(0.0)
     }
     /// Relative coordinate with an offset (`~N`).
+    #[doc = "**API Contract:** Run `sand api show sand::command::Coord::rel_n` for the canonical contract."]
     pub fn rel_n(v: impl Into<f64>) -> Self {
         Coord::Relative(v.into())
     }
     /// Local coordinate (along executor's facing direction, `^`).
+    #[doc = "**API Contract:** Run `sand api show sand::command::Coord::local` for the canonical contract."]
     pub fn local() -> Self {
         Coord::Local(0.0)
     }
     /// Local coordinate with an offset (`^N`).
+    #[doc = "**API Contract:** Run `sand api show sand::command::Coord::local_n` for the canonical contract."]
     pub fn local_n(v: impl Into<f64>) -> Self {
         Coord::Local(v.into())
     }
@@ -152,6 +157,7 @@ impl Eq for BlockPos {}
 
 impl BlockPos {
     /// Create a block position from three coordinates.
+    #[doc = "**API Contract:** Run `sand api show sand::command::BlockPos::new` for the canonical contract."]
     pub fn new(x: impl Into<Coord>, y: impl Into<Coord>, z: impl Into<Coord>) -> Self {
         Self {
             x: x.into(),
@@ -160,18 +166,22 @@ impl BlockPos {
         }
     }
     /// Current position (`~ ~ ~`).
+    #[doc = "**API Contract:** Run `sand api show sand::command::BlockPos::here` for the canonical contract."]
     pub fn here() -> Self {
         Self::new(Coord::rel(), Coord::rel(), Coord::rel())
     }
     /// Exact block coordinates (`X Y Z`).
+    #[doc = "**API Contract:** Run `sand api show sand::command::BlockPos::absolute` for the canonical contract."]
     pub fn absolute(x: i32, y: i32, z: i32) -> Self {
         Self::new(Coord::abs(x), Coord::abs(y), Coord::abs(z))
     }
     /// Position N blocks above current (`~ ~N ~`).
+    #[doc = "**API Contract:** Run `sand api show sand::command::BlockPos::above` for the canonical contract."]
     pub fn above(n: i32) -> Self {
         Self::new(Coord::rel(), Coord::rel_n(n), Coord::rel())
     }
     /// Position N blocks below current (`~ ~-N ~`).
+    #[doc = "**API Contract:** Run `sand api show sand::command::BlockPos::below` for the canonical contract."]
     pub fn below(n: i32) -> Self {
         Self::new(Coord::rel(), Coord::rel_n(-n), Coord::rel())
     }
@@ -243,10 +253,12 @@ impl Vec3 {
         }
     }
     /// Current position (`~ ~ ~`).
+    #[doc = "**API Contract:** Run `sand api show sand::command::Vec3::here` for the canonical contract."]
     pub fn here() -> Self {
         Self::new(Coord::rel(), Coord::rel(), Coord::rel())
     }
     /// Exact world coordinates (`X Y Z`).
+    #[doc = "**API Contract:** Run `sand api show sand::command::Vec3::absolute` for the canonical contract."]
     pub fn absolute(x: f64, y: f64, z: f64) -> Self {
         Self::new(Coord::abs(x), Coord::abs(y), Coord::abs(z))
     }
@@ -282,6 +294,7 @@ pub struct Vec2 {
 
 impl Vec2 {
     /// Create a 2D position (column) from X and Z coordinates.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Vec2::new` for the canonical contract."]
     pub fn new(x: impl Into<Coord>, z: impl Into<Coord>) -> Self {
         Self {
             x: x.into(),
@@ -333,6 +346,7 @@ pub struct Rotation {
 
 impl Rotation {
     /// Create a rotation from yaw and pitch coordinates.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Rotation::new` for the canonical contract."]
     pub fn new(yaw: impl Into<Coord>, pitch: impl Into<Coord>) -> Self {
         Self {
             yaw: yaw.into(),
@@ -340,10 +354,12 @@ impl Rotation {
         }
     }
     /// Current rotation (`~ ~`).
+    #[doc = "**API Contract:** Run `sand api show sand::command::Rotation::here` for the canonical contract."]
     pub fn here() -> Self {
         Self::new(Coord::rel(), Coord::rel())
     }
     /// Absolute yaw and pitch angles.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Rotation::absolute` for the canonical contract."]
     pub fn absolute(yaw: f64, pitch: f64) -> Self {
         Self::new(Coord::abs(yaw), Coord::abs(pitch))
     }

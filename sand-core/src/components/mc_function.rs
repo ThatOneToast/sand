@@ -6,6 +6,7 @@ use crate::resource_location::ResourceLocation;
 /// Trait for types that can be converted into a list of Minecraft commands.
 pub trait IntoCommands {
     /// Convert this value into a vector of command strings.
+    #[doc = "**API Contract:** Run `sand api show sand::component::IntoCommands::into_commands` for the canonical contract."]
     fn into_commands(self) -> Vec<String>;
 }
 
@@ -17,6 +18,7 @@ pub struct McFunction {
 
 impl McFunction {
     /// Create a new function with the given resource location.
+    #[doc = "**API Contract:** Run `sand api show sand::component::McFunction::new` for the canonical contract."]
     pub fn new(location: ResourceLocation) -> Self {
         Self {
             location,
@@ -25,12 +27,14 @@ impl McFunction {
     }
 
     /// Add a single command to this function.
+    #[doc = "**API Contract:** Run `sand api show sand::component::McFunction::command` for the canonical contract."]
     pub fn command(mut self, cmd: impl Into<String>) -> Self {
         self.commands.push(cmd.into());
         self
     }
 
     /// Add multiple commands to this function.
+    #[doc = "**API Contract:** Run `sand api show sand::component::McFunction::commands` for the canonical contract."]
     pub fn commands(mut self, cmds: impl IntoIterator<Item = impl Into<String>>) -> Self {
         self.commands.extend(cmds.into_iter().map(|c| c.into()));
         self

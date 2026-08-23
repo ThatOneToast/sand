@@ -54,16 +54,19 @@ pub struct Cooldown {
 
 impl Cooldown {
     /// Create a cooldown with the given objective name and duration.
+    #[doc = "**API Contract:** Run `sand api show sand::state::Cooldown::new` for the canonical contract."]
     pub const fn new(name: &'static str, duration: Ticks) -> Self {
         Self { name, duration }
     }
 
     /// Return the actual scoreboard objective name.
+    #[doc = "**API Contract:** Run `sand api show sand::state::Cooldown::objective_name` for the canonical contract."]
     pub fn objective_name(&self) -> String {
         objective_name(self.name)
     }
 
     /// `scoreboard objectives add <obj> dummy` — register the objective.
+    #[doc = "**API Contract:** Run `sand api show sand::state::Cooldown::define` for the canonical contract."]
     pub fn define(&self) -> String {
         format!("scoreboard objectives add {} dummy", self.objective_name())
     }
@@ -74,6 +77,7 @@ impl Cooldown {
     /// interpolated directly into generated commands. Prefer
     /// [`Cooldown::try_start`] in new code — see
     /// [#146](https://github.com/ThatOneToast/sand/issues/146).
+    #[doc = "**API Contract:** Run `sand api show sand::state::Cooldown::start` for the canonical contract."]
     pub fn start(&self, selector: impl std::fmt::Display) -> String {
         format!(
             "scoreboard players set {} {} {}",
@@ -104,6 +108,7 @@ impl Cooldown {
     /// );
     /// assert!(DASH.try_start(ScoreHolder::fake("bad holder")).is_err());
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::state::Cooldown::try_start` for the canonical contract."]
     pub fn try_start(&self, holder: impl Into<ScoreHolder>) -> CommandResult<String> {
         let holder = holder.into();
         validate_holder(&holder, "Cooldown::try_start")?;
@@ -113,6 +118,7 @@ impl Cooldown {
     /// Reset the cooldown to 0 for `selector` (immediately ready).
     ///
     /// Raw compatibility escape hatch — prefer [`Cooldown::try_stop`].
+    #[doc = "**API Contract:** Run `sand api show sand::state::Cooldown::stop` for the canonical contract."]
     pub fn stop(&self, selector: impl std::fmt::Display) -> String {
         format!(
             "scoreboard players set {} {} 0",
@@ -123,6 +129,7 @@ impl Cooldown {
 
     /// Validated counterpart to [`Cooldown::stop`] — see
     /// [`Cooldown::try_start`]. Multi-target holders are permitted.
+    #[doc = "**API Contract:** Run `sand api show sand::state::Cooldown::try_stop` for the canonical contract."]
     pub fn try_stop(&self, holder: impl Into<ScoreHolder>) -> CommandResult<String> {
         let holder = holder.into();
         validate_holder(&holder, "Cooldown::try_stop")?;
@@ -135,6 +142,7 @@ impl Cooldown {
     /// multi-player selector such as `@a` here.
     ///
     /// Raw compatibility escape hatch — prefer [`Cooldown::try_tick`].
+    #[doc = "**API Contract:** Run `sand api show sand::state::Cooldown::tick` for the canonical contract."]
     pub fn tick(&self, selector: impl std::fmt::Display) -> String {
         let selector = selector.to_string();
         let obj = self.objective_name();
@@ -162,6 +170,7 @@ impl Cooldown {
     /// assert_eq!(DASH.try_tick(ScoreHolder::self_()).unwrap(), DASH.tick("@s"));
     /// assert!(DASH.try_tick(ScoreHolder::entity(Selector::all_players())).is_err());
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::state::Cooldown::try_tick` for the canonical contract."]
     pub fn try_tick(&self, holder: impl Into<ScoreHolder>) -> CommandResult<String> {
         let holder = holder.into();
         validate_single_holder(&holder, "Cooldown::try_tick")?;
@@ -173,6 +182,7 @@ impl Cooldown {
     /// Raw compatibility escape hatch — prefer [`Cooldown::try_guard`].
     ///
     /// Produces: `execute if score <selector> <obj> matches 1.. run return 0`
+    #[doc = "**API Contract:** Run `sand api show sand::state::Cooldown::guard` for the canonical contract."]
     pub fn guard(&self, selector: impl std::fmt::Display) -> String {
         format!(
             "execute if score {} {} matches 1.. run return 0",
@@ -197,6 +207,7 @@ impl Cooldown {
     /// );
     /// assert!(DASH.try_guard(ScoreHolder::wildcard()).is_err());
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::state::Cooldown::try_guard` for the canonical contract."]
     pub fn try_guard(&self, holder: impl Into<ScoreHolder>) -> CommandResult<String> {
         let holder = holder.into();
         validate_single_holder(&holder, "Cooldown::try_guard")?;
@@ -206,6 +217,7 @@ impl Cooldown {
     /// Condition: cooldown is ready (`if score <sel> <obj> matches 0`).
     ///
     /// Raw compatibility escape hatch — prefer [`Cooldown::try_ready`].
+    #[doc = "**API Contract:** Run `sand api show sand::state::Cooldown::ready` for the canonical contract."]
     pub fn ready(&self, selector: &str) -> Condition {
         Condition::score(
             selector.to_string(),
@@ -232,6 +244,7 @@ impl Cooldown {
     /// );
     /// assert!(DASH.try_ready(ScoreHolder::wildcard()).is_err());
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::state::Cooldown::try_ready` for the canonical contract."]
     pub fn try_ready(&self, holder: impl Into<ScoreHolder>) -> CommandResult<Condition> {
         let holder = holder.into();
         validate_single_holder(&holder, "Cooldown::try_ready")?;
@@ -241,6 +254,7 @@ impl Cooldown {
     /// Condition: cooldown is active (`if score <sel> <obj> matches 1..`).
     ///
     /// Raw compatibility escape hatch — prefer [`Cooldown::try_active`].
+    #[doc = "**API Contract:** Run `sand api show sand::state::Cooldown::active` for the canonical contract."]
     pub fn active(&self, selector: &str) -> Condition {
         Condition::score(
             selector.to_string(),
@@ -252,6 +266,7 @@ impl Cooldown {
     /// Validated counterpart to [`Cooldown::active`] — see
     /// [`Cooldown::try_ready`]; the holder must resolve to exactly one score
     /// holder.
+    #[doc = "**API Contract:** Run `sand api show sand::state::Cooldown::try_active` for the canonical contract."]
     pub fn try_active(&self, holder: impl Into<ScoreHolder>) -> CommandResult<Condition> {
         let holder = holder.into();
         validate_single_holder(&holder, "Cooldown::try_active")?;
@@ -262,6 +277,7 @@ impl Cooldown {
     /// whether the timer has "expired" (counted down to zero).
     ///
     /// Raw compatibility escape hatch — prefer [`Cooldown::try_expired`].
+    #[doc = "**API Contract:** Run `sand api show sand::state::Cooldown::expired` for the canonical contract."]
     pub fn expired(&self, selector: &str) -> Condition {
         self.ready(selector)
     }
@@ -269,6 +285,7 @@ impl Cooldown {
     /// Validated counterpart to [`Cooldown::expired`] — see
     /// [`Cooldown::try_ready`]; the holder must resolve to exactly one score
     /// holder.
+    #[doc = "**API Contract:** Run `sand api show sand::state::Cooldown::try_expired` for the canonical contract."]
     pub fn try_expired(&self, holder: impl Into<ScoreHolder>) -> CommandResult<Condition> {
         let holder = holder.into();
         validate_single_holder(&holder, "Cooldown::try_expired")?;
@@ -278,12 +295,14 @@ impl Cooldown {
     /// Alias for [`start`](Cooldown::start) — emphasizes the selector context.
     ///
     /// Raw compatibility escape hatch — prefer [`Cooldown::try_start_for`].
+    #[doc = "**API Contract:** Run `sand api show sand::state::Cooldown::start_for` for the canonical contract."]
     pub fn start_for(&self, selector: impl std::fmt::Display) -> String {
         self.start(selector)
     }
 
     /// Validated counterpart to [`Cooldown::start_for`] — see
     /// [`Cooldown::try_start`]. Multi-target holders are permitted.
+    #[doc = "**API Contract:** Run `sand api show sand::state::Cooldown::try_start_for` for the canonical contract."]
     pub fn try_start_for(&self, holder: impl Into<ScoreHolder>) -> CommandResult<String> {
         let holder = holder.into();
         validate_holder(&holder, "Cooldown::try_start_for")?;
@@ -293,12 +312,14 @@ impl Cooldown {
     /// Alias for [`stop`](Cooldown::stop) — resets the cooldown to zero immediately.
     ///
     /// Raw compatibility escape hatch — prefer [`Cooldown::try_reset_for`].
+    #[doc = "**API Contract:** Run `sand api show sand::state::Cooldown::reset_for` for the canonical contract."]
     pub fn reset_for(&self, selector: impl std::fmt::Display) -> String {
         self.stop(selector)
     }
 
     /// Validated counterpart to [`Cooldown::reset_for`] — see
     /// [`Cooldown::try_start`]. Multi-target holders are permitted.
+    #[doc = "**API Contract:** Run `sand api show sand::state::Cooldown::try_reset_for` for the canonical contract."]
     pub fn try_reset_for(&self, holder: impl Into<ScoreHolder>) -> CommandResult<String> {
         let holder = holder.into();
         validate_holder(&holder, "Cooldown::try_reset_for")?;
@@ -310,6 +331,7 @@ impl Cooldown {
     /// Convenience for placing in a `#[datapack_component(Tick)]` function. Takes no
     /// score holder — the `@a`/`@s` pair is generated by Sand and is always
     /// valid, so there is no `try_*` counterpart.
+    #[doc = "**API Contract:** Run `sand api show sand::state::Cooldown::tick_all_players` for the canonical contract."]
     pub fn tick_all_players(&self) -> String {
         let obj = self.objective_name();
         format!(
@@ -322,6 +344,7 @@ impl Cooldown {
     /// Returns early (`return 0`) if the cooldown is still active.
     ///
     /// Raw compatibility escape hatch — prefer [`Cooldown::try_guard_active`].
+    #[doc = "**API Contract:** Run `sand api show sand::state::Cooldown::guard_active` for the canonical contract."]
     pub fn guard_active(&self, selector: impl std::fmt::Display) -> String {
         self.guard(selector)
     }
@@ -329,6 +352,7 @@ impl Cooldown {
     /// Validated counterpart to [`Cooldown::guard_active`] — see
     /// [`Cooldown::try_guard`]; the holder must resolve to exactly one score
     /// holder.
+    #[doc = "**API Contract:** Run `sand api show sand::state::Cooldown::try_guard_active` for the canonical contract."]
     pub fn try_guard_active(&self, holder: impl Into<ScoreHolder>) -> CommandResult<String> {
         let holder = holder.into();
         validate_single_holder(&holder, "Cooldown::try_guard_active")?;
@@ -342,6 +366,7 @@ impl Cooldown {
     /// Raw compatibility escape hatch — prefer [`Cooldown::try_guard_ready`].
     ///
     /// Produces: `execute if score <selector> <obj> matches 0 run return 0`
+    #[doc = "**API Contract:** Run `sand api show sand::state::Cooldown::guard_ready` for the canonical contract."]
     pub fn guard_ready(&self, selector: impl std::fmt::Display) -> String {
         format!(
             "execute if score {} {} matches 0 run return 0",
@@ -365,6 +390,7 @@ impl Cooldown {
     ///     "execute if score @s dash matches 0 run return 0"
     /// );
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::state::Cooldown::try_guard_ready` for the canonical contract."]
     pub fn try_guard_ready(&self, holder: impl Into<ScoreHolder>) -> CommandResult<String> {
         let holder = holder.into();
         validate_single_holder(&holder, "Cooldown::try_guard_ready")?;
@@ -372,6 +398,7 @@ impl Cooldown {
     }
 
     /// Return the configured duration.
+    #[doc = "**API Contract:** Run `sand api show sand::state::Cooldown::duration` for the canonical contract."]
     pub fn duration(&self) -> Ticks {
         self.duration
     }

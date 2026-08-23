@@ -45,6 +45,7 @@ pub type PlayerQueries = PlayerQuery<Many>;
 
 impl EntityQuery<Many> {
     /// `@e` — all entities.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityQuery::entities` for the canonical contract."]
     pub fn entities() -> Self {
         Self {
             target: EntityTargets::all(),
@@ -52,6 +53,7 @@ impl EntityQuery<Many> {
     }
 
     /// `@e[distance=..<radius>]` — all entities within `radius` blocks of the executor.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityQuery::nearby` for the canonical contract."]
     pub fn nearby(radius: f64) -> Self {
         Self {
             target: EntityTargets::nearby(radius),
@@ -59,18 +61,21 @@ impl EntityQuery<Many> {
     }
 
     /// `type=<ty>` — restrict to entities of the given type.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityQuery::entity_type` for the canonical contract."]
     pub fn entity_type(mut self, ty: impl IntoEntityType) -> Self {
         self.target = self.target.entity_type(ty);
         self
     }
 
     /// `type=!<ty>` — exclude entities of the given type.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityQuery::not_entity_type` for the canonical contract."]
     pub fn not_entity_type(mut self, ty: impl IntoEntityType) -> Self {
         self.target = self.target.not_type(ty);
         self
     }
 
     /// `type=!minecraft:player` — exclude players from the result set.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityQuery::excluding_players` for the canonical contract."]
     pub fn excluding_players(mut self) -> Self {
         self.target = self.target.excluding_players();
         self
@@ -81,6 +86,7 @@ impl EntityQuery<Many> {
     /// Repeated calls merge into one vanilla `scores={...}` selector map.
     /// Duplicate predicates for the same field return a structured command
     /// error rather than silently choosing one bound.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityQuery::state` for the canonical contract."]
     pub fn state(
         mut self,
         predicate: crate::entity::state::StatePredicate,
@@ -93,30 +99,35 @@ impl EntityQuery<Many> {
     }
 
     /// `tag=<tag>` — restrict to entities with the given tag.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityQuery::tag` for the canonical contract."]
     pub fn tag(mut self, tag: impl Into<String>) -> Self {
         self.target = self.target.tag(tag);
         self
     }
 
     /// `tag=!<tag>` — exclude entities with the given tag.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityQuery::without_tag` for the canonical contract."]
     pub fn without_tag(mut self, tag: impl Into<String>) -> Self {
         self.target = self.target.not_tag(tag);
         self
     }
 
     /// `distance=..<max>` — restrict to entities within `max` blocks.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityQuery::within_blocks` for the canonical contract."]
     pub fn within_blocks(mut self, max: f64) -> Self {
         self.target = self.target.within_blocks(max);
         self
     }
 
     /// `distance=<min>..<max>` — restrict to entities between `min` and `max` blocks.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityQuery::distance_range` for the canonical contract."]
     pub fn distance_range(mut self, min: f64, max: f64) -> Self {
         self.target = self.target.distance_range(min, max);
         self
     }
 
     /// `distance=0.1..` — exclude the current executor.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityQuery::excluding_self` for the canonical contract."]
     pub fn excluding_self(mut self) -> Self {
         self.target = self.target.excluding_self();
         self
@@ -125,6 +136,7 @@ impl EntityQuery<Many> {
     /// Sort results (`sort=nearest|furthest|random|arbitrary`). Only affects
     /// order — does not by itself narrow cardinality; pair with
     /// [`EntityQuery::limit`] to guarantee at most one result.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityQuery::sort` for the canonical contract."]
     pub fn sort(self, order: SortOrder) -> Self {
         let selector = self.target.into_selector().sort(order);
         Self {
@@ -134,6 +146,7 @@ impl EntityQuery<Many> {
     }
 
     /// `limit=<n>` — narrow to at most `n` entities, and to [`One`] cardinality.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityQuery::limit` for the canonical contract."]
     pub fn limit(self, n: i32) -> sand_commands::CommandResult<EntityQuery<One>> {
         Ok(EntityQuery {
             target: self.target.limit(n)?,
@@ -141,6 +154,7 @@ impl EntityQuery<Many> {
     }
 
     /// Sort by nearest and narrow to the single nearest entity.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityQuery::nearest` for the canonical contract."]
     pub fn nearest(self) -> EntityQuery<One> {
         EntityQuery {
             target: self.target.nearest(),
@@ -154,6 +168,7 @@ impl EntityQuery<Many> {
     /// generated function is deduplicated by body content (see
     /// [`crate::function::register_dyn_fn_dedup`]), so structurally identical
     /// `each` bodies across call sites share one generated function.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityQuery::each` for the canonical contract."]
     pub fn each(self, body: impl FnOnce(&EntityContext<AnyEntity>) -> Vec<String>) -> Vec<String> {
         lower_each(self.target.into_selector(), body)
     }
@@ -163,18 +178,21 @@ impl EntityQuery<Many> {
 
 impl EntityQuery<One> {
     /// Access the underlying single-arity selector.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityQuery::selector` for the canonical contract."]
     pub fn selector(&self) -> &Selector {
         self.target.selector()
     }
 
     /// Run `body` with `@s` bound to the single matching entity (a no-op if
     /// there is none). See [`EntityQuery::<Many>::each`] for lowering details.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityQuery::each` for the canonical contract."]
     pub fn each(self, body: impl FnOnce(&EntityContext<AnyEntity>) -> Vec<String>) -> Vec<String> {
         lower_each(self.target.into_selector(), body)
     }
 
     /// Alias for [`EntityQuery::<One>::each`] that reads naturally at
     /// single-cardinality call sites.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityQuery::get` for the canonical contract."]
     pub fn get(self, body: impl FnOnce(&EntityContext<AnyEntity>) -> Vec<String>) -> Vec<String> {
         self.each(body)
     }
@@ -196,6 +214,7 @@ impl From<EntityTargets> for EntityQuery<Many> {
 
 impl PlayerQuery<Many> {
     /// `@a` — all players.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::PlayerQuery::players` for the canonical contract."]
     pub fn players() -> Self {
         Self {
             target: PlayerTargets::all(),
@@ -203,30 +222,35 @@ impl PlayerQuery<Many> {
     }
 
     /// `tag=<tag>` — restrict to players with the given tag.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::PlayerQuery::tag` for the canonical contract."]
     pub fn tag(mut self, tag: impl Into<String>) -> Self {
         self.target = self.target.tag(tag);
         self
     }
 
     /// `tag=!<tag>` — exclude players with the given tag.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::PlayerQuery::without_tag` for the canonical contract."]
     pub fn without_tag(mut self, tag: impl Into<String>) -> Self {
         self.target = self.target.not_tag(tag);
         self
     }
 
     /// `distance=..<max>` — restrict to players within `max` blocks.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::PlayerQuery::within_blocks` for the canonical contract."]
     pub fn within_blocks(mut self, max: f64) -> Self {
         self.target = self.target.within_blocks(max);
         self
     }
 
     /// `distance=<min>..<max>` — restrict to players between `min` and `max` blocks.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::PlayerQuery::distance_range` for the canonical contract."]
     pub fn distance_range(mut self, min: f64, max: f64) -> Self {
         self.target = self.target.distance_range(min, max);
         self
     }
 
     /// Sort results. See [`EntityQuery::sort`].
+    #[doc = "**API Contract:** Run `sand api show sand::entity::PlayerQuery::sort` for the canonical contract."]
     pub fn sort(self, order: SortOrder) -> Self {
         let selector = self.target.into_selector().sort(order);
         Self {
@@ -236,6 +260,7 @@ impl PlayerQuery<Many> {
     }
 
     /// `limit=<n>` — narrow to at most `n` players, and to [`One`] cardinality.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::PlayerQuery::limit` for the canonical contract."]
     pub fn limit(self, n: i32) -> sand_commands::CommandResult<PlayerQuery<One>> {
         Ok(PlayerQuery {
             target: self.target.limit(n)?,
@@ -243,6 +268,7 @@ impl PlayerQuery<Many> {
     }
 
     /// Sort by nearest and narrow to the single nearest player.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::PlayerQuery::nearest` for the canonical contract."]
     pub fn nearest(self) -> PlayerQuery<One> {
         PlayerQuery {
             target: self.target.nearest(),
@@ -250,6 +276,7 @@ impl PlayerQuery<Many> {
     }
 
     /// Run `body` with `@s` bound to each matching player in turn.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::PlayerQuery::each` for the canonical contract."]
     pub fn each(self, body: impl FnOnce(&EntityContext<PlayerKind>) -> Vec<String>) -> Vec<String> {
         lower_each(self.target.into_selector(), body)
     }
@@ -259,17 +286,20 @@ impl PlayerQuery<Many> {
 
 impl PlayerQuery<One> {
     /// Access the underlying single-arity selector.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::PlayerQuery::selector` for the canonical contract."]
     pub fn selector(&self) -> &Selector {
         self.target.selector()
     }
 
     /// Run `body` with `@s` bound to the single matching player (a no-op if
     /// there is none).
+    #[doc = "**API Contract:** Run `sand api show sand::entity::PlayerQuery::each` for the canonical contract."]
     pub fn each(self, body: impl FnOnce(&EntityContext<PlayerKind>) -> Vec<String>) -> Vec<String> {
         lower_each(self.target.into_selector(), body)
     }
 
     /// Alias for [`PlayerQuery::<One>::each`].
+    #[doc = "**API Contract:** Run `sand api show sand::entity::PlayerQuery::get` for the canonical contract."]
     pub fn get(self, body: impl FnOnce(&EntityContext<PlayerKind>) -> Vec<String>) -> Vec<String> {
         self.each(body)
     }

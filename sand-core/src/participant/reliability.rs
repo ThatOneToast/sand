@@ -52,6 +52,7 @@ impl ParticipantReliability {
     /// `true`. This is the check behind
     /// [`PlayerParticipant::require_exact`](super::reference::PlayerParticipant::require_exact)
     /// and its siblings.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantReliability::meets` for the canonical contract."]
     pub fn meets(self, required: ParticipantReliability) -> bool {
         self >= required
     }

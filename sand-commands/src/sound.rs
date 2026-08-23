@@ -28,6 +28,7 @@ use crate::selector::Selector;
 /// Conversion into a sound-event resource-location token.
 pub trait IntoSoundEvent {
     /// Converts a typed or validated value into a Minecraft sound-event identifier.
+    #[doc = "**API Contract:** Run `sand api show sand::command::IntoSoundEvent::into_sound_event` for the canonical contract."]
     fn into_sound_event(self) -> String;
 }
 
@@ -95,6 +96,7 @@ pub struct Sound {
 
 impl Sound {
     /// Begin building a `playsound` command for the given sound event ID.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Sound::play` for the canonical contract."]
     pub fn play(event: impl IntoSoundEvent) -> Self {
         Self {
             event: event.into_sound_event(),
@@ -109,6 +111,7 @@ impl Sound {
     }
 
     /// Begin building a sound command with an intentionally opaque event token.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Sound::play_raw` for the canonical contract."]
     pub fn play_raw(event: impl IntoSoundEvent) -> Self {
         Self {
             raw_event: true,
@@ -117,36 +120,42 @@ impl Sound {
     }
 
     /// Set the target entity/player who hears the sound (default: `@s`).
+    #[doc = "**API Contract:** Run `sand api show sand::command::Sound::to` for the canonical contract."]
     pub fn to(mut self, selector: Selector) -> Self {
         self.target = Some(selector);
         self
     }
 
     /// Set the sound source/channel category (default: `master`).
+    #[doc = "**API Contract:** Run `sand api show sand::command::Sound::source` for the canonical contract."]
     pub fn source(mut self, source: SoundSource) -> Self {
         self.source = source;
         self
     }
 
     /// Set the position in the world where the sound originates (default: `~ ~ ~`).
+    #[doc = "**API Contract:** Run `sand api show sand::command::Sound::at` for the canonical contract."]
     pub fn at(mut self, pos: Vec3) -> Self {
         self.pos = Some(pos);
         self
     }
 
     /// Set the volume multiplier (default: `1.0`).
+    #[doc = "**API Contract:** Run `sand api show sand::command::Sound::volume` for the canonical contract."]
     pub fn volume(mut self, volume: f64) -> Self {
         self.volume = volume;
         self
     }
 
     /// Set the pitch multiplier (default: `1.0`).
+    #[doc = "**API Contract:** Run `sand api show sand::command::Sound::pitch` for the canonical contract."]
     pub fn pitch(mut self, pitch: f64) -> Self {
         self.pitch = pitch;
         self
     }
 
     /// Set minimum volume for players far from the sound origin.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Sound::min_volume` for the canonical contract."]
     pub fn min_volume(mut self, min: f64) -> Self {
         self.min_volume = Some(min);
         self
@@ -155,16 +164,19 @@ impl Sound {
     // ── stopsound helpers ─────────────────────────────────────────────────────
 
     /// `stopsound <selector>` — stop all sounds playing for the target.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Sound::stop_all` for the canonical contract."]
     pub fn stop_all(target: Selector) -> String {
         StopSoundCommand::All { target }.build_registered()
     }
 
     /// `stopsound <selector> <source>` — stop all sounds in a specific category.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Sound::stop_source` for the canonical contract."]
     pub fn stop_source(target: Selector, source: SoundSource) -> String {
         StopSoundCommand::Source { target, source }.build_registered()
     }
 
     /// `stopsound <selector> <source> <event>` — stop a specific sound for the target.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Sound::stop_event` for the canonical contract."]
     pub fn stop_event(target: Selector, source: SoundSource, event: impl Into<String>) -> String {
         StopSoundCommand::Event {
             target,
@@ -176,11 +188,13 @@ impl Sound {
     }
 
     /// Compatibility alias for [`Sound::stop_event`].
+    #[doc = "**API Contract:** Run `sand api show sand::command::Sound::stop` for the canonical contract."]
     pub fn stop(target: Selector, source: SoundSource, event: impl Into<String>) -> String {
         Self::stop_event(target, source, event)
     }
 
     /// Stop a sound with an intentionally opaque event token.
+    #[doc = "**API Contract:** Run `sand api show sand::command::Sound::stop_event_raw` for the canonical contract."]
     pub fn stop_event_raw(
         target: Selector,
         source: SoundSource,

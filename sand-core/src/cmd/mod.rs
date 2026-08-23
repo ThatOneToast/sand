@@ -180,6 +180,7 @@ pub use typed_execute::{ConditionedExecute, ExecuteExt, TypedExecute};
 /// // Resource location
 /// cmd::call(ResourceLocation::new("my_pack", "my_func").unwrap());
 /// ```
+#[doc = "**API Contract:** Run `sand api show sand::command::call` for the canonical contract."]
 pub fn call(id: impl crate::function::IntoFunctionRef) -> String {
     id.into_function_command()
 }
@@ -192,6 +193,7 @@ pub fn call(id: impl crate::function::IntoFunctionRef) -> String {
 /// is not — this validates the resolved `namespace:path` resource location
 /// (or the `__sand_local:path` sentinel used for not-yet-namespaced local
 /// function pointers) before returning command text.
+#[doc = "**API Contract:** Run `sand api show sand::command::try_call` for the canonical contract."]
 pub fn try_call(id: impl crate::function::IntoFunctionRef) -> sand_commands::CommandResult<String> {
     let function_id = try_function_id(id)?;
     Ok(format!("function {function_id}"))
@@ -205,6 +207,7 @@ pub fn try_call(id: impl crate::function::IntoFunctionRef) -> sand_commands::Com
 /// in a local/CI build. Prefer [`call`] (registered typed function
 /// references) or [`try_function`] (validated resource-location string) in
 /// normal code — see [#175](https://github.com/ThatOneToast/sand/issues/175).
+#[doc = "**API Contract:** Run `sand api show sand::command::function` for the canonical contract."]
 pub fn function(id: impl std::fmt::Display) -> String {
     format!("function {id}")
 }
@@ -212,6 +215,7 @@ pub fn function(id: impl std::fmt::Display) -> String {
 /// Validated counterpart to [`function`]: rejects an `id` that is not a
 /// syntactically valid `namespace:path` resource location before returning
 /// command text.
+#[doc = "**API Contract:** Run `sand api show sand::command::try_function` for the canonical contract."]
 pub fn try_function(id: impl std::fmt::Display) -> sand_commands::CommandResult<String> {
     let id = id.to_string();
     sand_commands::validate::resource_location_shape(&id, "cmd::try_function", "id")
@@ -227,6 +231,7 @@ pub fn try_function(id: impl std::fmt::Display) -> sand_commands::CommandResult<
 /// let loc = cmd::function_id(ate_golden_apple);
 /// assert_eq!(loc, "powers:ate_golden_apple");
 /// ```
+#[doc = "**API Contract:** Run `sand api show sand::command::function_id` for the canonical contract."]
 pub fn function_id(id: impl crate::function::IntoFunctionRef) -> String {
     id.into_function_id()
 }
@@ -242,6 +247,7 @@ pub fn function_id(id: impl crate::function::IntoFunctionRef) -> String {
 /// `function_id` noted in [#175](https://github.com/ThatOneToast/sand/issues/175)
 /// (identified during the #287 review as the same shape of bypass as
 /// [`try_call`]/[`try_function`]).
+#[doc = "**API Contract:** Run `sand api show sand::command::try_function_id` for the canonical contract."]
 pub fn try_function_id(
     id: impl crate::function::IntoFunctionRef,
 ) -> sand_commands::CommandResult<String> {
@@ -267,6 +273,7 @@ pub fn try_function_id(
 ///     DialogId::custom("other_pack:settings".parse().unwrap()),
 /// );
 /// ```
+#[doc = "**API Contract:** Run `sand api show sand::command::show_dialog` for the canonical contract."]
 pub fn show_dialog(
     selector: Selector,
     dialog: impl sand_components::dialog::IntoDialogRef,
@@ -277,6 +284,7 @@ pub fn show_dialog(
 /// Validated counterpart to [`show_dialog`] — validates `selector` through
 /// [`Selector`]'s normal validation before returning command text. `dialog`
 /// resolution is already typed via [`IntoDialogRef`](sand_components::dialog::IntoDialogRef).
+#[doc = "**API Contract:** Run `sand api show sand::command::try_show_dialog` for the canonical contract."]
 pub fn try_show_dialog(
     selector: Selector,
     dialog: impl sand_components::dialog::IntoDialogRef,
@@ -286,6 +294,7 @@ pub fn try_show_dialog(
 }
 
 /// `tellraw <target> <json>` — send a rich JSON text component to a target.
+#[doc = "**API Contract:** Run `sand api show sand::command::tellraw` for the canonical contract."]
 pub fn tellraw(target: Selector, text: TextComponent) -> String {
     TextCommand::tellraw(target, text).build()
 }
@@ -297,6 +306,7 @@ pub fn tellraw(target: Selector, text: TextComponent) -> String {
 /// [`TextComponent`]) or [`try_tellraw_raw`] (validates the target selector
 /// and that `json` is at least syntactically valid JSON) in normal code —
 /// see [#175](https://github.com/ThatOneToast/sand/issues/175).
+#[doc = "**API Contract:** Run `sand api show sand::command::tellraw_raw` for the canonical contract."]
 pub fn tellraw_raw(target: impl std::fmt::Display, json: impl Into<String>) -> String {
     format!("tellraw {target} {}", json.into())
 }
@@ -307,6 +317,7 @@ pub fn tellraw_raw(target: impl std::fmt::Display, json: impl Into<String>) -> S
 /// `json` as JSON syntax (it does not validate it against the text-component
 /// schema the way [`TextComponent`] does — that would duplicate the
 /// component-level validation `Text`/`TextComponent` already own).
+#[doc = "**API Contract:** Run `sand api show sand::command::try_tellraw_raw` for the canonical contract."]
 pub fn try_tellraw_raw(
     target: Selector,
     json: impl Into<String>,
@@ -333,6 +344,7 @@ pub fn try_tellraw_raw(
 /// Prefer the typed forms in normal code.
 pub trait IntoGiveItem {
     /// Convert to the item's resource location, e.g. `"minecraft:diamond"`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::IntoGiveItem::into_give_item` for the canonical contract."]
     fn into_give_item(self) -> String;
 }
 
@@ -395,6 +407,7 @@ impl IntoGiveItem for &sand_components::CustomItem {
 /// cmd::give(Selector::all_players(), Item::Diamond);
 /// cmd::give(Selector::self_(), "minecraft:diamond_sword");
 /// ```
+#[doc = "**API Contract:** Run `sand api show sand::command::give` for the canonical contract."]
 pub fn give(selector: Selector, item: impl IntoGiveItem) -> String {
     format!("give {selector} {}", item.into_give_item())
 }
@@ -408,6 +421,7 @@ pub fn give(selector: Selector, item: impl IntoGiveItem) -> String {
 /// (any trailing `[...]`/`{...}` item-component/NBT payload is preserved
 /// verbatim, matching `sand_commands::Inventory`'s item validation) and the
 /// target `selector` before returning command text.
+#[doc = "**API Contract:** Run `sand api show sand::command::try_give` for the canonical contract."]
 pub fn try_give(
     selector: Selector,
     item: impl IntoGiveItem,
@@ -431,6 +445,7 @@ pub fn try_give(
 ///     cmd::return_fail(),
 /// ]);
 /// ```
+#[doc = "**API Contract:** Run `sand api show sand::command::return_fail` for the canonical contract."]
 pub fn return_fail() -> String {
     "return fail".to_string()
 }
@@ -449,6 +464,7 @@ pub fn return_fail() -> String {
 ///     cmd::return_cmd(0),
 /// ]);
 /// ```
+#[doc = "**API Contract:** Run `sand api show sand::command::return_cmd` for the canonical contract."]
 pub fn return_cmd(value: i32) -> String {
     format!("return {value}")
 }
@@ -458,6 +474,7 @@ pub fn return_cmd(value: i32) -> String {
 /// Prefer typed builders for normal datapack code. Use this for interop with
 /// other datapacks, modded commands, snapshot-only syntax, future features not
 /// modeled by Sand yet, or focused debugging.
+#[doc = "**API Contract:** Run `sand api show sand::command::raw` for the canonical contract."]
 pub fn raw(command: impl Into<String>) -> sand_commands::RawCommand {
     sand_commands::RawCommand::new(command)
 }

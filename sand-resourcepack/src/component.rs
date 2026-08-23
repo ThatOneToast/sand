@@ -51,6 +51,7 @@ pub trait ResourcePackComponent {
     /// All asset outputs this component contributes to the resource pack.
     ///
     /// `namespace` is the pack namespace from `sand.toml` (e.g. `"my_pack"`).
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::ResourcePackComponent::assets` for the canonical contract."]
     fn assets(&self, namespace: &str) -> Vec<AssetOutput>;
 }
 

@@ -797,11 +797,13 @@ impl DamageAmount {
     /// [`Damage::run`] would format directly into command text. Prefer
     /// [`try_fixed`](Self::try_fixed) on the validated path, or
     /// [`Damage::try_run`] to validate at build time.
+    #[doc = "**API Contract:** Run `sand api show sand::command::DamageAmount::fixed` for the canonical contract."]
     pub fn fixed(amount: f64) -> Self {
         Self::Fixed(amount)
     }
 
     /// Fallible [`fixed`](Self::fixed) — rejects a non-finite amount.
+    #[doc = "**API Contract:** Run `sand api show sand::command::DamageAmount::try_fixed` for the canonical contract."]
     pub fn try_fixed(amount: f64) -> CommandResult<Self> {
         validate::finite(amount, "DamageAmount::try_fixed", "amount")?;
         Ok(Self::Fixed(amount))
@@ -811,6 +813,7 @@ impl DamageAmount {
     ///
     /// This is the preferred user-facing constructor. The `damage` command takes
     /// HP (hit points), so `hearts(1.0)` emits `2.0` to the command.
+    #[doc = "**API Contract:** Run `sand api show sand::command::DamageAmount::hearts` for the canonical contract."]
     pub fn hearts(h: f32) -> Self {
         Self::Fixed(h as f64 * 2.0)
     }
@@ -819,6 +822,7 @@ impl DamageAmount {
     ///
     /// Equivalent to [`fixed`](DamageAmount::fixed). Use when you are already
     /// thinking in HP rather than hearts.
+    #[doc = "**API Contract:** Run `sand api show sand::command::DamageAmount::points` for the canonical contract."]
     pub fn points(p: f32) -> Self {
         Self::Fixed(p as f64)
     }
@@ -859,6 +863,7 @@ pub enum DamageKind {
 
 impl DamageKind {
     /// Returns the exact Minecraft command token represented by this damage kind value.
+    #[doc = "**API Contract:** Run `sand api show sand::command::DamageKind::as_str` for the canonical contract."]
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Generic => "minecraft:generic",
@@ -900,6 +905,7 @@ pub enum DamageTargets {
 
 impl Damage {
     /// Create a damage builder with default generic fixed 1.0 damage to `@s`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::DamageBuilder::new` for the canonical contract."]
     pub fn new() -> Self {
         Self {
             targets: DamageTargets::One(SingleEntity::self_()),
@@ -911,47 +917,55 @@ impl Damage {
     }
 
     /// Start a reflected-damage builder centered on `source`.
+    #[doc = "**API Contract:** Run `sand api show sand::command::DamageBuilder::reflect_from` for the canonical contract."]
     pub fn reflect_from(source: impl Into<SingleEntity>) -> Self {
         let source = source.into();
         Self::new().centered_at(source)
     }
 
     /// Set target entity or entities.
+    #[doc = "**API Contract:** Run `sand api show sand::command::DamageBuilder::to` for the canonical contract."]
     pub fn to(mut self, targets: impl IntoDamageTargets) -> Self {
         self.targets = targets.into_damage_targets();
         self
     }
 
     /// Set damage amount.
+    #[doc = "**API Contract:** Run `sand api show sand::command::DamageBuilder::amount` for the canonical contract."]
     pub fn amount(mut self, amount: impl Into<DamageAmount>) -> Self {
         self.amount = amount.into();
         self
     }
 
     /// Set damage type/resource ID.
+    #[doc = "**API Contract:** Run `sand api show sand::command::DamageBuilder::damage_type` for the canonical contract."]
     pub fn damage_type(mut self, damage_type: impl Into<String>) -> Self {
         self.damage_type = damage_type.into();
         self
     }
 
     /// Alias for [`damage_type`](Damage::damage_type).
+    #[doc = "**API Contract:** Run `sand api show sand::command::DamageBuilder::kind` for the canonical contract."]
     pub fn kind(self, damage_type: impl Into<String>) -> Self {
         self.damage_type(damage_type)
     }
 
     /// Attribute the damage source to a single entity.
+    #[doc = "**API Contract:** Run `sand api show sand::command::DamageBuilder::source` for the canonical contract."]
     pub fn source(mut self, source: impl Into<SingleEntity>) -> Self {
         self.source = Some(source.into());
         self
     }
 
     /// Explicitly omit source attribution.
+    #[doc = "**API Contract:** Run `sand api show sand::command::DamageBuilder::without_source` for the canonical contract."]
     pub fn without_source(mut self) -> Self {
         self.source = None;
         self
     }
 
     /// Run target selection at another single entity's position.
+    #[doc = "**API Contract:** Run `sand api show sand::command::DamageBuilder::centered_at` for the canonical contract."]
     pub fn centered_at(mut self, center: impl Into<SingleEntity>) -> Self {
         self.centered_at = Some(center.into());
         self
@@ -962,6 +976,7 @@ impl Damage {
     /// Raw/unchecked: accepts a non-finite [`DamageAmount`] and an empty/
     /// malformed `damage_type`. Prefer [`try_run`](Self::try_run) on the
     /// validated path.
+    #[doc = "**API Contract:** Run `sand api show sand::command::DamageBuilder::run` for the canonical contract."]
     pub fn run(self) -> Vec<String> {
         let Self {
             targets,
@@ -995,6 +1010,7 @@ impl Damage {
     /// Fallible [`run`](Self::run) — rejects a non-finite damage amount or a
     /// `damage_type` that isn't a valid `namespace:path` resource location
     /// before producing command text.
+    #[doc = "**API Contract:** Run `sand api show sand::command::DamageBuilder::try_run` for the canonical contract."]
     pub fn try_run(self) -> CommandResult<Vec<String>> {
         validate::finite(self.amount.as_fixed(), "Damage::try_run", "amount")?;
         validate::resource_location_shape(&self.damage_type, "Damage::try_run", "damage_type")?;

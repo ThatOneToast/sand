@@ -37,16 +37,19 @@ pub enum NbtValue {
 
 impl NbtValue {
     /// Creates an SNBT list from typed NBT values.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtValue::list` for the canonical contract."]
     pub fn list(values: impl IntoIterator<Item = impl Into<NbtValue>>) -> Self {
         Self::List(values.into_iter().map(Into::into).collect())
     }
 
     /// Wraps a typed SNBT compound as an NBT value.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtValue::compound` for the canonical contract."]
     pub fn compound(value: NbtCompound) -> Self {
         Self::Compound(value)
     }
 
     /// Provides the explicit raw SNBT escape hatch after the caller accepts validation responsibility.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtValue::raw` for the canonical contract."]
     pub fn raw(snbt: impl Into<String>) -> Self {
         Self::Raw(snbt.into())
     }
@@ -126,22 +129,26 @@ pub struct NbtCompound {
 
 impl NbtCompound {
     /// Creates an empty typed SNBT compound.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtCompound::new` for the canonical contract."]
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Adds or replaces a named value in this SNBT compound builder.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtCompound::field` for the canonical contract."]
     pub fn field(mut self, key: impl Into<String>, value: impl Into<NbtValue>) -> Self {
         self.entries.push((key.into(), value.into()));
         self
     }
 
     /// Builds the typed Minecraft data modification for insert.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtCompound::insert` for the canonical contract."]
     pub fn insert(&mut self, key: impl Into<String>, value: impl Into<NbtValue>) {
         self.entries.push((key.into(), value.into()));
     }
 
     /// Reports whether this SNBT compound contains no fields.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtCompound::is_empty` for the canonical contract."]
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }
@@ -185,6 +192,7 @@ impl NbtPath {
     ///
     /// Validation is performed at the fallible command-render/export boundary
     /// so ordinary command-producing call sites remain ergonomic.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtPath::new` for the canonical contract."]
     pub fn new(path: impl Into<String>) -> Self {
         Self {
             value: path.into(),
@@ -193,6 +201,7 @@ impl NbtPath {
     }
 
     /// Explicit opaque path escape hatch. The path renders unchanged.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtPath::raw` for the canonical contract."]
     pub fn raw(path: impl Into<String>) -> Self {
         Self {
             value: path.into(),
@@ -201,21 +210,25 @@ impl NbtPath {
     }
 
     /// Compatibility spelling for a standalone typed path.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtPath::root` for the canonical contract."]
     pub fn root(path: impl Into<String>) -> Self {
         Self::new(path)
     }
 
     /// Borrows the rendered NBT path text without allocating.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtPath::as_str` for the canonical contract."]
     pub fn as_str(&self) -> &str {
         &self.value
     }
 
     /// Provides the explicit raw SNBT escape hatch after the caller accepts validation responsibility.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtPath::is_raw` for the canonical contract."]
     pub fn is_raw(&self) -> bool {
         self.raw
     }
 
     /// Extends this typed NBT reference with the supplied field selector.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtPath::field` for the canonical contract."]
     pub fn field(&self, key: impl AsRef<str>) -> Self {
         let key = key.as_ref();
         let value = if self.value.is_empty() {
@@ -230,11 +243,13 @@ impl NbtPath {
     }
 
     /// Extends this typed NBT reference with the supplied key selector.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtPath::key` for the canonical contract."]
     pub fn key(&self, key: impl AsRef<str>) -> Self {
         self.field(key)
     }
 
     /// Extends this typed NBT reference with the supplied index selector.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtPath::index` for the canonical contract."]
     pub fn index(&self, index: i32) -> Self {
         Self {
             value: format!("{}[{index}]", self.value),
@@ -362,31 +377,37 @@ impl Eq for DataTarget {}
 
 impl DataTarget {
     /// Creates an entity data-command target from a typed selector.
+    #[doc = "**API Contract:** Run `sand api show sand::data::DataTarget::entity` for the canonical contract."]
     pub fn entity(selector: Selector) -> Self {
         Self::Entity(selector)
     }
 
     /// Creates a block data-command target from typed coordinates.
+    #[doc = "**API Contract:** Run `sand api show sand::data::DataTarget::block` for the canonical contract."]
     pub fn block(position: BlockPos) -> Self {
         Self::Block(position)
     }
 
     /// Creates a command-storage data target from a namespaced identifier.
+    #[doc = "**API Contract:** Run `sand api show sand::data::DataTarget::storage` for the canonical contract."]
     pub fn storage(id: impl Into<String>) -> Self {
         Self::Storage(id.into())
     }
 
     /// Creates an untyped NBT reference at the supplied path under this target.
+    #[doc = "**API Contract:** Run `sand api show sand::data::DataTarget::path` for the canonical contract."]
     pub fn path(&self, path: impl Into<NbtPath>) -> NbtRef {
         NbtRef::new(self.clone(), path.into())
     }
 
     /// Creates a typed NBT reference at the supplied path under this target.
+    #[doc = "**API Contract:** Run `sand api show sand::data::DataTarget::typed_path` for the canonical contract."]
     pub fn typed_path<T>(&self, path: impl Into<NbtPath>) -> NbtRef<T> {
         NbtRef::new(self.clone(), path.into())
     }
 
     /// Builds the typed Minecraft data modification for merge.
+    #[doc = "**API Contract:** Run `sand api show sand::data::DataTarget::merge` for the canonical contract."]
     pub fn merge(&self, value: NbtCompound) -> DataCommand {
         DataCommand::Merge {
             target: self.clone(),
@@ -459,16 +480,19 @@ pub struct Nbt;
 
 impl Nbt {
     /// Starts an entity-backed NBT target from a typed selector.
+    #[doc = "**API Contract:** Run `sand api show sand::data::Nbt::entity` for the canonical contract."]
     pub fn entity(selector: Selector) -> NbtTarget {
         NbtTarget::new(DataTarget::entity(selector))
     }
 
     /// Starts a block-backed NBT target from typed coordinates.
+    #[doc = "**API Contract:** Run `sand api show sand::data::Nbt::block` for the canonical contract."]
     pub fn block(position: BlockPos) -> NbtTarget {
         NbtTarget::new(DataTarget::block(position))
     }
 
     /// Starts a command-storage-backed NBT target from a namespaced identifier.
+    #[doc = "**API Contract:** Run `sand api show sand::data::Nbt::storage` for the canonical contract."]
     pub fn storage(id: impl Into<String>) -> NbtTarget {
         NbtTarget::new(DataTarget::storage(id))
     }
@@ -482,26 +506,31 @@ pub struct NbtTarget {
 
 impl NbtTarget {
     /// Wraps a concrete data-command location as an NBT target.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtTarget::new` for the canonical contract."]
     pub fn new(location: DataTarget) -> Self {
         Self { location }
     }
 
     /// Returns the typed NBT location targeted by this reference.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtTarget::location` for the canonical contract."]
     pub fn location(&self) -> &DataTarget {
         &self.location
     }
 
     /// Extends this typed NBT reference with the supplied path selector.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtTarget::path` for the canonical contract."]
     pub fn path(&self, path: impl Into<NbtPath>) -> NbtRef {
         NbtRef::new(self.location.clone(), path.into())
     }
 
     /// Extends this typed NBT reference with the supplied typed path selector.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtTarget::typed_path` for the canonical contract."]
     pub fn typed_path<T>(&self, path: impl Into<NbtPath>) -> NbtRef<T> {
         NbtRef::new(self.location.clone(), path.into())
     }
 
     /// Builds the typed Minecraft data modification for merge.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtTarget::merge` for the canonical contract."]
     pub fn merge(&self, value: NbtCompound) -> DataCommand {
         self.location.merge(value)
     }
@@ -522,6 +551,7 @@ pub struct NbtRef<T = UntypedNbt> {
 
 impl<T> NbtRef<T> {
     /// Creates a typed NBT reference from a target and structured path.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtRef::new` for the canonical contract."]
     pub fn new(location: DataTarget, path: NbtPath) -> Self {
         Self {
             location,
@@ -531,16 +561,19 @@ impl<T> NbtRef<T> {
     }
 
     /// Returns the typed NBT location targeted by this reference.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtRef::location` for the canonical contract."]
     pub fn location(&self) -> &DataTarget {
         &self.location
     }
 
     /// Returns the typed NBT path carried by this reference.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtRef::path_value` for the canonical contract."]
     pub fn path_value(&self) -> &NbtPath {
         &self.path
     }
 
     /// The path text, without its location.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtRef::as_str` for the canonical contract."]
     pub fn as_str(&self) -> &str {
         self.path.as_str()
     }
@@ -549,6 +582,7 @@ impl<T> NbtRef<T> {
     ///
     /// New generic code should inspect [`location`](Self::location) because
     /// entity and block references intentionally have no storage ID.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtRef::storage` for the canonical contract."]
     pub fn storage(&self) -> &str {
         match &self.location {
             DataTarget::Storage(id) => id,
@@ -557,26 +591,31 @@ impl<T> NbtRef<T> {
     }
 
     /// Extends this typed NBT reference with the supplied field selector.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtRef::field` for the canonical contract."]
     pub fn field(&self, key: impl AsRef<str>) -> NbtRef<T> {
         NbtRef::new(self.location.clone(), self.path.field(key))
     }
 
     /// Extends this typed NBT reference with the supplied typed field selector.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtRef::typed_field` for the canonical contract."]
     pub fn typed_field<U>(&self, key: impl AsRef<str>) -> NbtRef<U> {
         NbtRef::new(self.location.clone(), self.path.field(key))
     }
 
     /// Extends this typed NBT reference with the supplied key selector.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtRef::key` for the canonical contract."]
     pub fn key(&self, key: impl AsRef<str>) -> NbtRef<T> {
         self.field(key)
     }
 
     /// Extends this typed NBT reference with the supplied index selector.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtRef::index` for the canonical contract."]
     pub fn index(&self, index: i32) -> NbtRef<T> {
         NbtRef::new(self.location.clone(), self.path.index(index))
     }
 
     /// Builds the typed Minecraft data query for get.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtRef::get` for the canonical contract."]
     pub fn get(&self) -> DataCommand {
         DataCommand::Get {
             source: self.untyped(),
@@ -585,6 +624,7 @@ impl<T> NbtRef<T> {
     }
 
     /// Builds the typed Minecraft data query for get scaled.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtRef::get_scaled` for the canonical contract."]
     pub fn get_scaled(&self, scale: f64) -> DataCommand {
         DataCommand::Get {
             source: self.untyped(),
@@ -593,41 +633,49 @@ impl<T> NbtRef<T> {
     }
 
     /// Builds the typed Minecraft data modification for set.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtRef::set` for the canonical contract."]
     pub fn set(&self, value: impl Into<NbtValue>) -> DataCommand {
         self.modify(DataModifyOperation::Set, DataSource::Value(value.into()))
     }
 
     /// Builds the typed Minecraft data modification for set value.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtRef::set_value` for the canonical contract."]
     pub fn set_value(&self, value: impl Into<NbtValue>) -> DataCommand {
         self.set(value)
     }
 
     /// Builds the typed Minecraft data modification for set int.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtRef::set_int` for the canonical contract."]
     pub fn set_int(&self, value: i32) -> DataCommand {
         self.set(value)
     }
 
     /// Builds the typed Minecraft data modification for set bool.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtRef::set_bool` for the canonical contract."]
     pub fn set_bool(&self, value: bool) -> DataCommand {
         self.set(value)
     }
 
     /// Builds the typed Minecraft data modification for set string.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtRef::set_string` for the canonical contract."]
     pub fn set_string(&self, value: impl Into<String>) -> DataCommand {
         self.set(NbtValue::String(value.into()))
     }
 
     /// Provides the explicit raw SNBT escape hatch after the caller accepts validation responsibility.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtRef::set_raw` for the canonical contract."]
     pub fn set_raw(&self, value: impl Into<String>) -> DataCommand {
         self.set(NbtValue::raw(value))
     }
 
     /// Builds the typed Minecraft data modification for copy from.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtRef::copy_from` for the canonical contract."]
     pub fn copy_from<U>(&self, source: &NbtRef<U>) -> DataCommand {
         self.modify(DataModifyOperation::Set, DataSource::From(source.untyped()))
     }
 
     /// Builds the typed Minecraft data modification for set string from.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtRef::set_string_from` for the canonical contract."]
     pub fn set_string_from<U>(&self, source: &NbtRef<U>) -> DataCommand {
         self.modify(
             DataModifyOperation::Set,
@@ -636,11 +684,13 @@ impl<T> NbtRef<T> {
     }
 
     /// Builds the typed Minecraft data modification for append.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtRef::append` for the canonical contract."]
     pub fn append(&self, value: impl Into<NbtValue>) -> DataCommand {
         self.modify(DataModifyOperation::Append, DataSource::Value(value.into()))
     }
 
     /// Builds the typed Minecraft data modification for append from.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtRef::append_from` for the canonical contract."]
     pub fn append_from<U>(&self, source: &NbtRef<U>) -> DataCommand {
         self.modify(
             DataModifyOperation::Append,
@@ -649,6 +699,7 @@ impl<T> NbtRef<T> {
     }
 
     /// Builds the typed Minecraft data modification for prepend.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtRef::prepend` for the canonical contract."]
     pub fn prepend(&self, value: impl Into<NbtValue>) -> DataCommand {
         self.modify(
             DataModifyOperation::Prepend,
@@ -657,6 +708,7 @@ impl<T> NbtRef<T> {
     }
 
     /// Builds the typed Minecraft data modification for prepend from.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtRef::prepend_from` for the canonical contract."]
     pub fn prepend_from<U>(&self, source: &NbtRef<U>) -> DataCommand {
         self.modify(
             DataModifyOperation::Prepend,
@@ -665,6 +717,7 @@ impl<T> NbtRef<T> {
     }
 
     /// Builds the typed Minecraft data modification for insert.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtRef::insert` for the canonical contract."]
     pub fn insert(&self, index: i32, value: impl Into<NbtValue>) -> DataCommand {
         self.modify(
             DataModifyOperation::Insert(index),
@@ -673,6 +726,7 @@ impl<T> NbtRef<T> {
     }
 
     /// Builds the typed Minecraft data modification for insert from.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtRef::insert_from` for the canonical contract."]
     pub fn insert_from<U>(&self, index: i32, source: &NbtRef<U>) -> DataCommand {
         self.modify(
             DataModifyOperation::Insert(index),
@@ -681,11 +735,13 @@ impl<T> NbtRef<T> {
     }
 
     /// Builds the typed Minecraft data modification for merge.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtRef::merge` for the canonical contract."]
     pub fn merge(&self, value: impl Into<NbtValue>) -> DataCommand {
         self.modify(DataModifyOperation::Merge, DataSource::Value(value.into()))
     }
 
     /// Builds the typed Minecraft data modification for merge from.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtRef::merge_from` for the canonical contract."]
     pub fn merge_from<U>(&self, source: &NbtRef<U>) -> DataCommand {
         self.modify(
             DataModifyOperation::Merge,
@@ -694,6 +750,7 @@ impl<T> NbtRef<T> {
     }
 
     /// Builds the typed Minecraft data modification for remove.
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtRef::remove` for the canonical contract."]
     pub fn remove(&self) -> DataCommand {
         DataCommand::Remove {
             target: self.untyped(),
@@ -753,6 +810,7 @@ pub enum DataCommand {
 
 impl DataCommand {
     /// Validates and renders this typed Minecraft data command for the selected command profile.
+    #[doc = "**API Contract:** Run `sand api show sand::data::DataCommand::try_render` for the canonical contract."]
     pub fn try_render(&self, profile: &CommandProfile) -> CommandResult<String> {
         self.validate(profile)?;
         let rendered = self.render_unchecked(profile);
@@ -761,6 +819,7 @@ impl DataCommand {
     }
 
     /// Compatibility convenience for assertions on rendered command text.
+    #[doc = "**API Contract:** Run `sand api show sand::data::DataCommand::contains` for the canonical contract."]
     pub fn contains(&self, pattern: &str) -> bool {
         self.to_string().contains(pattern)
     }
@@ -989,6 +1048,7 @@ pub struct DataModify {
 
 impl DataModify {
     /// Creates a typed data modify command builder from the supplied command inputs.
+    #[doc = "**API Contract:** Run `sand api show sand::command::DataModify::new` for the canonical contract."]
     pub fn new(target: DataTarget, path: impl Into<NbtPath>) -> Self {
         Self {
             reference: NbtRef::new(target, path.into()),
@@ -996,11 +1056,13 @@ impl DataModify {
     }
 
     /// Renders the Minecraft set command for the selected data modify.
+    #[doc = "**API Contract:** Run `sand api show sand::command::DataModify::set` for the canonical contract."]
     pub fn set(self, value: impl Into<NbtValue>) -> String {
         self.reference.set(value).to_string()
     }
 
     /// Renders the Minecraft command that sets from for the selected data modify.
+    #[doc = "**API Contract:** Run `sand api show sand::command::DataModify::set_from` for the canonical contract."]
     pub fn set_from(self, source: DataTarget, source_path: impl Into<NbtPath>) -> String {
         self.reference
             .copy_from(&NbtRef::<UntypedNbt>::new(source, source_path.into()))
@@ -1008,11 +1070,13 @@ impl DataModify {
     }
 
     /// Renders the Minecraft append command for the selected data modify.
+    #[doc = "**API Contract:** Run `sand api show sand::command::DataModify::append` for the canonical contract."]
     pub fn append(self, value: impl Into<NbtValue>) -> String {
         self.reference.append(value).to_string()
     }
 
     /// Renders the Minecraft append from command for the selected data modify.
+    #[doc = "**API Contract:** Run `sand api show sand::command::DataModify::append_from` for the canonical contract."]
     pub fn append_from(self, source: DataTarget, source_path: impl Into<NbtPath>) -> String {
         self.reference
             .append_from(&NbtRef::<UntypedNbt>::new(source, source_path.into()))
@@ -1020,16 +1084,19 @@ impl DataModify {
     }
 
     /// Renders the Minecraft prepend command for the selected data modify.
+    #[doc = "**API Contract:** Run `sand api show sand::command::DataModify::prepend` for the canonical contract."]
     pub fn prepend(self, value: impl Into<NbtValue>) -> String {
         self.reference.prepend(value).to_string()
     }
 
     /// Renders the Minecraft insert command for the selected data modify.
+    #[doc = "**API Contract:** Run `sand api show sand::command::DataModify::insert` for the canonical contract."]
     pub fn insert(self, index: i32, value: impl Into<NbtValue>) -> String {
         self.reference.insert(index, value).to_string()
     }
 
     /// Renders the Minecraft merge command for the selected data modify.
+    #[doc = "**API Contract:** Run `sand api show sand::command::DataModify::merge` for the canonical contract."]
     pub fn merge(self, value: impl Into<NbtValue>) -> String {
         self.reference.merge(value).to_string()
     }
@@ -1058,6 +1125,7 @@ impl From<DataModify> for String {
 }
 
 /// Starts a typed Minecraft data-modification builder for the target and NBT path.
+#[doc = "**API Contract:** Run `sand api show sand::command::data_modify` for the canonical contract."]
 pub fn data_modify(target: DataTarget, path: impl Into<NbtPath>) -> DataModify {
     DataModify::new(target, path)
 }

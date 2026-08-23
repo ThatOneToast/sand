@@ -31,6 +31,7 @@ pub struct BannerPattern {
 
 impl BannerPattern {
     /// Creates a new banner pattern with the given resource location.
+    #[doc = "**API Contract:** Run `sand api show sand::component::BannerPattern::new` for the canonical contract."]
     pub fn new(location: ResourceLocation) -> Self {
         Self {
             location,
@@ -40,12 +41,14 @@ impl BannerPattern {
     }
 
     /// Sets the asset ID (texture reference) for this banner pattern.
+    #[doc = "**API Contract:** Run `sand api show sand::component::BannerPattern::asset_id` for the canonical contract."]
     pub fn asset_id(mut self, id: impl Into<String>) -> Self {
         self.asset_id = id.into();
         self
     }
 
     /// Sets the translation key for the banner pattern's display name.
+    #[doc = "**API Contract:** Run `sand api show sand::component::BannerPattern::translation_key` for the canonical contract."]
     pub fn translation_key(mut self, key: impl Into<String>) -> Self {
         self.translation_key = key.into();
         self

@@ -33,11 +33,13 @@ pub struct EntityEventId(crate::ResourceLocation);
 
 impl EntityEventId {
     /// Construct a namespaced event identifier.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityEventId::new` for the canonical contract."]
     pub fn new(location: crate::ResourceLocation) -> Self {
         Self(location)
     }
 
     /// Return the underlying resource location.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityEventId::location` for the canonical contract."]
     #[must_use]
     pub fn location(&self) -> &crate::ResourceLocation {
         &self.0
@@ -74,6 +76,7 @@ pub enum RefreshPolicy {
 
 impl RefreshPolicy {
     /// Validate scheduling invariants with archetype/property context.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::RefreshPolicy::validate` for the canonical contract."]
     pub fn validate(
         &self,
         archetype: impl fmt::Display,
@@ -107,6 +110,7 @@ pub enum OwnershipPolicy {
 
 impl OwnershipPolicy {
     /// Whether this policy claims write ownership for conflict detection.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::OwnershipPolicy::claims_write_ownership` for the canonical contract."]
     #[must_use]
     pub const fn claims_write_ownership(self) -> bool {
         matches!(
@@ -116,6 +120,7 @@ impl OwnershipPolicy {
     }
 
     /// Whether this policy reads native runtime state.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::OwnershipPolicy::observes_native_state` for the canonical contract."]
     #[must_use]
     pub const fn observes_native_state(self) -> bool {
         matches!(self, Self::Observe)
@@ -168,6 +173,7 @@ pub struct HealthBinding {
 
 impl HealthBinding {
     /// Bind a max-health state score with safe absolute-health preservation.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::HealthBinding::new` for the canonical contract."]
     #[must_use]
     pub fn new(max_health: EntityScore<i32>) -> Self {
         Self {
@@ -182,6 +188,7 @@ impl HealthBinding {
     }
 
     /// Add a state score representing native current health.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::HealthBinding::current_health` for the canonical contract."]
     #[must_use]
     pub fn current_health(mut self, field: EntityScore<i32>, sync: CurrentHealthSync) -> Self {
         self.current_health = Some(field);
@@ -194,6 +201,7 @@ impl HealthBinding {
     ///
     /// Observation pauses while the entity is unloaded. Zero is rejected
     /// during archetype validation.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::HealthBinding::observe_native_every` for the canonical contract."]
     #[must_use]
     pub fn observe_native_every(mut self, interval: Ticks) -> Self {
         self.observation_interval = Some(interval);
@@ -201,6 +209,7 @@ impl HealthBinding {
     }
 
     /// Select behavior when max health changes.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::HealthBinding::resize` for the canonical contract."]
     #[must_use]
     pub fn resize(mut self, policy: HealthResizePolicy) -> Self {
         self.resize = policy;
@@ -208,6 +217,7 @@ impl HealthBinding {
     }
 
     /// Select ownership behavior.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::HealthBinding::ownership` for the canonical contract."]
     #[must_use]
     pub fn ownership(mut self, policy: OwnershipPolicy) -> Self {
         self.ownership = policy;
@@ -215,6 +225,7 @@ impl HealthBinding {
     }
 
     /// Select automatic refresh scheduling.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::HealthBinding::refresh` for the canonical contract."]
     #[must_use]
     pub fn refresh(mut self, policy: RefreshPolicy) -> Self {
         self.refresh = policy.into();
@@ -222,48 +233,56 @@ impl HealthBinding {
     }
 
     /// Max-health state field.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::HealthBinding::max_health_field` for the canonical contract."]
     #[must_use]
     pub const fn max_health_field(&self) -> EntityScore<i32> {
         self.max_health
     }
 
     /// Optional current-health state field.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::HealthBinding::current_health_field` for the canonical contract."]
     #[must_use]
     pub const fn current_health_field(&self) -> Option<EntityScore<i32>> {
         self.current_health
     }
 
     /// Selected resize behavior.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::HealthBinding::resize_policy` for the canonical contract."]
     #[must_use]
     pub const fn resize_policy(&self) -> HealthResizePolicy {
         self.resize
     }
 
     /// Selected current-health direction.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::HealthBinding::current_health_sync` for the canonical contract."]
     #[must_use]
     pub const fn current_health_sync(&self) -> CurrentHealthSync {
         self.current_sync
     }
 
     /// Optional native-health observation cadence.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::HealthBinding::observation_interval` for the canonical contract."]
     #[must_use]
     pub const fn observation_interval(&self) -> Option<Ticks> {
         self.observation_interval
     }
 
     /// Selected ownership behavior.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::HealthBinding::ownership_policy` for the canonical contract."]
     #[must_use]
     pub const fn ownership_policy(&self) -> OwnershipPolicy {
         self.ownership
     }
 
     /// Selected refresh behavior.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::HealthBinding::refresh_policy` for the canonical contract."]
     #[must_use]
     pub fn refresh_policy(&self) -> RefreshPolicy {
         self.refresh.clone().into()
     }
 
     /// Validate combinations that cannot preserve their documented semantics.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::HealthBinding::validate` for the canonical contract."]
     pub fn validate(&self, archetype: impl fmt::Display) -> Result<(), EntityDiagnostic> {
         let archetype = archetype.to_string();
         self.refresh_policy()
@@ -353,6 +372,7 @@ pub enum NumericPropertySource {
 
 impl NumericPropertySource {
     /// Construct a finite fixed-point constant.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::NumericPropertySource::fixed` for the canonical contract."]
     pub fn fixed(units: i64, scale: u32) -> Result<Self, EntityDiagnostic> {
         if scale == 0 {
             return Err(EntityDiagnostic::FixedPointOverflow {
@@ -365,6 +385,7 @@ impl NumericPropertySource {
     }
 
     /// Use a typed state score as the source.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::NumericPropertySource::state` for the canonical contract."]
     #[must_use]
     pub fn state<T: 'static>(field: EntityScore<T>) -> Self {
         Self::StateScore {
@@ -402,6 +423,7 @@ pub struct AttributeModifierBinding {
 
 impl AttributeModifierBinding {
     /// Create an exact, dirty-refreshed modifier.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::AttributeModifierBinding::new` for the canonical contract."]
     #[must_use]
     pub fn new(
         attribute: AttributeType,
@@ -420,6 +442,7 @@ impl AttributeModifierBinding {
     }
 
     /// Select ownership behavior.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::AttributeModifierBinding::ownership` for the canonical contract."]
     #[must_use]
     pub fn ownership(mut self, policy: OwnershipPolicy) -> Self {
         self.ownership = policy;
@@ -427,6 +450,7 @@ impl AttributeModifierBinding {
     }
 
     /// Select refresh scheduling.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::AttributeModifierBinding::refresh` for the canonical contract."]
     #[must_use]
     pub fn refresh(mut self, policy: RefreshPolicy) -> Self {
         self.refresh = policy;
@@ -434,36 +458,42 @@ impl AttributeModifierBinding {
     }
 
     /// Target attribute.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::AttributeModifierBinding::attribute` for the canonical contract."]
     #[must_use]
     pub fn attribute(&self) -> &AttributeType {
         &self.attribute
     }
 
     /// Stable modifier resource ID.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::AttributeModifierBinding::id` for the canonical contract."]
     #[must_use]
     pub fn id(&self) -> &crate::ResourceLocation {
         &self.id
     }
 
     /// Numeric modifier amount.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::AttributeModifierBinding::source` for the canonical contract."]
     #[must_use]
     pub fn source(&self) -> &NumericPropertySource {
         &self.source
     }
 
     /// Vanilla modifier operation.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::AttributeModifierBinding::operation` for the canonical contract."]
     #[must_use]
     pub const fn operation(&self) -> AttributeOperation {
         self.operation
     }
 
     /// Ownership behavior.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::AttributeModifierBinding::ownership_policy` for the canonical contract."]
     #[must_use]
     pub const fn ownership_policy(&self) -> OwnershipPolicy {
         self.ownership
     }
 
     /// Refresh scheduling.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::AttributeModifierBinding::refresh_policy` for the canonical contract."]
     #[must_use]
     pub fn refresh_policy(&self) -> &RefreshPolicy {
         &self.refresh
@@ -479,6 +509,7 @@ impl AttributeModifierBinding {
     }
 
     /// Validate scheduling.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::AttributeModifierBinding::validate` for the canonical contract."]
     pub fn validate(&self, archetype: impl fmt::Display) -> Result<(), EntityDiagnostic> {
         self.refresh.validate(archetype, self.property_key())
     }
@@ -486,6 +517,7 @@ impl AttributeModifierBinding {
 
 impl AttributeBinding {
     /// Bind an attribute base value to a typed numeric source.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::AttributeBinding::new` for the canonical contract."]
     #[must_use]
     pub fn new(attribute: AttributeType, source: NumericPropertySource) -> Self {
         Self {
@@ -497,6 +529,7 @@ impl AttributeBinding {
     }
 
     /// Set ownership behavior.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::AttributeBinding::ownership` for the canonical contract."]
     #[must_use]
     pub fn ownership(mut self, policy: OwnershipPolicy) -> Self {
         self.ownership = policy;
@@ -504,6 +537,7 @@ impl AttributeBinding {
     }
 
     /// Set refresh scheduling.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::AttributeBinding::refresh` for the canonical contract."]
     #[must_use]
     pub fn refresh(mut self, policy: RefreshPolicy) -> Self {
         self.refresh = policy;
@@ -511,24 +545,28 @@ impl AttributeBinding {
     }
 
     /// Native attribute identifier.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::AttributeBinding::attribute` for the canonical contract."]
     #[must_use]
     pub fn attribute(&self) -> &AttributeType {
         &self.attribute
     }
 
     /// Numeric source.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::AttributeBinding::source` for the canonical contract."]
     #[must_use]
     pub fn source(&self) -> &NumericPropertySource {
         &self.source
     }
 
     /// Ownership behavior.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::AttributeBinding::ownership_policy` for the canonical contract."]
     #[must_use]
     pub const fn ownership_policy(&self) -> OwnershipPolicy {
         self.ownership
     }
 
     /// Refresh scheduling.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::AttributeBinding::refresh_policy` for the canonical contract."]
     #[must_use]
     pub fn refresh_policy(&self) -> &RefreshPolicy {
         &self.refresh
@@ -541,6 +579,7 @@ impl AttributeBinding {
     }
 
     /// Validate refresh scheduling with archetype context.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::AttributeBinding::validate` for the canonical contract."]
     pub fn validate(&self, archetype: impl fmt::Display) -> Result<(), EntityDiagnostic> {
         self.refresh.validate(archetype, self.property_key())
     }
@@ -561,6 +600,7 @@ pub struct EffectBinding {
 
 impl EffectBinding {
     /// Create an effect binding with amplifier zero.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EffectBinding::new` for the canonical contract."]
     #[must_use]
     pub fn new(effect: StatusEffectId, duration: Ticks) -> Self {
         Self {
@@ -573,6 +613,7 @@ impl EffectBinding {
     }
 
     /// Set the zero-based Minecraft effect amplifier.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EffectBinding::amplifier` for the canonical contract."]
     #[must_use]
     pub fn amplifier(mut self, amplifier: u8) -> Self {
         self.amplifier = amplifier;
@@ -580,6 +621,7 @@ impl EffectBinding {
     }
 
     /// Set ownership behavior.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EffectBinding::ownership` for the canonical contract."]
     #[must_use]
     pub fn ownership(mut self, ownership: OwnershipPolicy) -> Self {
         self.ownership = ownership;
@@ -587,6 +629,7 @@ impl EffectBinding {
     }
 
     /// Set refresh scheduling.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EffectBinding::refresh` for the canonical contract."]
     #[must_use]
     pub fn refresh(mut self, refresh: RefreshPolicy) -> Self {
         self.refresh = refresh;
@@ -594,30 +637,35 @@ impl EffectBinding {
     }
 
     /// Effect registry identifier.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EffectBinding::effect` for the canonical contract."]
     #[must_use]
     pub fn effect(&self) -> &StatusEffectId {
         &self.effect
     }
 
     /// Requested effect duration.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EffectBinding::duration` for the canonical contract."]
     #[must_use]
     pub const fn duration(&self) -> Ticks {
         self.duration
     }
 
     /// Zero-based effect amplifier.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EffectBinding::amplifier_value` for the canonical contract."]
     #[must_use]
     pub const fn amplifier_value(&self) -> u8 {
         self.amplifier
     }
 
     /// Selected ownership behavior.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EffectBinding::ownership_policy` for the canonical contract."]
     #[must_use]
     pub const fn ownership_policy(&self) -> OwnershipPolicy {
         self.ownership
     }
 
     /// Selected refresh scheduling.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EffectBinding::refresh_policy` for the canonical contract."]
     #[must_use]
     pub fn refresh_policy(&self) -> &RefreshPolicy {
         &self.refresh
@@ -630,6 +678,7 @@ impl EffectBinding {
     }
 
     /// Validate refresh scheduling with archetype context.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EffectBinding::validate` for the canonical contract."]
     pub fn validate(&self, archetype: impl fmt::Display) -> Result<(), EntityDiagnostic> {
         self.refresh.validate(archetype, self.property_key())
     }
@@ -646,6 +695,7 @@ pub struct EquipmentBinding {
 
 impl EquipmentBinding {
     /// Equip `stack` in `slot` according to preserve-by-default initialization.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EquipmentBinding::new` for the canonical contract."]
     #[must_use]
     pub fn new(slot: EquipmentSlot, stack: ItemStack) -> Self {
         Self {
@@ -657,6 +707,7 @@ impl EquipmentBinding {
     }
 
     /// Set ownership behavior.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EquipmentBinding::ownership` for the canonical contract."]
     #[must_use]
     pub fn ownership(mut self, ownership: OwnershipPolicy) -> Self {
         self.ownership = ownership;
@@ -664,6 +715,7 @@ impl EquipmentBinding {
     }
 
     /// Set refresh scheduling.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EquipmentBinding::refresh` for the canonical contract."]
     #[must_use]
     pub fn refresh(mut self, refresh: RefreshPolicy) -> Self {
         self.refresh = refresh;
@@ -671,24 +723,28 @@ impl EquipmentBinding {
     }
 
     /// Equipment slot.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EquipmentBinding::slot` for the canonical contract."]
     #[must_use]
     pub const fn slot(&self) -> EquipmentSlot {
         self.slot
     }
 
     /// Concrete component-bearing item stack.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EquipmentBinding::stack` for the canonical contract."]
     #[must_use]
     pub fn stack(&self) -> &ItemStack {
         &self.stack
     }
 
     /// Selected ownership behavior.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EquipmentBinding::ownership_policy` for the canonical contract."]
     #[must_use]
     pub const fn ownership_policy(&self) -> OwnershipPolicy {
         self.ownership
     }
 
     /// Selected refresh scheduling.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EquipmentBinding::refresh_policy` for the canonical contract."]
     #[must_use]
     pub fn refresh_policy(&self) -> &RefreshPolicy {
         &self.refresh
@@ -701,6 +757,7 @@ impl EquipmentBinding {
     }
 
     /// Validate refresh scheduling with archetype context.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EquipmentBinding::validate` for the canonical contract."]
     pub fn validate(&self, archetype: impl fmt::Display) -> Result<(), EntityDiagnostic> {
         self.refresh.validate(archetype, self.property_key())
     }
@@ -754,6 +811,7 @@ pub enum EntityTextSegment {
 
 impl EntityTextSegment {
     /// Apply a named Minecraft color to this segment.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTextSegment::color` for the canonical contract."]
     #[must_use]
     pub fn color(mut self, value: ChatColor) -> Self {
         match &mut self {
@@ -778,6 +836,7 @@ pub struct EntityText {
 
 impl EntityText {
     /// Start an empty template.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityText::new` for the canonical contract."]
     #[must_use]
     pub const fn new() -> Self {
         Self {
@@ -786,6 +845,7 @@ impl EntityText {
     }
 
     /// Append literal text.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityText::literal` for the canonical contract."]
     #[must_use]
     pub fn literal(mut self, text: impl Into<String>) -> Self {
         self.segments.push(EntityTextSegment::Literal {
@@ -796,6 +856,7 @@ impl EntityText {
     }
 
     /// Append a typed numeric state field.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityText::score` for the canonical contract."]
     #[must_use]
     pub fn score<T: 'static>(mut self, field: EntityScore<T>) -> Self {
         self.segments.push(EntityTextSegment::Numeric {
@@ -807,6 +868,7 @@ impl EntityText {
     }
 
     /// Append a typed enum using schema variant names as display strings.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityText::enum_value` for the canonical contract."]
     #[must_use]
     pub fn enum_value<T: EntityEnumValue>(mut self, field: EntityEnum<T>) -> Self {
         self.segments.push(EntityTextSegment::Enum {
@@ -822,6 +884,7 @@ impl EntityText {
     }
 
     /// Append a typed flag with explicit display strings.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityText::flag` for the canonical contract."]
     #[must_use]
     pub fn flag(
         mut self,
@@ -842,6 +905,7 @@ impl EntityText {
     /// Color the most recently appended segment.
     ///
     /// Calling this on an empty template is a harmless no-op.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityText::color_last` for the canonical contract."]
     #[must_use]
     pub fn color_last(mut self, color: ChatColor) -> Self {
         if let Some(segment) = self.segments.pop() {
@@ -851,6 +915,7 @@ impl EntityText {
     }
 
     /// Ordered segments used by text lowering.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityText::segments` for the canonical contract."]
     #[must_use]
     pub fn segments(&self) -> &[EntityTextSegment] {
         &self.segments
@@ -868,6 +933,7 @@ pub struct NameBinding {
 
 impl NameBinding {
     /// Create a visible name refreshed only when a source changes.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::NameBinding::new` for the canonical contract."]
     #[must_use]
     pub fn new(text: EntityText) -> Self {
         Self {
@@ -879,6 +945,7 @@ impl NameBinding {
     }
 
     /// Control `CustomNameVisible`.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::NameBinding::visible` for the canonical contract."]
     #[must_use]
     pub fn visible(mut self, visible: bool) -> Self {
         self.visible = visible;
@@ -886,6 +953,7 @@ impl NameBinding {
     }
 
     /// Set ownership behavior.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::NameBinding::ownership` for the canonical contract."]
     #[must_use]
     pub fn ownership(mut self, ownership: OwnershipPolicy) -> Self {
         self.ownership = ownership;
@@ -893,6 +961,7 @@ impl NameBinding {
     }
 
     /// Set refresh scheduling.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::NameBinding::refresh` for the canonical contract."]
     #[must_use]
     pub fn refresh(mut self, refresh: RefreshPolicy) -> Self {
         self.refresh = refresh;
@@ -900,30 +969,35 @@ impl NameBinding {
     }
 
     /// Name template.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::NameBinding::text` for the canonical contract."]
     #[must_use]
     pub fn text(&self) -> &EntityText {
         &self.text
     }
 
     /// Whether Minecraft should render the name without targeting the entity.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::NameBinding::is_visible` for the canonical contract."]
     #[must_use]
     pub const fn is_visible(&self) -> bool {
         self.visible
     }
 
     /// Selected ownership behavior.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::NameBinding::ownership_policy` for the canonical contract."]
     #[must_use]
     pub const fn ownership_policy(&self) -> OwnershipPolicy {
         self.ownership
     }
 
     /// Selected refresh scheduling.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::NameBinding::refresh_policy` for the canonical contract."]
     #[must_use]
     pub fn refresh_policy(&self) -> &RefreshPolicy {
         &self.refresh
     }
 
     /// Validate refresh scheduling with archetype context.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::NameBinding::validate` for the canonical contract."]
     pub fn validate(&self, archetype: impl fmt::Display) -> Result<(), EntityDiagnostic> {
         self.refresh.validate(archetype, NativePropertyKey::Name)
     }
@@ -939,6 +1013,7 @@ pub struct EntityTag(String);
 
 impl EntityTag {
     /// Validate and construct an entity tag.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTag::new` for the canonical contract."]
     pub fn new(value: &str) -> Result<Self, PropertyNameError> {
         validate_token(value, 1024, "entity tag")?;
         Ok(Self(value.to_owned()))
@@ -950,6 +1025,7 @@ impl EntityTag {
     }
 
     /// Validated command token.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTag::as_str` for the canonical contract."]
     #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
@@ -964,12 +1040,14 @@ impl EntityTeam {
     /// Validate and construct a team name.
     ///
     /// Vanilla team names are limited to 16 bytes.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTeam::new` for the canonical contract."]
     pub fn new(value: &str) -> Result<Self, PropertyNameError> {
         validate_token(value, 16, "team")?;
         Ok(Self(value.to_owned()))
     }
 
     /// Validated command token.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTeam::as_str` for the canonical contract."]
     #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
@@ -986,6 +1064,7 @@ pub struct TagBinding {
 
 impl TagBinding {
     /// Add a validated tag during initialization.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::TagBinding::new` for the canonical contract."]
     #[must_use]
     pub fn new(tag: EntityTag) -> Self {
         Self {
@@ -996,6 +1075,7 @@ impl TagBinding {
     }
 
     /// Set whether reconciliation preserves, observes, or enforces this tag.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::TagBinding::ownership` for the canonical contract."]
     #[must_use]
     pub fn ownership(mut self, ownership: OwnershipPolicy) -> Self {
         self.ownership = ownership;
@@ -1003,6 +1083,7 @@ impl TagBinding {
     }
 
     /// Set refresh scheduling.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::TagBinding::refresh` for the canonical contract."]
     #[must_use]
     pub fn refresh(mut self, refresh: RefreshPolicy) -> Self {
         self.refresh = refresh;
@@ -1010,18 +1091,21 @@ impl TagBinding {
     }
 
     /// Validated tag.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::TagBinding::tag` for the canonical contract."]
     #[must_use]
     pub fn tag(&self) -> &EntityTag {
         &self.tag
     }
 
     /// Selected ownership behavior.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::TagBinding::ownership_policy` for the canonical contract."]
     #[must_use]
     pub const fn ownership_policy(&self) -> OwnershipPolicy {
         self.ownership
     }
 
     /// Selected refresh scheduling.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::TagBinding::refresh_policy` for the canonical contract."]
     #[must_use]
     pub fn refresh_policy(&self) -> &RefreshPolicy {
         &self.refresh
@@ -1034,6 +1118,7 @@ impl TagBinding {
     }
 
     /// Validate refresh scheduling with archetype context.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::TagBinding::validate` for the canonical contract."]
     pub fn validate(&self, archetype: impl fmt::Display) -> Result<(), EntityDiagnostic> {
         self.refresh.validate(archetype, self.property_key())
     }
@@ -1052,6 +1137,7 @@ pub struct TeamBinding {
 
 impl TeamBinding {
     /// Join a validated team during initialization.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::TeamBinding::new` for the canonical contract."]
     #[must_use]
     pub fn new(team: EntityTeam) -> Self {
         Self {
@@ -1062,6 +1148,7 @@ impl TeamBinding {
     }
 
     /// Set membership ownership behavior.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::TeamBinding::ownership` for the canonical contract."]
     #[must_use]
     pub fn ownership(mut self, ownership: OwnershipPolicy) -> Self {
         self.ownership = ownership;
@@ -1069,6 +1156,7 @@ impl TeamBinding {
     }
 
     /// Set refresh scheduling.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::TeamBinding::refresh` for the canonical contract."]
     #[must_use]
     pub fn refresh(mut self, refresh: RefreshPolicy) -> Self {
         self.refresh = refresh;
@@ -1076,18 +1164,21 @@ impl TeamBinding {
     }
 
     /// Target team.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::TeamBinding::team` for the canonical contract."]
     #[must_use]
     pub fn team(&self) -> &EntityTeam {
         &self.team
     }
 
     /// Selected ownership behavior.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::TeamBinding::ownership_policy` for the canonical contract."]
     #[must_use]
     pub const fn ownership_policy(&self) -> OwnershipPolicy {
         self.ownership
     }
 
     /// Selected refresh scheduling.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::TeamBinding::refresh_policy` for the canonical contract."]
     #[must_use]
     pub fn refresh_policy(&self) -> &RefreshPolicy {
         &self.refresh
@@ -1100,6 +1191,7 @@ impl TeamBinding {
     }
 
     /// Validate refresh scheduling with archetype context.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::TeamBinding::validate` for the canonical contract."]
     pub fn validate(&self, archetype: impl fmt::Display) -> Result<(), EntityDiagnostic> {
         self.refresh.validate(archetype, self.property_key())
     }
@@ -1116,18 +1208,21 @@ pub struct PropertyNameError {
 
 impl PropertyNameError {
     /// Category of rejected value.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::PropertyNameError::kind` for the canonical contract."]
     #[must_use]
     pub const fn kind(&self) -> &'static str {
         self.kind
     }
 
     /// Original rejected value.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::PropertyNameError::value` for the canonical contract."]
     #[must_use]
     pub fn value(&self) -> &str {
         &self.value
     }
 
     /// Validation failure.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::PropertyNameError::reason` for the canonical contract."]
     #[must_use]
     pub const fn reason(&self) -> &'static str {
         self.reason
@@ -1190,6 +1285,7 @@ pub enum EntityNbtProperty {
 
 impl EntityNbtProperty {
     /// Canonical NBT path.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityNbtProperty::path` for the canonical contract."]
     #[must_use]
     pub const fn path(self) -> &'static str {
         match self {
@@ -1207,6 +1303,7 @@ impl EntityNbtProperty {
     }
 
     /// Stable wire type expected by this property.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityNbtProperty::wire_type` for the canonical contract."]
     #[must_use]
     pub const fn wire_type(self) -> EntityNbtType {
         match self {
@@ -1238,6 +1335,7 @@ pub enum EntityNbtValue {
 
 impl EntityNbtValue {
     /// Construct a fixed-point decimal, rejecting a zero scale.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityNbtValue::fixed` for the canonical contract."]
     pub fn fixed(units: i64, scale: u32) -> Result<Self, EntityDiagnostic> {
         if scale == 0 {
             return Err(EntityDiagnostic::FixedPointOverflow {
@@ -1272,6 +1370,7 @@ pub struct EntityNbtBinding {
 
 impl EntityNbtBinding {
     /// Bind a stable property to a typed value.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityNbtBinding::new` for the canonical contract."]
     #[must_use]
     pub fn new(property: EntityNbtProperty, value: EntityNbtValue) -> Self {
         Self {
@@ -1283,6 +1382,7 @@ impl EntityNbtBinding {
     }
 
     /// Set ownership behavior.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityNbtBinding::ownership` for the canonical contract."]
     #[must_use]
     pub fn ownership(mut self, ownership: OwnershipPolicy) -> Self {
         self.ownership = ownership;
@@ -1290,6 +1390,7 @@ impl EntityNbtBinding {
     }
 
     /// Set refresh scheduling.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityNbtBinding::refresh` for the canonical contract."]
     #[must_use]
     pub fn refresh(mut self, refresh: RefreshPolicy) -> Self {
         self.refresh = refresh;
@@ -1297,24 +1398,28 @@ impl EntityNbtBinding {
     }
 
     /// Stable NBT property.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityNbtBinding::property` for the canonical contract."]
     #[must_use]
     pub const fn property(&self) -> EntityNbtProperty {
         self.property
     }
 
     /// Typed NBT value.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityNbtBinding::value` for the canonical contract."]
     #[must_use]
     pub fn value(&self) -> &EntityNbtValue {
         &self.value
     }
 
     /// Selected ownership behavior.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityNbtBinding::ownership_policy` for the canonical contract."]
     #[must_use]
     pub const fn ownership_policy(&self) -> OwnershipPolicy {
         self.ownership
     }
 
     /// Selected refresh scheduling.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityNbtBinding::refresh_policy` for the canonical contract."]
     #[must_use]
     pub fn refresh_policy(&self) -> &RefreshPolicy {
         &self.refresh
@@ -1327,6 +1432,7 @@ impl EntityNbtBinding {
     }
 
     /// Reject direct player entity-NBT mutation before lowering.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityNbtBinding::validate_for` for the canonical contract."]
     pub fn validate_for<K: EntityKind>(
         &self,
         archetype: impl fmt::Display,
@@ -1393,6 +1499,7 @@ pub struct RawEntityProperty {
 
 impl RawEntityProperty {
     /// Construct a validated raw NBT path.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::RawEntityProperty::new` for the canonical contract."]
     pub fn new(
         path: &str,
         wire_type: EntityNbtType,
@@ -1407,24 +1514,28 @@ impl RawEntityProperty {
     }
 
     /// NBT path owned by advanced caller code.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::RawEntityProperty::path` for the canonical contract."]
     #[must_use]
     pub fn path(&self) -> &str {
         &self.path
     }
 
     /// Declared wire type.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::RawEntityProperty::wire_type` for the canonical contract."]
     #[must_use]
     pub const fn wire_type(&self) -> EntityNbtType {
         self.wire_type
     }
 
     /// Declared access mode.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::RawEntityProperty::access` for the canonical contract."]
     #[must_use]
     pub const fn access(&self) -> RawPropertyAccess {
         self.access
     }
 
     /// Validate player safety for a statically known entity kind.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::RawEntityProperty::validate_for` for the canonical contract."]
     pub fn validate_for<K: EntityKind>(
         &self,
         archetype: impl fmt::Display,
@@ -1453,6 +1564,7 @@ pub struct RawEntityStateField {
 
 impl RawEntityStateField {
     /// Construct a validated raw state field name and explicit backend.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::RawEntityStateField::new` for the canonical contract."]
     pub fn new(name: &str, backend: RawStateBackend) -> Result<Self, PropertyNameError> {
         validate_token(name, 64, "raw entity state field")?;
         Ok(Self {
@@ -1462,12 +1574,14 @@ impl RawEntityStateField {
     }
 
     /// Caller-owned logical field name.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::RawEntityStateField::name` for the canonical contract."]
     #[must_use]
     pub fn name(&self) -> &str {
         &self.name
     }
 
     /// Explicit persistence backend.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::RawEntityStateField::backend` for the canonical contract."]
     #[must_use]
     pub const fn backend(&self) -> RawStateBackend {
         self.backend

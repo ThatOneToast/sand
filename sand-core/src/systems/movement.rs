@@ -91,6 +91,7 @@ impl Default for PushAway {
 
 impl PushAway {
     /// Create a new `PushAway` builder with default strength `1.0` and no lift.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::PushAway::new` for the canonical contract."]
     pub fn new() -> Self {
         Self {
             source: None,
@@ -101,24 +102,28 @@ impl PushAway {
     }
 
     /// Set the source entity (the "center" of the push, typically `@s`).
+    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::PushAway::source` for the canonical contract."]
     pub fn source(mut self, source: Selector) -> Self {
         self.source = Some(source);
         self
     }
 
     /// Set the entities to push.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::PushAway::targets` for the canonical contract."]
     pub fn targets(mut self, targets: EntityTargets) -> Self {
         self.targets = Some(targets);
         self
     }
 
     /// How far to push each target (in blocks along the away vector).
+    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::PushAway::strength` for the canonical contract."]
     pub fn strength(mut self, strength: f64) -> Self {
         self.strength = strength;
         self
     }
 
     /// How far to lift each target upward (in blocks, default `0.0`).
+    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::PushAway::lift` for the canonical contract."]
     pub fn lift(mut self, lift: f64) -> Self {
         self.lift = lift;
         self
@@ -128,6 +133,7 @@ impl PushAway {
     ///
     /// Returns one command per source–targets pair. If source or targets are
     /// not set, defaults to `@s` (source) or all entities (targets).
+    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::PushAway::build` for the canonical contract."]
     pub fn build(self) -> Vec<String> {
         let source = self.source.unwrap_or_else(Selector::self_);
         let targets = self
@@ -170,6 +176,7 @@ impl Default for Launch {
 
 impl Launch {
     /// Create a new `Launch` builder with default amount `0.5`.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::Launch::new` for the canonical contract."]
     pub fn new() -> Self {
         Self {
             targets: None,
@@ -178,23 +185,27 @@ impl Launch {
     }
 
     /// Shorthand: create a builder with targets already set.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::Launch::targets` for the canonical contract."]
     pub fn targets(targets: EntityTargets) -> Self {
         Self::new().with_targets(targets)
     }
 
     /// Set the entities to launch.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::Launch::with_targets` for the canonical contract."]
     pub fn with_targets(mut self, targets: EntityTargets) -> Self {
         self.targets = Some(targets);
         self
     }
 
     /// How far to launch upward (in blocks).
+    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::Launch::amount` for the canonical contract."]
     pub fn amount(mut self, amount: f64) -> Self {
         self.amount = amount;
         self
     }
 
     /// Build the command string(s).
+    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::Launch::build` for the canonical contract."]
     pub fn build(self) -> Vec<String> {
         let targets = self
             .targets
@@ -233,6 +244,7 @@ impl Default for SpeedBoost {
 
 impl SpeedBoost {
     /// Create a new `SpeedBoost` builder with amplifier `0` (Speed I) and 30 s duration.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::SpeedBoost::new` for the canonical contract."]
     pub fn new() -> Self {
         Self {
             targets: None,
@@ -242,11 +254,13 @@ impl SpeedBoost {
     }
 
     /// Shorthand: create a builder for a single selector target.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::SpeedBoost::target` for the canonical contract."]
     pub fn target(target: Selector) -> Self {
         Self::new().with_target(target)
     }
 
     /// Shorthand: create a builder for an entity-targets set.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::SpeedBoost::target_many` for the canonical contract."]
     pub fn target_many(targets: EntityTargets) -> Self {
         let mut s = Self::new();
         s.targets = Some(targets.to_string());
@@ -254,6 +268,7 @@ impl SpeedBoost {
     }
 
     /// Set the target selector.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::SpeedBoost::with_target` for the canonical contract."]
     pub fn with_target(mut self, target: Selector) -> Self {
         self.targets = Some(target.to_string());
         self
@@ -262,24 +277,28 @@ impl SpeedBoost {
     /// Set speed amount as a fraction where `1.0` ≈ Speed V (100% extra, amplifier 4).
     ///
     /// Maps to `amplifier = (amount / 0.2).round().max(0) as u8`.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::SpeedBoost::amount` for the canonical contract."]
     pub fn amount(mut self, amount: f64) -> Self {
         self.amplifier = ((amount / 0.2).round() as i32).max(0) as u8;
         self
     }
 
     /// Set the speed amplifier directly (0 = Speed I, 1 = Speed II, …).
+    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::SpeedBoost::amplifier` for the canonical contract."]
     pub fn amplifier(mut self, amplifier: u8) -> Self {
         self.amplifier = amplifier;
         self
     }
 
     /// Set the effect duration.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::SpeedBoost::duration` for the canonical contract."]
     pub fn duration(mut self, duration: Ticks) -> Self {
         self.duration = duration;
         self
     }
 
     /// Build the command string.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::SpeedBoost::build` for the canonical contract."]
     pub fn build(self) -> String {
         let targets = self.targets.unwrap_or_else(|| "@s".to_string());
         format!(
@@ -319,6 +338,7 @@ impl Default for Slow {
 
 impl Slow {
     /// Create a new `Slow` builder with amplifier `0` (Slowness I) and 30 s duration.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::Slow::new` for the canonical contract."]
     pub fn new() -> Self {
         Self {
             targets: None,
@@ -328,11 +348,13 @@ impl Slow {
     }
 
     /// Shorthand: create a builder for a single selector target.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::Slow::target` for the canonical contract."]
     pub fn target(target: Selector) -> Self {
         Self::new().with_target(target)
     }
 
     /// Shorthand: create a builder for an entity-targets set.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::Slow::targets` for the canonical contract."]
     pub fn targets(targets: EntityTargets) -> Self {
         let mut s = Self::new();
         s.targets = Some(targets.to_string());
@@ -340,6 +362,7 @@ impl Slow {
     }
 
     /// Set the target selector.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::Slow::with_target` for the canonical contract."]
     pub fn with_target(mut self, target: Selector) -> Self {
         self.targets = Some(target.to_string());
         self
@@ -348,24 +371,28 @@ impl Slow {
     /// Set slow amount as a fraction where `1.0` ≈ Slowness VI (~90% reduction, amplifier 5).
     ///
     /// Maps to `amplifier = (amount / 0.15).round().max(0) as u8`.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::Slow::amount` for the canonical contract."]
     pub fn amount(mut self, amount: f64) -> Self {
         self.amplifier = ((amount / 0.15).round() as i32).max(0) as u8;
         self
     }
 
     /// Set the slowness amplifier directly (0 = Slowness I, 1 = Slowness II, …).
+    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::Slow::amplifier` for the canonical contract."]
     pub fn amplifier(mut self, amplifier: u8) -> Self {
         self.amplifier = amplifier;
         self
     }
 
     /// Set the effect duration.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::Slow::duration` for the canonical contract."]
     pub fn duration(mut self, duration: Ticks) -> Self {
         self.duration = duration;
         self
     }
 
     /// Build the command string.
+    #[doc = "**API Contract:** Run `sand api show sand::systems::movement::Slow::build` for the canonical contract."]
     pub fn build(self) -> String {
         let targets = self.targets.unwrap_or_else(|| "@s".to_string());
         format!(

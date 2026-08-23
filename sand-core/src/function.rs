@@ -67,9 +67,11 @@ inventory::collect!(FunctionPointerTypeEntry);
 /// will panic with a clear message.
 pub trait IntoFunctionRef {
     /// Resolve to a complete `function <id>` Minecraft command string.
+    #[doc = "**API Contract:** Run `sand api show sand::command::IntoFunctionRef::into_function_command` for the canonical contract."]
     fn into_function_command(self) -> String;
 
     /// Resolve to just the `namespace:path` resource location string.
+    #[doc = "**API Contract:** Run `sand api show sand::command::IntoFunctionRef::into_function_id` for the canonical contract."]
     fn into_function_id(self) -> String;
 }
 

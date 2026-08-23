@@ -103,6 +103,7 @@ pub fn bar_base_codepoint(name: &str) -> u32 {
 /// let ch = sand_resourcepack::bar_char("health", 0);
 /// assert!(('\u{E000}'..='\u{F8FF}').contains(&ch));
 /// ```
+#[doc = "**API Contract:** Run `sand api show sand::resourcepack::bar_char` for the canonical contract."]
 pub fn bar_char(name: &str, frame: u32) -> char {
     char::from_u32(bar_base_codepoint(name) + frame).unwrap_or('\u{FFFD}')
 }
@@ -123,6 +124,7 @@ pub fn element_codepoint(name: &str) -> u32 {
 /// let ch = sand_resourcepack::element_char("hotbar_bg");
 /// assert!(('\u{E000}'..='\u{F8FF}').contains(&ch));
 /// ```
+#[doc = "**API Contract:** Run `sand api show sand::resourcepack::element_char` for the canonical contract."]
 pub fn element_char(name: &str) -> char {
     char::from_u32(element_codepoint(name)).unwrap_or('\u{FFFD}')
 }
@@ -151,6 +153,7 @@ pub fn element_char(name: &str) -> char {
 /// // Shift the health bar 20 pixels to the right of its natural position.
 /// let cmd = HEALTH.show_at("@a", 5, "my_pack", 20);
 /// ```
+#[doc = "**API Contract:** Run `sand api show sand::resourcepack::advance_x` for the canonical contract."]
 pub fn advance_x(offset: i32) -> String {
     if offset == 0 {
         return String::new();
@@ -202,6 +205,7 @@ pub(crate) fn json_escape_chars(s: &str) -> String {
 ///     format!("title @a actionbar {json}");
 /// }
 /// ```
+#[doc = "**API Contract:** Run `sand api show sand::resourcepack::bar_text_json` for the canonical contract."]
 pub fn bar_text_json(name: &str, frame: u32, namespace: &str, font_name: &str) -> String {
     let cp = bar_base_codepoint(name) + frame;
     let font_id = format!("{namespace}:{font_name}");
@@ -220,6 +224,7 @@ pub fn bar_text_json(name: &str, frame: u32, namespace: &str, font_name: &str) -
 ///     format!("title @a actionbar {json}");
 /// }
 /// ```
+#[doc = "**API Contract:** Run `sand api show sand::resourcepack::element_text_json` for the canonical contract."]
 pub fn element_text_json(name: &str, namespace: &str, font_name: &str) -> String {
     let cp = element_codepoint(name);
     let font_id = format!("{namespace}:{font_name}");

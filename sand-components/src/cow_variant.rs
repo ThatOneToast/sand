@@ -43,6 +43,7 @@ pub struct CowVariant {
 
 impl CowVariant {
     /// Create a new cow variant with the given resource location.
+    #[doc = "**API Contract:** Run `sand api show sand::component::CowVariant::new` for the canonical contract."]
     pub fn new(location: ResourceLocation) -> Self {
         Self {
             location,
@@ -53,18 +54,21 @@ impl CowVariant {
     }
 
     /// Set the texture asset ID (e.g. `"minecraft:entity/cow/cold_cow"`).
+    #[doc = "**API Contract:** Run `sand api show sand::component::CowVariant::asset_id` for the canonical contract."]
     pub fn asset_id(mut self, id: impl Into<String>) -> Self {
         self.asset_id = id.into();
         self
     }
 
     /// Add one prioritized biome spawn condition.
+    #[doc = "**API Contract:** Run `sand api show sand::component::CowVariant::spawn_condition` for the canonical contract."]
     pub fn spawn_condition(mut self, condition: SpawnCondition) -> Self {
         self.spawn_conditions.push(condition);
         self
     }
 
     /// Replace the full ordered list of biome spawn conditions.
+    #[doc = "**API Contract:** Run `sand api show sand::component::CowVariant::spawn_conditions` for the canonical contract."]
     pub fn spawn_conditions(
         mut self,
         conditions: impl IntoIterator<Item = SpawnCondition>,
@@ -76,6 +80,7 @@ impl CowVariant {
     /// Add a modded or version-specific field not represented by the typed API.
     ///
     /// Typed field names cannot be overridden through this escape hatch.
+    #[doc = "**API Contract:** Run `sand api show sand::component::CowVariant::raw_field` for the canonical contract."]
     pub fn raw_field(mut self, key: impl Into<String>, value: RawJson) -> Self {
         self.raw_fields.insert(key.into(), value);
         self

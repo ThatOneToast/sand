@@ -66,6 +66,7 @@ impl FixedPoint {
     ///
     /// A scale of `1000` stores three decimal places. A zero or negative scale
     /// returns an [`EntityDiagnostic::InvalidRange`] before export.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::FixedPoint::new` for the canonical contract."]
     pub fn new(
         scale: i64,
         rounding: RoundingPolicy,
@@ -86,18 +87,21 @@ impl FixedPoint {
     }
 
     /// Returns the number of stored units representing `1.0`.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::FixedPoint::scale` for the canonical contract."]
     #[must_use]
     pub const fn scale(self) -> i64 {
         self.scale
     }
 
     /// Returns the rounding rule for lossy operations.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::FixedPoint::rounding` for the canonical contract."]
     #[must_use]
     pub const fn rounding(self) -> RoundingPolicy {
         self.rounding
     }
 
     /// Returns the overflow behavior for conversion and arithmetic.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::FixedPoint::overflow` for the canonical contract."]
     #[must_use]
     pub const fn overflow(self) -> OverflowPolicy {
         self.overflow
@@ -107,6 +111,7 @@ impl FixedPoint {
     ///
     /// Floating point is accepted only at definition time. Runtime evaluation
     /// and generated Minecraft arithmetic use the resulting integer.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::FixedPoint::encode` for the canonical contract."]
     pub fn encode(
         self,
         value: f64,
@@ -135,6 +140,7 @@ impl FixedPoint {
     }
 
     /// Converts a whole scoreboard value to fixed-point units.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::FixedPoint::encode_score` for the canonical contract."]
     pub fn encode_score(
         self,
         value: i64,
@@ -151,6 +157,7 @@ impl FixedPoint {
     }
 
     /// Converts fixed-point units to a whole scoreboard value.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::FixedPoint::decode_score` for the canonical contract."]
     pub fn decode_score(
         self,
         value: FixedValue,
@@ -205,12 +212,14 @@ pub struct FixedValue(i64);
 
 impl FixedValue {
     /// Creates a value from already-scaled integer units.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::FixedValue::from_units` for the canonical contract."]
     #[must_use]
     pub const fn from_units(units: i64) -> Self {
         Self(units)
     }
 
     /// Returns the already-scaled integer representation.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::FixedValue::units` for the canonical contract."]
     #[must_use]
     pub const fn units(self) -> i64 {
         self.0
@@ -219,6 +228,7 @@ impl FixedValue {
     /// Returns this value as a host floating-point number for inspection.
     ///
     /// Exported arithmetic should use [`Self::units`] instead.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::FixedValue::as_f64` for the canonical contract."]
     #[must_use]
     pub fn as_f64(self, fixed: FixedPoint) -> f64 {
         self.0 as f64 / fixed.scale as f64
@@ -233,6 +243,7 @@ pub struct CurveInputs {
 
 impl CurveInputs {
     /// Creates an empty input set.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::CurveInputs::new` for the canonical contract."]
     #[must_use]
     pub const fn new() -> Self {
         Self {
@@ -241,11 +252,13 @@ impl CurveInputs {
     }
 
     /// Inserts an already-scaled value, replacing a value with the same name.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::CurveInputs::insert` for the canonical contract."]
     pub fn insert(&mut self, name: impl Into<String>, value: FixedValue) -> Option<FixedValue> {
         self.values.insert(name.into(), value)
     }
 
     /// Inserts a whole scoreboard value after applying `fixed`'s scale.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::CurveInputs::insert_score` for the canonical contract."]
     pub fn insert_score(
         &mut self,
         name: impl Into<String>,
@@ -259,12 +272,14 @@ impl CurveInputs {
     }
 
     /// Returns the fixed curve input registered under `name`, when present.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::CurveInputs::get` for the canonical contract."]
     #[must_use]
     pub fn get(&self, name: &str) -> Option<FixedValue> {
         self.values.get(name).copied()
     }
 
     /// Iterates in lexical key order.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::CurveInputs::iter` for the canonical contract."]
     pub fn iter(&self) -> impl Iterator<Item = (&str, FixedValue)> {
         self.values
             .iter()
@@ -588,6 +603,7 @@ enum CurveKind {
 
 impl StatCurve {
     /// Creates a fixed derived value.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::constant` for the canonical contract."]
     #[must_use]
     pub fn constant(value: f64) -> Self {
         Self {
@@ -596,6 +612,7 @@ impl StatCurve {
     }
 
     /// References a typed entity-state input.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::state` for the canonical contract."]
     #[must_use]
     pub fn state(field: impl super::EntityStateField) -> Self {
         Self {
@@ -606,6 +623,7 @@ impl StatCurve {
     /// References an explicitly raw objective name.
     ///
     /// Prefer [`Self::state`] for schema fields.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::input_raw` for the canonical contract."]
     #[must_use]
     pub fn input_raw(name: &str) -> Self {
         Self {
@@ -614,6 +632,7 @@ impl StatCurve {
     }
 
     /// Creates `input × slope + intercept`.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::linear` for the canonical contract."]
     #[must_use]
     pub fn linear(input: Self, slope: f64, intercept: f64) -> Self {
         Self {
@@ -629,6 +648,7 @@ impl StatCurve {
     /// Creates an affine curve clamped to the inclusive `[minimum, maximum]`.
     ///
     /// [`Self::validate`] rejects inverted bounds.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::clamped_linear` for the canonical contract."]
     #[must_use]
     pub fn clamped_linear(
         input: Self,
@@ -648,6 +668,7 @@ impl StatCurve {
     }
 
     /// Adds all modifiers. An empty sum evaluates to zero.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::add` for the canonical contract."]
     #[must_use]
     pub fn add(terms: impl IntoIterator<Item = Self>) -> Self {
         Self {
@@ -656,6 +677,7 @@ impl StatCurve {
     }
 
     /// Multiplies fixed-point factors. An empty product evaluates to one.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::multiply` for the canonical contract."]
     #[must_use]
     pub fn multiply(factors: impl IntoIterator<Item = Self>) -> Self {
         Self {
@@ -664,6 +686,7 @@ impl StatCurve {
     }
 
     /// Divides one fixed-point curve by another while preserving the scale.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::ratio` for the canonical contract."]
     #[must_use]
     pub fn ratio(numerator: Self, denominator: Self) -> Self {
         Self {
@@ -679,6 +702,7 @@ impl StatCurve {
     /// Each pair is `(inclusive minimum input, output)` in strictly increasing
     /// order. [`Self::validate`] rejects duplicate or descending bounds.
     /// `below` is used before the first band.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::stepped` for the canonical contract."]
     #[must_use]
     pub fn stepped(input: Self, bands: Vec<(f64, f64)>, below: f64) -> Self {
         Self {
@@ -694,6 +718,7 @@ impl StatCurve {
     ///
     /// Each pair is `(maximum input, branch)`. The fallback handles values
     /// above the final bound.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::piecewise` for the canonical contract."]
     #[must_use]
     pub fn piecewise(input: Self, branches: Vec<(f64, Self)>, fallback: Self) -> Self {
         Self {
@@ -706,6 +731,7 @@ impl StatCurve {
     }
 
     /// Creates a table keyed by whole scoreboard values.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::lookup` for the canonical contract."]
     #[must_use]
     pub fn lookup(
         input: impl super::EntityStateField,
@@ -716,6 +742,7 @@ impl StatCurve {
     }
 
     /// Creates a lookup table from an explicitly raw objective.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::lookup_raw` for the canonical contract."]
     #[must_use]
     pub fn lookup_raw(
         input: &str,
@@ -734,6 +761,7 @@ impl StatCurve {
     }
 
     /// Maps a stable [`super::EntityEnum`] integer encoding to a numeric value.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::enum_mapping` for the canonical contract."]
     #[must_use]
     pub fn enum_mapping<T: super::EntityEnumValue>(
         input: super::EntityEnum<T>,
@@ -750,6 +778,7 @@ impl StatCurve {
     }
 
     /// Maps raw enum encodings from an explicitly raw objective.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::enum_mapping_raw` for the canonical contract."]
     #[must_use]
     pub fn enum_mapping_raw(
         input: &str,
@@ -768,12 +797,14 @@ impl StatCurve {
     }
 
     /// Maps a zero/one [`super::EntityFlag`] input to numeric values.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::flag_mapping` for the canonical contract."]
     #[must_use]
     pub fn flag_mapping(input: super::EntityFlag, disabled: f64, enabled: f64) -> Self {
         Self::flag_mapping_raw(&input.objective(), disabled, enabled)
     }
 
     /// Maps a flag stored in an explicitly raw objective.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::flag_mapping_raw` for the canonical contract."]
     #[must_use]
     pub fn flag_mapping_raw(input: &str, disabled: f64, enabled: f64) -> Self {
         Self {
@@ -791,6 +822,7 @@ impl StatCurve {
     /// registers a matching generated function during lowering. The
     /// identifier, not a function pointer address, supplies deterministic
     /// identity.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::custom` for the canonical contract."]
     #[must_use]
     pub fn custom(
         function: crate::resource_ref::FunctionId,
@@ -807,6 +839,7 @@ impl StatCurve {
     /// Declaring input objective names lets dirty propagation and exporter
     /// lowering provision the callback deterministically. Use [`Self::custom`]
     /// only for callbacks that genuinely have no state inputs.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::custom_with_raw_inputs` for the canonical contract."]
     #[must_use]
     pub fn custom_with_raw_inputs(
         function: crate::resource_ref::FunctionId,
@@ -827,6 +860,7 @@ impl StatCurve {
 
     /// Validates finite constants, ordered bounds, and fixed-point
     /// representability.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::validate` for the canonical contract."]
     pub fn validate(
         &self,
         fixed: FixedPoint,
@@ -923,6 +957,7 @@ impl StatCurve {
     }
 
     /// Returns all referenced named inputs in lexical order.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve::inputs` for the canonical contract."]
     #[must_use]
     pub fn inputs(&self) -> BTreeSet<String> {
         let mut inputs = BTreeSet::new();

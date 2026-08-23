@@ -58,6 +58,7 @@ pub struct TrimAssetName(String);
 
 impl TrimAssetName {
     /// Validates an un-namespaced trim texture path such as `quartz` or `redstone_darker`.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TrimAssetName::new` for the canonical contract."]
     pub fn new(name: impl AsRef<str>) -> SandResult<Self> {
         let name = name.as_ref();
         if name.contains(':') {
@@ -68,6 +69,7 @@ impl TrimAssetName {
     }
 
     /// Returns the canonical Minecraft representation of this component value.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TrimAssetName::as_str` for the canonical contract."]
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -137,6 +139,7 @@ pub struct TrimMaterial {
 
 impl TrimMaterial {
     /// Starts a trim-material definition at `location`; required material fields are added with the builder methods.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TrimMaterial::new` for the canonical contract."]
     pub fn new(location: ResourceLocation) -> Self {
         Self {
             location,
@@ -149,36 +152,42 @@ impl TrimMaterial {
     }
 
     /// Sets the Minecraft asset name property on this typed trim material definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TrimMaterial::asset_name` for the canonical contract."]
     pub fn asset_name(mut self, name: TrimAssetName) -> Self {
         self.asset_name = Some(name);
         self
     }
 
     /// Sets the Minecraft ingredient property on this typed trim material definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TrimMaterial::ingredient` for the canonical contract."]
     pub fn ingredient(mut self, item: ItemId) -> Self {
         self.ingredient = Some(item);
         self
     }
 
     /// Sets the Minecraft item model index property on this typed trim material definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TrimMaterial::item_model_index` for the canonical contract."]
     pub fn item_model_index(mut self, index: f32) -> Self {
         self.item_model_index = index;
         self
     }
 
     /// Sets the Minecraft description property on this typed trim material definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TrimMaterial::description` for the canonical contract."]
     pub fn description(mut self, desc: TextComponent) -> Self {
         self.description = Some(TrimDescription::Typed(Box::new(desc)));
         self
     }
 
     /// Use a raw JSON text component when the typed text API cannot represent it.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TrimMaterial::raw_description` for the canonical contract."]
     pub fn raw_description(mut self, desc: RawJson) -> Self {
         self.description = Some(TrimDescription::Raw(desc));
         self
     }
 
     /// Override asset names for specific armor-material resource IDs.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TrimMaterial::override_armor_materials` for the canonical contract."]
     pub fn override_armor_materials(
         mut self,
         overrides: impl IntoIterator<Item = (ResourceLocation, TrimAssetName)>,
@@ -193,6 +202,7 @@ impl TrimMaterial {
     }
 
     /// Use a raw override object for unsupported or modded armor-material shapes.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TrimMaterial::raw_override_armor_materials` for the canonical contract."]
     pub fn raw_override_armor_materials(mut self, overrides: RawJson) -> Self {
         self.override_armor_materials = Some(ArmorMaterialOverrides::Raw(overrides));
         self
@@ -313,6 +323,7 @@ pub struct TrimPattern {
 
 impl TrimPattern {
     /// Starts a trim-pattern definition at `location`; required pattern fields are added with the builder methods.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TrimPattern::new` for the canonical contract."]
     pub fn new(location: ResourceLocation) -> Self {
         Self {
             location,
@@ -324,30 +335,35 @@ impl TrimPattern {
     }
 
     /// Sets the Minecraft asset id property on this typed trim pattern definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TrimPattern::asset_id` for the canonical contract."]
     pub fn asset_id(mut self, id: ResourceLocation) -> Self {
         self.asset_id = Some(id);
         self
     }
 
     /// Sets the Minecraft template item property on this typed trim pattern definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TrimPattern::template_item` for the canonical contract."]
     pub fn template_item(mut self, item: ItemId) -> Self {
         self.template_item = Some(item);
         self
     }
 
     /// Sets the Minecraft description property on this typed trim pattern definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TrimPattern::description` for the canonical contract."]
     pub fn description(mut self, desc: TextComponent) -> Self {
         self.description = Some(TrimDescription::Typed(Box::new(desc)));
         self
     }
 
     /// Use a raw JSON text component when the typed text API cannot represent it.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TrimPattern::raw_description` for the canonical contract."]
     pub fn raw_description(mut self, desc: RawJson) -> Self {
         self.description = Some(TrimDescription::Raw(desc));
         self
     }
 
     /// Sets the Minecraft decal property on this typed trim pattern definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::TrimPattern::decal` for the canonical contract."]
     pub fn decal(mut self, v: bool) -> Self {
         self.decal = v;
         self

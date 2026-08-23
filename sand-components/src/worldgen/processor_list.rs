@@ -36,6 +36,7 @@ pub struct ProcessorRule {
 impl ProcessorRule {
     /// `input_predicate` must be a JSON object matching vanilla's block
     /// predicate grammar (e.g. `{"predicate_type": "minecraft:block_match", "block": "minecraft:stone"}`).
+    #[doc = "**API Contract:** Run `sand api show sand::component::ProcessorRule::new` for the canonical contract."]
     pub fn new(input_predicate: RawJson, output_state: BlockState) -> Self {
         Self {
             input_predicate,
@@ -47,18 +48,21 @@ impl ProcessorRule {
     }
 
     /// Sets the Minecraft location predicate property on this typed processor rule definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ProcessorRule::location_predicate` for the canonical contract."]
     pub fn location_predicate(mut self, predicate: RawJson) -> Self {
         self.location_predicate = Some(predicate);
         self
     }
 
     /// Sets the Minecraft position predicate property on this typed processor rule definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ProcessorRule::position_predicate` for the canonical contract."]
     pub fn position_predicate(mut self, predicate: RawJson) -> Self {
         self.position_predicate = Some(predicate);
         self
     }
 
     /// Sets the Minecraft output nbt property on this typed processor rule definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ProcessorRule::output_nbt` for the canonical contract."]
     pub fn output_nbt(mut self, nbt: impl Into<String>) -> Self {
         self.output_nbt = Some(nbt.into());
         self
@@ -252,6 +256,7 @@ pub struct ProcessorList {
 
 impl ProcessorList {
     /// Create a processor list from an ordered sequence of processors.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ProcessorList::new` for the canonical contract."]
     pub fn new(
         location: ResourceLocation,
         processors: impl IntoIterator<Item = Processor>,
@@ -263,17 +268,20 @@ impl ProcessorList {
     }
 
     /// `minecraft:empty` — the vanilla no-op processor list shape (empty list).
+    #[doc = "**API Contract:** Run `sand api show sand::component::ProcessorList::empty` for the canonical contract."]
     pub fn empty(location: ResourceLocation) -> Self {
         Self::new(location, Vec::new())
     }
 
     /// Sets the Minecraft processor property on this typed processor list definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ProcessorList::processor` for the canonical contract."]
     pub fn processor(mut self, processor: Processor) -> Self {
         self.processors.push(processor);
         self
     }
 
     /// Sets the Minecraft processors property on this typed processor list definition and returns the updated builder.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ProcessorList::processors` for the canonical contract."]
     pub fn processors(mut self, processors: impl IntoIterator<Item = Processor>) -> Self {
         self.processors = processors.into_iter().collect();
         self

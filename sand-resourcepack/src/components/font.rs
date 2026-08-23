@@ -16,6 +16,7 @@ pub enum FontProvider {
 impl FontProvider {
     /// Serialize this provider to the JSON object Minecraft expects inside
     /// the `"providers"` array of a font file.
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::FontProvider::to_json` for the canonical contract."]
     pub fn to_json(&self) -> Value {
         match self {
             FontProvider::Bitmap(b) => b.to_json(),
@@ -67,6 +68,7 @@ pub struct BitmapProvider {
 
 impl BitmapProvider {
     /// Serializes this bitmap font provider to its Minecraft JSON object.
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BitmapProvider::to_json` for the canonical contract."]
     pub fn to_json(&self) -> Value {
         json!({
             "type": "bitmap",

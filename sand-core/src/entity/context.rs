@@ -43,56 +43,67 @@ impl<K: EntityKind> EntityContext<K> {
     /// The returned accessor emits commands against `@s`; it is not a
     /// storable entity reference and must remain inside the generated
     /// execution chain that supplied this context.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityContext::state` for the canonical contract."]
     pub fn state<F: crate::entity::state::EntityStateField>(&self, field: F) -> F::Accessor {
         field.bind()
     }
 
     /// `tag @s add <tag>`.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityContext::add_tag` for the canonical contract."]
     pub fn add_tag(&self, tag: impl Into<String>) -> String {
         sand_commands::builtins::tag_add(Selector::self_(), tag)
     }
 
     /// `tag @s remove <tag>`.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityContext::remove_tag` for the canonical contract."]
     pub fn remove_tag(&self, tag: impl Into<String>) -> String {
         sand_commands::builtins::tag_remove(Selector::self_(), tag)
     }
 
     /// The entity that owns this entity (e.g. a tamed wolf's owner).
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityContext::owner` for the canonical contract."]
     pub fn owner(&self) -> RelationQuery<One> {
         RelationQuery::new(Relation::Owner)
     }
 
     /// The entity leashing this entity.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityContext::leasher` for the canonical contract."]
     pub fn leasher(&self) -> RelationQuery<One> {
         RelationQuery::new(Relation::Leasher)
     }
 
     /// This entity's current attack/follow target.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityContext::target` for the canonical contract."]
     pub fn target(&self) -> RelationQuery<One> {
         RelationQuery::new(Relation::Target)
     }
 
     /// The vehicle this entity is riding.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityContext::vehicle` for the canonical contract."]
     pub fn vehicle(&self) -> RelationQuery<One> {
         RelationQuery::new(Relation::Vehicle)
     }
 
     /// The entity steering this entity's vehicle.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityContext::controller` for the canonical contract."]
     pub fn controller(&self) -> RelationQuery<One> {
         RelationQuery::new(Relation::Controller)
     }
 
     /// The entity that last damaged this entity.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityContext::attacker` for the canonical contract."]
     pub fn attacker(&self) -> RelationQuery<One> {
         RelationQuery::new(Relation::Attacker)
     }
 
     /// The entity that fired/summoned this entity (e.g. a projectile's shooter).
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityContext::origin` for the canonical contract."]
     pub fn origin(&self) -> RelationQuery<One> {
         RelationQuery::new(Relation::Origin)
     }
 
     /// The entities riding this entity.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityContext::passengers` for the canonical contract."]
     pub fn passengers(&self) -> RelationQuery<Many> {
         RelationQuery::new(Relation::Passengers)
     }
@@ -127,11 +138,13 @@ impl<K: EntityKind> ScopedEntityRef<K> {
     }
 
     /// `tag @e[tag=<scope>,limit=1] add <tag>` — tag the bound entity, not `@s`.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::ScopedEntityRef::add_tag` for the canonical contract."]
     pub fn add_tag(&self, tag: impl Into<String>) -> String {
         sand_commands::builtins::tag_add(self.selector(), tag)
     }
 
     /// `tag @e[tag=<scope>,limit=1] remove <tag>` — untag the bound entity.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::ScopedEntityRef::remove_tag` for the canonical contract."]
     pub fn remove_tag(&self, tag: impl Into<String>) -> String {
         sand_commands::builtins::tag_remove(self.selector(), tag)
     }
@@ -139,41 +152,49 @@ impl<K: EntityKind> ScopedEntityRef<K> {
     /// The bound entity's owner relationship, evaluated relative to `@s`
     /// (valid because the current executor is still the bound entity at the
     /// point relation methods are called from within the `bind` body).
+    #[doc = "**API Contract:** Run `sand api show sand::entity::ScopedEntityRef::owner` for the canonical contract."]
     pub fn owner(&self) -> RelationQuery<One> {
         RelationQuery::new(Relation::Owner)
     }
 
     /// The bound entity's leasher relationship.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::ScopedEntityRef::leasher` for the canonical contract."]
     pub fn leasher(&self) -> RelationQuery<One> {
         RelationQuery::new(Relation::Leasher)
     }
 
     /// The bound entity's target relationship.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::ScopedEntityRef::target` for the canonical contract."]
     pub fn target(&self) -> RelationQuery<One> {
         RelationQuery::new(Relation::Target)
     }
 
     /// The bound entity's vehicle relationship.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::ScopedEntityRef::vehicle` for the canonical contract."]
     pub fn vehicle(&self) -> RelationQuery<One> {
         RelationQuery::new(Relation::Vehicle)
     }
 
     /// The bound entity's controller relationship.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::ScopedEntityRef::controller` for the canonical contract."]
     pub fn controller(&self) -> RelationQuery<One> {
         RelationQuery::new(Relation::Controller)
     }
 
     /// The bound entity's attacker relationship.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::ScopedEntityRef::attacker` for the canonical contract."]
     pub fn attacker(&self) -> RelationQuery<One> {
         RelationQuery::new(Relation::Attacker)
     }
 
     /// The bound entity's origin relationship.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::ScopedEntityRef::origin` for the canonical contract."]
     pub fn origin(&self) -> RelationQuery<One> {
         RelationQuery::new(Relation::Origin)
     }
 
     /// The bound entity's passengers.
+    #[doc = "**API Contract:** Run `sand api show sand::entity::ScopedEntityRef::passengers` for the canonical contract."]
     pub fn passengers(&self) -> RelationQuery<Many> {
         RelationQuery::new(Relation::Passengers)
     }
@@ -204,6 +225,7 @@ impl EntityScope {
     /// assert!(cmds[0].starts_with("tag @s add __sand_scope_"));
     /// assert!(cmds.last().unwrap().starts_with("tag @e[tag=__sand_scope_"));
     /// ```
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityScope::bind` for the canonical contract."]
     #[track_caller]
     pub fn bind<K: EntityKind>(
         _ctx: &EntityContext<K>,

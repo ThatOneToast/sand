@@ -30,6 +30,7 @@ static REGISTERED: Mutex<Vec<String>> = Mutex::new(Vec::new());
 ///
 /// Each registered cooldown will have `cooldown.tick_all_players()` included in the
 /// generated tick function. Duplicate objective names are deduplicated.
+#[doc = "**API Contract:** Run `sand api show sand::systems::cooldowns::register_cooldown` for the canonical contract."]
 pub fn register_cooldown(cd: &Cooldown) {
     let cmd = cd.tick_all_players();
     let mut guard = REGISTERED.lock().expect("cooldown registry poisoned");

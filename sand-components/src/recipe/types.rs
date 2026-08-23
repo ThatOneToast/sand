@@ -58,12 +58,14 @@ pub struct Ingredient {
 
 impl Ingredient {
     /// Creates an item ingredient through Sand's validated item-ID boundary.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Ingredient::item_id` for the canonical contract."]
     pub fn item_id(id: impl IntoRecipeItemId) -> Self {
         Self::raw_item(id.into_recipe_item_id().to_string())
     }
 
     /// Creates an item-tag ingredient. The `ItemId` marker prevents block or
     /// other registry tags from being passed accidentally.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Ingredient::item_tag` for the canonical contract."]
     pub fn item_tag(id: TagId<ItemId>) -> Self {
         Self::raw_tag(id.to_string())
     }
@@ -72,6 +74,7 @@ impl Ingredient {
     ///
     /// Prefer [`Ingredient::item_id`]. This escape hatch remains available for
     /// future or modded identifiers that cannot yet use Sand's typed registry.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Ingredient::raw_item` for the canonical contract."]
     pub fn raw_item(id: impl Into<String>) -> Self {
         Self {
             item: Some(id.into()),
@@ -82,6 +85,7 @@ impl Ingredient {
 
     /// Creates an item-tag ingredient from an unchecked compatibility string.
     /// Prefer [`Ingredient::item_tag`].
+    #[doc = "**API Contract:** Run `sand api show sand::component::Ingredient::raw_tag` for the canonical contract."]
     pub fn raw_tag(id: impl Into<String>) -> Self {
         Self {
             item: None,
@@ -92,12 +96,14 @@ impl Ingredient {
 
     /// Legacy unchecked compatibility constructor. Prefer [`Ingredient::item_id`]
     /// or make raw intent explicit with [`Ingredient::raw_item`].
+    #[doc = "**API Contract:** Run `sand api show sand::component::Ingredient::item` for the canonical contract."]
     pub fn item(id: impl Display) -> Self {
         Self::raw_item(id.to_string())
     }
 
     /// Legacy unchecked compatibility constructor. Prefer [`Ingredient::item_tag`]
     /// or make raw intent explicit with [`Ingredient::raw_tag`].
+    #[doc = "**API Contract:** Run `sand api show sand::component::Ingredient::tag` for the canonical contract."]
     pub fn tag(id: impl Display) -> Self {
         Self::raw_tag(id.to_string())
     }
@@ -105,6 +111,7 @@ impl Ingredient {
     /// Creates an ingredient that matches any of the supplied alternatives.
     /// Modern recipe JSON represents alternatives as an array of ingredient
     /// values, where item IDs and tag IDs are both strings.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Ingredient::alternatives` for the canonical contract."]
     pub fn alternatives(alternatives: impl IntoIterator<Item = Ingredient>) -> Self {
         Self {
             item: None,
@@ -148,6 +155,7 @@ impl Ingredient {
     /// [`Ingredient::item_id`] or [`Ingredient::item`] directly and enforce
     /// component identity elsewhere (e.g. a function that runs after
     /// crafting and checks `minecraft:custom_data` on the result).
+    #[doc = "**API Contract:** Run `sand api show sand::component::Ingredient::custom_item` for the canonical contract."]
     pub fn custom_item(item: &CustomItem) -> SandResult<Self> {
         Err(SandError::ComponentValidation {
             location: ResourceLocation::new("sand", "recipe_ingredient")
@@ -171,6 +179,7 @@ impl Ingredient {
 
     /// Returns `true` if this ingredient has no item, tag, or alternatives
     /// (an invalid state that would fail serialization).
+    #[doc = "**API Contract:** Run `sand api show sand::component::Ingredient::is_empty` for the canonical contract."]
     pub fn is_empty(&self) -> bool {
         self.item.is_none()
             && self.tag.is_none()
@@ -327,11 +336,13 @@ pub struct RecipeResult {
 
 impl RecipeResult {
     /// Creates a recipe result through Sand's validated item-ID boundary.
+    #[doc = "**API Contract:** Run `sand api show sand::component::RecipeResult::item` for the canonical contract."]
     pub fn item(id: impl IntoRecipeItemId, count: u32) -> Self {
         Self::raw(id.into_recipe_item_id().to_string(), count)
     }
 
     /// Creates a recipe result from an unchecked compatibility string.
+    #[doc = "**API Contract:** Run `sand api show sand::component::RecipeResult::raw` for the canonical contract."]
     pub fn raw(id: impl Into<String>, count: u32) -> Self {
         Self {
             id: id.into(),
@@ -342,6 +353,7 @@ impl RecipeResult {
 
     /// Legacy unchecked compatibility constructor. Prefer [`RecipeResult::item`]
     /// or make raw intent explicit with [`RecipeResult::raw`].
+    #[doc = "**API Contract:** Run `sand api show sand::component::RecipeResult::new` for the canonical contract."]
     pub fn new(id: impl Display, count: u32) -> Self {
         Self::raw(id.to_string(), count)
     }
@@ -358,12 +370,14 @@ impl RecipeResult {
     /// component — it never reduces the item to its base ID alone. Fails with
     /// a descriptive [`SandError`] if a component cannot be safely represented
     /// as structured JSON (see [`CustomItem::stack_components`]).
+    #[doc = "**API Contract:** Run `sand api show sand::component::RecipeResult::custom_item` for the canonical contract."]
     pub fn custom_item(item: &CustomItem) -> SandResult<Self> {
         Self::from_custom_item(item, 1)
     }
 
     /// Build a component-bearing recipe result from a [`CustomItem`] with an
     /// explicit result `count`.
+    #[doc = "**API Contract:** Run `sand api show sand::component::RecipeResult::from_custom_item` for the canonical contract."]
     pub fn from_custom_item(item: &CustomItem, count: u32) -> SandResult<Self> {
         let stack = item.stack_components()?;
         let (id, components) = stack.into_parts();
@@ -375,6 +389,7 @@ impl RecipeResult {
     }
 
     /// `true` if this result carries one or more data components.
+    #[doc = "**API Contract:** Run `sand api show sand::component::RecipeResult::has_components` for the canonical contract."]
     pub fn has_components(&self) -> bool {
         !self.components.is_empty()
     }
@@ -454,6 +469,7 @@ pub enum CookingType {
 
 impl CookingType {
     /// Returns the Minecraft recipe type identifier string.
+    #[doc = "**API Contract:** Run `sand api show sand::component::CookingType::type_str` for the canonical contract."]
     pub fn type_str(&self) -> &'static str {
         match self {
             CookingType::Smelting => "minecraft:smelting",

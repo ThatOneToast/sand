@@ -54,6 +54,78 @@ use syn::{ItemFn, LitStr, parse_macro_input, token};
 mod api_contract;
 mod entity_state;
 
+/// Capability policy for macros which replace one author declaration or emit
+/// only registration plumbing. The annotated public function may remain, but
+/// a future implementation change cannot silently add another public Rust API.
+fn validate_preserved_public_surface(
+    expansion: &proc_macro2::TokenStream,
+    expected_function: Option<String>,
+) -> syn::Result<()> {
+    let file: syn::File = syn::parse2(expansion.clone())?;
+    let mut actual = Vec::new();
+    for item in &file.items {
+        let identity = match item {
+            syn::Item::Const(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
+                Some(format!("const {}", item.ident))
+            }
+            syn::Item::Enum(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
+                Some(format!("enum {}", item.ident))
+            }
+            syn::Item::ExternCrate(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
+                Some(format!("extern crate {}", item.ident))
+            }
+            syn::Item::Fn(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
+                Some(format!("fn {}", item.sig.ident))
+            }
+            syn::Item::Mod(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
+                Some(format!("mod {}", item.ident))
+            }
+            syn::Item::Static(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
+                Some(format!("static {}", item.ident))
+            }
+            syn::Item::Struct(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
+                Some(format!("struct {}", item.ident))
+            }
+            syn::Item::Trait(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
+                Some(format!("trait {}", item.ident))
+            }
+            syn::Item::TraitAlias(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
+                Some(format!("trait alias {}", item.ident))
+            }
+            syn::Item::Type(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
+                Some(format!("type {}", item.ident))
+            }
+            syn::Item::Union(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
+                Some(format!("union {}", item.ident))
+            }
+            syn::Item::Use(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
+                Some("use declaration".to_owned())
+            }
+            _ => None,
+        };
+        if let Some(identity) = identity {
+            actual.push(identity);
+        }
+    }
+    let expected = expected_function
+        .into_iter()
+        .map(|name| format!("fn {name}"))
+        .collect::<Vec<_>>();
+    if actual != expected {
+        return Err(syn::Error::new(
+            proc_macro2::Span::call_site(),
+            format!(
+                "shape-preserving macro public-surface drift: expected {expected:?}, emitted {actual:?}; add first-class generated API contracts before exposing new declarations"
+            ),
+        ));
+    }
+    Ok(())
+}
+
+fn expected_public_function(function: &ItemFn) -> Option<String> {
+    matches!(function.vis, syn::Visibility::Public(_)).then(|| function.sig.ident.to_string())
+}
+
 /// Defines and registers the authoritative public contract for a supported
 /// Sand API item.
 ///
@@ -99,6 +171,7 @@ pub fn derive_state(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(EntityStateEnum)]
 pub fn derive_entity_state_enum(input: TokenStream) -> TokenStream {
     entity_state::derive_enum(parse_macro_input!(input as syn::DeriveInput))
+        .and_then(|tokens| validate_preserved_public_surface(&tokens, None).map(|()| tokens))
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }
@@ -119,7 +192,9 @@ pub fn entity_archetype(attr: TokenStream, item: TokenStream) -> TokenStream {
         .into();
     }
     let function = parse_macro_input!(item as ItemFn);
+    let expected = expected_public_function(&function);
     expand_entity_archetype(function)
+        .and_then(|tokens| validate_preserved_public_surface(&tokens, expected).map(|()| tokens))
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }
@@ -313,8 +388,12 @@ fn build_cmd_body(block: &syn::Block) -> syn::Result<proc_macro2::TokenStream> {
 pub fn function(attr: TokenStream, item: TokenStream) -> TokenStream {
     let attr = parse_function_attr(attr);
     let func = parse_macro_input!(item as ItemFn);
+    let expected = expected_public_function(&func);
 
-    match attr.and_then(|path| expand_function(func, path)) {
+    match attr
+        .and_then(|path| expand_function(func, path))
+        .and_then(|tokens| validate_preserved_public_surface(&tokens, expected).map(|()| tokens))
+    {
         Ok(tokens) => tokens.into(),
         Err(e) => e.to_compile_error().into(),
     }
@@ -565,7 +644,11 @@ fn expand_function(
 #[proc_macro_attribute]
 pub fn datapack_component(attr: TokenStream, item: TokenStream) -> TokenStream {
     let func = parse_macro_input!(item as ItemFn);
-    match parse_component_flag(attr).and_then(|flag| expand_component(func, flag)) {
+    let expected = expected_public_function(&func);
+    match parse_component_flag(attr)
+        .and_then(|flag| expand_component(func, flag))
+        .and_then(|tokens| validate_preserved_public_surface(&tokens, expected).map(|()| tokens))
+    {
         Ok(tokens) => tokens.into(),
         Err(e) => e.to_compile_error().into(),
     }
@@ -859,7 +942,10 @@ fn expand_component_tag(func: ItemFn, tag: &str) -> syn::Result<proc_macro2::Tok
 #[proc_macro_attribute]
 pub fn on_event(attr: TokenStream, item: TokenStream) -> TokenStream {
     let func = parse_macro_input!(item as ItemFn);
-    match expand_event(attr, func) {
+    let expected = expected_public_function(&func);
+    match expand_event(attr, func)
+        .and_then(|tokens| validate_preserved_public_surface(&tokens, expected).map(|()| tokens))
+    {
         Ok(tokens) => tokens.into(),
         Err(e) => e.to_compile_error().into(),
     }
@@ -2815,8 +2901,11 @@ impl syn::parse::Parse for ArmorEventAttr {
 pub fn armor_event(attr: TokenStream, item: TokenStream) -> TokenStream {
     let parsed_attr = parse_macro_input!(attr as ArmorEventAttr);
     let func = parse_macro_input!(item as ItemFn);
+    let expected = expected_public_function(&func);
 
-    match expand_armor_event(parsed_attr, func) {
+    match expand_armor_event(parsed_attr, func)
+        .and_then(|tokens| validate_preserved_public_surface(&tokens, expected).map(|()| tokens))
+    {
         Ok(tokens) => tokens.into(),
         Err(e) => e.to_compile_error().into(),
     }
@@ -3088,7 +3177,11 @@ fn expand_run_fn(input: TokenStream) -> syn::Result<proc_macro2::TokenStream> {
 #[proc_macro_attribute]
 pub fn schedule(attr: TokenStream, item: TokenStream) -> TokenStream {
     let func = parse_macro_input!(item as ItemFn);
-    match parse_schedule_attr(attr).and_then(|sa| expand_schedule(func, sa)) {
+    let expected = expected_public_function(&func);
+    match parse_schedule_attr(attr)
+        .and_then(|sa| expand_schedule(func, sa))
+        .and_then(|tokens| validate_preserved_public_surface(&tokens, expected).map(|()| tokens))
+    {
         Ok(ts) => ts.into(),
         Err(e) => e.to_compile_error().into(),
     }
@@ -4042,5 +4135,70 @@ fn generated_api_contract_docs(contract: &GeneratedApiContract) -> proc_macro2::
         #parameter_doc
         #return_doc
         #[doc = #example]
+    }
+}
+
+#[cfg(test)]
+mod consumer_surface_policy_tests {
+    use super::validate_preserved_public_surface;
+    use quote::quote;
+
+    #[test]
+    fn preserved_function_allows_only_the_author_owned_public_identity() {
+        validate_preserved_public_surface(
+            &quote! {
+                pub fn tick() -> Vec<String> { Vec::new() }
+                #[doc(hidden)]
+                fn __sand_tick_make() -> Vec<String> { tick() }
+                inventory::submit! { Descriptor { make: __sand_tick_make } }
+            },
+            Some("tick".to_owned()),
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn output_free_derive_allows_private_trait_plumbing() {
+        validate_preserved_public_surface(
+            &quote! {
+                impl Encoding for Subject {
+                    fn encode(&self) -> i32 { 0 }
+                }
+            },
+            None,
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn future_public_sibling_fails_closed() {
+        let error = validate_preserved_public_surface(
+            &quote! {
+                pub fn tick() -> Vec<String> { Vec::new() }
+                pub struct GeneratedHandle;
+            },
+            Some("tick".to_owned()),
+        )
+        .unwrap_err();
+        let rendered = error.to_string();
+        assert!(rendered.contains("public-surface drift"), "{rendered}");
+        assert!(rendered.contains("struct GeneratedHandle"), "{rendered}");
+    }
+
+    #[test]
+    fn renamed_or_duplicate_public_function_fails_closed() {
+        for expansion in [
+            quote!(
+                pub fn renamed() {}
+            ),
+            quote!(
+                pub fn tick() {}
+                pub fn tick_alias() {}
+            ),
+        ] {
+            let error =
+                validate_preserved_public_surface(&expansion, Some("tick".to_owned())).unwrap_err();
+            assert!(error.to_string().contains("public-surface drift"));
+        }
     }
 }

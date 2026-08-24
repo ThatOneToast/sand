@@ -227,7 +227,7 @@ fn installed_catalog() -> Result<ApiCatalog> {
             let resolved_summary = source_summary
                 .clone()
                 .filter(|summary| !summary.starts_with("Carries the "))
-                .unwrap_or_else(|| semantic_fallback_summary(entry));
+                .unwrap_or_else(|| non_placeholder_summary(entry));
             let authored = entry
                 .parameters
                 .iter()
@@ -399,7 +399,7 @@ fn source_return_description(documentation: &str) -> Option<String> {
         })
 }
 
-fn semantic_fallback_summary(entry: &ApiEntry) -> String {
+fn non_placeholder_summary(entry: &ApiEntry) -> String {
     let generic = entry.summary.starts_with("Configures or performs ")
         || entry.summary.starts_with("Builds or resolves ")
         || entry.summary.starts_with("Carries the ")
@@ -409,31 +409,7 @@ fn semantic_fallback_summary(entry: &ApiEntry) -> String {
     if !generic {
         return entry.summary.clone();
     }
-    let (owner_path, member) = entry
-        .canonical_path
-        .rsplit_once("::")
-        .unwrap_or((&entry.canonical_path, &entry.canonical_path));
-    let owner = owner_path.rsplit("::").next().unwrap_or(owner_path);
-    let member_words = member.replace('_', " ");
-    match entry.kind {
-        ApiKind::Field => {
-            let rust_type = entry
-                .signature
-                .split_once(':')
-                .map_or("typed payload", |(_, ty)| ty.trim());
-            if member.chars().all(|character| character.is_ascii_digit()) {
-                format!("Stores the `{rust_type}` payload carried by `{owner}`.")
-            } else {
-                format!("Stores the `{rust_type}` `{member}` value carried by `{owner}`.")
-            }
-        }
-        ApiKind::AssociatedConst | ApiKind::Constant => {
-            format!("Defines the `{member}` constant used by the typed `{owner}` API.")
-        }
-        _ => {
-            format!("Performs the documented {member_words} operation for the typed `{owner}` API.")
-        }
-    }
+    String::new()
 }
 
 #[derive(Clone, Copy)]
@@ -881,8 +857,10 @@ fn render_entry(entry: &ApiEntry) -> String {
     let mut output = String::new();
     writeln!(output, "{}", entry.canonical_path).unwrap();
     writeln!(output, "{}", entry.signature).unwrap();
-    writeln!(output).unwrap();
-    writeln!(output, "{}", entry.summary).unwrap();
+    if !entry.summary.is_empty() {
+        writeln!(output).unwrap();
+        writeln!(output, "{}", entry.summary).unwrap();
+    }
     if !entry.context.is_empty() {
         section(&mut output, "Context", &entry.context);
     }
@@ -1575,6 +1553,52 @@ mod tests {
         );
         assert_eq!(path.return_type.as_deref(), Some("& str"));
 
+        let undocumented_field = catalog.find("sand::command::BlockPos::x").unwrap();
+        assert_eq!(undocumented_field.signature, "pub x: Coord");
+        assert!(undocumented_field.summary.is_empty());
+        assert!(
+            !serde_json::to_string(undocumented_field)
+                .unwrap()
+                .contains("\"summary\"")
+        );
+
+        assert!(
+            catalog
+                .find("sand::entity::CurveInputs::get")
+                .unwrap()
+                .signature
+                .starts_with("pub fn get")
+        );
+        #[cfg(feature = "resourcepack")]
+        assert_eq!(
+            catalog
+                .find("sand::resourcepack::AssetOutput::path")
+                .unwrap()
+                .signature,
+            "pub path: String"
+        );
+        assert_eq!(
+            catalog
+                .find("sand::command::Coord::Absolute::0")
+                .unwrap()
+                .signature,
+            "f64"
+        );
+        assert!(
+            catalog
+                .find("sand::command::RenderCommand")
+                .unwrap()
+                .signature
+                .contains(": Validate")
+        );
+        assert!(
+            catalog
+                .find("sand::version::LATEST_KNOWN")
+                .unwrap()
+                .signature
+                .contains("= sand :: version :: LATEST_KNOWN")
+        );
+
         for entry in &catalog.entries {
             let return_type = entry.return_type.as_deref().unwrap_or_default();
             if return_type.contains("Result") || return_type.contains("Option") {
@@ -2020,14 +2044,14 @@ mod tests {
                     || entry.canonical_path.starts_with("sand::version::")
             })
             .collect::<Vec<_>>();
-        assert_eq!(entries.len(), 43);
+        assert_eq!(entries.len(), 66);
         assert_eq!(
             entries
                 .iter()
                 .map(|entry| entry.canonical_path.as_str())
                 .collect::<BTreeSet<_>>()
                 .len(),
-            43
+            66
         );
     }
 

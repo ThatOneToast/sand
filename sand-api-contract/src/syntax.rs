@@ -376,6 +376,39 @@ pub fn validate_generated_expansion(
             example: Some(&contract.example),
         })
         .map_err(|message| syn::Error::new(proc_macro2::Span::call_site(), message))?;
+        if !crate::has_specific_semantics(&contract.summary) {
+            return Err(syn::Error::new(
+                proc_macro2::Span::call_site(),
+                format!(
+                    "generated API contract `{}` has a generic filler summary",
+                    contract.target
+                ),
+            ));
+        }
+        if contract.parameters.iter().any(|(name, description)| {
+            name.trim().is_empty()
+                || description.trim().is_empty()
+                || generated_semantic_is_filler(description)
+        }) {
+            return Err(syn::Error::new(
+                proc_macro2::Span::call_site(),
+                format!(
+                    "generated API contract `{}` has an empty or generic parameter description",
+                    contract.target
+                ),
+            ));
+        }
+        if contract.returns.as_ref().is_some_and(|returns| {
+            returns.trim().is_empty() || generated_semantic_is_filler(returns)
+        }) {
+            return Err(syn::Error::new(
+                proc_macro2::Span::call_site(),
+                format!(
+                    "generated API contract `{}` has an empty or generic return description",
+                    contract.target
+                ),
+            ));
+        }
         if declared
             .insert(contract.target.as_str(), contract)
             .is_some()
@@ -431,6 +464,16 @@ pub fn validate_generated_expansion(
         ));
     }
     Ok(discovered.into_values().map(|(shape, _)| shape).collect())
+}
+
+fn generated_semantic_is_filler(value: &str) -> bool {
+    let normalized = value.trim().to_ascii_lowercase();
+    normalized.contains("source-derived")
+        || normalized.contains("documented operation")
+        || normalized.contains("documented behavior")
+        || normalized.contains("author-facing api")
+        || normalized == "returns value"
+        || normalized == "the value"
 }
 
 fn public_visibility(visibility: &Visibility) -> bool {
@@ -1564,6 +1607,57 @@ mod tests {
                 .unwrap_err()
                 .to_string()
                 .contains("declares AssociatedConst")
+        );
+    }
+
+    #[test]
+    fn generated_contracts_reject_empty_and_placeholder_structured_semantics() {
+        let expansion = quote! {
+            #[doc = "Loads one stored score into the typed state view."]
+            #[doc = "# API Contract"]
+            #[doc = "**Context:** The accessor reads the score selected by this state schema."]
+            #[doc = "**Minecraft behavior:** Reads one scoreboard value for the execution subject."]
+            #[doc = "**Use when:** Reading this generated state field"]
+            #[doc = "**Avoid when:** Writing the state field"]
+            #[doc = "**Parameters:** `objective` — The scoreboard objective to read."]
+            #[doc = "**Returns:** The stored integer score."]
+            #[doc = "**Example:** `let score = State::load(OBJECTIVE);`"]
+            pub fn load(objective: Objective) -> i32 { 0 }
+        };
+        let contract = GeneratedApiContract {
+            target: "load".to_owned(),
+            kind: GeneratedApiKind::Function,
+            summary: "Loads one stored score into the typed state view.".to_owned(),
+            context: "The accessor reads the score selected by this state schema.".to_owned(),
+            minecraft: "Reads one scoreboard value for the execution subject.".to_owned(),
+            use_when: vec!["Reading this generated state field".to_owned()],
+            avoid_when: vec!["Writing the state field".to_owned()],
+            parameters: BTreeMap::from([(
+                "objective".to_owned(),
+                "The scoreboard objective to read.".to_owned(),
+            )]),
+            returns: Some("The stored integer score.".to_owned()),
+            example: "let score = State::load(OBJECTIVE);".to_owned(),
+        };
+
+        let mut empty_parameter = contract.clone();
+        empty_parameter
+            .parameters
+            .insert("objective".to_owned(), String::new());
+        assert!(
+            validate_generated_expansion(expansion.clone(), [], &[empty_parameter])
+                .unwrap_err()
+                .to_string()
+                .contains("empty or generic parameter")
+        );
+
+        let mut filler_return = contract;
+        filler_return.returns = Some("Returns value".to_owned());
+        assert!(
+            validate_generated_expansion(expansion, [], &[filler_return])
+                .unwrap_err()
+                .to_string()
+                .contains("empty or generic return")
         );
     }
 }

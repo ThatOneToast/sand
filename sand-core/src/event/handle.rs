@@ -107,9 +107,9 @@ impl<E> EventHandle<E> {
     /// Revoke (re-arm) the advancement for this event.
     ///
     /// Emits `advancement revoke <selector> only <ns>:<path>`.  The advancement
-    /// resource location is resolved from the [`EventPathEntry`](crate::function::EventPathEntry) registry
-    /// populated by the `#[on_event]` macro; the namespace sentinel is replaced at
-    /// export time by [`crate::component::export_components_json`].
+    /// resource location comes from the event registration produced by
+    /// `#[on_event]`; Sand replaces its project-namespace sentinel while
+    /// exporting the datapack.
     ///
     /// Requires `E: 'static` for the `TypeId` lookup.
     #[doc = "**API Contract:** Run `sand api show sand::event::handle::EventHandle::revoke` for the canonical contract."]

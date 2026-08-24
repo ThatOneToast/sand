@@ -87,7 +87,11 @@ invocation containing undefined variables. CLI rendering omits absent
 semantic sections while retaining the exact structural signature and the
 item's source-authored summary. Direct `#[api]` and explicit generator inputs
 remain strict; proportional omission applies only when resolving independently
-discovered family members from their defining source documentation.
+discovered family members from their defining source documentation. A trivial
+named field or enum payload with no source prose omits `summary`; the catalog
+never turns its identifier or Rust type into invented semantics. Constants,
+variants, callables, and other nontrivial items remain fail-closed on a
+substantive source-authored summary.
 
 ## Migration ratchet
 

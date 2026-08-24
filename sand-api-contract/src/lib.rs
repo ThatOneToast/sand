@@ -65,6 +65,10 @@ pub struct ApiEntry {
     pub canonical_module: String,
     pub kind: ApiKind,
     pub signature: String,
+    /// Source-authored semantic summary. Trivial fields and enum payloads may
+    /// omit prose when the source declaration has none; their exact structural
+    /// signature remains authoritative.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     pub summary: String,
     /// Additional source-authored domain context when the defining Rustdoc
     /// provides it. Omitted rather than synthesized from the module name.
@@ -524,16 +528,19 @@ fn validate_entries(entries: &[ApiEntry]) -> Result<(), CatalogError> {
 }
 
 fn validate_entry(entry: &ApiEntry) -> Result<(), CatalogError> {
-    for (name, value) in [
-        ("signature", entry.signature.as_str()),
-        ("summary", entry.summary.as_str()),
-    ] {
+    for (name, value) in [("signature", entry.signature.as_str())] {
         if value.trim().is_empty() {
             return Err(CatalogError::InvalidEntry {
                 path: entry.canonical_path.clone(),
                 message: format!("required field `{name}` is empty"),
             });
         }
+    }
+    if entry.summary.trim().is_empty() && entry.kind != ApiKind::Field {
+        return Err(CatalogError::InvalidEntry {
+            path: entry.canonical_path.clone(),
+            message: "required field `summary` is empty for a nontrivial API item".into(),
+        });
     }
     if entry
         .use_when
@@ -643,12 +650,13 @@ fn validate_resolved_quality(entries: &[ApiEntry]) -> Result<(), CatalogError> {
                 ),
             });
         }
-        if entry.summary.starts_with("Configures or performs ")
-            || entry.summary.starts_with("Builds or resolves ")
-            || entry
-                .summary
-                .contains("on this typed datapack component definition")
-            || !has_specific_semantics(&entry.summary)
+        if !entry.summary.is_empty()
+            && (entry.summary.starts_with("Configures or performs ")
+                || entry.summary.starts_with("Builds or resolves ")
+                || entry
+                    .summary
+                    .contains("on this typed datapack component definition")
+                || !has_specific_semantics(&entry.summary))
         {
             return Err(CatalogError::InvalidEntry {
                 path: entry.canonical_path.clone(),
@@ -764,6 +772,8 @@ pub fn has_specific_semantics(summary: &str) -> bool {
         "creates",
         "datapack",
         "definition",
+        "documented",
+        "for",
         "minecraft",
         "new",
         "of",
@@ -785,15 +795,25 @@ pub fn has_specific_semantics(summary: &str) -> bool {
         "use",
         "value",
     ];
-    let words = summary
+    let original_words = summary
         .split(|character: char| !character.is_alphanumeric() && character != '_')
         .filter(|word| !word.is_empty())
+        .collect::<Vec<_>>();
+    let words = original_words
+        .iter()
         .map(|word| word.to_ascii_lowercase())
         .collect::<Vec<_>>();
     let specific = words
         .iter()
-        .filter(|word| !GENERIC.contains(&word.as_str()))
+        .zip(&original_words)
+        .filter(|(word, original)| {
+            !GENERIC.contains(&word.as_str()) && !looks_like_rust_type_name(original)
+        })
+        .map(|(word, _)| word)
         .collect::<std::collections::BTreeSet<_>>();
+    let names_a_rust_type = original_words
+        .iter()
+        .any(|word| looks_like_rust_type_name(word));
     let generic_action = words.first().is_some_and(|word| {
         [
             "configures",
@@ -807,7 +827,12 @@ pub fn has_specific_semantics(summary: &str) -> bool {
         ]
         .contains(&word.as_str())
     });
-    !specific.is_empty() && (!generic_action || specific.len() >= 2)
+    !specific.is_empty()
+        && (!generic_action || specific.len() + usize::from(names_a_rust_type) >= 2)
+}
+
+fn looks_like_rust_type_name(word: &str) -> bool {
+    word.chars().any(char::is_lowercase) && word.chars().skip(1).any(char::is_uppercase)
 }
 
 /// Extracts ordinary Rustdoc prose paragraphs while excluding fenced code,
@@ -1086,6 +1111,26 @@ mod tests {
                 .contains("parameters require nonempty")
         );
 
+        let mut trivial_field = ApiEntry::from(&REGISTRATION);
+        trivial_field.kind = ApiKind::Field;
+        trivial_field.summary.clear();
+        trivial_field.validate().unwrap();
+        assert!(
+            !serde_json::to_string(&trivial_field)
+                .unwrap()
+                .contains("\"summary\"")
+        );
+
+        let mut undocumented_method = ApiEntry::from(&REGISTRATION);
+        undocumented_method.summary.clear();
+        assert!(
+            undocumented_method
+                .validate()
+                .unwrap_err()
+                .to_string()
+                .contains("nontrivial API item")
+        );
+
         let mut entry = ApiEntry::from(&REGISTRATION);
         entry.availability = vec![" ".into()];
         assert!(
@@ -1294,6 +1339,13 @@ mod tests {
         ));
         assert!(!rustdoc_has_specific_semantics(
             "use sand::feature::SpecializedType;"
+        ));
+        assert!(!rustdoc_has_specific_semantics(
+            "Performs the documented new operation for the typed BlockPos API."
+        ));
+        assert!(!rustdoc_has_specific_semantics("Creates widget."));
+        assert!(rustdoc_has_specific_semantics(
+            "Creates an unconstrained BlockPredicate."
         ));
         assert!(rustdoc_has_specific_semantics(
             "Copies the entity snapshot into durable command storage."

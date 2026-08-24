@@ -282,6 +282,54 @@ macro_rules! register_component_api {
     };
 }
 
+macro_rules! register_version_api {
+    (
+        path: $path:literal,
+        kind: $kind:ident,
+        summary: $summary:literal
+    ) => {
+        register! {
+            path: $path,
+            aliases: [],
+            module: "sand::version",
+            kind: $kind,
+            signature: "typed Minecraft version capability API",
+            summary: $summary,
+            context: "This version API lets reusable authoring and tooling make the same capability decisions as Sand's profile-aware component exporter.",
+            minecraft: "Capability checks describe the data-driven features accepted by the selected Minecraft Java Edition target before pack output is written.",
+            use_when: ["Adapting authored resources or integrations to an explicitly selected Minecraft target"],
+            avoid_when: ["Ordinary datapack code can rely on the target selected in sand.toml"],
+            params: [],
+            returns: None,
+            example: "let caps = sand::version::VersionCaps::all_enabled();"
+        }
+    };
+}
+
+register_version_api! { path: "sand::version::ComponentFeature", kind: Enum, summary: "Names a data-driven Minecraft feature that component export may version-gate." }
+register_version_api! { path: "sand::version::ComponentFeature::Dialogs", kind: Variant, summary: "Selects support for data-driven dialog resources." }
+register_version_api! { path: "sand::version::ComponentFeature::JukeboxSongs", kind: Variant, summary: "Selects support for data-driven jukebox-song resources." }
+register_version_api! { path: "sand::version::ComponentFeature::DamageTypes", kind: Variant, summary: "Selects support for data-driven damage-type resources." }
+register_version_api! { path: "sand::version::ComponentFeature::ChatTypes", kind: Variant, summary: "Selects support for data-driven chat-type resources." }
+register_version_api! { path: "sand::version::ComponentFeature::Enchantments", kind: Variant, summary: "Selects support for data-driven enchantment resources." }
+register_version_api! { path: "sand::version::ComponentFeature::TrimAssets", kind: Variant, summary: "Selects support for data-driven armor-trim assets." }
+register_version_api! { path: "sand::version::ComponentFeature::ItemComponents", kind: Variant, summary: "Selects support for structured item data components." }
+register_version_api! { path: "sand::version::ComponentFeature::AnimalVariants", kind: Variant, summary: "Selects support for biome-scoped animal-variant registries." }
+register_version_api! { path: "sand::version::ComponentFeature::VillagerTrades", kind: Variant, summary: "Selects support for data-driven villager and wandering-trader trades." }
+register_version_api! { path: "sand::version::ComponentFeature::ALL", kind: AssociatedConst, summary: "Lists every component feature in a stable capability-check order." }
+register_version_api! { path: "sand::version::ComponentFeature::name", kind: Method, summary: "Returns the stable diagnostic name of this component feature." }
+register_version_api! { path: "sand::version::VersionCaps", kind: Struct, summary: "Carries the resolved Minecraft target and component capabilities used by version-aware authoring." }
+register_version_api! { path: "sand::version::VersionCaps::all_enabled", kind: Method, summary: "Creates the unprofiled compatibility capability set with every supported feature enabled." }
+register_version_api! { path: "sand::version::VersionCaps::all_disabled", kind: Method, summary: "Creates conservative fallback capabilities with every gated feature disabled." }
+register_version_api! { path: "sand::version::VersionCaps::with_animal_variants", kind: Method, summary: "Sets support for biome-scoped animal-variant registries." }
+register_version_api! { path: "sand::version::VersionCaps::with_villager_trades", kind: Method, summary: "Sets support for data-driven villager and wandering-trader registries." }
+register_version_api! { path: "sand::version::VersionCaps::supports", kind: Method, summary: "Checks whether the resolved target supports one component feature." }
+register_version_api! { path: "sand::version::VersionCaps::from_flags", kind: Method, summary: "Builds unprofiled capabilities from explicit legacy feature flags." }
+register_version_api! { path: "sand::version::VersionCaps::from_profile_flags", kind: Method, summary: "Builds capabilities for a concrete requested target and its resolved feature flags." }
+register_version_api! { path: "sand::version::VersionCaps::requested_version", kind: Method, summary: "Returns the Minecraft version string that produced this capability set." }
+register_version_api! { path: "sand::version::VersionCaps::is_fallback", kind: Method, summary: "Reports whether conservative fallback resolution produced this capability set." }
+register_version_api! { path: "sand::version::VersionCaps::is_at_least", kind: Method, summary: "Checks the resolved target against a concrete Minecraft release tuple." }
+
 macro_rules! register_resourcepack_api {
     (
         path: $path:literal,
@@ -841,7 +889,7 @@ register! {
     avoid_when: ["Annotating private implementation details or using documentation as an item-level exemption"],
     params: [],
     returns: None,
-    example: "#[sand::api(path = \"sand::feature\", summary = \"...\", context = \"...\", minecraft = \"...\", use_when = [\"...\"], avoid_when = [\"...\"], example = \"...\")]"
+    example: "#[sand::api(path = \"my_crate::feature\", summary = \"...\", context = \"...\", minecraft = \"...\", use_when = [\"...\"], avoid_when = [\"...\"], example = \"...\")]"
 }
 
 register! {
@@ -4268,6 +4316,54 @@ register_component_api! { path: "sand::component::VerticalAnchor::BelowTop::0", 
 register_component_api! { path: "sand::component::VerticalAnchor::to_json", aliases: ["sand::prelude::VerticalAnchor::to_json"], kind: Method, summary: "Configures to json on this typed datapack component definition." }
 register_component_api! { path: "sand::component::WeightedBlockState", aliases: [], kind: Struct, summary: "Defines the typed weighted block state datapack component value." }
 register_component_api! { path: "sand::component::WeightedBlockState::new", aliases: [], kind: Method, summary: "Creates this typed datapack component definition." }
+register_component_api! { path: "sand::component::Biome", aliases: [], kind: Struct, summary: "Defines a biome datapack resource with typed climate, effects, carver, and configured-feature references." }
+register_component_api! { path: "sand::component::Biome::new", aliases: [], kind: Method, summary: "Creates a biome resource with its validated location and required visual effects." }
+register_component_api! { path: "sand::component::Biome::has_precipitation", aliases: [], kind: Method, summary: "Selects whether the biome permits rain or temperature-dependent snow." }
+register_component_api! { path: "sand::component::Biome::temperature", aliases: [], kind: Method, summary: "Sets the biome temperature used by weather and spawning behavior." }
+register_component_api! { path: "sand::component::Biome::temperature_modifier", aliases: [], kind: Method, summary: "Sets the biome's typed vanilla temperature modifier." }
+register_component_api! { path: "sand::component::Biome::raw_temperature_modifier", aliases: [], kind: Method, summary: "Supplies an explicit compatibility temperature-modifier string subject to export validation." }
+register_component_api! { path: "sand::component::Biome::downfall", aliases: [], kind: Method, summary: "Sets the biome's normalized rain and snow frequency." }
+register_component_api! { path: "sand::component::Biome::raw_carvers", aliases: [], kind: Method, summary: "Supplies the biome carver groups as an explicit raw JSON compatibility value." }
+register_component_api! { path: "sand::component::Biome::carver_step", aliases: [], kind: Method, summary: "Adds a typed configured-carver reference to one vanilla carving step." }
+register_component_api! { path: "sand::component::Biome::feature", aliases: [], kind: Method, summary: "Adds a typed configured-feature reference to one vanilla generation-step bucket." }
+register_component_api! { path: "sand::component::Biome::raw_features", aliases: [], kind: Method, summary: "Supplies the biome feature buckets as an explicit raw JSON compatibility value." }
+register_component_api! { path: "sand::component::Biome::spawners", aliases: [], kind: Method, summary: "Sets the biome's explicit raw JSON mob-spawner groups." }
+register_component_api! { path: "sand::component::Biome::spawn_costs", aliases: [], kind: Method, summary: "Sets the biome's explicit raw JSON mob spawn-cost map." }
+register_component_api! { path: "sand::component::BiomeEffects", aliases: [], kind: Struct, summary: "Defines the visual, particle, music, and ambient-sound behavior of a biome." }
+register_component_api! { path: "sand::component::BiomeEffects::new", aliases: [], kind: Method, summary: "Creates biome effects with the four colors required by Minecraft." }
+register_component_api! { path: "sand::component::BiomeEffects::grass_color", aliases: [], kind: Method, summary: "Overrides the biome's grass RGB color." }
+register_component_api! { path: "sand::component::BiomeEffects::foliage_color", aliases: [], kind: Method, summary: "Overrides the biome's foliage RGB color." }
+register_component_api! { path: "sand::component::BiomeEffects::particle", aliases: [], kind: Method, summary: "Sets the biome's raw ambient-particle schema." }
+register_component_api! { path: "sand::component::BiomeEffects::ambient_sound", aliases: [], kind: Method, summary: "Sets the biome's ambient loop through a typed sound-event identifier." }
+register_component_api! { path: "sand::component::BiomeEffects::raw_ambient_sound", aliases: [], kind: Method, summary: "Sets an explicit compatibility ambient-sound reference subject to resource-location validation." }
+register_component_api! { path: "sand::component::BiomeEffects::mood_sound", aliases: [], kind: Method, summary: "Sets the biome's raw mood-sound schema." }
+register_component_api! { path: "sand::component::BiomeEffects::additions_sound", aliases: [], kind: Method, summary: "Sets the biome's raw additions-sound schema." }
+register_component_api! { path: "sand::component::BiomeEffects::music", aliases: [], kind: Method, summary: "Sets the biome's raw background-music schema." }
+register_component_api! { path: "sand::component::TemperatureModifier", aliases: [], kind: Enum, summary: "Selects the typed vanilla temperature-modifier behavior for a biome." }
+register_component_api! { path: "sand::component::TemperatureModifier::None", aliases: [], kind: Variant, summary: "Leaves biome temperature unmodified." }
+register_component_api! { path: "sand::component::TemperatureModifier::Frozen", aliases: [], kind: Variant, summary: "Applies Minecraft's frozen-biome temperature behavior." }
+register_component_api! { path: "sand::component::SandError", aliases: [], kind: Enum, summary: "Reports validation, serialization, I/O, and target-version failures from typed component authoring." }
+register_component_api! { path: "sand::component::SandError::InvalidNamespace", aliases: [], kind: Variant, summary: "Reports an invalid Minecraft resource namespace." }
+register_component_api! { path: "sand::component::SandError::InvalidNamespace::0", aliases: [], kind: Field, summary: "Carries the rejected resource namespace text." }
+register_component_api! { path: "sand::component::SandError::InvalidPath", aliases: [], kind: Variant, summary: "Reports an invalid Minecraft resource-location path." }
+register_component_api! { path: "sand::component::SandError::InvalidPath::0", aliases: [], kind: Field, summary: "Carries the rejected resource path text." }
+register_component_api! { path: "sand::component::SandError::Serialization", aliases: [], kind: Variant, summary: "Reports a JSON serialization or deserialization failure." }
+register_component_api! { path: "sand::component::SandError::Serialization::0", aliases: [], kind: Field, summary: "Carries the underlying JSON serialization diagnostic." }
+register_component_api! { path: "sand::component::SandError::Io", aliases: [], kind: Variant, summary: "Reports an I/O failure while reading or writing component data." }
+register_component_api! { path: "sand::component::SandError::Io::0", aliases: [], kind: Field, summary: "Carries the underlying I/O diagnostic." }
+register_component_api! { path: "sand::component::SandError::ComponentValidation", aliases: [], kind: Variant, summary: "Reports a typed component builder invariant that failed before export." }
+register_component_api! { path: "sand::component::SandError::ComponentValidation::location", aliases: [], kind: Field, summary: "Identifies the component resource whose value failed validation." }
+register_component_api! { path: "sand::component::SandError::ComponentValidation::kind", aliases: [], kind: Field, summary: "Names the Minecraft component family that failed validation." }
+register_component_api! { path: "sand::component::SandError::ComponentValidation::field", aliases: [], kind: Field, summary: "Identifies the component field or nested validation path that failed." }
+register_component_api! { path: "sand::component::SandError::ComponentValidation::message", aliases: [], kind: Field, summary: "Explains the violated component invariant." }
+register_component_api! { path: "sand::component::SandError::VersionGating", aliases: [], kind: Variant, summary: "Reports a component feature unavailable in the selected Minecraft target." }
+register_component_api! { path: "sand::component::SandError::VersionGating::location", aliases: [], kind: Field, summary: "Identifies the resource rejected by target-version gating." }
+register_component_api! { path: "sand::component::SandError::VersionGating::kind", aliases: [], kind: Field, summary: "Names the component or trigger family rejected by target-version gating." }
+register_component_api! { path: "sand::component::SandError::VersionGating::requested_version", aliases: [], kind: Field, summary: "Carries the Minecraft version requested by the project." }
+register_component_api! { path: "sand::component::SandError::VersionGating::is_fallback", aliases: [], kind: Field, summary: "Records whether conservative fallback capabilities caused the rejection." }
+register_component_api! { path: "sand::component::SandError::VersionGating::feature_name", aliases: [], kind: Field, summary: "Names the unavailable data-driven Minecraft feature." }
+register_component_api! { path: "sand::component::SandError::VersionGating::fallback_note", aliases: [], kind: Field, summary: "Carries actionable guidance for a fallback-profile rejection." }
+register_component_api! { path: "sand::component::Result", aliases: [], kind: TypeAlias, summary: "Returns either a typed component value or its structured component-authoring error." }
 register_component_api! { path: "sand::component::BiomeSelector", aliases: ["sand::prelude::BiomeSelector"], kind: Enum, summary: "Selects among the supported biome selector Minecraft schema forms." }
 register_component_api! { path: "sand::component::BiomeSelector::Entries", aliases: ["sand::prelude::BiomeSelector::Entries"], kind: Variant, summary: "Selects the entries form in this typed Minecraft component schema." }
 register_component_api! { path: "sand::component::BiomeSelector::Entries::0", aliases: ["sand::prelude::BiomeSelector::Entries::0"], kind: Field, summary: "Carries the 0 value required by this component schema form." }
@@ -4947,99 +5043,3 @@ register_component_api! { path: "sand::component::PlacedFeature::placement", ali
 register_component_api! { path: "sand::component::PlacedFeature::placement_modifier", aliases: ["sand::prelude::PlacedFeature::placement_modifier"], kind: Method, summary: "Configures placement modifier on this typed datapack component definition." }
 register_component_api! { path: "sand::component::PlacedFeature::raw_feature", aliases: ["sand::prelude::PlacedFeature::raw_feature"], kind: Method, summary: "Provides the explicit raw raw feature escape hatch for schema fields not yet modeled by Sand." }
 // END RESOLVED PRELUDE OWNERSHIP CONTRACTS
-macro_rules! register_version_api {
-    (
-        path: $path:literal,
-        kind: $kind:ident,
-        summary: $summary:literal
-    ) => {
-        register! {
-            path: $path,
-            aliases: [],
-            module: "sand::version",
-            kind: $kind,
-            signature: "typed Minecraft version capability API",
-            summary: $summary,
-            context: "This version API lets reusable authoring and tooling make the same capability decisions as Sand's profile-aware component exporter.",
-            minecraft: "Capability checks describe the data-driven features accepted by the selected Minecraft Java Edition target before pack output is written.",
-            use_when: ["Adapting authored resources or integrations to an explicitly selected Minecraft target"],
-            avoid_when: ["Ordinary datapack code can rely on the target selected in sand.toml"],
-            params: [],
-            returns: None,
-            example: "let caps = sand::version::VersionCaps::all_enabled();"
-        }
-    };
-}
-
-register_version_api! { path: "sand::version::ComponentFeature", kind: Enum, summary: "Names a data-driven Minecraft feature that component export may version-gate." }
-register_version_api! { path: "sand::version::ComponentFeature::Dialogs", kind: Variant, summary: "Selects support for data-driven dialog resources." }
-register_version_api! { path: "sand::version::ComponentFeature::JukeboxSongs", kind: Variant, summary: "Selects support for data-driven jukebox-song resources." }
-register_version_api! { path: "sand::version::ComponentFeature::DamageTypes", kind: Variant, summary: "Selects support for data-driven damage-type resources." }
-register_version_api! { path: "sand::version::ComponentFeature::ChatTypes", kind: Variant, summary: "Selects support for data-driven chat-type resources." }
-register_version_api! { path: "sand::version::ComponentFeature::Enchantments", kind: Variant, summary: "Selects support for data-driven enchantment resources." }
-register_version_api! { path: "sand::version::ComponentFeature::TrimAssets", kind: Variant, summary: "Selects support for data-driven armor-trim assets." }
-register_version_api! { path: "sand::version::ComponentFeature::ItemComponents", kind: Variant, summary: "Selects support for structured item data components." }
-register_version_api! { path: "sand::version::ComponentFeature::AnimalVariants", kind: Variant, summary: "Selects support for biome-scoped animal-variant registries." }
-register_version_api! { path: "sand::version::ComponentFeature::VillagerTrades", kind: Variant, summary: "Selects support for data-driven villager and wandering-trader trades." }
-register_version_api! { path: "sand::version::ComponentFeature::ALL", kind: AssociatedConst, summary: "Lists every component feature in a stable capability-check order." }
-register_version_api! { path: "sand::version::ComponentFeature::name", kind: Method, summary: "Returns the stable diagnostic name of this component feature." }
-register_version_api! { path: "sand::version::VersionCaps", kind: Struct, summary: "Carries the resolved Minecraft target and component capabilities used by version-aware authoring." }
-register_version_api! { path: "sand::version::VersionCaps::all_enabled", kind: Method, summary: "Creates the unprofiled compatibility capability set with every supported feature enabled." }
-register_version_api! { path: "sand::version::VersionCaps::all_disabled", kind: Method, summary: "Creates conservative fallback capabilities with every gated feature disabled." }
-register_version_api! { path: "sand::version::VersionCaps::with_animal_variants", kind: Method, summary: "Sets support for biome-scoped animal-variant registries." }
-register_version_api! { path: "sand::version::VersionCaps::with_villager_trades", kind: Method, summary: "Sets support for data-driven villager and wandering-trader registries." }
-register_version_api! { path: "sand::version::VersionCaps::supports", kind: Method, summary: "Checks whether the resolved target supports one component feature." }
-register_version_api! { path: "sand::version::VersionCaps::from_flags", kind: Method, summary: "Builds unprofiled capabilities from explicit legacy feature flags." }
-register_version_api! { path: "sand::version::VersionCaps::from_profile_flags", kind: Method, summary: "Builds capabilities for a concrete requested target and its resolved feature flags." }
-register_version_api! { path: "sand::version::VersionCaps::requested_version", kind: Method, summary: "Returns the Minecraft version string that produced this capability set." }
-register_version_api! { path: "sand::version::VersionCaps::is_fallback", kind: Method, summary: "Reports whether conservative fallback resolution produced this capability set." }
-register_version_api! { path: "sand::version::VersionCaps::is_at_least", kind: Method, summary: "Checks the resolved target against a concrete Minecraft release tuple." }
-
-register_component_api! { path: "sand::component::Biome", aliases: [], kind: Struct, summary: "Defines a biome datapack resource with typed climate, effects, carver, and configured-feature references." }
-register_component_api! { path: "sand::component::Biome::new", aliases: [], kind: Method, summary: "Creates a biome resource with its validated location and required visual effects." }
-register_component_api! { path: "sand::component::Biome::has_precipitation", aliases: [], kind: Method, summary: "Selects whether the biome permits rain or temperature-dependent snow." }
-register_component_api! { path: "sand::component::Biome::temperature", aliases: [], kind: Method, summary: "Sets the biome temperature used by weather and spawning behavior." }
-register_component_api! { path: "sand::component::Biome::temperature_modifier", aliases: [], kind: Method, summary: "Sets the biome's typed vanilla temperature modifier." }
-register_component_api! { path: "sand::component::Biome::raw_temperature_modifier", aliases: [], kind: Method, summary: "Supplies an explicit compatibility temperature-modifier string subject to export validation." }
-register_component_api! { path: "sand::component::Biome::downfall", aliases: [], kind: Method, summary: "Sets the biome's normalized rain and snow frequency." }
-register_component_api! { path: "sand::component::Biome::raw_carvers", aliases: [], kind: Method, summary: "Supplies the biome carver groups as an explicit raw JSON compatibility value." }
-register_component_api! { path: "sand::component::Biome::carver_step", aliases: [], kind: Method, summary: "Adds a typed configured-carver reference to one vanilla carving step." }
-register_component_api! { path: "sand::component::Biome::feature", aliases: [], kind: Method, summary: "Adds a typed configured-feature reference to one vanilla generation-step bucket." }
-register_component_api! { path: "sand::component::Biome::raw_features", aliases: [], kind: Method, summary: "Supplies the biome feature buckets as an explicit raw JSON compatibility value." }
-register_component_api! { path: "sand::component::Biome::spawners", aliases: [], kind: Method, summary: "Sets the biome's explicit raw JSON mob-spawner groups." }
-register_component_api! { path: "sand::component::Biome::spawn_costs", aliases: [], kind: Method, summary: "Sets the biome's explicit raw JSON mob spawn-cost map." }
-register_component_api! { path: "sand::component::BiomeEffects", aliases: [], kind: Struct, summary: "Defines the visual, particle, music, and ambient-sound behavior of a biome." }
-register_component_api! { path: "sand::component::BiomeEffects::new", aliases: [], kind: Method, summary: "Creates biome effects with the four colors required by Minecraft." }
-register_component_api! { path: "sand::component::BiomeEffects::grass_color", aliases: [], kind: Method, summary: "Overrides the biome's grass RGB color." }
-register_component_api! { path: "sand::component::BiomeEffects::foliage_color", aliases: [], kind: Method, summary: "Overrides the biome's foliage RGB color." }
-register_component_api! { path: "sand::component::BiomeEffects::particle", aliases: [], kind: Method, summary: "Sets the biome's raw ambient-particle schema." }
-register_component_api! { path: "sand::component::BiomeEffects::ambient_sound", aliases: [], kind: Method, summary: "Sets the biome's ambient loop through a typed sound-event identifier." }
-register_component_api! { path: "sand::component::BiomeEffects::raw_ambient_sound", aliases: [], kind: Method, summary: "Sets an explicit compatibility ambient-sound reference subject to resource-location validation." }
-register_component_api! { path: "sand::component::BiomeEffects::mood_sound", aliases: [], kind: Method, summary: "Sets the biome's raw mood-sound schema." }
-register_component_api! { path: "sand::component::BiomeEffects::additions_sound", aliases: [], kind: Method, summary: "Sets the biome's raw additions-sound schema." }
-register_component_api! { path: "sand::component::BiomeEffects::music", aliases: [], kind: Method, summary: "Sets the biome's raw background-music schema." }
-register_component_api! { path: "sand::component::TemperatureModifier", aliases: [], kind: Enum, summary: "Selects the typed vanilla temperature-modifier behavior for a biome." }
-register_component_api! { path: "sand::component::TemperatureModifier::None", aliases: [], kind: Variant, summary: "Leaves biome temperature unmodified." }
-register_component_api! { path: "sand::component::TemperatureModifier::Frozen", aliases: [], kind: Variant, summary: "Applies Minecraft's frozen-biome temperature behavior." }
-register_component_api! { path: "sand::component::SandError", aliases: [], kind: Enum, summary: "Reports validation, serialization, I/O, and target-version failures from typed component authoring." }
-register_component_api! { path: "sand::component::SandError::InvalidNamespace", aliases: [], kind: Variant, summary: "Reports an invalid Minecraft resource namespace." }
-register_component_api! { path: "sand::component::SandError::InvalidNamespace::0", aliases: [], kind: Field, summary: "Carries the rejected resource namespace text." }
-register_component_api! { path: "sand::component::SandError::InvalidPath", aliases: [], kind: Variant, summary: "Reports an invalid Minecraft resource-location path." }
-register_component_api! { path: "sand::component::SandError::InvalidPath::0", aliases: [], kind: Field, summary: "Carries the rejected resource path text." }
-register_component_api! { path: "sand::component::SandError::Serialization", aliases: [], kind: Variant, summary: "Reports a JSON serialization or deserialization failure." }
-register_component_api! { path: "sand::component::SandError::Serialization::0", aliases: [], kind: Field, summary: "Carries the underlying JSON serialization diagnostic." }
-register_component_api! { path: "sand::component::SandError::Io", aliases: [], kind: Variant, summary: "Reports an I/O failure while reading or writing component data." }
-register_component_api! { path: "sand::component::SandError::Io::0", aliases: [], kind: Field, summary: "Carries the underlying I/O diagnostic." }
-register_component_api! { path: "sand::component::SandError::ComponentValidation", aliases: [], kind: Variant, summary: "Reports a typed component builder invariant that failed before export." }
-register_component_api! { path: "sand::component::SandError::ComponentValidation::location", aliases: [], kind: Field, summary: "Identifies the component resource whose value failed validation." }
-register_component_api! { path: "sand::component::SandError::ComponentValidation::kind", aliases: [], kind: Field, summary: "Names the Minecraft component family that failed validation." }
-register_component_api! { path: "sand::component::SandError::ComponentValidation::field", aliases: [], kind: Field, summary: "Identifies the component field or nested validation path that failed." }
-register_component_api! { path: "sand::component::SandError::ComponentValidation::message", aliases: [], kind: Field, summary: "Explains the violated component invariant." }
-register_component_api! { path: "sand::component::SandError::VersionGating", aliases: [], kind: Variant, summary: "Reports a component feature unavailable in the selected Minecraft target." }
-register_component_api! { path: "sand::component::SandError::VersionGating::location", aliases: [], kind: Field, summary: "Identifies the resource rejected by target-version gating." }
-register_component_api! { path: "sand::component::SandError::VersionGating::kind", aliases: [], kind: Field, summary: "Names the component or trigger family rejected by target-version gating." }
-register_component_api! { path: "sand::component::SandError::VersionGating::requested_version", aliases: [], kind: Field, summary: "Carries the Minecraft version requested by the project." }
-register_component_api! { path: "sand::component::SandError::VersionGating::is_fallback", aliases: [], kind: Field, summary: "Records whether conservative fallback capabilities caused the rejection." }
-register_component_api! { path: "sand::component::SandError::VersionGating::feature_name", aliases: [], kind: Field, summary: "Names the unavailable data-driven Minecraft feature." }
-register_component_api! { path: "sand::component::SandError::VersionGating::fallback_note", aliases: [], kind: Field, summary: "Carries actionable guidance for a fallback-profile rejection." }
-register_component_api! { path: "sand::component::Result", aliases: [], kind: TypeAlias, summary: "Returns either a typed component value or its structured component-authoring error." }

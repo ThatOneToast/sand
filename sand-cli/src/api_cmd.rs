@@ -709,20 +709,19 @@ fn lower_first(value: &str) -> String {
     first.to_lowercase().chain(characters).collect()
 }
 
+type InstalledEntryShape = (
+    ApiKind,
+    String,
+    Option<&'static str>,
+    Option<&'static str>,
+    Option<&'static str>,
+    Option<&'static str>,
+);
+
 fn semantic_callable_example(
     entry: &ApiEntry,
     has_receiver: bool,
-    entry_shapes: &BTreeMap<
-        String,
-        (
-            ApiKind,
-            String,
-            Option<&'static str>,
-            Option<&'static str>,
-            Option<&'static str>,
-            Option<&'static str>,
-        ),
-    >,
+    entry_shapes: &BTreeMap<String, InstalledEntryShape>,
 ) -> String {
     let Some((owner_path, member)) = entry.canonical_path.rsplit_once("::") else {
         return String::new();
@@ -820,11 +819,11 @@ fn semantic_callable_example(
         }
     };
     let result_name = semantic_result_name(entry, owner_name, member, has_receiver);
-    let std_import = entry
-        .signature
-        .contains("fmt ::")
-        .then_some("use std::fmt;\n")
-        .unwrap_or_default();
+    let std_import = if entry.signature.contains("fmt ::") {
+        "use std::fmt;\n"
+    } else {
+        ""
+    };
     let generic_declarations = if generic_declarations.is_empty() {
         String::new()
     } else {
@@ -1033,9 +1032,8 @@ fn normalize_example_type(
             .find(|byte| !byte.is_ascii_whitespace());
         if identifier == "Self" {
             output.push_str(owner_type);
-        } else if next_non_space == Some(b'=') {
-            output.push_str(identifier);
-        } else if cursor + 1 < bytes.len() && bytes[cursor..].starts_with(b"::")
+        } else if next_non_space == Some(b'=')
+            || cursor + 1 < bytes.len() && bytes[cursor..].starts_with(b"::")
             || start >= 2 && bytes[start - 2..start].starts_with(b"::")
         {
             output.push_str(identifier);
@@ -1101,8 +1099,7 @@ fn normalize_two_argument_result(mut value: String) -> String {
             let after_name = start + spelling.len();
             if (start > 0 && is_path_ident_continue(value.as_bytes()[start - 1]))
                 || (spelling == "Result" && start >= 2 && &value[start - 2..start] == "::")
-                || value[after_name..]
-                    .as_bytes()
+                || value.as_bytes()[after_name..]
                     .first()
                     .is_some_and(|byte| is_path_ident_continue(*byte))
             {

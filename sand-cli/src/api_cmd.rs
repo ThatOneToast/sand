@@ -259,8 +259,18 @@ fn installed_catalog() -> Result<ApiCatalog> {
                     }
                 })
                 .collect();
-            entry.return_type = return_type.map(|ty| normalize_shape_paths(ty, Some(identity)));
-            entry.returns = if family_contract {
+            let callable = matches!(
+                entry.kind,
+                ApiKind::Function | ApiKind::Method | ApiKind::TraitMethod
+            );
+            entry.return_type = if callable {
+                return_type.map(|ty| normalize_shape_paths(ty, Some(identity)))
+            } else {
+                None
+            };
+            entry.returns = if !callable {
+                None
+            } else if family_contract {
                 source_return_description(documentation).or_else(|| {
                     entry.return_type.as_deref().and_then(|return_type| {
                         semantic_return_description(
@@ -2789,6 +2799,11 @@ mod tests {
                 entry.kind,
                 ApiKind::Function | ApiKind::Method | ApiKind::TraitMethod
             ) {
+                assert!(
+                    entry.return_type.is_none() && entry.returns.is_none(),
+                    "non-callable carries callable return metadata: {}",
+                    entry.canonical_path
+                );
                 assert!(
                     !entry.example.trim_end().ends_with("();"),
                     "non-callable is presented as a constructor: {}",

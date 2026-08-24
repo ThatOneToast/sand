@@ -159,8 +159,8 @@ pub use sand_components::{ChatDecoration, ChatDecorationParameter, ChatStyle, Ch
 
 pub use sand_components::{
     Advancement, AdvancementDisplay, AdvancementFrame, AdvancementIcon, AdvancementRewards,
-    AdvancementTrigger, AttributeModifier, AttributeOperation, AttributeType, BannerPattern,
-    BiomeSelector, BlockPredicate, CarverFloatRange, CarvingStep, CaveCarverConfig,
+    AdvancementTrigger, AttributeId, AttributeModifier, AttributeOperation, AttributeType,
+    BannerPattern, BiomeSelector, BlockPredicate, CarverFloatRange, CarvingStep, CaveCarverConfig,
     ConfiguredCarver, ConfiguredFeature, ConsumableAnimation, ConsumableProperties, Criterion,
     CustomData, CustomItem, DamagePredicate, DamageSourcePredicate, DensityFunction,
     DensityFunctionBinaryOp, DensityFunctionExpr, DensityFunctionUnaryOp, Dimension, DimensionType,

@@ -177,7 +177,7 @@ pub enum AttributeType {
 }
 
 /// Alias for the public item attribute identifier model.
-pub type AttributeId = AttributeType;
+pub use AttributeType as AttributeId;
 
 impl AttributeType {
     /// Returns the canonical Minecraft representation of this component value.

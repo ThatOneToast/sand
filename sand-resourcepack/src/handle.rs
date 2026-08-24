@@ -1,3 +1,4 @@
+#[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarHandle` for the canonical contract."]
 /// A lightweight handle to a registered `hud_bar!`
 /// component, generated automatically by the macro.
 ///
@@ -87,14 +88,18 @@
 /// [`broadcast_commands`]: BarHandle::broadcast_commands
 #[derive(Copy, Clone)]
 pub struct BarHandle {
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarHandle::name` for the canonical contract."]
     /// Name passed to `hud_bar!` — used for auto-unicode derivation.
     pub name: &'static str,
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarHandle::steps` for the canonical contract."]
     /// Number of frames in the sprite strip (and number of unicode characters
     /// assigned to this bar). Frame indices run from `0` (empty) to
     /// `steps - 1` (full).
     pub steps: u32,
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarHandle::font` for the canonical contract."]
     /// Font file name (without extension) this bar is registered under.
     pub font: &'static str,
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarHandle::frame_width` for the canonical contract."]
     /// Pixel width of one frame in the sprite strip texture.
     ///
     /// Minecraft renders each glyph with an advance of `frame_width + 1`
@@ -363,6 +368,7 @@ impl BarHandle {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::resourcepack::ElementHandle` for the canonical contract."]
 /// A lightweight handle to a registered `hud_element!`
 /// component, generated automatically by the macro.
 ///
@@ -391,10 +397,13 @@ impl BarHandle {
 /// ```
 #[derive(Copy, Clone)]
 pub struct ElementHandle {
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::ElementHandle::name` for the canonical contract."]
     /// Name passed to `hud_element!` — used for auto-unicode derivation.
     pub name: &'static str,
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::ElementHandle::font` for the canonical contract."]
     /// Font file name (without extension) this element is registered under.
     pub font: &'static str,
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::ElementHandle::char_width` for the canonical contract."]
     /// Pixel width of the element texture.
     ///
     /// Minecraft renders the glyph with an advance of `char_width + 1`.

@@ -34,22 +34,45 @@ const TYPED_FIELDS: &[&str] = &[
     "use_expansion_hack",
 ];
 
+#[doc = "**API Contract:** Run `sand api show sand::component::GenerationStep` for the canonical contract."]
 /// The world-generation step a structure starts in.
 ///
 /// This is vanilla's shared `GenerationStep.Decoration` enum: the same
 /// ordered steps also bucket a biome's per-step `features` list-of-lists.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum GenerationStep {
+    #[doc = "Selects the raw generation form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::GenerationStep::RawGeneration` for the canonical contract."]
     RawGeneration,
+    #[doc = "Selects the lakes form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::GenerationStep::Lakes` for the canonical contract."]
     Lakes,
+    #[doc = "Selects the local modifications form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::GenerationStep::LocalModifications` for the canonical contract."]
     LocalModifications,
+    #[doc = "Selects the underground structures form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::GenerationStep::UndergroundStructures` for the canonical contract."]
     UndergroundStructures,
+    #[doc = "Selects the surface structures form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::GenerationStep::SurfaceStructures` for the canonical contract."]
     SurfaceStructures,
+    #[doc = "Selects the strongholds form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::GenerationStep::Strongholds` for the canonical contract."]
     Strongholds,
+    #[doc = "Selects the underground ores form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::GenerationStep::UndergroundOres` for the canonical contract."]
     UndergroundOres,
+    #[doc = "Selects the underground decoration form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::GenerationStep::UndergroundDecoration` for the canonical contract."]
     UndergroundDecoration,
+    #[doc = "Selects the fluid springs form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::GenerationStep::FluidSprings` for the canonical contract."]
     FluidSprings,
+    #[doc = "Selects the vegetal decoration form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::GenerationStep::VegetalDecoration` for the canonical contract."]
     VegetalDecoration,
+    #[doc = "Selects the top layer modification form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::GenerationStep::TopLayerModification` for the canonical contract."]
     TopLayerModification,
 }
 
@@ -91,13 +114,24 @@ impl GenerationStep {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::TerrainAdaptation` for the canonical contract."]
 /// How terrain is modified around a generated structure.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TerrainAdaptation {
+    #[doc = "Selects the none form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::TerrainAdaptation::None` for the canonical contract."]
     None,
+    #[doc = "Selects the beard thin form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::TerrainAdaptation::BeardThin` for the canonical contract."]
     BeardThin,
+    #[doc = "Selects the beard box form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::TerrainAdaptation::BeardBox` for the canonical contract."]
     BeardBox,
+    #[doc = "Selects the bury form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::TerrainAdaptation::Bury` for the canonical contract."]
     Bury,
+    #[doc = "Selects the encapsulate form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::TerrainAdaptation::Encapsulate` for the canonical contract."]
     Encapsulate,
 }
 
@@ -115,16 +149,33 @@ impl TerrainAdaptation {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::MobCategory` for the canonical contract."]
 /// A vanilla mob category used as a spawn-override key.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum MobCategory {
+    #[doc = "Selects the monster form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::MobCategory::Monster` for the canonical contract."]
     Monster,
+    #[doc = "Selects the creature form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::MobCategory::Creature` for the canonical contract."]
     Creature,
+    #[doc = "Selects the ambient form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::MobCategory::Ambient` for the canonical contract."]
     Ambient,
+    #[doc = "Selects the axolotls form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::MobCategory::Axolotls` for the canonical contract."]
     Axolotls,
+    #[doc = "Selects the underground water creature form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::MobCategory::UndergroundWaterCreature` for the canonical contract."]
     UndergroundWaterCreature,
+    #[doc = "Selects the water creature form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::MobCategory::WaterCreature` for the canonical contract."]
     WaterCreature,
+    #[doc = "Selects the water ambient form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::MobCategory::WaterAmbient` for the canonical contract."]
     WaterAmbient,
+    #[doc = "Selects the misc form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::MobCategory::Misc` for the canonical contract."]
     Misc,
 }
 
@@ -145,11 +196,14 @@ impl MobCategory {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::SpawnBoundingBox` for the canonical contract."]
 /// Which part of a structure a spawn override applies to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SpawnBoundingBox {
+    #[doc = "**API Contract:** Run `sand api show sand::component::SpawnBoundingBox::Piece` for the canonical contract."]
     /// Only inside individual structure pieces.
     Piece,
+    #[doc = "**API Contract:** Run `sand api show sand::component::SpawnBoundingBox::Full` for the canonical contract."]
     /// The structure's full bounding box.
     Full,
 }
@@ -165,6 +219,7 @@ impl SpawnBoundingBox {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::SpawnEntry` for the canonical contract."]
 /// One weighted mob-spawn entry inside a [`SpawnOverride`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SpawnEntry {
@@ -234,6 +289,7 @@ impl SpawnEntry {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::SpawnOverride` for the canonical contract."]
 /// A per-mob-category spawn override for a structure.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SpawnOverride {
@@ -285,13 +341,24 @@ impl SpawnOverride {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::BiomeSelector` for the canonical contract."]
 /// The biome constraint of a structure: a biome tag or an explicit list.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BiomeSelector {
+    #[doc = "**API Contract:** Run `sand api show sand::component::BiomeSelector::Tag` for the canonical contract."]
     /// A biome tag reference, emitted as `#namespace:path`.
-    Tag(TagId<BiomeId>),
+    Tag(
+        #[doc = "The `Tag` variant carries the value described by its variant semantics: A biome tag reference, emitted as `#namespace:path`."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::BiomeSelector::Tag::0` for the canonical contract."]
+        TagId<BiomeId>,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::component::BiomeSelector::Entries` for the canonical contract."]
     /// An explicit list of biome IDs.
-    Entries(Vec<BiomeId>),
+    Entries(
+        #[doc = "The `Entries` variant carries the value described by its variant semantics: An explicit list of biome IDs."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::BiomeSelector::Entries::0` for the canonical contract."]
+        Vec<BiomeId>,
+    ),
 }
 
 impl BiomeSelector {
@@ -331,6 +398,7 @@ impl BiomeSelector {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::JigsawConfig` for the canonical contract."]
 /// The jigsaw-specific configuration of a `minecraft:jigsaw` structure.
 #[derive(Debug, Clone, PartialEq)]
 pub struct JigsawConfig {
@@ -449,6 +517,7 @@ impl JigsawConfig {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::Structure` for the canonical contract."]
 /// A structure definition (`data/<namespace>/worldgen/structure/<id>.json`).
 ///
 /// ```

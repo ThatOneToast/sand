@@ -27,15 +27,27 @@ const KIND: &str = "worldgen/configured_feature";
 /// Vanilla's maximum world height, used as the `fill_layer` height bound.
 const MAX_FILL_LAYER_HEIGHT: u32 = 4064;
 
+#[doc = "**API Contract:** Run `sand api show sand::component::RuleTest` for the canonical contract."]
 /// A block-matching rule test used by ore-like feature configs.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RuleTest {
+    #[doc = "**API Contract:** Run `sand api show sand::component::RuleTest::AlwaysTrue` for the canonical contract."]
     /// `minecraft:always_true` — replaces any block.
     AlwaysTrue,
+    #[doc = "**API Contract:** Run `sand api show sand::component::RuleTest::BlockMatch` for the canonical contract."]
     /// `minecraft:block_match` — replaces exactly one block.
-    BlockMatch { block: BlockId },
+    BlockMatch {
+        #[doc = "`block` provides the block identifier when `minecraft:block_match` — replaces exactly one block."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::RuleTest::BlockMatch::block` for the canonical contract."]
+        block: BlockId,
+    },
+    #[doc = "**API Contract:** Run `sand api show sand::component::RuleTest::TagMatch` for the canonical contract."]
     /// `minecraft:tag_match` — replaces any block in a block tag.
-    TagMatch { tag: TagId<BlockId> },
+    TagMatch {
+        #[doc = "`tag` provides the tag identifier when `minecraft:tag_match` — replaces any block in a block tag."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::RuleTest::TagMatch::tag` for the canonical contract."]
+        tag: TagId<BlockId>,
+    },
 }
 
 impl RuleTest {
@@ -54,6 +66,7 @@ impl RuleTest {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::OreTarget` for the canonical contract."]
 /// One replaceable-target entry of an ore feature config.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OreTarget {
@@ -76,6 +89,7 @@ impl OreTarget {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::OreConfig` for the canonical contract."]
 /// Config for the `minecraft:ore` feature type.
 #[derive(Debug, Clone, PartialEq)]
 pub struct OreConfig {
@@ -190,6 +204,7 @@ impl Feature {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::ConfiguredFeature` for the canonical contract."]
 /// A configured feature definition
 /// (`data/<namespace>/worldgen/configured_feature/<id>.json`).
 ///

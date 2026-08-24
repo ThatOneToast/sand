@@ -10,23 +10,32 @@ use crate::error::{Result, SandError};
 use crate::function::register_dyn_fn_dedup;
 use crate::version::VersionProfile;
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::Relation` for the canonical contract."]
 /// A vanilla entity relationship reachable via `execute on <relation>`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Relation {
+    #[doc = "**API Contract:** Run `sand api show sand::entity::Relation::Owner` for the canonical contract."]
     /// The entity that owns this entity (e.g. a tamed wolf's owner).
     Owner,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::Relation::Leasher` for the canonical contract."]
     /// The entity leashing this entity.
     Leasher,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::Relation::Target` for the canonical contract."]
     /// This entity's current attack/follow target (mobs only).
     Target,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::Relation::Vehicle` for the canonical contract."]
     /// The vehicle this entity is riding.
     Vehicle,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::Relation::Controller` for the canonical contract."]
     /// The entity steering this entity's vehicle (e.g. a boat's rower).
     Controller,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::Relation::Attacker` for the canonical contract."]
     /// The entity that last damaged this entity.
     Attacker,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::Relation::Origin` for the canonical contract."]
     /// The entity that fired/summoned this entity (e.g. a projectile's shooter).
     Origin,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::Relation::Passengers` for the canonical contract."]
     /// The entities riding this entity. Many-cardinality.
     Passengers,
 }
@@ -93,6 +102,7 @@ impl Relation {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::RelationQuery` for the canonical contract."]
 /// A pending traversal of a single [`Relation`] from an [`EntityContext`].
 ///
 /// `A` encodes cardinality: [`One`] for relations that resolve to at most one

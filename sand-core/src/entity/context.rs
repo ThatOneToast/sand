@@ -8,6 +8,7 @@ use sand_commands::selector::{Many, One};
 use crate::entity::kind::{EntityKind, PlayerKind};
 use crate::entity::relation::{Relation, RelationQuery};
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::EntityContext` for the canonical contract."]
 /// The current executor (`@s`) at a known point in a generated command chain,
 /// typed by entity kind.
 ///
@@ -24,6 +25,7 @@ pub struct EntityContext<K> {
     _kind: PhantomData<K>,
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::PlayerContext` for the canonical contract."]
 /// Execution-scoped context for the current player (`@s`, known to be a player).
 pub type PlayerContext = EntityContext<PlayerKind>;
 
@@ -111,6 +113,7 @@ impl<K: EntityKind> EntityContext<K> {
 
 // ── Scoped bindings ────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::ScopedEntityRef` for the canonical contract."]
 /// A stable reference to a specific entity, preserved across relationship
 /// traversal (which reassigns `@s`).
 ///
@@ -200,6 +203,7 @@ impl<K: EntityKind> ScopedEntityRef<K> {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::EntityScope` for the canonical contract."]
 /// Entry point for scoped, relationship-traversal-safe entity bindings.
 pub struct EntityScope;
 

@@ -29,6 +29,7 @@ use crate::validation;
 
 const TYPED_FIELDS: &[&str] = &["asset_id", "spawn_conditions"];
 
+#[doc = "**API Contract:** Run `sand api show sand::component::PigVariant` for the canonical contract."]
 /// A pig variant definition (`data/<namespace>/pig_variant/<id>.json`).
 ///
 /// Pig variants select the texture used when a pig spawns, based on an

@@ -6,6 +6,7 @@ use std::any::TypeId;
 use std::marker::PhantomData;
 use std::sync::OnceLock;
 
+#[doc = "**API Contract:** Run `sand api show sand::event::handle::EventHandle` for the canonical contract."]
 /// Runtime handle for enabling, disabling, and resetting an advancement-backed event.
 ///
 /// The generic parameter `E` is a marker that binds the handle to a specific

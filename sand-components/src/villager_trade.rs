@@ -72,6 +72,7 @@ use crate::enchantment_provider::EnchantmentSelection;
 use crate::error::Result as SandResult;
 use crate::item::stack::ItemStack;
 use crate::loot_table::NumberProvider;
+use crate::raw::RawJson;
 use crate::registry::{ItemId, RandomSequenceId, TagId, VillagerTradeId};
 use crate::resource_location::{PackNamespace, ResourceLocation};
 use crate::validation;
@@ -83,6 +84,7 @@ const VILLAGER_TRADE_TAG_DIR: &str = "tags/villager_trade";
 
 // ── TradeItem ────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::TradeItem` for the canonical contract."]
 /// A single accepted trade cost — the `wants` / `additional_wants` shape.
 ///
 /// Not a concrete item stack: it describes an accepted item ID, an optional
@@ -118,8 +120,8 @@ impl TradeItem {
     /// object" — see [`crate::item`] for the shared typed item/component
     /// model once a fallible `ItemMatcher` → trade-cost conversion lands.
     #[doc = "**API Contract:** Run `sand api show sand::component::TradeItem::components_raw` for the canonical contract."]
-    pub fn components_raw(mut self, components: Value) -> Self {
-        self.components_raw = Some(components);
+    pub fn components_raw(mut self, components: RawJson) -> Self {
+        self.components_raw = Some(components.into_value());
         self
     }
 
@@ -161,6 +163,7 @@ impl TradeItem {
 
 // ── VillagerTrade ────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::VillagerTrade` for the canonical contract."]
 /// A single `data/<namespace>/villager_trade/<id>.json` blueprint.
 ///
 /// Used both as a standalone `#[datapack_component]` (a reusable trade referenced by
@@ -233,8 +236,8 @@ impl VillagerTrade {
     /// constraint beyond "must be a JSON object" pending the typed loot
     /// item-modifier reference work (#185).
     #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTrade::modify_given_item_raw` for the canonical contract."]
-    pub fn modify_given_item_raw(mut self, modifier: Value) -> Self {
-        self.given_item_modifiers.push(modifier);
+    pub fn modify_given_item_raw(mut self, modifier: RawJson) -> Self {
+        self.given_item_modifiers.push(modifier.into_value());
         self
     }
 
@@ -270,8 +273,8 @@ impl VillagerTrade {
     /// predicate-context conversion lands (#204). Validated only as "must be
     /// a JSON object".
     #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTrade::offered_when_raw` for the canonical contract."]
-    pub fn offered_when_raw(mut self, predicate: Value) -> Self {
-        self.merchant_predicate_raw = Some(predicate);
+    pub fn offered_when_raw(mut self, predicate: RawJson) -> Self {
+        self.merchant_predicate_raw = Some(predicate.into_value());
         self
     }
 
@@ -488,6 +491,7 @@ enum TradeSetItem {
     Reference(VillagerTradeId),
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradeRef` for the canonical contract."]
 /// A reference to a [`VillagerTrade`] resource that is not owned/hoisted by
 /// the referencing [`TradeSet`]/[`VillagerTradePoolPatch`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -522,6 +526,7 @@ fn valid_entry_key(key: &str) -> bool {
 
 // ── TradeSet ─────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::TradeSet` for the canonical contract."]
 /// A `data/<namespace>/trade_set/<id>.json` trade-selection group.
 ///
 /// Owns zero or more inline entries (hoisted into generated `villager_trade`
@@ -784,21 +789,48 @@ impl DatapackComponent for TradeSet {
 
 // ── Known pool targets ────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::VillagerProfession` for the canonical contract."]
 /// A villager profession with a vanilla trade table.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum VillagerProfession {
+    #[doc = "Selects the armorer form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerProfession::Armorer` for the canonical contract."]
     Armorer,
+    #[doc = "Selects the butcher form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerProfession::Butcher` for the canonical contract."]
     Butcher,
+    #[doc = "Selects the cartographer form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerProfession::Cartographer` for the canonical contract."]
     Cartographer,
+    #[doc = "Selects the cleric form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerProfession::Cleric` for the canonical contract."]
     Cleric,
+    #[doc = "Selects the farmer form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerProfession::Farmer` for the canonical contract."]
     Farmer,
+    #[doc = "Selects the fisherman form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerProfession::Fisherman` for the canonical contract."]
     Fisherman,
+    #[doc = "Selects the fletcher form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerProfession::Fletcher` for the canonical contract."]
     Fletcher,
+    #[doc = "Selects the leatherworker form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerProfession::Leatherworker` for the canonical contract."]
     Leatherworker,
+    #[doc = "Selects the librarian form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerProfession::Librarian` for the canonical contract."]
     Librarian,
+    #[doc = "Selects the mason form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerProfession::Mason` for the canonical contract."]
     Mason,
+    #[doc = "Selects the shepherd form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerProfession::Shepherd` for the canonical contract."]
     Shepherd,
+    #[doc = "Selects the toolsmith form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerProfession::Toolsmith` for the canonical contract."]
     Toolsmith,
+    #[doc = "Selects the weaponsmith form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerProfession::Weaponsmith` for the canonical contract."]
     Weaponsmith,
 }
 
@@ -824,13 +856,24 @@ impl VillagerProfession {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::VillagerLevel` for the canonical contract."]
 /// A villager trade level, `1` (Novice) through `5` (Master).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum VillagerLevel {
+    #[doc = "Selects the novice form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerLevel::Novice` for the canonical contract."]
     Novice,
+    #[doc = "Selects the apprentice form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerLevel::Apprentice` for the canonical contract."]
     Apprentice,
+    #[doc = "Selects the journeyman form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerLevel::Journeyman` for the canonical contract."]
     Journeyman,
+    #[doc = "Selects the expert form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerLevel::Expert` for the canonical contract."]
     Expert,
+    #[doc = "Selects the master form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerLevel::Master` for the canonical contract."]
     Master,
 }
 
@@ -854,11 +897,18 @@ impl VillagerLevel {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::WanderingTraderPool` for the canonical contract."]
 /// A Wandering Trader trade pool.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum WanderingTraderPool {
+    #[doc = "Selects the buying form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::WanderingTraderPool::Buying` for the canonical contract."]
     Buying,
+    #[doc = "Selects the special form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::WanderingTraderPool::Special` for the canonical contract."]
     Special,
+    #[doc = "Selects the common form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::WanderingTraderPool::Common` for the canonical contract."]
     Common,
 }
 
@@ -874,6 +924,7 @@ impl WanderingTraderPool {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradePool` for the canonical contract."]
 /// A known Villager Trade pool target — a profession/level, Common Smith
 /// level, Wandering Trader pool, or a custom Villager Trade tag.
 ///
@@ -881,15 +932,37 @@ impl WanderingTraderPool {
 /// [`VillagerTradePoolPatch`] (additive extension).
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum VillagerTradePool {
+    #[doc = "Selects the profession form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradePool::Profession` for the canonical contract."]
     Profession {
+        /// `profession` provides the profession when the variant selects the profession form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradePool::Profession::profession` for the canonical contract."]
         profession: VillagerProfession,
+        /// `level` provides the level range when the variant selects the profession form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradePool::Profession::level` for the canonical contract."]
         level: VillagerLevel,
     },
+    #[doc = "Selects the common smith form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradePool::CommonSmith` for the canonical contract."]
     CommonSmith {
+        /// `level` provides the level range when the variant selects the common smith form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradePool::CommonSmith::level` for the canonical contract."]
         level: VillagerLevel,
     },
-    WanderingTrader(WanderingTraderPool),
-    Custom(TagId<VillagerTradeId>),
+    #[doc = "Selects the wandering trader form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradePool::WanderingTrader` for the canonical contract."]
+    WanderingTrader(
+        #[doc = "The `WanderingTrader` variant carries the value described by its variant semantics: Selects the wandering trader form in this typed Minecraft component schema."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradePool::WanderingTrader::0` for the canonical contract."]
+        WanderingTraderPool,
+    ),
+    #[doc = "Selects the custom form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradePool::Custom` for the canonical contract."]
+    Custom(
+        #[doc = "The `Custom` variant carries the value described by its variant semantics: Selects the custom form in this typed Minecraft component schema."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradePool::Custom::0` for the canonical contract."]
+        TagId<VillagerTradeId>,
+    ),
 }
 
 impl VillagerTradePool {
@@ -953,6 +1026,7 @@ impl VillagerTradePool {
 
 // ── VillagerTradePoolPatch ────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::VillagerTradePoolPatch` for the canonical contract."]
 /// An additive extension of an existing Villager/Wandering Trader pool.
 ///
 /// Unlike [`TradeSet::replace_target`], a pool patch never replaces vanilla
@@ -1166,7 +1240,9 @@ mod tests {
     fn trade_item_count_and_components_serialize() {
         let cost = TradeItem::new(item("diamond_sword"))
             .count(3)
-            .components_raw(serde_json::json!({"minecraft:custom_data": {"k": true}}));
+            .components_raw(RawJson::new(
+                serde_json::json!({"minecraft:custom_data": {"k": true}}),
+            ));
         let json = cost.to_json();
         assert_eq!(json["count"], 3.0);
         assert_eq!(json["components"]["minecraft:custom_data"]["k"], true);
@@ -1228,8 +1304,12 @@ mod tests {
     fn villager_trade_and_wants_and_modifiers_and_predicate_render() {
         let trade = basic_trade(rl("rpg", "trades/foo"))
             .and_wants(TradeItem::new(item("diamond")))
-            .modify_given_item_raw(serde_json::json!({"function": "minecraft:enchant_randomly"}))
-            .offered_when_raw(serde_json::json!({"condition": "minecraft:entity_properties"}))
+            .modify_given_item_raw(RawJson::new(
+                serde_json::json!({"function": "minecraft:enchant_randomly"}),
+            ))
+            .offered_when_raw(RawJson::new(
+                serde_json::json!({"condition": "minecraft:entity_properties"}),
+            ))
             .double_trade_price_enchantments(EnchantmentSelection::one(
                 EnchantmentId::minecraft("mending").unwrap(),
             ));

@@ -11,6 +11,7 @@
 use serde_json::Value;
 
 use crate::error::Result as SandResult;
+use crate::raw::RawJson;
 use crate::resource_location::ResourceLocation;
 use crate::validation;
 
@@ -26,6 +27,7 @@ use crate::validation;
 ///   }
 /// }
 /// ```
+#[doc = "**API Contract:** Run `sand api show sand::component::SpawnCondition` for the canonical contract."]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SpawnCondition {
     biomes: Value,
@@ -35,6 +37,7 @@ pub struct SpawnCondition {
 impl SpawnCondition {
     /// A biome-scoped spawn condition for a single biome ID or tag reference
     /// (e.g. `"minecraft:snowy_taiga"` or `"#minecraft:is_snowy"`).
+    #[doc = "**API Contract:** Run `sand api show sand::component::SpawnCondition::biome` for the canonical contract."]
     pub fn biome(biome_id: impl Into<String>, priority: i32) -> Self {
         Self {
             biomes: Value::String(biome_id.into()),
@@ -44,6 +47,7 @@ impl SpawnCondition {
 
     /// A biome-scoped spawn condition matching any of several biome IDs /
     /// tag references.
+    #[doc = "**API Contract:** Run `sand api show sand::component::SpawnCondition::biomes` for the canonical contract."]
     pub fn biomes(biome_ids: impl IntoIterator<Item = impl Into<String>>, priority: i32) -> Self {
         Self {
             biomes: Value::Array(
@@ -61,8 +65,12 @@ impl SpawnCondition {
     /// Explicit escape hatch: the value still passes through the same
     /// biome-selector validation as [`SpawnCondition::biome`] /
     /// [`SpawnCondition::biomes`] at export time.
-    pub fn biomes_raw(biomes: Value, priority: i32) -> Self {
-        Self { biomes, priority }
+    #[doc = "**API Contract:** Run `sand api show sand::component::SpawnCondition::biomes_raw` for the canonical contract."]
+    pub fn biomes_raw(biomes: RawJson, priority: i32) -> Self {
+        Self {
+            biomes: biomes.into_value(),
+            priority,
+        }
     }
 
     pub(crate) fn validate(
@@ -145,7 +153,8 @@ mod tests {
 
     #[test]
     fn raw_non_string_array_entry_is_rejected() {
-        let cond = SpawnCondition::biomes_raw(serde_json::json!(["minecraft:plains", 5]), 1);
+        let cond =
+            SpawnCondition::biomes_raw(RawJson::new(serde_json::json!(["minecraft:plains", 5])), 1);
         assert!(cond.validate(&rl(), "test", "spawn_conditions").is_err());
     }
 }

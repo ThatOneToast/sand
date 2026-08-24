@@ -33,6 +33,7 @@ use sand_components::predicates::{DamagePredicate, EntityPredicate, IntRange, It
 
 // ── TickTrigger ─────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::event::trigger::TickTrigger` for the canonical contract."]
 /// Fires every tick (20 times per second).
 ///
 /// Commonly used for join detection (with revoke) or per-tick checks.
@@ -61,6 +62,7 @@ impl From<TickTrigger> for AdvancementTrigger {
 
 // ── ImpossibleTrigger ───────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::event::trigger::ImpossibleTrigger` for the canonical contract."]
 /// Never fires. Useful for placeholder or parent-only advancements.
 #[derive(Clone, Debug, Default)]
 pub struct ImpossibleTrigger;
@@ -87,6 +89,7 @@ impl From<ImpossibleTrigger> for AdvancementTrigger {
 
 // ── ConsumeItemTrigger ──────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::event::trigger::ConsumeItemTrigger` for the canonical contract."]
 /// Fires when the player consumes an item (food, potion, honey bottle, etc.).
 #[derive(Clone, Debug, Default)]
 pub struct ConsumeItemTrigger {
@@ -122,6 +125,7 @@ impl From<ConsumeItemTrigger> for AdvancementTrigger {
 
 // ── PlayerKilledEntityTrigger ───────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::event::trigger::PlayerKilledEntityTrigger` for the canonical contract."]
 /// Fires when the player kills any entity.
 #[derive(Clone, Debug, Default)]
 pub struct PlayerKilledEntityTrigger {
@@ -171,6 +175,7 @@ impl From<PlayerKilledEntityTrigger> for AdvancementTrigger {
 
 // ── EntityKilledPlayerTrigger ───────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::event::trigger::EntityKilledPlayerTrigger` for the canonical contract."]
 /// Fires when any entity kills the player.
 #[derive(Clone, Debug, Default)]
 pub struct EntityKilledPlayerTrigger {
@@ -220,6 +225,7 @@ impl From<EntityKilledPlayerTrigger> for AdvancementTrigger {
 
 // ── RecipeUnlockedTrigger ───────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::event::trigger::RecipeUnlockedTrigger` for the canonical contract."]
 /// Fires when the player unlocks a specific recipe.
 #[derive(Clone, Debug)]
 pub struct RecipeUnlockedTrigger {
@@ -265,6 +271,7 @@ impl From<RecipeUnlockedTrigger> for AdvancementTrigger {
 
 // ─── InventoryChangedTrigger ────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::event::trigger::InventoryChangedTrigger` for the canonical contract."]
 /// Fires when the player's inventory changes.
 #[derive(Clone, Debug, Default)]
 pub struct InventoryChangedTrigger {
@@ -314,6 +321,7 @@ impl From<InventoryChangedTrigger> for AdvancementTrigger {
 
 // ─── ItemObtainedTrigger (legacy crafted-result filter) ─────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::event::trigger::ItemObtainedTrigger` for the canonical contract."]
 /// Source-compatibility builder for the removed `minecraft:crafted_item`
 /// trigger. Both filtered and unfiltered forms fail target-aware export on
 /// verified current profiles. Use [`AdvancementTrigger::RecipeCrafted`] with
@@ -355,6 +363,7 @@ impl From<ItemObtainedTrigger> for AdvancementTrigger {
 
 // ─── ItemEnchantTrigger ─────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::event::trigger::ItemEnchantTrigger` for the canonical contract."]
 /// Fires when the player enchants an item.
 #[derive(Clone, Debug, Default)]
 pub struct ItemEnchantTrigger {
@@ -404,6 +413,7 @@ impl From<ItemEnchantTrigger> for AdvancementTrigger {
 
 // ─── UsingItemTrigger ─────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::event::trigger::UsingItemTrigger` for the canonical contract."]
 /// Fires when the player is actively using (holding right-click) an item.
 #[derive(Clone, Debug, Default)]
 pub struct UsingItemTrigger {
@@ -439,6 +449,7 @@ impl From<UsingItemTrigger> for AdvancementTrigger {
 
 // ─── MultiKillTrigger (KilledByArrow) ───────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::event::trigger::MultiKillTrigger` for the canonical contract."]
 /// Fires when the player kills multiple unique entity types with a crossbow.
 #[derive(Clone, Debug, Default)]
 pub struct MultiKillTrigger {
@@ -491,6 +502,7 @@ impl From<MultiKillTrigger> for AdvancementTrigger {
 
 // ── PlayerInteractedWithEntityTrigger ─────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::event::trigger::PlayerInteractedWithEntityTrigger` for the canonical contract."]
 /// Fires when the player right-clicks an entity.
 ///
 /// Use this with `interaction` entities for custom clickable objects.
@@ -539,6 +551,7 @@ impl From<PlayerInteractedWithEntityTrigger> for AdvancementTrigger {
 
 // ── SummonedEntityTrigger ─────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::event::trigger::SummonedEntityTrigger` for the canonical contract."]
 /// Fires when the player summons an entity (via a spawn egg, totem, etc.).
 #[derive(Clone, Debug, Default)]
 pub struct SummonedEntityTrigger {

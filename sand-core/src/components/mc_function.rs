@@ -3,6 +3,7 @@ use serde_json::Value;
 use crate::component::{ComponentContent, DatapackComponent};
 use crate::resource_location::ResourceLocation;
 
+#[doc = "**API Contract:** Run `sand api show sand::component::IntoCommands` for the canonical contract."]
 /// Trait for types that can be converted into a list of Minecraft commands.
 pub trait IntoCommands {
     /// Convert this value into a vector of command strings.
@@ -10,6 +11,7 @@ pub trait IntoCommands {
     fn into_commands(self) -> Vec<String>;
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::McFunction` for the canonical contract."]
 /// A Minecraft function file (.mcfunction) that contains a list of commands to be executed.
 pub struct McFunction {
     location: ResourceLocation,

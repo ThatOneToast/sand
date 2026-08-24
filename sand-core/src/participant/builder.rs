@@ -239,6 +239,7 @@
 use crate::participant::plan::{DuplicateParticipantRole, EventParticipantPlan};
 use crate::participant::role::{EntityParticipantRole, ItemParticipantRole, ParticipantHand};
 
+#[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantBuilder` for the canonical contract."]
 /// Builds an immutable [`EventParticipantPlan`] from ordinary typed method
 /// calls — the normal-Rust replacement for attribute-macro-parameter-style
 /// participant declarations. See the [module doc](self) for the full model.

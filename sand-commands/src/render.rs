@@ -474,6 +474,7 @@ fn required_token<'a>(
     })
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::command::Validate` for the canonical contract."]
 /// Validate a typed command value against the active Minecraft profile.
 pub trait Validate {
     /// Reject invalid state before it can become command text.
@@ -481,6 +482,7 @@ pub trait Validate {
     fn validate(&self, profile: &CommandProfile) -> CommandResult<()>;
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::command::RenderCommand` for the canonical contract."]
 /// Deterministically render a validated Minecraft command or command fragment.
 ///
 /// [`render`](Self::render) is the normal path. `render_unchecked` exists so

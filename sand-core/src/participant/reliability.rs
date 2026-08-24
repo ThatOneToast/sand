@@ -2,6 +2,7 @@
 
 use crate::item::SnapshotReliability;
 
+#[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantReliability` for the canonical contract."]
 /// How strong the evidence is for a captured/referenced event participant.
 ///
 /// Variants are declared weakest-first so the derived [`Ord`] doubles as a
@@ -38,10 +39,20 @@ use crate::item::SnapshotReliability;
 /// was true at capture time").
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ParticipantReliability {
+    #[doc = "Selects the unavailable participant semantic."]
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantReliability::Unavailable` for the canonical contract."]
     Unavailable,
+    #[doc = "Selects the inferred participant semantic."]
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantReliability::Inferred` for the canonical contract."]
     Inferred,
+    #[doc = "Selects the correlated participant semantic."]
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantReliability::Correlated` for the canonical contract."]
     Correlated,
+    #[doc = "Selects the exact snapshot participant semantic."]
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantReliability::ExactSnapshot` for the canonical contract."]
     ExactSnapshot,
+    #[doc = "Selects the exact participant semantic."]
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantReliability::Exact` for the canonical contract."]
     Exact,
 }
 
@@ -58,14 +69,17 @@ impl ParticipantReliability {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::participant::ItemEvidenceQualifier` for the canonical contract."]
 /// Finer-grained evidence for an item participant's [`ExactSnapshot`](ParticipantReliability::ExactSnapshot)
 /// reliability, preserving the distinction Phase 7's `SnapshotReliability`
 /// draws between its two "exact" levels rather than flattening them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ItemEvidenceQualifier {
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ItemEvidenceQualifier::CapturedBeforeVanillaMutation` for the canonical contract."]
     /// Copied before any vanilla-side mutation window Sand knows of —
     /// [`SnapshotReliability::Exact`].
     CapturedBeforeVanillaMutation,
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ItemEvidenceQualifier::CapturedAtFirstSandControl` for the canonical contract."]
     /// Copied at the first point Sand's own generated code ran, but vanilla
     /// may already have mutated the source before the triggering criterion
     /// fired at all — [`SnapshotReliability::ExactPostTrigger`].

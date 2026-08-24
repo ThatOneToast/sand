@@ -59,6 +59,7 @@ use sand_commands::{CommandError, CommandResult, NbtRef, RenderCommand};
 
 use super::DataTarget;
 
+#[doc = "**API Contract:** Run `sand api show sand::command::FunctionMacroArg` for the canonical contract."]
 /// A validated function-macro argument name.
 ///
 /// Minecraft macro placeholders use the form `$(name)`. Sand accepts the
@@ -122,6 +123,7 @@ impl TryFrom<String> for FunctionMacroArg {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::command::FunctionMacroArgs` for the canonical contract."]
 /// Declared arguments for a parameterized `.mcfunction`.
 ///
 /// The declaration validates names and rejects duplicates up front. Use

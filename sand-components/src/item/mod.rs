@@ -55,15 +55,20 @@ pub mod stack;
 
 // ── ItemRarity ────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::ItemRarity` for the canonical contract."]
 /// Item rarity level — affects the default name color in the UI.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ItemRarity {
+    #[doc = "**API Contract:** Run `sand api show sand::component::ItemRarity::Common` for the canonical contract."]
     /// White text (default).
     Common,
+    #[doc = "**API Contract:** Run `sand api show sand::component::ItemRarity::Uncommon` for the canonical contract."]
     /// Yellow text.
     Uncommon,
+    #[doc = "**API Contract:** Run `sand api show sand::component::ItemRarity::Rare` for the canonical contract."]
     /// Cyan text.
     Rare,
+    #[doc = "**API Contract:** Run `sand api show sand::component::ItemRarity::Epic` for the canonical contract."]
     /// Pink/magenta text.
     Epic,
 }
@@ -86,59 +91,89 @@ impl ItemRarity {
 
 // ── AttributeType ─────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::AttributeType` for the canonical contract."]
 /// Minecraft entity attribute type for [`AttributeModifier`].
 #[derive(Debug, Clone)]
 pub enum AttributeType {
+    #[doc = "**API Contract:** Run `sand api show sand::component::AttributeType::AttackDamage` for the canonical contract."]
     /// Melee damage dealt by the entity.
     AttackDamage,
+    #[doc = "**API Contract:** Run `sand api show sand::component::AttributeType::AttackSpeed` for the canonical contract."]
     /// How fast the entity attacks (lower = faster).
     AttackSpeed,
+    #[doc = "**API Contract:** Run `sand api show sand::component::AttributeType::AttackKnockback` for the canonical contract."]
     /// Knockback applied by the entity's attacks.
     AttackKnockback,
+    #[doc = "**API Contract:** Run `sand api show sand::component::AttributeType::Armor` for the canonical contract."]
     /// Physical damage reduction.
     Armor,
+    #[doc = "**API Contract:** Run `sand api show sand::component::AttributeType::ArmorToughness` for the canonical contract."]
     /// Extra damage reduction for strong armor.
     ArmorToughness,
+    #[doc = "**API Contract:** Run `sand api show sand::component::AttributeType::MaxHealth` for the canonical contract."]
     /// Maximum health points.
     MaxHealth,
+    #[doc = "**API Contract:** Run `sand api show sand::component::AttributeType::MovementSpeed` for the canonical contract."]
     /// Speed of walking/running.
     MovementSpeed,
+    #[doc = "**API Contract:** Run `sand api show sand::component::AttributeType::FlyingSpeed` for the canonical contract."]
     /// Speed of flying (for flying entities).
     FlyingSpeed,
+    #[doc = "**API Contract:** Run `sand api show sand::component::AttributeType::KnockbackResistance` for the canonical contract."]
     /// Resistance to being knocked back.
     KnockbackResistance,
+    #[doc = "**API Contract:** Run `sand api show sand::component::AttributeType::Luck` for the canonical contract."]
     /// Extra luck for loot tables.
     Luck,
+    #[doc = "**API Contract:** Run `sand api show sand::component::AttributeType::JumpStrength` for the canonical contract."]
     /// Jump height.
     JumpStrength,
+    #[doc = "**API Contract:** Run `sand api show sand::component::AttributeType::SpawnReinforcements` for the canonical contract."]
     /// Zombie reinforcement spawning.
     SpawnReinforcements,
+    #[doc = "**API Contract:** Run `sand api show sand::component::AttributeType::BlockBreakSpeed` for the canonical contract."]
     /// Speed at which blocks are mined.
     BlockBreakSpeed,
+    #[doc = "**API Contract:** Run `sand api show sand::component::AttributeType::BurningTime` for the canonical contract."]
     /// Duration of burning damage.
     BurningTime,
+    #[doc = "**API Contract:** Run `sand api show sand::component::AttributeType::ExplosionKnockbackResistance` for the canonical contract."]
     /// Resistance to explosion knockback.
     ExplosionKnockbackResistance,
+    #[doc = "**API Contract:** Run `sand api show sand::component::AttributeType::FallDamageMultiplier` for the canonical contract."]
     /// Multiplier for fall damage.
     FallDamageMultiplier,
+    #[doc = "**API Contract:** Run `sand api show sand::component::AttributeType::Gravity` for the canonical contract."]
     /// Gravity multiplier (affects fall speed).
     Gravity,
+    #[doc = "**API Contract:** Run `sand api show sand::component::AttributeType::OxygenBonus` for the canonical contract."]
     /// Bonus underwater breathing time.
     OxygenBonus,
+    #[doc = "**API Contract:** Run `sand api show sand::component::AttributeType::SafeFallDistance` for the canonical contract."]
     /// Safe fall distance before damage.
     SafeFallDistance,
+    #[doc = "**API Contract:** Run `sand api show sand::component::AttributeType::Scale` for the canonical contract."]
     /// Size scale of the entity.
     Scale,
+    #[doc = "**API Contract:** Run `sand api show sand::component::AttributeType::StepHeight` for the canonical contract."]
     /// Height of blocks the entity can step on.
     StepHeight,
+    #[doc = "**API Contract:** Run `sand api show sand::component::AttributeType::SubmergedMiningSpeed` for the canonical contract."]
     /// Mining speed underwater.
     SubmergedMiningSpeed,
+    #[doc = "**API Contract:** Run `sand api show sand::component::AttributeType::SweepingDamageRatio` for the canonical contract."]
     /// Damage dealt by sweep attacks.
     SweepingDamageRatio,
+    #[doc = "**API Contract:** Run `sand api show sand::component::AttributeType::WaterMovementEfficiency` for the canonical contract."]
     /// Speed efficiency in water.
     WaterMovementEfficiency,
+    #[doc = "**API Contract:** Run `sand api show sand::component::AttributeType::Custom` for the canonical contract."]
     /// Any attribute not covered above (namespace:name format).
-    Custom(String),
+    Custom(
+        #[doc = "The `Custom` variant carries the value described by its variant semantics: Any attribute not covered above (namespace:name format)."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::AttributeType::Custom::0` for the canonical contract."]
+        String,
+    ),
 }
 
 /// Alias for the public item attribute identifier model.
@@ -182,13 +217,17 @@ impl AttributeType {
 
 // ── AttributeOperation ────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::AttributeOperation` for the canonical contract."]
 /// How an [`AttributeModifier`] value is applied to the base attribute.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AttributeOperation {
+    #[doc = "**API Contract:** Run `sand api show sand::component::AttributeOperation::AddValue` for the canonical contract."]
     /// Flat addition: `base + amount`
     AddValue,
+    #[doc = "**API Contract:** Run `sand api show sand::component::AttributeOperation::AddMultipliedBase` for the canonical contract."]
     /// Scaled addition: `base + (base * amount)`
     AddMultipliedBase,
+    #[doc = "**API Contract:** Run `sand api show sand::component::AttributeOperation::AddMultipliedTotal` for the canonical contract."]
     /// Multiplicative: `total * (1 + amount)`
     AddMultipliedTotal,
 }
@@ -207,27 +246,38 @@ impl AttributeOperation {
 
 // ── EquipmentSlotGroup ────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::EquipmentSlotGroup` for the canonical contract."]
 /// Which equipment slot(s) an [`AttributeModifier`] is active in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EquipmentSlotGroup {
+    #[doc = "**API Contract:** Run `sand api show sand::component::EquipmentSlotGroup::Any` for the canonical contract."]
     /// Active in all slots.
     Any,
+    #[doc = "**API Contract:** Run `sand api show sand::component::EquipmentSlotGroup::Mainhand` for the canonical contract."]
     /// Main hand slot only.
     Mainhand,
+    #[doc = "**API Contract:** Run `sand api show sand::component::EquipmentSlotGroup::Offhand` for the canonical contract."]
     /// Off hand slot only.
     Offhand,
+    #[doc = "**API Contract:** Run `sand api show sand::component::EquipmentSlotGroup::Hand` for the canonical contract."]
     /// Both main and off hand slots.
     Hand,
+    #[doc = "**API Contract:** Run `sand api show sand::component::EquipmentSlotGroup::Head` for the canonical contract."]
     /// Head armor slot only.
     Head,
+    #[doc = "**API Contract:** Run `sand api show sand::component::EquipmentSlotGroup::Chest` for the canonical contract."]
     /// Chest armor slot only.
     Chest,
+    #[doc = "**API Contract:** Run `sand api show sand::component::EquipmentSlotGroup::Legs` for the canonical contract."]
     /// Legs armor slot only.
     Legs,
+    #[doc = "**API Contract:** Run `sand api show sand::component::EquipmentSlotGroup::Feet` for the canonical contract."]
     /// Feet armor slot only.
     Feet,
+    #[doc = "**API Contract:** Run `sand api show sand::component::EquipmentSlotGroup::Armor` for the canonical contract."]
     /// Any armor slot (head, chest, legs, or feet).
     Armor,
+    #[doc = "**API Contract:** Run `sand api show sand::component::EquipmentSlotGroup::Body` for the canonical contract."]
     /// Body slots (includes all armor and hand slots).
     Body,
 }
@@ -253,6 +303,7 @@ impl EquipmentSlotGroup {
 
 // ── AttributeModifier ─────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::AttributeModifier` for the canonical contract."]
 /// A single entry in the `attribute_modifiers` item component.
 #[derive(Debug, Clone)]
 pub struct AttributeModifier {
@@ -356,6 +407,7 @@ impl AttributeModifier {
 
 // ── EnchantmentEntry ─────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentEntry` for the canonical contract."]
 /// A typed enchantment level entry for item components.
 #[derive(Debug, Clone)]
 pub struct EnchantmentEntry {
@@ -373,13 +425,24 @@ impl EnchantmentEntry {
 
 // ── CustomData ───────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::CustomData` for the canonical contract."]
 /// Typed wrapper for the `custom_data` item component.
 #[derive(Debug, Clone)]
 pub enum CustomData {
+    #[doc = "**API Contract:** Run `sand api show sand::component::CustomData::Marker` for the canonical contract."]
     /// A common marker emitted as `{key:1b}`.
-    Marker(String),
+    Marker(
+        #[doc = "The `Marker` variant carries the value described by its variant semantics: A common marker emitted as `{key:1b}`."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::CustomData::Marker::0` for the canonical contract."]
+        String,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::component::CustomData::Raw` for the canonical contract."]
     /// Explicit raw SNBT for complex custom data payloads.
-    Raw(RawSnbt),
+    Raw(
+        #[doc = "The `Raw` variant carries the value described by its variant semantics: Explicit raw SNBT for complex custom data payloads."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::CustomData::Raw::0` for the canonical contract."]
+        RawSnbt,
+    ),
 }
 
 impl CustomData {
@@ -435,37 +498,190 @@ impl From<RawSnbt> for CustomData {
 
 // ── ItemComponent ────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent` for the canonical contract."]
 /// Strongly typed Minecraft item component values used by [`CustomItem`].
 #[derive(Debug, Clone)]
 pub enum ItemComponent {
-    CustomName(TextComponent),
-    ItemName(TextComponent),
-    Lore(Vec<TextComponent>),
-    Rarity(ItemRarity),
-    CustomModelData(i32),
-    Enchantments(Vec<EnchantmentEntry>),
-    StoredEnchantments(Vec<EnchantmentEntry>),
-    AttributeModifiers(Vec<AttributeModifier>),
-    Food(FoodProperties),
-    Consumable(ConsumableProperties),
-    Equippable(EquippableProperties),
-    Tool(ToolProperties),
-    PotionContents(PotionContents),
-    SuspiciousStewEffects(Vec<SuspiciousStewEffect>),
-    MaxStackSize(u32),
-    MaxDamage(i32),
-    Damage(i32),
-    Unbreakable { show_in_tooltip: bool },
-    CustomData(CustomData),
-    EnchantmentGlintOverride(bool),
+    #[doc = "Selects the custom name form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::CustomName` for the canonical contract."]
+    CustomName(
+        #[doc = "The `CustomName` variant carries the value described by its variant semantics: Selects the custom name form in this typed Minecraft component schema."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::CustomName::0` for the canonical contract."]
+        TextComponent,
+    ),
+    #[doc = "Selects the item name form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::ItemName` for the canonical contract."]
+    ItemName(
+        #[doc = "The `ItemName` variant carries the value described by its variant semantics: Selects the item name form in this typed Minecraft component schema."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::ItemName::0` for the canonical contract."]
+        TextComponent,
+    ),
+    #[doc = "Selects the lore form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::Lore` for the canonical contract."]
+    Lore(
+        #[doc = "The `Lore` variant carries the value described by its variant semantics: Selects the lore form in this typed Minecraft component schema."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::Lore::0` for the canonical contract."]
+        Vec<TextComponent>,
+    ),
+    #[doc = "Selects the rarity form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::Rarity` for the canonical contract."]
+    Rarity(
+        #[doc = "The `Rarity` variant carries the value described by its variant semantics: Selects the rarity form in this typed Minecraft component schema."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::Rarity::0` for the canonical contract."]
+        ItemRarity,
+    ),
+    #[doc = "Selects the custom model data form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::CustomModelData` for the canonical contract."]
+    CustomModelData(
+        #[doc = "The `CustomModelData` variant carries the value described by its variant semantics: Selects the custom model data form in this typed Minecraft component schema."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::CustomModelData::0` for the canonical contract."]
+        i32,
+    ),
+    #[doc = "Selects the enchantments form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::Enchantments` for the canonical contract."]
+    Enchantments(
+        #[doc = "The `Enchantments` variant carries the value described by its variant semantics: Selects the enchantments form in this typed Minecraft component schema."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::Enchantments::0` for the canonical contract."]
+        Vec<EnchantmentEntry>,
+    ),
+    #[doc = "Selects the stored enchantments form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::StoredEnchantments` for the canonical contract."]
+    StoredEnchantments(
+        #[doc = "The `StoredEnchantments` variant carries the value described by its variant semantics: Selects the stored enchantments form in this typed Minecraft component schema."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::StoredEnchantments::0` for the canonical contract."]
+        Vec<EnchantmentEntry>,
+    ),
+    #[doc = "Selects the attribute modifiers form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::AttributeModifiers` for the canonical contract."]
+    AttributeModifiers(
+        #[doc = "The `AttributeModifiers` variant carries the value described by its variant semantics: Selects the attribute modifiers form in this typed Minecraft component schema."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::AttributeModifiers::0` for the canonical contract."]
+        Vec<AttributeModifier>,
+    ),
+    #[doc = "Selects the food form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::Food` for the canonical contract."]
+    Food(
+        #[doc = "The `Food` variant carries the value described by its variant semantics: Selects the food form in this typed Minecraft component schema."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::Food::0` for the canonical contract."]
+        FoodProperties,
+    ),
+    #[doc = "Selects the consumable form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::Consumable` for the canonical contract."]
+    Consumable(
+        #[doc = "The `Consumable` variant carries the value described by its variant semantics: Selects the consumable form in this typed Minecraft component schema."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::Consumable::0` for the canonical contract."]
+        ConsumableProperties,
+    ),
+    #[doc = "Selects the equippable form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::Equippable` for the canonical contract."]
+    Equippable(
+        #[doc = "The `Equippable` variant carries the value described by its variant semantics: Selects the equippable form in this typed Minecraft component schema."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::Equippable::0` for the canonical contract."]
+        EquippableProperties,
+    ),
+    #[doc = "Selects the tool form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::Tool` for the canonical contract."]
+    Tool(
+        #[doc = "The `Tool` variant carries the value described by its variant semantics: Selects the tool form in this typed Minecraft component schema."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::Tool::0` for the canonical contract."]
+        ToolProperties,
+    ),
+    #[doc = "Selects the potion contents form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::PotionContents` for the canonical contract."]
+    PotionContents(
+        #[doc = "The `PotionContents` variant carries the value described by its variant semantics: Selects the potion contents form in this typed Minecraft component schema."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::PotionContents::0` for the canonical contract."]
+        PotionContents,
+    ),
+    #[doc = "Selects the suspicious stew effects form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::SuspiciousStewEffects` for the canonical contract."]
+    SuspiciousStewEffects(
+        #[doc = "The `SuspiciousStewEffects` variant carries the value described by its variant semantics: Selects the suspicious stew effects form in this typed Minecraft component schema."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::SuspiciousStewEffects::0` for the canonical contract."]
+        Vec<SuspiciousStewEffect>,
+    ),
+    #[doc = "Selects the max stack size form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::MaxStackSize` for the canonical contract."]
+    MaxStackSize(
+        #[doc = "The `MaxStackSize` variant carries the value described by its variant semantics: Selects the max stack size form in this typed Minecraft component schema."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::MaxStackSize::0` for the canonical contract."]
+        u32,
+    ),
+    #[doc = "Selects the max damage form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::MaxDamage` for the canonical contract."]
+    MaxDamage(
+        #[doc = "The `MaxDamage` variant carries the value described by its variant semantics: Selects the max damage form in this typed Minecraft component schema."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::MaxDamage::0` for the canonical contract."]
+        i32,
+    ),
+    #[doc = "Selects the damage form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::Damage` for the canonical contract."]
+    Damage(
+        #[doc = "The `Damage` variant carries the value described by its variant semantics: Selects the damage form in this typed Minecraft component schema."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::Damage::0` for the canonical contract."]
+        i32,
+    ),
+    #[doc = "Selects the unbreakable form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::Unbreakable` for the canonical contract."]
+    Unbreakable {
+        #[doc = "`show_in_tooltip` provides the show in tooltip when the variant selects the unbreakable form in this typed Minecraft component schema."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::Unbreakable::show_in_tooltip` for the canonical contract."]
+        show_in_tooltip: bool,
+    },
+    #[doc = "Selects the custom data form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::CustomData` for the canonical contract."]
+    CustomData(
+        #[doc = "The `CustomData` variant carries the value described by its variant semantics: Selects the custom data form in this typed Minecraft component schema."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::CustomData::0` for the canonical contract."]
+        CustomData,
+    ),
+    #[doc = "Selects the enchantment glint override form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::EnchantmentGlintOverride` for the canonical contract."]
+    EnchantmentGlintOverride(
+        #[doc = "The `EnchantmentGlintOverride` variant carries the value described by its variant semantics: Selects the enchantment glint override form in this typed Minecraft component schema."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::EnchantmentGlintOverride::0` for the canonical contract."]
+        bool,
+    ),
+    #[doc = "Selects the hide additional tooltip form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::HideAdditionalTooltip` for the canonical contract."]
     HideAdditionalTooltip,
+    #[doc = "Selects the hide tooltip form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::HideTooltip` for the canonical contract."]
     HideTooltip,
-    RepairCost(i32),
-    UseCooldown(f32),
+    #[doc = "Selects the repair cost form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::RepairCost` for the canonical contract."]
+    RepairCost(
+        #[doc = "The `RepairCost` variant carries the value described by its variant semantics: Selects the repair cost form in this typed Minecraft component schema."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::RepairCost::0` for the canonical contract."]
+        i32,
+    ),
+    #[doc = "Selects the use cooldown form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::UseCooldown` for the canonical contract."]
+    UseCooldown(
+        #[doc = "The `UseCooldown` variant carries the value described by its variant semantics: Selects the use cooldown form in this typed Minecraft component schema."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::UseCooldown::0` for the canonical contract."]
+        f32,
+    ),
+    #[doc = "Selects the glider form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::Glider` for the canonical contract."]
     Glider,
+    #[doc = "Selects the fire resistant form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::FireResistant` for the canonical contract."]
     FireResistant,
-    DyedColor(DyedColor),
-    Raw(RawComponent),
+    #[doc = "Selects the dyed color form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::DyedColor` for the canonical contract."]
+    DyedColor(
+        #[doc = "The `DyedColor` variant carries the value described by its variant semantics: Selects the dyed color form in this typed Minecraft component schema."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::DyedColor::0` for the canonical contract."]
+        DyedColor,
+    ),
+    #[doc = "Selects the raw form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::Raw` for the canonical contract."]
+    Raw(
+        #[doc = "The `Raw` variant carries the value described by its variant semantics: Selects the raw form in this typed Minecraft component schema."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::ItemComponent::Raw::0` for the canonical contract."]
+        RawComponent,
+    ),
 }
 
 impl ItemComponent {
@@ -622,11 +838,14 @@ impl ItemComponent {
 
 // ── FoodProperties ────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::FoodProperties` for the canonical contract."]
 /// Properties for the `food` item component.
 #[derive(Debug, Clone)]
 pub struct FoodProperties {
+    #[doc = "**API Contract:** Run `sand api show sand::component::FoodProperties::nutrition` for the canonical contract."]
     /// Hunger points restored (1-20).
     pub nutrition: i32,
+    #[doc = "**API Contract:** Run `sand api show sand::component::FoodProperties::saturation` for the canonical contract."]
     /// Saturation restored (usually 0.0-2.0).
     pub saturation: f32,
     /// Whether the food can be eaten even with full hunger.
@@ -669,29 +888,40 @@ impl FoodProperties {
 
 // ── ConsumableAnimation ───────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::ConsumableAnimation` for the canonical contract."]
 /// Use animation for the `consumable` item component.
 ///
 /// Specifies the animation played when consuming an item.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConsumableAnimation {
+    #[doc = "**API Contract:** Run `sand api show sand::component::ConsumableAnimation::None` for the canonical contract."]
     /// No animation.
     None,
+    #[doc = "**API Contract:** Run `sand api show sand::component::ConsumableAnimation::Eat` for the canonical contract."]
     /// Eating animation (like food).
     Eat,
+    #[doc = "**API Contract:** Run `sand api show sand::component::ConsumableAnimation::Drink` for the canonical contract."]
     /// Drinking animation (like potions).
     Drink,
+    #[doc = "**API Contract:** Run `sand api show sand::component::ConsumableAnimation::Block` for the canonical contract."]
     /// Blocking animation (like shields).
     Block,
+    #[doc = "**API Contract:** Run `sand api show sand::component::ConsumableAnimation::Bow` for the canonical contract."]
     /// Bow drawing animation.
     Bow,
+    #[doc = "**API Contract:** Run `sand api show sand::component::ConsumableAnimation::Spear` for the canonical contract."]
     /// Spear throwing animation.
     Spear,
+    #[doc = "**API Contract:** Run `sand api show sand::component::ConsumableAnimation::Crossbow` for the canonical contract."]
     /// Crossbow loading animation.
     Crossbow,
+    #[doc = "**API Contract:** Run `sand api show sand::component::ConsumableAnimation::Spyglass` for the canonical contract."]
     /// Spyglass animation.
     Spyglass,
+    #[doc = "**API Contract:** Run `sand api show sand::component::ConsumableAnimation::TootHorn` for the canonical contract."]
     /// Horn tooting animation.
     TootHorn,
+    #[doc = "**API Contract:** Run `sand api show sand::component::ConsumableAnimation::Brush` for the canonical contract."]
     /// Brush animation.
     Brush,
 }
@@ -717,9 +947,11 @@ impl ConsumableAnimation {
 
 // ── ConsumableProperties ──────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::ConsumableProperties` for the canonical contract."]
 /// Properties for the `consumable` item component.
 #[derive(Debug, Clone)]
 pub struct ConsumableProperties {
+    #[doc = "**API Contract:** Run `sand api show sand::component::ConsumableProperties::consume_seconds` for the canonical contract."]
     /// Time in seconds to consume the item.
     pub consume_seconds: f32,
     /// Animation to play during consumption.
@@ -797,23 +1029,31 @@ impl ConsumableProperties {
 
 // ── EquippableProperties ──────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::EquipmentSlot` for the canonical contract."]
 /// Equipment slot for the `equippable` item component.
 ///
 /// Specifies which equipment slot an item can be equipped into.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EquipmentSlot {
+    #[doc = "**API Contract:** Run `sand api show sand::component::EquipmentSlot::Head` for the canonical contract."]
     /// Head armor slot.
     Head,
+    #[doc = "**API Contract:** Run `sand api show sand::component::EquipmentSlot::Chest` for the canonical contract."]
     /// Chest armor slot.
     Chest,
+    #[doc = "**API Contract:** Run `sand api show sand::component::EquipmentSlot::Legs` for the canonical contract."]
     /// Legs armor slot.
     Legs,
+    #[doc = "**API Contract:** Run `sand api show sand::component::EquipmentSlot::Feet` for the canonical contract."]
     /// Feet armor slot.
     Feet,
+    #[doc = "**API Contract:** Run `sand api show sand::component::EquipmentSlot::Body` for the canonical contract."]
     /// Body (all armor slots).
     Body,
+    #[doc = "**API Contract:** Run `sand api show sand::component::EquipmentSlot::Mainhand` for the canonical contract."]
     /// Main hand weapon slot.
     Mainhand,
+    #[doc = "**API Contract:** Run `sand api show sand::component::EquipmentSlot::Offhand` for the canonical contract."]
     /// Off hand slot.
     Offhand,
 }
@@ -834,11 +1074,13 @@ impl EquipmentSlot {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::EquippableProperties` for the canonical contract."]
 /// Properties for the `equippable` item component.
 ///
 /// Configures whether an item can be equipped and its behavior when equipped.
 #[derive(Debug, Clone)]
 pub struct EquippableProperties {
+    #[doc = "**API Contract:** Run `sand api show sand::component::EquippableProperties::slot` for the canonical contract."]
     /// The equipment slot this item occupies.
     pub slot: EquipmentSlot,
     /// Whether dispensers can automatically equip this item.
@@ -959,9 +1201,11 @@ impl EquippableProperties {
 
 // ── ToolRule ──────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::ToolRule` for the canonical contract."]
 /// A single rule in the `tool` item component.
 #[derive(Debug, Clone)]
 pub struct ToolRule {
+    #[doc = "**API Contract:** Run `sand api show sand::component::ToolRule::blocks` for the canonical contract."]
     /// Block or block tag to match (e.g. `"#minecraft:pickaxe_mineable"`).
     pub blocks: String,
     /// Optional mining speed multiplier for this rule.
@@ -1032,9 +1276,11 @@ impl ToolRule {
 
 // ── ToolProperties ────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::ToolProperties` for the canonical contract."]
 /// Properties for the `tool` item component.
 #[derive(Debug, Clone)]
 pub struct ToolProperties {
+    #[doc = "**API Contract:** Run `sand api show sand::component::ToolProperties::rules` for the canonical contract."]
     /// Rules for specific block types or tags.
     pub rules: Vec<ToolRule>,
     /// Default mining speed for blocks not matching any rule.
@@ -1100,13 +1346,17 @@ impl Default for ToolProperties {
 
 // ── DyedColor ─────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::DyedColor` for the canonical contract."]
 /// RGB color for the `dyed_color` item component (leather armor, etc.).
 #[derive(Debug, Clone, Copy)]
 pub struct DyedColor {
+    #[doc = "**API Contract:** Run `sand api show sand::component::DyedColor::r` for the canonical contract."]
     /// Red component (0-255).
     pub r: u8,
+    #[doc = "**API Contract:** Run `sand api show sand::component::DyedColor::g` for the canonical contract."]
     /// Green component (0-255).
     pub g: u8,
+    #[doc = "**API Contract:** Run `sand api show sand::component::DyedColor::b` for the canonical contract."]
     /// Blue component (0-255).
     pub b: u8,
 }
@@ -1142,6 +1392,7 @@ impl DyedColor {
 
 // ── ItemStackComponents ──────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::ItemStackComponents` for the canonical contract."]
 /// A structured, JSON-serializable snapshot of an item's base ID and data
 /// components — Minecraft's *structured* component form (`{"minecraft:key":
 /// value}`), as opposed to the SNBT-based command item-stack syntax that
@@ -1221,6 +1472,7 @@ fn item_component_error(base: &str, key: &str, message: impl fmt::Display) -> Sa
 
 // ── CustomItem ────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::CustomItem` for the canonical contract."]
 /// A custom item definition using the Minecraft 1.21+ item component system.
 ///
 /// The item formats as `base[component1=val1,component2=val2,...]` and can be

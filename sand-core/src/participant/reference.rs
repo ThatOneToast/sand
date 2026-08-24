@@ -6,6 +6,7 @@ use super::lifetime::ParticipantLifetime;
 use super::reliability::ParticipantReliability;
 use super::role::EntityParticipantRole;
 
+#[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantReliabilityError` for the canonical contract."]
 /// A requested reliability floor was not met by a supplied participant, or
 /// a participant reference was used outside its declared execution scope.
 ///
@@ -16,8 +17,14 @@ use super::role::EntityParticipantRole;
 /// caller can see exactly why a `require_exact()` call was rejected.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParticipantReliabilityError {
+    /// `role` provides the role when a requested reliability floor was not met by a supplied participant, or a participant reference was used outside its declared execution scope.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantReliabilityError::role` for the canonical contract."]
     pub role: EntityParticipantRole,
+    /// `requested` provides the requested when a requested reliability floor was not met by a supplied participant, or a participant reference was used outside its declared execution scope.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantReliabilityError::requested` for the canonical contract."]
     pub requested: ParticipantReliability,
+    /// `supplied` provides the supplied when a requested reliability floor was not met by a supplied participant, or a participant reference was used outside its declared execution scope.
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantReliabilityError::supplied` for the canonical contract."]
     pub supplied: ParticipantReliability,
 }
 
@@ -33,6 +40,7 @@ impl std::fmt::Display for ParticipantReliabilityError {
 
 impl std::error::Error for ParticipantReliabilityError {}
 
+#[doc = "**API Contract:** Run `sand api show sand::participant::PlayerParticipant` for the canonical contract."]
 /// A typed player participant reference: a command-building handle, not
 /// live runtime player data.
 ///
@@ -147,6 +155,7 @@ impl PlayerParticipant {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::participant::EntityParticipant` for the canonical contract."]
 /// A typed non-player-specific entity participant reference: a
 /// command-building handle, not live runtime entity data.
 ///

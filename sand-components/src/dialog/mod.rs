@@ -101,6 +101,8 @@ fn validate_resource_ref(raw: &str) -> std::result::Result<(), String> {
         .map_err(|error| error.to_string())
 }
 
+/// A validated text component accepted by dialog labels and body content.
+#[doc = "**API Contract:** Run `sand api show sand::component::DialogText` for the canonical contract."]
 #[derive(Debug, Clone)]
 pub struct DialogText(TextComponent);
 
@@ -299,6 +301,7 @@ impl IntoDialogRef for String {
 
 // ── DialogTag ────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::DialogTag` for the canonical contract."]
 /// A well-known vanilla dialog tag.
 ///
 /// Dialog tags expose dialogs through Minecraft UI entry points such as the
@@ -370,6 +373,7 @@ impl DialogTag {
 /// Accepts raw `&str`/`String` item IDs (escape hatch, validated at
 /// [`Dialog::validate`] time), [`ResourceLocation`], or the typed
 /// [`crate::registry::ItemId`] wrapper.
+#[doc = "**API Contract:** Run `sand api show sand::component::DialogItemRef` for the canonical contract."]
 #[derive(Debug, Clone)]
 pub struct DialogItemRef(String);
 
@@ -411,18 +415,31 @@ impl From<&crate::registry::ItemId> for DialogItemRef {
 
 // ── DialogBody ────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::DialogBody` for the canonical contract."]
 /// A dialog body element (text, item display, etc.).
 #[derive(Debug, Clone)]
 pub enum DialogBody {
+    #[doc = "**API Contract:** Run `sand api show sand::component::DialogBody::Text` for the canonical contract."]
     /// Plain text body element.
     Text {
+        /// `text` provides the text when plain text body element.
+        #[doc = "**API Contract:** Run `sand api show sand::component::DialogBody::Text::text` for the canonical contract."]
         text: Box<DialogText>,
+        /// `width` optionally provides the width when plain text body element.
+        #[doc = "**API Contract:** Run `sand api show sand::component::DialogBody::Text::width` for the canonical contract."]
         width: Option<u32>,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::DialogBody::Item` for the canonical contract."]
     /// Item display body element.
     Item {
+        /// `item` provides the item when item display body element.
+        #[doc = "**API Contract:** Run `sand api show sand::component::DialogBody::Item::item` for the canonical contract."]
         item: String,
+        /// `width` optionally provides the width when item display body element.
+        #[doc = "**API Contract:** Run `sand api show sand::component::DialogBody::Item::width` for the canonical contract."]
         width: Option<u32>,
+        /// `height` optionally provides the height when item display body element.
+        #[doc = "**API Contract:** Run `sand api show sand::component::DialogBody::Item::height` for the canonical contract."]
         height: Option<u32>,
     },
 }
@@ -507,28 +524,56 @@ impl DialogBody {
 
 // ── DialogAction ──────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::DialogAction` for the canonical contract."]
 /// An action associated with a dialog button.
 #[derive(Debug, Clone)]
 pub enum DialogAction {
+    #[doc = "**API Contract:** Run `sand api show sand::component::DialogAction::RunCommand` for the canonical contract."]
     /// Run a raw command when the button is pressed.
     ///
     /// This is the explicit raw escape hatch — the command string is never
     /// validated. Prefer [`DialogAction::run_function`] for datapack
     /// function calls.
-    RunCommand(String),
+    RunCommand(
+        #[doc = "The `RunCommand` variant carries the value described by its variant semantics: Run a raw command when the button is pressed. This is the explicit raw escape hatch — the command string is never validated. Prefer [`DialogAction::run_function`] for datapack function calls."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::DialogAction::RunCommand::0` for the canonical contract."]
+        String,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::component::DialogAction::RunFunction` for the canonical contract."]
     /// Run a datapack function when the button is pressed.
     ///
     /// The raw function path (not yet formatted into a command) — validated
     /// by [`Dialog::validate`] before it can reach generated output.
-    RunFunction(String),
+    RunFunction(
+        #[doc = "The `RunFunction` variant carries the value described by its variant semantics: Run a datapack function when the button is pressed."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::DialogAction::RunFunction::0` for the canonical contract."]
+        String,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::component::DialogAction::SuggestCommand` for the canonical contract."]
     /// Fill the chat bar with a command suggestion.
-    SuggestCommand(String),
+    SuggestCommand(
+        #[doc = "The `SuggestCommand` variant carries the value described by its variant semantics: Fill the chat bar with a command suggestion."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::DialogAction::SuggestCommand::0` for the canonical contract."]
+        String,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::component::DialogAction::OpenUrl` for the canonical contract."]
     /// Open a URL (where server-controlled links are permitted).
-    OpenUrl(String),
+    OpenUrl(
+        #[doc = "The `OpenUrl` variant carries the value described by its variant semantics: Open a URL (where server-controlled links are permitted)."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::DialogAction::OpenUrl::0` for the canonical contract."]
+        String,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::component::DialogAction::OpenDialog` for the canonical contract."]
     /// Open another dialog.
-    OpenDialog(String),
+    OpenDialog(
+        #[doc = "The `OpenDialog` variant carries the value described by its variant semantics: Open another dialog."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::DialogAction::OpenDialog::0` for the canonical contract."]
+        String,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::component::DialogAction::Close` for the canonical contract."]
     /// Close the current dialog.
     Close,
+    #[doc = "**API Contract:** Run `sand api show sand::component::DialogAction::Callback` for the canonical contract."]
     /// Run a datapack function through Sand's survival-friendly callback
     /// dispatcher.
     ///
@@ -537,8 +582,11 @@ pub enum DialogAction {
     /// dialogs participate in each export's callback lifecycle. The raw
     /// function path is validated by [`Dialog::validate`] before it can
     /// reach generated `__sand_dialog_tick` output.
-    #[doc(hidden)]
-    Callback(String),
+    Callback(
+        #[doc = "The `Callback` variant carries the value described by its variant semantics: Run a datapack function through Sand's survival-friendly callback dispatcher."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::DialogAction::Callback::0` for the canonical contract."]
+        String,
+    ),
 }
 
 impl DialogAction {
@@ -663,6 +711,7 @@ impl DialogAction {
 
 // ── DialogButton ──────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::DialogButton` for the canonical contract."]
 /// A button displayed in a dialog.
 #[derive(Debug, Clone)]
 pub struct DialogButton {
@@ -722,13 +771,17 @@ impl DialogButton {
 
 // ── DialogKind ────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::DialogKind` for the canonical contract."]
 /// The dialog variant (notice, confirmation, multi-action).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DialogKind {
+    #[doc = "**API Contract:** Run `sand api show sand::component::DialogKind::Notice` for the canonical contract."]
     /// A simple informational dialog with one or more dismiss buttons.
     Notice,
+    #[doc = "**API Contract:** Run `sand api show sand::component::DialogKind::Confirmation` for the canonical contract."]
     /// A dialog with confirm / cancel buttons.
     Confirmation,
+    #[doc = "**API Contract:** Run `sand api show sand::component::DialogKind::MultiAction` for the canonical contract."]
     /// A dialog with multiple custom action buttons.
     MultiAction,
 }
@@ -752,6 +805,7 @@ impl DialogKind {
 
 // ── Dialog ────────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::Dialog` for the canonical contract."]
 /// A typed dialog datapack component builder.
 ///
 /// Dialogs live at `data/<namespace>/dialog/<path>.json` and require
@@ -777,6 +831,7 @@ impl DialogKind {
 /// ```
 #[derive(Debug, Clone)]
 pub struct Dialog {
+    #[doc = "**API Contract:** Run `sand api show sand::component::Dialog::id` for the canonical contract."]
     /// The validated resource location for this dialog (e.g. `"example:welcome"`).
     pub id: ResourceLocation,
     kind: DialogKind,

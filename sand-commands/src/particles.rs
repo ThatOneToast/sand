@@ -21,6 +21,7 @@ use crate::render::{CommandProfile, RenderCommand, Validate};
 
 // ── Particle ──────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::IntoParticleId` for the canonical contract."]
 /// Conversion into a particle resource-location token.
 pub trait IntoParticleId {
     /// Converts a typed or validated value into a Minecraft particle identifier.
@@ -40,33 +41,93 @@ impl IntoParticleId for &str {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::command::Particle` for the canonical contract."]
 /// A Minecraft particle type with its parameters.
 #[derive(Debug, Clone)]
 pub enum Particle {
+    #[doc = "**API Contract:** Run `sand api show sand::command::Particle::Named` for the canonical contract."]
     /// A named particle with no extra parameters, e.g. `"minecraft:flame"`.
-    Named(String),
+    Named(
+        #[doc = "The `Named` variant carries the value described by its variant semantics: A named particle with no extra parameters, e.g. `\"minecraft:flame\"`."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::Particle::Named::0` for the canonical contract."]
+        String,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::command::Particle::Dust` for the canonical contract."]
     /// Colored `minecraft:dust` particle. RGB values in `0.0–1.0`.
-    Dust { r: f32, g: f32, b: f32, scale: f32 },
-    /// `minecraft:dust_color_transition` — animates from one color to another.
-    DustColorTransition {
-        from_r: f32,
-        from_g: f32,
-        from_b: f32,
-        to_r: f32,
-        to_g: f32,
-        to_b: f32,
+    Dust {
+        #[doc = "`r` provides the red channel when colored `minecraft:dust` particle. RGB values in `0.0–1.0`."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::Particle::Dust::r` for the canonical contract."]
+        r: f32,
+        #[doc = "`g` provides the green channel when colored `minecraft:dust` particle. RGB values in `0.0–1.0`."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::Particle::Dust::g` for the canonical contract."]
+        g: f32,
+        #[doc = "`b` provides the blue channel when colored `minecraft:dust` particle. RGB values in `0.0–1.0`."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::Particle::Dust::b` for the canonical contract."]
+        b: f32,
+        #[doc = "`scale` provides the particle scale when colored `minecraft:dust` particle. RGB values in `0.0–1.0`."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::Particle::Dust::scale` for the canonical contract."]
         scale: f32,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::command::Particle::DustColorTransition` for the canonical contract."]
+    /// `minecraft:dust_color_transition` — animates from one color to another.
+    DustColorTransition {
+        /// `from_r` provides the from r when `minecraft:dust_color_transition` — animates from one color to another.
+        #[doc = "**API Contract:** Run `sand api show sand::command::Particle::DustColorTransition::from_r` for the canonical contract."]
+        from_r: f32,
+        /// `from_g` provides the from g when `minecraft:dust_color_transition` — animates from one color to another.
+        #[doc = "**API Contract:** Run `sand api show sand::command::Particle::DustColorTransition::from_g` for the canonical contract."]
+        from_g: f32,
+        /// `from_b` provides the from b when `minecraft:dust_color_transition` — animates from one color to another.
+        #[doc = "**API Contract:** Run `sand api show sand::command::Particle::DustColorTransition::from_b` for the canonical contract."]
+        from_b: f32,
+        /// `to_r` provides the to r when `minecraft:dust_color_transition` — animates from one color to another.
+        #[doc = "**API Contract:** Run `sand api show sand::command::Particle::DustColorTransition::to_r` for the canonical contract."]
+        to_r: f32,
+        /// `to_g` provides the to g when `minecraft:dust_color_transition` — animates from one color to another.
+        #[doc = "**API Contract:** Run `sand api show sand::command::Particle::DustColorTransition::to_g` for the canonical contract."]
+        to_g: f32,
+        /// `to_b` provides the to b when `minecraft:dust_color_transition` — animates from one color to another.
+        #[doc = "**API Contract:** Run `sand api show sand::command::Particle::DustColorTransition::to_b` for the canonical contract."]
+        to_b: f32,
+        /// `scale` provides the particle scale when `minecraft:dust_color_transition` — animates from one color to another.
+        #[doc = "**API Contract:** Run `sand api show sand::command::Particle::DustColorTransition::scale` for the canonical contract."]
+        scale: f32,
+    },
+    #[doc = "**API Contract:** Run `sand api show sand::command::Particle::Block` for the canonical contract."]
     /// `minecraft:block` particle showing a block's break texture.
-    Block(String),
+    Block(
+        #[doc = "The `Block` variant carries the value described by its variant semantics: `minecraft:block` particle showing a block's break texture."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::Particle::Block::0` for the canonical contract."]
+        String,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::command::Particle::Item` for the canonical contract."]
     /// `minecraft:item` particle showing an item's texture.
-    Item(String),
+    Item(
+        #[doc = "The `Item` variant carries the value described by its variant semantics: `minecraft:item` particle showing an item's texture."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::Particle::Item::0` for the canonical contract."]
+        String,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::command::Particle::SculkCharge` for the canonical contract."]
     /// `minecraft:sculk_charge` with a rotation in radians.
-    SculkCharge { roll: f32 },
+    SculkCharge {
+        #[doc = "`roll` provides the roll when `minecraft:sculk_charge` with a rotation in radians."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::Particle::SculkCharge::roll` for the canonical contract."]
+        roll: f32,
+    },
+    #[doc = "**API Contract:** Run `sand api show sand::command::Particle::Shriek` for the canonical contract."]
     /// `minecraft:shriek` with a delay in ticks before appearing.
-    Shriek { delay: u32 },
+    Shriek {
+        #[doc = "`delay` provides the delay when `minecraft:shriek` with a delay in ticks before appearing."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::Particle::Shriek::delay` for the canonical contract."]
+        delay: u32,
+    },
+    #[doc = "**API Contract:** Run `sand api show sand::command::Particle::Raw` for the canonical contract."]
     /// Explicit opaque particle token.
-    Raw(String),
+    Raw(
+        #[doc = "The `Raw` variant carries the value described by its variant semantics: Explicit opaque particle token."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::Particle::Raw::0` for the canonical contract."]
+        String,
+    ),
 }
 
 impl Particle {
@@ -261,15 +322,23 @@ impl Validate for Particle {
 
 // ── ParticleSpread ─────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::ParticleSpread` for the canonical contract."]
 /// Spread/dispersion of a particle from its spawn position.
 #[derive(Debug, Clone)]
 pub struct ParticleSpread {
+    /// `dx` provides the x-axis spread when spread/dispersion of a particle from its spawn position.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleSpread::dx` for the canonical contract."]
     pub dx: f64,
+    /// `dy` provides the y-axis spread when spread/dispersion of a particle from its spawn position.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleSpread::dy` for the canonical contract."]
     pub dy: f64,
+    /// `dz` provides the z-axis spread when spread/dispersion of a particle from its spawn position.
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleSpread::dz` for the canonical contract."]
     pub dz: f64,
 }
 
 impl ParticleSpread {
+    #[doc = "**API Contract:** Run `sand api show sand::command::ParticleSpread::POINT` for the canonical contract."]
     /// No spread — particles appear exactly at the specified position.
     pub const POINT: Self = Self {
         dx: 0.0,
@@ -307,6 +376,7 @@ impl Validate for ParticleSpread {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::command::ParticleCommand` for the canonical contract."]
 /// One structured `particle` command retained until validation and rendering.
 #[derive(Debug, Clone)]
 pub struct ParticleCommand {
@@ -361,6 +431,7 @@ impl RenderCommand for ParticleCommand {
 
 // ── ParticleBuilder ────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::ParticleBuilder` for the canonical contract."]
 /// Fluent builder for generating `particle` commands.
 #[derive(Debug, Clone)]
 pub struct ParticleBuilder {
@@ -1023,6 +1094,7 @@ impl ParticleBuilder {
 
 // ── ParticleEffect ────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::ParticleEffect` for the canonical contract."]
 /// Static particle geometry generators (thin wrappers around [`ParticleBuilder`]).
 pub struct ParticleEffect;
 

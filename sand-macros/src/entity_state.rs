@@ -1216,9 +1216,9 @@ mod generated_surface_tests {
         generated_contract(
             target.to_owned(),
             kind,
-            "Generated fixture summary.",
-            "Generated fixture context.",
-            "Generated fixture Minecraft behavior.",
+            "Reads the fixture scoreboard state for validation.",
+            "The fixture binds one declared scoreboard value for validator coverage.",
+            "Minecraft stores the fixture value in the selected scoreboard objective.",
             &["Using the generated fixture API"],
             &["The fixture API is not applicable"],
             parameters,

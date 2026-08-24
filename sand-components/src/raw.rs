@@ -39,6 +39,7 @@ use std::fmt;
 
 // ── RawJson ───────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::RawJson` for the canonical contract."]
 /// A raw `serde_json::Value` used as an explicit escape hatch in datapack APIs.
 ///
 /// Prefer typed predicate/component APIs.  Use this only for modded or
@@ -57,6 +58,14 @@ pub struct RawJson(Value);
 
 impl RawJson {
     /// Wrap an arbitrary JSON value as an explicit raw escape hatch.
+    ///
+    /// # Example
+    /// ```rust
+    /// use sand_components::RawJson;
+    ///
+    /// let raw = RawJson::new(serde_json::json!({"modded": true}));
+    /// assert_eq!(raw.as_value()["modded"], true);
+    /// ```
     #[doc = "**API Contract:** Run `sand api show sand::component::RawJson::new` for the canonical contract."]
     pub fn new(v: Value) -> Self {
         Self(v)
@@ -101,6 +110,7 @@ impl fmt::Display for RawJson {
 
 // ── RawSnbt ───────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::RawSnbt` for the canonical contract."]
 /// A raw SNBT (Stringified NBT) string used as an explicit escape hatch.
 ///
 /// Use this when no typed NBT builder covers the compound or list you need.
@@ -167,6 +177,7 @@ pub use sand_commands::RawCommand;
 
 // ── RawComponent ──────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::RawComponent` for the canonical contract."]
 /// A raw item component string (`key=snbt_value`) used as an explicit escape hatch.
 ///
 /// Use this for item components not yet covered by Sand's typed `CustomItem` API.

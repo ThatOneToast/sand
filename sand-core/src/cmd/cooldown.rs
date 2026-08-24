@@ -38,6 +38,7 @@ use sand_commands::{Objective, ScoreHolder};
 
 // ── Cooldown ──────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::Cooldown` for the canonical contract."]
 /// Scoreboard-based cooldown system for ability tracking.
 ///
 /// A cooldown is a countdown timer backed by a scoreboard objective.

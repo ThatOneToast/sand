@@ -33,6 +33,7 @@ const MAX_FIRST_OCTAVE: i32 = 32;
 /// Vanilla caps the total number of octaves a noise may declare.
 const MAX_AMPLITUDES: usize = 32;
 
+#[doc = "**API Contract:** Run `sand api show sand::component::Noise` for the canonical contract."]
 /// A noise-parameter definition (`data/<namespace>/worldgen/noise/<id>.json`).
 ///
 /// ```

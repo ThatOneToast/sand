@@ -401,6 +401,7 @@ registry_id! {
 
 // ── TagId<T> ─────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::TagId` for the canonical contract."]
 /// A typed tag identifier scoped to a specific registry kind `T`.
 ///
 /// The phantom `T` marker allows you to distinguish `TagId<ItemId>` from

@@ -3,6 +3,7 @@ use serde_json::Value;
 use crate::component::DatapackComponent;
 use crate::resource_location::ResourceLocation;
 
+#[doc = "**API Contract:** Run `sand api show sand::component::StructureTemplate` for the canonical contract."]
 /// A datapack structure template copied from an existing `.nbt` file.
 ///
 /// Structure templates are binary NBT assets. Sand treats them as copy-backed

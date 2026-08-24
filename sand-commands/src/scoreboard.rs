@@ -49,6 +49,8 @@ enum ScoreHolderKind {
     Compat(String),
 }
 
+#[doc = "Builds or represents the typed score holder Minecraft command value."]
+#[doc = "**API Contract:** Run `sand api show sand::command::ScoreHolder` for the canonical contract."]
 #[derive(Debug, Clone)]
 #[must_use = "score holders do nothing until passed to a scoreboard command"]
 pub struct ScoreHolder(ScoreHolderKind);
@@ -226,6 +228,7 @@ impl From<Selector> for ScoreHolder {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::command::ObjectiveName` for the canonical contract."]
 /// Validated Minecraft scoreboard objective name.
 ///
 /// This is the single canonical objective-name type for Sand (see
@@ -404,6 +407,7 @@ impl RenderCommand for ObjectiveName {
 
 // ── ScoreOp ───────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::ScoreOp` for the canonical contract."]
 /// Arithmetic operation for `scoreboard players operation`.
 ///
 /// # Examples
@@ -416,22 +420,31 @@ impl RenderCommand for ObjectiveName {
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScoreOp {
+    #[doc = "**API Contract:** Run `sand api show sand::command::ScoreOp::Add` for the canonical contract."]
     /// `+=` — add source to target.
     Add,
+    #[doc = "**API Contract:** Run `sand api show sand::command::ScoreOp::Sub` for the canonical contract."]
     /// `-=` — subtract source from target.
     Sub,
+    #[doc = "**API Contract:** Run `sand api show sand::command::ScoreOp::Mul` for the canonical contract."]
     /// `*=` — multiply target by source. Truncates toward zero.
     Mul,
+    #[doc = "**API Contract:** Run `sand api show sand::command::ScoreOp::Div` for the canonical contract."]
     /// `/=` — divide target by source. Truncates toward zero.
     Div,
+    #[doc = "**API Contract:** Run `sand api show sand::command::ScoreOp::Mod` for the canonical contract."]
     /// `%=` — target becomes `target mod source`.
     Mod,
+    #[doc = "**API Contract:** Run `sand api show sand::command::ScoreOp::Set` for the canonical contract."]
     /// `=` — assign source's value to target.
     Set,
+    #[doc = "**API Contract:** Run `sand api show sand::command::ScoreOp::Min` for the canonical contract."]
     /// `<` — target becomes `min(target, source)`.
     Min,
+    #[doc = "**API Contract:** Run `sand api show sand::command::ScoreOp::Max` for the canonical contract."]
     /// `>` — target becomes `max(target, source)`.
     Max,
+    #[doc = "**API Contract:** Run `sand api show sand::command::ScoreOp::Swap` for the canonical contract."]
     /// `><` — swap: exchange the values of target and source.
     Swap,
 }
@@ -455,6 +468,7 @@ impl fmt::Display for ScoreOp {
 
 // ── ScoreCmp ──────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::ScoreCmp` for the canonical contract."]
 /// Comparison operator for `execute if score <a> <obj> <cmp> <b> <obj>`.
 ///
 /// # Examples
@@ -467,14 +481,19 @@ impl fmt::Display for ScoreOp {
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScoreCmp {
+    #[doc = "**API Contract:** Run `sand api show sand::command::ScoreCmp::Eq` for the canonical contract."]
     /// `=` — left equals right.
     Eq,
+    #[doc = "**API Contract:** Run `sand api show sand::command::ScoreCmp::Lt` for the canonical contract."]
     /// `<` — left is strictly less than right.
     Lt,
+    #[doc = "**API Contract:** Run `sand api show sand::command::ScoreCmp::Le` for the canonical contract."]
     /// `<=` — left is less than or equal to right.
     Le,
+    #[doc = "**API Contract:** Run `sand api show sand::command::ScoreCmp::Gt` for the canonical contract."]
     /// `>` — left is strictly greater than right.
     Gt,
+    #[doc = "**API Contract:** Run `sand api show sand::command::ScoreCmp::Ge` for the canonical contract."]
     /// `>=` — left is greater than or equal to right.
     Ge,
 }
@@ -494,6 +513,7 @@ impl fmt::Display for ScoreCmp {
 
 // ── ScoreboardPlayersOperation ────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::ScoreboardPlayersOperation` for the canonical contract."]
 /// Result of [`scoreboard_players_operation`]. Implements [`Build`].
 #[derive(Debug, Clone)]
 #[must_use = "command builders must be rendered or collected"]
@@ -583,17 +603,26 @@ pub fn scoreboard_players_operation(
 
 // ── DisplaySlot ───────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::DisplaySlot` for the canonical contract."]
 /// The display slot for `scoreboard objectives setdisplay`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DisplaySlot {
+    #[doc = "**API Contract:** Run `sand api show sand::command::DisplaySlot::List` for the canonical contract."]
     /// `list` — player tab-list.
     List,
+    #[doc = "**API Contract:** Run `sand api show sand::command::DisplaySlot::Sidebar` for the canonical contract."]
     /// `sidebar` — right-hand scoreboard sidebar.
     Sidebar,
+    #[doc = "**API Contract:** Run `sand api show sand::command::DisplaySlot::BelowName` for the canonical contract."]
     /// `belowname` — shown below the player name tag.
     BelowName,
+    #[doc = "**API Contract:** Run `sand api show sand::command::DisplaySlot::TeamSidebar` for the canonical contract."]
     /// `sidebar.team.<color>` — team-colored sidebar.
-    TeamSidebar(String),
+    TeamSidebar(
+        #[doc = "The `TeamSidebar` variant carries the value described by its variant semantics: `sidebar.team.<color>` — team-colored sidebar."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::DisplaySlot::TeamSidebar::0` for the canonical contract."]
+        String,
+    ),
 }
 
 impl fmt::Display for DisplaySlot {
@@ -609,6 +638,7 @@ impl fmt::Display for DisplaySlot {
 
 // ── Objective ─────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::Objective` for the canonical contract."]
 /// A named Minecraft scoreboard objective.
 ///
 /// # Declaration

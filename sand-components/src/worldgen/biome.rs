@@ -5,7 +5,7 @@
 //! list-of-lists, and the step-grouped `carvers` map — see
 //! [`BiomeEffects::ambient_sound`], [`Biome::temperature_modifier`],
 //! [`Biome::feature`], and [`Biome::carver_step`]. `spawners` and
-//! `spawn_costs` remain raw `Value` fields; their typing is deferred future
+//! `spawn_costs` remain raw JSON fields; their typing is deferred future
 //! scope (#182).
 
 use std::collections::BTreeMap;
@@ -14,6 +14,7 @@ use serde_json::Value;
 
 use crate::component::DatapackComponent;
 use crate::error::Result as SandResult;
+use crate::raw::RawJson;
 use crate::registry::{ConfiguredCarverId, ConfiguredFeatureId, SoundEventId};
 use crate::resource_location::ResourceLocation;
 use crate::validation;
@@ -68,8 +69,10 @@ enum FeaturesValue {
 /// **API Contract:** Run `sand api show sand::component::TemperatureModifier` for the canonical contract.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TemperatureModifier {
+    #[doc = "**API Contract:** Run `sand api show sand::component::TemperatureModifier::None` for the canonical contract."]
     /// `"none"` — no modification (the default).
     None,
+    #[doc = "**API Contract:** Run `sand api show sand::component::TemperatureModifier::Frozen` for the canonical contract."]
     /// `"frozen"` — used by biomes like frozen ocean.
     Frozen,
 }
@@ -163,10 +166,10 @@ impl BiomeEffects {
         self
     }
 
-    /// Sets the ambient particle effect as raw JSON.
+    /// Sets the ambient particle effect through the explicit raw JSON escape hatch.
     #[doc = "**API Contract:** Run `sand api show sand::component::BiomeEffects::particle` for the canonical contract."]
-    pub fn particle(mut self, particle: Value) -> Self {
-        self.particle = Some(particle);
+    pub fn particle(mut self, particle: RawJson) -> Self {
+        self.particle = Some(particle.into_value());
         self
     }
 
@@ -188,24 +191,24 @@ impl BiomeEffects {
         self
     }
 
-    /// Sets the mood sound as raw JSON.
+    /// Sets the mood sound through the explicit raw JSON escape hatch.
     #[doc = "**API Contract:** Run `sand api show sand::component::BiomeEffects::mood_sound` for the canonical contract."]
-    pub fn mood_sound(mut self, sound: Value) -> Self {
-        self.mood_sound = Some(sound);
+    pub fn mood_sound(mut self, sound: RawJson) -> Self {
+        self.mood_sound = Some(sound.into_value());
         self
     }
 
-    /// Sets the additions sound as raw JSON.
+    /// Sets the additions sound through the explicit raw JSON escape hatch.
     #[doc = "**API Contract:** Run `sand api show sand::component::BiomeEffects::additions_sound` for the canonical contract."]
-    pub fn additions_sound(mut self, sound: Value) -> Self {
-        self.additions_sound = Some(sound);
+    pub fn additions_sound(mut self, sound: RawJson) -> Self {
+        self.additions_sound = Some(sound.into_value());
         self
     }
 
-    /// Sets the background music as raw JSON.
+    /// Sets the background music through the explicit raw JSON escape hatch.
     #[doc = "**API Contract:** Run `sand api show sand::component::BiomeEffects::music` for the canonical contract."]
-    pub fn music(mut self, music: Value) -> Self {
-        self.music = Some(music);
+    pub fn music(mut self, music: RawJson) -> Self {
+        self.music = Some(music.into_value());
         self
     }
 
@@ -318,12 +321,15 @@ impl BiomeEffects {
 
 // ── CarvingStep ──────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::CarvingStep` for the canonical contract."]
 /// A vanilla carving step. Biomes group configured carvers by the step in
 /// which they run.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum CarvingStep {
+    #[doc = "**API Contract:** Run `sand api show sand::component::CarvingStep::Air` for the canonical contract."]
     /// Carvers that run before surface decoration (most caves and ravines).
     Air,
+    #[doc = "**API Contract:** Run `sand api show sand::component::CarvingStep::Liquid` for the canonical contract."]
     /// Carvers that run after surface decoration and only affect liquids
     /// (underwater caves).
     Liquid,
@@ -431,7 +437,7 @@ impl Biome {
         self
     }
 
-    /// Sets the carvers list as raw JSON.
+    /// Sets the carvers list through the explicit raw JSON escape hatch.
     ///
     /// Prefer [`Biome::carver_step`] with a typed
     /// [`ConfiguredCarverId`] (obtained
@@ -440,8 +446,8 @@ impl Biome {
     /// outside the typed carving-step map. Mutually exclusive with
     /// [`Biome::carver_step`].
     #[doc = "**API Contract:** Run `sand api show sand::component::Biome::raw_carvers` for the canonical contract."]
-    pub fn raw_carvers(mut self, carvers: Value) -> Self {
-        self.carvers = Some(carvers);
+    pub fn raw_carvers(mut self, carvers: RawJson) -> Self {
+        self.carvers = Some(carvers.into_value());
         self
     }
 
@@ -483,22 +489,22 @@ impl Biome {
     /// [`ConfiguredFeatureId`]. This escape hatch exists for modded or
     /// version-specific feature shapes.
     #[doc = "**API Contract:** Run `sand api show sand::component::Biome::raw_features` for the canonical contract."]
-    pub fn raw_features(mut self, features: Value) -> Self {
-        self.features = Some(FeaturesValue::Raw(features));
+    pub fn raw_features(mut self, features: RawJson) -> Self {
+        self.features = Some(FeaturesValue::Raw(features.into_value()));
         self
     }
 
-    /// Sets the spawners object as raw JSON.
+    /// Sets the spawners object through the explicit raw JSON escape hatch.
     #[doc = "**API Contract:** Run `sand api show sand::component::Biome::spawners` for the canonical contract."]
-    pub fn spawners(mut self, spawners: Value) -> Self {
-        self.spawners = Some(spawners);
+    pub fn spawners(mut self, spawners: RawJson) -> Self {
+        self.spawners = Some(spawners.into_value());
         self
     }
 
-    /// Sets the spawn costs object as raw JSON.
+    /// Sets the spawn costs object through the explicit raw JSON escape hatch.
     #[doc = "**API Contract:** Run `sand api show sand::component::Biome::spawn_costs` for the canonical contract."]
-    pub fn spawn_costs(mut self, costs: Value) -> Self {
-        self.spawn_costs = Some(costs);
+    pub fn spawn_costs(mut self, costs: RawJson) -> Self {
+        self.spawn_costs = Some(costs.into_value());
         self
     }
 }
@@ -629,10 +635,10 @@ mod tests {
             .temperature(0.5)
             .downfall(0.5)
             .temperature_modifier(TemperatureModifier::Frozen)
-            .raw_carvers(serde_json::json!(["minecraft:cave"]))
-            .raw_features(serde_json::json!([["minecraft:ore_iron"]]))
-            .spawners(serde_json::json!({"monster": []}))
-            .spawn_costs(serde_json::json!({}));
+            .raw_carvers(RawJson::new(serde_json::json!(["minecraft:cave"])))
+            .raw_features(RawJson::new(serde_json::json!([["minecraft:ore_iron"]])))
+            .spawners(RawJson::new(serde_json::json!({"monster": []})))
+            .spawn_costs(RawJson::new(serde_json::json!({})));
         assert!(biome.validate().is_ok());
         let json = biome.to_json();
         assert_eq!(json["temperature_modifier"], "frozen");
@@ -730,14 +736,16 @@ mod tests {
 
     #[test]
     fn carvers_wrong_shape_rejected() {
-        let biome = Biome::new(location(), effects()).raw_carvers(serde_json::json!({"a": 1}));
+        let biome = Biome::new(location(), effects())
+            .raw_carvers(RawJson::new(serde_json::json!({"a": 1})));
         let err = biome.validate().unwrap_err().to_string();
         assert!(err.contains("carvers"), "{err}");
     }
 
     #[test]
     fn features_wrong_shape_rejected() {
-        let biome = Biome::new(location(), effects()).raw_features(serde_json::json!({"a": 1}));
+        let biome = Biome::new(location(), effects())
+            .raw_features(RawJson::new(serde_json::json!({"a": 1})));
         assert!(biome.validate().is_err());
     }
 
@@ -774,7 +782,7 @@ mod tests {
     #[test]
     fn raw_features_escape_hatch_still_works() {
         let biome = Biome::new(location(), effects())
-            .raw_features(serde_json::json!([["modded:custom_feature"]]));
+            .raw_features(RawJson::new(serde_json::json!([["modded:custom_feature"]])));
         assert!(biome.validate().is_ok());
         assert_eq!(
             biome.to_json()["features"],
@@ -784,20 +792,22 @@ mod tests {
 
     #[test]
     fn spawners_wrong_shape_rejected() {
-        let biome = Biome::new(location(), effects()).spawners(serde_json::json!(["a"]));
+        let biome =
+            Biome::new(location(), effects()).spawners(RawJson::new(serde_json::json!(["a"])));
         assert!(biome.validate().is_err());
     }
 
     #[test]
     fn spawn_costs_wrong_shape_rejected() {
-        let biome = Biome::new(location(), effects()).spawn_costs(serde_json::json!(["a"]));
+        let biome =
+            Biome::new(location(), effects()).spawn_costs(RawJson::new(serde_json::json!(["a"])));
         assert!(biome.validate().is_err());
     }
 
     #[test]
     fn raw_carvers_array_escape_hatch_still_works() {
         let biome = Biome::new(location(), effects())
-            .raw_carvers(serde_json::json!(["modded:custom_carver"]));
+            .raw_carvers(RawJson::new(serde_json::json!(["modded:custom_carver"])));
         assert!(biome.validate().is_ok());
         assert_eq!(
             biome.to_json()["carvers"],
@@ -825,7 +835,7 @@ mod tests {
     #[test]
     fn mixing_raw_carvers_and_typed_carver_step_is_rejected() {
         let biome = Biome::new(location(), effects())
-            .raw_carvers(serde_json::json!(["minecraft:cave"]))
+            .raw_carvers(RawJson::new(serde_json::json!(["minecraft:cave"])))
             .carver_step(
                 CarvingStep::Air,
                 ConfiguredCarverId::minecraft("cave").unwrap(),

@@ -24,6 +24,7 @@ use crate::entity::state::{
 };
 use crate::resource_ref::FunctionId;
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::EntityEventId` for the canonical contract."]
 /// A typed identifier for an event that requests a property refresh.
 ///
 /// Event identifiers are resource locations so independently authored packs
@@ -52,24 +53,43 @@ impl fmt::Display for EntityEventId {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::RefreshPolicy` for the canonical contract."]
 /// When an archetype observes or materializes a native property.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum RefreshPolicy {
+    #[doc = "**API Contract:** Run `sand api show sand::entity::RefreshPolicy::Initialize` for the canonical contract."]
     /// Run once, after state has been provisioned and before initialization is
     /// marked complete.
     Initialize,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::RefreshPolicy::WhenSourceChanges` for the canonical contract."]
     /// Refresh only after one of the declaration's source fields changes.
     WhenSourceChanges,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::RefreshPolicy::Every` for the canonical contract."]
     /// Refresh loaded matching entities at this interval.
     ///
     /// Intervals are measured in game ticks. [`Self::validate`] rejects zero;
     /// periodic work does not run while an entity's chunk is unloaded.
-    Every(Ticks),
+    Every(
+        #[doc = "The `Every` variant carries the value described by its variant semantics: Refresh loaded matching entities at this interval."]
+        #[doc = "**API Contract:** Run `sand api show sand::entity::RefreshPolicy::Every::0` for the canonical contract."]
+        Ticks,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::entity::RefreshPolicy::OnFunction` for the canonical contract."]
     /// Refresh when the canonical datapack function is dispatched.
-    OnFunction(FunctionId),
+    OnFunction(
+        #[doc = "The `OnFunction` variant carries the value described by its variant semantics: Refresh when the canonical datapack function is dispatched."]
+        #[doc = "**API Contract:** Run `sand api show sand::entity::RefreshPolicy::OnFunction::0` for the canonical contract."]
+        FunctionId,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::entity::RefreshPolicy::OnEvent` for the canonical contract."]
     /// Refresh when Sand dispatches the named typed event.
-    OnEvent(EntityEventId),
+    OnEvent(
+        #[doc = "The `OnEvent` variant carries the value described by its variant semantics: Refresh when Sand dispatches the named typed event."]
+        #[doc = "**API Contract:** Run `sand api show sand::entity::RefreshPolicy::OnEvent::0` for the canonical contract."]
+        EntityEventId,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::entity::RefreshPolicy::Manual` for the canonical contract."]
     /// Generate no automatic scheduling; user code explicitly requests work.
     Manual,
 }
@@ -92,18 +112,24 @@ impl RefreshPolicy {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::OwnershipPolicy` for the canonical contract."]
 /// How reconciliation treats a property declared by an archetype.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum OwnershipPolicy {
+    #[doc = "**API Contract:** Run `sand api show sand::entity::OwnershipPolicy::InitializeMissing` for the canonical contract."]
     /// Write a missing value during first initialization, then leave it alone.
     InitializeMissing,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::OwnershipPolicy::Preserve` for the canonical contract."]
     /// Preserve the runtime/external value and never claim write ownership.
     Preserve,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::OwnershipPolicy::Exact` for the canonical contract."]
     /// Keep the declared value exact whenever the binding refreshes.
     Exact,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::OwnershipPolicy::Observe` for the canonical contract."]
     /// Read the native value into state without writing the native property.
     Observe,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::OwnershipPolicy::ReconcileWhenDirty` for the canonical contract."]
     /// Reconcile only after a dependency marks this output dirty.
     ReconcileWhenDirty,
 }
@@ -127,34 +153,44 @@ impl OwnershipPolicy {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::HealthResizePolicy` for the canonical contract."]
 /// Current-health behavior when maximum health changes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum HealthResizePolicy {
+    #[doc = "**API Contract:** Run `sand api show sand::entity::HealthResizePolicy::PreserveAbsolute` for the canonical contract."]
     /// Keep the current absolute health, clamping only when the new maximum is
     /// lower.
     PreserveAbsolute,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::HealthResizePolicy::PreserveRatio` for the canonical contract."]
     /// Preserve `current / old_max` using the binding's fixed-point ratio
     /// scratch score, then clamp to the new maximum.
     PreserveRatio,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::HealthResizePolicy::Refill` for the canonical contract."]
     /// Set current health to the new maximum.
     Refill,
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::CurrentHealthSync` for the canonical contract."]
 /// Direction in which current health is synchronized.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum CurrentHealthSync {
+    #[doc = "**API Contract:** Run `sand api show sand::entity::CurrentHealthSync::None` for the canonical contract."]
     /// Do not synchronize native current health.
     None,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::CurrentHealthSync::ObserveNative` for the canonical contract."]
     /// Read native `Health` into the configured state score.
     ObserveNative,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::CurrentHealthSync::ApplyState` for the canonical contract."]
     /// Materialize the configured state score into native `Health`.
     ApplyState,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::CurrentHealthSync::Bidirectional` for the canonical contract."]
     /// Observe native changes and apply explicit dirty state changes.
     Bidirectional,
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::HealthBinding` for the canonical contract."]
 /// A max/current-health binding for a mutable living entity.
 ///
 /// The maximum score is lowered to `minecraft:max_health`. Current health is
@@ -355,16 +391,28 @@ impl From<RefreshPolicyRef> for RefreshPolicy {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::NumericPropertySource` for the canonical contract."]
 /// A typed numeric source for an attribute or effect parameter.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum NumericPropertySource {
+    #[doc = "**API Contract:** Run `sand api show sand::entity::NumericPropertySource::Fixed` for the canonical contract."]
     /// A constant fixed-point value: `units / scale`.
-    Fixed { units: i64, scale: u32 },
+    Fixed {
+        #[doc = "`units` provides the units when a constant fixed-point value: `units / scale`."]
+        #[doc = "**API Contract:** Run `sand api show sand::entity::NumericPropertySource::Fixed::units` for the canonical contract."]
+        units: i64,
+        #[doc = "`scale` provides the particle scale when a constant fixed-point value: `units / scale`."]
+        #[doc = "**API Contract:** Run `sand api show sand::entity::NumericPropertySource::Fixed::scale` for the canonical contract."]
+        scale: u32,
+    },
+    #[doc = "**API Contract:** Run `sand api show sand::entity::NumericPropertySource::StateScore` for the canonical contract."]
     /// The value of a typed entity score.
     StateScore {
+        #[doc = "**API Contract:** Run `sand api show sand::entity::NumericPropertySource::StateScore::objective` for the canonical contract."]
         /// Generated score objective.
         objective: String,
+        #[doc = "**API Contract:** Run `sand api show sand::entity::NumericPropertySource::StateScore::dirty_objective` for the canonical contract."]
         /// Hidden source-dirty objective marked by typed mutations.
         dirty_objective: String,
     },
@@ -395,6 +443,7 @@ impl NumericPropertySource {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::AttributeBinding` for the canonical contract."]
 /// A typed native attribute binding.
 ///
 /// Attribute values are applied to the entity bound to `@s`; exporter
@@ -407,6 +456,7 @@ pub struct AttributeBinding {
     refresh: RefreshPolicy,
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::AttributeModifierBinding` for the canonical contract."]
 /// An idempotent, namespaced native attribute modifier.
 ///
 /// Refresh removes the modifier ID before adding its current value, so the
@@ -585,6 +635,7 @@ impl AttributeBinding {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::EffectBinding` for the canonical contract."]
 /// A typed status-effect binding.
 ///
 /// Reconciliation compares the effect ID, amplifier, and duration policy so a
@@ -684,6 +735,7 @@ impl EffectBinding {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::EquipmentBinding` for the canonical contract."]
 /// A typed equipment-slot binding reusing Sand's canonical [`ItemStack`].
 #[derive(Debug, Clone)]
 pub struct EquipmentBinding {
@@ -763,47 +815,66 @@ impl EquipmentBinding {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::EntityTextSegment` for the canonical contract."]
 /// One state-aware custom-name segment.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum EntityTextSegment {
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTextSegment::Literal` for the canonical contract."]
     /// Literal user-visible text.
     Literal {
+        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTextSegment::Literal::text` for the canonical contract."]
         /// Segment contents.
         text: String,
+        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTextSegment::Literal::color` for the canonical contract."]
         /// Optional named Minecraft color.
         color: Option<ChatColor>,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTextSegment::Numeric` for the canonical contract."]
     /// A numeric scoreboard field rendered for `@s`.
     Numeric {
+        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTextSegment::Numeric::objective` for the canonical contract."]
         /// Generated objective holding the field.
         objective: String,
+        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTextSegment::Numeric::dirty_objective` for the canonical contract."]
         /// Hidden dirty objective for the field.
         dirty_objective: String,
+        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTextSegment::Numeric::color` for the canonical contract."]
         /// Optional named Minecraft color.
         color: Option<ChatColor>,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTextSegment::Enum` for the canonical contract."]
     /// A finite enum rendered through its stable encoding table.
     Enum {
+        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTextSegment::Enum::objective` for the canonical contract."]
         /// Generated objective holding the encoding.
         objective: String,
+        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTextSegment::Enum::dirty_objective` for the canonical contract."]
         /// Hidden dirty objective for the field.
         dirty_objective: String,
+        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTextSegment::Enum::variants` for the canonical contract."]
         /// `(score, display name)` mappings in schema order.
         variants: Vec<(i32, String)>,
+        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTextSegment::Enum::color` for the canonical contract."]
         /// Optional named Minecraft color.
         color: Option<ChatColor>,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTextSegment::Flag` for the canonical contract."]
     /// A boolean field rendered using caller-provided labels.
     Flag {
+        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTextSegment::Flag::objective` for the canonical contract."]
         /// Generated zero/one objective.
         objective: String,
+        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTextSegment::Flag::dirty_objective` for the canonical contract."]
         /// Hidden dirty objective for the field.
         dirty_objective: String,
+        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTextSegment::Flag::disabled` for the canonical contract."]
         /// Text displayed for zero.
         disabled: String,
+        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTextSegment::Flag::enabled` for the canonical contract."]
         /// Text displayed for one.
         enabled: String,
+        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityTextSegment::Flag::color` for the canonical contract."]
         /// Optional named Minecraft color.
         color: Option<ChatColor>,
     },
@@ -824,6 +895,7 @@ impl EntityTextSegment {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::EntityText` for the canonical contract."]
 /// A custom-name template materialized for the current entity.
 ///
 /// Dynamic segments use `@s` scoreboard components. Exporters may lower enum
@@ -922,6 +994,7 @@ impl EntityText {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::NameBinding` for the canonical contract."]
 /// A state-aware native custom-name declaration.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NameBinding {
@@ -1003,6 +1076,7 @@ impl NameBinding {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::EntityTag` for the canonical contract."]
 /// A validated entity tag.
 ///
 /// This is intentionally not an `Into<String>` API: whitespace, command
@@ -1032,6 +1106,7 @@ impl EntityTag {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::EntityTeam` for the canonical contract."]
 /// A validated scoreboard team name.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct EntityTeam(String);
@@ -1054,6 +1129,7 @@ impl EntityTeam {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::TagBinding` for the canonical contract."]
 /// A typed archetype-owned entity-tag declaration.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TagBinding {
@@ -1124,6 +1200,7 @@ impl TagBinding {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::TeamBinding` for the canonical contract."]
 /// A typed scoreboard-team membership declaration.
 ///
 /// Exact ownership changes only the current entity's membership; it does not
@@ -1197,6 +1274,7 @@ impl TeamBinding {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::PropertyNameError` for the canonical contract."]
 /// Invalid typed tag, team, NBT path, or raw extension name.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[error("invalid {kind} `{value}`: {reason}")]
@@ -1253,6 +1331,7 @@ fn validate_token(value: &str, max: usize, kind: &'static str) -> Result<(), Pro
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::EntityNbtProperty` for the canonical contract."]
 /// Stable, typed native entity-NBT properties supported by Sand.
 ///
 /// These variants describe property identity and wire type. Capability and
@@ -1261,24 +1340,34 @@ fn validate_token(value: &str, max: usize, kind: &'static str) -> Result<(), Pro
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[non_exhaustive]
 pub enum EntityNbtProperty {
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityNbtProperty::Silent` for the canonical contract."]
     /// `Silent` byte.
     Silent,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityNbtProperty::Invulnerable` for the canonical contract."]
     /// `Invulnerable` byte.
     Invulnerable,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityNbtProperty::NoGravity` for the canonical contract."]
     /// `NoGravity` byte.
     NoGravity,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityNbtProperty::Persistent` for the canonical contract."]
     /// `PersistenceRequired` byte for supported mobs.
     Persistent,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityNbtProperty::Glowing` for the canonical contract."]
     /// `Glowing` byte.
     Glowing,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityNbtProperty::FireTicks` for the canonical contract."]
     /// `Fire` signed short counter.
     FireTicks,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityNbtProperty::FallDistance` for the canonical contract."]
     /// `FallDistance` float.
     FallDistance,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityNbtProperty::AirTicks` for the canonical contract."]
     /// `Air` signed short counter.
     AirTicks,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityNbtProperty::FrozenTicks` for the canonical contract."]
     /// `TicksFrozen` integer counter.
     FrozenTicks,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityNbtProperty::Absorption` for the canonical contract."]
     /// `AbsorptionAmount` float on living entities.
     Absorption,
 }
@@ -1318,6 +1407,7 @@ impl EntityNbtProperty {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::EntityNbtValue` for the canonical contract."]
 /// Typed value accepted by a stable native-NBT binding.
 ///
 /// Decimal values use explicit fixed-point units to keep authoring and export
@@ -1325,12 +1415,30 @@ impl EntityNbtProperty {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum EntityNbtValue {
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityNbtValue::Boolean` for the canonical contract."]
     /// Boolean byte.
-    Boolean(bool),
+    Boolean(
+        #[doc = "The `Boolean` variant carries the value described by its variant semantics: Boolean byte."]
+        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityNbtValue::Boolean::0` for the canonical contract."]
+        bool,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityNbtValue::Integer` for the canonical contract."]
     /// Signed integer value.
-    Integer(i32),
+    Integer(
+        #[doc = "The `Integer` variant carries the value described by its variant semantics: Signed integer value."]
+        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityNbtValue::Integer::0` for the canonical contract."]
+        i32,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityNbtValue::Fixed` for the canonical contract."]
     /// Decimal represented as `units / scale`.
-    Fixed { units: i64, scale: u32 },
+    Fixed {
+        #[doc = "`units` provides the units when decimal represented as `units / scale`."]
+        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityNbtValue::Fixed::units` for the canonical contract."]
+        units: i64,
+        #[doc = "`scale` provides the particle scale when decimal represented as `units / scale`."]
+        #[doc = "**API Contract:** Run `sand api show sand::entity::EntityNbtValue::Fixed::scale` for the canonical contract."]
+        scale: u32,
+    },
 }
 
 impl EntityNbtValue {
@@ -1356,6 +1464,7 @@ impl EntityNbtValue {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::EntityNbtBinding` for the canonical contract."]
 /// A stable typed entity-NBT property declaration.
 ///
 /// This model prevents raw SNBT injection. Exporters must still profile-check
@@ -1461,31 +1570,41 @@ impl EntityNbtBinding {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::EntityNbtType` for the canonical contract."]
 /// Wire type for an explicitly unsupported/modded NBT property.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum EntityNbtType {
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityNbtType::Boolean` for the canonical contract."]
     /// Boolean byte (`0b`/`1b`).
     Boolean,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityNbtType::Integer` for the canonical contract."]
     /// Signed 32-bit integer.
     Integer,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityNbtType::Float` for the canonical contract."]
     /// 32-bit floating point value.
     Float,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityNbtType::String` for the canonical contract."]
     /// UTF-8 NBT string.
     String,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::EntityNbtType::Compound` for the canonical contract."]
     /// Arbitrary compound/list value whose SNBT is supplied by advanced code.
     Compound,
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::RawPropertyAccess` for the canonical contract."]
 /// Whether a raw property declaration only reads or may mutate NBT.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RawPropertyAccess {
+    #[doc = "**API Contract:** Run `sand api show sand::entity::RawPropertyAccess::ReadOnly` for the canonical contract."]
     /// Read-only observation.
     ReadOnly,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::RawPropertyAccess::Mutable` for the canonical contract."]
     /// Native entity-NBT mutation.
     Mutable,
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::RawEntityProperty` for the canonical contract."]
 /// Explicit escape hatch for unsupported or modded native properties.
 ///
 /// Raw declarations are never inferred as player-safe. Mutable raw properties
@@ -1552,6 +1671,7 @@ impl RawEntityProperty {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::RawEntityStateField` for the canonical contract."]
 /// Explicit escape hatch for a state field Sand does not model.
 ///
 /// The backend is named rather than silently mapped to a shared storage
@@ -1588,14 +1708,18 @@ impl RawEntityStateField {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::RawStateBackend` for the canonical contract."]
 /// Persistence backend chosen by a raw state field.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum RawStateBackend {
+    #[doc = "**API Contract:** Run `sand api show sand::entity::RawStateBackend::Scoreboard` for the canonical contract."]
     /// Entity scoreboard entry.
     Scoreboard,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::RawStateBackend::Tag` for the canonical contract."]
     /// Entity tag presence.
     Tag,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::RawStateBackend::SandStorage` for the canonical contract."]
     /// Sand-owned per-entity storage with collision-safe identity choreography.
     SandStorage,
 }

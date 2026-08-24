@@ -48,6 +48,7 @@ use crate::registry::ItemId;
 use crate::resource_location::ResourceLocation;
 use crate::validation;
 
+#[doc = "**API Contract:** Run `sand api show sand::component::TrimAssetName` for the canonical contract."]
 /// A validated, un-namespaced trim texture asset name.
 ///
 /// Minecraft uses values such as `quartz` and `redstone_darker` here rather
@@ -58,6 +59,21 @@ pub struct TrimAssetName(String);
 
 impl TrimAssetName {
     /// Validates an un-namespaced trim texture path such as `quartz` or `redstone_darker`.
+    ///
+    /// `name` is the texture path stored in the trim-material JSON. A namespace
+    /// separator is rejected because Minecraft expects a path rather than a
+    /// registry identifier in this field.
+    ///
+    /// On success, returns the validated trim asset name; invalid resource-path
+    /// characters or a namespace separator produce a [`SandError`].
+    ///
+    /// ```rust
+    /// use sand_components::TrimAssetName;
+    ///
+    /// let asset = TrimAssetName::new("redstone_darker")?;
+    /// assert_eq!(asset.as_str(), "redstone_darker");
+    /// # Ok::<(), sand_components::SandError>(())
+    /// ```
     #[doc = "**API Contract:** Run `sand api show sand::component::TrimAssetName::new` for the canonical contract."]
     pub fn new(name: impl AsRef<str>) -> SandResult<Self> {
         let name = name.as_ref();
@@ -120,6 +136,7 @@ enum ArmorMaterialOverrides {
 
 // ── TrimMaterial ──────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::TrimMaterial` for the canonical contract."]
 /// A trim material definition (`data/<namespace>/trim_material/<id>.json`).
 pub struct TrimMaterial {
     location: ResourceLocation,
@@ -308,6 +325,7 @@ impl DatapackComponent for TrimMaterial {
 
 // ── TrimPattern ───────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::TrimPattern` for the canonical contract."]
 /// A trim pattern definition (`data/<namespace>/trim_pattern/<id>.json`).
 pub struct TrimPattern {
     location: ResourceLocation,

@@ -66,6 +66,7 @@ use sand_components::{EffectId, Ticks};
 
 // ── PushAway ──────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::systems::movement::PushAway` for the canonical contract."]
 /// Pushes entities away from a source entity using local-coordinate teleport.
 ///
 /// Uses the `execute facing entity` trick so each target is displaced in the
@@ -152,6 +153,7 @@ impl PushAway {
 
 // ── Launch ────────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::systems::movement::Launch` for the canonical contract."]
 /// Launches entities upward by teleporting them a fixed distance along the Y axis.
 ///
 /// This is a positional shift, not a physics impulse — it is reliable across all
@@ -219,6 +221,7 @@ impl Launch {
 
 // ── SpeedBoost ────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::systems::movement::SpeedBoost` for the canonical contract."]
 /// Applies a speed boost effect to one or more entities.
 ///
 /// The `amount` (0.0–1.0+) is converted to a vanilla amplifier:
@@ -313,6 +316,7 @@ impl SpeedBoost {
 
 // ── Slow ──────────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::systems::movement::Slow` for the canonical contract."]
 /// Applies a slowness effect to one or more entities.
 ///
 /// The `amount` (0.0–1.0+) is converted to a vanilla amplifier:

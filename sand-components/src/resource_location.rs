@@ -117,17 +117,20 @@ impl<'de> Deserialize<'de> for ResourceLocation {
 pub type Identifier = ResourceLocation;
 
 /// The user's declared pack namespace (e.g. `"my_pack"`).
+#[doc = "**API Contract:** Run `sand api show sand::PackNamespace` for the canonical contract."]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(try_from = "String", into = "String")]
 pub struct PackNamespace(String);
 
 impl PackNamespace {
+    #[doc = "**API Contract:** Run `sand api show sand::PackNamespace::new` for the canonical contract."]
     pub fn new(namespace: impl AsRef<str>) -> Result<Self> {
         let ns = namespace.as_ref();
         validate_namespace(ns)?;
         Ok(Self(ns.to_string()))
     }
 
+    #[doc = "**API Contract:** Run `sand api show sand::PackNamespace::as_str` for the canonical contract."]
     pub fn as_str(&self) -> &str {
         &self.0
     }

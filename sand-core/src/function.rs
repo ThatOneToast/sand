@@ -45,6 +45,7 @@ pub struct FunctionPointerTypeEntry {
 }
 inventory::collect!(FunctionPointerTypeEntry);
 
+#[doc = "**API Contract:** Run `sand api show sand::command::IntoFunctionRef` for the canonical contract."]
 /// Trait for types that can be resolved to a `function <id>` command string.
 ///
 /// This enables `cmd::call(...)` to accept local function pointers,

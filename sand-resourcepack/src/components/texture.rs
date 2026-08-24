@@ -1,5 +1,6 @@
 use crate::component::{AssetContent, AssetOutput, ResourcePackComponent};
 
+#[doc = "**API Contract:** Run `sand api show sand::resourcepack::RawTexture` for the canonical contract."]
 /// A raw texture registration that copies a PNG from the project source tree
 /// into the resource pack.
 ///
@@ -40,19 +41,23 @@ use crate::component::{AssetContent, AssetOutput, ResourcePackComponent};
 /// a pre-existing PNG. Those variants will use the `AssetContent::Bytes`
 /// path. For now, only `CopyFrom` is wired up.
 pub struct RawTexture {
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::RawTexture::name` for the canonical contract."]
     /// Identifier used in diagnostics.
     pub name: &'static str,
 
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::RawTexture::asset_namespace` for the canonical contract."]
     /// Namespace for the texture asset (usually matches the pack namespace,
     /// but can be any valid Minecraft namespace to override vanilla assets).
     ///
     /// Determines the output path prefix: `assets/<asset_namespace>/textures/`.
     pub asset_namespace: &'static str,
 
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::RawTexture::dest_path` for the canonical contract."]
     /// Sub-path within `assets/<asset_namespace>/textures/` (without
     /// extension), e.g. `"item/custom_sword"` or `"block/custom_stone"`.
     pub dest_path: &'static str,
 
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::RawTexture::src_path` for the canonical contract."]
     /// Project-root-relative path to the source PNG.
     ///
     /// Example: `"src/assets/custom_sword.png"`.

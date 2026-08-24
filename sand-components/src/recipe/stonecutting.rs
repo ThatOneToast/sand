@@ -9,8 +9,11 @@ use crate::resource_location::ResourceLocation;
 use super::types::{Ingredient, RecipeResult};
 use sand_version::ComponentFeature;
 
+#[doc = "**API Contract:** Run `sand api show sand::component::StonecuttingRecipe` for the canonical contract."]
 /// Represents a stonecutter recipe for cutting stone blocks into other shapes.
 pub struct StonecuttingRecipe {
+    /// `location` provides the location identifier when the variant represents a stonecutter recipe for cutting stone blocks into other shapes.
+    #[doc = "**API Contract:** Run `sand api show sand::component::StonecuttingRecipe::location` for the canonical contract."]
     pub location: ResourceLocation,
     group: Option<String>,
     ingredient: Ingredient,

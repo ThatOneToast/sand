@@ -36,14 +36,25 @@ const TYPED_FIELDS: &[&str] = &[
     "monster_spawn_block_light_limit",
 ];
 
+#[doc = "**API Contract:** Run `sand api show sand::component::MonsterSpawnLightLevel` for the canonical contract."]
 /// The sky-light range in which monsters may spawn.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MonsterSpawnLightLevel {
+    #[doc = "**API Contract:** Run `sand api show sand::component::MonsterSpawnLightLevel::Constant` for the canonical contract."]
     /// A single light level.
-    Constant(u8),
+    Constant(
+        #[doc = "The `Constant` variant carries the value described by its variant semantics: A single light level."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::MonsterSpawnLightLevel::Constant::0` for the canonical contract."]
+        u8,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::component::MonsterSpawnLightLevel::Uniform` for the canonical contract."]
     /// A uniformly sampled inclusive light-level range.
     Uniform {
+        /// `min_inclusive` provides the min inclusive when a uniformly sampled inclusive light-level range.
+        #[doc = "**API Contract:** Run `sand api show sand::component::MonsterSpawnLightLevel::Uniform::min_inclusive` for the canonical contract."]
         min_inclusive: u8,
+        /// `max_inclusive` provides the max inclusive when a uniformly sampled inclusive light-level range.
+        #[doc = "**API Contract:** Run `sand api show sand::component::MonsterSpawnLightLevel::Uniform::max_inclusive` for the canonical contract."]
         max_inclusive: u8,
     },
 }
@@ -93,6 +104,7 @@ impl MonsterSpawnLightLevel {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::DimensionType` for the canonical contract."]
 /// A Minecraft dimension type definition.
 ///
 /// The constructor uses overworld-like defaults, producing a complete valid

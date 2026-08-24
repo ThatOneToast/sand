@@ -5,6 +5,7 @@ use std::fmt;
 use crate::error::{CommandError, CommandResult};
 use crate::render::{CommandProfile, RenderCommand, Validate};
 
+#[doc = "**API Contract:** Run `sand api show sand::command::RawCommand` for the canonical contract."]
 /// A command line intentionally excluded from typed grammar validation.
 ///
 /// Raw commands still must be a single `.mcfunction`-safe line and must not

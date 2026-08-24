@@ -11,6 +11,7 @@ use crate::entity::context::EntityContext;
 use crate::entity::kind::{AnyEntity, PlayerKind};
 use crate::function::register_dyn_fn_dedup;
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::EntityQuery` for the canonical contract."]
 /// A cardinality-aware query over entities, built on top of
 /// [`sand_commands::selector::EntityTarget`].
 ///
@@ -22,12 +23,15 @@ pub struct EntityQuery<A> {
     target: EntityTarget<A>,
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::SingleEntityQuery` for the canonical contract."]
 /// An [`EntityQuery`] narrowed to select exactly one entity.
 pub type SingleEntityQuery = EntityQuery<One>;
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::EntityQueries` for the canonical contract."]
 /// An [`EntityQuery`] that may select any number of entities.
 pub type EntityQueries = EntityQuery<Many>;
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::PlayerQuery` for the canonical contract."]
 /// A cardinality-aware query over players, built on top of
 /// [`sand_commands::selector::PlayerTarget`].
 #[derive(Debug, Clone)]
@@ -35,9 +39,11 @@ pub struct PlayerQuery<A> {
     target: PlayerTarget<A>,
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::SinglePlayerQuery` for the canonical contract."]
 /// A [`PlayerQuery`] narrowed to select exactly one player.
 pub type SinglePlayerQuery = PlayerQuery<One>;
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::PlayerQueries` for the canonical contract."]
 /// A [`PlayerQuery`] that may select any number of players.
 pub type PlayerQueries = PlayerQuery<Many>;
 

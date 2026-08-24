@@ -9,11 +9,16 @@ use crate::resource_location::ResourceLocation;
 use super::types::{Ingredient, RecipeResult};
 use sand_version::ComponentFeature;
 
+#[doc = "**API Contract:** Run `sand api show sand::component::ShapelessRecipe` for the canonical contract."]
 /// Represents a shapeless crafting recipe where ingredient order and position don't matter.
 pub struct ShapelessRecipe {
+    /// `location` provides the location identifier when the variant represents a shapeless crafting recipe where ingredient order and position don't matter.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ShapelessRecipe::location` for the canonical contract."]
     pub location: ResourceLocation,
     category: Option<String>,
     group: Option<String>,
+    /// `ingredients` provides the ingredients when the variant represents a shapeless crafting recipe where ingredient order and position don't matter.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ShapelessRecipe::ingredients` for the canonical contract."]
     pub ingredients: Vec<Ingredient>,
     result: RecipeResult,
 }

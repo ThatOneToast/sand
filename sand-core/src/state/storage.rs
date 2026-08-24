@@ -15,6 +15,7 @@ pub use sand_commands::{
 
 // ── Storage locations ────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::data::StorageLocation` for the canonical contract."]
 /// A typed `data storage <id>` target.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct StorageLocation {
@@ -53,6 +54,7 @@ impl From<StorageLocation> for String {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::data::EntityNbt` for the canonical contract."]
 /// A typed entity NBT target.
 #[derive(Debug, Clone)]
 pub struct EntityNbt {
@@ -73,6 +75,7 @@ impl EntityNbt {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::data::BlockNbt` for the canonical contract."]
 /// A typed block entity NBT target.
 #[derive(Debug, Clone)]
 pub struct BlockNbt {
@@ -93,11 +96,13 @@ impl BlockNbt {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::data::NbtLocation` for the canonical contract."]
 /// Compatibility name for the canonical command-layer [`DataTarget`].
 pub type NbtLocation = DataTarget;
 
 // ── StorageSchema / StorageField ─────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::data::StorageSchema` for the canonical contract."]
 /// A typed schema rooted at a datapack storage location and NBT path.
 #[derive(Debug)]
 pub struct StorageSchema<T> {
@@ -199,6 +204,7 @@ impl<T> StorageSchema<T> {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::data::StorageField` for the canonical contract."]
 /// A typed field inside a [`StorageSchema`].
 #[derive(Debug)]
 pub struct StorageField<Schema, T> {
@@ -365,6 +371,7 @@ impl<Schema, T> StorageField<Schema, T> {
 
 // ── StorageVar ────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::data::StorageVar` for the canonical contract."]
 /// A typed NBT storage variable.
 ///
 /// Declare once as a `static` and use throughout your datapack. The type

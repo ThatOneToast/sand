@@ -33,6 +33,7 @@ use sand_commands::Selector;
 use crate::condition::Condition;
 use crate::state::{GameState, GameStateRef, Ticks, TypedGameState};
 
+#[doc = "**API Contract:** Run `sand api show sand::state::IntoStateCommands` for the canonical contract."]
 /// Convert hook commands into one deterministic command list.
 pub trait IntoStateCommands {
     /// Converts a hook body into the deterministic command sequence emitted for a state transition.
@@ -83,6 +84,7 @@ struct FlowHook {
     order: usize,
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::state::StateFlow` for the canonical contract."]
 /// One cohesive state machine registration.
 pub struct StateFlow<S: TypedGameState> {
     id: String,
@@ -223,6 +225,7 @@ impl<S: TypedGameState> StateFlow<S> {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::state::FlowTransitionBuilder` for the canonical contract."]
 /// Nested builder for one transition.
 pub struct FlowTransitionBuilder<S: TypedGameState> {
     flow: StateFlow<S>,
@@ -278,6 +281,7 @@ impl<S: TypedGameState> FlowTransitionBuilder<S> {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::state::StateTransitionBuilder` for the canonical contract."]
 /// Compact one-off guarded transition builder on [`GameStateRef`].
 pub struct StateTransitionBuilder<'a, S: TypedGameState> {
     state: &'a GameStateRef<'a, S>,

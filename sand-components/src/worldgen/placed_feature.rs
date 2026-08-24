@@ -4,6 +4,7 @@ use serde_json::Value;
 
 use crate::component::DatapackComponent;
 use crate::error::Result as SandResult;
+use crate::raw::RawJson;
 use crate::registry::ConfiguredFeatureId;
 use crate::resource_location::ResourceLocation;
 use crate::validation;
@@ -26,6 +27,7 @@ impl ConfiguredFeatureReference {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::PlacedFeature` for the canonical contract."]
 /// A placed feature definition (`data/<namespace>/worldgen/placed_feature/<id>.json`).
 ///
 /// Placed features reference a configured feature and a list of placement
@@ -81,23 +83,24 @@ impl PlacedFeature {
         self
     }
 
-    /// Adds a placement modifier as a raw JSON object.
+    /// Adds a placement modifier through the explicit raw JSON escape hatch.
     ///
     /// # Example
     /// ```rust,ignore
+    /// use sand_components::RawJson;
     /// use serde_json::json;
-    /// feature.placement_modifier(json!({ "type": "minecraft:count", "count": 5 }));
+    /// feature.placement_modifier(RawJson::new(json!({ "type": "minecraft:count", "count": 5 })));
     /// ```
     #[doc = "**API Contract:** Run `sand api show sand::component::PlacedFeature::placement_modifier` for the canonical contract."]
-    pub fn placement_modifier(mut self, modifier: Value) -> Self {
-        self.placement.push(modifier);
+    pub fn placement_modifier(mut self, modifier: RawJson) -> Self {
+        self.placement.push(modifier.into_value());
         self
     }
 
-    /// Sets all placement modifiers at once from an iterator of raw JSON values.
+    /// Sets all placement modifiers from explicit raw JSON escape-hatch values.
     #[doc = "**API Contract:** Run `sand api show sand::component::PlacedFeature::placement` for the canonical contract."]
-    pub fn placement(mut self, modifiers: impl IntoIterator<Item = Value>) -> Self {
-        self.placement = modifiers.into_iter().collect();
+    pub fn placement(mut self, modifiers: impl IntoIterator<Item = RawJson>) -> Self {
+        self.placement = modifiers.into_iter().map(RawJson::into_value).collect();
         self
     }
 }
@@ -168,8 +171,9 @@ mod tests {
 
     #[test]
     fn valid_placed_feature_exports_unchanged() {
-        let feature = PlacedFeature::new(location(), oak())
-            .placement_modifier(serde_json::json!({ "type": "minecraft:count", "count": 5 }));
+        let feature = PlacedFeature::new(location(), oak()).placement_modifier(RawJson::new(
+            serde_json::json!({ "type": "minecraft:count", "count": 5 }),
+        ));
         assert!(feature.validate().is_ok());
         assert_eq!(feature.to_json()["feature"], "minecraft:oak");
     }
@@ -206,30 +210,33 @@ mod tests {
 
     #[test]
     fn non_object_placement_modifier_rejected() {
-        let feature = PlacedFeature::new(location(), oak()).placement([serde_json::json!(5)]);
+        let feature =
+            PlacedFeature::new(location(), oak()).placement([RawJson::new(serde_json::json!(5))]);
         let err = feature.validate().unwrap_err().to_string();
         assert!(err.contains("placement[0]"), "{err}");
     }
 
     #[test]
     fn empty_placement_modifier_object_rejected() {
-        let feature = PlacedFeature::new(location(), oak()).placement([serde_json::json!({})]);
+        let feature =
+            PlacedFeature::new(location(), oak()).placement([RawJson::new(serde_json::json!({}))]);
         let err = feature.validate().unwrap_err().to_string();
         assert!(err.contains("placement[0]"), "{err}");
     }
 
     #[test]
     fn placement_modifier_missing_type_rejected() {
-        let feature =
-            PlacedFeature::new(location(), oak()).placement([serde_json::json!({"count": 5})]);
+        let feature = PlacedFeature::new(location(), oak())
+            .placement([RawJson::new(serde_json::json!({"count": 5}))]);
         let err = feature.validate().unwrap_err().to_string();
         assert!(err.contains("placement[0].type"), "{err}");
     }
 
     #[test]
     fn raw_placement_modifier_escape_hatch_still_works() {
-        let feature = PlacedFeature::new(location(), oak())
-            .placement([serde_json::json!({"type": "modded:custom_modifier", "value": 1})]);
+        let feature = PlacedFeature::new(location(), oak()).placement([RawJson::new(
+            serde_json::json!({"type": "modded:custom_modifier", "value": 1}),
+        )]);
         assert!(feature.validate().is_ok());
     }
 

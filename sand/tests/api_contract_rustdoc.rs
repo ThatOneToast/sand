@@ -121,14 +121,18 @@ fn rendered_rustdoc_links_every_contract_production_mechanism() {
             .max_by_key(|candidate| candidate.canonical_path.len())
             .unwrap_or_else(|| panic!("no Rustdoc owner for {}", registration.canonical_path));
         family_pages.insert((rustdoc_page(owner), owner.canonical_path));
-        if matches!(registration.kind, ApiKind::Method | ApiKind::TraitMethod) {
+        if matches!(
+            registration.kind,
+            ApiKind::Method
+                | ApiKind::TraitMethod
+                | ApiKind::Field
+                | ApiKind::Variant
+                | ApiKind::AssociatedConst
+                | ApiKind::AssociatedType
+        ) {
             family_members.insert((
                 rustdoc_page(owner),
-                registration
-                    .canonical_path
-                    .rsplit("::")
-                    .next()
-                    .expect("member path has a name"),
+                rendered_member_anchor(owner.canonical_path, registration),
                 registration.canonical_path,
             ));
         }
@@ -145,12 +149,12 @@ fn rendered_rustdoc_links_every_contract_production_mechanism() {
         );
     }
 
-    for (relative, member, canonical) in family_members {
+    for (relative, anchor, canonical) in family_members {
         let page = target.join("doc/sand").join(&relative);
         let html = fs::read_to_string(&page).unwrap_or_else(|error| {
             panic!("failed to read {} for {canonical}: {error}", page.display())
         });
-        let section = rendered_member_section(&html, member, &page, canonical);
+        let section = rendered_anchor_section(&html, &anchor, &page, canonical);
         assert!(
             section.contains("class=\"docblock\"")
                 && section.contains("API Contract")
@@ -244,6 +248,65 @@ fn rendered_member_section<'a>(
         .min()
         .unwrap_or(section.len());
     &section[..end]
+}
+
+fn rendered_anchor_section<'a>(
+    html: &'a str,
+    anchor: &str,
+    page: &Path,
+    canonical: &str,
+) -> &'a str {
+    let primary = format!("id=\"{anchor}\"");
+    let fallback = anchor
+        .strip_prefix("tymethod.")
+        .map(|member| format!("id=\"method.{member}\""));
+    let (marker, start) = std::iter::once(primary)
+        .chain(fallback)
+        .find_map(|marker| html.find(&marker).map(|start| (marker, start)))
+        .unwrap_or_else(|| {
+            panic!(
+                "{} has no `{anchor}` anchor for {canonical}",
+                page.display()
+            )
+        });
+    let section = &html[start + marker.len()..];
+    let end = [
+        "id=\"method.",
+        "id=\"tymethod.",
+        "id=\"variant.",
+        "id=\"structfield.",
+        "id=\"associatedconstant.",
+        "id=\"associatedtype.",
+    ]
+    .into_iter()
+    .filter_map(|next| section.find(next))
+    .min()
+    .unwrap_or(section.len());
+    &section[..end]
+}
+
+fn rendered_member_anchor(
+    owner: &str,
+    registration: &sand_api_contract::ApiRegistration,
+) -> String {
+    let relative = registration
+        .canonical_path
+        .strip_prefix(owner)
+        .and_then(|path| path.strip_prefix("::"))
+        .expect("member belongs to its Rustdoc owner");
+    match registration.kind {
+        ApiKind::Method => format!("method.{relative}"),
+        ApiKind::TraitMethod => format!("tymethod.{relative}"),
+        ApiKind::Variant => format!("variant.{relative}"),
+        ApiKind::AssociatedConst => format!("associatedconstant.{relative}"),
+        ApiKind::AssociatedType => format!("associatedtype.{relative}"),
+        ApiKind::Field if relative.matches("::").count() == 1 => {
+            let (variant, field) = relative.split_once("::").unwrap();
+            format!("variant.{variant}.field.{field}")
+        }
+        ApiKind::Field => format!("structfield.{relative}"),
+        kind => panic!("{kind:?} is not a rendered member kind"),
+    }
 }
 
 fn page_prefix(kind: ApiKind) -> Option<&'static str> {

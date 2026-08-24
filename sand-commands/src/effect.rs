@@ -8,16 +8,28 @@ use crate::error::{CommandError, CommandResult};
 use crate::render::{CommandProfile, RenderCommand, Validate};
 use crate::selector::Selector;
 
+#[doc = "**API Contract:** Run `sand api show sand::command::EffectDuration` for the canonical contract."]
 /// Minecraft's effect duration representation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EffectDuration {
+    #[doc = "**API Contract:** Run `sand api show sand::command::EffectDuration::Infinite` for the canonical contract."]
     /// Persist until explicitly cleared. Supported by Java 1.19.4+.
     Infinite,
+    #[doc = "**API Contract:** Run `sand api show sand::command::EffectDuration::Seconds` for the canonical contract."]
     /// An explicit whole-second duration.
-    Seconds(u32),
+    Seconds(
+        #[doc = "The `Seconds` variant carries the value described by its variant semantics: An explicit whole-second duration."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::EffectDuration::Seconds::0` for the canonical contract."]
+        u32,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::command::EffectDuration::Ticks` for the canonical contract."]
     /// Compatibility input expressed in ticks; validation requires exact
     /// divisibility by 20.
-    Ticks(u32),
+    Ticks(
+        #[doc = "The `Ticks` variant carries the value described by its variant semantics: Compatibility input expressed in ticks; validation requires exact divisibility by 20."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::EffectDuration::Ticks::0` for the canonical contract."]
+        u32,
+    ),
 }
 
 impl EffectDuration {
@@ -42,6 +54,7 @@ impl EffectDuration {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::command::EffectCommand` for the canonical contract."]
 /// Structured `effect give` terminal command.
 #[derive(Debug, Clone)]
 pub struct EffectCommand {

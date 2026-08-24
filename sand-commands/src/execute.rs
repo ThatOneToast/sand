@@ -30,6 +30,7 @@ use crate::scoreboard::{ScoreCmp, ScoreHolder};
 use crate::selector::Selector;
 use crate::validate;
 
+#[doc = "**API Contract:** Run `sand api show sand::command::Execute` for the canonical contract."]
 /// Builder for the `execute` command chain.
 ///
 /// Call builder methods to add sub-commands, then call [`run`](Execute::run) or

@@ -1,6 +1,7 @@
 use crate::component::{AssetOutput, ResourcePackComponent};
 use crate::components::font::{BitmapFont, BitmapProvider};
 
+#[doc = "**API Contract:** Run `sand api show sand::resourcepack::HudElement` for the canonical contract."]
 /// A static single-character HUD overlay element.
 ///
 /// `HudElement` maps one unicode character to a single PNG texture,
@@ -51,18 +52,22 @@ use crate::components::font::{BitmapFont, BitmapProvider};
 /// mcfunction! { format!("title @a actionbar {json}"); }
 /// ```
 pub struct HudElement {
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::HudElement::name` for the canonical contract."]
     /// Identifier used in diagnostics and auto-unicode derivation.
     pub name: &'static str,
 
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::HudElement::texture_src` for the canonical contract."]
     /// Project-root-relative path to the source PNG.
     ///
     /// Example: `"src/assets/hotbar.png"`.
     pub texture_src: &'static str,
 
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::HudElement::texture_dest` for the canonical contract."]
     /// Destination sub-path inside `assets/<namespace>/textures/` (without
     /// extension), e.g. `"font/hotbar"`.
     pub texture_dest: &'static str,
 
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::HudElement::unicode` for the canonical contract."]
     /// Override the unicode codepoint for this element.
     ///
     /// When `None` (the default when using the macro), the codepoint is
@@ -70,15 +75,18 @@ pub struct HudElement {
     /// when you need exact control over the codepoint assignment.
     pub unicode: Option<char>,
 
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::HudElement::height` for the canonical contract."]
     /// Rendered height of the character in pixels.
     pub height: i32,
 
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::HudElement::ascent` for the canonical contract."]
     /// Vertical offset from the screen baseline to the top of the glyph.
     ///
     /// Positive → above baseline. Negative → below baseline (useful for
     /// overlays beneath the default GUI layer).
     pub ascent: i32,
 
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::HudElement::font` for the canonical contract."]
     /// Name of the font file (without extension) this element belongs to.
     ///
     /// Defaults to `"default"` when built via the macro.

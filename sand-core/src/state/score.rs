@@ -27,6 +27,7 @@ use crate::condition::ConditionKind;
 use crate::condition::{Condition, ScoreCompareOp, ScoreRange};
 use crate::execute_when::Conditional;
 
+#[doc = "**API Contract:** Run `sand api show sand::state::ScoreOperand` for the canonical contract."]
 /// One owned scoreboard entry used by score operations and comparisons.
 ///
 /// Callers normally obtain an operand from [`ScoreRef::operand`] or
@@ -66,17 +67,36 @@ fn fnv1a(s: &str) -> u64 {
     h
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::state::ScoreOperation` for the canonical contract."]
 /// Vanilla scoreboard-player operations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScoreOperation {
+    #[doc = "Selects the assign operation or policy for typed gameplay state."]
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreOperation::Assign` for the canonical contract."]
     Assign,
+    #[doc = "Selects the add operation or policy for typed gameplay state."]
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreOperation::Add` for the canonical contract."]
     Add,
+    #[doc = "Selects the sub operation or policy for typed gameplay state."]
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreOperation::Sub` for the canonical contract."]
     Sub,
+    #[doc = "Selects the mul operation or policy for typed gameplay state."]
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreOperation::Mul` for the canonical contract."]
     Mul,
+    #[doc = "Selects the div operation or policy for typed gameplay state."]
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreOperation::Div` for the canonical contract."]
     Div,
+    #[doc = "Selects the mod operation or policy for typed gameplay state."]
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreOperation::Mod` for the canonical contract."]
     Mod,
+    #[doc = "Selects the min operation or policy for typed gameplay state."]
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreOperation::Min` for the canonical contract."]
     Min,
+    #[doc = "Selects the max operation or policy for typed gameplay state."]
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreOperation::Max` for the canonical contract."]
     Max,
+    #[doc = "Selects the swap operation or policy for typed gameplay state."]
+    #[doc = "**API Contract:** Run `sand api show sand::state::ScoreOperation::Swap` for the canonical contract."]
     Swap,
 }
 
@@ -98,6 +118,7 @@ impl ScoreOperation {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::state::ScoreConstants` for the canonical contract."]
 /// A namespace for reusable fake-player score constants.
 #[derive(Debug, Clone, Copy)]
 pub struct ScoreConstants {
@@ -124,6 +145,7 @@ impl ScoreConstants {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::state::ScoreConst` for the canonical contract."]
 /// A typed fake-player constant for scoreboard operations and comparisons.
 #[derive(Debug, Clone, Copy)]
 pub struct ScoreConst<T = i32> {
@@ -735,6 +757,7 @@ impl<T> ScoreVar<T> {
 
 // ── ScoreRef ──────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::state::ScoreRef` for the canonical contract."]
 /// A [`ScoreVar`] bound to a selector — used to build [`Condition`]s.
 ///
 /// Produced by [`ScoreVar::of`].
@@ -1221,6 +1244,7 @@ impl<'a, T> From<ScoreRef<'a, T>> for ScoreOperand {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::state::ScoreExpr` for the canonical contract."]
 /// A compiler-managed sequence of vanilla scoreboard operations.
 pub struct ScoreExpr<T = i32> {
     base: ScoreOperand,

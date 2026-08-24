@@ -67,6 +67,7 @@ pub(super) fn validate_single_holder(
 
 // ── Flag ──────────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::state::Flag` for the canonical contract."]
 /// A boolean scoreboard flag (score = 1 means `true`, score = 0 means `false`).
 ///
 /// Declare once as a `static` and use throughout your datapack:
@@ -457,6 +458,7 @@ impl Flag {
 
 // ── FlagRef ───────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::state::FlagRef` for the canonical contract."]
 /// A [`Flag`] bound to a selector — used to build [`Condition`]s.
 ///
 /// Produced by [`Flag::try_of`] (typed path — the bound holder is a validated

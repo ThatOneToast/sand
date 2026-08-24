@@ -51,6 +51,7 @@ enum StatSource {
 
 // ── BarStat ────────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarStat` for the canonical contract."]
 /// Combines a [`BarHandle`] with auto-managed scoreboard objectives and
 /// per-tick update math.
 ///
@@ -94,8 +95,10 @@ enum StatSource {
 /// }
 /// ```
 pub struct BarStat {
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarStat::handle` for the canonical contract."]
     /// The bar this stat drives.
     pub handle: BarHandle,
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BarStat::frame_obj` for the canonical contract."]
     /// Scoreboard objective that stores the current frame index.
     ///
     /// Pass this directly to [`BarHandle::broadcast_commands`] if you are not

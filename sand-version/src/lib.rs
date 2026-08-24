@@ -60,6 +60,7 @@ pub const CI_LATEST_JAVA_VERSION: &str = "25";
 /// target is codegen-available in the default local and CI environments.
 pub const DEFAULT_CODEGEN_VERSION: &str = LATEST_KNOWN;
 
+#[doc = "**API Contract:** Run `sand api show sand::command::CommandProfile` for the canonical contract."]
 /// Cycle-safe command rendering context shared by `sand-commands` and
 /// `sand-core`.
 ///
@@ -140,25 +141,34 @@ impl CommandProfile {
 /// **API Contract:** Run `sand api show sand::version::ComponentFeature` for the canonical contract.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ComponentFeature {
+    #[doc = "**API Contract:** Run `sand api show sand::version::ComponentFeature::Dialogs` for the canonical contract."]
     /// Data-driven dialogs (1.21.6+ / 26.x).
     Dialogs,
+    #[doc = "**API Contract:** Run `sand api show sand::version::ComponentFeature::JukeboxSongs` for the canonical contract."]
     /// Jukebox song components (1.21+).
     JukeboxSongs,
+    #[doc = "**API Contract:** Run `sand api show sand::version::ComponentFeature::DamageTypes` for the canonical contract."]
     /// Damage type registries (1.19.4+).
     DamageTypes,
+    #[doc = "**API Contract:** Run `sand api show sand::version::ComponentFeature::ChatTypes` for the canonical contract."]
     /// Chat type registries (1.19+).
     ChatTypes,
+    #[doc = "**API Contract:** Run `sand api show sand::version::ComponentFeature::Enchantments` for the canonical contract."]
     /// Enchantment data components (1.21+).
     Enchantments,
+    #[doc = "**API Contract:** Run `sand api show sand::version::ComponentFeature::TrimAssets` for the canonical contract."]
     /// Armor trim assets — trim material and trim pattern components (1.19.4+).
     TrimAssets,
+    #[doc = "**API Contract:** Run `sand api show sand::version::ComponentFeature::ItemComponents` for the canonical contract."]
     /// Item data components — the 1.20.5+ component system (`minecraft:custom_data`,
     /// `minecraft:item_name`, etc.). Gates component-bearing recipe results and
     /// other JSON payloads that embed structured item components.
     ItemComponents,
+    #[doc = "**API Contract:** Run `sand api show sand::version::ComponentFeature::AnimalVariants` for the canonical contract."]
     /// Biome-scoped animal variant registries — `chicken_variant`,
     /// `cow_variant`, `pig_variant` (1.21.5+).
     AnimalVariants,
+    #[doc = "**API Contract:** Run `sand api show sand::version::ComponentFeature::VillagerTrades` for the canonical contract."]
     /// Data-driven Villager/Wandering Trader trade registries —
     /// `villager_trade` and `trade_set` (26.1+).
     VillagerTrades,

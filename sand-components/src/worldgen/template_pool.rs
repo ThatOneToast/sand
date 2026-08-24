@@ -16,11 +16,14 @@ use crate::validation;
 
 const KIND: &str = "worldgen/template_pool";
 
+#[doc = "**API Contract:** Run `sand api show sand::component::Projection` for the canonical contract."]
 /// A jigsaw structure's projection mode against surrounding terrain.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Projection {
+    #[doc = "**API Contract:** Run `sand api show sand::component::Projection::Rigid` for the canonical contract."]
     /// The piece is placed exactly as authored, ignoring terrain height.
     Rigid,
+    #[doc = "**API Contract:** Run `sand api show sand::component::Projection::TerrainMatching` for the canonical contract."]
     /// The piece is translated vertically to match surrounding terrain.
     TerrainMatching,
 }
@@ -36,14 +39,25 @@ impl Projection {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::ProcessorsRef` for the canonical contract."]
 /// The processor list a pool element uses, as either a typed reference or an
 /// inline anonymous processor list.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ProcessorsRef {
+    #[doc = "**API Contract:** Run `sand api show sand::component::ProcessorsRef::Named` for the canonical contract."]
     /// A reference to a `worldgen/processor_list` entry.
-    Named(ProcessorListId),
+    Named(
+        #[doc = "The `Named` variant carries the value described by its variant semantics: A reference to a `worldgen/processor_list` entry."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::ProcessorsRef::Named::0` for the canonical contract."]
+        ProcessorListId,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::component::ProcessorsRef::Inline` for the canonical contract."]
     /// An inline anonymous processor list object (`{"processors": [...]}`).
-    Inline(RawJson),
+    Inline(
+        #[doc = "The `Inline` variant carries the value described by its variant semantics: An inline anonymous processor list object (`{\"processors\": [...]}`)."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::ProcessorsRef::Inline::0` for the canonical contract."]
+        RawJson,
+    ),
 }
 
 impl ProcessorsRef {
@@ -72,37 +86,68 @@ impl ProcessorsRef {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::PoolElement` for the canonical contract."]
 /// One jigsaw pool element (the `element` payload inside a weighted entry).
 #[derive(Debug, Clone, PartialEq)]
 pub enum PoolElement {
+    #[doc = "**API Contract:** Run `sand api show sand::component::PoolElement::Single` for the canonical contract."]
     /// `minecraft:single_pool_element` — a single `.nbt` structure template.
     Single {
+        /// `location` provides the location identifier when `minecraft:single_pool_element` — a single `.nbt` structure template.
+        #[doc = "**API Contract:** Run `sand api show sand::component::PoolElement::Single::location` for the canonical contract."]
         location: StructureTemplateId,
+        /// `processors` provides the processors when `minecraft:single_pool_element` — a single `.nbt` structure template.
+        #[doc = "**API Contract:** Run `sand api show sand::component::PoolElement::Single::processors` for the canonical contract."]
         processors: ProcessorsRef,
+        /// `projection` provides the projection when `minecraft:single_pool_element` — a single `.nbt` structure template.
+        #[doc = "**API Contract:** Run `sand api show sand::component::PoolElement::Single::projection` for the canonical contract."]
         projection: Projection,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::PoolElement::LegacySingle` for the canonical contract."]
     /// `minecraft:legacy_single_pool_element` — like `Single`, but preserves
     /// pre-1.13 block/data behavior for legacy structure templates.
     LegacySingle {
+        /// `location` provides the location identifier when `minecraft:legacy_single_pool_element` — like `Single`, but preserves pre-1.13 block/data behavior for legacy structure templates.
+        #[doc = "**API Contract:** Run `sand api show sand::component::PoolElement::LegacySingle::location` for the canonical contract."]
         location: StructureTemplateId,
+        /// `processors` provides the processors when `minecraft:legacy_single_pool_element` — like `Single`, but preserves pre-1.13 block/data behavior for legacy structure templates.
+        #[doc = "**API Contract:** Run `sand api show sand::component::PoolElement::LegacySingle::processors` for the canonical contract."]
         processors: ProcessorsRef,
+        /// `projection` provides the projection when `minecraft:legacy_single_pool_element` — like `Single`, but preserves pre-1.13 block/data behavior for legacy structure templates.
+        #[doc = "**API Contract:** Run `sand api show sand::component::PoolElement::LegacySingle::projection` for the canonical contract."]
         projection: Projection,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::PoolElement::Empty` for the canonical contract."]
     /// `minecraft:empty_pool_element` — a placeholder that generates nothing.
     Empty,
+    #[doc = "**API Contract:** Run `sand api show sand::component::PoolElement::Feature` for the canonical contract."]
     /// `minecraft:feature_pool_element` — places a configured feature.
     Feature {
+        /// `feature` provides the feature identifier when `minecraft:feature_pool_element` — places a configured feature.
+        #[doc = "**API Contract:** Run `sand api show sand::component::PoolElement::Feature::feature` for the canonical contract."]
         feature: ResourceLocation,
+        /// `projection` provides the projection when `minecraft:feature_pool_element` — places a configured feature.
+        #[doc = "**API Contract:** Run `sand api show sand::component::PoolElement::Feature::projection` for the canonical contract."]
         projection: Projection,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::PoolElement::List` for the canonical contract."]
     /// `minecraft:list_pool_element` — an ordered list of alternative
     /// elements, the first of which that can be placed is used.
     List {
+        /// `elements` provides the elements when `minecraft:list_pool_element` — an ordered list of alternative elements, the first of which that can be placed is used.
+        #[doc = "**API Contract:** Run `sand api show sand::component::PoolElement::List::elements` for the canonical contract."]
         elements: Vec<PoolElement>,
+        /// `projection` provides the projection when `minecraft:list_pool_element` — an ordered list of alternative elements, the first of which that can be placed is used.
+        #[doc = "**API Contract:** Run `sand api show sand::component::PoolElement::List::projection` for the canonical contract."]
         projection: Projection,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::PoolElement::Raw` for the canonical contract."]
     /// An explicitly raw pool element object for unsupported or modded types.
-    Raw(RawJson),
+    Raw(
+        #[doc = "The `Raw` variant carries the value described by its variant semantics: An explicitly raw pool element object for unsupported or modded types."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::PoolElement::Raw::0` for the canonical contract."]
+        RawJson,
+    ),
 }
 
 impl PoolElement {
@@ -228,6 +273,7 @@ impl PoolElement {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::PoolEntry` for the canonical contract."]
 /// A weighted pool element entry.
 #[derive(Debug, Clone, PartialEq)]
 pub struct PoolEntry {
@@ -264,6 +310,7 @@ impl PoolEntry {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::TemplatePool` for the canonical contract."]
 /// A template pool definition (`data/<namespace>/worldgen/template_pool/<id>.json`).
 ///
 /// ```

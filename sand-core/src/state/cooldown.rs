@@ -34,6 +34,7 @@ use sand_commands::{CommandResult, ScoreHolder};
 
 // ── Cooldown ──────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::state::Cooldown` for the canonical contract."]
 /// A scoreboard-backed ability cooldown timer with typed condition support.
 ///
 /// ```rust,ignore

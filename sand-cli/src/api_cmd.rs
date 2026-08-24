@@ -502,9 +502,14 @@ fn semantic_parameter_description(name: &str, rust_type: &str, summary: &str) ->
         _ if lower_type.contains("range") => "the accepted numeric range",
         _ if lower_type.contains("text") => "the player-visible text value",
         _ => {
+            let label = bare.replace('_', " ");
+            let label = if label.ends_with(" value") {
+                label
+            } else {
+                format!("{label} value")
+            };
             return format!(
-                "`{bare}` supplies the {} value used to {}.",
-                bare.replace('_', " "),
+                "`{bare}` supplies the {label} used to {}.",
                 summary_purpose(summary)
             );
         }
@@ -629,6 +634,8 @@ fn summary_purpose(summary: &str) -> String {
         "validates" => "validate",
         "wrap" => "wrap",
         _ if first.starts_with('`') => return format!("emit the documented {summary} form"),
+        "whether" => return format!("determine whether {rest}"),
+        "how" => return format!("represent how {rest}"),
         _ if matches!(
             first.to_ascii_lowercase().as_str(),
             "a" | "an"
@@ -645,7 +652,47 @@ fn summary_purpose(summary: &str) -> String {
         {
             return format!("use {}", lower_first(summary));
         }
-        _ => return format!("apply this API's specific `{summary}` behavior"),
+        _ if matches!(
+            first.to_ascii_lowercase().as_str(),
+            "absolute"
+                | "always"
+                | "author"
+                | "colored"
+                | "color-transitioning"
+                | "const-compatible"
+                | "custom"
+                | "ergonomic"
+                | "exact"
+                | "filled"
+                | "horizontal"
+                | "legacy"
+                | "minecraft"
+                | "optional"
+                | "outward"
+                | "plain"
+                | "raw"
+                | "relative"
+                | "rising"
+                | "selected"
+                | "stable"
+                | "straight"
+                | "two"
+        ) =>
+        {
+            return format!("use {}", lower_first(summary));
+        }
+        _ => {
+            let verb = first
+                .strip_suffix('s')
+                .filter(|stem| stem.len() >= 3)
+                .unwrap_or(first)
+                .trim_end_matches(':');
+            return if rest.is_empty() {
+                verb.to_ascii_lowercase()
+            } else {
+                format!("{} {rest}", verb.to_ascii_lowercase())
+            };
+        }
     };
     if rest.is_empty() {
         verb.to_owned()
@@ -1791,9 +1838,24 @@ fn example_exercises_member(example: &str, canonical_path: &str) -> bool {
     let member = canonical_path
         .rsplit_once("::")
         .map_or(canonical_path, |(_, member)| member);
-    example.contains(&format!(".{member}("))
-        || example.contains(&format!("::{member}("))
-        || example.contains(&format!("{canonical_path}("))
+    [
+        format!(".{member}"),
+        format!("::{member}"),
+        canonical_path.to_owned(),
+    ]
+    .iter()
+    .any(|needle| {
+        example.match_indices(needle).any(|(start, _)| {
+            let tail = &example[start + needle.len()..];
+            tail.starts_with('(')
+                || tail
+                    .strip_prefix("::<")
+                    .and_then(|generic_tail| {
+                        generic_tail.rfind('>').map(|end| &generic_tail[end + 1..])
+                    })
+                    .is_some_and(|after_generics| after_generics.starts_with('('))
+        })
+    })
 }
 
 fn declaration_reference_example(kind: ApiKind, canonical_path: &str) -> String {

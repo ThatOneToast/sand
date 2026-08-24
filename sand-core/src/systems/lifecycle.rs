@@ -11,6 +11,7 @@
 
 // ── Join helpers ───────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::systems::lifecycle::FirstJoinCommands` for the canonical contract."]
 /// Commands to run when a player joins for the first time.
 ///
 /// Checks a flag objective to distinguish first-ever joins from reconnects.
@@ -53,6 +54,7 @@ impl FirstJoinCommands {
 
 // ── Respawn helpers ────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::systems::lifecycle::RespawnCommands` for the canonical contract."]
 /// Commands to run when a player respawns.
 ///
 /// Provides a guard to avoid double-running if the respawn event fires

@@ -2,15 +2,21 @@ use serde_json::{Value, json};
 
 use crate::component::{AssetContent, AssetOutput, ResourcePackComponent};
 
+#[doc = "**API Contract:** Run `sand api show sand::resourcepack::FontProvider` for the canonical contract."]
 /// A single provider entry inside a Minecraft font definition file.
 ///
 /// Currently only the `bitmap` provider type is supported. Additional
 /// provider types (`ttf`, `space`, `unihex`, `reference`) are planned
 /// for future versions.
 pub enum FontProvider {
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::FontProvider::Bitmap` for the canonical contract."]
     /// A bitmap font provider that maps unicode characters to regions of a
     /// PNG texture.
-    Bitmap(BitmapProvider),
+    Bitmap(
+        #[doc = "The `Bitmap` variant carries the value described by its variant semantics: A bitmap font provider that maps unicode characters to regions of a PNG texture."]
+        #[doc = "**API Contract:** Run `sand api show sand::resourcepack::FontProvider::Bitmap::0` for the canonical contract."]
+        BitmapProvider,
+    ),
 }
 
 impl FontProvider {
@@ -24,6 +30,7 @@ impl FontProvider {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::resourcepack::BitmapProvider` for the canonical contract."]
 /// Parameters for a `"bitmap"` font provider.
 ///
 /// A bitmap provider maps a rectangular grid of characters from a PNG image.
@@ -34,6 +41,7 @@ impl FontProvider {
 /// `assets/<namespace>/font/<name>.json` → `"providers"` array entry with
 /// `"type": "bitmap"`.
 pub struct BitmapProvider {
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BitmapProvider::file` for the canonical contract."]
     /// Resource location of the source PNG, e.g. `"my_pack:font/health_bar.png"`.
     ///
     /// Minecraft resolves font texture resource locations as
@@ -41,12 +49,14 @@ pub struct BitmapProvider {
     /// in this field — it will result in a doubled path at runtime.
     pub file: String,
 
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BitmapProvider::height` for the canonical contract."]
     /// Vertical height (in pixels) to render each character at.
     ///
     /// Can differ from the actual image height to scale the glyph. Use the
     /// same value as the image height for 1:1 rendering.
     pub height: i32,
 
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BitmapProvider::ascent` for the canonical contract."]
     /// Vertical offset (in pixels) from the baseline to the top of the glyph.
     ///
     /// Positive values move the character up; negative values move it down.
@@ -55,6 +65,7 @@ pub struct BitmapProvider {
     /// trick), use a negative value.
     pub ascent: i32,
 
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BitmapProvider::chars` for the canonical contract."]
     /// Character grid. Each `String` in the outer `Vec` represents one
     /// **row** of the source image; each `char` within that string maps to
     /// one **column** (cell) in that row.
@@ -80,6 +91,7 @@ impl BitmapProvider {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::resourcepack::BitmapFont` for the canonical contract."]
 /// A complete font definition targeting a single font file.
 ///
 /// Wraps one [`BitmapProvider`] and knows which font file to write to.
@@ -91,6 +103,7 @@ impl BitmapProvider {
 /// with the `resourcepack` feature enabled) over constructing this
 /// type directly.
 pub struct BitmapFont {
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BitmapFont::font_name` for the canonical contract."]
     /// Name of the font file (without extension), e.g. `"default"` or
     /// `"hud"`. Determines the output path:
     /// `assets/<namespace>/font/<font_name>.json`.
@@ -99,9 +112,11 @@ pub struct BitmapFont {
     /// merged into one file.
     pub font_name: &'static str,
 
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BitmapFont::provider` for the canonical contract."]
     /// The bitmap provider this font contributes.
     pub provider: BitmapProvider,
 
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BitmapFont::texture_src` for the canonical contract."]
     /// Project-root-relative path to the source PNG to copy into the pack,
     /// e.g. `"src/assets/health_bar.png"`.
     ///
@@ -109,6 +124,7 @@ pub struct BitmapFont {
     /// texture is already present in the pack from another component.
     pub texture_src: Option<&'static str>,
 
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::BitmapFont::texture_dest` for the canonical contract."]
     /// Destination sub-path inside `assets/<namespace>/textures/` for the
     /// copied texture (without extension), e.g. `"font/health_bar"`.
     ///

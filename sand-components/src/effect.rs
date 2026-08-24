@@ -7,6 +7,7 @@ use crate::error::Result;
 use crate::registry::{PotionRegistryId, StatusEffectId};
 use crate::resource_location::ResourceLocation;
 
+#[doc = "**API Contract:** Run `sand api show sand::state::Ticks` for the canonical contract."]
 /// A duration expressed in Minecraft game ticks (20 ticks = 1 second).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Ticks(u32);
@@ -409,14 +410,21 @@ impl From<PotionRegistryId> for PotionId {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::StatusEffectInstance` for the canonical contract."]
 /// Structured status effect instance for item components and datapack JSON.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StatusEffectInstance {
+    /// `effect` provides the effect identifier when structured status effect instance for item components and datapack JSON.
+    #[doc = "**API Contract:** Run `sand api show sand::component::StatusEffectInstance::effect` for the canonical contract."]
     pub effect: EffectId,
     pub(crate) duration: Option<Ticks>,
     pub(crate) amplifier: u8,
     pub(crate) ambient: bool,
+    /// `show_particles` provides the show particles when structured status effect instance for item components and datapack JSON.
+    #[doc = "**API Contract:** Run `sand api show sand::component::StatusEffectInstance::show_particles` for the canonical contract."]
     pub show_particles: bool,
+    /// `show_icon` provides the show icon when structured status effect instance for item components and datapack JSON.
+    #[doc = "**API Contract:** Run `sand api show sand::component::StatusEffectInstance::show_icon` for the canonical contract."]
     pub show_icon: bool,
 }
 
@@ -526,6 +534,7 @@ impl Serialize for StatusEffectInstance {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::PotionContents` for the canonical contract."]
 /// `minecraft:potion_contents` item component data.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 pub struct PotionContents {
@@ -534,6 +543,8 @@ pub struct PotionContents {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) custom_color: Option<u32>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    /// `custom_effects` provides the custom effects when `minecraft:potion_contents` item component data.
+    #[doc = "**API Contract:** Run `sand api show sand::component::PotionContents::custom_effects` for the canonical contract."]
     pub custom_effects: Vec<StatusEffectInstance>,
 }
 
@@ -595,6 +606,7 @@ impl PotionContents {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::SuspiciousStewEffect` for the canonical contract."]
 /// Suspicious stew effect entry.
 ///
 /// Vanilla's `minecraft:suspicious_stew_effects` component uses the field
@@ -603,7 +615,11 @@ impl PotionContents {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct SuspiciousStewEffect {
     #[serde(rename = "id")]
+    /// `effect` provides the effect identifier when suspicious stew effect entry. Vanilla's `minecraft:suspicious_stew_effects` component uses the field name `id` for the effect identifier (matching `to_snbt()` below); the JSON (`Serialize`) form is renamed to match so both representations agree — see #148.
+    #[doc = "**API Contract:** Run `sand api show sand::component::SuspiciousStewEffect::effect` for the canonical contract."]
     pub effect: EffectId,
+    /// `duration` provides the duration when suspicious stew effect entry. Vanilla's `minecraft:suspicious_stew_effects` component uses the field name `id` for the effect identifier (matching `to_snbt()` below); the JSON (`Serialize`) form is renamed to match so both representations agree — see #148.
+    #[doc = "**API Contract:** Run `sand api show sand::component::SuspiciousStewEffect::duration` for the canonical contract."]
     pub duration: Ticks,
 }
 

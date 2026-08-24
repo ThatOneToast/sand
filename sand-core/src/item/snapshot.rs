@@ -403,7 +403,7 @@ impl ItemSnapshot {
 
     /// `if data storage <s> <path>{present:1b}` — true when the captured
     /// location actually had an item at capture time.
-    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::item::ItemSnapshot::is_present", summary = "Builds the runtime condition that the captured location held an item.", context = "Presence is a Minecraft runtime fact encoded by capture commands, not a Rust-time Option.", minecraft = "Lowers to an execute-if-data test of the snapshot present flag.", use_when = ["Guarding handler commands that require a captured item"], avoid_when = ["Checking whether capture itself returned an error"], returns = "A condition true only when capture found an item.", example = "when(snapshot.is_present()).then_one(sand::command::say(\"item found\"));")]
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::item::ItemSnapshot::is_present", summary = "Builds the runtime condition that the captured location held an item.", context = "Presence is a Minecraft runtime fact encoded by capture commands, not a Rust-time Option.", minecraft = "Lowers to an execute-if-data test of the snapshot present flag.", use_when = ["Guarding handler commands that require a captured item"], avoid_when = ["Checking whether capture itself returned an error"], returns = "A condition true only when capture found an item.", example = "when(snapshot.is_present()).then_one(sand::command::raw(\"say item found\"));")]
     pub fn is_present(&self) -> Condition {
         let base = self.schema.base_path();
         Condition::nbt_exists(
@@ -414,7 +414,7 @@ impl ItemSnapshot {
 
     /// The negation of [`ItemSnapshot::is_present`] — true when the
     /// captured location had no item ([`SnapshotAbsence::Empty`]).
-    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::item::ItemSnapshot::is_absent", summary = "Builds the runtime condition that the captured location was empty.", context = "It is the exact logical opposite of the capture presence flag.", minecraft = "Lowers to the negated execute-if-data test for the snapshot flag.", use_when = ["Running a handler branch only when no item was captured"], avoid_when = ["Treating an empty slot as a capture failure"], returns = "A condition true when the capture found no item.", example = "when(snapshot.is_absent()).then_one(sand::command::say(\"empty\"));")]
+    #[sand_macros::api(kind = "method", registry = sand_api_contract, path = "sand::item::ItemSnapshot::is_absent", summary = "Builds the runtime condition that the captured location was empty.", context = "It is the exact logical opposite of the capture presence flag.", minecraft = "Lowers to the negated execute-if-data test for the snapshot flag.", use_when = ["Running a handler branch only when no item was captured"], avoid_when = ["Treating an empty slot as a capture failure"], returns = "A condition true when the capture found no item.", example = "when(snapshot.is_absent()).then_one(sand::command::raw(\"say empty\"));")]
     pub fn is_absent(&self) -> Condition {
         Condition::negate(self.is_present())
     }
@@ -524,25 +524,33 @@ fn presence_execute(target: &DataTarget, path: &str) -> Execute {
 
 // ── Integration seam for #230 ───────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::participant::ItemParticipantRole` for the canonical contract."]
 /// The role an item plays in a future participant-rich event context
 /// (#230). Phase 7 defines this purely as a stable label to pair with an
 /// [`ItemSnapshot`] via [`EventItem`] — it does not implement any
 /// role-specific observation/correlation backend; that is #230's work.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ItemRole {
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ItemParticipantRole::UsedItem` for the canonical contract."]
     /// The item directly used to trigger the event (e.g. a consumed item,
     /// a placed block's item, a used tool).
     UsedItem,
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ItemParticipantRole::Weapon` for the canonical contract."]
     /// The item wielded as a weapon in a combat event.
     Weapon,
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ItemParticipantRole::Tool` for the canonical contract."]
     /// The tool used for a block-interaction event.
     Tool,
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ItemParticipantRole::ProjectileItem` for the canonical contract."]
     /// A projectile's own item form, where representable.
     ProjectileItem,
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ItemParticipantRole::Ammunition` for the canonical contract."]
     /// The ammunition item consumed to fire a projectile.
     Ammunition,
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ItemParticipantRole::DroppedItem` for the canonical contract."]
     /// An item that was dropped as part of the event.
     DroppedItem,
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ItemParticipantRole::EquippedItem` for the canonical contract."]
     /// An item equipped as part of the event.
     EquippedItem,
 }

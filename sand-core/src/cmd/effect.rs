@@ -5,6 +5,7 @@ use sand_components::{EffectId, Ticks};
 
 use super::Command;
 
+#[doc = "**API Contract:** Run `sand api show sand::command::EffectGive` for the canonical contract."]
 /// Builder for `effect give`.
 #[derive(Debug, Clone)]
 pub struct EffectGive {

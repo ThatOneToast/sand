@@ -18,7 +18,10 @@ use crate::resource_location::ResourceLocation;
 /// Implemented for [`ItemId`] and [`ResourceLocation`]. `sand-core` also
 /// implements it for its generated vanilla `Item` enum without introducing a
 /// dependency from `sand-components` back to `sand-core`.
+#[doc = "**API Contract:** Run `sand api show sand::component::IntoRecipeItemId` for the canonical contract."]
 pub trait IntoRecipeItemId {
+    /// Resolves the receiver to the canonical item ID serialized in the recipe.
+    #[doc = "**API Contract:** Run `sand api show sand::component::IntoRecipeItemId::into_recipe_item_id` for the canonical contract."]
     fn into_recipe_item_id(self) -> ItemId;
 }
 
@@ -48,6 +51,7 @@ impl IntoRecipeItemId for &ResourceLocation {
 
 // ── Ingredient ───────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::Ingredient` for the canonical contract."]
 /// Represents a recipe ingredient that can be specified by item ID or item tag.
 #[derive(Debug)]
 pub struct Ingredient {
@@ -314,6 +318,7 @@ impl TryIntoRecipeResult for ItemStack {
 
 // ── RecipeResult ─────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::RecipeResult` for the canonical contract."]
 /// Represents the output of a recipe, including the item ID, quantity
 /// produced, and (optionally) the data components a component-bearing
 /// [`CustomItem`] result must carry — e.g. `minecraft:custom_data`,
@@ -329,7 +334,11 @@ impl TryIntoRecipeResult for ItemStack {
 /// state — never from `CustomItem`'s command item-stack `Display` string.
 #[derive(Debug)]
 pub struct RecipeResult {
+    /// `id` provides the identifier when the variant represents the output of a recipe, including the item ID, quantity produced, and (optionally) the data components a component-bearing [`CustomItem`] result must carry — e.g. `minecraft:custom_data`, `minecraft:item_name`, enchantment glint overrides, and so on.
+    #[doc = "**API Contract:** Run `sand api show sand::component::RecipeResult::id` for the canonical contract."]
     pub id: String,
+    /// `count` provides the count when the variant represents the output of a recipe, including the item ID, quantity produced, and (optionally) the data components a component-bearing [`CustomItem`] result must carry — e.g. `minecraft:custom_data`, `minecraft:item_name`, enchantment glint overrides, and so on.
+    #[doc = "**API Contract:** Run `sand api show sand::component::RecipeResult::count` for the canonical contract."]
     pub count: u32,
     components: Vec<(String, Value)>,
 }
@@ -459,11 +468,20 @@ impl Serialize for RecipeResult {
 
 // ── CookingType ──────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::CookingType` for the canonical contract."]
 /// Specifies the type of cooking recipe (smelting, blasting, smoking, or campfire cooking).
 pub enum CookingType {
+    #[doc = "Selects the smelting form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::CookingType::Smelting` for the canonical contract."]
     Smelting,
+    #[doc = "Selects the blasting form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::CookingType::Blasting` for the canonical contract."]
     Blasting,
+    #[doc = "Selects the smoking form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::CookingType::Smoking` for the canonical contract."]
     Smoking,
+    #[doc = "Selects the campfire cooking form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::CookingType::CampfireCooking` for the canonical contract."]
     CampfireCooking,
 }
 

@@ -59,19 +59,26 @@ use crate::validation;
 
 const KIND: &str = "worldgen/density_function";
 
+#[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionUnaryOp` for the canonical contract."]
 /// A single-argument density-function transform.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DensityFunctionUnaryOp {
+    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionUnaryOp::Abs` for the canonical contract."]
     /// `minecraft:abs`
     Abs,
+    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionUnaryOp::Square` for the canonical contract."]
     /// `minecraft:square`
     Square,
+    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionUnaryOp::Cube` for the canonical contract."]
     /// `minecraft:cube`
     Cube,
+    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionUnaryOp::HalfNegative` for the canonical contract."]
     /// `minecraft:half_negative`
     HalfNegative,
+    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionUnaryOp::QuarterNegative` for the canonical contract."]
     /// `minecraft:quarter_negative`
     QuarterNegative,
+    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionUnaryOp::Squeeze` for the canonical contract."]
     /// `minecraft:squeeze`
     Squeeze,
 }
@@ -89,15 +96,20 @@ impl DensityFunctionUnaryOp {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionBinaryOp` for the canonical contract."]
 /// A two-argument density-function combinator.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DensityFunctionBinaryOp {
+    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionBinaryOp::Add` for the canonical contract."]
     /// `minecraft:add`
     Add,
+    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionBinaryOp::Mul` for the canonical contract."]
     /// `minecraft:mul`
     Mul,
+    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionBinaryOp::Min` for the canonical contract."]
     /// `minecraft:min`
     Min,
+    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionBinaryOp::Max` for the canonical contract."]
     /// `minecraft:max`
     Max,
 }
@@ -113,49 +125,100 @@ impl DensityFunctionBinaryOp {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr` for the canonical contract."]
 /// A density-function expression.
 ///
 /// Construct values through the named helpers rather than the variants
 /// directly; they keep boxing and the raw escape hatch visible at call sites.
 #[derive(Debug, Clone, PartialEq)]
 pub enum DensityFunctionExpr {
+    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::Constant` for the canonical contract."]
     /// A bare constant value, serialized as a JSON number.
-    Constant(f64),
+    Constant(
+        #[doc = "The `Constant` variant carries the value described by its variant semantics: A bare constant value, serialized as a JSON number."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::Constant::0` for the canonical contract."]
+        f64,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::Reference` for the canonical contract."]
     /// A reference to another density-function file, serialized as a string.
-    Reference(DensityFunctionId),
+    Reference(
+        #[doc = "The `Reference` variant carries the value described by its variant semantics: A reference to another density-function file, serialized as a string."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::Reference::0` for the canonical contract."]
+        DensityFunctionId,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::Noise` for the canonical contract."]
     /// `minecraft:noise` — samples a `worldgen/noise` parameter file.
     Noise {
+        /// `noise` provides the noise identifier when `minecraft:noise` — samples a `worldgen/noise` parameter file.
+        #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::Noise::noise` for the canonical contract."]
         noise: NoiseId,
+        /// `xz_scale` provides the xz scale when `minecraft:noise` — samples a `worldgen/noise` parameter file.
+        #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::Noise::xz_scale` for the canonical contract."]
         xz_scale: f64,
+        /// `y_scale` provides the y scale when `minecraft:noise` — samples a `worldgen/noise` parameter file.
+        #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::Noise::y_scale` for the canonical contract."]
         y_scale: f64,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::Unary` for the canonical contract."]
     /// A single-argument transform.
     Unary {
+        /// `op` provides the op when a single-argument transform.
+        #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::Unary::op` for the canonical contract."]
         op: DensityFunctionUnaryOp,
+        /// `argument` provides the argument when a single-argument transform.
+        #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::Unary::argument` for the canonical contract."]
         argument: Box<DensityFunctionExpr>,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::Binary` for the canonical contract."]
     /// A two-argument combinator.
     Binary {
+        /// `op` provides the op when a two-argument combinator.
+        #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::Binary::op` for the canonical contract."]
         op: DensityFunctionBinaryOp,
+        /// `argument1` provides the argument1 when a two-argument combinator.
+        #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::Binary::argument1` for the canonical contract."]
         argument1: Box<DensityFunctionExpr>,
+        /// `argument2` provides the argument2 when a two-argument combinator.
+        #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::Binary::argument2` for the canonical contract."]
         argument2: Box<DensityFunctionExpr>,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::Clamp` for the canonical contract."]
     /// `minecraft:clamp`
     Clamp {
+        /// `input` provides the input when `minecraft:clamp`.
+        #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::Clamp::input` for the canonical contract."]
         input: Box<DensityFunctionExpr>,
+        /// `min` provides the minimum value when `minecraft:clamp`.
+        #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::Clamp::min` for the canonical contract."]
         min: f64,
+        /// `max` provides the maximum value when `minecraft:clamp`.
+        #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::Clamp::max` for the canonical contract."]
         max: f64,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::YClampedGradient` for the canonical contract."]
     /// `minecraft:y_clamped_gradient`
     YClampedGradient {
+        /// `from_y` provides the from y when `minecraft:y_clamped_gradient`.
+        #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::YClampedGradient::from_y` for the canonical contract."]
         from_y: i32,
+        /// `to_y` provides the to y when `minecraft:y_clamped_gradient`.
+        #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::YClampedGradient::to_y` for the canonical contract."]
         to_y: i32,
+        /// `from_value` provides the from value when `minecraft:y_clamped_gradient`.
+        #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::YClampedGradient::from_value` for the canonical contract."]
         from_value: f64,
+        /// `to_value` provides the to value when `minecraft:y_clamped_gradient`.
+        #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::YClampedGradient::to_value` for the canonical contract."]
         to_value: f64,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::Raw` for the canonical contract."]
     /// An explicit raw escape hatch for modded or version-specific shapes that
     /// the typed variants do not model.
-    Raw(RawJson),
+    Raw(
+        #[doc = "The `Raw` variant carries the value described by its variant semantics: An explicit raw escape hatch for modded or version-specific shapes that the typed variants do not model."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::DensityFunctionExpr::Raw::0` for the canonical contract."]
+        RawJson,
+    ),
 }
 
 impl DensityFunctionExpr {
@@ -427,6 +490,7 @@ impl DensityFunctionExpr {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::DensityFunction` for the canonical contract."]
 /// A density-function definition
 /// (`data/<namespace>/worldgen/density_function/<id>.json`).
 ///

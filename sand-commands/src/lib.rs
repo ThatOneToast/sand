@@ -84,6 +84,7 @@ pub use text::{
 
 // ── Build trait ───────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::Build` for the canonical contract."]
 /// Compatibility serialization trait for Minecraft command builders.
 ///
 /// Existing builders use this infallible trait to preserve stable output.

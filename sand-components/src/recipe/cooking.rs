@@ -9,9 +9,14 @@ use crate::resource_location::ResourceLocation;
 use super::types::{CookingType, Ingredient, RecipeResult};
 use sand_version::ComponentFeature;
 
+#[doc = "**API Contract:** Run `sand api show sand::component::CookingRecipe` for the canonical contract."]
 /// Represents a cooking recipe (smelting, blasting, smoking, or campfire cooking).
 pub struct CookingRecipe {
+    /// `location` provides the location identifier when the variant represents a cooking recipe (smelting, blasting, smoking, or campfire cooking).
+    #[doc = "**API Contract:** Run `sand api show sand::component::CookingRecipe::location` for the canonical contract."]
     pub location: ResourceLocation,
+    /// `recipe_type` provides the recipe type when the variant represents a cooking recipe (smelting, blasting, smoking, or campfire cooking).
+    #[doc = "**API Contract:** Run `sand api show sand::component::CookingRecipe::recipe_type` for the canonical contract."]
     pub recipe_type: CookingType,
     category: Option<String>,
     group: Option<String>,

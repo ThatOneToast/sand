@@ -94,6 +94,7 @@ pub(crate) fn validate_registered_line(line: &str, profile: &CommandProfile) -> 
 
 // ── BlockState ────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::BlockState` for the canonical contract."]
 /// A Minecraft block state string like `minecraft:oak_stairs[facing=east,half=bottom]`.
 ///
 /// Properties are sorted alphabetically so output is deterministic.
@@ -214,14 +215,18 @@ impl From<String> for BlockState {
 
 // ── SetBlockMode ──────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::SetBlockMode` for the canonical contract."]
 /// Mode for the `setblock` command.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum SetBlockMode {
+    #[doc = "**API Contract:** Run `sand api show sand::command::SetBlockMode::Replace` for the canonical contract."]
     /// Replace the block (default).
     #[default]
     Replace,
+    #[doc = "**API Contract:** Run `sand api show sand::command::SetBlockMode::Destroy` for the canonical contract."]
     /// Destroy the block, dropping items.
     Destroy,
+    #[doc = "**API Contract:** Run `sand api show sand::command::SetBlockMode::Keep` for the canonical contract."]
     /// Keep the block if it exists (don't replace).
     Keep,
 }
@@ -239,6 +244,7 @@ impl fmt::Display for SetBlockMode {
 
 // ── SetBlock ──────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::SetBlock` for the canonical contract."]
 /// Builder for the `setblock` command.
 #[derive(Debug, Clone)]
 pub struct SetBlock {
@@ -314,21 +320,32 @@ impl RenderCommand for SetBlock {
 
 // ── FillMode ──────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::FillMode` for the canonical contract."]
 /// Mode for the `fill` command.
 #[derive(Debug, Clone, PartialEq)]
 pub enum FillMode {
+    #[doc = "**API Contract:** Run `sand api show sand::command::FillMode::Replace` for the canonical contract."]
     /// Replace all blocks in the region (default).
     Replace,
+    #[doc = "**API Contract:** Run `sand api show sand::command::FillMode::Destroy` for the canonical contract."]
     /// Destroy blocks, dropping items.
     Destroy,
+    #[doc = "**API Contract:** Run `sand api show sand::command::FillMode::Hollow` for the canonical contract."]
     /// Replace only non-air blocks (hollow out a structure).
     Hollow,
+    #[doc = "**API Contract:** Run `sand api show sand::command::FillMode::Outline` for the canonical contract."]
     /// Replace only the outer shell of the region (create an outline).
     Outline,
+    #[doc = "**API Contract:** Run `sand api show sand::command::FillMode::Keep` for the canonical contract."]
     /// Only replace air blocks.
     Keep,
+    #[doc = "**API Contract:** Run `sand api show sand::command::FillMode::ReplaceFilter` for the canonical contract."]
     /// `replace <filter>` — only replace blocks matching `filter`.
-    ReplaceFilter(String),
+    ReplaceFilter(
+        #[doc = "The `ReplaceFilter` variant carries the value described by its variant semantics: `replace <filter>` — only replace blocks matching `filter`."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::FillMode::ReplaceFilter::0` for the canonical contract."]
+        String,
+    ),
 }
 
 impl fmt::Display for FillMode {
@@ -346,6 +363,7 @@ impl fmt::Display for FillMode {
 
 // ── Fill ──────────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::Fill` for the canonical contract."]
 /// Builder for the `fill` command.
 #[derive(Debug, Clone)]
 pub struct Fill {
@@ -432,26 +450,34 @@ impl RenderCommand for Fill {
 
 // ── CloneMaskMode / CloneMode ─────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::CloneMaskMode` for the canonical contract."]
 /// Mask mode for the `clone` command.
 #[derive(Debug, Clone, Copy, Default)]
 pub enum CloneMaskMode {
+    #[doc = "**API Contract:** Run `sand api show sand::command::CloneMaskMode::Replace` for the canonical contract."]
     /// Clone all blocks (default).
     #[default]
     Replace,
+    #[doc = "**API Contract:** Run `sand api show sand::command::CloneMaskMode::Masked` for the canonical contract."]
     /// Only clone non-air blocks (skip air).
     Masked,
+    #[doc = "**API Contract:** Run `sand api show sand::command::CloneMaskMode::Filtered` for the canonical contract."]
     /// Only clone blocks matching a filter.
     Filtered,
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::command::CloneMode` for the canonical contract."]
 /// Clone mode for the `clone` command.
 #[derive(Debug, Clone, Copy, Default)]
 pub enum CloneMode {
+    #[doc = "**API Contract:** Run `sand api show sand::command::CloneMode::Normal` for the canonical contract."]
     /// Normal cloning (default).
     #[default]
     Normal,
+    #[doc = "**API Contract:** Run `sand api show sand::command::CloneMode::Force` for the canonical contract."]
     /// Force-clone even if blocks overlap.
     Force,
+    #[doc = "**API Contract:** Run `sand api show sand::command::CloneMode::Move` for the canonical contract."]
     /// Move blocks (clone then clear source).
     Move,
 }
@@ -478,6 +504,7 @@ impl fmt::Display for CloneMode {
 
 // ── CloneBlocks ───────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::CloneBlocks` for the canonical contract."]
 /// Builder for the `clone` command.
 #[derive(Debug, Clone)]
 pub struct CloneBlocks {

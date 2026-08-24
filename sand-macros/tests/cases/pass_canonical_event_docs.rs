@@ -37,6 +37,13 @@ pub fn on_join(event: Event<OnJoinEvent>) {
     cmd::tellraw(event.player(), Text::new("Welcome"));
 }
 
+// Compatibility contract: bare built-in marker handlers still expose the
+// executing player through EventPlayer.
+#[on_event]
+pub fn on_join_legacy(event: OnJoinEvent) {
+    cmd::tellraw(event.player(), Text::new("Welcome"));
+}
+
 #[on_event]
 pub fn on_sneak_start(event: Event<PlayerStartSneakingEvent>) {
     cmd::tellraw(event.subject(), Text::new("Sneaking"));

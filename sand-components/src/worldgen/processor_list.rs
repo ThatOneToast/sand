@@ -17,6 +17,7 @@ use crate::worldgen::providers::{BlockState, Heightmap};
 
 const KIND: &str = "worldgen/processor_list";
 
+#[doc = "**API Contract:** Run `sand api show sand::component::ProcessorRule` for the canonical contract."]
 /// One rule of a `minecraft:rule` processor.
 ///
 /// `input_predicate`, `location_predicate`, and `position_predicate` remain
@@ -125,21 +126,51 @@ impl ProcessorRule {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::Processor` for the canonical contract."]
 /// A single structure-processing step.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Processor {
+    #[doc = "**API Contract:** Run `sand api show sand::component::Processor::BlockIgnore` for the canonical contract."]
     /// `minecraft:block_ignore` — blocks in this list are skipped entirely.
-    BlockIgnore(Vec<BlockId>),
+    BlockIgnore(
+        #[doc = "The `BlockIgnore` variant carries the value described by its variant semantics: `minecraft:block_ignore` — blocks in this list are skipped entirely."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::Processor::BlockIgnore::0` for the canonical contract."]
+        Vec<BlockId>,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::component::Processor::ProtectedBlocks` for the canonical contract."]
     /// `minecraft:protected_blocks` — blocks matching this tag are preserved.
-    ProtectedBlocks(TagId<BlockId>),
+    ProtectedBlocks(
+        #[doc = "The `ProtectedBlocks` variant carries the value described by its variant semantics: `minecraft:protected_blocks` — blocks matching this tag are preserved."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::Processor::ProtectedBlocks::0` for the canonical contract."]
+        TagId<BlockId>,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::component::Processor::Gravity` for the canonical contract."]
     /// `minecraft:gravity` — applies gravity to loose blocks relative to a heightmap.
-    Gravity { heightmap: Heightmap, offset: i32 },
+    Gravity {
+        #[doc = "`heightmap` provides the heightmap when `minecraft:gravity` — applies gravity to loose blocks relative to a heightmap."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::Processor::Gravity::heightmap` for the canonical contract."]
+        heightmap: Heightmap,
+        #[doc = "`offset` provides the offset when `minecraft:gravity` — applies gravity to loose blocks relative to a heightmap."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::Processor::Gravity::offset` for the canonical contract."]
+        offset: i32,
+    },
+    #[doc = "**API Contract:** Run `sand api show sand::component::Processor::JigsawReplacement` for the canonical contract."]
     /// `minecraft:jigsaw_replacement` — replaces jigsaw marker blocks; no fields.
     JigsawReplacement,
+    #[doc = "**API Contract:** Run `sand api show sand::component::Processor::Rule` for the canonical contract."]
     /// `minecraft:rule` — replaces matching block states with typed rules.
-    Rule(Vec<ProcessorRule>),
+    Rule(
+        #[doc = "The `Rule` variant carries the value described by its variant semantics: `minecraft:rule` — replaces matching block states with typed rules."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::Processor::Rule::0` for the canonical contract."]
+        Vec<ProcessorRule>,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::component::Processor::Raw` for the canonical contract."]
     /// An explicitly raw processor object for unsupported or modded types.
-    Raw(RawJson),
+    Raw(
+        #[doc = "The `Raw` variant carries the value described by its variant semantics: An explicitly raw processor object for unsupported or modded types."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::Processor::Raw::0` for the canonical contract."]
+        RawJson,
+    ),
 }
 
 impl Processor {
@@ -235,6 +266,7 @@ impl Processor {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::ProcessorList` for the canonical contract."]
 /// A processor list definition (`data/<namespace>/worldgen/processor_list/<id>.json`).
 ///
 /// ```

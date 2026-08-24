@@ -33,6 +33,7 @@ use crate::condition::Condition;
 
 // ── ConditionedExecute ────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::ConditionedExecute` for the canonical contract."]
 /// An execute chain paired with a typed [`Condition`].
 ///
 /// Created by [`ExecuteExt::when`] or [`ExecuteExt::unless`].
@@ -85,6 +86,7 @@ impl ConditionedExecute {
 
 // ── ExecuteExt ────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::ExecuteExt` for the canonical contract."]
 /// Extension trait — adds `when` and `unless` to the low-level [`Execute`] builder.
 ///
 /// Import this trait to access the typed condition methods.
@@ -129,6 +131,7 @@ impl ExecuteExt for Execute {
 
 // ── TypedExecute ──────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::TypedExecute` for the canonical contract."]
 /// Convenience constructors for common `execute` patterns.
 ///
 /// Each method returns a bare [`Execute`] so you can chain standard sub-commands

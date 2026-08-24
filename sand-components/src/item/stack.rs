@@ -16,6 +16,7 @@ use crate::resource_location::ResourceLocation;
 /// Vanilla's maximum stack size for any single item.
 pub const MAX_STACK_SIZE: u32 = 99;
 
+#[doc = "**API Contract:** Run `sand api show sand::component::ItemStack` for the canonical contract."]
 /// A concrete item stack: a typed item ID, a validated count, and zero or
 /// more data components.
 ///
@@ -146,6 +147,7 @@ fn item_stack_location() -> ResourceLocation {
     ResourceLocation::new("sand", "item_stack").expect("static resource location is always valid")
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::IntoItemStack` for the canonical contract."]
 /// Converts a value into a concrete [`ItemStack`].
 ///
 /// Implemented for `ItemStack` itself so APIs that accept `impl IntoItemStack`

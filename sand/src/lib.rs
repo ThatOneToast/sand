@@ -355,8 +355,11 @@ pub mod participant {
 #[doc = include_str!("api_contract_rustdoc.md")]
 pub mod component {
     #[doc = include_str!("api_contract_rustdoc.md")]
+    pub use sand_components::advancement::InventorySlotsPredicate;
+    #[doc = include_str!("api_contract_rustdoc.md")]
     pub use sand_components::dialog::{
-        Dialog, DialogAction, DialogBody, DialogButton, DialogKind, DialogTag, IntoDialogRef,
+        Dialog, DialogAction, DialogBody, DialogButton, DialogItemRef, DialogKind, DialogTag,
+        DialogText, IntoDialogRef,
     };
     #[doc = include_str!("api_contract_rustdoc.md")]
     pub use sand_components::{
@@ -364,10 +367,11 @@ pub mod component {
         ChatDecoration, ChatDecorationParameter, ChatStyle, ChatType, ConfiguredCarver,
         ConfiguredFeature, CustomData, DensityFunction, DensityFunctionBinaryOp,
         DensityFunctionExpr, DensityFunctionUnaryOp, Dimension, DimensionType, EnchantmentEntry,
-        IntoItemStack, ItemComponent, ItemStackComponents, MonsterSpawnLightLevel, Noise,
-        OreConfig, OreTarget, PlacedFeature, PotionContents, RawComponent, RawJson, RawSnbt,
-        Result, RuleTest, SandError, StatusEffectInstance, StructureTemplate, SuspiciousStewEffect,
-        TagEntry, TagRegistry, TemperatureModifier, TypedTag,
+        IntoItemStack, IntoRecipeItemId, ItemComponent, ItemStackComponents, LootText,
+        MonsterSpawnLightLevel, Noise, OreConfig, OreTarget, PlacedFeature, PotionContents,
+        RawComponent, RawJson, RawSnbt, Result, RuleTest, SandError, SpawnCondition,
+        StatusEffectInstance, StructureTemplate, SuspiciousStewEffect, TagEntry, TagRegistry,
+        TemperatureModifier, TypedTag,
     };
     #[doc = include_str!("api_contract_rustdoc.md")]
     pub use sand_core::components::*;
@@ -561,6 +565,10 @@ pub mod systems {
 #[doc = include_str!("api_contract_rustdoc.md")]
 pub use sand_core::ResourceLocation;
 
+/// A validated namespace owned by the datapack being generated.
+#[doc = include_str!("api_contract_rustdoc.md")]
+pub use sand_components::PackNamespace;
+
 /// Text components, chat colors, and click/hover events for `tellraw`,
 /// titles, dialogs, and books. [`text::Text`] is the builder used everywhere
 /// a chat component is needed (`Text::new("Hello").gold().bold(true)`); it
@@ -615,7 +623,7 @@ pub mod data {
 /// Generated vanilla Minecraft registry identifiers: `Item`, `Block`,
 /// `EntityType`, and `SoundEvent` enums populated at build time from
 /// Mojang's own data generator report for the configured Minecraft version
-/// (see [`sand_core::generated`] for the exact version source).
+/// from the selected version provider catalog.
 ///
 /// Use these directly wherever Sand asks for a vanilla identifier or entity
 /// type — `vanilla::Item::Diamond`, `vanilla::Block::WhiteWool`,

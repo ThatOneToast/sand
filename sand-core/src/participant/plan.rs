@@ -162,6 +162,7 @@ impl ItemPlanEntry {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::participant::DuplicateParticipantRole` for the canonical contract."]
 /// A duplicate role was declared within one plan.
 ///
 /// Declaring the same [`EntityParticipantRole`] (or, for item entries, the
@@ -171,8 +172,20 @@ impl ItemPlanEntry {
 /// silently keeping the first or last declaration.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DuplicateParticipantRole {
-    Entity(EntityParticipantRole),
-    Item(ItemParticipantRole),
+    #[doc = "Selects the entity participant semantic."]
+    #[doc = "**API Contract:** Run `sand api show sand::participant::DuplicateParticipantRole::Entity` for the canonical contract."]
+    Entity(
+        #[doc = "The `Entity` variant carries the value described by its variant semantics: Selects the entity participant semantic."]
+        #[doc = "**API Contract:** Run `sand api show sand::participant::DuplicateParticipantRole::Entity::0` for the canonical contract."]
+        EntityParticipantRole,
+    ),
+    #[doc = "Selects the item participant semantic."]
+    #[doc = "**API Contract:** Run `sand api show sand::participant::DuplicateParticipantRole::Item` for the canonical contract."]
+    Item(
+        #[doc = "The `Item` variant carries the value described by its variant semantics: Selects the item participant semantic."]
+        #[doc = "**API Contract:** Run `sand api show sand::participant::DuplicateParticipantRole::Item::0` for the canonical contract."]
+        ItemParticipantRole,
+    ),
 }
 
 impl std::fmt::Display for DuplicateParticipantRole {
@@ -192,12 +205,31 @@ impl std::fmt::Display for DuplicateParticipantRole {
 
 impl std::error::Error for DuplicateParticipantRole {}
 
+#[doc = "**API Contract:** Run `sand api show sand::participant::EventParticipantPlanError` for the canonical contract."]
 /// Any part of building or applying a plan failed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EventParticipantPlanError {
-    DuplicateRole(DuplicateParticipantRole),
-    Observation(ObservationError),
-    Snapshot(String),
+    #[doc = "Selects the duplicate role participant semantic."]
+    #[doc = "**API Contract:** Run `sand api show sand::participant::EventParticipantPlanError::DuplicateRole` for the canonical contract."]
+    DuplicateRole(
+        #[doc = "The `DuplicateRole` variant carries the value described by its variant semantics: Selects the duplicate role participant semantic."]
+        #[doc = "**API Contract:** Run `sand api show sand::participant::EventParticipantPlanError::DuplicateRole::0` for the canonical contract."]
+        DuplicateParticipantRole,
+    ),
+    #[doc = "Selects the observation participant semantic."]
+    #[doc = "**API Contract:** Run `sand api show sand::participant::EventParticipantPlanError::Observation` for the canonical contract."]
+    Observation(
+        #[doc = "The `Observation` variant carries the value described by its variant semantics: Selects the observation participant semantic."]
+        #[doc = "**API Contract:** Run `sand api show sand::participant::EventParticipantPlanError::Observation::0` for the canonical contract."]
+        ObservationError,
+    ),
+    #[doc = "Selects the snapshot participant semantic."]
+    #[doc = "**API Contract:** Run `sand api show sand::participant::EventParticipantPlanError::Snapshot` for the canonical contract."]
+    Snapshot(
+        #[doc = "The `Snapshot` variant carries the value described by its variant semantics: Selects the snapshot participant semantic."]
+        #[doc = "**API Contract:** Run `sand api show sand::participant::EventParticipantPlanError::Snapshot::0` for the canonical contract."]
+        String,
+    ),
 }
 
 impl std::fmt::Display for EventParticipantPlanError {
@@ -230,6 +262,7 @@ impl From<SnapshotError> for EventParticipantPlanError {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::participant::EventParticipantPlan` for the canonical contract."]
 /// A deterministic, statically-inspectable declaration of which
 /// participant observations an event needs, separate from any runtime
 /// participant value.

@@ -40,9 +40,11 @@ use thiserror::Error;
 
 use super::{EntityDiagnostic, EntityStateField};
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::DEFAULT_FIXED_POINT_SCALE` for the canonical contract."]
 /// Default number of fixed-point units in one whole value.
 pub const DEFAULT_FIXED_POINT_SCALE: i64 = 1_000;
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::FixedPoint` for the canonical contract."]
 /// Fixed-point representation settings used by a curve.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FixedPoint {
@@ -176,33 +178,43 @@ impl FixedPoint {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::RoundingPolicy` for the canonical contract."]
 /// Rounding applied when fixed-point multiplication or division loses a
 /// fractional remainder.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum RoundingPolicy {
+    #[doc = "**API Contract:** Run `sand api show sand::entity::RoundingPolicy::TowardZero` for the canonical contract."]
     /// Discard the remainder toward zero.
     TowardZero,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::RoundingPolicy::Floor` for the canonical contract."]
     /// Round toward negative infinity.
     Floor,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::RoundingPolicy::Ceiling` for the canonical contract."]
     /// Round toward positive infinity.
     Ceiling,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::RoundingPolicy::NearestTiesAwayFromZero` for the canonical contract."]
     /// Round to the nearest integer, with exact halves away from zero.
     NearestTiesAwayFromZero,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::RoundingPolicy::NearestTiesToEven` for the canonical contract."]
     /// Round to the nearest integer, with exact halves to an even integer.
     NearestTiesToEven,
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::OverflowPolicy` for the canonical contract."]
 /// Behavior when a fixed-point result does not fit in a signed 64-bit value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum OverflowPolicy {
+    #[doc = "**API Contract:** Run `sand api show sand::entity::OverflowPolicy::Error` for the canonical contract."]
     /// Stop validation/evaluation with a structured diagnostic.
     Error,
+    #[doc = "**API Contract:** Run `sand api show sand::entity::OverflowPolicy::Saturate` for the canonical contract."]
     /// Clamp the result to [`i64::MIN`] or [`i64::MAX`].
     Saturate,
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::FixedValue` for the canonical contract."]
 /// A signed fixed-point value.
 ///
 /// The scale is supplied by [`FixedPoint`]. Keeping the raw representation
@@ -235,6 +247,7 @@ impl FixedValue {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::CurveInputs` for the canonical contract."]
 /// Deterministic named values supplied to [`StatCurve::evaluate`].
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CurveInputs {
@@ -287,36 +300,53 @@ impl CurveInputs {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::CurveEvaluationError` for the canonical contract."]
 /// Failure while evaluating an otherwise structurally valid curve.
 #[derive(Debug, Clone, PartialEq, Error)]
 #[non_exhaustive]
 pub enum CurveEvaluationError {
+    #[doc = "**API Contract:** Run `sand api show sand::entity::CurveEvaluationError::MissingInput` for the canonical contract."]
     /// A referenced state input was not supplied.
     #[error("curve `{derivation}` for `{archetype}` is missing input `{input}`")]
     MissingInput {
+        #[doc = "**API Contract:** Run `sand api show sand::entity::CurveEvaluationError::MissingInput::archetype` for the canonical contract."]
         /// Archetype resource identifier.
         archetype: String,
+        #[doc = "**API Contract:** Run `sand api show sand::entity::CurveEvaluationError::MissingInput::derivation` for the canonical contract."]
         /// Derivation identifier.
         derivation: String,
+        #[doc = "**API Contract:** Run `sand api show sand::entity::CurveEvaluationError::MissingInput::input` for the canonical contract."]
         /// Missing state/input name.
         input: String,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::entity::CurveEvaluationError::DivisionByZero` for the canonical contract."]
     /// A ratio attempted to divide by zero.
     #[error("curve `{derivation}` for `{archetype}` divided by zero")]
     DivisionByZero {
+        #[doc = "**API Contract:** Run `sand api show sand::entity::CurveEvaluationError::DivisionByZero::archetype` for the canonical contract."]
         /// Archetype resource identifier.
         archetype: String,
+        #[doc = "**API Contract:** Run `sand api show sand::entity::CurveEvaluationError::DivisionByZero::derivation` for the canonical contract."]
         /// Derivation identifier.
         derivation: String,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::entity::CurveEvaluationError::Diagnostic` for the canonical contract."]
     /// A standard entity compilation diagnostic.
     #[error(transparent)]
-    Diagnostic(#[from] EntityDiagnostic),
+    Diagnostic(
+        #[doc = "The `Diagnostic` variant carries the value described by its variant semantics: A standard entity compilation diagnostic."]
+        #[doc = "**API Contract:** Run `sand api show sand::entity::CurveEvaluationError::Diagnostic::0` for the canonical contract."]
+        #[from]
+        EntityDiagnostic,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::entity::CurveEvaluationError::Custom` for the canonical contract."]
     /// A custom callback rejected its inputs.
     #[error("custom curve `{callback}` failed: {message}")]
     Custom {
+        #[doc = "**API Contract:** Run `sand api show sand::entity::CurveEvaluationError::Custom::callback` for the canonical contract."]
         /// Stable registered callback identifier.
         callback: String,
+        #[doc = "**API Contract:** Run `sand api show sand::entity::CurveEvaluationError::Custom::message` for the canonical contract."]
         /// Callback-provided failure detail.
         message: String,
     },
@@ -547,6 +577,7 @@ impl fmt::Debug for CustomCurve {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::entity::StatCurve` for the canonical contract."]
 /// Pure typed IR for a derived numeric or discrete entity property.
 ///
 /// Constructors intentionally accept typed curves and fixed-point constants,

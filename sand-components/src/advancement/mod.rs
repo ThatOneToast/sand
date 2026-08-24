@@ -32,12 +32,19 @@ fn json_value<T: Serialize, E: serde::ser::Error>(value: &T) -> Result<Value, E>
 
 // ── AdvancementFrame ──────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::AdvancementFrame` for the canonical contract."]
 /// The visual frame style for an advancement in the advancement screen.
 ///
 /// Determines how the advancement appears to the player when completed.
 pub enum AdvancementFrame {
+    #[doc = "Selects the task form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementFrame::Task` for the canonical contract."]
     Task,
+    #[doc = "Selects the goal form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementFrame::Goal` for the canonical contract."]
     Goal,
+    #[doc = "Selects the challenge form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementFrame::Challenge` for the canonical contract."]
     Challenge,
 }
 
@@ -53,6 +60,7 @@ impl AdvancementFrame {
 
 // ── AdvancementIcon ───────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::AdvancementIcon` for the canonical contract."]
 /// The icon displayed for an advancement, with optional item components.
 ///
 /// The normal constructor accepts only item-registry IDs, so a block tag or
@@ -150,6 +158,7 @@ impl Serialize for AdvancementText {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::AdvancementDisplay` for the canonical contract."]
 /// The display information shown for an advancement in the advancement screen and toast.
 pub struct AdvancementDisplay {
     icon: AdvancementIcon,
@@ -307,6 +316,7 @@ impl Serialize for AdvancementDisplay {
 
 // ── AdvancementTrigger ────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger` for the canonical contract."]
 /// Represents a trigger condition for an advancement criterion.
 ///
 /// Each variant uses typed predicate structs from [`crate::predicates`]
@@ -329,253 +339,540 @@ impl Serialize for AdvancementDisplay {
 /// ```
 #[allow(clippy::large_enum_variant)]
 pub enum AdvancementTrigger {
+    #[doc = "Selects the tick form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::Tick` for the canonical contract."]
     Tick,
+    #[doc = "Selects the impossible form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::Impossible` for the canonical contract."]
     Impossible,
 
     // ── Kill / combat ─────────────────────────────────────────────────────────
+    #[doc = "Selects the player killed entity form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::PlayerKilledEntity` for the canonical contract."]
     PlayerKilledEntity {
+        /// `entity` optionally narrows the entity predicate matched when the variant selects the player killed entity form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::PlayerKilledEntity::entity` for the canonical contract."]
         entity: Option<EntityPredicate>,
+        /// `killing_blow` optionally narrows the killing blow predicate matched when the variant selects the player killed entity form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::PlayerKilledEntity::killing_blow` for the canonical contract."]
         killing_blow: Option<DamagePredicate>,
     },
+    #[doc = "Selects the entity killed player form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::EntityKilledPlayer` for the canonical contract."]
     EntityKilledPlayer {
+        /// `entity` optionally narrows the entity predicate matched when the variant selects the entity killed player form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::EntityKilledPlayer::entity` for the canonical contract."]
         entity: Option<EntityPredicate>,
+        /// `killing_blow` optionally narrows the killing blow predicate matched when the variant selects the entity killed player form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::EntityKilledPlayer::killing_blow` for the canonical contract."]
         killing_blow: Option<DamagePredicate>,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::PlayerHurtEntity` for the canonical contract."]
     /// Player deals damage to an entity.
     PlayerHurtEntity {
+        /// `entity` optionally narrows the entity predicate matched when a player deals damage to an entity.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::PlayerHurtEntity::entity` for the canonical contract."]
         entity: Option<EntityPredicate>,
+        /// `damage` optionally narrows the damage predicate matched when a player deals damage to an entity.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::PlayerHurtEntity::damage` for the canonical contract."]
         damage: Option<DamagePredicate>,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::EntityHurtPlayer` for the canonical contract."]
     /// Entity deals damage to the player.
     EntityHurtPlayer {
+        /// `entity` optionally narrows the entity predicate matched when entity deals damage to the player.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::EntityHurtPlayer::entity` for the canonical contract."]
         entity: Option<EntityPredicate>,
+        /// `damage` optionally narrows the damage predicate matched when entity deals damage to the player.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::EntityHurtPlayer::damage` for the canonical contract."]
         damage: Option<DamagePredicate>,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::KilledByCrossbow` for the canonical contract."]
     /// Player kills an entity using a crossbow.
     KilledByCrossbow {
+        /// `unique_entity_types` optionally provides the unique entity types when a player kills an entity using a crossbow.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::KilledByCrossbow::unique_entity_types` for the canonical contract."]
         unique_entity_types: Option<IntRange>,
+        /// `victims` optionally narrows the victims predicate matched when a player kills an entity using a crossbow.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::KilledByCrossbow::victims` for the canonical contract."]
         victims: Option<Vec<EntityPredicate>>,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::KilledByArrow` for the canonical contract."]
     /// Player kills one or more entities with a projectile weapon.
     KilledByArrow {
+        /// `unique_entity_types` optionally provides the unique entity types when a player kills one or more entities with a projectile weapon.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::KilledByArrow::unique_entity_types` for the canonical contract."]
         unique_entity_types: Option<IntRange>,
+        /// `fired_from_weapon` optionally narrows the fired from weapon predicate matched when a player kills one or more entities with a projectile weapon.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::KilledByArrow::fired_from_weapon` for the canonical contract."]
         fired_from_weapon: Option<ItemPredicate>,
+        /// `victims` optionally narrows the victims predicate matched when a player kills one or more entities with a projectile weapon.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::KilledByArrow::victims` for the canonical contract."]
         victims: Option<Vec<EntityPredicate>>,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ChanneledLightning` for the canonical contract."]
     /// A lightning bolt hits an entity the player summoned with a trident.
     ChanneledLightning {
+        /// `victims` optionally narrows the victims predicate matched when a lightning bolt hits an entity the player summoned with a trident.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ChanneledLightning::victims` for the canonical contract."]
         victims: Option<Vec<EntityPredicate>>,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::LightningStrike` for the canonical contract."]
     /// A lightning bolt strikes near the player.
     LightningStrike {
+        /// `lightning` optionally narrows the lightning predicate matched when a lightning bolt strikes near the player.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::LightningStrike::lightning` for the canonical contract."]
         lightning: Option<EntityPredicate>,
+        /// `bystander` optionally narrows the bystander predicate matched when a lightning bolt strikes near the player.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::LightningStrike::bystander` for the canonical contract."]
         bystander: Option<EntityPredicate>,
     },
 
     // ── Inventory / items ─────────────────────────────────────────────────────
+    #[doc = "Selects the inventory changed form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::InventoryChanged` for the canonical contract."]
     InventoryChanged {
+        /// `slots` optionally narrows the slots predicate matched when the variant selects the inventory changed form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::InventoryChanged::slots` for the canonical contract."]
         slots: Option<InventorySlotsPredicate>,
+        /// `items` provides the items predicate when the variant selects the inventory changed form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::InventoryChanged::items` for the canonical contract."]
         items: Vec<ItemPredicate>,
     },
+    #[doc = "Selects the recipe unlocked form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::RecipeUnlocked` for the canonical contract."]
     RecipeUnlocked {
+        /// `recipe` provides the recipe when the variant selects the recipe unlocked form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::RecipeUnlocked::recipe` for the canonical contract."]
         recipe: String,
     },
+    #[doc = "Selects the used item form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::UsedItem` for the canonical contract."]
     UsedItem {
+        /// `item` optionally narrows the item predicate matched when the variant selects the used item form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::UsedItem::item` for the canonical contract."]
         item: Option<ItemPredicate>,
     },
+    #[doc = "Selects the consume item form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ConsumeItem` for the canonical contract."]
     ConsumeItem {
+        /// `item` optionally narrows the item predicate matched when the variant selects the consume item form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ConsumeItem::item` for the canonical contract."]
         item: Option<ItemPredicate>,
     },
+    #[doc = "Selects the using item form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::UsingItem` for the canonical contract."]
     UsingItem {
+        /// `item` optionally narrows the item predicate matched when the variant selects the using item form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::UsingItem::item` for the canonical contract."]
         item: Option<ItemPredicate>,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::CraftedItem` for the canonical contract."]
     /// Player crafts an item.
     CraftedItem {
+        /// `item` optionally narrows the item predicate matched when a player crafts an item.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::CraftedItem::item` for the canonical contract."]
         item: Option<ItemPredicate>,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::RecipeCrafted` for the canonical contract."]
     /// Player completes a recipe. Vanilla exposes recipe and ingredient
     /// predicates, not the crafted result item.
     RecipeCrafted {
+        /// `recipe_id` provides the recipe id when a player completes a recipe. Vanilla exposes recipe and ingredient predicates, not the crafted result item.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::RecipeCrafted::recipe_id` for the canonical contract."]
         recipe_id: String,
+        /// `ingredients` provides the ingredients predicate when a player completes a recipe. Vanilla exposes recipe and ingredient predicates, not the crafted result item.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::RecipeCrafted::ingredients` for the canonical contract."]
         ingredients: Vec<ItemPredicate>,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::FilledBucket` for the canonical contract."]
     /// Player fills a bucket.
     FilledBucket {
+        /// `item` optionally narrows the item predicate matched when a player fills a bucket.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::FilledBucket::item` for the canonical contract."]
         item: Option<ItemPredicate>,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::EmptiedBucket` for the canonical contract."]
     /// Player empties a bucket.
     EmptiedBucket {
+        /// `item` optionally narrows the item predicate matched when a player empties a bucket.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::EmptiedBucket::item` for the canonical contract."]
         item: Option<ItemPredicate>,
+        /// `location` optionally narrows the location predicate matched when a player empties a bucket.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::EmptiedBucket::location` for the canonical contract."]
         location: Option<LocationPredicate>,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ShotCrossbow` for the canonical contract."]
     /// Player shoots a crossbow.
     ShotCrossbow {
+        /// `item` optionally narrows the item predicate matched when a player shoots a crossbow.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ShotCrossbow::item` for the canonical contract."]
         item: Option<ItemPredicate>,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::UsedTotem` for the canonical contract."]
     /// Player activates a totem of undying.
     UsedTotem {
+        /// `item` optionally narrows the item predicate matched when a player activates a totem of undying.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::UsedTotem::item` for the canonical contract."]
         item: Option<ItemPredicate>,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ThrownItemPickedUp` for the canonical contract."]
     /// A thrown item is picked up by an entity.
     ThrownItemPickedUp {
+        /// `item` optionally narrows the item predicate matched when a thrown item is picked up by an entity.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ThrownItemPickedUp::item` for the canonical contract."]
         item: Option<ItemPredicate>,
+        /// `entity` optionally narrows the entity predicate matched when a thrown item is picked up by an entity.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ThrownItemPickedUp::entity` for the canonical contract."]
         entity: Option<EntityPredicate>,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ThrownItemPickedUpByEntity` for the canonical contract."]
     /// A thrown item is picked up by a non-player entity.
     ThrownItemPickedUpByEntity {
+        /// `item` optionally narrows the item predicate matched when a thrown item is picked up by a non-player entity.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ThrownItemPickedUpByEntity::item` for the canonical contract."]
         item: Option<ItemPredicate>,
+        /// `entity` optionally narrows the entity predicate matched when a thrown item is picked up by a non-player entity.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ThrownItemPickedUpByEntity::entity` for the canonical contract."]
         entity: Option<EntityPredicate>,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ThrownItemPickedUpByPlayer` for the canonical contract."]
     /// A thrown item is picked up by the player.
     ThrownItemPickedUpByPlayer {
+        /// `item` optionally narrows the item predicate matched when a thrown item is picked up by the player.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ThrownItemPickedUpByPlayer::item` for the canonical contract."]
         item: Option<ItemPredicate>,
+        /// `entity` optionally narrows the entity predicate matched when a thrown item is picked up by the player.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ThrownItemPickedUpByPlayer::entity` for the canonical contract."]
         entity: Option<EntityPredicate>,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ItemDurabilityChanged` for the canonical contract."]
     /// An item in the player's inventory loses durability.
     ItemDurabilityChanged {
+        /// `item` optionally narrows the item predicate matched when an item in the player's inventory loses durability.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ItemDurabilityChanged::item` for the canonical contract."]
         item: Option<ItemPredicate>,
+        /// `delta` optionally provides the delta when an item in the player's inventory loses durability.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ItemDurabilityChanged::delta` for the canonical contract."]
         delta: Option<IntRange>,
+        /// `durability` optionally provides the durability when an item in the player's inventory loses durability.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ItemDurabilityChanged::durability` for the canonical contract."]
         durability: Option<IntRange>,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::BrewedPotion` for the canonical contract."]
     /// Player brews a potion.
     BrewedPotion {
+        /// `potion` optionally provides the potion when a player brews a potion.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::BrewedPotion::potion` for the canonical contract."]
         potion: Option<String>,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::BeeNestDestroyed` for the canonical contract."]
     /// Player destroys a bee nest or beehive.
     BeeNestDestroyed {
+        /// `block` optionally narrows the block matched when a player destroys a bee nest or beehive.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::BeeNestDestroyed::block` for the canonical contract."]
         block: Option<String>,
+        /// `item` optionally narrows the item predicate matched when a player destroys a bee nest or beehive.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::BeeNestDestroyed::item` for the canonical contract."]
         item: Option<ItemPredicate>,
+        /// `num_bees_inside` optionally provides the num bees inside when a player destroys a bee nest or beehive.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::BeeNestDestroyed::num_bees_inside` for the canonical contract."]
         num_bees_inside: Option<IntRange>,
     },
 
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::EnchantedItem` for the canonical contract."]
     /// Player enchants an item.
     EnchantedItem {
+        /// `item` optionally narrows the item predicate matched when a player enchants an item.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::EnchantedItem::item` for the canonical contract."]
         item: Option<ItemPredicate>,
+        /// `levels` optionally narrows the level range matched when a player enchants an item.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::EnchantedItem::levels` for the canonical contract."]
         levels: Option<IntRange>,
     },
 
     // ── Entities / interactions ───────────────────────────────────────────────
+    #[doc = "Selects the bred animals form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::BredAnimals` for the canonical contract."]
     BredAnimals {
+        /// `parent` optionally narrows the parent predicate matched when the variant selects the bred animals form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::BredAnimals::parent` for the canonical contract."]
         parent: Option<EntityPredicate>,
+        /// `partner` optionally narrows the partner predicate matched when the variant selects the bred animals form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::BredAnimals::partner` for the canonical contract."]
         partner: Option<EntityPredicate>,
+        /// `child` optionally narrows the child predicate matched when the variant selects the bred animals form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::BredAnimals::child` for the canonical contract."]
         child: Option<EntityPredicate>,
     },
+    #[doc = "Selects the tamed animal form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::TamedAnimal` for the canonical contract."]
     TamedAnimal {
+        /// `entity` optionally narrows the entity predicate matched when the variant selects the tamed animal form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::TamedAnimal::entity` for the canonical contract."]
         entity: Option<EntityPredicate>,
     },
+    #[doc = "Selects the summoned entity form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::SummonedEntity` for the canonical contract."]
     SummonedEntity {
+        /// `entity` optionally narrows the entity predicate matched when the variant selects the summoned entity form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::SummonedEntity::entity` for the canonical contract."]
         entity: Option<EntityPredicate>,
     },
+    #[doc = "Selects the player interacted with entity form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::PlayerInteractedWithEntity` for the canonical contract."]
     PlayerInteractedWithEntity {
+        /// `item` optionally narrows the item predicate matched when the variant selects the player interacted with entity form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::PlayerInteractedWithEntity::item` for the canonical contract."]
         item: Option<ItemPredicate>,
+        /// `entity` optionally narrows the entity predicate matched when the variant selects the player interacted with entity form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::PlayerInteractedWithEntity::entity` for the canonical contract."]
         entity: Option<EntityPredicate>,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::FishingRodHooked` for the canonical contract."]
     /// Player uses a fishing rod and it hooks something.
     FishingRodHooked {
+        /// `rod` optionally narrows the rod predicate matched when a player uses a fishing rod and it hooks something.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::FishingRodHooked::rod` for the canonical contract."]
         rod: Option<ItemPredicate>,
+        /// `entity` optionally narrows the entity predicate matched when a player uses a fishing rod and it hooks something.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::FishingRodHooked::entity` for the canonical contract."]
         entity: Option<EntityPredicate>,
+        /// `item` optionally narrows the item predicate matched when a player uses a fishing rod and it hooks something.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::FishingRodHooked::item` for the canonical contract."]
         item: Option<ItemPredicate>,
     },
+    #[doc = "Selects the tamed animal interacted form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::TamedAnimalInteracted` for the canonical contract."]
     TamedAnimalInteracted {
+        /// `entity` optionally narrows the entity predicate matched when the variant selects the tamed animal interacted form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::TamedAnimalInteracted::entity` for the canonical contract."]
         entity: Option<EntityPredicate>,
+        /// `item` optionally narrows the item predicate matched when the variant selects the tamed animal interacted form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::TamedAnimalInteracted::item` for the canonical contract."]
         item: Option<ItemPredicate>,
     },
+    #[doc = "Selects the villager trade form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::VillagerTrade` for the canonical contract."]
     VillagerTrade {
+        /// `item` optionally narrows the item predicate matched when the variant selects the villager trade form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::VillagerTrade::item` for the canonical contract."]
         item: Option<ItemPredicate>,
+        /// `villager` optionally narrows the villager predicate matched when the variant selects the villager trade form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::VillagerTrade::villager` for the canonical contract."]
         villager: Option<EntityPredicate>,
     },
+    #[doc = "Selects the cured zombie villager form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::CuredZombieVillager` for the canonical contract."]
     CuredZombieVillager {
+        /// `villager` optionally narrows the villager predicate matched when the variant selects the cured zombie villager form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::CuredZombieVillager::villager` for the canonical contract."]
         villager: Option<EntityPredicate>,
+        /// `zombie` optionally narrows the zombie predicate matched when the variant selects the cured zombie villager form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::CuredZombieVillager::zombie` for the canonical contract."]
         zombie: Option<EntityPredicate>,
     },
 
     // ── Location / world ──────────────────────────────────────────────────────
+    #[doc = "Selects the placed block form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::PlacedBlock` for the canonical contract."]
     PlacedBlock {
+        /// `block` optionally narrows the block matched when the variant selects the placed block form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::PlacedBlock::block` for the canonical contract."]
         block: Option<String>,
+        /// `item` optionally narrows the item predicate matched when the variant selects the placed block form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::PlacedBlock::item` for the canonical contract."]
         item: Option<ItemPredicate>,
+        /// `location` optionally narrows the location predicate matched when the variant selects the placed block form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::PlacedBlock::location` for the canonical contract."]
         location: Option<LocationPredicate>,
+        /// `state` optionally provides the state when the variant selects the placed block form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::PlacedBlock::state` for the canonical contract."]
         state: Option<HashMap<String, String>>,
     },
+    #[doc = "Selects the enter block form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::EnterBlock` for the canonical contract."]
     EnterBlock {
+        /// `block` optionally narrows the block matched when the variant selects the enter block form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::EnterBlock::block` for the canonical contract."]
         block: Option<String>,
+        /// `state` optionally provides the state when the variant selects the enter block form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::EnterBlock::state` for the canonical contract."]
         state: Option<HashMap<String, String>>,
     },
+    #[doc = "Selects the location form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::Location` for the canonical contract."]
     Location {
+        /// `location` optionally narrows the location predicate matched when the variant selects the location form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::Location::location` for the canonical contract."]
         location: Option<LocationPredicate>,
     },
+    #[doc = "Selects the nether travel form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::NetherTravel` for the canonical contract."]
     NetherTravel {
+        /// `entered` optionally narrows the entered predicate matched when the variant selects the nether travel form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::NetherTravel::entered` for the canonical contract."]
         entered: Option<LocationPredicate>,
+        /// `exited` optionally narrows the exited predicate matched when the variant selects the nether travel form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::NetherTravel::exited` for the canonical contract."]
         exited: Option<LocationPredicate>,
+        /// `distance` optionally narrows the distance predicate matched when the variant selects the nether travel form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::NetherTravel::distance` for the canonical contract."]
         distance: Option<DistancePredicate>,
     },
+    #[doc = "Selects the changed dimension form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ChangedDimension` for the canonical contract."]
     ChangedDimension {
+        /// `from` optionally narrows the source value matched when the variant selects the changed dimension form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ChangedDimension::from` for the canonical contract."]
         from: Option<String>,
+        /// `to` optionally narrows the destination value matched when the variant selects the changed dimension form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ChangedDimension::to` for the canonical contract."]
         to: Option<String>,
     },
+    #[doc = "Selects the slept in bed form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::SleptInBed` for the canonical contract."]
     SleptInBed {
+        /// `location` optionally narrows the location predicate matched when the variant selects the slept in bed form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::SleptInBed::location` for the canonical contract."]
         location: Option<LocationPredicate>,
     },
+    #[doc = "Selects the fall from height form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::FallFromHeight` for the canonical contract."]
     FallFromHeight {
+        /// `distance` optionally narrows the distance predicate matched when the variant selects the fall from height form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::FallFromHeight::distance` for the canonical contract."]
         distance: Option<DistancePredicate>,
+        /// `start_position` optionally narrows the start position predicate matched when the variant selects the fall from height form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::FallFromHeight::start_position` for the canonical contract."]
         start_position: Option<LocationPredicate>,
     },
+    #[doc = "Selects the slide down block form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::SlideDownBlock` for the canonical contract."]
     SlideDownBlock {
+        /// `block` optionally narrows the block matched when the variant selects the slide down block form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::SlideDownBlock::block` for the canonical contract."]
         block: Option<String>,
     },
+    #[doc = "Selects the target hit form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::TargetHit` for the canonical contract."]
     TargetHit {
+        /// `signal_strength` optionally provides the signal strength when the variant selects the target hit form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::TargetHit::signal_strength` for the canonical contract."]
         signal_strength: Option<IntRange>,
+        /// `projectile` optionally narrows the projectile predicate matched when the variant selects the target hit form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::TargetHit::projectile` for the canonical contract."]
         projectile: Option<EntityPredicate>,
     },
+    #[doc = "Selects the hero of the village form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::HeroOfTheVillage` for the canonical contract."]
     HeroOfTheVillage {
+        /// `location` optionally narrows the location predicate matched when the variant selects the hero of the village form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::HeroOfTheVillage::location` for the canonical contract."]
         location: Option<LocationPredicate>,
     },
+    #[doc = "Selects the player generates container loot form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::PlayerGeneratesContainerLoot` for the canonical contract."]
     PlayerGeneratesContainerLoot {
+        /// `loot_table` optionally provides the loot table when the variant selects the player generates container loot form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::PlayerGeneratesContainerLoot::loot_table` for the canonical contract."]
         loot_table: Option<String>,
     },
 
     // ── Player state ──────────────────────────────────────────────────────────
+    #[doc = "Selects the leveled up form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::LeveledUp` for the canonical contract."]
     LeveledUp {
+        /// `level` optionally narrows the level range matched when the variant selects the leveled up form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::LeveledUp::level` for the canonical contract."]
         level: Option<IntRange>,
     },
+    #[doc = "Selects the effects changed form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::EffectsChanged` for the canonical contract."]
     EffectsChanged {
+        /// `effects` optionally narrows the effects predicate matched when the variant selects the effects changed form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::EffectsChanged::effects` for the canonical contract."]
         effects: Option<HashMap<String, EffectPredicate>>,
+        /// `source` optionally narrows the source predicate matched when the variant selects the effects changed form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::EffectsChanged::source` for the canonical contract."]
         source: Option<EntityPredicate>,
     },
+    #[doc = "Selects the started riding form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::StartedRiding` for the canonical contract."]
     StartedRiding,
+    #[doc = "Selects the construct beacon form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ConstructBeacon` for the canonical contract."]
     ConstructBeacon {
+        /// `level` optionally narrows the level range matched when the variant selects the construct beacon form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ConstructBeacon::level` for the canonical contract."]
         level: Option<IntRange>,
     },
+    #[doc = "Selects the used ender eye form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::UsedEnderEye` for the canonical contract."]
     UsedEnderEye {
+        /// `distance` optionally narrows the distance matched when the variant selects the used ender eye form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::UsedEnderEye::distance` for the canonical contract."]
         distance: Option<FloatRange>,
     },
 
     // ── 1.19+ triggers ───────────────────────────────────────────────────────
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::AllayDropItemOnBlock` for the canonical contract."]
     /// Player causes an allay to drop an item on a block (1.19+).
     AllayDropItemOnBlock {
+        /// `item` optionally restricts the dropped item that satisfies this trigger.
+        ///
+        /// ```rust
+        /// use sand_components::{AdvancementTrigger, ItemId, ItemPredicate};
+        ///
+        /// let trigger = AdvancementTrigger::AllayDropItemOnBlock {
+        ///     item: Some(ItemPredicate::id(ItemId::minecraft("cake").unwrap())),
+        ///     location: None,
+        /// };
+        /// ```
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::AllayDropItemOnBlock::item` for the canonical contract."]
         item: Option<ItemPredicate>,
+        /// `location` optionally narrows the location predicate matched when a player causes an allay to drop an item on a block.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::AllayDropItemOnBlock::location` for the canonical contract."]
         location: Option<LocationPredicate>,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::AvoidVibration` for the canonical contract."]
     /// Player avoids triggering a sculk sensor vibration (1.19+).
     AvoidVibration,
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::KillMobNearSculkCatalyst` for the canonical contract."]
     /// Player kills a mob near a sculk catalyst (1.19+).
     KillMobNearSculkCatalyst {
+        /// `entity` optionally narrows the entity predicate matched when a player kills a mob near a sculk catalyst.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::KillMobNearSculkCatalyst::entity` for the canonical contract."]
         entity: Option<EntityPredicate>,
+        /// `killing_blow` optionally narrows the killing blow predicate matched when a player kills a mob near a sculk catalyst.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::KillMobNearSculkCatalyst::killing_blow` for the canonical contract."]
         killing_blow: Option<DamagePredicate>,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ItemUsedOnBlock` for the canonical contract."]
     /// Player right-clicks on a block while holding an item (1.19.4+).
     ItemUsedOnBlock {
+        /// `item` optionally narrows the item predicate matched when a player right-clicks on a block while holding an item.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ItemUsedOnBlock::item` for the canonical contract."]
         item: Option<ItemPredicate>,
+        /// `location` optionally narrows the location predicate matched when a player right-clicks on a block while holding an item.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::ItemUsedOnBlock::location` for the canonical contract."]
         location: Option<LocationPredicate>,
     },
 
     // ── 1.16+ triggers ───────────────────────────────────────────────────────
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::RideEntityInLava` for the canonical contract."]
     /// Player rides an entity in lava (1.16+).
     RideEntityInLava {
+        /// `start_position` optionally narrows the start position predicate matched when a player rides an entity in lava.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::RideEntityInLava::start_position` for the canonical contract."]
         start_position: Option<LocationPredicate>,
+        /// `distance` optionally narrows the distance predicate matched when a player rides an entity in lava.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::RideEntityInLava::distance` for the canonical contract."]
         distance: Option<DistancePredicate>,
     },
 
     // ── Custom (escape hatch) ─────────────────────────────────────────────────
+    #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::Custom` for the canonical contract."]
     /// Any trigger not covered by the typed variants.
     ///
     /// Use this to target triggers that were added to or removed from Minecraft
@@ -589,7 +886,10 @@ pub enum AdvancementTrigger {
     /// };
     /// ```
     Custom {
+        /// `trigger` provides the trigger when any trigger not covered by the typed variants. Use this to target triggers that were added to or removed from Minecraft after a given version, or for modded triggers.
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::Custom::trigger` for the canonical contract."]
         trigger: String,
+        #[doc = "**API Contract:** Run `sand api show sand::component::AdvancementTrigger::Custom::conditions` for the canonical contract."]
         /// Raw JSON conditions block.  Use [`RawJson`] to signal intentional
         /// opt-out of the typed predicate API.
         conditions: Option<RawJson>,
@@ -602,12 +902,19 @@ pub enum AdvancementTrigger {
 ///
 /// Controls how many inventory slots must be occupied, full, or empty.
 /// This is a *count* predicate, not a slot-position selector.
+#[doc = "**API Contract:** Run `sand api show sand::component::InventorySlotsPredicate` for the canonical contract."]
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct InventorySlotsPredicate {
+    /// Limits how many inventory slots contain any item stack.
+    #[doc = "**API Contract:** Run `sand api show sand::component::InventorySlotsPredicate::occupied` for the canonical contract."]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub occupied: Option<IntRange>,
+    /// Limits how many inventory slots contain a full stack.
+    #[doc = "**API Contract:** Run `sand api show sand::component::InventorySlotsPredicate::full` for the canonical contract."]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub full: Option<IntRange>,
+    /// Limits how many inventory slots contain no items.
+    #[doc = "**API Contract:** Run `sand api show sand::component::InventorySlotsPredicate::empty` for the canonical contract."]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub empty: Option<IntRange>,
 }
@@ -626,21 +933,31 @@ impl InventorySlotsPredicate {
         Ok(())
     }
 
+    /// Creates a slot-count predicate with no occupied, full, or empty limit.
+    #[doc = "**API Contract:** Run `sand api show sand::component::InventorySlotsPredicate::new` for the canonical contract."]
     pub fn new() -> Self {
         Self::default()
     }
+    /// Requires at least `n` inventory slots to contain an item stack.
+    #[doc = "**API Contract:** Run `sand api show sand::component::InventorySlotsPredicate::occupied_min` for the canonical contract."]
     pub fn occupied_min(mut self, n: i64) -> Self {
         self.occupied = Some(IntRange::at_least(n));
         self
     }
+    /// Allows at most `n` inventory slots to contain an item stack.
+    #[doc = "**API Contract:** Run `sand api show sand::component::InventorySlotsPredicate::occupied_max` for the canonical contract."]
     pub fn occupied_max(mut self, n: i64) -> Self {
         self.occupied = Some(IntRange::at_most(n));
         self
     }
+    /// Requires at least `n` inventory slots to be empty.
+    #[doc = "**API Contract:** Run `sand api show sand::component::InventorySlotsPredicate::empty_min` for the canonical contract."]
     pub fn empty_min(mut self, n: i64) -> Self {
         self.empty = Some(IntRange::at_least(n));
         self
     }
+    /// Requires at least `n` inventory slots to contain a full stack.
+    #[doc = "**API Contract:** Run `sand api show sand::component::InventorySlotsPredicate::full_min` for the canonical contract."]
     pub fn full_min(mut self, n: i64) -> Self {
         self.full = Some(IntRange::at_least(n));
         self
@@ -2661,8 +2978,11 @@ fn render_location_condition_trigger(
 
 // ── Criterion ─────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::Criterion` for the canonical contract."]
 /// A single criterion for an advancement that must be met for progress.
 pub struct Criterion {
+    /// `trigger` provides the trigger when a single criterion for an advancement that must be met for progress.
+    #[doc = "**API Contract:** Run `sand api show sand::component::Criterion::trigger` for the canonical contract."]
     pub trigger: AdvancementTrigger,
 }
 
@@ -2682,6 +3002,7 @@ impl Serialize for Criterion {
 
 // ── AdvancementRewards ────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::AdvancementRewards` for the canonical contract."]
 /// Rewards granted to the player when an advancement is completed.
 pub struct AdvancementRewards {
     recipes: Vec<String>,
@@ -2810,6 +3131,7 @@ impl Serialize for AdvancementRewards {
 
 // ── Advancement ───────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::Advancement` for the canonical contract."]
 /// A complete advancement definition for a Minecraft datapack.
 pub struct Advancement {
     location: ResourceLocation,

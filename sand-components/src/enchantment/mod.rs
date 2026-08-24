@@ -66,11 +66,14 @@ use crate::validation;
 
 // ── EnchantmentCost ───────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentCost` for the canonical contract."]
 /// The level cost configuration for enchanting (min or max enchanting-table cost).
 #[derive(Clone)]
 pub struct EnchantmentCost {
+    #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentCost::base` for the canonical contract."]
     /// Base cost at enchantment level 1.
     pub base: u32,
+    #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentCost::per_level_above_first` for the canonical contract."]
     /// Additional cost added per enchantment level above 1.
     pub per_level_above_first: u32,
 }
@@ -95,6 +98,7 @@ impl EnchantmentCost {
 
 // ── ItemOrTag / EnchantmentOrTag ─────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::ItemOrTag` for the canonical contract."]
 /// A typed reference to a single item or an item tag, used by
 /// [`Enchantment::supported_items`] and [`Enchantment::primary_items`].
 ///
@@ -130,6 +134,7 @@ impl ItemOrTag {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentOrTag` for the canonical contract."]
 /// A typed reference to a single enchantment or an enchantment tag, used by
 /// [`Enchantment::exclusive_set`].
 ///
@@ -200,6 +205,7 @@ impl EnchantmentDescription {
 
 // ── EnchantmentValueOperation / LevelBasedValue ──────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentValueOperation` for the canonical contract."]
 /// How a typed value effect combines with any existing value for the same
 /// effect component (Minecraft's `ValueEffect` operation kinds).
 ///
@@ -207,8 +213,10 @@ impl EnchantmentDescription {
 /// are not modelled yet; use [`Enchantment::raw_effect_component`] for those.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EnchantmentValueOperation {
+    #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentValueOperation::Add` for the canonical contract."]
     /// `minecraft:add` — adds the level-based value to the existing value.
     Add,
+    #[doc = "**API Contract:** Run `sand api show sand::component::EnchantmentValueOperation::Set` for the canonical contract."]
     /// `minecraft:set` — overwrites the existing value.
     Set,
 }
@@ -222,16 +230,27 @@ impl EnchantmentValueOperation {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::LevelBasedValue` for the canonical contract."]
 /// A level-scaled numeric value used by typed enchantment value effects
 /// (Minecraft's `LevelBasedValue`).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum LevelBasedValue {
+    #[doc = "**API Contract:** Run `sand api show sand::component::LevelBasedValue::Constant` for the canonical contract."]
     /// A value that does not depend on enchantment level. Serializes as a
     /// bare JSON number (Minecraft's documented shorthand).
-    Constant(f64),
+    Constant(
+        #[doc = "The `Constant` variant carries the value described by its variant semantics: A value that does not depend on enchantment level. Serializes as a bare JSON number (Minecraft's documented shorthand)."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::LevelBasedValue::Constant::0` for the canonical contract."]
+        f64,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::component::LevelBasedValue::Linear` for the canonical contract."]
     /// `minecraft:linear` — `base + per_level_above_first * (level - 1)`.
     Linear {
+        /// `base` provides the base when `minecraft:linear` — `base + per_level_above_first * (level - 1)`.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LevelBasedValue::Linear::base` for the canonical contract."]
         base: f64,
+        /// `per_level_above_first` provides the per level above first when `minecraft:linear` — `base + per_level_above_first * (level - 1)`.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LevelBasedValue::Linear::per_level_above_first` for the canonical contract."]
         per_level_above_first: f64,
     },
 }
@@ -360,6 +379,7 @@ impl SlotEntry {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::Enchantment` for the canonical contract."]
 /// An enchantment definition (`data/<namespace>/enchantment/<id>.json`).
 pub struct Enchantment {
     location: ResourceLocation,

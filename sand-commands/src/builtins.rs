@@ -770,6 +770,7 @@ pub fn try_damage(
     Ok(format!("damage {target} {amount} {damage_type}"))
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::command::DamageAmount` for the canonical contract."]
 /// A damage amount that Sand can lower to Minecraft commands.
 ///
 /// All safe constructors produce [`Fixed`](DamageAmount::Fixed) — a concrete
@@ -786,8 +787,13 @@ pub fn try_damage(
 #[non_exhaustive]
 #[derive(Debug, Clone)]
 pub enum DamageAmount {
+    #[doc = "**API Contract:** Run `sand api show sand::command::DamageAmount::Fixed` for the canonical contract."]
     /// A fixed number of hit points.
-    Fixed(f64),
+    Fixed(
+        #[doc = "The `Fixed` variant carries the value described by its variant semantics: A fixed number of hit points."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::DamageAmount::Fixed::0` for the canonical contract."]
+        f64,
+    ),
 }
 
 impl DamageAmount {
@@ -846,17 +852,23 @@ impl From<f32> for DamageAmount {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::command::DamageKind` for the canonical contract."]
 /// Built-in vanilla damage type IDs for command damage.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DamageKind {
+    #[doc = "**API Contract:** Run `sand api show sand::command::DamageKind::Generic` for the canonical contract."]
     /// `minecraft:generic`
     Generic,
+    #[doc = "**API Contract:** Run `sand api show sand::command::DamageKind::Magic` for the canonical contract."]
     /// `minecraft:magic`
     Magic,
+    #[doc = "**API Contract:** Run `sand api show sand::command::DamageKind::Thorns` for the canonical contract."]
     /// `minecraft:thorns`
     Thorns,
+    #[doc = "**API Contract:** Run `sand api show sand::command::DamageKind::Freeze` for the canonical contract."]
     /// `minecraft:freeze`
     Freeze,
+    #[doc = "**API Contract:** Run `sand api show sand::command::DamageKind::LightningBolt` for the canonical contract."]
     /// `minecraft:lightning_bolt`
     LightningBolt,
 }
@@ -887,6 +899,7 @@ impl From<DamageKind> for String {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::command::DamageBuilder` for the canonical contract."]
 /// High-level damage builder that knows how to lower multi-target damage safely.
 #[derive(Debug, Clone)]
 pub struct Damage {
@@ -1038,7 +1051,11 @@ impl Default for Damage {
 }
 
 /// Converts typed target wrappers into the damage builder's target model.
+#[doc = "**API Contract:** Run `sand api show sand::command::IntoDamageTargets` for the canonical contract."]
 pub trait IntoDamageTargets {
+    /// Converts the receiver into either one entity or a selector-backed set
+    /// of entities accepted by [`Damage::to`].
+    #[doc = "**API Contract:** Run `sand api show sand::command::IntoDamageTargets::into_damage_targets` for the canonical contract."]
     fn into_damage_targets(self) -> DamageTargets;
 }
 

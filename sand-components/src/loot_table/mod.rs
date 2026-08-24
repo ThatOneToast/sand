@@ -15,45 +15,67 @@ mod validation;
 
 // ── LootTableType ────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::LootTableType` for the canonical contract."]
 /// Represents the type of a Minecraft loot table (block, entity, chest, etc.).
 ///
 /// Each variant corresponds to a specific loot table type defined in the Minecraft datapack spec,
 /// with a `Custom` variant for extensibility.
 pub enum LootTableType {
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootTableType::Empty` for the canonical contract."]
     /// Empty loot table (returns nothing).
     Empty,
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootTableType::Entity` for the canonical contract."]
     /// Entity drops (e.g. from `minecraft:bat`).
     Entity,
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootTableType::Block` for the canonical contract."]
     /// Block drops (e.g. from `minecraft:stone`).
     Block,
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootTableType::Chest` for the canonical contract."]
     /// Chest loot.
     Chest,
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootTableType::Equipment` for the canonical contract."]
     /// Equipment drops.
     Equipment,
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootTableType::Fishing` for the canonical contract."]
     /// Fishing rewards.
     Fishing,
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootTableType::Gift` for the canonical contract."]
     /// Gift drops.
     Gift,
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootTableType::VaultReward` for the canonical contract."]
     /// Vault rewards (1.21+).
     VaultReward,
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootTableType::Shearing` for the canonical contract."]
     /// Shearing rewards (e.g. wool from sheep).
     Shearing,
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootTableType::Archaeology` for the canonical contract."]
     /// Archaeology loot.
     Archaeology,
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootTableType::Generic` for the canonical contract."]
     /// Generic/untyped loot.
     Generic,
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootTableType::Barter` for the canonical contract."]
     /// Bartering with piglins.
     Barter,
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootTableType::Command` for the canonical contract."]
     /// Command rewards.
     Command,
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootTableType::Selector` for the canonical contract."]
     /// Selector-based loot.
     Selector,
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootTableType::AdvancementReward` for the canonical contract."]
     /// Advancement reward loot.
     AdvancementReward,
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootTableType::AdvancementEntity` for the canonical contract."]
     /// Advancement entity rewards.
     AdvancementEntity,
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootTableType::Custom` for the canonical contract."]
     /// Custom or user-defined loot table type.
-    Custom(String),
+    Custom(
+        #[doc = "The `Custom` variant carries the value described by its variant semantics: Custom or user-defined loot table type."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootTableType::Custom::0` for the canonical contract."]
+        String,
+    ),
 }
 
 impl LootTableType {
@@ -84,33 +106,49 @@ impl LootTableType {
 
 // ── NumberProvider ────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::NumberProvider` for the canonical contract."]
 /// Provides numeric values for loot table operations, supporting constants and dynamic calculations.
 ///
 /// Variants include constant values, uniform random ranges, binomial distributions, and score-based values.
 #[derive(Debug, Clone, PartialEq)]
 pub enum NumberProvider {
+    #[doc = "**API Contract:** Run `sand api show sand::component::NumberProvider::Constant` for the canonical contract."]
     /// A constant numeric value.
-    Constant(f64),
+    Constant(
+        #[doc = "The `Constant` variant carries the value described by its variant semantics: A constant numeric value."]
+        #[doc = "**API Contract:** Run `sand api show sand::component::NumberProvider::Constant::0` for the canonical contract."]
+        f64,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::component::NumberProvider::Uniform` for the canonical contract."]
     /// Uniform random distribution between `min` and `max`.
     Uniform {
+        #[doc = "**API Contract:** Run `sand api show sand::component::NumberProvider::Uniform::min` for the canonical contract."]
         /// Minimum value (inclusive).
         min: f64,
+        #[doc = "**API Contract:** Run `sand api show sand::component::NumberProvider::Uniform::max` for the canonical contract."]
         /// Maximum value (inclusive).
         max: f64,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::NumberProvider::Binomial` for the canonical contract."]
     /// Binomial distribution with `n` trials and probability `p`.
     Binomial {
+        #[doc = "**API Contract:** Run `sand api show sand::component::NumberProvider::Binomial::n` for the canonical contract."]
         /// Number of trials.
         n: i32,
+        #[doc = "**API Contract:** Run `sand api show sand::component::NumberProvider::Binomial::p` for the canonical contract."]
         /// Probability of success per trial.
         p: f64,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::NumberProvider::Score` for the canonical contract."]
     /// Dynamic value from a scoreboard score.
     Score {
+        #[doc = "**API Contract:** Run `sand api show sand::component::NumberProvider::Score::target` for the canonical contract."]
         /// The target selector or name.
         target: Value,
+        #[doc = "**API Contract:** Run `sand api show sand::component::NumberProvider::Score::score` for the canonical contract."]
         /// The objective name.
         score: String,
+        #[doc = "**API Contract:** Run `sand api show sand::component::NumberProvider::Score::scale` for the canonical contract."]
         /// Optional scale factor to apply to the score.
         scale: Option<f64>,
     },
@@ -167,94 +205,130 @@ impl Serialize for NumberProvider {
 
 // ── LootCondition ────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::LootCondition` for the canonical contract."]
 /// Conditional logic that determines whether loot entries or functions should execute.
 ///
 /// Includes boolean composition (AllOf, AnyOf, Inverted), entity/block checks, probability,
 /// and custom conditions for fine-grained control over loot generation.
 pub enum LootCondition {
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::AllOf` for the canonical contract."]
     /// All conditions must be true (AND).
     AllOf {
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::AllOf::terms` for the canonical contract."]
         /// List of conditions that must all be true.
         terms: Vec<LootCondition>,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::AnyOf` for the canonical contract."]
     /// At least one condition must be true (OR).
     AnyOf {
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::AnyOf::terms` for the canonical contract."]
         /// List of conditions, at least one must be true.
         terms: Vec<LootCondition>,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::Inverted` for the canonical contract."]
     /// Inverted logic (NOT).
     Inverted {
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::Inverted::term` for the canonical contract."]
         /// The condition to invert.
         term: Box<LootCondition>,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::RandomChance` for the canonical contract."]
     /// Random probability check (0.0 to 1.0).
     RandomChance {
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::RandomChance::chance` for the canonical contract."]
         /// Probability of success.
         chance: f64,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::KilledByPlayer` for the canonical contract."]
     /// True if the entity was killed by a player.
     KilledByPlayer,
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::EntityProperties` for the canonical contract."]
     /// Check entity properties/predicates.
     EntityProperties {
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::EntityProperties::entity` for the canonical contract."]
         /// The entity selector.
         entity: String,
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::EntityProperties::predicate` for the canonical contract."]
         /// The predicate to check.
         predicate: Value,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::EntityScores` for the canonical contract."]
     /// Check entity scoreboard scores.
     EntityScores {
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::EntityScores::entity` for the canonical contract."]
         /// The entity selector.
         entity: String,
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::EntityScores::scores` for the canonical contract."]
         /// Score names and their required values.
         scores: HashMap<String, Value>,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::MatchTool` for the canonical contract."]
     /// Match the tool used to mine/break the block.
     MatchTool {
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::MatchTool::predicate` for the canonical contract."]
         /// Item predicate for the tool.
         predicate: Value,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::SurvivesExplosion` for the canonical contract."]
     /// Block survives explosion (doesn't drop).
     SurvivesExplosion,
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::TableBonus` for the canonical contract."]
     /// Enchantment bonus table (e.g. for fortune).
     TableBonus {
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::TableBonus::enchantment` for the canonical contract."]
         /// Enchantment ID to check.
         enchantment: String,
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::TableBonus::chances` for the canonical contract."]
         /// Chances per enchantment level.
         chances: Vec<f64>,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::TimeCheck` for the canonical contract."]
     /// Check the current game time.
     TimeCheck {
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::TimeCheck::value` for the canonical contract."]
         /// The time value or range to check.
         value: Value,
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::TimeCheck::period` for the canonical contract."]
         /// Optional period for periodic checking.
         period: Option<i64>,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::WeatherCheck` for the canonical contract."]
     /// Check weather conditions.
     WeatherCheck {
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::WeatherCheck::raining` for the canonical contract."]
         /// Is it raining?
         raining: Option<bool>,
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::WeatherCheck::thundering` for the canonical contract."]
         /// Is it thundering?
         thundering: Option<bool>,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::BlockStateProperty` for the canonical contract."]
     /// Check block state properties.
     BlockStateProperty {
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::BlockStateProperty::block` for the canonical contract."]
         /// Block ID.
         block: String,
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::BlockStateProperty::properties` for the canonical contract."]
         /// Properties to match.
         properties: HashMap<String, String>,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::Reference` for the canonical contract."]
     /// Reference to a named predicate file.
     Reference {
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::Reference::name` for the canonical contract."]
         /// Predicate file name/ID.
         name: String,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::Custom` for the canonical contract."]
     /// Custom condition type — explicit raw escape hatch for modded conditions.
     ///
     /// Use [`RawJson`] for `data`.  The named type signals
     /// intentional opt-out of the typed condition API.
     Custom {
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::Custom::condition` for the canonical contract."]
         /// Condition type identifier (e.g. `"mymod:custom_condition"`).
         condition: String,
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootCondition::Custom::data` for the canonical contract."]
         /// Additional condition data as raw JSON.
         data: RawJson,
     },
@@ -429,11 +503,22 @@ impl Serialize for EnchantmentSelector {
 /// Prefer [`LootText::Typed`] (via `From<TextComponent>`/`.into()`) so text is
 /// validated the same way command text is. [`LootText::Raw`] is an explicit
 /// escape hatch for JSON text shapes [`TextComponent`] cannot express.
+#[doc = "**API Contract:** Run `sand api show sand::component::LootText` for the canonical contract."]
 pub enum LootText {
     /// A typed, validated Minecraft text component.
-    Typed(Box<TextComponent>),
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootText::Typed` for the canonical contract."]
+    Typed(
+        /// The text component that Sand validates before serializing the loot function.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootText::Typed::0` for the canonical contract."]
+        Box<TextComponent>,
+    ),
     /// Explicit raw JSON text escape hatch.
-    Raw(RawJson),
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootText::Raw` for the canonical contract."]
+    Raw(
+        /// The explicit raw JSON text payload serialized without typed text validation.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootText::Raw::0` for the canonical contract."]
+        RawJson,
+    ),
 }
 
 impl From<TextComponent> for LootText {
@@ -464,57 +549,123 @@ impl Serialize for LootText {
 
 // ── LootFunction ─────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::LootFunction` for the canonical contract."]
 /// Modifies loot entries after they are selected (enchanting, naming, damage, etc.).
 ///
 /// Functions transform items with effects like SetCount, SetName, EnchantWithLevels, or custom operations.
 pub enum LootFunction {
+    #[doc = "Selects the set count form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::SetCount` for the canonical contract."]
     SetCount {
+        /// `count` provides the count identifier when the variant selects the set count form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::SetCount::count` for the canonical contract."]
         count: NumberProvider,
+        /// `add` provides the add when the variant selects the set count form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::SetCount::add` for the canonical contract."]
         add: bool,
     },
+    #[doc = "Selects the set damage form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::SetDamage` for the canonical contract."]
     SetDamage {
+        /// `damage` provides the damage identifier when the variant selects the set damage form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::SetDamage::damage` for the canonical contract."]
         damage: NumberProvider,
+        /// `add` provides the add when the variant selects the set damage form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::SetDamage::add` for the canonical contract."]
         add: bool,
     },
+    #[doc = "Selects the enchant with levels form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::EnchantWithLevels` for the canonical contract."]
     EnchantWithLevels {
+        /// `levels` provides the level range identifier when the variant selects the enchant with levels form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::EnchantWithLevels::levels` for the canonical contract."]
         levels: NumberProvider,
+        /// `options` optionally provides the options when the variant selects the enchant with levels form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::EnchantWithLevels::options` for the canonical contract."]
         options: Option<EnchantmentSelector>,
     },
+    #[doc = "Selects the enchant randomly form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::EnchantRandomly` for the canonical contract."]
     EnchantRandomly {
+        /// `options` optionally provides the options when the variant selects the enchant randomly form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::EnchantRandomly::options` for the canonical contract."]
         options: Option<Vec<EnchantmentSelector>>,
+        /// `only_compatible` provides the only compatible when the variant selects the enchant randomly form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::EnchantRandomly::only_compatible` for the canonical contract."]
         only_compatible: bool,
     },
+    #[doc = "Selects the set name form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::SetName` for the canonical contract."]
     SetName {
+        /// `name` provides the name when the variant selects the set name form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::SetName::name` for the canonical contract."]
         name: LootText,
+        /// `entity` optionally narrows the entity matched when the variant selects the set name form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::SetName::entity` for the canonical contract."]
         entity: Option<String>,
     },
+    #[doc = "Selects the set lore form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::SetLore` for the canonical contract."]
     SetLore {
+        /// `lore` provides the lore when the variant selects the set lore form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::SetLore::lore` for the canonical contract."]
         lore: Vec<LootText>,
+        /// `entity` optionally narrows the entity matched when the variant selects the set lore form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::SetLore::entity` for the canonical contract."]
         entity: Option<String>,
     },
+    #[doc = "Selects the looting enchant form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::LootingEnchant` for the canonical contract."]
     LootingEnchant {
+        /// `count` provides the count identifier when the variant selects the looting enchant form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::LootingEnchant::count` for the canonical contract."]
         count: NumberProvider,
+        /// `limit` optionally provides the limit when the variant selects the looting enchant form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::LootingEnchant::limit` for the canonical contract."]
         limit: Option<i32>,
     },
+    #[doc = "Selects the explosion decay form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::ExplosionDecay` for the canonical contract."]
     ExplosionDecay,
+    #[doc = "Selects the furnace smelt form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::FurnaceSmelt` for the canonical contract."]
     FurnaceSmelt,
+    #[doc = "Selects the fill player head form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::FillPlayerHead` for the canonical contract."]
     FillPlayerHead {
+        /// `entity` provides the entity when the variant selects the fill player head form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::FillPlayerHead::entity` for the canonical contract."]
         entity: String,
     },
+    #[doc = "Selects the copy components form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::CopyComponents` for the canonical contract."]
     CopyComponents {
+        /// `source` provides the source when the variant selects the copy components form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::CopyComponents::source` for the canonical contract."]
         source: String,
+        /// `include` provides the include when the variant selects the copy components form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::CopyComponents::include` for the canonical contract."]
         include: Vec<String>,
+        /// `exclude` provides the exclude when the variant selects the copy components form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::CopyComponents::exclude` for the canonical contract."]
         exclude: Vec<String>,
     },
+    #[doc = "Selects the reference form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::Reference` for the canonical contract."]
     Reference {
+        /// `name` provides the name when the variant selects the reference form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::Reference::name` for the canonical contract."]
         name: String,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::Custom` for the canonical contract."]
     /// Custom function — explicit raw escape hatch for modded loot functions.
     ///
     /// Use [`RawJson`] for `data`.
     Custom {
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::Custom::function` for the canonical contract."]
         /// Function type identifier (e.g. `"mymod:custom_function"`).
         function: String,
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootFunction::Custom::data` for the canonical contract."]
         /// Additional function data as raw JSON.
         data: RawJson,
     },
@@ -668,50 +819,117 @@ impl Serialize for LootFunction {
 
 // ── LootEntry ────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::LootEntry` for the canonical contract."]
 /// A single entry in a loot pool, representing items, tags, nested tables, or structural groups.
 ///
 /// Variants include direct item drops, item tag selections, nested loot table references,
 /// and composition types (Group, Alternatives, Sequence) for organizing multiple entries.
 pub enum LootEntry {
+    #[doc = "Selects the item form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Item` for the canonical contract."]
     Item {
+        /// `name` provides the name when the variant selects the item form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Item::name` for the canonical contract."]
         name: String,
+        /// `weight` optionally provides the weight when the variant selects the item form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Item::weight` for the canonical contract."]
         weight: Option<i32>,
+        /// `quality` optionally provides the quality when the variant selects the item form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Item::quality` for the canonical contract."]
         quality: Option<i32>,
+        /// `functions` provides the functions when the variant selects the item form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Item::functions` for the canonical contract."]
         functions: Vec<LootFunction>,
+        /// `conditions` provides the conditions when the variant selects the item form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Item::conditions` for the canonical contract."]
         conditions: Vec<LootCondition>,
     },
+    #[doc = "Selects the tag form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Tag` for the canonical contract."]
     Tag {
+        /// `name` provides the name when the variant selects the tag form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Tag::name` for the canonical contract."]
         name: String,
+        /// `expand` optionally provides the expand when the variant selects the tag form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Tag::expand` for the canonical contract."]
         expand: Option<bool>,
+        /// `weight` optionally provides the weight when the variant selects the tag form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Tag::weight` for the canonical contract."]
         weight: Option<i32>,
+        /// `quality` optionally provides the quality when the variant selects the tag form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Tag::quality` for the canonical contract."]
         quality: Option<i32>,
+        /// `conditions` provides the conditions when the variant selects the tag form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Tag::conditions` for the canonical contract."]
         conditions: Vec<LootCondition>,
     },
+    #[doc = "Selects the loot table form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::LootTable` for the canonical contract."]
     LootTable {
+        /// `value` provides the value when the variant selects the loot table form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::LootTable::value` for the canonical contract."]
         value: String,
+        /// `weight` optionally provides the weight when the variant selects the loot table form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::LootTable::weight` for the canonical contract."]
         weight: Option<i32>,
+        /// `quality` optionally provides the quality when the variant selects the loot table form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::LootTable::quality` for the canonical contract."]
         quality: Option<i32>,
+        /// `conditions` provides the conditions when the variant selects the loot table form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::LootTable::conditions` for the canonical contract."]
         conditions: Vec<LootCondition>,
     },
+    #[doc = "Selects the group form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Group` for the canonical contract."]
     Group {
+        /// `children` provides the children when the variant selects the group form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Group::children` for the canonical contract."]
         children: Vec<LootEntry>,
+        /// `conditions` provides the conditions when the variant selects the group form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Group::conditions` for the canonical contract."]
         conditions: Vec<LootCondition>,
     },
+    #[doc = "Selects the alternatives form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Alternatives` for the canonical contract."]
     Alternatives {
+        /// `children` provides the children when the variant selects the alternatives form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Alternatives::children` for the canonical contract."]
         children: Vec<LootEntry>,
+        /// `conditions` provides the conditions when the variant selects the alternatives form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Alternatives::conditions` for the canonical contract."]
         conditions: Vec<LootCondition>,
     },
+    #[doc = "Selects the sequence form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Sequence` for the canonical contract."]
     Sequence {
+        /// `children` provides the children when the variant selects the sequence form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Sequence::children` for the canonical contract."]
         children: Vec<LootEntry>,
+        /// `conditions` provides the conditions when the variant selects the sequence form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Sequence::conditions` for the canonical contract."]
         conditions: Vec<LootCondition>,
     },
+    #[doc = "Selects the dynamic form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Dynamic` for the canonical contract."]
     Dynamic {
+        /// `name` provides the name when the variant selects the dynamic form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Dynamic::name` for the canonical contract."]
         name: String,
+        /// `conditions` provides the conditions when the variant selects the dynamic form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Dynamic::conditions` for the canonical contract."]
         conditions: Vec<LootCondition>,
     },
+    #[doc = "Selects the empty form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Empty` for the canonical contract."]
     Empty {
+        /// `weight` optionally provides the weight when the variant selects the empty form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Empty::weight` for the canonical contract."]
         weight: Option<i32>,
+        /// `quality` optionally provides the quality when the variant selects the empty form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Empty::quality` for the canonical contract."]
         quality: Option<i32>,
+        /// `conditions` provides the conditions when the variant selects the empty form in this typed Minecraft component schema.
+        #[doc = "**API Contract:** Run `sand api show sand::component::LootEntry::Empty::conditions` for the canonical contract."]
         conditions: Vec<LootCondition>,
     },
 }
@@ -754,6 +972,13 @@ impl LootEntry {
     ///
     /// The `TagId` is scoped to `ItemId`, so a block tag cannot be used by
     /// mistake:
+    ///
+    /// ```rust
+    /// use sand_components::{ItemId, LootEntry, TagId};
+    ///
+    /// let item_tag: TagId<ItemId> = TagId::minecraft("logs").unwrap();
+    /// let _entry = LootEntry::tag(item_tag);
+    /// ```
     ///
     /// ```compile_fail
     /// use sand_components::{BlockId, LootEntry, TagId};
@@ -995,6 +1220,7 @@ impl Serialize for LootEntry {
 
 // ── LootPool ─────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::LootPool` for the canonical contract."]
 /// A pool of loot entries that are randomly selected based on roll counts.
 ///
 /// Pools define the number of rolls, entries to choose from, conditions to apply, and functions
@@ -1002,8 +1228,14 @@ impl Serialize for LootEntry {
 pub struct LootPool {
     rolls: NumberProvider,
     bonus_rolls: Option<NumberProvider>,
+    /// `entries` provides the entries when a pool of loot entries that are randomly selected based on roll counts.
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootPool::entries` for the canonical contract."]
     pub entries: Vec<LootEntry>,
+    /// `conditions` provides the conditions when a pool of loot entries that are randomly selected based on roll counts.
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootPool::conditions` for the canonical contract."]
     pub conditions: Vec<LootCondition>,
+    /// `functions` provides the functions when a pool of loot entries that are randomly selected based on roll counts.
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootPool::functions` for the canonical contract."]
     pub functions: Vec<LootFunction>,
 }
 
@@ -1082,16 +1314,25 @@ impl Serialize for LootPool {
 
 // ── LootTable ────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::LootTable` for the canonical contract."]
 /// Represents a complete Minecraft loot table with pools, functions, and conditions.
 ///
 /// A loot table is a datapack component that defines what items are dropped in specific contexts
 /// (blocks, entities, chests, etc.). It consists of pools, global functions, and global conditions.
 pub struct LootTable {
+    /// `location` provides the location identifier when the variant represents a complete Minecraft loot table with pools, functions, and conditions.
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootTable::location` for the canonical contract."]
     pub location: ResourceLocation,
     loot_type: Option<LootTableType>,
     random_sequence: Option<String>,
+    /// `pools` provides the pools when the variant represents a complete Minecraft loot table with pools, functions, and conditions.
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootTable::pools` for the canonical contract."]
     pub pools: Vec<LootPool>,
+    /// `functions` provides the functions when the variant represents a complete Minecraft loot table with pools, functions, and conditions.
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootTable::functions` for the canonical contract."]
     pub functions: Vec<LootFunction>,
+    /// `conditions` provides the conditions when the variant represents a complete Minecraft loot table with pools, functions, and conditions.
+    #[doc = "**API Contract:** Run `sand api show sand::component::LootTable::conditions` for the canonical contract."]
     pub conditions: Vec<LootCondition>,
 }
 

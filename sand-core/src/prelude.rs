@@ -101,7 +101,7 @@ pub use crate::event::trigger::{
     UsingItemTrigger,
 };
 pub use crate::event::{
-    AdvancementEvent, DamageAdvancementEvent, DamageEvent, Event, EventId, EventReset,
+    AdvancementEvent, DamageAdvancementEvent, DamageEvent, Event, EventId, EventPlayer, EventReset,
     EventVisibility,
 };
 
@@ -231,7 +231,7 @@ mod tests {
         let dimension = Dimension::new(
             location,
             DimensionTypeId::minecraft("overworld").unwrap(),
-            serde_json::json!({"type": "minecraft:flat", "settings": {}}),
+            RawJson::new(serde_json::json!({"type": "minecraft:flat", "settings": {}})),
         );
         assert_eq!(dimension.to_json()["type"], "minecraft:overworld");
     }

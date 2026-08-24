@@ -14,7 +14,9 @@ fn ashen_shrub_placement() -> PlacedFeature {
         ResourceLocation::new("configured_feature_export", "ashen_shrub").unwrap(),
         ashen_shrub().id(),
     )
-    .placement_modifier(serde_json::json!({"type": "minecraft:count", "count": 3}))
+    .placement_modifier(RawJson::new(
+        serde_json::json!({"type": "minecraft:count", "count": 3}),
+    ))
 }
 
 inventory::submit! {

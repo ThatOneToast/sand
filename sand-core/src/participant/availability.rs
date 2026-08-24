@@ -8,33 +8,43 @@
 //! optionality (e.g. "no offhand item this occurrence"), but the outer
 //! unsupported/unavailable states are never collapsed into it.
 
+#[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantUnavailableReason` for the canonical contract."]
 /// A small, stable, public vocabulary of reasons a participant could not be
 /// supplied. Exporter-internal errors are not exposed through this type —
 /// see the module doc.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ParticipantUnavailableReason {
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantUnavailableReason::NotSuppliedByTrigger` for the canonical contract."]
     /// The triggering mechanism (advancement criterion, tick condition)
     /// never supplies this participant at all.
     NotSuppliedByTrigger,
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantUnavailableReason::UnsupportedVersion` for the canonical contract."]
     /// The active `VersionProfile`/target version does not support the
     /// mechanism this participant would come from.
     UnsupportedVersion,
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantUnavailableReason::UnsupportedBackend` for the canonical contract."]
     /// The event's dispatch backend (tick-polled vs. advancement-backed vs.
     /// graph-bridged) does not supply this participant.
     UnsupportedBackend,
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantUnavailableReason::AmbiguousCandidates` for the canonical contract."]
     /// More than one candidate matched and none could be chosen safely.
     AmbiguousCandidates,
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantUnavailableReason::CorrelationExpired` for the canonical contract."]
     /// A bounded correlation window closed before this participant could be
     /// associated.
     CorrelationExpired,
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantUnavailableReason::NoMatchingObservation` for the canonical contract."]
     /// A correlation/observation query ran and matched nothing.
     NoMatchingObservation,
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantUnavailableReason::NotApplicable` for the canonical contract."]
     /// This role does not apply to this event at all (e.g. "victim" on a
     /// non-combat event).
     NotApplicable,
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantUnavailableReason::ItemSourceAlreadyMutated` for the canonical contract."]
     /// The item source had already been mutated/consumed by vanilla before
     /// Sand could capture it.
     ItemSourceAlreadyMutated,
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantUnavailableReason::LifetimeExpired` for the canonical contract."]
     /// The participant reference was used outside the
     /// [`ParticipantLifetime`](super::lifetime::ParticipantLifetime) it was
     /// valid for.
@@ -62,6 +72,7 @@ impl ParticipantUnavailableReason {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantAvailability` for the canonical contract."]
 /// Whether a typed participant could be supplied for a specific event
 /// occurrence, and why not if not.
 ///
@@ -70,8 +81,20 @@ impl ParticipantUnavailableReason {
 /// `None`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ParticipantAvailability<T> {
-    Available(T),
-    Unavailable(ParticipantUnavailableReason),
+    #[doc = "Selects the available participant semantic."]
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantAvailability::Available` for the canonical contract."]
+    Available(
+        #[doc = "The `Available` variant carries the value described by its variant semantics: Selects the available participant semantic."]
+        #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantAvailability::Available::0` for the canonical contract."]
+        T,
+    ),
+    #[doc = "Selects the unavailable participant semantic."]
+    #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantAvailability::Unavailable` for the canonical contract."]
+    Unavailable(
+        #[doc = "The `Unavailable` variant carries the value described by its variant semantics: Selects the unavailable participant semantic."]
+        #[doc = "**API Contract:** Run `sand api show sand::participant::ParticipantAvailability::Unavailable::0` for the canonical contract."]
+        ParticipantUnavailableReason,
+    ),
 }
 
 impl<T> ParticipantAvailability<T> {

@@ -194,6 +194,7 @@ impl BoundedItemSchema {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::participant::BoundedItemSnapshot` for the canonical contract."]
 /// A read-only handle to a bounded, per-subject item snapshot — the
 /// item-side counterpart of [`ItemSnapshot`] for values that must survive
 /// across a `.within(...)` correlation window rather than just one

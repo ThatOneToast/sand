@@ -11,8 +11,11 @@ use crate::resource_location::ResourceLocation;
 use super::types::{Ingredient, RecipeResult};
 use sand_version::ComponentFeature;
 
+#[doc = "**API Contract:** Run `sand api show sand::component::ShapedRecipe` for the canonical contract."]
 /// Represents a shaped crafting recipe where items must be placed in specific grid positions.
 pub struct ShapedRecipe {
+    /// `location` provides the location identifier when the variant represents a shaped crafting recipe where items must be placed in specific grid positions.
+    #[doc = "**API Contract:** Run `sand api show sand::component::ShapedRecipe::location` for the canonical contract."]
     pub location: ResourceLocation,
     category: Option<String>,
     group: Option<String>,

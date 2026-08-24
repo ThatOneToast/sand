@@ -30,6 +30,7 @@ use crate::validation;
 
 const TYPED_FIELDS: &[&str] = &["asset_id", "spawn_conditions"];
 
+#[doc = "**API Contract:** Run `sand api show sand::component::CowVariant` for the canonical contract."]
 /// A cow variant definition (`data/<namespace>/cow_variant/<id>.json`).
 ///
 /// Cow variants select the texture used when a cow spawns, based on an

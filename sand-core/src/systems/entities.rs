@@ -28,10 +28,15 @@ use crate::function::IntoFunctionRef;
 use crate::{Advancement, AdvancementRewards, AdvancementTrigger, Criterion, ResourceLocation};
 use sand_components::{RawSnbt, predicates::EntityPredicate};
 
+#[doc = "**API Contract:** Run `sand api show sand::systems::entities::InteractSize` for the canonical contract."]
 /// Width and height of the interaction entity's hitbox in blocks.
 #[derive(Debug, Clone, Copy)]
 pub struct InteractSize {
+    #[doc = "Configures the width value used by this gameplay system."]
+    #[doc = "**API Contract:** Run `sand api show sand::systems::entities::InteractSize::width` for the canonical contract."]
     pub width: f32,
+    #[doc = "Configures the height value used by this gameplay system."]
+    #[doc = "**API Contract:** Run `sand api show sand::systems::entities::InteractSize::height` for the canonical contract."]
     pub height: f32,
 }
 
@@ -44,6 +49,7 @@ impl Default for InteractSize {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::systems::entities::Interactable` for the canonical contract."]
 /// Builder for an `interaction` entity with optional size and a typed reward function.
 ///
 /// Produces:

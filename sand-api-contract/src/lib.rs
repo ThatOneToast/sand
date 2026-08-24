@@ -664,24 +664,37 @@ fn validate_resolved_quality(entries: &[ApiEntry]) -> Result<(), CatalogError> {
                     .into(),
             });
         }
+        if entry.summary.trim().is_empty() {
+            return Err(CatalogError::InvalidEntry {
+                path: entry.canonical_path.clone(),
+                message: "installed contracts require an API-specific summary for every item"
+                    .into(),
+            });
+        }
         if entry.parameters.iter().any(|parameter| {
             parameter
                 .description
                 .starts_with("Rust parameter with type `")
+                || parameter.description.contains("apply this API's specific")
         }) {
             return Err(CatalogError::InvalidEntry {
                 path: entry.canonical_path.clone(),
                 message: "parameter documentation only repeats its Rust type".into(),
             });
         }
-        if entry
-            .returns
-            .as_deref()
-            .is_some_and(|returns| returns.starts_with("A value with Rust type `"))
-        {
+        if entry.returns.as_deref().is_some_and(|returns| {
+            returns.starts_with("A value with Rust type `")
+                || returns.contains("apply this API's specific")
+        }) {
             return Err(CatalogError::InvalidEntry {
                 path: entry.canonical_path.clone(),
                 message: "return documentation only repeats its Rust type".into(),
+            });
+        }
+        if entry.kind == ApiKind::Field && entry.example.trim().is_empty() {
+            return Err(CatalogError::InvalidEntry {
+                path: entry.canonical_path.clone(),
+                message: "public fields require a read or pattern-matching example".into(),
             });
         }
         if [
@@ -709,6 +722,52 @@ fn validate_resolved_quality(entries: &[ApiEntry]) -> Result<(), CatalogError> {
             entry.kind,
             ApiKind::Function | ApiKind::Method | ApiKind::TraitMethod
         ) {
+            if entry.context.trim().is_empty()
+                || entry.minecraft.trim().is_empty()
+                || entry.use_when.is_empty()
+                || entry.avoid_when.is_empty()
+            {
+                return Err(CatalogError::InvalidEntry {
+                    path: entry.canonical_path.clone(),
+                    message: "callables require context, Minecraft behavior, and explicit use/avoid guidance"
+                        .into(),
+                });
+            }
+            if entry
+                .parameters
+                .iter()
+                .any(|parameter| parameter.description.trim().is_empty())
+            {
+                return Err(CatalogError::InvalidEntry {
+                    path: entry.canonical_path.clone(),
+                    message: "every callable parameter requires semantic documentation".into(),
+                });
+            }
+            let non_unit_return = entry.return_type.as_deref().is_some_and(|return_type| {
+                !matches!(
+                    return_type.split_whitespace().collect::<String>().as_str(),
+                    "()" | "!"
+                )
+            });
+            if non_unit_return && entry.returns.as_deref().is_none_or(str::is_empty) {
+                return Err(CatalogError::InvalidEntry {
+                    path: entry.canonical_path.clone(),
+                    message: "a callable with a value return requires return semantics".into(),
+                });
+            }
+            if entry.example.trim().is_empty()
+                || entry.example.contains("todo!()")
+                || entry.example.contains("unimplemented!()")
+                || entry.example.lines().all(|line| {
+                    let line = line.trim();
+                    line.is_empty() || line.starts_with("use ") || line.starts_with("//")
+                })
+            {
+                return Err(CatalogError::InvalidEntry {
+                    path: entry.canonical_path.clone(),
+                    message: "callables require a behavioral example".into(),
+                });
+            }
             if entry.context == entry.summary
                 || entry.minecraft.starts_with(
                     "Minecraft and generated-output behavior follows the defining item's documented semantics:",

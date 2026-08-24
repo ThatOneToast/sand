@@ -26,12 +26,14 @@ use std::fmt;
 use sand_commands::selector::Selector;
 use sand_commands::{Execute, ItemSlot};
 
+#[doc = "**API Contract:** Run `sand api show sand::systems::inventory::InventorySystem` for the canonical contract."]
 /// High-level builder for inventory operations on a single entity.
 #[derive(Debug, Clone)]
 pub struct InventorySystem {
     selector: Selector,
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::systems::inventory::HasItemCheck` for the canonical contract."]
 /// Intermediate builder — holds the item string before the slot is specified.
 #[derive(Debug, Clone)]
 pub struct HasItemCheck {
@@ -39,6 +41,7 @@ pub struct HasItemCheck {
     item: String,
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::systems::inventory::ClearBuilder` for the canonical contract."]
 /// Builder for `clear <selector> <item> [<count>]` commands.
 #[derive(Debug, Clone)]
 pub struct ClearBuilder {

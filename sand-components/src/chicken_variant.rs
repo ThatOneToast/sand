@@ -29,6 +29,7 @@ use crate::validation;
 
 const TYPED_FIELDS: &[&str] = &["asset_id", "spawn_conditions"];
 
+#[doc = "**API Contract:** Run `sand api show sand::component::ChickenVariant` for the canonical contract."]
 /// A chicken variant definition (`data/<namespace>/chicken_variant/<id>.json`).
 ///
 /// Chicken variants select the texture used when a chicken spawns, based on

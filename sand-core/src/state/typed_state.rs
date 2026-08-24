@@ -53,6 +53,7 @@ use super::score::objective_name;
 
 // ── TypedGameState ─────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::state::TypedGameState` for the canonical contract."]
 /// Implement this trait on an enum to use it as a typed gameplay state.
 ///
 /// # Example
@@ -81,6 +82,7 @@ pub trait TypedGameState: Copy + Eq + 'static {
 
 // ── GameState ─────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::state::GameState` for the canonical contract."]
 /// A scoreboard-backed typed gameplay state variable.
 ///
 /// Declare once as a `static` and use throughout your datapack:
@@ -174,6 +176,7 @@ impl<S: TypedGameState> GameState<S> {
 
 // ── GameStateRef ──────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::state::GameStateRef` for the canonical contract."]
 /// A [`GameState`] bound to a selector — provides typed get/set/check helpers.
 ///
 /// Produced by [`GameState::of`].

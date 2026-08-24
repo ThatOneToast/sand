@@ -25,6 +25,7 @@ use png::Encoder;
 
 // ── Color ─────────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::resourcepack::Color` for the canonical contract."]
 /// An RGBA color with 8-bit components, used as sprite fill parameters.
 ///
 /// Colors in the `create!()` and `gen!()` macros are specified as packed
@@ -47,12 +48,16 @@ use png::Encoder;
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Color {
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::Color::r` for the canonical contract."]
     /// Red channel (0–255).
     pub r: u8,
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::Color::g` for the canonical contract."]
     /// Green channel (0–255).
     pub g: u8,
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::Color::b` for the canonical contract."]
     /// Blue channel (0–255).
     pub b: u8,
+    #[doc = "**API Contract:** Run `sand api show sand::resourcepack::Color::a` for the canonical contract."]
     /// Alpha channel (0 = fully transparent, 255 = fully opaque).
     pub a: u8,
 }

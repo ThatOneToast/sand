@@ -29,24 +29,57 @@ use crate::selector::Selector;
 
 // ── ChatColor ─────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::text::ChatColor` for the canonical contract."]
 /// The 16 standard Minecraft text colors for chat, titles, and JSON text components.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ChatColor {
+    #[doc = "Selects the black Minecraft text behavior."]
+    #[doc = "**API Contract:** Run `sand api show sand::text::ChatColor::Black` for the canonical contract."]
     Black,
+    #[doc = "Selects the dark blue Minecraft text behavior."]
+    #[doc = "**API Contract:** Run `sand api show sand::text::ChatColor::DarkBlue` for the canonical contract."]
     DarkBlue,
+    #[doc = "Selects the dark green Minecraft text behavior."]
+    #[doc = "**API Contract:** Run `sand api show sand::text::ChatColor::DarkGreen` for the canonical contract."]
     DarkGreen,
+    #[doc = "Selects the dark aqua Minecraft text behavior."]
+    #[doc = "**API Contract:** Run `sand api show sand::text::ChatColor::DarkAqua` for the canonical contract."]
     DarkAqua,
+    #[doc = "Selects the dark red Minecraft text behavior."]
+    #[doc = "**API Contract:** Run `sand api show sand::text::ChatColor::DarkRed` for the canonical contract."]
     DarkRed,
+    #[doc = "Selects the dark purple Minecraft text behavior."]
+    #[doc = "**API Contract:** Run `sand api show sand::text::ChatColor::DarkPurple` for the canonical contract."]
     DarkPurple,
+    #[doc = "Selects the gold Minecraft text behavior."]
+    #[doc = "**API Contract:** Run `sand api show sand::text::ChatColor::Gold` for the canonical contract."]
     Gold,
+    #[doc = "Selects the gray Minecraft text behavior."]
+    #[doc = "**API Contract:** Run `sand api show sand::text::ChatColor::Gray` for the canonical contract."]
     Gray,
+    #[doc = "Selects the dark gray Minecraft text behavior."]
+    #[doc = "**API Contract:** Run `sand api show sand::text::ChatColor::DarkGray` for the canonical contract."]
     DarkGray,
+    #[doc = "Selects the blue Minecraft text behavior."]
+    #[doc = "**API Contract:** Run `sand api show sand::text::ChatColor::Blue` for the canonical contract."]
     Blue,
+    #[doc = "Selects the green Minecraft text behavior."]
+    #[doc = "**API Contract:** Run `sand api show sand::text::ChatColor::Green` for the canonical contract."]
     Green,
+    #[doc = "Selects the aqua Minecraft text behavior."]
+    #[doc = "**API Contract:** Run `sand api show sand::text::ChatColor::Aqua` for the canonical contract."]
     Aqua,
+    #[doc = "Selects the red Minecraft text behavior."]
+    #[doc = "**API Contract:** Run `sand api show sand::text::ChatColor::Red` for the canonical contract."]
     Red,
+    #[doc = "Selects the light purple Minecraft text behavior."]
+    #[doc = "**API Contract:** Run `sand api show sand::text::ChatColor::LightPurple` for the canonical contract."]
     LightPurple,
+    #[doc = "Selects the yellow Minecraft text behavior."]
+    #[doc = "**API Contract:** Run `sand api show sand::text::ChatColor::Yellow` for the canonical contract."]
     Yellow,
+    #[doc = "Selects the white Minecraft text behavior."]
+    #[doc = "**API Contract:** Run `sand api show sand::text::ChatColor::White` for the canonical contract."]
     White,
 }
 
@@ -76,51 +109,99 @@ impl fmt::Display for ChatColor {
 
 // ── Click / Hover events ──────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::text::ClickEvent` for the canonical contract."]
 /// A click event attached to a [`TextComponent`].
 #[derive(Debug, Clone)]
 pub enum ClickEvent {
+    #[doc = "**API Contract:** Run `sand api show sand::text::ClickEvent::RunCommand` for the canonical contract."]
     /// Execute a command when clicked.
-    RunCommand(String),
+    RunCommand(
+        #[doc = "The `RunCommand` variant carries the value described by its variant semantics: Execute a command when clicked."]
+        #[doc = "**API Contract:** Run `sand api show sand::text::ClickEvent::RunCommand::0` for the canonical contract."]
+        String,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::text::ClickEvent::SuggestCommand` for the canonical contract."]
     /// Fill the chat bar with a command suggestion.
-    SuggestCommand(String),
+    SuggestCommand(
+        #[doc = "The `SuggestCommand` variant carries the value described by its variant semantics: Fill the chat bar with a command suggestion."]
+        #[doc = "**API Contract:** Run `sand api show sand::text::ClickEvent::SuggestCommand::0` for the canonical contract."]
+        String,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::text::ClickEvent::OpenUrl` for the canonical contract."]
     /// Open a URL in the player's browser.
-    OpenUrl(String),
+    OpenUrl(
+        #[doc = "The `OpenUrl` variant carries the value described by its variant semantics: Open a URL in the player's browser."]
+        #[doc = "**API Contract:** Run `sand api show sand::text::ClickEvent::OpenUrl::0` for the canonical contract."]
+        String,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::text::ClickEvent::CopyToClipboard` for the canonical contract."]
     /// Copy text to the clipboard.
-    CopyToClipboard(String),
+    CopyToClipboard(
+        #[doc = "The `CopyToClipboard` variant carries the value described by its variant semantics: Copy text to the clipboard."]
+        #[doc = "**API Contract:** Run `sand api show sand::text::ClickEvent::CopyToClipboard::0` for the canonical contract."]
+        String,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::text::ClickEvent::ChangePage` for the canonical contract."]
     /// Emit `change_page` with a numeric page value (written books only).
     ///
     /// The value is serialized unchanged. Minecraft book pages are normally
     /// one-indexed, but Sand retains page `0` for backward compatibility.
-    ChangePage(u32),
+    ChangePage(
+        #[doc = "The `ChangePage` variant carries the value described by its variant semantics: Emit `change_page` with a numeric page value (written books only)."]
+        #[doc = "**API Contract:** Run `sand api show sand::text::ClickEvent::ChangePage::0` for the canonical contract."]
+        u32,
+    ),
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::text::HoverEvent` for the canonical contract."]
 /// A hover event attached to a [`TextComponent`].
 #[derive(Debug, Clone)]
 pub enum HoverEvent {
+    #[doc = "**API Contract:** Run `sand api show sand::text::HoverEvent::ShowText` for the canonical contract."]
     /// Show another text component as a tooltip.
-    ShowText(Box<TextComponent>),
+    ShowText(
+        #[doc = "The `ShowText` variant carries the value described by its variant semantics: Show another text component as a tooltip."]
+        #[doc = "**API Contract:** Run `sand api show sand::text::HoverEvent::ShowText::0` for the canonical contract."]
+        Box<TextComponent>,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::text::HoverEvent::ShowItem` for the canonical contract."]
     /// Show an item tooltip using a raw item registry string and optional count.
     ///
     /// This existing compatibility representation does not validate the item
     /// ID. The count is omitted from JSON when it is [`None`].
-    ShowItem { id: String, count: Option<u32> },
+    ShowItem {
+        #[doc = "`id` provides the identifier when show an item tooltip using a raw item registry string and optional count."]
+        #[doc = "**API Contract:** Run `sand api show sand::text::HoverEvent::ShowItem::id` for the canonical contract."]
+        id: String,
+        #[doc = "`count` optionally provides the count when show an item tooltip using a raw item registry string and optional count."]
+        #[doc = "**API Contract:** Run `sand api show sand::text::HoverEvent::ShowItem::count` for the canonical contract."]
+        count: Option<u32>,
+    },
+    #[doc = "**API Contract:** Run `sand api show sand::text::HoverEvent::ShowEntity` for the canonical contract."]
     /// Show a legacy entity tooltip using raw strings, including a plain name.
     ///
     /// New code should use [`TextComponent::hover_entity`] or
     /// [`TextComponent::hover_entity_with_id`] so the entity type is typed, the
     /// optional UUID is validated, and the name remains a styled component.
     ShowEntity {
+        /// `name` provides the name when show a legacy entity tooltip using raw strings, including a plain name.
+        #[doc = "**API Contract:** Run `sand api show sand::text::HoverEvent::ShowEntity::name` for the canonical contract."]
         name: String,
+        /// `entity_type` provides the entity type when show a legacy entity tooltip using raw strings, including a plain name.
+        #[doc = "**API Contract:** Run `sand api show sand::text::HoverEvent::ShowEntity::entity_type` for the canonical contract."]
         entity_type: String,
+        /// `id` optionally provides the identifier when show a legacy entity tooltip using raw strings, including a plain name.
+        #[doc = "**API Contract:** Run `sand api show sand::text::HoverEvent::ShowEntity::id` for the canonical contract."]
         id: Option<String>,
     },
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::text::IntoTextEntityType` for the canonical contract."]
 /// Conversion implemented by Sand's typed entity registry identifiers.
 ///
 /// [`TextComponent::hover_entity`] accepts this trait instead of an arbitrary
-/// string. `sand_components::EntityTypeId` validates manually constructed IDs,
-/// while `sand_core::generated::EntityType` supplies generated IDs. Use
+/// string. `EntityTypeId` validates manually constructed IDs, while Sand's
+/// profile-generated vanilla entity enum supplies built-in IDs when available. Use
 /// [`TextComponent::hover_entity_raw`] only when an untyped compatibility
 /// escape hatch is required.
 pub trait IntoTextEntityType {
@@ -129,6 +210,7 @@ pub trait IntoTextEntityType {
     fn into_text_entity_type(self) -> String;
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::text::EntityHoverId` for the canonical contract."]
 /// A validated UUID for a Minecraft `show_entity` hover tooltip.
 ///
 /// Parsing is fallible and accepts only canonical hyphenated UUID text. It
@@ -220,6 +302,7 @@ enum TextHoverEvent {
 
 // ── TextComponent ─────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::text::TextComponent` for the canonical contract."]
 /// A Minecraft JSON text component — the universal format for styled in-game text.
 ///
 /// Used by commands like `tellraw`, `title`, and `bossbar` to display richly
@@ -254,6 +337,7 @@ pub struct TextComponent {
 
 // ── Text (ergonomic alias) ────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::text::Text` for the canonical contract."]
 /// Ergonomic alias — `Text::new("hi")` creates a `TextComponent::literal("hi")`.
 ///
 /// ```
@@ -927,6 +1011,7 @@ impl Validate for TextComponent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::command::TextCommand` for the canonical contract."]
 /// Structured `tellraw` command retaining its selector and text component.
 #[derive(Debug, Clone)]
 pub struct TextCommand {

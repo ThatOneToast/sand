@@ -27,6 +27,7 @@ use sand_commands::{CommandResult, ScoreHolder};
 
 // ── Timer ─────────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::state::Timer` for the canonical contract."]
 /// A scoreboard-backed countdown timer.
 ///
 /// A `Timer` counts down from a starting value to zero. It does not generate

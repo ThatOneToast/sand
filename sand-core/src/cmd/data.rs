@@ -51,15 +51,18 @@ use sand_commands::{CommandResult, DataModify, DataTarget, NbtValue, Validate};
 
 // ── StorageKind ───────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::StorageKind` for the canonical contract."]
 /// Declares the intended scope of a [`Storage`] namespace.
 ///
 /// This is a semantic annotation — Minecraft does not enforce it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StorageKind {
+    #[doc = "**API Contract:** Run `sand api show sand::command::StorageKind::Global` for the canonical contract."]
     /// One namespace shared by all players and functions. Use for world state,
     /// boss phases, global flags, server-wide counters.
     Global,
 
+    #[doc = "**API Contract:** Run `sand api show sand::command::StorageKind::PerPlayer` for the canonical contract."]
     /// Conceptually per-player. Callers scope paths by player identity
     /// (e.g. `"players.<uuid>.kills"`).
     ///
@@ -70,6 +73,7 @@ pub enum StorageKind {
 
 // ── Storage ───────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::Storage` for the canonical contract."]
 /// A named Minecraft NBT storage namespace — used like a `HashMap<String, NbtValue>`.
 ///
 /// Keys are dot-separated NBT paths (e.g. `"boss_phase"`, `"players.health"`).

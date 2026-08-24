@@ -11,8 +11,11 @@ use sand_version::ComponentFeature;
 
 // ── SmithingTransformRecipe ───────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::SmithingTransformRecipe` for the canonical contract."]
 /// Represents a smithing table recipe that transforms items using a template, base, and addition.
 pub struct SmithingTransformRecipe {
+    /// `location` provides the location identifier when the variant represents a smithing table recipe that transforms items using a template, base, and addition.
+    #[doc = "**API Contract:** Run `sand api show sand::component::SmithingTransformRecipe::location` for the canonical contract."]
     pub location: ResourceLocation,
     group: Option<String>,
     template: Ingredient,
@@ -123,8 +126,11 @@ impl DatapackComponent for SmithingTransformRecipe {
 
 // ── SmithingTrimRecipe ────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::component::SmithingTrimRecipe` for the canonical contract."]
 /// Represents a smithing table recipe that applies decorative trim to armor.
 pub struct SmithingTrimRecipe {
+    /// `location` provides the location identifier when the variant represents a smithing table recipe that applies decorative trim to armor.
+    #[doc = "**API Contract:** Run `sand api show sand::component::SmithingTrimRecipe::location` for the canonical contract."]
     pub location: ResourceLocation,
     group: Option<String>,
     template: Ingredient,

@@ -7,12 +7,15 @@ use crate::error::{Result, SandError};
 use crate::registry::{BlockId, EntityTypeId, FunctionId, ItemId, TagId, VillagerTradeId};
 use crate::resource_location::ResourceLocation;
 
+#[doc = "**API Contract:** Run `sand api show sand::component::Tag` for the canonical contract."]
 /// A Minecraft tag file that groups entities, items, blocks, or other objects together.
 pub struct Tag {
+    #[doc = "**API Contract:** Run `sand api show sand::component::Tag::location` for the canonical contract."]
     /// The resource location for this tag.
     pub location: ResourceLocation,
     /// Whether this tag replaces existing tag definitions.
     replace: bool,
+    #[doc = "**API Contract:** Run `sand api show sand::component::Tag::values` for the canonical contract."]
     /// List of tag entries (item/block/entity IDs or tag references).
     pub values: Vec<String>,
 }
@@ -71,14 +74,17 @@ mod sealed {
     pub trait Sealed {}
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::TagRegistry` for the canonical contract."]
 /// Registry marker implemented by IDs that have a vanilla datapack tag directory.
 ///
 /// This sealed mapping mirrors `registry_coverage::TAG_COVERAGE`; it prevents an
 /// item tag from being exported under `tags/block`, or from accepting a block ID
 /// by accident.
 pub trait TagRegistry: sealed::Sealed + Sized + std::fmt::Display {
+    #[doc = "**API Contract:** Run `sand api show sand::component::TagRegistry::REGISTRY_KEY` for the canonical contract."]
     /// Registry whose values the tag contains.
     const REGISTRY_KEY: &'static str;
+    #[doc = "**API Contract:** Run `sand api show sand::component::TagRegistry::TAG_DIR` for the canonical contract."]
     /// Directory relative to `data/<namespace>/`.
     const TAG_DIR: &'static str;
 }
@@ -110,6 +116,7 @@ enum EntryKind<T> {
     Raw(String),
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::TagEntry` for the canonical contract."]
 /// One registry-checked entry in a [`TypedTag`].
 ///
 /// Required entries serialize as strings. Optional entries use vanilla's
@@ -210,6 +217,7 @@ impl<T: std::fmt::Display> TagEntry<T> {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::TypedTag` for the canonical contract."]
 /// A tag whose entries and output directory are tied to registry type `T`.
 ///
 /// Entries retain insertion order, including duplicates, matching the legacy

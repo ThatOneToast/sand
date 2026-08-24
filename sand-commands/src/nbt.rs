@@ -18,21 +18,87 @@ use crate::selector::Selector;
 
 // ── Values ───────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::data::NbtValue` for the canonical contract."]
 /// A typed SNBT value used by `data modify` and `data merge`.
 #[derive(Debug, Clone, PartialEq)]
 pub enum NbtValue {
-    Bool(bool),
-    Byte(i8),
-    Short(i16),
-    Int(i32),
-    Long(i64),
-    Float(f32),
-    Double(f64),
-    String(String),
-    List(Vec<NbtValue>),
-    Compound(NbtCompound),
+    #[doc = "Selects the bool NBT or data-command operation."]
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtValue::Bool` for the canonical contract."]
+    Bool(
+        #[doc = "The `Bool` variant carries the value described by its variant semantics: Selects the bool NBT or data-command operation."]
+        #[doc = "**API Contract:** Run `sand api show sand::data::NbtValue::Bool::0` for the canonical contract."]
+        bool,
+    ),
+    #[doc = "Selects the byte NBT or data-command operation."]
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtValue::Byte` for the canonical contract."]
+    Byte(
+        #[doc = "The `Byte` variant carries the value described by its variant semantics: Selects the byte NBT or data-command operation."]
+        #[doc = "**API Contract:** Run `sand api show sand::data::NbtValue::Byte::0` for the canonical contract."]
+        i8,
+    ),
+    #[doc = "Selects the short NBT or data-command operation."]
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtValue::Short` for the canonical contract."]
+    Short(
+        #[doc = "The `Short` variant carries the value described by its variant semantics: Selects the short NBT or data-command operation."]
+        #[doc = "**API Contract:** Run `sand api show sand::data::NbtValue::Short::0` for the canonical contract."]
+        i16,
+    ),
+    #[doc = "Selects the int NBT or data-command operation."]
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtValue::Int` for the canonical contract."]
+    Int(
+        #[doc = "The `Int` variant carries the value described by its variant semantics: Selects the int NBT or data-command operation."]
+        #[doc = "**API Contract:** Run `sand api show sand::data::NbtValue::Int::0` for the canonical contract."]
+        i32,
+    ),
+    #[doc = "Selects the long NBT or data-command operation."]
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtValue::Long` for the canonical contract."]
+    Long(
+        #[doc = "The `Long` variant carries the value described by its variant semantics: Selects the long NBT or data-command operation."]
+        #[doc = "**API Contract:** Run `sand api show sand::data::NbtValue::Long::0` for the canonical contract."]
+        i64,
+    ),
+    #[doc = "Selects the float NBT or data-command operation."]
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtValue::Float` for the canonical contract."]
+    Float(
+        #[doc = "The `Float` variant carries the value described by its variant semantics: Selects the float NBT or data-command operation."]
+        #[doc = "**API Contract:** Run `sand api show sand::data::NbtValue::Float::0` for the canonical contract."]
+        f32,
+    ),
+    #[doc = "Selects the double NBT or data-command operation."]
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtValue::Double` for the canonical contract."]
+    Double(
+        #[doc = "The `Double` variant carries the value described by its variant semantics: Selects the double NBT or data-command operation."]
+        #[doc = "**API Contract:** Run `sand api show sand::data::NbtValue::Double::0` for the canonical contract."]
+        f64,
+    ),
+    #[doc = "Selects the string NBT or data-command operation."]
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtValue::String` for the canonical contract."]
+    String(
+        #[doc = "The `String` variant carries the value described by its variant semantics: Selects the string NBT or data-command operation."]
+        #[doc = "**API Contract:** Run `sand api show sand::data::NbtValue::String::0` for the canonical contract."]
+        String,
+    ),
+    #[doc = "Selects the list NBT or data-command operation."]
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtValue::List` for the canonical contract."]
+    List(
+        #[doc = "The `List` variant carries the value described by its variant semantics: Selects the list NBT or data-command operation."]
+        #[doc = "**API Contract:** Run `sand api show sand::data::NbtValue::List::0` for the canonical contract."]
+        Vec<NbtValue>,
+    ),
+    #[doc = "Selects the compound NBT or data-command operation."]
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtValue::Compound` for the canonical contract."]
+    Compound(
+        #[doc = "The `Compound` variant carries the value described by its variant semantics: Selects the compound NBT or data-command operation."]
+        #[doc = "**API Contract:** Run `sand api show sand::data::NbtValue::Compound::0` for the canonical contract."]
+        NbtCompound,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::data::NbtValue::Raw` for the canonical contract."]
     /// Explicit opaque SNBT. Sand renders this unchanged and does not parse it.
-    Raw(String),
+    Raw(
+        #[doc = "The `Raw` variant carries the value described by its variant semantics: Explicit opaque SNBT. Sand renders this unchanged and does not parse it."]
+        #[doc = "**API Contract:** Run `sand api show sand::data::NbtValue::Raw::0` for the canonical contract."]
+        String,
+    ),
 }
 
 impl NbtValue {
@@ -121,6 +187,7 @@ impl From<NbtCompound> for NbtValue {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::data::NbtCompound` for the canonical contract."]
 /// A typed SNBT compound preserving declaration order.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct NbtCompound {
@@ -180,6 +247,7 @@ fn render_compound_key(key: &str) -> String {
 
 // ── Paths and targets ────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::data::NbtPath` for the canonical contract."]
 /// A standalone NBT path, independent of the location it is later attached to.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct NbtPath {
@@ -359,12 +427,31 @@ fn validate_nbt_path(path: &str) -> CommandResult<()> {
     Ok(())
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::data::DataTarget` for the canonical contract."]
 /// Canonical typed location for vanilla `data` commands.
 #[derive(Debug, Clone)]
 pub enum DataTarget {
-    Entity(Selector),
-    Block(BlockPos),
-    Storage(String),
+    #[doc = "Selects the entity NBT or data-command operation."]
+    #[doc = "**API Contract:** Run `sand api show sand::data::DataTarget::Entity` for the canonical contract."]
+    Entity(
+        #[doc = "The `Entity` variant carries the value described by its variant semantics: Selects the entity NBT or data-command operation."]
+        #[doc = "**API Contract:** Run `sand api show sand::data::DataTarget::Entity::0` for the canonical contract."]
+        Selector,
+    ),
+    #[doc = "Selects the block NBT or data-command operation."]
+    #[doc = "**API Contract:** Run `sand api show sand::data::DataTarget::Block` for the canonical contract."]
+    Block(
+        #[doc = "The `Block` variant carries the value described by its variant semantics: Selects the block NBT or data-command operation."]
+        #[doc = "**API Contract:** Run `sand api show sand::data::DataTarget::Block::0` for the canonical contract."]
+        BlockPos,
+    ),
+    #[doc = "Selects the storage NBT or data-command operation."]
+    #[doc = "**API Contract:** Run `sand api show sand::data::DataTarget::Storage` for the canonical contract."]
+    Storage(
+        #[doc = "The `Storage` variant carries the value described by its variant semantics: Selects the storage NBT or data-command operation."]
+        #[doc = "**API Contract:** Run `sand api show sand::data::DataTarget::Storage::0` for the canonical contract."]
+        String,
+    ),
 }
 
 impl PartialEq for DataTarget {
@@ -475,6 +562,7 @@ fn selector_may_be_many(selector: &str) -> bool {
             && !selector.contains("limit=1"))
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::data::Nbt` for the canonical contract."]
 /// Factory for discoverable typed NBT target construction.
 pub struct Nbt;
 
@@ -498,6 +586,7 @@ impl Nbt {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::data::NbtTarget` for the canonical contract."]
 /// An NBT location before a path is selected.
 #[derive(Debug, Clone)]
 pub struct NbtTarget {
@@ -536,10 +625,12 @@ impl NbtTarget {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::data::UntypedNbt` for the canonical contract."]
 /// Marker for an NBT reference without a declared schema value type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct UntypedNbt;
 
+#[doc = "**API Contract:** Run `sand api show sand::data::NbtRef` for the canonical contract."]
 /// A typed target-plus-path reference shared by storage, entity, block, schema,
 /// and inventory APIs.
 #[derive(Debug, Clone)]
@@ -772,38 +863,100 @@ impl<T> NbtRef<T> {
 
 // ── Typed data command IR ────────────────────────────────────────────────────
 
+#[doc = "Defines data modify operation for typed Minecraft NBT and data commands."]
+#[doc = "**API Contract:** Run `sand api show sand::data::DataModifyOperation` for the canonical contract."]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DataModifyOperation {
+    #[doc = "Selects the set NBT or data-command operation."]
+    #[doc = "**API Contract:** Run `sand api show sand::data::DataModifyOperation::Set` for the canonical contract."]
     Set,
+    #[doc = "Selects the append NBT or data-command operation."]
+    #[doc = "**API Contract:** Run `sand api show sand::data::DataModifyOperation::Append` for the canonical contract."]
     Append,
+    #[doc = "Selects the prepend NBT or data-command operation."]
+    #[doc = "**API Contract:** Run `sand api show sand::data::DataModifyOperation::Prepend` for the canonical contract."]
     Prepend,
-    Insert(i32),
+    #[doc = "Selects the insert NBT or data-command operation."]
+    #[doc = "**API Contract:** Run `sand api show sand::data::DataModifyOperation::Insert` for the canonical contract."]
+    Insert(
+        #[doc = "The `Insert` variant carries the value described by its variant semantics: Selects the insert NBT or data-command operation."]
+        #[doc = "**API Contract:** Run `sand api show sand::data::DataModifyOperation::Insert::0` for the canonical contract."]
+        i32,
+    ),
+    #[doc = "Selects the merge NBT or data-command operation."]
+    #[doc = "**API Contract:** Run `sand api show sand::data::DataModifyOperation::Merge` for the canonical contract."]
     Merge,
 }
 
+#[doc = "Defines data source for typed Minecraft NBT and data commands."]
+#[doc = "**API Contract:** Run `sand api show sand::data::DataSource` for the canonical contract."]
 #[derive(Debug, Clone)]
 pub enum DataSource {
-    Value(NbtValue),
-    From(NbtRef),
-    String(NbtRef),
+    #[doc = "Selects the value NBT or data-command operation."]
+    #[doc = "**API Contract:** Run `sand api show sand::data::DataSource::Value` for the canonical contract."]
+    Value(
+        #[doc = "The `Value` variant carries the value described by its variant semantics: Selects the value NBT or data-command operation."]
+        #[doc = "**API Contract:** Run `sand api show sand::data::DataSource::Value::0` for the canonical contract."]
+        NbtValue,
+    ),
+    #[doc = "Selects the from NBT or data-command operation."]
+    #[doc = "**API Contract:** Run `sand api show sand::data::DataSource::From` for the canonical contract."]
+    From(
+        #[doc = "The `From` variant carries the value described by its variant semantics: Selects the from NBT or data-command operation."]
+        #[doc = "**API Contract:** Run `sand api show sand::data::DataSource::From::0` for the canonical contract."]
+        NbtRef,
+    ),
+    #[doc = "Selects the string NBT or data-command operation."]
+    #[doc = "**API Contract:** Run `sand api show sand::data::DataSource::String` for the canonical contract."]
+    String(
+        #[doc = "The `String` variant carries the value described by its variant semantics: Selects the string NBT or data-command operation."]
+        #[doc = "**API Contract:** Run `sand api show sand::data::DataSource::String::0` for the canonical contract."]
+        NbtRef,
+    ),
 }
 
+#[doc = "Defines data command for typed Minecraft NBT and data commands."]
+#[doc = "**API Contract:** Run `sand api show sand::data::DataCommand` for the canonical contract."]
 #[derive(Debug, Clone)]
 pub enum DataCommand {
+    #[doc = "Selects the get NBT or data-command operation."]
+    #[doc = "**API Contract:** Run `sand api show sand::data::DataCommand::Get` for the canonical contract."]
     Get {
+        /// `source` provides the source when the variant selects the get NBT or data-command operation.
+        #[doc = "**API Contract:** Run `sand api show sand::data::DataCommand::Get::source` for the canonical contract."]
         source: NbtRef,
+        /// `scale` optionally provides the particle scale when the variant selects the get NBT or data-command operation.
+        #[doc = "**API Contract:** Run `sand api show sand::data::DataCommand::Get::scale` for the canonical contract."]
         scale: Option<f64>,
     },
+    #[doc = "Selects the remove NBT or data-command operation."]
+    #[doc = "**API Contract:** Run `sand api show sand::data::DataCommand::Remove` for the canonical contract."]
     Remove {
+        /// `target` provides the command target when the variant selects the remove NBT or data-command operation.
+        #[doc = "**API Contract:** Run `sand api show sand::data::DataCommand::Remove::target` for the canonical contract."]
         target: NbtRef,
     },
+    #[doc = "Selects the modify NBT or data-command operation."]
+    #[doc = "**API Contract:** Run `sand api show sand::data::DataCommand::Modify` for the canonical contract."]
     Modify {
+        /// `target` provides the command target when the variant selects the modify NBT or data-command operation.
+        #[doc = "**API Contract:** Run `sand api show sand::data::DataCommand::Modify::target` for the canonical contract."]
         target: NbtRef,
+        /// `operation` provides the operation when the variant selects the modify NBT or data-command operation.
+        #[doc = "**API Contract:** Run `sand api show sand::data::DataCommand::Modify::operation` for the canonical contract."]
         operation: DataModifyOperation,
+        /// `source` provides the source when the variant selects the modify NBT or data-command operation.
+        #[doc = "**API Contract:** Run `sand api show sand::data::DataCommand::Modify::source` for the canonical contract."]
         source: DataSource,
     },
+    #[doc = "Selects the merge NBT or data-command operation."]
+    #[doc = "**API Contract:** Run `sand api show sand::data::DataCommand::Merge` for the canonical contract."]
     Merge {
+        /// `target` provides the command target when the variant selects the merge NBT or data-command operation.
+        #[doc = "**API Contract:** Run `sand api show sand::data::DataCommand::Merge::target` for the canonical contract."]
         target: DataTarget,
+        /// `value` provides the value when the variant selects the merge NBT or data-command operation.
+        #[doc = "**API Contract:** Run `sand api show sand::data::DataCommand::Merge::value` for the canonical contract."]
         value: NbtCompound,
     },
 }
@@ -1040,6 +1193,7 @@ pub(crate) fn validate_registered_line(line: &str, profile: &CommandProfile) -> 
 
 // ── Compatibility DataModify builder ────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::DataModify` for the canonical contract."]
 /// Compatibility adapter over [`NbtRef`]. New code should start from [`Nbt`].
 #[derive(Debug, Clone)]
 pub struct DataModify {

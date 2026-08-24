@@ -118,6 +118,7 @@ use crate::state::{
 
 // ── Typed field handles ──────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::systems::player_data::ScoreField` for the canonical contract."]
 /// Schema field handle backed by the existing [`ScoreVar`].
 pub struct ScoreField<T = i32> {
     value: ScoreVar<T>,
@@ -160,6 +161,7 @@ impl<T> ScoreField<T> {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::systems::player_data::FlagField` for the canonical contract."]
 /// Schema field handle backed by the existing [`Flag`].
 pub struct FlagField {
     value: Flag,
@@ -202,6 +204,7 @@ impl FlagField {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::systems::player_data::TimerField` for the canonical contract."]
 /// Schema field handle backed by the existing [`Timer`].
 pub struct TimerField {
     value: Timer,
@@ -232,6 +235,8 @@ impl TimerField {
     }
 }
 
+#[doc = "Configures timer field ref in the player data gameplay system."]
+#[doc = "**API Contract:** Run `sand api show sand::systems::player_data::TimerFieldRef` for the canonical contract."]
 pub struct TimerFieldRef<'a> {
     field: &'a TimerField,
     selector: String,
@@ -263,6 +268,7 @@ impl TimerFieldRef<'_> {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::systems::player_data::CooldownField` for the canonical contract."]
 /// Schema field handle backed by the existing [`Cooldown`].
 pub struct CooldownField {
     value: Cooldown,
@@ -293,6 +299,8 @@ impl CooldownField {
     }
 }
 
+#[doc = "Configures cooldown field ref in the player data gameplay system."]
+#[doc = "**API Contract:** Run `sand api show sand::systems::player_data::CooldownFieldRef` for the canonical contract."]
 pub struct CooldownFieldRef<'a> {
     field: &'a CooldownField,
     selector: String,
@@ -324,6 +332,7 @@ impl CooldownFieldRef<'_> {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::systems::player_data::GameStateField` for the canonical contract."]
 /// Schema field handle backed by the existing enum-backed [`GameState`].
 pub struct GameStateField<S: TypedGameState> {
     value: GameState<S>,
@@ -359,6 +368,7 @@ impl<S: TypedGameState> GameStateField<S> {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::systems::player_data::GlobalStorageField` for the canonical contract."]
 /// Explicit global-storage field handle. It never claims player scoping.
 pub struct GlobalStorageField<Schema, T> {
     value: StorageField<Schema, T>,
@@ -451,6 +461,7 @@ pub struct StorageDescriptor {
 
 // ── PlayerDataSchema ──────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::systems::player_data::PlayerDataSchema` for the canonical contract."]
 /// A mixed per-player data bundle: scoreboard fields, flags, cooldowns,
 /// and attached storage schema references.
 ///

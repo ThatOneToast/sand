@@ -103,6 +103,7 @@ impl LayoutEntry {
 
 // ── HudLayout ─────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::resourcepack::HudLayout` for the canonical contract."]
 /// Composes multiple HUD bars and elements into a single actionbar command set.
 ///
 /// See the [module-level documentation](crate::layout) for a full walkthrough.

@@ -41,6 +41,7 @@ fn f32_to_json(value: f32) -> Value {
 /// override these.
 const TYPED_CONFIG_FIELDS: &[&str] = &["probability", "y", "yScale", "lava_level"];
 
+#[doc = "**API Contract:** Run `sand api show sand::component::CarverFloatRange` for the canonical contract."]
 /// A `minecraft:uniform` float provider (`{"type": "minecraft:uniform",
 /// "min_inclusive": …, "max_inclusive": …}`), used for the `yScale` field of
 /// cave-shaped carver configs.
@@ -96,6 +97,7 @@ impl CarverFloatRange {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::CaveCarverConfig` for the canonical contract."]
 /// Config shared by the `minecraft:cave` and `minecraft:nether_cave` carver
 /// types.
 #[derive(Debug, Clone, PartialEq)]
@@ -212,6 +214,7 @@ impl Carver {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::ConfiguredCarver` for the canonical contract."]
 /// A configured carver definition
 /// (`data/<namespace>/worldgen/configured_carver/<id>.json`).
 ///

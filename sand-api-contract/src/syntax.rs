@@ -164,6 +164,7 @@ pub fn validate_generated_expansion(
     contracts: &[GeneratedApiContract],
 ) -> syn::Result<Vec<GeneratedApiShape>> {
     let file: syn::File = syn::parse2(expansion)?;
+    reject_uncontracted_exported_macros(&file.items)?;
     let mut public_owners = external_owners.into_iter().collect::<BTreeSet<_>>();
     for item in &file.items {
         match item {
@@ -376,7 +377,7 @@ pub fn validate_generated_expansion(
             example: Some(&contract.example),
         })
         .map_err(|message| syn::Error::new(proc_macro2::Span::call_site(), message))?;
-        if !crate::has_specific_semantics(&contract.summary) {
+        if !generated_semantic_is_substantive(&contract.summary) {
             return Err(syn::Error::new(
                 proc_macro2::Span::call_site(),
                 format!(
@@ -385,10 +386,41 @@ pub fn validate_generated_expansion(
                 ),
             ));
         }
+        for (field, values) in [
+            ("context", std::slice::from_ref(&contract.context)),
+            (
+                "Minecraft behavior",
+                std::slice::from_ref(&contract.minecraft),
+            ),
+            ("use_when", contract.use_when.as_slice()),
+            ("avoid_when", contract.avoid_when.as_slice()),
+        ] {
+            if values
+                .iter()
+                .any(|value| !generated_semantic_is_substantive(value))
+            {
+                return Err(syn::Error::new(
+                    proc_macro2::Span::call_site(),
+                    format!(
+                        "generated API contract `{}` has generic filler in `{field}`",
+                        contract.target
+                    ),
+                ));
+            }
+        }
+        if !generated_example_is_behavioral(&contract.example) {
+            return Err(syn::Error::new(
+                proc_macro2::Span::call_site(),
+                format!(
+                    "generated API contract `{}` lacks a behavioral example",
+                    contract.target
+                ),
+            ));
+        }
         if contract.parameters.iter().any(|(name, description)| {
             name.trim().is_empty()
                 || description.trim().is_empty()
-                || generated_semantic_is_filler(description)
+                || !generated_structured_description_is_substantive(description)
         }) {
             return Err(syn::Error::new(
                 proc_macro2::Span::call_site(),
@@ -399,7 +431,7 @@ pub fn validate_generated_expansion(
             ));
         }
         if contract.returns.as_ref().is_some_and(|returns| {
-            returns.trim().is_empty() || generated_semantic_is_filler(returns)
+            returns.trim().is_empty() || !generated_structured_description_is_substantive(returns)
         }) {
             return Err(syn::Error::new(
                 proc_macro2::Span::call_site(),
@@ -466,6 +498,31 @@ pub fn validate_generated_expansion(
     Ok(discovered.into_values().map(|(shape, _)| shape).collect())
 }
 
+fn reject_uncontracted_exported_macros(items: &[syn::Item]) -> syn::Result<()> {
+    for item in items {
+        match item {
+            syn::Item::Macro(item)
+                if item
+                    .attrs
+                    .iter()
+                    .any(|attribute| attribute.path().is_ident("macro_export")) =>
+            {
+                return Err(syn::Error::new_spanned(
+                    item,
+                    "generated expansion exports a declarative macro without a supported generated-macro contract kind",
+                ));
+            }
+            syn::Item::Mod(module) => {
+                if let Some((_, nested)) = &module.content {
+                    reject_uncontracted_exported_macros(nested)?;
+                }
+            }
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
 fn generated_semantic_is_filler(value: &str) -> bool {
     let normalized = value.trim().to_ascii_lowercase();
     normalized.contains("source-derived")
@@ -474,6 +531,48 @@ fn generated_semantic_is_filler(value: &str) -> bool {
         || normalized.contains("author-facing api")
         || normalized == "returns value"
         || normalized == "the value"
+}
+
+fn generated_semantic_is_substantive(value: &str) -> bool {
+    let word_count = value
+        .split(|character: char| !character.is_alphanumeric() && character != '_')
+        .filter(|word| !word.is_empty())
+        .count();
+    word_count >= 4 && crate::has_specific_semantics(value) && !generated_semantic_is_filler(value)
+}
+
+fn generated_structured_description_is_substantive(value: &str) -> bool {
+    let word_count = value
+        .split(|character: char| !character.is_alphanumeric() && character != '_')
+        .filter(|word| !word.is_empty())
+        .count();
+    word_count >= 3 && crate::has_specific_semantics(value) && !generated_semantic_is_filler(value)
+}
+
+fn generated_example_is_behavioral(example: &str) -> bool {
+    let normalized = example.trim().to_ascii_lowercase();
+    if normalized.is_empty()
+        || normalized.contains("todo!()")
+        || normalized.contains("unimplemented!()")
+        || normalized.contains("unreachable!()")
+    {
+        return false;
+    }
+    let behavior = example
+        .lines()
+        .map(str::trim)
+        .filter(|line| {
+            !line.is_empty()
+                && !line.starts_with("use ")
+                && !line.starts_with("//")
+                && !line.starts_with('#')
+        })
+        .collect::<Vec<_>>()
+        .join(" ");
+    !behavior.is_empty()
+        && ['(', '=', '.', '{', ';']
+            .into_iter()
+            .any(|token| behavior.contains(token))
 }
 
 fn public_visibility(visibility: &Visibility) -> bool {
@@ -1600,6 +1699,28 @@ mod tests {
         assert_eq!(shapes[0].return_type.as_deref(), Some("BarHandle"));
         assert!(shapes[0].signature.contains("pub const HEALTH_BAR"));
 
+        for leaked_macro in [
+            quote! {
+                #expansion
+                #[macro_export]
+                macro_rules! generated_api { () => {}; }
+            },
+            quote! {
+                #expansion
+                mod private_plumbing {
+                    #[macro_export]
+                    macro_rules! generated_api { () => {}; }
+                }
+            },
+        ] {
+            assert!(
+                validate_generated_expansion(leaked_macro, [], std::slice::from_ref(&contract))
+                    .unwrap_err()
+                    .to_string()
+                    .contains("exports a declarative macro")
+            );
+        }
+
         let mut wrong_kind = contract;
         wrong_kind.kind = GeneratedApiKind::AssociatedConst;
         assert!(
@@ -1658,6 +1779,40 @@ mod tests {
                 .unwrap_err()
                 .to_string()
                 .contains("empty or generic return")
+        );
+
+        let filler_expansion = quote! {
+            #[doc = "Loads the widget into generated state."]
+            #[doc = "# API Contract"]
+            #[doc = "**Context:** Context."]
+            #[doc = "**Minecraft behavior:** Minecraft."]
+            #[doc = "**Use when:** Use it"]
+            #[doc = "**Avoid when:** Avoid it"]
+            #[doc = "**Parameters:** `objective` — Use the objective value here."]
+            #[doc = "**Returns:** Returns the generated stored integer score."]
+            #[doc = "**Example:** `todo!()`"]
+            pub fn load(objective: Objective) -> i32 { 0 }
+        };
+        let filler = GeneratedApiContract {
+            target: "load".to_owned(),
+            kind: GeneratedApiKind::Function,
+            summary: "Loads the widget into generated state.".to_owned(),
+            context: "Context.".to_owned(),
+            minecraft: "Minecraft.".to_owned(),
+            use_when: vec!["Use it".to_owned()],
+            avoid_when: vec!["Avoid it".to_owned()],
+            parameters: BTreeMap::from([(
+                "objective".to_owned(),
+                "Use the objective value here.".to_owned(),
+            )]),
+            returns: Some("Returns the generated stored integer score.".to_owned()),
+            example: "todo!()".to_owned(),
+        };
+        assert!(
+            validate_generated_expansion(filler_expansion, [], &[filler])
+                .unwrap_err()
+                .to_string()
+                .contains("generic filler")
         );
     }
 }

@@ -15,6 +15,7 @@ use crate::error::Result as SandResult;
 use crate::resource_location::ResourceLocation;
 use crate::validation;
 
+#[doc = "**API Contract:** Run `sand api show sand::component::BannerPattern` for the canonical contract."]
 /// A banner pattern definition (`data/<namespace>/banner_pattern/<id>.json`).
 ///
 /// Banner patterns define custom designs that can be applied to banners and shields

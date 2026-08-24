@@ -61,6 +61,7 @@ pub const DAMAGE_HURT_AGE_OBJ: &str = "sd_dmg_hurt";
 
 // ── DamageThreshold ───────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageThreshold` for the canonical contract."]
 /// A damage amount threshold for querying [`DamageTracker`] conditions.
 ///
 /// # Units
@@ -76,10 +77,20 @@ pub const DAMAGE_HURT_AGE_OBJ: &str = "sd_dmg_hurt";
 /// positive raw stat value.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum DamageThreshold {
+    #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageThreshold::Hearts` for the canonical contract."]
     /// Number of hearts (1.0 = 1 heart = 10 stat units).
-    Hearts(f32),
+    Hearts(
+        #[doc = "Configures the 0 value used by this gameplay system."]
+        #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageThreshold::Hearts::0` for the canonical contract."]
+        f32,
+    ),
+    #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageThreshold::RawStat` for the canonical contract."]
     /// Raw Minecraft stat units (same scale as `minecraft.damage_taken`).
-    RawStat(i32),
+    RawStat(
+        #[doc = "Configures the 0 value used by this gameplay system."]
+        #[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageThreshold::RawStat::0` for the canonical contract."]
+        i32,
+    ),
 }
 
 impl DamageThreshold {
@@ -173,6 +184,7 @@ impl DamageThreshold {
 
 // ── DamageTracker ─────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::systems::damage::DamageTracker` for the canonical contract."]
 /// Tracks per-tick damage state for players via cumulative scoreboard stats.
 ///
 /// Maintains five objectives:

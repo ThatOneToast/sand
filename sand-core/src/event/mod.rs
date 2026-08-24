@@ -274,6 +274,7 @@ pub trait AdvancementEvent {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::event::DamageAdvancementEvent` for the canonical contract."]
 /// Capability marker for advancement events that represent player damage.
 ///
 /// Vanilla advancement reward functions identify the triggering player as
@@ -282,8 +283,32 @@ pub trait AdvancementEvent {
 /// add a real tracking system before using same-as-event damage.
 pub trait DamageAdvancementEvent: AdvancementEvent {}
 
+#[doc = "**API Contract:** Run `sand api show sand::event::EventPlayer` for the canonical contract."]
+/// Provides the executing-player selector to legacy bare-marker event
+/// handlers.
+///
+/// `#[on_event]` still accepts built-in marker parameters such as
+/// `event: OnJoinEvent`. In that compatibility form the marker is a stateless
+/// context value and `player()` returns the `@s` player selected by Sand's
+/// generated dispatcher. Prefer [`Event<E>`] for new advancement-backed
+/// handlers; this trait keeps existing bare-marker authoring source-compatible.
+pub trait EventPlayer {
+    /// Returns `@s`, the player for whom the event handler is executing.
+    #[doc = "**API Contract:** Run `sand api show sand::event::EventPlayer::player` for the canonical contract."]
+    fn player(&self) -> sand_commands::Selector {
+        sand_commands::Selector::self_()
+    }
+}
+
+impl<T: crate::events::SandEvent> EventPlayer for T {}
+impl EventPlayer for crate::events::OnJoinEvent {}
+impl EventPlayer for crate::events::FirstJoinEvent {}
+impl EventPlayer for crate::events::OnDeathEvent {}
+impl EventPlayer for crate::events::OnRespawnEvent {}
+
 // ── Event<E> — handler context ───────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::event::Event` for the canonical contract."]
 /// Zero-cost runtime context for `#[on_event]`-annotated advancement handlers.
 ///
 /// Inside an `#[on_event]` handler, the generated code creates an `Event<E>`
@@ -456,6 +481,7 @@ impl<E: DamageAdvancementEvent> Event<E> {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::event::DamageEvent` for the canonical contract."]
 /// Damage-specific event handler context for `#[on_event]` functions.
 ///
 /// Use `DamageEvent<T>` when `T: DamageAdvancementEvent`. It exposes the

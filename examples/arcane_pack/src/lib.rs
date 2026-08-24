@@ -254,9 +254,9 @@ pub fn dash_wand_item() -> CustomItem {
         ]))
         .component(ItemComponent::custom_data_marker("arcane_wand"))
         .component(ItemComponent::custom_model_data(1001))
-        .component(ItemComponent::rarity(Rarity::Rare))
+        .component(ItemComponent::rarity(ItemRarity::Rare))
         .component(ItemComponent::attribute_modifier(
-            AttributeModifier::new(AttributeId::AttackSpeed)
+            AttributeModifier::new(AttributeType::AttackSpeed)
                 .amount(0.2)
                 .operation(AttributeOperation::AddValue)
                 .slot(EquipmentSlotGroup::Mainhand),

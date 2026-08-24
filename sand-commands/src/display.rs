@@ -8,6 +8,7 @@ use crate::render::{CommandProfile, RenderCommand, Validate};
 use crate::selector::Selector;
 use crate::text::TextComponent;
 
+#[doc = "**API Contract:** Run `sand api show sand::command::Title` for the canonical contract."]
 /// Builder for a title payload and its timing command.
 #[derive(Debug, Clone)]
 pub struct Title {
@@ -140,6 +141,7 @@ impl Validate for Title {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::command::TitleTimes` for the canonical contract."]
 /// Explicit timing-only title command.
 #[derive(Debug, Clone)]
 pub struct TitleTimes {
@@ -229,6 +231,7 @@ impl RenderCommand for TitleCommand {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::command::Actionbar` for the canonical contract."]
 /// Actionbar command helpers.
 pub struct Actionbar;
 
@@ -260,7 +263,20 @@ impl Actionbar {
         .build_registered()
     }
 
-    /// Opaque selector/JSON escape hatch.
+    /// Renders an actionbar command from an unchecked selector and raw JSON text.
+    ///
+    /// `selector` is inserted verbatim as the command target and `json` is inserted
+    /// verbatim as the text-component payload. Use [`Actionbar::show`] when typed
+    /// selector and text validation are available.
+    ///
+    /// Returns the rendered `title <selector> actionbar <json>` command line.
+    ///
+    /// ```rust
+    /// use sand_commands::Actionbar;
+    ///
+    /// let command = Actionbar::show_raw("@s", r#"{"text":"Ready"}"#);
+    /// assert_eq!(command, r#"title @s actionbar {"text":"Ready"}"#);
+    /// ```
     #[doc = "**API Contract:** Run `sand api show sand::command::Actionbar::show_raw` for the canonical contract."]
     pub fn show_raw(selector: impl fmt::Display, json: impl fmt::Display) -> String {
         TitleCommand::RawActionbar {
@@ -271,14 +287,30 @@ impl Actionbar {
     }
 }
 
+#[doc = "Defines the supported bossbar color forms for typed Minecraft commands."]
+#[doc = "**API Contract:** Run `sand api show sand::command::BossbarColor` for the canonical contract."]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BossbarColor {
+    #[doc = "Selects the blue form of the bossbar color Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarColor::Blue` for the canonical contract."]
     Blue,
+    #[doc = "Selects the green form of the bossbar color Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarColor::Green` for the canonical contract."]
     Green,
+    #[doc = "Selects the pink form of the bossbar color Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarColor::Pink` for the canonical contract."]
     Pink,
+    #[doc = "Selects the purple form of the bossbar color Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarColor::Purple` for the canonical contract."]
     Purple,
+    #[doc = "Selects the red form of the bossbar color Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarColor::Red` for the canonical contract."]
     Red,
+    #[doc = "Selects the white form of the bossbar color Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarColor::White` for the canonical contract."]
     White,
+    #[doc = "Selects the yellow form of the bossbar color Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarColor::Yellow` for the canonical contract."]
     Yellow,
 }
 
@@ -296,12 +328,24 @@ impl fmt::Display for BossbarColor {
     }
 }
 
+#[doc = "Defines the supported bossbar style forms for typed Minecraft commands."]
+#[doc = "**API Contract:** Run `sand api show sand::command::BossbarStyle` for the canonical contract."]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BossbarStyle {
+    #[doc = "Selects the progress form of the bossbar style Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarStyle::Progress` for the canonical contract."]
     Progress,
+    #[doc = "Selects the notched6 form of the bossbar style Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarStyle::Notched6` for the canonical contract."]
     Notched6,
+    #[doc = "Selects the notched10 form of the bossbar style Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarStyle::Notched10` for the canonical contract."]
     Notched10,
+    #[doc = "Selects the notched12 form of the bossbar style Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarStyle::Notched12` for the canonical contract."]
     Notched12,
+    #[doc = "Selects the notched20 form of the bossbar style Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarStyle::Notched20` for the canonical contract."]
     Notched20,
 }
 
@@ -317,6 +361,7 @@ impl fmt::Display for BossbarStyle {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::command::BossbarId` for the canonical contract."]
 /// Canonical validated bossbar resource location.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BossbarId {
@@ -369,6 +414,7 @@ impl From<String> for BossbarId {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::command::IntoBossbarId` for the canonical contract."]
 /// Conversion into a bossbar resource-location token.
 pub trait IntoBossbarId {
     /// Converts a value into the validated bossbar identifier accepted by command builders.
@@ -394,20 +440,110 @@ impl IntoBossbarId for &str {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand` for the canonical contract."]
 /// Typed bossbar terminal command.
 #[derive(Debug, Clone)]
 pub enum BossbarCommand {
-    Add { id: BossbarId, name: TextComponent },
-    Remove { id: BossbarId },
+    #[doc = "Selects the add form of the bossbar command Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::Add` for the canonical contract."]
+    Add {
+        #[doc = "`id` provides the identifier when the variant selects the add form of the bossbar command Minecraft command value."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::Add::id` for the canonical contract."]
+        id: BossbarId,
+        #[doc = "`name` provides the name when the variant selects the add form of the bossbar command Minecraft command value."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::Add::name` for the canonical contract."]
+        name: TextComponent,
+    },
+    #[doc = "Selects the remove form of the bossbar command Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::Remove` for the canonical contract."]
+    Remove {
+        #[doc = "`id` provides the identifier when the variant selects the remove form of the bossbar command Minecraft command value."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::Remove::id` for the canonical contract."]
+        id: BossbarId,
+    },
+    #[doc = "Selects the list form of the bossbar command Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::List` for the canonical contract."]
     List,
-    SetName { id: BossbarId, name: TextComponent },
-    SetColor { id: BossbarId, color: BossbarColor },
-    SetStyle { id: BossbarId, style: BossbarStyle },
-    SetValue { id: BossbarId, value: u32 },
-    SetMax { id: BossbarId, max: u32 },
-    SetVisible { id: BossbarId, visible: bool },
-    SetPlayers { id: BossbarId, players: Selector },
-    Get { id: BossbarId, field: &'static str },
+    #[doc = "Selects the set name form of the bossbar command Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::SetName` for the canonical contract."]
+    SetName {
+        #[doc = "`id` provides the identifier when the variant selects the set name form of the bossbar command Minecraft command value."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::SetName::id` for the canonical contract."]
+        id: BossbarId,
+        #[doc = "`name` provides the name when the variant selects the set name form of the bossbar command Minecraft command value."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::SetName::name` for the canonical contract."]
+        name: TextComponent,
+    },
+    #[doc = "Selects the set color form of the bossbar command Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::SetColor` for the canonical contract."]
+    SetColor {
+        #[doc = "`id` provides the identifier when the variant selects the set color form of the bossbar command Minecraft command value."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::SetColor::id` for the canonical contract."]
+        id: BossbarId,
+        #[doc = "`color` provides the color when the variant selects the set color form of the bossbar command Minecraft command value."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::SetColor::color` for the canonical contract."]
+        color: BossbarColor,
+    },
+    #[doc = "Selects the set style form of the bossbar command Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::SetStyle` for the canonical contract."]
+    SetStyle {
+        #[doc = "`id` provides the identifier when the variant selects the set style form of the bossbar command Minecraft command value."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::SetStyle::id` for the canonical contract."]
+        id: BossbarId,
+        #[doc = "`style` provides the style when the variant selects the set style form of the bossbar command Minecraft command value."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::SetStyle::style` for the canonical contract."]
+        style: BossbarStyle,
+    },
+    #[doc = "Selects the set value form of the bossbar command Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::SetValue` for the canonical contract."]
+    SetValue {
+        #[doc = "`id` provides the identifier when the variant selects the set value form of the bossbar command Minecraft command value."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::SetValue::id` for the canonical contract."]
+        id: BossbarId,
+        #[doc = "`value` provides the value when the variant selects the set value form of the bossbar command Minecraft command value."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::SetValue::value` for the canonical contract."]
+        value: u32,
+    },
+    #[doc = "Selects the set max form of the bossbar command Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::SetMax` for the canonical contract."]
+    SetMax {
+        #[doc = "`id` provides the identifier when the variant selects the set max form of the bossbar command Minecraft command value."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::SetMax::id` for the canonical contract."]
+        id: BossbarId,
+        #[doc = "`max` provides the maximum value when the variant selects the set max form of the bossbar command Minecraft command value."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::SetMax::max` for the canonical contract."]
+        max: u32,
+    },
+    #[doc = "Selects the set visible form of the bossbar command Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::SetVisible` for the canonical contract."]
+    SetVisible {
+        #[doc = "`id` provides the identifier when the variant selects the set visible form of the bossbar command Minecraft command value."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::SetVisible::id` for the canonical contract."]
+        id: BossbarId,
+        #[doc = "`visible` provides the visible when the variant selects the set visible form of the bossbar command Minecraft command value."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::SetVisible::visible` for the canonical contract."]
+        visible: bool,
+    },
+    #[doc = "Selects the set players form of the bossbar command Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::SetPlayers` for the canonical contract."]
+    SetPlayers {
+        #[doc = "`id` provides the identifier when the variant selects the set players form of the bossbar command Minecraft command value."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::SetPlayers::id` for the canonical contract."]
+        id: BossbarId,
+        #[doc = "`players` provides the players when the variant selects the set players form of the bossbar command Minecraft command value."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::SetPlayers::players` for the canonical contract."]
+        players: Selector,
+    },
+    #[doc = "Selects the get form of the bossbar command Minecraft command value."]
+    #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::Get` for the canonical contract."]
+    Get {
+        #[doc = "`id` provides the identifier when the variant selects the get form of the bossbar command Minecraft command value."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::Get::id` for the canonical contract."]
+        id: BossbarId,
+        #[doc = "`field` provides the field when the variant selects the get form of the bossbar command Minecraft command value."]
+        #[doc = "**API Contract:** Run `sand api show sand::command::BossbarCommand::Get::field` for the canonical contract."]
+        field: &'static str,
+    },
 }
 
 impl BossbarCommand {
@@ -480,6 +616,8 @@ impl RenderCommand for BossbarCommand {
     }
 }
 
+#[doc = "Builds or represents the typed bossbar Minecraft command value."]
+#[doc = "**API Contract:** Run `sand api show sand::command::Bossbar` for the canonical contract."]
 pub struct Bossbar;
 
 impl Bossbar {

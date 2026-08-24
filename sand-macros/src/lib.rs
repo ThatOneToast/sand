@@ -63,6 +63,7 @@ fn validate_preserved_public_surface(
 ) -> syn::Result<()> {
     let file: syn::File = syn::parse2(expansion.clone())?;
     let mut actual = Vec::new();
+    collect_exported_macro_surface(&file.items, &mut actual);
     for item in &file.items {
         if let syn::Item::Impl(item_impl) = item
             && item_impl.trait_.is_none()
@@ -99,19 +100,6 @@ fn validate_preserved_public_surface(
             }
             syn::Item::Fn(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
                 Some(format!("fn {}", item.sig.ident))
-            }
-            syn::Item::Macro(item)
-                if item
-                    .attrs
-                    .iter()
-                    .any(|attr| attr.path().is_ident("macro_export")) =>
-            {
-                Some(format!(
-                    "exported macro {}",
-                    item.ident
-                        .as_ref()
-                        .map_or_else(|| "<anonymous>".to_owned(), ToString::to_string)
-                ))
             }
             syn::Item::Mod(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
                 Some(format!("mod {}", item.ident))
@@ -156,6 +144,32 @@ fn validate_preserved_public_surface(
         ));
     }
     Ok(())
+}
+
+fn collect_exported_macro_surface(items: &[syn::Item], actual: &mut Vec<String>) {
+    for item in items {
+        match item {
+            syn::Item::Macro(item)
+                if item
+                    .attrs
+                    .iter()
+                    .any(|attr| attr.path().is_ident("macro_export")) =>
+            {
+                actual.push(format!(
+                    "exported macro {}",
+                    item.ident
+                        .as_ref()
+                        .map_or_else(|| "<anonymous>".to_owned(), ToString::to_string)
+                ));
+            }
+            syn::Item::Mod(module) => {
+                if let Some((_, items)) = &module.content {
+                    collect_exported_macro_surface(items, actual);
+                }
+            }
+            _ => {}
+        }
+    }
 }
 
 fn expected_public_function(function: &ItemFn) -> Option<String> {
@@ -4194,19 +4208,26 @@ mod consumer_surface_policy_tests {
 
     #[test]
     fn output_free_expansion_rejects_exported_declarative_macros() {
-        let expansion = quote! {
-            #[macro_export]
-            macro_rules! generated_api {
-                () => {};
-            }
-        };
-        let error = validate_preserved_public_surface(&expansion, None).unwrap_err();
-        let rendered = error.to_string();
-        assert!(rendered.contains("public-surface drift"), "{rendered}");
-        assert!(
-            rendered.contains("exported macro generated_api"),
-            "{rendered}"
-        );
+        for expansion in [
+            quote! {
+                #[macro_export]
+                macro_rules! generated_api { () => {}; }
+            },
+            quote! {
+                mod private_plumbing {
+                    #[macro_export]
+                    macro_rules! generated_api { () => {}; }
+                }
+            },
+        ] {
+            let error = validate_preserved_public_surface(&expansion, None).unwrap_err();
+            let rendered = error.to_string();
+            assert!(rendered.contains("public-surface drift"), "{rendered}");
+            assert!(
+                rendered.contains("exported macro generated_api"),
+                "{rendered}"
+            );
+        }
     }
 
     #[test]

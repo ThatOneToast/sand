@@ -256,6 +256,7 @@ fn validate_modifier_str(
 
 // ── Inventory ─────────────────────────────────────────────────────────────────
 
+#[doc = "**API Contract:** Run `sand api show sand::command::Inventory` for the canonical contract."]
 /// Fluent inventory operations for an entity selector.
 #[derive(Debug, Clone)]
 pub struct Inventory {

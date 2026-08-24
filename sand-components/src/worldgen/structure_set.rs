@@ -20,6 +20,7 @@ const KIND: &str = "worldgen/structure_set";
 
 const TYPED_FIELDS: &[&str] = &["structures", "placement"];
 
+#[doc = "**API Contract:** Run `sand api show sand::component::StructureEntry` for the canonical contract."]
 /// A weighted `worldgen/structure` reference inside a structure set.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StructureEntry {
@@ -60,6 +61,7 @@ impl StructureEntry {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::ExclusionZone` for the canonical contract."]
 /// The exclusion-zone chunk count that another structure set must keep clear
 /// around a placement.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -107,12 +109,21 @@ impl ExclusionZone {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::FrequencyReductionMethod` for the canonical contract."]
 /// The frequency reduction curve for random-spread placement.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FrequencyReductionMethod {
+    #[doc = "Selects the default form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::FrequencyReductionMethod::Default` for the canonical contract."]
     Default,
+    #[doc = "Selects the legacy type1 form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::FrequencyReductionMethod::LegacyType1` for the canonical contract."]
     LegacyType1,
+    #[doc = "Selects the legacy type2 form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::FrequencyReductionMethod::LegacyType2` for the canonical contract."]
     LegacyType2,
+    #[doc = "Selects the legacy type3 form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::FrequencyReductionMethod::LegacyType3` for the canonical contract."]
     LegacyType3,
 }
 
@@ -129,10 +140,15 @@ impl FrequencyReductionMethod {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::SpreadType` for the canonical contract."]
 /// How random-spread candidate chunks are chosen inside each spacing cell.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SpreadType {
+    #[doc = "Selects the linear form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::SpreadType::Linear` for the canonical contract."]
     Linear,
+    #[doc = "Selects the triangular form in this typed Minecraft component schema."]
+    #[doc = "**API Contract:** Run `sand api show sand::component::SpreadType::Triangular` for the canonical contract."]
     Triangular,
 }
 
@@ -147,24 +163,47 @@ impl SpreadType {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::StructurePlacement` for the canonical contract."]
 /// A structure-set placement strategy.
 #[derive(Debug, Clone, PartialEq)]
 pub enum StructurePlacement {
+    #[doc = "**API Contract:** Run `sand api show sand::component::StructurePlacement::RandomSpread` for the canonical contract."]
     /// `minecraft:random_spread` — an evenly distributed grid with jitter.
     RandomSpread {
+        /// `spacing` provides the spacing when `minecraft:random_spread` — an evenly distributed grid with jitter.
+        #[doc = "**API Contract:** Run `sand api show sand::component::StructurePlacement::RandomSpread::spacing` for the canonical contract."]
         spacing: u32,
+        /// `separation` provides the separation when `minecraft:random_spread` — an evenly distributed grid with jitter.
+        #[doc = "**API Contract:** Run `sand api show sand::component::StructurePlacement::RandomSpread::separation` for the canonical contract."]
         separation: u32,
+        /// `salt` provides the salt when `minecraft:random_spread` — an evenly distributed grid with jitter.
+        #[doc = "**API Contract:** Run `sand api show sand::component::StructurePlacement::RandomSpread::salt` for the canonical contract."]
         salt: i32,
+        /// `spread_type` provides the spread type when `minecraft:random_spread` — an evenly distributed grid with jitter.
+        #[doc = "**API Contract:** Run `sand api show sand::component::StructurePlacement::RandomSpread::spread_type` for the canonical contract."]
         spread_type: SpreadType,
+        /// `frequency` optionally supplies the placement frequency for this random-spread strategy.
+        #[doc = "**API Contract:** Run `sand api show sand::component::StructurePlacement::RandomSpread::frequency` for the canonical contract."]
         frequency: Option<f32>,
+        /// `frequency_reduction_method` optionally provides the frequency reduction method when `minecraft:random_spread` — an evenly distributed grid with jitter.
+        #[doc = "**API Contract:** Run `sand api show sand::component::StructurePlacement::RandomSpread::frequency_reduction_method` for the canonical contract."]
         frequency_reduction_method: Option<FrequencyReductionMethod>,
     },
+    #[doc = "**API Contract:** Run `sand api show sand::component::StructurePlacement::ConcentricRings` for the canonical contract."]
     /// `minecraft:concentric_rings` — rings of candidate chunks around the
     /// world origin, as used by strongholds.
     ConcentricRings {
+        /// `distance` provides the distance when `minecraft:concentric_rings` — rings of candidate chunks around the world origin, as used by strongholds.
+        #[doc = "**API Contract:** Run `sand api show sand::component::StructurePlacement::ConcentricRings::distance` for the canonical contract."]
         distance: u32,
+        /// `spread` provides the spread when `minecraft:concentric_rings` — rings of candidate chunks around the world origin, as used by strongholds.
+        #[doc = "**API Contract:** Run `sand api show sand::component::StructurePlacement::ConcentricRings::spread` for the canonical contract."]
         spread: u32,
+        /// `count` provides the count when `minecraft:concentric_rings` — rings of candidate chunks around the world origin, as used by strongholds.
+        #[doc = "**API Contract:** Run `sand api show sand::component::StructurePlacement::ConcentricRings::count` for the canonical contract."]
         count: u32,
+        /// `preferred_biomes` optionally provides the preferred biomes when `minecraft:concentric_rings` — rings of candidate chunks around the world origin, as used by strongholds.
+        #[doc = "**API Contract:** Run `sand api show sand::component::StructurePlacement::ConcentricRings::preferred_biomes` for the canonical contract."]
         preferred_biomes: Option<Vec<String>>,
     },
 }
@@ -335,6 +374,7 @@ impl StructurePlacement {
     }
 }
 
+#[doc = "**API Contract:** Run `sand api show sand::component::StructureSet` for the canonical contract."]
 /// A structure set definition (`data/<namespace>/worldgen/structure_set/<id>.json`).
 ///
 /// ```

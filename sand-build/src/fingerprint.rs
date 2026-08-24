@@ -11,9 +11,9 @@
 //! This is a change-detection fingerprint, not a security boundary. SHA-1's
 //! cryptographic weaknesses (chosen-prefix collisions) are irrelevant to
 //! detecting accidental content drift at Sand's scale, and reusing SHA-1 —
-//! already a dependency for verifying Mojang's server jar download in
-//! [`crate::download`] — avoids pulling a second hashing crate into the
-//! build graph purely for a build-performance feature.
+//! already a dependency for verifying Mojang's server jar download (see the
+//! crate-private `download` module) — avoids pulling a second hashing crate
+//! into the build graph purely for a build-performance feature.
 
 use sha1::{Digest, Sha1};
 

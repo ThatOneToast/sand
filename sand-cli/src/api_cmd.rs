@@ -3592,6 +3592,66 @@ mod tests {
         );
     }
 
+    #[test]
+    fn all_exported_event_marker_examples_compile_in_a_downstream_crate() {
+        use std::fs;
+        use std::process::Command;
+
+        let catalog = generated_catalog();
+        let item_examples = catalog
+            .entries
+            .iter()
+            .filter(|entry| {
+                let example = entry.example.trim_start();
+                entry.canonical_path.starts_with("sand::events::")
+                    && example.starts_with("#[sand::on_event")
+                    && example.contains('\n')
+            })
+            .collect::<Vec<_>>();
+        assert!(
+            item_examples.len() >= 60,
+            "expected repository-wide event-marker example coverage, found {}",
+            item_examples.len()
+        );
+
+        let mut source = String::new();
+        for (index, entry) in item_examples.iter().enumerate() {
+            source.push_str(&format!(
+                "#[allow(dead_code, unused_imports, unused_variables, unreachable_code)]\nmod example_{index} {{\nuse sand::prelude::*;\n{}\n}}\n",
+                entry.example
+            ));
+        }
+
+        let project = tempfile::tempdir().expect("create downstream event-example crate");
+        let workspace = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .expect("sand-cli is inside the workspace");
+        fs::create_dir(project.path().join("src")).expect("create source directory");
+        fs::write(
+            project.path().join("Cargo.toml"),
+            format!(
+                "[package]\nname = \"sand-contract-event-example-check\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[dependencies]\nsand = {{ path = {:?}, features = [\"systems-all\", \"resourcepack\"] }}\nserde_json = \"1\"\n",
+                workspace.join("sand")
+            ),
+        )
+        .expect("write downstream manifest");
+        fs::write(project.path().join("src/lib.rs"), source)
+            .expect("write downstream event examples");
+        let target = workspace.join("target/exported-api-event-example-check");
+        let output = Command::new(env!("CARGO"))
+            .current_dir(project.path())
+            .env("CARGO_TARGET_DIR", &target)
+            .args(["check", "--offline", "--quiet"])
+            .output()
+            .expect("run downstream cargo check");
+        assert!(
+            output.status.success(),
+            "all {} exported event-marker examples must compile:\n{}",
+            item_examples.len(),
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+
     #[cfg(any(feature = "systems-player-data", feature = "systems-all"))]
     #[test]
     fn family_contracts_use_item_specific_source_documentation() {

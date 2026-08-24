@@ -57,7 +57,7 @@ pub use crate::systems::damage::{DamageThreshold, DamageTracker, recently_damage
 #[cfg(feature = "systems-player-data")]
 pub use crate::systems::player_data::{
     CooldownField, CooldownFieldRef, FlagField, GameStateField, GlobalStorageField,
-    PlayerDataSchema, ScoreField, TimerField, TimerFieldRef,
+    PlayerDataSchema, PlayerSchema, ScoreField, TimerField, TimerFieldRef,
 };
 
 // ── Version gating ────────────────────────────────────────────────────────────

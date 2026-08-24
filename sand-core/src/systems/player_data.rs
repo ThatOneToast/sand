@@ -775,7 +775,7 @@ impl PlayerDataSchema {
 }
 
 /// Compatibility alias for the earlier, shorter player-schema name.
-pub type PlayerSchema = PlayerDataSchema;
+pub use PlayerDataSchema as PlayerSchema;
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 

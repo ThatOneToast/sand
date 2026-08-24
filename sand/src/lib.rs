@@ -532,7 +532,7 @@ pub mod systems {
         #[doc = include_str!("api_contract_rustdoc.md")]
         pub use sand_core::systems::player_data::{
             CooldownField, CooldownFieldRef, FlagField, GameStateField, GlobalStorageField,
-            PlayerDataSchema, ScoreField, TimerField, TimerFieldRef,
+            PlayerDataSchema, PlayerSchema, ScoreField, TimerField, TimerFieldRef,
         };
     }
 

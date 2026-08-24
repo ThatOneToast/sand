@@ -1,0 +1,10 @@
+[package]
+name = "player-data-feature-closure"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[dependencies]
+sand = { path = "../../..", default-features = false, features = ["systems-player-data"] }

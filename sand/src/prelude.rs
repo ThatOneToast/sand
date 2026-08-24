@@ -48,7 +48,8 @@
 //!   directly after `use sand::prelude::*;`.
 //! - **Optional systems** — gameplay building blocks gated behind their
 //!   Cargo feature (e.g. `DamageTracker`/`DamageThreshold` behind
-//!   `systems-damage`, `PlayerDataSchema` behind `systems-player-data`); see
+//!   `systems-damage`, `PlayerDataSchema`/`PlayerSchema` behind
+//!   `systems-player-data`); see
 //!   [`crate::systems`].
 //!
 //! Anything not listed above — VFX ([`crate::vfx`]), the event dispatch

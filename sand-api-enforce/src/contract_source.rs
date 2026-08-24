@@ -373,9 +373,11 @@ fn callable_signature(signature: &syn::Signature, visibility: Option<&syn::Visib
 }
 
 fn field_signature(field: &syn::Field, include_visibility: bool) -> String {
-    let visibility = include_visibility
-        .then(|| field.vis.to_token_stream().to_string())
-        .unwrap_or_default();
+    let visibility = if include_visibility {
+        field.vis.to_token_stream().to_string()
+    } else {
+        String::new()
+    };
     let declaration = match &field.ident {
         Some(name) => format!("{name}: {}", field.ty.to_token_stream()),
         None => field.ty.to_token_stream().to_string(),
